@@ -1,3 +1,4 @@
+import { useCustomerAccountCopy } from "./useCustomerAccountCopy";
 import type { ReactNode } from "react";
 import { Building2 } from "lucide-react";
 import type { PlatformCompanySummary } from "../../api/platformAdmin";
@@ -38,6 +39,8 @@ export function CustomersTable({
   onAssignDistributor,
   canExtendTrials,
   onExtendTrial,
+  canRequestPayment,
+  onRequestPayment,
   canDelete,
   onDelete,
   compact = false,
@@ -56,11 +59,14 @@ export function CustomersTable({
   onAssignDistributor?: (company: PlatformCompanySummary) => void;
   canExtendTrials?: boolean;
   onExtendTrial?: (company: PlatformCompanySummary) => void;
+  canRequestPayment?: boolean;
+  onRequestPayment?: (company: PlatformCompanySummary) => void;
   canDelete?: boolean;
   onDelete?: (company: PlatformCompanySummary) => void;
   compact?: boolean;
 }) {
-  const copy = getCustomerTableCopy(english);
+  const { locale, t } = useCustomerAccountCopy();
+  const copy = getCustomerTableCopy(locale);
   const headerLabels = getCustomerTableColumnLabels(copy);
   const { columnWidths, resizeColumn } = usePersistentColumnWidths<CustomerTableColumnId>({
     defaults: customerTableDefaultWidths,
@@ -78,9 +84,7 @@ export function CustomersTable({
     contentMinimumWidth: customerTableMinimumWidths[columnId],
     maxWidth: customerTableMaximumWidths[columnId],
     sortable: true,
-    resizeLabel: english
-      ? `Resize ${headerLabels[columnId]} column`
-      : `Ajustar columna ${headerLabels[columnId]}`,
+    resizeLabel: t("resizeColumn", { name: headerLabels[columnId] }),
   }));
   const minimumWidth = getIndiceTableMinimumWidth({
     actionsWidth: customerTableActionsWidth,
@@ -115,6 +119,8 @@ export function CustomersTable({
               onAssignDistributor={onAssignDistributor}
               canExtendTrials={canExtendTrials}
               onExtendTrial={onExtendTrial}
+              canRequestPayment={canRequestPayment}
+              onRequestPayment={onRequestPayment}
               canDelete={canDelete}
               onDelete={onDelete}
               onOpenCompany={onOpenCompany}

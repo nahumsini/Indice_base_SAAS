@@ -64,6 +64,35 @@ Local stack with extra admin/debug ports:
 ./deployment/scripts/up.sh dev
 ```
 
+## Local development login
+
+The workstation targets `make backend` and `make dev` run Spring with the
+`local,minio` profiles, bind the API to `127.0.0.1`, and use the local frontend
+URL (`http://127.0.0.1:5174` by default). They explicitly enable the local login
+MFA bypass and disable outbound email and signup email verification. This also
+allows local privileged accounts to sign in without an emailed code.
+
+The backend accepts that bypass only with the `local` profile, a literal
+loopback server bind, a loopback public web URL, and ordinary MFA disabled.
+Combining the bypass with `prod`, `production`, `staging`, or `apptest`, or with
+a nonlocal bind or URL, fails startup. The storage profile `minio` alone never
+authorizes a bypass. Production defaults remain secure: deployment Compose
+explicitly disables the local bypass, and preflight rejects a configured local
+bypass or an active `local` profile.
+
+To exercise real email verification locally, opt in with
+`LOCAL_AUTH_MFA_REQUIRED=true LOCAL_EMAIL_ENABLED=true
+LOCAL_SIGNUP_EMAIL_VERIFICATION_ENABLED=true make backend` and separately
+provide the configured email provider credentials. Keep provider credentials
+out of frontend startup. The Make targets do not automatically read `.env.local`.
+
+To restart only application processes without changing the database, stop the
+current Make session, then run `make backend` and `make frontend` in separate
+terminals. Stopping a backend launched by `make dev` also stops its frontend
+through the cleanup trap. `make backend` does not start or reset infrastructure;
+leave the existing local MySQL and MinIO services running. Database resets are
+explicitly separate under `make db-reset`.
+
 ## Preflight de despliegue
 
 ### Base aislada para las pruebas del backend
@@ -127,11 +156,16 @@ un registry.
 ### Publicación segura del catálogo en Stripe
 
 En APPTEST, configura Stripe en modo `test`, conserva
-`APP_BILLING_STRIPE_CATALOG_LIVE_SYNC_ENABLED=false` y usa el administrador de
-plataforma para conectar los precios. La acción **Validar oferta** vuelve a
+`APP_BILLING_STRIPE_CATALOG_LIVE_SYNC_ENABLED=false` y abre **Administración de
+plataforma → Catálogo y módulos → Oferta comercial** para conectar los precios. La acción **Validar oferta** vuelve a
 consultar Stripe y compara cuenta, modo, Product, Price, importe, moneda,
 intervalo, impuestos y promociones. Sólo una validación sin bloqueos habilita
 **Publicar oferta**.
+
+El panel de configuración de la conexión Stripe está en **Facturación**, junto a los registros de
+cobro existentes. Muestra la configuración del servidor; no verifica credenciales, permisos ni
+entregas reales. Los productos, precios, validación y publicación permanecen en
+**Catálogo y módulos → Oferta comercial**. Se conserva la navegación existente.
 
 No cambies una base que contiene referencias TEST directamente a LIVE mientras
 existe tráfico. Para preparar producción:
@@ -141,9 +175,15 @@ existe tráfico. Para preparar producción:
 3. Abre una ventana de mantenimiento sin altas ni cambios de suscripción.
 4. Despliega temporalmente con modo `live` y
    `APP_BILLING_STRIPE_CATALOG_LIVE_SYNC_ENABLED=true`.
-5. Un administrador `PLATFORM_ROOT` sincroniza cada producto enviando
-   `target_mode=LIVE` y la confirmación exacta `PUBLICAR EN STRIPE LIVE`.
-6. Valida remotamente la oferta, revisa la cuenta mostrada y publícala.
+5. Un administrador `PLATFORM_ROOT` abre **Catálogo y módulos → Oferta comercial**, revisa los importes del borrador y usa
+   **Guardar precios** para conservar cada cambio localmente. Esta acción no
+   requiere Stripe ni modifica la oferta activa.
+6. Usa **Sincronizar y publicar oferta** con `target_mode=LIVE` y la confirmación
+   exacta `PUBLICAR EN STRIPE LIVE`. La operación sincroniza los productos
+   vendibles reutilizando precios coincidentes, verifica cuenta, modo e importes y activa la versión
+   sólo si la validación completa pasa. La conexión individual y la validación
+   previa siguen disponibles. Ante un fallo, revisa el estado actualizado y
+   reintenta la misma versión; no crees manualmente otro catálogo en Stripe.
 7. Restaura inmediatamente
    `APP_BILLING_STRIPE_CATALOG_LIVE_SYNC_ENABLED=false`, recrea el backend y
    ejecuta el smoke test.
@@ -153,7 +193,29 @@ procesadores, provisioning, lifecycle, entitlement enforcement ni autoriza por
 sí misma cobros públicos. Si cualquier referencia no coincide, conserva la
 versión activa anterior y ejecuta el rollback de aplicación documentado.
 
+`APP_BILLING_STRIPE_ENABLED` también controla Checkout, la lectura de secretos
+y la recepción del webhook. Por ello debe estar habilitada durante la
+sincronización. La ventana de mantenimiento debe bloquear efectivamente las
+nuevas altas y las mutaciones de facturación de clientes en el acceso público,
+manteniendo disponible el webhook firmado y el acceso Root autorizado. Comprueba
+ese bloqueo desde una sesión de cliente antes de habilitar Stripe; ocultar un
+botón o retirar un enlace no bloquea los endpoints. La verificación de dicha
+regla depende del proxy real y pertenece al registro del despliegue.
+
+Si la petición de publicación vence en el proxy, consulta el estado de la
+versión antes de reintentar. La interfaz vuelve a consultar el catálogo incluso
+ante un error de respuesta; el backend conserva los intentos por producto y
+rechaza publicaciones concurrentes. Un reinicio o timeout no equivale a un
+rollback de las operaciones que Stripe ya confirmó.
+
 ### Conservación de precios durante un despliegue
+
+La cobranza administrativa por empresa se configura por separado en
+[`INDICE_PAYMENT_COLLECTION_RUNBOOK.md`](../docs/INDICE_PAYMENT_COLLECTION_RUNBOOK.md).
+Los flags `APP_BILLING_COLLECTION_*` se entregan apagados y el despliegue no inscribe clientes.
+Antes de habilitar la acción Root, verifica Stripe, correo y workers en el entorno destino.
+Si existen solicitudes abiertas, conserva una versión compatible con su enforcement y
+recuperación durante rollback; apagar creación/envíos no elimina un bloqueo vencido.
 
 Un despliegue de aplicación no publica, recalcula ni reemplaza precios. Los
 importes vigentes pertenecen a las versiones persistidas en

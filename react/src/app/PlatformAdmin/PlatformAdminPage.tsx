@@ -1,3 +1,8 @@
+import { catalogProductLabel } from "./CatalogWorkspace/catalogLabels";
+import { catalogValidationMessage } from "./CatalogWorkspace/catalogValidationMessage";
+import { PlatformAdminLanguageSelect } from "./PlatformAdminLanguageSelect";
+import { usePlatformAdminTranslations } from "./translations/usePlatformAdminTranslations";
+import { getPlatformAdminTranslator, type PlatformAdminLocale } from "./translations";
 import {
   useCallback,
   useEffect,
@@ -92,10 +97,17 @@ import DistributorAssignmentModal from "./DistributorAssignmentModal";
 import { QuickTestAccountModal } from "./QuickTestAccount";
 import CompanyAccountDrawer, { type CompanyAccountTab } from "./CompanyAccountDrawer";
 import { CustomerUsersModal } from "./Customers/CustomerUsersModal";
+import { PaymentRequestModal } from "./Customers/PaymentRequestModal";
 import ConsultingAdminTab from "./ConsultingAdminTab";
 import { CompaniesDirectoryTab } from "./UsersDirectoryTab";
 import { CatalogProductCard } from "./Catalog";
 import { CommercialOfferWorkspace, ModuleAvailabilityWorkspace } from "./CatalogWorkspace";
+import { CatalogPublishDialog } from "./CatalogWorkspace/CatalogPublishDialog";
+import { publishCatalogOffer } from "./CatalogWorkspace/catalogPublication";
+import { stripeEnvironmentLabel } from "./CatalogWorkspace/commercialOfferPresentation";
+import { StripeSetupPanel } from "./BillingWorkspace/StripeSetupPanel";
+import { StripeDemoConnectionDialog } from "./BillingWorkspace/StripeDemoConnectionDialog";
+import { canUseLocalStripeDemo } from "./BillingWorkspace/localStripeDemo";
 import {
   CustomersTable,
   CustomerColumnsModal,
@@ -115,6 +127,7 @@ import {
   useModuleWorkOrders,
 } from "./ModuleWorkOrders";
 import {
+  flowOptionLabel,
   accessDayOptions,
   accessReasonOptions,
   currencyOptions,
@@ -265,16 +278,20 @@ const isAdminTab = (value: unknown): value is AdminTab =>
   typeof value === "string" &&
   tabDefinitions.some((tab) => tab.id === value);
 
-const offerLabels: Record<string, string> = {
-  basic_1: "Un módulo",
-  basic_2: "Dos módulos",
-  basic_3: "Tres módulos",
-  basic_all: "Cuatro o más módulos",
-  extra_seat: "Usuario adicional",
-  storage_block: "Almacenamiento adicional",
+const offerLabels = (locale: string): Record<string, string> => {
+  const t = getPlatformAdminTranslator(locale);
+  return {
+  basic_1: t("One module"),
+  basic_2: t("Two modules"),
+  basic_3: t("Three modules"),
+  basic_all: t("Four or more modules"),
+  extra_seat: t("Additional user"),
+  storage_block: t("Additional storage"),
+  };
 };
 
 export default function PlatformAdminPage() {
+  const { t, locale } = usePlatformAdminTranslations();
   const navigate = useNavigate();
   const { currentLanguage } = useLanguage();
   const english = !currentLanguage.code.startsWith("es");
@@ -282,9 +299,9 @@ export default function PlatformAdminPage() {
     () =>
       tabDefinitions.map((tab) => ({
         ...tab,
-        label: english ? tab.en : tab.es,
+        label: t(tab.en as Parameters<typeof t>[0]),
       })),
-    [english],
+    [t],
   );
   const [activeTab, setActiveTab] = useState<AdminTab>("customers");
   const adminNavigationState = useMemo(
@@ -331,6 +348,23 @@ export default function PlatformAdminPage() {
   const [overview, setOverview] = useState<PlatformOverview | null>(null);
   const [billing, setBilling] = useState<PlatformBilling | null>(null);
   const [catalog, setCatalog] = useState<PlatformCatalog | null>(null);
+  const [stripeDemoConnected, setStripeDemoConnected] = useState(false);
+  const [stripeDemoDialogOpen, setStripeDemoDialogOpen] = useState(false);
+  const canDemoConnect = canUseLocalStripeDemo(import.meta.env.DEV, window.location.hostname, context?.role);
+  const [stripeStatusRefreshing, setStripeStatusRefreshing] = useState(false);
+  const [stripeStatusError, setStripeStatusError] = useState("");
+  const refreshStripeStatus = async () => {
+    if (stripeStatusRefreshing) return;
+    setStripeStatusRefreshing(true);
+    setStripeStatusError("");
+    try {
+      setCatalog(await platformAdminApi.getCatalog());
+    } catch (refreshError) {
+      setStripeStatusError(t("Stripe setup status could not be refreshed."));
+    } finally {
+      setStripeStatusRefreshing(false);
+    }
+  };
   const [moduleRegistry, setModuleRegistry] = useState<PlatformModules | null>(
     null,
   );
@@ -372,6 +406,7 @@ export default function PlatformAdminPage() {
     useState("");
   const [trialExtension, setTrialExtension] =
     useState<PlatformCompanySummary | null>(null);
+  const [paymentRequestCompany, setPaymentRequestCompany] = useState<PlatformCompanySummary | null>(null);
   const [companyDeletion, setCompanyDeletion] = useState<PlatformCompanySummary | null>(null);
   const [companyDeletionName, setCompanyDeletionName] = useState("");
   const [companyDeletionReason, setCompanyDeletionReason] = useState("");
@@ -380,13 +415,13 @@ export default function PlatformAdminPage() {
   const [courtesyAccessOpen, setCourtesyAccessOpen] = useState(false);
   const [revocation, setRevocation] = useState<Revocation>(null);
   const [revocationReason, setRevocationReason] = useState(
-    "Fin de cortesía o promoción",
+    t("End of courtesy or promotion"),
   );
   const [revocationError, setRevocationError] = useState("");
   const [moduleChange, setModuleChange] =
     useState<ModuleAvailabilityChange>(null);
   const [moduleChangeReason, setModuleChangeReason] = useState(
-    "Disponibilidad global administrada desde el panel root",
+    t("Global availability managed from the Root panel"),
   );
   const [moduleChangeError, setModuleChangeError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -443,21 +478,17 @@ export default function PlatformAdminPage() {
       const failures = requests.filter((result) => result.status === "rejected");
       if (failures.length) {
         setError(
-          english
-            ? `${failures.length} section(s) could not be loaded. The available sections remain usable; refresh to retry.`
-            : `No se pudieron cargar ${failures.length} sección(es). Las secciones disponibles siguen funcionando; actualiza para reintentar.`,
+          t("{p0} section(s) could not be loaded. The available sections remain usable; refresh to retry.", { p0: failures.length }),
         );
       }
     } catch (loadError) {
       setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "No se pudo cargar la operación de plataforma.",
+        t("Platform operations could not be loaded."),
       );
     } finally {
       setLoading(false);
     }
-  }, [english, overviewOptions, overviewOptionsKey]);
+  }, [t, overviewOptions, overviewOptionsKey]);
 
   useEffect(() => {
     if (initialLoadStarted.current) return;
@@ -481,11 +512,7 @@ export default function PlatformAdminPage() {
       } catch (loadError) {
         if (!cancelled && requestSequence === overviewRequestSequence.current) {
           setError(
-            loadError instanceof Error
-              ? loadError.message
-              : english
-                ? "The customer portfolio could not be updated."
-                : "No se pudo actualizar la cartera de clientes.",
+            t("The customer portfolio could not be updated."),
           );
         }
       } finally {
@@ -498,7 +525,7 @@ export default function PlatformAdminPage() {
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [context, english, loading, overviewOptions, overviewOptionsKey]);
+  }, [context, t, loading, overviewOptions, overviewOptionsKey]);
 
   useEffect(() => {
     if (!loading && canCreateAccounts && hasAccountCreationDraft()) {
@@ -536,9 +563,7 @@ export default function PlatformAdminPage() {
       );
     } catch (loadError) {
       setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "No se pudo cargar la cuenta.",
+        t("The account could not be loaded."),
       );
     }
   };
@@ -549,9 +574,7 @@ export default function PlatformAdminPage() {
       setUsersCompany(await platformAdminApi.getCompany(company.id));
     } catch (loadError) {
       setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "No se pudieron cargar los usuarios de la cuenta.",
+        t("Account users could not be loaded."),
       );
     }
   };
@@ -582,15 +605,13 @@ export default function PlatformAdminPage() {
       setOverview(await platformAdminApi.getOverview(overviewOptions));
       setAccountFeedback({
         type: "success",
-        message: english
-          ? `${companyDeletion.name} was marked as deleted. Its history was preserved.`
-          : `${companyDeletion.name} quedó como Eliminado. Su historial fue conservado.`,
+        message: t("{p0} was marked as deleted. Its history was preserved.", { p0: companyDeletion.name }),
       });
       setCompanyDeletion(null);
       setCompanyDeletionName("");
       setCompanyDeletionReason("");
     } catch (deletionError) {
-      const message = deletionError instanceof Error ? deletionError.message : "No se pudo eliminar la cuenta.";
+      const message = t("The account could not be deleted.");
       setCompanyDeletionError(message);
       setError(message);
     } finally {
@@ -635,11 +656,7 @@ export default function PlatformAdminPage() {
       setAccountTypeEdit(null);
     } catch (saveError) {
       setAccountTypeEditError(
-        saveError instanceof Error
-          ? saveError.message
-          : english
-            ? "The user type could not be updated."
-            : "No se pudo actualizar el tipo de usuario.",
+        t("The user type could not be updated."),
       );
     } finally {
       setSaving(false);
@@ -668,11 +685,7 @@ export default function PlatformAdminPage() {
       setDistributorAssignment(null);
     } catch (saveError) {
       setDistributorAssignmentError(
-        saveError instanceof Error
-          ? saveError.message
-          : english
-            ? "The distributor could not be assigned."
-            : "No se pudo asignar el distribuidor.",
+        t("The distributor could not be assigned."),
       );
     } finally {
       setSaving(false);
@@ -697,11 +710,7 @@ export default function PlatformAdminPage() {
       setTrialExtension(null);
     } catch (saveError) {
       setTrialExtensionError(
-        saveError instanceof Error
-          ? saveError.message
-          : english
-            ? "The trial could not be extended."
-            : "No se pudo extender el periodo de prueba.",
+        t("The trial could not be extended."),
       );
     } finally {
       setSaving(false);
@@ -724,7 +733,7 @@ export default function PlatformAdminPage() {
         product_code: productCode,
         quantity: 1,
         source_type: "SUPPORT",
-        reason: "Acceso de módulo administrado desde la cuenta Root.",
+        reason: t("Module access managed from the Root account."),
         campaign_code: "ROOT-ACCESS",
         ends_at: accessEndsAt,
       });
@@ -735,13 +744,11 @@ export default function PlatformAdminPage() {
         )?.display_name || productCode;
       setAccountFeedback({
         type: "success",
-        message: `${productName} quedó habilitado y sincronizado con el acceso real de la cuenta.`,
+        message: t("{p0} was enabled and synchronized with the account's access.", { p0: productName }),
       });
     } catch (saveError) {
       const message =
-        saveError instanceof Error
-          ? saveError.message
-          : "No se pudo habilitar el módulo.";
+        t("The module could not be enabled.");
       setError(message);
       setAccountFeedback({ type: "error", message });
     } finally {
@@ -750,7 +757,7 @@ export default function PlatformAdminPage() {
   };
 
   const previewCompanyProducts = async (productCodes: string[]) => {
-    if (!selected) throw new Error("Selecciona una cuenta antes de revisar el cambio.");
+    if (!selected) throw new Error(t("Select an account before reviewing the change."));
     return platformAdminApi.previewCompanyProducts(selected.id, productCodes);
   };
 
@@ -768,13 +775,11 @@ export default function PlatformAdminPage() {
       await refreshOverviewAndCompany();
       setAccountFeedback({
         type: "success",
-        message: `El cambio de ${result.product_codes.length} módulo(s) quedó programado sin cargo inmediato. Se aplicará al acceso después del pago en la fecha de corte${result.effective_at ? ` (${new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(new Date(result.effective_at))})` : ""}.`,
+        message: t("The change to {p0} module(s) was scheduled without an immediate charge. Access will update after payment on the billing date{p1}.", { p0: result.product_codes.length, p1: result.effective_at ? ` (${new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(result.effective_at))})` : "" }),
       });
       return true;
     } catch (saveError) {
-      const message = saveError instanceof Error
-        ? saveError.message
-        : "No se pudieron actualizar los módulos de la cuenta.";
+      const message = t("Account modules could not be updated.");
       setError(message);
       setAccountFeedback({ type: "error", message });
       return false;
@@ -794,14 +799,12 @@ export default function PlatformAdminPage() {
       setAccountFeedback({
         type: "success",
         message: enabled
-          ? "La empresa ya aparece en /demo y acepta sus credenciales existentes sin MFA únicamente por esa ruta."
-          : "La empresa dejó de aceptar accesos desde /demo. El inicio de sesión normal no cambió.",
+          ? t("The company now appears on /demo and accepts its existing credentials without MFA only on that route.")
+          : t("The company no longer accepts /demo access. Normal sign-in is unchanged."),
       });
       return true;
     } catch (saveError) {
-      const message = saveError instanceof Error
-        ? saveError.message
-        : "No se pudo actualizar el acceso demo público.";
+      const message = t("Public demo access could not be updated.");
       setError(message);
       setAccountFeedback({ type: "error", message });
       return false;
@@ -838,13 +841,11 @@ export default function PlatformAdminPage() {
       setAccountFeedback({
         type: "success",
         message:
-          "El ajuste se aplicó correctamente y quedó registrado en auditoría.",
+          t("The adjustment was applied and recorded in the audit log."),
       });
     } catch (saveError) {
       const message =
-        saveError instanceof Error
-          ? saveError.message
-          : "No se pudo otorgar el beneficio.";
+        t("The benefit could not be granted.");
       setError(message);
       setAccountFeedback({ type: "error", message });
     } finally {
@@ -878,13 +879,11 @@ export default function PlatformAdminPage() {
       setCourtesyFeedback({
         kind: "success",
         message:
-          "El acceso promocional quedó generado. Copia el código antes de cerrar.",
+          t("Promotional access was generated. Copy the code before closing."),
       });
     } catch (saveError) {
       const message =
-        saveError instanceof Error
-          ? saveError.message
-          : "No se pudo generar el acceso promocional.";
+        t("Promotional access could not be generated.");
       setError(message);
       setCourtesyFeedback({ kind: "error", message });
     } finally {
@@ -907,7 +906,7 @@ export default function PlatformAdminPage() {
         await refreshOverviewAndCompany();
         setAccountFeedback({
           type: "success",
-          message: `${revocation.label || "El acceso"} se retiró y la cuenta quedó sincronizada.`,
+          message: t("{p0} was removed and the account was synchronized.", { p0: revocation.label || t("Access") }),
         });
       } else {
         await platformAdminApi.revokeCourtesyCode(
@@ -918,12 +917,10 @@ export default function PlatformAdminPage() {
       }
       setRevocation(null);
       setRevocationError("");
-      setRevocationReason("Fin de cortesía o promoción");
+      setRevocationReason(t("End of courtesy or promotion"));
     } catch (revokeError) {
       const message =
-        revokeError instanceof Error
-          ? revokeError.message
-          : "No se pudo completar la revocación.";
+        t("Revocation could not be completed.");
       setError(message);
       if (revocation.kind === "benefit")
         setAccountFeedback({ type: "error", message });
@@ -948,12 +945,10 @@ export default function PlatformAdminPage() {
       setModuleChange(null);
       setModuleChangeError("");
       setModuleChangeReason(
-        "Disponibilidad global administrada desde el panel root",
+        t("Global availability managed from the Root panel"),
       );
     } catch (saveError) {
-      const message = saveError instanceof Error
-        ? saveError.message
-        : "No se pudo cambiar la disponibilidad global del módulo.";
+      const message = t("Global module availability could not be changed.");
       setModuleChangeError(message);
       setError(message);
     } finally {
@@ -961,7 +956,7 @@ export default function PlatformAdminPage() {
     }
   };
 
-  const environment = environmentLabel();
+  const environment = environmentLabel(locale);
   return (
     <main
       className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-white"
@@ -979,9 +974,7 @@ export default function PlatformAdminPage() {
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h1 className="truncate text-base font-medium text-slate-900 dark:text-white">
-                  {english
-                    ? "Platform administration"
-                    : "Administración de plataforma"}
+                  {t("Platform administration")}
                 </h1>
                 <span
                   className={`hidden rounded-full px-2 py-1 text-[11px] font-medium sm:inline-flex ${environment.className}`}
@@ -990,18 +983,17 @@ export default function PlatformAdminPage() {
                 </span>
               </div>
               <p className="hidden text-xs text-slate-500 dark:text-slate-400 md:block">
-                {english
-                  ? "Customers, catalog, access and commercial operations"
-                  : "Clientes, catálogo, accesos y operación comercial"}
+                {t("Customers, catalog, access and commercial operations")}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <PlatformAdminLanguageSelect />
             <button
               type="button"
               onClick={() => void loadAll()}
               className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-              aria-label={english ? "Refresh data" : "Actualizar información"}
+              aria-label={t("Refresh data")}
             >
               <RefreshCw
                 className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
@@ -1014,7 +1006,7 @@ export default function PlatformAdminPage() {
             >
               <ArrowLeft className="h-4 w-4" />
               <span className="hidden sm:inline">
-                {english ? "Back to ERP" : "Volver al ERP"}
+                {t("Back to ERP")}
               </span>
             </button>
           </div>
@@ -1022,7 +1014,7 @@ export default function PlatformAdminPage() {
         <div className="mx-auto max-w-[1600px] px-4 py-2 lg:px-6">
           <IndiceWorkspaceNavigation<AdminTab>
             ariaLabel={
-              english ? "Administration sections" : "Secciones de administración"
+              t("Administration sections")
             }
             items={visibleTabs.map((tab) => {
               const Icon = tab.icon;
@@ -1080,6 +1072,7 @@ export default function PlatformAdminPage() {
                 canEditTypes={Boolean(context?.can_manage_accounts)}
                 canAssignDistributors={Boolean(context?.can_manage_accounts)}
                 canExtendTrials={context?.role === "PLATFORM_ROOT"}
+                canRequestPayment={context?.role === "PLATFORM_ROOT"}
                 canManageCourtesy={Boolean(context?.can_manage_benefits)}
                 onCreate={() => {
                   setAccountCreationPreset(null);
@@ -1124,6 +1117,7 @@ export default function PlatformAdminPage() {
                   setTrialExtensionError("");
                   setTrialExtension(company);
                 }}
+                onRequestPayment={setPaymentRequestCompany}
                 onDelete={(company) => {
                   setCompanyDeletionName("");
                   setCompanyDeletionReason("");
@@ -1144,12 +1138,35 @@ export default function PlatformAdminPage() {
               />
             ) : null}
             {activeTab === "billing" ? (
-              <BillingTab
-                english={english}
-                data={billing}
-                onDataChange={setBilling}
-                onOpenCompany={openCompany}
-              />
+              <div className="space-y-5">
+                <StripeSetupPanel
+                  english={english}
+                  environment={catalog?.stripe_environment}
+                  canDemoConnect={canDemoConnect}
+                  demoConnected={canDemoConnect && stripeDemoConnected}
+                  onDemoConnect={() => setStripeDemoDialogOpen(true)}
+                  onDemoDisconnect={() => setStripeDemoConnected(false)}
+                  refreshing={stripeStatusRefreshing}
+                  onRefresh={() => void refreshStripeStatus()}
+                />
+                {canDemoConnect ? (
+                  <StripeDemoConnectionDialog
+                    open={stripeDemoDialogOpen}
+                    english={english}
+                    onClose={() => setStripeDemoDialogOpen(false)}
+                    onActivate={(active) => {
+                      if (canDemoConnect) setStripeDemoConnected(active);
+                    }}
+                  />
+                ) : null}
+                {stripeStatusError ? <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{stripeStatusError}</p> : null}
+                <BillingTab
+                  english={english}
+                  data={billing}
+                  onDataChange={setBilling}
+                  onOpenCompany={openCompany}
+                />
+              </div>
             ) : null}
             {activeTab === "catalog" ? (
               <CatalogAndModulesTab
@@ -1157,6 +1174,7 @@ export default function PlatformAdminPage() {
                 catalog={catalog}
                 modules={moduleRegistry}
                 canManage={Boolean(context?.can_manage_modules)}
+                canPublish={context?.role === "PLATFORM_ROOT"}
                 saving={saving}
                 onCatalogChange={setCatalog}
                 onModuleChange={(change) => {
@@ -1288,6 +1306,15 @@ export default function PlatformAdminPage() {
           onSave={updateCompanyDistributor}
         />
       ) : null}
+      {paymentRequestCompany ? (
+        <PaymentRequestModal
+          key={paymentRequestCompany.id}
+          company={paymentRequestCompany}
+          english={english}
+          onClose={() => setPaymentRequestCompany(null)}
+          onChanged={refreshOverviewAndCompany}
+        />
+      ) : null}
       {trialExtension ? (
         <TrialExtensionModal
           company={trialExtension}
@@ -1308,12 +1335,10 @@ export default function PlatformAdminPage() {
           modalType="operational-workspace"
           tone="aqua"
           icon={<Gift className="h-5 w-5" />}
-          eyebrow={english ? "Customers" : "Clientes"}
-          title={english ? "Promotional access" : "Acceso promocional"}
+          eyebrow={t("Customers")}
+          title={t("Promotional access")}
           description={
-            english
-              ? "Create and manage auditable access codes without leaving the customer workflow."
-              : "Genera y administra códigos auditables sin salir del flujo de clientes."
+            t("Create and manage auditable access codes without leaving the customer workflow.")
           }
         >
           <CourtesyTab
@@ -1364,10 +1389,9 @@ export default function PlatformAdminPage() {
         <IndiceConfirmationDialog
           busy={saving}
           confirmDisabled={companyDeletionName !== companyDeletion.name || companyDeletionReason.trim().length < 5}
-          confirmLabel={saving ? (english ? "Deleting..." : "Eliminando...") : (english ? "Mark as deleted" : "Marcar como eliminado")}
-          description={english
-            ? "This is a soft deletion. The account and its history remain stored, but access is blocked. Active Stripe subscriptions must be cancelled first."
-            : "Esta es una baja lógica. La cuenta y su historial permanecen guardados, pero se bloquea el acceso. Primero deben cancelarse las suscripciones activas de Stripe."}
+          cancelLabel={t("Cancel")}
+          confirmLabel={saving ? (t("Deleting...")) : (t("Mark as deleted"))}
+          description={t("This is a soft deletion. The account and its history remain stored, but access is blocked. Active Stripe subscriptions must be cancelled first.")}
           destructive
           icon={<Trash2 className="h-5 w-5" />}
           itemName={companyDeletion.name}
@@ -1377,14 +1401,14 @@ export default function PlatformAdminPage() {
           }}
           onConfirm={() => void confirmCompanyDeletion()}
           open
-          title={english ? "Delete account" : "Eliminar cuenta"}
+          title={t("Delete account")}
           tone="coral"
         >
           <IndiceModalValidation messages={companyDeletionError ? [companyDeletionError] : []} />
-          <Field label={english ? "Deletion reason" : "Motivo de eliminación"}>
+          <Field label={t("Deletion reason")}>
             <textarea autoFocus minLength={5} value={companyDeletionReason} onChange={(event) => setCompanyDeletionReason(event.target.value)} className={`${controlClass} min-h-24 resize-y py-2`} />
           </Field>
-          <Field label={english ? `Type “${companyDeletion.name}” to confirm` : `Escribe “${companyDeletion.name}” para confirmar`}>
+          <Field label={t("Type “{p0}” to confirm", { p0: companyDeletion.name })}>
             <input value={companyDeletionName} onChange={(event) => setCompanyDeletionName(event.target.value)} className={controlClass} autoComplete="off" />
           </Field>
         </IndiceConfirmationDialog>
@@ -1412,6 +1436,7 @@ function CustomersTab({
   canEditTypes,
   canAssignDistributors,
   canExtendTrials,
+  canRequestPayment,
   canManageCourtesy,
   onCreate,
   onQuickCreate,
@@ -1427,6 +1452,7 @@ function CustomersTab({
   onEditType,
   onAssignDistributor,
   onExtendTrial,
+  onRequestPayment,
   onDelete,
 }: {
   english: boolean;
@@ -1447,6 +1473,7 @@ function CustomersTab({
   canEditTypes: boolean;
   canAssignDistributors: boolean;
   canExtendTrials: boolean;
+  canRequestPayment: boolean;
   canManageCourtesy: boolean;
   onCreate: () => void;
   onQuickCreate: () => void;
@@ -1462,11 +1489,13 @@ function CustomersTab({
   onEditType: (company: PlatformCompanySummary) => void;
   onAssignDistributor: (company: PlatformCompanySummary) => void;
   onExtendTrial: (company: PlatformCompanySummary) => void;
+  onRequestPayment: (company: PlatformCompanySummary) => void;
   onDelete: (company: PlatformCompanySummary) => void;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   const pages = paginationData?.total_pages ?? 1;
   const totalCount = paginationData?.total_items ?? companies.length;
-  const copy = getCustomerTableCopy(english);
+  const copy = getCustomerTableCopy(locale);
   const [columnsOpen, setColumnsOpen] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<CustomerTableColumnId[]>(
     loadCustomerTableColumnIds,
@@ -1484,7 +1513,7 @@ function CustomersTab({
       totalCount={totalCount}
       pageStart={totalCount ? (page - 1) * pageSize + 1 : 0}
       pageEnd={Math.min(page * pageSize, totalCount)}
-      itemLabel={english ? "accounts" : "cuentas"}
+      itemLabel={t("accounts")}
       onPageChange={onPage}
       onPageSizeChange={onPageSize}
     />
@@ -1496,14 +1525,10 @@ function CustomersTab({
         tone="aqua"
         icon={<Building2 className="h-5 w-5" />}
         title={
-          english
-            ? "Customer control center"
-            : "Centro de control de clientes"
+          t("Customer control center")
         }
         subtitle={
-          english
-            ? "Control each customer's health, owner, access, billing and next action from one place."
-            : "Controla la salud, responsable, acceso, facturación y siguiente acción de cada cliente desde un solo lugar."
+          t("Control each customer's health, owner, access, billing and next action from one place.")
         }
         actions={
           <div className="flex flex-wrap justify-end gap-2">
@@ -1530,13 +1555,13 @@ function CustomersTab({
                   {canManageCourtesy ? (
                     <DropdownMenuItem onSelect={onOpenCourtesy} className="rounded-lg py-2.5">
                       <Gift className="h-4 w-4 text-[#177D66]" />
-                      {english ? "Promotional access" : "Acceso promocional"}
+                      {t("Promotional access")}
                     </DropdownMenuItem>
                   ) : null}
                   {canCreate ? (
                     <DropdownMenuItem onSelect={onQuickCreate} className="rounded-lg py-2.5">
                       <Sparkles className="h-4 w-4 text-[#177D66]" />
-                      {english ? "Quick test account" : "Cuenta de prueba rápida"}
+                      {t("Quick test account")}
                     </DropdownMenuItem>
                   ) : null}
                 </DropdownMenuContent>
@@ -1549,7 +1574,7 @@ function CustomersTab({
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white transition hover:bg-[#126553] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30"
               >
                 <Plus className="h-4 w-4" />
-                {english ? "Add account" : "Agregar cuenta"}
+                {t("Add account")}
               </button>
             ) : null}
           </div>
@@ -1564,13 +1589,13 @@ function CustomersTab({
         onOpenCompany={(company) => onOpenCompany(company)}
       />
       <IndiceFilterBar
-        title={english ? "Customer portfolio" : "Cartera de clientes"}
+        title={t("Customer portfolio")}
         gridClassName="lg:grid-cols-[minmax(0,1fr)_220px_260px]"
       >
         <IndiceFilterSearch
-          label={english ? "Search" : "Buscar"}
+          label={t("Search")}
           placeholder={
-            english ? "Company, email or ID" : "Empresa, correo o ID"
+            t("Company, email or ID")
           }
           tone="aqua"
           value={query}
@@ -1578,98 +1603,92 @@ function CustomersTab({
           onClear={() => onQuery("")}
         />
         <IndiceFilterSelect
-          label={english ? "Account type" : "Tipo de cuenta"}
+          label={t("Account type")}
           tone="aqua"
           value={userTypeFilter}
           onValueChange={onUserType}
           options={[
-            { value: "all", label: english ? "All types" : "Todos los tipos" },
+            { value: "all", label: t("All types") },
             { value: "ROOT", label: "Root" },
-            { value: "SUPER_ADMIN", label: "Super Admin" },
+            { value: "SUPER_ADMIN", label: t("Super Admin") },
             {
               value: "DISTRIBUTOR",
-              label: english ? "Distributor" : "Distribuidor",
+              label: t("Distributor"),
             },
           ]}
         />
         <IndiceFilterSelect
-          label={english ? "Commercial status" : "Estado comercial"}
+          label={t("Commercial status")}
           tone="aqua"
           value={statusFilter}
           onValueChange={onStatus}
           options={[
             {
               value: "all",
-              label: english ? "All statuses" : "Todos los estados",
+              label: t("All statuses"),
             },
-            { value: "active", label: english ? "Active" : "Activa" },
+            { value: "active", label: t("Active") },
             {
               value: "temporary",
-              label: english ? "Demo and trial" : "Demo y prueba",
+              label: t("Demo and trial"),
             },
-            { value: "trial", label: english ? "Trial" : "Prueba" },
-            { value: "demo", label: "Demo" },
+            { value: "trial", label: t("Trial") },
+            { value: "demo", label: t("Demo") },
             {
               value: "inactive",
-              label: english ? "Inactive" : "Inactiva",
+              label: t("Inactive"),
             },
             {
               value: "attention",
-              label: english ? "Needs attention" : "Requiere atención",
+              label: t("Needs attention"),
             },
             {
               value: "expiring",
-              label: english ? "Trial ending in 7 days" : "Prueba vence en 7 días",
+              label: t("Trial ending in 7 days"),
             },
             {
               value: "no_offer",
-              label: english ? "No offer configured" : "Sin oferta configurada",
+              label: t("No offer configured"),
             },
             {
               value: "no_adoption",
-              label: english ? "No active users" : "Sin usuarios activos",
+              label: t("No active users"),
             },
-            { value: "deleted", label: english ? "Deleted" : "Eliminado" },
+            { value: "deleted", label: t("Deleted") },
           ]}
         />
       </IndiceFilterBar>
       <section
         className="grid gap-3 md:grid-cols-3"
-        aria-label={english ? "Customer KPIs" : "KPIs de clientes"}
+        aria-label={t("Customer KPIs")}
       >
         <Metric
           icon={CircleDollarSign}
-          label={english ? "Monthly projection" : "Proyección mensual"}
-          value={formatMoney(
-            totals?.projected_monthly_billing_cents,
-            totals?.currency,
-            english,
-          )}
-          caption={english ? "Stripe contracts + estimates" : "Contratos Stripe + estimaciones"}
+          label={t("Monthly projection")}
+          value={formatMoney(totals?.projected_monthly_billing_cents, totals?.currency, locale)}
+          caption={t("Stripe contracts + estimates")}
           accent="gold"
         />
         <Metric
           icon={Building2}
-          label={english ? "Active accounts" : "Cuentas activas"}
+          label={t("Active accounts")}
           value={String(totals?.active_customer_companies ?? 0)}
           caption={
-            english
-              ? `${totals?.customer_active_users ?? 0} total active users`
-              : `${totals?.customer_active_users ?? 0} usuarios activos totales`
+            t("{p0} total active users", { p0: totals?.customer_active_users ?? 0 })
           }
           accent="mint"
           active={statusFilter === "active"}
-          actionLabel={english ? "Filter active accounts" : "Filtrar cuentas activas"}
+          actionLabel={t("Filter active accounts")}
           onClick={() => onStatus(statusFilter === "active" ? "all" : "active")}
         />
         <Metric
           icon={Sparkles}
-          label={english ? "Demo and trial" : "Demo y prueba"}
+          label={t("Demo and trial")}
           value={String(demoAndTrialAccounts)}
-          caption={english ? "Temporary access" : "Acceso temporal"}
+          caption={t("Temporary access")}
           accent="blue"
           active={statusFilter === "temporary"}
-          actionLabel={english ? "Filter demo and trial accounts" : "Filtrar cuentas demo y prueba"}
+          actionLabel={t("Filter demo and trial accounts")}
           onClick={() => onStatus(statusFilter === "temporary" ? "all" : "temporary")}
         />
       </section>
@@ -1685,9 +1704,11 @@ function CustomersTab({
         canEditTypes={canEditTypes}
         canAssignDistributors={canAssignDistributors}
         canExtendTrials={canExtendTrials}
+        canRequestPayment={canRequestPayment}
         onEditType={onEditType}
         onAssignDistributor={onAssignDistributor}
         onExtendTrial={onExtendTrial}
+        onRequestPayment={onRequestPayment}
         canDelete={canEditTypes}
         onDelete={onDelete}
       />
@@ -1713,6 +1734,7 @@ function BillingTab({
   onDataChange: (data: PlatformBilling) => void;
   onOpenCompany: (company: number) => void;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   const [page, setPage] = useState(1);
@@ -1762,11 +1784,7 @@ function BillingTab({
       } catch (loadError) {
         if (!cancelled && sequence === requestSequence.current) {
           setError(
-            loadError instanceof Error
-              ? loadError.message
-              : english
-                ? "Billing history could not be loaded."
-                : "No se pudo cargar el historial de facturación.",
+            t("Billing history could not be loaded."),
           );
         }
       } finally {
@@ -1777,7 +1795,7 @@ function BillingTab({
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [english, onDataChange, page, pageSize, query, sort, status]);
+  }, [t, onDataChange, page, pageSize, query, sort, status]);
   useEffect(() => {
     if (data?.pagination && data.pagination.page !== page) setPage(data.pagination.page);
   }, [data?.pagination, page]);
@@ -1790,7 +1808,7 @@ function BillingTab({
       totalCount={data?.pagination?.total_items ?? invoices.length}
       pageStart={(data?.pagination?.total_items ?? 0) ? (page - 1) * pageSize + 1 : 0}
       pageEnd={Math.min(page * pageSize, data?.pagination?.total_items ?? invoices.length)}
-      itemLabel={english ? "invoices" : "facturas"}
+      itemLabel={t("invoices")}
       onPageChange={setPage}
       onPageSizeChange={setPageSize}
     />
@@ -1800,66 +1818,62 @@ function BillingTab({
       <IndiceTitleBar
         tone="blue"
         icon={<CreditCard className="h-5 w-5" />}
-        eyebrow={english ? "Billing" : "Facturación"}
-        title={english ? "Payments and documents" : "Cobros y documentos"}
+        eyebrow={t("Billing")}
+        title={t("Payments and documents")}
         subtitle={
-          english
-            ? "Stripe remains the payment authority; this view shows synchronized operational status."
-            : "Stripe conserva la autoridad de pago; aquí consultas el estado operativo sincronizado."
+          t("Stripe remains the payment authority; this view shows synchronized operational status.")
         }
       />
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric
           icon={CircleDollarSign}
-          label={english ? "Total collected" : "Total cobrado"}
-          value={formatMoney(totals?.paid_cents, totals?.currency, english)}
+          label={t("Total collected")}
+          value={formatMoney(totals?.paid_cents, totals?.currency, locale)}
           accent="mint"
         />
         <Metric
           icon={FileClock}
-          label={english ? "Open balance" : "Saldo abierto"}
-          value={formatMoney(totals?.open_cents, totals?.currency, english)}
+          label={t("Open balance")}
+          value={formatMoney(totals?.open_cents, totals?.currency, locale)}
           accent="gold"
         />
         <Metric
           icon={CircleAlert}
           label={
-            english
-              ? "Documents requiring attention"
-              : "Documentos con atención"
+            t("Documents requiring attention")
           }
           value={String(totals?.failed ?? 0)}
           accent="coral"
         />
         <Metric
           icon={CreditCard}
-          label={english ? "Synchronized invoices" : "Facturas sincronizadas"}
+          label={t("Synchronized invoices")}
           value={String(totals?.invoices ?? 0)}
           accent="blue"
         />
       </section>
       <IndiceFilterBar
-        title={english ? "Billing documents" : "Documentos de facturación"}
+        title={t("Billing documents")}
         gridClassName="lg:grid-cols-[minmax(0,1fr)_240px]"
       >
         <IndiceFilterSearch
-          label={english ? "Search" : "Buscar"}
-          placeholder={english ? "Customer, invoice, status or ID" : "Cliente, factura, estado o ID"}
+          label={t("Search")}
+          placeholder={t("Customer, invoice, status or ID")}
           tone="aqua"
           value={query}
           onValueChange={setQuery}
           onClear={() => setQuery("")}
         />
         <IndiceFilterSelect
-          label={english ? "Document status" : "Estado del documento"}
+          label={t("Document status")}
           tone="aqua"
           value={status}
           onValueChange={setStatus}
           options={[
-            { value: "all", label: english ? "All statuses" : "Todos los estados" },
-            { value: "paid", label: english ? "Paid" : "Pagada" },
-            { value: "open", label: english ? "Open" : "Abierta" },
-            { value: "attention", label: english ? "Needs attention" : "Requiere atención" },
+            { value: "all", label: t("All statuses") },
+            { value: "paid", label: t("Paid") },
+            { value: "open", label: t("Open") },
+            { value: "attention", label: t("Needs attention") },
           ]}
         />
       </IndiceFilterBar>
@@ -1869,11 +1883,9 @@ function BillingTab({
         </div>
       ) : null}
       <Panel
-        title={english ? "Billing history" : "Historial de facturación"}
+        title={t("Billing history")}
         description={
-          english
-            ? "Collected and pending amounts with official Stripe links."
-            : "Importes cobrados, pendientes y enlaces oficiales de Stripe."
+          t("Collected and pending amounts with official Stripe links.")
         }
       >
         <IndiceTableShell pagination={pagination}>
@@ -1883,12 +1895,12 @@ function BillingTab({
               <tr>
                 {(
                   [
-                    ["customer", english ? "Customer" : "Cliente"],
-                    ["invoice", english ? "Invoice" : "Factura"],
-                    ["status", english ? "Status" : "Estado"],
-                    ["amount", english ? "Amount" : "Importe"],
-                    ["paid", english ? "Paid" : "Pagado"],
-                    ["period", english ? "Period" : "Periodo"],
+                    ["customer", t("Customer")],
+                    ["invoice", t("Invoice")],
+                    ["status", t("Status")],
+                    ["amount", t("Amount")],
+                    ["paid", t("Paid")],
+                    ["period", t("Period")],
                   ] as const
                 ).map(([key, label]) => (
                   <SortableBillingHeader
@@ -1900,7 +1912,7 @@ function BillingTab({
                   />
                 ))}
                 <th className={`${tableHeadClass} text-right`}>
-                  {english ? "Documents" : "Documentos"}
+                  {t("Documents")}
                 </th>
               </tr>
             </thead>
@@ -1918,9 +1930,7 @@ function BillingTab({
                     <EmptyRow
                       icon={CreditCard}
                       text={
-                        english
-                          ? "No invoices have been synchronized in this environment yet."
-                          : "Aún no hay facturas sincronizadas en este entorno."
+                        t("No invoices have been synchronized in this environment yet.")
                       }
                     />
                   </td>
@@ -1942,6 +1952,7 @@ function InvoiceRow({
   invoice: PlatformInvoice;
   onOpenCompany: (company: number) => void;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   return (
     <tr className="hover:bg-slate-50/80">
       <td className={tableCellClass}>
@@ -1955,11 +1966,11 @@ function InvoiceRow({
               {invoice.company_name || `Company #${invoice.company_id}`}
             </p>
             <p className="mt-0.5 text-xs text-slate-500">
-              {invoice.owner_email || "Sin correo propietario"}
+              {invoice.owner_email || t("No owner email")}
             </p>
           </button>
         ) : (
-          "Sin asociar"
+          t("Unassigned")
         )}
       </td>
       <td className={tableCellClass}>
@@ -1971,15 +1982,15 @@ function InvoiceRow({
         <StatusBadge status={invoice.status || "unknown"} />
       </td>
       <td className={tableCellClass}>
-        {formatMoney(invoice.amount_due_cents, invoice.currency)}
+        {formatMoney(invoice.amount_due_cents, invoice.currency, locale)}
       </td>
       <td className={tableCellClass}>
-        {formatMoney(invoice.amount_paid_cents, invoice.currency)}
+        {formatMoney(invoice.amount_paid_cents, invoice.currency, locale)}
       </td>
       <td className={tableCellClass}>
-        <p>{formatDate(invoice.period_starts_at)}</p>
+        <p>{formatDate(invoice.period_starts_at, locale)}</p>
         <p className="text-xs text-slate-500">
-          a {formatDate(invoice.period_ends_at)}
+          {t("to")}{formatDate(invoice.period_ends_at, locale)}
         </p>
       </td>
       <td className={`${tableCellClass} text-right`}>
@@ -1990,7 +2001,7 @@ function InvoiceRow({
               target="_blank"
               rel="noreferrer"
               className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200"
-              aria-label="Abrir factura"
+              aria-label={t("Open invoice")}
             >
               <ExternalLink className="h-4 w-4" />
             </a>
@@ -2001,7 +2012,7 @@ function InvoiceRow({
               target="_blank"
               rel="noreferrer"
               className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200"
-              aria-label="Descargar PDF"
+              aria-label={t("Download PDF")}
             >
               <Download className="h-4 w-4" />
             </a>
@@ -2023,6 +2034,7 @@ function SortableBillingHeader({
   sort: { key: BillingSortKey; direction: SortDirection };
   onSort: (key: BillingSortKey) => void;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   const activeDirection = sort.key === column ? sort.direction : null;
   const Icon =
     activeDirection === "asc"
@@ -2045,7 +2057,7 @@ function SortableBillingHeader({
         type="button"
         onClick={() => onSort(column)}
         className={`group inline-flex items-center gap-1.5 rounded-md py-1 text-left transition hover:text-[#2563EB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/25 ${activeDirection ? "font-semibold text-[#2563EB]" : ""}`}
-        title={`${label} · ${activeDirection ?? "sort"}`}
+        title={`${label} · ${activeDirection === "asc" ? t("Ascending") : activeDirection === "desc" ? t("Descending") : t("Sort")}`}
       >
         <span>{label}</span>
         <Icon
@@ -2097,27 +2109,29 @@ const isReadyCatalogPrice = (price?: PlatformCatalogPrice) =>
       price.external_price_id,
   );
 
-const humanizeCatalogCode = (value: string) => {
+const humanizeCatalogCode = (value: string, locale: string) => {
   const normalized = value
     .replace(/^(addon|base|plan|price)_/i, "")
     .replace(/[_-]+/g, " ")
     .trim();
   return normalized
     ? normalized.replace(/\b\p{L}/gu, (letter) => letter.toUpperCase())
-    : "Producto";
+    : getPlatformAdminTranslator(locale)("Product");
 };
 
-const catalogPriceTypeLabel = (value: string, english: boolean) => {
-  if (value === "ADDON") return english ? "Add-on" : "Complemento";
+const catalogPriceTypeLabel = (value: string, locale: string) => {
+  const t = getPlatformAdminTranslator(locale);
+  if (value === "ADDON") return t("Add-on");
   if (["BASE", "PACKAGE", "PLAN"].includes(value)) {
-    return english ? "Package" : "Paquete";
+    return t("Package");
   }
-  return humanizeCatalogCode(value);
+  return humanizeCatalogCode(value, locale);
 };
 
 function catalogPriceBusinessName(
   price: PlatformCatalogPrice,
   products: PlatformCatalogProduct[],
+  locale: string,
 ) {
   const product = products.find(
     (candidate) =>
@@ -2125,22 +2139,23 @@ function catalogPriceBusinessName(
       candidate.product_code === price.billable_code,
   );
   return (
-    product?.display_name ||
-    offerLabels[price.billable_code] ||
-    humanizeCatalogCode(price.billable_code)
+    (product ? catalogProductLabel(product, locale) : "") ||
+    offerLabels(locale)[price.billable_code] ||
+    humanizeCatalogCode(price.billable_code, locale)
   );
 }
 
 function buildCatalogPriceGroups(
   prices: PlatformCatalogPrice[],
   products: PlatformCatalogProduct[],
+  locale: string,
 ) {
   const grouped = new Map<string, CatalogPriceGroup>();
   prices.forEach((price) => {
     const key = `${price.billable_code}:${price.price_type}:${price.currency}`;
     const current = grouped.get(key) || {
       key,
-      name: catalogPriceBusinessName(price, products),
+      name: catalogPriceBusinessName(price, products, locale),
       priceType: price.price_type,
       currency: price.currency,
       status: "review" as CatalogPriceGroupStatus,
@@ -2170,6 +2185,7 @@ function CatalogAndModulesTab({
   catalog,
   modules,
   canManage,
+  canPublish,
   saving,
   onCatalogChange,
   onModuleChange,
@@ -2178,10 +2194,12 @@ function CatalogAndModulesTab({
   catalog: PlatformCatalog | null;
   modules: PlatformModules | null;
   canManage: boolean;
+  canPublish: boolean;
   saving: boolean;
   onCatalogChange: (data: PlatformCatalog) => void;
   onModuleChange: (change: ModuleAvailabilityChange) => void;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   const [view, setView] = useState<CatalogWorkspaceView>("offer");
   const catalogNavigationState = useMemo(() => ({ step: view }), [view]);
   const restoreCatalogNavigation = useCallback(
@@ -2201,6 +2219,8 @@ function CatalogAndModulesTab({
   });
   const [syncing, setSyncing] = useState(false);
   const [catalogWorkflowBusy, setCatalogWorkflowBusy] = useState(false);
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
   const [catalogValidation, setCatalogValidation] =
     useState<PlatformCatalogValidation | null>(null);
   const [syncFeedback, setSyncFeedback] = useState<{
@@ -2209,6 +2229,12 @@ function CatalogAndModulesTab({
   } | null>(null);
   const draftVersion = catalog?.versions.find(
     (version) => version.status === "DRAFT",
+  );
+  const publicationMode = catalog?.stripe_environment?.mode;
+  const publicationAvailable = Boolean(
+    catalog?.stripe_environment?.enabled &&
+    (publicationMode === "TEST" ||
+      (publicationMode === "LIVE" && catalog?.stripe_environment?.catalog_live_sync_enabled)),
   );
   const activeVersion = catalog?.versions.find(
     (version) => version.status === "ACTIVE",
@@ -2231,19 +2257,13 @@ function CatalogAndModulesTab({
       setCatalogValidation(null);
       setSyncFeedback({
         type: "success",
-        message: english
-          ? `${result.products_created} products and ${result.prices_created} prices were added to the commercial catalog.`
-          : `${result.products_created} producto(s) y ${result.prices_created} precio(s) se incorporaron al catálogo comercial.`,
+        message: t("{p0} products and {p1} prices were added to the commercial catalog.", { p0: result.products_created, p1: result.prices_created }),
       });
     } catch (syncError) {
       setSyncFeedback({
         type: "error",
         message:
-          syncError instanceof Error
-            ? syncError.message
-            : english
-              ? "The commercial catalog could not be updated."
-              : "No se pudo actualizar el catálogo comercial.",
+          t("The commercial catalog could not be updated."),
       });
     } finally {
       setSyncing(false);
@@ -2260,19 +2280,13 @@ function CatalogAndModulesTab({
       setCatalogValidation(null);
       setSyncFeedback({
         type: "success",
-        message: english
-          ? `${draft.version_code} is ready for controlled changes.`
-          : `${draft.version_code} está lista para cambios controlados.`,
+        message: t("{p0} is ready for controlled changes.", { p0: draft.version_code }),
       });
     } catch (workflowError) {
       setSyncFeedback({
         type: "error",
         message:
-          workflowError instanceof Error
-            ? workflowError.message
-            : english
-              ? "The working version could not be prepared."
-              : "No se pudo preparar la versión de trabajo.",
+          t("The working version could not be prepared."),
       });
     } finally {
       setCatalogWorkflowBusy(false);
@@ -2291,53 +2305,43 @@ function CatalogAndModulesTab({
       setSyncFeedback({
         type: validation.ready ? "success" : "error",
         message: validation.ready
-          ? english
-            ? `The offer is complete and remotely verified in Stripe ${validation.stripe_mode}.`
-            : `La oferta está completa y verificada remotamente en Stripe ${validation.stripe_mode}.`
-          : english
-            ? `${validation.blockers.length} item(s) must be completed before publishing.`
-            : `Falta completar ${validation.blockers.length} pendiente(s) antes de publicar.`,
+          ? t("The offer is complete and remotely verified in Stripe {p0}.", { p0: validation.stripe_mode })
+          : t("{p0} item(s) must be completed before publishing.", { p0: validation.blockers.length }),
       });
     } catch (workflowError) {
       setSyncFeedback({
         type: "error",
         message:
-          workflowError instanceof Error
-            ? workflowError.message
-            : english
-              ? "The offer could not be validated."
-              : "No se pudo validar la oferta.",
+          t("The offer could not be validated."),
       });
     } finally {
       setCatalogWorkflowBusy(false);
     }
   };
 
-  const publishCatalogDraft = async () => {
-    if (!draftVersion || !catalogValidation?.ready || catalogWorkflowBusy) return;
+  const publishCatalogDraft = async (confirmation: string) => {
+    if (!draftVersion || !canPublish || !publicationMode || !publicationAvailable || catalogWorkflowBusy) return;
     setCatalogWorkflowBusy(true);
     setSyncFeedback(null);
+    setPublishError(null);
     try {
-      const published = await platformAdminApi.publishCatalogDraft(
+      const result = await publishCatalogOffer(
+        platformAdminApi,
         draftVersion.id,
+        { target_mode: publicationMode, confirmation },
       );
-      onCatalogChange(await platformAdminApi.getCatalog());
+      if (result.catalog) onCatalogChange(result.catalog);
       setCatalogValidation(null);
+      if (!result.published) {
+        const message = t("Publication could not be confirmed. Refresh the offer status before retrying.");
+        setPublishError(message);
+        setSyncFeedback({ type: "error", message });
+        return;
+      }
+      setPublishDialogOpen(false);
       setSyncFeedback({
         type: "success",
-        message: english
-          ? `${published.version_code} is now the active offer. Existing customers keep their agreed version.`
-          : `${published.version_code} ya es la oferta activa. Los clientes existentes conservan la versión acordada.`,
-      });
-    } catch (workflowError) {
-      setSyncFeedback({
-        type: "error",
-        message:
-          workflowError instanceof Error
-            ? workflowError.message
-            : english
-              ? "The offer could not be published."
-              : "No se pudo publicar la oferta.",
+        message: t("{p0} is now the active offer. Existing customers keep their agreed version.{p1}", { p0: result.versionCode, p1: result.catalog ? "" : ` ${t("Reload the catalog to see the updated status.")}` }),
       });
     } finally {
       setCatalogWorkflowBusy(false);
@@ -2347,14 +2351,14 @@ function CatalogAndModulesTab({
   const workspaceTabs = [
     {
       id: "offer" as const,
-      label: english ? "Commercial offer" : "Oferta comercial",
-      description: english ? "Modules, packages, prices and promotions" : "Módulos, paquetes, precios y promociones",
+      label: t("Commercial offer"),
+      description: t("Modules, packages, prices and promotions"),
       icon: PackageCheck,
     },
     {
       id: "modules" as const,
-      label: english ? "Technical availability" : "Disponibilidad técnica",
-      description: english ? "Advanced system control" : "Control avanzado del sistema",
+      label: t("Technical availability"),
+      description: t("Advanced system control"),
       icon: Boxes,
     },
   ];
@@ -2364,11 +2368,9 @@ function CatalogAndModulesTab({
       <IndiceTitleBar
         tone="aqua"
         icon={<Boxes className="h-5 w-5" />}
-        title={english ? "Catalog and modules" : "Catálogo y módulos"}
+        title={t("Catalog and modules")}
         subtitle={
-          english
-            ? "Decide what Indice offers, group it into products and define the amount customers will pay."
-            : "Decide qué ofrece Índice, agrúpalo en productos y define el importe que pagarán los clientes."
+          t("Decide what Indice offers, group it into products and define the amount customers will pay.")
         }
         actions={
           <button
@@ -2378,7 +2380,7 @@ function CatalogAndModulesTab({
             className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#59C3A5]/35 bg-white px-4 text-sm font-medium text-[#176B5B] shadow-sm transition hover:bg-[#59C3A5]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25 disabled:opacity-60 dark:bg-slate-900 dark:text-[#8FE0CA]"
           >
             <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-            {english ? "Sync add-ons" : "Sincronizar complementos"}
+            {t("Sync add-ons")}
           </button>
         }
       />
@@ -2390,7 +2392,7 @@ function CatalogAndModulesTab({
       ) : null}
 
       <IndiceWorkspaceNavigation<CatalogWorkspaceView>
-        ariaLabel={english ? "Catalog workflow" : "Flujo de catálogo"}
+        ariaLabel={t("Catalog workflow")}
         items={workspaceTabs.map((item) => {
           const Icon = item.icon;
           return {
@@ -2420,25 +2422,17 @@ function CatalogAndModulesTab({
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-sm font-medium text-slate-950 dark:text-white">
                   {draftVersion
-                    ? english
-                      ? "You have unpublished changes"
-                      : "Tienes cambios sin publicar"
-                    : english
-                      ? "Active offer"
-                      : "Oferta activa"}
+                    ? t("You have unpublished changes")
+                    : t("Active offer")}
                 </h2>
                 <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">
-                  {english ? "Test mode" : "Modo de prueba"}
+                  {stripeEnvironmentLabel(catalog?.stripe_environment?.mode, locale)}
                 </span>
               </div>
               <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
                 {draftVersion
-                  ? english
-                    ? "Customers will keep seeing the current offer until you publish these changes."
-                    : "Los clientes seguirán viendo la oferta actual hasta que publiques estos cambios."
-                  : english
-                    ? "Customers and Billing use this offer."
-                    : "Clientes y Facturación utilizan esta oferta."}
+                  ? t("Customers will keep seeing the current offer until you publish these changes.")
+                  : t("Customers and Billing use this offer.")}
               </p>
             </div>
           </div>
@@ -2451,7 +2445,7 @@ function CatalogAndModulesTab({
                 className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white transition hover:bg-[#126553] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30 disabled:opacity-50"
               >
                 <Plus className="h-4 w-4" />
-                {english ? "Prepare changes" : "Preparar cambios"}
+                {t("Prepare changes")}
               </button>
             </div>
           ) : null}
@@ -2459,13 +2453,13 @@ function CatalogAndModulesTab({
         {catalogValidation && !catalogValidation.ready ? (
           <div className="border-t border-amber-100 bg-amber-50 px-4 py-3">
             <p className="text-xs font-semibold text-amber-900">
-              {english ? "Complete before publishing:" : "Completa antes de publicar:"}
+              {t("Complete before publishing:")}
             </p>
             <ul className="mt-2 grid gap-1 text-xs text-amber-800 md:grid-cols-2">
               {catalogValidation.blockers.map((blocker, index) => (
                 <li key={`${blocker.code}-${blocker.product_code}-${index}`} className="flex gap-2">
                   <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  <span>{blocker.message}</span>
+                  <span>{catalogValidationMessage(blocker, locale)}</span>
                 </li>
               ))}
             </ul>
@@ -2498,10 +2492,14 @@ function CatalogAndModulesTab({
         <div className="sticky bottom-4 z-20 flex flex-col gap-3 rounded-2xl border border-[#59C3A5]/40 bg-white/95 p-4 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.5)] backdrop-blur dark:bg-slate-900/95 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-medium text-slate-950">
-              {english ? "Unpublished changes" : "Cambios sin publicar"}
+              {t("Unpublished changes")}
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              {english ? "Validate the offer before publishing it." : "Valida la oferta antes de publicarla."}
+              {!canPublish
+                ? t("Only Platform Root can publish the offer.")
+                : !publicationAvailable
+                ? t("Prices can be saved as drafts. Publishing is unavailable until Stripe catalog synchronization is enabled.")
+                : t("Publishing synchronizes and verifies saved prices with Stripe.")}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -2512,19 +2510,36 @@ function CatalogAndModulesTab({
               className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#59C3A5]/40 bg-white px-4 text-sm font-medium text-[#176B5B] transition hover:bg-[#59C3A5]/10 disabled:opacity-50 dark:bg-slate-900 dark:text-[#8FE0CA]"
             >
               <ShieldCheck className="h-4 w-4" />
-              {english ? "Validate offer" : "Validar oferta"}
+              {t("Validate offer")}
             </button>
             <button
               type="button"
-              disabled={!canManage || catalogWorkflowBusy || !catalogValidation?.ready}
-              onClick={() => void publishCatalogDraft()}
+              disabled={!canPublish || catalogWorkflowBusy || !publicationAvailable}
+              onClick={() => {
+                setPublishError(null);
+                setPublishDialogOpen(true);
+              }}
               className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white hover:bg-[#126653] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
             >
               <BadgeCheck className="h-4 w-4" />
-              {english ? "Publish offer" : "Publicar oferta"}
+              {t("Sync and publish offer")}
             </button>
           </div>
         </div>
+      ) : null}
+      {draftVersion && publicationMode ? (
+        <CatalogPublishDialog
+          open={publishDialogOpen}
+          busy={catalogWorkflowBusy}
+          english={english}
+          mode={publicationMode}
+          versionCode={draftVersion.version_code}
+          error={publishError}
+          onCancel={() => {
+            if (!catalogWorkflowBusy) setPublishDialogOpen(false);
+          }}
+          onConfirm={(confirmation) => void publishCatalogDraft(confirmation)}
+        />
       ) : null}
     </div>
   );
@@ -2551,6 +2566,7 @@ function CatalogTab({
   };
   view: CatalogView;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   const [editing, setEditing] = useState<CatalogEditTarget | null>(null);
   const [priceSort, setPriceSort] = useState<{
     key: CatalogPriceSortKey;
@@ -2587,7 +2603,7 @@ function CatalogTab({
     [data?.products, workingVersion],
   );
   const priceGroups = useMemo(
-    () => buildCatalogPriceGroups(versionPrices, products),
+    () => buildCatalogPriceGroups(versionPrices, products, locale),
     [products, versionPrices],
   );
   const priceStatusCounts = useMemo(
@@ -2640,13 +2656,13 @@ function CatalogTab({
   }, [pricePage, priceTotalPages]);
   const priceColumnLabels = useMemo<Record<CatalogPriceSortKey, string>>(
     () => ({
-      concept: english ? "Item" : "Concepto",
-      monthly: english ? "Monthly" : "Mensual",
-      status: english ? "Sales status" : "Estado de venta",
-      type: english ? "Type" : "Tipo",
-      yearly: english ? "Annual" : "Anual",
+      concept: t("Item"),
+      monthly: t("Monthly"),
+      status: t("Sales status"),
+      type: t("Type"),
+      yearly: t("Annual"),
     }),
-    [english],
+    [t],
   );
   const { columnWidths: priceColumnWidths, resizeColumn: resizePriceColumn } =
     usePersistentColumnWidths<CatalogPriceSortKey>({
@@ -2669,11 +2685,9 @@ function CatalogTab({
         contentMinimumWidth: catalogPriceColumnMinimums[columnId],
         maxWidth: catalogPriceColumnMaximums[columnId],
         sortable: true,
-        resizeLabel: english
-          ? `Resize ${priceColumnLabels[columnId]} column`
-          : `Ajustar columna ${priceColumnLabels[columnId]}`,
+        resizeLabel: t("Resize {p0} column", { p0: priceColumnLabels[columnId] }),
       })),
-    [english, priceColumnLabels, priceColumnWidths],
+    [t, priceColumnLabels, priceColumnWidths],
   );
   const priceTableMinimumWidth = getIndiceTableMinimumWidth({
     actionsWidth: catalogPriceActionsWidth,
@@ -2722,19 +2736,13 @@ function CatalogTab({
       setEditing(null);
       setCatalogFeedback({
         type: "success",
-        message: english
-          ? "The change was saved in the working version. Validate and publish it when the offer is complete."
-          : "El cambio se guardó en la versión de trabajo. Valídala y publícala cuando la oferta esté completa.",
+        message: t("The change was saved in the working version. Validate and publish it when the offer is complete."),
       });
     } catch (saveError) {
       setCatalogFeedback({
         type: "error",
         message:
-          saveError instanceof Error
-            ? saveError.message
-            : english
-              ? "The catalog could not be updated."
-              : "No se pudo actualizar el catálogo.",
+          t("The catalog could not be updated."),
       });
     } finally {
       setCatalogSaving(false);
@@ -2752,12 +2760,10 @@ function CatalogTab({
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-xl font-medium text-slate-950 dark:text-white">
-                {english ? "Products customers can select" : "Productos que puede elegir el cliente"}
+                {t("Products customers can select")}
               </h2>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                {english
-                  ? "Review packages and add-ons, and complete any product still missing a price."
-                  : "Revisa paquetes y complementos, y completa los productos que aún no tienen precio."}
+                {t("Review packages and add-ons, and complete any product still missing a price.")}
               </p>
             </div>
             <button
@@ -2777,28 +2783,28 @@ function CatalogTab({
               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white transition hover:bg-[#126553] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30 disabled:opacity-50"
             >
               <Plus className="h-4 w-4" />
-              {english ? "New package" : "Nuevo paquete"}
+              {t("New package")}
             </button>
           </div>
           <section
-            aria-label={english ? "Product indicators" : "Indicadores de productos"}
+            aria-label={t("Product indicators")}
             className="mb-4 grid gap-3 md:grid-cols-3"
           >
             <Metric
               icon={PackageCheck}
-              label={english ? "Active products" : "Productos activos"}
+              label={t("Active products")}
               value={String(productSummary.activeProducts)}
               accent="mint"
             />
             <Metric
               icon={CircleAlert}
-              label={english ? "Products missing prices" : "Productos sin precio"}
+              label={t("Products missing prices")}
               value={String(productSummary.productsWithoutRates)}
               accent="gold"
             />
             <Metric
               icon={Boxes}
-              label={english ? "Linked capabilities" : "Capacidades vinculadas"}
+              label={t("Linked capabilities")}
               value={String(productSummary.linkedCapabilities)}
               accent="blue"
             />
@@ -2840,14 +2846,12 @@ function CatalogTab({
             </div>
           ) : (
             <Panel
-              title={english ? "Products and packages" : "Productos y paquetes"}
+              title={t("Products and packages")}
             >
               <EmptyRow
                 icon={PackageCheck}
                 text={
-                  english
-                    ? "No products in this version."
-                    : "No hay productos en esta versión."
+                  t("No products in this version.")
                 }
               />
             </Panel>
@@ -2857,26 +2861,20 @@ function CatalogTab({
         <div className="space-y-4">
           <IndiceFilterBar
             title={
-              english ? "Filters" : "Filtros"
+              t("Filters")
             }
             subtitle={
-              english
-                ? "Find a product and focus on what is ready to sell."
-                : "Encuentra un producto y enfócate en lo que está listo para vender."
+              t("Find a product and focus on what is ready to sell.")
             }
             summary={
-              english
-                ? `${prices.length} matching products`
-                : `${prices.length} productos coinciden`
+              t("{p0} matching products", { p0: prices.length })
             }
             gridClassName="md:grid-cols-3"
           >
             <IndiceFilterSearch
-              label={english ? "Search" : "Buscar"}
+              label={t("Search")}
               placeholder={
-                english
-                  ? "Product or offer"
-                  : "Producto u oferta"
+                t("Product or offer")
               }
               tone="aqua"
               value={priceQuery}
@@ -2884,56 +2882,56 @@ function CatalogTab({
               onClear={() => setPriceQuery("")}
             />
             <IndiceFilterSelect
-              label={english ? "Type" : "Tipo"}
+              label={t("Type")}
               tone="aqua"
               value={priceTypeFilter}
               onValueChange={setPriceTypeFilter}
               options={[
                 {
                   value: "all",
-                  label: english ? "All types" : "Todos los tipos",
+                  label: t("All types"),
                 },
                 ...Array.from(
                   new Set(versionPrices.map((price) => price.price_type)),
                 ).map((value) => ({
                   value,
-                  label: catalogPriceTypeLabel(value, english),
+                  label: catalogPriceTypeLabel(value, locale),
                 })),
               ]}
             />
             <IndiceFilterSelect
-              label={english ? "Sales status" : "Estado de venta"}
+              label={t("Sales status")}
               tone="aqua"
               value={priceStatusFilter}
               onValueChange={setPriceStatusFilter}
               options={[
                 {
                   value: "all",
-                  label: english ? "All" : "Todos",
+                  label: t("All"),
                 },
                 {
                   value: "ready",
-                  label: english ? "Ready to sell" : "Listos para vender",
+                  label: t("Ready to sell"),
                 },
                 {
                   value: "review",
-                  label: english ? "Require attention" : "Requieren atención",
+                  label: t("Require attention"),
                 },
                 {
                   value: "inactive",
-                  label: english ? "Inactive" : "Inactivos",
+                  label: t("Inactive"),
                 },
               ]}
             />
           </IndiceFilterBar>
           <section
-            aria-label={english ? "Commercial price status" : "Estado de precios comerciales"}
+            aria-label={t("Commercial price status")}
             className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
           >
             <CatalogStatusMetric
               active={priceStatusFilter === "all"}
               icon={CircleDollarSign}
-              label={english ? "Commercial products" : "Productos comerciales"}
+              label={t("Commercial products")}
               value={priceStatusCounts.all}
               tone="aqua"
               onClick={() => setPriceStatusFilter("all")}
@@ -2941,7 +2939,7 @@ function CatalogTab({
             <CatalogStatusMetric
               active={priceStatusFilter === "review"}
               icon={CircleAlert}
-              label={english ? "Require attention" : "Requieren atención"}
+              label={t("Require attention")}
               value={priceStatusCounts.review}
               tone="warning"
               onClick={() => setPriceStatusFilter("review")}
@@ -2949,7 +2947,7 @@ function CatalogTab({
             <CatalogStatusMetric
               active={priceStatusFilter === "ready"}
               icon={BadgeCheck}
-              label={english ? "Ready to sell" : "Listos para vender"}
+              label={t("Ready to sell")}
               value={priceStatusCounts.ready}
               tone="success"
               onClick={() => setPriceStatusFilter("ready")}
@@ -2957,7 +2955,7 @@ function CatalogTab({
             <CatalogStatusMetric
               active={priceStatusFilter === "inactive"}
               icon={Activity}
-              label={english ? "Inactive" : "Inactivos"}
+              label={t("Inactive")}
               value={priceStatusCounts.inactive}
               tone="neutral"
               onClick={() => setPriceStatusFilter("inactive")}
@@ -2973,7 +2971,7 @@ function CatalogTab({
                 totalCount={prices.length}
                 pageStart={(pricePage - 1) * pricePageSize + 1}
                 pageEnd={Math.min(pricePage * pricePageSize, prices.length)}
-                itemLabel={english ? "products" : "productos"}
+                itemLabel={t("products")}
                 onPageChange={setPricePage}
                 onPageSizeChange={(nextSize) => {
                   setPricePageSize(nextSize);
@@ -2989,7 +2987,7 @@ function CatalogTab({
               />
               <IndiceTableHeaderRow
                 actions={{
-                  label: english ? "Actions" : "Acciones",
+                  label: t("Actions"),
                   width: catalogPriceActionsWidth,
                 }}
                 columns={priceTableColumns}
@@ -3018,9 +3016,7 @@ function CatalogTab({
                       <EmptyRow
                         icon={CircleDollarSign}
                         text={
-                          english
-                            ? "No products match the selected filters."
-                            : "No hay productos que coincidan con los filtros."
+                          t("No products match the selected filters.")
                         }
                       />
                     </td>
@@ -3032,9 +3028,7 @@ function CatalogTab({
         </div>
       )}
       <div className="rounded-2xl border border-[#59C3A5]/30 bg-[#59C3A5]/10 px-4 py-3 text-sm text-[#176B5B] dark:text-[#8FE0CA]">
-        {english
-          ? "Price changes apply to new sales. Existing customers and previous invoices keep the conditions already agreed."
-          : "Los cambios de precio se aplican a nuevas ventas. Los clientes actuales y las facturas anteriores conservan las condiciones ya acordadas."}
+        {t("Price changes apply to new sales. Existing customers and previous invoices keep the conditions already agreed.")}
       </div>
       {editing ? (
         <CatalogEditModal
@@ -3070,6 +3064,7 @@ function CatalogStatusMetric({
   tone: "aqua" | "neutral" | "success" | "warning";
   value: number;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   const toneClasses = {
     aqua: "bg-[#59C3A5]/15 text-[#177D66] dark:text-[#8FE0CA]",
     neutral: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
@@ -3111,6 +3106,7 @@ function CatalogPriceGroupRow({
   english: boolean;
   onEdit: (price: PlatformCatalogPrice) => void;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   return (
     <TableRow className="border-slate-100 hover:bg-[#59C3A5]/5 dark:border-slate-800 dark:hover:bg-[#59C3A5]/10">
       <TableCell className={`${tableCellClass} h-[72px] dark:text-slate-300`}>
@@ -3120,7 +3116,7 @@ function CatalogPriceGroupRow({
         <p className="mt-0.5 text-xs text-slate-500">{group.currency}</p>
       </TableCell>
       <TableCell className={`${tableCellClass} h-[72px] dark:text-slate-300`}>
-        {catalogPriceTypeLabel(group.priceType, english)}
+        {catalogPriceTypeLabel(group.priceType, locale)}
       </TableCell>
       <CatalogPriceVariantCell price={group.monthly} english={english} />
       <CatalogPriceVariantCell price={group.yearly} english={english} />
@@ -3129,16 +3125,10 @@ function CatalogPriceGroupRow({
           className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${group.status === "inactive" ? "bg-slate-200 text-slate-600" : group.status === "ready" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"}`}
         >
           {group.status === "inactive"
-            ? english
-              ? "Inactive"
-              : "Inactivo"
+            ? t("Inactive")
             : group.status === "ready"
-              ? english
-                ? "Ready to sell"
-                : "Listo para vender"
-              : english
-                ? "Needs review"
-                : "Requiere revisión"}
+              ? t("Ready to sell")
+              : t("Needs review")}
         </span>
       </TableCell>
       <TableCell className={`${tableCellClass} h-[72px] text-right dark:text-slate-300`}>
@@ -3147,24 +3137,24 @@ function CatalogPriceGroupRow({
             <button
               type="button"
               onClick={() => onEdit(group.monthly!)}
-              aria-label={english ? "Edit monthly price" : "Editar precio mensual"}
-              title={english ? "Edit monthly price" : "Editar precio mensual"}
+              aria-label={t("Edit monthly price")}
+              title={t("Edit monthly price")}
               className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#59C3A5]/40 bg-white px-2.5 text-xs font-medium text-[#176B5B] transition hover:bg-[#59C3A5]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25 dark:bg-slate-900 dark:text-[#8FE0CA]"
             >
               <PencilLine className="h-3.5 w-3.5" />
-              {english ? "Monthly" : "Mensual"}
+              {t("Monthly")}
             </button>
           ) : null}
           {group.yearly ? (
             <button
               type="button"
               onClick={() => onEdit(group.yearly!)}
-              aria-label={english ? "Edit annual price" : "Editar precio anual"}
-              title={english ? "Edit annual price" : "Editar precio anual"}
+              aria-label={t("Edit annual price")}
+              title={t("Edit annual price")}
               className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#59C3A5]/40 bg-white px-2.5 text-xs font-medium text-[#176B5B] transition hover:bg-[#59C3A5]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25 dark:bg-slate-900 dark:text-[#8FE0CA]"
             >
               <PencilLine className="h-3.5 w-3.5" />
-              {english ? "Annual" : "Anual"}
+              {t("Annual")}
             </button>
           ) : null}
         </IndiceTableActionGroup>
@@ -3180,11 +3170,12 @@ function CatalogPriceVariantCell({
   price?: PlatformCatalogPrice;
   english: boolean;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   if (!price) {
     return (
       <TableCell className={`${tableCellClass} h-[72px] dark:text-slate-300`}>
         <span className="text-sm text-slate-400">
-          {english ? "Not configured" : "No configurado"}
+          {t("Not configured")}
         </span>
       </TableCell>
     );
@@ -3194,26 +3185,18 @@ function CatalogPriceVariantCell({
   return (
     <TableCell className={`${tableCellClass} h-[72px] dark:text-slate-300`}>
       <p className="font-medium text-slate-900 dark:text-white">
-        {formatMoney(price.unit_amount_cents, price.currency, english)}
+        {formatMoney(price.unit_amount_cents, price.currency, locale)}
       </p>
       <p
         className={`mt-0.5 text-[11px] font-medium ${inactive ? "text-slate-400" : ready ? "text-emerald-700" : "text-amber-700"}`}
       >
         {inactive
-          ? english
-            ? "Inactive"
-            : "Inactivo"
+          ? t("Inactive")
           : ready
-            ? english
-              ? "Ready"
-              : "Listo"
+            ? t("Ready")
             : price.unit_amount_cents == null
-              ? english
-                ? "Missing amount"
-                : "Falta importe"
-              : english
-                ? "Billing connection pending"
-                : "Falta conexión de cobro"}
+              ? t("Missing amount")
+              : t("Billing connection pending")}
       </p>
     </TableCell>
   );
@@ -3266,6 +3249,7 @@ function CatalogEditModal({
   onCancel: () => void;
   onSave: (target: CatalogEditTarget) => Promise<void>;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   const [draft, setDraft] = useState<CatalogEditTarget>(target);
   const product = draft.kind === "product" ? draft.value : null;
   const price = draft.kind === "price" ? draft.value : null;
@@ -3282,20 +3266,16 @@ function CatalogEditModal({
       modalType="standard-form"
       tone="aqua"
       icon={<PencilLine className="h-5 w-5" />}
-      eyebrow={english ? "Commercial catalog" : "Catálogo comercial"}
+      eyebrow={t("Commercial catalog")}
       title={
         product
           ? product.id <= 0
-            ? english ? "Create package" : "Crear paquete"
-            : english ? "Configure product" : "Configurar producto"
-          : english
-            ? "Configure price"
-            : "Configurar precio"
+            ? t("Create package")
+            : t("Configure product")
+          : t("Configure price")
       }
       description={
-        english
-          ? "The saved information becomes available to customer configuration flows."
-          : "La información guardada queda disponible en los flujos de configuración de clientes."
+        t("The saved information becomes available to customer configuration flows.")
       }
       footer={
         <div className="flex w-full items-center justify-end gap-2">
@@ -3305,7 +3285,7 @@ function CatalogEditModal({
             onClick={onCancel}
             className="h-11 rounded-xl border border-white/40 bg-white px-4 text-sm font-medium text-slate-700"
           >
-            {english ? "Cancel" : "Cancelar"}
+            {t("Cancel")}
           </button>
           <button
             type="submit"
@@ -3314,8 +3294,8 @@ function CatalogEditModal({
             className="h-11 rounded-xl bg-white px-5 text-sm font-medium text-[#177D66] shadow-sm transition hover:bg-[#59C3A5]/10 disabled:cursor-wait disabled:bg-white/45 disabled:text-white/80"
           >
             {saving
-              ? english ? "Saving…" : "Guardando…"
-              : english ? "Save changes" : "Guardar cambios"}
+              ? t("Saving…")
+              : t("Save changes")}
           </button>
         </div>
       }
@@ -3331,16 +3311,12 @@ function CatalogEditModal({
         ) : null}
         <div className="rounded-2xl border border-[#59C3A5]/30 bg-[#59C3A5]/10 px-4 py-3 text-sm text-[#176B5B] dark:text-[#8FE0CA]">
           {product
-            ? english
-              ? "Mark the product as available now. Missing prices or Stripe links will be checked before the offer is published."
-              : "Marca el producto como disponible. Las tarifas o conexiones de Stripe pendientes se validarán antes de publicar la oferta."
-            : english
-              ? "A price is ready to bill when it has an amount and is connected to its Stripe price."
-              : "Un precio queda listo para cobrar cuando tiene importe y está conectado con su precio de Stripe."}
+            ? t("Mark the product as available now. Missing prices or Stripe links will be checked before the offer is published.")
+            : t("A price is ready to bill when it has an amount and is connected to its Stripe price.")}
         </div>
         {product ? (
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={english ? "Display name" : "Nombre visible"}>
+            <Field label={t("Display name")}>
               <input
                 required
                 value={product.display_name}
@@ -3353,7 +3329,7 @@ function CatalogEditModal({
                 className={controlClass}
               />
             </Field>
-            <Field label={english ? "Display order" : "Orden de visualización"}>
+            <Field label={t("Display order")}>
               <input
                 type="number"
                 min={0}
@@ -3372,12 +3348,10 @@ function CatalogEditModal({
             </Field>
             <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
               <p className="text-sm font-semibold text-slate-800">
-                {english ? "Included modules" : "Módulos incluidos"}
+                {t("Included modules")}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                {english
-                  ? "These are the modules customers receive when selecting this product."
-                  : "Son los módulos que recibe el cliente cuando selecciona este producto."}
+                {t("These are the modules customers receive when selecting this product.")}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {modules.filter((module) => module.assignment_enabled).map((module) => {
@@ -3403,7 +3377,7 @@ function CatalogEditModal({
                   );
                 })}
                 {!modules.some((module) => module.assignment_enabled) ? (
-                  <span className="text-xs text-slate-500">{english ? "No assignable modules available." : "No hay módulos asignables disponibles."}</span>
+                  <span className="text-xs text-slate-500">{t("No assignable modules available.")}</span>
                 ) : null}
               </div>
             </div>
@@ -3418,36 +3392,36 @@ function CatalogEditModal({
                   })
                 }
               />
-              {english ? "Available for customers" : "Disponible para clientes"}
+              {t("Available for customers")}
             </label>
           </div>
         ) : price ? (
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:grid-cols-3">
               <div>
-                <p className="text-xs text-slate-500">{english ? "Product" : "Producto"}</p>
+                <p className="text-xs text-slate-500">{t("Product")}</p>
                 <p className="mt-1 font-semibold text-slate-900">
-                  {offerLabels[price.billable_code] || price.billable_code}
+                  {offerLabels(locale)[price.billable_code] || price.billable_code}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">{english ? "Type" : "Tipo"}</p>
+                <p className="text-xs text-slate-500">{t("Type")}</p>
                 <p className="mt-1 font-semibold text-slate-900">
                   {price.price_type === "ADDON"
-                    ? english ? "Add-on" : "Complemento"
-                    : english ? "Package" : "Paquete"}
+                    ? t("Add-on")
+                    : t("Package")}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">{english ? "Frequency" : "Periodicidad"}</p>
+                <p className="text-xs text-slate-500">{t("Frequency")}</p>
                 <p className="mt-1 font-semibold text-slate-900">
                   {price.billing_interval === "YEAR"
-                    ? english ? "Annual" : "Anual"
-                    : english ? "Monthly" : "Mensual"}
+                    ? t("Annual")
+                    : t("Monthly")}
                 </p>
               </div>
             </div>
-            <Field label={`${english ? "Amount" : "Importe"} (${price.currency})`}>
+            <Field label={`${t("Amount")} (${price.currency})`}>
               <input
                 required
                 type="number"
@@ -3468,7 +3442,7 @@ function CatalogEditModal({
                 className={controlClass}
               />
             </Field>
-            <Field label={english ? "Billing readiness" : "Preparación para cobro"}>
+            <Field label={t("Billing readiness")}>
               <select
                 value={price.status}
                 onChange={(event) =>
@@ -3479,14 +3453,14 @@ function CatalogEditModal({
                 }
                 className={controlClass}
               >
-                <option value="ACTIVE">{english ? "Available to bill" : "Disponible para cobrar"}</option>
-                <option value="READY">{english ? "Ready for review" : "Listo para revisión"}</option>
-                <option value="DRAFT">{english ? "Draft" : "Borrador"}</option>
-                <option value="ARCHIVED">{english ? "Inactive" : "Inactivo"}</option>
+                <option value="ACTIVE">{t("Available to bill")}</option>
+                <option value="READY">{t("Ready for review")}</option>
+                <option value="DRAFT">{t("Draft")}</option>
+                <option value="ARCHIVED">{t("Inactive")}</option>
               </select>
             </Field>
             <div className="sm:col-span-2">
-              <Field label={english ? "Stripe billing reference" : "Referencia de cobro de Stripe"}>
+              <Field label={t("Stripe billing reference")}>
                 <input
                   value={price.external_price_id || ""}
                   onChange={(event) =>
@@ -3503,9 +3477,7 @@ function CatalogEditModal({
                 />
               </Field>
               <p className="mt-1.5 text-xs text-slate-500">
-                {english
-                  ? "Paste the Price ID created in Stripe to enable automatic billing."
-                  : "Pega el Price ID creado en Stripe para habilitar el cobro automático."}
+                {t("Paste the Price ID created in Stripe to enable automatic billing.")}
               </p>
             </div>
           </div>
@@ -3530,6 +3502,7 @@ function ModulesTab({
   onChange: (change: ModuleAvailabilityChange) => void;
   embedded?: boolean;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   const [workOrderOpen, setWorkOrderOpen] = useState(false);
   const { create, error: workOrderError, loading: workOrdersLoading, remove, workOrders } = useModuleWorkOrders();
   const workOrderCopy = useModuleWorkOrderCopy();
@@ -3545,18 +3518,16 @@ function ModulesTab({
         <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold text-slate-950">
-              {english ? "Available modules" : "Módulos disponibles"}
+              {t("Available modules")}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              {english
-                ? "Choose which Indice functions can be included in products, trials and customer accounts."
-                : "Elige qué funciones de Índice pueden incluirse en productos, pruebas y cuentas de clientes."}
+              {t("Choose which Indice functions can be included in products, trials and customer accounts.")}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-2 rounded-full bg-[#e8f5f2] px-3 py-1.5 text-xs font-medium text-[#177D66]">
               <Activity className="h-4 w-4" />
-              {(data?.modules ?? []).filter((module) => module.is_active).length} {english ? "active" : "activos"}
+              {(data?.modules ?? []).filter((module) => module.is_active).length} {t("active")}
             </span>
             {canManage ? (
               <button
@@ -3574,20 +3545,16 @@ function ModulesTab({
         <IndiceTitleBar
           tone="blue"
           icon={<Boxes className="h-5 w-5" />}
-          eyebrow={english ? "Commercial availability" : "Disponibilidad comercial"}
-          title={english ? "Indice modules" : "Módulos de Índice"}
+          eyebrow={t("Commercial availability")}
+          title={t("Indice modules")}
           subtitle={
-            english
-              ? "Enable the functions that may be offered to customers and safely remove those no longer available."
-              : "Habilita las funciones que pueden ofrecerse a clientes y retira de forma segura las que ya no estén disponibles."
+            t("Enable the functions that may be offered to customers and safely remove those no longer available.")
           }
         />
       )}
       {!canManage ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          {english
-            ? "You can review availability, but you do not have permission to change the commercial offer."
-            : "Puedes consultar la disponibilidad, pero no tienes permiso para cambiar la oferta comercial."}
+          {t("You can review availability, but you do not have permission to change the commercial offer.")}
         </div>
       ) : null}
       {workOrderError ? (
@@ -3596,7 +3563,7 @@ function ModulesTab({
         </div>
       ) : null}
       {workOrdersLoading ? (
-        <p className="text-sm text-slate-500">{english ? "Loading module requests…" : "Cargando solicitudes de módulos…"}</p>
+        <p className="text-sm text-slate-500">{t("Loading module requests…")}</p>
       ) : null}
       {workOrders.length ? (
         <Panel
@@ -3623,7 +3590,7 @@ function ModulesTab({
                       </span>
                     </div>
                     <p className="mt-0.5 truncate text-xs text-slate-500">
-                      {english ? "Initial language" : "Idioma inicial"}: {operationalLocaleLabels[order.sourceLocale] || order.sourceLocale}
+                      {t("Initial language")}: {operationalLocaleLabels[order.sourceLocale] || order.sourceLocale}
                     </p>
                   </div>
                 </div>
@@ -3681,10 +3648,11 @@ function ModuleGroup({
   onChange: (change: ModuleAvailabilityChange) => void;
   english: boolean;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   const labels: Record<string, string> = {
-    basic: english ? "Base modules" : "Módulos base",
-    complementary: english ? "Add-on modules" : "Módulos complementarios",
-    ai: english ? "Artificial intelligence" : "Inteligencia artificial",
+    basic: t("Base modules"),
+    complementary: t("Add-on modules"),
+    ai: t("Artificial intelligence"),
   };
   return (
     <section>
@@ -3694,7 +3662,7 @@ function ModuleGroup({
             {labels[category] || category}
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            {modules.length} {english ? "registered modules" : "módulo(s) registrados"}
+            {modules.length} {t("registered modules")}
           </p>
         </div>
       </div>
@@ -3703,7 +3671,7 @@ function ModuleGroup({
           const protectedCore = module.is_core;
           const visual = moduleVisual(module);
           const moduleDescription =
-            module.description || "Descripción operativa pendiente.";
+            module.description || t("Operational description pending.");
           return (
             <article
               key={module.id}
@@ -3722,12 +3690,8 @@ function ModuleGroup({
                 </span>
                 <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${module.is_active ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
                   {module.is_active
-                    ? english
-                      ? "Available"
-                      : "Disponible"
-                    : english
-                      ? "Unavailable"
-                      : "No disponible"}
+                    ? t("Available")
+                    : t("Unavailable")}
                 </span>
               </div>
               <div className="relative mt-3 flex-1">
@@ -3743,25 +3707,17 @@ function ModuleGroup({
                 <div className="mt-2 flex min-h-6 flex-wrap gap-1">
                   <MiniTag>
                     {module.assignment_enabled
-                      ? english
-                        ? "Customer assignable"
-                        : "Asignable a clientes"
-                      : english
-                        ? "Internal use"
-                        : "Uso interno"}
+                      ? t("Customer assignable")
+                      : t("Internal use")}
                   </MiniTag>
-                  {module.is_core ? <MiniTag>{english ? "Indice essential" : "Esencial de Índice"}</MiniTag> : null}
+                  {module.is_core ? <MiniTag>{t("Indice essential")}</MiniTag> : null}
                 </div>
               </div>
               <div className="relative mt-2 flex items-center justify-between gap-2 border-t border-slate-200/70 pt-2 text-xs dark:border-slate-700">
                 <span className="min-w-0 truncate text-slate-500">
                   {module.is_active
-                    ? english
-                      ? "Visible in products and accounts"
-                      : "Visible en productos y cuentas"
-                    : english
-                      ? "Hidden from new selections"
-                      : "Oculto en nuevas selecciones"}
+                    ? t("Visible in products and accounts")
+                    : t("Hidden from new selections")}
                 </span>
               </div>
               <button
@@ -3769,25 +3725,17 @@ function ModuleGroup({
                 disabled={!canManage || saving || protectedCore}
                 title={
                   protectedCore
-                    ? english
-                      ? "The Indice essentials are required and cannot be removed."
-                      : "El núcleo de Índice es obligatorio y no puede retirarse."
+                    ? t("The Indice essentials are required and cannot be removed.")
                     : undefined
                 }
                 onClick={() => onChange({ module, active: !module.is_active })}
                 className={`relative mt-2 h-9 w-full rounded-lg border px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${protectedCore ? "border-slate-200 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-800" : module.is_active ? "border-red-200 bg-white text-red-600 hover:bg-red-50 dark:border-red-900 dark:bg-slate-900" : "border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700"}`}
               >
                 {protectedCore
-                  ? english
-                    ? "Required"
-                    : "Obligatorio"
+                  ? t("Required")
                   : module.is_active
-                    ? english
-                      ? "Remove from offer"
-                      : "Retirar de la oferta"
-                    : english
-                      ? "Enable for offer"
-                      : "Habilitar para la oferta"}
+                    ? t("Remove from offer")
+                    : t("Enable for offer")}
               </button>
             </article>
           );
@@ -3818,6 +3766,7 @@ function CourtesyTab({
   onSubmit: (event: FormEvent) => void;
   onRevoke: (reference: string) => void;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   const [view, setView] = useState<"create" | "history">("create");
   const presetReason = accessReasonOptions.includes(
     value.reason as (typeof accessReasonOptions)[number],
@@ -3836,14 +3785,13 @@ function CourtesyTab({
           onClick={() => setView("create")}
           className={`h-10 rounded-lg px-4 text-sm font-semibold ${view === "create" ? "bg-[#2563EB] text-white" : "text-slate-600"}`}
         >
-          Nuevo acceso
-        </button>
+          {t("New access")}</button>
         <button
           type="button"
           onClick={() => setView("history")}
           className={`h-10 rounded-lg px-4 text-sm font-semibold ${view === "history" ? "bg-[#2563EB] text-white" : "text-slate-600"}`}
         >
-          Códigos emitidos ({catalog?.codes.length ?? 0})
+          {t("Issued codes (")}{catalog?.codes.length ?? 0})
         </button>
       </div>
       {feedback ? (
@@ -3852,23 +3800,22 @@ function CourtesyTab({
           tone={feedback.kind}
           title={
             feedback.kind === "success"
-              ? "Acceso generado"
-              : "No se pudo generar"
+              ? t("Access generated")
+              : t("Could not generate access")
           }
         />
       ) : null}
       <section className="grid gap-5">
         {view === "create" ? (
           <Panel
-            title="Nuevo acceso promocional"
-            description="El código claro se muestra una sola vez después de generarlo."
+            title={t("New promotional access")}
+            description={t("The plain code is shown only once after generation.")}
           >
             <form onSubmit={onSubmit} className="space-y-4 p-5">
               {createdCode ? (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                   <p className="text-xs font-medium text-emerald-800">
-                    Código generado. Cópialo ahora.
-                  </p>
+                    {t("Code generated. Copy it now.")}</p>
                   <div className="mt-2 flex gap-2">
                     <code className="min-w-0 flex-1 overflow-x-auto rounded-xl bg-white px-3 py-2 text-sm">
                       {createdCode}
@@ -3880,13 +3827,12 @@ function CourtesyTab({
                       }
                       className="rounded-xl bg-[#177D66] px-3 text-sm font-medium text-white"
                     >
-                      Copiar
-                    </button>
+                      {t("Copy")}</button>
                   </div>
                 </div>
               ) : null}
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Nombre interno">
+                <Field label={t("Internal name")}>
                   <input
                     required
                     value={value.label}
@@ -3894,10 +3840,10 @@ function CourtesyTab({
                       onChange({ ...value, label: event.target.value })
                     }
                     className={controlClass}
-                    placeholder="Cliente piloto agosto"
+                    placeholder={t("Pilot customer")}
                   />
                 </Field>
-                <Field label="Correo autorizado">
+                <Field label={t("Authorized email")}>
                   <input
                     type="email"
                     value={value.allowed_email || ""}
@@ -3905,17 +3851,15 @@ function CourtesyTab({
                       onChange({ ...value, allowed_email: event.target.value })
                     }
                     className={controlClass}
-                    placeholder="Opcional, recomendado"
+                    placeholder={t("Optional, recommended")}
                   />
                 </Field>
               </div>
               <fieldset className="rounded-2xl border border-slate-200 p-4">
                 <legend className="px-1 text-sm font-medium text-slate-700">
-                  Módulos incluidos
-                </legend>
+                  {t("Included modules")}</legend>
                 <p className="mb-3 text-xs text-slate-500">
-                  Sin selección concede todos los módulos básicos.
-                </p>
+                  {t("No selection grants all basic modules.")}</p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {catalog?.products.map((product) => {
                     const checked = value.product_codes.includes(product.code);
@@ -3945,7 +3889,7 @@ function CourtesyTab({
                 </div>
               </fieldset>
               <div className="grid gap-3 sm:grid-cols-3">
-                <Field label="Usuarios extra">
+                <Field label={t("Extra users")}>
                   <select
                     value={value.included_extra_seats}
                     onChange={(event) =>
@@ -3963,7 +3907,7 @@ function CourtesyTab({
                     ))}
                   </select>
                 </Field>
-                <Field label="Usos máximos">
+                <Field label={t("Maximum uses")}>
                   <select
                     value={value.max_redemptions}
                     onChange={(event) =>
@@ -3981,7 +3925,7 @@ function CourtesyTab({
                     ))}
                   </select>
                 </Field>
-                <Field label="Días de acceso">
+                <Field label={t("Access days")}>
                   <select
                     disabled={value.permanent}
                     value={value.access_days || 30}
@@ -3995,13 +3939,12 @@ function CourtesyTab({
                   >
                     {accessDayOptions.map((days) => (
                       <option key={days} value={days}>
-                        {days} días
-                      </option>
+                        {days} {t("days")}</option>
                     ))}
                   </select>
                 </Field>
               </div>
-              <Field label="Tipo de acceso">
+              <Field label={t("Access type")}>
                 <select
                   value={value.permanent ? "PERMANENT" : "TIMED"}
                   onChange={(event) =>
@@ -4012,11 +3955,11 @@ function CourtesyTab({
                   }
                   className={controlClass}
                 >
-                  <option value="TIMED">Acceso con vigencia</option>
-                  <option value="PERMANENT">Acceso permanente</option>
+                  <option value="TIMED">{t("Time-limited access")}</option>
+                  <option value="PERMANENT">{t("Permanent access")}</option>
                 </select>
               </Field>
-              <Field label="Motivo auditable">
+              <Field label={t("Auditable reason")}>
                 <select
                   required
                   value={reasonSelection}
@@ -4025,17 +3968,17 @@ function CourtesyTab({
                   }
                   className={controlClass}
                 >
-                  <option value="">Selecciona un motivo</option>
+                  <option value="">{t("Select a reason")}</option>
                   {accessReasonOptions.map((reason) => (
                     <option key={reason} value={reason}>
-                      {reason}
+                      {flowOptionLabel(reason, locale)}
                     </option>
                   ))}
-                  <option value="OTHER">Otro motivo</option>
+                  <option value="OTHER">{t("Other reason")}</option>
                 </select>
               </Field>
               {reasonSelection === "OTHER" ? (
-                <Field label="Describe el motivo">
+                <Field label={t("Describe the reason")}>
                   <textarea
                     required
                     minLength={5}
@@ -4047,28 +3990,28 @@ function CourtesyTab({
                   />
                 </Field>
               ) : null}
-              <Field label="Campaña">
+              <Field label={t("Campaign")}>
                 <input
                   value={value.campaign_code || ""}
                   onChange={(event) =>
                     onChange({ ...value, campaign_code: event.target.value })
                   }
                   className={controlClass}
-                  placeholder="Opcional"
+                  placeholder={t("Optional")}
                 />
               </Field>
               <button
                 disabled={saving}
                 className="h-11 w-full rounded-xl bg-[#177D66] text-sm font-medium text-white disabled:opacity-50"
               >
-                {saving ? "Generando..." : "Generar código seguro"}
+                {saving ? t("Generating…") : t("Generate secure code")}
               </button>
             </form>
           </Panel>
         ) : (
           <Panel
-            title="Códigos emitidos"
-            description="Vigencia, redenciones y restricción de correo."
+            title={t("Issued codes")}
+            description={t("Validity, redemptions and email restriction.")}
           >
             <div className="max-h-[760px] divide-y divide-slate-100 overflow-y-auto">
               {catalog?.codes.map((item) => (
@@ -4077,28 +4020,26 @@ function CourtesyTab({
                     <div>
                       <p className="font-medium text-slate-900">{item.label}</p>
                       <p className="mt-1 text-xs text-slate-500">
-                        {item.allowed_email || "Sin correo restringido"}
+                        {item.allowed_email || t("No email restriction")}
                       </p>
                     </div>
                     <StatusBadge status={item.status} />
                   </div>
                   <p className="mt-3 text-sm text-slate-600">
                     {item.all_basic_products
-                      ? "Todos los módulos básicos"
+                      ? t("All basic modules")
                       : item.product_codes.join(", ")}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <MiniTag>
-                      {item.redemption_count}/{item.max_redemptions} usos
-                    </MiniTag>
+                      {item.redemption_count}/{item.max_redemptions} {t("uses")}</MiniTag>
                     <MiniTag>
                       {item.permanent
-                        ? "Permanente"
-                        : `${item.access_days} días`}
+                        ? t("Permanent")
+                        : t("{p0} days", { p0: item.access_days })}
                     </MiniTag>
                     <MiniTag>
-                      {item.included_extra_seats} usuarios extra
-                    </MiniTag>
+                      {item.included_extra_seats} {t("extra users")}</MiniTag>
                   </div>
                   <p className="mt-3 text-sm text-slate-500">{item.reason}</p>
                   {item.status === "ACTIVE" ? (
@@ -4108,13 +4049,12 @@ function CourtesyTab({
                       onClick={() => onRevoke(item.reference)}
                       className="mt-3 text-xs font-medium text-red-600"
                     >
-                      Revocar código
-                    </button>
+                      {t("Revoke code")}</button>
                   ) : null}
                 </article>
               ))}
               {!catalog?.codes.length ? (
-                <EmptyRow icon={KeyRound} text="Aún no hay códigos emitidos." />
+                <EmptyRow icon={KeyRound} text={t("No codes have been issued yet.")} />
               ) : null}
             </div>
           </Panel>
@@ -4131,6 +4071,7 @@ function AuditTab({
   english: boolean;
   data: PlatformAudit | null;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   return <UsageAnalyticsWorkspace english={english} audit={data} />;
 }
 
@@ -4157,12 +4098,13 @@ function CompanyDrawer({
   onGrantProduct: (productCode: string) => void;
   onRevokeBenefit: (reference: string) => void;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   return (
     <div
       className="fixed inset-0 z-50 flex justify-end bg-slate-950/40 backdrop-blur-[2px]"
       role="dialog"
       aria-modal="true"
-      aria-label={`Detalle de ${company.name}`}
+      aria-label={t("Details for {p0}", { p0: company.name })}
     >
       <section className="flex h-full w-full max-w-3xl flex-col bg-[#f7f9fc] shadow-2xl">
         <div className="border-b border-slate-200 bg-white p-5">
@@ -4185,8 +4127,7 @@ function CompanyDrawer({
                   />
                 </div>
                 <p className="mt-1 truncate text-sm text-slate-500">
-                  {company.owner_email || "Propietario pendiente"} · Company #
-                  {company.id}
+                  {company.owner_email || t("Owner pending")} {t("· Company #")}{company.id}
                 </p>
               </div>
             </div>
@@ -4194,7 +4135,7 @@ function CompanyDrawer({
               type="button"
               onClick={onClose}
               className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500"
-              aria-label="Cerrar"
+              aria-label={t("Close")}
             >
               <X className="h-5 w-5" />
             </button>
@@ -4203,35 +4144,33 @@ function CompanyDrawer({
         <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <SmallMetric
-              label="Plan"
+              label={t("Plan")}
               value={
-                offerLabels[company.offer_code || ""] ||
+                offerLabels(locale)[company.offer_code || ""] ||
                 company.offer_code ||
-                "Sin plan"
+                t("No plan")
               }
             />
             <SmallMetric
-              label="Estado de acceso"
+              label={t("Access status")}
               value={humanize(
                 company.access_mode || company.lifecycle_state || "legacy",
               )}
             />
             <SmallMetric
-              label="Usuarios"
+              label={t("Users")}
               value={`${company.seat_usage.active ?? 0} / ${(company.seat_usage.included ?? 0) + (company.seat_usage.purchased_extra ?? 0) + (company.seat_usage.courtesy_extra ?? 0)}`}
             />
             <SmallMetric
-              label="Próxima renovación"
-              value={formatDate(
-                company.billing_status === "trialing"
+              label={t("Next renewal")}
+              value={formatDate(company.billing_status === "trialing"
                   ? company.trial_ends_at
-                  : company.current_period_ends_at,
-              )}
+                  : company.current_period_ends_at, locale)}
             />
           </section>
           <Panel
-            title="Productos contratados"
-            description="Selección asociada a la suscripción más reciente."
+            title={t("Subscribed products")}
+            description={t("Selection associated with the latest subscription.")}
           >
             <div className="flex flex-wrap gap-2 p-5">
               {company.products.map((product) => (
@@ -4245,15 +4184,14 @@ function CompanyDrawer({
               ))}
               {!company.products.length ? (
                 <p className="text-sm text-slate-500">
-                  Esta cuenta todavía no tiene productos de catálogo asociados.
-                </p>
+                  {t("This account has no associated catalog products yet.")}</p>
               ) : null}
             </div>
           </Panel>
           <section className="grid gap-4 lg:grid-cols-2">
             <Panel
-              title="Usuarios de la cuenta"
-              description={`${company.members.length} membresía(s) registradas.`}
+              title={t("Account users")}
+              description={t("{p0} registered membership(s).", { p0: company.members.length })}
             >
               <div className="max-h-72 divide-y divide-slate-100 overflow-y-auto">
                 {company.members.map((member) => (
@@ -4280,8 +4218,8 @@ function CompanyDrawer({
               </div>
             </Panel>
             <Panel
-              title="Facturas recientes"
-              description="Últimos documentos asociados a la compañía."
+              title={t("Recent invoices")}
+              description={t("Latest documents associated with the company.")}
             >
               <div className="max-h-72 divide-y divide-slate-100 overflow-y-auto">
                 {company.invoices.map((invoice) => (
@@ -4291,13 +4229,10 @@ function CompanyDrawer({
                   >
                     <div>
                       <p className="text-sm font-medium text-slate-900">
-                        {formatMoney(
-                          invoice.amount_due_cents,
-                          invoice.currency,
-                        )}
+                        {formatMoney(invoice.amount_due_cents, invoice.currency, locale)}
                       </p>
                       <p className="text-xs text-slate-500">
-                        {formatDate(invoice.period_ends_at)}
+                        {formatDate(invoice.period_ends_at, locale)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -4307,7 +4242,7 @@ function CompanyDrawer({
                           href={invoice.hosted_invoice_url}
                           target="_blank"
                           rel="noreferrer"
-                          aria-label="Abrir factura"
+                          aria-label={t("Open invoice")}
                         >
                           <ExternalLink className="h-4 w-4 text-slate-500" />
                         </a>
@@ -4318,7 +4253,7 @@ function CompanyDrawer({
                 {!company.invoices.length ? (
                   <EmptyRow
                     icon={CreditCard}
-                    text="Sin facturas sincronizadas."
+                    text={t("No synchronized invoices.")}
                   />
                 ) : null}
               </div>
@@ -4326,20 +4261,20 @@ function CompanyDrawer({
           </section>
           {company.storage_usage?.metered ? (
             <Panel
-              title="Almacenamiento"
-              description="Uso medido y capacidad asignada a la cuenta."
+              title={t("Storage")}
+              description={t("Measured usage and allocated account capacity.")}
             >
               <div className="grid grid-cols-3 gap-3 p-5">
                 <SmallMetric
-                  label="Usado"
+                  label={t("Used")}
                   value={`${toGigabytes(company.storage_usage.used_bytes + company.storage_usage.reserved_bytes)} GB`}
                 />
                 <SmallMetric
-                  label="Límite"
+                  label={t("Limit")}
                   value={`${toGigabytes(company.storage_usage.limit_bytes)} GB`}
                 />
                 <SmallMetric
-                  label="Bloques extra"
+                  label={t("Extra blocks")}
                   value={String(
                     company.storage_usage.purchased_blocks +
                       company.storage_usage.benefit_blocks,
@@ -4350,12 +4285,12 @@ function CompanyDrawer({
           ) : null}
           {context?.can_manage_benefits ? (
             <Panel
-              title="Otorgar beneficio"
-              description="Separado de la suscripción y registrado en auditoría."
+              title={t("Grant benefit")}
+              description={t("Separate from the subscription and recorded in the audit log.")}
             >
               <form onSubmit={onSubmitBenefit} className="space-y-3 p-5">
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Tipo">
+                  <Field label={t("Type")}>
                     <select
                       value={benefit.benefit_type}
                       onChange={(event) =>
@@ -4367,12 +4302,12 @@ function CompanyDrawer({
                       }
                       className={controlClass}
                     >
-                      <option value="PRODUCT">Módulo</option>
-                      <option value="SEAT">Usuarios</option>
-                      <option value="STORAGE">Almacenamiento</option>
+                      <option value="PRODUCT">{t("Module")}</option>
+                      <option value="SEAT">{t("Users")}</option>
+                      <option value="STORAGE">{t("Storage")}</option>
                     </select>
                   </Field>
-                  <Field label="Origen">
+                  <Field label={t("Source")}>
                     <select
                       value={benefit.source_type}
                       onChange={(event) =>
@@ -4384,15 +4319,15 @@ function CompanyDrawer({
                       }
                       className={controlClass}
                     >
-                      <option value="COURTESY">Cortesía</option>
-                      <option value="PROMOTION">Promoción</option>
-                      <option value="SUPPORT">Soporte</option>
-                      <option value="TEST">Prueba</option>
+                      <option value="COURTESY">{t("Courtesy")}</option>
+                      <option value="PROMOTION">{t("Promotion")}</option>
+                      <option value="SUPPORT">{t("Support")}</option>
+                      <option value="TEST">{t("Trial")}</option>
                     </select>
                   </Field>
                 </div>
                 {benefit.benefit_type === "PRODUCT" ? (
-                  <Field label="Código de producto">
+                  <Field label={t("Product code")}>
                     <input
                       required
                       value={benefit.product_code}
@@ -4407,7 +4342,7 @@ function CompanyDrawer({
                     />
                   </Field>
                 ) : (
-                  <Field label="Cantidad">
+                  <Field label={t("Quantity")}>
                     <input
                       required
                       min={1}
@@ -4423,7 +4358,7 @@ function CompanyDrawer({
                     />
                   </Field>
                 )}
-                <Field label="Motivo">
+                <Field label={t("Reason")}>
                   <textarea
                     required
                     minLength={5}
@@ -4435,7 +4370,7 @@ function CompanyDrawer({
                   />
                 </Field>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Campaña">
+                  <Field label={t("Campaign")}>
                     <input
                       value={benefit.campaign_code}
                       onChange={(event) =>
@@ -4447,7 +4382,7 @@ function CompanyDrawer({
                       className={controlClass}
                     />
                   </Field>
-                  <Field label="Vigencia hasta">
+                  <Field label={t("Valid until")}>
                     <input
                       type="datetime-local"
                       value={benefit.ends_at || ""}
@@ -4462,14 +4397,14 @@ function CompanyDrawer({
                   disabled={saving}
                   className="h-11 w-full rounded-xl bg-[#143675] text-sm font-medium text-white disabled:opacity-50"
                 >
-                  {saving ? "Guardando..." : "Otorgar beneficio"}
+                  {saving ? t("Saving...") : t("Grant benefit")}
                 </button>
               </form>
             </Panel>
           ) : null}
           <Panel
-            title="Historial de beneficios"
-            description="Cortesías, promociones y apoyos activos o revocados."
+            title={t("Benefit history")}
+            description={t("Active or revoked courtesies, promotions and support grants.")}
           >
             <div className="divide-y divide-slate-100">
               {company.benefits.map((item) => (
@@ -4483,7 +4418,7 @@ function CompanyDrawer({
                       </p>
                       <p className="mt-1 text-xs text-slate-500">
                         {humanize(item.source_type)} ·{" "}
-                        {item.campaign_code || "Sin campaña"}
+                        {item.campaign_code || t("No campaign")}
                       </p>
                     </div>
                     <StatusBadge status={item.status} />
@@ -4496,13 +4431,12 @@ function CompanyDrawer({
                       onClick={() => onRevokeBenefit(item.reference)}
                       className="mt-3 text-xs font-medium text-red-600"
                     >
-                      Revocar beneficio
-                    </button>
+                      {t("Revoke benefit")}</button>
                   ) : null}
                 </article>
               ))}
               {!company.benefits.length ? (
-                <EmptyRow icon={Gift} text="Esta cuenta no tiene beneficios." />
+                <EmptyRow icon={Gift} text={t("This account has no benefits.")} />
               ) : null}
             </div>
           </Panel>
@@ -4529,6 +4463,7 @@ function ModuleAvailabilityModal({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   const activating = change.active;
   const presetReason = moduleAvailabilityReasonOptions.includes(
     reason as (typeof moduleAvailabilityReasonOptions)[number],
@@ -4557,8 +4492,8 @@ function ModuleAvailabilityModal({
           className="mt-4 text-lg font-medium text-slate-900"
         >
           {activating
-            ? "Habilitar módulo en la oferta"
-            : "Retirar módulo de la oferta"}
+            ? t("Enable module in offer")
+            : t("Remove module from offer")}
         </h2>
         <p className="mt-1 text-sm leading-6 text-slate-600">
           {activating ? (
@@ -4566,26 +4501,23 @@ function ModuleAvailabilityModal({
               <strong className="font-medium text-slate-900">
                 {change.module.name}
               </strong>{" "}
-              volverá a estar disponible en productos, pruebas y nuevas cuentas.
-            </>
+              {t("will be available again in products, trials and new accounts.")}</>
           ) : (
             <>
               <strong className="font-medium text-slate-900">
                 {change.module.name}
               </strong>{" "}
-              dejará de ofrecerse en productos y nuevas cuentas. Los datos y
-              asignaciones existentes se conservarán para una futura reactivación.
-            </>
+              {t("will no longer be offered in products and new accounts. Existing data and assignments will be preserved for future reactivation.")}</>
           )}
         </p>
         <div
           className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${activating ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-700"}`}
         >
           {activating
-            ? "Después de habilitarlo, revisa Productos y paquetes para decidir cómo se venderá."
-            : "Este cambio afecta la oferta general. Revisa los clientes actuales antes de confirmar."}
+            ? t("After enabling it, review Products and packages to decide how it will be sold.")
+            : t("This change affects the overall offer. Review existing customers before confirming.")}
         </div>
-        <Field label="Motivo de auditoría">
+        <Field label={t("Audit reason")}>
           <select
             autoFocus
             required
@@ -4593,17 +4525,17 @@ function ModuleAvailabilityModal({
             onChange={(event) => onReason(event.target.value)}
             className={`${controlClass} mt-4`}
           >
-            <option value="">Selecciona un motivo</option>
+            <option value="">{t("Select a reason")}</option>
             {moduleAvailabilityReasonOptions.map((option) => (
               <option key={option} value={option}>
-                {option}
+                {flowOptionLabel(option, locale)}
               </option>
             ))}
-            <option value="OTHER">Otro motivo</option>
+            <option value="OTHER">{t("Other reason")}</option>
           </select>
         </Field>
         {reasonSelection === "OTHER" ? (
-          <Field label="Describe el motivo">
+          <Field label={t("Describe the reason")}>
             <textarea
               required
               minLength={5}
@@ -4619,8 +4551,7 @@ function ModuleAvailabilityModal({
             onClick={onCancel}
             className="h-11 rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-700"
           >
-            Cancelar
-          </button>
+            {t("Cancel")}</button>
           <button
             type="button"
             disabled={saving || reason === "OTHER" || reason.trim().length < 3}
@@ -4628,10 +4559,10 @@ function ModuleAvailabilityModal({
             className={`h-11 rounded-xl px-4 text-sm font-medium text-white disabled:opacity-50 ${activating ? "bg-emerald-600" : "bg-red-600"}`}
           >
             {saving
-              ? "Aplicando..."
+              ? t("Applying…")
               : activating
-                ? "Habilitar módulo"
-                : "Retirar de la oferta"}
+                ? t("Enable module")
+                : t("Remove from offer")}
           </button>
         </div>
       </section>
@@ -4656,6 +4587,7 @@ function ConfirmModal({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   const isProduct = revocation.kind === "benefit" && Boolean(revocation.label);
   const presetReason = revocationReasonOptions.includes(
     reason as (typeof revocationReasonOptions)[number],
@@ -4663,19 +4595,20 @@ function ConfirmModal({
   const reasonSelection = presetReason ? reason : reason ? "OTHER" : "";
   const duplicateMessage =
     isProduct && (revocation.grantCount ?? 0) > 1
-      ? ` Se consolidarán y revocarán las ${revocation.grantCount} concesiones activas encontradas.`
+      ? t(" The {p0} active grants found will be consolidated and revoked.", { p0: revocation.grantCount })
       : "";
   return (
     <IndiceConfirmationDialog
       busy={saving}
       confirmDisabled={reason === "OTHER" || reason.trim().length < 3}
+      cancelLabel={t("Cancel")}
       confirmLabel={
-        saving ? "Aplicando..." : isProduct ? "Quitar acceso" : "Revocar"
+        saving ? t("Applying…") : isProduct ? t("Remove access") : t("Revoke")
       }
       description={
         isProduct
-          ? `El módulo dejará de estar disponible para esta cuenta.${duplicateMessage}`
-          : "La cortesía dejará de estar disponible y la acción quedará registrada en auditoría."
+          ? t("The module will no longer be available for this account.{p0}", { p0: duplicateMessage })
+          : t("The courtesy will no longer be available and the action will be recorded in the audit log.")
       }
       destructive
       icon={<CircleAlert className="h-5 w-5" />}
@@ -4685,13 +4618,13 @@ function ConfirmModal({
       open
       title={
         isProduct
-          ? `Quitar acceso a ${revocation.label}`
-          : "Confirmar revocación"
+          ? t("Remove access to {p0}", { p0: revocation.label })
+          : t("Confirm revocation")
       }
       tone="blue"
     >
       <IndiceModalValidation messages={error ? [error] : []} />
-      <Field label="Motivo de auditoría">
+      <Field label={t("Audit reason")}>
         <select
           autoFocus
           required
@@ -4699,17 +4632,17 @@ function ConfirmModal({
           onChange={(event) => onReason(event.target.value)}
           className={controlClass}
         >
-          <option value="">Selecciona un motivo</option>
+          <option value="">{t("Select a reason")}</option>
           {revocationReasonOptions.map((option) => (
             <option key={option} value={option}>
-              {option}
+              {flowOptionLabel(option, locale)}
             </option>
           ))}
-          <option value="OTHER">Otro motivo</option>
+          <option value="OTHER">{t("Other reason")}</option>
         </select>
       </Field>
       {reasonSelection === "OTHER" ? (
-        <Field label="Describe el motivo">
+        <Field label={t("Describe the reason")}>
           <textarea
             required
             minLength={5}
@@ -4736,6 +4669,7 @@ function PageIntro({
   action?: ReactNode;
   icon?: typeof LayoutDashboard;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   return (
     <section className="relative overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-r from-white via-blue-50/60 to-emerald-50/50 p-5 shadow-[0_18px_45px_-38px_rgba(37,99,235,0.65)]">
       <span
@@ -4775,6 +4709,7 @@ function Panel({
   action?: ReactNode;
   children: ReactNode;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_45px_-38px_rgba(15,23,42,0.55)]">
       <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
@@ -4809,6 +4744,7 @@ function Metric({
   actionLabel?: string;
   onClick?: () => void;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   const accents = {
     mint: "bg-[#e8f5f2] text-[#177D66] dark:bg-emerald-950/40 dark:text-emerald-300",
     blue: "bg-blue-50 text-[#143675] dark:bg-blue-950/45 dark:text-blue-300",
@@ -4863,6 +4799,7 @@ function Metric({
 }
 
 function SmallMetric({ label, value }: { label: string; value: string }) {
+  const { t, locale } = usePlatformAdminTranslations();
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3">
       <p className="text-xs text-slate-500">{label}</p>
@@ -4873,6 +4810,7 @@ function SmallMetric({ label, value }: { label: string; value: string }) {
   );
 }
 function Field({ label, children }: { label: string; children: ReactNode }) {
+  const { t, locale } = usePlatformAdminTranslations();
   return (
     <label className="block space-y-1.5 text-sm font-medium text-slate-700">
       <span>{label}</span>
@@ -4881,6 +4819,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 function MiniTag({ children }: { children: ReactNode }) {
+  const { t, locale } = usePlatformAdminTranslations();
   return (
     <span className="rounded-md bg-slate-100 px-2 py-1 text-[11px] text-slate-600">
       {children}
@@ -4894,6 +4833,7 @@ function StatusBadge({
   status: string;
   subtle?: boolean;
 }) {
+  const { t, locale } = usePlatformAdminTranslations();
   const normalized = status.toLowerCase();
   const positive = [
     "active",
@@ -4933,13 +4873,14 @@ function StatusBadge({
   return (
     <span
       className={`inline-flex max-w-36 items-center rounded-full px-2.5 py-1 text-[11px] font-medium ${tone} ${subtle ? "bg-opacity-70" : ""}`}
-      title={status}
+      title={statusLabel(status, locale)}
     >
-      {statusLabel(status)}
+      {statusLabel(status, locale)}
     </span>
   );
 }
 function EmptyRow({ icon: Icon, text }: { icon: typeof Users; text: string }) {
+  const { t, locale } = usePlatformAdminTranslations();
   return (
     <div className="flex flex-col items-center justify-center gap-2 px-5 py-10 text-center text-sm text-slate-500">
       <span className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-slate-400">
@@ -4950,52 +4891,51 @@ function EmptyRow({ icon: Icon, text }: { icon: typeof Users; text: string }) {
   );
 }
 function LoadingState() {
+  const { t, locale } = usePlatformAdminTranslations();
   return (
     <div className="flex min-h-[45vh] items-center justify-center gap-3 text-sm text-slate-500">
-      <LoaderCircle className="h-5 w-5 animate-spin text-[#177D66]" /> Cargando
-      operación de plataforma...
-    </div>
+      <LoaderCircle className="h-5 w-5 animate-spin text-[#177D66]" /> {t("Loading platform operations…")}</div>
   );
 }
 function PermissionState() {
+  const { t, locale } = usePlatformAdminTranslations();
   return (
     <div className="grid min-h-[45vh] place-items-center">
       <div className="text-center">
         <ShieldCheck className="mx-auto h-10 w-10 text-slate-400" />
-        <h2 className="mt-3 text-lg font-medium">Acceso de consulta</h2>
+        <h2 className="mt-3 text-lg font-medium">{t("Read-only access")}</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Tu rol no permite administrar beneficios.
-        </p>
+          {t("Your role cannot manage benefits.")}</p>
       </div>
     </div>
   );
 }
 
-function formatMoney(value?: number | null, currency = "USD", english = false) {
+function formatMoney(value?: number | null, currency = "USD", locale = "en-CA") {
   if (value === null || value === undefined) return "—";
-  return new Intl.NumberFormat(english ? "en-CA" : "es-MX", {
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: currency || "USD",
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(value / 100);
 }
-function formatDate(value?: string | null) {
+function formatDate(value?: string | null, locale = "en-CA") {
   if (!value) return "—";
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? "—"
-    : new Intl.DateTimeFormat("es-MX", {
+    : new Intl.DateTimeFormat(locale, {
         day: "2-digit",
         month: "short",
         year: "numeric",
       }).format(date);
 }
-function formatDateTime(value?: string | null) {
+function formatDateTime(value?: string | null, locale = "en-CA") {
   if (!value) return "—";
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? "—"
-    : new Intl.DateTimeFormat("es-MX", {
+    : new Intl.DateTimeFormat(locale, {
         day: "2-digit",
         month: "short",
         year: "numeric",
@@ -5003,29 +4943,32 @@ function formatDateTime(value?: string | null) {
         minute: "2-digit",
       }).format(date);
 }
-function statusLabel(value?: string | null) {
-  if (!value) return "Sin estado";
+function statusLabel(value?: string | null, locale = "en-CA") {
+  const t = getPlatformAdminTranslator(locale);
+  if (!value) return t("No status");
   const labels: Record<string, string> = {
-    active: "Activa",
-    trial: "Prueba",
-    demo: "Demo",
-    trialing: "En prueba",
-    paid: "Pagada",
-    open: "Abierta",
-    past_due: "Pago pendiente",
-    unpaid: "Sin pagar",
-    canceled: "Cancelada",
-    cancelled: "Cancelada",
-    revoked: "Revocada",
-    success: "Correcto",
-    failed: "Fallido",
-    released: "Publicado",
-    legacy: "Legacy",
-    inactive: "Inactivo",
-    unknown: "Desconocido",
-    "sin movimientos": "Sin movimientos",
+    active: t("Active"),
+    trial: t("Trial"),
+    demo: t("Demo"),
+    trialing: t("In trial"),
+    paid: t("Paid"),
+    open: t("Open"),
+    past_due: t("Payment pending"),
+    unpaid: t("Unpaid"),
+    canceled: t("Cancelled"),
+    cancelled: t("Cancelled"),
+    revoked: t("Revoked"),
+    success: t("Successful"),
+    failed: t("Failed"),
+    released: t("Published"),
+    legacy: t("Legacy"),
+    inactive: t("Inactive"),
+    unknown: t("Unknown"),
+    "sin movimientos": t("No activity"),
+    pending: t("Pending"), draft: t("Draft"), grace: t("Grace period"),
+    uncollectible: t("Uncollectible"), void: t("Voided"), payment_required: t("Payment pending"), deleted: t("Deleted"),
   };
-  return labels[value.toLowerCase()] || humanize(value);
+  return labels[value.toLowerCase()] || t("Unknown");
 }
 function humanize(value: string) {
   return value
@@ -5219,11 +5162,12 @@ function moduleVisual(module: PlatformModule) {
     border: "border-slate-200 dark:border-slate-700",
   };
 }
-function environmentLabel() {
+function environmentLabel(locale: string) {
+  const t = getPlatformAdminTranslator(locale);
   const hostname = window.location.hostname;
   if (hostname === "localhost" || hostname === "127.0.0.1")
-    return { label: "Local", className: "bg-blue-50 text-[#143675]" };
+    return { label: t("Local"), className: "bg-blue-50 text-[#143675]" };
   if (hostname.includes("apptest"))
-    return { label: "Pruebas", className: "bg-amber-50 text-amber-700" };
-  return { label: "Producción", className: "bg-emerald-50 text-emerald-700" };
+    return { label: t("Test"), className: "bg-amber-50 text-amber-700" };
+  return { label: t("Production"), className: "bg-emerald-50 text-emerald-700" };
 }

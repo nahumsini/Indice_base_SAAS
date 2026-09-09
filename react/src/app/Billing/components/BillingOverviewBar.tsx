@@ -3,15 +3,21 @@ import type { BillingSelectionResponse, BillingSubscriptionResponse } from '../.
 import { formatBillingDate, formatBillingMoney } from '../billingFormatters';
 import { toBillingPresentation } from '../billingPresentation.adapter';
 import type { BillingCopy } from '../translations';
+import type { BillingPaymentMethodState } from '../types';
+import { getPaymentMethodCopy } from '../translations/paymentMethod';
+import { paymentMethodPresentation } from '../paymentMethodPresentation';
 
 type Props = {
   copy: BillingCopy;
   selection: BillingSelectionResponse;
   subscription: BillingSubscriptionResponse | null;
   languageCode: string;
+  paymentMethod: BillingPaymentMethodState;
 };
 
-export function BillingOverviewBar({ copy, selection, subscription, languageCode }: Props) {
+export function BillingOverviewBar({ copy, selection, subscription, languageCode, paymentMethod }: Props) {
+  const cardCopy = getPaymentMethodCopy(languageCode);
+  const card = paymentMethodPresentation(paymentMethod, cardCopy);
   const capacity = selection.included_seats + selection.extra_seats;
   const available = Math.max(0, capacity - selection.used_seats);
   const presentation = toBillingPresentation(selection, subscription);
@@ -81,20 +87,16 @@ export function BillingOverviewBar({ copy, selection, subscription, languageCode
         </article>
 
         <article className="flex items-center gap-3 border-t border-slate-200 p-4 dark:border-slate-800 xl:border-t-0">
-          <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${selection.payment_method_required ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300' : 'bg-emerald-50 text-[#177D66] dark:bg-emerald-950/50 dark:text-emerald-300'}`}>
+          <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${card.tone === 'saved' ? 'bg-emerald-50 text-[#177D66] dark:bg-emerald-950/50 dark:text-emerald-300' : card.tone === 'attention' ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
             <CreditCard className="h-5 w-5" />
           </span>
           <div className="min-w-0">
-            <p className="text-xs text-slate-500 dark:text-slate-400">{copy.paymentMethod}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{cardCopy.paymentMethod}</p>
             <p className="mt-0.5 truncate text-sm font-medium text-slate-950 dark:text-white">
-              {selection.payment_method_required ? copy.paymentMissing : copy.paymentReady}
+              {card.label}
             </p>
             <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-              {!selection.stripe_enabled
-                ? copy.stripeDisabled
-                : !selection.stripe_catalog_ready
-                  ? copy.stripeCatalogPending
-                  : copy.stripeBilling}
+              {card.card ?? card.description}
             </p>
           </div>
         </article>

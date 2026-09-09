@@ -67,6 +67,7 @@ export const endpoints = {
   },
   billing: {
     subscription: '/api/v1/billing/subscription',
+    paymentMethod: '/api/v1/billing/subscription/payment-method',
     cancelSubscription: '/api/v1/billing/subscription/cancel',
     resumeSubscription: '/api/v1/billing/subscription/resume',
     portal: '/api/v1/billing/subscription/portal',

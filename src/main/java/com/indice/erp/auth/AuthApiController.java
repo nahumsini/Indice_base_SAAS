@@ -23,6 +23,7 @@ public class AuthApiController {
     private final LoginMfaChallengeService mfaChallengeService;
     private final LoginSecurityEmailService loginSecurityEmailService;
     private final AuthSecurityProperties securityProperties;
+    private final LocalDevelopmentAuthPolicy localDevelopmentAuthPolicy;
 
     public AuthApiController(
         SessionAuthService sessionAuthService,
@@ -31,7 +32,8 @@ public class AuthApiController {
         AuthLockoutService lockoutService,
         LoginMfaChallengeService mfaChallengeService,
         LoginSecurityEmailService loginSecurityEmailService,
-        AuthSecurityProperties securityProperties
+        AuthSecurityProperties securityProperties,
+        LocalDevelopmentAuthPolicy localDevelopmentAuthPolicy
     ) {
         this.sessionAuthService = sessionAuthService;
         this.sessionCsrfService = sessionCsrfService;
@@ -40,6 +42,7 @@ public class AuthApiController {
         this.mfaChallengeService = mfaChallengeService;
         this.loginSecurityEmailService = loginSecurityEmailService;
         this.securityProperties = securityProperties;
+        this.localDevelopmentAuthPolicy = localDevelopmentAuthPolicy;
     }
 
     @GetMapping("/me")
@@ -182,8 +185,9 @@ public class AuthApiController {
             ));
         }
 
-        if (sessionAuthService.requiresStrongMfa(verification.login().userId())
-            || securityProperties.isMfaRequiredForCompany(verification.login().companyName())) {
+        var localMfaBypass = localDevelopmentAuthPolicy.isMfaBypassed();
+        if (!localMfaBypass && (sessionAuthService.requiresStrongMfa(verification.login().userId())
+            || securityProperties.isMfaRequiredForCompany(verification.login().companyName()))) {
             recordCredentialAudit(verification, "SUCCESS", AuthFailureReason.MFA_REQUIRED,
                 "Password accepted; MFA required.", AuthLockoutService.LockoutState.open(), auditContext);
             var challenge = mfaChallengeService.startChallenge(verification.login(), session.getId(), auditContext);
@@ -201,7 +205,8 @@ public class AuthApiController {
         }
 
         recordCredentialAudit(verification, "SUCCESS", null,
-            "Password accepted.", AuthLockoutService.LockoutState.open(), auditContext);
+            localMfaBypass ? "Password accepted; local development MFA exception applied." : "Password accepted.",
+            AuthLockoutService.LockoutState.open(), auditContext);
         servletRequest.changeSessionId();
         sessionAuthService.storeAuthenticatedSession(session, verification.login());
         sessionCsrfService.rotateCsrf(session);

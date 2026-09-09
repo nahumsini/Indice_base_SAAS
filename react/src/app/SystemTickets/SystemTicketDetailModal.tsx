@@ -1,3 +1,4 @@
+import { ticketDuration, ticketFileSize } from "./ticketFormatting";
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
@@ -63,7 +64,7 @@ export function SystemTicketDetailModal({ assignees, locale, onClose, onChanged,
       setAssignee(next.ticket.assigned_to_user_id ? String(next.ticket.assigned_to_user_id) : '');
       setTarget(toLocalInput(next.ticket.target_resolution_at));
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'No se pudo abrir el ticket.');
+      setError(copy.loadFailed);
     } finally {
       setLoading(false);
     }
@@ -109,7 +110,7 @@ export function SystemTicketDetailModal({ assignees, locale, onClose, onChanged,
       await onChanged(updated);
       await refresh(current.id);
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'No se pudieron guardar los cambios.');
+      setError(copy.saveFailed);
     } finally {
       setSaving(false);
     }
@@ -124,7 +125,7 @@ export function SystemTicketDetailModal({ assignees, locale, onClose, onChanged,
       await onChanged(updated);
       await refresh(current.id);
     } catch (takeError) {
-      setError(takeError instanceof Error ? takeError.message : 'No se pudo tomar el ticket.');
+      setError(copy.takeFailed);
     } finally {
       setSaving(false);
     }
@@ -146,7 +147,7 @@ export function SystemTicketDetailModal({ assignees, locale, onClose, onChanged,
       setInternal(false);
       await onChanged(next.ticket);
     } catch (messageError) {
-      setError(messageError instanceof Error ? messageError.message : 'No se pudo enviar el mensaje.');
+      setError(copy.messageFailed);
     } finally {
       setSaving(false);
     }
@@ -162,7 +163,7 @@ export function SystemTicketDetailModal({ assignees, locale, onClose, onChanged,
       await systemTicketsApi.registerAttachment(portal, current.id, presign, file);
       await refresh(current.id);
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : 'No se pudo agregar la evidencia.');
+      setError(copy.uploadFailed);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -209,7 +210,7 @@ export function SystemTicketDetailModal({ assignees, locale, onClose, onChanged,
       eyebrow={current?.folio}
       title={current?.title ?? copy.detailTitle}
       description={current ? `${current.distributor_name} · ${statusLabel(current.status, copy)}` : ''}
-      footerSummary={current ? <SlaBadge ticket={current} copy={copy} /> : null}
+      footerSummary={current ? <SlaBadge ticket={current} copy={copy} locale={locale} /> : null}
       footer={footer}
     >
       {error ? <IndiceModalValidation tone="error" messages={[error]} /> : null}
@@ -230,7 +231,7 @@ export function SystemTicketDetailModal({ assignees, locale, onClose, onChanged,
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{current.type === 'FAILURE' ? copy.failure : copy.improvement}</span>
               <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700">{priorityLabel(current.priority, copy)}</span>
-              <SlaBadge ticket={current} copy={copy} />
+              <SlaBadge ticket={current} copy={copy} locale={locale} />
             </div>
             <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-slate-200">{current.description}</p>
           </section>
@@ -239,8 +240,8 @@ export function SystemTicketDetailModal({ assignees, locale, onClose, onChanged,
             <section className="rounded-2xl border border-[#59C3A5]/30 bg-[#59C3A5]/8 p-4 dark:border-[#59C3A5]/40 dark:bg-[#59C3A5]/10">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium text-slate-950 dark:text-white">Control operativo</p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">Asigna, fija la meta y mueve el ticket sin perder trazabilidad.</p>
+                  <p className="text-sm font-medium text-slate-950 dark:text-white">{copy.control}</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">{copy.controlHelp}</p>
                 </div>
                 {!current.assigned_to_user_id ? (
                   <button type="button" disabled={saving} onClick={() => void takeTicket()} className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white hover:bg-[#126553]">
@@ -308,7 +309,7 @@ export function SystemTicketDetailModal({ assignees, locale, onClose, onChanged,
                 <div className="space-y-2">
                   {detail?.attachments.map((attachment) => (
                     <a key={attachment.id} href={attachment.download_url ?? undefined} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm hover:border-[#59C3A5] hover:bg-[#59C3A5]/5">
-                      <FileText className="h-4 w-4 shrink-0 text-slate-400" /><span className="min-w-0 flex-1"><span className="block truncate font-medium text-slate-800">{attachment.original_filename}</span><span className="text-xs text-slate-400">{formatBytes(attachment.size_bytes)}</span></span><Download className="h-4 w-4 text-[#177D66]" />
+                      <FileText className="h-4 w-4 shrink-0 text-slate-400" /><span className="min-w-0 flex-1"><span className="block truncate font-medium text-slate-800">{attachment.original_filename}</span><span className="text-xs text-slate-400">{ticketFileSize(attachment.size_bytes, locale)}</span></span><Download className="h-4 w-4 text-[#177D66]" />
                     </a>
                   ))}
                 </div>
@@ -321,7 +322,7 @@ export function SystemTicketDetailModal({ assignees, locale, onClose, onChanged,
 
               <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
                 <div className="mb-3 flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-[#177D66]" /><h3 className="text-sm font-medium text-slate-950">{copy.sla}</h3></div>
-                <Metric icon={<Clock3 className="h-4 w-4" />} label={copy.firstResponse} value={durationBetween(current.created_at, current.first_responded_at)} />
+                <Metric icon={<Clock3 className="h-4 w-4" />} label={copy.firstResponse} value={durationBetween(current.created_at, current.first_responded_at, locale)} />
                 <Metric icon={<CalendarClock className="h-4 w-4" />} label={copy.target} value={current.target_resolution_at ? formatDate(current.target_resolution_at, locale) : '—'} />
                 <Metric icon={current.overdue ? <AlertTriangle className="h-4 w-4 text-red-600" /> : <CheckCircle2 className="h-4 w-4 text-emerald-600" />} label={copy.status} value={current.overdue ? copy.overdue : statusLabel(current.status, copy)} />
               </section>
@@ -345,10 +346,10 @@ function Metric({ icon, label, value }: { icon: ReactNode; label: string; value:
   return <div className="flex items-center gap-3 border-t border-slate-100 py-3 first:border-0 first:pt-0 last:pb-0"><span className="text-slate-400">{icon}</span><div><p className="text-xs text-slate-400">{label}</p><p className="mt-0.5 text-sm font-medium text-slate-800">{value}</p></div></div>;
 }
 
-function SlaBadge({ ticket, copy }: { ticket: SystemTicket; copy: ReturnType<typeof getSystemTicketCopy> }) {
+function SlaBadge({ ticket, copy, locale }: { locale: string; ticket: SystemTicket; copy: ReturnType<typeof getSystemTicketCopy> }) {
   if (ticket.overdue) return <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700"><AlertTriangle className="h-3.5 w-3.5" />{copy.overdue}</span>;
   if (ticket.minutes_to_target == null || ['RESOLVED', 'CLOSED'].includes(ticket.status)) return <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">{statusLabel(ticket.status, copy)}</span>;
-  return <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">{formatMinutes(ticket.minutes_to_target)}</span>;
+  return <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">{ticketDuration(ticket.minutes_to_target, locale)}</span>;
 }
 
 function statusLabel(status: SystemTicketStatus, copy: ReturnType<typeof getSystemTicketCopy>) {
@@ -360,7 +361,7 @@ function priorityLabel(priority: SystemTicketPriority, copy: ReturnType<typeof g
 }
 
 function eventLabel(event: string, copy: ReturnType<typeof getSystemTicketCopy>) {
-  return { CREATED: 'Ticket creado', ROOT_UPDATED: 'Estado actualizado', ASSIGNED: 'Responsable actualizado', PUBLIC_MESSAGE: copy.conversation, INTERNAL_NOTE: copy.internalNote, ATTACHMENT_ADDED: copy.addEvidence, REOPENED: 'Ticket reabierto' }[event] ?? copy.activity;
+  return { CREATED: copy.createdEvent, ROOT_UPDATED: copy.statusEvent, ASSIGNED: copy.ownerEvent, PUBLIC_MESSAGE: copy.conversation, INTERNAL_NOTE: copy.internalNote, ATTACHMENT_ADDED: copy.addEvidence, REOPENED: copy.reopenedEvent }[event] ?? copy.activity;
 }
 
 function toLocalInput(value: string | null) {
@@ -374,21 +375,8 @@ function formatDate(value: string, locale: string) {
   try { return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)); } catch { return value; }
 }
 
-function formatBytes(value: number) {
-  if (value < 1024) return `${value} B`;
-  if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatMinutes(value: number) {
-  const absolute = Math.max(0, value);
-  if (absolute < 60) return `${absolute} min`;
-  if (absolute < 1440) return `${Math.round(absolute / 60)} h`;
-  return `${Math.round(absolute / 1440)} d`;
-}
-
-function durationBetween(start: string, end: string | null) {
-  if (!end) return 'Pendiente';
+function durationBetween(start: string, end: string | null, locale: string) {
+  if (!end) return getSystemTicketCopy(locale).pending;
   const minutes = Math.max(0, Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60_000));
-  return formatMinutes(minutes);
+  return ticketDuration(minutes, locale);
 }

@@ -257,7 +257,12 @@ export function useAccountCreationFlow({
           ? creationError.message
           : copy.errors.createFailed;
       const errorStep = creationErrorStep(message);
-      setError(message);
+      const normalized = message.toLowerCase();
+      setError(message === copy.errors.modulesNotApplied ? message
+        : /correo|email/.test(normalized) ? copy.errors.duplicateEmail
+        : /contrase|password/.test(normalized) ? copy.errors.password
+        : /tel[eé]fono|phone/.test(normalized) ? copy.errors.invalidPhone
+        : copy.errors.createFailed);
       setStep(errorStep);
       if (errorStep === "owner") setFocusField("owner_email");
       if (errorStep === "company") setFocusField("company_name");

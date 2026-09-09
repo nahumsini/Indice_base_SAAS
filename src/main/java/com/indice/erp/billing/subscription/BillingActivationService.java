@@ -4,6 +4,7 @@ import com.indice.erp.billing.BillingHashing;
 import com.indice.erp.billing.audit.BillingAuditService;
 import com.indice.erp.billing.catalog.CommercialOfferSelection;
 import com.indice.erp.billing.catalog.CommercialOfferSelectionService;
+import com.indice.erp.billing.collection.PaymentCollectionProtectionService;
 import com.indice.erp.billing.seats.SeatService;
 import com.indice.erp.billing.signup.BillingSignupConflictException;
 import com.indice.erp.billing.signup.BillingSignupIntentRepository;
@@ -41,6 +42,7 @@ public class BillingActivationService {
     private final BillingSelectionChangeService selectionChanges;
     private final SeatService seats;
     private final Clock clock;
+    private final PaymentCollectionProtectionService protection;
 
     public BillingActivationService(
         JdbcTemplate jdbcTemplate,
@@ -54,7 +56,8 @@ public class BillingActivationService {
         BillingAuditService audit,
         BillingSelectionChangeService selectionChanges,
         SeatService seats,
-        Clock clock
+        Clock clock,
+        PaymentCollectionProtectionService protection
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.transactions = transactions;
@@ -68,6 +71,7 @@ public class BillingActivationService {
         this.selectionChanges = selectionChanges;
         this.seats = seats;
         this.clock = clock;
+        this.protection = protection;
     }
 
     public BillingActivationResponse createCheckout(
@@ -77,6 +81,7 @@ public class BillingActivationService {
         BillingSelectionRequest request
     ) {
         stripeSecrets.requireEnabled();
+        requireCollectionRoute(companyId, null);
         var cleanKey = requireIdempotencyKey(idempotencyKey);
         requireNoStripeSubscription(companyId);
         var selection = offers.select(
@@ -85,6 +90,26 @@ public class BillingActivationService {
             request == null || request.extra_seats() == null ? 0 : request.extra_seats(),
             request == null ? null : request.promotion_code()
         );
+        return createSelectedCheckout(companyId, actorUserId, cleanKey, selection, null);
+    }
+
+    /** Collection uses its immutable quoted selection and never starts or shortens a trial. */
+    public BillingActivationResponse createCollectionCheckout(long companyId, long actorUserId,
+        String idempotencyKey, CommercialOfferSelection selection, long paymentRequestId) {
+        stripeSecrets.requireEnabled();
+        var cleanKey = requireIdempotencyKey(idempotencyKey);
+        requireNoStripeSubscription(companyId);
+        requireUnprotectedCollection(companyId);
+        if (selection == null || selection.estimatedAmountCents() == null || selection.estimatedAmountCents() <= 0
+            || selection.lineItems().isEmpty() || selection.lineItems().stream().anyMatch(line ->
+                line.externalPriceId() == null || !line.externalPriceId().startsWith("price_") || line.quantity() <= 0)) {
+            throw new IllegalStateException("La selección de cobro guardada no es válida.");
+        }
+        return createSelectedCheckout(companyId, actorUserId, cleanKey, selection, paymentRequestId);
+    }
+
+    private BillingActivationResponse createSelectedCheckout(long companyId, long actorUserId,
+        String cleanKey, CommercialOfferSelection selection, Long paymentRequestId) {
         var owner = owner(companyId, actorUserId);
         requireCapacity(companyId, selection);
         selectionChanges.saveDraft(
@@ -97,16 +122,36 @@ public class BillingActivationService {
             owner,
             selection,
             idempotencyHash,
-            fingerprint
+            fingerprint,
+            paymentRequestId
         ));
         if (intentId == null) throw new IllegalStateException("No se pudo preparar la activación de cobro.");
+        if (paymentRequestId != null) {
+            var bound = jdbcTemplate.update("""
+                UPDATE payment_collection_payment_states SET signup_intent_id = ?
+                WHERE request_id = ? AND company_id = ? AND (signup_intent_id IS NULL OR signup_intent_id = ?)
+                """, intentId, paymentRequestId, companyId, intentId);
+            if (bound != 1) throw new IllegalStateException("La solicitud de cobro no está disponible.");
+        }
 
         var intent = signupIntents.findById(intentId);
+        boolean renewCollectionCheckout = false;
         if (intent.checkoutUrl() != null && !intent.checkoutUrl().isBlank()) {
-            return new BillingActivationResponse(
-                intent.status(), intent.checkoutUrl(), intent.checkoutExpiresAt(), remainingTrialDays(companyId), true
-            );
+            if (paymentRequestId != null && intent.checkoutExpiresAt() != null
+                && !intent.checkoutExpiresAt().isAfter(clock.instant())) {
+                var remote = stripeGateway.retrieveCheckoutSession(intent.stripeCheckoutSessionId());
+                if (!"expired".equals(remote.status())) {
+                    throw new IllegalStateException("El pago anterior está en proceso de confirmación. Actualiza el estado de cobro.");
+                }
+                renewCollectionCheckout = true;
+            } else {
+                return new BillingActivationResponse(
+                    intent.status(), intent.checkoutUrl(), intent.checkoutExpiresAt(), remainingTrialDays(companyId), true
+                );
+            }
         }
+        var collectionAttempt = paymentRequestId == null ? null
+            : collectionAttempt(companyId, paymentRequestId, renewCollectionCheckout);
 
         var spec = signupIntents.checkoutSpec(intentId);
         var customerId = activeCustomer(companyId);
@@ -134,6 +179,7 @@ public class BillingActivationService {
         metadata.put("indice_product_codes", String.join(",", spec.productCodes()));
         metadata.put("indice_extra_seats", Integer.toString(spec.extraSeats()));
         metadata.put("indice_flow", "existing_company_activation");
+        if (paymentRequestId != null) metadata.put("indice_payment_request", Long.toString(paymentRequestId));
 
         var lineItems = new ArrayList<StripeCheckoutGateway.LineItem>();
         selection.lineItems().forEach(line -> lineItems.add(new StripeCheckoutGateway.LineItem(
@@ -148,13 +194,14 @@ public class BillingActivationService {
                 appendQuery(returnUrl, "checkout", "cancelled"),
                 stripeProperties.isAutomaticTaxEnabled(),
                 stripeProperties.isTaxIdCollectionEnabled(),
-                remainingTrialDays(companyId),
-                clock.instant().plus(Duration.ofMinutes(31)),
+                paymentRequestId == null ? remainingTrialDays(companyId) : 0,
+                collectionAttempt == null ? clock.instant().plus(Duration.ofMinutes(31)) : collectionAttempt.expiresAt(),
                 List.copyOf(lineItems),
                 Map.copyOf(metadata),
                 selection.externalPromotionCodeId()
             ),
-            "indice-activation-checkout-" + intentId
+            collectionAttempt == null ? "indice-activation-checkout-" + intentId
+                : "indice-collection-checkout-" + paymentRequestId + "-" + collectionAttempt.number()
         );
         signupIntents.markCheckoutCreated(intentId, checkout.id(), checkout.url(), checkout.expiresAt());
         audit.record(
@@ -216,14 +263,39 @@ public class BillingActivationService {
         Owner owner,
         CommercialOfferSelection selection,
         String idempotencyHash,
-        String fingerprint
+        String fingerprint,
+        Long paymentRequestId
     ) {
+        jdbcTemplate.queryForObject("SELECT id FROM companies WHERE id = ? FOR UPDATE", Long.class, companyId);
+        requireCollectionRoute(companyId, paymentRequestId);
+        if (paymentRequestId != null) {
+            protection.requireCollectionActivationAllowed(companyId);
+            requireUnprotectedCollection(companyId);
+        }
         var existing = signupIntents.findByIdempotencyHash(idempotencyHash);
         if (existing != null) {
             if (!fingerprint.equals(existing.requestFingerprint())) {
                 throw new BillingSignupConflictException("La llave de idempotencia ya se usó con otra configuración.");
             }
+            if (paymentRequestId != null) {
+                // Reserve a confirmed-expired retry before releasing the company lock. A new
+                // product benefit must not race between this check and the next Checkout call.
+                jdbcTemplate.update("UPDATE billing_signup_intents SET status = 'PENDING' WHERE id = ? AND company_id = ? AND status = 'CHECKOUT_EXPIRED'",
+                    existing.id(), companyId);
+            }
             return existing.id();
+        }
+        requireNoStripeSubscription(companyId);
+        var pending = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM billing_signup_intents WHERE company_id = ?
+              AND intent_kind = 'EXISTING_COMPANY_ACTIVATION'
+              AND (status IN ('PENDING', 'CUSTOMER_CREATED', 'CHECKOUT_CREATED')
+                   OR (status = 'CHECKOUT_COMPLETED' AND NOT EXISTS (
+                       SELECT 1 FROM company_billing_subscriptions subscription
+                       WHERE subscription.signup_intent_id = billing_signup_intents.id)))
+            """, Long.class, companyId);
+        if (pending != null && pending > 0) {
+            throw new BillingSignupConflictException("Ya hay una activación en curso para esta cuenta.");
         }
 
         var keys = new GeneratedKeyHolder();
@@ -364,14 +436,57 @@ public class BillingActivationService {
         return (int) Math.min(30, Math.max(1, (seconds + 86_399) / 86_400));
     }
 
+    private void requireUnprotectedCollection(long companyId) {
+        var current = protection.protection(companyId);
+        if (current.indefiniteBenefit() || (current.protectedUntil() != null && current.protectedUntil().isAfter(clock.instant()))) {
+            throw new IllegalStateException("La prueba o el período pagado actual debe terminar antes de activar este cobro.");
+        }
+    }
+
+    private void requireCollectionRoute(long companyId, Long requestId) {
+        var open = jdbcTemplate.query("SELECT id FROM company_payment_requests WHERE company_id = ? AND status = 'OPEN'",
+            (rs, row) -> rs.getLong(1), companyId);
+        if (requestId == null && !open.isEmpty()) {
+            throw new BillingSignupConflictException("Usa el pago de la solicitud de cobro abierta para activar esta cuenta.");
+        }
+        if (requestId != null && (open.size() != 1 || !requestId.equals(open.getFirst()))) {
+            throw new BillingSignupConflictException("La solicitud de cobro cambió. Actualiza su estado antes de pagar.");
+        }
+    }
+
+    private CollectionAttempt collectionAttempt(long companyId, long requestId, boolean knownExpired) {
+        return transactions.execute(status -> {
+            var attempt = jdbcTemplate.queryForObject("""
+                SELECT checkout_attempt_no, checkout_attempt_expires_at FROM payment_collection_payment_states
+                WHERE request_id = ? AND company_id = ? FOR UPDATE
+                """, (rs, row) -> new CollectionAttempt(rs.getInt(1),
+                    rs.getTimestamp(2) == null ? null : rs.getTimestamp(2).toInstant()), requestId, companyId);
+            if (attempt == null) throw new IllegalStateException("La solicitud de cobro no está disponible.");
+            if (attempt.number() == 0 || (knownExpired && !attempt.expiresAt().isAfter(clock.instant()))) {
+                var next = new CollectionAttempt(attempt.number() + 1,
+                    clock.instant().plus(Duration.ofHours(1)).truncatedTo(java.time.temporal.ChronoUnit.SECONDS));
+                jdbcTemplate.update("UPDATE payment_collection_payment_states SET checkout_attempt_no = ?, checkout_attempt_expires_at = ? WHERE request_id = ? AND company_id = ?",
+                    next.number(), java.sql.Timestamp.from(next.expiresAt()), requestId, companyId);
+                return next;
+            }
+            if (!attempt.expiresAt().isAfter(clock.instant())) {
+                throw new IllegalStateException("El intento anterior requiere reconciliación antes de crear otro pago.");
+            }
+            return attempt;
+        });
+    }
+
+    private record CollectionAttempt(int number, Instant expiresAt) {}
+
     private Instant maximumEnd(String query, long companyId) {
-        return jdbcTemplate.query(
+        var values = jdbcTemplate.query(
             query,
             (rs, rowNum) -> {
                 var timestamp = rs.getTimestamp(1);
                 return timestamp == null ? null : timestamp.toInstant();
             }, companyId
-        ).stream().findFirst().orElse(null);
+        );
+        return values.isEmpty() ? null : values.getFirst();
     }
 
     private ActivationDetail activationDetail(long intentId) {

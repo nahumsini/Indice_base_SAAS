@@ -45,6 +45,7 @@ import {
 import { IndiceBrandLogo } from './components/IndiceBrandLogo';
 import {
   calculatePublicPlanPricing,
+  formatPublicPlanMoney,
   pricingModeForConfig,
   publishedProductAmount,
   publishedSeatAmount,
@@ -1263,22 +1264,13 @@ const countryDisplayName = (countryCode: string, locale: string, labels: Record<
   }
 };
 
-const currency = (amountCents: number, interval: 'MONTH' | 'YEAR', copy: SignupCopy) => {
-  const value = new Intl.NumberFormat(copy.locale, {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(amountCents / 100);
+const currency = (amountCents: number | null, interval: 'MONTH' | 'YEAR', copy: SignupCopy) => {
+  if (amountCents == null) return copy.pendingCompletePrice;
+  const value = formatPublicPlanMoney(amountCents, 'USD', copy.locale);
   return `${value} USD/${interval === 'YEAR' ? copy.yearSuffix : copy.monthSuffix}`;
 };
 
-const moneyOnly = (amountCents: number, copy: SignupCopy) => (
-  new Intl.NumberFormat(copy.locale, {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(amountCents / 100)
-);
+const moneyOnly = (amountCents: number, copy: SignupCopy) => formatPublicPlanMoney(amountCents, 'USD', copy.locale);
 
 const signupMonthlyPrice = (amountCents: number, copy: SignupCopy) => `${moneyOnly(amountCents, copy)}/mo`;
 
@@ -1709,7 +1701,7 @@ export default function SignupPage() {
     experienceCopy.stepConfiguration,
     experienceCopy.stepActivation,
   ];
-  const selectedPrice = selectedCount === 0 ? 0 : (estimatedAmount ?? 0);
+  const selectedPrice = selectedCount === 0 ? 0 : estimatedAmount;
   const companyInvalid = accountAttempted && form.companyName.trim().length < 2;
   const ownerInvalid = accountAttempted && form.fullName.trim().length < 2;
   const emailInvalid = accountAttempted && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim());

@@ -1,8 +1,9 @@
 import { CalendarClock } from 'lucide-react';
 import type { BillingSelectionResponse, BillingSubscriptionResponse } from '../../api/billing';
 import { formatBillingDate } from '../billingFormatters';
+import { getPaymentMethodCopy } from '../translations/paymentMethod';
 import { toBillingPresentation } from '../billingPresentation.adapter';
-import type { BillingDraft } from '../types';
+import type { BillingDraft, BillingPaymentMethodState } from '../types';
 import type { BillingCopy } from '../translations';
 import { BillingActionDock } from './BillingActionDock';
 import { BillingPaymentSection } from './BillingPaymentSection';
@@ -15,6 +16,7 @@ type Props = {
   preview: BillingSelectionResponse | null;
   subscription: BillingSubscriptionResponse | null;
   draft: BillingDraft;
+  paymentMethod: BillingPaymentMethodState;
   action: string;
   hasChanges: boolean;
   readOnly: boolean;
@@ -27,15 +29,16 @@ type Props = {
 };
 
 export function BillingConfigurationPanel(props: Props) {
+  const cardCopy = getPaymentMethodCopy(props.languageCode);
   const visible = props.preview ?? props.selection;
   const paymentRequired = props.selection.payment_method_required;
   const billingCycleLocked = ['ACTIVE', 'PAST_DUE'].includes(props.selection.status.toUpperCase());
   const presentation = toBillingPresentation(visible, props.subscription, props.hasChanges);
   const activationHelp = props.selection.activation_block_reason === 'OWNER_REQUIRED'
-    ? props.copy.ownerPaymentRequired
+    ? cardCopy.ownerDescription
     : props.selection.activation_block_reason === 'STRIPE_UNAVAILABLE'
-      ? props.copy.stripeDisabled
-      : props.copy.stripeCatalogPending;
+      ? cardCopy.stripeDisabled
+      : cardCopy.stripeCatalogPending;
 
   return (
     <aside className="lg:sticky lg:top-4 lg:self-start">
@@ -85,6 +88,8 @@ export function BillingConfigurationPanel(props: Props) {
           copy={props.copy}
           selection={props.selection}
           subscription={props.subscription}
+          paymentMethod={props.paymentMethod}
+          languageCode={props.languageCode}
           action={props.action}
           hasChanges={props.hasChanges}
           readOnly={props.readOnly}

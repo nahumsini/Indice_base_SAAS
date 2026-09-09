@@ -42,6 +42,28 @@ read_env_value() {
   printf '%s' "${line#*=}"
 }
 
+validate_deployed_auth_configuration() {
+  local bypass profiles
+  bypass="$(read_env_value APP_AUTH_LOCAL_MFA_BYPASS_ENABLED)"
+  bypass="${bypass,,}"
+  bypass="${bypass//\"/}"
+  bypass="${bypass//\'/}"
+  bypass="${bypass//[[:space:]]/}"
+  if [[ -n "${bypass}" && "${bypass}" != "false" ]]; then
+    echo "APP_AUTH_LOCAL_MFA_BYPASS_ENABLED must be false for deployed environments." >&2
+    return 1
+  fi
+  profiles="$(read_env_value SPRING_PROFILES_ACTIVE)"
+  profiles="${profiles,,}"
+  profiles="${profiles//\"/}"
+  profiles="${profiles//\'/}"
+  profiles="${profiles//[[:space:]]/}"
+  if [[ ",${profiles}," == *,local,* ]]; then
+    echo "The local Spring profile must not be active in deployed environments." >&2
+    return 1
+  fi
+}
+
 require_env_value() {
   local key="$1"
   if [[ -z "$(read_env_value "${key}")" ]]; then
@@ -115,6 +137,7 @@ validate_mcp_configuration() {
   fi
 }
 
+validate_deployed_auth_configuration
 validate_mcp_configuration
 
 if [[ "${USE_EXAMPLE}" == "false" ]]; then
@@ -205,6 +228,25 @@ if [[ "${USE_EXAMPLE}" == "false" ]]; then
   if [[ "${public_url}" == https://* && "$(read_env_value APP_SESSION_COOKIE_SECURE)" != "true" ]]; then
     echo "APP_SESSION_COOKIE_SECURE must be true when WEB_PUBLIC_URL uses HTTPS." >&2
     exit 1
+  fi
+
+  for key in APP_BILLING_COLLECTION_ENABLED APP_BILLING_COLLECTION_REMINDERS_ENABLED APP_BILLING_COLLECTION_EMAIL_ENABLED APP_BILLING_COLLECTION_RECONCILIATION_ENABLED; do
+    collection_flag="$(read_env_value "${key}")"
+    if [[ -n "${collection_flag}" && "${collection_flag}" != "true" && "${collection_flag}" != "false" ]]; then
+      echo "${key} must be true or false." >&2
+      exit 1
+    fi
+  done
+  if [[ "$(read_env_value APP_BILLING_COLLECTION_ENABLED)" == "true" ]]; then
+    for key in APP_BILLING_STRIPE_ENABLED APP_BILLING_STRIPE_PROCESSOR_ENABLED APP_BILLING_PROVISIONING_ENABLED APP_EMAIL_ENABLED APP_BILLING_COLLECTION_REMINDERS_ENABLED APP_BILLING_COLLECTION_EMAIL_ENABLED APP_BILLING_COLLECTION_RECONCILIATION_ENABLED; do
+      require_env_true "${key}"
+    done
+    require_env_value APP_EMAIL_FROM
+    case "$(read_env_value APP_EMAIL_PROVIDER)" in
+      sendgrid) require_env_value APP_EMAIL_SENDGRID_API_KEY ;;
+      smtp) require_env_value SPRING_MAIL_HOST ;;
+      *) echo "Payment collection requires a configured SendGrid or SMTP email provider." >&2; exit 1 ;;
+    esac
   fi
 
   if [[ "$(read_env_value APP_BILLING_STRIPE_ENABLED)" == "true" ]]; then

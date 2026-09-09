@@ -1,3 +1,5 @@
+import { catalogProductLabel } from "./CatalogWorkspace/catalogLabels";
+import { useCustomerAccountCopy } from "./Customers/useCustomerAccountCopy";
 import type { FormEvent } from "react";
 import { Gift, Plus } from "lucide-react";
 import type {
@@ -5,7 +7,7 @@ import type {
   PlatformCatalogProduct,
 } from "../api/platformAdmin";
 import { IndiceModalFrame } from "../components/indice-modal";
-import { accessReasonOptions, extraSeatOptions } from "./flowOptions";
+import { accessReasonOptions, extraSeatOptions, flowOptionLabel } from "./flowOptions";
 
 const controlClass =
   "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:disabled:bg-slate-800";
@@ -25,6 +27,7 @@ export function BenefitAdjustmentModal({
   onClose: () => void;
   onSubmit: (event: FormEvent) => void;
 }) {
+  const { t, locale, number } = useCustomerAccountCopy();
   const presetReason = accessReasonOptions.includes(
     benefit.reason as (typeof accessReasonOptions)[number],
   );
@@ -41,14 +44,13 @@ export function BenefitAdjustmentModal({
       modalType="standard-form"
       tone="aqua"
       icon={<Gift className="h-5 w-5" />}
-      eyebrow="Cuenta de cliente"
-      title="Aplicar ajuste de acceso"
-      description="Selecciona valores controlados para evitar accesos inconsistentes."
+      eyebrow={t("customerAccount")}
+      title={t("applyAccessAdjustment")}
+      description={t("adjustmentHelp")}
       footer={
         <>
           <button type="button" onClick={onClose} disabled={saving}>
-            Cancelar
-          </button>
+            {t("cancel")}</button>
           <button
             type="submit"
             form="benefit-adjustment-form"
@@ -56,7 +58,7 @@ export function BenefitAdjustmentModal({
           >
             <span className="inline-flex items-center gap-2">
               <Plus className="h-4 w-4" />
-              {saving ? "Aplicando…" : "Aplicar ajuste"}
+              {saving ? t("applying") : t("applyAdjustment")}
             </span>
           </button>
         </>
@@ -67,7 +69,7 @@ export function BenefitAdjustmentModal({
         onSubmit={onSubmit}
         className="grid gap-4 sm:grid-cols-2"
       >
-        <Field label="Tipo de ajuste">
+        <Field label={t("adjustmentType")}>
           <select
             value={benefit.benefit_type}
             onChange={(event) =>
@@ -81,12 +83,12 @@ export function BenefitAdjustmentModal({
             }
             className={controlClass}
           >
-            <option value="PRODUCT">Módulo</option>
-            <option value="SEAT">Usuarios adicionales</option>
-            <option value="STORAGE">Almacenamiento</option>
+            <option value="PRODUCT">{t("module")}</option>
+            <option value="SEAT">{t("extraUsers")}</option>
+            <option value="STORAGE">{t("storage")}</option>
           </select>
         </Field>
-        <Field label="Origen">
+        <Field label={t("origin")}>
           <select
             value={benefit.source_type}
             onChange={(event) =>
@@ -98,14 +100,14 @@ export function BenefitAdjustmentModal({
             }
             className={controlClass}
           >
-            <option value="COURTESY">Cortesía</option>
-            <option value="PROMOTION">Promoción</option>
-            <option value="SUPPORT">Soporte</option>
-            <option value="TEST">Prueba</option>
+            <option value="COURTESY">{t("courtesy")}</option>
+            <option value="PROMOTION">{t("promotion")}</option>
+            <option value="SUPPORT">{t("support")}</option>
+            <option value="TEST">{t("trial")}</option>
           </select>
         </Field>
         {benefit.benefit_type === "PRODUCT" ? (
-          <Field label="Módulo">
+          <Field label={t("module")}>
             <select
               required
               value={benefit.product_code || ""}
@@ -114,16 +116,16 @@ export function BenefitAdjustmentModal({
               }
               className={controlClass}
             >
-              <option value="">Selecciona un módulo</option>
+              <option value="">{t("selectModule")}</option>
               {products.map((product) => (
                 <option key={product.id} value={product.product_code}>
-                  {product.display_name}
+                  {catalogProductLabel(product, locale)}
                 </option>
               ))}
             </select>
           </Field>
         ) : (
-          <Field label="Cantidad">
+          <Field label={t("quantity")}>
             <select
               required
               value={benefit.quantity || 1}
@@ -136,13 +138,13 @@ export function BenefitAdjustmentModal({
                 .filter((quantity) => quantity > 0)
                 .map((quantity) => (
                   <option key={quantity} value={quantity}>
-                    {quantity}
+                    {number(quantity)}
                   </option>
                 ))}
             </select>
           </Field>
         )}
-        <Field label="Vigencia hasta (opcional)">
+        <Field label={t("validUntilOptional")}>
           <input
             type="datetime-local"
             value={benefit.ends_at || ""}
@@ -153,7 +155,7 @@ export function BenefitAdjustmentModal({
           />
         </Field>
         <div className="sm:col-span-2">
-          <Field label="Motivo auditable">
+          <Field label={t("auditReason")}>
             <select
               required
               value={reasonSelection}
@@ -165,19 +167,19 @@ export function BenefitAdjustmentModal({
               }
               className={controlClass}
             >
-              <option value="">Selecciona un motivo</option>
+              <option value="">{t("selectReason")}</option>
               {accessReasonOptions.map((reason) => (
                 <option key={reason} value={reason}>
-                  {reason}
+                  {flowOptionLabel(reason, locale)}
                 </option>
               ))}
-              <option value="OTHER">Otro motivo</option>
+              <option value="OTHER">{t("otherReason")}</option>
             </select>
           </Field>
         </div>
         {reasonSelection === "OTHER" ? (
           <div className="sm:col-span-2">
-            <Field label="Describe el motivo">
+            <Field label={t("describeReason")}>
               <textarea
                 required
                 minLength={5}

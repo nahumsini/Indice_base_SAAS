@@ -1,3 +1,4 @@
+import { ticketDuration, ticketFileSize } from "./ticketFormatting";
 import {
   escapeDocumentPrintHtml,
   printDocumentHtml,
@@ -25,18 +26,10 @@ const formatDate = (value: string | null, locale: string) => {
   }
 };
 
-const formatBytes = (value: number) => {
-  if (value < 1024) return `${value} B`;
-  if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
-};
-
-const formatDuration = (start: string, end: string | null, pending: string) => {
+const formatDuration = (start: string, end: string | null, pending: string, locale: string) => {
   if (!end) return pending;
   const minutes = Math.max(0, Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60_000));
-  if (minutes < 60) return `${minutes} min`;
-  if (minutes < 1440) return `${Math.round(minutes / 60)} h`;
-  return `${Math.round(minutes / 1440)} d`;
+  return ticketDuration(minutes, locale);
 };
 
 const multiline = (value: string) => escapeDocumentPrintHtml(value).replace(/\r?\n/g, '<br />');
@@ -58,13 +51,13 @@ const priorityLabel = (priority: SystemTicketPriority, copy: ReturnType<typeof g
 }[priority]);
 
 const eventLabel = (event: SystemTicketEvent, english: boolean, copy: ReturnType<typeof getSystemTicketCopy>) => ({
-  CREATED: english ? 'Ticket created' : 'Ticket creado',
-  ROOT_UPDATED: english ? 'Status updated' : 'Estado actualizado',
-  ASSIGNED: english ? 'Owner updated' : 'Responsable actualizado',
+  CREATED: copy.createdEvent,
+  ROOT_UPDATED: copy.statusEvent,
+  ASSIGNED: copy.ownerEvent,
   PUBLIC_MESSAGE: copy.conversation,
   INTERNAL_NOTE: copy.internalNote,
   ATTACHMENT_ADDED: copy.addEvidence,
-  REOPENED: english ? 'Ticket reopened' : 'Ticket reabierto',
+  REOPENED: copy.reopenedEvent,
 }[event.event_type]);
 
 export const printSystemTicketDetail = ({
@@ -75,8 +68,8 @@ export const printSystemTicketDetail = ({
   const copy = getSystemTicketCopy(locale);
   const english = locale.toLowerCase().startsWith('en');
   const { ticket, events, attachments } = detail;
-  const pending = english ? 'Pending' : 'Pendiente';
-  const noRecords = english ? 'No records' : 'Sin registros';
+  const pending = copy.pending;
+  const noRecords = copy.emptyRecords;
   const printedAt = formatDate(new Date().toISOString(), locale);
   const eventRows = events.length
     ? events.map((event, index) => {
@@ -90,7 +83,7 @@ export const printSystemTicketDetail = ({
           <td>${escapeDocumentPrintHtml(eventLabel(event, english, copy))}</td>
           <td>${escapeDocumentPrintHtml(event.actor_name)}<br /><small>${escapeDocumentPrintHtml(event.actor_email)}</small></td>
           <td>${multiline(details)}</td>
-          <td>${escapeDocumentPrintHtml(event.visibility === 'INTERNAL' ? copy.internalNote : (english ? 'Public' : 'Público'))}</td>
+          <td>${escapeDocumentPrintHtml(event.visibility === 'INTERNAL' ? copy.internalNote : (copy.public))}</td>
         </tr>`;
     }).join('')
     : `<tr><td colspan="5">${escapeDocumentPrintHtml(noRecords)}</td></tr>`;
@@ -99,7 +92,7 @@ export const printSystemTicketDetail = ({
       <tr class="${index % 2 === 1 ? 'alternate' : ''}">
         <td>${escapeDocumentPrintHtml(attachment.original_filename)}</td>
         <td>${escapeDocumentPrintHtml(attachment.mime_type)}</td>
-        <td>${escapeDocumentPrintHtml(formatBytes(attachment.size_bytes))}</td>
+        <td>${escapeDocumentPrintHtml(ticketFileSize(attachment.size_bytes, locale))}</td>
         <td>${escapeDocumentPrintHtml(attachment.uploaded_by)}</td>
         <td>${escapeDocumentPrintHtml(formatDate(attachment.created_at, locale))}</td>
       </tr>`).join('')
@@ -110,7 +103,7 @@ export const printSystemTicketDetail = ({
       <header class="report-header">
         <div>
           <p class="brand">ÍNDICE</p>
-          <p class="document-kind">${escapeDocumentPrintHtml(english ? 'System ticket record' : 'Expediente de ticket de sistema')}</p>
+          <p class="document-kind">${escapeDocumentPrintHtml(copy.printTitle)}</p>
         </div>
         <div class="folio-block">${escapeDocumentPrintHtml(ticket.folio)}</div>
       </header>
@@ -143,10 +136,10 @@ export const printSystemTicketDetail = ({
             <th>${escapeDocumentPrintHtml(copy.firstResponse)}</th>
             <th>${escapeDocumentPrintHtml(copy.target)}</th>
             <th>${escapeDocumentPrintHtml(copy.status)}</th>
-            <th>${escapeDocumentPrintHtml(english ? 'Reopened' : 'Reaperturas')}</th>
+            <th>${escapeDocumentPrintHtml(copy.reopened)}</th>
           </tr></thead>
           <tbody><tr>
-            <td>${escapeDocumentPrintHtml(formatDuration(ticket.created_at, ticket.first_responded_at, pending))}</td>
+            <td>${escapeDocumentPrintHtml(formatDuration(ticket.created_at, ticket.first_responded_at, pending, locale))}</td>
             <td>${escapeDocumentPrintHtml(formatDate(ticket.target_resolution_at, locale))}</td>
             <td>${escapeDocumentPrintHtml(ticket.overdue ? copy.overdue : statusLabel(ticket.status, copy))}</td>
             <td>${escapeDocumentPrintHtml(ticket.reopened_count)}</td>
@@ -155,14 +148,14 @@ export const printSystemTicketDetail = ({
       </section>
 
       <section class="report-section">
-        <h2>${escapeDocumentPrintHtml(english ? 'Traceability and conversation' : 'Trazabilidad y conversación')}</h2>
+        <h2>${escapeDocumentPrintHtml(copy.traceability)}</h2>
         <table>
           <thead><tr>
-            <th>${escapeDocumentPrintHtml(english ? 'Date' : 'Fecha')}</th>
-            <th>${escapeDocumentPrintHtml(english ? 'Event' : 'Evento')}</th>
-            <th>${escapeDocumentPrintHtml(english ? 'User' : 'Usuario')}</th>
-            <th>${escapeDocumentPrintHtml(english ? 'Detail' : 'Detalle')}</th>
-            <th>${escapeDocumentPrintHtml(english ? 'Visibility' : 'Visibilidad')}</th>
+            <th>${escapeDocumentPrintHtml(copy.date)}</th>
+            <th>${escapeDocumentPrintHtml(copy.event)}</th>
+            <th>${escapeDocumentPrintHtml(copy.user)}</th>
+            <th>${escapeDocumentPrintHtml(copy.detail)}</th>
+            <th>${escapeDocumentPrintHtml(copy.visibility)}</th>
           </tr></thead>
           <tbody>${eventRows}</tbody>
         </table>
@@ -172,19 +165,19 @@ export const printSystemTicketDetail = ({
         <h2>${escapeDocumentPrintHtml(copy.evidence)}</h2>
         <table>
           <thead><tr>
-            <th>${escapeDocumentPrintHtml(english ? 'File' : 'Archivo')}</th>
-            <th>${escapeDocumentPrintHtml(english ? 'Type' : 'Tipo')}</th>
-            <th>${escapeDocumentPrintHtml(english ? 'Size' : 'Tamaño')}</th>
-            <th>${escapeDocumentPrintHtml(english ? 'Uploaded by' : 'Subido por')}</th>
-            <th>${escapeDocumentPrintHtml(english ? 'Date' : 'Fecha')}</th>
+            <th>${escapeDocumentPrintHtml(copy.file)}</th>
+            <th>${escapeDocumentPrintHtml(copy.type)}</th>
+            <th>${escapeDocumentPrintHtml(copy.size)}</th>
+            <th>${escapeDocumentPrintHtml(copy.uploadedBy)}</th>
+            <th>${escapeDocumentPrintHtml(copy.date)}</th>
           </tr></thead>
           <tbody>${attachmentRows}</tbody>
         </table>
       </section>
 
       <footer class="report-footer">
-        <span>${escapeDocumentPrintHtml(english ? 'Índice support record' : 'Expediente de soporte Índice')}</span>
-        <span>${escapeDocumentPrintHtml(english ? 'Printed' : 'Impreso')}: ${escapeDocumentPrintHtml(printedAt)}</span>
+        <span>${escapeDocumentPrintHtml(copy.printFooter)}</span>
+        <span>${escapeDocumentPrintHtml(copy.printed)}: ${escapeDocumentPrintHtml(printedAt)}</span>
       </footer>
     </main>`;
 

@@ -1,7 +1,10 @@
+import { humanize } from "../CompanyAccount/companyAccountUtils";
+import { useCustomerAccountCopy } from "./useCustomerAccountCopy";
 import type { ReactNode } from "react";
 import {
   CalendarClock,
   CalendarPlus,
+  CreditCard,
   Handshake,
   MoreHorizontal,
   PencilLine,
@@ -28,12 +31,12 @@ import {
 
 const cellClass = "overflow-hidden whitespace-normal px-4 py-4 align-middle text-sm font-normal text-slate-700 dark:text-slate-200";
 
-const planLabels: Record<string, { en: string; es: string }> = {
-  basic_1: { en: "One module", es: "Un módulo" },
-  basic_2: { en: "Two modules", es: "Dos módulos" },
-  basic_3: { en: "Three modules", es: "Tres módulos" },
-  basic_all: { en: "Four or more modules", es: "Cuatro o más módulos" },
-};
+const getPlanLabels = (t: ReturnType<typeof useCustomerAccountCopy>["t"]): Record<string, string> => { return {
+  basic_1: t("oneModule"),
+  basic_2: t("twoModules"),
+  basic_3: t("threeModules"),
+  basic_all: t("fourModules"),
+}; };
 
 export function CustomerTableRow({
   company,
@@ -48,6 +51,8 @@ export function CustomerTableRow({
   onAssignDistributor,
   canExtendTrials,
   onExtendTrial,
+  canRequestPayment,
+  onRequestPayment,
   canDelete,
   onDelete,
   onOpenCompany,
@@ -65,11 +70,14 @@ export function CustomerTableRow({
   onAssignDistributor?: (company: PlatformCompanySummary) => void;
   canExtendTrials?: boolean;
   onExtendTrial?: (company: PlatformCompanySummary) => void;
+  canRequestPayment?: boolean;
+  onRequestPayment?: (company: PlatformCompanySummary) => void;
   canDelete?: boolean;
   onDelete?: (company: PlatformCompanySummary) => void;
   onOpenCompany: (company: PlatformCompanySummary | number) => void;
   onOpenUsers: (company: PlatformCompanySummary) => void;
 }) {
+  const { t, locale, number } = useCustomerAccountCopy();
   const accountType = normalizeAccountType(company.user_type);
   const status = basicCommercialStatus(company);
   const deleted = status === "deleted";
@@ -86,7 +94,7 @@ export function CustomerTableRow({
   const hasFiniteTrial = Boolean(company.trial_source && company.trial_ends_at);
   const remainingTrialDays = Math.max(0, company.trial_days_remaining ?? 0);
   const effectiveOfferCode = company.offer_code || company.projected_offer_code;
-  const plan = planLabels[effectiveOfferCode || ""];
+  const plan = getPlanLabels(t)[effectiveOfferCode || ""];
   const payment = company.last_invoice_status || company.last_payment_status;
   const billingKind = company.billing_amount_kind || "UNAVAILABLE";
   const hasBillingAmount = company.billing_amount_cents != null;
@@ -116,9 +124,9 @@ export function CustomerTableRow({
             <div className="min-w-0">
               <p className="truncate font-medium text-slate-900">{company.name}</p>
               <p className="mt-0.5 truncate text-xs text-slate-500">
-                {company.owner_email || `Company #${company.id}`}
+                {company.owner_email || t("companyId", { id: String(company.id) })}
               </p>
-              <p className="mt-1 text-xs text-slate-400">ID {company.id}</p>
+              <p className="mt-1 text-xs text-slate-400">{t("identifierId", { id: String(company.id) })}</p>
             </div>
           </div>
         );
@@ -138,12 +146,12 @@ export function CustomerTableRow({
         return (
           <>
             <p className="font-medium text-slate-900">
-              {plan ? plan[english ? "en" : "es"] : effectiveOfferCode || copy.noPlan}
+              {plan ? plan : effectiveOfferCode || copy.noPlan}
             </p>
             <div className="mt-1.5 flex flex-wrap gap-1">
               {company.catalog_version_historical ? (
                 <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700">
-                  {english ? "Historical contract" : "Contrato histórico"}
+                  {t("historicalContract")}
                 </span>
               ) : null}
               {(company.product_names ?? []).slice(0, compact ? 2 : 3).map((name) => (
@@ -153,7 +161,7 @@ export function CustomerTableRow({
               ))}
               {(company.product_names?.length ?? 0) > (compact ? 2 : 3) ? (
                 <span className="px-1 py-0.5 text-xs font-medium text-[#177D66]">
-                  +{(company.product_names?.length ?? 0) - (compact ? 2 : 3)}
+                  +{number((company.product_names?.length ?? 0) - (compact ? 2 : 3))}
                 </span>
               ) : null}
             </div>
@@ -167,9 +175,9 @@ export function CustomerTableRow({
             </span>
             <div>
               <p className="font-medium tabular-nums text-slate-900">
-                {company.active_members} / {capacity}
+                {number(company.active_members)} / {number(capacity)}
               </p>
-              <p className="text-xs text-slate-500">{availableSeats} {copy.availableUsers}</p>
+              <p className="text-xs text-slate-500">{number(availableSeats)} {copy.availableUsers}</p>
             </div>
           </div>
         );
@@ -182,7 +190,7 @@ export function CustomerTableRow({
                   {formatMoney(
                     company.billing_amount_cents,
                     company.billing_currency || company.currency,
-                    english,
+                    locale,
                   )}
                 </p>
                 <p className="mt-0.5 text-xs text-slate-500">
@@ -216,7 +224,7 @@ export function CustomerTableRow({
             </p>
             {eventDate ? (
               <p className="mt-1 text-xs text-slate-500">
-                {hasFiniteTrial ? `${copy.trialEnd}: ` : ""}{formatDate(eventDate, english)}
+                {hasFiniteTrial ? `${copy.trialEnd}: ` : ""}{formatDate(eventDate, locale)}
               </p>
             ) : null}
           </>
@@ -252,6 +260,13 @@ export function CustomerTableRow({
             icon={<Users className="h-4 w-4" />}
             onClick={() => onOpenUsers(company)}
           /> : null}
+          {!deleted && canRequestPayment && onRequestPayment && accountType !== "ROOT" ? (
+            <CustomerActionButton
+              label={t("requestPayment")}
+              icon={<CreditCard className="h-4 w-4 text-[#177D66] dark:text-[#8FE0CA]" />}
+              onClick={() => onRequestPayment(company)}
+            />
+          ) : null}
           {!deleted && (
             (canEditTypes && accountType !== "ROOT") ||
             canAssignDistributor ||
@@ -361,14 +376,15 @@ function UserTypeBadge({
   type: PlatformCompanySummary["user_type"];
   english: boolean;
 }) {
+  const { t, locale, number } = useCustomerAccountCopy();
   const presentation = {
-    ROOT: ["Root", "border-blue-200 bg-blue-50 text-[#174799]"],
+    ROOT: [t("root"), "border-blue-200 bg-blue-50 text-[#174799]"],
     SUPER_ADMIN: [
-      "Super Admin",
+      t("superAdmin"),
       "border-emerald-200 bg-emerald-50 text-emerald-700",
     ],
     DISTRIBUTOR: [
-      english ? "Distributor" : "Distribuidor",
+      t("distributor"),
       "border-amber-200 bg-amber-50 text-amber-700",
     ],
   }[type];
@@ -392,12 +408,13 @@ function CommercialStatusBadge({
   status: CustomerCommercialStatus;
   english: boolean;
 }) {
+  const { t, locale, number } = useCustomerAccountCopy();
   const presentation = {
-    active: [english ? "Active" : "Activa", "bg-emerald-50 text-emerald-700"],
-    trial: [english ? "Trial" : "Prueba", "bg-amber-50 text-amber-700"],
-    demo: ["Demo", "bg-blue-50 text-[#2563EB]"],
-    inactive: [english ? "Inactive" : "Inactiva", "bg-slate-100 text-slate-600"],
-    deleted: [english ? "Deleted" : "Eliminado", "bg-red-50 text-red-700"],
+    active: [t("active"), "bg-emerald-50 text-emerald-700"],
+    trial: [t("trial"), "bg-amber-50 text-amber-700"],
+    demo: [t("demo"), "bg-blue-50 text-[#2563EB]"],
+    inactive: [t("inactive"), "bg-slate-100 text-slate-600"],
+    deleted: [t("deleted"), "bg-red-50 text-red-700"],
   }[status];
   return <TableBadge label={presentation[0]} className={presentation[1]} />;
 }
@@ -409,6 +426,7 @@ function PaymentBadge({
   status?: string | null;
   copy: CustomerTableCopy;
 }) {
+  const { locale } = useCustomerAccountCopy();
   const normalized = (status || "").toLowerCase();
   const positive = ["paid", "success", "succeeded"].includes(normalized);
   const attention = ["open", "pending", "past_due", "unpaid", "failed"].includes(
@@ -424,7 +442,7 @@ function PaymentBadge({
             : "bg-slate-100 text-slate-500"
       }`}
     >
-      {status || copy.noActivity}
+      {status ? humanize(status, locale) : copy.noActivity}
     </span>
   );
 }
@@ -448,16 +466,15 @@ function initials(value: string) {
     .toUpperCase();
 }
 
-function formatMoney(value?: number | null, currency = "USD", english = false) {
-  return new Intl.NumberFormat(english ? "en-CA" : "es-MX", {
+function formatMoney(value?: number | null, currency = "USD", locale = "en-CA") {
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: currency || "USD",
-    maximumFractionDigits: 0,
   }).format((value || 0) / 100);
 }
 
-function formatDate(value: string, english: boolean) {
-  return new Intl.DateTimeFormat(english ? "en-CA" : "es-MX", {
+function formatDate(value: string, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
     day: "2-digit",
     month: "short",
     year: "numeric",

@@ -20,7 +20,7 @@ export const enCAQuickTestCopy: QuickTestAccountCopy = {
   scenario: {
     title: "What do you want to test?",
     description: "Indice will prepare recommended modules, capacity and trial length.",
-    modules: (count) => `${count} module(s)`,
+    modules: (count) => `Modules: ${count}`,
     employees: (count) => `${count} employees`,
     days: (count) => `${count} days`,
     options: {

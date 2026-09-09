@@ -54,7 +54,7 @@ export const customerTableMaximumWidths: Record<CustomerTableColumnId, number> =
   nextEvent: 320,
 };
 
-export const customerTableActionsWidth = 158;
+export const customerTableActionsWidth = 212;
 export const customerTableColumnsStorageKey = "indice-platform-admin-customer-columns-v2";
 
 export function getCustomerTableColumnLabels(copy: CustomerTableCopy): Record<CustomerTableColumnId, string> {

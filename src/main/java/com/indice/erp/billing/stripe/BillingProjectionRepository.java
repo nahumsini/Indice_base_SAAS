@@ -16,10 +16,11 @@ public class BillingProjectionRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    @Transactional
     public ProjectionAssociation upsertSubscription(SubscriptionSnapshot incoming, Long signupIntentId) {
         var existing = jdbcTemplate.query(
             """
-                SELECT id, company_id, signup_intent_id, last_event_id, last_event_created_at
+                SELECT id, company_id, signup_intent_id, catalog_version_id, last_event_id, last_event_created_at
                 FROM company_billing_subscriptions
                 WHERE stripe_subscription_id = ?
                 FOR UPDATE
@@ -28,13 +29,14 @@ public class BillingProjectionRepository {
                 rs.getLong("id"),
                 (Long) rs.getObject("company_id"),
                 (Long) rs.getObject("signup_intent_id"),
+                (Long) rs.getObject("catalog_version_id"),
                 rs.getString("last_event_id"),
                 rs.getTimestamp("last_event_created_at").toInstant()
             ),
             incoming.subscriptionId()
         );
-        var intent = signupIntentId == null ? null : intentDetails(signupIntentId);
         if (existing.isEmpty()) {
+            var intent = signupIntentId == null ? null : intentDetails(signupIntentId);
             jdbcTemplate.update(
                 """
                     INSERT INTO company_billing_subscriptions (
@@ -84,22 +86,17 @@ public class BillingProjectionRepository {
 
         var current = existing.getFirst();
         var effectiveIntentId = current.signupIntentId() == null ? signupIntentId : current.signupIntentId();
-        var effectiveIntent = effectiveIntentId == null ? null : intentDetails(effectiveIntentId);
+        if (effectiveIntentId != null && (current.catalogVersionId() == null
+                || current.signupIntentId() == null || current.companyId() == null)) {
+            associate(current.id(), effectiveIntentId);
+        }
         if (isNewer(incoming.eventCreatedAt(), incoming.eventId(), current.lastEventCreatedAt(), current.lastEventId())) {
             jdbcTemplate.update(
                 """
                     UPDATE company_billing_subscriptions
                     SET stripe_customer_id = COALESCE(?, stripe_customer_id),
-                        company_id = COALESCE(company_id, ?),
-                        signup_intent_id = COALESCE(signup_intent_id, ?),
-                        catalog_version_id = COALESCE(catalog_version_id, ?),
-                        offer_code = COALESCE(offer_code, ?),
-                        billing_interval = COALESCE(billing_interval, ?),
-                        currency = COALESCE(?, currency),
-                        status = ?, collection_method = ?, included_seats = ?, extra_seats = ?,
-                        subtotal_amount_cents = COALESCE(?, subtotal_amount_cents),
-                        discount_amount_cents = COALESCE(?, discount_amount_cents),
-                        promotion_code = COALESCE(?, promotion_code),
+                        currency = COALESCE(currency, ?),
+                        status = ?, collection_method = ?,
                         cancel_at_period_end = ?, trial_starts_at = ?, trial_ends_at = ?,
                         current_period_starts_at = ?, current_period_ends_at = ?, canceled_at = ?,
                         latest_invoice_id = COALESCE(?, latest_invoice_id),
@@ -108,19 +105,9 @@ public class BillingProjectionRepository {
                     WHERE id = ?
                     """,
                 incoming.customerId(),
-                effectiveIntent == null ? null : effectiveIntent.companyId(),
-                effectiveIntentId,
-                effectiveIntent == null ? null : effectiveIntent.catalogVersionId(),
-                effectiveIntent == null ? null : effectiveIntent.offerCode(),
-                effectiveIntent == null ? null : effectiveIntent.billingInterval(),
                 incoming.currency(),
                 incoming.status(),
                 incoming.collectionMethod(),
-                effectiveIntent == null ? 5 : effectiveIntent.includedSeats(),
-                effectiveIntent == null ? 0 : effectiveIntent.extraSeats(),
-                effectiveIntent == null ? null : effectiveIntent.subtotalAmountCents(),
-                effectiveIntent == null ? null : effectiveIntent.discountAmountCents(),
-                effectiveIntent == null ? null : effectiveIntent.promotionCode(),
                 incoming.cancelAtPeriodEnd(),
                 timestamp(incoming.trialStartsAt()),
                 timestamp(incoming.trialEndsAt()),
@@ -133,24 +120,15 @@ public class BillingProjectionRepository {
                 Timestamp.from(incoming.eventCreatedAt()),
                 current.id()
             );
-            copyIntentProducts(current.id(), effectiveIntentId);
+            var association = associationForSubscription(incoming.subscriptionId());
             return new ProjectionAssociation(
-                current.id(),
-                effectiveIntent == null ? current.companyId() : effectiveIntent.companyId(),
-                effectiveIntentId,
-                true
+                association.subscriptionInternalId(), association.companyId(), association.signupIntentId(), true
             );
         }
-
-        if (current.signupIntentId() == null && signupIntentId != null) {
-            associate(current.id(), signupIntentId);
-            return new ProjectionAssociation(
-                current.id(), intent == null ? current.companyId() : intent.companyId(), signupIntentId, false
-            );
-        }
-        return new ProjectionAssociation(current.id(), current.companyId(), current.signupIntentId(), false);
+        return associationForSubscription(incoming.subscriptionId());
     }
 
+    @Transactional
     public ProjectionAssociation associateSubscription(String stripeSubscriptionId, Long signupIntentId) {
         if (stripeSubscriptionId == null || signupIntentId == null) {
             return null;
@@ -164,8 +142,7 @@ public class BillingProjectionRepository {
             return null;
         }
         associate(ids.getFirst(), signupIntentId);
-        var intent = intentDetails(signupIntentId);
-        return new ProjectionAssociation(ids.getFirst(), intent.companyId(), signupIntentId, false);
+        return associationForSubscription(stripeSubscriptionId);
     }
 
     public ProjectionAssociation associationForSubscription(String stripeSubscriptionId) {
@@ -288,6 +265,34 @@ public class BillingProjectionRepository {
         );
     }
 
+    public ProjectionAssociation associationForPaymentCustomer(String stripeCustomerId) {
+        var companyIds = jdbcTemplate.queryForList(
+            """
+                SELECT company_id FROM company_billing_customers WHERE stripe_customer_id = ?
+                UNION
+                SELECT company_id FROM company_billing_subscriptions
+                WHERE stripe_customer_id = ? AND company_id IS NOT NULL
+                """,
+            Long.class, stripeCustomerId, stripeCustomerId
+        );
+        if (companyIds.size() > 1) {
+            throw new StripeEventProcessingException(
+                "AMBIGUOUS_PAYMENT_COMPANY", "The payment customer is associated with multiple companies."
+            );
+        }
+        if (companyIds.isEmpty()) {
+            return null;
+        }
+        var subscription = associationForCustomer(stripeCustomerId);
+        var matchingSubscription = subscription != null && companyIds.getFirst().equals(subscription.companyId());
+        return new ProjectionAssociation(
+            matchingSubscription ? subscription.subscriptionInternalId() : 0,
+            companyIds.getFirst(),
+            matchingSubscription ? subscription.signupIntentId() : null,
+            false
+        );
+    }
+
     @Transactional
     public int reconcileUnassociatedSubscriptions() {
         var candidates = jdbcTemplate.query(
@@ -326,24 +331,32 @@ public class BillingProjectionRepository {
     }
 
     private void associate(long subscriptionInternalId, long signupIntentId) {
-        var intent = intentDetails(signupIntentId);
+        var current = jdbcTemplate.query(
+            "SELECT signup_intent_id, catalog_version_id FROM company_billing_subscriptions WHERE id = ? FOR UPDATE",
+            (rs, rowNum) -> new AssociationState((Long) rs.getObject(1), (Long) rs.getObject(2)),
+            subscriptionInternalId
+        ).stream().findFirst().orElseThrow(() -> new IllegalStateException("Subscription projection is missing."));
+        var effectiveIntentId = current.signupIntentId() == null ? signupIntentId : current.signupIntentId();
+        var intent = intentDetails(effectiveIntentId);
+        jdbcTemplate.update(
+            "UPDATE company_billing_subscriptions SET signup_intent_id = COALESCE(signup_intent_id, ?), company_id = COALESCE(company_id, ?) WHERE id = ?",
+            effectiveIntentId, intent.companyId(), subscriptionInternalId
+        );
+        if (current.catalogVersionId() != null) return;
+        // A signup intent initializes the commercial agreement once. Renewals and seat purchases
+        // own subsequent changes; later webhooks must not restore the original signup selection.
         jdbcTemplate.update(
             """
                 UPDATE company_billing_subscriptions
-                SET signup_intent_id = COALESCE(signup_intent_id, ?), company_id = COALESCE(company_id, ?),
-                    catalog_version_id = COALESCE(catalog_version_id, ?), offer_code = COALESCE(offer_code, ?),
-                    billing_interval = COALESCE(billing_interval, ?), currency = COALESCE(currency, ?),
+                SET catalog_version_id = ?, offer_code = ?, billing_interval = ?, currency = ?,
                     included_seats = ?, extra_seats = ?,
-                    subtotal_amount_cents = COALESCE(?, subtotal_amount_cents),
-                    discount_amount_cents = COALESCE(?, discount_amount_cents),
-                    promotion_code = COALESCE(?, promotion_code)
-                WHERE id = ?
+                    subtotal_amount_cents = ?, discount_amount_cents = ?, promotion_code = ?
+                WHERE id = ? AND catalog_version_id IS NULL
                 """,
-            signupIntentId, intent.companyId(), intent.catalogVersionId(), intent.offerCode(),
-            intent.billingInterval(), intent.currency(), intent.includedSeats(), intent.extraSeats(),
+            intent.catalogVersionId(), intent.offerCode(), intent.billingInterval(), intent.currency(), intent.includedSeats(), intent.extraSeats(),
             intent.subtotalAmountCents(), intent.discountAmountCents(), intent.promotionCode(), subscriptionInternalId
         );
-        copyIntentProducts(subscriptionInternalId, signupIntentId);
+        copyIntentProducts(subscriptionInternalId, effectiveIntentId);
     }
 
     private void copyIntentProducts(Long subscriptionInternalId, Long signupIntentId) {
@@ -436,8 +449,11 @@ public class BillingProjectionRepository {
     public record ProjectionAssociation(long subscriptionInternalId, Long companyId, Long signupIntentId, boolean applied) {
     }
 
-    private record ExistingSubscription(long id, Long companyId, Long signupIntentId, String lastEventId, Instant lastEventCreatedAt) {
+    private record ExistingSubscription(long id, Long companyId, Long signupIntentId, Long catalogVersionId,
+        String lastEventId, Instant lastEventCreatedAt) {
     }
+
+    private record AssociationState(Long signupIntentId, Long catalogVersionId) { }
 
     private record ExistingInvoice(long id, String lastEventId, Instant lastEventCreatedAt) {
     }

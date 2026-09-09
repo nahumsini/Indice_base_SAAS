@@ -54,6 +54,14 @@ public class StripeWebhookEventHandler {
 
     @Transactional
     public StripeWebhookEventRepository.ProcessingResult process(StripeWebhookEventRepository.ClaimedEvent claimed) {
+        return process(claimed, null);
+    }
+
+    @Transactional
+    public StripeWebhookEventRepository.ProcessingResult process(
+        StripeWebhookEventRepository.ClaimedEvent claimed,
+        StripeWebhookPaymentContextResolver.PaymentContext paymentContext
+    ) {
         var root = json(claimed.rawPayload());
         var object = root.path("data").path("object");
         var eventId = requiredText(root, "id");
@@ -69,7 +77,9 @@ public class StripeWebhookEventHandler {
             case "invoice.paid", "invoice.payment_succeeded", "invoice.payment_failed",
                  "invoice.finalized", "invoice.voided" -> invoiceChanged(eventId, eventCreatedAt, eventType, object);
             case "charge.refunded", "refund.updated", "charge.dispute.created",
-                 "charge.dispute.updated", "charge.dispute.closed" -> paymentRiskChanged(eventId, eventCreatedAt, eventType, object);
+                 "charge.dispute.updated", "charge.dispute.closed" -> paymentRiskChanged(
+                    eventId, eventCreatedAt, eventType, object, paymentContext
+                 );
             case "entitlements.active_entitlement_summary.updated" -> stripeEntitlementSummaryChanged(eventId, eventType, object);
             default -> ignored(eventId, eventType, text(object, "id"));
         };
@@ -227,15 +237,14 @@ public class StripeWebhookEventHandler {
             ),
             association
         );
+        var settledInvoice = ("invoice.paid".equals(eventType) || "invoice.payment_succeeded".equals(eventType))
+            && "paid".equalsIgnoreCase(text(object, "status"));
         if (association != null && association.companyId() != null
-            && ("invoice.payment_failed".equals(eventType)
-                || "invoice.paid".equals(eventType)
-                || "invoice.payment_succeeded".equals(eventType))) {
+            && ("invoice.payment_failed".equals(eventType) || settledInvoice)) {
             commercialLifecycle.applyInvoiceEvent(
                 association.companyId(), eventId, eventCreatedAt, eventType, text(object, "status")
             );
-            if (("invoice.paid".equals(eventType) || "invoice.payment_succeeded".equals(eventType))
-                && "paid".equalsIgnoreCase(text(object, "status"))) {
+            if (settledInvoice) {
                 selectionChanges.applyDue(
                     association.companyId(), subscriptionId, eventId, periodStartsAt
                 );
@@ -259,10 +268,23 @@ public class StripeWebhookEventHandler {
         String eventId,
         Instant eventCreatedAt,
         String eventType,
-        JsonNode object
+        JsonNode object,
+        StripeWebhookPaymentContextResolver.PaymentContext paymentContext
     ) {
         var objectId = requiredText(object, "id");
-        var association = associationForObject(object);
+        var customerId = objectId(object.path("customer"));
+        if (customerId == null && paymentContext != null) {
+            customerId = paymentContext.customerId();
+        }
+        var association = customerId == null
+            ? associationForObject(object)
+            : projections.associationForPaymentCustomer(customerId);
+        if ((association == null || association.companyId() == null)
+            && !(paymentContext != null && paymentContext.customerId() == null)) {
+            throw new StripeEventProcessingException(
+                "WAITING_PAYMENT_ASSOCIATION", "The payment event is waiting for its local company association."
+            );
+        }
         if (association != null && association.companyId() != null) {
             commercialLifecycle.applyInvoiceEvent(
                 association.companyId(),
@@ -280,7 +302,8 @@ public class StripeWebhookEventHandler {
                 "eventType", eventType,
                 "stripeStatus", clean(text(object, "status"), ""),
                 "invoiceId", clean(objectId(object.path("invoice")), ""),
-                "customerId", clean(objectId(object.path("customer")), "")
+                "customerId", clean(customerId, ""),
+                "chargeId", paymentContext == null ? clean(objectId(object.path("charge")), "") : paymentContext.chargeId()
             )
         );
         return StripeWebhookEventRepository.ProcessingResult.processed(

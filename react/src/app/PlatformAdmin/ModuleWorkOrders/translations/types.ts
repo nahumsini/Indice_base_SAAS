@@ -13,4 +13,7 @@ export type ModuleWorkOrderCopy = {
   draft: string;
   remove: string;
   add: string;
+  loadError: string;
+  createError: string;
+  removeError: string;
 };

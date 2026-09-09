@@ -39,6 +39,7 @@ public class KioskActionDispatcher {
     private final ObjectMapper objectMapper;
     private final ObjectWriter canonicalWriter;
     private final KioskPayloadProtectionService payloadProtection;
+    private final KioskPaymentCollectionGuard collectionGuard;
 
     public KioskActionDispatcher(
             KioskAdapterRegistry registry,
@@ -50,7 +51,8 @@ public class KioskActionDispatcher {
             KioskRateLimitService rateLimitService,
             JdbcTemplate jdbcTemplate,
             ObjectMapper objectMapper,
-            KioskPayloadProtectionService payloadProtection) {
+            KioskPayloadProtectionService payloadProtection,
+            KioskPaymentCollectionGuard collectionGuard) {
         this.registry = registry;
         this.definitionRegistry = definitionRegistry;
         this.sessionService = sessionService;
@@ -61,6 +63,7 @@ public class KioskActionDispatcher {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.payloadProtection = payloadProtection;
+        this.collectionGuard = collectionGuard;
         this.canonicalWriter = objectMapper.writer()
             .with(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
     }
@@ -108,6 +111,7 @@ public class KioskActionDispatcher {
             if (!definition.ownerModule().equals(context.ownerModule())) {
                 throw new SecurityException("Kiosk definition does not belong to this module.");
             }
+            collectionGuard.requireOperationalAccess(definition.companyId());
             var definitionCapabilities = adapter.capabilities(definition);
             if (definitionCapabilities.stream()
                     .noneMatch(candidate -> candidate.versionedKey().equals(capability.versionedKey()))) {

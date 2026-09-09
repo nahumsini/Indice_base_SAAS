@@ -83,6 +83,59 @@ test("los cambios respetan capacidad y se cobran en el corte correspondiente", (
   assert.match(hook, /billingApi\.updateSelection/);
 });
 
+function billingPreviewScenario({ changed, previewRequest }) {
+  const start = hook.indexOf('    if (state.loading || readOnly || !state.selection) return;');
+  const end = hook.indexOf('\n  }, [copy.emptySelection', start);
+  assert.ok(start > 0 && end > start, 'preview effect must be present');
+  const savedSelection = { catalog_version: 'agreed-v1', estimated_amount_cents: 7900 };
+  let current = { loading: false, selection: savedSelection, preview: null, error: '' };
+  let scheduled = null;
+  let calls = 0;
+  const scope = {
+    state: current, readOnly: false, hasChanges: changed,
+    payload: { product_codes: ['module_hr'], billing_interval: 'MONTH', extra_seats: 1 },
+    window: { setTimeout: (callback) => { scheduled = callback; return 1; }, clearTimeout: () => { scheduled = null; } },
+    billingApi: { previewSelection: async () => { calls += 1; return previewRequest(); } },
+    setState: (update) => { current = update(current); },
+    copy: { emptySelection: 'empty selection' },
+  };
+  const cleanup = new Function(...Object.keys(scope), hook.slice(start, end))(...Object.values(scope));
+  return { cleanup, run: () => scheduled?.(), current: () => current, calls: () => calls, savedSelection };
+}
+
+test('abrir un contrato histórico conserva su precio sin solicitar un catálogo nuevo', () => {
+  const scenario = billingPreviewScenario({ changed: false, previewRequest: () => { throw new Error('must not quote'); } });
+  scenario.run();
+  assert.equal(scenario.calls(), 0);
+  assert.equal(scenario.current().preview, scenario.savedSelection);
+  assert.equal(scenario.current().preview.estimated_amount_cents, 7900);
+});
+
+test('un cambio explícito sigue obteniendo la nueva cotización del backend', async () => {
+  const quote = { catalog_version: 'new-v2', estimated_amount_cents: 9900 };
+  const scenario = billingPreviewScenario({ changed: true, previewRequest: async () => quote });
+  await scenario.run();
+  assert.equal(scenario.calls(), 1);
+  assert.equal(scenario.current().preview, quote);
+  scenario.cleanup();
+});
+
+test('una respuesta anterior no sustituye el contrato restaurado ni muestra errores obsoletos', async () => {
+  for (const failed of [false, true]) {
+    let resolveRequest;
+    let rejectRequest;
+    const pending = new Promise((resolve, reject) => { resolveRequest = resolve; rejectRequest = reject; });
+    const scenario = billingPreviewScenario({ changed: true, previewRequest: () => pending });
+    const completed = scenario.run();
+    scenario.cleanup();
+    if (failed) rejectRequest(new Error('outdated quote failed'));
+    else resolveRequest({ catalog_version: 'outdated-v2', estimated_amount_cents: 9900 });
+    await completed;
+    assert.equal(scenario.current().preview, null);
+    assert.equal(scenario.current().error, '');
+  }
+});
+
 test("la experiencia expresa usuarios totales y calcula incluidos, adicionales y disponibles", () => {
   assert.match(page, /BillingOverviewBar/);
   assert.match(overview, /selection\.included_seats \+ selection\.extra_seats/);

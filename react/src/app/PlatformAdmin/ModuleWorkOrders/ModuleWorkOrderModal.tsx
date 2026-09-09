@@ -1,3 +1,4 @@
+import { useLanguage } from "../../shared/context";
 import { useState, type FormEvent } from "react";
 import { ClipboardPlus } from "lucide-react";
 import { IndiceModalFrame } from "../../components/indice-modal";
@@ -17,16 +18,6 @@ const locales: ModuleWorkOrderLocale[] = [
   "ko-CA",
   "zh-CA",
 ];
-const localeLabels: Record<ModuleWorkOrderLocale, string> = {
-  "en-CA": "English (Canada)",
-  "en-US": "English (United States)",
-  "es-MX": "Español (México)",
-  "es-CO": "Español (Colombia)",
-  "fr-CA": "Français (Canada)",
-  "pt-BR": "Português (Brasil)",
-  "ko-CA": "한국어",
-  "zh-CA": "中文",
-};
 const controlClass =
   "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white";
 
@@ -39,10 +30,13 @@ export function ModuleWorkOrderModal({
   onClose: () => void;
   onCreate: (input: CreateModuleWorkOrderInput) => void | Promise<void>;
 }) {
+  const { currentLanguage } = useLanguage();
+  const languageCode = locales.includes(currentLanguage.code as ModuleWorkOrderLocale) ? currentLanguage.code as ModuleWorkOrderLocale : "en-CA";
+  const localeLabels = new Intl.DisplayNames([languageCode], { type: "language" });
   const copy = useModuleWorkOrderCopy();
   const [moduleName, setModuleName] = useState("");
   const [sourceLocale, setSourceLocale] = useState<ModuleWorkOrderLocale>(
-    english ? "en-CA" : "es-MX",
+    languageCode,
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -54,7 +48,7 @@ export function ModuleWorkOrderModal({
     try {
       await onCreate({ moduleName: moduleName.trim(), sourceLocale });
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : copy.description);
+      setError(copy.createError);
     } finally {
       setSubmitting(false);
     }
@@ -116,7 +110,7 @@ export function ModuleWorkOrderModal({
           >
             {locales.map((locale) => (
               <option key={locale} value={locale}>
-                {localeLabels[locale]}
+                {localeLabels.of(locale) || locale}
               </option>
             ))}
           </select>

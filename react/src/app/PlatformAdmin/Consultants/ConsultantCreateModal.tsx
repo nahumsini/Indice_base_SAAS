@@ -1,3 +1,6 @@
+import {
+  useConsultingCopy,
+} from "../ConsultingTranslations";
 import { useState, type FormEvent } from "react";
 import { UserPlus } from "lucide-react";
 import { IndiceModalFrame } from "../../components/indice-modal";
@@ -13,6 +16,7 @@ export function ConsultantCreateModal({
   onClose: () => void;
   onCreate: (input: ConsultantInput) => void;
 }) {
+  const { copy } = useConsultingCopy();
   const [value, setValue] = useState<ConsultantInput>({
     firstName: "",
     lastName: "",
@@ -37,9 +41,9 @@ export function ConsultantCreateModal({
       modalType="standard-form"
       tone="blue"
       icon={<UserPlus className="h-5 w-5" />}
-      eyebrow="Directorio de consultoría"
-      title="Agregar consultor"
-      description="Registra sus datos para asignarlo rápidamente a solicitudes y sesiones."
+      eyebrow={copy.consultingDirectory}
+      title={copy.addConsultant}
+      description={copy.createConsultantHelp}
       footer={
         <div className="flex w-full justify-end gap-2">
           <button
@@ -47,15 +51,15 @@ export function ConsultantCreateModal({
             onClick={onClose}
             className="h-11 rounded-xl bg-white px-4 text-sm font-medium text-slate-700"
           >
-            Cancelar
-          </button>
+            {copy.cancel}
+            </button>
           <button
             type="submit"
             form="consultant-create-form"
             className="h-11 rounded-xl bg-white/15 px-5 text-sm font-semibold text-white ring-1 ring-white/35"
           >
-            Guardar consultor
-          </button>
+            {copy.saveConsultant}
+            </button>
         </div>
       }
     >
@@ -64,7 +68,7 @@ export function ConsultantCreateModal({
         onSubmit={submit}
         className="grid gap-4 sm:grid-cols-2"
       >
-        <Field label="Nombre">
+        <Field label={copy.firstName}>
           <input
             autoFocus
             required
@@ -75,7 +79,7 @@ export function ConsultantCreateModal({
             className={controlClass}
           />
         </Field>
-        <Field label="Apellido">
+        <Field label={copy.lastName}>
           <input
             required
             value={value.lastName}
@@ -85,7 +89,7 @@ export function ConsultantCreateModal({
             className={controlClass}
           />
         </Field>
-        <Field label="Teléfono">
+        <Field label={copy.phone}>
           <input
             required
             type="tel"
@@ -97,7 +101,7 @@ export function ConsultantCreateModal({
             placeholder="+1 416 555 0100"
           />
         </Field>
-        <Field label="Correo electrónico">
+        <Field label={copy.email}>
           <input
             required
             type="email"
@@ -106,7 +110,7 @@ export function ConsultantCreateModal({
               setValue({ ...value, email: event.target.value })
             }
             className={controlClass}
-            placeholder="consultor@indiceapp.com"
+            placeholder={copy.consultantEmailPlaceholder}
           />
         </Field>
       </form>

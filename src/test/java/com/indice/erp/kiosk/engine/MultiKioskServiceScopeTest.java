@@ -22,9 +22,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class MultiKioskServiceScopeTest {
@@ -37,6 +39,7 @@ class MultiKioskServiceScopeTest {
     @Mock private KioskEmployeeToolCatalogService employeeTools;
     @Mock private KioskMultiDashboardService dashboard;
     @Mock private KioskRateLimitService rateLimits;
+    @Mock private KioskPaymentCollectionGuard collectionGuard;
 
     private BCryptPasswordEncoder passwordEncoder;
     private MultiKioskService service;
@@ -46,7 +49,36 @@ class MultiKioskServiceScopeTest {
         passwordEncoder = new BCryptPasswordEncoder();
         service = new MultiKioskService(
             jdbcTemplate, new ObjectMapper(), passwordEncoder, protection,
-            employeeAccess, employeeTools, dashboard, rateLimits, 28_800, 43_200);
+            employeeAccess, employeeTools, dashboard, rateLimits, collectionGuard, 28_800, 43_200);
+    }
+
+    @Test
+    void overdueCompanyCannotBootstrapAuthenticateResumeOrUseChildOperations() throws Exception {
+        stubPublicQueries(List.of());
+        doThrow(new KioskUnavailableException()).when(collectionGuard).requireOperationalAccess(7L);
+
+        assertThatThrownBy(() -> service.bootstrap("public-token"))
+            .isInstanceOf(KioskUnavailableException.class);
+        assertThatThrownBy(() -> service.authenticate("public-token", TEST_PIN, "browser", "network"))
+            .isInstanceOf(KioskUnavailableException.class);
+        assertThatThrownBy(() -> service.session("public-token", "parent-session", "browser"))
+            .isInstanceOf(KioskUnavailableException.class);
+        assertThatThrownBy(() -> service.launchChild("public-token", "parent-session", 17L, "browser"))
+            .isInstanceOf(KioskUnavailableException.class);
+        assertThatThrownBy(() -> service.childWorkspace(
+            "public-token", "parent-session", "child-session", 17L, "browser"))
+            .isInstanceOf(KioskUnavailableException.class);
+        assertThatThrownBy(() -> service.childAction(
+            "public-token", "parent-session", "child-session", 17L, "tasks.create", "browser",
+            Map.of(), "retry-key"))
+            .isInstanceOf(KioskUnavailableException.class);
+
+        verify(collectionGuard, times(6)).requireOperationalAccess(7L);
+        verify(jdbcTemplate, never()).update(anyString(), any(Object[].class));
+        verifyNoInteractions(dashboard, employeeAccess, employeeTools, rateLimits);
+        assertThat(wasQueryCalled("FROM multi_kiosk_sessions")).isFalse();
+        assertThat(wasQueryCalled("SELECT name FROM companies")).isFalse();
+        assertThat(wasQueryCalled("credential.secret_hash")).isFalse();
     }
 
     @Test

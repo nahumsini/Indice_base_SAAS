@@ -74,14 +74,28 @@ export function useBillingManagement(copy: BillingCopy) {
   const readOnlyMessage = state.managedContext?.active_company
     ? copy.delegatedReadOnly(state.managedContext.active_company.name)
     : '';
+  const hasChanges = Boolean(state.selection) && (
+    state.draft.extraSeats !== state.selection?.extra_seats
+    || state.draft.billingInterval !== state.selection?.billing_interval
+    || [...state.draft.productCodes].sort().join('|')
+      !== [...(state.selection?.selected_product_codes ?? [])].sort().join('|')
+  );
 
   useEffect(() => {
-    if (state.loading || readOnly || !state.selection || !payload.product_codes.length) return;
+    if (state.loading || readOnly || !state.selection) return;
+    if (!hasChanges) {
+      setState((current) => ({ ...current, preview: current.selection }));
+      return;
+    }
+    if (!payload.product_codes.length) return;
+    let cancelled = false;
     const timeout = window.setTimeout(async () => {
       try {
         const preview = await billingApi.previewSelection(payload);
+        if (cancelled) return;
         setState((current) => ({ ...current, preview, error: '' }));
       } catch (error) {
+        if (cancelled) return;
         setState((current) => ({
           ...current,
           preview: null,
@@ -89,8 +103,11 @@ export function useBillingManagement(copy: BillingCopy) {
         }));
       }
     }, 250);
-    return () => window.clearTimeout(timeout);
-  }, [copy.emptySelection, payload, readOnly, state.loading, state.selection]);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [copy.emptySelection, hasChanges, payload, readOnly, state.loading, state.selection]);
 
   const updateDraft = (patch: Partial<BillingDraft>) => {
     if (readOnly) return;
@@ -200,13 +217,6 @@ export function useBillingManagement(copy: BillingCopy) {
       }));
     }
   };
-
-  const hasChanges = Boolean(state.selection) && (
-    state.draft.extraSeats !== state.selection?.extra_seats
-    || state.draft.billingInterval !== state.selection?.billing_interval
-    || [...state.draft.productCodes].sort().join('|')
-      !== [...(state.selection?.selected_product_codes ?? [])].sort().join('|')
-  );
 
   const goBack = async () => {
     if (!state.managedContext?.active) {

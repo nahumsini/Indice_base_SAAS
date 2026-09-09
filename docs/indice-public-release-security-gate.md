@@ -96,6 +96,11 @@ environment.
       expiry, and privileged account recovery have end-to-end tests.
 - [ ] Production MFA policy is explicit. Platform root/super-admin access uses the strongest
       approved policy and cannot silently fall back when email or an external provider fails.
+      The local workstation exception requires an explicit local MFA bypass opt-in, the `local`
+      Spring profile, a loopback API bind and public web URL, and ordinary MFA disabled. It
+      cannot run with `prod`, `production`, `staging`, or `apptest`; invalid configuration fails
+      startup. Deployment Compose disables it and preflight rejects the bypass or a `local`
+      deployment profile. The `minio` storage profile alone never grants this exception.
 - [ ] Login, OTP send/verify, reset, invitation, signup, and other credential endpoints are rate
       limited with generic responses that do not enable account enumeration.
 - [ ] Successful login/MFA changes the session identifier; logout and credential/security changes

@@ -17,4 +17,7 @@ export const copy: ModuleWorkOrderCopy = {
   draft: "Pending",
   remove: "Cancel request",
   add: "Request new module",
+  loadError: "Module requests could not be loaded. Refresh and try again.",
+  createError: "The module request could not be created. Try again.",
+  removeError: "The module request could not be canceled. Refresh and try again.",
 };

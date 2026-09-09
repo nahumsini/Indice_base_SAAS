@@ -1,3 +1,5 @@
+import { useCustomerAccountCopy } from "../../Customers/useCustomerAccountCopy";
+import { catalogProductLabel, catalogCapabilityLabel } from "../../CatalogWorkspace/catalogLabels";
 import { PackageCheck, ShieldCheck, Users } from "lucide-react";
 import type {
   PlatformAccountCreatePayload,
@@ -6,7 +8,6 @@ import type {
 import { trialDayOptions } from "../../flowOptions";
 import {
   INCLUDED_ACCOUNT_SEATS,
-  humanizeCapability,
   requiredExtraSeats,
 } from "../accountCreationUtils";
 import type { AccountCreationCopy } from "../translations";
@@ -33,6 +34,7 @@ export function AccessStep({
   onChange,
   onToggleProduct,
 }: AccessStepProps) {
+  const { t, locale, number } = useCustomerAccountCopy();
   const versionedOffer = products.some((product) => product.commercial_model);
   const selectedBasicCount = products.filter(
     (product) => product.product_type.toUpperCase() === "BASIC"
@@ -42,8 +44,8 @@ export function AccessStep({
   const extraSeats = requiredExtraSeats(employees);
   const groups = versionedOffer
     ? [
-        { type: "MODULE", title: "Módulos individuales", description: "Cada módulo tiene su propio precio" },
-        { type: "PACKAGE", title: "Paquetes", description: "Combinaciones con precio especial" },
+        { type: "MODULE", title: t("individualModule"), description: t("moduleOwnPrice") },
+        { type: "PACKAGE", title: t("package"), description: t("packageSpecialPrice") },
       ]
     : [
         { type: "BASIC", title: copy.access.baseGroup, description: copy.access.baseGroupDescription },
@@ -99,18 +101,18 @@ export function AccessStep({
                 />
                 <span className="min-w-0">
                   <span className="block text-sm font-medium text-slate-900 dark:text-white">
-                    {product.display_name}
+                    {catalogProductLabel(product, locale)}
                   </span>
-                  {overlaps ? <span className="mt-1 block text-[11px] text-amber-700">Ya está incluido en otra selección.</span> : null}
+                  {overlaps ? <span className="mt-1 block text-[11px] text-amber-700">{t("alreadyIncluded")}</span> : null}
                   {versionedOffer && product.monthly_price_cents != null ? (
                     <span className="mt-0.5 block text-xs font-medium text-[#177D66]">
-                      {new Intl.NumberFormat("es-MX", { style: "currency", currency: "USD" }).format(product.monthly_price_cents / 100)} USD/mes
+                      {new Intl.NumberFormat(locale, { style: "currency", currency: "USD" }).format(product.monthly_price_cents / 100)} {t("perMonth")}
                     </span>
                   ) : null}
                   <span className="mt-0.5 block truncate text-xs text-slate-500">
                     {product.capabilities
                       .slice(0, 3)
-                      .map(humanizeCapability)
+                      .map((code) => catalogCapabilityLabel(code, locale))
                       .join(" · ") || copy.access.moduleFallback}
                   </span>
                 </span>
@@ -138,17 +140,17 @@ export function AccessStep({
             <p className="text-xs text-slate-500">{copy.access.capacityDescription}</p>
             {versionedOffer && extraUserMonthlyPrice != null ? (
               <p className="mt-0.5 text-xs font-medium text-[#177D66]">
-                Cada usuario adicional: {new Intl.NumberFormat("es-MX", { style: "currency", currency: "USD" }).format(extraUserMonthlyPrice / 100)} USD al mes
+                {t("extraUsers")}: {new Intl.NumberFormat(locale, { style: "currency", currency: "USD" }).format(extraUserMonthlyPrice / 100)} {t("perMonth")}
               </p>
             ) : null}
           </div>
         </div>
         <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[
-            [copy.access.package, versionedOffer ? `${form.product_codes.length} producto(s)` : copy.access.packageName(selectedBasicCount)],
-            [copy.access.requiredUsers, employees],
-            [copy.access.includedUsers, INCLUDED_ACCOUNT_SEATS],
-            [copy.access.additionalUsers, extraSeats],
+            [copy.access.package, versionedOffer ? t("productsCount", { count: form.product_codes.length }) : copy.access.packageName(selectedBasicCount)],
+            [copy.access.requiredUsers, number(employees)],
+            [copy.access.includedUsers, number(INCLUDED_ACCOUNT_SEATS)],
+            [copy.access.additionalUsers, number(extraSeats)],
           ].map(([label, value]) => (
             <div key={String(label)} className="rounded-lg border border-[#59C3A5]/25 bg-white px-3 py-2 dark:bg-slate-900">
               <dt className="text-[11px] text-slate-500">{label}</dt>

@@ -51,17 +51,17 @@ public class DistributorTrainingController {
     }
 
     @PostMapping("/exams/{examCode}/start")
-    public ResponseEntity<?> startExam(HttpSession session, @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken, @PathVariable String examCode) {
-        return examMutation(session, csrfToken, actorId -> exams.start(actorId, examCode));
+    public ResponseEntity<?> startExam(HttpSession session, @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken, @PathVariable String examCode, @RequestParam(defaultValue = "en-CA") String locale) {
+        return examMutation(session, csrfToken, actorId -> TrainingExamLocalization.localize(exams.start(actorId, examCode), locale));
     }
 
     @GetMapping("/exams/attempts/{attemptId}")
-    public ResponseEntity<?> examAttempt(HttpSession session, @PathVariable long attemptId) {
+    public ResponseEntity<?> examAttempt(HttpSession session, @PathVariable long attemptId, @RequestParam(defaultValue = "en-CA") String locale) {
         var actor = auth.currentUser(session).orElse(null);
         if (actor == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         try {
             training.distributorWorkspace(actor);
-            return ResponseEntity.ok(exams.attempt(actor.userId(), attemptId));
+            return ResponseEntity.ok(TrainingExamLocalization.localize(exams.attempt(actor.userId(), attemptId), locale));
         } catch (DistributorPortalForbiddenException exception) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", exception.getMessage()));
         } catch (RuntimeException exception) {
@@ -70,13 +70,13 @@ public class DistributorTrainingController {
     }
 
     @PatchMapping("/exams/attempts/{attemptId}/answers")
-    public ResponseEntity<?> saveExamAnswer(HttpSession session, @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken, @PathVariable long attemptId, @RequestBody TrainingExamService.AnswerRequest request) {
-        return examMutation(session, csrfToken, actorId -> exams.saveAnswer(actorId, attemptId, request));
+    public ResponseEntity<?> saveExamAnswer(HttpSession session, @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken, @PathVariable long attemptId, @RequestBody TrainingExamService.AnswerRequest request, @RequestParam(defaultValue = "en-CA") String locale) {
+        return examMutation(session, csrfToken, actorId -> TrainingExamLocalization.localize(exams.saveAnswer(actorId, attemptId, request), locale));
     }
 
     @PostMapping("/exams/attempts/{attemptId}/submit")
-    public ResponseEntity<?> submitExam(HttpSession session, @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken, @PathVariable long attemptId) {
-        return examMutation(session, csrfToken, actorId -> exams.submit(actorId, attemptId));
+    public ResponseEntity<?> submitExam(HttpSession session, @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken, @PathVariable long attemptId, @RequestParam(defaultValue = "en-CA") String locale) {
+        return examMutation(session, csrfToken, actorId -> TrainingExamLocalization.localize(exams.submit(actorId, attemptId), locale));
     }
 
     @GetMapping("/certificate")

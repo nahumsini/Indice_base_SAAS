@@ -34,7 +34,8 @@ class CompanySubscriptionServiceTest {
     private CompanySubscriptionService service() {
         var properties = new CommercialLifecycleProperties();
         properties.setRetentionDays(90);
-        return new CompanySubscriptionService(jdbcTemplate, CLOCK, properties);
+        return new CompanySubscriptionService(jdbcTemplate, CLOCK, properties,
+            mock(com.indice.erp.billing.collection.PaymentCollectionAccessService.class));
     }
 
     @Test

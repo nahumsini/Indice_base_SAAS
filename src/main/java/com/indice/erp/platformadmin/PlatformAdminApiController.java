@@ -46,6 +46,7 @@ public class PlatformAdminApiController {
     private final ConsultingAdministrationService consulting;
     private final PlatformCatalogManagementService catalogManagement;
     private final PlatformCatalogStripeSynchronizationService catalogStripeSynchronization;
+    private final PlatformCatalogPublicationService catalogPublication;
     private final PlatformModuleWorkOrderService moduleWorkOrders;
     private final PlatformCompanyUserService companyUsers;
     private final InvitationEmailService invitationEmailService;
@@ -62,6 +63,7 @@ public class PlatformAdminApiController {
         ConsultingAdministrationService consulting,
         PlatformCatalogManagementService catalogManagement,
         PlatformCatalogStripeSynchronizationService catalogStripeSynchronization,
+        PlatformCatalogPublicationService catalogPublication,
         PlatformModuleWorkOrderService moduleWorkOrders,
         PlatformCompanyUserService companyUsers,
         InvitationEmailService invitationEmailService,
@@ -77,6 +79,7 @@ public class PlatformAdminApiController {
         this.consulting = consulting;
         this.catalogManagement = catalogManagement;
         this.catalogStripeSynchronization = catalogStripeSynchronization;
+        this.catalogPublication = catalogPublication;
         this.moduleWorkOrders = moduleWorkOrders;
         this.companyUsers = companyUsers;
         this.invitationEmailService = invitationEmailService;
@@ -220,6 +223,40 @@ public class PlatformAdminApiController {
             if (current == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
             csrf.requireCsrf(session, csrfToken);
             return ResponseEntity.ok(catalogManagement.updateProduct(current.userId(), productId, request));
+        } catch (RuntimeException exception) {
+            return error(exception);
+        }
+    }
+
+    @PutMapping("/catalog/products/{productId}/prices")
+    public ResponseEntity<?> saveCatalogProductPrices(
+        HttpSession session,
+        @PathVariable long productId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody PlatformCatalogManagementService.ProductPricesRequest request
+    ) {
+        try {
+            var current = auth.currentUser(session).orElse(null);
+            if (current == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            csrf.requireCsrf(session, csrfToken);
+            return ResponseEntity.ok(catalogManagement.saveProductPrices(current.userId(), productId, request));
+        } catch (RuntimeException exception) {
+            return error(exception);
+        }
+    }
+
+    @PostMapping("/catalog/drafts/{versionId}/synchronize-and-publish")
+    public ResponseEntity<?> synchronizeAndPublishCatalogDraft(
+        HttpSession session,
+        @PathVariable long versionId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody PlatformCatalogPublicationService.PublicationRequest request
+    ) {
+        try {
+            var current = auth.currentUser(session).orElse(null);
+            if (current == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            csrf.requireCsrf(session, csrfToken);
+            return ResponseEntity.ok(catalogPublication.synchronizeAndPublish(current.userId(), versionId, request));
         } catch (RuntimeException exception) {
             return error(exception);
         }

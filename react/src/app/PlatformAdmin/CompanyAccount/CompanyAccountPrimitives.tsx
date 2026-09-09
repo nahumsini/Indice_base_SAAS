@@ -1,3 +1,4 @@
+import { useCustomerAccountCopy } from "../Customers/useCustomerAccountCopy";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -48,6 +49,7 @@ export function SummaryDatum({ label, value, hint }: { label: string; value: Rea
 }
 
 export function StatusPill({ status }: { status?: string | null }) {
+  const { t, locale, number } = useCustomerAccountCopy();
   const normalized = (status || "").toLowerCase();
   const tone = ["active", "trialing", "scheduled"].includes(normalized)
     ? "bg-emerald-50 text-emerald-700"
@@ -55,16 +57,22 @@ export function StatusPill({ status }: { status?: string | null }) {
       ? "bg-rose-50 text-rose-700"
       : "bg-slate-100 text-slate-600";
   const labels: Record<string, string> = {
-    active: "Activo",
-    canceled: "Cancelado",
-    expired: "Vencido",
-    inactive: "Inactivo",
-    past_due: "Pago pendiente",
-    revoked: "Revocado",
-    scheduled: "Programado",
-    trialing: "Prueba",
+    active: t("active"),
+    canceled: t("canceled"),
+    expired: t("expired"),
+    inactive: t("inactive"),
+    past_due: t("pendingPayment"),
+    revoked: t("revoked"),
+    scheduled: t("scheduled"),
+    trialing: t("trial"),
+    paid: t("paid"),
+    open: t("open"),
+    unpaid: t("unpaid"),
+    failed: t("failed"),
+    pending: t("pending"),
+    processing: t("processing"),
   };
-  const label = labels[normalized] || status || "Sin estado";
+  const label = labels[normalized] || t("noStatus");
   return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${tone}`}>{label}</span>;
 }
 

@@ -1,3 +1,10 @@
+import {
+  useConsultingCopy,
+  consultingText,
+  consultingNumber,
+  type ConsultingCopy,
+  type ConsultingLocale,
+} from "./ConsultingTranslations";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   Building2,
@@ -66,12 +73,12 @@ import {
 
 const controlClass =
   "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-[#177D66] focus:ring-2 focus:ring-[#177D66]/10 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:disabled:bg-slate-800 dark:disabled:text-slate-500";
-const statuses: Array<{ value: PlatformConsultingStatus; label: string }> = [
-  { value: "REQUESTED", label: "Por confirmar" },
-  { value: "CONFIRMED", label: "Confirmada" },
-  { value: "COMPLETED", label: "Completada" },
-  { value: "NO_SHOW", label: "No asistió" },
-  { value: "CANCELLED", label: "Cancelada" },
+const getStatuses = (copy: ConsultingCopy): Array<{ value: PlatformConsultingStatus; label: string }> => [
+  { value: "REQUESTED", label: copy.pendingConfirmation },
+  { value: "CONFIRMED", label: copy.confirmed },
+  { value: "COMPLETED", label: copy.completed },
+  { value: "NO_SHOW", label: copy.noShow },
+  { value: "CANCELLED", label: copy.cancelled },
 ];
 
 type EditState = {
@@ -99,15 +106,15 @@ type AppointmentColumnId =
   | "status"
   | "consultant";
 
-const appointmentColumnLabels: Record<AppointmentColumnId, string> = {
-  company: "Folio y empresa",
-  client: "Cliente y objetivo",
-  contact: "Contacto",
-  mode: "Modalidad",
-  schedule: "Horario solicitado",
-  status: "Estado",
-  consultant: "Consultor",
-};
+const getAppointmentColumnLabels = (copy: ConsultingCopy): Record<AppointmentColumnId, string> => ({
+  company: copy.referenceCompany,
+  client: copy.clientObjective,
+  contact: copy.contact,
+  mode: copy.mode,
+  schedule: copy.requestedTime,
+  status: copy.status,
+  consultant: copy.consultant,
+});
 const appointmentColumnDefaults: Record<AppointmentColumnId, number> = {
   company: 230,
   client: 220,
@@ -207,6 +214,8 @@ export default function ConsultingAdminTab({
   heading?: Partial<ConsultingAdminHeading>;
   attendingConsultant?: { name: string };
 }) {
+  const { copy, locale } = useConsultingCopy();
+  const statuses = getStatuses(copy);
   const permissions: ConsultingAdminCapabilities = {
     viewConsultants: true,
     manageConsultants: canManage,
@@ -218,10 +227,10 @@ export default function ConsultingAdminTab({
     ...capabilities,
   };
   const labels: ConsultingAdminHeading = {
-    eyebrow: "Operación de consultoría",
-    title: "Solicitudes, distribuidores y sesiones",
+    eyebrow: copy.operations,
+    title: copy.workspaceTitle,
     description:
-      "Coordina horarios con el cliente, asigna al distribuidor consultor responsable y publica la confirmación desde un solo lugar.",
+      copy.workspaceDescription,
     ...heading,
   };
   const availableViews: Array<{
@@ -229,13 +238,13 @@ export default function ConsultingAdminTab({
     label: string;
     icon: typeof CalendarClock;
   }> = [
-    { id: "requests", label: "Solicitudes", icon: CalendarClock },
-    { id: "calendar", label: "Calendario", icon: CalendarDays },
+    { id: "requests", label: copy.requests, icon: CalendarClock },
+    { id: "calendar", label: copy.calendar, icon: CalendarDays },
     ...(permissions.viewConsultants
-      ? [{ id: "consultants" as const, label: "Distribuidores", icon: UserRound }]
+      ? [{ id: "consultants" as const, label: copy.distributors, icon: UserRound }]
       : []),
     ...(permissions.viewCoverage
-      ? [{ id: "coverage" as const, label: "Cobertura presencial", icon: MapPin }]
+      ? [{ id: "coverage" as const, label: copy.coverage, icon: MapPin }]
       : []),
   ];
   const [workspace, setWorkspace] =
@@ -276,7 +285,7 @@ export default function ConsultingAdminTab({
       setError(
         loadError instanceof Error
           ? loadError.message
-          : "No se pudieron cargar las solicitudes de consultoría.",
+          : copy.loadRequestsError,
       );
     } finally {
       setLoading(false);
@@ -344,7 +353,7 @@ export default function ConsultingAdminTab({
     if (!selected || !edit || saving || !permissions.manageAppointments) return;
     const meetingUrl = edit.meetingUrl.trim();
     if (meetingUrl && !isHttpsUrl(meetingUrl)) {
-      setError("El enlace de reunión debe comenzar con https://");
+      setError(copy.httpsRequired);
       return;
     }
     setSaving(true);
@@ -386,7 +395,7 @@ export default function ConsultingAdminTab({
           : current,
       );
       setSuccess(
-        "La solicitud quedó actualizada y el cliente recibirá el aviso correspondiente.",
+        copy.requestUpdated,
       );
       await load();
       setSelected(null);
@@ -395,7 +404,7 @@ export default function ConsultingAdminTab({
       setError(
         saveError instanceof Error
           ? saveError.message
-          : "No se pudo actualizar la solicitud.",
+          : copy.updateRequestError,
       );
     } finally {
       setSaving(false);
@@ -431,13 +440,13 @@ export default function ConsultingAdminTab({
           : current,
       );
       setSuccess(
-        `${updated.city_name} quedó ${updated.active ? "disponible" : "oculta"} para solicitudes presenciales.`,
+        consultingText(copy.cityUpdated, { city: updated.city_name, status: updated.active ? copy.available : copy.hidden }),
       );
     } catch (saveError) {
       setError(
         saveError instanceof Error
           ? saveError.message
-          : "No se pudo actualizar la ciudad.",
+          : copy.updateCityError,
       );
     } finally {
       setSaving(false);
@@ -460,7 +469,7 @@ export default function ConsultingAdminTab({
               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white shadow-sm transition hover:bg-[#126553] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30"
             >
               <UserPlus className="h-4 w-4" />
-              Agregar consultor interno
+              {copy.addInternalConsultant}
             </button>
           ) : null}
           {permissions.createSessions &&
@@ -474,7 +483,7 @@ export default function ConsultingAdminTab({
               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white shadow-sm transition hover:bg-[#126553] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30"
             >
               <CalendarPlus className="h-4 w-4" />
-              Agregar sesión
+              {copy.addSession}
             </button>
           ) : null}
           {permissions.manageCoverage && activeView === "coverage" ? (
@@ -484,7 +493,7 @@ export default function ConsultingAdminTab({
               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white shadow-sm transition hover:bg-[#126553] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30"
             >
               <MapPin className="h-4 w-4" />
-              Agregar cobertura
+              {copy.addCoverage}
             </button>
           ) : null}
           <button
@@ -493,8 +502,8 @@ export default function ConsultingAdminTab({
             className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#59C3A5]/30 bg-white px-4 text-sm font-medium text-[#176B5B] transition hover:bg-[#59C3A5]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25 dark:bg-slate-900 dark:text-[#8FE0CA]"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            Actualizar
-          </button>
+            {copy.refresh}
+            </button>
         </div>
         }
       />
@@ -520,7 +529,7 @@ export default function ConsultingAdminTab({
 
       {availableViews.length > 1 ? (
         <IndiceWorkspaceNavigation<ConsultingView>
-          ariaLabel="Vistas de consultoría"
+          ariaLabel={copy.views}
           tone="aqua"
           value={activeView}
           onValueChange={setActiveView}
@@ -540,38 +549,38 @@ export default function ConsultingAdminTab({
             <div className="min-w-0">
               <p className="font-medium text-slate-900 dark:text-white">
                 {requestCounts.requested > 0
-                  ? `${requestCounts.requested} ${requestCounts.requested === 1 ? "solicitud requiere" : "solicitudes requieren"} coordinación.`
-                  : "No hay solicitudes pendientes de confirmación."}
+                  ? consultingText(requestCounts.requested === 1 ? copy.requestNeedsCoordination : copy.requestsNeedCoordination, { count: consultingNumber(requestCounts.requested, locale) })
+                  : copy.noPendingRequests}
               </p>
               <p className="mt-0.5 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                Confirma horario, asigna consultor y deja listo el enlace antes de la sesión.
-              </p>
+                {copy.prepareSession}
+            </p>
             </div>
           </section>
 
           <IndiceFilterBar
-            title="Filtros"
-            subtitle="Encuentra una solicitud por cliente y reduce la vista por estado o modalidad."
-            summary={`${filtered.length} de ${allAppointments.length} solicitudes`}
+            title={copy.filters}
+            subtitle={copy.filtersDescription}
+            summary={consultingText(copy.filteredRequests, { count: consultingNumber(filtered.length, locale), total: consultingNumber(allAppointments.length, locale) })}
             gridClassName="lg:grid-cols-[minmax(280px,1fr)_240px_220px]"
           >
             <IndiceFilterSearch
-              label="Buscar"
+              label={copy.search}
               value={query}
               onValueChange={setQuery}
               onClear={() => setQuery("")}
-              placeholder="Empresa, persona, correo, teléfono o folio"
+              placeholder={copy.searchPlaceholder}
               tone="aqua"
             />
             <IndiceFilterSelect
-              label="Estado"
+              label={copy.status}
               value={statusFilter}
               onValueChange={setStatusFilter}
               tone="aqua"
               options={[
-                { value: "ACTIVE", label: "Pendientes y próximas" },
-                { value: "UPCOMING", label: "Próximas sesiones" },
-                { value: "ALL", label: "Todos los estados" },
+                { value: "ACTIVE", label: copy.pendingUpcoming },
+                { value: "UPCOMING", label: copy.upcomingSessions },
+                { value: "ALL", label: copy.allStatuses },
                 ...statuses.map((status) => ({
                   value: status.value,
                   label: status.label,
@@ -579,14 +588,14 @@ export default function ConsultingAdminTab({
               ]}
             />
             <IndiceFilterSelect
-              label="Modalidad"
+              label={copy.mode}
               value={modeFilter}
               onValueChange={setModeFilter}
               tone="aqua"
               options={[
-                { value: "ALL", label: "Todas las modalidades" },
-                { value: "VIRTUAL", label: "Virtual" },
-                { value: "IN_PERSON", label: "Presencial" },
+                { value: "ALL", label: copy.allFormats },
+                { value: "VIRTUAL", label: copy.virtual },
+                { value: "IN_PERSON", label: copy.inPerson },
               ]}
             />
           </IndiceFilterBar>
@@ -594,36 +603,36 @@ export default function ConsultingAdminTab({
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Metric
               icon={CalendarClock}
-              label="Por confirmar"
+              label={copy.pendingConfirmation}
               value={requestCounts.requested}
-              caption="Requieren coordinación"
+              caption={copy.coordinationRequired}
               tone="amber"
               active={statusFilter === "REQUESTED"}
               onClick={() => setStatusFilter("REQUESTED")}
             />
             <Metric
               icon={CalendarCheck2}
-              label="Confirmadas"
+              label={copy.confirmedPlural}
               value={requestCounts.confirmed}
-              caption="Con fecha y consultor"
+              caption={copy.withTimeConsultant}
               tone="blue"
               active={statusFilter === "CONFIRMED"}
               onClick={() => setStatusFilter("CONFIRMED")}
             />
             <Metric
               icon={Clock3}
-              label="Próximas"
+              label={copy.upcoming}
               value={requestCounts.upcoming}
-              caption="Sesiones por realizar"
+              caption={copy.sessionsToAttend}
               tone="mint"
               active={statusFilter === "UPCOMING"}
               onClick={() => setStatusFilter("UPCOMING")}
             />
             <Metric
               icon={Building2}
-              label="Solicitudes totales"
+              label={copy.totalRequests}
               value={requestCounts.total}
-              caption="Historial completo"
+              caption={copy.completeHistory}
               tone="slate"
               active={statusFilter === "ALL"}
               onClick={() => setStatusFilter("ALL")}
@@ -633,8 +642,8 @@ export default function ConsultingAdminTab({
             <IndiceTableShell>
               <div className="flex min-h-48 items-center justify-center gap-2 text-sm text-slate-500">
                 <LoaderCircle className="h-5 w-5 animate-spin text-[#177D66]" />
-                Cargando solicitudes…
-              </div>
+                {copy.loadingRequests}
+            </div>
             </IndiceTableShell>
           ) : (
             <AppointmentsTable
@@ -666,14 +675,14 @@ export default function ConsultingAdminTab({
             <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700">
               <div>
                 <h3 className="font-medium text-slate-900 dark:text-white">
-                  Directorio de distribuidores consultores
-                </h3>
+                  {copy.consultantDirectory}
+            </h3>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  Las cuentas activas de distribuidores se sincronizan automáticamente; el equipo interno se agrega por separado.
-                </p>
+                  {copy.consultantDirectoryDescription}
+            </p>
               </div>
               <span className="w-fit rounded-full bg-[#59C3A5]/10 px-3 py-1 text-xs font-medium text-[#176B5B] dark:text-[#8FE0CA]">
-                {consultants.length} {consultants.length === 1 ? "perfil disponible" : "perfiles disponibles"}
+                {consultingText(consultants.length === 1 ? copy.profileAvailable : copy.profilesAvailable, { count: consultingNumber(consultants.length, locale) })}
               </span>
             </div>
             <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -692,14 +701,14 @@ export default function ConsultingAdminTab({
                         {consultant.firstName} {consultant.lastName}
                       </p>
                       <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                        {consultant.companyName || "Equipo Índice"}
+                        {consultant.companyName || copy.indiceTeam}
                       </p>
                     </div>
                   </div>
                   <div className="mt-3 flex items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[11px] font-medium text-[#176B5B] shadow-sm dark:bg-slate-900 dark:text-[#8FE0CA]">
                       <Building2 className="h-3 w-3" />
-                      {consultant.sourceType === "DISTRIBUTOR" ? "Distribuidor" : "Equipo Índice"}
+                      {consultant.sourceType === "DISTRIBUTOR" ? copy.distributor : copy.indiceTeam}
                     </span>
                   </div>
                   <p className="mt-3 flex items-center gap-1.5 truncate text-xs text-slate-600 dark:text-slate-300">
@@ -708,7 +717,7 @@ export default function ConsultingAdminTab({
                   </p>
                   <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
                     <Phone className="h-3.5 w-3.5" />
-                    {consultant.phone || "Sin teléfono registrado"}
+                    {consultant.phone || copy.noPhoneRegistered}
                   </p>
                 </article>
               ))}
@@ -755,14 +764,14 @@ export default function ConsultingAdminTab({
             setError("");
             try {
               if (!operations.createConsultingConsultant) {
-                throw new Error("No tienes permiso para administrar consultores.");
+                throw new Error(copy.consultantPermissionError);
               }
               await operations.createConsultingConsultant(input);
               setConsultantModalOpen(false);
               await load();
-              setSuccess("El consultor interno quedó disponible para asignar a las solicitudes.");
+              setSuccess(copy.consultantAdded);
             } catch (createError) {
-              setError(createError instanceof Error ? createError.message : "No se pudo guardar el consultor.");
+              setError(createError instanceof Error ? createError.message : copy.saveConsultantError);
             } finally {
               setSaving(false);
             }
@@ -777,7 +786,7 @@ export default function ConsultingAdminTab({
             setError("");
             try {
               if (!operations.createConsultingLocation) {
-                throw new Error("No tienes permiso para administrar cobertura.");
+                throw new Error(copy.coveragePermissionError);
               }
               await operations.createConsultingLocation({
                 cityName: input.city_name,
@@ -789,9 +798,9 @@ export default function ConsultingAdminTab({
               });
               setCoverageModalOpen(false);
               await load();
-              setSuccess("La cobertura quedó agregada y lista para configurar su tarifa.");
+              setSuccess(copy.coverageAdded);
             } catch (createError) {
-              setError(createError instanceof Error ? createError.message : "No se pudo guardar la cobertura.");
+              setError(createError instanceof Error ? createError.message : copy.saveCoverageError);
             } finally {
               setSaving(false);
             }
@@ -809,7 +818,7 @@ export default function ConsultingAdminTab({
           onSaved={(availability) => {
             setError("");
             setSuccess(
-              `La disponibilidad de ${availability.consultantName} quedó actualizada.`,
+              consultingText(copy.availabilityUpdated, { name: availability.consultantName }),
             );
           }}
         />
@@ -837,12 +846,12 @@ export default function ConsultingAdminTab({
               });
               setSessionModalOpen(false);
               await load();
-              setSuccess("La sesión quedó registrada, auditada y agregada al calendario.");
+              setSuccess(copy.sessionAdded);
             } catch (createError) {
               setError(
-                consultingOperationError(
+                consultingOperationError(copy,
                   createError,
-                  "No se pudo guardar la sesión.",
+                  copy.saveSessionError,
                 ),
               );
             } finally {
@@ -862,6 +871,8 @@ function AppointmentsTable({
   appointments: PlatformConsultingAppointment[];
   onOpen: (appointment: PlatformConsultingAppointment) => void;
 }) {
+  const { copy, locale } = useConsultingCopy();
+  const appointmentColumnLabels = getAppointmentColumnLabels(copy);
   const { columnWidths, resizeColumn } =
     usePersistentColumnWidths<AppointmentColumnId>({
       defaults: appointmentColumnDefaults,
@@ -879,7 +890,7 @@ function AppointmentsTable({
     defaultWidth: appointmentColumnDefaults[columnId],
     contentMinimumWidth: appointmentColumnMinimums[columnId],
     maxWidth: appointmentColumnMaximums[columnId],
-    resizeLabel: `Ajustar columna ${appointmentColumnLabels[columnId]}`,
+    resizeLabel: consultingText(copy.resizeColumn, { label: appointmentColumnLabels[columnId] }),
   }));
   const minimumWidth = getIndiceTableMinimumWidth({
     actionsWidth: appointmentActionsWidth,
@@ -894,7 +905,7 @@ function AppointmentsTable({
           actionsWidth={appointmentActionsWidth}
         />
         <IndiceTableHeaderRow
-          actions={{ label: "Acción", width: appointmentActionsWidth }}
+          actions={{ label: copy.action, width: appointmentActionsWidth }}
           columns={columns}
           onResize={resizeColumn}
           tone="blue"
@@ -907,16 +918,16 @@ function AppointmentsTable({
             >
               <TableCell className="px-4 py-3 text-sm">
                 <p className="truncate font-medium text-slate-900 dark:text-white">
-                  {appointment.id < 0 ? "Sesión local" : `#${appointment.id}`} ·{" "}
+                  {appointment.id < 0 ? copy.localSession : `#${appointment.id}`} ·{" "}
                   {appointment.company_name}
                 </p>
                 {appointment.id < 0 ? (
                   <span className="mt-1 inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
-                    Borrador local
-                  </span>
+                    {copy.localDraft}
+            </span>
                 ) : null}
                 <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
-                  Solicitada {formatDateTime(appointment.created_at)}
+                  {copy.requested}{" "}{formatDateTime(locale, appointment.created_at)}
                 </p>
               </TableCell>
               <TableCell className="px-4 py-3 text-sm">
@@ -924,7 +935,7 @@ function AppointmentsTable({
                   {appointment.attendee_name}
                 </p>
                 <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
-                  {topicLabel(appointment.topic)}
+                  {topicLabel(copy, appointment.topic)}
                 </p>
               </TableCell>
               <TableCell className="px-4 py-3 text-sm">
@@ -955,21 +966,23 @@ function AppointmentsTable({
                 ) : (
                   <span className="inline-flex items-center gap-1.5">
                     <Monitor className="h-4 w-4 text-blue-600" />
-                    Virtual
-                  </span>
+                    {copy.virtual}
+            </span>
                 )}
               </TableCell>
               <TableCell className="px-4 py-3 text-sm">
                 <p className="truncate font-medium text-slate-800 dark:text-slate-100">
                   {formatDateTime(
+                      locale,
                     appointment.preferred_start_at,
                     appointment.timezone,
                   )}
                 </p>
                 {appointment.alternative_start_at ? (
                   <p className="mt-0.5 text-xs text-slate-500">
-                    Alt.{" "}
+                    {copy.alternativeShort}{" "}
                     {formatDateTime(
+                      locale,
                       appointment.alternative_start_at,
                       appointment.timezone,
                     )}
@@ -981,12 +994,12 @@ function AppointmentsTable({
               </TableCell>
               <TableCell className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
                 <p className="truncate">
-                  {appointment.consultant_name || "Sin asignar"}
+                  {appointment.consultant_name || copy.unassigned}
                 </p>
                 <p className="mt-1 truncate text-[11px] font-normal text-slate-500 dark:text-slate-400">
-                  Solicitó: {appointment.consultant_preference === "DISTRIBUTOR"
-                    ? appointment.requested_distributor_name || "su distribuidor"
-                    : "equipo de Índice"}
+                  {copy.requestedBy}{appointment.consultant_preference === "DISTRIBUTOR"
+                    ? appointment.requested_distributor_name || copy.theirDistributor
+                    : copy.indiceTeamLower}
                 </p>
               </TableCell>
               <TableCell className="px-4 py-3 text-right">
@@ -995,8 +1008,8 @@ function AppointmentsTable({
                   onClick={() => onOpen(appointment)}
                   className="inline-flex h-9 items-center justify-center rounded-xl border border-[#59C3A5]/30 bg-white px-3 text-xs font-medium text-[#176B5B] transition hover:bg-[#59C3A5]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25 dark:bg-slate-900 dark:text-[#8FE0CA]"
                 >
-                  Administrar
-                </button>
+                  {copy.manage}
+            </button>
               </TableCell>
             </TableRow>
           ))}
@@ -1010,11 +1023,11 @@ function AppointmentsTable({
                   <CalendarClock className="h-5 w-5" />
                 </span>
                 <p className="font-medium text-slate-800 dark:text-slate-100">
-                  No encontramos solicitudes
-                </p>
+                  {copy.noRequests}
+            </p>
                 <p className="mt-1 text-xs">
-                  Ajusta los filtros o registra una nueva sesión.
-                </p>
+                  {copy.noRequestsHelp}
+            </p>
               </TableCell>
             </TableRow>
           ) : null}
@@ -1031,17 +1044,18 @@ function EmptyConsultants({
   canManage: boolean;
   onCreate: () => void;
 }) {
+  const { copy } = useConsultingCopy();
   return (
     <section className="rounded-[24px] border border-dashed border-[#59C3A5]/50 bg-white px-6 py-12 text-center shadow-sm dark:bg-slate-800">
       <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#59C3A5]/10 text-[#177D66] dark:text-[#8FE0CA]">
         <UserRound className="h-6 w-6" />
       </span>
       <h3 className="mt-4 font-medium text-slate-900 dark:text-white">
-        Aún no hay distribuidores activos
-      </h3>
+        {copy.noDistributors}
+            </h3>
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-        Activa una cuenta de distribuidor para sincronizarla aquí, o agrega un consultor del equipo Índice.
-      </p>
+        {copy.noDistributorsHelp}
+            </p>
       {canManage ? (
         <button
           type="button"
@@ -1049,8 +1063,8 @@ function EmptyConsultants({
           className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white transition hover:bg-[#126553]"
         >
           <UserPlus className="h-4 w-4" />
-          Agregar consultor interno
-        </button>
+          {copy.addInternalConsultant}
+            </button>
       ) : null}
     </section>
   );
@@ -1077,6 +1091,8 @@ function AppointmentDrawer({
   onClose: () => void;
   onSubmit: (event: FormEvent) => void;
 }) {
+  const { copy, locale } = useConsultingCopy();
+  const statuses = getStatuses(copy);
   const confirmed = edit.status === "CONFIRMED";
   const [step, setStep] = useState(0);
   const assignmentComplete =
@@ -1086,9 +1102,9 @@ function AppointmentDrawer({
       edit.consultantName,
     );
   const steps = [
-    { id: "request", label: "Solicitud" },
-    { id: "assignment", label: "Asignación" },
-    { id: "confirmation", label: "Costo y confirmación" },
+    { id: "request", label: copy.request },
+    { id: "assignment", label: copy.assignment },
+    { id: "confirmation", label: copy.costConfirmation },
   ] as const;
   const activeStep = steps[step];
   return (
@@ -1099,9 +1115,9 @@ function AppointmentDrawer({
       modalType="wizard"
       tone="aqua"
       icon={<CalendarCheck2 className="h-5 w-5" />}
-      eyebrow={`Solicitud #${appointment.id}`}
+      eyebrow={consultingText(copy.requestTitle, { reference: appointment.id })}
       title={appointment.company_name}
-      description={`${appointment.attendee_name} · ${topicLabel(appointment.topic)}`}
+      description={`${appointment.attendee_name} · ${topicLabel(copy, appointment.topic)}`}
       footerLeading={
         <button
           type="button"
@@ -1109,10 +1125,10 @@ function AppointmentDrawer({
           disabled={saving}
           className="h-11 rounded-xl border border-white/50 bg-transparent px-4 text-sm font-medium text-white transition hover:bg-white/10 disabled:opacity-50"
         >
-          Cancelar
-        </button>
+          {copy.cancel}
+            </button>
       }
-      footerSummary={`Paso ${step + 1} de ${steps.length} · ${activeStep.label}`}
+      footerSummary={`${consultingText(copy.stepProgress, { step: consultingNumber(step + 1, locale), total: consultingNumber(steps.length, locale) })} · ${activeStep.label}`}
       footer={
         <>
           {step > 0 ? (
@@ -1121,7 +1137,7 @@ function AppointmentDrawer({
               onClick={() => setStep((current) => current - 1)}
               disabled={saving}
             >
-              Anterior
+              {copy.previous}
             </button>
           ) : null}
           {step < steps.length - 1 ? (
@@ -1130,7 +1146,7 @@ function AppointmentDrawer({
               disabled={step === 1 && !assignmentComplete}
               onClick={() => setStep((current) => current + 1)}
             >
-              Siguiente
+              {copy.next}
             </button>
           ) : (
             <button
@@ -1145,7 +1161,7 @@ function AppointmentDrawer({
                 <CalendarCheck2 className="h-4 w-4" />
               )}
               <span className="text-center leading-tight">
-                {saving ? "Guardando…" : "Guardar y notificar"}
+                {saving ? copy.saving : copy.saveNotify}
               </span>
             </button>
           )}
@@ -1160,7 +1176,7 @@ function AppointmentDrawer({
         <IndiceModalWizardStepper
           accent="aqua"
           activeStepId={activeStep.id}
-          progressLabel="Progreso para administrar la consultoría"
+          progressLabel={copy.manageProgress}
           steps={steps}
           onStepSelect={(stepId) => {
             const nextStep = steps.findIndex((item) => item.id === stepId);
@@ -1169,17 +1185,18 @@ function AppointmentDrawer({
         />
         <IndiceModalValidation
           tone="warning"
-          title="Completa la asignación"
+          title={copy.completeAssignment}
           messages={
             step === 1 && confirmed && !assignmentComplete
-              ? ["Para confirmar la sesión necesitas definir fecha, hora y consultor."]
+              ? [copy.completeAssignmentHelp]
               : []
           }
         />
           {step === 0 ? (
             <>
               <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
-                <h3 className="font-medium text-slate-900 dark:text-white">Contacto rápido</h3>
+                <h3 className="font-medium text-slate-900 dark:text-white">{copy.quickContact}
+            </h3>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <a
                     href={`mailto:${appointment.attendee_email}`}
@@ -1193,7 +1210,7 @@ function AppointmentDrawer({
                     className="flex min-h-11 items-center gap-2 rounded-xl border border-[#59C3A5]/20 bg-[#59C3A5]/10 px-3 text-sm text-[#177D66] transition hover:border-[#59C3A5]/50 dark:text-[#8FE0CA]"
                   >
                     <Phone className="h-4 w-4" />
-                    {appointment.attendee_phone || "Sin teléfono"}
+                    {appointment.attendee_phone || copy.noPhone}
                   </a>
                 </div>
                 {appointment.notes ? (
@@ -1203,50 +1220,50 @@ function AppointmentDrawer({
                 ) : null}
               </section>
               <IndiceModalSummary
-                title="Trazabilidad de la solicitud"
-                description="La preferencia orienta la asignación, pero puede cambiarse por petición del cliente sin perder el origen."
+                title={copy.requestTrace}
+                description={copy.requestTraceHelp}
                 variant="muted"
                 columns={2}
                 items={[
-                  { label: "Empresa", value: `${appointment.company_name} · ID ${appointment.company_id}`, emphasized: true },
-                  { label: "Usuario solicitante", value: `${appointment.booked_by_email} · ID ${appointment.booked_by_user_id}` },
+                  { label: copy.company, value: `${appointment.company_name} · ID ${appointment.company_id}`, emphasized: true },
+                  { label: copy.requestingUser, value: `${appointment.booked_by_email} · ID ${appointment.booked_by_user_id}` },
                   {
-                    label: "Preferencia del cliente",
+                    label: copy.clientPreference,
                     value: appointment.consultant_preference === "DISTRIBUTOR"
-                      ? appointment.requested_distributor_name || "Su distribuidor"
-                      : "Otro consultor del equipo de Índice",
+                      ? appointment.requested_distributor_name || copy.ownDistributor
+                      : copy.otherConsultant,
                   },
                   {
-                    label: "Origen",
+                    label: copy.origin,
                     value: appointment.request_source === "CLIENT_PORTAL"
-                      ? "Panel de la empresa cliente"
+                      ? copy.clientDashboard
                       : appointment.request_source === "DISTRIBUTOR_PORTAL"
-                        ? "Centro de distribuidores"
-                        : "Administración de plataforma",
+                        ? copy.distributorCenter
+                        : copy.platformAdministration,
                   },
                 ]}
               />
               <IndiceModalSummary
-                title="Horario solicitado"
+                title={copy.requestedTime}
                 variant="plain"
                 columns={2}
                 items={[
                   {
-                    label: "Preferido",
-                    value: formatDateTime(appointment.preferred_start_at, appointment.timezone),
+                    label: copy.preferred,
+                    value: formatDateTime(locale, appointment.preferred_start_at, appointment.timezone),
                     emphasized: true,
                   },
                   {
-                    label: "Alternativo",
-                    value: formatDateTime(appointment.alternative_start_at, appointment.timezone),
+                    label: copy.alternative,
+                    value: formatDateTime(locale, appointment.alternative_start_at, appointment.timezone),
                   },
                   {
-                    label: "Modalidad",
+                    label: copy.mode,
                     value: appointment.consultation_mode === "IN_PERSON"
-                      ? `Presencial · ${appointment.service_location_name}`
-                      : "Virtual",
+                      ? `${copy.inPerson} · ${appointment.service_location_name}`
+                      : copy.virtual,
                   },
-                  { label: "Zona horaria", value: appointment.timezone },
+                  { label: copy.timezone, value: appointment.timezone },
                 ]}
               />
             </>
@@ -1254,29 +1271,29 @@ function AppointmentDrawer({
           {step === 1 ? (
             <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
               <h3 className="font-medium text-slate-900 dark:text-white">
-                Confirmación y asignación
-              </h3>
+                {copy.confirmationAssignment}
+            </h3>
               <IndiceModalSummary
-                title="Preferencia y horario de origen"
-                description="Puedes reasignar según disponibilidad o por petición del cliente sin perder la trazabilidad de la solicitud."
+                title={copy.originalPreference}
+                description={copy.reassignmentHelp}
                 variant="muted"
                 columns={2}
                 items={[
                   {
-                    label: "Preferencia del cliente",
+                    label: copy.clientPreference,
                     value: appointment.consultant_preference === "DISTRIBUTOR"
-                      ? appointment.requested_distributor_name || "Su distribuidor"
-                      : "Otro consultor del equipo de Índice",
+                      ? appointment.requested_distributor_name || copy.ownDistributor
+                      : copy.otherConsultant,
                     emphasized: true,
                   },
                   {
-                    label: "Horario solicitado",
-                    value: formatDateTime(appointment.preferred_start_at, appointment.timezone),
+                    label: copy.requestedTime,
+                    value: formatDateTime(locale, appointment.preferred_start_at, appointment.timezone),
                   },
                 ]}
               />
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Estado">
+                <Field label={copy.status}>
                   <select
                     disabled={!canManage}
                     value={
@@ -1299,7 +1316,7 @@ function AppointmentDrawer({
                     ))}
                   </select>
                 </Field>
-                <Field label="Fecha y hora definitiva">
+                <Field label={copy.finalDateTime}>
                   <input
                     disabled={!canManage}
                     required={confirmed}
@@ -1311,7 +1328,7 @@ function AppointmentDrawer({
                     className={controlClass}
                   />
                 </Field>
-                <Field label="Asignar consultor">
+                <Field label={copy.assignConsultant}>
                   <select
                     disabled={!canManage}
                     required={confirmed}
@@ -1345,7 +1362,8 @@ function AppointmentDrawer({
                     }}
                     className={controlClass}
                   >
-                    <option value="">Selecciona un consultor</option>
+                    <option value="">{copy.selectConsultant}
+            </option>
                     {consultants.map((consultant) => (
                       <option key={consultant.id} value={consultant.id}>
                         {consultant.firstName} {consultant.lastName}
@@ -1354,24 +1372,24 @@ function AppointmentDrawer({
                     ))}
                   </select>
                 </Field>
-                <Field label="Correo del consultor">
+                <Field label={copy.consultantEmail}>
                   <input
                     disabled
                     value={edit.consultantEmail}
                     className={controlClass}
-                    placeholder="Se completa al asignar"
+                    placeholder={copy.filledOnAssignment}
                   />
                 </Field>
-                <Field label="Teléfono del consultor">
+                <Field label={copy.consultantPhone}>
                   <input
                     disabled
                     value={edit.consultantPhone}
                     className={controlClass}
-                    placeholder="Se completa al asignar"
+                    placeholder={copy.filledOnAssignment}
                   />
                 </Field>
                 {appointment.consultation_mode === "VIRTUAL" ? (
-                  <Field label="Enlace de reunión (opcional)">
+                  <Field label={copy.meetingLink}>
                     <input
                       disabled={!canManage || !canManagePayment}
                       type="url"
@@ -1380,12 +1398,12 @@ function AppointmentDrawer({
                         onEdit({ ...edit, meetingUrl: event.target.value })
                       }
                       className={controlClass}
-                      placeholder="https://meet..."
+                      placeholder={copy.meetingPlaceholder}
                     />
                     {edit.meetingUrl && !isHttpsUrl(edit.meetingUrl) ? (
                       <p className="mt-1.5 text-xs font-medium text-red-600 dark:text-red-400">
-                        Usa un enlace que comience con https://
-                      </p>
+                        {copy.meetingLinkHelp}
+            </p>
                     ) : null}
                   </Field>
                 ) : null}
@@ -1397,7 +1415,7 @@ function AppointmentDrawer({
                   rel="noreferrer"
                   className="inline-flex min-h-10 items-center gap-2 rounded-xl px-2 text-sm font-medium text-[#177D66] hover:bg-[#59C3A5]/10 dark:text-[#8FE0CA]"
                 >
-                  Probar enlace <ExternalLink className="h-4 w-4" />
+                  {copy.testLink}<ExternalLink className="h-4 w-4" />
                 </a>
               ) : null}
             </section>
@@ -1406,10 +1424,10 @@ function AppointmentDrawer({
             <>
               <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
                 <h3 className="font-medium text-slate-900 dark:text-white">
-                  Costo y seguimiento interno
-                </h3>
+                  {copy.costFollowup}
+            </h3>
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <Field label="Tipo de consultoría">
+                  <Field label={copy.consultationType}>
                     <select
                       disabled={!canManage || !canManagePayment}
                       value={edit.consultationType}
@@ -1431,38 +1449,39 @@ function AppointmentDrawer({
                       }}
                       className={controlClass}
                     >
-                      <option value="PAID">De pago</option>
-                      <option value="COURTESY">Cortesía</option>
+                      <option value="PAID">{copy.paid}
+            </option>
+                      <option value="COURTESY">{copy.courtesy}
+            </option>
                       <option value="MODULE_IMPLEMENTATION">
-                        Implementación de módulo
-                      </option>
+                        {copy.moduleImplementation}
+            </option>
                     </select>
                   </Field>
-                  <Field label="Importe fijo">
+                  <Field label={copy.fixedAmount}>
                     <input
                       disabled
                       value={edit.amount}
                       className={`${controlClass} font-semibold tabular-nums`}
-                      aria-label="Importe fijo en dólares"
+                      aria-label={copy.fixedDollars}
                     />
                   </Field>
-                  <Field label="Moneda">
+                  <Field label={copy.currency}>
                     <input
                       disabled
                       value="USD"
                       className={`${controlClass} font-semibold`}
-                      aria-label="Moneda fija"
+                      aria-label={copy.fixedCurrency}
                     />
                   </Field>
                 </div>
                 <div className="flex items-start gap-2 rounded-xl border border-[#59C3A5]/35 bg-[#59C3A5]/10 px-3 py-2.5 text-sm text-[#176A59] dark:text-[#8FE0CA]">
                   <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />
                   <p>
-                    Sólo las consultorías de pago generan un cargo. La tarifa es
-                    fija: <strong>USD 79</strong>.
+                    {copy.fixedFeeHelp}{" "}<strong>{formatConsultationCost(locale, "PAID")}</strong>
                   </p>
                 </div>
-                <Field label="Notas internas">
+                <Field label={copy.internalNotes}>
                   <textarea
                     disabled={!canManage}
                     value={edit.internalNotes}
@@ -1470,11 +1489,11 @@ function AppointmentDrawer({
                       onEdit({ ...edit, internalNotes: event.target.value })
                     }
                     className={`${controlClass} min-h-24 resize-y py-2`}
-                    placeholder="Coordinación, disponibilidad o acuerdos con el consultor"
+                    placeholder={copy.internalNotesPlaceholder}
                   />
                 </Field>
                 {edit.status === "CANCELLED" ? (
-                  <Field label="Motivo de cancelación">
+                  <Field label={copy.cancellationReason}>
                     <textarea
                       disabled={!canManage}
                       required
@@ -1491,26 +1510,26 @@ function AppointmentDrawer({
                 ) : null}
               </section>
               <IndiceModalSummary
-                title="Resumen antes de notificar"
-                description="Revisa la información que se conservará en el expediente de la consultoría."
+                title={copy.reviewBeforeNotify}
+                description={copy.reviewBeforeNotifyHelp}
                 variant="success"
                 columns={2}
                 items={[
                   {
-                    label: "Estado",
+                    label: copy.status,
                     value: statuses.find((status) => status.value === edit.status)?.label || edit.status,
                     emphasized: true,
                   },
-                  { label: "Consultor", value: edit.consultantName || "Sin asignar" },
+                  { label: copy.consultant, value: edit.consultantName || copy.unassigned },
                   {
-                    label: "Fecha definitiva",
+                    label: copy.finalDate,
                     value: edit.confirmedStartAt
-                      ? formatDateTime(new Date(edit.confirmedStartAt).toISOString())
-                      : "Sin confirmar",
+                      ? formatDateTime(locale, new Date(edit.confirmedStartAt).toISOString())
+                      : copy.unconfirmed,
                   },
                   {
-                    label: "Tipo y costo",
-                    value: `${consultationTypeLabel(edit.consultationType)} · ${formatConsultationCost(edit.consultationType)}`,
+                    label: copy.typeCost,
+                    value: `${consultationTypeLabel(copy, edit.consultationType)} · ${formatConsultationCost(locale, edit.consultationType)}`,
                   },
                 ]}
               />
@@ -1536,17 +1555,19 @@ function LocationsPanel({
     fee: string,
   ) => void;
 }) {
+  const { copy, locale } = useConsultingCopy();
   return (
     <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700">
         <div>
-          <h3 className="font-medium text-slate-900 dark:text-white">Cobertura presencial</h3>
+          <h3 className="font-medium text-slate-900 dark:text-white">{copy.coverage}
+            </h3>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Activa ciudades y define su costo adicional. Sin importe, la solicitud queda pendiente de cotización.
-          </p>
+            {copy.coverageHelp}
+            </p>
         </div>
         <span className="w-fit rounded-full bg-[#59C3A5]/10 px-3 py-1 text-xs font-medium text-[#176B5B] dark:text-[#8FE0CA]">
-          {locations.filter((location) => location.active).length} activas
+          {consultingText(copy.activeCount, { count: consultingNumber(locations.filter((location) => location.active).length, locale) })}
         </span>
       </div>
       <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
@@ -1579,6 +1600,7 @@ function LocationCard({
     fee: string,
   ) => void;
 }) {
+  const { copy } = useConsultingCopy();
   const [fee, setFee] = useState(
     location.in_person_fee_cents == null
       ? ""
@@ -1603,8 +1625,8 @@ function LocationCard({
             <p className="font-medium text-slate-900 dark:text-white">{location.city_name}</p>
             {location.id < 0 ? (
               <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
-                Borrador local
-              </span>
+                {copy.localDraft}
+            </span>
             ) : null}
           </div>
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
@@ -1620,11 +1642,11 @@ function LocationCard({
           onClick={() => onSave(location, !location.active, fee)}
           className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${location.active ? "bg-[#59C3A5]/15 text-[#176B5B] dark:text-[#8FE0CA]" : "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"}`}
         >
-          {location.active ? "Disponible" : "Oculta"}
+          {location.active ? copy.available : copy.hidden}
         </button>
       </div>
       <label className="mt-4 block text-xs font-medium text-slate-600 dark:text-slate-300">
-        Costo adicional ({location.currency})
+        {consultingText(copy.extraCost, { currency: location.currency })}
         <input
           disabled={!canManage}
           min="0"
@@ -1633,7 +1655,7 @@ function LocationCard({
           value={fee}
           onChange={(event) => setFee(event.target.value)}
           className={`${controlClass} mt-1`}
-          placeholder="Cotización manual"
+          placeholder={copy.manualQuote}
         />
       </label>
       <button
@@ -1642,8 +1664,8 @@ function LocationCard({
         onClick={() => onSave(location, location.active, fee)}
         className="mt-3 h-10 w-full rounded-xl border border-[#59C3A5]/30 bg-white px-3 text-xs font-medium text-[#176B5B] transition hover:bg-[#59C3A5]/10 disabled:opacity-50 dark:bg-slate-900 dark:text-[#8FE0CA]"
       >
-        Guardar tarifa
-      </button>
+        {copy.saveRate}
+            </button>
     </article>
   );
 }
@@ -1665,6 +1687,7 @@ function Metric({
   active: boolean;
   onClick: () => void;
 }) {
+  const { locale } = useConsultingCopy();
   const styles = {
     amber: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300",
     blue: "bg-blue-50 text-[#143675] dark:bg-blue-500/10 dark:text-blue-300",
@@ -1689,7 +1712,7 @@ function Metric({
           <Icon className="h-5 w-5" />
         </span>
         <span className="text-2xl font-medium tracking-tight text-slate-950 dark:text-white">
-          {value}
+          {consultingNumber(value, locale)}
         </span>
       </div>
       <p className="mt-3 text-sm font-medium text-slate-900 dark:text-white">
@@ -1702,7 +1725,9 @@ function Metric({
   );
 }
 function Status({ status }: { status: PlatformConsultingStatus }) {
-  const label = statuses.find((item) => item.value === status)?.label || status;
+  const { copy } = useConsultingCopy();
+  const statuses = getStatuses(copy);
+  const label = status === "PAYMENT_REQUIRED" ? copy.paymentPending : statuses.find((item) => item.value === status)?.label || status;
   const tone =
     status === "CONFIRMED"
       ? "bg-blue-50 text-blue-700"
@@ -1753,30 +1778,30 @@ function paymentStatusForConsultationType(
 function consultationAmountCents(type: ConsultationType) {
   return type === "PAID" ? 7_900 : 0;
 }
-function consultationTypeLabel(type: ConsultationType) {
+function consultationTypeLabel(copy: ConsultingCopy, type: ConsultationType) {
   return {
-    PAID: "De pago",
-    COURTESY: "Cortesía",
-    MODULE_IMPLEMENTATION: "Implementación de módulo",
+    PAID: copy.paid,
+    COURTESY: copy.courtesy,
+    MODULE_IMPLEMENTATION: copy.moduleImplementation,
   }[type];
 }
-function formatConsultationCost(type: ConsultationType) {
-  return type === "PAID" ? "USD 79.00" : "USD 0.00";
+function formatConsultationCost(locale: ConsultingLocale, type: ConsultationType) {
+  return new Intl.NumberFormat(locale, { style: "currency", currency: "USD" }).format(consultationAmountCents(type) / 100);
 }
-function topicLabel(value: string) {
-  if (value === "ONBOARDING") return "Implementación inicial de Índice";
-  if (value === "BUSINESS_CONSULTING") return "Consultoría de negocios";
-  if (value === "OTHER") return "Otro reto de la empresa";
+function topicLabel(copy: ConsultingCopy, value: string) {
+  if (value === "ONBOARDING") return copy.indiceOnboarding;
+  if (value === "BUSINESS_CONSULTING") return copy.businessConsulting;
+  if (value === "OTHER") return copy.otherChallenge;
   return value
     .replace(/^MODULE:/, "")
     .replace(/[-_]/g, " ")
     .replace(/^./, (letter) => letter.toUpperCase());
 }
-function formatDateTime(value?: string | null, timeZone?: string) {
+function formatDateTime(locale: ConsultingLocale, value?: string | null, timeZone?: string) {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("es-MX", {
+  return new Intl.DateTimeFormat(locale, {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -1799,9 +1824,9 @@ function isHttpsUrl(value: string) {
     return false;
   }
 }
-function consultingOperationError(error: unknown, fallback: string) {
+function consultingOperationError(copy: ConsultingCopy, error: unknown, fallback: string) {
   if (error instanceof TypeError && /fetch/i.test(error.message)) {
-    return "No se pudo conectar con Índice. Verifica que el servidor esté activo y vuelve a intentarlo.";
+    return copy.connectionError;
   }
   return error instanceof Error && error.message ? error.message : fallback;
 }

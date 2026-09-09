@@ -1,3 +1,9 @@
+import {
+  useConsultingCopy,
+  consultingText,
+  consultingNumber,
+  type ConsultingCopy,
+} from "../ConsultingTranslations";
 import { useRef, useState, type FormEvent } from "react";
 import { CalendarPlus, CheckCircle2 } from "lucide-react";
 import type {
@@ -15,10 +21,10 @@ import type { SessionInput } from "./types";
 const controlClass =
   "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/15 disabled:bg-slate-100 disabled:text-slate-500";
 type SessionStep = "customer" | "schedule" | "assignment";
-const defaultSteps = [
-  { id: "customer", label: "Cliente" },
-  { id: "schedule", label: "Horario" },
-  { id: "assignment", label: "Asignación" },
+const getDefaultSteps = (copy: ConsultingCopy) => [
+  { id: "customer", label: copy.client },
+  { id: "schedule", label: copy.schedule },
+  { id: "assignment", label: copy.assignment },
 ] as const;
 
 export interface ConsultingCompanyOption {
@@ -47,9 +53,11 @@ export function SessionCreateModal({
   onClose: () => void;
   onCreate: (input: SessionInput) => void;
 }) {
+  const { copy, locale } = useConsultingCopy();
+  const defaultSteps = getDefaultSteps(copy);
   const steps = attendingConsultant
     ? defaultSteps.map((item) =>
-        item.id === "assignment" ? { ...item, label: "Confirmación" } : item,
+        item.id === "assignment" ? { ...item, label: copy.confirmation } : item,
       )
     : defaultSteps;
   const [step, setStep] = useState<SessionStep>("customer");
@@ -79,7 +87,7 @@ export function SessionCreateModal({
   const advance = () => {
     if (!formRef.current?.reportValidity()) return;
     if (step === "schedule" && new Date(value.startAt) <= new Date()) {
-      setError("Selecciona una fecha y hora futura.");
+      setError(copy.futureTimeError);
       return;
     }
     setError("");
@@ -111,10 +119,10 @@ export function SessionCreateModal({
       modalType="wizard"
       tone="blue"
       icon={<CalendarPlus className="h-5 w-5" />}
-      eyebrow="Operación de consultoría"
-      title="Agregar sesión"
-      description="Programa una sesión confirmada con datos controlados."
-      footerSummary={`Paso ${stepIndex + 1} de ${steps.length}`}
+      eyebrow={copy.operations}
+      title={copy.addSession}
+      description={copy.createSessionHelp}
+      footerSummary={consultingText(copy.stepProgress, { step: consultingNumber(stepIndex + 1, locale), total: consultingNumber(steps.length, locale) })}
       footer={
         <>
           <button
@@ -123,7 +131,7 @@ export function SessionCreateModal({
               stepIndex === 0 ? onClose() : setStep(steps[stepIndex - 1].id)
             }
           >
-            {stepIndex === 0 ? "Cancelar" : "Anterior"}
+            {stepIndex === 0 ? copy.cancel : copy.previous}
           </button>
           {step === "assignment" ? (
             <button
@@ -131,11 +139,11 @@ export function SessionCreateModal({
               form="session-create-form"
               disabled={!canSubmit || busy}
             >
-              {busy ? "Agregando…" : "Agregar sesión"}
+              {busy ? copy.adding : copy.addSession}
             </button>
           ) : (
             <button type="button" onClick={advance}>
-              Siguiente
+              {copy.next}
             </button>
           )}
         </>
@@ -150,7 +158,7 @@ export function SessionCreateModal({
         <IndiceModalWizardStepper
           activeStepId={step}
           accent="blue"
-          progressLabel="Progreso para agregar sesión"
+          progressLabel={copy.createProgress}
           steps={steps}
         />
         <IndiceModalValidation
@@ -160,7 +168,7 @@ export function SessionCreateModal({
         {step === "customer" ? (
           <section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <Field label="Cuenta de cliente">
+              <Field label={copy.clientAccount}>
                 <select
                   autoFocus
                   required
@@ -182,17 +190,18 @@ export function SessionCreateModal({
                   }}
                   className={controlClass}
                 >
-                  <option value="">Selecciona una cuenta</option>
+                  <option value="">{copy.selectAccount}
+            </option>
                   {companies.map((company) => (
                     <option key={company.id} value={company.id}>
                       {company.name} ·{" "}
-                      {company.owner_email || "sin propietario"}
+                      {company.owner_email || copy.noOwner}
                     </option>
                   ))}
                 </select>
               </Field>
             </div>
-            <Field label="Nombre del asistente">
+            <Field label={copy.attendeeName}>
               <input
                 required
                 value={value.attendeeName}
@@ -202,7 +211,7 @@ export function SessionCreateModal({
                 className={controlClass}
               />
             </Field>
-            <Field label="Correo electrónico">
+            <Field label={copy.email}>
               <input
                 required
                 type="email"
@@ -213,7 +222,7 @@ export function SessionCreateModal({
                 className={controlClass}
               />
             </Field>
-            <Field label="Teléfono (opcional)">
+            <Field label={copy.optionalPhone}>
               <input
                 type="tel"
                 value={value.attendeePhone}
@@ -228,7 +237,7 @@ export function SessionCreateModal({
 
         {step === "schedule" ? (
           <section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 sm:grid-cols-2">
-            <Field label="Tema">
+            <Field label={copy.topic}>
               <select
                 value={value.topic}
                 onChange={(event) =>
@@ -237,13 +246,15 @@ export function SessionCreateModal({
                 className={controlClass}
               >
                 <option value="BUSINESS_CONSULTING">
-                  Consultoría de negocios
-                </option>
-                <option value="ONBOARDING">Implementación inicial</option>
-                <option value="OTHER">Otro</option>
+                  {copy.businessConsulting}
+            </option>
+                <option value="ONBOARDING">{copy.onboarding}
+            </option>
+                <option value="OTHER">{copy.other}
+            </option>
               </select>
             </Field>
-            <Field label="Modalidad">
+            <Field label={copy.mode}>
               <select
                 value={value.mode}
                 onChange={(event) =>
@@ -258,11 +269,13 @@ export function SessionCreateModal({
                 }
                 className={controlClass}
               >
-                <option value="VIRTUAL">Virtual</option>
-                <option value="IN_PERSON">Presencial</option>
+                <option value="VIRTUAL">{copy.virtual}
+            </option>
+                <option value="IN_PERSON">{copy.inPerson}
+            </option>
               </select>
             </Field>
-            <Field label="Fecha y hora">
+            <Field label={copy.dateTime}>
               <input
                 required
                 type="datetime-local"
@@ -274,7 +287,7 @@ export function SessionCreateModal({
               />
             </Field>
             {value.mode === "VIRTUAL" ? (
-              <Field label="Zona horaria">
+              <Field label={copy.timezone}>
                 <select
                   value={value.timezone}
                   onChange={(event) =>
@@ -292,7 +305,7 @@ export function SessionCreateModal({
                 </select>
               </Field>
             ) : (
-              <Field label="Cobertura presencial">
+              <Field label={copy.coverage}>
                 <select
                   required
                   value={value.serviceLocationCode}
@@ -310,7 +323,8 @@ export function SessionCreateModal({
                   }}
                   className={controlClass}
                 >
-                  <option value="">Selecciona una ciudad</option>
+                  <option value="">{copy.selectCity}
+            </option>
                   {locations
                     .filter((location) => location.active)
                     .map((location) => (
@@ -327,7 +341,7 @@ export function SessionCreateModal({
         {step === "assignment" ? (
           <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Duración">
+              <Field label={copy.duration}>
                 <select
                   value={value.durationMinutes}
                   onChange={(event) =>
@@ -338,25 +352,25 @@ export function SessionCreateModal({
                   }
                   className={controlClass}
                 >
-                  <option value={30}>30 minutos</option>
-                  <option value={60}>60 minutos</option>
-                  <option value={90}>90 minutos</option>
+                  <option value={30}>{consultingText(copy.minutes, { count: consultingNumber(30, locale) })}</option>
+                  <option value={60}>{consultingText(copy.minutes, { count: consultingNumber(60, locale) })}</option>
+                  <option value={90}>{consultingText(copy.minutes, { count: consultingNumber(90, locale) })}</option>
                 </select>
               </Field>
               {attendingConsultant ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
                   <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#177D66]">
-                    Atiende esta sesión
-                  </p>
+                    {copy.attendingConsultant}
+            </p>
                   <p className="mt-1 text-sm font-semibold text-slate-900">
                     {attendingConsultant.name}
                   </p>
                   <p className="mt-0.5 text-xs text-slate-600">
-                    Se asigna automáticamente al distribuidor que la registra.
-                  </p>
+                    {copy.autoAssignmentHelp}
+            </p>
                 </div>
               ) : (
-                <Field label="Consultor">
+                <Field label={copy.consultant}>
                   <select
                     required
                     value={value.consultantEmail}
@@ -375,7 +389,8 @@ export function SessionCreateModal({
                     }}
                     className={controlClass}
                   >
-                    <option value="">Selecciona un consultor</option>
+                    <option value="">{copy.selectConsultant}
+            </option>
                     {consultants.map((consultant) => (
                       <option key={consultant.id} value={consultant.email}>
                         {consultant.firstName} {consultant.lastName}
@@ -387,27 +402,27 @@ export function SessionCreateModal({
             </div>
             <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-[#143675]">
               <div className="flex items-center gap-2 font-semibold">
-                <CheckCircle2 className="h-4 w-4" /> Sesión lista para crear
-              </div>
+                <CheckCircle2 className="h-4 w-4" /> {copy.sessionReady}
+            </div>
               <dl className="mt-3 grid gap-2 sm:grid-cols-2">
-                <Summary label="Cuenta" value={value.companyName} />
+                <Summary label={copy.account} value={value.companyName} />
                 <Summary
-                  label={attendingConsultant ? "Responsable" : "Consultor"}
+                  label={attendingConsultant ? copy.responsible : copy.consultant}
                   value={
                     attendingConsultant?.name || value.consultantName
                   }
                 />
                 <Summary
-                  label="Modalidad"
+                  label={copy.mode}
                   value={
                     value.mode === "VIRTUAL"
-                      ? "Virtual"
-                      : `Presencial · ${selectedLocation?.city_name || value.serviceLocationName}`
+                      ? copy.virtual
+                      : `${copy.inPerson} · ${selectedLocation?.city_name || value.serviceLocationName}`
                   }
                 />
                 <Summary
-                  label="Duración"
-                  value={`${value.durationMinutes} minutos`}
+                  label={copy.duration}
+                  value={consultingText(copy.minutes, { count: consultingNumber(value.durationMinutes, locale) })}
                 />
               </dl>
             </div>

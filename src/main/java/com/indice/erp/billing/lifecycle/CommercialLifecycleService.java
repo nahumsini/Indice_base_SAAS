@@ -106,12 +106,14 @@ public class CommercialLifecycleService {
             """
                 SELECT company_id
                 FROM company_commercial_states
-                WHERE (state = 'TRIAL' AND trial_ends_at IS NOT NULL AND trial_ends_at <= ?)
+                WHERE ((state = 'TRIAL' AND trial_ends_at IS NOT NULL AND trial_ends_at <= ?)
                    OR (state = 'GRACE' AND (grace_ends_at IS NULL OR grace_ends_at <= ?))
                    OR (state = 'READ_ONLY' AND (read_only_ends_at IS NULL OR read_only_ends_at <= ?))
                    OR (state IN ('SUSPENDED', 'RETENTION') AND retention_until <= ?)
                    OR (state = 'ACTIVE' AND subscription_status = 'courtesy'
-                       AND trial_ends_at IS NOT NULL AND trial_ends_at <= ?)
+                       AND trial_ends_at IS NOT NULL AND trial_ends_at <= ?))
+                  AND NOT EXISTS (SELECT 1 FROM company_payment_requests request
+                    WHERE request.company_id = company_commercial_states.company_id AND request.status = 'OPEN')
                 ORDER BY updated_at, company_id
                 LIMIT ?
                 """,

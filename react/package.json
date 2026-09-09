@@ -31,11 +31,12 @@
     "test:pos-catalog": "node --experimental-strip-types --test tests/point-of-sale-catalog-warehouse-regression.test.mjs",
     "test:print": "node --test tests/document-print-standard-regression.test.mjs",
     "test:phone-validation": "node scripts/phone-validation-regression.mjs",
-    "test:platform-admin": "node --test tests/platform-admin-flow-regression.test.mjs",
-    "test:billing-flow": "node --test tests/billing-flow-regression.test.mjs",
+    "test:platform-admin": "node --experimental-strip-types --test tests/platform-admin-flow-regression.test.mjs tests/catalog-publication.test.mjs tests/stripe-setup-panel.test.mjs && npm run test:platform-admin-localization",
+    "test:billing-flow": "node --experimental-strip-types --test tests/billing-flow-regression.test.mjs tests/payment-request-flow.test.mjs tests/billing-payment-method-flow.test.mjs",
     "test:distributor-portal": "node --test tests/distributor-portal-flow-regression.test.mjs",
     "typecheck": "tsc --noEmit",
-    "test:finance-bulk": "node --test tests/finance-bulk-actions-regression.test.mjs tests/finance-workspace-memory-regression.test.mjs"
+    "test:finance-bulk": "node --test tests/finance-bulk-actions-regression.test.mjs tests/finance-workspace-memory-regression.test.mjs",
+    "test:platform-admin-localization": "node --experimental-strip-types --test tests/platform-admin-localization.test.mjs tests/customer-account-localization.test.mjs tests/platform-admin-operations-localization.test.mjs tests/induction-localization.test.mjs tests/training-exam-localization.test.mjs src/app/PlatformAdmin/CatalogWorkspace/catalogLocalization.test.mjs src/app/InternalDevelopment/internalDevelopmentLocalization.test.mjs src/app/Training/translations/sales/salesProcessLocalization.test.mjs tests/loading-bar-localization.test.mjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

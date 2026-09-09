@@ -18,7 +18,7 @@ export const esMXCopy: AccountCreationCopy = {
   },
   progress: {
     label: "Progreso del alta de cuenta",
-    step: (current, total, modules) => `Paso ${current} de ${total} · ${modules} módulo(s)`,
+    step: (current, total, modules) => `Paso ${current} de ${total} · Módulos: ${modules}`,
     ready: (companyId) => `Empresa #${companyId} · acceso listo para entregar`,
   },
   company: {
@@ -84,7 +84,7 @@ export const esMXCopy: AccountCreationCopy = {
     copyAll: "Copiar datos", copiedAll: "Datos copiados", copy: "Copiar", copied: "Copiado",
     loginPage: "Página de acceso", company: "Empresa", email: "Correo",
     password: "Contraseña temporal", loadedModules: "Módulos cargados",
-    loadedModulesDescription: (count) => `${count} módulo(s) confirmados en la cuenta`,
+    loadedModulesDescription: (count) => `Módulos: ${count} confirmados en la cuenta`,
     accessDataTitle: "Datos de acceso a Índice",
     securityReminder: "Por seguridad, cambia la contraseña al iniciar sesión.",
     securityShare: "Pide al usuario cambiar esta contraseña desde Panel Inicial → Perfil → Seguridad. Índice no la enviará por correo ni la guardará en la auditoría Root.",

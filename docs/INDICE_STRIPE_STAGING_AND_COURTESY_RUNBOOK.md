@@ -104,10 +104,14 @@ Los dos interruptores anteriores quedan en `false` durante el Paso A y sólo se
 cambian a `true` después de validar la firma del webhook. Los valores mostrados
 en esta sección representan el estado certificado actual de staging.
 
-El catálogo TEST se crea desde **Administración de plataforma → Oferta comercial**. Root conecta
+El catálogo TEST se crea desde **Administración de plataforma → Catálogo y módulos → Oferta comercial**. Root conecta
 cada producto del borrador con Stripe TEST, valida remotamente cuenta, modo, importes, USD,
 intervalos e impuestos y sólo entonces publica la versión. No se copian Price IDs manualmente ni se
 usa el script legado de escalones.
+
+**Facturación** añade el panel de configuración de la conexión Stripe a sus registros de cobro.
+La configuración mostrada no certifica credenciales ni entregas; los productos, precios,
+validación y publicación siguen en **Catálogo y módulos → Oferta comercial**.
 
 ## 5. Secuencia de activación
 

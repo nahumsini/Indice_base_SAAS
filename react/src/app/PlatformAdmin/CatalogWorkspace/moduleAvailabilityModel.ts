@@ -1,3 +1,5 @@
+import { catalogConfigurationLabel, catalogModuleLabel, catalogModuleDescription } from "./catalogLabels";
+import { catalogLocale, getCatalogCopy } from "./translations";
 import type { PlatformCatalogProduct, PlatformModule } from "../../api/platformAdmin";
 
 export type ModuleAvailabilityColumnId =
@@ -67,12 +69,6 @@ export const moduleAvailabilityMaximumWidths: Record<ModuleAvailabilityColumnId,
 export const moduleAvailabilityActionsWidth = 112;
 export const moduleAvailabilityColumnsStorageKey = "indice-platform-admin-module-columns-v1";
 
-const categoryCopy = {
-  basic: { en: "Base", es: "Base" },
-  complementary: { en: "Add-on", es: "Complementario" },
-  ai: { en: "Artificial intelligence", es: "Inteligencia artificial" },
-};
-
 export function repairMojibake(value?: string | null) {
   if (!value) return "";
   if (!/[ÃÂ]/.test(value)) return value;
@@ -112,9 +108,10 @@ export function productIncludesModule(product: PlatformCatalogProduct, module: P
   });
 }
 
-export function getModuleCategoryLabel(category: string, english: boolean) {
-  const known = categoryCopy[category as keyof typeof categoryCopy];
-  if (known) return english ? known.en : known.es;
+export function getModuleCategoryLabel(category: string, languageCode: string | boolean = "en-CA") {
+  const copy = getCatalogCopy(languageCode);
+  const known: Record<string, string> = { basic: copy.baseCategory, complementary: copy.addOn, ai: copy.aiCategory };
+  if (known[category]) return known[category];
   const repaired = repairMojibake(category).replace(/_/g, " ");
   return repaired.charAt(0).toUpperCase() + repaired.slice(1);
 }
@@ -128,7 +125,7 @@ export function getModuleCommercialState(module: PlatformModule, productCount: n
 export function buildModuleAvailabilityRows(
   modules: PlatformModule[],
   products: PlatformCatalogProduct[],
-  english: boolean,
+  languageCode: string | boolean = "en-CA",
 ): ModuleAvailabilityRow[] {
   return modules.map((module) => {
     const productCount = products.filter((product) => product.active && productIncludesModule(product, module)).length;
@@ -137,27 +134,27 @@ export function buildModuleAvailabilityRows(
 
     return {
       module,
-      name: repairMojibake(module.name),
-      description: repairMojibake(module.description) || (english ? "Operational description pending." : "Descripción operativa pendiente."),
-      categoryLabel: getModuleCategoryLabel(module.category, english),
+      name: catalogModuleLabel({ ...module, name: repairMojibake(module.name) }, catalogLocale(languageCode)),
+      description: catalogModuleDescription({ ...module, description: repairMojibake(module.description) }, catalogLocale(languageCode)) || (getCatalogCopy(languageCode).operationalDescriptionPending),
+      categoryLabel: getModuleCategoryLabel(module.category, languageCode),
       useLabel: module.assignment_enabled
-        ? english ? "Customer assignable" : "Asignable a clientes"
-        : english ? "Internal use" : "Uso interno",
+        ? getCatalogCopy(languageCode).customerAssignable
+        : getCatalogCopy(languageCode).internalUse,
       productCount,
       commercialState: getModuleCommercialState(module, productCount),
-      configurationLabel: [lifecycle, accessModel].filter(Boolean).join(" · ") || (english ? "No configuration" : "Sin configuración"),
+      configurationLabel: [lifecycle, accessModel].filter(Boolean).map((value) => catalogConfigurationLabel(value, languageCode)).join(" · ") || (getCatalogCopy(languageCode).noConfiguration),
     };
   });
 }
 
-export function moduleAvailabilityColumnLabels(english: boolean): Record<ModuleAvailabilityColumnId, string> {
+export function moduleAvailabilityColumnLabels(languageCode: string | boolean = "en-CA"): Record<ModuleAvailabilityColumnId, string> {
   return {
-    module: english ? "Module" : "Módulo",
-    category: english ? "Category" : "Categoría",
-    use: english ? "Operational use" : "Uso operativo",
-    products: english ? "Products" : "Productos",
-    status: english ? "Commercial status" : "Estado comercial",
-    configuration: english ? "Configuration" : "Configuración",
+    module: getCatalogCopy(languageCode).module,
+    category: getCatalogCopy(languageCode).category,
+    use: getCatalogCopy(languageCode).operationalUse,
+    products: getCatalogCopy(languageCode).products4,
+    status: getCatalogCopy(languageCode).commercialStatus,
+    configuration: getCatalogCopy(languageCode).configuration,
   };
 }
 

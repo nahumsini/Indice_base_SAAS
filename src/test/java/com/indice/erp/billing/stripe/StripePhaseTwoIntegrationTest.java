@@ -2,11 +2,13 @@ package com.indice.erp.billing.stripe;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.when;
 
 import com.indice.erp.billing.BillingHashing;
 import com.indice.erp.billing.catalog.CommercialOfferSelectionService;
 import com.indice.erp.billing.signup.BillingSignupIntentRepository;
 import com.indice.erp.billing.signup.BillingSignupRequest;
+import com.stripe.model.Charge;
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -20,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest(properties = {
     "app.billing.stripe.enabled=true",
@@ -52,6 +55,9 @@ class StripePhaseTwoIntegrationTest {
 
     @Autowired
     private CommercialOfferSelectionService offers;
+
+    @MockitoBean
+    private StripeBillingGateway billingGateway;
 
     @BeforeEach
     void cleanBillingPhaseTwoState() {
@@ -185,7 +191,11 @@ class StripePhaseTwoIntegrationTest {
     }
 
     @Test
-    void recordsPaymentRiskAndStripeEntitlementEventsInsteadOfIgnoringThem() {
+    void recordsPaymentRiskAndStripeEntitlementEventsInsteadOfIgnoringThem() throws Exception {
+        var charge = new Charge();
+        charge.setId("ch_test");
+        charge.setLivemode(false);
+        when(billingGateway.retrieveCharge("ch_test")).thenReturn(charge);
         var dispute = event("evt_dispute_created", "charge.dispute.created", 4_000, """
             {"id":"dp_test","object":"dispute","status":"needs_response","charge":"ch_test"}
             """);
@@ -220,6 +230,100 @@ class StripePhaseTwoIntegrationTest {
                 """,
             Integer.class
         )).isEqualTo(2);
+    }
+
+    @Test
+    void newerSubscriptionEventAndCheckoutReplayPreserveTheAgreedRenewalSelection() {
+        var intent = createIntent("cus_renewed", "idem-renewed");
+        jdbc.update("""
+            UPDATE billing_signup_intents SET requested_extra_seats = 2,
+                subtotal_amount_cents = 7900, discount_amount_cents = 1200, promotion_code = 'ORIGINAL'
+            WHERE id = ?
+            """, intent.id());
+        var first = projections.upsertSubscription(subscriptionSnapshot("sub_renewed", "cus_renewed", "evt_initial", 1000), intent.id());
+        var originalProduct = jdbc.queryForObject(
+            "SELECT catalog_product_id FROM billing_signup_intent_products WHERE signup_intent_id = ? LIMIT 1",
+            Long.class, intent.id());
+        var replacementProduct = jdbc.queryForObject("""
+            SELECT id FROM billing_catalog_products
+            WHERE catalog_version_id = (SELECT catalog_version_id FROM billing_signup_intents WHERE id = ?)
+              AND id <> ? ORDER BY id LIMIT 1
+            """, Long.class, intent.id(), originalProduct);
+        // State committed by an accepted renewal; zero discounts/subtotals and cleared promotion
+        // are deliberate contract values, not missing fields to refill from the signup intent.
+        jdbc.update("""
+            UPDATE company_billing_subscriptions
+            SET offer_code = 'RENEWED', billing_interval = 'YEAR', currency = 'CAD',
+                included_seats = 7, extra_seats = 4, subtotal_amount_cents = 0,
+                discount_amount_cents = 0, promotion_code = NULL
+            WHERE id = ?
+            """, first.subscriptionInternalId());
+        jdbc.update("DELETE FROM company_billing_subscription_products WHERE subscription_id = ?", first.subscriptionInternalId());
+        jdbc.update("""
+            INSERT INTO company_billing_subscription_products (subscription_id, catalog_product_id, source)
+            VALUES (?, ?, 'SCHEDULED_CHANGE')
+            """, first.subscriptionInternalId(), replacementProduct);
+        var agreedTerms = commercialTerms(first.subscriptionInternalId());
+        var updated = event("evt_after_renewal", "customer.subscription.updated", 2000, """
+            {"id":"sub_renewed","object":"subscription","customer":"cus_renewed","status":"past_due",
+             "currency":"usd","collection_method":"charge_automatically","current_period_start":2000,
+             "current_period_end":3000,"metadata":{"indice_signup_ref":"%s"}}
+            """.formatted(intent.publicReference()));
+        events.ingest(envelope(updated, "evt_after_renewal", "customer.subscription.updated", 2000, "sub_renewed"));
+        processor.processBatch();
+        projections.associateSubscription("sub_renewed", intent.id());
+
+        assertThat(commercialTerms(first.subscriptionInternalId())).isEqualTo(agreedTerms);
+        assertThat(jdbc.queryForList("SELECT catalog_product_id FROM company_billing_subscription_products WHERE subscription_id = ?",
+            Long.class, first.subscriptionInternalId())).containsExactly(replacementProduct);
+        assertThat(jdbc.queryForObject("SELECT status FROM company_billing_subscriptions WHERE id = ?",
+            String.class, first.subscriptionInternalId())).isEqualTo("past_due");
+        assertThat(events.statuses()).singleElement().satisfies(status -> assertThat(status.status()).isEqualTo("PROCESSED"));
+    }
+
+    @Test
+    void lateIntentHydratesOnlyTheFirstMissingCatalogSnapshotAndDoesNotRecreateRemovedProducts() {
+        var initial = projections.upsertSubscription(subscriptionSnapshot("sub_initializing", "cus_initializing", "evt_unassociated", 2000), null);
+        var intent = createIntent("cus_initializing", "idem-initializing");
+        jdbc.update("""
+            UPDATE billing_signup_intents SET requested_extra_seats = 3,
+                subtotal_amount_cents = 9900, discount_amount_cents = 500, promotion_code = 'INITIAL'
+            WHERE id = ?
+            """, intent.id());
+        // Even an older delivery may safely initialize an association without replacing provider state.
+        var associated = projections.upsertSubscription(subscriptionSnapshot("sub_initializing", "cus_initializing", "evt_old_association", 1000), intent.id());
+        assertThat(associated.applied()).isFalse();
+        assertThat(associated.signupIntentId()).isEqualTo(intent.id());
+        assertThat(commercialTerms(initial.subscriptionInternalId())).containsEntry("extra_seats", 3)
+            .containsEntry("subtotal_amount_cents", 9900L).containsEntry("promotion_code", "INITIAL");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM company_billing_subscription_products WHERE subscription_id = ?",
+            Integer.class, initial.subscriptionInternalId())).isEqualTo(1);
+
+        jdbc.update("UPDATE company_billing_subscriptions SET extra_seats = 8, discount_amount_cents = 0, promotion_code = NULL WHERE id = ?",
+            initial.subscriptionInternalId());
+        jdbc.update("DELETE FROM company_billing_subscription_products WHERE subscription_id = ?", initial.subscriptionInternalId());
+        var agreedTerms = commercialTerms(initial.subscriptionInternalId());
+        projections.associateSubscription("sub_initializing", intent.id());
+        projections.upsertSubscription(subscriptionSnapshot("sub_initializing", "cus_initializing", "evt_after_seat_purchase", 3000), intent.id());
+        assertThat(commercialTerms(initial.subscriptionInternalId())).isEqualTo(agreedTerms);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM company_billing_subscription_products WHERE subscription_id = ?",
+            Integer.class, initial.subscriptionInternalId())).isZero();
+    }
+
+    private java.util.Map<String, Object> commercialTerms(long subscriptionId) {
+        return jdbc.queryForMap("""
+            SELECT catalog_version_id, offer_code, billing_interval, currency, included_seats,
+                   extra_seats, subtotal_amount_cents, discount_amount_cents, promotion_code
+            FROM company_billing_subscriptions WHERE id = ?
+            """, subscriptionId);
+    }
+
+    private BillingProjectionRepository.SubscriptionSnapshot subscriptionSnapshot(
+            String subscriptionId, String customerId, String eventId, long eventCreatedAt) {
+        return new BillingProjectionRepository.SubscriptionSnapshot(eventId, Instant.ofEpochSecond(eventCreatedAt),
+            subscriptionId, customerId, "active", "charge_automatically", "usd", false,
+            null, null, Instant.ofEpochSecond(eventCreatedAt), Instant.ofEpochSecond(eventCreatedAt + 1000),
+            null, null, null);
     }
 
     private com.indice.erp.billing.signup.BillingSignupIntent createIntent(String customerId, String idempotency) {

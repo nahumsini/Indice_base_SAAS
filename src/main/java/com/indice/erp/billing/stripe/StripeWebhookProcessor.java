@@ -13,17 +13,20 @@ public class StripeWebhookProcessor {
     private final StripeWebhookEventHandler handler;
     private final StripePhaseTwoProperties properties;
     private final BillingAuditService audit;
+    private final StripeWebhookPaymentContextResolver paymentContexts;
 
     public StripeWebhookProcessor(
         StripeWebhookEventRepository repository,
         StripeWebhookEventHandler handler,
         StripePhaseTwoProperties properties,
-        BillingAuditService audit
+        BillingAuditService audit,
+        StripeWebhookPaymentContextResolver paymentContexts
     ) {
         this.repository = repository;
         this.handler = handler;
         this.properties = properties;
         this.audit = audit;
+        this.paymentContexts = paymentContexts;
     }
 
     public int processBatch() {
@@ -34,7 +37,8 @@ public class StripeWebhookProcessor {
                 break;
             }
             try {
-                var result = handler.process(event);
+                var paymentContext = paymentContexts.resolve(event);
+                var result = handler.process(event, paymentContext);
                 repository.markProcessed(event.id(), result);
             } catch (StripeEventProcessingException exception) {
                 repository.markRetry(

@@ -3,6 +3,7 @@ package com.indice.erp.platformadmin;
 import com.indice.erp.billing.BillingHashing;
 import com.indice.erp.billing.catalog.CommercialOfferSelection;
 import com.indice.erp.billing.catalog.CommercialOfferSelectionService;
+import com.indice.erp.billing.collection.PaymentCollectionProtectionService;
 import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
 import com.indice.erp.entitlement.CompanyEntitlementProjectionService;
 import com.indice.erp.billing.storage.StorageQuotaService;
@@ -43,6 +44,7 @@ public class PlatformAdminService {
     private final CommercialOfferSelectionService commercialOffers;
     private final Clock clock;
     private final StripePhaseTwoProperties stripeProperties;
+    private final PaymentCollectionProtectionService paymentProtection;
 
     @Autowired
     public PlatformAdminService(
@@ -53,7 +55,8 @@ public class PlatformAdminService {
         StorageQuotaService storageQuota,
         CommercialOfferSelectionService commercialOffers,
         Clock clock,
-        StripePhaseTwoProperties stripeProperties
+        StripePhaseTwoProperties stripeProperties,
+        PaymentCollectionProtectionService paymentProtection
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.accessService = accessService;
@@ -63,6 +66,15 @@ public class PlatformAdminService {
         this.commercialOffers = commercialOffers;
         this.clock = clock;
         this.stripeProperties = stripeProperties;
+        this.paymentProtection = paymentProtection;
+    }
+
+    public PlatformAdminService(JdbcTemplate jdbcTemplate, PlatformAdminAccessService accessService,
+        PlatformAuditService audit, CompanyEntitlementProjectionService entitlementProjection,
+        StorageQuotaService storageQuota, CommercialOfferSelectionService commercialOffers,
+        Clock clock, StripePhaseTwoProperties stripeProperties) {
+        this(jdbcTemplate, accessService, audit, entitlementProjection, storageQuota, commercialOffers,
+            clock, stripeProperties, new PaymentCollectionProtectionService(jdbcTemplate, clock));
     }
 
     public PlatformAdminService(
@@ -2313,6 +2325,7 @@ public class PlatformAdminService {
             return existing;
         }
         if ("PRODUCT".equals(type)) {
+            paymentProtection.requireGrantAllowed(companyId);
             var activeProductBenefit = activeProductBenefit(companyId, productId);
             if (activeProductBenefit != null) {
                 synchronizeProductModuleAccess(companyId, productId);

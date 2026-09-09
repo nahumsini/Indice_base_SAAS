@@ -1,3 +1,4 @@
+import { internalDevelopmentLocale, getInternalDevelopmentMessages, formatInternalDevelopmentMessage } from './translations';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   CalendarCheck2, CalendarDays, CircleAlert, ClipboardCheck, Eye, FileClock,
@@ -46,9 +47,10 @@ const minimumWidths: Record<ColumnId, number> = { date: 150, type: 160, record: 
 const maximumWidths: Record<ColumnId, number> = { date: 260, type: 300, record: 560, owner: 320, participants: 320, status: 240 };
 const actionsWidth = 132;
 
-export function InternalDevelopmentWorkspace({ locale }: { locale: string }) {
-  const english = locale.startsWith('en');
-  const copy = getInternalDevelopmentCopy(english);
+export function InternalDevelopmentWorkspace({ locale: requestedLocale }: { locale: string }) {
+  const locale = internalDevelopmentLocale(requestedLocale);
+  const english = locale === "en-CA" || locale === "en-US";
+  const copy = getInternalDevelopmentCopy(locale);
   const [filters, setFilters] = useState<InternalDevelopmentFilters>(defaultFilters);
   const [data, setData] = useState<InternalDevelopmentWorkspaceData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,11 +69,11 @@ export function InternalDevelopmentWorkspace({ locale }: { locale: string }) {
     try {
       setData(await internalDevelopmentApi.workspace(nextFilters));
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : (english ? 'The corporate history could not be loaded.' : 'No se pudo cargar el historial corporativo.'));
+      setError((getInternalDevelopmentMessages(locale).theCorporateHistoryCouldNotBeLoaded));
     } finally {
       setLoading(false);
     }
-  }, [english]);
+  }, [locale]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => void load(filters), 220);
@@ -93,7 +95,7 @@ export function InternalDevelopmentWorkspace({ locale }: { locale: string }) {
     try {
       setDetail(await internalDevelopmentApi.detail(entryId));
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : (english ? 'The record could not be opened.' : 'No se pudo abrir el registro.'));
+      setError((getInternalDevelopmentMessages(locale).theRecordCouldNotBeOpened));
     } finally {
       setDetailLoadingId(null);
     }
@@ -105,8 +107,8 @@ export function InternalDevelopmentWorkspace({ locale }: { locale: string }) {
       notifyDocumentPrintFailure(locale, 'popup-blocked');
       return;
     }
-    targetWindow.document.title = english ? 'Preparing document…' : 'Preparando documento…';
-    targetWindow.document.body.textContent = english ? 'Preparing document…' : 'Preparando documento…';
+    targetWindow.document.title = getInternalDevelopmentMessages(locale).preparingDocument;
+    targetWindow.document.body.textContent = getInternalDevelopmentMessages(locale).preparingDocument;
     Object.assign(targetWindow.document.body.style, {
       color: '#475569', fontFamily: 'Arial, sans-serif', fontSize: '14px', padding: '32px',
     });
@@ -118,7 +120,7 @@ export function InternalDevelopmentWorkspace({ locale }: { locale: string }) {
       })
       .catch((loadError) => {
         targetWindow.close();
-        setError(loadError instanceof Error ? loadError.message : (english ? 'The record could not be prepared for printing.' : 'No se pudo preparar el registro para imprimir.'));
+        setError((getInternalDevelopmentMessages(locale).theRecordCouldNotBePreparedForPrinting));
       })
       .finally(() => setPrintLoadingId(null));
   };
@@ -150,7 +152,7 @@ export function InternalDevelopmentWorkspace({ locale }: { locale: string }) {
   const columns: Array<IndiceTableColumnDefinition<ColumnId>> = (Object.keys(defaultWidths) as ColumnId[]).map((id) => ({
     id, label: labels[id], width: columnWidths[id], defaultWidth: defaultWidths[id],
     contentMinimumWidth: minimumWidths[id], maxWidth: maximumWidths[id], sortable: false,
-    resizeLabel: english ? `Resize ${labels[id]} column` : `Ajustar columna ${labels[id]}`,
+    resizeLabel: formatInternalDevelopmentMessage(getInternalDevelopmentMessages(locale).resizeColumn, labels[id]),
   }));
   const tableWidth = getIndiceTableMinimumWidth({ columns, actionsWidth });
 
@@ -183,9 +185,9 @@ export function InternalDevelopmentWorkspace({ locale }: { locale: string }) {
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard icon={<ClipboardCheck className="h-5 w-5" />} label={copy.submitted} value={data?.summary.weeklyReportsSubmitted ?? 0} detail={data ? `${data.summary.weeklyReportsSubmitted}/${data.summary.activeRootMembers}` : '—'} />
-        <SummaryCard icon={<Users className="h-5 w-5" />} label={copy.pending} value={data?.summary.weeklyReportsPending ?? 0} detail={data?.summary.pendingWeeklyMemberNames.length ? `${copy.pendingNames}: ${data.summary.pendingWeeklyMemberNames.join(', ')}` : (english ? 'Everyone is up to date' : 'Todos están al corriente')} tone="amber" />
-        <SummaryCard icon={<CalendarCheck2 className="h-5 w-5" />} label={copy.upcoming} value={data?.summary.upcomingMeetings ?? 0} detail={english ? 'Planned board and working meetings' : 'Juntas de consejo y trabajo programadas'} tone="blue" />
-        <SummaryCard icon={<CalendarDays className="h-5 w-5" />} label={copy.thisMonth} value={data?.summary.recordsThisMonth ?? 0} detail={english ? 'Preserved corporate evidence' : 'Evidencia corporativa conservada'} tone="slate" />
+        <SummaryCard icon={<Users className="h-5 w-5" />} label={copy.pending} value={data?.summary.weeklyReportsPending ?? 0} detail={data?.summary.pendingWeeklyMemberNames.length ? `${copy.pendingNames}: ${data.summary.pendingWeeklyMemberNames.join(', ')}` : (getInternalDevelopmentMessages(locale).everyoneIsUpToDate)} tone="amber" />
+        <SummaryCard icon={<CalendarCheck2 className="h-5 w-5" />} label={copy.upcoming} value={data?.summary.upcomingMeetings ?? 0} detail={getInternalDevelopmentMessages(locale).plannedBoardAndWorkingMeetings} tone="blue" />
+        <SummaryCard icon={<CalendarDays className="h-5 w-5" />} label={copy.thisMonth} value={data?.summary.recordsThisMonth ?? 0} detail={getInternalDevelopmentMessages(locale).preservedCorporateEvidence} tone="slate" />
       </section>
 
       <IndiceFilterBar
@@ -205,8 +207,8 @@ export function InternalDevelopmentWorkspace({ locale }: { locale: string }) {
       </IndiceFilterBar>
 
       <section className="rounded-2xl border border-[#59C3A5]/40 bg-[#59C3A5]/8 px-5 py-4">
-        <p className="text-sm font-medium text-[#176B5B]">{english ? 'Corporate rule' : 'Regla corporativa'}</p>
-        <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">{english ? 'Record outcomes, not activity noise. Every entry must make ownership, evidence and the next decision clear.' : 'Registra resultados, no ruido de actividad. Cada entrada debe dejar claros el responsable, la evidencia y la siguiente decisión.'}</p>
+        <p className="text-sm font-medium text-[#176B5B]">{getInternalDevelopmentMessages(locale).corporateRule}</p>
+        <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">{getInternalDevelopmentMessages(locale).recordOutcomesNotActivityNoiseEveryEntryMust}</p>
       </section>
 
       <div>
@@ -229,7 +231,7 @@ export function InternalDevelopmentWorkspace({ locale }: { locale: string }) {
                       <button type="button" disabled={detailLoadingId === entry.id} onClick={() => void openDetail(entry.id)} aria-label={`${copy.view} ${entry.folio}`} title={copy.view} className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[#177D66] text-white transition hover:bg-[#126D59] disabled:opacity-50">
                         {detailLoadingId === entry.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
                       </button>
-                      <button type="button" disabled={printLoadingId === entry.id} onClick={() => printEntry(entry.id)} aria-label={`${english ? 'Print' : 'Imprimir'} ${entry.folio}`} title={english ? 'Print' : 'Imprimir'} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#59C3A5] bg-white text-[#177D66] transition hover:bg-[#59C3A5]/10 disabled:opacity-50 dark:bg-slate-900">
+                      <button type="button" disabled={printLoadingId === entry.id} onClick={() => printEntry(entry.id)} aria-label={`${getInternalDevelopmentMessages(locale).print} ${entry.folio}`} title={getInternalDevelopmentMessages(locale).print} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#59C3A5] bg-white text-[#177D66] transition hover:bg-[#59C3A5]/10 disabled:opacity-50 dark:bg-slate-900">
                         {printLoadingId === entry.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
                       </button>
                     </IndiceTableActionGroup>

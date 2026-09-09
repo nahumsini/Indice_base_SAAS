@@ -153,12 +153,13 @@ export function compareCustomerValues(
   left: PlatformCompanySummary,
   right: PlatformCompanySummary,
   key: CustomerSortKey,
+  locale = "en-CA",
 ) {
   const compareText = (
     first: string | null | undefined,
     second: string | null | undefined,
   ) =>
-    (first || "").localeCompare(second || "", undefined, {
+    (first || "").localeCompare(second || "", locale, {
       numeric: true,
       sensitivity: "base",
     });

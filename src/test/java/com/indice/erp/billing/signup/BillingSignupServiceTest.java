@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -121,6 +122,72 @@ class BillingSignupServiceTest {
         assertThat(replay.checkoutSessionId()).isEqualTo("cs_test");
         verify(gateway, times(1)).createCustomer(any(), anyString());
         verify(gateway, times(1)).createCheckout(any(), anyString());
+    }
+
+    @Test
+    void rejectsAnIncompleteSignupRetryAfterPublicationBeforeCallingStripe() {
+        var request = pendingCheckout("new-catalog-v2", "agreed-catalog-v1");
+
+        assertThatThrownBy(() -> service.createCheckout(request, "pending-retry-key"))
+            .isInstanceOf(BillingSignupConflictException.class)
+            .hasMessageContaining("commercial offer changed")
+            .hasMessageContaining("Reload the plans");
+
+        verifyNoInteractions(gateway);
+    }
+
+    @Test
+    void completesAnIncompleteSignupRetryAtTheSameCatalogVersion() {
+        var request = pendingCheckout("agreed-catalog-v1", "agreed-catalog-v1");
+        var completed = new BillingSignupIntent(
+            17L, "a".repeat(64), "b".repeat(64), "c".repeat(64), "CHECKOUT_CREATED",
+            "cus_existing", "cs_retry", null, "https://checkout.stripe.test/cs_retry",
+            Instant.parse("2026-07-21T12:31:00Z")
+        );
+        when(gateway.createCheckout(any(), anyString())).thenReturn(new StripeCheckoutGateway.CheckoutResult(
+            "cs_retry", "https://checkout.stripe.test/cs_retry", Instant.parse("2026-07-21T12:31:00Z")
+        ));
+        when(repository.findById(17L)).thenReturn(completed);
+
+        var result = service.createCheckout(request, "pending-retry-key");
+
+        assertThat(result.checkoutSessionId()).isEqualTo("cs_retry");
+        verify(gateway).createCheckout(argThat(command ->
+            "cus_existing".equals(command.customerId())
+                && "agreed-catalog-v1".equals(command.metadata().get("indice_catalog_version"))
+                && command.lineItems().size() == 1
+                && "price_basic_1_month".equals(command.lineItems().getFirst().priceId())
+        ), anyString());
+        verify(gateway, times(0)).createCustomer(any(), anyString());
+    }
+
+    private BillingSignupRequest pendingCheckout(String currentVersion, String storedVersion) {
+        var product = new CommercialOfferSelection.Product(7L, "basic_hr", "Recursos Humanos");
+        var selection = new CommercialOfferSelection(
+            3L, currentVersion, "basic_1", BillingInterval.MONTH, "USD",
+            5, 0, 5_900L, 5_900L, 1_200L, List.of(product)
+        );
+        var request = new BillingSignupRequest(
+            "Premium Owner", "owner@example.com", "owner@example.com", "very-secure-password", "Premium Company",
+            "MX", null, null, null, "MONTH", 0, List.of("basic_hr"), null, "e".repeat(64)
+        );
+        var pending = new BillingSignupIntent(
+            17L, "a".repeat(64), "b".repeat(64), "c".repeat(64), "CUSTOMER_CREATED",
+            "cus_existing", null, null, null, null
+        );
+        when(offers.select(any(), anyString(), anyInt(), any())).thenReturn(selection);
+        when(emailVerificationService.requireVerified(anyString(), anyString()))
+            .thenReturn(new BillingSignupEmailVerificationService.VerifiedEmail(
+                "owner@example.com", "e".repeat(64), Instant.parse("2026-07-21T11:59:00Z")
+            ));
+        when(repository.createOrLoad(anyString(), anyString(), anyString(), any(), anyString(), anyString(), any(), anyString(), any()))
+            .thenReturn(pending);
+        when(repository.checkoutSpec(17L)).thenReturn(new BillingSignupIntentRepository.CheckoutSpec(
+            17L, "a".repeat(64), "basic_1", "MONTH", "USD", 0,
+            "Premium Owner", "owner@example.com", "Premium Company", "MX", null,
+            storedVersion, List.of("basic_hr")
+        ));
+        return request;
     }
 
     @Test

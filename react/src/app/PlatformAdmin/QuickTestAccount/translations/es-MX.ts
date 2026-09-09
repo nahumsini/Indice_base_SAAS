@@ -20,7 +20,7 @@ export const esMXQuickTestCopy: QuickTestAccountCopy = {
   scenario: {
     title: "¿Qué quieres probar?",
     description: "Índice preparará módulos, capacidad y vigencia recomendados.",
-    modules: (count) => `${count} módulo(s)`,
+    modules: (count) => `Módulos: ${count}`,
     employees: (count) => `${count} empleados`,
     days: (count) => `${count} días`,
     options: {

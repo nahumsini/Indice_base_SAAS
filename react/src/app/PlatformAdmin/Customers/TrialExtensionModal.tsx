@@ -1,3 +1,4 @@
+import { useCustomerAccountCopy } from "./useCustomerAccountCopy";
 import { useState, type FormEvent } from "react";
 import { CalendarClock, CalendarPlus, LoaderCircle, ShieldCheck } from "lucide-react";
 import {
@@ -28,6 +29,7 @@ export function TrialExtensionModal({
   onClose: () => void;
   onConfirm: (days: TrialExtensionDays) => Promise<void>;
 }) {
+  const { t, locale, number } = useCustomerAccountCopy();
   const [days] = useState<TrialExtensionDays>(15);
   const [consultationConfirmed, setConsultationConfirmed] = useState(false);
   const remainingDays = Math.max(0, company.trial_days_remaining ?? 0);
@@ -46,18 +48,14 @@ export function TrialExtensionModal({
       contentClassName="sm:max-w-2xl"
       tone="aqua"
       icon={<CalendarPlus className="h-5 w-5" />}
-      eyebrow={english ? "Controlled trial" : "Prueba controlada"}
-      title={english ? "Extend trial" : "Extender periodo de prueba"}
+      eyebrow={t("controlledTrial")}
+      title={t("extendTrial")}
       description={company.name}
-      footerSummary={
-        english
-          ? `Current balance: ${remainingDays} day${remainingDays === 1 ? "" : "s"}`
-          : `Saldo actual: ${remainingDays} día${remainingDays === 1 ? "" : "s"}`
-      }
+      footerSummary={t("trialBalance", { count: remainingDays })}
       footer={
         <>
           <button type="button" onClick={onClose} disabled={saving}>
-            {english ? "Cancel" : "Cancelar"}
+            {t("cancel")}
           </button>
           <button
             type="submit"
@@ -71,12 +69,8 @@ export function TrialExtensionModal({
               <CalendarPlus className="h-4 w-4" />
             )}
             {saving
-              ? english
-                ? "Extending..."
-                : "Extendiendo..."
-              : english
-                ? `Add ${days} days`
-                : `Agregar ${days} días`}
+              ? t("extending")
+              : t("addDays", { count: days })}
           </button>
         </>
       }
@@ -94,28 +88,22 @@ export function TrialExtensionModal({
                 <p className="truncate font-medium text-slate-900 dark:text-white">{company.name}</p>
                 <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                   {company.trial_ends_at
-                    ? `${english ? "Current end" : "Vencimiento actual"}: ${formatDate(company.trial_ends_at, english)}`
-                    : english
-                      ? "No expiration date"
-                      : "Sin fecha de vencimiento"}
+                    ? `${t("currentEnd")}: ${formatDate(company.trial_ends_at, locale)}`
+                    : t("noExpirationDate")}
                 </p>
               </div>
             </div>
             <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
               {remainingDays > 0
-                ? english
-                  ? `${remainingDays} days left`
-                  : `${remainingDays} días restantes`
-                : english
-                  ? "Expired"
-                  : "Vencida"}
+                ? t(new Intl.PluralRules(locale).select(remainingDays) === "one" ? "dayLeftOne" : "dayLeftOther", { count: remainingDays })
+                : t("expired")}
             </span>
           </div>
 
           <div className="mt-4 rounded-2xl border border-[#59C3A5] bg-[#59C3A5]/12 px-4 py-4 text-[#176B5B]">
-            <span className="block text-2xl font-medium tabular-nums">+15</span>
+            <span className="block text-2xl font-medium tabular-nums">+{number(15)}</span>
             <span className="mt-1 block text-xs font-medium">
-              {english ? "days, once only; maximum 30 total" : "días, una sola vez; máximo 30 en total"}
+              {t("trialLimit")}
             </span>
           </div>
 
@@ -126,16 +114,14 @@ export function TrialExtensionModal({
               onChange={(event) => setConsultationConfirmed(event.target.checked)}
               className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#177D66] focus:ring-[#59C3A5]"
             />
-            <span>{english ? "I confirm the consultation session was completed." : "Confirmo que la sesión de consultoría se realizó."}</span>
+            <span>{t("consultationConfirm")}</span>
           </label>
         </section>
 
         <div className="flex gap-3 rounded-xl border border-[#59C3A5]/30 bg-[#59C3A5]/10 px-4 py-3 text-sm leading-6 text-[#176B5B] dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/10 dark:text-[#8FE0CA]">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
-            {english
-              ? "Only the trial end date changes. Modules and users stay intact, and Stripe does not charge now."
-              : "Sólo cambia la fecha de fin de prueba. Los módulos y usuarios se conservan, y Stripe no realiza un cargo ahora."}
+            {t("trialPreservation")}
           </p>
         </div>
       </form>
@@ -143,8 +129,8 @@ export function TrialExtensionModal({
   );
 }
 
-function formatDate(value: string, english: boolean) {
-  return new Intl.DateTimeFormat(english ? "en-CA" : "es-MX", {
+function formatDate(value: string, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
     day: "2-digit",
     month: "short",
     year: "numeric",

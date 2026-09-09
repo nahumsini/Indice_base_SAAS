@@ -1,6 +1,7 @@
 package com.indice.erp.billing.lifecycle;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.billing.collection.PaymentCollectionAccessService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -22,12 +23,17 @@ public class CommercialLifecycleInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-        if (isRecoverySurface(request.getRequestURI())) return true;
+        var path = request.getRequestURI();
+        if (PaymentCollectionAccessService.permitsRecovery(request.getMethod(), path)) return true;
         var session = request.getSession(false);
         if (session == null) return true;
-        if (auth.isPublicDemoSession(session)) return true;
         var user = auth.currentUser(session).orElse(null);
         if (user == null) return true;
+        if (access.collectionAccess(user.companyId()) == PaymentCollectionAccessService.Access.PAYMENT_ONLY) {
+            writeRestricted(response, new CommercialAccessRestrictedException(CommercialLifecycleState.SUSPENDED, false, true));
+            return false;
+        }
+        if (isRecoverySurface(path) || auth.isPublicDemoSession(session)) return true;
         try {
             if (isRead(request.getMethod())) access.requireRead(user.companyId());
             else access.requireWrite(user.companyId());
@@ -58,7 +64,8 @@ public class CommercialLifecycleInterceptor implements HandlerInterceptor {
         response.setCharacterEncoding("UTF-8");
         response.setContentType("application/json");
         try {
-            response.getWriter().write("{\"error\":\"COMMERCIAL_ACCESS_RESTRICTED\",\"state\":\""
+            response.getWriter().write("{\"code\":\"" + (failure.paymentRequest() ? PaymentCollectionAccessService.OVERDUE : "COMMERCIAL_ACCESS_RESTRICTED")
+                + "\",\"error\":\"COMMERCIAL_ACCESS_RESTRICTED\",\"state\":\""
                 + failure.state().name() + "\",\"message\":\""
                 + (failure.writeOnly()
                     ? "La cuenta está temporalmente en modo de solo lectura."

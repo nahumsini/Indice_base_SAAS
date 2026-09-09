@@ -38,6 +38,14 @@ export interface BillingSubscriptionResponse {
   seat_limit_enforced: boolean;
 }
 
+/** Owner-only masked default-card status; SAVED is not a guarantee of future payment. */
+export interface BillingPaymentMethodResponse {
+  status: 'SAVED' | 'NO_CARD' | 'EXPIRED' | 'UNAVAILABLE';
+  brand: string | null;
+  last4: string | null;
+  checked_at: string | null;
+}
+
 export interface BillingPortalResponse {
   url: string;
 }
@@ -167,6 +175,10 @@ export const billingApi = {
 
   selection() {
     return apiClient<BillingSelectionResponse>(endpoints.billing.selection);
+  },
+
+  paymentMethod() {
+    return apiClient<BillingPaymentMethodResponse>(endpoints.billing.paymentMethod);
   },
 
   invoices() {

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
+import { createTypeScriptLoader } from './helpers/loadTypeScript.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
@@ -88,7 +89,9 @@ test('consultorias reutiliza el flujo Root y lo limita a la cartera del distribu
 
 test('el distribuidor que registra una sesion queda asignado automaticamente', () => {
   assert.match(consultingShared, /attendingConsultant=\{attendingConsultant\}/);
-  assert.match(sessionModal, /Se asigna automáticamente al distribuidor que la registra/);
+  const sessionCopy = createTypeScriptLoader()(resolve(root, 'src/app/PlatformAdmin/ConsultingTranslations/es-MX.ts')).copy;
+  assert.match(sessionCopy.autoAssignmentHelp, /Se asigna automáticamente al distribuidor que la registra/);
+  assert.match(sessionModal, /copy\.autoAssignmentHelp/);
   assert.match(sessionModal, /attendingConsultant \|\| value\.consultantEmail/);
   assert.match(sessionModal, /attendingConsultant \? \(/);
 });

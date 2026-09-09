@@ -1,6 +1,7 @@
 package com.indice.erp.billing.subscription;
 
 import com.indice.erp.billing.lifecycle.CommercialLifecycleProperties;
+import com.indice.erp.billing.collection.PaymentCollectionAccessService;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
@@ -15,19 +16,29 @@ public class CompanySubscriptionService implements CompanySubscriptionStatusProv
     private final JdbcTemplate jdbcTemplate;
     private final Clock clock;
     private final CommercialLifecycleProperties lifecycleProperties;
+    private final PaymentCollectionAccessService collection;
 
     public CompanySubscriptionService(
         JdbcTemplate jdbcTemplate,
         Clock clock,
-        CommercialLifecycleProperties lifecycleProperties
+        CommercialLifecycleProperties lifecycleProperties,
+        PaymentCollectionAccessService collection
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.clock = clock;
         this.lifecycleProperties = lifecycleProperties;
+        this.collection = collection;
     }
 
     @Override
     public CompanySubscriptionStatus currentStatus(long companyId) {
+        var decision = collection.access(companyId);
+        if (decision == PaymentCollectionAccessService.Access.PAYMENT_ONLY) {
+            return new CompanySubscriptionStatus("payment_required", "", null, false, PaymentCollectionAccessService.OVERDUE);
+        }
+        if (decision == PaymentCollectionAccessService.Access.GRACE) {
+            return new CompanySubscriptionStatus("payment_requested", "", null, true, "PAYMENT_REQUEST_GRACE");
+        }
         var rows = jdbcTemplate.query(
             """
                 SELECT
@@ -98,6 +109,8 @@ public class CompanySubscriptionService implements CompanySubscriptionStatusProv
                 WHERE state = 'TRIAL'
                   AND trial_ends_at IS NOT NULL
                   AND trial_ends_at < CURRENT_TIMESTAMP(6)
+                  AND NOT EXISTS (SELECT 1 FROM company_payment_requests request
+                    WHERE request.company_id = company_commercial_states.company_id AND request.status = 'OPEN')
                 """,
             Timestamp.from(now), Timestamp.from(retentionUntil), Timestamp.from(retentionUntil)
         );

@@ -1,3 +1,6 @@
+import { catalogProductLabel, catalogCapabilityLabel } from "./catalogLabels";
+import { useLanguage } from "../../shared/context";
+import { catalogLocale, getCatalogCopy } from "./translations";
 import { useEffect, useMemo, useState } from "react";
 import { BadgeCheck, Boxes, Calculator, Gift, LoaderCircle, PackageCheck, ReceiptText, Save, ShieldCheck } from "lucide-react";
 import {
@@ -8,6 +11,7 @@ import {
   type PlatformModule,
 } from "../../api/platformAdmin";
 import type { CommercialOfferEditorSection, CommercialOfferSelectionTarget } from "./CommercialOfferWorkspace";
+import { defaultAnnualDiscountPercent } from "./commercialOfferPresentation";
 
 const dollars = (cents?: number | null) => (cents == null ? "" : (cents / 100).toFixed(2));
 const cents = (value: string) => {
@@ -17,7 +21,7 @@ const cents = (value: string) => {
     ? Math.round(amount * 100)
     : null;
 };
-const currency = (value: number, english: boolean) => new Intl.NumberFormat(english ? "en-CA" : "es-MX", {
+const currency = (value: number, languageCode: string) => new Intl.NumberFormat(languageCode, {
   style: "currency",
   currency: "USD",
   maximumFractionDigits: 2,
@@ -34,6 +38,7 @@ export function CommercialOfferDetail({
   workingVersionId,
   stripeMode,
   liveSyncEnabled,
+  onBusyChange,
   onClose,
   onSaved,
   onSelect,
@@ -49,65 +54,87 @@ export function CommercialOfferDetail({
   workingVersionId: number | null;
   stripeMode: "TEST" | "LIVE";
   liveSyncEnabled: boolean;
+  onBusyChange: (busy: boolean) => void;
   onClose: () => void;
   onSaved: (catalog: PlatformCatalog) => void;
   onSelect: (target: CommercialOfferSelectionTarget) => void;
   english: boolean;
 }) {
-  const copy = english ? {
-    nameRequired: "Enter a commercial name.", packageMinimum: "A package must include at least two modules.",
-    saved: "Offer saved in the draft.", saveError: "The offer could not be saved.",
-    promotionRequired: "Complete the name, code and discount.", promotionSaved: "Promotion saved in the draft.",
-    promotionError: "The promotion could not be saved.", select: "Select an offer item.",
-    promotion: "Promotion", package: "Package", quantity: "Quantity product", module: "Individual module",
-    create: "Create a new offer", locked: "Prepare a change version to edit without affecting current customers.",
-    commercialName: "Commercial name", code: "Code", description: "Description", type: "Type",
-    percentage: "Percentage", fixed: "Fixed amount USD", discount: "Discount", stripePromotion: "Stripe Promotion ID",
-    monthly: "Monthly USD", annual: "Annual USD", stripePrice: "Stripe Price ID", appliesTo: "Applies to",
-    included: "Included modules", selected: "selected", quantityLabel: "Quantity product",
-    allPurchase: "With no selection, the promotion applies to the full purchase, including extra users.",
-    available: "Available to customers", unavailable: "Not published", save: "Save changes",
-    saveDetails: "Save information", savePricing: "Save and connect to Stripe TEST", saveAvailability: "Save availability", createOffer: "Create offer item",
-    annualCalculator: "Annual price calculator", annualCalculatorHelp: "Start from the monthly price and define the annual-plan discount.",
-    annualDiscount: "Annual discount", regularAnnual: "12 monthly payments", annualSavings: "Customer savings",
-    suggestedAnnual: "Suggested annual price", applyAnnual: "Apply annual price", calculatorNeedsMonthly: "Enter the monthly price to calculate the annual plan.",
-    discountSimulator: "Discount simulator", discountSimulatorHelp: "Test the promotion against a sample purchase without changing the saved discount.",
-    samplePurchase: "Sample purchase USD", discountApplied: "Discount applied", finalPrice: "Final customer price",
-    availabilityTitle: "Customer visibility", availabilityHelp: "When enabled, this item can be included in the offer customers see. Disabling it does not delete its configuration.",
-    detailsHelp: "Edit only the commercial identity and composition of this item.", pricingHelp: "Enter the pre-tax base prices. Stripe creates the recurring rates automatically.",
-    priceRequired: "Enter valid monthly and annual prices.", stripeSynced: "Prices connected to Stripe TEST.",
-    taxTitle: "Do not add tax to these prices", taxHelp: "Stripe Tax adds GST, HST, PST/QST or VAT at Checkout only when applicable, based on the customer's billing address and the company's active tax registrations.",
-    taxExclusive: "Tax exclusive", stripeTest: "Stripe TEST", taxCode: "SaaS · business use", notConnected: "Not connected yet",
-    liveConfirmation: "LIVE confirmation", liveConfirmationHelp: "Type the exact phrase to authorize creation of real Stripe prices.",
-    liveBlocked: "LIVE catalog synchronization is disabled for this deployment.", livePhrase: "PUBLICAR EN STRIPE LIVE",
-    replacementHelp: "Changing an amount creates a new Stripe Price. Existing subscriptions keep their previous price.",
-  } : {
-    nameRequired: "Escribe un nombre comercial.", packageMinimum: "Un paquete debe incluir por lo menos dos módulos.",
-    saved: "Oferta guardada en el borrador.", saveError: "No se pudo guardar la oferta.",
-    promotionRequired: "Completa nombre, código y descuento.", promotionSaved: "Promoción guardada en el borrador.",
-    promotionError: "No se pudo guardar la promoción.", select: "Selecciona un elemento de la oferta.",
-    promotion: "Promoción", package: "Paquete", quantity: "Producto por cantidad", module: "Módulo individual",
-    create: "Crear nueva oferta", locked: "Prepara una versión de cambios para editar sin afectar a los clientes actuales.",
-    commercialName: "Nombre comercial", code: "Código", description: "Descripción", type: "Tipo",
-    percentage: "Porcentaje", fixed: "Importe fijo USD", discount: "Descuento", stripePromotion: "Stripe Promotion ID",
-    monthly: "Mensual USD", annual: "Anual USD", stripePrice: "Stripe Price ID", appliesTo: "Aplica a",
-    included: "Módulos incluidos", selected: "seleccionados", quantityLabel: "Producto por cantidad",
-    allPurchase: "Sin selección, la promoción aplica a toda la compra, incluido el usuario adicional.",
-    available: "Disponible para clientes", unavailable: "No publicado", save: "Guardar cambios",
-    saveDetails: "Guardar información", savePricing: "Guardar y conectar con Stripe TEST", saveAvailability: "Guardar disponibilidad", createOffer: "Crear elemento",
-    annualCalculator: "Calculadora de precio anual", annualCalculatorHelp: "Parte del precio mensual y define el descuento del plan anual.",
-    annualDiscount: "Descuento anual", regularAnnual: "12 mensualidades", annualSavings: "Ahorro del cliente",
-    suggestedAnnual: "Precio anual sugerido", applyAnnual: "Aplicar precio anual", calculatorNeedsMonthly: "Ingresa el precio mensual para calcular el plan anual.",
-    discountSimulator: "Simulador de descuento", discountSimulatorHelp: "Prueba la promoción sobre una compra de ejemplo sin cambiar el descuento guardado.",
-    samplePurchase: "Compra de ejemplo USD", discountApplied: "Descuento aplicado", finalPrice: "Precio final del cliente",
-    availabilityTitle: "Visibilidad para clientes", availabilityHelp: "Cuando está habilitado, este elemento puede incluirse en la oferta que ven los clientes. Desactivarlo no elimina su configuración.",
-    detailsHelp: "Edita únicamente la identidad comercial y la composición de este elemento.", pricingHelp: "Ingresa los precios base antes de impuestos. Stripe creará las tarifas recurrentes automáticamente.",
-    priceRequired: "Ingresa precios mensual y anual válidos.", stripeSynced: "Precios conectados con Stripe TEST.",
-    taxTitle: "No sumes el impuesto a estos precios", taxHelp: "Stripe Tax agrega GST, HST, PST/QST o IVA al pagar sólo cuando corresponde, según el domicilio de facturación del cliente y los registros fiscales activos de la empresa.",
-    taxExclusive: "Impuesto exclusivo", stripeTest: "Stripe TEST", taxCode: "SaaS · uso empresarial", notConnected: "Aún sin conectar",
-    liveConfirmation: "Confirmación LIVE", liveConfirmationHelp: "Escribe la frase exacta para autorizar la creación de precios reales en Stripe.",
-    liveBlocked: "La sincronización LIVE del catálogo está deshabilitada en este despliegue.", livePhrase: "PUBLICAR EN STRIPE LIVE",
-    replacementHelp: "Si cambias un importe se crea un nuevo Price en Stripe. Las suscripciones existentes conservan su precio anterior.",
+  const { currentLanguage } = useLanguage();
+  const languageCode = catalogLocale(currentLanguage.code);
+  const copy = {
+    nameRequired: getCatalogCopy(languageCode).enterACommercialName,
+    packageMinimum: getCatalogCopy(languageCode).aPackageMustIncludeAtLeastTwoModules,
+    saved: getCatalogCopy(languageCode).offerSavedInTheDraft,
+    saveError: getCatalogCopy(languageCode).theOfferCouldNotBeSaved,
+    pricesSavedRefreshFailed: getCatalogCopy(languageCode).pricesWereSavedInTheDraftButThe,
+    pricesConnectedRefreshFailed: getCatalogCopy(languageCode).pricesWereConnectedToStripeButTheCatalog,
+    promotionRequired: getCatalogCopy(languageCode).completeTheNameCodeAndDiscount,
+    promotionSaved: getCatalogCopy(languageCode).promotionSavedInTheDraft,
+    promotionError: getCatalogCopy(languageCode).thePromotionCouldNotBeSaved,
+    select: getCatalogCopy(languageCode).selectAnOfferItem,
+    promotion: getCatalogCopy(languageCode).promotion,
+    package: getCatalogCopy(languageCode).package,
+    quantity: getCatalogCopy(languageCode).quantityProduct,
+    module: getCatalogCopy(languageCode).individualModule,
+    create: getCatalogCopy(languageCode).createANewOffer,
+    locked: getCatalogCopy(languageCode).prepareAChangeVersionToEditWithoutAffecting,
+    commercialName: getCatalogCopy(languageCode).commercialName,
+    code: getCatalogCopy(languageCode).code,
+    description: getCatalogCopy(languageCode).description,
+    type: getCatalogCopy(languageCode).type,
+    percentage: getCatalogCopy(languageCode).percentage,
+    fixed: getCatalogCopy(languageCode).fixedAmountUSD,
+    discount: getCatalogCopy(languageCode).discount,
+    stripePromotion: getCatalogCopy(languageCode).stripePromotionID,
+    monthly: getCatalogCopy(languageCode).monthlyUSD,
+    annual: getCatalogCopy(languageCode).annualUSD,
+    stripePrice: getCatalogCopy(languageCode).stripePriceID,
+    appliesTo: getCatalogCopy(languageCode).appliesTo,
+    included: getCatalogCopy(languageCode).includedModules,
+    selected: getCatalogCopy(languageCode).selected,
+    quantityLabel: getCatalogCopy(languageCode).quantityProduct,
+    allPurchase: getCatalogCopy(languageCode).withNoSelectionThePromotionAppliesToThe,
+    available: getCatalogCopy(languageCode).availableToCustomers,
+    unavailable: getCatalogCopy(languageCode).notPublished,
+    save: getCatalogCopy(languageCode).saveChanges,
+    saveDetails: getCatalogCopy(languageCode).saveInformation,
+    savePricing: getCatalogCopy(languageCode).savePrices,
+    connectPricing: getCatalogCopy(languageCode).saveAndConnectToStripeTEST,
+    saveAvailability: getCatalogCopy(languageCode).saveAvailability,
+    createOffer: getCatalogCopy(languageCode).createOfferItem,
+    directConnection: getCatalogCopy(languageCode).connectThisItemSeparately,
+    directConnectionHelp: getCatalogCopy(languageCode).youCanConnectThisItemNowOrPublish,
+    annualCalculator: getCatalogCopy(languageCode).annualPriceCalculator,
+    annualCalculatorHelp: getCatalogCopy(languageCode).startFromTheMonthlyPriceAndDefineThe,
+    annualDiscount: getCatalogCopy(languageCode).annualDiscount,
+    regularAnnual: getCatalogCopy(languageCode).twelveMonthlyPayments,
+    annualSavings: getCatalogCopy(languageCode).customerSavings,
+    suggestedAnnual: getCatalogCopy(languageCode).suggestedAnnualPrice,
+    applyAnnual: getCatalogCopy(languageCode).applyAnnualPrice,
+    calculatorNeedsMonthly: getCatalogCopy(languageCode).enterTheMonthlyPriceToCalculateTheAnnual,
+    discountSimulator: getCatalogCopy(languageCode).discountSimulator,
+    discountSimulatorHelp: getCatalogCopy(languageCode).testThePromotionAgainstASamplePurchaseWithout,
+    samplePurchase: getCatalogCopy(languageCode).samplePurchaseUSD,
+    discountApplied: getCatalogCopy(languageCode).discountApplied,
+    finalPrice: getCatalogCopy(languageCode).finalCustomerPrice,
+    availabilityTitle: getCatalogCopy(languageCode).customerVisibility,
+    availabilityHelp: getCatalogCopy(languageCode).whenEnabledThisItemCanBeIncludedIn,
+    detailsHelp: getCatalogCopy(languageCode).editOnlyTheCommercialIdentityAndCompositionOf,
+    pricingHelp: getCatalogCopy(languageCode).saveThePreTaxPricesInTheDraft,
+    priceRequired: getCatalogCopy(languageCode).enterValidMonthlyAndAnnualPrices,
+    stripeSynced: getCatalogCopy(languageCode).pricesConnectedToStripeTEST,
+    taxTitle: getCatalogCopy(languageCode).doNotAddTaxToThesePrices,
+    taxHelp: getCatalogCopy(languageCode).stripeTaxAddsGSTHSTPSTQSTOr,
+    taxExclusive: getCatalogCopy(languageCode).taxExclusive,
+    stripeTest: getCatalogCopy(languageCode).stripeTEST,
+    taxCode: getCatalogCopy(languageCode).saasBusinessUse,
+    notConnected: getCatalogCopy(languageCode).notConnectedYet,
+    liveConfirmation: getCatalogCopy(languageCode).liveConfirmation,
+    liveConfirmationHelp: getCatalogCopy(languageCode).typeTheExactPhraseToAuthorizeCreationOf,
+    liveBlocked: getCatalogCopy(languageCode).liveCatalogSynchronizationIsDisabledForThisDeployment,
+    livePhrase: getCatalogCopy(languageCode).publicarENSTRIPELIVE,
+    replacementHelp: getCatalogCopy(languageCode).changingAnAmountCreatesANewStripePrice
   };
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -122,10 +149,14 @@ export function CommercialOfferDetail({
   const [discountType, setDiscountType] = useState<"PERCENT" | "FIXED">("PERCENT");
   const [discountValue, setDiscountValue] = useState("");
   const [promotionStripe, setPromotionStripe] = useState("");
-  const [annualDiscount, setAnnualDiscount] = useState("15");
+  const [annualDiscount, setAnnualDiscount] = useState(() => String(defaultAnnualDiscountPercent(product, mode === "new-package")));
   const [simulationBase, setSimulationBase] = useState("1000");
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  useEffect(() => {
+    onBusyChange(saving);
+    return () => onBusyChange(false);
+  }, [saving, onBusyChange]);
   const directModules = useMemo(
     () =>
       (catalog?.products ?? []).filter(
@@ -169,10 +200,10 @@ export function CommercialOfferDetail({
         : String((promotion?.percent_basis_points || 0) / 100),
     );
     setPromotionStripe(creatingPromotion ? "" : promotion?.external_promotion_code_id || "");
-    setAnnualDiscount("15");
+    setAnnualDiscount(String(defaultAnnualDiscountPercent(product, creatingPackage)));
     setSimulationBase("1000");
     setFeedback(null);
-  }, [mode, monthPrice?.id, product?.id, promotion?.id, yearPrice?.id]);
+  }, [mode, monthPrice?.id, product?.id, product?.commercial_kind, product?.product_type, product?.product_code, promotion?.id, yearPrice?.id]);
 
   const refresh = async () => {
     const next = await platformAdminApi.getCatalog();
@@ -213,19 +244,45 @@ export function CommercialOfferDetail({
       const next = await refresh();
       const saved = next.products.find((candidate) => candidate.id === productId) ||
         next.products.find((candidate) => candidate.display_name === name.trim() && candidate.catalog_version_id === workingVersionId);
-      if (!saved) throw new Error("No se encontró el producto guardado.");
+      if (!saved) throw new Error(getCatalogCopy(languageCode).savedProductMissing);
       onSelect({ type: "product", id: saved.id });
       setFeedback(copy.saved);
       onClose();
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : copy.saveError);
+      setFeedback(copy.saveError);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const savePrices = async () => {
+    if (!product || saving) return;
+    const monthlyAmount = cents(monthly);
+    const annualAmount = cents(yearly);
+    if (monthlyAmount == null || annualAmount == null || monthlyAmount <= 0 || annualAmount <= 0) {
+      return setFeedback(copy.priceRequired);
+    }
+    setSaving(true);
+    setFeedback(null);
+    let pricesSaved = false;
+    try {
+      await platformAdminApi.saveCatalogProductPrices(product.id, {
+        monthly_amount_cents: monthlyAmount,
+        annual_amount_cents: annualAmount,
+      });
+      pricesSaved = true;
+      await refresh();
+      setFeedback(copy.saved);
+      onClose();
+    } catch (error) {
+      setFeedback(pricesSaved ? copy.pricesSavedRefreshFailed : copy.saveError);
     } finally {
       setSaving(false);
     }
   };
 
   const synchronizePrices = async () => {
-    if (!product) return;
+    if (!product || saving) return;
     const monthlyAmount = cents(monthly);
     const annualAmount = cents(yearly);
     if (monthlyAmount == null || annualAmount == null || monthlyAmount <= 0 || annualAmount <= 0) {
@@ -237,6 +294,7 @@ export function CommercialOfferDetail({
     }
     setSaving(true);
     setFeedback(null);
+    let pricesConnected = false;
     try {
       const result = await platformAdminApi.synchronizeCatalogProductPrices(product.id, {
         monthly_amount_cents: monthlyAmount,
@@ -244,14 +302,15 @@ export function CommercialOfferDetail({
         target_mode: stripeMode,
         ...(stripeMode === "LIVE" ? { confirmation: liveConfirmation } : {}),
       });
+      pricesConnected = true;
       setMonthlyStripe(result.monthly.external_price_id);
       setYearlyStripe(result.annual.external_price_id);
       await refresh();
       setFeedback(stripeMode === "LIVE"
-        ? (english ? "Prices verified in Stripe LIVE." : "Precios verificados en Stripe LIVE.")
+        ? (getCatalogCopy(languageCode).pricesVerifiedInStripeLIVE)
         : copy.stripeSynced);
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : copy.saveError);
+      setFeedback(pricesConnected ? copy.pricesConnectedRefreshFailed : copy.saveError);
     } finally {
       setSaving(false);
     }
@@ -277,7 +336,7 @@ export function CommercialOfferDetail({
       if (saved.id) onSelect({ type: "promotion", id: saved.id });
       setFeedback(copy.promotionSaved);
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : copy.promotionError);
+      setFeedback(copy.promotionError);
     } finally {
       setSaving(false);
     }
@@ -292,8 +351,9 @@ export function CommercialOfferDetail({
   const showAvailability = isCreating || focusSection === "availability";
   const Icon = isPromotion ? Gift : isPackage ? PackageCheck : Boxes;
   const feedbackSuccess = feedback === copy.saved || feedback === copy.promotionSaved || feedback === copy.stripeSynced;
+  const feedbackWarning = feedback === copy.pricesSavedRefreshFailed || feedback === copy.pricesConnectedRefreshFailed;
   const stripeModeLabel = `Stripe ${stripeMode}`;
-  const liveSuccess = english ? "Prices verified in Stripe LIVE." : "Precios verificados en Stripe LIVE.";
+  const liveSuccess = getCatalogCopy(languageCode).pricesVerifiedInStripeLIVE;
   const monthlyValue = Math.max(0, Number(monthly) || 0);
   const annualDiscountValue = Math.min(100, Math.max(0, Number(annualDiscount) || 0));
   const regularAnnualValue = monthlyValue * 12;
@@ -308,15 +368,13 @@ export function CommercialOfferDetail({
   const saveLabel = isCreating
     ? copy.createOffer
     : focusSection === "pricing"
-      ? stripeMode === "LIVE"
-        ? (english ? "Verify and connect to Stripe LIVE" : "Verificar y conectar con Stripe LIVE")
-        : copy.savePricing
+      ? isPromotion ? copy.save : copy.savePricing
       : focusSection === "availability"
         ? copy.saveAvailability
         : copy.saveDetails;
 
   return (
-    <div className="min-w-0 p-5 lg:p-7">
+    <fieldset disabled={saving} aria-busy={saving} className="min-w-0 border-0 p-5 lg:p-7">
       {isCreating ? <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-start sm:justify-between dark:border-slate-800">
         <div className="flex items-start gap-3">
           <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#E9F8F3] text-[#177D66]"><Icon className="h-5 w-5" /></span>
@@ -331,11 +389,11 @@ export function CommercialOfferDetail({
           <p className="mb-4 text-sm text-slate-500">{copy.detailsHelp}</p>
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="space-y-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">{copy.commercialName}<input value={name} disabled={!editable} onChange={(event) => setName(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 outline-none focus:border-[#59C3A5] disabled:bg-slate-50 dark:border-slate-700 dark:bg-slate-900" /></label>
-            {isPromotion ? <label className="space-y-1.5 text-sm font-medium text-slate-700">{copy.code}<input value={promotionCode} disabled={!editable} onChange={(event) => setPromotionCode(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 uppercase outline-none focus:border-[#59C3A5]" placeholder="CRECE20" /></label> : null}
+            {isPromotion ? <label className="space-y-1.5 text-sm font-medium text-slate-700">{copy.code}<input value={promotionCode} disabled={!editable} onChange={(event) => setPromotionCode(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 uppercase outline-none focus:border-[#59C3A5]" placeholder={getCatalogCopy(languageCode).promotionExample} /></label> : null}
             <label className="space-y-1.5 text-sm font-medium text-slate-700 sm:col-span-2">{copy.description}<textarea value={description} disabled={!editable} onChange={(event) => setDescription(event.target.value)} rows={3} className="w-full rounded-xl border border-slate-200 p-3 outline-none focus:border-[#59C3A5] disabled:bg-slate-50 dark:border-slate-700 dark:bg-slate-900" /></label>
           </div>
 
-          {(isPackage || isPromotion) ? <div className="mt-6"><div className="flex items-center justify-between"><h4 className="font-semibold text-slate-950 dark:text-white">{isPromotion ? copy.appliesTo : copy.included}</h4><span className="text-xs text-slate-500">{included.length} {copy.selected}</span></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{(isPromotion ? promotionCandidates : directModules).map((candidate) => <label key={candidate.id} className={`flex items-center gap-3 rounded-xl border p-3 text-sm ${included.includes(candidate.product_code) ? "border-[#59C3A5] bg-[#E9F8F3]" : "border-slate-200"}`}><input type="checkbox" disabled={!editable} checked={included.includes(candidate.product_code)} onChange={() => setIncluded((current) => current.includes(candidate.product_code) ? current.filter((code) => code !== candidate.product_code) : [...current, candidate.product_code])} className="h-4 w-4 accent-[#177D66]" /><span><strong className="block text-slate-900">{candidate.display_name}</strong><small className="text-slate-500">{candidate.commercial_kind === "SEAT" ? copy.quantityLabel : candidate.commercial_kind === "PACKAGE" ? copy.package : candidate.capabilities.map((slug) => modules.find((module) => module.slug === slug)?.name || slug).join(", ")}</small></span></label>)}</div>{isPromotion ? <p className="mt-2 text-xs text-slate-500">{copy.allPurchase}</p> : null}</div> : null}
+          {(isPackage || isPromotion) ? <div className="mt-6"><div className="flex items-center justify-between"><h4 className="font-semibold text-slate-950 dark:text-white">{isPromotion ? copy.appliesTo : copy.included}</h4><span className="text-xs text-slate-500">{included.length} {copy.selected}</span></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{(isPromotion ? promotionCandidates : directModules).map((candidate) => <label key={candidate.id} className={`flex items-center gap-3 rounded-xl border p-3 text-sm ${included.includes(candidate.product_code) ? "border-[#59C3A5] bg-[#E9F8F3]" : "border-slate-200"}`}><input type="checkbox" disabled={!editable} checked={included.includes(candidate.product_code)} onChange={() => setIncluded((current) => current.includes(candidate.product_code) ? current.filter((code) => code !== candidate.product_code) : [...current, candidate.product_code])} className="h-4 w-4 accent-[#177D66]" /><span><strong className="block text-slate-900">{catalogProductLabel(candidate, languageCode)}</strong><small className="text-slate-500">{candidate.commercial_kind === "SEAT" ? copy.quantityLabel : candidate.commercial_kind === "PACKAGE" ? copy.package : candidate.capabilities.map((slug) => catalogCapabilityLabel(slug, languageCode)).join(", ")}</small></span></label>)}</div>{isPromotion ? <p className="mt-2 text-xs text-slate-500">{copy.allPurchase}</p> : null}</div> : null}
         </section>
       ) : null}
 
@@ -352,7 +410,7 @@ export function CommercialOfferDetail({
               <div className="rounded-2xl border border-[#59C3A5]/35 bg-[#F3FBF8] p-4">
                 <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-[#177D66] shadow-sm"><Calculator className="h-5 w-5" /></span><div><h4 className="font-medium text-slate-950">{copy.discountSimulator}</h4><p className="mt-1 text-sm text-slate-500">{copy.discountSimulatorHelp}</p></div></div>
                 <label className="mt-4 block text-sm font-medium text-slate-700">{copy.samplePurchase}<input value={simulationBase} onChange={(event) => setSimulationBase(event.target.value)} type="number" min="0" step="0.01" className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3" /></label>
-                <div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-white p-3"><p className="text-xs text-slate-500">{copy.samplePurchase}</p><p className="mt-1 font-medium text-slate-950">{currency(simulationBaseValue, english)}</p></div><div className="rounded-xl bg-white p-3"><p className="text-xs text-slate-500">{copy.discountApplied}</p><p className="mt-1 font-medium text-emerald-700">−{currency(simulatedDiscountValue, english)}</p></div><div className="rounded-xl bg-white p-3"><p className="text-xs text-slate-500">{copy.finalPrice}</p><p className="mt-1 font-medium text-slate-950">{currency(simulatedFinalValue, english)}</p></div></div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-white p-3"><p className="text-xs text-slate-500">{copy.samplePurchase}</p><p className="mt-1 font-medium text-slate-950">{currency(simulationBaseValue, languageCode)}</p></div><div className="rounded-xl bg-white p-3"><p className="text-xs text-slate-500">{copy.discountApplied}</p><p className="mt-1 font-medium text-emerald-700">−{currency(simulatedDiscountValue, languageCode)}</p></div><div className="rounded-xl bg-white p-3"><p className="text-xs text-slate-500">{copy.finalPrice}</p><p className="mt-1 font-medium text-slate-950">{currency(simulatedFinalValue, languageCode)}</p></div></div>
               </div>
             </>
           ) : (
@@ -369,21 +427,28 @@ export function CommercialOfferDetail({
                   </div>
                 </div>
               </div>
-              {stripeMode === "LIVE" ? <div className="rounded-2xl border border-rose-300 bg-rose-50 p-4"><label className="text-sm font-semibold text-rose-900">{copy.liveConfirmation}<input value={liveConfirmation} disabled={!editable || !liveSyncEnabled} onChange={(event) => setLiveConfirmation(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-rose-200 bg-white px-3 font-mono" placeholder={copy.livePhrase} /></label><p className="mt-2 text-xs text-rose-700">{liveSyncEnabled ? copy.liveConfirmationHelp : copy.liveBlocked}</p></div> : null}
               <div className="grid gap-4 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2 dark:bg-slate-950/40">
                 {[[copy.monthly, monthly, setMonthly, monthlyStripe], [copy.annual, yearly, setYearly, yearlyStripe]].map(([label, amount, setAmount, stripe]) => (
                   <div key={label as string} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
                     <label className="text-sm font-semibold text-slate-900 dark:text-white">{label as string}<input value={amount as string} disabled={!editable} onChange={(event) => (setAmount as (value: string) => void)(event.target.value)} type="number" min="0" step="0.01" className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3" /></label>
-                    <div className="mt-3"><p className="text-xs font-medium text-slate-500">{copy.stripePrice}</p><div className={`mt-1.5 flex min-h-10 items-center rounded-xl border px-3 text-sm ${stripe ? "border-emerald-200 bg-emerald-50 font-mono text-emerald-800" : "border-slate-200 bg-slate-50 text-slate-500"}`}>{(stripe as string) || copy.notConnected}</div></div>
+                    <div className="mt-3"><p className="text-xs font-medium text-slate-500">{copy.stripePrice}</p><div className="mt-1.5 flex min-h-10 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 font-mono text-sm text-slate-500">{(stripe as string) || copy.notConnected}</div></div>
                   </div>
                 ))}
               </div>
               <div className="rounded-2xl border border-[#59C3A5]/35 bg-[#F3FBF8] p-4">
                 <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-[#177D66] shadow-sm"><Calculator className="h-5 w-5" /></span><div><h4 className="font-medium text-slate-950">{copy.annualCalculator}</h4><p className="mt-1 text-sm text-slate-500">{copy.annualCalculatorHelp}</p></div></div>
                 <label className="mt-4 block max-w-xs text-sm font-medium text-slate-700">{copy.annualDiscount} %<input value={annualDiscount} onChange={(event) => setAnnualDiscount(event.target.value)} type="number" min="0" max="100" step="0.5" className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3" /></label>
-                {monthlyValue > 0 ? <><div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-white p-3"><p className="text-xs text-slate-500">{copy.regularAnnual}</p><p className="mt-1 font-medium text-slate-950">{currency(regularAnnualValue, english)}</p></div><div className="rounded-xl bg-white p-3"><p className="text-xs text-slate-500">{copy.annualSavings}</p><p className="mt-1 font-medium text-emerald-700">{currency(annualSavingsValue, english)}</p></div><div className="rounded-xl bg-white p-3"><p className="text-xs text-slate-500">{copy.suggestedAnnual}</p><p className="mt-1 font-medium text-slate-950">{currency(suggestedAnnualValue, english)}</p></div></div><button type="button" disabled={!editable} onClick={() => setYearly(suggestedAnnualValue.toFixed(2))} className="mt-4 inline-flex h-10 items-center justify-center rounded-xl border border-[#59C3A5] bg-white px-4 text-sm font-medium text-[#177D66] hover:bg-[#E9F8F3] disabled:opacity-40">{copy.applyAnnual}</button></> : <p className="mt-4 rounded-xl bg-white px-4 py-3 text-sm text-slate-500">{copy.calculatorNeedsMonthly}</p>}
+                {monthlyValue > 0 ? <><div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-white p-3"><p className="text-xs text-slate-500">{copy.regularAnnual}</p><p className="mt-1 font-medium text-slate-950">{currency(regularAnnualValue, languageCode)}</p></div><div className="rounded-xl bg-white p-3"><p className="text-xs text-slate-500">{copy.annualSavings}</p><p className="mt-1 font-medium text-emerald-700">{currency(annualSavingsValue, languageCode)}</p></div><div className="rounded-xl bg-white p-3"><p className="text-xs text-slate-500">{copy.suggestedAnnual}</p><p className="mt-1 font-medium text-slate-950">{currency(suggestedAnnualValue, languageCode)}</p></div></div><button type="button" disabled={!editable} onClick={() => setYearly(suggestedAnnualValue.toFixed(2))} className="mt-4 inline-flex h-10 items-center justify-center rounded-xl border border-[#59C3A5] bg-white px-4 text-sm font-medium text-[#177D66] hover:bg-[#E9F8F3] disabled:opacity-40">{copy.applyAnnual}</button></> : <p className="mt-4 rounded-xl bg-white px-4 py-3 text-sm text-slate-500">{copy.calculatorNeedsMonthly}</p>}
               </div>
               <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs leading-5 text-slate-500">{copy.replacementHelp}</p>
+              <details className="rounded-xl border border-slate-200 p-4">
+                <summary className="cursor-pointer text-sm font-medium text-slate-700">{copy.directConnection}</summary>
+                <p className="mt-3 text-sm text-slate-500">{copy.directConnectionHelp}</p>
+                {stripeMode === "LIVE" ? <div className="mt-3 rounded-xl border border-rose-300 bg-rose-50 p-4"><label className="text-sm font-medium text-rose-900">{copy.liveConfirmation}<input value={liveConfirmation} disabled={!editable || !liveSyncEnabled} onChange={(event) => setLiveConfirmation(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-rose-200 bg-white px-3 font-mono" placeholder={copy.livePhrase} /></label><p className="mt-2 text-xs text-rose-700">{liveSyncEnabled ? copy.liveConfirmationHelp : copy.liveBlocked}</p></div> : null}
+                <button type="button" disabled={!editable || saving || (stripeMode === "LIVE" && (!liveSyncEnabled || liveConfirmation !== copy.livePhrase))} onClick={() => void synchronizePrices()} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#59C3A5]/40 px-4 py-2 text-sm font-medium text-[#177D66] disabled:opacity-40">
+                  <ShieldCheck className="h-4 w-4" />{stripeMode === "LIVE" ? (getCatalogCopy(languageCode).verifyAndConnectToStripeLIVE) : copy.connectPricing}
+                </button>
+              </details>
             </>
           )}
         </section>
@@ -397,8 +462,8 @@ export function CommercialOfferDetail({
         </section>
       ) : null}
 
-      <div className="mt-6 flex justify-end border-t border-slate-200 pt-5 dark:border-slate-800"><button type="button" disabled={!editable || saving} onClick={() => void (isPromotion ? savePromotion() : focusSection === "pricing" ? synchronizePrices() : saveProduct())} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-5 py-2 text-center text-sm font-semibold text-white hover:bg-[#126653] disabled:opacity-40">{saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{saveLabel}</button></div>
-      {feedback ? <p role="status" className={`mt-3 rounded-xl px-4 py-3 text-sm ${feedbackSuccess || feedback === liveSuccess ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-700"}`}>{feedbackSuccess || feedback === liveSuccess ? <BadgeCheck className="mr-2 inline h-4 w-4" /> : null}{feedback}</p> : null}
-    </div>
+      <div className="mt-6 flex justify-end border-t border-slate-200 pt-5 dark:border-slate-800"><button type="button" disabled={!editable || saving} onClick={() => void (isPromotion ? savePromotion() : focusSection === "pricing" ? savePrices() : saveProduct())} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-5 py-2 text-center text-sm font-semibold text-white hover:bg-[#126653] disabled:opacity-40">{saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{saveLabel}</button></div>
+      {feedback ? <p role="status" className={`mt-3 rounded-xl px-4 py-3 text-sm ${feedbackSuccess || feedback === liveSuccess ? "bg-emerald-50 text-emerald-800" : feedbackWarning ? "bg-amber-50 text-amber-800" : "bg-rose-50 text-rose-700"}`}>{feedbackSuccess || feedback === liveSuccess ? <BadgeCheck className="mr-2 inline h-4 w-4" /> : null}{feedback}</p> : null}
+    </fieldset>
   );
 }

@@ -1,5 +1,6 @@
 import { ApiClientError, apiClient } from '../lib/apiClient';
 import { endpoints } from './endpoints';
+import type { PaymentRequestWorkspace } from './paymentRequests';
 
 export interface PlatformAdminContext {
   role: string;
@@ -656,6 +657,20 @@ export interface PlatformCatalogValidation {
   stripe_account_id?: string | null;
 }
 
+export interface PlatformCatalogPublicationRequest {
+  target_mode: 'TEST' | 'LIVE';
+  confirmation?: string;
+}
+
+export interface PlatformCatalogPublication {
+  catalog_version_id: number;
+  version_code: string;
+  status: 'ACTIVE';
+  published: true;
+  stripe_mode: 'TEST' | 'LIVE';
+  synchronized_products: number;
+}
+
 export interface PlatformCatalogStripePriceSync {
   catalog_product_id: number;
   stripe_product_id: string;
@@ -1112,6 +1127,13 @@ export const platformAdminApi = {
   extendCompanyTrial: (companyId: number, days: 15) => idempotentMutation<PlatformTrialExtensionResult>(
     `${companyPath(companyId)}/trial-extension`, 'PATCH', { days, consultation_confirmed: true },
   ),
+  getPaymentRequest: (companyId: number) => apiClient<PaymentRequestWorkspace>(`${companyPath(companyId)}/payment-request`),
+  requestPayment: (companyId: number, payload: { reason: string; expected_quote_token: string }) => idempotentMutation<PaymentRequestWorkspace>(
+    `${companyPath(companyId)}/payment-request`, 'POST', payload,
+  ),
+  extendPaymentRequest: (companyId: number, payload: { reason: string; expected_request_id: string; expected_version: number }) => idempotentMutation<PaymentRequestWorkspace>(
+    `${companyPath(companyId)}/payment-request/extend`, 'POST', payload,
+  ),
   getBilling: (options: PlatformBillingQuery = {}) => {
     const parameters = new URLSearchParams({
       q: options.query ?? '',
@@ -1148,6 +1170,13 @@ export const platformAdminApi = {
     published: true;
     stripe_mode: 'TEST' | 'LIVE';
   }>(`${endpoints.platformAdmin.catalog}/drafts/${versionId}/publish`, { method: 'POST' }),
+  synchronizeAndPublishCatalogDraft: (
+    versionId: number,
+    payload: PlatformCatalogPublicationRequest,
+  ) => apiClient<PlatformCatalogPublication>(
+    `${endpoints.platformAdmin.catalog}/drafts/${versionId}/synchronize-and-publish`,
+    { method: 'POST', body: JSON.stringify(payload) },
+  ),
   updateCatalogProduct: (
     productId: number,
     payload: PlatformCatalogProductPayload,
@@ -1180,6 +1209,16 @@ export const platformAdminApi = {
     `${endpoints.platformAdmin.catalog}/products/${productId}/stripe-prices/synchronize`,
     { method: 'POST', body: JSON.stringify(payload) },
   ),
+  saveCatalogProductPrices: (
+    productId: number,
+    payload: { monthly_amount_cents: number; annual_amount_cents: number },
+  ) => apiClient<{
+    catalog_product_id: number;
+    monthly: Partial<PlatformCatalogPrice>;
+    annual: Partial<PlatformCatalogPrice>;
+  }>(`${endpoints.platformAdmin.catalog}/products/${productId}/prices`, {
+    method: 'PUT', body: JSON.stringify(payload),
+  }),
   createCatalogPromotion: (payload: PlatformCatalogPromotionPayload) => apiClient<Partial<PlatformCatalogPromotion>>(
     `${endpoints.platformAdmin.catalog}/promotions`,
     { method: 'POST', body: JSON.stringify(payload) },

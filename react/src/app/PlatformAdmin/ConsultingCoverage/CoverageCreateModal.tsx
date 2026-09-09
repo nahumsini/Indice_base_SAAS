@@ -1,7 +1,10 @@
+import {
+  useConsultingCopy,
+} from "../ConsultingTranslations";
 import { useState, type FormEvent } from "react";
 import { MapPinned } from "lucide-react";
 import { IndiceModalFrame } from "../../components/indice-modal";
-import { countryOption, countryOptions, currencyOptions } from "../flowOptions";
+import { countryOption, countryOptions, currencyOptions, countryLabel } from "../flowOptions";
 import type { CoverageInput } from "./types";
 
 const controlClass =
@@ -13,6 +16,7 @@ export function CoverageCreateModal({
   onClose: () => void;
   onCreate: (input: CoverageInput) => void;
 }) {
+  const { copy, locale } = useConsultingCopy();
   const [value, setValue] = useState<CoverageInput>({
     city_name: "",
     region_name: "",
@@ -38,9 +42,9 @@ export function CoverageCreateModal({
       modalType="standard-form"
       tone="blue"
       icon={<MapPinned className="h-5 w-5" />}
-      eyebrow="Consultoría presencial"
-      title="Agregar cobertura"
-      description="Registra una ciudad disponible para sesiones presenciales."
+      eyebrow={copy.inPersonConsulting}
+      title={copy.addCoverage}
+      description={copy.createCoverageHelp}
       footer={
         <div className="flex w-full justify-end gap-2">
           <button
@@ -48,15 +52,15 @@ export function CoverageCreateModal({
             onClick={onClose}
             className="h-11 rounded-xl bg-white px-4 text-sm font-medium text-slate-700"
           >
-            Cancelar
-          </button>
+            {copy.cancel}
+            </button>
           <button
             type="submit"
             form="coverage-create-form"
             className="h-11 rounded-xl bg-white/15 px-5 text-sm font-semibold text-white ring-1 ring-white/35"
           >
-            Agregar cobertura
-          </button>
+            {copy.addCoverage}
+            </button>
         </div>
       }
     >
@@ -65,7 +69,7 @@ export function CoverageCreateModal({
         onSubmit={submit}
         className="grid gap-4 sm:grid-cols-2"
       >
-        <Field label="Ciudad">
+        <Field label={copy.city}>
           <input
             autoFocus
             required
@@ -76,7 +80,7 @@ export function CoverageCreateModal({
             className={controlClass}
           />
         </Field>
-        <Field label="Región o provincia">
+        <Field label={copy.region}>
           <input
             required
             value={value.region_name}
@@ -86,7 +90,7 @@ export function CoverageCreateModal({
             className={controlClass}
           />
         </Field>
-        <Field label="País">
+        <Field label={copy.country}>
           <select
             required
             value={value.country_code}
@@ -105,15 +109,15 @@ export function CoverageCreateModal({
           >
             {countryOptions.map((country) => (
               <option key={country.code} value={country.code}>
-                {country.label}
+                {countryLabel(country.code, locale)}
               </option>
             ))}
           </select>
         </Field>
-        <Field label="Código de país">
+        <Field label={copy.countryCode}>
           <input disabled value={value.country_code} className={controlClass} />
         </Field>
-        <Field label="Zona horaria">
+        <Field label={copy.timezone}>
           <select
             required
             value={value.timezone}
@@ -131,7 +135,7 @@ export function CoverageCreateModal({
             )}
           </select>
         </Field>
-        <Field label="Moneda">
+        <Field label={copy.currency}>
           <select
             required
             value={value.currency}

@@ -3,10 +3,12 @@ package com.indice.erp.billing.signup;
 import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.auth.SignupTrialTerms;
 import com.indice.erp.billing.catalog.CommercialOfferSelectionService;
+import com.indice.erp.billing.storage.StorageQuotaProperties;
 import com.indice.erp.billing.stripe.BillingSignupCheckoutReconciliationService;
 import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
 import com.indice.erp.support.SupportedCountryCodes;
 import jakarta.servlet.http.HttpSession;
+import java.math.BigDecimal;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +32,7 @@ public class BillingSignupController {
     private final BillingSignupIntentRepository repository;
     private final BillingSignupCheckoutReconciliationService reconciliation;
     private final StripePhaseTwoProperties properties;
+    private final StorageQuotaProperties storageProperties;
 
     public BillingSignupController(
         SessionCsrfService csrf,
@@ -39,7 +42,8 @@ public class BillingSignupController {
         BillingSignupEmailVerificationProperties emailVerificationProperties,
         BillingSignupIntentRepository repository,
         BillingSignupCheckoutReconciliationService reconciliation,
-        StripePhaseTwoProperties properties
+        StripePhaseTwoProperties properties,
+        StorageQuotaProperties storageProperties
     ) {
         this.csrf = csrf;
         this.offers = offers;
@@ -49,6 +53,7 @@ public class BillingSignupController {
         this.repository = repository;
         this.reconciliation = reconciliation;
         this.properties = properties;
+        this.storageProperties = storageProperties;
     }
 
     @GetMapping("/config")
@@ -65,8 +70,8 @@ public class BillingSignupController {
             Map.entry("annualDiscountPercent", 20),
             Map.entry("includedConsultationsPerMonth", 1),
             Map.entry("consultationMinutes", 60),
-            Map.entry("includedStorageGiB", 100),
-            Map.entry("storageBlockGiB", 100),
+            Map.entry("includedStorageGiB", gibibytes(storageProperties.getIncludedBytes())),
+            Map.entry("storageBlockGiB", gibibytes(storageProperties.getBlockBytes())),
             Map.entry("storageBlockMonthlyAmountCents", 1_500),
             Map.entry("paymentGraceDays", 14),
             Map.entry("currency", "USD"),
@@ -75,6 +80,10 @@ public class BillingSignupController {
             Map.entry("products", offers.activeProducts("MONTH")),
             Map.entry("prices", offers.activePrices())
         );
+    }
+
+    private BigDecimal gibibytes(long bytes) {
+        return BigDecimal.valueOf(bytes).divide(BigDecimal.valueOf(1L << 30));
     }
 
     @PostMapping("/email-verification/start")
