@@ -42,6 +42,7 @@ public class MultiKioskService {
     private final KioskEmployeeToolCatalogService employeeTools;
     private final KioskMultiDashboardService dashboard;
     private final KioskRateLimitService rateLimits;
+    private final KioskPaymentCollectionGuard collectionGuard;
     private final Duration inactivityTimeout;
     private final Duration absoluteLifetime;
 
@@ -54,6 +55,7 @@ public class MultiKioskService {
             KioskEmployeeToolCatalogService employeeTools,
             KioskMultiDashboardService dashboard,
             KioskRateLimitService rateLimits,
+            KioskPaymentCollectionGuard collectionGuard,
             @Value("${app.kiosk.multi.inactivity-timeout-seconds:28800}") int inactivitySeconds,
             @Value("${app.kiosk.multi.session-ttl-seconds:43200}") int sessionTtlSeconds) {
         this.jdbcTemplate = jdbcTemplate;
@@ -64,6 +66,7 @@ public class MultiKioskService {
         this.employeeTools = employeeTools;
         this.dashboard = dashboard;
         this.rateLimits = rateLimits;
+        this.collectionGuard = collectionGuard;
         this.inactivityTimeout = Duration.ofSeconds(Math.max(60, inactivitySeconds));
         this.absoluteLifetime = Duration.ofSeconds(Math.max(300, sessionTtlSeconds));
     }
@@ -749,6 +752,7 @@ public class MultiKioskService {
         );
         if (rows.isEmpty()) throw new KioskUnavailableException();
         var definition = rows.getFirst();
+        if (requireActive) collectionGuard.requireOperationalAccess(definition.companyId());
         if (requireActive && (!"ACTIVE".equals(definition.status())
                 || (definition.expiresAt() != null && !definition.expiresAt().isAfter(Instant.now())))) {
             throw new KioskUnavailableException();

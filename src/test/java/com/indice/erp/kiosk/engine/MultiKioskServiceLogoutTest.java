@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.ResultSet;
@@ -44,13 +45,15 @@ class MultiKioskServiceLogoutTest {
     private KioskMultiDashboardService dashboard;
     @Mock
     private KioskRateLimitService rateLimits;
+    @Mock
+    private KioskPaymentCollectionGuard collectionGuard;
     private MultiKioskService service;
 
     @BeforeEach
     void setUp() {
         service = new MultiKioskService(
             jdbcTemplate, new ObjectMapper(), new BCryptPasswordEncoder(), protection,
-            employeeAccess, employeeTools, dashboard, rateLimits, 28_800, 43_200);
+            employeeAccess, employeeTools, dashboard, rateLimits, collectionGuard, 28_800, 43_200);
     }
 
     @Test
@@ -82,6 +85,7 @@ class MultiKioskServiceLogoutTest {
         assertThat(wasSqlCalled("'$.user_company_id'")).isTrue();
         assertThat(wasSqlCalled("INSERT INTO multi_kiosk_audit_events")).isTrue();
         assertThat(allArguments()).doesNotContain(PUBLIC_TOKEN, SESSION_TOKEN, BROWSER_REFERENCE);
+        verifyNoInteractions(collectionGuard);
     }
 
     @Test

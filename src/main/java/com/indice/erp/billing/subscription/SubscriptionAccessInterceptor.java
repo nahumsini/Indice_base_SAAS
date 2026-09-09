@@ -2,6 +2,7 @@ package com.indice.erp.billing.subscription;
 
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.auth.ManagedCompanyContextService;
+import com.indice.erp.billing.collection.PaymentCollectionAccessService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -30,18 +31,18 @@ public class SubscriptionAccessInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         var path = request.getRequestURI();
-        if (!path.startsWith("/api/v1/") || isExcluded(path)) {
+        if (!path.startsWith("/api/v1/") || PaymentCollectionAccessService.permitsRecovery(request.getMethod(), path)) {
             return true;
         }
         var session = request.getSession(false);
-        if (session != null && Boolean.TRUE.equals(session.getAttribute(SessionAuthService.SESSION_PUBLIC_DEMO))) {
-            return true;
-        }
         var companyId = ManagedCompanyContextService.effectiveCompanyId(session);
         if (companyId == null) {
             return true;
         }
         var status = subscriptionStatusProvider.currentStatus(companyId);
+        var collectionBlocked = PaymentCollectionAccessService.OVERDUE.equals(status.lockReason());
+        if (!collectionBlocked && (isExcluded(path)
+            || (session != null && Boolean.TRUE.equals(session.getAttribute(SessionAuthService.SESSION_PUBLIC_DEMO))))) return true;
         if (status.accessAllowed()) {
             return true;
         }
@@ -49,7 +50,7 @@ public class SubscriptionAccessInterceptor implements HandlerInterceptor {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         objectMapper.writeValue(response.getWriter(), Map.of(
             "message", "Company subscription is required to access this module.",
-            "code", "subscription_required",
+            "code", collectionBlocked ? PaymentCollectionAccessService.OVERDUE : "subscription_required",
             "subscription", Map.of(
                 "status", status.status(),
                 "access_allowed", false,

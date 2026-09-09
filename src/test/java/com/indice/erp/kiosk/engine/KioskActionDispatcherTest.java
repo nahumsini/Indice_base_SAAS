@@ -30,6 +30,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class KioskActionDispatcherTest {
@@ -60,6 +61,8 @@ class KioskActionDispatcherTest {
 
     @Mock
     private KioskModuleAdapter adapter;
+    @Mock
+    private KioskPaymentCollectionGuard collectionGuard;
 
     private KioskActionDispatcher dispatcher;
     private KioskExecutionContext context;
@@ -72,7 +75,7 @@ class KioskActionDispatcherTest {
             registry, definitionRegistry, sessionService, fileIntentService, featureFlags, auditService,
             rateLimitService, jdbcTemplate, new ObjectMapper(),
             new KioskPayloadProtectionService(
-                "dispatcher-kiosk-payload-test-secret-1234"));
+                "dispatcher-kiosk-payload-test-secret-1234"), collectionGuard);
         context = KioskExecutionContext.publicLink("PROCESS_TASKS", "secret-device-token");
         lenient().when(registry.requireAdapter("PROCESS_TASKS")).thenReturn(adapter);
         given(featureFlags.registryEnabled()).willReturn(true);
@@ -100,6 +103,26 @@ class KioskActionDispatcherTest {
         lenient().when(adapter.authorize(any(), any())).thenReturn(KioskAuthorization.allow());
         lenient().when(adapter.validate(any(), any())).thenReturn(KioskValidationResult.success());
         lenient().when(auditService.beginAction(any(), any(), any(), any())).thenReturn("action-1");
+    }
+
+    @Test
+    void overdueCompanyCannotReadOrMutateThroughPublicOrExistingSessionContexts() {
+        doThrow(new KioskUnavailableException()).when(collectionGuard).requireOperationalAccess(7L);
+        var existingSession = new KioskExecutionContext(
+            "PROCESS_TASKS", KioskExecutionChannels.MOBILE_MULTI_KIOSK, "definition:17", "internal",
+            "employee-browser", definition, employeePrincipal);
+        for (var key : java.util.List.of("tasks.read", "tasks.create")) {
+            var capability = capability(key, key.equals("tasks.create"));
+            given(registry.requireCapability(capability.versionedKey())).willReturn(capability);
+            var request = KioskActionRequest.of(key, Map.of("identification_token", "existing-session"));
+            for (var candidate : java.util.List.of(context, existingSession)) {
+                assertThatThrownBy(() -> dispatcher.dispatch(candidate, request, "retry-key"))
+                    .isInstanceOf(KioskUnavailableException.class);
+            }
+        }
+
+        verifyNoInteractions(adapter, sessionService, fileIntentService, rateLimitService, jdbcTemplate);
+        then(collectionGuard).should(times(4)).requireOperationalAccess(7L);
     }
 
     @Test

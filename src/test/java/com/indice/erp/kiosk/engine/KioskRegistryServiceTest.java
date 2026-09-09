@@ -23,10 +23,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class KioskRegistryServiceTest {
@@ -35,13 +37,15 @@ class KioskRegistryServiceTest {
     private JdbcTemplate jdbcTemplate;
     @Mock
     private KioskPayloadProtectionService payloadProtection;
+    @Mock
+    private KioskPaymentCollectionGuard collectionGuard;
 
     private KioskRegistryService service;
 
     @BeforeEach
     void setUp() {
         service = new KioskRegistryService(
-            jdbcTemplate, new ObjectMapper(), payloadProtection);
+            jdbcTemplate, new ObjectMapper(), payloadProtection, collectionGuard);
     }
 
     @Test
@@ -53,6 +57,33 @@ class KioskRegistryServiceTest {
 
         assertThat(definition.id()).isEqualTo(17L);
         assertThat(persistedHash.get()).hasSize(64).doesNotContain("raw-public-token");
+    }
+
+    @Test
+    void overdueCompanyCannotResolveAnyPublicOrBootstrapEntryPoint() throws Exception {
+        stubDefinition(KioskDefinitionStatus.ACTIVE, null, new AtomicReference<>());
+        doThrow(new KioskUnavailableException()).when(collectionGuard).requireOperationalAccess(7L);
+
+        assertThatThrownBy(() -> service.resolvePublic("PROCESS_TASKS", "public-token"))
+            .isInstanceOf(KioskUnavailableException.class);
+        assertThatThrownBy(() -> service.resolvePublic("public-token"))
+            .isInstanceOf(KioskUnavailableException.class);
+        assertThatThrownBy(() -> service.resolvePublicForBootstrap("PROCESS_TASKS", "public-token"))
+            .isInstanceOf(KioskUnavailableException.class);
+        assertThatThrownBy(() -> service.resolvePublicForBootstrap("public-token"))
+            .isInstanceOf(KioskUnavailableException.class);
+
+        verify(collectionGuard, times(4)).requireOperationalAccess(7L);
+        verify(jdbcTemplate, never()).update(anyString(), any(Object[].class));
+    }
+
+    @Test
+    void administrativeLookupRemainsAvailableWithoutACollectionCheck() throws Exception {
+        stubDefinition(KioskDefinitionStatus.ACTIVE, null, new AtomicReference<>());
+
+        assertThat(service.requireById(7L, 17L).id()).isEqualTo(17L);
+
+        verifyNoInteractions(collectionGuard);
     }
 
     @Test

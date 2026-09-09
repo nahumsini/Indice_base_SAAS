@@ -27,14 +27,17 @@ public class KioskRegistryService {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final KioskPayloadProtectionService payloadProtection;
+    private final KioskPaymentCollectionGuard collectionGuard;
 
     public KioskRegistryService(
             JdbcTemplate jdbcTemplate,
             ObjectMapper objectMapper,
-            KioskPayloadProtectionService payloadProtection) {
+            KioskPayloadProtectionService payloadProtection,
+            KioskPaymentCollectionGuard collectionGuard) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.payloadProtection = payloadProtection;
+        this.collectionGuard = collectionGuard;
     }
 
     @Transactional
@@ -63,6 +66,7 @@ public class KioskRegistryService {
             throw new KioskUnavailableException();
         }
         var definition = definitions.getFirst();
+        collectionGuard.requireOperationalAccess(definition.companyId());
         if (definition.effectiveStatus(Instant.now()) == KioskDefinitionStatus.EXPIRED
                 && definition.status() == KioskDefinitionStatus.ACTIVE) {
             jdbcTemplate.update(
@@ -88,6 +92,7 @@ public class KioskRegistryService {
             throw new KioskUnavailableException();
         }
         var definition = definitions.getFirst();
+        collectionGuard.requireOperationalAccess(definition.companyId());
         if (definition.effectiveStatus(Instant.now()) == KioskDefinitionStatus.EXPIRED
                 && definition.status() == KioskDefinitionStatus.ACTIVE) {
             jdbcTemplate.update(
@@ -119,6 +124,7 @@ public class KioskRegistryService {
             throw new KioskUnavailableException();
         }
         var definition = definitions.getFirst();
+        collectionGuard.requireOperationalAccess(definition.companyId());
         var effective = definition.effectiveStatus(Instant.now());
         if (effective == KioskDefinitionStatus.EXPIRED && definition.status() == KioskDefinitionStatus.ACTIVE) {
             jdbcTemplate.update(
