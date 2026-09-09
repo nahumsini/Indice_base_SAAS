@@ -1,6 +1,7 @@
 package com.indice.erp.billing.storage;
 
 import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
+import com.indice.erp.billing.catalog.SubscriptionCatalogPriceResolver;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
@@ -18,6 +19,7 @@ public class StorageOverageSyncService {
     private final TransactionTemplate transactions;
     private final StripeStorageGateway stripe;
     private final StripePhaseTwoProperties stripeProperties;
+    private final SubscriptionCatalogPriceResolver contractPrices;
     private final Clock clock;
 
     public StorageOverageSyncService(
@@ -25,12 +27,14 @@ public class StorageOverageSyncService {
         TransactionTemplate transactions,
         StripeStorageGateway stripe,
         StripePhaseTwoProperties stripeProperties,
+        SubscriptionCatalogPriceResolver contractPrices,
         Clock clock
     ) {
         this.jdbc = jdbc;
         this.transactions = transactions;
         this.stripe = stripe;
         this.stripeProperties = stripeProperties;
+        this.contractPrices = contractPrices;
         this.clock = clock;
     }
 
@@ -109,13 +113,10 @@ public class StorageOverageSyncService {
             return new Prepared(sync.reference(), null, null, null, sync.targetBlocks(), true);
         }
         var subscription = activeSubscription(companyId);
-        var priceId = activeStoragePrice(subscription.billingInterval());
-        if (priceId == null || priceId.isBlank()) {
-            priceId = stripeProperties.priceId("storage_block", subscription.billingInterval());
-        }
-        if (priceId == null || !priceId.startsWith("price_")) {
-            throw new IllegalStateException("The verified Stripe price for a 5 GiB storage block is unavailable.");
-        }
+        // Quantity updates preserve the Price already attached to an existing Stripe item.
+        var priceId = subscription.subscriptionItemId() == null || subscription.subscriptionItemId().isBlank()
+            ? contractPrices.resolve(companyId, subscription.subscriptionId(), "storage_block", subscription.billingInterval())
+            : null;
         jdbc.update(
             """
                 UPDATE company_storage_overage_syncs
@@ -145,30 +146,6 @@ public class StorageOverageSyncService {
         ).stream().findFirst().orElseThrow(() -> new IllegalStateException(
             "An active Stripe subscription is required to bill storage overage."
         ));
-    }
-
-    private String activeStoragePrice(String billingInterval) {
-        return jdbc.query(
-            """
-                SELECT price.external_price_id
-                FROM billing_catalog_versions version
-                JOIN billing_catalog_products product
-                  ON product.catalog_version_id = version.id
-                 AND product.product_code IN ('storage_block_5_gib', 'storage_block_100_gib')
-                 AND product.active = 1
-                JOIN billing_catalog_prices price
-                  ON price.catalog_product_id = product.id
-                 AND price.billing_interval = ? AND price.currency = 'USD'
-                 AND price.status IN ('READY', 'ACTIVE')
-                 AND price.external_price_id LIKE 'price_%'
-                WHERE version.status = 'ACTIVE'
-                ORDER BY version.effective_from DESC, version.id DESC,
-                         CASE product.product_code WHEN 'storage_block_5_gib' THEN 0 ELSE 1 END
-                LIMIT 1
-                """,
-            (rs, rowNum) -> rs.getString(1),
-            billingInterval
-        ).stream().findFirst().orElse(null);
     }
 
     private void complete(

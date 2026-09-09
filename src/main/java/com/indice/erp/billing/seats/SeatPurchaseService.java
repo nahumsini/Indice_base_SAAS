@@ -1,7 +1,7 @@
 package com.indice.erp.billing.seats;
 
 import com.indice.erp.billing.BillingHashing;
-import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
+import com.indice.erp.billing.catalog.SubscriptionCatalogPriceResolver;
 import com.indice.erp.platformadmin.PlatformAuditService;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -16,17 +16,17 @@ public class SeatPurchaseService {
     private final JdbcTemplate jdbcTemplate;
     private final TransactionTemplate transactions;
     private final StripeSeatGateway stripe;
-    private final StripePhaseTwoProperties stripeProperties;
+    private final SubscriptionCatalogPriceResolver contractPrices;
     private final SeatService seats;
     private final PlatformAuditService audit;
 
     public SeatPurchaseService(JdbcTemplate jdbcTemplate, TransactionTemplate transactions,
-                               StripeSeatGateway stripe, StripePhaseTwoProperties stripeProperties,
+                               StripeSeatGateway stripe, SubscriptionCatalogPriceResolver contractPrices,
                                SeatService seats, PlatformAuditService audit) {
         this.jdbcTemplate = jdbcTemplate;
         this.transactions = transactions;
         this.stripe = stripe;
-        this.stripeProperties = stripeProperties;
+        this.contractPrices = contractPrices;
         this.seats = seats;
         this.audit = audit;
     }
@@ -122,10 +122,10 @@ public class SeatPurchaseService {
                 """,
             (rs, rowNum) -> new String[]{rs.getString(1), rs.getString(2), rs.getString(3)}, companyId
         ).stream().findFirst().orElseThrow(() -> new IllegalStateException("An active Stripe subscription is required."));
-        var priceId = stripeProperties.priceId("extra_seat", subscription[2]);
-        if (target > 0 && (priceId == null || priceId.isBlank())) {
-            throw new IllegalStateException("The Stripe extra-seat price is not configured for this billing interval.");
-        }
+        // Existing Stripe items retain their agreed Price; only a new item needs a catalog lookup.
+        var priceId = target > 0 && (subscription[1] == null || subscription[1].isBlank())
+            ? contractPrices.resolve(companyId, subscription[0], "extra_seat", subscription[2])
+            : null;
         if (existing != null) {
             jdbcTemplate.update(
                 "UPDATE company_seat_mutations SET status = 'PROCESSING', failure_code = NULL, failure_message = NULL WHERE public_reference = ?",

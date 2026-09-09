@@ -24,19 +24,25 @@ public class PlatformCatalogManagementService {
     private final PlatformAuditService audit;
     private final PlatformCatalogStripeVerificationService stripeVerification;
     private final TransactionTemplate transactions;
+    private final PlatformCatalogPublicationLock publicationLock;
+    private final PlatformCatalogPublicationSnapshot publicationSnapshots;
 
     public PlatformCatalogManagementService(
         JdbcTemplate jdbcTemplate,
         PlatformAdminAccessService accessService,
         PlatformAuditService audit,
         PlatformCatalogStripeVerificationService stripeVerification,
-        TransactionTemplate transactions
+        TransactionTemplate transactions,
+        PlatformCatalogPublicationLock publicationLock,
+        PlatformCatalogPublicationSnapshot publicationSnapshots
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.accessService = accessService;
         this.audit = audit;
         this.stripeVerification = stripeVerification;
         this.transactions = transactions;
+        this.publicationLock = publicationLock;
+        this.publicationSnapshots = publicationSnapshots;
     }
 
     @Transactional
@@ -121,6 +127,7 @@ public class PlatformCatalogManagementService {
     @Transactional
     public Map<String, Object> updateProduct(long actorUserId, long productId, ProductUpdateRequest request) {
         accessService.require(actorUserId, "PLATFORM_MODULES_WRITE");
+        lockCatalogVersions();
         var current = editableProduct(actorUserId, product(productId));
         productId = current.id();
         var displayName = request == null || request.display_name() == null
@@ -281,6 +288,7 @@ public class PlatformCatalogManagementService {
     @Transactional
     public Map<String, Object> updatePrice(long actorUserId, long priceId, PriceUpdateRequest request) {
         accessService.require(actorUserId, "PLATFORM_MODULES_WRITE");
+        lockCatalogVersions();
         var current = editablePrice(actorUserId, price(priceId));
         priceId = current.id();
         var amount = request == null || request.unit_amount_cents() == null
@@ -337,6 +345,39 @@ public class PlatformCatalogManagementService {
     }
 
     @Transactional
+    public ProductPricesResponse saveProductPrices(long actorUserId, long productId, ProductPricesRequest request) {
+        accessService.require(actorUserId, "PLATFORM_MODULES_WRITE");
+        if (request == null || request.monthly_amount_cents() == null || request.annual_amount_cents() == null
+            || request.monthly_amount_cents() <= 0 || request.annual_amount_cents() <= 0
+            || request.monthly_amount_cents() > MAX_CATALOG_AMOUNT_CENTS
+            || request.annual_amount_cents() > MAX_CATALOG_AMOUNT_CENTS) {
+            throw new IllegalArgumentException("Los precios mensual y anual deben ser mayores a cero y estar dentro del límite permitido.");
+        }
+        lockCatalogVersions();
+        var editable = editableProduct(actorUserId, product(productId));
+        var ids = jdbcTemplate.queryForList("""
+            SELECT id FROM billing_catalog_prices
+            WHERE catalog_product_id = ? AND currency = 'USD' AND billing_interval IN ('MONTH', 'YEAR')
+            ORDER BY billing_interval FOR UPDATE
+            """, Long.class, editable.id());
+        if (ids.size() != 2) throw new IllegalStateException("El producto debe tener sus tarifas mensual y anual en USD.");
+        var rows = ids.stream().map(this::price).toList();
+        var monthly = rows.stream().filter(row -> "MONTH".equals(row.billingInterval())).findFirst()
+            .orElseThrow(() -> new IllegalStateException("Falta la tarifa mensual."));
+        var annual = rows.stream().filter(row -> "YEAR".equals(row.billingInterval())).findFirst()
+            .orElseThrow(() -> new IllegalStateException("Falta la tarifa anual."));
+        // The outer transaction saves both intervals together. updatePrice invalidates changed Stripe references.
+        updatePrice(actorUserId, monthly.id(), new PriceUpdateRequest(request.monthly_amount_cents(), null, null));
+        updatePrice(actorUserId, annual.id(), new PriceUpdateRequest(request.annual_amount_cents(), null, null));
+        return new ProductPricesResponse(editable.id(), priceResponse(price(monthly.id())), priceResponse(price(annual.id())));
+    }
+
+    private SavedPriceResponse priceResponse(PriceRow price) {
+        return new SavedPriceResponse(price.id(), price.billableCode(), price.billingInterval(),
+            price.unitAmountCents(), price.externalPriceId(), price.status());
+    }
+
+    @Transactional
     public Map<String, Object> createDraft(long actorUserId) {
         accessService.require(actorUserId, "PLATFORM_MODULES_WRITE");
         return ensureDraft(actorUserId);
@@ -366,6 +407,18 @@ public class PlatformCatalogManagementService {
         if (!"PLATFORM_ROOT".equals(authority.role())) {
             throw new PlatformAdminForbiddenException("Sólo Root puede publicar una versión comercial.");
         }
+        return publicationLock.execute(() -> {
+            var expected = publicationSnapshots.capture(versionId);
+            return publishUnchangedDraft(actorUserId, versionId,
+                () -> publicationSnapshots.requireUnchanged(versionId, expected));
+        });
+    }
+
+    Map<String, Object> publishUnchangedDraft(long actorUserId, long versionId, Runnable requireUnchanged) {
+        var authority = accessService.require(actorUserId, "PLATFORM_MODULES_WRITE");
+        if (!"PLATFORM_ROOT".equals(authority.role())) {
+            throw new PlatformAdminForbiddenException("Sólo Root puede publicar una versión comercial.");
+        }
         var validation = validateDraft(actorUserId, versionId);
         @SuppressWarnings("unchecked")
         var blockers = (List<Map<String, Object>>) validation.get("blockers");
@@ -375,12 +428,15 @@ public class PlatformCatalogManagementService {
         var stripeMode = String.valueOf(validation.get("stripe_mode"));
         return transactions.execute(status -> {
             lockDraftRows(versionId);
+            requireUnchanged.run();
             if (!draftBlockers(versionId).isEmpty()) {
                 throw new IllegalStateException(
                     "La oferta cambió durante la validación; vuelve a validarla antes de publicar."
                 );
             }
-            var now = java.sql.Timestamp.from(Instant.now());
+            // Public catalog queries use CURRENT_TIMESTAMP at second precision. Use that same
+            // database clock once so every activated price is immediately effective after commit.
+            var now = jdbcTemplate.queryForObject("SELECT CURRENT_TIMESTAMP", java.sql.Timestamp.class);
             jdbcTemplate.update(
                 "UPDATE billing_catalog_versions SET status = 'SUPERSEDED', effective_to = ? WHERE status = 'ACTIVE'",
                 now
@@ -411,13 +467,7 @@ public class PlatformCatalogManagementService {
     }
 
     private void lockDraftRows(long versionId) {
-        jdbcTemplate.queryForList(
-            """
-                SELECT id FROM billing_catalog_versions
-                WHERE status IN ('ACTIVE', 'DRAFT') ORDER BY id FOR UPDATE
-                """,
-            Long.class
-        );
+        lockCatalogVersions();
         var status = jdbcTemplate.queryForObject(
             "SELECT status FROM billing_catalog_versions WHERE id = ? FOR UPDATE",
             String.class,
@@ -443,9 +493,20 @@ public class PlatformCatalogManagementService {
         );
     }
 
+    private void lockCatalogVersions() {
+        jdbcTemplate.queryForList(
+            """
+                SELECT id FROM billing_catalog_versions
+                WHERE status IN ('ACTIVE', 'DRAFT') ORDER BY id FOR UPDATE
+                """,
+            Long.class
+        );
+    }
+
     private Map<String, Object> ensureDraft(long actorUserId) {
+        lockCatalogVersions();
         var existing = jdbcTemplate.query(
-            "SELECT id, version_code, status FROM billing_catalog_versions WHERE status = 'DRAFT' ORDER BY id DESC LIMIT 1",
+            "SELECT id, version_code, status FROM billing_catalog_versions WHERE status = 'DRAFT' ORDER BY id DESC LIMIT 1 FOR UPDATE",
             (rs, rowNum) -> versionMap(rs.getLong(1), rs.getString(2), rs.getString(3))
         );
         if (!existing.isEmpty()) {
@@ -453,7 +514,7 @@ public class PlatformCatalogManagementService {
             return existing.getFirst();
         }
         var active = jdbcTemplate.query(
-            "SELECT id, version_code, status FROM billing_catalog_versions WHERE status = 'ACTIVE' ORDER BY effective_from DESC, id DESC LIMIT 1",
+            "SELECT id, version_code, status FROM billing_catalog_versions WHERE status = 'ACTIVE' ORDER BY effective_from DESC, id DESC LIMIT 1 FOR UPDATE",
             (rs, rowNum) -> new VersionRow(rs.getLong(1), rs.getString(2), rs.getString(3))
         ).stream().findFirst().orElseThrow(() -> new IllegalStateException("No existe un catálogo activo para preparar la siguiente versión."));
         var code = active.versionCode() + "-draft-" + Instant.now().getEpochSecond();
@@ -716,6 +777,8 @@ public class PlatformCatalogManagementService {
     }
 
     private ProductRow editableProduct(long actorUserId, ProductRow current) {
+        lockCatalogVersions();
+        current = product(current.id());
         if ("DRAFT".equals(current.versionStatus())) return current;
         var draft = ensureDraft(actorUserId);
         return jdbcTemplate.query(
@@ -725,7 +788,7 @@ public class PlatformCatalogManagementService {
                        product.sort_order, product.active, version.status
                 FROM billing_catalog_products product
                 JOIN billing_catalog_versions version ON version.id = product.catalog_version_id
-                WHERE product.catalog_version_id = ? AND BINARY product.product_code = BINARY ?
+                WHERE product.catalog_version_id = ? AND BINARY product.product_code = BINARY ? FOR UPDATE
                 """,
             (rs, rowNum) -> productRow(rs),
             draft.get("id"),
@@ -734,6 +797,8 @@ public class PlatformCatalogManagementService {
     }
 
     private PriceRow editablePrice(long actorUserId, PriceRow current) {
+        lockCatalogVersions();
+        current = price(current.id());
         if ("DRAFT".equals(current.versionStatus())) return current;
         var draft = ensureDraft(actorUserId);
         return jdbcTemplate.query(
@@ -743,7 +808,7 @@ public class PlatformCatalogManagementService {
                 FROM billing_catalog_prices price
                 JOIN billing_catalog_versions version ON version.id = price.catalog_version_id
                 WHERE price.catalog_version_id = ? AND BINARY price.billable_code = BINARY ?
-                  AND price.billing_interval = ? AND price.currency = ?
+                  AND price.billing_interval = ? AND price.currency = ? FOR UPDATE
                 """,
             (rs, rowNum) -> new PriceRow(rs.getLong(1), rs.getString(2), rs.getString(3), (Long) rs.getObject(4), rs.getString(5), rs.getString(6), rs.getString(7)),
             draft.get("id"), current.billableCode(), current.billingInterval(), current.currency()
@@ -751,12 +816,13 @@ public class PlatformCatalogManagementService {
     }
 
     private PromotionRow editablePromotion(long actorUserId, long promotionId) {
+        lockCatalogVersions();
         var current = jdbcTemplate.query(
             """
                 SELECT promotion.id, promotion.catalog_version_id, promotion.promotion_code, version.status
                 FROM billing_catalog_promotions promotion
                 JOIN billing_catalog_versions version ON version.id = promotion.catalog_version_id
-                WHERE promotion.id = ?
+                WHERE promotion.id = ? FOR UPDATE
                 """,
             (rs, rowNum) -> new PromotionRow(rs.getLong(1), rs.getLong(2), rs.getString(3), rs.getString(4)),
             promotionId
@@ -764,7 +830,7 @@ public class PlatformCatalogManagementService {
         if ("DRAFT".equals(current.versionStatus())) return current;
         var draft = ensureDraft(actorUserId);
         return jdbcTemplate.query(
-            "SELECT id, catalog_version_id, promotion_code, 'DRAFT' FROM billing_catalog_promotions WHERE catalog_version_id = ? AND BINARY promotion_code = BINARY ?",
+            "SELECT id, catalog_version_id, promotion_code, 'DRAFT' FROM billing_catalog_promotions WHERE catalog_version_id = ? AND BINARY promotion_code = BINARY ? FOR UPDATE",
             (rs, rowNum) -> new PromotionRow(rs.getLong(1), rs.getLong(2), rs.getString(3), rs.getString(4)),
             draft.get("id"), current.code()
         ).stream().findFirst().orElseThrow(() -> new IllegalStateException("No se pudo localizar la promoción en la versión de trabajo."));
@@ -921,7 +987,7 @@ public class PlatformCatalogManagementService {
                        product.sort_order, product.active, version.status
                 FROM billing_catalog_products product
                 JOIN billing_catalog_versions version ON version.id = product.catalog_version_id
-                WHERE product.id = ?
+                WHERE product.id = ? FOR UPDATE
                 """,
             (rs, rowNum) -> productRow(rs),
             productId
@@ -935,7 +1001,7 @@ public class PlatformCatalogManagementService {
                        price.external_price_id, price.status, version.status, price.currency
                 FROM billing_catalog_prices price
                 JOIN billing_catalog_versions version ON version.id = price.catalog_version_id
-                WHERE price.id = ?
+                WHERE price.id = ? FOR UPDATE
                 """,
             (rs, rowNum) -> new PriceRow(
                 rs.getLong(1), rs.getString(2), rs.getString(3),
@@ -1207,6 +1273,16 @@ public class PlatformCatalogManagementService {
     }
 
     public record PriceUpdateRequest(Long unit_amount_cents, String external_price_id, String status) {
+    }
+
+    public record ProductPricesRequest(Long monthly_amount_cents, Long annual_amount_cents) {
+    }
+
+    public record ProductPricesResponse(long catalog_product_id, SavedPriceResponse monthly, SavedPriceResponse annual) {
+    }
+
+    public record SavedPriceResponse(long id, String billable_code, String billing_interval,
+                                     Long unit_amount_cents, String external_price_id, String status) {
     }
 
     public record PromotionRequest(

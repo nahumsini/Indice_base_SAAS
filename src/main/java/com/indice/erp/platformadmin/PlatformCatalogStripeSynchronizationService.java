@@ -196,6 +196,17 @@ public class PlatformCatalogStripeSynchronizationService {
         return result;
     }
 
+    String requirePublicationSynchronization(long actorUserId, String targetMode, String confirmation) {
+        var authority = accessService.require(actorUserId, "PLATFORM_MODULES_WRITE");
+        if (!"PLATFORM_ROOT".equals(authority.role())) {
+            throw new PlatformAdminForbiddenException("Sólo Root puede publicar una versión comercial.");
+        }
+        secrets.requireEnabled();
+        var stripeMode = configuredMode();
+        requireAuthorizedMode(authority, new SynchronizeRequest(null, null, targetMode, confirmation), stripeMode);
+        return stripeMode;
+    }
+
     private PriceSyncResult synchronizePrice(
         PriceRow price,
         String stripeProductId,

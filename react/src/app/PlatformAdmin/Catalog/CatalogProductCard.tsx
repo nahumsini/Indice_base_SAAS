@@ -1,3 +1,6 @@
+import { catalogCapabilityLabel, catalogProductLabel } from "../CatalogWorkspace/catalogLabels";
+import { useLanguage } from "../../shared/context";
+import { catalogLocale, getCatalogCopy } from "../CatalogWorkspace/translations";
 import { CircleDollarSign, PencilLine } from "lucide-react";
 import type { PlatformCatalogProduct } from "../../api/platformAdmin";
 
@@ -98,17 +101,11 @@ function resolveVisual(product: PlatformCatalogProduct) {
   );
 }
 
-function productTypeLabel(type: string, english: boolean) {
+function productTypeLabel(type: string, languageCode: string) {
   const normalized = type.toUpperCase();
-  if (normalized === "CORE") return english ? "Indice essentials" : "Esencial de Índice";
-  if (normalized === "ADDON") return english ? "Add-on" : "Complemento";
-  return english ? "Package" : "Paquete";
-}
-
-function capabilityLabel(value: string) {
-  return value
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  if (normalized === "CORE") return getCatalogCopy(languageCode).indiceEssentials;
+  if (normalized === "ADDON") return getCatalogCopy(languageCode).addOn;
+  return getCatalogCopy(languageCode).package;
 }
 
 export function CatalogProductCard({
@@ -124,6 +121,8 @@ export function CatalogProductCard({
   readyForSale: boolean;
   onEdit: () => void;
 }) {
+  const { currentLanguage } = useLanguage();
+  const languageCode = catalogLocale(currentLanguage.code);
   const visual = resolveVisual(product);
   return (
     <article
@@ -140,30 +139,22 @@ export function CatalogProductCard({
           className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${product.active ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}
         >
           {!product.active
-            ? english
-              ? "Inactive"
-              : "Inactivo"
+            ? getCatalogCopy(languageCode).inactive
             : readyForSale
-              ? english
-                ? "Ready to sell"
-                : "Listo para vender"
+              ? getCatalogCopy(languageCode).readyToSell
               : priceCount
-                ? english
-                  ? "Billing pending"
-                  : "Cobro pendiente"
-                : english
-                  ? "Missing price"
-                  : "Sin precio"}
+                ? getCatalogCopy(languageCode).billingPending
+                : getCatalogCopy(languageCode).missingPrice}
         </span>
       </div>
       <div className="mt-3 flex-1">
         <p
           className={`text-xs font-medium ${visual.accent}`}
         >
-          {productTypeLabel(product.product_type, english)}
+          {productTypeLabel(product.product_type, languageCode)}
         </p>
         <h3 className="mt-1 text-lg font-medium text-slate-950 dark:text-white">
-          {product.display_name}
+          {catalogProductLabel(product, languageCode)}
         </h3>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {product.capabilities.map((capability) => (
@@ -171,7 +162,7 @@ export function CatalogProductCard({
               key={capability}
               className="rounded-lg bg-white/80 px-2 py-1 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200/70 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700"
             >
-              {capabilityLabel(capability)}
+              {catalogCapabilityLabel(capability, languageCode)}
             </span>
           ))}
         </div>
@@ -180,13 +171,7 @@ export function CatalogProductCard({
         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-300">
           <CircleDollarSign className="h-4 w-4" />
           {priceCount}{" "}
-          {english
-            ? priceCount === 1
-              ? "rate"
-              : "rates"
-            : priceCount === 1
-              ? "tarifa"
-              : "tarifas"}
+          {priceCount === 1 ? getCatalogCopy(languageCode).rate : getCatalogCopy(languageCode).rates}
         </span>
         <button
           type="button"
@@ -194,7 +179,7 @@ export function CatalogProductCard({
           className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#59C3A5]/40 bg-white px-3 text-sm font-medium text-[#176B5B] transition hover:bg-[#59C3A5]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25 dark:bg-slate-800 dark:text-[#8FE0CA]"
         >
           <PencilLine className="h-4 w-4" />
-          {english ? "Configure" : "Configurar"}
+          {getCatalogCopy(languageCode).configure}
         </button>
       </div>
     </article>

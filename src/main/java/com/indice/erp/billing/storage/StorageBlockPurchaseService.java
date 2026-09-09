@@ -1,7 +1,7 @@
 package com.indice.erp.billing.storage;
 
 import com.indice.erp.billing.BillingHashing;
-import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
+import com.indice.erp.billing.catalog.SubscriptionCatalogPriceResolver;
 import com.indice.erp.platformadmin.PlatformAuditService;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -16,7 +16,7 @@ public class StorageBlockPurchaseService {
     private final JdbcTemplate jdbcTemplate;
     private final TransactionTemplate transactions;
     private final StripeStorageGateway stripe;
-    private final StripePhaseTwoProperties stripeProperties;
+    private final SubscriptionCatalogPriceResolver contractPrices;
     private final StorageQuotaService storage;
     private final PlatformAuditService audit;
 
@@ -24,14 +24,14 @@ public class StorageBlockPurchaseService {
         JdbcTemplate jdbcTemplate,
         TransactionTemplate transactions,
         StripeStorageGateway stripe,
-        StripePhaseTwoProperties stripeProperties,
+        SubscriptionCatalogPriceResolver contractPrices,
         StorageQuotaService storage,
         PlatformAuditService audit
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.transactions = transactions;
         this.stripe = stripe;
-        this.stripeProperties = stripeProperties;
+        this.contractPrices = contractPrices;
         this.storage = storage;
         this.audit = audit;
     }
@@ -116,14 +116,10 @@ public class StorageBlockPurchaseService {
             (rs, rowNum) -> new String[]{rs.getString(1), rs.getString(2), rs.getString(3)},
             companyId).stream().findFirst()
             .orElseThrow(() -> new IllegalStateException("An active Stripe subscription is required."));
-        var priceId = activeStoragePrice(subscription[2]);
-        if (priceId == null || priceId.isBlank()) {
-            priceId = stripeProperties.priceId("storage_block", subscription[2]);
-        }
-        if (target > 0 && (priceId == null || priceId.isBlank())) {
-            throw new IllegalStateException(
-                "The Stripe storage-block price is not configured for this billing interval.");
-        }
+        // Existing items keep their contracted Stripe Price during quantity changes or removal.
+        var priceId = target > 0 && (subscription[1] == null || subscription[1].isBlank())
+            ? contractPrices.resolve(companyId, subscription[0], "storage_block", subscription[2])
+            : null;
         if (existing != null) {
             jdbcTemplate.update(
                 "UPDATE company_storage_mutations SET status = 'PROCESSING', failure_code = NULL, failure_message = NULL WHERE public_reference = ?",
@@ -161,30 +157,6 @@ public class StorageBlockPurchaseService {
         jdbcTemplate.update(
             "UPDATE company_storage_mutations SET status = 'COMPLETED', stripe_subscription_item_id = ?, completed_at = CURRENT_TIMESTAMP(6) WHERE public_reference = ?",
             stripeResult.subscriptionItemId(), prepared.reference());
-    }
-
-    private String activeStoragePrice(String billingInterval) {
-        return jdbcTemplate.query(
-            """
-                SELECT price.external_price_id
-                FROM billing_catalog_versions version
-                JOIN billing_catalog_products product
-                  ON product.catalog_version_id = version.id
-                 AND product.product_code IN ('storage_block_5_gib', 'storage_block_100_gib')
-                 AND product.active = 1
-                JOIN billing_catalog_prices price
-                  ON price.catalog_product_id = product.id
-                 AND price.billing_interval = ? AND price.currency = 'USD'
-                 AND price.status IN ('READY', 'ACTIVE')
-                 AND price.external_price_id LIKE 'price_%'
-                WHERE version.status = 'ACTIVE'
-                ORDER BY version.effective_from DESC, version.id DESC,
-                         CASE product.product_code WHEN 'storage_block_5_gib' THEN 0 ELSE 1 END
-                LIMIT 1
-                """,
-            (rs, rowNum) -> rs.getString(1),
-            billingInterval
-        ).stream().findFirst().orElse(null);
     }
 
     private void fail(String reference, RuntimeException exception) {

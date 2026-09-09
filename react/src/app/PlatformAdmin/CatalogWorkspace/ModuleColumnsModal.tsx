@@ -1,3 +1,4 @@
+import { useLanguage } from "../../shared/context";
 import { ColumnasConfigModal, type ColumnConfig } from "../../components/rh/ColumnasConfigModal";
 import {
   defaultModuleAvailabilityColumnIds,
@@ -19,7 +20,8 @@ export function ModuleColumnsModal({
   onVisibleColumnsChange: (columns: ModuleAvailabilityColumnId[]) => void;
   visibleColumns: ModuleAvailabilityColumnId[];
 }) {
-  const labels = moduleAvailabilityColumnLabels(english);
+  const { currentLanguage } = useLanguage();
+  const labels = moduleAvailabilityColumnLabels(currentLanguage.code);
   const orderedIds = [
     ...visibleColumns,
     ...defaultModuleAvailabilityColumnIds.filter((columnId) => !visibleColumns.includes(columnId)),

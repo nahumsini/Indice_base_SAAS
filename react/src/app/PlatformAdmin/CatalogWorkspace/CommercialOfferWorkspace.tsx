@@ -1,3 +1,5 @@
+import { catalogProductLabel } from "./catalogLabels";
+import { catalogLocale, getCatalogCopy, formatCatalogCopy } from "./translations";
 import { useMemo, useState } from "react";
 import {
   BadgeDollarSign,
@@ -78,21 +80,21 @@ const offerColumnMaximums: Record<OfferColumnId, number> = {
 
 const offerActionsWidth = 168;
 
-const money = (cents?: number | null, english = false) =>
+const money = (cents?: number | null, languageCode = "en-CA") =>
   cents == null
-    ? (english ? "Price pending" : "Precio pendiente")
-    : new Intl.NumberFormat(english ? "en-CA" : "es-MX", {
+    ? (getCatalogCopy(languageCode).pricePending)
+    : new Intl.NumberFormat(languageCode, {
         style: "currency",
         currency: "USD",
         maximumFractionDigits: 2,
       }).format(cents / 100);
 
-const kindLabel = (kind?: string, english = false) => {
-  if (kind === "PACKAGE") return english ? "Package" : "Paquete";
-  if (kind === "SEAT") return english ? "Extra users" : "Usuarios adicionales";
-  if (kind === "VOLUME") return english ? "Volume price" : "Precio por volumen";
-  if (kind === "STORAGE") return english ? "Storage overage" : "Excedente de almacenamiento";
-  return english ? "Individual module" : "Módulo individual";
+const kindLabel = (kind?: string, languageCode = "en-CA") => {
+  if (kind === "PACKAGE") return getCatalogCopy(languageCode).package;
+  if (kind === "SEAT") return getCatalogCopy(languageCode).extraUsers;
+  if (kind === "VOLUME") return getCatalogCopy(languageCode).volumePrice;
+  if (kind === "STORAGE") return getCatalogCopy(languageCode).storageOverage;
+  return getCatalogCopy(languageCode).individualModule;
 };
 
 export function CommercialOfferWorkspace({
@@ -107,13 +109,14 @@ export function CommercialOfferWorkspace({
   onChange: (catalog: PlatformCatalog) => void;
 }) {
   const { currentLanguage } = useLanguage();
-  const english = !currentLanguage.code.startsWith("es");
+  const languageCode = catalogLocale(currentLanguage.code);
   const [filter, setFilter] = useState<OfferFilter>("ALL");
   const [availability, setAvailability] = useState<AvailabilityFilter>("ALL");
   const [configuration, setConfiguration] = useState<ConfigurationFilter>("ALL");
   const [query, setQuery] = useState("");
   const [selection, setSelection] = useState<Selection | null>(null);
   const [editorSection, setEditorSection] = useState<CommercialOfferEditorSection>("details");
+  const [editorBusy, setEditorBusy] = useState(false);
   const workingVersion =
     catalog?.versions.find((version) => version.status === "DRAFT") ||
     catalog?.versions.find((version) => version.status === "ACTIVE") ||
@@ -172,7 +175,7 @@ export function CommercialOfferWorkspace({
 
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const queryProducts = products.filter((product) =>
-    !normalizedQuery || [product.display_name, product.product_code, product.description]
+    !normalizedQuery || [product.display_name, catalogProductLabel(product, languageCode), product.product_code, product.description]
       .filter(Boolean)
       .some((value) => String(value).toLocaleLowerCase().includes(normalizedQuery)),
   );
@@ -232,27 +235,27 @@ export function CommercialOfferWorkspace({
       : null;
   const isCreatingOffer = selection?.type === "new-package" || selection?.type === "new-promotion";
   const isPromotionSelection = selection?.type === "promotion" || selection?.type === "new-promotion";
-  const selectedOfferName = selectedProduct?.display_name || selectedPromotion?.display_name || "";
+  const selectedOfferName = (selectedProduct ? catalogProductLabel(selectedProduct, languageCode) : undefined) || selectedPromotion?.display_name || "";
   const editorTitle = isCreatingOffer
     ? selection?.type === "new-package"
-      ? (english ? "New package" : "Nuevo paquete")
-      : (english ? "New promotion" : "Nueva promoción")
+      ? (getCatalogCopy(languageCode).newPackage)
+      : (getCatalogCopy(languageCode).newPromotion)
     : editorSection === "pricing"
       ? isPromotionSelection
-        ? `${english ? "Configure discount" : "Configurar descuento"} · ${selectedOfferName}`
-        : `${english ? "Configure prices" : "Configurar precios"} · ${selectedOfferName}`
+        ? `${getCatalogCopy(languageCode).configureDiscount} · ${selectedOfferName}`
+        : `${getCatalogCopy(languageCode).configurePrices} · ${selectedOfferName}`
       : editorSection === "availability"
-        ? `${english ? "Manage availability" : "Administrar disponibilidad"} · ${selectedOfferName}`
-        : `${english ? "Edit information" : "Editar información"} · ${selectedOfferName}`;
+        ? `${getCatalogCopy(languageCode).manageAvailability} · ${selectedOfferName}`
+        : `${getCatalogCopy(languageCode).editInformation} · ${selectedOfferName}`;
   const editorDescription = isCreatingOffer
-    ? (english ? "Define the commercial item and save it in the offer draft." : "Define el elemento comercial y guárdalo en el borrador de la oferta.")
+    ? (getCatalogCopy(languageCode).defineTheCommercialItemAndSaveItIn)
     : editorSection === "pricing"
       ? isPromotionSelection
-        ? (english ? "Define the discount and test its effect before saving." : "Define el descuento y prueba su efecto antes de guardarlo.")
-        : (english ? "Set monthly and annual prices with a guided calculator." : "Define los precios mensual y anual con una calculadora guiada.")
+        ? (getCatalogCopy(languageCode).defineTheDiscountAndTestItsEffectBefore)
+        : (getCatalogCopy(languageCode).setMonthlyAndAnnualPricesWithAGuided)
       : editorSection === "availability"
-        ? (english ? "Control whether customers can see and buy this item." : "Controla si los clientes pueden ver y comprar este elemento.")
-        : (english ? "Edit its commercial identity and package composition." : "Edita su identidad comercial y la composición del paquete.");
+        ? (getCatalogCopy(languageCode).controlWhetherCustomersCanSeeAndBuyThis)
+        : (getCatalogCopy(languageCode).editItsCommercialIdentityAndPackageComposition);
   const editorIcon = isCreatingOffer || editorSection === "details"
     ? isPromotionSelection ? <Gift className="h-5 w-5" /> : <Pencil className="h-5 w-5" />
     : editorSection === "pricing"
@@ -262,12 +265,12 @@ export function CommercialOfferWorkspace({
   const monthlyPrice = (product: PlatformCatalogProduct) => priceFor(product, "MONTH");
   const annualPrice = (product: PlatformCatalogProduct) => priceFor(product, "YEAR");
   const labels: Record<OfferColumnId, string> = {
-    offer: english ? "Commercial item" : "Producto comercial",
-    type: english ? "Type" : "Tipo",
-    monthly: english ? "Monthly price" : "Precio mensual",
-    annual: english ? "Annual price" : "Precio anual",
-    configuration: english ? "Configuration" : "Configuración",
-    availability: english ? "Availability" : "Disponibilidad",
+    offer: getCatalogCopy(languageCode).commercialItem,
+    type: getCatalogCopy(languageCode).type,
+    monthly: getCatalogCopy(languageCode).monthlyPrice,
+    annual: getCatalogCopy(languageCode).annualPrice,
+    configuration: getCatalogCopy(languageCode).configuration,
+    availability: getCatalogCopy(languageCode).availability,
   };
   const { columnWidths, resizeColumn } = usePersistentColumnWidths<OfferColumnId>({
     defaults: offerColumnDefaults,
@@ -285,7 +288,7 @@ export function CommercialOfferWorkspace({
     defaultWidth: offerColumnDefaults[id],
     contentMinimumWidth: offerColumnMinimums[id],
     maxWidth: offerColumnMaximums[id],
-    resizeLabel: english ? `Resize ${labels[id]} column` : `Ajustar columna ${labels[id]}`,
+    resizeLabel: formatCatalogCopy(getCatalogCopy(languageCode).resizeColumn, labels[id]),
   }));
   const tableMinimumWidth = getIndiceTableMinimumWidth({ columns, actionsWidth: offerActionsWidth });
 
@@ -295,9 +298,9 @@ export function CommercialOfferWorkspace({
   };
 
   const configurationLabel = (value: Exclude<ConfigurationFilter, "ALL">) => ({
-    READY: english ? "Ready to publish" : "Listo para publicar",
-    CONFIGURATION_PENDING: english ? "Configuration pending" : "Configuración pendiente",
-    STRIPE_PENDING: english ? "Stripe pending" : "Stripe pendiente",
+    READY: getCatalogCopy(languageCode).readyToPublish,
+    CONFIGURATION_PENDING: getCatalogCopy(languageCode).configurationPending,
+    STRIPE_PENDING: getCatalogCopy(languageCode).stripePending,
   })[value];
 
   const configurationClassName = (value: Exclude<ConfigurationFilter, "ALL">) => ({
@@ -307,8 +310,8 @@ export function CommercialOfferWorkspace({
   })[value];
 
   const promotionDiscount = (promotion: PlatformCatalogPromotion) => {
-    if (promotion.discount_type === "FIXED") return money(promotion.amount_off_cents, english);
-    return `${((promotion.percent_basis_points ?? 0) / 100).toLocaleString(english ? "en-CA" : "es-MX")}%`;
+    if (promotion.discount_type === "FIXED") return money(promotion.amount_off_cents, languageCode);
+    return `${((promotion.percent_basis_points ?? 0) / 100).toLocaleString(languageCode)}%`;
   };
 
   const actionButtonClassName = "grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-[#59C3A5] hover:bg-[#E9F8F3] hover:text-[#177D66] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300";
@@ -318,8 +321,8 @@ export function CommercialOfferWorkspace({
       <button
         type="button"
         className={actionButtonClassName}
-        aria-label={`${english ? "Edit" : "Editar"}: ${name}`}
-        title={english ? "Edit information" : "Editar información"}
+        aria-label={`${getCatalogCopy(languageCode).edit}: ${name}`}
+        title={getCatalogCopy(languageCode).editInformation}
         onClick={() => openEditor(target, "details")}
       >
         <Pencil className="h-4 w-4" />
@@ -327,8 +330,8 @@ export function CommercialOfferWorkspace({
       <button
         type="button"
         className={actionButtonClassName}
-        aria-label={`${promotion ? (english ? "Configure discount" : "Configurar descuento") : (english ? "Configure prices" : "Configurar precios")}: ${name}`}
-        title={promotion ? (english ? "Configure discount" : "Configurar descuento") : (english ? "Configure prices" : "Configurar precios")}
+        aria-label={`${promotion ? (getCatalogCopy(languageCode).configureDiscount) : (getCatalogCopy(languageCode).configurePrices)}: ${name}`}
+        title={promotion ? (getCatalogCopy(languageCode).configureDiscount) : (getCatalogCopy(languageCode).configurePrices)}
         onClick={() => openEditor(target, "pricing")}
       >
         {promotion ? <BadgePercent className="h-4 w-4" /> : <BadgeDollarSign className="h-4 w-4" />}
@@ -336,8 +339,8 @@ export function CommercialOfferWorkspace({
       <button
         type="button"
         className={actionButtonClassName}
-        aria-label={`${english ? "Manage availability" : "Administrar disponibilidad"}: ${name}`}
-        title={english ? "Manage availability" : "Administrar disponibilidad"}
+        aria-label={`${getCatalogCopy(languageCode).manageAvailability}: ${name}`}
+        title={getCatalogCopy(languageCode).manageAvailability}
         onClick={() => openEditor(target, "availability")}
       >
         <Eye className="h-4 w-4" />
@@ -348,8 +351,8 @@ export function CommercialOfferWorkspace({
   return (
     <div className="space-y-4">
       <IndiceFilterBar
-        title={english ? "Filters" : "Filtros"}
-        subtitle={english ? "Find and review the products customers can buy." : "Encuentra y revisa los productos que pueden comprar los clientes."}
+        title={getCatalogCopy(languageCode).filters}
+        subtitle={getCatalogCopy(languageCode).findAndReviewTheProductsCustomersCanBuy}
         gridClassName="lg:grid-cols-5"
         summary={(
           <div className="flex items-center gap-3">
@@ -361,7 +364,7 @@ export function CommercialOfferWorkspace({
                 className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 transition hover:border-[#59C3A5] hover:text-[#177D66] dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300"
               >
                 <X className="h-3.5 w-3.5" />
-                {english ? "Clear filters" : "Limpiar filtros"}
+                {getCatalogCopy(languageCode).clearFilters}
               </button>
             ) : null}
           </div>
@@ -369,62 +372,62 @@ export function CommercialOfferWorkspace({
       >
         <IndiceFilterSearch
           className="lg:col-span-2"
-          label={english ? "Search" : "Buscar"}
-          placeholder={english ? "Name, code or description" : "Nombre, código o descripción"}
+          label={getCatalogCopy(languageCode).search}
+          placeholder={getCatalogCopy(languageCode).nameCodeOrDescription}
           tone="aqua"
           value={query}
           onValueChange={setQuery}
           onClear={() => setQuery("")}
         />
         <IndiceFilterSelect
-          label={english ? "Product type" : "Tipo de producto"}
+          label={getCatalogCopy(languageCode).productType}
           tone="aqua"
           value={filter}
           onValueChange={(value) => setFilter(value as OfferFilter)}
           options={[
-            { value: "ALL", label: `${english ? "All products" : "Todos los productos"} (${counts.total})` },
-            { value: "MODULE", label: `${english ? "Modules" : "Módulos"} (${counts.modules})` },
-            { value: "PACKAGE", label: `${english ? "Packages" : "Paquetes"} (${counts.packages})` },
-            { value: "SEAT", label: `${english ? "Users" : "Usuarios"} (${counts.seats})` },
-            { value: "VOLUME", label: `${english ? "Volume" : "Volumen"} (${counts.volume})` },
-            { value: "STORAGE", label: `${english ? "Storage" : "Almacenamiento"} (${counts.storage})` },
-            { value: "PROMOTION", label: `${english ? "Promotions" : "Promociones"} (${counts.promotions})` },
+            { value: "ALL", label: `${getCatalogCopy(languageCode).allProducts} (${counts.total})` },
+            { value: "MODULE", label: `${getCatalogCopy(languageCode).modules} (${counts.modules})` },
+            { value: "PACKAGE", label: `${getCatalogCopy(languageCode).packages} (${counts.packages})` },
+            { value: "SEAT", label: `${getCatalogCopy(languageCode).users} (${counts.seats})` },
+            { value: "VOLUME", label: `${getCatalogCopy(languageCode).volume} (${counts.volume})` },
+            { value: "STORAGE", label: `${getCatalogCopy(languageCode).storage} (${counts.storage})` },
+            { value: "PROMOTION", label: `${getCatalogCopy(languageCode).promotions} (${counts.promotions})` },
           ]}
         />
         <IndiceFilterSelect
-          label={english ? "Availability" : "Disponibilidad"}
+          label={getCatalogCopy(languageCode).availability}
           tone="aqua"
           value={availability}
           onValueChange={(value) => setAvailability(value as AvailabilityFilter)}
           options={[
-            { value: "ALL", label: `${english ? "All statuses" : "Todos los estados"} (${counts.total})` },
-            { value: "ACTIVE", label: `${english ? "Available to customers" : "Disponibles para clientes"} (${counts.active})` },
-            { value: "INACTIVE", label: `${english ? "Unavailable" : "No disponibles"} (${counts.inactive})` },
+            { value: "ALL", label: `${getCatalogCopy(languageCode).allStatuses} (${counts.total})` },
+            { value: "ACTIVE", label: `${getCatalogCopy(languageCode).availableToCustomers} (${counts.active})` },
+            { value: "INACTIVE", label: `${getCatalogCopy(languageCode).unavailable} (${counts.inactive})` },
           ]}
         />
         <IndiceFilterSelect
-          label={english ? "Configuration" : "Configuración"}
+          label={getCatalogCopy(languageCode).configuration}
           tone="aqua"
           value={configuration}
           onValueChange={(value) => setConfiguration(value as ConfigurationFilter)}
           options={[
-            { value: "ALL", label: english ? "All configurations" : "Todas las configuraciones" },
-            { value: "READY", label: `${english ? "Ready to publish" : "Listos para publicar"} (${counts.ready})` },
-            { value: "CONFIGURATION_PENDING", label: `${english ? "Configuration pending" : "Configuración pendiente"} (${counts.configurationPending})` },
-            { value: "STRIPE_PENDING", label: `${english ? "Stripe pending" : "Stripe pendiente"} (${counts.stripePending})` },
+            { value: "ALL", label: getCatalogCopy(languageCode).allConfigurations },
+            { value: "READY", label: `${getCatalogCopy(languageCode).readyToPublish} (${counts.ready})` },
+            { value: "CONFIGURATION_PENDING", label: `${getCatalogCopy(languageCode).configurationPending} (${counts.configurationPending})` },
+            { value: "STRIPE_PENDING", label: `${getCatalogCopy(languageCode).stripePending} (${counts.stripePending})` },
           ]}
         />
       </IndiceFilterBar>
 
       <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.14em] text-[#177D66]">{english ? "Commercial offer" : "Oferta comercial"}</p>
-          <h2 className="mt-1 text-lg font-medium text-slate-950 dark:text-white">{english ? "What customers can buy" : "Lo que puede comprar el cliente"}</h2>
-          <p className="mt-1 text-sm text-slate-500">{english ? "Review the offer and use the row actions to configure each item." : "Revisa la oferta y usa las acciones de cada fila para configurar cada elemento."}</p>
+          <p className="text-xs font-medium uppercase tracking-[0.14em] text-[#177D66]">{getCatalogCopy(languageCode).commercialOffer}</p>
+          <h2 className="mt-1 text-lg font-medium text-slate-950 dark:text-white">{getCatalogCopy(languageCode).whatCustomersCanBuy}</h2>
+          <p className="mt-1 text-sm text-slate-500">{getCatalogCopy(languageCode).reviewTheOfferAndUseTheRowActions}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" disabled={!editable} onClick={() => openEditor({ type: "new-package" })} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white hover:bg-[#126553] disabled:opacity-40"><Plus className="h-4 w-4" />{english ? "Package" : "Paquete"}</button>
-          <button type="button" disabled={!editable} onClick={() => openEditor({ type: "new-promotion" })} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#59C3A5] bg-white px-4 text-sm font-medium text-[#177D66] hover:bg-[#E9F8F3] disabled:opacity-40 dark:bg-slate-900"><Gift className="h-4 w-4" />{english ? "Promotion" : "Promoción"}</button>
+          <button type="button" disabled={!editable} onClick={() => openEditor({ type: "new-package" })} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white hover:bg-[#126553] disabled:opacity-40"><Plus className="h-4 w-4" />{getCatalogCopy(languageCode).package}</button>
+          <button type="button" disabled={!editable} onClick={() => openEditor({ type: "new-promotion" })} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#59C3A5] bg-white px-4 text-sm font-medium text-[#177D66] hover:bg-[#E9F8F3] disabled:opacity-40 dark:bg-slate-900"><Gift className="h-4 w-4" />{getCatalogCopy(languageCode).promotion}</button>
         </div>
       </section>
 
@@ -433,7 +436,7 @@ export function CommercialOfferWorkspace({
           <IndiceTableColGroup columns={columns} actionsWidth={offerActionsWidth} />
           <IndiceTableHeaderRow
             actions={{
-              label: english ? "Actions" : "Acciones",
+              label: getCatalogCopy(languageCode).actions,
               width: offerActionsWidth,
               className: "sticky right-0 z-20 border-l border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900",
             }}
@@ -451,15 +454,15 @@ export function CommercialOfferWorkspace({
                   <TableCell className="h-[76px] px-4 py-3" style={{ width: columnWidths.offer }}>
                     <div className="flex min-w-0 items-center gap-3">
                       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#E9F8F3] text-[#177D66]"><Icon className="h-4 w-4" /></span>
-                      <div className="min-w-0"><p className="truncate text-sm font-medium text-slate-950 dark:text-white">{product.display_name}</p><p className="mt-0.5 truncate text-xs text-slate-500">{product.product_code}</p></div>
+                      <div className="min-w-0"><p className="truncate text-sm font-medium text-slate-950 dark:text-white">{catalogProductLabel(product, languageCode)}</p><p className="mt-0.5 truncate text-xs text-slate-500">{product.product_code}</p></div>
                     </div>
                   </TableCell>
-                  <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-200" style={{ width: columnWidths.type }}>{kindLabel(product.commercial_kind, english)}</TableCell>
-                  <TableCell className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white" style={{ width: columnWidths.monthly }}>{money(monthlyPrice(product)?.unit_amount_cents, english)}</TableCell>
-                  <TableCell className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white" style={{ width: columnWidths.annual }}>{money(annualPrice(product)?.unit_amount_cents, english)}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-200" style={{ width: columnWidths.type }}>{kindLabel(product.commercial_kind, languageCode)}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white" style={{ width: columnWidths.monthly }}>{money(monthlyPrice(product)?.unit_amount_cents, languageCode)}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white" style={{ width: columnWidths.annual }}>{money(annualPrice(product)?.unit_amount_cents, languageCode)}</TableCell>
                   <TableCell className="px-4 py-3" style={{ width: columnWidths.configuration }}><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${configurationClassName(configurationState)}`}>{configurationLabel(configurationState)}</span></TableCell>
-                  <TableCell className="px-4 py-3" style={{ width: columnWidths.availability }}><span className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium ${product.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}><span className={`h-2 w-2 rounded-full ${product.active ? "bg-emerald-500" : "bg-slate-400"}`} />{product.active ? (english ? "Available" : "Disponible") : (english ? "Unavailable" : "No disponible")}</span></TableCell>
-                  <TableCell className="sticky right-0 z-10 border-l border-slate-100 bg-white px-4 py-3 text-right group-hover:bg-[#F7FCFA] dark:border-slate-800 dark:bg-slate-900" style={{ width: offerActionsWidth }}>{renderActions(target, product.display_name)}</TableCell>
+                  <TableCell className="px-4 py-3" style={{ width: columnWidths.availability }}><span className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium ${product.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}><span className={`h-2 w-2 rounded-full ${product.active ? "bg-emerald-500" : "bg-slate-400"}`} />{product.active ? (getCatalogCopy(languageCode).available) : (getCatalogCopy(languageCode).unavailable)}</span></TableCell>
+                  <TableCell className="sticky right-0 z-10 border-l border-slate-100 bg-white px-4 py-3 text-right group-hover:bg-[#F7FCFA] dark:border-slate-800 dark:bg-slate-900" style={{ width: offerActionsWidth }}>{renderActions(target, catalogProductLabel(product, languageCode))}</TableCell>
                 </TableRow>
               );
             })}
@@ -469,17 +472,17 @@ export function CommercialOfferWorkspace({
               return (
                 <TableRow key={`promotion-${promotion.id}`} className="group border-slate-100 hover:bg-[#59C3A5]/5 dark:border-slate-800 dark:hover:bg-[#59C3A5]/10">
                   <TableCell className="h-[76px] px-4 py-3" style={{ width: columnWidths.offer }}><div className="flex min-w-0 items-center gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-700"><Gift className="h-4 w-4" /></span><div className="min-w-0"><p className="truncate text-sm font-medium text-slate-950 dark:text-white">{promotion.display_name}</p><p className="mt-0.5 truncate text-xs text-slate-500">{promotion.promotion_code}</p></div></div></TableCell>
-                  <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-200" style={{ width: columnWidths.type }}>{english ? "Promotion" : "Promoción"}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-200" style={{ width: columnWidths.type }}>{getCatalogCopy(languageCode).promotion}</TableCell>
                   <TableCell className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white" style={{ width: columnWidths.monthly }}>{promotionDiscount(promotion)}</TableCell>
                   <TableCell className="px-4 py-3 text-sm text-slate-400" style={{ width: columnWidths.annual }}>—</TableCell>
                   <TableCell className="px-4 py-3" style={{ width: columnWidths.configuration }}><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${configurationClassName(configurationState)}`}>{configurationLabel(configurationState)}</span></TableCell>
-                  <TableCell className="px-4 py-3" style={{ width: columnWidths.availability }}><span className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium ${promotion.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}><span className={`h-2 w-2 rounded-full ${promotion.active ? "bg-emerald-500" : "bg-slate-400"}`} />{promotion.active ? (english ? "Available" : "Disponible") : (english ? "Unavailable" : "No disponible")}</span></TableCell>
+                  <TableCell className="px-4 py-3" style={{ width: columnWidths.availability }}><span className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium ${promotion.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}><span className={`h-2 w-2 rounded-full ${promotion.active ? "bg-emerald-500" : "bg-slate-400"}`} />{promotion.active ? (getCatalogCopy(languageCode).available) : (getCatalogCopy(languageCode).unavailable)}</span></TableCell>
                   <TableCell className="sticky right-0 z-10 border-l border-slate-100 bg-white px-4 py-3 text-right group-hover:bg-[#F7FCFA] dark:border-slate-800 dark:bg-slate-900" style={{ width: offerActionsWidth }}>{renderActions(target, promotion.display_name, true)}</TableCell>
                 </TableRow>
               );
             })}
             {visibleProducts.length + visiblePromotions.length === 0 ? (
-              <TableRow><TableCell colSpan={columns.length + 1} className="px-6 py-14 text-center"><p className="text-sm font-medium text-slate-700 dark:text-slate-200">{english ? "No offers match these filters." : "Ninguna oferta coincide con estos filtros."}</p><button type="button" onClick={clearFilters} className="mt-3 text-xs font-medium text-[#177D66] hover:underline">{english ? "Clear filters" : "Limpiar filtros"}</button></TableCell></TableRow>
+              <TableRow><TableCell colSpan={columns.length + 1} className="px-6 py-14 text-center"><p className="text-sm font-medium text-slate-700 dark:text-slate-200">{getCatalogCopy(languageCode).noOffersMatchTheseFilters}</p><button type="button" onClick={clearFilters} className="mt-3 text-xs font-medium text-[#177D66] hover:underline">{getCatalogCopy(languageCode).clearFilters}</button></TableCell></TableRow>
             ) : null}
           </TableBody>
         </IndiceOperationalTable>
@@ -487,11 +490,12 @@ export function CommercialOfferWorkspace({
 
       <IndiceModalFrame
         bodyClassName="p-0"
+        busy={editorBusy}
         description={editorDescription}
-        eyebrow={english ? "Commercial offer" : "Oferta comercial"}
+        eyebrow={getCatalogCopy(languageCode).commercialOffer}
         icon={editorIcon}
         modalType="standard-form"
-        onOpenChange={(open) => { if (!open) setSelection(null); }}
+        onOpenChange={(open) => { if (!open && !editorBusy) setSelection(null); }}
         open={selection !== null}
         title={editorTitle}
         tone="aqua"
@@ -507,10 +511,11 @@ export function CommercialOfferWorkspace({
           workingVersionId={workingVersion?.id ?? null}
           stripeMode={catalog?.stripe_environment?.mode ?? "TEST"}
           liveSyncEnabled={catalog?.stripe_environment?.catalog_live_sync_enabled ?? false}
+          onBusyChange={setEditorBusy}
           onClose={() => setSelection(null)}
           onSaved={onChange}
           onSelect={(next) => setSelection(next)}
-          english={english}
+          english={true}
         />
       </IndiceModalFrame>
     </div>

@@ -1,3 +1,5 @@
+import { useLanguage } from "../../shared/context";
+import { catalogLocale, catalogLanguageLabel, getCatalogCopy, formatCatalogCopy } from "./translations";
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
@@ -51,23 +53,13 @@ type ViewMode = "table" | "cards";
 type AvailabilityFilter = "all" | "active" | "inactive";
 type CommercialStateFilter = "all" | "core" | "ready" | "unassigned";
 
-const localeLabels: Record<string, string> = {
-  "en-CA": "English (Canada)",
-  "en-US": "English (United States)",
-  "es-MX": "Español (México)",
-  "es-CO": "Español (Colombia)",
-  "fr-CA": "Français (Canada)",
-  "pt-BR": "Português (Brasil)",
-  "ko-CA": "한국어",
-  "zh-CA": "中文",
-};
 
-function commercialStateCopy(state: ModuleCommercialState, english: boolean) {
+function commercialStateCopy(state: ModuleCommercialState, languageCode: string) {
   const copy = {
-    core: english ? "Required" : "Obligatorio",
-    ready: english ? "Ready to offer" : "Listo para ofrecer",
-    unassigned: english ? "Without product" : "Sin producto",
-    unavailable: english ? "Unavailable" : "No disponible",
+    core: getCatalogCopy(languageCode).required,
+    ready: getCatalogCopy(languageCode).readyToOffer,
+    unassigned: getCatalogCopy(languageCode).withoutProduct,
+    unavailable: getCatalogCopy(languageCode).unavailable,
   };
   return copy[state];
 }
@@ -113,12 +105,14 @@ function ModuleAction({
   row: ModuleAvailabilityRow;
   saving: boolean;
 }) {
+  const { currentLanguage } = useLanguage();
+  const languageCode = catalogLocale(currentLanguage.code);
   const protectedCore = row.module.is_core;
   const label = protectedCore
-    ? english ? "Required module" : "Módulo obligatorio"
+    ? getCatalogCopy(languageCode).requiredModule
     : row.module.is_active
-      ? english ? "Remove from offer" : "Retirar de la oferta"
-      : english ? "Enable for offer" : "Habilitar para la oferta";
+      ? getCatalogCopy(languageCode).removeFromOffer
+      : getCatalogCopy(languageCode).enableForOffer;
   const Icon = protectedCore ? LockKeyhole : row.module.is_active ? PowerOff : Power;
 
   return (
@@ -173,6 +167,8 @@ export function ModuleAvailabilityWorkspace({
   products: PlatformCatalogProduct[];
   saving: boolean;
 }) {
+  const { currentLanguage } = useLanguage();
+  const languageCode = catalogLocale(currentLanguage.code);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [availability, setAvailability] = useState<AvailabilityFilter>("all");
@@ -187,10 +183,10 @@ export function ModuleAvailabilityWorkspace({
   const [workOrderOpen, setWorkOrderOpen] = useState(false);
   const { create, error: workOrderError, loading: workOrdersLoading, remove, workOrders } = useModuleWorkOrders();
   const workOrderCopy = useModuleWorkOrderCopy();
-  const labels = moduleAvailabilityColumnLabels(english);
+  const labels = moduleAvailabilityColumnLabels(languageCode);
   const rows = useMemo(
-    () => buildModuleAvailabilityRows(data?.modules ?? [], products, english),
-    [data?.modules, english, products],
+    () => buildModuleAvailabilityRows(data?.modules ?? [], products, languageCode),
+    [data?.modules, languageCode, products],
   );
 
   const categoryOptions = useMemo(() => {
@@ -200,10 +196,10 @@ export function ModuleAvailabilityWorkspace({
       .sort((left, right) => left[1].localeCompare(right[1]))
       .map(([value, label]) => ({ value, label }));
     return [
-      { value: "all", label: english ? "All categories" : "Todas las categorías" },
+      { value: "all", label: getCatalogCopy(languageCode).allCategories },
       ...options,
     ];
-  }, [english, rows]);
+  }, [languageCode, rows]);
 
   // Search, category and use define the base scope. Availability and commercial
   // status are facets over that scope, so their counts remain discoverable.
@@ -250,7 +246,7 @@ export function ModuleAvailabilityWorkspace({
     contentMinimumWidth: moduleAvailabilityMinimumWidths[columnId],
     maxWidth: moduleAvailabilityMaximumWidths[columnId],
     sortable: true,
-    resizeLabel: english ? `Resize ${labels[columnId]} column` : `Ajustar columna ${labels[columnId]}`,
+    resizeLabel: formatCatalogCopy(getCatalogCopy(languageCode).resizeColumn, labels[columnId]),
   }));
   const minimumWidth = getIndiceTableMinimumWidth({ columns: tableColumns, actionsWidth: moduleAvailabilityActionsWidth });
   const counts = {
@@ -298,12 +294,12 @@ export function ModuleAvailabilityWorkspace({
     if (columnId === "products") return (
       <span className="inline-flex items-center gap-2">
         <PackageCheck className="h-4 w-4 text-blue-500" />
-        {row.productCount} {english ? "linked" : "vinculado(s)"}
+        {row.productCount} {getCatalogCopy(languageCode).linked}
       </span>
     );
     if (columnId === "status") return (
       <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${commercialStateClassName(row.commercialState)}`}>
-        {commercialStateCopy(row.commercialState, english)}
+        {commercialStateCopy(row.commercialState, languageCode)}
       </span>
     );
     return <span className="block truncate" title={row.configurationLabel}>{row.configurationLabel}</span>;
@@ -318,23 +314,23 @@ export function ModuleAvailabilityWorkspace({
     icon: typeof Activity;
     tone: string;
   }> = [
-    { id: "active", group: "availability", label: english ? "Available" : "Disponibles", description: english ? "Enabled for use" : "Habilitados para usarse", value: counts.active, icon: Activity, tone: "bg-[#59C3A5]/15 text-[#177D66]" },
-    { id: "inactive", group: "availability", label: english ? "Unavailable" : "No disponibles", description: english ? "Disabled from the offer" : "Desactivados de la oferta", value: counts.inactive, icon: PowerOff, tone: "bg-slate-100 text-slate-600" },
-    { id: "core", group: "commercial", label: english ? "Required" : "Obligatorios", description: english ? "Always enabled" : "Siempre habilitados", value: counts.core, icon: LockKeyhole, tone: "bg-violet-50 text-violet-700" },
-    { id: "unassigned", group: "commercial", label: english ? "Without product" : "Sin producto", description: english ? "Enabled but not linked" : "Activos sin producto vinculado", value: counts.unassigned, icon: Boxes, tone: "bg-amber-50 text-amber-800" },
+    { id: "active", group: "availability", label: getCatalogCopy(languageCode).available, description: getCatalogCopy(languageCode).enabledForUse, value: counts.active, icon: Activity, tone: "bg-[#59C3A5]/15 text-[#177D66]" },
+    { id: "inactive", group: "availability", label: getCatalogCopy(languageCode).unavailable, description: getCatalogCopy(languageCode).disabledFromTheOffer, value: counts.inactive, icon: PowerOff, tone: "bg-slate-100 text-slate-600" },
+    { id: "core", group: "commercial", label: getCatalogCopy(languageCode).required, description: getCatalogCopy(languageCode).alwaysEnabled, value: counts.core, icon: LockKeyhole, tone: "bg-violet-50 text-violet-700" },
+    { id: "unassigned", group: "commercial", label: getCatalogCopy(languageCode).withoutProduct, description: getCatalogCopy(languageCode).enabledButNotLinked, value: counts.unassigned, icon: Boxes, tone: "bg-amber-50 text-amber-800" },
   ];
 
   return (
     <div className="space-y-4">
       {!canManage ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          {english ? "You can review availability, but cannot change the commercial offer." : "Puedes consultar la disponibilidad, pero no cambiar la oferta comercial."}
+          {getCatalogCopy(languageCode).youCanReviewAvailabilityButCannotChangeThe}
         </div>
       ) : null}
 
       <IndiceFilterBar
-        title={english ? "Filters" : "Filtros"}
-        subtitle={english ? "Find a module and narrow the commercial availability." : "Encuentra un módulo y limita la disponibilidad comercial."}
+        title={getCatalogCopy(languageCode).filters}
+        subtitle={getCatalogCopy(languageCode).findAModuleAndNarrowTheCommercialAvailability}
         gridClassName="lg:grid-cols-6"
         summary={(
           <div className="flex items-center gap-3">
@@ -346,7 +342,7 @@ export function ModuleAvailabilityWorkspace({
                 className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 transition hover:border-[#59C3A5] hover:text-[#177D66] dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300"
               >
                 <X className="h-3.5 w-3.5" />
-                {english ? "Clear filters" : "Limpiar filtros"}
+                {getCatalogCopy(languageCode).clearFilters}
               </button>
             ) : null}
           </div>
@@ -354,57 +350,57 @@ export function ModuleAvailabilityWorkspace({
       >
         <IndiceFilterSearch
           className="lg:col-span-2"
-          label={english ? "Search" : "Buscar"}
-          placeholder={english ? "Name, route or description" : "Nombre, ruta o descripción"}
+          label={getCatalogCopy(languageCode).search}
+          placeholder={getCatalogCopy(languageCode).nameRouteOrDescription}
           tone="aqua"
           value={search}
           onValueChange={setSearch}
           onClear={() => setSearch("")}
         />
         <IndiceFilterSelect
-          label={english ? "Category" : "Categoría"}
+          label={getCatalogCopy(languageCode).category}
           tone="aqua"
           value={category}
           onValueChange={setCategory}
           options={categoryOptions}
         />
         <IndiceFilterSelect
-          label={english ? "Availability" : "Disponibilidad"}
+          label={getCatalogCopy(languageCode).availability}
           tone="aqua"
           value={availability}
           onValueChange={changeAvailability}
           options={[
-            { value: "all", label: `${english ? "All modules" : "Todos los módulos"} (${counts.total})` },
-            { value: "active", label: `${english ? "Available" : "Disponibles"} (${counts.active})` },
-            { value: "inactive", label: `${english ? "Unavailable" : "No disponibles"} (${counts.inactive})` },
+            { value: "all", label: `${getCatalogCopy(languageCode).allModules} (${counts.total})` },
+            { value: "active", label: `${getCatalogCopy(languageCode).available} (${counts.active})` },
+            { value: "inactive", label: `${getCatalogCopy(languageCode).unavailable} (${counts.inactive})` },
           ]}
         />
         <IndiceFilterSelect
-          label={english ? "Use" : "Uso"}
+          label={getCatalogCopy(languageCode).use}
           tone="aqua"
           value={usage}
           onValueChange={setUsage}
           options={[
-            { value: "all", label: english ? "All uses" : "Todos los usos" },
-            { value: "assignable", label: english ? "Customer assignable" : "Asignable a clientes" },
-            { value: "internal", label: english ? "Internal use" : "Uso interno" },
+            { value: "all", label: getCatalogCopy(languageCode).allUses },
+            { value: "assignable", label: getCatalogCopy(languageCode).customerAssignable },
+            { value: "internal", label: getCatalogCopy(languageCode).internalUse },
           ]}
         />
         <IndiceFilterSelect
-          label={english ? "Commercial status" : "Estado comercial"}
+          label={getCatalogCopy(languageCode).commercialStatus}
           tone="aqua"
           value={commercialState}
           onValueChange={changeCommercialState}
           options={[
-            { value: "all", label: english ? "All statuses" : "Todos los estados" },
-            { value: "core", label: `${english ? "Required" : "Obligatorio"} (${counts.core})` },
-            { value: "ready", label: `${english ? "Ready to offer" : "Listo para ofrecer"} (${counts.ready})` },
-            { value: "unassigned", label: `${english ? "Without product" : "Sin producto"} (${counts.unassigned})` },
+            { value: "all", label: getCatalogCopy(languageCode).allStatuses },
+            { value: "core", label: `${getCatalogCopy(languageCode).required} (${counts.core})` },
+            { value: "ready", label: `${getCatalogCopy(languageCode).readyToOffer} (${counts.ready})` },
+            { value: "unassigned", label: `${getCatalogCopy(languageCode).withoutProduct} (${counts.unassigned})` },
           ]}
         />
       </IndiceFilterBar>
 
-      <section aria-label={english ? "Availability indicators" : "Indicadores de disponibilidad"} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label={getCatalogCopy(languageCode).availabilityIndicators} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {kpis.map((kpi) => {
           const Icon = kpi.icon;
           const selected = kpi.group === "availability"
@@ -444,23 +440,23 @@ export function ModuleAvailabilityWorkspace({
 
       <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-medium text-slate-950">{english ? "Module availability" : "Disponibilidad de módulos"}</h2>
+          <h2 className="text-lg font-medium text-slate-950">{getCatalogCopy(languageCode).moduleAvailability}</h2>
           <p className="mt-1 text-sm text-slate-500">
-            {filteredRows.length} {english ? "of" : "de"} {rows.length} {english ? "modules" : "módulos"}
+            {filteredRows.length} {getCatalogCopy(languageCode).of} {rows.length} {getCatalogCopy(languageCode).modules1}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
             <button type="button" aria-pressed={viewMode === "table"} onClick={() => setViewMode("table")} className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium ${viewMode === "table" ? "bg-[#177D66] text-white" : "text-slate-600 dark:text-slate-300"}`}>
-              <List className="h-4 w-4" />{english ? "Table" : "Tabla"}
+              <List className="h-4 w-4" />{getCatalogCopy(languageCode).table}
             </button>
             <button type="button" aria-pressed={viewMode === "cards"} onClick={() => setViewMode("cards")} className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium ${viewMode === "cards" ? "bg-[#177D66] text-white" : "text-slate-600 dark:text-slate-300"}`}>
-              <Grid2X2 className="h-4 w-4" />{english ? "Cards" : "Tarjetas"}
+              <Grid2X2 className="h-4 w-4" />{getCatalogCopy(languageCode).cards}
             </button>
           </div>
           {viewMode === "table" ? (
             <button type="button" onClick={() => setColumnsOpen(true)} className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#59C3A5]/40 bg-white px-4 text-sm font-medium text-[#176B5B] hover:bg-[#59C3A5]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25 dark:bg-slate-900 dark:text-[#8FE0CA]">
-              <Columns3 className="h-4 w-4" />{english ? "Columns" : "Columnas"}
+              <Columns3 className="h-4 w-4" />{getCatalogCopy(languageCode).columns}
             </button>
           ) : null}
           {canManage ? (
@@ -472,7 +468,7 @@ export function ModuleAvailabilityWorkspace({
       </section>
 
       {workOrderError ? <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{workOrderError}</div> : null}
-      {workOrdersLoading ? <p className="text-sm text-slate-500">{english ? "Loading module requests…" : "Cargando solicitudes de módulos…"}</p> : null}
+      {workOrdersLoading ? <p className="text-sm text-slate-500">{getCatalogCopy(languageCode).loadingModuleRequests}</p> : null}
       {workOrders.length ? (
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-4 py-3">
@@ -489,7 +485,7 @@ export function ModuleAvailabilityWorkspace({
                       <h3 className="truncate text-sm font-medium text-slate-950">{order.moduleName}</h3>
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">{workOrderCopy.draft}</span>
                     </div>
-                    <p className="mt-0.5 truncate text-xs text-slate-500">{english ? "Initial language" : "Idioma inicial"}: {localeLabels[order.sourceLocale] || order.sourceLocale}</p>
+                    <p className="mt-0.5 truncate text-xs text-slate-500">{getCatalogCopy(languageCode).initialLanguage}: {catalogLanguageLabel(order.sourceLocale, languageCode)}</p>
                   </div>
                 </div>
                 <button type="button" onClick={() => void remove(order.id)} className="inline-flex h-9 items-center justify-center rounded-lg border border-red-200 px-3 text-xs font-medium text-red-600 hover:bg-red-50">{workOrderCopy.remove}</button>
@@ -510,7 +506,7 @@ export function ModuleAvailabilityWorkspace({
               totalCount={filteredRows.length}
               pageStart={(page - 1) * pageSize + 1}
               pageEnd={Math.min(page * pageSize, filteredRows.length)}
-              itemLabel={english ? "modules" : "módulos"}
+              itemLabel={getCatalogCopy(languageCode).modules2}
               onPageChange={setPage}
               onPageSizeChange={(nextSize) => { setPageSize(nextSize); setPage(1); }}
             />
@@ -519,7 +515,7 @@ export function ModuleAvailabilityWorkspace({
           <IndiceOperationalTable minimumWidth={minimumWidth}>
             <IndiceTableColGroup columns={tableColumns} actionsWidth={moduleAvailabilityActionsWidth} />
             <IndiceTableHeaderRow
-              actions={{ label: english ? "Actions" : "Acciones", width: moduleAvailabilityActionsWidth }}
+              actions={{ label: getCatalogCopy(languageCode).actions, width: moduleAvailabilityActionsWidth }}
               columns={tableColumns}
               onResize={resizeColumn}
               onSort={handleSort}
@@ -540,7 +536,7 @@ export function ModuleAvailabilityWorkspace({
                 </TableRow>
               ))}
               {!pageRows.length ? (
-                <TableRow><TableCell colSpan={visibleColumns.length + 1} className="px-6 py-14 text-center text-sm text-slate-500">{english ? "No modules match these filters." : "No hay módulos con estos filtros."}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={visibleColumns.length + 1} className="px-6 py-14 text-center text-sm text-slate-500">{getCatalogCopy(languageCode).noModulesMatchTheseFilters}</TableCell></TableRow>
               ) : null}
             </TableBody>
           </IndiceOperationalTable>
@@ -553,20 +549,20 @@ export function ModuleAvailabilityWorkspace({
               <article key={row.module.id} className="flex min-h-56 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <span className={`grid h-11 w-11 place-items-center overflow-hidden rounded-xl border text-lg ${visual.border} ${visual.background}`}>{visual.emoji}</span>
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${commercialStateClassName(row.commercialState)}`}>{commercialStateCopy(row.commercialState, english)}</span>
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${commercialStateClassName(row.commercialState)}`}>{commercialStateCopy(row.commercialState, languageCode)}</span>
                 </div>
                 <h3 className="mt-3 text-base font-medium text-slate-950">{row.name}</h3>
                 <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-500">{row.description}</p>
                 <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
                   <span className="rounded-full bg-slate-100 px-2.5 py-1">{row.categoryLabel}</span>
                   <span className="rounded-full bg-slate-100 px-2.5 py-1">{row.useLabel}</span>
-                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700">{row.productCount} {english ? "products" : "productos"}</span>
+                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700">{row.productCount} {getCatalogCopy(languageCode).products}</span>
                 </div>
                 <div className="mt-auto pt-4"><ModuleAction row={row} canManage={canManage} saving={saving} english={english} onChange={onChange} /></div>
               </article>
             );
           })}
-          {!pageRows.length ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center text-sm text-slate-500 sm:col-span-2 xl:col-span-3">{english ? "No modules match these filters." : "No hay módulos con estos filtros."}</div> : null}
+          {!pageRows.length ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center text-sm text-slate-500 sm:col-span-2 xl:col-span-3">{getCatalogCopy(languageCode).noModulesMatchTheseFilters}</div> : null}
         </div>
       )}
 
@@ -580,7 +576,7 @@ export function ModuleAvailabilityWorkspace({
           totalCount={filteredRows.length}
           pageStart={(page - 1) * pageSize + 1}
           pageEnd={Math.min(page * pageSize, filteredRows.length)}
-          itemLabel={english ? "modules" : "módulos"}
+          itemLabel={getCatalogCopy(languageCode).modules3}
           onPageChange={setPage}
           onPageSizeChange={(nextSize) => { setPageSize(nextSize); setPage(1); }}
         />

@@ -3,15 +3,20 @@ package com.indice.erp.billing.storage;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.indice.erp.storage.ObjectStorageService;
 import com.indice.erp.storage.StoredObjectMetadata;
+import com.indice.erp.billing.catalog.SubscriptionCatalogPriceResolver;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Map;
@@ -20,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -54,6 +60,9 @@ class StorageQuotaIntegrationTest {
     @MockBean
     private StripeStorageGateway stripe;
 
+    @MockBean
+    private SubscriptionCatalogPriceResolver contractPrices;
+
     private final Map<String, Long> objectSizes = new ConcurrentHashMap<>();
 
     @BeforeEach
@@ -72,6 +81,8 @@ class StorageQuotaIntegrationTest {
                 var command = invocation.getArgument(0, StripeStorageGateway.Command.class);
                 return new StripeStorageGateway.Result("si_storage_test", command.quantity());
             });
+        when(contractPrices.resolve(anyLong(), anyString(), eq("storage_block"), anyString()))
+            .thenReturn("price_contract_storage_test");
     }
 
     @AfterEach
@@ -201,6 +212,93 @@ class StorageQuotaIntegrationTest {
             String.class, tenant.companyId())).isEqualTo("FAILED");
     }
 
+    @Test
+    void newManualStorageItemUsesTheSubscriptionContractPriceInsteadOfTheEnvironmentPrice() {
+        var tenant = premiumTenant("contract-price");
+        purchases.setPurchasedBlocks(tenant.companyId(), tenant.userId(), 1, "contract-storage-price");
+        verify(contractPrices).resolve(tenant.companyId(), tenant.subscriptionId(), "storage_block", "MONTH");
+        var command = ArgumentCaptor.forClass(StripeStorageGateway.Command.class);
+        verify(stripe).setBlockQuantity(command.capture(), anyString());
+        assertThat(command.getValue()).isEqualTo(new StripeStorageGateway.Command(
+            tenant.subscriptionId(), null, "price_contract_storage_test", 1));
+    }
+
+    @Test
+    void newAutomaticStorageItemUsesTheSubscriptionContractPrice() {
+        var tenant = premiumTenant("automatic-contract-price");
+        storage.reserve(tenant.companyId(), "HR", "documents", "tenant/overage-contract.pdf", 110);
+        assertThat(overageSync.synchronizeCompany(tenant.companyId())).isTrue();
+        verify(contractPrices).resolve(tenant.companyId(), tenant.subscriptionId(), "storage_block", "MONTH");
+        var command = ArgumentCaptor.forClass(StripeStorageGateway.Command.class);
+        verify(stripe).setBlockQuantity(command.capture(), anyString());
+        assertThat(command.getValue().priceId()).isEqualTo("price_contract_storage_test");
+        assertThat(command.getValue().subscriptionId()).isEqualTo(tenant.subscriptionId());
+    }
+
+    @Test
+    void existingStorageItemCanIncreaseAndBeRemovedWithoutResolvingAnotherPrice() {
+        var tenant = premiumTenant("existing-item");
+        jdbc.update("UPDATE company_billing_subscriptions SET stripe_storage_item_id = 'si_original' WHERE company_id = ?",
+            tenant.companyId());
+        purchases.setPurchasedBlocks(tenant.companyId(), tenant.userId(), 2, "existing-storage-increase");
+        doReturn(new StripeStorageGateway.Result(null, 0)).when(stripe).setBlockQuantity(
+            eq(new StripeStorageGateway.Command(tenant.subscriptionId(), "si_storage_test", null, 0)),
+            anyString());
+        purchases.setPurchasedBlocks(tenant.companyId(), tenant.userId(), 0, "existing-storage-remove");
+        verify(contractPrices, never()).resolve(anyLong(), anyString(), anyString(), anyString());
+        var commands = ArgumentCaptor.forClass(StripeStorageGateway.Command.class);
+        verify(stripe, times(2)).setBlockQuantity(commands.capture(), anyString());
+        assertThat(commands.getAllValues()).allSatisfy(command -> assertThat(command.priceId()).isNull());
+        assertThat(commands.getAllValues().getFirst().subscriptionItemId()).isEqualTo("si_original");
+        assertThat(storage.snapshot(tenant.companyId()).purchasedBlocks()).isZero();
+    }
+
+    @Test
+    void existingAutomaticStorageItemKeepsItsPriceEvenWithoutCatalogAvailability() {
+        var tenant = premiumTenant("automatic-existing-item");
+        jdbc.update("UPDATE company_billing_subscriptions SET stripe_storage_item_id = 'si_original' WHERE company_id = ?",
+            tenant.companyId());
+        storage.reserve(tenant.companyId(), "HR", "documents", "tenant/existing-overage.pdf", 110);
+        assertThat(overageSync.synchronizeCompany(tenant.companyId())).isTrue();
+        verify(contractPrices, never()).resolve(anyLong(), anyString(), anyString(), anyString());
+        var command = ArgumentCaptor.forClass(StripeStorageGateway.Command.class);
+        verify(stripe).setBlockQuantity(command.capture(), anyString());
+        assertThat(command.getValue()).isEqualTo(new StripeStorageGateway.Command(tenant.subscriptionId(), "si_original", null, 1));
+    }
+
+    @Test
+    void missingContractPriceDoesNotFallBackForManualOrAutomaticPurchases() {
+        var tenant = premiumTenant("missing-contract-price");
+        doThrow(new IllegalStateException("Subscription contract price is missing."))
+            .when(contractPrices).resolve(tenant.companyId(), tenant.subscriptionId(), "storage_block", "MONTH");
+        assertThatThrownBy(() -> purchases.setPurchasedBlocks(tenant.companyId(), tenant.userId(), 1, "missing-storage-price"))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("contract price is missing");
+        assertThat(storage.snapshot(tenant.companyId()).purchasedBlocks()).isZero();
+        storage.reserve(tenant.companyId(), "HR", "documents", "tenant/missing-overage.pdf", 110);
+        assertThat(overageSync.synchronizeCompany(tenant.companyId())).isFalse();
+        assertThat(jdbc.queryForObject("SELECT status FROM company_storage_overage_syncs WHERE company_id = ?",
+            String.class, tenant.companyId())).isEqualTo("FAILED");
+        verify(stripe, never()).setBlockQuantity(any(), anyString());
+    }
+
+    @Test
+    void retryUsesTheSameContractPriceAndStripeIdempotencyKey() {
+        var tenant = premiumTenant("contract-price-retry");
+        doThrow(new IllegalStateException("Temporary provider failure."))
+            .doReturn(new StripeStorageGateway.Result("si_recovered", 1))
+            .when(stripe).setBlockQuantity(any(), anyString());
+        assertThatThrownBy(() -> purchases.setPurchasedBlocks(tenant.companyId(), tenant.userId(), 1, "storage-contract-retry"))
+            .isInstanceOf(IllegalStateException.class);
+        purchases.setPurchasedBlocks(tenant.companyId(), tenant.userId(), 1, "storage-contract-retry");
+        var commands = ArgumentCaptor.forClass(StripeStorageGateway.Command.class);
+        var keys = ArgumentCaptor.forClass(String.class);
+        verify(stripe, times(2)).setBlockQuantity(commands.capture(), keys.capture());
+        assertThat(commands.getAllValues().getFirst()).isEqualTo(commands.getAllValues().getLast());
+        assertThat(commands.getAllValues().getLast().priceId()).isEqualTo("price_contract_storage_test");
+        assertThat(keys.getAllValues().getFirst()).isEqualTo(keys.getAllValues().getLast());
+        assertThat(storage.snapshot(tenant.companyId()).purchasedBlocks()).isEqualTo(1);
+    }
+
     private Tenant premiumTenant(String label) {
         var suffix = UUID.randomUUID().toString();
         jdbc.update("INSERT INTO companies (name) VALUES (?)", COMPANY_PREFIX + label + "-" + suffix);
@@ -220,6 +318,7 @@ class StorageQuotaIntegrationTest {
             "INSERT INTO company_entitlement_policies (company_id, mode, reason) VALUES (?, 'SHADOW', 'phase7 test')",
             companyId);
         storage.initializeCompany(companyId);
+        var subscriptionId = "sub_storage_" + reference();
         jdbc.update(
             """
                 INSERT INTO company_billing_subscriptions (
@@ -227,8 +326,8 @@ class StorageQuotaIntegrationTest {
                     last_event_id, last_event_created_at
                 ) VALUES (?, ?, 'MONTH', 'active', ?, ?)
                 """,
-            "sub_storage_" + reference(), companyId, "evt_storage_" + reference(), Timestamp.from(Instant.now()));
-        return new Tenant(companyId, userId);
+            subscriptionId, companyId, "evt_storage_" + reference(), Timestamp.from(Instant.now()));
+        return new Tenant(companyId, userId, subscriptionId);
     }
 
     private void cleanTestState() {
@@ -249,5 +348,5 @@ class StorageQuotaIntegrationTest {
         return UUID.randomUUID().toString().replace("-", "").substring(0, 16);
     }
 
-    private record Tenant(long companyId, long userId) {}
+    private record Tenant(long companyId, long userId, String subscriptionId) {}
 }

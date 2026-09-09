@@ -239,6 +239,7 @@ export function formatPublicPlanMoney(cents: number | null, currency: string, lo
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: currency || 'USD',
-    maximumFractionDigits: 0,
+    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
   }).format(cents / 100);
 }
