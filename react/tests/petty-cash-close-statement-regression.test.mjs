@@ -9,6 +9,7 @@ import ts from 'typescript';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../src/app/BasicModules/PettyCash');
 const cache = new Map();
+let memoryOptions;
 let activeHooks;
 let requests = [];
 let respond;
@@ -41,7 +42,7 @@ function component(Component) {
   };
 }
 const hooks = { ...React, useState: initial => activeHooks.useState(initial),
-  useRef: initial => activeHooks.useRef(initial), useMemo: callback => callback(), useEffect: () => {} };
+  useCallback: callback => callback, useRef: initial => activeHooks.useRef(initial), useMemo: callback => callback(), useEffect: () => {} };
 const ui = new Proxy({}, { get: (_, name) => name });
 function load(file) {
   const path = [file, `${file}.ts`, `${file}.tsx`, resolve(file, 'index.ts'), resolve(file, 'index.tsx')]
@@ -63,9 +64,10 @@ function load(file) {
   if (path.endsWith('/shared/BusinessCurrencyContext.tsx')) return { usePreferredBusinessCurrency: () => ({ preferredCurrency: 'USD' }) };
   if (path.endsWith('/shared/kpiMonetaryApi.ts')) return { useKpiMonetaryAggregate: () => ({}) };
   if (path.endsWith('/shared/operational/index.ts')) return { ...ui, OperationalKpiArea: 'OperationalKpiArea', getOperationalKpiCurrencyCopy: () => ({}) };
-  if (path.endsWith('/hooks/useTablePagination.ts')) return { useTablePagination: ({ rows }) => ({ paginatedRows: rows }) };
+  if (path.endsWith('/hooks/useWorkspaceNavigationMemory.ts')) return { useWorkspaceNavigationMemory: options => { memoryOptions = options; } };
+  if (path.endsWith('/hooks/useTablePagination.ts')) return { useTablePagination: ({ rows }) => ({ paginatedRows: rows, restorePagination: () => {}, onPageChange: () => {} }) };
   if (path.endsWith('/components/PettyCashShared.tsx')) return new Proxy({
-    usePettyCashTableSort: rows => ({ sortedRows: rows, sortKey: 'date', sortDirection: 'desc' }),
+    usePettyCashTableSort: rows => ({ sortedRows: rows, sortKey: 'date', sortDirection: 'desc', restoreSort: () => {} }),
   }, { get: (target, name) => target[name] ?? name });
   // Shared modal/view primitives are boundaries; the existing operation modal itself is exercised below.
   if (path.includes('/components/') && !path.endsWith('/PettyCashReconciliationWorkspace.tsx')) return ui;
@@ -113,6 +115,7 @@ function workspace(overrides = {}) {
   requests = [];
   const props = { funds: [fund()], statements: [statement()], settlementLines: [], movements: [],
     onMovementsChange: () => {}, onSettlementLinesChange: () => {}, ...overrides };
+  props.onSettlementLinesChange = update => { props.settlementLines = update(props.settlementLines); };
   props.onFundsChange = update => { props.funds = update(props.funds); };
   props.onStatementsChange = update => { props.statements = update(props.statements); };
   const renderer = component(PettyCashReconciliationWorkspace);
@@ -314,4 +317,36 @@ test('closing refreshes all affected successor balances using the backend respon
   assert.equal(ws.props.statements.find(item => item.id === '52').declaredClosingBalanceAmount, -174.01);
   assert.equal(ws.props.statements.find(item => item.id === '53').declaredClosingBalanceAmount, -184.01);
   assert.equal(ws.props.statements.length, 3);
+});
+
+
+test('Saldos selection exposes four actions, filtered and selected totals, and sends one versioned batch', async () => {
+  const ws = workspace({ settlementLines: [line({ id: '80', version: 3, status: 'DRAFT', totalAmount: 100 }), line({ id: '81', version: 7, status: 'DRAFT', totalAmount: 250 })] });
+  nodes(ws.render()).find(node => node.type === 'input' && node.props['aria-label'] === 'Seleccionar filas visibles').props.onChange({ target: { checked: true } });
+  const bar = nodes(ws.render()).find(node => node.type?.name === 'FinanceBulkActions');
+  assert.equal(bar.props.count, 2);
+  assert.deepEqual(bar.props.actions.map(item => item.action), ['DELETE', 'PROVIDER', 'PAYMENT_ACCOUNT', 'ACCOUNTING_ACCOUNT']);
+  assert.match(bar.props.actions.find(item => item.action === 'PAYMENT_ACCOUNT').blockedReason, /pertenece al fondo/);
+  const totals = nodes(ws.render()).find(node => node.type?.name === 'FinanceSelectionTotals');
+  assert.equal(totals.props.rows.length, 2); assert.equal(totals.props.selected.length, 2);
+  respond = () => ({ fund: fund(), statement: statement(), settlementLines: ws.props.settlementLines.map(item => ({ ...item, providerId: 9, version: item.version + 1 })) });
+  await bar.props.onApply('PROVIDER', '9', '');
+  assert.equal(requests.length, 1);
+  assert.deepEqual(requests[0].body, { statementId: 51, action: 'PROVIDER', targetId: 9, reason: '', rows: [{ id: 80, expectedVersion: 3 }, { id: 81, expectedVersion: 7 }] });
+  assert.ok(ws.props.settlementLines.every(item => item.providerId === '9'));
+});
+
+test('Saldos memory restores the selected cut, filters and view; stale fund IDs are discarded', () => {
+  const august = statement(); const september = statement({ id: '52', periodKey: '2026-09' });
+  const ws = workspace({ statements: [september, august], settlementLines: [line({ version: 0 })] });
+  ws.render();
+  const restored = { ...memoryOptions.state, selectedFundId: '5', selectedStatementId: '51', searchTerm: 'Comprobante', receiptStatusFilter: 'EXPENSE_CREATED', evidenceFilter: 'with' };
+  memoryOptions.onRestore(restored);
+  assert.equal(field(ws.render(), 'Corte').props.value, '51');
+  assert.equal(memoryOptions.state.searchTerm, 'Comprobante');
+  assert.equal(memoryOptions.state.receiptStatusFilter, 'EXPENSE_CREATED');
+  assert.ok(!('selectedIds' in memoryOptions.state));
+  memoryOptions.onRestore({ ...restored, selectedFundId: '9999', selectedStatementId: '9999', receiptStatusFilter: 'INVALID', evidenceFilter: 'INVALID' });
+  ws.render(); assert.equal(memoryOptions.state.selectedFundId, '5'); assert.equal(memoryOptions.state.selectedStatementId, '52');
+  assert.equal(memoryOptions.state.receiptStatusFilter, 'all'); assert.equal(memoryOptions.state.evidenceFilter, 'all');
 });

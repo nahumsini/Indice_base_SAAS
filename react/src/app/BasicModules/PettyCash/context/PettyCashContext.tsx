@@ -1,3 +1,4 @@
+import { useAuthorizationRevision } from '../../../hooks/useAuthorizationRevision';
 import { createContext, useContext, useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import {
   mockCashFunds,
@@ -14,6 +15,7 @@ import type {
 } from '../types/pettyCash.types';
 
 interface PettyCashContextValue {
+  workspaceLoaded: boolean;
   cashFunds: CashFund[];
   pettyCashExpenses: PettyCashExpense[];
   pettyCashFunds: PettyCashFund[];
@@ -31,6 +33,8 @@ interface PettyCashContextValue {
 const PettyCashContext = createContext<PettyCashContextValue | null>(null);
 
 export function PettyCashProvider({ children }: { children: ReactNode }) {
+  const authorizationRevision = useAuthorizationRevision();
+  const [workspaceLoaded, setWorkspaceLoaded] = useState(false);
   const [cashFunds, setCashFunds] = useState<CashFund[]>(mockCashFunds);
   const [pettyCashExpenses, setPettyCashExpenses] = useState<PettyCashExpense[]>(mockPettyCashExpenses);
   const [pettyCashFunds, setPettyCashFunds] = useState<PettyCashFund[]>([]);
@@ -40,6 +44,11 @@ export function PettyCashProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    setWorkspaceLoaded(false);
+    setPettyCashFunds([]);
+    setPettyCashMovements([]);
+    setPettyCashSettlementLines([]);
+    setPettyCashStatements([]);
 
     pettyCashService.getWorkspace()
       .then((workspace) => {
@@ -48,6 +57,7 @@ export function PettyCashProvider({ children }: { children: ReactNode }) {
         setPettyCashMovements(workspace.movements);
         setPettyCashSettlementLines(workspace.settlementLines);
         setPettyCashStatements(workspace.statements);
+        setWorkspaceLoaded(true);
       })
       .catch(() => {
         if (cancelled) return;
@@ -60,9 +70,10 @@ export function PettyCashProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [authorizationRevision]);
 
   const value = useMemo<PettyCashContextValue>(() => ({
+    workspaceLoaded,
     cashFunds,
     pettyCashExpenses,
     pettyCashFunds,
@@ -75,7 +86,7 @@ export function PettyCashProvider({ children }: { children: ReactNode }) {
     setPettyCashMovements,
     setPettyCashSettlementLines,
     setPettyCashStatements,
-  }), [cashFunds, pettyCashExpenses, pettyCashFunds, pettyCashMovements, pettyCashSettlementLines, pettyCashStatements]);
+  }), [workspaceLoaded, cashFunds, pettyCashExpenses, pettyCashFunds, pettyCashMovements, pettyCashSettlementLines, pettyCashStatements]);
 
   return (
     <PettyCashContext.Provider value={value}>

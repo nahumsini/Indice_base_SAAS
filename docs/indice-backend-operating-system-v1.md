@@ -344,6 +344,10 @@ Approved Finance domain contracts remain authoritative. General rules include:
   transaction.
 - Only `DRAFT` expenses may be edited or deleted. Submitted, approved, partially paid, paid, and
   closed expenses change through their explicit workflow, adjustment, or reversal operations.
+- Selected-row classification adjustments and audited bulk reversals follow
+  `docs/finance-bulk-actions-and-workspace-memory-contract-v1.md`. Ordinary unposted expenses
+  may change organizational/provider/account classifications through that explicit owner contract;
+  existing payment history and fund custody remain protected.
 - Expense accounting classification is an explicit account-only operation, with company/scope
   checks, optimistic version validation and server-owned audit history. Ordinary expenses may be
   classified before journal posting without modifying amounts, payment evidence, currency or

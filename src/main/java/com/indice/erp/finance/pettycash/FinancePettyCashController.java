@@ -34,14 +34,26 @@ public class FinancePettyCashController {
     private final FinanceRequestGuard guard;
     private final PettyCashService service;
     private final PettyCashAttachmentService attachmentService;
+    private final PettyCashBulkActionService bulk;
 
     public FinancePettyCashController(
             FinanceRequestGuard guard,
             PettyCashService service,
-            PettyCashAttachmentService attachmentService) {
+            PettyCashAttachmentService attachmentService, PettyCashBulkActionService bulk) {
         this.guard = guard;
         this.service = service;
         this.attachmentService = attachmentService;
+        this.bulk = bulk;
+    }
+
+    @PostMapping("/funds/{fundId}/settlement-lines/bulk-actions")
+    public ResponseEntity<?> bulkAction(HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrf,
+            @PathVariable long fundId,
+            @Valid @RequestBody com.indice.erp.finance.pettycash.dto.PettyCashBulkActionRequest request) {
+        var access = guard.requireWriteAccess(session, csrf);
+        if (access.denied()) return access.error();
+        return ResponseEntity.ok(bulk.apply(access.context(), fundId, request));
     }
 
     @GetMapping

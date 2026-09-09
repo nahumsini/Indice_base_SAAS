@@ -345,7 +345,10 @@ export function usePettyCashTableSort<T, K extends string>(
     setSortDirection('asc');
   };
 
-  return { onSort, sortDirection, sortedRows, sortKey };
+  return { onSort, sortDirection, sortedRows, sortKey, restoreSort: (key: string, direction: string) => {
+    setSortKey(Object.prototype.hasOwnProperty.call(accessors, key) ? key as K : initialKey);
+    setSortDirection(direction === 'asc' || direction === 'desc' ? direction : initialDirection);
+  } };
 }
 
 export function PettyCashSortableHeader<K extends string>({

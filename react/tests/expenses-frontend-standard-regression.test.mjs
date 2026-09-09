@@ -105,7 +105,7 @@ test('Expenses recupera la primera carga cuando la sesion acaba de iniciar', () 
   assert.match(moduleSource, /await recoverSession\(\)/);
   assert.match(moduleSource, /\[authorizationRevision, financeRefreshKey\]/);
   assert.match(navigationMemorySource, /const authorizationRevision = useAuthorizationRevision\(\)/);
-  assert.match(navigationMemorySource, /\[authorizationRevision, moduleKey, rememberScroll, tabKey\]/);
+  assert.match(navigationMemorySource, /\[authorizationRevision, enabled, moduleKey, rememberScroll, tabKey\]/);
 });
 
 test('El administrador de kioscos mantiene una vista compacta, filtrable y protegida', () => {
@@ -276,7 +276,9 @@ test('Gastos publicados se consultan y pagan sin sobrescribir su historia financ
   assert.match(filtersSource, /backendStatus\.toUpperCase\(\) === 'DRAFT'/);
   assert.match(pageSource, /if \(!canEditExpense\(expense\)\) return/);
   assert.match(tableSource, /if \(!currentExpense \|\| !canEditExpense\(currentExpense\)\) return/);
-  assert.match(tableSource, /showEditControls=\{canEditAllSelected\}/);
+  assert.match(tableSource, /<FinanceBulkActions/);
+  assert.match(tableSource, /row\.backendStatus !== 'DRAFT' \|\| getExpensePaidAmount\(row\) > 0/);
+  assert.doesNotMatch(tableSource, /applyBulkExpenseUpdates/);
   assert.match(rowSource, /showEdit=\{canEdit\}/);
   assert.match(detailSource, /canEditExpense\(expense\) \? <button/);
 });

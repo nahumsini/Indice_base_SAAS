@@ -68,6 +68,7 @@ export default function CajaChica({ learningModeActive = false, onNavigate }: Ca
     setPettyCashMovements,
     setPettyCashSettlementLines,
     setPettyCashStatements,
+    workspaceLoaded,
   } = usePettyCash();
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<PettyCashTabId>(
     'cash',
@@ -92,6 +93,7 @@ export default function CajaChica({ learningModeActive = false, onNavigate }: Ca
       case 'control':
         return (
           <PettyCashReconciliationWorkspace
+            dataReady={workspaceLoaded}
             funds={pettyCashFunds}
             initialFundId={focusedFundId || requestedFundId}
             movements={pettyCashMovements}
@@ -106,6 +108,7 @@ export default function CajaChica({ learningModeActive = false, onNavigate }: Ca
       case 'kpis':
         return (
           <PettyCashFinancialViewWorkspace
+            dataReady={workspaceLoaded}
             funds={pettyCashFunds}
             movements={pettyCashMovements}
             settlementLines={pettyCashSettlementLines}
@@ -115,6 +118,7 @@ export default function CajaChica({ learningModeActive = false, onNavigate }: Ca
       case 'statements':
         return (
           <PettyCashStatementsWorkspace
+            dataReady={workspaceLoaded}
             funds={pettyCashFunds}
             movements={pettyCashMovements}
             settlementLines={pettyCashSettlementLines}
@@ -125,6 +129,7 @@ export default function CajaChica({ learningModeActive = false, onNavigate }: Ca
       default:
         return (
           <PettyCashFundsWorkspace
+            dataReady={workspaceLoaded}
             funds={pettyCashFunds}
             onFundsChange={setPettyCashFunds}
             onViewReceipts={(fundId) => {

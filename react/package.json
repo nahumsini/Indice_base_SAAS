@@ -34,7 +34,8 @@
     "test:platform-admin": "node --test tests/platform-admin-flow-regression.test.mjs",
     "test:billing-flow": "node --test tests/billing-flow-regression.test.mjs",
     "test:distributor-portal": "node --test tests/distributor-portal-flow-regression.test.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:finance-bulk": "node --test tests/finance-bulk-actions-regression.test.mjs tests/finance-workspace-memory-regression.test.mjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

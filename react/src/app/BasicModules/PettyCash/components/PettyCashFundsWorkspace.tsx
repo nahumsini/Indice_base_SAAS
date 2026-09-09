@@ -1,3 +1,4 @@
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import { Archive, Banknote, Coins, Copy, ExternalLink, Eye, Info, KeyRound, Landmark, Link2, MoreHorizontal, Pencil, QrCode, ReceiptText, RotateCw, Search, Share2, ShieldCheck, Trash2, UserRound, WalletCards, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { getCategoryById } from '../../Expenses/data/categories.data';
@@ -50,6 +51,7 @@ import {
 const pettyCashFundsColumnsStorageKey = 'indice.pettyCash.funds.columns.v1';
 
 type PettyCashFundsWorkspaceProps = {
+  dataReady?: boolean;
   funds: PettyCashFund[];
   onFundsChange: Dispatch<SetStateAction<PettyCashFund[]>>;
   onViewReceipts: (fundId: string) => void;
@@ -309,7 +311,7 @@ const getUsableKioskPath = (fund?: PettyCashFund) => {
   return '';
 };
 
-export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, statements }: PettyCashFundsWorkspaceProps) {
+export function PettyCashFundsWorkspace({ dataReady = true, funds, onFundsChange, onViewReceipts, statements }: PettyCashFundsWorkspaceProps) {
   const copy = usePettyCashTranslations();
   const defaultColumns = useMemo<ColumnConfig[]>(() => [
     { id: 'fund', label: copy.funds.table.fund, visible: true, locked: true },
@@ -348,6 +350,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
     businessOptions,
     currentUser,
     isLoadingReferenceData,
+    isReferenceDataReady,
     unitOptions,
     userOptions,
   } = useFinanceReferenceData(setServiceNotice);
@@ -423,6 +426,21 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
   const fundsPagination = useTablePagination({
     resetKey: fundsPaginationResetKey,
     rows: fundSort.sortedRows,
+  });
+
+  const workspaceState = useMemo(() => ({ searchTerm, unitFilter, businessFilter, statusFilter,
+    sortKey: fundSort.sortKey, sortDirection: fundSort.sortDirection, currentPage: fundsPagination.currentPage, pageSize: fundsPagination.pageSize }),
+    [searchTerm, unitFilter, businessFilter, statusFilter, fundSort.sortKey, fundSort.sortDirection, fundsPagination.currentPage, fundsPagination.pageSize]);
+  useWorkspaceNavigationMemory({ moduleKey: 'petty-cash', tabKey: 'cash', enabled: dataReady && isReferenceDataReady,
+    state: workspaceState, defaults: { searchTerm: '', unitFilter: 'all', businessFilter: 'all', statusFilter: 'all', sortKey: 'fund', sortDirection: 'asc', currentPage: 1, pageSize: 10 },
+    urlFields: { searchTerm: 'pcf_q', unitFilter: 'pcf_unit', businessFilter: 'pcf_business', statusFilter: 'pcf_status' },
+    onRestore: restored => {
+      const unit = unitOptions.some(option => option.value === restored.unitFilter) ? restored.unitFilter : 'all';
+      setSearchTerm(typeof restored.searchTerm === 'string' ? restored.searchTerm : ''); setUnitFilter(unit);
+      setBusinessFilter(businessOptions.some(option => option.value === restored.businessFilter && (unit === 'all' || option.unitId === unit)) ? restored.businessFilter : 'all');
+      setStatusFilter(Object.prototype.hasOwnProperty.call(copy.status.fund, restored.statusFilter) ? restored.statusFilter as PettyCashFundStatus : 'all');
+      fundSort.restoreSort(restored.sortKey, restored.sortDirection); fundsPagination.restorePagination(restored);
+    },
   });
 
   const handleCreateFund = async (draft: FundDraft) => {
@@ -798,6 +816,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
         )}
         hasActiveFilters={Boolean(searchTerm || statusFilter !== 'all' || unitFilter !== 'all' || businessFilter !== 'all')}
         onClear={() => {
+          fundsPagination.onPageChange(1);
           setSearchTerm('');
           setStatusFilter('all');
           setUnitFilter('all');

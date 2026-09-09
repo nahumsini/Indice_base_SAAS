@@ -1,3 +1,4 @@
+import { useAuthorizationRevision } from '../../../hooks/useAuthorizationRevision';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { financeReferenceDataService, toFinanceApiErrorMessage } from '../services';
 import type {
@@ -26,16 +27,20 @@ const optionLabel = (options: FinanceReferenceOption[], value: string | undefine
 );
 
 export function useFinanceReferenceData(onError?: (message: string) => void) {
+  const authorizationRevision = useAuthorizationRevision();
+  const [isReferenceDataReady, setIsReferenceDataReady] = useState(false);
   const [data, setData] = useState<FinanceReferenceData>(emptyReferenceData);
-  const [isLoadingReferenceData, setIsLoadingReferenceData] = useState(false);
+  const [isLoadingReferenceData, setIsLoadingReferenceData] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
     setIsLoadingReferenceData(true);
+    setIsReferenceDataReady(false);
+    setData(emptyReferenceData);
 
     financeReferenceDataService.getReferenceData()
       .then(nextData => {
-        if (isMounted) setData(nextData);
+        if (isMounted) { setData(nextData); setIsReferenceDataReady(true); }
       })
       .catch(error => {
         if (isMounted) onError?.(toFinanceApiErrorMessage(error, 'No se pudieron cargar las referencias de organización.'));
@@ -47,7 +52,7 @@ export function useFinanceReferenceData(onError?: (message: string) => void) {
     return () => {
       isMounted = false;
     };
-  }, [onError]);
+  }, [authorizationRevision, onError]);
 
   const unitOptions = useMemo(() => data.units.map(toOption), [data.units]);
   const businessOptions = useMemo(() => data.businesses.map(toOption), [data.businesses]);
@@ -65,6 +70,7 @@ export function useFinanceReferenceData(onError?: (message: string) => void) {
     getUnitLabel,
     getUserLabel,
     isLoadingReferenceData,
+    isReferenceDataReady,
     unitOptions,
     units: data.units,
     userOptions,
