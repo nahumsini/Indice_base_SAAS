@@ -152,10 +152,11 @@ Use for:
 - finance status styling
 - money-focused operational density
 
-New, quick-imported, bulk-imported, and duplicated expenses begin pending. The visible status is a
-workflow result, not an editable field. Partial and full payment actions always open the payment
-flow so the user chooses an eligible account and the backend records the installment and Treasury
-movement together.
+Ordinary new and duplicated expenses begin pending. Bulk entry explicitly chooses paid (the
+initial selection) or pending expenses. Paid imports require an eligible payment account per row;
+pending imports capture a due date independently of the expense date. The visible status remains
+a workflow result. Partial and full payment actions, including overdue-row quick payment, open
+the payment flow so the backend records the installment and Treasury movement together.
 
 Selected-row Finance actions and Petty Cash filter memory follow
 `docs/finance-bulk-actions-and-workspace-memory-contract-v1.md`. Their explicit classification
@@ -183,10 +184,15 @@ The fund link opens the existing Petty Cash operation with a fund selection; it 
 
 Bulk expense entry displays calendar dates as `DD/MM/YYYY`, while sending ISO dates to the API.
 It accepts the existing three Excel columns and optional payment-account and accounting-account
-columns with searchable selectors. Imports begin pending; a selected payment account is only a
-preselection for the payment flow and must match the row's native currency. Each batch contains
-at most 200 used rows. Save failures keep the capture open; successful creation retries reuse a
-request key, and bulk edits preserve existing taxes and native currency.
+columns with searchable selectors, followed by an Includes tax checkbox. Checked amounts are
+gross: the backend separates subtotal and tax without increasing the entered total; unchecked
+rows have no tax. Currency is captured from the preference when opening the modal; tax profiles
+use the existing currency-associated catalog and variable profiles require an explicit rate.
+Paid imports record full payment; pending imports only preselect the account for future payment.
+Accounts must match native currency. Each batch contains at most 200 used rows. Save failures keep
+the capture open; creation retries reuse a request key, and bulk edits preserve existing taxes
+and native currency. Selected-row status actions follow the Finance bulk owner contract: paid
+records actual remaining-balance payments, while pending/overdue explicitly change the due date.
 
 ### Sales, POS, Inventory, And Receivables
 

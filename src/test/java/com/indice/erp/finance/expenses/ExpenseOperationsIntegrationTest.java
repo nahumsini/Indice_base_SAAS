@@ -31,6 +31,7 @@ class ExpenseOperationsIntegrationTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired ExpenseImportService imports;
     @Autowired ExpenseService expenses;
+    @Autowired ExpenseBulkStatusService bulkStatus;
     @Autowired ExpensePaymentRepository payments;
     @Autowired ExpenseAccountingClassificationService classification;
     private FinanceContext context;
@@ -54,7 +55,7 @@ class ExpenseOperationsIntegrationTest {
     void cleanup() {
         // Only rows owned by the companies created by this test are removed, in FK order.
         for (long company : companies) {
-            for (var table : List.of("finance_journal_entries", "finance_accounting_periods", "finance_expense_import_batches",
+            for (var table : List.of("finance_payment_account_movements", "finance_journal_entries", "finance_accounting_periods", "finance_expense_import_batches",
                     "finance_petty_cash_settlement_lines", "finance_petty_cash_statements", "finance_expense_payments",
                     "finance_expenses", "finance_petty_cash_funds", "finance_payment_accounts", "finance_accounting_accounts")) {
                 jdbc.update("DELETE FROM " + table + " WHERE company_id = ?", company);
@@ -279,6 +280,128 @@ class ExpenseOperationsIntegrationTest {
             new UpdateExpensesBatchRequest.Row(first.id(), classified.version(), update("Updated first"))))).expenses().getFirst();
         assertThat(saved.concept()).isEqualTo("Updated first");
         assertThat(saved.metadata().path("accountingClassificationChanges").size()).isEqualTo(1);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"MXN", "USD", "CAD", "COP", "BRL"})
+    void paidImportUsesNativeMoneyAndSplitsIncludedTaxWithoutChangingGrossTotal(String currency) {
+        long payment = paymentAccount(context.companyId(), "Import " + currency, currency, "BANK");
+        var taxable = importRow("Tax included", payment, currency, true, true, "0.16");
+        var untaxed = importRow("No tax", payment, currency, true, false, "0.16");
+        var request = new ImportExpensesRequest(UUID.randomUUID().toString(), List.of(taxable, untaxed));
+        var result = imports.importExpenses(context, request).expenses();
+        assertThat(result).allSatisfy(saved -> {
+            assertThat(saved.status()).isEqualTo(ExpenseStatus.PAID);
+            assertThat(saved.totalAmount()).isEqualByComparingTo("116");
+            assertThat(saved.paidAmount()).isEqualByComparingTo("116");
+            assertThat(saved.balanceAmount()).isZero();
+            assertThat(saved.currencyCode()).isEqualTo(currency);
+        });
+        assertThat(result.getFirst().taxAmount()).isEqualByComparingTo("16");
+        assertThat(result.getFirst().subtotalAmount()).isEqualByComparingTo("100");
+        assertThat(result.getLast().taxAmount()).isZero();
+        assertThat(result.getLast().subtotalAmount()).isEqualByComparingTo("116");
+        assertThat(imports.importExpenses(context, request).expenses()).extracting(ExpenseResponse::id)
+            .containsExactlyElementsOf(result.stream().map(ExpenseResponse::id).toList());
+        assertThat(count("finance_expense_payments")).isEqualTo(2);
+        assertThat(count("finance_payment_account_movements")).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT current_balance FROM finance_payment_accounts WHERE id=?", BigDecimal.class, payment))
+            .isEqualByComparingTo("4768");
+    }
+
+    @Test void failedPaidImportRollsBackEarlierPaymentsAndKeepsNoBatchOrExpense() {
+        var request = new ImportExpensesRequest(UUID.randomUUID().toString(), List.of(
+            importRow("First valid", bank, "MXN", true, true, "0.16"),
+            importRow("Wrong currency", bank, "USD", true, false, "0")));
+        assertThatThrownBy(() -> imports.importExpenses(context, request)).hasMessageContaining("Row 2:");
+        assertThat(count("finance_expenses")).isZero();
+        assertThat(count("finance_expense_payments")).isZero();
+        assertThat(count("finance_payment_account_movements")).isZero();
+        assertThat(count("finance_expense_import_batches")).isZero();
+        assertThat(jdbc.queryForObject("SELECT current_balance FROM finance_payment_accounts WHERE id=?", BigDecimal.class, bank))
+            .isEqualByComparingTo("5000");
+    }
+
+    @Test void includedTaxRequiresAnExplicitRateAndPaidImportRequiresAnAccount() {
+        assertThatThrownBy(() -> imports.importExpenses(context, new ImportExpensesRequest("missing-account", List.of(
+            importRow("No account", null, "MXN", true, false, "0"))))).hasMessageContaining("payment account");
+        assertThatThrownBy(() -> imports.importExpenses(context, new ImportExpensesRequest("missing-rate", List.of(
+            importRow("No rate", bank, "MXN", false, true, "0")))))
+            .hasMessageContaining("Included tax rate");
+        assertThat(count("finance_expenses")).isZero();
+    }
+
+    @Test void pendingImportKeepsDueDateThenBulkPaymentPaysOnlyTheRemainingBalance() {
+        var imported = imports.importExpenses(context, new ImportExpensesRequest("pending", List.of(
+            importRow("Imported pending", bank, "MXN", false, true, "0.16")))).expenses().getFirst();
+        assertThat(imported.paidAmount()).isZero();
+        assertThat(imported.dueDate()).isEqualTo(LocalDate.now().plusDays(10));
+        expenses.submitForApproval(context, imported.id());
+        expenses.approve(context, imported.id());
+        expenses.recordPayment(context, imported.id(), new RecordExpensePaymentRequest(new BigDecimal("16"), bank, LocalDate.now(), "partial"));
+        var partial = expenses.get(context, imported.id());
+        var request = statusRequest(ExpenseBulkStatusRequest.Target.PAID, bank, LocalDate.now(), partial);
+        var paid = bulkStatus.apply(context, request).expenses().getFirst();
+        assertThat(paid.paidAmount()).isEqualByComparingTo("116");
+        assertThat(paid.balanceAmount()).isZero();
+        assertThat(payments.findAll(context, imported.id())).hasSize(2);
+        assertThat(jdbc.queryForObject("SELECT MAX(amount) FROM finance_expense_payments WHERE company_id=? AND expense_id=?", BigDecimal.class, context.companyId(), imported.id())).isEqualByComparingTo("100");
+        assertThatThrownBy(() -> bulkStatus.apply(context, request)).hasMessageContaining("changed");
+        assertThat(count("finance_expense_payments")).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT current_balance FROM finance_payment_accounts WHERE id=?", BigDecimal.class, bank))
+            .isEqualByComparingTo("4884");
+    }
+
+    @Test void futureDatedExpensesCannotBeImportedAsAlreadyPaid() {
+        var template = importRow("Future", bank, "MXN", true, false, "0");
+        var future = new CreateExpenseRequest(null, null, null, null, account, bank, null, "AUTO-EXP", "Future", "Future",
+            ExpenseType.VARIABLE, template.subtotalAmount(), template.taxAmount(), template.totalAmount(), "MXN",
+            LocalDate.now().plusDays(2), LocalDate.now().plusDays(2), null, null, null, true, template.customFields(), null);
+        assertThatThrownBy(() -> imports.importExpenses(context, new ImportExpensesRequest("future", List.of(future))))
+            .hasMessageContaining("no later than today");
+        assertThat(count("finance_expenses")).isZero();
+        assertThat(count("finance_expense_payments")).isZero();
+        assertThat(count("finance_payment_account_movements")).isZero();
+    }
+
+    @Test void bulkDueDateChangesNeverRewriteExpenseDateOrCreatePayments() {
+        var expense = expenses.createDraft(context, row("Past expense", bank, account, "MXN"));
+        var overdue = bulkStatus.apply(context, statusRequest(ExpenseBulkStatusRequest.Target.OVERDUE, null,
+            LocalDate.now().minusDays(1), expense)).expenses().getFirst();
+        assertThat(overdue.paymentStatus().name()).isEqualTo("OVERDUE");
+        assertThat(overdue.expenseDate()).isEqualTo(expense.expenseDate());
+        var pending = bulkStatus.apply(context, statusRequest(ExpenseBulkStatusRequest.Target.PENDING, null,
+            LocalDate.now().plusDays(7), overdue)).expenses().getFirst();
+        assertThat(pending.paymentStatus().name()).isEqualTo("UNPAID");
+        assertThat(pending.balanceAmount()).isEqualByComparingTo("100.25");
+        assertThat(count("finance_expense_payments")).isZero();
+        assertThat(pending.metadata().path("bulkStatusChanges").size()).isEqualTo(2);
+    }
+
+    @Test void bulkStatusRejectsForeignScopeStaleSelectionMixedCurrenciesAndPaidToPending() {
+        var first = expenses.createDraft(context, row("First", bank, account, "MXN"));
+        var second = expenses.createDraft(context, row("Second", null, account, "USD"));
+        assertThatThrownBy(() -> bulkStatus.apply(context, statusRequest(ExpenseBulkStatusRequest.Target.PAID, bank, LocalDate.now(), first, second)));
+        assertThat(count("finance_expense_payments")).isZero();
+        var outside = new FinanceContext(user, context.companyId(), "Test", "admin", true, FinanceScope.businessOffice(null, Long.MAX_VALUE));
+        assertThatThrownBy(() -> bulkStatus.apply(outside, statusRequest(ExpenseBulkStatusRequest.Target.PAID, bank, LocalDate.now(), first)))
+            .hasMessageContaining("not found");
+        var paid = bulkStatus.apply(context, statusRequest(ExpenseBulkStatusRequest.Target.PAID, bank, LocalDate.now(), first)).expenses().getFirst();
+        assertThatThrownBy(() -> bulkStatus.apply(context, statusRequest(ExpenseBulkStatusRequest.Target.PENDING, null, LocalDate.now(), paid)))
+            .hasMessageContaining("reversal");
+    }
+
+    private ExpenseBulkStatusRequest statusRequest(ExpenseBulkStatusRequest.Target target, Long payment, LocalDate date, ExpenseResponse... rows) {
+        return new ExpenseBulkStatusRequest(target, java.util.Arrays.stream(rows)
+            .map(row -> new ExpenseBulkActionRequest.Selection(row.id(), row.version())).toList(), payment, date, UUID.randomUUID().toString());
+    }
+
+    private CreateExpenseRequest importRow(String concept, Long payment, String currency, boolean paid, boolean taxIncluded, String rate) {
+        var fields = com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode()
+            .put("bulkTaxIncluded", taxIncluded).put("taxIncluded", taxIncluded).put("taxRate", new BigDecimal(rate));
+        return new CreateExpenseRequest(null, null, null, null, account, payment, null, "AUTO-EXP", concept, concept,
+            ExpenseType.VARIABLE, new BigDecimal("116"), BigDecimal.ZERO, new BigDecimal("116"), currency,
+            LocalDate.of(2026, 8, 15), LocalDate.now().plusDays(10), null, null, null, paid, fields, null);
     }
 
     private CreateExpenseRequest row(String concept, Long payment, Long accounting, String currency) {

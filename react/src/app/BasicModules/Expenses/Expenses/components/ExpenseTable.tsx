@@ -19,6 +19,9 @@ import { FinanceBulkActions, type FinanceBulkActionConfig } from '../../../share
 import { getFinanceBulkCopy, type FinanceBulkAction } from '../../../shared/financeBulkActions.copy';
 import { toFinanceApiErrorMessage } from '../../services';
 import { ExpenseTableHeaderRow } from '../../components/table/ExpenseTableHeaderRow';
+import type { ExpenseBulkStatusChange } from '../../types/expenseOperations.types';
+import { ExpenseBulkStatusModal } from '../../components/modals/ExpenseBulkStatusModal';
+import { getExpenseWorkflowCopy } from '../../utils/expenseWorkflow.copy';
 import { ExpensePaymentModal } from '../../components/modals/ExpensePaymentModal';
 import { useExpensesResolvedLocale, useExpensesTranslations } from '../hooks/useExpensesTranslations';
 import { formatBusinessCurrencyBreakdown } from '../../../shared/businessCurrency';
@@ -79,6 +82,7 @@ type ExpenseTableProps = {
   hasFundDetailFilters?: boolean;
   getAttachments: (expense: Expense) => string[];
   onDeleteExpense?: (expenseId: string) => void;
+  onBulkStatusChange?: (rows: Expense[], change: ExpenseBulkStatusChange) => Promise<void>;
   onBulkAction?: (rows: Expense[], action: FinanceBulkAction, targetId: string, reason: string) => Promise<void>;
   onDeleteExpenses?: (expenseIds: string[]) => void;
   onDuplicateExpense?: (expenseId: string) => void;
@@ -113,6 +117,7 @@ export function ExpenseTable({
   getAttachments,
   onDeleteExpense,
   onBulkAction,
+  onBulkStatusChange,
   onDuplicateExpense,
   onEditExpense,
   onExpensesChange,
@@ -145,6 +150,7 @@ export function ExpenseTable({
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [sortField, setSortField] = useState<ExpenseSortField | null>(null);
+  const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
   const [paymentExpenseId, setPaymentExpenseId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -417,10 +423,14 @@ export function ExpenseTable({
     <div className="space-y-3">
       {rowSelection.selectedCount > 0 ? (
         <FinanceBulkActions key={rowSelection.selectedIdList.join(',')} count={selectedExpenses.length} locale={locale}
+          additionalActions={onBulkStatusChange ? [{ id: 'status', label: getExpenseWorkflowCopy(locale).changeStatus, onClick: () => setBulkStatusOpen(true) }] : []}
           actions={bulkActions} onClear={rowSelection.clearSelection} formatError={toFinanceApiErrorMessage}
           onApply={async (action, targetId, reason) => { if (onBulkAction) await onBulkAction(selectedExpenses, action, targetId, reason); }} />
       ) : null}
 
+      {bulkStatusOpen && onBulkStatusChange && <ExpenseBulkStatusModal rows={selectedExpenses} paymentAccounts={paymentAccounts} locale={locale}
+        summary={<div className="flex flex-wrap gap-3 text-sm">{selectedMoneySummaries.map(item => <span key={item.key}>{item.label}: {item.value}</span>)}</div>}
+        onClose={() => setBulkStatusOpen(false)} onApply={async change => { await onBulkStatusChange(selectedExpenses, change); rowSelection.clearSelection(); }} />}
       {fundGroups.length > 0 && <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-slate-500 dark:text-slate-400">
         <span>{fundCopy.rows(displayRows.length, expenses.length)}</span>
         {fundTotals.loading && <span role="status">{fundCopy.loading}</span>}
