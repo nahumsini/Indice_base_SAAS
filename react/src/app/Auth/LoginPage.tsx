@@ -7,6 +7,7 @@ import {
   LoadingBarOverlay,
   runWithMinimumDuration,
 } from '../components/LoadingBarOverlay';
+import { getLoadingBarCopy } from '../components/loadingTranslations';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,6 +59,7 @@ export default function LoginPage() {
   const [resetErrorMessage, setResetErrorMessage] = useState('');
   const [isResetSubmitting, setIsResetSubmitting] = useState(false);
   const copy = t.loginPage;
+  const otpLoadingCopy = getLoadingBarCopy(currentLanguage.code, 'verifyingCode');
   const safeReturnTo = locationState?.returnTo?.startsWith('/')
     && !locationState.returnTo.startsWith('//')
     ? locationState.returnTo
@@ -322,7 +324,8 @@ export default function LoginPage() {
 
       <LoadingBarOverlay
         isVisible={isSubmitting || isOtpSubmitting}
-        title={isOtpSubmitting ? 'Verifying code...' : copy.signingIn}
+        title={isOtpSubmitting ? otpLoadingCopy.title : copy.signingIn}
+        description={isOtpSubmitting ? otpLoadingCopy.description : undefined}
       />
 
       {showResetModal ? (

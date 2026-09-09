@@ -59,8 +59,8 @@ export default function ProcessesTasks({
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <LoadingBarOverlay
         isVisible={isTabLoading}
-        title="Loading process tab"
-        description="Opening the selected agenda, project, or process workspace."
+        title={t.shell.loading.title}
+        description={t.shell.loading.description}
       />
 
       {/* Header del módulo */}
@@ -119,8 +119,8 @@ export default function ProcessesTasks({
           fallback={(
             <LoadingBarOverlay
               isVisible
-              title="Loading process tab"
-              description="Downloading only the selected process workspace."
+              title={t.shell.loading.fallbackTitle}
+              description={t.shell.loading.fallbackDescription}
             />
           )}
         >

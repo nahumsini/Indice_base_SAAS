@@ -8,7 +8,7 @@ import { ModuleCard } from './components/ModuleCard';
 import { ModuleCarousel } from './components/ModuleCarousel';
 import { LearningModeBanner } from './components/LearningModeBanner';
 import { KPIConfiguration } from './components/KPIConfiguration';
-import { LoadingBarOverlay } from './components/LoadingBarOverlay';
+import { LocalizedLoadingBarOverlay } from './components/LocalizedLoadingBarOverlay';
 import { SuccessToast } from './components/SuccessToast';
 import { FavoritesBar } from './components/FavoritesBar';
 import { Button } from './components/ui/button';
@@ -31,6 +31,10 @@ import { canAccessModulePage } from './access/accessRules';
 import { allowedModuleTabIds, canAccessKioskCenter, MODULE_TAB_SCOPE_CATALOG } from './access/tabScopeCatalog';
 import { useAuthorizationRevision } from './hooks/useAuthorizationRevision';
 import { ProductAnalyticsTracker } from './analytics/ProductAnalyticsTracker';
+import { usePaymentRequest } from './Billing/hooks/usePaymentRequest';
+import { PaymentRequestBanner } from './Billing/components/PaymentRequestBanner';
+import { PaymentRequestRecovery } from './Billing/components/PaymentRequestRecovery';
+import { isCollectionBlocked, PAYMENT_REQUEST_OVERDUE } from './Billing/paymentRequestPresentation';
 
 const getNavigationSuccessToast = (state: unknown) => {
   if (!state || typeof state !== 'object' || !('successToast' in state)) {
@@ -417,7 +421,8 @@ function Dashboard({
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
+  const english = currentLanguage.code.startsWith('en');
   const { pathname, state } = location;
   const { pageId, '*': wildcardPath } = useParams();
   const [sessionTabAccess, setSessionTabAccess] = useState<AuthSessionResponse | null>();
@@ -436,6 +441,9 @@ export default function App() {
   const [allowedModuleRoutes, setAllowedModuleRoutes] = useState<Set<PageId> | null>(null);
   const [isModuleAccessLoaded, setIsModuleAccessLoaded] = useState(false);
   const [subscriptionInfo, setSubscriptionInfo] = useState<SubscriptionSessionInfo>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const paymentRequest = usePaymentRequest(sessionTabAccess?.company.id, authorizationRevision);
+  const collectionBlocked = isCollectionBlocked(paymentRequest.snapshot, subscriptionInfo?.lock_reason);
   const moduleNavigationTimeoutRef = useRef<number | null>(null);
   const moduleNavigationAnimationFrameCleanupRef = useRef<(() => void) | null>(null);
   const moduleNavigationStartedAtRef = useRef(0);
@@ -443,11 +451,12 @@ export default function App() {
   const currentPage = resolvePageId(pageId);
   const needsPageRedirect = Boolean(pageId && currentPage && pageId !== currentPage);
   const isBillingPage = currentPage === 'billing';
-  const isModuleAccessPending = Boolean(currentPage && currentPage !== 'dashboard' && !isBillingPage && !isModuleAccessLoaded);
+  const isModuleAccessPending = Boolean(currentPage && currentPage !== 'dashboard' && !isBillingPage && !collectionBlocked && !isModuleAccessLoaded);
   const isDeniedModulePage = Boolean(
     currentPage
     && currentPage !== 'dashboard'
     && !isBillingPage
+    && !collectionBlocked
     && isModuleAccessLoaded
     && !canAccessModulePage(currentPage, allowedModuleRoutes),
   );
@@ -459,6 +468,7 @@ export default function App() {
     : [];
   const isDeniedTabPage = Boolean(
     currentPage
+    && !collectionBlocked
     && currentTabScopeDefinition
     && isModuleAccessLoaded
     && sessionTabAccess !== undefined
@@ -594,6 +604,14 @@ export default function App() {
         setSessionTabAccess(session);
       }
 
+      if (session?.company.subscription?.lock_reason === PAYMENT_REQUEST_OVERDUE) {
+        if (active) {
+          setAllowedModuleRoutes(new Set<PageId>());
+          setIsModuleAccessLoaded(true);
+        }
+        return;
+      }
+
       try {
         const backendModules = await dashboardApi.listModules();
         if (!active) {
@@ -671,6 +689,12 @@ export default function App() {
       navigate(pathname, { replace: true, state: null });
     }
   }, [currentPage, navigate, needsPageRedirect, pageId, pathname, state, wildcardPath]);
+
+  useEffect(() => {
+    if (collectionBlocked && currentPage && !isBillingPage) {
+      navigate('/billing', { replace: true });
+    }
+  }, [collectionBlocked, currentPage, isBillingPage, navigate]);
 
   useEffect(() => {
     if (isDeniedModulePage) {
@@ -799,7 +823,18 @@ export default function App() {
     return null;
   }
 
-  const renderedPageContent = isSubscriptionBlocked ? (
+  const renderedPageContent = collectionBlocked || (isBillingPage && paymentRequest.snapshot?.request?.status === 'OPEN') ? (
+    <PaymentRequestRecovery
+      key={sessionTabAccess?.company.id}
+      snapshot={paymentRequest.snapshot}
+      loading={paymentRequest.loading}
+      error={paymentRequest.error}
+      blocked={collectionBlocked}
+      english={english}
+      onReload={paymentRequest.reload}
+      onSnapshot={paymentRequest.acceptSnapshot}
+    />
+  ) : isSubscriptionBlocked ? (
     <SubscriptionRequiredScreen
       subscription={subscriptionInfo}
       onManageBilling={() => navigate('/billing')}
@@ -811,33 +846,41 @@ export default function App() {
       translate="no"
       className={`notranslate flex h-dvh min-h-0 flex-col overflow-hidden ${darkMode ? 'dark bg-gray-900' : 'bg-gray-50'}`}
     >
-      <ProductAnalyticsTracker
+      {!collectionBlocked ? <ProductAnalyticsTracker
         userId={sessionTabAccess?.user.id}
         routeKey={currentPage}
         sectionKey={requestedTabId}
         locale={sessionTabAccess ? document.documentElement.lang : undefined}
-      />
+      /> : null}
       <div className="shrink-0">
-        <Header
+        {collectionBlocked ? (
+          <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-900">
+            <span className="truncate text-sm font-medium">Índice · {sessionTabAccess?.company.name}</span>
+            <button type="button" disabled={loggingOut} className="shrink-0 text-sm font-medium text-slate-600 dark:text-slate-300" onClick={() => {
+              if (loggingOut) return;
+              setLoggingOut(true);
+              void authApi.logout().catch(() => undefined).finally(() => navigate('/login', { replace: true }));
+            }}>{loggingOut ? english ? 'Signing out…' : 'Cerrando sesión…' : english ? 'Sign out' : 'Cerrar sesión'}</button>
+          </div>
+        ) : <Header
           learningModeActive={learningModeActive}
           onToggleLearningMode={toggleLearningMode}
           darkMode={darkMode}
           onToggleDarkMode={toggleDarkMode}
-        />
+        />}
       </div>
-      <LoadingBarOverlay
+      {!collectionBlocked && !isBillingPage ? <PaymentRequestBanner snapshot={paymentRequest.snapshot} english={english} onPay={() => navigate('/billing')} /> : null}
+      <LocalizedLoadingBarOverlay
         isVisible={isModuleNavigationLoading}
-        title="Loading module"
-        description="Preparing the latest data before the screen becomes active."
+        variant="moduleNavigation"
         className="z-[160]"
       />
       <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <Suspense
           fallback={(
-            <LoadingBarOverlay
+            <LocalizedLoadingBarOverlay
               isVisible
-              title="Loading module"
-              description="Downloading only the workspace you opened."
+              variant="moduleDownload"
               className="z-[150]"
             />
           )}
