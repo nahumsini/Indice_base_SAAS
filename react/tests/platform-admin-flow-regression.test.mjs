@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { createTypeScriptLoader } from './helpers/loadTypeScript.mjs';
+const loadTypeScript = createTypeScriptLoader();
+const { defaultAnnualDiscountPercent, stripeEnvironmentLabel } = loadTypeScript(resolve(import.meta.dirname, '../src/app/PlatformAdmin/CatalogWorkspace/commercialOfferPresentation.ts'));
 
 const root = resolve(import.meta.dirname, "..");
 const read = (path) => readFileSync(resolve(root, path), "utf8");
@@ -182,6 +185,9 @@ const commercialOfferWorkspace = read(
 const commercialOfferDetail = read(
   "src/app/PlatformAdmin/CatalogWorkspace/CommercialOfferDetail.tsx",
 );
+const stripeSetupPanel = read(
+  "src/app/PlatformAdmin/BillingWorkspace/StripeSetupPanel.tsx",
+);
 const workspaceNavigation = read(
   "src/app/components/frontend-os/IndiceWorkspaceNavigation.tsx",
 );
@@ -191,6 +197,49 @@ const frontendOperatingSystem = read(
 const trainingWorkspace = read("src/app/Training/TrainingWorkspace.tsx");
 const trainingExam = read("src/app/Training/TrainingExamPanel.tsx");
 const trainingCertificate = read("src/app/Training/trainingCertificatePdf.ts");
+
+// A label regression must verify both its translated value and the component's binding.
+// Appending dictionaries to source would pass even after a label disappeared from the UI.
+const { getPlatformAdminTranslator } = loadTypeScript(resolve(root, 'src/app/PlatformAdmin/translations/index.ts'));
+const { getCustomerAccountCopy } = loadTypeScript(resolve(root, 'src/app/PlatformAdmin/Customers/customerAccountTranslations.ts'));
+const { getCatalogCopy } = loadTypeScript(resolve(root, 'src/app/PlatformAdmin/CatalogWorkspace/translations/index.ts'));
+const { getCustomerTableCopy } = loadTypeScript(resolve(root, 'src/app/PlatformAdmin/Customers/customerTableCopy.ts'));
+const dictionary = (path, exported = 'copy') => loadTypeScript(resolve(root, path))[exported];
+const translatedSources = new Map([
+  [page, { translate: getPlatformAdminTranslator('es-MX') }],
+  ...[customerRow, customerControlCenter, companyModules, companyActivity, companyOverview, accountTypeEdit, distributorAssignment, company, companyAccess, adjustment, trialExtension, customerTableCopy]
+    .map(source => [source, { translate: getCustomerAccountCopy('es-MX').t }]),
+  ...[commercialOfferWorkspace, commercialOfferDetail, moduleAvailabilityWorkspace, stripeSetupPanel]
+    .map(source => [source, { messages: [getCatalogCopy('es-MX'), getCatalogCopy('en-CA')] }]),
+  ...[consulting, consultingCalendar, consultingAvailability, session, coverage]
+    .map(source => [source, { messages: dictionary('src/app/PlatformAdmin/ConsultingTranslations/es-MX.ts') }]),
+  [allCompanyActivityPanel, { messages: [dictionary('src/app/PlatformAdmin/OperationsTranslations/es-MX.ts'), dictionary('src/app/PlatformAdmin/OperationsTranslations/en-CA.ts')] }],
+  [systemTicketDetail, { messages: dictionary('src/app/SystemTickets/translations/es-MX.ts') }],
+  [trainingWorkspace, { messages: dictionary('src/app/Training/translations/program/es-MX.ts') }],
+  [trainingExam, { messages: dictionary('src/app/Training/translations/exam/es-MX.ts') }],
+  [trainingCertificate, { messages: dictionary('src/app/Training/translations/exam/es-MX.ts') }],
+]);
+function localizedLabelIsBound(source, expected) {
+  const binding = translatedSources.get(source);
+  if (!binding) return false;
+  if (binding.translate) {
+    for (const match of source.matchAll(/\bt\(["']([^"'\n]+)["']/g)) {
+      try { if (expected.test(binding.translate(match[1]))) return true; } catch { /* Not a key from this module. */ }
+    }
+  }
+  const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (binding.messages) {
+    for (const [key, value] of (Array.isArray(binding.messages) ? binding.messages : [binding.messages]).flatMap(messages => Object.entries(messages))) {
+      if (typeof value !== 'string' || !expected.test(value)) continue;
+      const reference = new RegExp(`(?:\\bcopy\\.|getCatalogCopy\\([^)]*\\)\\.)${escape(key)}\\b`);
+      if (reference.test(source) || new RegExp(`(?:formatExamMessage\\(copy, |\\bformat\\()["']${escape(key)}["']`).test(source)) return true;
+    }
+  }
+  return false;
+}
+function assertLocalizedLabel(source, expected) {
+  assert.ok(expected.test(source) || localizedLabelIsBound(source, expected), `Expected a rendered/localized label matching ${expected}`);
+}
 
 test("el encabezado reconoce Root desde la autoridad real de plataforma", () => {
   assert.match(header, /platformAdminApi\.getContext\(\)/);
@@ -203,7 +252,7 @@ test("el encabezado reconoce Root desde la autoridad real de plataforma", () => 
 
 test("Root administra todos los tickets de sistema enviados por distribuidores", () => {
   assert.match(page, /id: "systemTickets"/);
-  assert.match(page, /Tickets de sistema/);
+  assertLocalizedLabel(page, /Tickets de sistema/);
   assert.match(page, /context\?\.can_manage_system_tickets/);
   assert.match(page, /portal="root"/);
   assert.match(systemTickets, /ticket\.distributor_name/);
@@ -221,7 +270,7 @@ test("detalle de ticket separa el scroll del cuerpo del footer operativo", () =>
   assert.match(systemTicketDetail, /bodyClassName="[^"]*overscroll-contain[^"]*"/);
   assert.match(systemTicketDetail, /bodyClassName="[^"]*pb-24[^"]*sm:pb-10[^"]*"/);
   assert.match(systemTicketDetail, /bodyClassName="[^"]*scrollbar-gutter:stable[^"]*"/);
-  assert.match(systemTicketDetail, /Control operativo/);
+  assertLocalizedLabel(systemTicketDetail, /Control operativo/);
   assert.match(systemTicketDetail, /copy\.status/);
   assert.match(systemTicketDetail, /copy\.priority/);
   assert.match(systemTicketDetail, /copy\.assignee/);
@@ -233,9 +282,54 @@ test("detalle de ticket separa el scroll del cuerpo del footer operativo", () =>
 
 test("clientes concentra el acceso promocional sin recuperar la pestaña eliminada", () => {
   assert.doesNotMatch(page, /id:\s*["']courtesy["']/);
-  assert.match(page, /Acceso promocional/);
+  assertLocalizedLabel(page, /Acceso promocional/);
   assert.match(page, /courtesyFeedback/);
   assert.match(page, /IndiceModalValidation/);
+});
+
+test("Facturación muestra la conexión Stripe junto a sus registros y conserva el catálogo", () => {
+  const billingTab = page.slice(page.indexOf('{activeTab === "billing" ? ('), page.indexOf('{activeTab === "catalog" ? ('));
+  assert.match(billingTab, /<StripeSetupPanel/);
+  assert.match(billingTab, /environment=\{catalog\?\.stripe_environment\}/);
+  assert.match(billingTab, /onRefresh=\{\(\) => void refreshStripeStatus\(\)\}/);
+  assert.match(billingTab, /<BillingTab/);
+  assert.match(billingTab, /data=\{billing\}/);
+  assert.doesNotMatch(billingTab, /CommercialOfferWorkspace|CatalogAndModulesTab|publishCatalogOffer/);
+  assert.doesNotMatch(page, /billing-step|PlatformBillingWorkspace|CommercialBillingWorkspace/);
+  const catalogTab = page.slice(page.indexOf("function CatalogAndModulesTab("), page.indexOf("function CatalogTab("));
+  assert.match(catalogTab, /<CommercialOfferWorkspace/);
+  assert.match(catalogTab, /<ModuleAvailabilityWorkspace/);
+  assert.match(catalogTab, /publishCatalogOffer/);
+  assert.match(catalogTab, /catalog-step/);
+  assert.doesNotMatch(catalogTab, /<StripeSetupPanel/);
+  assertLocalizedLabel(stripeSetupPanel, /These are the actual server settings/);
+  assertLocalizedLabel(stripeSetupPanel, /do not confirm key access, webhook processing/);
+  assertLocalizedLabel(stripeSetupPanel, /In Catalog & modules, save prices in the draft/);
+});
+
+test("actualizar la conexión sólo consulta el catálogo y conserva sus datos ante un fallo", async () => {
+  const refresh = page.slice(page.indexOf("const refreshStripeStatus = async"), page.indexOf("const [moduleRegistry,"));
+  assert.ok(refresh, "Billing must expose its read-only connection refresh");
+  const events = [];
+  const catalog = { stripe_environment: { mode: "LIVE", enabled: false } };
+  const scope = {
+    stripeStatusRefreshing: false, t: getPlatformAdminTranslator("en-CA"),
+    setStripeStatusRefreshing: (value) => events.push(["busy", value]),
+    setStripeStatusError: (value) => events.push(["error", value]),
+    setCatalog: (value) => events.push(["catalog", value]),
+    platformAdminApi: { getCatalog: async () => { events.push(["read"]); return catalog; } },
+  };
+  const execute = () => new Function(...Object.keys(scope), `${refresh}; return refreshStripeStatus();`)(...Object.values(scope));
+  await execute();
+  assert.deepEqual(events, [["busy", true], ["error", ""], ["read"], ["catalog", catalog], ["busy", false]]);
+  events.length = 0;
+  scope.platformAdminApi.getCatalog = async () => { throw new Error("Status unavailable"); };
+  await execute();
+  assert.deepEqual(events, [["busy", true], ["error", ""], ["error", getPlatformAdminTranslator("en-CA")("Stripe setup status could not be refreshed.")], ["busy", false]]);
+  events.length = 0;
+  scope.stripeStatusRefreshing = true;
+  await execute();
+  assert.deepEqual(events, []);
 });
 
 test("catálogo y módulos guía un flujo operativo de disponibilidad producto y publicación", () => {
@@ -243,60 +337,61 @@ test("catálogo y módulos guía un flujo operativo de disponibilidad producto y
   assert.match(page, /en: "Catalog & modules"/);
   assert.doesNotMatch(page, /id: "modules", es: "Módulos"/);
   assert.match(page, /type CatalogWorkspaceView = "offer" \| "modules"/);
-  assert.match(page, /Catálogo y módulos/);
-  assert.match(page, /Oferta comercial/);
-  assert.match(page, /Disponibilidad técnica/);
-  assert.match(page, /Sincronizar complementos/);
+  assertLocalizedLabel(page, /Catálogo y módulos/);
+  assertLocalizedLabel(page, /Oferta comercial/);
+  assertLocalizedLabel(page, /Disponibilidad técnica/);
+  assertLocalizedLabel(page, /Sincronizar complementos/);
   assert.match(page, /<ModuleAvailabilityWorkspace/);
   assert.match(page, /<CommercialOfferWorkspace/);
-  assert.match(page, /Valida la oferta antes de publicarla/);
-  assert.match(page, /Validar oferta/);
-  assert.match(page, /Publicar oferta/);
+  assertLocalizedLabel(page, /Al publicar se sincronizan y verifican los precios guardados con Stripe/);
+  assertLocalizedLabel(page, /Validar oferta/);
+  assertLocalizedLabel(page, /Sincronizar y publicar oferta/);
   assert.doesNotMatch(page, /Qué haces aquí|Afecta a|Siguiente paso/);
   assert.match(page, /<IndiceWorkspaceNavigation/);
   assert.match(page, /variant="sections"/);
   assert.match(page, /tone="aqua"/);
   assert.match(page, /catalog-step/);
-  assert.match(commercialOfferWorkspace, /Lo que puede comprar el cliente/);
+  assertLocalizedLabel(commercialOfferWorkspace, /Lo que puede comprar el cliente/);
   assert.match(commercialOfferWorkspace, /<IndiceFilterBar/);
   assert.match(commercialOfferWorkspace, /<IndiceFilterSearch/);
-  assert.match(commercialOfferWorkspace, /Tipo de producto/);
-  assert.match(commercialOfferWorkspace, /Disponibles para clientes/);
-  assert.match(commercialOfferWorkspace, /No disponibles/);
-  assert.match(commercialOfferWorkspace, /Listos para publicar/);
-  assert.match(commercialOfferWorkspace, /Configuración pendiente/);
-  assert.match(commercialOfferWorkspace, /Stripe pendiente/);
-  assert.match(commercialOfferWorkspace, /Limpiar filtros/);
-  assert.match(commercialOfferWorkspace, /Módulos/);
-  assert.match(commercialOfferWorkspace, /Paquetes/);
-  assert.match(commercialOfferWorkspace, /Usuarios/);
-  assert.match(commercialOfferWorkspace, /Promociones/);
+  assertLocalizedLabel(commercialOfferWorkspace, /Tipo de producto/);
+  assertLocalizedLabel(commercialOfferWorkspace, /Disponibles para clientes/);
+  assertLocalizedLabel(commercialOfferWorkspace, /No disponibles/);
+  assertLocalizedLabel(commercialOfferWorkspace, /Listos para publicar/);
+  assertLocalizedLabel(commercialOfferWorkspace, /Configuración pendiente/);
+  assertLocalizedLabel(commercialOfferWorkspace, /Stripe pendiente/);
+  assertLocalizedLabel(commercialOfferWorkspace, /Limpiar filtros/);
+  assertLocalizedLabel(commercialOfferWorkspace, /Módulos/);
+  assertLocalizedLabel(commercialOfferWorkspace, /Paquetes/);
+  assertLocalizedLabel(commercialOfferWorkspace, /Usuarios/);
+  assertLocalizedLabel(commercialOfferWorkspace, /Promociones/);
   assert.match(commercialOfferWorkspace, /<IndiceOperationalTable/);
-  assert.match(commercialOfferWorkspace, /Administrar disponibilidad/);
-  assert.match(commercialOfferWorkspace, /Configurar precios/);
-  assert.match(commercialOfferWorkspace, /Precio mensual/);
-  assert.match(commercialOfferWorkspace, /Precio anual/);
+  assertLocalizedLabel(commercialOfferWorkspace, /Administrar disponibilidad/);
+  assertLocalizedLabel(commercialOfferWorkspace, /Configurar precios/);
+  assertLocalizedLabel(commercialOfferWorkspace, /Precio mensual/);
+  assertLocalizedLabel(commercialOfferWorkspace, /Precio anual/);
   assert.match(commercialOfferWorkspace, /<IndiceModalFrame/);
   assert.match(commercialOfferWorkspace, /modalType="standard-form"/);
   assert.match(commercialOfferWorkspace, /editorSection === "pricing"/);
   assert.match(commercialOfferWorkspace, /editorSection === "availability"/);
   assert.match(commercialOfferWorkspace, /onClose=\{\(\) => setSelection\(null\)\}/);
-  assert.match(commercialOfferDetail, /Módulos incluidos/);
+  assertLocalizedLabel(commercialOfferDetail, /Módulos incluidos/);
   assert.match(commercialOfferDetail, /setFeedback\(copy\.saved\);\s*onClose\(\);/);
-  assert.match(commercialOfferDetail, /Mensual USD/);
-  assert.match(commercialOfferDetail, /Anual USD/);
-  assert.match(commercialOfferDetail, /Stripe Promotion ID/);
-  assert.match(commercialOfferDetail, /Calculadora de precio anual/);
-  assert.match(commercialOfferDetail, /Aplicar precio anual/);
-  assert.match(commercialOfferDetail, /Simulador de descuento/);
-  assert.match(commercialOfferDetail, /Guardar disponibilidad/);
-  assert.match(commercialOfferDetail, /No sumes el impuesto a estos precios/);
-  assert.match(commercialOfferDetail, /Guardar y conectar con Stripe TEST/);
-  assert.match(commercialOfferDetail, /PUBLICAR EN STRIPE LIVE/);
+  assertLocalizedLabel(commercialOfferDetail, /Mensual USD/);
+  assertLocalizedLabel(commercialOfferDetail, /Anual USD/);
+  assertLocalizedLabel(commercialOfferDetail, /Stripe Promotion ID/);
+  assertLocalizedLabel(commercialOfferDetail, /Calculadora de precio anual/);
+  assertLocalizedLabel(commercialOfferDetail, /Aplicar precio anual/);
+  assertLocalizedLabel(commercialOfferDetail, /Simulador de descuento/);
+  assertLocalizedLabel(commercialOfferDetail, /Guardar disponibilidad/);
+  assertLocalizedLabel(commercialOfferDetail, /No sumes el impuesto a estos precios/);
+  assertLocalizedLabel(commercialOfferDetail, /Guardar y conectar con Stripe TEST/);
+  assertLocalizedLabel(commercialOfferDetail, /PUBLICAR EN STRIPE LIVE/);
   assert.match(commercialOfferDetail, /target_mode: stripeMode/);
   assert.match(commercialOfferDetail, /liveSyncEnabled/);
   assert.match(commercialOfferDetail, /synchronizeCatalogProductPrices/);
-  assert.match(commercialOfferDetail, /suscripciones existentes/);
+  assert.match(commercialOfferDetail, /saveCatalogProductPrices/);
+  assertLocalizedLabel(commercialOfferDetail, /suscripciones existentes/);
   assert.match(platformApi, /PlatformCatalogStripePriceSync/);
   assert.match(platformApi, /stripe_sync_status/);
   assert.match(platformApi, /catalog_live_sync_enabled/);
@@ -305,16 +400,16 @@ test("catálogo y módulos guía un flujo operativo de disponibilidad producto y
 });
 
 test("la certificación exige prácticas, examen cronometrado y acreditación por etapa", () => {
-  assert.match(trainingWorkspace, /Estándar de dominio consultivo/);
+  assertLocalizedLabel(trainingWorkspace, /Estándar de dominio consultivo/);
   assert.match(trainingWorkspace, /TrainingExamPanel/);
-  assert.match(trainingWorkspace, /Examen final de certificación consultiva/);
-  assert.match(trainingExam, /Evaluación obligatoria de etapa/);
-  assert.match(trainingExam, /Las respuestas se guardan automáticamente/);
+  assertLocalizedLabel(trainingWorkspace, /Examen final de certificación consultiva/);
+  assertLocalizedLabel(trainingExam, /Evaluación obligatoria de etapa/);
+  assertLocalizedLabel(trainingExam, /Las respuestas se guardan automáticamente/);
   assert.match(trainingExam, /expires_at/);
   assert.match(trainingExam, /\/answers/);
   assert.match(trainingExam, /\/submit/);
-  assert.match(trainingExam, /15 minutos/);
-  assert.match(trainingCertificate, /Folio:/);
+  assertLocalizedLabel(trainingExam, /15 minutos/);
+  assertLocalizedLabel(trainingCertificate, /Folio:/);
   assert.match(trainingCertificate, /QRCode/);
 });
 
@@ -331,7 +426,7 @@ test("la navegación interna comparte motor accesible y memoria de contexto", ()
   assert.match(workspaceNavigation, /ArrowRight/);
   assert.match(workspaceNavigation, /Home/);
   assert.match(workspaceNavigation, /End/);
-  assert.match(frontendOperatingSystem, /Internal Workspace Navigation Engine/);
+  assertLocalizedLabel(frontendOperatingSystem, /Internal Workspace Navigation Engine/);
   assert.match(frontendOperatingSystem, /IndiceWorkspaceNavigation/);
 });
 
@@ -347,8 +442,8 @@ test("disponibilidad usa filtros facetas y la tabla operativa estándar", () => 
   assert.match(moduleAvailabilityWorkspace, /usePersistentColumnWidths/);
   assert.match(moduleAvailabilityWorkspace, /const scopeRows = useMemo/);
   assert.match(moduleAvailabilityWorkspace, /inactive: scopeRows\.filter/);
-  assert.match(moduleAvailabilityWorkspace, /No disponibles/);
-  assert.match(moduleAvailabilityWorkspace, /Limpiar filtros/);
+  assertLocalizedLabel(moduleAvailabilityWorkspace, /No disponibles/);
+  assertLocalizedLabel(moduleAvailabilityWorkspace, /Limpiar filtros/);
   assert.match(moduleAvailabilityWorkspace, /if \(selected\) \{\s*setAvailability\("all"\);\s*setCommercialState\("all"\)/);
   assert.match(moduleAvailabilityWorkspace, /if \(next === "inactive"\) setCommercialState\("all"\)/);
   assert.match(moduleAvailabilityWorkspace, /if \(next !== "all"\) setAvailability\("active"\)/);
@@ -390,7 +485,7 @@ test("alta de cuenta avanza por empresa propietario y acceso", () => {
 });
 
 test("cuenta de prueba rápida prepara datos y conserva la revisión de acceso", () => {
-  assert.match(page, /Cuenta de prueba rápida/);
+  assertLocalizedLabel(page, /Cuenta de prueba rápida/);
   assert.match(page, /<QuickTestAccountModal/);
   assert.match(page, /setAccountCreationPreset\(form\)/);
   assert.match(page, /initialStep=\{accountCreationPreset \? "access" : undefined\}/);
@@ -415,22 +510,22 @@ test("clientes distingue la proyeccion mensual de cobros y resume cuentas y usua
   assert.match(page, /projected_monthly_billing_cents/);
   assert.match(page, /active_customer_companies/);
   assert.match(page, /customer_active_users/);
-  assert.match(page, /Proyecci.n mensual/);
-  assert.match(page, /usuarios activos totales/);
+  assertLocalizedLabel(page, /Proyecci.n mensual/);
+  assertLocalizedLabel(page, /usuarios activos totales/);
 });
 
 test("clientes conserva contratos históricos y confirma el nuevo total antes de modificar Stripe", () => {
   assert.match(platformApi, /catalog_version_historical\?: boolean/);
   assert.match(platformApi, /previewCompanyProducts/);
   assert.match(platformApi, /products\/preview/);
-  assert.match(customerRow, /Contrato histórico/);
+  assertLocalizedLabel(customerRow, /Contrato histórico/);
   assert.match(companyModules, /subscriptionProductCodes/);
-  assert.match(companyModules, /Confirma el cambio comercial/);
+  assertLocalizedLabel(companyModules, /Confirma el cambio comercial/);
   assert.match(companyModules, /estimated_amount_cents/);
   assert.match(companyModules, /pendingChange\.preview\.catalog_version/);
   assert.match(platformApi, /expected_catalog_version: expectedCatalogVersion/);
-  assert.match(companyModules, /sin prorrateo ni cobro inmediato/);
-  assert.match(companyModules, /Acceso de cortesía/);
+  assertLocalizedLabel(companyModules, /sin prorrateo ni cobro inmediato/);
+  assertLocalizedLabel(companyModules, /Acceso de cortesía/);
   assert.doesNotMatch(companyModules, /se factura o acredita el prorrateo/);
   assert.match(company, /onPreviewProducts/);
   assert.match(page, /previewCompanyProducts/);
@@ -453,11 +548,11 @@ test("las tarjetas de clientes funcionan como filtros operativos", () => {
 });
 
 test("clientes prioriza riesgos responsables y siguiente accion", () => {
-  assert.match(page, /Centro de control de clientes/);
-  assert.match(customerControlCenter, /Siguientes acciones recomendadas/);
-  assert.match(customerControlCenter, /Responsable/);
-  assert.match(customerControlCenter, /Equipo Índice/);
-  assert.match(customerControlCenter, /Gestionar cobro y confirmar continuidad/);
+  assertLocalizedLabel(page, /Centro de control de clientes/);
+  assertLocalizedLabel(customerControlCenter, /Siguientes acciones recomendadas/);
+  assertLocalizedLabel(customerControlCenter, /Responsable/);
+  assertLocalizedLabel(customerControlCenter, /Equipo Índice/);
+  assertLocalizedLabel(customerControlCenter, /Gestionar cobro y confirmar continuidad/);
   assert.match(customerControlCenter, /onOpenCompany\(company\)/);
   assert.match(customerTableUtils, /customerPriorityScore/);
   assert.match(customerTableUtils, /company\.user_type === "SUPER_ADMIN"/);
@@ -469,7 +564,7 @@ test("la prueba pública sólo se extiende 15 días después de confirmar la con
   assert.match(trialExtension, /useState<TrialExtensionDays>\(15\)/);
   assert.match(trialExtension, /consultationConfirmed/);
   assert.match(trialExtension, /disabled=\{saving \|\| !consultationConfirmed\}/);
-  assert.match(trialExtension, /máximo 30 en total/);
+  assertLocalizedLabel(trialExtension, /máximo 30 en total/);
   assert.doesNotMatch(trialExtension, /type=["']number["']/);
   assert.match(customerRow, /trial_days_remaining/);
   assert.match(customerRow, /onExtendTrial/);
@@ -483,16 +578,16 @@ test("alta de cuenta recupera el avance cuando expira la sesión Root", () => {
   assert.match(routes, /returnTo:/);
   assert.match(accountFlow, /saveAccountCreationDraft\(step, form\)/);
   assert.match(accountFeature, /hasAccountCreationDraft|restoredDraft/);
-  assert.match(accountSpanishCopy, /Volver a iniciar sesión/);
+  assertLocalizedLabel(accountSpanishCopy, /Volver a iniciar sesión/);
   assert.match(accountFlow, /returnTo = "\/platform-admin"/);
   assert.match(accountFlow, /state: \{ authenticationExpired: true, returnTo \}/);
   assert.match(accountDraft, /temporary_password: omittedPassword/);
-  assert.match(accountDraft, /Never persist the temporary password/);
+  assertLocalizedLabel(accountDraft, /Never persist the temporary password/);
   assert.match(page, /hasAccountCreationDraft\(\)/);
 });
 
 test("tipo de cuenta se persiste sin permitir conceder Root desde el alta", () => {
-  assert.match(page, /Tipo de cuenta/);
+  assertLocalizedLabel(page, /Tipo de cuenta/);
   assert.match(customerRow, /UserTypeBadge/);
   assert.match(page, /value: "ROOT", label: "Root"/);
   assert.match(accountUtils, /account_type: "SUPER_ADMIN"/);
@@ -502,10 +597,10 @@ test("tipo de cuenta se persiste sin permitir conceder Root desde el alta", () =
 });
 
 test("el tipo de cuenta se edita por modal y conserva Root fuera del flujo", () => {
-  assert.match(customerTableCopy, /editType: "Editar tipo de usuario"/);
+  assert.equal(getCustomerTableCopy("es-MX").editType, "Editar tipo de usuario");
   assert.match(customerRow, /accountType !== "ROOT"/);
   assert.match(page, /AccountTypeEditModal/);
-  assert.match(accountTypeEdit, /Editar tipo de usuario/);
+  assertLocalizedLabel(accountTypeEdit, /Editar tipo de usuario/);
   assert.match(accountTypeEdit, /<option value="SUPER_ADMIN">/);
   assert.match(accountTypeEdit, /<option value="DISTRIBUTOR">/);
   assert.doesNotMatch(accountTypeEdit, /<option value="ROOT">/);
@@ -515,9 +610,11 @@ test("el tipo de cuenta se edita por modal y conserva Root fuera del flujo", () 
 
 test("el estado comercial distingue activo prueba demo e inactivo", () => {
   assert.match(customerTableUtils, /basicCommercialStatus/);
-  assert.match(page, /value: "active", label: english \? "Active" : "Activa"/);
-  assert.match(page, /value: "trial", label: english \? "Trial" : "Prueba"/);
-  assert.match(page, /value: "demo", label: "Demo"/);
+  assert.match(page, /value: "active", label: t\("Active"\)/);
+  assert.equal(getPlatformAdminTranslator("es-MX")("Active"), "Activa");
+  assert.match(page, /value: "trial", label: t\("Trial"\)/);
+  assert.equal(getPlatformAdminTranslator("es-MX")("Trial"), "Prueba");
+  assert.match(page, /value: "demo", label: t\("Demo"\)/);
   assert.match(page, /value: "inactive"/);
   assert.match(customerTableUtils, /company\.temporary_benefits/);
   assert.match(platformApi, /temporary_benefits\?: number/);
@@ -530,7 +627,7 @@ test("eliminar cuenta conserva el registro como Eliminado y exige confirmación 
   assert.match(customerTableUtils, /platform_status === "DELETED"/);
   assert.match(page, /companyDeletionName !== companyDeletion\.name/);
   assert.match(page, /platformAdminApi\.deleteCompanyAccount/);
-  assert.match(page, /baja lógica/);
+  assertLocalizedLabel(page, /baja lógica/);
   assert.match(platformApi, /method: 'DELETE'/);
 });
 
@@ -538,10 +635,17 @@ test("Root habilita demos públicas por empresa sin modificar el login normal", 
   assert.match(platformApi, /public_demo_enabled\?: boolean/);
   assert.match(platformApi, /updatePublicDemoAccess/);
   assert.match(platformApi, /\/public-demo/);
-  assert.match(companyOverview, /Demo pública con credenciales/);
+  assertLocalizedLabel(companyOverview, /Demo pública con credenciales/);
   assert.match(companyOverview, /role="switch"/);
   assert.match(companyOverview, /\/demo/);
   assert.match(page, /updatePublicDemoAccess/);
+});
+
+test("confirmaciones de plataforma usan cancelar localizado", () => {
+  assert.match(companyOverview, /cancelLabel=\{t\("cancel"\)\}/);
+  assert.equal([...companyActivity.matchAll(/cancelLabel=\{t\("cancel"\)\}/g)].length, 2);
+  assert.match(usersDirectory, /cancelLabel=\{copy\.cancel\}/);
+  assert.equal([...page.matchAll(/cancelLabel=\{t\("Cancel"\)\}/g)].length, 2);
 });
 
 test("la tabla de clientes conserva identidad y acciones con el patrón Índice", () => {
@@ -551,9 +655,9 @@ test("la tabla de clientes conserva identidad y acciones con el patrón Índice"
   assert.match(customerTable, /usePersistentColumnWidths/);
   assert.match(customerTable, /tone="aqua"/);
   assert.match(customerRow, /IndiceTableActionGroup/);
-  assert.match(customerTableColumns, /customerTableActionsWidth = 158/);
+  assert.match(customerTableColumns, /customerTableActionsWidth = 212/);
   assert.match(customerRow, /DropdownMenuItem onSelect=\{\(\) => onEditType\?\.\(company\)\}/);
-  assert.match(customerTableCopy, /manage: "Administrar"/);
+  assert.equal(getCustomerTableCopy("es-MX").manage, "Administrar");
 });
 
 test("los modales de clientes usan los patrones oficiales sin navegación duplicada", () => {
@@ -581,17 +685,17 @@ test("clientes conserva una identidad visual verde Índice", () => {
 });
 
 test("la tabla separa el creador histórico del distribuidor vigente", () => {
-  assert.match(customerTableCopy, /commercialOrigin: "Origen"/);
-  assert.match(customerTableCopy, /createdByDistributor: "Creado por distribuidor"/);
-  assert.match(customerTableCopy, /distributorAccount: "Cuenta distribuidora"/);
+  assert.equal(getCustomerTableCopy("es-MX").commercialOrigin, "Origen");
+  assert.equal(getCustomerTableCopy("es-MX").createdByDistributor, "Creado por distribuidor");
+  assert.equal(getCustomerTableCopy("es-MX").distributorAccount, "Cuenta distribuidora");
   assert.match(customerTraceability, /company\.creation_origin === "DISTRIBUTOR_PORTAL"/);
   assert.match(customerTraceability, /company\.created_by_distributor_company_name/);
   assert.match(customerTraceability, /company\.distributor_company_name/);
   assert.match(customerTraceability, /copy\.currentDistributor/);
   assert.match(customerTraceability, /copy\.originNotRegistered/);
-  assert.match(customerTraceability, /text-sm font-medium/);
-  assert.match(customerTraceability, /text-xs leading-4/);
-  assert.match(customerTraceability, /grid h-9 w-9/);
+  assertLocalizedLabel(customerTraceability, /text-sm font-medium/);
+  assertLocalizedLabel(customerTraceability, /text-xs leading-4/);
+  assertLocalizedLabel(customerTraceability, /grid h-9 w-9/);
   assert.doesNotMatch(customerTraceability, /shadow-sm/);
   assert.match(customerTableUtils, /case "distributor"/);
   assert.match(platformApi, /creation_origin\?:/);
@@ -602,31 +706,31 @@ test("la tabla separa el creador histórico del distribuidor vigente", () => {
 test("una cuenta cliente asigna cambia o retira su distribuidor por modal", () => {
   assert.match(customerRow, /accountType === "SUPER_ADMIN"/);
   assert.match(customerRow, /onAssignDistributor/);
-  assert.match(customerTableCopy, /assignDistributor: "Asignar distribuidor"/);
+  assert.equal(getCustomerTableCopy("es-MX").assignDistributor, "Asignar distribuidor");
   assert.match(page, /DistributorAssignmentModal/);
   assert.match(page, /updateCompanyDistributor/);
   assert.match(distributorAssignment, /sortedDistributors\.map/);
   assert.match(distributorAssignment, /value="direct"/);
-  assert.match(distributorAssignment, /Desvincular distribuidor/);
+  assertLocalizedLabel(distributorAssignment, /Desvincular distribuidor/);
   assert.match(platformApi, /\/distributor/);
 });
 
 test("la entrega de la cuenta permite copiar todos los datos de acceso", () => {
-  assert.match(accountSpanishCopy, /Copiar datos/);
-  assert.match(accountSpanishCopy, /Datos copiados/);
+  assertLocalizedLabel(accountSpanishCopy, /Copiar datos/);
+  assertLocalizedLabel(accountSpanishCopy, /Datos copiados/);
   assert.match(accountSuccess, /copy\.success\.loginPage/);
   assert.match(accountSuccess, /copy\.success\.password/);
   assert.match(accountSuccess, /writeClipboard/);
 });
 
 test("la cuenta separa módulos activos de los disponibles para agregar", () => {
-  assert.match(companyModules, /Contrato y accesos vigentes/);
-  assert.match(companyModules, /Oferta disponible/);
+  assertLocalizedLabel(companyModules, /Contrato y accesos vigentes/);
+  assertLocalizedLabel(companyModules, /Oferta disponible/);
   assert.match(companyModules, /availableCatalogProducts/);
-  assert.match(companyModules, /Productos publicados de la versión activa/);
+  assertLocalizedLabel(companyModules, /Productos publicados de la versión activa/);
   assert.match(companyModules, /requestPreview/);
   assert.match(companyModules, /onGrant\(product\.code\)/);
-  assert.match(companyModules, /Esta cuenta ya tiene toda la oferta disponible/);
+  assertLocalizedLabel(companyModules, /Esta cuenta ya tiene toda la oferta disponible/);
 });
 
 test("usuarios incluidos ocupan y liberan lugares con invitaciones controladas", () => {
@@ -637,17 +741,17 @@ test("usuarios incluidos ocupan y liberan lugares con invitaciones controladas",
   assert.match(page, /CustomerUsersModal/);
   assert.match(customerUsersModal, /CompanyActivityTab/);
   assert.match(customerUsersModal, /showBilling=\{false\}/);
-  assert.match(companyActivity, /Capacidad de usuarios/);
-  assert.match(companyActivity, /El propietario ocupa un lugar/);
-  assert.match(companyActivity, /Activos/);
-  assert.match(companyActivity, /Invitaciones/);
-  assert.match(companyActivity, /Inactivos/);
-  assert.match(companyActivity, /Invitar usuario/);
-  assert.match(companyActivity, /lugar quedó reservado/);
-  assert.match(companyActivity, /Desactivar y liberar lugar/);
-  assert.match(companyActivity, /Reactivar/);
+  assertLocalizedLabel(companyActivity, /Capacidad de usuarios/);
+  assertLocalizedLabel(companyActivity, /El propietario ocupa un lugar/);
+  assertLocalizedLabel(companyActivity, /Activos/);
+  assertLocalizedLabel(companyActivity, /Invitaciones/);
+  assertLocalizedLabel(companyActivity, /Inactivos/);
+  assertLocalizedLabel(companyActivity, /Invitar usuario/);
+  assertLocalizedLabel(companyActivity, /lugar quedó reservado/);
+  assertLocalizedLabel(companyActivity, /Desactivar y liberar lugar/);
+  assertLocalizedLabel(companyActivity, /Reactivar/);
   assert.match(companyActivity, /available < 1/);
-  assert.match(companyActivity, /Ajustar lugares/);
+  assertLocalizedLabel(companyActivity, /Ajustar lugares/);
   assert.match(platformApi, /inviteCompanyUser/);
   assert.match(platformApi, /cancelCompanyUserInvitation/);
   assert.match(platformApi, /resendCompanyUserInvitation/);
@@ -693,7 +797,9 @@ test("sesiones nacen con cuenta horario destino y consultor sin exigir enlace", 
   assert.doesNotMatch(session, /Enlace HTTPS de reunión/);
   assert.doesNotMatch(session, /pattern="https:\/\/\.\*"/);
   assert.match(session, /value\.mode === "VIRTUAL" \|\| value\.serviceLocationCode/);
-  assert.match(session, /footer=\{[\s\S]*<>[\s\S]*Cancelar[\s\S]*Siguiente[\s\S]*<\/>/);
+  assert.match(session, /footer=\{[\s\S]*<>[\s\S]*copy\.cancel[\s\S]*copy\.next[\s\S]*<\/>/);
+  assertLocalizedLabel(session, /Cancelar/);
+  assertLocalizedLabel(session, /Siguiente/);
   assert.match(session, /new Date\(value\.startAt\) <= new Date\(\)/);
   assert.match(consulting, /companies=\{selectableCompanies\}/);
   assert.match(consulting, /locations=\{allLocations\}/);
@@ -712,17 +818,18 @@ test("la consultoría conserva empresa usuario y preferencia de asignación", ()
   assert.match(clientConsulting, /INDICE_TEAM/);
   assert.match(clientConsulting, /workspace\.distributor/);
   assert.match(consultingApi, /requested_distributor_company_id/);
-  assert.match(consulting, /Trazabilidad de la solicitud/);
+  assertLocalizedLabel(consulting, /Trazabilidad de la solicitud/);
   assert.match(consulting, /appointment\.booked_by_user_id/);
-  assert.match(consulting, /Puedes reasignar/);
+  assertLocalizedLabel(consulting, /Puedes reasignar/);
   assert.match(consulting, /workspace\?\.companies \?\? companies/);
   assert.match(consulting, /companies=\{selectableCompanies\}/);
 });
 
 test("consultoría sincroniza distribuidores y distingue al equipo interno", () => {
-  assert.match(consulting, /label: "Distribuidores"/);
-  assert.match(consulting, /Directorio de distribuidores consultores/);
-  assert.match(consulting, /se sincronizan automáticamente/);
+  assert.match(consulting, /label: copy\.distributors/);
+  assertLocalizedLabel(consulting, /Distribuidores/);
+  assertLocalizedLabel(consulting, /Directorio de distribuidores consultores/);
+  assertLocalizedLabel(consulting, /se sincronizan automáticamente/);
   assert.match(consulting, /consultant\.sourceType === "DISTRIBUTOR"/);
   assert.match(consulting, /consultant\.companyName/);
   assert.match(platformApi, /sourceType\?: "DISTRIBUTOR" \| "CORPORATE"/);
@@ -730,21 +837,22 @@ test("consultoría sincroniza distribuidores y distingue al equipo interno", () 
 
 test("consultoría muestra agenda mensual con horarios y responsables", () => {
   assert.match(consulting, /ConsultingCalendarView/);
-  assert.match(consulting, /label: "Calendario"/);
+  assert.match(consulting, /label: copy\.calendar/);
+  assertLocalizedLabel(consulting, /Calendario/);
   assert.match(consultingCalendar, /confirmed_start_at \|\| appointment\.preferred_start_at/);
   assert.match(consultingCalendar, /alternative_start_at/);
-  assert.match(consultingCalendar, /consultant_name \|\| "Sin consultor asignado"/);
+  assert.match(consultingCalendar, /consultant_name \|\| copy\.noConsultant/);
   assert.match(consultingCalendar, /moveMonth/);
   assert.match(consultingCalendar, /onOpen\(entry\.appointment\)/);
 });
 
 test("el calendario configura disponibilidad persistente por distribuidor", () => {
-  assert.match(consultingCalendar, /Configurar disponibilidad/);
+  assertLocalizedLabel(consultingCalendar, /Configurar disponibilidad/);
   assert.match(consulting, /ConsultingAvailabilityModal/);
   assert.match(consulting, /operations\.getConsultingAvailability/);
   assert.match(consulting, /operations\.updateConsultingAvailability/);
-  assert.match(consultingAvailability, /Horario semanal/);
-  assert.match(consultingAvailability, /Guardar disponibilidad/);
+  assertLocalizedLabel(consultingAvailability, /Horario semanal/);
+  assertLocalizedLabel(consultingAvailability, /Guardar disponibilidad/);
   assert.match(platformApi, /getConsultingAvailability:/);
   assert.match(platformApi, /updateConsultingAvailability:/);
   assert.doesNotMatch(consultingAvailability, /localStorage/);
@@ -752,9 +860,9 @@ test("el calendario configura disponibilidad persistente por distribuidor", () =
 
 test("agregar sesión bloquea dobles envíos y explica fallas de conexión", () => {
   assert.match(session, /busy=\{busy\}/);
-  assert.match(session, /Agregando…/);
+  assertLocalizedLabel(session, /Agregando…/);
   assert.match(session, /submitError/);
-  assert.match(consulting, /No se pudo conectar con Índice/);
+  assertLocalizedLabel(consulting, /No se pudo conectar con Índice/);
 });
 
 test("el expediente de consultoría usa el Modal Wizard Índice", () => {
@@ -769,13 +877,15 @@ test("el expediente de consultoría usa el Modal Wizard Índice", () => {
 });
 
 test("la consultoría aplica los tres tipos y la tarifa fija de USD 79", () => {
-  assert.match(consulting, /Tipo de consultoría/);
-  assert.match(consulting, /<option value="PAID">De pago<\/option>/);
-  assert.match(consulting, /<option value="COURTESY">Cortesía<\/option>/);
-  assert.match(consulting, /Implementación de módulo/);
+  assertLocalizedLabel(consulting, /Tipo de consultoría/);
+  assert.match(consulting, /<option value="PAID">\{copy\.paid\}\s*<\/option>/);
+  assert.match(consulting, /<option value="COURTESY">\{copy\.courtesy\}\s*<\/option>/);
+  assertLocalizedLabel(consulting, /Implementación de módulo/);
   assert.match(consulting, /type === "PAID" \? 7_900 : 0/);
   assert.match(consulting, /currency: "USD"/);
-  assert.match(consulting, /La tarifa es[\s\S]*USD 79/);
+  assertLocalizedLabel(consulting, /La tarifa es/);
+  assert.match(consulting, /copy\.fixedFeeHelp[\s\S]*formatConsultationCost\(locale, "PAID"\)/);
+  assert.match(consulting, /new Intl\.NumberFormat\(locale, \{ style: "currency", currency: "USD" \}\)\.format\(consultationAmountCents\(type\) \/ 100\)/);
   assert.doesNotMatch(consulting, />Cotización pendiente<\/option>/);
   assert.doesNotMatch(consulting, />Pago pendiente<\/option>/);
   assert.doesNotMatch(consulting, />Reembolsada<\/option>/);
@@ -799,35 +909,37 @@ test("la cuenta se administra en un workspace compacto con pestañas directas", 
   assert.match(company, /tone="aqua"/);
   assert.match(company, /onOpenChange=\{\(nextOpen\)/);
   assert.match(company, /footerSummary=/);
-  assert.match(company, />\s*Cerrar\s*</);
+  assert.match(company, /onClick=\{\(\) => onClose\(\)\}[\s\S]*t\("close"\)/);
+  assertLocalizedLabel(company, /Cerrar/);
   assert.match(company, /className="cursor-pointer"/);
   assert.match(company, /Number\.isFinite/);
   assert.doesNotMatch(company, /h-\[92dvh\]/);
   assert.doesNotMatch(company, /Siguiente|Anterior|Paso \d/);
   assert.match(company, /BenefitAdjustmentModal/);
-  assert.match(companyAccess, /Crear ajuste/);
+  assertLocalizedLabel(companyAccess, /Crear ajuste/);
   assert.match(adjustment, /accessReasonOptions/);
   assert.match(adjustment, /extraSeatOptions/);
-  assert.match(adjustment, /Selecciona un módulo/);
+  assertLocalizedLabel(adjustment, /Selecciona un módulo/);
 });
 
 test("catálogo presenta módulos y monedas controladas en lenguaje operativo", () => {
-  assert.match(page, /Módulos incluidos/);
+  assertLocalizedLabel(page, /Módulos incluidos/);
   assert.match(page, /product\.capabilities\.includes\(module\.slug\)/);
   assert.match(page, /type="checkbox"/);
-  assert.match(page, /Importe.*price\.currency/);
-  assert.match(page, /Referencia de cobro de Stripe/);
+  assert.match(page, /t\("Amount"\).*price\.currency/);
+  assertLocalizedLabel(page, /Importe/);
+  assertLocalizedLabel(page, /Referencia de cobro de Stripe/);
   assert.doesNotMatch(page, /Capacidades \(separadas por coma\)/);
   assert.doesNotMatch(page, /Código facturable/);
 });
 
 test("precios del catálogo agrupa variantes técnicas por producto comercial", () => {
   assert.match(page, /buildCatalogPriceGroups/);
-  assert.match(page, /Productos comerciales/);
-  assert.match(page, /Requieren atención/);
-  assert.match(page, /Listos para vender/);
-  assert.match(page, /Mensual/);
-  assert.match(page, /Anual/);
+  assertLocalizedLabel(page, /Productos comerciales/);
+  assertLocalizedLabel(page, /Requieren atención/);
+  assertLocalizedLabel(page, /Listos para vender/);
+  assertLocalizedLabel(page, /Mensual/);
+  assertLocalizedLabel(page, /Anual/);
   assert.match(page, /catalogPriceTypeLabel/);
   assert.match(page, /IndiceTableHeaderRow/);
   assert.match(page, /IndiceOperationalTable/);
@@ -847,14 +959,85 @@ test("catálogo adopta la identidad sobria de Índice sin tarjetas decorativas",
 });
 
 test("Root crea paquetes y administra sus módulos incluidos desde la interfaz", () => {
-  assert.match(page, /Nuevo paquete/);
+  assertLocalizedLabel(page, /Nuevo paquete/);
   assert.match(page, /createCatalogProduct/);
   assert.match(page, /capabilities: target\.value\.capabilities/);
   assert.match(page, /modules\.filter\(\(module\) => module\.assignment_enabled\)/);
   assert.match(page, /product\.capabilities\.includes\(module\.slug\)/);
-  assert.match(page, /Módulos incluidos/);
+  assertLocalizedLabel(page, /Módulos incluidos/);
   assert.match(platformApi, /createCatalogProduct/);
   assert.match(platformApi, /capabilities: string\[\]/);
+});
+
+test("el descuento anual sugerido respeta la política de cada producto", () => {
+  const product = (commercial_kind, product_type = "BASIC", product_code = "module_hr") => ({ commercial_kind, product_type, product_code });
+  assert.equal(defaultAnnualDiscountPercent(product("MODULE")), 20);
+  assert.equal(defaultAnnualDiscountPercent(product("PACKAGE", "ADDON", "controla")), 20);
+  assert.equal(defaultAnnualDiscountPercent(product("VOLUME", "ADDON", "module_additional_unit")), 20);
+  assert.equal(defaultAnnualDiscountPercent(product("SEAT", "ADDON", "extra_user")), 0);
+  assert.equal(defaultAnnualDiscountPercent(product("STORAGE", "ADDON", "storage_block_5_gib")), 0);
+  assert.equal(defaultAnnualDiscountPercent(product("MODULE", "ADDON", "module_future_addon")), 0);
+  assert.equal(defaultAnnualDiscountPercent(null, true), 20);
+  assert.equal(defaultAnnualDiscountPercent(null), 0);
+  assert.doesNotMatch(commercialOfferDetail, /setAnnualDiscount\("15"\)|annualDiscount.*useState\("15"\)/);
+  assert.match(commercialOfferDetail, /setAnnualDiscount\(String\(defaultAnnualDiscountPercent\(product, creatingPackage\)\)\)/);
+  assert.match(commercialOfferDetail, /setYearly\(creatingPackage \? "" : dollars\(yearPrice\?\.unit_amount_cents\)\)/);
+  assert.match(commercialOfferDetail, /onClick=\{\(\) => setYearly\(suggestedAnnualValue\.toFixed\(2\)\)\}/);
+});
+
+test("guardar precios conserva el borrador sin necesitar habilitar Stripe LIVE", () => {
+  const savePrices = commercialOfferDetail.slice(commercialOfferDetail.indexOf("const savePrices = async"), commercialOfferDetail.indexOf("const synchronizePrices = async"));
+  assert.match(savePrices, /platformAdminApi\.saveCatalogProductPrices\(product\.id/);
+  assert.match(savePrices, /monthly_amount_cents: monthlyAmount/);
+  assert.match(savePrices, /annual_amount_cents: annualAmount/);
+  assert.doesNotMatch(savePrices, /liveSyncEnabled|liveConfirmation|synchronizeCatalogProductPrices|stripeSynced/);
+  assert.match(commercialOfferDetail, /focusSection === "pricing" \? savePrices\(\) : saveProduct\(\)/);
+  assert.match(commercialOfferDetail, /<details[\s\S]*onClick=\{\(\) => void synchronizePrices\(\)\}/);
+});
+
+test("guardar precios distingue una escritura confirmada de un fallo al recargar", async () => {
+  const source = commercialOfferDetail.slice(commercialOfferDetail.indexOf("const savePrices = async"), commercialOfferDetail.indexOf("const synchronizePrices = async"));
+  const events = [];
+  const scope = {
+    product: { id: 42 }, saving: false, monthly: "79.00", yearly: "758.40",
+    cents: (value) => Math.round(Number(value) * 100),
+    copy: { saved: "saved", saveError: "save failed", pricesSavedRefreshFailed: "saved; reload unavailable" },
+    setFeedback: (value) => events.push(["feedback", value]),
+    setSaving: (value) => events.push(["busy", value]),
+    platformAdminApi: { saveCatalogProductPrices: async (...args) => events.push(["save", ...args]) },
+    refresh: async () => { throw new Error("catalog unavailable"); },
+    onClose: () => events.push(["close"]),
+  };
+  // Exercise the actual handler with a committed write followed by a failed read.
+  await new Function(...Object.keys(scope), `${source}; return savePrices();`)(...Object.values(scope));
+  assert.deepEqual(events, [
+    ["busy", true], ["feedback", null],
+    ["save", 42, { monthly_amount_cents: 7900, annual_amount_cents: 75840 }],
+    ["feedback", "saved; reload unavailable"], ["busy", false],
+  ]);
+  events.length = 0;
+  scope.platformAdminApi.saveCatalogProductPrices = async () => { throw new Error("save rejected"); };
+  await new Function(...Object.keys(scope), `${source}; return savePrices();`)(...Object.values(scope));
+  assert.deepEqual(events, [["busy", true], ["feedback", null], ["feedback", "save failed"], ["busy", false]]);
+});
+
+test("el editor bloquea los cambios y el cierre mientras guarda o conecta precios", () => {
+  assert.match(commercialOfferDetail, /<fieldset disabled=\{saving\} aria-busy=\{saving\}/);
+  assert.match(commercialOfferDetail, /onBusyChange\(saving\)/);
+  assert.match(commercialOfferDetail, /return \(\) => onBusyChange\(false\)/);
+  assert.match(commercialOfferWorkspace, /busy=\{editorBusy\}/);
+  assert.match(commercialOfferWorkspace, /if \(!open && !editorBusy\) setSelection\(null\)/);
+  assert.match(commercialOfferWorkspace, /onBusyChange=\{setEditorBusy\}/);
+});
+
+test("el modo mostrado procede del servidor y no presupone un entorno de prueba", () => {
+  assert.equal(stripeEnvironmentLabel("TEST", true), "Test mode");
+  assert.equal(stripeEnvironmentLabel("LIVE", true), "Live mode");
+  assert.equal(stripeEnvironmentLabel("LIVE", false), "Modo real");
+  assert.equal(stripeEnvironmentLabel(undefined, true), "Stripe mode unavailable");
+  assert.equal(stripeEnvironmentLabel(null, false), "Modo de Stripe no disponible");
+  assert.match(page, /stripeEnvironmentLabel\(catalog\?\.stripe_environment\?\.mode, locale\)/);
+  assert.equal(stripeEnvironmentLabel("LIVE", "fr-CA"), "Mode réel");
 });
 
 test("el catálogo se prepara valida y publica como versión antes de cambiar la oferta activa", () => {
@@ -862,10 +1045,11 @@ test("el catálogo se prepara valida y publica como versión antes de cambiar la
   assert.match(platformApi, /validateCatalogDraft/);
   assert.match(platformApi, /publishCatalogDraft/);
   assert.match(platformApi, /endpoints\.platformAdmin\.catalog\}\/drafts/);
-  assert.match(page, /Tienes cambios sin publicar/);
-  assert.match(page, /Validar oferta/);
-  assert.match(page, /Publicar oferta/);
-  assert.match(page, /Modo de prueba/);
+  assertLocalizedLabel(page, /Tienes cambios sin publicar/);
+  assertLocalizedLabel(page, /Validar oferta/);
+  assertLocalizedLabel(page, /Sincronizar y publicar oferta/);
+  assert.match(page, /publishCatalogOffer/);
+  assert.match(page, /stripeEnvironmentLabel/);
   assert.doesNotMatch(page, /workingVersion\?\.version_code/);
   assert.doesNotMatch(page, /draftVersion\.version_code} ·/);
   assert.match(page, /catalogValidation\.blockers/);
@@ -896,8 +1080,8 @@ test("actividades globales muestran línea editable de usuarios activos", () => 
   assert.match(allCompanyActivityPanel, /LineChart/);
   assert.match(allCompanyActivityPanel, /PLATFORM_ACTIVITY_CHART_STORAGE_KEY/);
   assert.match(allCompanyActivityPanel, /unique_active_users/);
-  assert.match(allCompanyActivityPanel, /Active users/);
-  assert.match(allCompanyActivityPanel, /Customize/);
-  assert.match(allCompanyActivityPanel, /Load more activity/);
+  assertLocalizedLabel(allCompanyActivityPanel, /Active users/);
+  assertLocalizedLabel(allCompanyActivityPanel, /Customize/);
+  assertLocalizedLabel(allCompanyActivityPanel, /Load more activity/);
   assert.doesNotMatch(allCompanyActivityPanel, /BarChart/);
 });
