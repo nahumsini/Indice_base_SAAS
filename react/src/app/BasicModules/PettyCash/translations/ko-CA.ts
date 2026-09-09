@@ -236,6 +236,11 @@ export const koCA = {
       reference: '참조',
       referencePlaceholder: '마감, 반환 또는 이월 메모',
       pendingWarning: '이 명세를 닫기 전에 대기 영수증을 비용으로 전환하세요.',
+      externalPendingWarning: '이 외부 자금 명세를 마감하기 전에 대기 중인 영수증을 검증하세요.',
+      negativeBalanceWarning: '이 명세의 잔액은 음수입니다. 마감 전에 정산하세요. 잔액이 0인 것처럼 마감할 수 없습니다.',
+      discardTitle: '마감 정보를 삭제할까요?',
+      discardDescription: '변경 사항이 저장되지 않았습니다. 나가면 입력한 정보가 삭제되고 명세는 열린 상태로 유지됩니다.',
+      discardConfirm: '삭제하고 나가기',
     },
     depositModal: {
       ...enCA.reconciliation.depositModal,

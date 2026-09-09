@@ -1,5 +1,5 @@
 import { Ban, Banknote, Building2, CheckCircle2, Coins, Copy, Download, ExternalLink, FileText, FolderOpen, Info, Loader2, MoreHorizontal, Paperclip, Plus, ReceiptText, Search, Trash2, Upload, WalletCards, X } from 'lucide-react';
-import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
+import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { isAdminAccessRole } from '../../../access/accessRules';
 import { authApi } from '../../../api/auth';
 import { mockAccounts } from '../../Expenses/AccountingAccounts/accountingAccounts.mock';
@@ -31,7 +31,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../../components/ui/dropdown-menu';
-import { IndiceModalFrame, IndiceModalValidation } from '../../../components/indice-modal';
+import { IndiceConfirmationDialog, IndiceModalFrame, IndiceModalValidation } from '../../../components/indice-modal';
 import type {
   PettyCashAttachment,
   PettyCashFund,
@@ -45,7 +45,6 @@ import {
   formatPettyCashIsoDate,
   getFundById,
   getStatementLines,
-  getStatementSettlementBalance,
 } from '../utils/pettyCash.utils';
 import { getPettyCashAccountStatementCopy } from '../utils/pettyCashAccountStatementCopy';
 import { getPettyCashMethodLabel, PETTY_CASH_METHOD_KEYS } from '../utils/pettyCash.methods';
@@ -109,6 +108,10 @@ type CloseStatementDraft = {
 };
 
 type OperationView = 'expenses' | 'income';
+
+const closedStatementStatuses: PettyCashStatement['status'][] = [
+  'CLOSED', 'TRANSFERRED_TO_NEXT_CUT', 'FORGIVEN_SHORTAGE', 'CHARGED_TO_EMPLOYEE',
+];
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
@@ -436,6 +439,7 @@ export function PettyCashReconciliationWorkspace({
   const [cancellationReason, setCancellationReason] = useState('');
   const [deletingLineId, setDeletingLineId] = useState<string | null>(null);
   const [statementCloseId, setStatementCloseId] = useState<string | null>(null);
+  const statementCloseInFlight = useRef(false);
   const [previewStatement, setPreviewStatement] = useState<PettyCashStatement | null>(null);
 
   const selectedFund = funds.find(fund => fund.id === selectedFundId);
@@ -1087,6 +1091,7 @@ export function PettyCashReconciliationWorkspace({
   };
 
   const handleCloseStatement = async (statement: PettyCashStatement, draft: CloseStatementDraft) => {
+    if (statementCloseInFlight.current || closedStatementStatuses.includes(statement.status)) return;
     const fund = getFundById(funds, statement.pettyCashFundId);
     if (!fund) return;
     if (!hasPettyCashBackendId(fund.id) || !hasPettyCashBackendId(statement.id)) {
@@ -1094,6 +1099,7 @@ export function PettyCashReconciliationWorkspace({
       return;
     }
 
+    statementCloseInFlight.current = true;
     setStatementCloseId(statement.id);
     try {
       const saved = await pettyCashService.closeStatement(fund.id, statement.id, {
@@ -1116,7 +1122,9 @@ export function PettyCashReconciliationWorkspace({
       setReferenceError('');
     } catch (error) {
       setReferenceError(toFinanceApiErrorMessage(error, copy.reconciliation.errors.closeFailed));
+      throw error;
     } finally {
+      statementCloseInFlight.current = false;
       setStatementCloseId(null);
     }
   };
@@ -1195,6 +1203,18 @@ export function PettyCashReconciliationWorkspace({
             <span>{copy.reconciliation.operation.currentBalance}: <strong className={selectedFund.currentBalanceAmount < 0 ? 'text-red-600' : 'text-[#147514]'}>{formatPettyCashCurrency(selectedFund.currentBalanceAmount, selectedFund.currencyCode)}</strong></span>
             {selectedStatement ? <PettyCashStatusPill kind="statement" status={selectedStatement.status} /> : null}
           </div>
+          {selectedStatement && !closedStatementStatuses.includes(selectedStatement.status) ? (
+            <button
+              type="button"
+              disabled={Boolean(statementCloseId) || !hasPettyCashBackendId(selectedFund.id) || !hasPettyCashBackendId(selectedStatement.id)}
+              title={!hasPettyCashBackendId(selectedFund.id) || !hasPettyCashBackendId(selectedStatement.id) ? copy.reconciliation.errors.closeNeedsBackend : undefined}
+              onClick={() => setClosingStatement(selectedStatement)}
+              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-[#147514]/20 bg-white px-4 py-2.5 text-sm font-medium text-[#147514] transition hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-400/30 dark:bg-slate-800 dark:text-emerald-300 dark:hover:bg-slate-700"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              {copy.reconciliation.statements.close}
+            </button>
+          ) : null}
         </div>
 
         <OperationalKpiArea
@@ -1459,8 +1479,9 @@ export function PettyCashReconciliationWorkspace({
         <CloseStatementModal
           statement={closingStatement}
           fund={getFundById(funds, closingStatement.pettyCashFundId)}
+          settlementLines={getStatementLines(closingStatement.id, settlementLines)}
           isSaving={statementCloseId === closingStatement.id}
-          onClose={() => setClosingStatement(null)}
+          onClose={() => { if (!statementCloseInFlight.current) setClosingStatement(null); }}
           onSave={(draft) => handleCloseStatement(closingStatement, draft)}
         />
       ) : null}
@@ -1527,17 +1548,25 @@ function CloseStatementModal({
   isSaving,
   onClose,
   onSave,
+  settlementLines,
   statement,
 }: {
   fund?: PettyCashFund;
   isSaving: boolean;
   onClose: () => void;
   onSave: (draft: CloseStatementDraft) => void | Promise<void>;
+  settlementLines: PettyCashSettlementLine[];
   statement: PettyCashStatement;
 }) {
   const copy = usePettyCashTranslations();
   const closingBalance = statement.declaredClosingBalanceAmount;
-  const pendingAmount = getStatementSettlementBalance(statement);
+  const finalizedStatus = fund?.fundType === 'EXTERNAL_MANAGED' ? 'VALIDATED' : 'EXPENSE_CREATED';
+  const pendingLines = settlementLines.filter(line => (
+    line.pettyCashFundId === statement.pettyCashFundId
+    && line.pettyCashStatementId === statement.id
+    && ![finalizedStatus, 'REJECTED', 'REVERSED'].includes(line.status)
+  ));
+  const pendingAmount = pendingLines.reduce((total, line) => total + line.totalAmount, 0);
   const defaultAction: PettyCashStatementCloseAction = closingBalance > 0 ? 'CARRY_FORWARD' : 'CLOSE_CLEAN';
   const [draft, setDraft] = useState<CloseStatementDraft>({
     action: defaultAction,
@@ -1545,11 +1574,24 @@ function CloseStatementModal({
     reference: '',
     shortageAmount: '',
   });
+  const initialDraft = useRef(draft);
+  const [discardPromptOpen, setDiscardPromptOpen] = useState(false);
+  const requestClose = () => {
+    if (isSaving) return;
+    if (JSON.stringify(draft) !== JSON.stringify(initialDraft.current)) {
+      setDiscardPromptOpen(true);
+      return;
+    }
+    onClose();
+  };
   const hasBalance = closingBalance > 0;
   const isShortageAction = draft.action === 'FORGIVE_SHORTAGE' || draft.action === 'CHARGE_EMPLOYEE';
   const shortageAmount = Number(draft.shortageAmount) || 0;
-  const canSave = pendingAmount <= 0
-    && (isShortageAction ? shortageAmount > 0 && shortageAmount <= closingBalance : (draft.action === 'CLOSE_CLEAN' ? !hasBalance : hasBalance))
+  const canSave = pendingLines.length === 0
+    && Number.isFinite(closingBalance) && closingBalance >= 0
+    && Boolean(draft.closeDate)
+    && !closedStatementStatuses.includes(statement.status)
+    && (isShortageAction ? shortageAmount > 0 && shortageAmount <= closingBalance : (draft.action === 'CLOSE_CLEAN' ? closingBalance === 0 : hasBalance))
     && !isSaving;
 
   return (
@@ -1558,15 +1600,16 @@ function CloseStatementModal({
       canSave={canSave}
       icon={isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}
       busy={isSaving}
-      onClose={onClose}
-      onSave={() => onSave(draft)}
-      subtitle={`${statement.folio}${fund ? ` - ${fund.name}` : ''}`}
+      errorMessage={copy.reconciliation.errors.closeFailed}
+      onClose={requestClose}
+      onSave={() => { if (canSave) return onSave(draft); }}
+      subtitle={`${statement.periodKey} · ${statement.folio}${fund ? ` - ${fund.name}` : ''} · ${statement.currencyCode}`}
       title={copy.reconciliation.closeModal.title}
     >
-      <div className="grid gap-4 md:grid-cols-2">
+      <fieldset disabled={isSaving} className="grid gap-4 md:grid-cols-2">
         <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-800/70">
           <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">{copy.reconciliation.closeModal.cashBalance}</span>
-          <p className="mt-2 text-lg font-medium text-[#147514]">{formatPettyCashCurrency(closingBalance, statement.currencyCode)}</p>
+          <p className={`mt-2 text-lg font-medium ${closingBalance < 0 ? 'text-red-600' : 'text-[#147514]'}`}>{formatPettyCashCurrency(closingBalance, statement.currencyCode)}</p>
         </div>
         <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-800/70">
           <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">{copy.reconciliation.closeModal.pending}</span>
@@ -1580,7 +1623,7 @@ function CloseStatementModal({
             onChange={(event) => setDraft(current => ({ ...current, action: event.target.value as PettyCashStatementCloseAction }))}
             value={draft.action}
           >
-            <option disabled={hasBalance} value="CLOSE_CLEAN">{copy.reconciliation.closeModal.closeClean}</option>
+            <option disabled={closingBalance !== 0} value="CLOSE_CLEAN">{copy.reconciliation.closeModal.closeClean}</option>
             <option disabled={!hasBalance} value="CARRY_FORWARD">{copy.reconciliation.closeModal.carryForward}</option>
             <option disabled={!hasBalance} value="RETURN_TO_SOURCE">{copy.reconciliation.closeModal.returnToSource}</option>
             <option disabled={!hasBalance} value="CHARGE_EMPLOYEE">{copy.reconciliation.closeModal.chargeEmployee}</option>
@@ -1618,12 +1661,28 @@ function CloseStatementModal({
             />
           </PettyCashField>
         </div>
-        {pendingAmount > 0 ? (
+        {pendingLines.length > 0 ? (
           <div className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-            {copy.reconciliation.closeModal.pendingWarning}
+            {fund?.fundType === 'EXTERNAL_MANAGED' ? copy.reconciliation.closeModal.externalPendingWarning : copy.reconciliation.closeModal.pendingWarning}
           </div>
         ) : null}
-      </div>
+        {closingBalance < 0 ? (
+          <div role="alert" className="md:col-span-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+            {copy.reconciliation.closeModal.negativeBalanceWarning}
+          </div>
+        ) : null}
+      </fieldset>
+      <IndiceConfirmationDialog
+        open={discardPromptOpen}
+        busy={isSaving}
+        title={copy.reconciliation.closeModal.discardTitle}
+        description={copy.reconciliation.closeModal.discardDescription}
+        confirmLabel={copy.reconciliation.closeModal.discardConfirm}
+        cancelLabel={copy.common.cancel}
+        onCancel={() => setDiscardPromptOpen(false)}
+        onConfirm={onClose}
+        tone="green"
+      />
     </PettyCashOperationModal>
   );
 }
@@ -2165,6 +2224,7 @@ function PettyCashOperationModal({
   busy = false,
   canSave,
   children,
+  errorMessage = 'No se pudo guardar la operación.',
   icon,
   onClose,
   onSave,
@@ -2175,6 +2235,7 @@ function PettyCashOperationModal({
   busy?: boolean;
   canSave: boolean;
   children: ReactNode;
+  errorMessage?: string;
   icon: ReactNode;
   onClose: () => void;
   onSave: () => void | Promise<void>;
@@ -2193,7 +2254,7 @@ function PettyCashOperationModal({
     try {
       await onSave();
     } catch (saveError) {
-      setError(toFinanceApiErrorMessage(saveError, 'No se pudo guardar la operación.'));
+      setError(toFinanceApiErrorMessage(saveError, errorMessage));
     } finally {
       setIsSubmitting(false);
     }

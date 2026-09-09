@@ -390,6 +390,11 @@ export const enCA = {
       reference: 'Reference',
       referencePlaceholder: 'Closing, return or carry-forward notes',
       pendingWarning: 'Convert pending receipts into expenses before closing this statement.',
+      externalPendingWarning: 'Validate pending receipts before closing this external fund statement.',
+      negativeBalanceWarning: 'This statement has a negative balance. Reconcile it before closing; it cannot be closed as a zero balance.',
+      discardTitle: 'Discard closing details?',
+      discardDescription: 'Your changes have not been saved. Leaving will discard the entered details and keep the statement open.',
+      discardConfirm: 'Discard and leave',
     },
     depositModal: {
       title: 'Record money entry',
