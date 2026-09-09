@@ -236,6 +236,11 @@ export const zhCA = {
       reference: '参考',
       referencePlaceholder: '关闭、退回或结转备注',
       pendingWarning: '关闭此结算单前，请将待处理收据转换为费用。',
+      externalPendingWarning: '关闭此外部资金结算单前，请验证待处理收据。',
+      negativeBalanceWarning: '此结算单的余额为负数。请先对账，不能将其作为零余额关闭。',
+      discardTitle: '放弃结算信息？',
+      discardDescription: '更改尚未保存。退出将丢弃已输入的信息，结算单仍保持打开状态。',
+      discardConfirm: '放弃并退出',
     },
     depositModal: {
       ...enCA.reconciliation.depositModal,

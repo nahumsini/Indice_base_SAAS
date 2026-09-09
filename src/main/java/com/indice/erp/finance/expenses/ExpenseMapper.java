@@ -58,7 +58,10 @@ public class ExpenseMapper {
             instant(rs, "deleted_at"),
             rs.getLong("version"),
             rs.getString("custom_fields_json"),
-            rs.getString("metadata_json")
+            rs.getString("metadata_json"),
+            nullableLong(rs, "origin_fund_id") == null ? null : new com.indice.erp.finance.expenses.dto.ExpenseFundReference(
+                nullableLong(rs, "origin_fund_id"), rs.getString("origin_fund_name"), rs.getString("origin_fund_type")),
+            rs.getBoolean("accounting_posted")
         );
     }
 
@@ -74,7 +77,7 @@ public class ExpenseMapper {
             record.auditStatus(), record.attachmentCount(), record.createdByUserId(), record.updatedByUserId(),
             record.createdAt(), record.updatedAt(), record.deletedAt(), record.version(),
             FinanceJsonSupport.toJsonNode(record.customFieldsJson()),
-            FinanceJsonSupport.toJsonNode(record.metadataJson())
+            FinanceJsonSupport.toJsonNode(record.metadataJson()), record.originFund(), record.accountingPosted()
         );
     }
 
@@ -96,7 +99,7 @@ public class ExpenseMapper {
             request.totalAmount(), request.currencyCode(), request.expenseDate(), request.dueDate(),
             defaultUserId(request.requestedByUserId(), context.userId()), request.approvedByUserId(),
             request.performedByUserId(), FinanceJsonSupport.toJson(request.customFields()),
-            FinanceJsonSupport.toJson(request.metadata()), true);
+            createMetadata(request.metadata()), true);
     }
 
 	    public ExpenseDraftCommand toUpdateCommand(
@@ -114,9 +117,32 @@ public class ExpenseMapper {
 	            request.currencyCode().trim().toUpperCase(Locale.ROOT), request.expenseDate(), request.dueDate(),
 	            defaultUserId(request.requestedByUserId(), defaultUserId(existing.requestedByUserId(), context.userId())),
 	            request.approvedByUserId(), request.performedByUserId(), null, context.userId(),
-	            FinanceJsonSupport.toJson(request.customFields()), FinanceJsonSupport.toJson(request.metadata())
+	            FinanceJsonSupport.toJson(request.customFields()), preserveClassificationAudit(existing, request)
 	        );
 	    }
+
+    private String preserveClassificationAudit(ExpenseRecord existing, UpdateExpenseRequest request) {
+        var incoming = classificationSafeMetadata(request.metadata());
+        var previous = FinanceJsonSupport.toJsonNode(existing.metadataJson());
+        if (previous == null || !previous.has("accountingClassificationChanges")) return createMetadata(request.metadata());
+        if (previous != null && previous.has("accountingClassificationChanges")) {
+            incoming.set("accountingClassificationChanges", previous.get("accountingClassificationChanges"));
+        }
+        return incoming.toString();
+    }
+
+    private String createMetadata(com.fasterxml.jackson.databind.JsonNode metadata) {
+        return metadata != null && metadata.isObject()
+            ? classificationSafeMetadata(metadata).toString() : FinanceJsonSupport.toJson(metadata);
+    }
+
+    private com.fasterxml.jackson.databind.node.ObjectNode classificationSafeMetadata(com.fasterxml.jackson.databind.JsonNode metadata) {
+        var result = metadata != null && metadata.isObject()
+            ? (com.fasterxml.jackson.databind.node.ObjectNode) metadata.deepCopy()
+            : com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode();
+        result.remove("accountingClassificationChanges");
+        return result;
+    }
 
     private ExpenseDraftCommand newCommand(
             FinanceContext context,

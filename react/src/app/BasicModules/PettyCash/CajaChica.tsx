@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router';
 import { useRef, useState, type ReactNode } from 'react';
 import { IndiceModuleShell } from '../../components/frontend-os';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
@@ -54,7 +55,10 @@ const legacyPettyCashTabAliases: Partial<Record<string, PettyCashTabId>> = {
 export default function CajaChica({ learningModeActive = false, onNavigate }: CajaChicaProps) {
   const copy = usePettyCashTranslations();
   const mainContentRef = useRef<HTMLDivElement>(null);
+  const [searchParams] = useSearchParams();
   const [focusedFundId, setFocusedFundId] = useState('');
+  const linkedFundId = searchParams.get('fundId') ?? '';
+  const requestedFundId = /^\d+$/.test(linkedFundId) ? linkedFundId : '';
   const {
     pettyCashFunds,
     pettyCashMovements,
@@ -89,7 +93,7 @@ export default function CajaChica({ learningModeActive = false, onNavigate }: Ca
         return (
           <PettyCashReconciliationWorkspace
             funds={pettyCashFunds}
-            initialFundId={focusedFundId}
+            initialFundId={focusedFundId || requestedFundId}
             movements={pettyCashMovements}
             onFundsChange={setPettyCashFunds}
             onMovementsChange={setPettyCashMovements}

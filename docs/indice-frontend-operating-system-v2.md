@@ -161,6 +161,28 @@ Expense edit controls are available only while the record is a draft. Published 
 consultable; approval, payment, closure, adjustment, and reversal use their named actions instead
 of reopening the original commercial record.
 
+The accounting-account column exposes a separate classification action for an ordinary expense
+that has not generated a posted journal. This action may change only the accounting account;
+it does not reopen commercial, payment, or currency fields. Internal fund expenses display their
+server-resolved fund name and a locked accounting account. External managed fund expenses are
+excluded from the company Expenses workspace. Posted journal sources require an accounting adjustment.
+
+The Expenses table presents authorized internal-fund receipts as one expandable row per fund and
+native currency within the selected expense-date period. Apply row filters before grouping and
+paginate the presentation rows, preserving the receipt-level KPI/export inputs. Summary rows are
+read-only, are not selectable mutation targets, and never become persisted expenses. A partial
+filter identifies matching receipts explicitly. The breakdown retains original records and their
+evidence actions; multiple accounting accounts remain distinct. Summary money uses the existing
+server monetary-aggregate owner, with visible loading/error/retry states and no stale or zero fallback.
+The fund link opens the existing Petty Cash operation with a fund selection; it grants no extra access.
+
+Bulk expense entry displays calendar dates as `DD/MM/YYYY`, while sending ISO dates to the API.
+It accepts the existing three Excel columns and optional payment-account and accounting-account
+columns with searchable selectors. Imports begin pending; a selected payment account is only a
+preselection for the payment flow and must match the row's native currency. Each batch contains
+at most 200 used rows. Save failures keep the capture open; successful creation retries reuse a
+request key, and bulk edits preserve existing taxes and native currency.
+
 ### Sales, POS, Inventory, And Receivables
 
 Sales, Point of Sale, Inventory, and Receivables must feel like sibling modules.

@@ -11,7 +11,6 @@ import {
   type ExpenseSortField,
 } from '../../constants/expenseTableConfig';
 import {
-  compareSortValues,
   getDefaultExpenseWorkflow,
   type SortDirection,
 } from '../../utils/expenseTableUtils';
@@ -19,7 +18,7 @@ import { useExpenseRowSelection } from '../../hooks/useExpenseRowSelection';
 import { ExpenseBulkActionsBar } from '../../components/table/ExpenseBulkActionsBar';
 import { ExpenseTableHeaderRow } from '../../components/table/ExpenseTableHeaderRow';
 import { ExpensePaymentModal } from '../../components/modals/ExpensePaymentModal';
-import { useExpensesTranslations } from '../hooks/useExpensesTranslations';
+import { useExpensesResolvedLocale, useExpensesTranslations } from '../hooks/useExpensesTranslations';
 import { formatBusinessCurrencyBreakdown } from '../../../shared/businessCurrency';
 import { canDeleteExpense, canEditExpense, getEffectiveExpenseStatus, getExpenseBalance, getExpensePaidAmount } from '../../utils/expenseFilters';
 import { DataTablePagination } from '../../../../components/table/DataTablePagination';
@@ -32,6 +31,10 @@ import {
   type ExpenseWorkflowState,
 } from './EditableExpenseRow';
 import { ExpenseMobileCards } from './ExpenseMobileCards';
+import { ExpenseFundGroupRow } from './ExpenseFundGroupRow';
+import { getExpenseFundGroupCopy } from './expenseFundGroup.copy';
+import { groupExpenseRows, sortExpenseRows, type ExpenseFundGroup } from '../../utils/expenseFundGroups';
+import { useExpenseFundTotals } from '../../hooks/useExpenseFundTotals';
 
 type MoneySummary = {
   key: string;
@@ -69,6 +72,8 @@ type ExpenseTableProps = {
   emptyTitle?: string;
   expenses: Expense[];
   carryoverExpenseIds?: ReadonlySet<string>;
+  fundPeriodLabel?: string;
+  hasFundDetailFilters?: boolean;
   getAttachments: (expense: Expense) => string[];
   onDeleteExpense?: (expenseId: string) => void;
   onDeleteExpenses?: (expenseIds: string[]) => void;
@@ -79,6 +84,7 @@ type ExpenseTableProps = {
   onOpenAttachments: (expense: Expense) => void;
   onViewExpense: (expense: Expense) => void;
   onPersistExpenseUpdate?: (expense: Expense) => void;
+  onReclassifyExpense?: (expense: Expense, accountId: string) => Promise<void>;
   onRecordExpensePayment?: (expense: Expense, amount: number, paymentAccountId: string, paymentDate: Date, attachmentFiles: File[]) => Promise<Expense | null>;
   onStatusChange?: (expense: Expense, status: ExpenseStatus) => Promise<Expense | null>;
   businessOptions?: FinanceReferenceOption[];
@@ -97,6 +103,8 @@ export function ExpenseTable({
   emptyTitle,
   expenses,
   carryoverExpenseIds = new Set<string>(),
+  fundPeriodLabel,
+  hasFundDetailFilters = false,
   getAttachments,
   onDeleteExpense,
   onDeleteExpenses,
@@ -107,6 +115,7 @@ export function ExpenseTable({
   onOpenAttachments,
   onViewExpense,
   onPersistExpenseUpdate,
+  onReclassifyExpense,
   onRecordExpensePayment,
   onStatusChange,
   businessOptions = [],
@@ -116,11 +125,13 @@ export function ExpenseTable({
   userOptions = [],
 }: ExpenseTableProps) {
   const t = useExpensesTranslations();
+  const fundCopy = getExpenseFundGroupCopy(useExpensesResolvedLocale());
   const showAuditAction = actionVisibility?.showAudit ?? true;
   const showMarkPaidAction = actionVisibility?.showMarkPaid ?? true;
   const showStatusChangeAction = actionVisibility?.showStatusChange ?? true;
   const showPaymentStatusOptions = showMarkPaidAction;
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_EXPENSE_COLUMN_WIDTHS);
+  const [expandedFunds, setExpandedFunds] = useState<Set<string>>(() => new Set());
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [resizeStartWidth, setResizeStartWidth] = useState(0);
   const [resizeStartX, setResizeStartX] = useState(0);
@@ -158,40 +169,38 @@ export function ExpenseTable({
   const effectiveEmptyMessage = emptyMessage ?? t.expenses.emptyMessage;
   const effectiveEmptyTitle = emptyTitle ?? t.expenses.emptyTitle;
   const editableRowOptions = useEditableRowOptions(expenses, providers, unitOptions, businessOptions, userOptions, accountingAccountOptions);
-  const sortedExpenses = useMemo(() => {
-    if (!sortField || !sortDirection) return expenses;
-    return [...expenses].sort((left, right) => compareSortValues(
-      sortField === 'status'
-        ? getEffectiveExpenseStatus(left)
-        : sortField === 'balance'
-          ? getExpenseBalance(left)
-          : left[sortField],
-      sortField === 'status'
-        ? getEffectiveExpenseStatus(right)
-        : sortField === 'balance'
-          ? getExpenseBalance(right)
-          : right[sortField],
-      sortDirection,
-    ));
-  }, [expenses, sortDirection, sortField]);
-  const totalPages = Math.max(1, Math.ceil(sortedExpenses.length / pageSize));
-  const pageStartIndex = (currentPage - 1) * pageSize;
+  const displayRows = useMemo(() => groupExpenseRows(expenses), [expenses]);
+  const fundGroups = useMemo(() => displayRows.filter((row): row is ExpenseFundGroup => row.kind === 'fund'), [displayRows]);
+  const fundTotals = useExpenseFundTotals(fundGroups);
+  const sortedRows = useMemo(() => sortExpenseRows(displayRows, sortField, sortDirection, fundTotals.data),
+    [displayRows, sortField, sortDirection, fundTotals.data]);
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / pageSize));
+  const pageStartIndex = (Math.min(currentPage, totalPages) - 1) * pageSize;
   const pageEndIndex = pageStartIndex + pageSize;
-  const paginatedExpenses = useMemo(
-    () => sortedExpenses.slice(pageStartIndex, pageEndIndex),
-    [pageEndIndex, pageStartIndex, sortedExpenses],
-  );
-  const paginationStart = sortedExpenses.length === 0 ? 0 : pageStartIndex + 1;
-  const paginationEnd = sortedExpenses.length === 0 ? 0 : Math.min(pageEndIndex, sortedExpenses.length);
-  const visibleExpenseIds = useMemo(() => paginatedExpenses.map(expense => expense.id), [paginatedExpenses]);
+  const paginatedRows = useMemo(() => sortedRows.slice(pageStartIndex, pageEndIndex), [pageStartIndex, pageEndIndex, sortedRows]);
+  const paginationStart = sortedRows.length === 0 ? 0 : pageStartIndex + 1;
+  const paginationEnd = Math.min(pageEndIndex, sortedRows.length);
+  const selectableExpenses = useMemo(() => displayRows.flatMap(row => row.kind === 'expense' ? [row.expense] : []), [displayRows]);
+  const visibleExpenseIds = useMemo(() => paginatedRows.flatMap(row => row.kind === 'expense' ? [row.expense.id] : []), [paginatedRows]);
+  const fundRowProps = (group: ExpenseFundGroup) => ({
+    group, money: fundTotals.data[group.key], periodLabel: fundPeriodLabel ?? fundCopy.period,
+    filtered: hasFundDetailFilters, expanded: expandedFunds.has(group.key),
+    onToggle: () => setExpandedFunds(previous => {
+      const next = new Set(previous);
+      if (next.has(group.key)) next.delete(group.key); else next.add(group.key);
+      return next;
+    }),
+    isColumnVisible, columnWidths, columnCount: visibleColumnCount, options: editableRowOptions,
+    onViewExpense, onOpenAttachments, getAttachments,
+  });
   const visibleSelection = rowSelection.visibleSelectionState(visibleExpenseIds);
   const visibleColumnCount = useMemo(() => (
     columns.filter(column => column.key !== 'actions' && column.visible).length + 2
   ), [columns]);
-  const filteredMoneySummaries = useMemo(() => getMoneySummaries(sortedExpenses, columns), [columns, sortedExpenses]);
+  const filteredMoneySummaries = useMemo(() => getMoneySummaries(expenses, columns), [columns, expenses]);
   const selectedExpenses = useMemo(
-    () => sortedExpenses.filter(expense => rowSelection.selectedIds.has(expense.id)),
-    [rowSelection.selectedIds, sortedExpenses],
+    () => selectableExpenses.filter(expense => rowSelection.selectedIds.has(expense.id)),
+    [rowSelection.selectedIds, selectableExpenses],
   );
   const selectedMoneySummaries = useMemo(() => getMoneySummaries(selectedExpenses, columns), [columns, selectedExpenses]);
   const canDeleteAllSelected = useMemo(
@@ -226,8 +235,8 @@ export function ExpenseTable({
   }, [resizeStartWidth, resizeStartX, resizingColumn]);
 
   useEffect(() => {
-    rowSelection.pruneSelection(expenses.map(expense => expense.id));
-  }, [expenses, rowSelection.pruneSelection]);
+    rowSelection.pruneSelection(selectableExpenses.map(expense => expense.id));
+  }, [selectableExpenses, rowSelection.pruneSelection]);
 
   useEffect(() => {
     setCurrentPage(current => Math.min(Math.max(current, 1), totalPages));
@@ -505,12 +514,21 @@ export function ExpenseTable({
         />
       ) : null}
 
+      {fundGroups.length > 0 && <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-slate-500 dark:text-slate-400">
+        <span>{fundCopy.rows(displayRows.length, expenses.length)}</span>
+        {fundTotals.loading && <span role="status">{fundCopy.loading}</span>}
+        {fundTotals.error && <span role="alert" className="text-rose-600 dark:text-rose-400">{fundCopy.failed} <button type="button" className="underline" onClick={fundTotals.refresh}>{fundCopy.retry}</button></span>}
+      </div>}
+      <div className="space-y-2.5 md:hidden">
+      {paginatedRows.map(row => row.kind === 'fund'
+        ? <ExpenseFundGroupRow key={row.key} {...fundRowProps(row)} mobile />
+        : <div key={row.key}>
       <ExpenseMobileCards
         carryoverExpenseIds={carryoverExpenseIds}
         actionVisibility={actionVisibility}
         emptyMessage={effectiveEmptyMessage}
         emptyTitle={effectiveEmptyTitle}
-        expenses={paginatedExpenses}
+        expenses={[row.expense]}
         deletingExpenseIds={deletingExpenseIds}
         isSelected={rowSelection.isSelected}
         onAudit={setEditingRowId}
@@ -529,8 +547,12 @@ export function ExpenseTable({
         onView={onViewExpense}
       />
 
+          </div>)}
+      {paginatedRows.length === 0 && <div className="rounded-xl border p-5 text-center"><p>{effectiveEmptyTitle}</p><p className="text-sm text-slate-500">{effectiveEmptyMessage}</p></div>}
+      </div>
+
       <div className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800 md:block">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto [container-type:inline-size]">
           <table className="min-w-[1280px]">
           <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60">
             <ExpenseTableHeaderRow
@@ -547,10 +569,13 @@ export function ExpenseTable({
             />
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-            {sortedExpenses.length === 0 ? (
+            {sortedRows.length === 0 ? (
               <EmptyExpenseTableRow colSpan={visibleColumnCount} emptyMessage={effectiveEmptyMessage} emptyTitle={effectiveEmptyTitle} />
             ) : (
-              paginatedExpenses.map(expense => (
+              paginatedRows.map(row => {
+                if (row.kind === 'fund') return <ExpenseFundGroupRow key={row.key} {...fundRowProps(row)} />;
+                const expense = row.expense;
+                return (
                 <EditableExpenseRow
                   key={expense.id}
                   actionVisibility={actionVisibility}
@@ -568,6 +593,7 @@ export function ExpenseTable({
                   onSelectionChange={rowSelection.toggleSelection}
                   onStatusChange={handleStatusChange}
                   onUpdateExpense={updateExpense}
+                  onReclassifyExpense={onReclassifyExpense}
                   onUpdateWorkflow={updateExpenseWorkflow}
                   onOpenAttachments={onOpenAttachments}
                   onDuplicate={handleDuplicate}
@@ -578,7 +604,8 @@ export function ExpenseTable({
                   onAudit={setEditingRowId}
                   onView={() => onViewExpense(expense)}
                 />
-              ))
+                );
+              })
             )}
           </tbody>
           </table>
@@ -598,7 +625,7 @@ export function ExpenseTable({
           selectedCount={rowSelection.selectedCount}
           selectedMoneySummaries={selectedMoneySummaries}
           t={t}
-          totalCount={sortedExpenses.length}
+          totalCount={sortedRows.length}
           totalPages={totalPages}
         />
       </div>
@@ -618,7 +645,7 @@ export function ExpenseTable({
           selectedCount={rowSelection.selectedCount}
           selectedMoneySummaries={selectedMoneySummaries}
           t={t}
-          totalCount={sortedExpenses.length}
+          totalCount={sortedRows.length}
           totalPages={totalPages}
         />
       </div>

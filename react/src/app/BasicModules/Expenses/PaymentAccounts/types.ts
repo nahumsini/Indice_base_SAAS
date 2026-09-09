@@ -6,6 +6,7 @@ export type PaymentAccount = {
   businessId?: string;
   name: string;
   type: PaymentAccountType;
+  backendType?: string;
   accountNumber?: string;
   bank?: string;
   currency: string;

@@ -1,20 +1,26 @@
-import { useEffect, useMemo, useState, type ClipboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ClipboardEvent } from 'react';
 import { ChevronLeft, ChevronRight, ClipboardPaste, Info, PencilLine, Plus, Rows3, Search, Trash2, Upload } from 'lucide-react';
 import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
 import { Button } from '../../../../components/ui/button';
+import { ExpenseAccountSelect } from '../table/ExpenseAccountSelect';
+import type { SelectOption } from '../table/ExpenseInlineControls';
+import { parseMoney, parseDate, displayDate } from '../../utils/expenseBulkInput';
 import type { Expense, Provider } from '../../types/expenses.types';
 
 export type ExpenseBulkDraft = {
   concept: string;
   date: string;
   providerId?: string;
+  paymentAccountId?: string;
+  accountingAccountId?: string;
+  currency: string;
   total: number;
 };
 
 export type ExpenseBulkEditDraft = ExpenseBulkDraft & { id: string };
 
 type BulkMode = 'create' | 'edit';
-type EditableField = 'date' | 'provider' | 'concept' | 'total';
+type EditableField = 'date' | 'provider' | 'concept' | 'total' | 'paymentAccount' | 'accountingAccount';
 type EditableRow = Record<EditableField, string> & {
   id: string;
   expenseId?: string;
@@ -25,7 +31,7 @@ const initialRowCount = 15;
 const editPageSize = 100;
 const currentMonth = () => toDateInput(new Date()).slice(0, 7);
 const emptyValues = (): Record<EditableField, string> => ({
-  concept: '', date: toDateInput(new Date()), provider: '', total: '',
+  concept: '', date: displayDate(toDateInput(new Date())), provider: '', total: '', paymentAccount: '', accountingAccount: '',
 });
 const emptyRow = (index: number): EditableRow => {
   const values = emptyValues();
@@ -40,40 +46,6 @@ const providerId = (providers: Provider[], input: string) => {
 };
 const providerLabel = (providers: Provider[], value?: string) => providers.find(provider => provider.id === value)?.name ?? value ?? '';
 
-function parseMoney(input: string, currency: string) {
-  let value = input.trim();
-  if (value.toUpperCase().startsWith(currency.toUpperCase())) value = value.slice(currency.length).trim();
-  value = value.replace(/^\$\s*/, '').replace(/\s/g, '');
-  if (!value || /[^\d,.-]/.test(value) || value.includes('-')) return Number.NaN;
-  if (/^\d{1,3}(,\d{3})+(\.\d{1,2})?$/.test(value)) return Number(value.replace(/,/g, ''));
-  if (/^\d{1,3}(\.\d{3})+(,\d{1,2})?$/.test(value)) return Number(value.replace(/\./g, '').replace(',', '.'));
-  if (/^\d+(\.\d{1,2})?$/.test(value)) return Number(value);
-  if (/^\d+(,\d{1,2})$/.test(value)) return Number(value.replace(',', '.'));
-  return Number.NaN;
-}
-
-function parseDate(input: string) {
-  const value = input.trim();
-  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  const localMatch = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/.exec(value);
-  const compactMatch = /^(\d{4})(\d{2})(\d{2})$/.exec(value);
-  const parts = isoMatch
-    ? [isoMatch[1], isoMatch[2], isoMatch[3]]
-    : localMatch
-      ? [localMatch[3], localMatch[2].padStart(2, '0'), localMatch[1].padStart(2, '0')]
-      : compactMatch
-        ? [compactMatch[1], compactMatch[2], compactMatch[3]]
-        : null;
-  if (!parts && /^\d{5}$/.test(value)) {
-    const serial = Number(value);
-    const excelDate = new Date(Date.UTC(1899, 11, 30 + serial));
-    return excelDate.toISOString().slice(0, 10);
-  }
-  if (!parts) return '';
-  const result = `${parts[0]}-${parts[1]}-${parts[2]}`;
-  const date = new Date(`${result}T00:00:00`);
-  return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== result ? '' : result;
-}
 
 const toDateInput = (date: Date) => {
   const year = date.getFullYear();
@@ -91,7 +63,9 @@ function expenseRows(
   return expenses.map(expense => {
     const values: Record<EditableField, string> = {
       concept: expense.concept,
-      date: toDateInput(expense.date),
+      date: displayDate(toDateInput(expense.date)),
+      paymentAccount: expense.paymentAccountId ?? '',
+      accountingAccount: expense.accountingAccount ?? '',
       provider: providerLabel(providers, expense.providerId),
       total: String(expense.total),
     };
@@ -100,6 +74,8 @@ function expenseRows(
 }
 
 export function ExpenseBulkIntegrationModal({
+  accountingAccounts,
+  paymentAccounts,
   editableExpenses,
   isSaving,
   lockedExpenseCount,
@@ -110,16 +86,21 @@ export function ExpenseBulkIntegrationModal({
   preferredCurrency,
   providers,
 }: {
+  accountingAccounts: SelectOption[];
+  paymentAccounts: Array<SelectOption & { currency: string }>;
   editableExpenses: Expense[];
   isSaving: boolean;
   lockedExpenseCount: number;
-  onCreate: (drafts: ExpenseBulkDraft[]) => Promise<void>;
+  onCreate: (drafts: ExpenseBulkDraft[], requestKey: string) => Promise<void>;
   onOpenChange: (open: boolean) => void;
   onUpdate: (drafts: ExpenseBulkEditDraft[]) => Promise<void>;
   open: boolean;
   preferredCurrency: string;
   providers: Provider[];
 }) {
+  const submitInFlight = useRef(false);
+  const requestKey = useRef('');
+  const [batchCurrency, setBatchCurrency] = useState(preferredCurrency);
   const [mode, setMode] = useState<BulkMode>('create');
   const [rows, setRows] = useState<EditableRow[]>(() => emptyRows());
   const [message, setMessage] = useState('');
@@ -129,6 +110,8 @@ export function ExpenseBulkIntegrationModal({
 
   useEffect(() => {
     if (!open) return;
+    requestKey.current = crypto.randomUUID();
+    setBatchCurrency(preferredCurrency);
     setMode('create');
     setRows(emptyRows());
     setMessage('');
@@ -146,25 +129,38 @@ export function ExpenseBulkIntegrationModal({
     setRows(nextMode === 'create' ? emptyRows() : expenseRows(editableExpenses, providers));
   };
 
+  const resolveAccount = (options: SelectOption[], input: string) => {
+    const key = normalized(input);
+    const matches = options.filter(option => normalized(option.value) === key || normalized(option.label) === key
+      || normalized(option.label.split(' - ')[0]) === key);
+    return matches.length === 1 ? matches[0].value : undefined;
+  };
+
   const evaluations = useMemo(() => rows.map((row, rowIndex) => {
     const used = mode === 'edit' ? rowChanged(row) : Boolean(row.concept.trim() || row.total.trim());
     const provider = providerId(providers, row.provider);
-    const total = parseMoney(row.total, preferredCurrency);
+    const currency = mode === 'edit' ? editableExpenses.find(expense => expense.id === row.expenseId)?.currency ?? batchCurrency : batchCurrency;
+    const paymentOptions = paymentAccounts.filter(account => account.currency === currency);
+    const paymentAccountId = resolveAccount(paymentOptions, row.paymentAccount);
+    const accountingAccountId = resolveAccount(accountingAccounts, row.accountingAccount);
+    const total = parseMoney(row.total, currency);
     const date = parseDate(row.date) || (mode === 'create' && !row.date.trim() ? toDateInput(new Date()) : '');
     const errors = {
-      concept: !row.concept.trim() ? 'Escribe el concepto del gasto.' : '',
-      date: !date ? 'Usa una fecha válida: AAAA-MM-DD, DD/MM/AAAA o AAAAMMDD.' : '',
+      concept: !row.concept.trim() ? 'Escribe el concepto del gasto.' : row.concept.trim().length > 220 ? 'El concepto admite hasta 220 caracteres.' : '',
+      date: !date ? 'Escribe una fecha válida en DD/MM/AAAA.' : '',
+      paymentAccount: row.paymentAccount.trim() && !paymentAccountId ? 'Selecciona una cuenta de pago activa en la moneda de la fila.' : '',
+      accountingAccount: row.accountingAccount.trim() && !accountingAccountId ? 'Selecciona una cuenta contable existente.' : '',
       provider: mode === 'edit' && row.provider.trim() && !provider ? 'Selecciona un proveedor existente.' : '',
       total: !Number.isFinite(total) || total <= 0 ? 'Escribe un monto mayor a cero, con máximo dos decimales.' : '',
     };
     const valid = used && !Object.values(errors).some(Boolean);
-    return { date, errors, provider, row, rowIndex, total, used, valid };
-  }), [mode, preferredCurrency, providers, rows]);
+    return { date, errors, provider, row, rowIndex, total, used, valid, currency, paymentOptions, paymentAccountId, accountingAccountId };
+  }), [mode, batchCurrency, providers, rows, accountingAccounts, paymentAccounts, editableExpenses]);
 
   const ready = evaluations.filter(result => result.valid);
   const invalid = evaluations.filter(result => result.used && !result.valid);
   const monthEvaluations = useMemo(() => mode === 'edit'
-    ? evaluations.filter(({ row }) => row.date.slice(0, 7) === editMonth)
+    ? evaluations.filter(({ row }) => parseDate(row.original.date).slice(0, 7) === editMonth)
     : evaluations, [editMonth, evaluations, mode]);
   const filteredEditEvaluations = useMemo(() => {
     if (mode !== 'edit') return evaluations;
@@ -189,11 +185,12 @@ export function ExpenseBulkIntegrationModal({
     setRows(current => current.map((row, rowIndex) => {
       if (rowIndex !== index) return row;
       const parsed = parseDate(row.date);
-      return parsed ? { ...row, date: parsed } : row;
+      return parsed ? { ...row, date: displayDate(parsed) } : row;
     }));
   };
 
-  const handlePaste = (event: ClipboardEvent<HTMLInputElement>, startRow: number, startColumn: number) => {
+  const handlePaste = (event: ClipboardEvent<HTMLElement>, startRow: number, startColumn: number) => {
+    if (isSaving || submitInFlight.current) return;
     const text = event.clipboardData.getData('text/plain');
     if (!text.includes('\t') && !text.includes('\n')) return;
     event.preventDefault();
@@ -201,60 +198,71 @@ export function ExpenseBulkIntegrationModal({
     const first = pasted[0]?.map(cell => normalized(cell)) ?? [];
     const hasHeader = first.some(cell => cell.includes('concepto')) && first.some(cell => cell.includes('monto'));
     const data = hasHeader ? pasted.slice(1) : pasted;
-    const fields: EditableField[] = mode === 'create' ? ['date', 'concept', 'total'] : ['date', 'provider', 'concept', 'total'];
+    const fields: EditableField[] = mode === 'create' ? ['date', 'concept', 'total', 'paymentAccount', 'accountingAccount'] : ['date', 'provider', 'concept', 'total', 'paymentAccount', 'accountingAccount'];
     setRows(current => {
       const next = [...current];
-      while (next.length < startRow + data.length) next.push(emptyRow(next.length));
+      const visibleStart = visibleEvaluations.findIndex(result => result.rowIndex === startRow);
+      if (mode === 'create') while (next.length < startRow + data.length) next.push(emptyRow(next.length));
       data.forEach((cells, rowOffset) => {
-        const target = { ...next[startRow + rowOffset] };
+        const targetIndex = mode === 'edit' ? visibleEvaluations[visibleStart + rowOffset]?.rowIndex : startRow + rowOffset;
+        if (targetIndex === undefined) return;
+        const target = { ...next[targetIndex] };
         cells.forEach((cell, columnOffset) => {
           const field = fields[startColumn + columnOffset];
-          if (field) target[field] = cell.trim();
+          if (field) target[field] = field === 'date' && parseDate(cell) ? displayDate(parseDate(cell)) : cell.trim();
         });
-        next[startRow + rowOffset] = target;
+        next[targetIndex] = target;
       });
       return next;
     });
   };
 
   const submit = async () => {
-    if (!ready.length || invalid.length) return;
+    if (isSaving || submitInFlight.current || !ready.length || invalid.length || ready.length > 200) return;
+    submitInFlight.current = true;
     setMessage('');
     try {
       const drafts = ready.map(result => ({
-        concept: result.row.concept.trim(), date: result.date, providerId: result.provider, total: result.total,
+        concept: result.row.concept.trim(), date: result.date, providerId: result.provider, total: result.total, currency: result.currency,
+        paymentAccountId: result.paymentAccountId, accountingAccountId: result.accountingAccountId,
       }));
-      if (mode === 'create') await onCreate(drafts);
+      if (mode === 'create') await onCreate(drafts, requestKey.current);
       else await onUpdate(drafts.map((draft, index) => ({ ...draft, id: ready[index].row.expenseId! })));
       onOpenChange(false);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'No se pudo completar la integración masiva.');
+    } finally {
+      submitInFlight.current = false;
     }
   };
 
   const columns: Array<{ field: EditableField; label: string; width: string; placeholder: string; list?: string }> = mode === 'create'
     ? [
-        { field: 'date', label: 'Fecha', width: 'w-[220px]', placeholder: 'Hoy' },
-        { field: 'concept', label: 'Concepto', width: 'w-[620px]', placeholder: 'Ej. Compra de abarrotes' },
-        { field: 'total', label: `Monto (${preferredCurrency})`, width: 'w-[260px]', placeholder: '0.00' },
+        { field: 'date', label: 'Fecha', width: 'w-[150px]', placeholder: 'DD/MM/AAAA' },
+        { field: 'concept', label: 'Concepto', width: 'w-[330px]', placeholder: 'Ej. Compra de abarrotes' },
+        { field: 'total', label: `Monto (${batchCurrency})`, width: 'w-[150px]', placeholder: '0.00' },
       ]
     : [
-        { field: 'date', label: 'Fecha', width: 'w-[210px]', placeholder: 'AAAA-MM-DD' },
+        { field: 'date', label: 'Fecha', width: 'w-[210px]', placeholder: 'DD/MM/AAAA' },
         { field: 'provider', label: 'Proveedor', width: 'w-[280px]', placeholder: 'Proveedor opcional', list: 'bulk-expense-providers' },
-        { field: 'concept', label: 'Concepto', width: 'w-[440px]', placeholder: 'Ej. Compra de abarrotes' },
-        { field: 'total', label: `Monto (${preferredCurrency})`, width: 'w-[220px]', placeholder: '0.00' },
+        { field: 'concept', label: 'Concepto', width: 'w-[330px]', placeholder: 'Ej. Compra de abarrotes' },
+        { field: 'total', label: 'Monto / moneda', width: 'w-[150px]', placeholder: '0.00' },
       ];
+  columns.push(
+    { field: 'paymentAccount', label: 'Cuenta de pago', width: 'w-[250px]', placeholder: 'Sin asignar' },
+    { field: 'accountingAccount', label: 'Cuenta contable', width: 'w-[250px]', placeholder: 'Sin asignar' },
+  );
 
   return (
     <IndiceModalFrame
       busy={isSaving}
-      bodyClassName="overflow-hidden p-0"
-      contentClassName="sm:max-w-[96rem]"
-      description="Registra gastos rápidos con fecha, concepto y monto, o edita registros abiertos en una tabla compatible con Excel."
+      bodyClassName="flex overflow-hidden p-0"
+      contentClassName="h-[calc(100dvh-2rem)] sm:max-w-[96rem]"
+      description={<><span className="sm:hidden">Captura gastos y asigna sus cuentas.</span><span className="hidden sm:inline">Registra gastos rápidos con fecha, concepto y monto, o edita registros abiertos en una tabla compatible con Excel.</span></>}
       footer={(
         <div className="flex gap-2">
           <Button variant="outline" className="border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white" disabled={isSaving} onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button className="bg-white text-[#147514] hover:bg-slate-100" disabled={isSaving || ready.length === 0 || invalid.length > 0} onClick={() => void submit()}>
+          <Button className="bg-white text-[#147514] hover:bg-slate-100" disabled={isSaving || ready.length === 0 || invalid.length > 0 || ready.length > 200} onClick={() => void submit()}>
             {mode === 'create' ? <Upload className="h-4 w-4" /> : <PencilLine className="h-4 w-4" />}
             {isSaving ? 'Guardando…' : mode === 'create' ? `Importar ${ready.length} gastos` : `Guardar ${ready.length} cambios`}
           </Button>
@@ -263,18 +271,18 @@ export function ExpenseBulkIntegrationModal({
       footerLeading={<span className="text-xs font-medium text-white/90">{ready.length} {mode === 'create' ? 'gastos listos' : 'cambios listos'}</span>}
       icon={<Rows3 className="h-5 w-5" />}
       modalType="operational-workspace"
-      onOpenChange={onOpenChange}
+      onOpenChange={next => { if (!isSaving && !submitInFlight.current) onOpenChange(next); }}
       open={open}
       title="Integración masiva de gastos"
       tone="green"
     >
-      <div className="flex h-full min-h-0 flex-col gap-3 p-4 sm:p-5">
-        <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-200 bg-white p-1.5">
-          <Button variant={mode === 'create' ? 'default' : 'ghost'} className={mode === 'create' ? 'bg-[#147514] hover:bg-[#105010]' : ''} onClick={() => changeMode('create')}><Plus className="h-4 w-4" />Importar gastos</Button>
-          <Button variant={mode === 'edit' ? 'default' : 'ghost'} className={mode === 'edit' ? 'bg-[#147514] hover:bg-[#105010]' : ''} onClick={() => changeMode('edit')}><PencilLine className="h-4 w-4" />Editar gastos existentes</Button>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-4 sm:p-5">
+        <div className="grid shrink-0 grid-cols-1 gap-2 rounded-xl sm:grid-cols-2 border border-slate-200 bg-white p-1.5">
+          <Button variant={mode === 'create' ? 'default' : 'ghost'} className={mode === 'create' ? 'bg-[#147514] hover:bg-[#105010]' : ''} disabled={isSaving} onClick={() => changeMode('create')}><Plus className="h-4 w-4" />Importar gastos</Button>
+          <Button variant={mode === 'edit' ? 'default' : 'ghost'} className={mode === 'edit' ? 'bg-[#147514] hover:bg-[#105010]' : ''} disabled={isSaving} onClick={() => changeMode('edit')}><PencilLine className="h-4 w-4" />Editar gastos existentes</Button>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm text-blue-950">
-          <span className="flex items-center gap-2 font-medium"><ClipboardPaste className="h-4 w-4" />{mode === 'create' ? 'Pega desde Excel: fecha | concepto | monto' : 'Filtra por mes y busca los gastos que deseas modificar'}</span>
+        <div className="hidden shrink-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 sm:flex bg-blue-50 px-4 py-2.5 text-sm text-blue-950">
+          <span className="flex items-center gap-2 font-medium"><ClipboardPaste className="h-4 w-4" />{mode === 'create' ? 'Pega desde Excel: fecha | concepto | monto | cuenta de pago | cuenta contable' : 'Filtra por mes y busca los gastos que deseas modificar'}</span>
           <span>{mode === 'create' ? 'Las filas vacías no se importan.' : `${monthEvaluations.length} editables este mes · ${lockedExpenseCount} protegidos · ${filteredEditEvaluations.length} coinciden con la búsqueda`}</span>
         </div>
         {mode === 'edit' ? (
@@ -290,25 +298,32 @@ export function ExpenseBulkIntegrationModal({
             </label>
           </div>
         ) : null}
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-950">
+        <div className="shrink-0 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-950">
           {mode === 'create'
-            ? <>Se usará la divisa preferida <strong>{preferredCurrency}</strong>. La fecha de hoy viene precargada; también puedes pegar desde Excel o escribir AAAA-MM-DD, DD/MM/AAAA o AAAAMMDD. Los gastos se crearán pendientes para que cada abono registre su cuenta y trazabilidad. No se importará nada mientras exista una celda con errores.</>
-            : <>Solo se muestran gastos abiertos del mes seleccionado. Puedes modificar fecha, proveedor, concepto y monto. Los cambios se guardarán juntos únicamente cuando todas las celdas modificadas sean válidas.</>}
+            ? <><span className="sm:hidden">Gastos pendientes en <strong>{batchCurrency}</strong>. Fecha DD/MM/AAAA. Elegir cuenta no registra un pago. Máximo 200 filas.</span><span className="hidden sm:inline">Importación en <strong>{batchCurrency}</strong>. Fecha DD/MM/AAAA; la fecha de hoy viene precargada y también acepta ISO o Excel. Los gastos se crearán pendientes: elegir cuenta no retira dinero. Máximo 200 filas por lote. No se importará nada mientras exista una celda con errores.</span></>
+            : <>Solo se muestran gastos abiertos del mes seleccionado. Puedes modificar fecha, proveedor, concepto, monto y cuentas. Los cambios se guardarán juntos únicamente cuando todas las celdas modificadas sean válidas.</>}
         </div>
         <datalist id="bulk-expense-providers">{providers.filter(provider => provider.status === 'active').map(provider => <option key={provider.id} value={provider.name} />)}</datalist>
-        <IndiceModalValidation messages={message ? [message] : invalid.length ? [`Corrige ${invalid.length} fila${invalid.length === 1 ? '' : 's'} antes de guardar.`] : []} />
+        <IndiceModalValidation messages={message ? [message] : ready.length > 200 ? ['Importa hasta 200 gastos por lote.'] : invalid.length ? [`Corrige ${invalid.length} fila${invalid.length === 1 ? '' : 's'} antes de guardar.`] : []} />
         <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-slate-300 bg-white shadow-sm">
-          <table className={`w-full ${mode === 'create' ? 'min-w-[760px]' : 'min-w-[1100px]'} border-collapse text-sm`}>
+          <table className={`w-full ${mode === 'create' ? 'min-w-[1160px]' : 'min-w-[1360px]'} border-collapse text-sm`}>
             <thead className="sticky top-0 z-10 bg-slate-100"><tr><th className="w-12 border-b border-r border-slate-300 px-2 py-3 text-xs font-medium text-slate-500">#</th>{columns.map(column => <th key={column.field} className={`${column.width} border-b border-r border-slate-300 px-3 py-3 text-left font-medium text-slate-800`}>{column.label}</th>)}</tr></thead>
-            <tbody>{visibleEvaluations.map(({ errors, row, rowIndex, used, valid }) => (
+            <tbody>{visibleEvaluations.map(({ errors, row, rowIndex, used, valid, currency, paymentOptions, paymentAccountId, accountingAccountId }) => (
               <tr key={row.id} className={used && !valid ? 'bg-red-50' : mode === 'edit' && rowChanged(row) ? 'bg-amber-50' : 'bg-emerald-50/25'}>
                 <td className="border-b border-r border-slate-200 px-2 py-2 text-center text-xs text-slate-400">{rowIndex + 1}</td>
-                    {columns.map((column, columnIndex) => <td key={column.field} className="border-b border-r border-slate-200 p-0"><input list={column.list} aria-invalid={used && Boolean(errors[column.field])} title={used ? errors[column.field] : ''} value={row[column.field]} inputMode={column.field === 'total' ? 'decimal' : 'text'} onBlur={() => column.field === 'date' && normalizeDateCell(rowIndex)} onPaste={event => handlePaste(event, rowIndex, columnIndex)} onChange={event => updateCell(rowIndex, column.field, event.target.value)} placeholder={column.placeholder} className="h-11 w-full bg-transparent px-3 outline-none focus:bg-white focus:ring-2 focus:ring-inset focus:ring-emerald-600 aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-inset aria-[invalid=true]:ring-red-500" /></td>)}
+                    {columns.map((column, columnIndex) => <td key={column.field} className="border-b border-r border-slate-200 p-0" onPaste={event => handlePaste(event, rowIndex, columnIndex)}>
+                    {column.field === 'paymentAccount' || column.field === 'accountingAccount' ? <div className="p-1" title={used ? errors[column.field] : ''}>
+                      <ExpenseAccountSelect label={`${column.label}, fila ${rowIndex + 1}`} disabled={isSaving}
+                        value={(column.field === 'paymentAccount' ? paymentAccountId : accountingAccountId) ?? row[column.field]}
+                        options={column.field === 'paymentAccount' ? paymentOptions : accountingAccounts}
+                        onChange={value => updateCell(rowIndex, column.field, value)} />
+                      {used && errors[column.field] ? <span className="px-2 text-xs text-red-700">{errors[column.field]}</span> : null}
+                    </div> : <div className="flex items-center"><input disabled={isSaving} aria-label={`${column.label}, fila ${rowIndex + 1}`} list={column.list} aria-invalid={used && Boolean(errors[column.field])} title={used ? errors[column.field] : ''} value={row[column.field]} inputMode={column.field === 'total' ? 'decimal' : 'text'} onBlur={() => column.field === 'date' && normalizeDateCell(rowIndex)} onChange={event => updateCell(rowIndex, column.field, event.target.value)} placeholder={column.placeholder} className="h-11 w-full bg-transparent px-3 outline-none focus:bg-white focus:ring-2 focus:ring-inset focus:ring-emerald-600 aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-inset aria-[invalid=true]:ring-red-500" />{mode === 'edit' && column.field === 'total' ? <span className="pr-2 text-xs text-slate-500">{currency}</span> : null}</div>}</td>)}
               </tr>
             ))}{mode === 'edit' && visibleEvaluations.length === 0 ? <tr><td colSpan={columns.length + 1} className="px-6 py-10 text-center text-sm text-slate-500">No hay gastos abiertos que coincidan con el mes y la búsqueda seleccionados.</td></tr> : null}</tbody>
           </table>
         </div>
-        {mode === 'create' ? <div className="flex justify-between gap-3"><Button variant="outline" onClick={() => setRows(current => [...current, ...emptyRows(10)])}><Plus className="h-4 w-4" />Agregar 10 filas</Button><Button variant="ghost" disabled={isSaving} onClick={() => { setRows(emptyRows()); setMessage(''); }}><Trash2 className="h-4 w-4" />Limpiar tabla</Button></div> : (
+        {mode === 'create' ? <div className="flex shrink-0 justify-between gap-3"><Button variant="outline" disabled={isSaving} onClick={() => setRows(current => [...current, ...emptyRows(10)])}><Plus className="h-4 w-4" />Agregar 10 filas</Button><Button variant="ghost" disabled={isSaving} onClick={() => { setRows(emptyRows()); setMessage(''); }}><Trash2 className="h-4 w-4" />Limpiar tabla</Button></div> : (
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="flex items-start gap-2 text-xs text-slate-500"><Info className="mt-0.5 h-4 w-4 shrink-0" />Las filas amarillas tienen cambios. Los gastos pagados, auditados, presupuestales o ligados a órdenes de compra están protegidos para conservar su trazabilidad.</p>
             {editPageCount > 1 ? <div className="flex shrink-0 items-center gap-2 text-xs font-medium text-slate-600"><span>Página {editPage} de {editPageCount}</span><Button type="button" variant="outline" size="icon" aria-label="Página anterior" disabled={editPage === 1} onClick={() => setEditPage(page => Math.max(1, page - 1))}><ChevronLeft className="h-4 w-4" /></Button><Button type="button" variant="outline" size="icon" aria-label="Página siguiente" disabled={editPage === editPageCount} onClick={() => setEditPage(page => Math.min(editPageCount, page + 1))}><ChevronRight className="h-4 w-4" /></Button></div> : null}

@@ -48,8 +48,35 @@ final class ExpenseSql {
             expense.deleted_at,
             expense.version,
             expense.custom_fields_json,
-            expense.metadata_json
+            expense.metadata_json,
+            origin_fund.id AS origin_fund_id,
+            origin_fund.name AS origin_fund_name,
+            origin_fund.fund_type AS origin_fund_type,
+            EXISTS(SELECT 1 FROM finance_journal_entries journal
+                   WHERE journal.company_id = expense.company_id
+                     AND journal.source_type = 'EXPENSE'
+                     AND journal.source_id = CAST(expense.id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+                     AND journal.status = 'POSTED') AS accounting_posted
             """;
+
+    // Settlements are authoritative. Legacy fallback requires an unambiguous custody account;
+    // ordinary bank/cash/card accounts may be shared by historical funds and ordinary expenses.
+    static final String FUND_JOIN = """
+        LEFT JOIN finance_petty_cash_funds origin_fund
+          ON origin_fund.company_id = expense.company_id
+         AND origin_fund.id = COALESCE(
+             (SELECT line.petty_cash_fund_id FROM finance_petty_cash_settlement_lines line
+              WHERE line.company_id = expense.company_id AND line.expense_id = expense.id
+              ORDER BY line.id LIMIT 1),
+             (SELECT MIN(fund.id) FROM finance_petty_cash_funds fund
+              JOIN finance_payment_accounts custody
+                ON custody.company_id = fund.company_id AND custody.id = fund.payment_account_id
+               AND custody.type = 'PETTY_CASH'
+              WHERE fund.company_id = expense.company_id
+                AND fund.payment_account_id = expense.payment_account_id
+              HAVING COUNT(*) = 1))
+        """;
+    static final String COMPANY_EXPENSE = "(origin_fund.id IS NULL OR origin_fund.fund_type = 'INTERNAL_COMPANY')";
 
     private ExpenseSql() {
     }

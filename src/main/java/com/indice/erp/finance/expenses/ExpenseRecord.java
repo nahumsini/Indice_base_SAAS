@@ -44,6 +44,8 @@ record ExpenseRecord(
     Instant deletedAt,
     Long version,
     String customFieldsJson,
-    String metadataJson
+    String metadataJson,
+    com.indice.erp.finance.expenses.dto.ExpenseFundReference originFund,
+    boolean accountingPosted
 ) {
 }
