@@ -360,9 +360,8 @@ const canAuthorizeExpenseFromLine = (line: PettyCashSettlementLine) => (
 );
 
 const canFinalizeSettlementLine = (line: PettyCashSettlementLine, isExternalFund: boolean) => (
-  isExternalFund
-    ? line.status === 'RECEIPT_ATTACHED'
-    : line.status === 'RECEIPT_ATTACHED' || line.status === 'VALIDATED'
+  canAuthorizeExpenseFromLine(line)
+    && !(isExternalFund && line.status === 'VALIDATED')
 );
 
 const canRejectSettlementLine = (line: PettyCashSettlementLine) => canAuthorizeExpenseFromLine(line);

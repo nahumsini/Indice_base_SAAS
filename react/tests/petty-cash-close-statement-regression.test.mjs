@@ -13,12 +13,15 @@ let memoryOptions;
 let activeHooks;
 let requests = [];
 let respond;
+let mountEffects;
+let sessionRole = 'admin';
 class ApiClientError extends Error {
   constructor(status, payload) { super('API error'); this.status = status; this.payload = payload; }
 }
 
 // Exercise the real component event handlers and API adapter without mounting unrelated
-// workspaces or contacting a database. Effects (session/catalog fetches) are not run.
+// workspaces or contacting a database. Tests can explicitly run the initial effects
+// with a mocked authenticated session and empty reference catalogs.
 function component(Component) {
   const state = [];
   return {
@@ -42,7 +45,8 @@ function component(Component) {
   };
 }
 const hooks = { ...React, useState: initial => activeHooks.useState(initial),
-  useCallback: callback => callback, useRef: initial => activeHooks.useRef(initial), useMemo: callback => callback(), useEffect: () => {} };
+  useCallback: callback => callback, useRef: initial => activeHooks.useRef(initial), useMemo: callback => callback(),
+  useEffect: callback => { mountEffects?.push(callback); } };
 const ui = new Proxy({}, { get: (_, name) => name });
 function load(file) {
   const path = [file, `${file}.ts`, `${file}.tsx`, resolve(file, 'index.ts'), resolve(file, 'index.tsx')]
@@ -56,7 +60,12 @@ function load(file) {
   if (path.endsWith('/hooks/usePettyCashTranslations.ts')) return {
     usePettyCashTranslations: () => load(resolve(root, 'translations/index.ts')).getPettyCashTranslations('es-MX'),
   };
-  if (path.endsWith('/Expenses/services/index.ts')) return load(resolve(dirname(path), 'finance-api.errors.ts'));
+  if (path.endsWith('/Expenses/services/index.ts')) return {
+    ...load(resolve(dirname(path), 'finance-api.errors.ts')),
+    providersService: { getProviderRecords: async () => [] },
+    paymentAccountsService: { getPaymentAccounts: async () => [] },
+    accountingAccountsService: { getAccountingAccounts: async () => [] },
+  };
   if (path.endsWith('/AccountingAccounts/accountingAccounts.mock.ts')) return { mockAccounts: [] };
   if (path.endsWith('/data/providerRecords.mock.ts')) return { mockProviderRecords: [] };
   if (path.endsWith('/PaymentAccounts/paymentAccounts.mock.ts')) return { mockPaymentAccounts: [] };
@@ -80,7 +89,9 @@ function load(file) {
     if (id === 'react') return hooks;
     if (id === 'lucide-react') return ui;
     if (id.endsWith('.css')) return {};
-    if (id === '../../../api/auth') return { authApi: {} };
+    if (id === '../../../api/auth') return { authApi: {
+      getSessionOrNull: async () => sessionRole ? { user: { role: sessionRole } } : null,
+    } };
     return id.startsWith('.') ? load(resolve(dirname(path), id)) : createRequire(path)(id);
   };
   new Function('require', 'module', 'exports', code)(require, module, module.exports);
@@ -130,8 +141,75 @@ function workspace(overrides = {}) {
     const renderModal = () => modalRenderer.render(modal(render()).props);
     return { render: renderModal, props: () => modal(render()).props };
   }
-  return { props, render, open };
+  async function mount(role = 'admin') {
+    sessionRole = role;
+    mountEffects = [];
+    try {
+      render();
+      const effects = mountEffects;
+      mountEffects = undefined;
+      effects.forEach(effect => effect());
+      await new Promise(resolve => setImmediate(resolve));
+    } finally {
+      mountEffects = undefined;
+    }
+  }
+  return { props, render, open, mount };
 }
+
+const authorizationButtons = tree => nodes(tree).filter(node =>
+  (node.type === 'button' || node.type?.name === 'SettlementLineActionButton')
+  && /^(Autorizar|Validar para estado de cuenta)/.test(node.props['aria-label'] ?? node.props.label ?? ''));
+
+test('admin can authorize an unattached captured receipt in desktop and mobile, then close the cut', async () => {
+  for (const fundType of ['INTERNAL_COMPANY', 'EXTERNAL_MANAGED']) {
+    for (const useMobile of [false, true]) {
+      const captured = line({ status: 'DRAFT', attachmentCount: 0, accountingAccountId: '11' });
+      const ws = workspace({ funds: [fund({ fundType })], settlementLines: [captured] });
+      assert.equal(authorizationButtons(ws.render()).length, 0, 'wait for authenticated permissions');
+      await ws.mount('admin');
+      const buttons = authorizationButtons(ws.render());
+      assert.equal(buttons.length, 2, 'desktop and mobile must both expose authorization');
+      assert.equal(ws.open().render().props.canSave, false, 'capture alone does not authorize the receipt');
+      const finalizedStatus = fundType === 'EXTERNAL_MANAGED' ? 'VALIDATED' : 'EXPENSE_CREATED';
+      respond = () => ({ fund: ws.props.funds[0], statement: statement({ status: 'SETTLED' }),
+        settlementLine: { ...captured, status: finalizedStatus } });
+      const action = buttons.find(node => useMobile ? node.type === 'button' : node.type?.name === 'SettlementLineActionButton');
+      action.props.onClick();
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(requests.length, 1);
+      assert.equal(requests[0].url, '/api/v1/finance/petty-cash/funds/5/settlement-lines/80/create-expense');
+      assert.equal(ws.props.settlementLines[0].status, finalizedStatus);
+      assert.equal(ws.props.settlementLines[0].attachmentCount, 0);
+      assert.equal(authorizationButtons(ws.render()).length, 0, 'completed authorization cannot be repeated');
+      assert.equal(ws.open().render().props.canSave, true, 'no attachment is required after authorization');
+    }
+  }
+});
+
+test('captured receipt authorization remains unavailable to ordinary or missing sessions', async () => {
+  for (const role of ['employee', null]) {
+    const ws = workspace({ settlementLines: [line({ status: 'DRAFT', attachmentCount: 0 })] });
+    await ws.mount(role);
+    assert.equal(authorizationButtons(ws.render()).length, 0);
+    assert.equal(ws.open().render().props.canSave, false);
+    assert.equal(requests.length, 0);
+  }
+});
+
+test('authorization failure retains the captured receipt, shows the error, and keeps closure blocked', async () => {
+  const ws = workspace({ settlementLines: [line({ status: 'DRAFT', attachmentCount: 0 })] });
+  await ws.mount('admin');
+  respond = () => { throw new ApiClientError(403, { message: 'Forbidden' }); };
+  const action = authorizationButtons(ws.render())[0];
+  assert.ok(action, 'an administrator can request authorization');
+  action.props.onClick();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(ws.props.settlementLines[0].status, 'DRAFT');
+  assert.match(text(ws.render()), /No tienes permisos/);
+  assert.equal(authorizationButtons(ws.render()).length, 2, 'failed requests remain retryable');
+  assert.equal(ws.open().render().props.canSave, false);
+});
 
 test('the button opens exactly the selected month and fund, retaining its native currency', async () => {
   const august = statement({ declaredClosingBalanceAmount: 250 });
