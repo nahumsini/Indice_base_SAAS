@@ -627,7 +627,7 @@ public class MultiKioskService {
     public Map<String, Object> session(
             String publicToken, String sessionToken, String browserReference) {
         var definition = resolve(publicToken, true);
-        var session = requireSession(definition, sessionToken, browserReference);
+        var session = requireSession(definition, sessionToken, browserReference, false);
         var result = new LinkedHashMap<String, Object>();
         result.put("identity", Map.of(
             "type", session.identityType(), "id", session.identityId(), "name", session.name()));
@@ -731,7 +731,7 @@ public class MultiKioskService {
     public Map<String, Object> launchChild(
             String publicToken, String multiSessionToken, long kioskId, String browserReference) {
         var definition = resolve(publicToken, true);
-        var session = requireSession(definition, multiSessionToken, browserReference);
+        var session = requireSession(definition, multiSessionToken, browserReference, true);
         if (session.provider()) {
             return requireProviderDashboard().createSession(
                 definition.companyId(), definition.id(), session.identityId(),
@@ -745,7 +745,7 @@ public class MultiKioskService {
             String publicToken, String multiSessionToken, String childSessionToken,
             long kioskId, String browserReference) {
         var definition = resolve(publicToken, true);
-        var session = requireSession(definition, multiSessionToken, browserReference);
+        var session = requireSession(definition, multiSessionToken, browserReference, false);
         if (session.provider()) {
             return requireProviderDashboard().workspace(
                 definition.companyId(), definition.id(), session.identityId(), kioskId,
@@ -760,7 +760,7 @@ public class MultiKioskService {
             long kioskId, String capability, String browserReference,
             Map<String, Object> payload, String idempotencyKey) {
         var definition = resolve(publicToken, true);
-        var session = requireSession(definition, multiSessionToken, browserReference);
+        var session = requireSession(definition, multiSessionToken, browserReference, true);
         if (session.provider()) {
             return requireProviderDashboard().executeAction(
                 definition.companyId(), definition.id(), session.identityId(), kioskId,
@@ -1073,10 +1073,10 @@ public class MultiKioskService {
     }
 
     private MultiSession requireSession(
-            MultiDefinition definition, String sessionToken, String browserReference) {
+            MultiDefinition definition, String sessionToken, String browserReference, boolean touchActivity) {
         if (sessionToken == null || sessionToken.isBlank()) throw new SecurityException("Session required.");
         if ("PROVIDER".equals(definition.audienceType())) {
-            return requireProviderSession(definition, sessionToken, browserReference);
+            return requireProviderSession(definition, sessionToken, browserReference, touchActivity);
         }
         var rows = jdbcTemplate.query(
             """
@@ -1119,14 +1119,16 @@ public class MultiKioskService {
         );
         if (rows.isEmpty()) throw new SecurityException("Session required.");
         var result = rows.getFirst();
-        jdbcTemplate.update(
-            "UPDATE multi_kiosk_sessions SET last_activity_at = CURRENT_TIMESTAMP WHERE session_id = ?",
-            result.sessionId());
+        if (touchActivity) {
+            jdbcTemplate.update(
+                "UPDATE multi_kiosk_sessions SET last_activity_at = CURRENT_TIMESTAMP WHERE session_id = ?",
+                result.sessionId());
+        }
         return result;
     }
 
     private MultiSession requireProviderSession(
-            MultiDefinition definition, String sessionToken, String browserReference) {
+            MultiDefinition definition, String sessionToken, String browserReference, boolean touchActivity) {
         var rows = jdbcTemplate.query(
             """
                 SELECT session.session_id, session.identity_id,
@@ -1134,9 +1136,10 @@ public class MultiKioskService {
                        GREATEST(0, TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, session.expires_at)) AS expires_in
                 FROM multi_kiosk_sessions session
                 INNER JOIN finance_providers provider
-                  ON provider.id = session.identity_id
+                 ON provider.id = session.identity_id
                  AND provider.company_id = session.company_id
                  AND provider.status = 'ACTIVE' AND provider.deleted_at IS NULL
+                 AND provider.unit_id IS NOT NULL AND provider.business_id IS NOT NULL
                 WHERE session.multi_kiosk_id = ? AND session.company_id = ?
                   AND session.identity_type = 'PROVIDER'
                   AND session.access_token_hash = ? AND session.browser_session_hash = ?
@@ -1149,6 +1152,7 @@ public class MultiKioskService {
                          AND credential.identity_id = provider.id
                          AND credential.credential_type = 'PIN'
                          AND credential.status = 'ACTIVE'
+                         AND credential.credential_origin = 'PROVIDER_CENTER_ADMIN'
                          AND credential.secret_hash IS NOT NULL
                          AND credential.secret_hash <> '')
                 LIMIT 1
@@ -1161,9 +1165,11 @@ public class MultiKioskService {
             sha256(browserReference), -inactivityTimeout.getSeconds());
         if (rows.isEmpty()) throw new SecurityException("Session required.");
         var result = rows.getFirst();
-        jdbcTemplate.update(
-            "UPDATE multi_kiosk_sessions SET last_activity_at = CURRENT_TIMESTAMP WHERE session_id = ?",
-            result.sessionId());
+        if (touchActivity) {
+            jdbcTemplate.update(
+                "UPDATE multi_kiosk_sessions SET last_activity_at = CURRENT_TIMESTAMP WHERE session_id = ?",
+                result.sessionId());
+        }
         return result;
     }
 
@@ -1224,30 +1230,8 @@ public class MultiKioskService {
 
     private List<Map<String, Object>> providerCards(
             MultiDefinition definition, long providerId) {
-        reconcileProviderComposition(definition);
         return requireProviderDashboard().listForMultiKiosk(
             definition.companyId(), definition.id(), providerId);
-    }
-
-    private void reconcileProviderComposition(MultiDefinition definition) {
-        if (!"PROVIDER".equals(definition.audienceType())) return;
-        var actorId = jdbcTemplate.query(
-            """
-                SELECT COALESCE(updated_by, created_by) AS actor_id
-                FROM multi_kiosk_definitions
-                WHERE company_id = ? AND id = ? LIMIT 1
-                """,
-            (rs, rowNum) -> rs.getLong("actor_id"),
-            definition.companyId(), definition.id()).stream().findFirst()
-            .orElseThrow(KioskUnavailableException::new);
-        var required = requireProviderTools().provisionDefinitions(
-            definition.companyId(), actorId, requireProviderTools().requiredToolKeys());
-        if (!compositionIds(definition.id()).equals(required)) {
-            replaceComposition(definition.id(), required);
-            audit(definition.companyId(), definition.id(),
-                "PROVIDER_CENTER_COMPOSITION_RECONCILED", "SYSTEM", null,
-                Map.of("tool_count", required.size()));
-        }
     }
 
     private KioskProviderMultiDashboardService requireProviderDashboard() {

@@ -352,7 +352,7 @@ function ProposalsWorkspace(props: ProviderWorkspaceProps) {
       ? 'Actualización de catálogo enviada a Compras.'
       : 'Cambio comercial enviado a Compras.')) form.reset();
   };
-  return <WorkspaceFrame onRefresh={props.onRefresh} title="Propuestas y cotizaciones">
+  return <WorkspaceFrame onRefresh={props.onRefresh} title="Productos y propuestas">
     <Panel icon={<Send className="h-5 w-5" />} title="Enviar una propuesta" subtitle="Responde una solicitud abierta o comparte una propuesta espontánea. La empresa conserva el historial de cada revisión.">
       <form className="space-y-4" onSubmit={submit}>
         {notices}
@@ -529,10 +529,29 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
     requestAnimationFrame(() => searchInputRef.current?.focus());
   };
 
+  const addUnlistedProduct = () => {
+    setLines(current => [...current, {
+      id: `new-${Date.now()}-${current.length}`,
+      productName: '',
+      providerSku: '',
+      catalogSku: '',
+      quantity: 1,
+      unitCost: 0,
+      taxRate: 0,
+      providerProduct: true,
+    }]);
+    setValidationMessages([]);
+  };
+
   const updateLine = (lineId: string, field: 'quantity' | 'unitCost' | 'taxRate', value: number) => {
     setLines(current => current.map(line => line.id === lineId
       ? { ...line, [field]: Number.isFinite(value) ? Math.max(value, 0) : 0 }
       : line));
+    setValidationMessages([]);
+  };
+
+  const updateLineText = (lineId: string, field: 'productName' | 'providerSku', value: string) => {
+    setLines(current => current.map(line => line.id === lineId ? { ...line, [field]: value } : line));
     setValidationMessages([]);
   };
 
@@ -588,7 +607,7 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
     }
   };
 
-  return <WorkspaceFrame onRefresh={props.onRefresh} showContext={false} title="Propuestas y cotizaciones">
+  return <WorkspaceFrame onRefresh={props.onRefresh} showContext={false} title="Productos y propuestas">
     <section className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-950">
       <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
         <div className="flex min-w-0 items-center gap-3">
@@ -630,10 +649,11 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
                   </div>;
                 }) : <div className="p-5 text-center"><p className="text-sm font-medium text-slate-700 dark:text-slate-200">{catalogProducts.length ? 'No hay coincidencias.' : 'No hay productos disponibles.'}</p><p className="mt-1 text-xs leading-5 text-slate-500">{catalogProducts.length ? 'Prueba con otro nombre, SKU o código.' : 'La empresa debe tener al menos un producto activo en Inventarios.'}</p></div>}
               </div>
+              <div className="border-t border-slate-200 p-3 dark:border-slate-700"><button type="button" onClick={addUnlistedProduct} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-[#FF6B5E]/40 bg-white px-3 text-xs font-semibold text-[#B63B32] hover:bg-[#FF6B5E]/10 dark:bg-slate-900"><PackagePlus className="h-4 w-4" />Proponer un producto nuevo</button><p className="mt-2 text-center text-[11px] leading-4 text-slate-500">Inventarios revisará el nombre, costo y precio de venta antes de crearlo.</p></div>
             </section>
             <section aria-label="Partidas seleccionadas" className="min-w-0 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
               <div className="mb-3 flex items-center justify-between gap-3"><div><h4 className="text-sm font-semibold text-slate-900 dark:text-white">Partidas</h4><p className="text-xs text-slate-500">Usa Agregar y completa el costo que ofreces.</p></div><span className="rounded-full bg-[#FF6B5E]/10 px-2 py-1 text-xs font-semibold text-[#B63B32]">{lines.length}</span></div>
-              <ProposalLineItems currency={effectiveCurrency} lines={lines} onRemove={lineId => setLines(current => current.filter(line => line.id !== lineId))} onUpdate={updateLine} />
+              <ProposalLineItems currency={effectiveCurrency} lines={lines} onRemove={lineId => setLines(current => current.filter(line => line.id !== lineId))} onUpdate={updateLine} onUpdateText={updateLineText} />
             </section>
           </div> : <div className="mt-4"><div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">Estas partidas fueron solicitadas por la empresa. Completa el costo y los impuestos.</div><ProposalLineItems currency={effectiveCurrency} lines={lines} onUpdate={updateLine} /></div>}
         </section> : null}
@@ -659,19 +679,20 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
   </WorkspaceFrame>;
 }
 
-function ProposalLineItems({ compact = false, currency, lines, onRemove, onUpdate }: {
+function ProposalLineItems({ compact = false, currency, lines, onRemove, onUpdate, onUpdateText }: {
   compact?: boolean;
   currency: string;
   lines: PurchaseProposalLine[];
   onRemove?: (lineId: string) => void;
   onUpdate?: (lineId: string, field: 'quantity' | 'unitCost' | 'taxRate', value: number) => void;
+  onUpdateText?: (lineId: string, field: 'productName' | 'providerSku', value: string) => void;
 }) {
   if (!lines.length) return <div className="grid min-h-28 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-4 text-center dark:border-slate-700 dark:bg-slate-950"><div><PackagePlus className="mx-auto h-5 w-5 text-slate-400" /><p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-200">Tu propuesta está vacía</p><p className="mt-1 text-xs text-slate-500">En el catálogo, pulsa Agregar para incluir un producto.</p></div></div>;
   return <div className="space-y-2">{lines.map(line => {
     const subtotal = line.quantity * line.unitCost;
     const total = subtotal + subtotal * (line.taxRate / 100);
     return <div key={line.id} className={`min-w-0 rounded-xl border border-slate-200 bg-white p-3 text-sm dark:border-slate-700 dark:bg-slate-900 ${compact ? 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_70px_120px] sm:items-center' : ''}`}>
-      <div className="flex min-w-0 items-start justify-between gap-2"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="truncate font-medium text-slate-950 dark:text-white">{line.productName}</p>{line.providerProduct ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">Tu producto</span> : null}</div><p className="truncate text-xs text-slate-500">{line.providerSku || line.catalogSku || 'Sin SKU'}</p></div>{!compact && onRemove ? <button type="button" aria-label="Quitar partida" onClick={() => onRemove(line.id)} className="-mr-1 -mt-1 rounded-lg p-2 text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button> : null}</div>
+      <div className="flex min-w-0 items-start justify-between gap-2"><div className="min-w-0 flex-1">{!compact && !line.productId ? <div className="grid gap-2 sm:grid-cols-2"><Field label="Nombre del producto *"><input value={line.productName} maxLength={240} onChange={event => onUpdateText?.(line.id, 'productName', event.target.value)} className={inputClass} placeholder="Producto propuesto" /></Field><Field label="Tu SKU"><input value={line.providerSku} maxLength={120} onChange={event => onUpdateText?.(line.id, 'providerSku', event.target.value)} className={inputClass} /></Field></div> : <><div className="flex flex-wrap items-center gap-2"><p className="truncate font-medium text-slate-950 dark:text-white">{line.productName}</p>{line.providerProduct ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">Tu producto</span> : null}</div><p className="truncate text-xs text-slate-500">{line.providerSku || line.catalogSku || 'Sin SKU'}</p></>}</div>{!compact && onRemove ? <button type="button" aria-label="Quitar partida" onClick={() => onRemove(line.id)} className="-mr-1 -mt-1 rounded-lg p-2 text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button> : null}</div>
       {compact ? <div><p className="text-[11px] text-slate-400">Cantidad</p><p className="font-medium">{line.quantity}</p></div> : <div className="mt-3 grid grid-cols-3 gap-2"><ProposalNumber label="Cantidad" value={line.quantity} min={0.0001} onChange={value => onUpdate?.(line.id, 'quantity', value)} /><ProposalNumber label="Costo unitario" value={line.unitCost} min={0} onChange={value => onUpdate?.(line.id, 'unitCost', value)} /><ProposalNumber label="Impuesto" value={line.taxRate} min={0} suffix="%" onChange={value => onUpdate?.(line.id, 'taxRate', value)} /></div>}
       <div className={compact ? '' : 'mt-3 flex items-center justify-between border-t border-slate-100 pt-2 dark:border-slate-800'}><p className="text-[11px] text-slate-400">Total</p><p className="font-semibold text-slate-950 dark:text-white">{money(total, currency)}</p></div>
     </div>;
@@ -987,11 +1008,14 @@ function TrackingWorkspace(props: ProviderWorkspaceProps) {
   ];
   const paymentRows: Row[] = [...payables, ...purchaseOrderPayments].flatMap(payable => rows(payable.payments)
     .map(payment => ({ ...payment, folio: payable.document_reference || payable.folio } as Row)));
+  const paymentEvidenceRows: Row[] = [...payables, ...purchaseOrderPayments].flatMap(payable => rows(payable.payment_evidence)
+    .map(evidence => ({ ...evidence, folio: payable.document_reference || payable.folio, currency_code: payable.currency_code } as Row)));
   return <WorkspaceFrame onRefresh={props.onRefresh} title="Seguimiento y pagos">
     <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 text-xs leading-5 text-violet-900 dark:border-violet-900 dark:bg-violet-950/30 dark:text-violet-100"><strong>Información compartible:</strong> fecha, importe, referencia y saldo. Las cuentas bancarias internas, aprobadores y notas financieras permanecen ocultos.</div>
     <div className="grid gap-4 sm:grid-cols-2"><Panel icon={<Send className="h-5 w-5" />} title={`Propuestas · ${submissions.length}`}>{submissions.length ? submissions.slice(0, 8).map(item => <p key={id(item.id)} className="flex justify-between gap-3 border-b border-slate-100 py-2 text-xs"><span>{text(item.submission_number)}</span><Status value={item.status} /></p>) : <Empty>Sin propuestas.</Empty>}</Panel><Panel icon={<PackageCheck className="h-5 w-5" />} title={`Órdenes · ${orders.length}`}>{orders.length ? orders.slice(0, 8).map(item => <p key={id(item.id)} className="flex justify-between gap-3 border-b border-slate-100 py-2 text-xs"><span>{text(item.folio)} · {money(item.total_amount, item.currency_code)}</span><Status value={item.status} /></p>) : <Empty>Sin órdenes.</Empty>}</Panel></div>
     <Panel icon={<ReceiptText className="h-5 w-5" />} title={`Documentos por pagar · ${documents.length}`}><div className="space-y-2">{documents.length ? documents.map((item, index) => <div key={`${text(item.id || item.expense_id)}-${index}`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 text-xs"><span>{text(item.invoice_number || item.folio)} · {money(item.total_amount, item.currency_code)}</span><Status value={item.payment_status || item.status} /></div>) : <Empty>Sin documentos.</Empty>}</div></Panel>
     <Panel icon={<CircleDollarSign className="h-5 w-5" />} title="Pagos informados"><div className="space-y-2">{paymentRows.length ? paymentRows.map((payment, index) => <div key={`${text(payment.reference)}-${index}`} className="grid grid-cols-[1fr_auto] gap-2 rounded-xl border border-slate-200 p-3 text-xs"><strong>{text(payment.reference)}</strong><strong>{money(payment.amount, payment.currency_code)}</strong><span className="text-slate-500">{text(payment.folio)} · {date(payment.date)}</span></div>) : <Empty>Aún no hay pagos informados.</Empty>}</div></Panel>
+    <Panel icon={<File className="h-5 w-5" />} title="Comprobantes de pago"><div className="space-y-2">{paymentEvidenceRows.length ? paymentEvidenceRows.map((evidence, index) => <div key={`${text(evidence.attachment_id)}-${index}`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 text-xs"><div><strong>{text(evidence.file_name)}</strong><p className="mt-1 text-slate-500">{text(evidence.folio)} · {date(evidence.payment_date)} · {money(evidence.payment_amount, evidence.currency_code)}</p></div>{text(evidence.download_url) ? <a href={text(evidence.download_url)} target="_blank" rel="noreferrer" className="inline-flex h-9 shrink-0 items-center rounded-lg bg-violet-700 px-3 font-semibold text-white">Ver comprobante</a> : <span className="text-slate-500">No disponible</span>}</div>) : <Empty>Aún no hay comprobantes compartidos.</Empty>}</div></Panel>
   </WorkspaceFrame>;
 }
 

@@ -204,7 +204,7 @@ class MultiKioskServiceScopeTest {
 
     @Test
     @SuppressWarnings({"rawtypes", "unchecked"})
-    void sessionResumeRequiresActiveMembershipAndActivePersonalPinButNoAssignment()
+    void sessionResumeRequiresActiveMembershipAndActivePersonalPinWithoutAssignmentOrWrite()
             throws Exception {
         given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
             .willAnswer(invocation -> {
@@ -228,7 +228,7 @@ class MultiKioskServiceScopeTest {
         assertThat(wasQueryCalled("credential.status = 'ACTIVE'")).isTrue();
         assertThat(wasQueryCalled("membership.company_id = session.company_id")).isTrue();
         assertThat(wasSqlUsed("multi_kiosk_assignments")).isFalse();
-        assertThat(wasUpdateCalled("last_activity_at = CURRENT_TIMESTAMP")).isTrue();
+        assertThat(wasUpdateCalled("last_activity_at = CURRENT_TIMESTAMP")).isFalse();
         verify(dashboard).listForMultiKiosk(any(AuthSessionUser.class),
             org.mockito.ArgumentMatchers.eq(44L));
     }

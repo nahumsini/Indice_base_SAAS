@@ -1,7 +1,9 @@
 package com.indice.erp.finance.expenses.attachments;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -14,6 +16,7 @@ import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -103,5 +106,37 @@ class ExpenseAttachmentServiceTest {
         assertEquals(
                 "Payment evidence requires paymentAmount, paymentDate and paymentAccountId.",
                 exception.getMessage());
+    }
+
+    @Test
+    void providerPaymentEvidenceExposesOnlySafeFieldsAndATemporaryDownload() {
+        var row = new ExpenseAttachmentRow(
+            15L, "payment.pdf", "application/pdf", 2048L,
+            "finance/expenses/7/99/attachments/payment.pdf", 1L, "Finance User",
+            new BigDecimal("250.00"), LocalDate.of(2026, 8, 5), 81L,
+            "2026-08-05T18:00:00Z");
+        when(repository.providerOwnsExpense(7L, 80L, 99L)).thenReturn(true);
+        when(repository.list(7L, 99L)).thenReturn(List.of(row));
+        when(objectStorageService.isEnabled()).thenReturn(true);
+        when(objectStorageService.presignDownload("documents", row.objectKey(), 900))
+            .thenReturn("https://storage.example/temporary-payment-proof");
+
+        var result = service.providerPaymentEvidence(7L, 80L, 99L).getFirst();
+
+        assertEquals("payment.pdf", result.get("file_name"));
+        assertEquals(new BigDecimal("250.00"), result.get("payment_amount"));
+        assertEquals("https://storage.example/temporary-payment-proof", result.get("download_url"));
+        assertTrue((Boolean) result.get("download_available"));
+        assertFalse(result.containsKey("object_key"));
+        assertFalse(result.containsKey("payment_account_id"));
+        assertFalse(result.containsKey("uploaded_by_user_id"));
+    }
+
+    @Test
+    void providerCannotReadPaymentEvidenceOwnedByAnotherProvider() {
+        when(repository.providerOwnsExpense(7L, 80L, 99L)).thenReturn(false);
+
+        assertThrows(SecurityException.class,
+            () -> service.providerPaymentEvidence(7L, 80L, 99L));
     }
 }

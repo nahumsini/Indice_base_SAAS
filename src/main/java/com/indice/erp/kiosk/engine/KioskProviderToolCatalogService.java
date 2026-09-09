@@ -43,8 +43,8 @@ public class KioskProviderToolCatalogService {
         new ProviderToolManifest(
             PROPOSALS, ProcurementSupplierPortalCapabilities.OWNER_MODULE, "pos",
             ProcurementSupplierPortalCapabilities.PROVIDER_PROPOSALS_KIOSK_TYPE,
-            RESERVED_CODE_PREFIX + "PROPOSALS-V1", "Propuestas y cotizaciones",
-            "Envía propuestas y responde solicitudes de cotización de la empresa.",
+            RESERVED_CODE_PREFIX + "PROPOSALS-V1", "Productos y propuestas",
+            "Propón productos, envía propuestas y responde solicitudes de cotización.",
             "PROVIDER_PROPOSALS", "procurement", Set.of(
                 ProcurementSupplierPortalCapabilities.PROVIDER_PROPOSALS_READ + "@1",
                 ProcurementSupplierPortalCapabilities.PROVIDER_PROPOSAL_SUBMIT + "@1",

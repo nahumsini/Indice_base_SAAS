@@ -1556,7 +1556,10 @@ hereda permisos de un colaborador.
   de cada adapter, pero no exige accesos individuales creados dentro de Compras o Finanzas.
 - Las herramientas iniciales son `provider.proposals@1`,
   `provider.orders-and-invoices@1`, `provider.payables@1` y `provider.tracking@1`.
-- `Propuestas y cotizaciones` reutiliza dentro del workspace público la anatomía del asistente de
+- La presentación visible de `provider.proposals@1` es `Productos y propuestas`. Conserva su clave
+  técnica para compatibilidad, permite proponer partidas que todavía no existen en el catálogo y
+  nunca concede al proveedor escritura directa sobre el producto autoritativo.
+- `Productos y propuestas` reutiliza dentro del workspace público la anatomía del asistente de
   Orden de Compra: `Datos de la propuesta → Partidas → Revisar`. El proveedor ya viene fijado por
   la sesión y el envío crea una propuesta con estado `Por revisar`; Compras puede aprobarla y
   convertirla en orden sin volver a capturar sus partidas. También acepta respuestas a solicitudes
@@ -1568,6 +1571,12 @@ hereda permisos de un colaborador.
   inactivos. Elegir un producto todavía no vinculado no crea ni modifica la relación comercial: solo
   lo referencia en la propuesta que Compras revisará. La relación producto-proveedor continúa siendo
   muchos a muchos.
+- Al convertir una propuesta, Inventarios decide por partida entre vincular un producto existente,
+  crear uno nuevo o rechazarla. El costo ofrecido es el costo de adquisición de la compañía. Todo
+  producto aprobado exige un precio de venta en la misma moneda y se bloquea la conversión cuando
+  dicho precio es menor al costo. Para productos existentes se precarga el precio autoritativo y
+  cualquier corrección aprobada actualiza el catálogo mediante el contrato propietario, con
+  auditoría de valores anteriores. El stock del almacén cambia solamente con la recepción física.
 - La captura se presenta como un workspace operativo compacto: encabezado y progreso no duplican el
   shell público, el catálogo permanece visible junto a las partidas en escritorio y se apila antes de
   ellas en móvil. Cada resultado ofrece una acción explícita `Agregar`, la partida aparece de inmediato
@@ -1585,11 +1594,19 @@ hereda permisos de un colaborador.
   sido adoptado por una intención sellada del mismo proveedor y orden. Rechazar o retirar una cuenta
   sigue el lifecycle y soft delete de Gastos; nunca elimina físicamente el registro financiero ni su
   auditoría.
+- Una factura ligada a Compras puede recibirse antes que la mercancía, pero permanece esperando
+  recepción. El handoff a Gastos ocurre una sola vez cuando la orden queda totalmente `RECEIVED`;
+  una recepción parcial conserva cantidades pendientes y nunca cierra el recorrido. La factura sin
+  orden del flujo de servicios sí crea inmediatamente un gasto `DRAFT`. El vínculo factura-gasto es
+  explícito e idempotente.
 - El Centro no posee configuración de moneda. Cada cotización, orden, factura o cuenta conserva y
   valida la moneda de esa transacción; la interfaz solo propone una predeterminada cuando inicia una
   captura nueva y nunca convierte ni reemplaza la moneda autoritativa del documento relacionado.
-- Seguimiento expone solamente estados compartibles, importes, saldo, fecha y referencia de pago;
-  no publica cuentas bancarias internas, notas privadas ni identidades de aprobadores.
+- Seguimiento expone solamente estados compartibles, cantidades recibidas y pendientes, importes,
+  saldo, fecha y referencia de pago. Una compra se muestra cerrada únicamente con recepción completa,
+  factura enlazada y saldo financiero en cero. Cuando Finanzas adjunta evidencia de pago, el proveedor
+  puede obtenerla mediante autorización de su sesión y una descarga temporal; no se publican claves
+  de almacenamiento, cuentas bancarias internas, notas privadas ni identidades de aprobadores.
 - El autorregistro ocurre antes de autenticarse y crea una solicitud inactiva sin unidad, negocio o
   almacén. La asignación de alcance y la activación requieren revisión interna.
 - Cambios comerciales o de catálogo requieren aprobación de Compras. Cambios fiscales o bancarios

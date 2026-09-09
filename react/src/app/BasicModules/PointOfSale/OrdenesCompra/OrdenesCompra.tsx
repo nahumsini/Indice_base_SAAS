@@ -237,6 +237,7 @@ export default function OrdenesCompra() {
       />
 
       <SupplierSubmissionDetailModal
+        products={purchasingProducts}
         saving={saving}
         submission={selectedSubmission}
         warehouses={warehouses}

@@ -184,6 +184,7 @@ function ProviderCenterAccessManager({ multiKioskId, tools }: {
   const [error, setError] = useState('');
   const [issued, setIssued] = useState<ProviderCenterIssuedPin | null>(null);
   const [copied, setCopied] = useState(false);
+  const [pendingRevoke, setPendingRevoke] = useState<ProviderCenterAccessItem | null>(null);
 
   const load = async (signal?: AbortSignal) => {
     setLoading(true);
@@ -214,15 +215,16 @@ function ProviderCenterAccessManager({ multiKioskId, tools }: {
     } finally { setBusyProviderId(null); }
   };
 
-  const revoke = async (provider: ProviderCenterAccessItem) => {
-    if (!window.confirm(`¿Revocar el acceso de ${provider.name}? Sus sesiones se cerrarán.`)) return;
+  const revoke = async () => {
+    const provider = pendingRevoke;
+    if (!provider) return;
     setBusyProviderId(provider.provider_id); setError(''); setIssued(null);
     try {
       await multiKioskAdminApi.revokeProviderPin(multiKioskId, provider.provider_id);
       await load();
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'No pudimos revocar el NIP.');
-    } finally { setBusyProviderId(null); }
+    } finally { setBusyProviderId(null); setPendingRevoke(null); }
   };
 
   const normalizedSearch = search.trim().toLocaleLowerCase();
@@ -237,6 +239,8 @@ function ProviderCenterAccessManager({ multiKioskId, tools }: {
     );
     setCopied(true);
   };
+
+  if (pendingRevoke) return <div className="grid min-h-[360px] place-items-center p-4"><section className="w-full max-w-lg rounded-3xl border border-red-200 bg-red-50 p-6 text-red-950"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-red-600 shadow-sm"><ShieldOff className="h-6 w-6" /></span><h3 className="mt-4 text-xl font-semibold">Revocar acceso de proveedor</h3><p className="mt-2 text-sm leading-6 text-red-800">Se revocará el NIP de <strong>{pendingRevoke.name}</strong> y se cerrarán sus sesiones activas. Las propuestas, órdenes, facturas y pagos permanecerán en el historial.</p><div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" disabled={busyProviderId !== null} onClick={() => setPendingRevoke(null)} className="h-11 rounded-xl border border-red-200 bg-white px-4 text-sm font-medium">Conservar acceso</button><button type="button" disabled={busyProviderId !== null} onClick={() => void revoke()} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-red-700 px-4 text-sm font-semibold text-white disabled:opacity-50">{busyProviderId !== null ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ShieldOff className="h-4 w-4" />}Revocar NIP</button></div></section></div>;
 
   return <div className="space-y-4">
     <section className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-blue-950">
@@ -267,7 +271,7 @@ function ProviderCenterAccessManager({ multiKioskId, tools }: {
         return <article key={provider.provider_id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center">
           <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-xl', provider.pin_ready ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500')}><KeyRound className="h-5 w-5" /></span>
           <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h4 className="truncate text-sm font-semibold text-slate-900">{provider.name}</h4><span className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium', provider.pin_ready ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600')}>{provider.pin_ready ? 'NIP activo' : 'Sin acceso'}</span>{!active ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">Proveedor inactivo</span> : null}</div><p className="mt-1 truncate text-xs text-slate-500">{provider.email || 'Sin correo'} · {[provider.unit_name, provider.business_name].filter(Boolean).join(' · ') || 'Falta asignar alcance'}</p>{active && !provider.scope_ready ? <p className="mt-1 text-[11px] text-amber-700">Asigna unidad y negocio en Proveedores antes de generar el NIP.</p> : null}</div>
-          <div className="flex gap-2 sm:justify-end"><button type="button" disabled={busy || !active || !provider.scope_ready} onClick={() => void issue(provider.provider_id)} className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-3 text-xs font-medium text-white disabled:opacity-40 sm:flex-none">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}{provider.pin_ready ? 'Generar nuevo NIP' : 'Generar NIP'}</button>{provider.pin_ready ? <button type="button" disabled={busy} aria-label={`Revocar acceso de ${provider.name}`} onClick={() => void revoke(provider)} className="grid h-10 w-10 place-items-center rounded-xl border border-red-200 text-red-600 disabled:opacity-40"><ShieldOff className="h-4 w-4" /></button> : null}</div>
+          <div className="flex gap-2 sm:justify-end"><button type="button" disabled={busy || !active || !provider.scope_ready} onClick={() => void issue(provider.provider_id)} className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-3 text-xs font-medium text-white disabled:opacity-40 sm:flex-none">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}{provider.pin_ready ? 'Generar nuevo NIP' : 'Generar NIP'}</button>{provider.pin_ready ? <button type="button" disabled={busy} aria-label={`Revocar acceso de ${provider.name}`} onClick={() => setPendingRevoke(provider)} className="grid h-10 w-10 place-items-center rounded-xl border border-red-200 text-red-600 disabled:opacity-40"><ShieldOff className="h-4 w-4" /></button> : null}</div>
         </article>;
       })}
     </div> : <div className="rounded-2xl border border-dashed border-slate-300 px-5 py-10 text-center text-sm text-slate-500">No hay proveedores que coincidan con la búsqueda.</div>}

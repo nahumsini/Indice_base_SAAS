@@ -65,7 +65,36 @@ test('tracking includes safe payment projections for invoices with and without p
   assert.match(source, /purchase_order_payment_tracking/);
   assert.match(source, /purchaseOrderPaymentByInvoice/);
   assert.match(source, /\[\.\.\.payables, \.\.\.purchaseOrderPayments\]/);
+  assert.match(source, /paymentEvidenceRows/);
+  assert.match(source, /Comprobantes de pago/);
+  assert.match(source, /evidence\.download_url/);
   assert.doesNotMatch(source, /internal_account|approver_id|financial_notes/);
+});
+
+test('provider can propose an unlisted product without receiving catalog authority', async () => {
+  const source = await readSource('../src/app/KioskCenter/multi-kiosk/ProviderCenterMultiKioskWorkspace.tsx');
+
+  assert.match(source, /Proponer un producto nuevo/);
+  assert.match(source, /const addUnlistedProduct/);
+  assert.match(source, /productId\?: number/);
+  assert.match(source, /providerProduct: false/);
+  assert.match(source, /updateLineText/);
+  assert.match(source, /Nombre del producto/);
+  assert.match(source, /Tu SKU/);
+  assert.doesNotMatch(source, /salesProductBackendId\s*=/);
+});
+
+test('inventory review resolves every supplier line and blocks negative margin', async () => {
+  const modal = await readSource('../src/app/BasicModules/PointOfSale/OrdenesCompra/components/SupplierSubmissionDetailModal.tsx');
+  const types = await readSource('../src/app/BasicModules/PointOfSale/OrdenesCompra/types/purchaseOrder.types.ts');
+
+  assert.match(modal, /LINK_EXISTING/);
+  assert.match(modal, /CREATE_NEW/);
+  assert.match(modal, /REJECT/);
+  assert.match(modal, /itemResolutions: submission\.items\.map/);
+  assert.match(modal, /salePrice < supplierCost/);
+  assert.match(modal, /product\.currency\.toUpperCase\(\) !== submission\.currencyCode\.toUpperCase\(\)/);
+  assert.match(types, /itemResolutions: SupplierSubmissionItemResolutionPayload\[\]/);
 });
 
 test('provider center creation is separate from employee multi-kiosks', async () => {
@@ -86,6 +115,8 @@ test('provider access and its four tools are administered only from the central 
   assert.match(editor, /Proveedores y NIP/);
   assert.match(editor, /multiKioskAdminApi\.issueProviderPin/);
   assert.match(editor, /multiKioskAdminApi\.revokeProviderPin/);
+  assert.match(editor, /pendingRevoke/);
+  assert.doesNotMatch(editor, /window\.confirm/);
   assert.match(editor, /Un acceso, cuatro herramientas/);
   assert.match(catalog, /provider\.proposals@1/);
   assert.match(catalog, /provider\.orders-and-invoices@1/);

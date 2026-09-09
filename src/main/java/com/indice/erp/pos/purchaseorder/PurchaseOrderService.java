@@ -38,12 +38,14 @@ import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalLoginReq
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalSubmissionRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionConvertRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionCreateRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionItemResolutionRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionItemRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionListResponse;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionResponse;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionReviewRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderRepository.PurchaseOrderLineCommand;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderRepository.SupplierSubmissionLineCommand;
+import com.indice.erp.sales.ProcurementProductCatalogService;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
 import java.math.BigDecimal;
@@ -52,7 +54,9 @@ import java.security.SecureRandom;
 import java.text.Normalizer;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -88,6 +92,7 @@ public class PurchaseOrderService {
     private final ObjectMapper objectMapper;
     private final CompanyStorageMeter storageMeter;
     private final KioskIdentityCredentialService kioskCredentials;
+    private final ProcurementProductCatalogService productCatalog;
 
     public PurchaseOrderService(
             PurchaseOrderRepository repository,
@@ -97,7 +102,8 @@ public class PurchaseOrderService {
             ExpenseService expenseService,
             ObjectMapper objectMapper,
             CompanyStorageMeter storageMeter,
-            KioskIdentityCredentialService kioskCredentials) {
+            KioskIdentityCredentialService kioskCredentials,
+            ProcurementProductCatalogService productCatalog) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.objectStorageService = objectStorageService;
@@ -106,6 +112,7 @@ public class PurchaseOrderService {
         this.objectMapper = objectMapper;
         this.storageMeter = storageMeter;
         this.kioskCredentials = kioskCredentials;
+        this.productCatalog = productCatalog;
     }
 
     @Transactional(readOnly = true)
@@ -607,7 +614,8 @@ public class PurchaseOrderService {
             PosContext context,
             long submissionId,
             SupplierSubmissionConvertRequest request) {
-        var submission = requireSupplierSubmission(context, submissionId);
+        var submission = repository.lockSupplierSubmission(context, submissionId)
+            .orElseThrow(() -> PosApiException.notFound("Supplier submission not found."));
         if (submission.convertedPurchaseOrderId() != null) {
             throw PosApiException.conflict("Supplier submission has already been converted.");
         }
@@ -619,33 +627,62 @@ public class PurchaseOrderService {
             .orElseThrow(() -> PosApiException.badRequest("warehouseId is invalid for POS scope."));
         var provider = requireProvider(context, submission.providerId());
 
-        var eligibleItems = submission.items().stream()
-            .filter(item -> item.status() != SupplierSubmissionStatus.REJECTED
-                && item.status() != SupplierSubmissionStatus.NEEDS_CLARIFICATION)
-            .toList();
-        if (eligibleItems.isEmpty()) {
+        var requestedResolutions = new LinkedHashMap<Long, SupplierSubmissionItemResolutionRequest>();
+        for (var resolution : request.itemResolutions()) {
+            if (requestedResolutions.putIfAbsent(resolution.itemId(), resolution) != null) {
+                throw PosApiException.badRequest("Each supplier submission item must be reviewed exactly once.");
+            }
+        }
+
+        var lines = new ArrayList<PurchaseOrderLineCommand>();
+        for (var item : submission.items()) {
+            var resolution = requestedResolutions.remove(item.id());
+            if (resolution == null) {
+                throw PosApiException.badRequest("Every supplier submission item requires a catalog decision.");
+            }
+            if (resolution.decision() == SupplierCatalogDecision.REJECT) {
+                repository.resolveSupplierSubmissionItem(
+                    context, submission.id(), item.id(), null, SupplierSubmissionStatus.REJECTED,
+                    resolution.reviewNote(), resolution.decision());
+                repository.insertSupplierCatalogDecision(
+                    context, submission, item, resolution.decision(), null,
+                    null, null, null, resolution.reviewNote());
+                continue;
+            }
+
+            var catalog = resolveCatalogProduct(context, submission, item, resolution);
+            repository.resolveSupplierSubmissionItem(
+                context, submission.id(), item.id(), catalog.productId(), SupplierSubmissionStatus.APPROVED,
+                resolution.reviewNote(), resolution.decision());
+            repository.upsertProductSupplier(context, new ProductSupplierRequest(
+                catalog.productId(), provider.id(), item.providerSku(), item.unitCost(),
+                submission.currencyCode(), item.leadTimeDays(),
+                item.minimumOrderQuantity() == null ? BigDecimal.ONE : item.minimumOrderQuantity(),
+                false, true,
+                "Approved from supplier submission " + submission.submissionNumber()
+            ));
+            repository.insertSupplierCatalogDecision(
+                context, submission, item, resolution.decision(), catalog.productId(),
+                catalog.previousCost(), catalog.previousSalePrice(), catalog.approvedSalePrice(),
+                resolution.reviewNote());
+            lines.add(new PurchaseOrderLineCommand(
+                catalog.productId(),
+                item.providerSku() == null || item.providerSku().isBlank() ? catalog.sku() : item.providerSku(),
+                catalog.name(),
+                item.quantity(),
+                item.unitCost(),
+                normalizedTaxRate(item.taxRate()),
+                item.lineSubtotal(),
+                item.lineTax(),
+                item.lineTotal()
+            ));
+        }
+        if (!requestedResolutions.isEmpty()) {
+            throw PosApiException.badRequest("Catalog decisions contain items from another supplier submission.");
+        }
+        if (lines.isEmpty()) {
             throw PosApiException.conflict("Supplier submission has no approved items to convert.");
         }
-        var unresolved = eligibleItems.stream().filter(item -> item.productId() == null).findFirst();
-        if (unresolved.isPresent()) {
-            throw PosApiException.conflict("Supplier submission contains items not linked to product catalog.");
-        }
-        var lines = eligibleItems.stream()
-            .map(item -> {
-                var product = requireProduct(context, item.productId());
-                return new PurchaseOrderLineCommand(
-                    product.id(),
-                    item.providerSku() == null || item.providerSku().isBlank() ? product.sku() : item.providerSku(),
-                    item.productName() == null || item.productName().isBlank() ? product.name() : item.productName(),
-                    item.quantity(),
-                    item.unitCost(),
-                    normalizedTaxRate(item.taxRate()),
-                    item.lineSubtotal(),
-                    item.lineTax(),
-                    item.lineTotal()
-                );
-            })
-            .toList();
         var subtotal = sum(lines.stream().map(PurchaseOrderLineCommand::lineSubtotal).toList());
         var taxes = sum(lines.stream().map(PurchaseOrderLineCommand::lineTax).toList());
         var total = sum(lines.stream().map(PurchaseOrderLineCommand::lineTotal).toList());
@@ -671,6 +708,33 @@ public class PurchaseOrderService {
         );
         repository.markSupplierSubmissionConverted(context, submission.id(), orderId);
         return requireOrder(context, orderId);
+    }
+
+    private ProcurementProductCatalogService.CatalogResolution resolveCatalogProduct(
+            PosContext context,
+            SupplierSubmissionResponse submission,
+            PurchaseOrderDtos.SupplierSubmissionItemResponse item,
+            SupplierSubmissionItemResolutionRequest resolution) {
+        return switch (resolution.decision()) {
+            case LINK_EXISTING -> {
+                if (resolution.productId() == null) {
+                    throw PosApiException.badRequest("An existing catalog product must be selected.");
+                }
+                yield productCatalog.approveExisting(
+                    context, resolution.productId(), item.unitCost(), resolution.salePrice(),
+                    submission.currencyCode());
+            }
+            case CREATE_NEW -> productCatalog.createNew(
+                context,
+                resolution.productCode(),
+                resolution.sku() == null ? item.providerSku() : resolution.sku(),
+                resolution.productName() == null ? item.productName() : resolution.productName(),
+                resolution.productDescription() == null
+                    ? item.productDescription() : resolution.productDescription(),
+                resolution.category(), resolution.taxCategory(), item.unitCost(),
+                resolution.salePrice(), submission.currencyCode());
+            case REJECT -> throw new IllegalStateException("Rejected items are resolved before catalog mutation.");
+        };
     }
 
     @Transactional
@@ -736,7 +800,11 @@ public class PurchaseOrderService {
             repository.insertInventoryReceiptMovement(context, order, orderItem, receiveItem.receivedQuantity(), receiptNumber);
         }
         repository.refreshOrderReceiveStatus(context, orderId);
-        return requireOrder(context, orderId);
+        var updatedOrder = requireOrder(context, orderId);
+        if (updatedOrder.status() == PurchaseOrderStatus.RECEIVED) {
+            reconcileSupplierInvoicesForOrder(context, updatedOrder);
+        }
+        return updatedOrder;
     }
 
     @Transactional(readOnly = true)
@@ -761,8 +829,25 @@ public class PurchaseOrderService {
         }
         commitSupplierDocumentIfManaged(context.companyId(), request.documentUrl());
         var invoiceId = repository.insertSupplierInvoice(context, request);
-        createExpenseDraftFromSupplierInvoice(context, request, provider, order, invoiceId);
+        if (order == null || order.status() == PurchaseOrderStatus.RECEIVED) {
+            createExpenseDraftFromSupplierInvoice(context, request, provider, order, invoiceId);
+        }
         return enrichSupplierInvoiceDocument(repository.findSupplierInvoice(context, invoiceId).orElseThrow());
+    }
+
+    private void reconcileSupplierInvoicesForOrder(PosContext context, PurchaseOrderResponse order) {
+        if (order.status() != PurchaseOrderStatus.RECEIVED) return;
+        var invoices = repository.lockUnlinkedSupplierInvoicesForOrder(context, order.id());
+        if (invoices.isEmpty()) return;
+        var provider = requireProvider(context, order.providerId());
+        for (var invoice : invoices) {
+            var request = new SupplierInvoiceRequest(
+                invoice.providerId(), invoice.purchaseOrderId(), invoice.invoiceNumber(),
+                invoice.invoiceDate(), invoice.dueDate(), invoice.subtotalAmount(), invoice.taxAmount(),
+                invoice.totalAmount(), invoice.currencyCode(), invoice.notes(), invoice.documentUrl(),
+                invoice.submittedByName());
+            createExpenseDraftFromSupplierInvoice(context, request, provider, order, invoice.id());
+        }
     }
 
     private void createExpenseDraftFromSupplierInvoice(
@@ -821,7 +906,8 @@ public class PurchaseOrderService {
             metadata
         );
 
-        expenseService.createDraft(toFinanceContext(context), expenseRequest);
+        var expense = expenseService.createDraft(toFinanceContext(context), expenseRequest);
+        repository.linkSupplierInvoiceExpense(context, invoiceId, expense.id());
     }
 
     private FinanceContext toFinanceContext(PosContext context) {

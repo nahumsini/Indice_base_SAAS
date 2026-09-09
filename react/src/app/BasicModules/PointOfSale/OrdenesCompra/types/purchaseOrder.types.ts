@@ -577,4 +577,21 @@ export type SupplierSubmissionConvertPayload = {
   warehouseId: number;
   expectedDate?: string | null;
   notes?: string | null;
+  itemResolutions: SupplierSubmissionItemResolutionPayload[];
+};
+
+export type SupplierCatalogDecision = 'LINK_EXISTING' | 'CREATE_NEW' | 'REJECT';
+
+export type SupplierSubmissionItemResolutionPayload = {
+  itemId: number;
+  decision: SupplierCatalogDecision;
+  productId?: number | null;
+  productCode?: string | null;
+  sku?: string | null;
+  productName?: string | null;
+  productDescription?: string | null;
+  category?: string | null;
+  taxCategory?: string | null;
+  salePrice?: number | null;
+  reviewNote?: string | null;
 };
