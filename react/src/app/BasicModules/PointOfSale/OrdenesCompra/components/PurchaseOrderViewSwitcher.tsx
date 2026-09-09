@@ -1,8 +1,8 @@
-import { ClipboardList, Inbox, type LucideIcon } from 'lucide-react';
+import { Building2, ClipboardList, Inbox, type LucideIcon } from 'lucide-react';
 import { cn } from '../../../../components/ui/utils';
 import { usePurchaseOrderTranslations } from '../hooks/usePurchaseOrderTranslations';
 
-export type PurchaseOrderWorkspaceMode = 'orders' | 'submissions';
+export type PurchaseOrderWorkspaceMode = 'orders' | 'submissions' | 'provider-center';
 
 export function PurchaseOrderViewSwitcher({
   mode,
@@ -27,6 +27,12 @@ export function PurchaseOrderViewSwitcher({
         onClick={() => onChange('orders')}
       />
       <SwitchButton
+        active={mode === 'provider-center'}
+        icon={Building2}
+        label="Centro de proveedores"
+        onClick={() => onChange('provider-center')}
+      />
+      <SwitchButton
         active={mode === 'submissions'}
         count={submissionCount}
         icon={Inbox}
@@ -45,7 +51,7 @@ function SwitchButton({
   onClick,
 }: {
   active: boolean;
-  count: number;
+  count?: number;
   icon: LucideIcon;
   label: string;
   onClick: () => void;
@@ -63,14 +69,14 @@ function SwitchButton({
     >
       <Icon className="h-4 w-4" />
       {label}
-      <span className={cn(
+      {typeof count === 'number' ? <span className={cn(
         'rounded-full px-2 py-0.5 text-xs',
         active
           ? 'bg-white/45 text-[#222831]'
           : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300',
       )}>
         {count}
-      </span>
+      </span> : null}
     </button>
   );
 }

@@ -14,7 +14,6 @@ type ProvidersMobileCardsProps = {
   onDuplicateProvider: (providerId: string) => void;
   onOpenAttachments: (provider: ProviderRecord) => void;
   onOpenEditProvider: (provider: ProviderRecord) => void;
-  onManageAccess: (provider: ProviderRecord) => void;
 };
 
 export function ProvidersMobileCards({
@@ -24,7 +23,6 @@ export function ProvidersMobileCards({
   onDuplicateProvider,
   onOpenAttachments,
   onOpenEditProvider,
-  onManageAccess,
   providers,
   unitOptions,
 }: ProvidersMobileCardsProps) {
@@ -51,7 +49,6 @@ export function ProvidersMobileCards({
           onDuplicateProvider={onDuplicateProvider}
           onOpenAttachments={onOpenAttachments}
           onOpenEditProvider={onOpenEditProvider}
-          onManageAccess={onManageAccess}
         />
       ))}
     </div>
@@ -65,7 +62,6 @@ function ProviderMobileCard({
   onDuplicateProvider,
   onOpenAttachments,
   onOpenEditProvider,
-  onManageAccess,
   provider,
   unitOptions,
 }: {
@@ -75,7 +71,6 @@ function ProviderMobileCard({
   onDuplicateProvider: (providerId: string) => void;
   onOpenAttachments: (provider: ProviderRecord) => void;
   onOpenEditProvider: (provider: ProviderRecord) => void;
-  onManageAccess: (provider: ProviderRecord) => void;
   provider: ProviderRecord;
   unitOptions: FinanceReferenceOption[];
 }) {
@@ -123,7 +118,6 @@ function ProviderMobileCard({
             onDeleteProvider={onDeleteProvider}
             onDuplicateProvider={onDuplicateProvider}
             onEditProvider={() => onOpenEditProvider(provider)}
-            onManageAccess={() => onManageAccess(provider)}
           />
         </div>
       </div>

@@ -12,6 +12,7 @@ export type IndiceModalWizardStepperProps<StepId extends string> = {
   accent?: IndiceModalAccent;
   activeStepId: StepId;
   className?: string;
+  density?: 'default' | 'compact';
   onStepSelect?: (stepId: StepId) => void;
   progressLabel: string;
   steps: readonly IndiceModalWizardStep<StepId>[];
@@ -44,6 +45,7 @@ export function IndiceModalWizardStepper<StepId extends string>({
   accent = 'aqua',
   activeStepId,
   className,
+  density = 'default',
   onStepSelect,
   progressLabel,
   steps,
@@ -55,11 +57,12 @@ export function IndiceModalWizardStepper<StepId extends string>({
     <nav
       aria-label={progressLabel}
       className={cn(
-        'rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900',
+        'border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900',
+        density === 'compact' ? 'rounded-xl px-3 py-2' : 'rounded-2xl px-4 py-3 shadow-sm',
         className,
       )}
     >
-      <ol className="grid gap-2" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
+      <ol className={cn('grid', density === 'compact' ? 'gap-1.5' : 'gap-2')} style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
         {steps.map((step, index) => {
           const isComplete = index < activeIndex;
           const isActive = index === activeIndex;
@@ -68,7 +71,8 @@ export function IndiceModalWizardStepper<StepId extends string>({
               <span className="flex min-w-0 items-center justify-center gap-2 sm:justify-start">
                 <span
                   className={cn(
-                    'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-medium transition-colors',
+                    'flex shrink-0 items-center justify-center rounded-full border font-medium transition-colors',
+                    density === 'compact' ? 'h-6 w-6 text-[11px]' : 'h-7 w-7 text-xs',
                     isComplete && 'border-emerald-500 bg-emerald-500 text-white',
                     isActive && accentStyle.active,
                     !isComplete && !isActive && 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
@@ -76,14 +80,15 @@ export function IndiceModalWizardStepper<StepId extends string>({
                 >
                   {isComplete ? <Check className="h-4 w-4" aria-hidden="true" /> : index + 1}
                 </span>
-                <span className={cn('hidden truncate text-sm font-medium sm:block', isActive ? 'text-slate-950 dark:text-white' : 'text-slate-500 dark:text-slate-400')}>
+                <span className={cn('hidden truncate font-medium sm:block', density === 'compact' ? 'text-xs' : 'text-sm', isActive ? 'text-slate-950 dark:text-white' : 'text-slate-500 dark:text-slate-400')}>
                   {step.label}
                 </span>
               </span>
               <span
                 aria-hidden="true"
                 className={cn(
-                  'mt-2 block h-1 rounded-full',
+                  'block rounded-full',
+                  density === 'compact' ? 'mt-1.5 h-0.5' : 'mt-2 h-1',
                   index <= activeIndex ? accentStyle.progress : 'bg-slate-200 dark:bg-slate-700',
                 )}
               />

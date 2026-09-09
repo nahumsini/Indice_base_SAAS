@@ -75,7 +75,7 @@ export default function MultiKioskCenterPage() {
     ? requestedView
     : 'multi-kiosks';
   const [items, setItems] = useState<MultiKioskSummary[]>([]);
-  const [catalog, setCatalog] = useState<MultiKioskCatalog>({ tools: [], kiosks: [], employees: [] });
+  const [catalog, setCatalog] = useState<MultiKioskCatalog>({ tools: [], providerTools: [], kiosks: [], employees: [] });
   const [editor, setEditor] = useState<MultiKioskEditorState | null>(null);
   const [qrItem, setQrItem] = useState<MultiKioskSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -211,7 +211,7 @@ export default function MultiKioskCenterPage() {
               <div className="mt-4 space-y-3">
                 {filteredItems.map(item => (
                   <article key={item.id} className="flex flex-col gap-4 rounded-2xl border border-slate-200 p-4 transition hover:border-[#59C3A5]/60 dark:border-slate-700 dark:hover:border-emerald-700 sm:flex-row sm:items-center">
-                    <div className="flex min-w-0 flex-1 items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#59C3A5]/15 text-[#177D66] dark:bg-emerald-950/40 dark:text-emerald-300"><Smartphone className="h-5 w-5" /></span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="truncate text-base font-medium text-slate-950 dark:text-white">{item.name}</h3><StatusBadge status={item.status} label={workspaceCopy.multi.statuses[item.status] ?? item.status} /></div><p className="mt-1 truncate text-xs text-slate-500">{adminCopy.center.toolCount(item.tool_count ?? 0)} · {adminCopy.center.authorizedTools}</p><p className="mt-2 inline-flex items-center gap-1.5 text-xs text-[#177D66] dark:text-emerald-300"><Link2 className="h-3.5 w-3.5" />{item.access_path ? `${workspaceCopy.multi.linkReady} · ${item.public_token_hint}` : workspaceCopy.multi.linkUnavailable}</p></div></div>
+                    <div className="flex min-w-0 flex-1 items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#59C3A5]/15 text-[#177D66] dark:bg-emerald-950/40 dark:text-emerald-300"><Smartphone className="h-5 w-5" /></span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="truncate text-base font-medium text-slate-950 dark:text-white">{item.name}</h3><StatusBadge status={item.status} label={workspaceCopy.multi.statuses[item.status] ?? item.status} /><span className={cn('rounded-full border px-2 py-1 text-[10px] font-medium', item.audience_type === 'PROVIDER' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-slate-50 text-slate-600')}>{item.audience_type === 'PROVIDER' ? 'Proveedores' : 'Personal'}</span></div><p className="mt-1 truncate text-xs text-slate-500">{adminCopy.center.toolCount(item.tool_count ?? 0)} · {adminCopy.center.authorizedTools}{item.allow_provider_registration ? ' · Solicitudes de alta activas' : ''}</p><p className="mt-2 inline-flex items-center gap-1.5 text-xs text-[#177D66] dark:text-emerald-300"><Link2 className="h-3.5 w-3.5" />{item.access_path ? `${workspaceCopy.multi.linkReady} · ${item.public_token_hint}` : workspaceCopy.multi.linkUnavailable}</p></div></div>
                     <IndiceTableActionGroup className="sm:ml-auto">
                       <KioskAdminActionButton accent="aqua" label={workspaceCopy.multi.edit} disabled={busyId === item.id || item.status === 'REVOKED'} onClick={() => void edit(item.id)}>{busyId === item.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}</KioskAdminActionButton>
                       <KioskAdminActionButton accent="aqua" label={workspaceCopy.multi.share} disabled={!item.access_path} onClick={() => setQrItem(item)}><QrCode className="h-4 w-4" /></KioskAdminActionButton>
@@ -232,7 +232,7 @@ export default function MultiKioskCenterPage() {
         <KioskActivityView copy={workspaceCopy} />
       )}
 
-      {editor ? <MultiKioskEditorModal catalog={catalog} editor={editor} onClose={() => setEditor(null)} onSaved={() => { setEditor(null); void load(); }} /> : null}
+      {editor ? <MultiKioskEditorModal catalog={catalog} editor={editor} onClose={() => setEditor(null)} onSaved={(_, close = true) => { if (close) setEditor(null); void load(); }} /> : null}
       {optionsItem ? <MultiKioskOptionsModal copy={workspaceCopy} item={optionsItem} onClose={() => setOptionsItem(null)} onCommand={command => { setOptionsItem(null); setPendingCommand(command); }} /> : null}
       {pendingCommand ? <MultiKioskCommandConfirmationModal copy={workspaceCopy} command={pendingCommand} busy={busyId === pendingCommand.item.id} onCancel={() => setPendingCommand(null)} onConfirm={() => void executeCommand()} /> : null}
       <KioskModalFrame open={Boolean(qrItem)} onOpenChange={open => { if (!open) setQrItem(null); }} size="form" contentClassName="sm:!w-[min(92vw,28rem)] sm:!max-w-md" surface="administration" tone="aqua" icon={<QrCode className="h-5 w-5" />} title={workspaceCopy.multi.shareTitle} description={workspaceCopy.multi.shareDescription} footer={<Button variant="outline" type="button" onClick={() => setQrItem(null)}>{workspaceCopy.multi.close}</Button>}>

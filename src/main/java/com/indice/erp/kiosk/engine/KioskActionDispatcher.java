@@ -198,7 +198,9 @@ public class KioskActionDispatcher {
 
             var response = KioskExecutionChannels.isEmployeeChannel(executionContext.channel())
                 ? adapter.executeEmployee(executionContext, request)
-                : adapter.execute(executionContext, request);
+                : KioskExecutionChannels.PROVIDER_MULTI_KIOSK.equals(executionContext.channel())
+                    ? adapter.executeProvider(executionContext, request)
+                    : adapter.execute(executionContext, request);
             fileIntentService.captureOutcome(executionContext, request, capability, response);
             if (isIdentityEstablishment(request)) {
                 response = establishControlledSession(executionContext, definitionCapabilities, response);

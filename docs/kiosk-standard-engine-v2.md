@@ -1202,7 +1202,7 @@ No se permiten dos overlays activos. Un wizard cambia de etapa dentro del mismo 
 | Expenses / Cuentas por Pagar | Operational Workspace | Crear/Editar, Liga, QR, Opciones, acceso de proveedor y confirmaciones de ciclo de vida | Adoptado |
 | Punto de Venta | Sin cambios en esta pasada | Conserva sus flujos vigentes | Excluido expresamente del alcance del 20 de julio de 2026 |
 
-La primitive compartida estandariza únicamente presentación, targets, tonos y jerarquía. Activar, pausar, rotar liga, eliminar acceso, emitir PIN y administrar proveedores continúan ejecutando los servicios del módulo propietario y sus validaciones backend.
+La primitive compartida estandariza únicamente presentación, targets, tonos y jerarquía. Activar, pausar, rotar liga, eliminar acceso, emitir PIN y administrar proveedores continúan ejecutando los servicios del módulo propietario y sus validaciones backend. Para proveedores, la decisión posterior de la sección 24.7 sustituye la administración dispersa de accesos: el Centro de Proveedores es la única superficie nueva de emisión y revocación del NIP central.
 
 ### 21.14 Secuencia para futuros kioskos
 
@@ -1518,6 +1518,9 @@ entitlement, el módulo, la propiedad o alcance funcional ni las capacidades de 
   `X-CSRF-Token`, `X-Multi-Kiosk-Session-Token` y la sesión de navegador actual. El cierre es
   idempotente y revoca únicamente la sesión padre y las sesiones hijas correlacionadas por
   compañía, Multikiosco, empleado y navegador.
+- Un cambio legítimo de la sesión de navegador responde `KIOSK_CSRF_INVALID`. El cliente obtiene
+  un bootstrap nuevo y reintenta la misma mutación una sola vez; un segundo rechazo se presenta
+  como error y nunca omite CSRF ni repite indefinidamente una operación.
 - Celular, tablet y computadora ofrecen el mismo acceso por PIN, launcher y Full Workspace,
   adaptado al ancho disponible. El QR permanece como medio opcional para compartir el enlace.
 - Tokens o referencias internas de implementación nunca se exponen en el catálogo administrativo de
@@ -1525,6 +1528,79 @@ entitlement, el módulo, la propiedad o alcance funcional ni las capacidades de 
   y nunca sustituyen la autorización efectiva.
 
 ---
+
+### 24.7 Centro de Proveedores de compañía
+
+El Centro de Proveedores es una audiencia canónica distinta del Multikiosco de colaboradores. Usa
+la misma frontera de definición, token protegido, sesión ligada al navegador, capacidades,
+idempotencia y auditoría del Engine, pero nunca convierte a un proveedor en usuario interno ni
+hereda permisos de un colaborador.
+
+- Existe un solo enlace o QR de proveedores por compañía.
+- La identificación exige el nombre normalizado del proveedor y su PIN personal de seis dígitos.
+- La pantalla de acceso reúne ambos factores en una sola compuerta e indica que debe usarse el
+  nombre mostrado junto al NIP, no el nombre de la compañía anfitriona ni el contacto. El
+  autorregistro sustituye temporalmente esta vista y usa el formulario estándar de Índice; no se
+  apila debajo de la identificación ni solicita alcance organizacional interno.
+- No se publica un directorio de proveedores y los fallos de identificación no revelan si el nombre,
+  el PIN, el estado o el acceso individual fueron la causa.
+- El PIN pertenece al proveedor y puede repetirse entre proveedores con nombres distintos; la
+  combinación dentro de la compañía debe resolver exactamente una identidad activa.
+- La sesión padre no concede autoridad interna. Un proveedor queda habilitado únicamente cuando
+  `root` o `superadmin` genera su NIP desde la configuración del Centro. Credenciales migradas o
+  creadas por un portal legacy no activan automáticamente el Multikiosco.
+- La emisión exige proveedor activo, unidad y negocio asignados. Si después se retira ese alcance,
+  la autenticación y la continuidad fallan cerradas hasta corregirlo, sin ampliar acceso por defecto.
+- Una vez habilitado, el mismo nombre y NIP abre las cuatro herramientas fijas del Centro. El
+  catálogo efectivo conserva la intersección con entitlement, estado del proveedor y disponibilidad
+  de cada adapter, pero no exige accesos individuales creados dentro de Compras o Finanzas.
+- Las herramientas iniciales son `provider.proposals@1`,
+  `provider.orders-and-invoices@1`, `provider.payables@1` y `provider.tracking@1`.
+- `Propuestas y cotizaciones` reutiliza dentro del workspace público la anatomía del asistente de
+  Orden de Compra: `Datos de la propuesta → Partidas → Revisar`. El proveedor ya viene fijado por
+  la sesión y el envío crea una propuesta con estado `Por revisar`; Compras puede aprobarla y
+  convertirla en orden sin volver a capturar sus partidas. También acepta respuestas a solicitudes
+  de cotización. Una solicitud tiene fecha límite y conserva una sola respuesta vigente; una nueva
+  revisión sustituye, pero no elimina, la anterior.
+- El selector de partidas puede buscar todos los productos activos de la compañía por nombre, SKU o
+  código de producto y destaca primero los ya vinculados al proveedor. Esta proyección pública no
+  expone existencias, precios internos, márgenes, condiciones de otros proveedores ni productos
+  inactivos. Elegir un producto todavía no vinculado no crea ni modifica la relación comercial: solo
+  lo referencia en la propuesta que Compras revisará. La relación producto-proveedor continúa siendo
+  muchos a muchos.
+- La captura se presenta como un workspace operativo compacto: encabezado y progreso no duplican el
+  shell público, el catálogo permanece visible junto a las partidas en escritorio y se apila antes de
+  ellas en móvil. Cada resultado ofrece una acción explícita `Agregar`, la partida aparece de inmediato
+  para capturar cantidad, costo e impuesto, y no se permite avanzar con una propuesta vacía. El estado
+  sin catálogo distingue entre una búsqueda sin coincidencias y la ausencia real de productos activos.
+- Una orden enviada puede confirmarse o recibir una solicitud de ajuste. El proveedor nunca edita
+  directamente cantidades, precios ni condiciones autoritativas. La solicitud de ajuste devuelve
+  la orden a Compras para corregirla o reenviarla; cada reenvío abre una nueva respuesta y conserva
+  el historial. Una orden confirmada ya puede recibirse total o parcialmente.
+- Una factura de Compras exige una orden del mismo proveedor. La herramienta visible `Cuentas por
+  pagar` reutiliza la anatomía del formulario de Gastos con el proveedor fijado por la sesión y crea
+  directamente un gasto en estado `DRAFT`, pendiente de revisión, sin orden de compra. Ambos caminos
+  rechazan cruces o duplicados incompatibles. El Centro solo admite la factura de una orden
+  confirmada o con recepción iniciada, valida moneda, desglose y fechas, y exige que el archivo haya
+  sido adoptado por una intención sellada del mismo proveedor y orden. Rechazar o retirar una cuenta
+  sigue el lifecycle y soft delete de Gastos; nunca elimina físicamente el registro financiero ni su
+  auditoría.
+- El Centro no posee configuración de moneda. Cada cotización, orden, factura o cuenta conserva y
+  valida la moneda de esa transacción; la interfaz solo propone una predeterminada cuando inicia una
+  captura nueva y nunca convierte ni reemplaza la moneda autoritativa del documento relacionado.
+- Seguimiento expone solamente estados compartibles, importes, saldo, fecha y referencia de pago;
+  no publica cuentas bancarias internas, notas privadas ni identidades de aprobadores.
+- El autorregistro ocurre antes de autenticarse y crea una solicitud inactiva sin unidad, negocio o
+  almacén. La asignación de alcance y la activación requieren revisión interna.
+- Cambios comerciales o de catálogo requieren aprobación de Compras. Cambios fiscales o bancarios
+  requieren aprobación de Finanzas y nunca sobrescriben datos autoritativos al enviarse.
+- Solo `root` y `superadmin` administran la definición, liga y NIP central de cada proveedor desde
+  `Centro de kioscos > Proveedores y NIP`. Compras y Finanzas conservan la revisión de solicitudes,
+  datos y operaciones de su dominio, pero sus módulos ya no presentan botones para crear o rotar
+  accesos de proveedor.
+- Los enlaces específicos legacy permanecen operativos durante la migración, pero el enlace único
+  es el contrato futuro y toda nueva experiencia se diseña para él. Sus endpoints se mantienen por
+  compatibilidad controlada; no son la superficie administrativa primaria.
 
 ## 25. Integración de kioskos actuales
 
@@ -1612,7 +1688,7 @@ Conservar:
 - evidencias;
 - revisión financiera.
 
-El enlace de proveedor conserva su PIN, registro, rostro opcional y capacidades públicas. De forma
+El enlace legacy de proveedor conserva temporalmente su PIN, registro, rostro opcional y capacidades públicas. De forma
 independiente, una definición `EXPENSES/accounts_payable` con `access_type` `EMPLOYEE` o `MIXED` puede
 componerse en Multikiosco. El PIN del Multikiosco identifica al usuario interno; el servidor lo enlaza
 con su membresía activa, exige `expenses.expenses`, revalida Unit/Business y expone solo captura de
@@ -1628,7 +1704,7 @@ Conservar:
 - propuesta revisable;
 - entrega de factura con imagen o PDF;
 - revisión y conversión dentro de Compras;
-- ruta legacy y administración desde Órdenes de Compra.
+- ruta legacy conservada sin nuevos puntos de entrada administrativos en Órdenes de Compra.
 
 Contrato v2 ejecutado:
 
@@ -2101,7 +2177,8 @@ El Engine v2 se considera establecido cuando:
 - Global Kiosk Center coordina, no posee lógica funcional.
 - Multikiosco pertenece a la compañía: cualquier colaborador activo se identifica con su PIN personal
   y recibe únicamente las cards autorizadas por sus permisos efectivos.
-- Clientes y proveedores continúan por enlaces específicos.
+- Clientes continúan por enlaces específicos. Los proveedores migran al Centro de Proveedores de
+  compañía; sus enlaces específicos se conservan solo como compatibilidad temporal.
 - Petty Cash guía el diseño público.
 - El sistema React `indice-modal` guía la administración.
 - La migración es incremental, compatible y sin cambio operativo.

@@ -11,6 +11,7 @@ import { PurchaseOrderDetailModal } from './components/PurchaseOrderDetailModal'
 import { PurchaseOrderFiltersBar } from './components/PurchaseOrderFilters';
 import { PurchaseOrderHeader } from './components/PurchaseOrderHeader';
 import { PurchaseOrderKpis } from './components/PurchaseOrderKpis';
+import { ProviderCenterProcurementPanel } from './components/ProviderCenterProcurementPanel';
 import { PurchaseOrderViewSwitcher, type PurchaseOrderWorkspaceMode } from './components/PurchaseOrderViewSwitcher';
 import { PurchaseOrdersTable } from './components/PurchaseOrdersTable';
 import { ReceivePurchaseOrderModal } from './components/ReceivePurchaseOrderModal';
@@ -49,10 +50,12 @@ export default function OrdenesCompra() {
     performOrderAction,
     providers,
     receiveOrder,
+    reload,
     reviewSupplierInvoice,
     reviewSupplierSubmission,
     saving,
     setFilters,
+    setError,
     setNotice,
     submitSupplierInvoice,
     supplierInvoices,
@@ -156,13 +159,13 @@ export default function OrdenesCompra() {
         onChange={setWorkspaceMode}
       />
 
-      <PurchaseOrderFiltersBar
-        filters={filters}
-        mode={workspaceMode}
-        providers={providers}
-        warehouses={warehouses}
-        onChange={setFilters}
-      />
+      {workspaceMode !== 'provider-center' ? <PurchaseOrderFiltersBar
+          filters={filters}
+          mode={workspaceMode}
+          providers={providers}
+          warehouses={warehouses}
+          onChange={setFilters}
+        /> : null}
 
       {!learningModeActive ? (
         workspaceMode === 'orders' ? (
@@ -171,9 +174,9 @@ export default function OrdenesCompra() {
             invoices={supplierInvoices}
             orders={filteredOrders}
           />
-        ) : (
+        ) : workspaceMode === 'submissions' ? (
           <SupplierSubmissionKpis submissions={filteredSupplierSubmissions} />
-        )
+        ) : null
       ) : null}
 
       {workspaceMode === 'orders' ? (
@@ -188,7 +191,7 @@ export default function OrdenesCompra() {
             onSelect={setSelectedOrder}
           />
         </>
-      ) : (
+      ) : workspaceMode === 'submissions' ? (
         <SupplierSubmissionsTable
           disabled={saving}
           submissions={filteredSupplierSubmissions}
@@ -196,7 +199,13 @@ export default function OrdenesCompra() {
           onSelect={setSelectedSubmission}
           onStartReview={setSelectedSubmission}
         />
-      )}
+      ) : <ProviderCenterProcurementPanel
+          products={purchasingProducts}
+          providers={providers}
+          onOrdersChanged={reload}
+          onError={message => setError(message)}
+          onNotice={message => setNotice(message)}
+        />}
 
       {showCreateOrder ? (
         <CreatePurchaseOrderModal

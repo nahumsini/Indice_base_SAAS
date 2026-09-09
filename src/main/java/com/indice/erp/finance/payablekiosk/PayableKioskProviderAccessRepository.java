@@ -54,6 +54,20 @@ class PayableKioskProviderAccessRepository {
                 kioskId);
     }
 
+    List<PayableKioskProviderAccessRow> activeForProvider(long companyId, long providerId) {
+        return jdbcTemplate.query(
+            SELECT + """
+             WHERE provider_access.company_id = ? AND provider_access.provider_id = ?
+               AND provider_access.status = 'ACTIVE'
+               AND provider.status = 'ACTIVE' AND provider.deleted_at IS NULL
+               AND kiosk.status = 'ACTIVE' AND kiosk.deleted_at IS NULL
+             ORDER BY provider_access.updated_at DESC, provider_access.id DESC
+            """,
+            this::mapRow,
+            companyId,
+            providerId);
+    }
+
     PayableKioskProviderAccessRow activeById(long accessId, long kioskId) {
         return jdbcTemplate.query(
                 SELECT + """

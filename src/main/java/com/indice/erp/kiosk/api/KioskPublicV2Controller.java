@@ -306,7 +306,7 @@ public class KioskPublicV2Controller {
         try {
             csrfService.requireCsrf(session, csrfToken);
         } catch (IllegalArgumentException failure) {
-            throw new SecurityException("Kiosk browser validation failed.");
+            throw new KioskCsrfException();
         }
     }
 

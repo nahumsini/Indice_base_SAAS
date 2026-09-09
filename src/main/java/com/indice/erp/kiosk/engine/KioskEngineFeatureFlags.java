@@ -70,6 +70,7 @@ public class KioskEngineFeatureFlags {
             case "PROCUREMENT" -> procurementAdapterEnabled;
             case "POINT_OF_SALE" -> pointOfSaleAdapterEnabled;
             case "SALES" -> salesAdapterEnabled;
+            case "PROVIDER_CENTER" -> multiDashboardEnabled;
             default -> false;
         };
     }

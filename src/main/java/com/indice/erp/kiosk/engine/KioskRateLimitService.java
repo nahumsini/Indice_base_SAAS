@@ -199,6 +199,23 @@ public class KioskRateLimitService {
         }
     }
 
+    /** Public Provider Center registration budget, isolated from the sign-in attempt budget. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void requireProviderRegistrationAllowed(
+            long companyId, long multiKioskId, String networkSignal) {
+        if (companyId <= 0 || multiKioskId <= 0) {
+            throw new IllegalArgumentException("A resolved Provider Center is required.");
+        }
+        consume(
+            KioskRateLimitType.MUTATION,
+            sha256(String.join("\n",
+                String.valueOf(companyId), String.valueOf(multiKioskId),
+                networkSignal == null || networkSignal.isBlank() ? "unknown" : networkSignal.trim(),
+                "provider-center-registration")),
+            5,
+            Duration.ofHours(1));
+    }
+
     String multiKioskPinScopeHash(long companyId, long multiKioskId, String networkSignal) {
         return sha256(String.join("\n",
             String.valueOf(companyId),

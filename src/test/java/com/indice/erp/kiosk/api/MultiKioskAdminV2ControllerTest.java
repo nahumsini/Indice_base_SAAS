@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import com.indice.erp.kiosk.engine.KioskEngineFeatureFlags;
 import com.indice.erp.kiosk.engine.KioskUnavailableException;
 import com.indice.erp.kiosk.engine.MultiKioskService;
+import com.indice.erp.kiosk.engine.ProviderCenterAccessAdminService;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +19,7 @@ class MultiKioskAdminV2ControllerTest {
     private final KioskInternalRequestGuard guard = mock(KioskInternalRequestGuard.class);
     private final KioskEngineFeatureFlags flags = mock(KioskEngineFeatureFlags.class);
     private final MultiKioskService multiKiosks = mock(MultiKioskService.class);
+    private final ProviderCenterAccessAdminService providerAccess = mock(ProviderCenterAccessAdminService.class);
     private final KioskV2ResponseFactory responses = mock(KioskV2ResponseFactory.class);
     private final HttpSession session = mock(HttpSession.class);
     private MultiKioskAdminV2Controller controller;
@@ -29,7 +31,8 @@ class MultiKioskAdminV2ControllerTest {
         when(flags.auditEnabled()).thenReturn(true);
         when(flags.globalCenterEnabled()).thenReturn(true);
         when(flags.multiDashboardEnabled()).thenReturn(false);
-        controller = new MultiKioskAdminV2Controller(guard, flags, multiKiosks, responses);
+        controller = new MultiKioskAdminV2Controller(
+            guard, flags, multiKiosks, providerAccess, responses);
     }
 
     @Test

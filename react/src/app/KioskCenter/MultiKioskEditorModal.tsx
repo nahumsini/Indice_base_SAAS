@@ -1,13 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ArrowDown,
   ArrowUp,
   AlertTriangle,
   Check,
+  Clipboard,
   Grid2X2,
+  Handshake,
+  KeyRound,
   LoaderCircle,
   MapPin,
   Search,
+  ShieldOff,
   Store,
 } from 'lucide-react';
 import {
@@ -17,6 +21,9 @@ import {
   type MultiKioskCatalogTool,
   type MultiKioskDetail,
   type MultiKioskPayload,
+  type MultiKioskAudience,
+  type ProviderCenterAccessItem,
+  type ProviderCenterIssuedPin,
 } from '../api/multiKiosks';
 import { KioskModalFrame } from '../components/kiosk-engine/KioskModalFrame';
 import { IndiceModalWizardStepper } from '../components/indice-modal';
@@ -36,6 +43,7 @@ export type MultiKioskCatalog = {
   employees: MultiKioskCatalogEmployee[];
   kiosks: MultiKioskCatalogKiosk[];
   tools: MultiKioskCatalogTool[];
+  providerTools: MultiKioskCatalogTool[];
 };
 
 type Step = 1 | 2;
@@ -49,6 +57,8 @@ export type MultiKioskEditorState = {
   name: string;
   theme_key: string;
   toolKeys: string[];
+  audience_type: MultiKioskAudience;
+  allow_provider_registration: boolean;
 };
 
 export const createEmptyMultiKioskEditor = (): MultiKioskEditorState => ({
@@ -59,6 +69,8 @@ export const createEmptyMultiKioskEditor = (): MultiKioskEditorState => ({
   expires_at: '',
   toolKeys: [],
   legacyKioskDefinitionIds: [],
+  audience_type: 'EMPLOYEE',
+  allow_provider_registration: false,
 });
 
 const localDateTimeValue = (value: string) => {
@@ -82,6 +94,8 @@ export const mapMultiKioskDetailToEditor = (detail: MultiKioskDetail): MultiKios
       .map(tool => tool.key)
     : [...(detail.tool_keys ?? [])],
   legacyKioskDefinitionIds: [...(detail.legacy_kiosk_definition_ids ?? [])],
+  audience_type: detail.audience_type ?? 'EMPLOYEE',
+  allow_provider_registration: detail.allow_provider_registration ?? false,
 });
 
 const normalizedCode = (value: string) => value.trim().toUpperCase().replace(/[\s-]+/g, '_');
@@ -154,31 +168,138 @@ const payloadFrom = (editor: MultiKioskEditorState): MultiKioskPayload => ({
   expires_at: editor.expires_at ? new Date(editor.expires_at).toISOString() : null,
   tool_keys: editor.toolKeys,
   legacy_kiosk_definition_ids: editor.legacyKioskDefinitionIds,
+  audience_type: editor.audience_type,
+  allow_provider_registration: editor.audience_type === 'PROVIDER'
+    && editor.allow_provider_registration,
 });
+
+function ProviderCenterAccessManager({ multiKioskId, tools }: {
+  multiKioskId: number;
+  tools: MultiKioskCatalogTool[];
+}) {
+  const [items, setItems] = useState<ProviderCenterAccessItem[]>([]);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [busyProviderId, setBusyProviderId] = useState<number | null>(null);
+  const [error, setError] = useState('');
+  const [issued, setIssued] = useState<ProviderCenterIssuedPin | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const load = async (signal?: AbortSignal) => {
+    setLoading(true);
+    setError('');
+    try {
+      setItems(await multiKioskAdminApi.providerAccesses(multiKioskId, signal));
+    } catch (failure) {
+      if (!signal?.aborted) setError(failure instanceof Error
+        ? failure.message : 'No pudimos cargar los proveedores.');
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
+  }, [multiKioskId]);
+
+  const issue = async (providerId: number) => {
+    setBusyProviderId(providerId); setError(''); setIssued(null); setCopied(false);
+    try {
+      setIssued(await multiKioskAdminApi.issueProviderPin(multiKioskId, providerId));
+      await load();
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'No pudimos generar el NIP.');
+    } finally { setBusyProviderId(null); }
+  };
+
+  const revoke = async (provider: ProviderCenterAccessItem) => {
+    if (!window.confirm(`¿Revocar el acceso de ${provider.name}? Sus sesiones se cerrarán.`)) return;
+    setBusyProviderId(provider.provider_id); setError(''); setIssued(null);
+    try {
+      await multiKioskAdminApi.revokeProviderPin(multiKioskId, provider.provider_id);
+      await load();
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'No pudimos revocar el NIP.');
+    } finally { setBusyProviderId(null); }
+  };
+
+  const normalizedSearch = search.trim().toLocaleLowerCase();
+  const visible = items.filter(item => !normalizedSearch
+    || [item.name, item.email, item.unit_name, item.business_name]
+      .some(value => value.toLocaleLowerCase().includes(normalizedSearch)));
+
+  const copyCredential = async () => {
+    if (!issued) return;
+    await navigator.clipboard.writeText(
+      `Proveedor: ${issued.provider_name}\nNIP: ${issued.pin}`,
+    );
+    setCopied(true);
+  };
+
+  return <div className="space-y-4">
+    <section className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-blue-950">
+      <div className="flex items-start gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-blue-700 shadow-sm"><Handshake className="h-5 w-5" /></span>
+        <div><h3 className="text-sm font-semibold">Un acceso, cuatro herramientas</h3><p className="mt-1 text-xs leading-5 text-blue-800">Todos los proveedores habilitados entran con su nombre y un solo NIP de seis dígitos. La moneda siempre pertenece a cada cotización, orden, factura o cuenta; no se configura en el portal.</p></div>
+      </div>
+      <ol className="mt-3 grid gap-2 min-[440px]:grid-cols-2">
+        {tools.map((tool, index) => <li key={tool.key} className="flex items-center gap-2 rounded-xl border border-blue-100 bg-white px-3 py-2 text-xs"><span className="grid h-5 w-5 place-items-center rounded-full bg-blue-700 text-[10px] font-semibold text-white">{index + 1}</span><MultiKioskToolGlyph source={tool} className="h-8 w-8 rounded-lg [&_svg]:h-4 [&_svg]:w-4" /><span className="font-medium text-slate-800">{tool.name}</span></li>)}
+      </ol>
+    </section>
+
+    {issued ? <section className="rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-950" role="status">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div><p className="text-xs font-medium text-emerald-700">Guárdalo ahora · se muestra una sola vez</p><p className="mt-1 text-sm font-semibold">{issued.provider_name}</p><p className="mt-2 font-mono text-2xl font-bold tracking-[0.28em]">{issued.pin}</p></div>
+        <button type="button" onClick={() => void copyCredential()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-white px-4 text-sm font-medium text-emerald-800"><Clipboard className="h-4 w-4" />{copied ? 'Copiado' : 'Copiar nombre y NIP'}</button>
+      </div>
+      <p className="mt-3 text-xs leading-5 text-emerald-800">Después solo verás “NIP activo”. Si el proveedor lo pierde, genera uno nuevo; el anterior y sus sesiones quedarán invalidados.</p>
+    </section> : null}
+
+    {error ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-5 text-red-700">{error}</p> : null}
+    <div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input aria-label="Buscar proveedor" value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar proveedor, correo, unidad o negocio" className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-[#59C3A5] focus:ring-4 focus:ring-[#59C3A5]/15" /></div>
+
+    {loading ? <div className="grid min-h-32 place-items-center"><LoaderCircle className="h-6 w-6 animate-spin text-[#177D66]" /></div> : visible.length ? <div className="space-y-2">
+      {visible.map(provider => {
+        const busy = busyProviderId === provider.provider_id;
+        const active = provider.provider_status === 'ACTIVE';
+        return <article key={provider.provider_id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center">
+          <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-xl', provider.pin_ready ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500')}><KeyRound className="h-5 w-5" /></span>
+          <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h4 className="truncate text-sm font-semibold text-slate-900">{provider.name}</h4><span className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium', provider.pin_ready ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600')}>{provider.pin_ready ? 'NIP activo' : 'Sin acceso'}</span>{!active ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">Proveedor inactivo</span> : null}</div><p className="mt-1 truncate text-xs text-slate-500">{provider.email || 'Sin correo'} · {[provider.unit_name, provider.business_name].filter(Boolean).join(' · ') || 'Falta asignar alcance'}</p>{active && !provider.scope_ready ? <p className="mt-1 text-[11px] text-amber-700">Asigna unidad y negocio en Proveedores antes de generar el NIP.</p> : null}</div>
+          <div className="flex gap-2 sm:justify-end"><button type="button" disabled={busy || !active || !provider.scope_ready} onClick={() => void issue(provider.provider_id)} className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-3 text-xs font-medium text-white disabled:opacity-40 sm:flex-none">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}{provider.pin_ready ? 'Generar nuevo NIP' : 'Generar NIP'}</button>{provider.pin_ready ? <button type="button" disabled={busy} aria-label={`Revocar acceso de ${provider.name}`} onClick={() => void revoke(provider)} className="grid h-10 w-10 place-items-center rounded-xl border border-red-200 text-red-600 disabled:opacity-40"><ShieldOff className="h-4 w-4" /></button> : null}</div>
+        </article>;
+      })}
+    </div> : <div className="rounded-2xl border border-dashed border-slate-300 px-5 py-10 text-center text-sm text-slate-500">No hay proveedores que coincidan con la búsqueda.</div>}
+  </div>;
+}
 
 export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
   catalog: MultiKioskCatalog;
   editor: MultiKioskEditorState;
   onClose: () => void;
-  onSaved: (item: MultiKioskDetail) => void;
+  onSaved: (item: MultiKioskDetail, close?: boolean) => void;
 }) {
   const { currentLanguage } = useLanguage();
   const copy = getMultiKioskAdminCopy(currentLanguage.code);
   const [form, setForm] = useState(editor);
+  const [baseline, setBaseline] = useState(editor);
   const [step, setStep] = useState<Step>(1);
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [discardPromptOpen, setDiscardPromptOpen] = useState(false);
   const normalizedSearch = search.trim().toLocaleLowerCase();
-  const visibleTools = catalog.tools.filter(tool => !normalizedSearch
+  const providerFlow = form.audience_type === 'PROVIDER';
+  const activeTools = providerFlow ? catalog.providerTools : catalog.tools;
+  const visibleTools = activeTools.filter(tool => !normalizedSearch
     || [toolName(tool, copy), toolDescription(tool, copy), moduleLabel(tool.owner_module, copy)]
       .some(value => value.toLocaleLowerCase().includes(normalizedSearch)));
-  const visibleKiosks = catalog.kiosks.filter(kiosk => !normalizedSearch
+  const visibleKiosks = form.audience_type === 'EMPLOYEE' ? catalog.kiosks.filter(kiosk => !normalizedSearch
     || [kiosk.name, moduleLabel(kiosk.owner_module, copy), kioskScope(kiosk)]
-      .some(value => value.toLocaleLowerCase().includes(normalizedSearch)));
-  const selectedTools = form.toolKeys
-    .map(key => catalog.tools.find(tool => tool.key === key))
+      .some(value => value.toLocaleLowerCase().includes(normalizedSearch))) : [];
+  const selectedTools = (providerFlow ? activeTools.map(tool => tool.key) : form.toolKeys)
+    .map(key => activeTools.find(tool => tool.key === key))
     .filter((tool): tool is MultiKioskCatalogTool => Boolean(tool));
   const selectedKiosks = form.legacyKioskDefinitionIds
     .map(id => catalog.kiosks.find(kiosk => kiosk.id === id))
@@ -188,11 +309,13 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
     ...selectedTools,
     ...selectedKiosks.map(kioskAsTool),
   ];
-  const selectableToolCount = catalog.tools.filter(toolIsSelectable).length
-    + catalog.kiosks.filter(kioskIsSelectable).length;
-  const hasComposition = form.toolKeys.length > 0 || form.legacyKioskDefinitionIds.length > 0;
+  const selectableToolCount = activeTools.filter(toolIsSelectable).length
+    + (form.audience_type === 'EMPLOYEE' ? catalog.kiosks.filter(kioskIsSelectable).length : 0);
+  const hasComposition = providerFlow
+    ? activeTools.length === 4 && activeTools.every(toolIsSelectable)
+    : form.toolKeys.length > 0 || form.legacyKioskDefinitionIds.length > 0;
   const canContinue = step === 1 ? form.name.trim().length >= 3 : hasComposition;
-  const hasUnsavedChanges = JSON.stringify(form) !== JSON.stringify(editor);
+  const hasUnsavedChanges = JSON.stringify(form) !== JSON.stringify(baseline);
 
   const requestClose = () => {
     if (busy) return;
@@ -212,6 +335,31 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
         : await multiKioskAdminApi.create(payloadFrom(form)));
     } catch {
       setError(copy.editor.saveError);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openProviderAccess = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      const candidate = {
+        ...form,
+        toolKeys: catalog.providerTools.map(tool => tool.key),
+        legacyKioskDefinitionIds: [],
+      };
+      const saved = candidate.id
+        ? await multiKioskAdminApi.update(candidate.id, payloadFrom(candidate))
+        : await multiKioskAdminApi.create(payloadFrom(candidate));
+      const persisted = mapMultiKioskDetailToEditor(saved);
+      setForm(persisted);
+      setBaseline(persisted);
+      setSearch('');
+      setStep(2);
+      onSaved(saved, false);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : copy.editor.saveError);
     } finally {
       setBusy(false);
     }
@@ -272,9 +420,15 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
             {step === 1 ? copy.editor.cancel : copy.editor.previous}
           </Button>
           {step === 1 ? (
-            <Button type="button" onClick={() => { setSearch(''); setStep(2); }} disabled={!canContinue || busy}>
-              {copy.editor.continue}
+            <Button type="button" onClick={() => {
+              if (providerFlow) void openProviderAccess();
+              else { setSearch(''); setStep(2); }
+            }} disabled={!canContinue || busy}>
+              {busy ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {providerFlow ? 'Guardar y administrar NIP' : copy.editor.continue}
             </Button>
+          ) : providerFlow ? (
+            <Button type="button" onClick={onClose} disabled={busy}>Listo</Button>
           ) : (
             <Button type="button" onClick={() => void save()} disabled={!canContinue || busy}>
               {busy ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
@@ -294,8 +448,8 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
             missingSavedKioskCount,
           )}
           steps={[
-            { id: 'details', label: copy.editor.stepData },
-            { id: 'tools', label: copy.editor.stepTools },
+            { id: 'details', label: providerFlow ? 'Portal' : copy.editor.stepData },
+            { id: 'tools', label: providerFlow ? 'Proveedores y NIP' : copy.editor.stepTools },
           ]}
         />
       {error ? <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
@@ -305,6 +459,52 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
             <p className="font-medium">{copy.editor.companyAccessTitle}</p>
             <p className="mt-1 leading-5 text-slate-600 dark:text-slate-300">{copy.editor.companyAccessDescription}</p>
           </div>
+          <fieldset className="sm:col-span-2">
+            <legend className="text-sm font-medium text-slate-700 dark:text-slate-200">¿Quién usará este centro?</legend>
+            <p className="mt-1 text-xs leading-5 text-slate-500">El tipo de acceso no puede cambiarse después de crear el enlace.</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {([
+                ['EMPLOYEE', Grid2X2, 'Personal', 'Herramientas internas para colaboradores autorizados.'],
+                ['PROVIDER', Handshake, 'Proveedores', 'Un enlace común para cotizaciones, órdenes, cuentas y pagos.'],
+              ] as const).map(([value, Icon, title, description]) => {
+                const selected = form.audience_type === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    disabled={Boolean(form.id)}
+                    aria-pressed={selected}
+                    onClick={() => setForm(current => ({
+                      ...current,
+                      audience_type: value,
+                      allow_provider_registration: value === 'PROVIDER' && current.allow_provider_registration,
+                      toolKeys: value === 'PROVIDER'
+                        ? catalog.providerTools.map(tool => tool.key) : [],
+                      legacyKioskDefinitionIds: [],
+                    }))}
+                    className={cn(
+                      'flex min-h-24 items-start gap-3 rounded-2xl border p-4 text-left outline-none transition focus-visible:ring-4 focus-visible:ring-[#59C3A5]/20 disabled:cursor-not-allowed',
+                      selected ? 'border-[#59C3A5] bg-[#59C3A5]/10' : 'border-slate-200 bg-white hover:border-[#59C3A5]/60',
+                    )}
+                  >
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-[#177D66] shadow-sm"><Icon className="h-5 w-5" /></span>
+                    <span><span className="block text-sm font-medium text-slate-900">{title}</span><span className="mt-1 block text-xs leading-5 text-slate-500">{description}</span></span>
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+          {form.audience_type === 'PROVIDER' ? (
+            <label className="sm:col-span-2 flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-sm text-blue-950">
+              <input
+                type="checkbox"
+                checked={form.allow_provider_registration}
+                onChange={event => setForm(current => ({ ...current, allow_provider_registration: event.target.checked }))}
+                className="mt-1 h-4 w-4 rounded border-blue-300 text-blue-700 focus:ring-blue-500"
+              />
+              <span><span className="block font-medium">Permitir solicitudes de alta</span><span className="mt-1 block text-xs leading-5 text-blue-800">El proveedor envía sus datos sin elegir unidad, negocio ni almacén. La empresa revisa y asigna el alcance antes de activar su acceso.</span></span>
+            </label>
+          ) : null}
           <label className="sm:col-span-2"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.editor.name}</span><input autoFocus value={form.name} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} maxLength={140} placeholder={copy.editor.namePlaceholder} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#59C3A5] focus:ring-4 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950" /></label>
           <label className="sm:col-span-2"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.editor.descriptionLabel}</span><textarea value={form.description} onChange={event => setForm(current => ({ ...current, description: event.target.value }))} maxLength={500} rows={3} placeholder={copy.editor.descriptionPlaceholder} className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-[#59C3A5] focus:ring-4 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950" /></label>
           <details className="sm:col-span-2 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
@@ -317,6 +517,8 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
             </div>
           </details>
         </div>
+      ) : providerFlow && form.id ? (
+        <ProviderCenterAccessManager multiKioskId={form.id} tools={catalog.providerTools} />
       ) : (
         <div>
           <div className="mb-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 text-sm text-emerald-900">
@@ -410,7 +612,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
           {visibleTools.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 px-5 py-10 text-center text-sm text-slate-500">{copy.editor.emptyTools}</div>
           ) : null}
-          <section aria-labelledby="multi-kiosk-operational-catalog-title" className="mt-6">
+          {form.audience_type === 'EMPLOYEE' ? <section aria-labelledby="multi-kiosk-operational-catalog-title" className="mt-6">
             <div className="mb-3 flex items-start gap-3">
               <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-rose-50 text-rose-700">
                 <Store className="h-5 w-5" />
@@ -471,7 +673,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
             {visibleKiosks.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 px-5 py-8 text-center text-sm text-slate-500">{copy.editor.emptyOperationalKiosks}</div>
             ) : null}
-          </section>
+          </section> : null}
         </div>
       )}
       </KioskModalFrame>

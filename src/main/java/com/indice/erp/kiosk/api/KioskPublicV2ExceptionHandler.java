@@ -13,6 +13,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -98,6 +99,15 @@ public class KioskPublicV2ExceptionHandler {
             responses.error("KIOSK_POS_ERROR", failure.getMessage(), false));
     }
 
+    @ExceptionHandler(KioskCsrfException.class)
+    public ResponseEntity<?> csrf(KioskCsrfException failure) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+            responses.error(
+                "KIOSK_CSRF_INVALID",
+                "La sesión segura del kiosco cambió. Intenta nuevamente.",
+                true));
+    }
+
     @ExceptionHandler(SecurityException.class)
     public ResponseEntity<?> forbidden(SecurityException failure) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
@@ -122,6 +132,12 @@ public class KioskPublicV2ExceptionHandler {
 
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
     public ResponseEntity<?> invalid(RuntimeException failure) {
+        return ResponseEntity.badRequest().body(
+            responses.error("KIOSK_VALIDATION_ERROR", "Revisa la información enviada.", false));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<?> unreadablePayload(HttpMessageNotReadableException failure) {
         return ResponseEntity.badRequest().body(
             responses.error("KIOSK_VALIDATION_ERROR", "Revisa la información enviada.", false));
     }

@@ -29,6 +29,7 @@ interface Envelope<T> {
 }
 
 export type MultiKioskStatus = 'ACTIVE' | 'DISABLED' | 'EXPIRED' | 'REVOKED';
+export type MultiKioskAudience = 'EMPLOYEE' | 'PROVIDER';
 
 export interface MultiKioskSummary {
   id: number;
@@ -36,6 +37,8 @@ export interface MultiKioskSummary {
   name: string;
   description?: string;
   status: MultiKioskStatus;
+  audience_type?: MultiKioskAudience;
+  allow_provider_registration?: boolean;
   unit_id?: number;
   unit_name?: string;
   business_id?: number;
@@ -131,6 +134,32 @@ export interface MultiKioskPayload {
   expires_at: string | null;
   tool_keys: string[];
   legacy_kiosk_definition_ids?: number[];
+  audience_type: MultiKioskAudience;
+  allow_provider_registration: boolean;
+}
+
+export interface ProviderCenterAccessItem {
+  provider_id: number;
+  name: string;
+  email: string;
+  provider_status: 'ACTIVE' | 'INACTIVE' | string;
+  unit_id?: number | null;
+  unit_name: string;
+  business_id?: number | null;
+  business_name: string;
+  scope_ready: boolean;
+  pin_ready: boolean;
+  credential_status: string;
+  credential_created_at: string;
+  credential_rotated_at: string;
+}
+
+export interface ProviderCenterIssuedPin {
+  provider_id: number;
+  provider_name: string;
+  pin: string;
+  pin_ready: true;
+  shown_once: true;
 }
 
 const adminBase = '/api/v2/kiosk-center/multi-kiosks';
@@ -165,12 +194,16 @@ export const multiKioskAdminApi = {
   async catalog(signal?: AbortSignal) {
     const response = await apiClient<Envelope<{
       tools?: MultiKioskCatalogToolWire[];
+      provider_tools?: MultiKioskCatalogToolWire[];
       kiosks?: MultiKioskCatalogKiosk[];
       employees: MultiKioskCatalogEmployee[];
     }>>(`${adminBase}/catalog`, { signal });
     return {
       employees: response.data.employees,
       tools: (response.data.tools ?? [])
+        .map(normalizeCatalogTool)
+        .filter((tool): tool is MultiKioskCatalogTool => tool !== null),
+      providerTools: (response.data.provider_tools ?? [])
         .map(normalizeCatalogTool)
         .filter((tool): tool is MultiKioskCatalogTool => tool !== null),
       kiosks: response.data.kiosks ?? [],
@@ -204,6 +237,28 @@ export const multiKioskAdminApi = {
     });
     return normalizeDetail(response.data);
   },
+  async providerAccesses(id: number, signal?: AbortSignal) {
+    const response = await apiClient<Envelope<{ items: ProviderCenterAccessItem[] }>>(
+      `${adminBase}/${id}/providers`, { signal },
+    );
+    return response.data.items;
+  },
+  async issueProviderPin(id: number, providerId: number) {
+    const response = await apiClient<Envelope<ProviderCenterIssuedPin>>(
+      `${adminBase}/${id}/providers/${providerId}/pin`, {
+        method: 'POST', body: JSON.stringify({}),
+      },
+    );
+    return response.data;
+  },
+  async revokeProviderPin(id: number, providerId: number) {
+    const response = await apiClient<Envelope<{ provider_id: number; pin_ready: false; success: true }>>(
+      `${adminBase}/${id}/providers/${providerId}/revoke`, {
+        method: 'POST', body: JSON.stringify({}),
+      },
+    );
+    return response.data;
+  },
 };
 
 export interface MultiKioskCard {
@@ -229,13 +284,17 @@ export interface MultiKioskBootstrap {
   locale: string;
   access_methods: string[];
   csrf_token: string;
+  audience_type: MultiKioskAudience;
+  allow_provider_registration: boolean;
 }
 
 export interface MultiKioskMobileSession {
   session_id?: string;
   session_token?: string;
   expires_at: string;
-  employee: { name: string };
+  identity?: { type: 'EMPLOYEE' | 'PROVIDER'; id: number; name: string };
+  employee?: { name: string };
+  provider?: { id: number; name: string };
   multi_kiosk: { id: number; name: string; description: string; company_name: string; theme_key: string };
   kiosks: MultiKioskCard[];
 }
@@ -307,9 +366,21 @@ export interface MultiKioskEmployeeWorkspaceBootstrap extends Partial<PublicPett
   userCompanyId?: number;
   canEditFloorPlan?: boolean;
   tables?: RestaurantWorkspace['tables'];
-  orders?: RestaurantWorkspace['orders'];
+  orders?: RestaurantWorkspace['orders'] | Array<Record<string, unknown>>;
   catalog?: RestaurantWorkspace['catalog'];
   kitchenItems?: RestaurantWorkspace['kitchenItems'];
+  provider?: Record<string, unknown>;
+  contact_required?: boolean;
+  quote_requests?: Array<Record<string, unknown>>;
+  submissions?: Array<Record<string, unknown>>;
+  catalog_products?: Array<Record<string, unknown>>;
+  invoices?: Array<Record<string, unknown>>;
+  payables?: Array<Record<string, unknown>>;
+  lane?: string;
+  privacy?: Record<string, unknown>;
+  invoices_with_purchase_order?: Array<Record<string, unknown>>;
+  payables_without_purchase_order?: Array<Record<string, unknown>>;
+  purchase_order_payment_tracking?: Array<Record<string, unknown>>;
 }
 
 export interface MultiKioskChildWorkspace {
@@ -325,6 +396,7 @@ const publicRequestTimeoutMs = 15_000;
 const multiSessionKey = (token: string) => `indice.multi-kiosk.${token}.session`;
 const childSessionKey = (token: string, kioskId: number) => `indice.multi-kiosk.${token}.child.${kioskId}`;
 const childSessionPrefix = (token: string) => `indice.multi-kiosk.${token}.child.`;
+const publicCsrfKey = (token: string) => `indice.multi-kiosk.${token}.csrf`;
 
 const readStored = (key: string) => {
   try { return sessionStorage.getItem(key) ?? ''; } catch { return ''; }
@@ -382,6 +454,27 @@ async function publicRequest<T>(path: string, init: RequestInit = {}) {
   }
 }
 
+const loadPublicBootstrap = async (token: string, signal?: AbortSignal) => {
+  const bootstrap = await publicRequest<MultiKioskBootstrap>(publicBase(token), { signal });
+  writeStored(publicCsrfKey(token), bootstrap.csrf_token);
+  return bootstrap;
+};
+
+const withPublicCsrfRecovery = async <T>(
+  token: string,
+  fallbackCsrfToken: string,
+  request: (csrfToken: string) => Promise<T>,
+) => {
+  const currentCsrfToken = readStored(publicCsrfKey(token)) || fallbackCsrfToken;
+  try {
+    return await request(currentCsrfToken);
+  } catch (failure) {
+    if (!(failure instanceof ApiClientError) || failure.code !== 'KIOSK_CSRF_INVALID') throw failure;
+    const refreshed = await loadPublicBootstrap(token);
+    return request(refreshed.csrf_token);
+  }
+};
+
 export const multiKioskMobileSession = {
   get: (token: string) => readStored(multiSessionKey(token)),
   set: (token: string, value: string) => writeStored(multiSessionKey(token), value),
@@ -412,32 +505,60 @@ export const isMultiKioskChildAuthorityLoss = (error: unknown) => (
 );
 
 export const multiKioskPublicApi = {
-  bootstrap: (token: string, signal?: AbortSignal) => publicRequest<MultiKioskBootstrap>(publicBase(token), { signal }),
-  async authenticate(token: string, pin: string, csrfToken: string) {
-    const data = await publicRequest<MultiKioskMobileSession>(`${publicBase(token)}/sessions`, {
-      method: 'POST', headers: { 'X-CSRF-Token': csrfToken }, body: JSON.stringify({ pin }),
-    });
+  bootstrap: loadPublicBootstrap,
+  async authenticate(token: string, pin: string, csrfToken: string, providerName?: string) {
+    const data = await withPublicCsrfRecovery(token, csrfToken, currentCsrfToken => (
+      publicRequest<MultiKioskMobileSession>(`${publicBase(token)}/sessions`, {
+        method: 'POST', headers: { 'X-CSRF-Token': currentCsrfToken }, body: JSON.stringify({
+          pin,
+          ...(providerName ? { provider_name: providerName } : {}),
+        }),
+      })
+    ));
     if (data.session_token) multiKioskMobileSession.set(token, data.session_token);
     return data;
+  },
+  registerProvider(token: string, payload: {
+    name: string;
+    legal_name?: string;
+    tax_id?: string;
+    email: string;
+    phone?: string;
+    contact_name: string;
+    notes?: string;
+  }, csrfToken: string) {
+    return withPublicCsrfRecovery(token, csrfToken, currentCsrfToken => (
+      publicRequest<{ status: string; message: string }>(`${publicBase(token)}/provider-registrations`, {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': currentCsrfToken },
+        body: JSON.stringify(payload),
+      })
+    ));
   },
   session: (token: string, signal?: AbortSignal) => publicRequest<MultiKioskMobileSession>(
     `${publicBase(token)}/session`,
     { headers: { 'X-Multi-Kiosk-Session-Token': multiKioskMobileSession.get(token) }, signal },
   ),
-  signOut: (token: string, csrfToken: string) => publicRequest<{ signed_out: boolean }>(
-    `${publicBase(token)}/session`,
-    { method: 'DELETE', headers: {
-      'X-CSRF-Token': csrfToken,
-      'X-Multi-Kiosk-Session-Token': multiKioskMobileSession.get(token),
-    } },
+  signOut: (token: string, csrfToken: string) => withPublicCsrfRecovery(
+    token,
+    csrfToken,
+    currentCsrfToken => publicRequest<{ signed_out: boolean }>(
+      `${publicBase(token)}/session`,
+      { method: 'DELETE', headers: {
+        'X-CSRF-Token': currentCsrfToken,
+        'X-Multi-Kiosk-Session-Token': multiKioskMobileSession.get(token),
+      } },
+    ),
   ),
   async launch(token: string, kioskId: number, csrfToken: string, signal?: AbortSignal) {
-    const data = await publicRequest<MultiKioskChildLaunch>(`${publicBase(token)}/kiosks/${kioskId}/sessions`, {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrfToken, 'X-Multi-Kiosk-Session-Token': multiKioskMobileSession.get(token) },
-      body: JSON.stringify({}),
-      signal,
-    });
+    const data = await withPublicCsrfRecovery(token, csrfToken, currentCsrfToken => (
+      publicRequest<MultiKioskChildLaunch>(`${publicBase(token)}/kiosks/${kioskId}/sessions`, {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': currentCsrfToken, 'X-Multi-Kiosk-Session-Token': multiKioskMobileSession.get(token) },
+        body: JSON.stringify({}),
+        signal,
+      })
+    ));
     multiKioskMobileSession.childSet(token, kioskId, data.kiosk_session_token);
     return data;
   },
@@ -454,15 +575,17 @@ export const multiKioskPublicApi = {
     const result = await executeKioskMutationWithMismatchRecovery({
       operation,
       payload,
-      request: (idempotencyKey) => publicRequest<T>(
-      `${publicBase(token)}/kiosks/${kioskId}/actions/${encodeURIComponent(capability)}`,
-      { method: 'POST', headers: {
-        'X-CSRF-Token': csrfToken,
-        'X-Multi-Kiosk-Session-Token': multiKioskMobileSession.get(token),
-        'X-Kiosk-Session-Token': multiKioskMobileSession.childGet(token, kioskId),
-        'Idempotency-Key': idempotencyKey,
-      }, body: JSON.stringify(payload) },
-      ),
+      request: (idempotencyKey) => withPublicCsrfRecovery(token, csrfToken, currentCsrfToken => (
+        publicRequest<T>(
+          `${publicBase(token)}/kiosks/${kioskId}/actions/${encodeURIComponent(capability)}`,
+          { method: 'POST', headers: {
+            'X-CSRF-Token': currentCsrfToken,
+            'X-Multi-Kiosk-Session-Token': multiKioskMobileSession.get(token),
+            'X-Kiosk-Session-Token': multiKioskMobileSession.childGet(token, kioskId),
+            'Idempotency-Key': idempotencyKey,
+          }, body: JSON.stringify(payload) },
+        )
+      )),
     });
     completeKioskIdempotentOperation(operation);
     return result;

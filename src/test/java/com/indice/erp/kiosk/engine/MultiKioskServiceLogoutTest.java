@@ -53,7 +53,7 @@ class MultiKioskServiceLogoutTest {
     void setUp() {
         service = new MultiKioskService(
             jdbcTemplate, new ObjectMapper(), new BCryptPasswordEncoder(), protection,
-            employeeAccess, employeeTools, dashboard, rateLimits, collectionGuard, 28_800, 43_200);
+            employeeAccess, employeeTools, null, dashboard, null, rateLimits, collectionGuard, 28_800, 43_200);
     }
 
     @Test
@@ -136,6 +136,8 @@ class MultiKioskServiceLogoutTest {
                 if (sql.contains("FROM multi_kiosk_sessions")) {
                     var rs = mock(ResultSet.class);
                     given(rs.getString("session_id")).willReturn("parent-session-id");
+                    given(rs.getString("identity_type")).willReturn("EMPLOYEE");
+                    given(rs.getLong("identity_id")).willReturn(91L);
                     given(rs.getLong("user_id")).willReturn(81L);
                     given(rs.getLong("user_company_id")).willReturn(91L);
                     return List.of(mapper.mapRow(rs, 0));
@@ -150,6 +152,8 @@ class MultiKioskServiceLogoutTest {
         given(rs.getLong("company_id")).willReturn(7L);
         given(rs.getString("name")).willReturn("Operations");
         given(rs.getString("description")).willReturn("Employee launcher");
+        given(rs.getString("audience_type")).willReturn("EMPLOYEE");
+        given(rs.getBoolean("allow_provider_registration")).willReturn(false);
         given(rs.getString("status")).willReturn("ACTIVE");
         given(rs.getObject("unit_id", Long.class)).willReturn(2L);
         given(rs.getObject("business_id", Long.class)).willReturn(3L);

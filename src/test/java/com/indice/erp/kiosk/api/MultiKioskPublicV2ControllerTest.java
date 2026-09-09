@@ -46,6 +46,9 @@ class MultiKioskPublicV2ControllerTest {
         assertThatThrownBy(() -> controller.authenticate(
             session, null, "csrf-token", "public-token", Map.of("pin", "12345")))
             .isInstanceOf(com.indice.erp.kiosk.engine.KioskUnavailableException.class);
+        assertThatThrownBy(() -> controller.registerProvider(
+            session, null, "csrf-token", "public-token", Map.of("name", "Proveedor")))
+            .isInstanceOf(com.indice.erp.kiosk.engine.KioskUnavailableException.class);
         assertThatThrownBy(() -> controller.session(
             session, "parent-session-token", "public-token"))
             .isInstanceOf(com.indice.erp.kiosk.engine.KioskUnavailableException.class);
@@ -82,12 +85,12 @@ class MultiKioskPublicV2ControllerTest {
 
     @Test
     void rejectsLogoutBeforeTheServiceWhenCsrfDoesNotMatch() {
-        doThrow(new SecurityException("Invalid CSRF token."))
+        doThrow(new IllegalArgumentException("Invalid CSRF token."))
             .when(csrf).requireCsrf(session, "wrong-csrf");
 
         assertThatThrownBy(() -> controller.logout(
             session, "wrong-csrf", "parent-session-token", "public-token"))
-            .isInstanceOf(SecurityException.class);
+            .isInstanceOf(KioskCsrfException.class);
 
         verify(multiKiosks, never()).logout(
             "public-token", "parent-session-token", "browser-session");
@@ -111,5 +114,38 @@ class MultiKioskPublicV2ControllerTest {
             "public-token", "123456", "browser-session", "203.0.113.7");
         verify(multiKiosks, never()).authenticate(
             "public-token", "123456", "browser-session", "198.51.100.9");
+    }
+
+    @Test
+    void providerAuthenticationRequiresAndForwardsTheProviderName() {
+        var request = mock(HttpServletRequest.class);
+        when(request.getRemoteAddr()).thenReturn("203.0.113.8");
+        when(multiKiosks.authenticate(
+            "public-token", "Proveedor Uno", "246810", "browser-session", "203.0.113.8"))
+            .thenReturn(Map.of("session_id", "provider-session"));
+
+        var response = controller.authenticate(session, request, "csrf-token", "public-token",
+            Map.of("provider_name", "Proveedor Uno", "pin", "246810"));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        verify(csrf).requireCsrf(session, "csrf-token");
+        verify(multiKiosks).authenticate(
+            "public-token", "Proveedor Uno", "246810", "browser-session", "203.0.113.8");
+    }
+
+    @Test
+    void providerRegistrationUsesCsrfAndTheDirectNetworkSignal() {
+        var request = mock(HttpServletRequest.class);
+        when(request.getRemoteAddr()).thenReturn("203.0.113.9");
+        var payload = Map.<String, Object>of("name", "Proveedor Uno", "email", "contacto@example.com");
+        when(multiKiosks.registerProvider("public-token", payload, "203.0.113.9"))
+            .thenReturn(Map.of("status", "SUBMITTED"));
+
+        var response = controller.registerProvider(
+            session, request, "csrf-token", "public-token", payload);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        verify(csrf).requireCsrf(session, "csrf-token");
+        verify(multiKiosks).registerProvider("public-token", payload, "203.0.113.9");
     }
 }

@@ -8,6 +8,7 @@ import { PayablesMultiKioskWorkspace } from '../PayablesMultiKioskWorkspace';
 import { PointOfSaleMultiKioskWorkspace } from '../PointOfSaleMultiKioskWorkspace';
 import type { MultiKioskMobileCopy } from '../multiKioskMobileTranslations';
 import { getMultiKioskToolPresentation } from './toolPresentation';
+import { ProviderCenterMultiKioskWorkspace } from './ProviderCenterMultiKioskWorkspace';
 
 export interface MultiKioskToolHostProps {
   copy: MultiKioskMobileCopy;
@@ -36,6 +37,18 @@ export function MultiKioskToolHost({
   const toolKey = presentation.toolKey;
   const workspaceKind = presentation.workspaceKind;
   const ownerModule = presentation.ownerModule;
+
+  if (toolKey.startsWith('provider.') || workspaceKind.startsWith('PROVIDER_')) {
+    return (
+      <ProviderCenterMultiKioskWorkspace
+        token={token}
+        kioskId={kioskId}
+        workspace={workspace}
+        onAuthorizationFailure={onAuthorizationFailure}
+        onRefresh={onRefresh}
+      />
+    );
+  }
 
   if (toolKey === 'employee.my-tasks@1'
       || (!toolKey && workspaceKind === 'MY_TASKS')) {

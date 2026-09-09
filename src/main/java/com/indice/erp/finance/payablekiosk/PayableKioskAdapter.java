@@ -63,6 +63,30 @@ public class PayableKioskAdapter implements KioskModuleAdapter {
     }
 
     @Override
+    public Set<KioskCapabilityDescriptor> capabilities(KioskResolvedDefinition definition) {
+        return PayableKioskCapabilities.descriptorsFor(definition.kioskType());
+    }
+
+    @Override
+    public boolean supportsProviderCenter(KioskResolvedDefinition definition) {
+        return PayableKioskCapabilities.PROVIDER_CENTER_KIOSK_TYPE.equals(definition.kioskType());
+    }
+
+    @Override
+    public boolean providerCenterAccessAllows(
+            KioskResolvedDefinition definition, long providerId) {
+        return supportsProviderCenter(definition)
+            && service.providerCenterHasAccess(definition.companyId(), providerId);
+    }
+
+    @Override
+    public Map<String, Object> providerBootstrap(KioskExecutionContext context) {
+        requireProviderContext(context);
+        return service.providerCenterBootstrap(
+            context.definition().companyId(), context.session().identityId());
+    }
+
+    @Override
     public Map<String, Object> bootstrap(KioskExecutionContext context) {
         requireContext(context);
         return service.publicBootstrap(context.accessReference());
@@ -95,6 +119,15 @@ public class PayableKioskAdapter implements KioskModuleAdapter {
     @Override
     public KioskAuthorization authorize(KioskExecutionContext context, KioskActionRequest request) {
         requireContext(context);
+        if (KioskExecutionChannels.PROVIDER_MULTI_KIOSK.equals(context.channel())) {
+            return context.session() != null
+                    && "PROVIDER".equals(context.session().identityType())
+                    && supportsProviderCenter(context.definition())
+                    && providerCenterAccessAllows(
+                        context.definition(), context.session().identityId())
+                ? KioskAuthorization.allow()
+                : KioskAuthorization.deny("Provider Center payable session is required.");
+        }
         if (KioskExecutionChannels.isEmployeeChannel(context.channel())) {
             return context.session() != null
                     && "USER".equals(context.session().identityType())
@@ -178,6 +211,35 @@ public class PayableKioskAdapter implements KioskModuleAdapter {
         return response;
     }
 
+    @Override
+    public Map<String, Object> executeProvider(
+            KioskExecutionContext context, KioskActionRequest request) {
+        requireProviderContext(context);
+        var companyId = context.definition().companyId();
+        var providerId = context.session().identityId();
+        var response = switch (request.capabilityKey()) {
+            case PayableKioskCapabilities.PAYABLE_CREATE -> service.createProviderCenterPayable(
+                companyId, providerId, validated(request.payload(), PublicPayableRequest.class),
+                text(request.payload(), "submitted_by_name"),
+                text(request.payload(), "submitted_by_email"));
+            case PayableKioskCapabilities.ATTACHMENT_PRESIGN -> map(
+                service.presignProviderCenterAttachment(
+                    companyId, providerId, resourceId(request),
+                    validated(request.payload(), ExpenseAttachmentUploadRequest.class)));
+            case PayableKioskCapabilities.ATTACHMENT_REGISTER -> map(
+                service.registerProviderCenterAttachment(
+                    companyId, providerId, resourceId(request),
+                    validated(request.payload(), RegisterExpenseAttachmentRequest.class)));
+            case PayableKioskCapabilities.PROFILE_CHANGE_SUBMIT -> service.submitProviderProfileChange(
+                companyId, providerId, text(request.payload(), "category"),
+                changes(request.payload()), text(request.payload(), "submitted_by_name"),
+                text(request.payload(), "submitted_by_email"));
+            default -> throw new IllegalArgumentException("Unsupported Provider Center payable capability.");
+        };
+        auditMutation(context, request, response);
+        return response;
+    }
+
     private void auditMutation(
             KioskExecutionContext context,
             KioskActionRequest request,
@@ -188,7 +250,9 @@ public class PayableKioskAdapter implements KioskModuleAdapter {
                 number(response.get("providerId")), Map.of("policy", "REVIEW_REQUIRED"));
             case PayableKioskCapabilities.PAYABLE_CREATE -> moduleAudit.success(
                 context, "PAYABLE_SUBMITTED", "EXPENSE",
-                number(response.get("expenseId")), Map.of("policy", "REVIEW_REQUIRED"));
+                number(response.containsKey("expenseId")
+                    ? response.get("expenseId") : response.get("expense_id")),
+                Map.of("policy", "REVIEW_REQUIRED"));
             case PayableKioskCapabilities.ATTACHMENT_REGISTER -> moduleAudit.success(
                 context, "PAYABLE_EVIDENCE_REGISTERED", "EXPENSE",
                 request.resourceId(), Map.of("policy", "DIRECT"));
@@ -232,7 +296,15 @@ public class PayableKioskAdapter implements KioskModuleAdapter {
     }
 
     private <T> T convert(Map<String, Object> payload, Class<T> type) {
-        return objectMapper.convertValue(payload == null ? Map.of() : payload, type);
+        var normalized = new java.util.LinkedHashMap<String, Object>(
+            payload == null ? Map.of() : payload);
+        normalized.remove("kiosk_session_token");
+        normalized.remove("resource_id");
+        normalized.remove("category");
+        normalized.remove("changes");
+        normalized.remove("submitted_by_name");
+        normalized.remove("submitted_by_email");
+        return objectMapper.convertValue(normalized, type);
     }
 
     private <T> T validated(Map<String, Object> payload, Class<T> type) {
@@ -277,5 +349,34 @@ public class PayableKioskAdapter implements KioskModuleAdapter {
                 || context.session().kioskDefinitionId() != context.definition().id()) {
             throw new SecurityException("Authenticated employee payable session is required.");
         }
+    }
+
+    private void requireProviderContext(KioskExecutionContext context) {
+        requireContext(context);
+        if (!KioskExecutionChannels.PROVIDER_MULTI_KIOSK.equals(context.channel())
+                || context.definition() == null || context.session() == null
+                || !"PROVIDER".equals(context.session().identityType())
+                || context.session().identityId() <= 0
+                || context.session().companyId() != context.definition().companyId()
+                || context.session().kioskDefinitionId() != context.definition().id()
+                || !supportsProviderCenter(context.definition())) {
+            throw new SecurityException("Provider Center payable session is required.");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> changes(Map<String, Object> payload) {
+        var raw = payload == null ? null : payload.get("changes");
+        if (!(raw instanceof Map<?, ?> values)) {
+            throw new IllegalArgumentException("changes is required.");
+        }
+        var result = new java.util.LinkedHashMap<String, Object>();
+        values.forEach((key, value) -> result.put(String.valueOf(key), value));
+        return Map.copyOf(result);
+    }
+
+    private String text(Map<String, Object> payload, String key) {
+        var value = payload == null ? null : payload.get(key);
+        return value == null ? "" : String.valueOf(value).trim();
     }
 }

@@ -214,6 +214,46 @@ public class KioskSessionService {
     }
 
     @Transactional
+    public KioskSessionLaunch createProviderMultiKioskSession(
+            KioskResolvedDefinition definition,
+            long multiKioskId,
+            long providerId,
+            String browserSessionReference,
+            Set<String> grantedCapabilities) {
+        if (multiKioskId <= 0 || providerId <= 0
+                || grantedCapabilities == null || grantedCapabilities.isEmpty()
+                || !hasProviderMultiKioskAuthority(definition, multiKioskId, providerId)) {
+            throw new SecurityException("No kiosk capability is available for this provider.");
+        }
+        ensureProviderPolicyGrant(definition.id(), providerId);
+        var rawToken = randomToken();
+        var sessionId = UUID.randomUUID().toString();
+        var expiresAt = Instant.now().plus(Duration.ofHours(8));
+        jdbcTemplate.update(
+            """
+                INSERT INTO kiosk_sessions (
+                    session_id, kiosk_definition_id, company_id, channel, access_level,
+                    identity_type, identity_id, access_token_hash, browser_session_hash,
+                    verified_factors_json, granted_capabilities_json, scope_snapshot_json,
+                    expires_at
+                ) VALUES (?, ?, ?, 'PROVIDER_MULTI_KIOSK', 'CONTROLLED', 'PROVIDER', ?, ?, ?, ?, ?, ?,
+                          TIMESTAMPADD(SECOND, ?, CURRENT_TIMESTAMP))
+                """,
+            sessionId, definition.id(), definition.companyId(), providerId,
+            sha256(rawToken), hashNullable(browserSessionReference), json(List.of("PIN")),
+            json(grantedCapabilities), json(Map.of(
+                "company_id", definition.companyId(),
+                "multi_kiosk_id", multiKioskId,
+                "provider_id", providerId)),
+            remainingLifetimeSeconds(expiresAt));
+        auditSession(definition, sessionId, "PROVIDER", providerId,
+            "PROVIDER_MULTI_KIOSK_SESSION_CREATED", "SUCCEEDED");
+        return new KioskSessionLaunch(new KioskSessionPrincipal(
+            sessionId, definition.id(), definition.companyId(), "PROVIDER", providerId,
+            Set.copyOf(grantedCapabilities), expiresAt), rawToken);
+    }
+
+    @Transactional
     public KioskSessionPrincipal requireSession(
             KioskResolvedDefinition definition,
             KioskCapabilityDescriptor capability,
@@ -441,6 +481,57 @@ public class KioskSessionService {
     }
 
     @Transactional
+    public KioskSessionPrincipal requireProviderMultiKioskSession(
+            KioskResolvedDefinition definition,
+            long expectedMultiKioskId,
+            String accessToken,
+            String browserSessionReference,
+            long expectedProviderId) {
+        if (expectedMultiKioskId <= 0 || expectedProviderId <= 0
+                || accessToken == null || accessToken.isBlank()) {
+            throw new SecurityException("Provider kiosk authentication is required.");
+        }
+        var rows = jdbcTemplate.query(
+            """
+                SELECT session_id, kiosk_definition_id, company_id, identity_type, identity_id,
+                       granted_capabilities_json, browser_session_hash,
+                       GREATEST(0, TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, expires_at))
+                           AS expires_in_seconds
+                FROM kiosk_sessions
+                WHERE kiosk_definition_id = ? AND access_token_hash = ?
+                  AND channel = 'PROVIDER_MULTI_KIOSK'
+                  AND identity_type = 'PROVIDER' AND identity_id = ?
+                  AND JSON_UNQUOTE(JSON_EXTRACT(scope_snapshot_json, '$.multi_kiosk_id')) = CAST(? AS CHAR)
+                  AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP
+                  AND last_activity_at >= TIMESTAMPADD(SECOND, ?, CURRENT_TIMESTAMP)
+                LIMIT 1
+                """,
+            (rs, rowNum) -> {
+                var browserHash = rs.getString("browser_session_hash");
+                if (browserHash != null && !browserHash.equals(hashNullable(browserSessionReference))) {
+                    throw new SecurityException("Provider kiosk session does not belong to this browser.");
+                }
+                return new KioskSessionPrincipal(
+                    rs.getString("session_id"), rs.getLong("kiosk_definition_id"),
+                    rs.getLong("company_id"), rs.getString("identity_type"),
+                    rs.getLong("identity_id"), stringSet(rs.getString("granted_capabilities_json")),
+                    Instant.now().plusSeconds(rs.getLong("expires_in_seconds")));
+            },
+            definition.id(), sha256(accessToken.trim()), expectedProviderId,
+            expectedMultiKioskId, -employeeCenterInactivityTimeout.getSeconds());
+        if (rows.isEmpty()
+                || !hasProviderMultiKioskAuthority(definition, expectedMultiKioskId, expectedProviderId)
+                || !hasGrant(definition.id(), "PROVIDER", expectedProviderId, "*")) {
+            throw new SecurityException("Provider kiosk authentication is required.");
+        }
+        var session = rows.getFirst();
+        jdbcTemplate.update(
+            "UPDATE kiosk_sessions SET last_activity_at = CURRENT_TIMESTAMP WHERE session_id = ?",
+            session.sessionId());
+        return session;
+    }
+
+    @Transactional
     public void revoke(String sessionId, KioskResolvedDefinition definition) {
         jdbcTemplate.update(
             "UPDATE kiosk_sessions SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP) WHERE session_id = ?",
@@ -520,6 +611,20 @@ public class KioskSessionService {
         );
     }
 
+    private void ensureProviderPolicyGrant(long definitionId, long providerId) {
+        jdbcTemplate.update(
+            """
+                INSERT INTO kiosk_grants (
+                    kiosk_definition_id, identity_type, identity_id, capability_key, status, source
+                ) VALUES (?, 'PROVIDER', ?, '*', 'ACTIVE', 'MODULE_POLICY')
+                ON DUPLICATE KEY UPDATE
+                    status = 'ACTIVE',
+                    source = CASE WHEN source = 'ADMIN' THEN source ELSE 'MODULE_POLICY' END,
+                    revoked_at = NULL
+                """,
+            definitionId, providerId);
+    }
+
     private boolean hasGrant(long definitionId, String identityType, long identityId, String capabilityKey) {
         var count = jdbcTemplate.queryForObject(
             """
@@ -559,6 +664,40 @@ public class KioskSessionService {
                 """,
             Integer.class,
             multiKioskId, definition.companyId(), userCompanyId, userId, definition.id());
+        return count != null && count > 0;
+    }
+
+    private boolean hasProviderMultiKioskAuthority(
+            KioskResolvedDefinition definition,
+            long multiKioskId,
+            long providerId) {
+        var count = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM multi_kiosk_items item
+                INNER JOIN multi_kiosk_definitions parent
+                  ON parent.id = item.multi_kiosk_id
+                 AND parent.id = ?
+                 AND parent.company_id = ?
+                 AND parent.audience_type = 'PROVIDER'
+                 AND parent.status = 'ACTIVE'
+                 AND (parent.expires_at IS NULL OR parent.expires_at > CURRENT_TIMESTAMP)
+                INNER JOIN finance_providers provider
+                  ON provider.id = ? AND provider.company_id = parent.company_id
+                 AND provider.status = 'ACTIVE' AND provider.deleted_at IS NULL
+                 AND provider.unit_id IS NOT NULL AND provider.business_id IS NOT NULL
+                INNER JOIN kiosk_identity_credentials credential
+                  ON credential.company_id = parent.company_id
+                 AND credential.identity_type = 'PROVIDER'
+                 AND credential.identity_id = provider.id
+                 AND credential.credential_type = 'PIN'
+                 AND credential.status = 'ACTIVE'
+                 AND credential.credential_origin = 'PROVIDER_CENTER_ADMIN'
+                 AND credential.secret_hash IS NOT NULL AND credential.secret_hash <> ''
+                WHERE item.kiosk_definition_id = ?
+                """,
+            Integer.class,
+            multiKioskId, definition.companyId(), providerId, definition.id());
         return count != null && count > 0;
     }
 
