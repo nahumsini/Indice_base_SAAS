@@ -1,3 +1,4 @@
+import { canPayExpense } from '../../utils/expenseFilters';
 import { useState } from 'react';
 import { ExpenseAccountSelect } from '../../components/table/ExpenseAccountSelect';
 import { Paperclip, LockKeyhole } from 'lucide-react';
@@ -132,8 +133,8 @@ export function EditableExpenseRow({
   const showAuditAction = actionVisibility?.showAudit ?? true;
   const showMarkPaidAction = actionVisibility?.showMarkPaid ?? true;
   const showStatusChange = actionVisibility?.showStatusChange ?? true;
-  const canRecordPayment = getExpenseBalance(expense) > 0;
-  const canMarkPaid = expense.type !== 'budget' && getExpenseBalance(expense) > 0;
+  const canRecordPayment = canPayExpense(expense);
+  const canMarkPaid = canPayExpense(expense);
   const statusOptions = options.statuses.filter(option => {
     if (!showMarkPaidAction && (option.value === 'paid' || option.value === 'partial')) return false;
     if (!showAuditAction && option.value === 'audited') return false;

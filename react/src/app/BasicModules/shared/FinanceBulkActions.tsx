@@ -9,10 +9,11 @@ export type FinanceBulkOption = { value: string; label: string };
 export type FinanceBulkActionConfig = { action: FinanceBulkAction; options?: FinanceBulkOption[]; blockedReason?: string; hint?: string };
 
 /** Presentation only: each module owns its eligibility rules and atomic mutation. */
-export function FinanceBulkActions({ count, locale, actions, onApply, onClear, formatError }: {
+export function FinanceBulkActions({ count, locale, actions, onApply, onClear, formatError, additionalActions = [] }: {
   count: number; locale: string; actions: FinanceBulkActionConfig[];
   onApply: (action: FinanceBulkAction, targetId: string, reason: string) => Promise<void>;
   onClear: () => void; formatError: (error: unknown) => string;
+  additionalActions?: Array<{ id: string; label: string; onClick: () => void }>;
 }) {
   const copy = getFinanceBulkCopy(locale);
   const [active, setActive] = useState<FinanceBulkAction | null>(null);
@@ -43,6 +44,7 @@ export function FinanceBulkActions({ count, locale, actions, onApply, onClear, f
   return <>
     <OperationalBulkActionsBar title={copy.title} selectedLabel={`${count} ${copy.selected}`} actions={[
       ...actions.map(item => ({ id: item.action, label: copy[item.action], disabled: busy, onClick: () => open(item.action), tone: item.action === 'DELETE' ? 'danger' as const : 'default' as const })),
+      ...additionalActions.map(item => ({ ...item, disabled: busy })),
       { id: 'clear', label: copy.cancel, disabled: busy, onClick: onClear },
     ]} />
     {config && active && <IndiceModalFrame open onOpenChange={next => { if (!next) close(); }} busy={busy} tone="green"

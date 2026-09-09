@@ -260,14 +260,16 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
           accountingAccount: draft.accountingAccountId,
           paymentAccountId: draft.paymentAccountId,
           total: draft.total,
-          taxes: 0,
+          taxes: 0, // The import owner computes the included-tax split with decimal arithmetic.
           amount: draft.total,
+          taxIncluded: draft.taxIncluded, taxRate: draft.taxRate, taxName: draft.taxName,
+          taxCountry: draft.taxCountry, taxProfileId: draft.taxProfileId, taxMode: draft.taxIncluded ? 'auto' : 'none',
           amountPaid: 0,
           currency: draft.currency,
-          dueDate: expenseDate,
+          dueDate: draft.paid ? expenseDate : new Date(`${draft.dueDate}T00:00:00`),
           date: expenseDate,
           paymentMethod: 'transfer',
-          status: 'pending',
+          status: draft.paid ? 'paid' : 'pending',
           type: 'real',
           requestedByUserId: currentUser?.id,
           createdAt: now,
@@ -278,6 +280,7 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
       const savedIds = new Set(saved.map(expense => expense.id));
       setExpenses(current => [...saved, ...current.filter(expense => !savedIds.has(expense.id))]);
       onFinanceDataChanged?.();
+      void paymentAccountsService.getPaymentAccounts().then(accounts => setPaymentAccounts(accounts.filter(account => account.isActive))).catch(() => {});
       setSuccessToastMessage(`${saved.length} gasto${saved.length === 1 ? '' : 's'} creado${saved.length === 1 ? '' : 's'} correctamente.`);
     } catch (error) {
       throw new Error(toFinanceApiErrorMessage(error, 'No se pudo guardar el lote. La captura se conserva para reintentar.'));
@@ -972,7 +975,7 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
         dataReady={dataReady && filtersRestored}
         fundPeriodLabel={expenseGroupPeriodLabel(filters.periodFilter, referenceDate, locale, getExpenseFundGroupCopy(locale).period)}
         hasFundDetailFilters={Boolean(filters.searchTerm || filters.providerFilter !== 'all' || filters.businessUnitFilter !== 'all' || filters.businessFilter !== 'all' || filters.statusFilter !== 'all')}
-        actionVisibility={{ showAudit: false, showMarkPaid: false, showStatusChange: false }}
+        actionVisibility={{ showAudit: false, showMarkPaid: true, showRecordPayment: false, showStatusChange: false }}
         accountingAccountOptions={accountingAccountOptions}
         columns={translatedColumns}
         deletingExpenseIds={deletingExpenseIds}
@@ -981,6 +984,14 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
         getAttachments={getExpenseAttachments}
         onDeleteExpense={requestDeleteExpense}
         onDeleteExpenses={requestDeleteExpenses}
+        onBulkStatusChange={async (rows, change) => {
+          const saved = await expensesService.applyBulkStatus(rows, change, providers);
+          const updated = new Map(saved.map(row => [row.id, row]));
+          setExpenses(current => current.map(row => updated.get(row.id) ?? row));
+          onFinanceDataChanged?.();
+          void paymentAccountsService.getPaymentAccounts().then(accounts => setPaymentAccounts(accounts.filter(account => account.isActive))).catch(() => {});
+          setSuccessToastMessage(t.expenses.messages.saved);
+        }}
         onBulkAction={async (rows, action, targetId, reason) => {
           const saved = await expensesService.applyBulkAction(rows, action, targetId, reason, providers);
           const selectedIds = new Set(rows.map(row => row.id));

@@ -1,3 +1,4 @@
+import type { ExpenseBulkStatusChange } from '../types/expenseOperations.types';
 import { formatExpenseDate } from '../utils/expenseDates';
 import { apiClient } from '../../../lib/apiClient';
 import {
@@ -23,6 +24,13 @@ const jsonMutation = (method: 'POST' | 'PUT' | 'PATCH', body: unknown): RequestI
 });
 
 export const expensesService = {
+  async applyBulkStatus(rows: Expense[], change: ExpenseBulkStatusChange, providers: Array<{ id: string; name: string }> = []): Promise<Expense[]> {
+    const response = await apiClient<ExpenseListApiResponse>(`${expensesPath}/bulk-status`, jsonMutation('POST', {
+      ...change, paymentAccountId: change.paymentAccountId ? Number(change.paymentAccountId) : null,
+      rows: rows.map(row => ({ id: Number(row.id), expectedVersion: row.version })),
+    }));
+    return response.expenses.map(expense => toExpense(expense, providers));
+  },
   async applyBulkAction(rows: Expense[], action: FinanceBulkAction, targetId: string, reason: string, providers: Array<{ id: string; name: string }> = []): Promise<Expense[]> {
     const response = await apiClient<ExpenseListApiResponse>(`${expensesPath}/bulk-actions`, jsonMutation('POST', {
       action, rows: rows.map(row => ({ id: Number(row.id), expectedVersion: row.version })),
@@ -66,7 +74,8 @@ export const expensesService = {
   async importExpenses(expenses: Expense[], requestKey: string, providers: Array<{ id: string; name: string }> = []): Promise<Expense[]> {
     const response = await apiClient<ExpenseListApiResponse>(`${expensesPath}/import`, jsonMutation('POST', {
       requestKey,
-      expenses: expenses.map(expense => ({ ...toExpenseApiRequest(expense), settleOnCreate: false })),
+      expenses: expenses.map(expense => { const request = toExpenseApiRequest(expense); return { ...request, settleOnCreate: expense.status === 'paid',
+        customFields: { ...request.customFields, ...(expense.taxIncluded !== undefined ? { bulkTaxIncluded: expense.taxIncluded } : {}) } }; }),
     }));
     return response.expenses.map(expense => toExpense(expense, providers));
   },

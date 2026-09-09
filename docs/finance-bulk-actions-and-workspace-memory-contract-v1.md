@@ -1,6 +1,7 @@
 # Finance bulk actions and workspace memory
 
-Status: implemented locally, pending deployment. Decision: 2026-09-08.
+Decision: 2026-09-08. Expense import/payment extension: 2026-09-09, implemented locally,
+pending deployment. Deployment status of earlier decisions is tracked in release evidence.
 
 ## Ownership and transaction boundaries
 
@@ -39,6 +40,40 @@ requires a separate reversal/rebooking decision.
 
 Delete is soft deletion of unpaid drafts only, with a reason. Paid expenses cannot be
 deleted through classification. Their payment reversal remains a separate financial flow.
+
+### Explicit selected-row status actions and paid import (2026-09-09)
+
+`POST /api/v1/finance/expenses/bulk-status` shares the authentication, tenant/scope, tab,
+capability, CSRF, company lock, expected-version and atomic-selection protections above.
+It accepts a target (`PAID`, `PENDING`, `OVERDUE`), effective date and request key.
+Only ordinary open expenses with a remaining balance qualify; fund, budget, purchase-order,
+posted and terminal records remain protected. The entire batch is validated before mutation.
+
+- Paid requires one eligible payment account matching every selected native currency and
+  a date between each expense date and today in the company timezone. It submits/approves
+  open drafts through the expense owner, then pays only the server-calculated remainder.
+  Existing installments stay intact. Payment history and Treasury are atomic, with per-row
+  idempotency keys; stale selection retries conflict instead of creating duplicate payments.
+- Pending sets an explicit due date today or later. Overdue sets one before today. These
+  actions preserve expense dates, original amounts and existing partial payments; partial
+  expenses remain partially paid when no longer overdue. Previous values and actor are audited.
+- Paid expenses require reversal to reopen. A status action never silently removes a payment,
+  rebooks its account, manufactures a balance, or modifies a fund's monthly cut.
+
+Bulk entry initially selects paid and lets the user choose pending before importing. Paid
+rows require payment accounts and an expense date no later than today in the company timezone;
+pending rows use a separately selected due date. Selecting
+Includes tax treats the captured amount as gross. The import owner derives the included
+tax from an explicit fractional rate with BigDecimal and HALF_UP two-decimal rounding;
+unchecked rows have zero tax. Existing currency-associated tax profiles supply defaults;
+variable rates must be entered explicitly. Currency is fixed for the open capture, and
+each account must match it. Legacy import callers without the marker retain their explicit
+breakdown. Batch retries reuse actor/payload-bound request evidence and return original IDs.
+
+Overdue rows expose quick payment on desktop and mobile through the existing payment modal,
+including account selection and partial-payment support. Successful mutations refresh expenses
+and payment-account projections; a failed save retains capture and selection. No migration or
+automatic rewriting of previously imported records is part of this extension.
 
 ## Petty Cash / Balances
 
@@ -86,6 +121,5 @@ never workspace memory. No alternate storage or modal engine is introduced.
 
 ## Release boundary
 
-The user explicitly requested these changes **before** deploying. These changes and the
-preceding monthly-close corrections remain local until deployment is requested. Validation
-uses the isolated regression database, never functional or production company data.
+New changes remain local until their deployment is requested. Validation uses the isolated
+regression database, never functional or production company data.

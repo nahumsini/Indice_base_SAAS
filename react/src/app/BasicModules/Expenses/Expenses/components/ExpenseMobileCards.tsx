@@ -1,3 +1,4 @@
+import { canPayExpense } from '../../utils/expenseFilters';
 import { Eye, Search } from 'lucide-react';
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { ExpenseRowActions } from '../../components/table/ExpenseRowActions';
@@ -176,8 +177,8 @@ function ExpenseMobileCard({
             showAudit={actionVisibility?.showAudit}
             showDelete={canDeleteExpense(expense)}
             showEdit={canEditExpense(expense)}
-            showMarkPaid={expense.type !== 'budget' && balance > 0 && (actionVisibility?.showMarkPaid ?? true)}
-            showRecordPayment={balance > 0 && (actionVisibility?.showRecordPayment ?? true)}
+            showMarkPaid={canPayExpense(expense) && (actionVisibility?.showMarkPaid ?? true)}
+            showRecordPayment={canPayExpense(expense) && (actionVisibility?.showRecordPayment ?? true)}
             showView={false}
           />
         </div>

@@ -98,6 +98,62 @@ test('funds and posted journals stay protected while ordinary paid expenses allo
   }
 });
 
+test('paid imports send gross totals and explicit tax evidence while pending imports keep the independent due date', async () => {
+  calls = []; failRequest = false;
+  await expensesService.importExpenses([
+    expense({ total: 116, amount: 116, status: 'paid', taxIncluded: true, taxRate: 0.16, taxName: 'IVA' }),
+    expense({ total: 100, status: 'pending', taxIncluded: false, dueDate: new Date(2026, 9, 1) }),
+  ], 'gross-import');
+  const [paid, pending] = calls[0].body.expenses;
+  assert.equal(paid.settleOnCreate, true);
+  assert.equal(paid.totalAmount, 116);
+  assert.equal(paid.customFields.bulkTaxIncluded, true);
+  assert.equal(paid.customFields.taxRate, 0.16);
+  assert.equal(paid.paymentAccountId, 30);
+  assert.equal(pending.settleOnCreate, false);
+  assert.equal(pending.dueDate, '2026-10-01');
+  assert.equal(pending.customFields.bulkTaxIncluded, false);
+});
+
+test('bulk status sends selected versions and payment instruction without client-supplied paid amounts', async () => {
+  calls = []; failRequest = false;
+  await expensesService.applyBulkStatus([expense({ version: 4 }), expense({ id: '13', version: 7 })], {
+    target: 'PAID', paymentAccountId: '30', effectiveDate: '2026-09-09', requestKey: 'selected-status',
+  });
+  assert.equal(calls[0].url, '/api/v1/finance/expenses/bulk-status');
+  assert.deepEqual(calls[0].body, { target: 'PAID', paymentAccountId: 30, effectiveDate: '2026-09-09',
+    requestKey: 'selected-status', rows: [{ id: 12, expectedVersion: 4 }, { id: 13, expectedVersion: 7 }] });
+});
+
+test('new payment and tax validation errors identify the row and the corrective action in Spanish', () => {
+  assert.match(toFinanceApiErrorMessage(new ApiClientError(400, {
+    message: 'Row 3: Paid imports require a payment account on every row.',
+  })), /^Fila 3: Selecciona una cuenta de pago/);
+  assert.match(toFinanceApiErrorMessage(new ApiClientError(400, {
+    message: 'Row 2: Included tax rate must be greater than zero and at most 100 percent.',
+  })), /^Fila 2: La tasa del impuesto/);
+  assert.match(toFinanceApiErrorMessage(new ApiClientError(409, {
+    message: 'Only open expenses with a remaining balance can change here. Paid expenses require a reversal.',
+  })), /revertir el pago/);
+});
+
+test('an overdue ordinary row renders quick payment while paid and fund rows do not', () => {
+  const { EditableExpenseRow } = load(resolve(root, 'Expenses/components/EditableExpenseRow.tsx'));
+  const copy = load(resolve(root, 'translations/index.ts')).getFinanceTranslations('es-MX');
+  const props = { expense: expense({ status: 'overdue', backendStatus: 'APPROVED' }), attachmentsCount: 0,
+    columnWidths: {}, isEditing: false, isColumnVisible: key => key === 'actions', isSelected: false,
+    workflow: {}, actionVisibility: { showMarkPaid: true, showRecordPayment: false, showAudit: false },
+    options: { accountingAccounts: [], businessUnits: [], businesses: [], providers: [], statuses: [], paymentMethods: [], users: [] },
+    onSelectionChange: () => {} };
+  const label = `aria-label="${copy.expenses.rowActions.markPaid}"`;
+  assert.ok(renderToStaticMarkup(React.createElement(EditableExpenseRow, props)).includes(label));
+  for (const change of [{ status: 'paid', backendStatus: 'PAID', amountPaid: 100 },
+    { originFund: { id: '1', name: 'Fund', type: 'INTERNAL_COMPANY' } }]) {
+    const markup = renderToStaticMarkup(React.createElement(EditableExpenseRow, { ...props, expense: { ...props.expense, ...change } }));
+    assert.ok(!markup.includes(label));
+  }
+});
+
 test('classification API sends only the account and expected version, never replacement amounts or payments', async () => {
   calls = [];
   // The fake API response is irrelevant here; inspect the request even though its adapter needs an expense.

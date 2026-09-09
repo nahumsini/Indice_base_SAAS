@@ -9,6 +9,19 @@ const statusMessages: Record<number, string> = {
 };
 
 const backendMessageTranslations: Record<string, string> = {
+  'Paid imports require a payment account on every row.': 'Selecciona una cuenta de pago en cada fila para importar gastos pagados.',
+  'Paid imports require an expense date no later than today.': 'Un gasto pagado no puede tener una fecha futura. Corrige la fecha o impórtalo como pendiente.',
+  'Includes tax must be true or false.': 'Revisa la palomita Incluye impuesto de esta fila.',
+  'Import amount must be positive with at most two decimal places.': 'El monto debe ser mayor a cero y tener máximo dos decimales.',
+  'Select the included tax rate.': 'Selecciona la tasa del impuesto incluido en el monto.',
+  'Included tax rate must be greater than zero and at most 100 percent.': 'La tasa del impuesto incluido debe ser mayor a cero y no superar el 100%.',
+  'Select between 1 and 200 expenses and provide a date and request key.': 'Selecciona entre 1 y 200 gastos e indica una fecha válida.',
+  'Select a payment account and a payment date no later than today.': 'Selecciona una cuenta de pago y una fecha hasta hoy.',
+  'Pending expenses require a due date today or later.': 'Para dejarlos pendientes, el vencimiento debe ser hoy o después.',
+  'Overdue expenses require a due date before today.': 'Para dejarlos vencidos, el vencimiento debe ser anterior a hoy.',
+  'Payment date cannot precede the expense date.': 'La fecha de pago no puede ser anterior a la fecha del gasto.',
+  'Linked or posted expenses require their source workflow.': 'Los gastos vinculados o contabilizados requieren un ajuste desde su operación de origen.',
+  'Only open expenses with a remaining balance can change here. Paid expenses require a reversal.': 'Selecciona gastos abiertos con saldo. Para reabrir un gasto pagado primero se requiere revertir el pago.',
   "An expense changed. Reload the selection before retrying.": "Un gasto cambió. Actualiza la vista y revisa la selección antes de reintentar.",
   "A receipt changed. Reload the selection before retrying.": "Un comprobante cambió. Actualiza la vista y revisa la selección antes de reintentar.",
   "Fund expenses must be changed from Petty Cash.": "Los gastos de fondos se modifican desde Caja chica.",
