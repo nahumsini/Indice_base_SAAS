@@ -30,6 +30,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -243,8 +244,8 @@ class ProcurementSupplierPortalAdminServiceTest {
     }
 
     @Test
-    void createMaterializesPersonalPinWhenNoReusableCredentialExists() {
-        var request = new SupplierPortalAccessRequest(80L, null, "4821", "ACTIVE", null);
+    void createKeepsLegacyPinLocalWithoutActivatingTheProviderCenter() {
+        var request = new SupplierPortalAccessRequest(80L, null, "482100", "ACTIVE", null);
         when(purchaseOrders.createSupplierPortalAccess(context(), request))
             .thenReturn(createdResponse());
         when(repository.findSupplierPortalAccessByCode("PORTAL-ABC"))
@@ -256,15 +257,16 @@ class ProcurementSupplierPortalAdminServiceTest {
             2L, 3L, null, "PORTAL-ABC", true, KioskAccessLevel.CONTROLLED,
             "procurement", "es-MX", 10L)).thenReturn(definition(KioskDefinitionStatus.ACTIVE, null));
         when(credentials.pinCredential(7L, "PROVIDER", 80L)).thenReturn(Optional.empty());
-        when(passwordEncoder.encode("4821")).thenReturn("new-personal-hash");
+        when(passwordEncoder.encode("482100")).thenReturn("new-personal-hash");
 
         var response = service().create(context(), request);
 
-        assertThat(response.personalPinCreated()).isTrue();
-        verify(credentials).rotatePersonalPin(7L, "PROVIDER", 80L, "new-personal-hash");
+        assertThat(response.personalPinCreated()).isFalse();
+        verify(credentials, never()).rotatePersonalPin(anyLong(), any(), anyLong(), any());
+        verify(credentials, never()).rotateProviderCenterPin(anyLong(), anyLong(), any());
         verify(moduleAudit).adminSuccess(
-            7L, 31L, 10L, "SUPPLIER_PERSONAL_PIN_CREATED",
-            java.util.Map.of("provider_id", 80L, "sessions_revoked", true));
+            7L, 31L, 10L, "SUPPLIER_LEGACY_PIN_CREATED",
+            java.util.Map.of("provider_id", 80L, "provider_center_activated", false));
         verify(moduleAudit, never()).adminSuccess(
             7L, 31L, 10L, "SUPPLIER_PERSONAL_PIN_REUSED",
             java.util.Map.of("provider_id", 80L));

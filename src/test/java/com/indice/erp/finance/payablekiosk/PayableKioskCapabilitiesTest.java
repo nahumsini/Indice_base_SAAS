@@ -14,7 +14,7 @@ class PayableKioskCapabilitiesTest {
 
     @Test
     void publishesTheExpensesCapabilityContractWithExplicitAccessAndReviewPolicies() {
-        var capabilities = PayableKioskCapabilities.descriptors().stream()
+        var capabilities = PayableKioskCapabilities.descriptorsFor(PayableKioskCapabilities.KIOSK_TYPE).stream()
             .collect(Collectors.toMap(KioskCapabilityDescriptor::key, Function.identity()));
 
         assertThat(capabilities).hasSize(13);
@@ -36,6 +36,24 @@ class PayableKioskCapabilitiesTest {
             .isEqualTo(KioskAccessLevel.CONTROLLED);
         assertThat(capabilities.get(PayableKioskCapabilities.FACE_CONSENT_WITHDRAW).mutation()).isTrue();
         assertThat(capabilities.get(PayableKioskCapabilities.FACE_VERIFICATION_COMPLETE).sensitive()).isTrue();
+    }
+
+    @Test
+    void providerCenterExposesOnlyItsControlledFinancialCapabilities() {
+        var capabilities = PayableKioskCapabilities.descriptorsFor(
+            PayableKioskCapabilities.PROVIDER_CENTER_KIOSK_TYPE).stream()
+            .collect(Collectors.toMap(KioskCapabilityDescriptor::key, Function.identity()));
+        assertThat(capabilities).containsOnlyKeys(
+            PayableKioskCapabilities.PROVIDER_CENTER_READ,
+            PayableKioskCapabilities.PAYABLE_CREATE,
+            PayableKioskCapabilities.ATTACHMENT_PRESIGN,
+            PayableKioskCapabilities.ATTACHMENT_REGISTER,
+            PayableKioskCapabilities.PROFILE_READ,
+            PayableKioskCapabilities.PROFILE_CHANGE_SUBMIT);
+        assertThat(capabilities.values()).allSatisfy(capability ->
+            assertThat(capability.accessLevel()).isEqualTo(KioskAccessLevel.CONTROLLED));
+        assertThat(capabilities.get(PayableKioskCapabilities.PROFILE_CHANGE_SUBMIT).operationPolicy())
+            .isEqualTo(KioskOperationPolicy.REVIEW_REQUIRED);
     }
 
     @Test
