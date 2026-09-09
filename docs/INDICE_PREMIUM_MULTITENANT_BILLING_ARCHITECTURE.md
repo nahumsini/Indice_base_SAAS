@@ -132,9 +132,57 @@ La oferta comercial se administra como una versión completa e inmutable una vez
   requiere una decisión comercial explícita, una migración nueva y evidencia de preservación de los
   contratos que referencian versiones históricas.
 
-La Administración de plataforma presenta este modelo en un solo constructor de oferta comercial.
+La Administración de plataforma presenta este modelo en **Catálogo y módulos → Oferta comercial**.
 La disponibilidad técnica de módulos permanece separada porque controla si una función existe y
 puede asignarse; no representa por sí sola autorización para venderla.
+
+**Facturación** conserva sus pagos y documentos e incorpora únicamente el panel de configuración
+de la conexión Stripe. El panel muestra la configuración informada por el servidor; no certifica
+credenciales, permisos, entregas de webhook ni cobros reales. Productos, precios, validación y
+publicación permanecen en Catálogo y módulos, con sus permisos y navegación existentes.
+
+En una compilación de desarrollo servida en loopback, Root puede activar una demo local de esa
+conexión desde Facturación. La interfaz la identifica como simulada y la elimina al recargar.
+No utiliza credenciales ni llamadas a Stripe, y no cambia configuración, permisos o publicación.
+
+#### Guardar y publicar precios desde Índice
+
+Estas acciones están en **Administración de plataforma → Catálogo y módulos → Oferta comercial**.
+
+- **Guardar precios** conserva juntos los importes mensual y anual en el borrador. No requiere
+  conexión con Stripe y no publica la oferta. Un cambio de importe invalida la verificación de
+  su referencia anterior; no modifica precios ni contratos publicados.
+- **Sincronizar y publicar oferta** lee los importes persistidos, sincroniza los productos
+  vendibles reutilizando los precios coincidentes y verifica la versión completa antes de activarla. El cliente
+  envía la versión y la confirmación del modo; no envía una lista de importes para el cobro.
+- Stripe crea un Price nuevo cuando cambia el importe. Los precios anteriores siguen disponibles
+  para sus contratos históricos; no se migra ni cobra una suscripción por publicar un catálogo.
+- Al añadir una línea nueva de usuarios o almacenamiento a una suscripción, el backend obtiene
+  su Price verificado de la versión contratada por esa empresa, aunque esté `SUPERSEDED`.
+  Las líneas Stripe existentes conservan su Price al cambiar la cantidad o eliminarse. Estos
+  flujos no usan precios globales del entorno ni la oferta activa más reciente como respaldo;
+  una referencia histórica ausente o sin verificar bloquea la compra hasta corregir su configuración.
+  Por tanto, el operador no copia Price IDs de usuarios o almacenamiento al entorno al publicar.
+- La pantalla de facturación conserva el resumen contratado mientras el usuario no edite su
+  selección. Una vista previa de una edición cancelada no sustituye ese resumen. Los eventos
+  posteriores de Stripe actualizan el ciclo de cobro sin restaurar los precios o productos de
+  la solicitud de alta original sobre un cambio contractual ya aceptado.
+- Si una solicitud de alta sin Checkout creado se reintenta después de cambiar la versión
+  publicada, se exige revisar la nueva oferta e iniciar otra solicitud. Nunca se combinan
+  importes de la versión original con líneas Stripe de la nueva versión.
+- Un fallo parcial conserva la oferta activa. Las referencias ya sincronizadas se pueden reutilizar
+  al reintentar; una modificación concurrente del borrador impide publicar una verificación obsoleta.
+  Una respuesta de red incierta exige consultar el estado de esa versión antes de reintentar.
+- Las llamadas a Stripe no se ejecutan dentro de una transacción larga de base de datos. La
+  activación final y la sustitución de la versión anterior sí son atómicas.
+- Se conserva la política LIVE de `deployment/README.md`: ventana de mantenimiento,
+  `PLATFORM_ROOT`, bandera temporal y frase `PUBLICAR EN STRIPE LIVE`. Guardar un borrador no
+  habilita esa bandera. La operación anterior de validar/publicar y la conexión individual
+  continúan disponibles para consumidores existentes.
+
+La configuración pública de almacenamiento deriva de `StorageQuotaProperties`, con los valores
+comerciales predeterminados de 5 GiB. Un precio pendiente se muestra como pendiente y nunca se
+convierte en cero. Las cantidades monetarias visibles conservan los centavos del precio publicado.
 
 ### 3.3.1 Tarifario histórico de lanzamiento
 
@@ -314,8 +362,11 @@ forward-only y deben usar el siguiente número libre; esta arquitectura está ma
 | `company_storage_mutations` | Cambios idempotentes de bloques facturables |
 | `company_ownership_history` | Transferencias de propiedad auditadas |
 
-No se guardan PAN, CVV ni fechas de expiración de tarjetas. Checkout y Customer Portal mantienen
-los datos sensibles fuera de Índice.
+No se capturan ni guardan PAN o CVV. Checkout y Customer Portal recopilan los datos de la tarjeta.
+El resumen de pago consulta Stripe sólo para el propietario autenticado y devuelve estado,
+marca y últimos cuatro dígitos; compara la expiración en memoria y no devuelve ni persiste esa
+fecha en el modelo de negocio. Los eventos Stripe firmados conservados para reconciliación pueden
+contener metadata enmascarada de la tarjeta; se rigen por la retención y purga del inbox.
 
 ### 5.3 Stripe como sistema externo de cobro
 
@@ -364,9 +415,17 @@ reglas:
 7. Un fallo de pago no aplica la nueva selección. El acceso anterior sigue la política de gracia,
    solo lectura y suspensión del ciclo de vida comercial.
 8. El propietario administra tarjetas y facturas únicamente mediante Checkout o Customer Portal
-   hospedados por Stripe. Índice y `PLATFORM_ROOT` no reciben PAN, CVV ni fecha de expiración; Root
-   sólo consulta el estado y administra el contrato o las cortesías mediante operaciones
-   auditadas.
+   hospedados por Stripe. Índice y `PLATFORM_ROOT` no reciben PAN o CVV; Root sólo consulta el
+   estado comercial y administra el contrato o las cortesías mediante operaciones auditadas.
+   `payment_method_required` conserva su significado de activación de suscripción y no prueba
+   que exista una tarjeta. El resumen separado `GET /api/v1/billing/subscription/payment-method`
+   requiere propietario activo, rechaza acceso delegado y no se almacena en caché. Consulta el
+   método predeterminado efectivo de Stripe, valida customer y modo, y distingue `SAVED`,
+   `NO_CARD`, `EXPIRED` y `UNAVAILABLE`. `SAVED` no garantiza que un cobro futuro sea aprobado.
+   Un suscriptor existente sin tarjeta sigue corrigiendo el pago en Customer Portal; nunca se
+   crea otra suscripción para reemplazar su tarjeta. Los cambios de productos y cantidades
+   siguen controlados por Índice; la configuración del portal no debe habilitar cambios que
+   eviten este contrato.
 9. Las superficies de contratación y administración delegada para distribuidores consumen sólo
    la versión `ACTIVE` del catálogo. Una versión `DRAFT` o `SUPERSEDED` nunca aparece como opción
    seleccionable ni se mezcla con códigos históricos; el backend filtra la respuesta y el frontend
@@ -406,6 +465,66 @@ imports y acciones masivas deben pasar por la misma política.
 
 La purga definitiva requiere un proceso separado, auditable, reintentable y con periodo de
 cancelación. Nunca se ejecuta como efecto lateral directo de un webhook.
+
+### Solicitud administrativa de pago: decisión aprobada 2026-09-08
+
+La acción explícita `Request payment` de Platform Root introduce una política acotada por
+empresa, distinta de la mora automática anterior. No inscribe clientes al desplegar ni al
+publicar precios. `company_payment_requests` conserva una obligación inmutable y ventanas de
+siete días; las extensiones administrativas abren otros siete días desde su confirmación.
+Se exige motivo, versión e identidad de la solicitud revisada, CSRF e idempotencia. La
+extensión de prueba de quince días conserva su contrato independiente.
+
+En cada ventana se programan siete recordatorios por canal: uno al inicio y uno cada 24 horas,
+solo antes del vencimiento, al propietario vigente. Los canales son correo e in-app. Los
+reintentos no acumulan mensajes de días vencidos. Una solicitud pagada o extendida invalida
+los trabajos pendientes de la generación anterior; un correo ya aceptado por el proveedor
+no puede retirarse. La entrega por correo no promete exactamente una vez frente a un timeout
+posterior a la aceptación remota.
+
+Al cumplirse la fecha límite, toda lectura y escritura operativa queda bloqueada para esa
+empresa, incluidas sesiones abiertas. El servidor evalúa la fecha persistida, sin depender del
+scheduler ni de los flags de creación/envío. Permanecen autenticación, seguridad, cierre/cambio
+de contexto y la recuperación mínima `/billing`; solo el propietario puede abrir o verificar
+el pago. Esta política no permite exportación durante el bloqueo. Platform Root conserva sus
+APIs administrativas protegidas; la consulta delegada no permite operar el ERP bloqueado.
+La restricción no desactiva credenciales, elimina membresías, suspende otras empresas del
+usuario ni inicia retención/purga. Las restricciones independientes se mantienen.
+El guard de kioskos evalúa la empresa después de resolver el token en registry, dispatcher
+y multi-kiosko; bloquea bootstrap y acciones públicas legacy/V2 con el error genérico existente
+de kiosko no disponible. El bootstrap que solo entrega CSRF y los callbacks de proveedores no
+se clasifican como acceso operativo de un cliente.
+
+La solicitud congela facturas Stripe pagables ya existentes o la selección publicada de una
+empresa sin suscripción Stripe. No inventa deuda a partir de una estimación, no reemplaza los
+precios contratados y no acorta periodos pagados, pruebas o beneficios vigentes. Si no existe
+selección, propietario, precio o ruta de pago válida, la creación queda bloqueada. Un periodo
+protegido que exceda los siete días bloquea la solicitud; la activación espera al final del
+periodo protegido y no concede otra prueba. La activación reutiliza la empresa existente.
+Una prueba o beneficio explícito concedido después de abrir la solicitud conserva su vigencia;
+la fecha efectiva visible no puede ser anterior a esa promesa. Un beneficio indefinido pausa
+el bloqueo y los avisos pendientes. No crea otra ventana de recordatorios. Los periodos de
+facturas pagadas ajenas no extienden esta restricción ni prueban la liquidación de la obligación.
+La activación ordinaria queda bloqueada mientras existe una solicitud abierta para evitar una
+segunda suscripción sin vinculación; la ruta de pago usa el intent de la solicitud revisada.
+Las concesiones de prueba/producto y la activación se coordinan con el mismo lock de empresa:
+un Checkout pendiente impide conceder otra prueba, y una extensión preparada o de resultado
+remoto incierto impide iniciar Checkout hasta reconciliarla. No se invalidan reintentos ya completados.
+
+Solo una verificación del proveedor sobre la obligación exacta liquida la solicitud: factura,
+cliente, suscripción, moneda, modo y pago positivo completo deben coincidir. Para activación se
+verifica la primera factura de la sesión vinculada y sus Price IDs/cantidades congelados.
+Un retorno de Checkout, tarjeta guardada, estado `active`, factura de importe cero, factura
+ajena o pago marcado fuera de Stripe no constituye esta prueba. La liquidación cancela los
+recordatorios y retira exclusivamente la restricción de esa solicitud. Los demás estados y
+entitlements siguen su proyección ordinaria por eventos Stripe.
+Al liquidar una activación, se retira solo la suscripción interna/legacy de origen vinculada;
+se conserva su historia y se sincronizan capacidades, módulos y permisos mediante los contratos
+existentes. No se cancela ninguna suscripción real de Stripe como efecto de esta conversión.
+
+Los flags, operación, validación y reversión están documentados en
+`docs/INDICE_PAYMENT_COLLECTION_RUNBOOK.md`. La publicación del catálogo continúa administrada
+en Catalog & modules; conexión y diagnóstico Stripe continúan en Billing.
 
 ## 7. Seats
 

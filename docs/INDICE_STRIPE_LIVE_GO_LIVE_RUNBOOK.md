@@ -57,10 +57,15 @@ repositorio.
 
 ```bash
 install -d -m 700 /root/indice-production/secrets
-install -m 600 /dev/null /root/indice-production/secrets/stripe-live-key
-read -rsp 'Stripe LIVE secret key: ' INDICE_STRIPE_LIVE_KEY
-printf '%s' "$INDICE_STRIPE_LIVE_KEY" > /root/indice-production/secrets/stripe-live-key
-unset INDICE_STRIPE_LIVE_KEY
+(
+  umask 077
+  set -o noclobber
+  read -rsp 'Stripe LIVE restricted key: ' INDICE_STRIPE_LIVE_KEY
+  printf '\n'
+  [[ "${INDICE_STRIPE_LIVE_KEY}" == rk_live_* || "${INDICE_STRIPE_LIVE_KEY}" == sk_live_* ]] || exit 1
+  printf '%s' "$INDICE_STRIPE_LIVE_KEY" > /root/indice-production/secrets/stripe-live-key
+  unset INDICE_STRIPE_LIVE_KEY
+)
 ```
 
 El archivo de entorno debe apuntar a esa ruta:
@@ -75,6 +80,48 @@ temporal dentro de un directorio del host que sólo `root` puede recorrer y la m
 para el usuario sin privilegios del backend. El mismo mecanismo se usa para
 `APP_BILLING_STRIPE_WEBHOOK_SECRET_FILE`. La llave no aparece en `docker inspect` ni en Git.
 
+El ejemplo de captura no sobrescribe un archivo existente. Conserva una llave
+ya instalada; una rotación es una operación separada. Captura el secreto
+`whsec_` del destino existente directamente en el VPS con permisos 600, en
+`/root/indice-production/secrets/stripe-live-webhook`. Mantén vacías tanto
+`APP_BILLING_STRIPE_SECRET_KEY` como `APP_BILLING_STRIPE_WEBHOOK_SECRET` cuando
+se usan los archivos protegidos.
+
+### Permisos de la llave restringida
+
+Valida primero una llave TEST equivalente con los flujos reales. El backend
+necesita escritura para Customers, Checkout Sessions, Subscriptions y sus items,
+sesiones de Customer Portal, Products y Prices. El resumen de tarjeta necesita también lectura
+de Payment Methods (Customers y Subscriptions ya forman parte de los permisos anteriores).
+Esta consulta es de sólo lectura y no requiere permisos para capturar números de tarjeta.
+Necesita lectura de la cuenta
+propia y de Charges para asociar reembolsos/disputas recibidos al cliente
+correcto. La auditoría operativa también consulta Tax Settings y Tax
+Registrations; las promociones configuradas requieren leer Promotion Codes y
+Coupons. Confirma los nombres y dependencias reales de esos permisos en Stripe.
+
+La recepción de webhooks no requiere permisos de escritura de Events o Webhook
+Endpoints. El script opcional de creación del destino sí tiene requisitos
+distintos: no amplíes la llave del runtime para ejecutarlo si el destino ya existe.
+
+### Tarjeta guardada y Customer Portal
+
+Configura el portal del mismo modo y cuenta Stripe usados por el backend. El gateway utiliza la
+configuración predeterminada de Customer Portal: habilita actualización de métodos de pago e
+historial de facturas, y conserva los cambios de productos/cantidades en Índice. Verifica la URL
+HTTPS de retorno `/billing`. Un secreto instalado no prueba que estas opciones estén configuradas.
+
+Antes de habilitar LIVE, verifica en sandbox captura en Checkout con y sin prueba, actualización
+de tarjeta en el portal, renovación aprobada, pago rechazado, autenticación bancaria adicional y
+recuperación por el webhook firmado. Comprueba que el resumen cambia después de volver a Billing
+y que un suscriptor sin tarjeta abre el portal sin crear otra suscripción. `SAVED` sólo significa
+que Stripe devolvió una tarjeta predeterminada no expirada, no que un cobro futuro esté aprobado.
+Las pruebas automatizadas con gateways simulados validan el código, pero no sustituyen esa
+verificación con Stripe ni la comprobación operacional LIVE descrita en este runbook.
+Esta lista describe las operaciones del código, no certifica los permisos de
+una llave que todavía no se ha probado. No se necesita una llave publicable
+para este flujo de Checkout alojado que crea la sesión desde el backend.
+
 ## Creación y auditoría del catálogo LIVE
 
 ```bash
@@ -83,9 +130,13 @@ STRIPE_REQUIRED_TAX_COUNTRIES=CA,MX \
 deployment/scripts/audit-stripe-live-readiness.sh
 ```
 
-El catálogo LIVE se sincroniza únicamente desde el borrador aprobado en Administración de
-plataforma, durante la ventana de mantenimiento y con la confirmación Root descrita en
+El catálogo LIVE se sincroniza únicamente desde el borrador aprobado en **Administración de
+plataforma → Catálogo y módulos → Oferta comercial**, durante la ventana de mantenimiento y con la confirmación Root descrita en
 `deployment/README.md`. El script de escalones históricos está retirado.
+
+**Facturación** reúne el panel de configuración de la conexión Stripe y los registros de cobro
+existentes. El panel no sustituye la verificación de credenciales, permisos y entrega firmada;
+los productos, precios y publicación permanecen en **Catálogo y módulos → Oferta comercial**.
 
 La lista fiscal del segundo comando es un ejemplo. Debe contener únicamente los países que el
 contador confirme como registros activos obligatorios para Índice. El script falla si una marca,
@@ -99,8 +150,19 @@ STRIPE_WEBHOOK_SECRET_OUTPUT_FILE=/root/indice-production/secrets/stripe-live-we
 deployment/scripts/create-stripe-live-webhook.sh
 ```
 
-La firma `whsec_` sólo se muestra una vez y queda en el archivo protegido. Si ya existe un endpoint,
-el script se detiene: se debe usar el secreto existente o rotarlo desde Stripe.
+El script captura la firma `whsec_` devuelta al crear el endpoint y la guarda en el archivo
+protegido. Si ya existe un endpoint, el script se detiene: se debe usar su secreto existente,
+disponible en el Dashboard, o realizar una rotación autorizada desde Stripe.
+
+Si el destino se creó en el Dashboard, omite el script y captura su Signing
+secret directamente en el VPS. Revisa **Your account**, payload **Snapshot**,
+los 17 eventos del script y la versión API compatible con el SDK desplegado.
+Un destino **Active**, un GET que devuelve 405 o un POST que devuelve 200 no
+prueban por sí solos la aplicación del evento. Conserva evidencia de firma
+válida, modo correcto, entrega exitosa, evento `PROCESSED` y efecto esperado en
+la empresa/suscripción/factura. Prueba duplicados, desorden y recuperación de
+fallos; los eventos de reembolso/disputa con sólo `charge` deben resolver su
+cliente sin adivinar la empresa.
 
 ## Variables finales
 
@@ -130,13 +192,23 @@ LIVE si falta una llave, firma, URL o control de ciclo comercial.
 1. Respaldar y verificar el respaldo.
 2. Desplegar primero el nuevo código con `APP_BILLING_STRIPE_ENABLED=false`.
 3. Confirmar login, dashboard, root e invitaciones existentes.
-4. Configurar y auditar cuenta, catálogo, impuestos y webhook LIVE.
+4. Configurar y auditar cuenta, impuestos y webhook LIVE; después ejecutar la
+   ventana de mantenimiento y **Sincronizar y publicar oferta** desde
+   **Catálogo y módulos → Oferta comercial**, según
+   `deployment/README.md`. Esa secuencia explica cómo habilitar la conexión a
+   Stripe sin abrir simultáneamente las altas al público.
 5. Activar las variables finales y reiniciar únicamente backend/web.
 6. Crear una cuenta interna con un correo nuevo y un plan de un producto.
 7. Verificar en Stripe y root: tarjeta, trial de 15 días, cliente, suscripción, impuestos, empresa,
    propietario, cinco usuarios incluidos y seis módulos durante la prueba.
 8. Reembolsar/cancelar la compra de control según corresponda y comprobar el evento de webhook.
 9. Sólo entonces publicar el enlace de alta al mercado.
+
+El Checkout inicial con prueba de 15 días no demuestra un cobro pagado. Certifica
+en TEST, con Test Clocks cuando corresponda, el fin de prueba, cobro exitoso,
+rechazo, factura, reintentos y acceso. Cualquier prueba LIVE con cargo/reembolso
+real requiere definir previamente la cuenta interna, importe y autorización;
+no adelantes ni alteres una suscripción de cliente para obtener esa evidencia.
 
 ## Reversa inmediata
 
@@ -152,6 +224,12 @@ APP_BILLING_LIFECYCLE_SCHEDULER_ENABLED=false
 Reiniciar el backend con esas banderas detiene altas y procesamiento nuevos; no elimina cuentas ni
 datos. Después se restaura la imagen anterior o el respaldo sólo si el incidente realmente lo
 requiere.
+
+Estas banderas no cancelan suscripciones ni detienen los cobros que Stripe ya
+tiene programados. Deshabilitar la conexión también interrumpe la recepción de
+webhooks. Conserva y reconcilia las entregas pendientes al recuperar el servicio;
+cuando el incidente lo permita, bloquea las altas/cambios públicos conservando
+el procesamiento de las suscripciones existentes.
 
 ## Compuerta del almacenamiento automático
 
