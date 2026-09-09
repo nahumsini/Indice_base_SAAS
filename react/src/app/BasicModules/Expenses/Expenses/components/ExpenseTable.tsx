@@ -15,7 +15,9 @@ import {
   type SortDirection,
 } from '../../utils/expenseTableUtils';
 import { useExpenseRowSelection } from '../../hooks/useExpenseRowSelection';
-import { ExpenseBulkActionsBar } from '../../components/table/ExpenseBulkActionsBar';
+import { FinanceBulkActions, type FinanceBulkActionConfig } from '../../../shared/FinanceBulkActions';
+import { getFinanceBulkCopy, type FinanceBulkAction } from '../../../shared/financeBulkActions.copy';
+import { toFinanceApiErrorMessage } from '../../services';
 import { ExpenseTableHeaderRow } from '../../components/table/ExpenseTableHeaderRow';
 import { ExpensePaymentModal } from '../../components/modals/ExpensePaymentModal';
 import { useExpensesResolvedLocale, useExpensesTranslations } from '../hooks/useExpensesTranslations';
@@ -64,6 +66,7 @@ const expenseTableWorkspaceUrlFields: Partial<Record<keyof ExpenseTableWorkspace
 };
 
 type ExpenseTableProps = {
+  dataReady?: boolean;
   actionVisibility?: ExpenseRowActionVisibility;
   accountingAccountOptions?: FinanceReferenceOption[];
   columns: ColumnConfig[];
@@ -76,6 +79,7 @@ type ExpenseTableProps = {
   hasFundDetailFilters?: boolean;
   getAttachments: (expense: Expense) => string[];
   onDeleteExpense?: (expenseId: string) => void;
+  onBulkAction?: (rows: Expense[], action: FinanceBulkAction, targetId: string, reason: string) => Promise<void>;
   onDeleteExpenses?: (expenseIds: string[]) => void;
   onDuplicateExpense?: (expenseId: string) => void;
   onEditExpense?: (expense: Expense) => void;
@@ -95,6 +99,7 @@ type ExpenseTableProps = {
 };
 
 export function ExpenseTable({
+  dataReady = true,
   actionVisibility,
   accountingAccountOptions = [],
   columns,
@@ -107,7 +112,7 @@ export function ExpenseTable({
   hasFundDetailFilters = false,
   getAttachments,
   onDeleteExpense,
-  onDeleteExpenses,
+  onBulkAction,
   onDuplicateExpense,
   onEditExpense,
   onExpensesChange,
@@ -125,7 +130,9 @@ export function ExpenseTable({
   userOptions = [],
 }: ExpenseTableProps) {
   const t = useExpensesTranslations();
-  const fundCopy = getExpenseFundGroupCopy(useExpensesResolvedLocale());
+  const locale = useExpensesResolvedLocale();
+  const bulkCopy = getFinanceBulkCopy(locale);
+  const fundCopy = getExpenseFundGroupCopy(locale);
   const showAuditAction = actionVisibility?.showAudit ?? true;
   const showMarkPaidAction = actionVisibility?.showMarkPaid ?? true;
   const showStatusChangeAction = actionVisibility?.showStatusChange ?? true;
@@ -150,15 +157,16 @@ export function ExpenseTable({
     sortField,
   }), [currentPage, pageSize, sortDirection, sortField]);
   const restoreWorkspaceState = useCallback((restoredState: ExpenseTableWorkspaceState) => {
-    setCurrentPage(restoredState.currentPage);
-    setPageSize(restoredState.pageSize);
-    setSortDirection(restoredState.sortDirection);
-    setSortField(restoredState.sortField);
+    setCurrentPage(Number.isInteger(restoredState.currentPage) && restoredState.currentPage > 0 ? restoredState.currentPage : 1);
+    setPageSize(DEFAULT_TABLE_PAGE_SIZE_OPTIONS.includes(restoredState.pageSize as 10) ? restoredState.pageSize : 10);
+    setSortDirection(restoredState.sortDirection === 'asc' || restoredState.sortDirection === 'desc' ? restoredState.sortDirection : null);
+    setSortField(restoredState.sortField && Object.prototype.hasOwnProperty.call(DEFAULT_EXPENSE_COLUMN_WIDTHS, restoredState.sortField) ? restoredState.sortField : null);
   }, []);
 
   useWorkspaceNavigationMemory({
     moduleKey: 'expenses',
     tabKey: 'expenses-table',
+    enabled: dataReady,
     state: workspaceState,
     defaults: expenseTableWorkspaceDefaults,
     urlFields: expenseTableWorkspaceUrlFields,
@@ -203,14 +211,18 @@ export function ExpenseTable({
     [rowSelection.selectedIds, selectableExpenses],
   );
   const selectedMoneySummaries = useMemo(() => getMoneySummaries(selectedExpenses, columns), [columns, selectedExpenses]);
-  const canDeleteAllSelected = useMemo(
-    () => selectedExpenses.length > 0 && selectedExpenses.every(canDeleteExpense),
-    [selectedExpenses],
-  );
-  const canEditAllSelected = useMemo(
-    () => selectedExpenses.length > 0 && selectedExpenses.every(canEditExpense),
-    [selectedExpenses],
-  );
+  const bulkProtected = !onBulkAction || selectedExpenses.some(row => !/^\d+$/.test(row.id) || row.version === undefined
+    || row.originFund || row.accountingPosted || row.purchaseOrderId || row.budgetLineId || row.type === 'budget'
+    || ['CLOSED', 'CANCELLED', 'REJECTED'].includes(row.backendStatus ?? '')) ? bulkCopy.protected : undefined;
+  const selectedUnits = new Set(selectedExpenses.map(row => row.businessUnit));
+  const bulkActions: FinanceBulkActionConfig[] = [
+    { action: 'DELETE', blockedReason: bulkProtected || (selectedExpenses.some(row => row.backendStatus !== 'DRAFT' || getExpensePaidAmount(row) > 0) ? bulkCopy.deleteDraft : undefined) },
+    { action: 'UNIT', options: unitOptions, blockedReason: bulkProtected, hint: bulkCopy.unit },
+    { action: 'BUSINESS', options: businessOptions.filter(option => option.unitId === selectedExpenses[0]?.businessUnit), blockedReason: bulkProtected || (selectedUnits.size !== 1 ? bulkCopy.business : undefined), hint: bulkCopy.business },
+    { action: 'PAYMENT_ACCOUNT', options: paymentAccounts.filter(account => account.isActive && account.source !== 'petty_cash' && !account.linkedFundId && account.backendType !== 'PETTY_CASH' && selectedExpenses.every(row => row.currency === account.currency)).map(account => ({ value: account.id, label: `${account.name} · ${account.currency}` })), blockedReason: bulkProtected || (selectedExpenses.some(row => getExpenseBalance(row) <= 0) ? bulkCopy.noBalance : undefined), hint: bulkCopy.payment },
+    { action: 'ACCOUNTING_ACCOUNT', options: accountingAccountOptions, blockedReason: bulkProtected },
+    { action: 'PROVIDER', options: providers.filter(provider => provider.status === 'active').map(provider => ({ value: provider.id, label: provider.name })), blockedReason: bulkProtected },
+  ];
   const paymentExpense = useMemo(
     () => expenses.find(expense => expense.id === paymentExpenseId) ?? null,
     [expenses, paymentExpenseId],
@@ -280,81 +292,6 @@ export function ExpenseTable({
     if (nextExpense) onPersistExpenseUpdate?.(nextExpense);
   };
 
-  const applyBulkExpenseUpdates = (getUpdates: (expense: Expense) => Partial<Expense>) => {
-    const selectedIds = new Set(rowSelection.selectedIdList);
-    if (selectedIds.size === 0) return;
-
-    const updatedExpenses = expenses
-      .filter(expense => selectedIds.has(expense.id) && canEditExpense(expense))
-      .map(expense => ({ ...expense, ...getUpdates(expense), updatedAt: new Date() }));
-    const updatedExpenseMap = new Map(updatedExpenses.map(expense => [expense.id, expense]));
-
-    onExpensesChange(prev => prev.map(expense => updatedExpenseMap.get(expense.id) ?? expense));
-    updatedExpenses.forEach(expense => onPersistExpenseUpdate?.(expense));
-  };
-
-  const handleBulkUnitChange = (businessUnit: string) => {
-    applyBulkExpenseUpdates(() => ({ businessUnit, business: '' }));
-  };
-
-  const handleBulkBusinessChange = (business: string) => {
-    applyBulkExpenseUpdates(() => ({ business }));
-  };
-
-  const handleBulkProviderChange = (providerId: string) => {
-    const provider = providers.find(item => item.id === providerId);
-    applyBulkExpenseUpdates(() => ({ providerId, providerName: provider?.name ?? '' }));
-  };
-
-  const handleBulkAccountingAccountChange = (accountingAccount: string) => {
-    applyBulkExpenseUpdates(() => ({ accountingAccount }));
-  };
-
-  const handleBulkStatusChange = (status: ExpenseStatus) => {
-    if (!showStatusChangeAction) return;
-    rowSelection.selectedIdList.forEach(id => {
-      void handleStatusChange(id, status);
-    });
-  };
-
-  const updateSelectedWorkflowState = (updates: Partial<ExpenseWorkflowState>) => {
-    const selectedIds = new Set(rowSelection.selectedIdList);
-    if (selectedIds.size === 0) return;
-
-    setWorkflowByExpenseId(prev => {
-      const next = { ...prev };
-      expenses
-        .filter(expense => selectedIds.has(expense.id) && canEditExpense(expense))
-        .forEach(expense => {
-          next[expense.id] = {
-            ...getDefaultExpenseWorkflow(expense),
-            ...next[expense.id],
-            ...updates,
-          };
-        });
-      return next;
-    });
-  };
-
-  const handleBulkAuthorizerChange = (authorizer: string) => {
-    updateSelectedWorkflowState({ authorizer });
-    applyBulkExpenseUpdates(() => ({
-      approvedByUserId: authorizer || undefined,
-      approver: authorizer || undefined,
-    }));
-  };
-
-  const handleBulkResponsibleChange = (performer: string) => {
-    updateSelectedWorkflowState({ performer });
-    applyBulkExpenseUpdates(() => ({ performedByUserId: performer || undefined }));
-  };
-
-  const handleBulkMarkPaid = () => {
-    rowSelection.selectedIdList.forEach(id => {
-      void handlePay(id);
-    });
-  };
-
   const updateExpenseWorkflow = (expenseId: string, updates: Partial<ExpenseWorkflowState>) => {
     const expense = expenses.find(item => item.id === expenseId);
     if (!expense) return;
@@ -400,17 +337,6 @@ export function ExpenseTable({
       return;
     }
     onExpensesChange(prev => prev.filter(expense => expense.id !== id));
-  };
-
-  const handleDeleteSelected = () => {
-    if (!canDeleteAllSelected) return;
-    if (onDeleteExpenses) {
-      onDeleteExpenses(rowSelection.selectedIdList);
-      rowSelection.clearSelection();
-      return;
-    }
-    rowSelection.selectedIdList.forEach(id => handleDelete(id));
-    rowSelection.clearSelection();
   };
 
   const replaceSavedExpense = (savedExpense: Expense) => {
@@ -490,28 +416,9 @@ export function ExpenseTable({
   return (
     <div className="space-y-3">
       {rowSelection.selectedCount > 0 ? (
-        <ExpenseBulkActionsBar
-          accountingAccountOptions={editableRowOptions.accountingAccounts}
-          businessOptions={editableRowOptions.businesses}
-          showDelete={canDeleteAllSelected}
-          showEditControls={canEditAllSelected}
-          showMarkPaid={showMarkPaidAction}
-          showStatusChange={showStatusChangeAction}
-          onAccountingAccountChange={handleBulkAccountingAccountChange}
-          onAuthorizerChange={handleBulkAuthorizerChange}
-          onBusinessChange={handleBulkBusinessChange}
-          onClearSelection={rowSelection.clearSelection}
-          onDeleteSelected={handleDeleteSelected}
-          onMarkPaidSelected={handleBulkMarkPaid}
-          onProviderChange={handleBulkProviderChange}
-          onResponsibleChange={handleBulkResponsibleChange}
-          onStatusChange={handleBulkStatusChange}
-          onUnitChange={handleBulkUnitChange}
-          providers={providers}
-          selectedCount={rowSelection.selectedCount}
-          unitOptions={editableRowOptions.businessUnits}
-          userOptions={editableRowOptions.users}
-        />
+        <FinanceBulkActions key={rowSelection.selectedIdList.join(',')} count={selectedExpenses.length} locale={locale}
+          actions={bulkActions} onClear={rowSelection.clearSelection} formatError={toFinanceApiErrorMessage}
+          onApply={async (action, targetId, reason) => { if (onBulkAction) await onBulkAction(selectedExpenses, action, targetId, reason); }} />
       ) : null}
 
       {fundGroups.length > 0 && <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-slate-500 dark:text-slate-400">

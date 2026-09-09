@@ -38,7 +38,98 @@ export type SupplierSubmissionStatus =
   | 'APPROVED'
   | 'PARTIALLY_APPROVED'
   | 'REJECTED'
-  | 'CONVERTED_TO_PURCHASE_ORDER';
+  | 'CONVERTED_TO_PURCHASE_ORDER'
+  | 'SUPERSEDED';
+
+export type ProviderCenterRegistration = {
+  id: number;
+  name: string;
+  legal_name?: string;
+  tax_id?: string;
+  email: string;
+  phone?: string;
+  contact_name: string;
+  notes?: string;
+  status: string;
+  created_at: string;
+};
+
+export type ProviderCenterProfileChange = {
+  id: number;
+  provider_id: number;
+  provider_name: string;
+  category: 'COMMERCIAL' | 'CATALOG' | 'FISCAL' | 'BANKING';
+  status: string;
+  changes: Record<string, unknown>;
+  submitted_by_name?: string;
+  submitted_by_email?: string;
+  created_at: string;
+};
+
+export type ProviderCenterAssignmentOption = {
+  id: number;
+  name: string;
+  unit_id?: number;
+};
+
+export type ProviderCenterOrderResponse = {
+  id: number;
+  purchase_order_id: number;
+  folio: string;
+  provider_id: number;
+  provider_name: string;
+  response_type: 'ADJUSTMENT_REQUESTED';
+  requested_expected_date?: string;
+  reason?: string;
+  submitted_by_name?: string;
+  submitted_by_email?: string;
+  created_at: string;
+};
+
+export type ProviderCenterInbox = {
+  registrations: ProviderCenterRegistration[];
+  changes: ProviderCenterProfileChange[];
+  order_responses?: ProviderCenterOrderResponse[];
+  assignment_options?: {
+    units: ProviderCenterAssignmentOption[];
+    businesses: ProviderCenterAssignmentOption[];
+  };
+};
+
+export type SupplierQuoteRequest = {
+  id: number;
+  request_number: string;
+  provider_id: number;
+  provider_name: string;
+  title: string;
+  description?: string;
+  currency_code: string;
+  status: 'DRAFT' | 'OPEN' | 'CLOSED' | 'CANCELLED';
+  response_deadline: string;
+  item_count: number;
+  response_count: number;
+  created_at: string;
+};
+
+export type SupplierQuoteRequestListResponse = {
+  items: SupplierQuoteRequest[];
+  count: number;
+};
+
+export type SupplierQuoteRequestPayload = {
+  providerId: number;
+  title: string;
+  description?: string | null;
+  currencyCode: string;
+  responseDeadline: string;
+  items: Array<{
+    productId?: number | null;
+    sku?: string | null;
+    productName: string;
+    quantity: number;
+    notes?: string | null;
+  }>;
+};
 
 export type PurchaseOrderItem = {
   id: number;

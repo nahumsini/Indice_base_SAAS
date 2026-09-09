@@ -115,6 +115,7 @@ type PettyCashMovementApiDto = {
 };
 
 type PettyCashSettlementLineApiDto = {
+  version?: number;
   id: number;
   companyId: number;
   pettyCashFundId: number;
@@ -183,18 +184,21 @@ export type PettyCashStatementCloseAction =
   | 'RETURN_TO_SOURCE'
   | 'CARRY_FORWARD'
   | 'FORGIVE_SHORTAGE'
+  | 'FORGIVE_SURPLUS'
   | 'CHARGE_EMPLOYEE';
 
 type PettyCashStatementCloseApiResponse = {
   fund: PettyCashFundApiDto;
   statement: PettyCashStatementApiDto;
   nextStatement?: PettyCashStatementApiDto | null;
+  updatedStatements?: PettyCashStatementApiDto[];
 };
 
 type PettyCashStatementCloseMutation = {
   fund: PettyCashFund;
   statement: PettyCashStatement;
   nextStatement?: PettyCashStatement;
+  updatedStatements: PettyCashStatement[];
 };
 
 type PettyCashAttachmentApiDto = Partial<PettyCashAttachment> & {
@@ -306,6 +310,7 @@ type PettyCashSettlementLineApiRequest = {
 
 type PettyCashStatementCloseApiRequest = {
   action: PettyCashStatementCloseAction;
+  expectedClosingBalance?: number;
   shortageAmount?: number;
   closeDate?: string;
   reference?: string;
@@ -467,6 +472,7 @@ const toMovement = (
 };
 
 const toSettlementLine = (dto: PettyCashSettlementLineApiDto): PettyCashSettlementLine => ({
+  version: dto.version,
   id: idString(dto.id),
   accountingAccountId: idString(dto.accountingAccountId),
   accountingAccountName: customString(dto.customFields, 'accountingAccountName') ?? optionalLabelWithId('Accounting account', dto.accountingAccountId),
@@ -623,6 +629,15 @@ const requireBackendId = (id: string, label: string) => {
 export const hasPettyCashBackendId = (id?: string | number | null) => numericId(id) !== undefined;
 
 export const pettyCashService = {
+  async applyBulkAction(fundId: string, statementId: string, rows: PettyCashSettlementLine[], action: 'DELETE' | 'PROVIDER' | 'ACCOUNTING_ACCOUNT', targetId: string, reason: string) {
+    const response = await apiClient<{ fund: PettyCashFundApiDto; statement: PettyCashStatementApiDto; settlementLines: PettyCashSettlementLineApiDto[]; updatedStatements?: PettyCashStatementApiDto[] }>(
+      `${pettyCashPath}/funds/${requireBackendId(fundId, 'Petty cash fund')}/settlement-lines/bulk-actions`, jsonMutation('POST', {
+        statementId: Number(statementId), action, targetId: targetId ? Number(targetId) : null, reason,
+        rows: rows.map(row => ({ id: Number(row.id), expectedVersion: row.version })),
+      }));
+    const fund = toFund(response.fund);
+    return { fund, statement: toStatement(response.statement, new Map([[fund.id, fund]])), settlementLines: response.settlementLines.map(toSettlementLine), updatedStatements: (response.updatedStatements ?? []).map(statement => toStatement(statement, new Map([[fund.id, fund]]))) };
+  },
   async getWorkspace(): Promise<PettyCashWorkspace> {
     const response = await apiClient<PettyCashWorkspaceApiResponse>(pettyCashPath);
     return toWorkspace(response);
@@ -743,6 +758,7 @@ export const pettyCashService = {
       fund,
       statement: toStatement(response.statement, fundsById),
       nextStatement: response.nextStatement ? toStatement(response.nextStatement, fundsById) : undefined,
+      updatedStatements: (response.updatedStatements ?? []).map(item => toStatement(item, fundsById)),
     };
   },
 

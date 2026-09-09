@@ -16,8 +16,10 @@ import com.indice.erp.finance.shared.FinanceScope;
 import com.indice.erp.kiosk.engine.KioskAccessLevel;
 import com.indice.erp.kiosk.engine.KioskGrantService;
 import com.indice.erp.kiosk.engine.KioskIdentityCredentialService;
+import com.indice.erp.kiosk.engine.KioskPayloadProtectionService;
 import com.indice.erp.kiosk.engine.KioskRegistryService;
 import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
+import com.indice.erp.kiosk.engine.ProviderCenterAccessPolicy;
 import jakarta.servlet.http.HttpSession;
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -48,6 +50,8 @@ public class PayableKioskService {
     private final KioskRegistryService kioskRegistry;
     private final KioskGrantService kioskGrants;
     private final KioskIdentityCredentialService kioskCredentials;
+    private final KioskPayloadProtectionService payloadProtection;
+    private final ProviderCenterAccessPolicy providerCenterAccess;
     private final int inactivityTimeoutSeconds;
     private final int sessionTtlSeconds;
 
@@ -63,6 +67,8 @@ public class PayableKioskService {
             KioskRegistryService kioskRegistry,
             KioskGrantService kioskGrants,
             KioskIdentityCredentialService kioskCredentials,
+            KioskPayloadProtectionService payloadProtection,
+            ProviderCenterAccessPolicy providerCenterAccess,
             @Value("${app.expenses.kiosk.inactivity-timeout-seconds:300}") int inactivityTimeoutSeconds,
             @Value("${app.expenses.kiosk.session-ttl-seconds:28800}") int sessionTtlSeconds) {
         this.repository = repository;
@@ -76,6 +82,8 @@ public class PayableKioskService {
         this.kioskRegistry = kioskRegistry;
         this.kioskGrants = kioskGrants;
         this.kioskCredentials = kioskCredentials;
+        this.payloadProtection = payloadProtection;
+        this.providerCenterAccess = providerCenterAccess;
         this.inactivityTimeoutSeconds = Math.max(30, inactivityTimeoutSeconds);
         this.sessionTtlSeconds = Math.max(this.inactivityTimeoutSeconds, sessionTtlSeconds);
     }
@@ -306,6 +314,210 @@ public class PayableKioskService {
         return createPayableForIdentity(token, identityType, identityId, null, request);
     }
 
+    public boolean providerCenterHasAccess(long companyId, long providerId) {
+        return providerCenterAccess.hasAccess(companyId, providerId);
+    }
+
+    public Map<String, Object> providerCenterBootstrap(long companyId, long providerId) {
+        providerCenterAccess.requireAccess(companyId, providerId);
+        return Map.of(
+            "provider", publicRepository.providerCenterProfile(companyId, providerId),
+            "payables", publicRepository.providerCenterPayables(companyId, providerId),
+            "lane", "WITHOUT_PURCHASE_ORDER",
+            "contact_required", true);
+    }
+
+    public Map<String, Object> providerCenterTracking(long companyId, long providerId) {
+        if (!providerCenterHasAccess(companyId, providerId)) return Map.of();
+        return Map.of(
+            "payables_without_purchase_order",
+            publicRepository.providerCenterPayables(companyId, providerId),
+            "purchase_order_payment_tracking",
+            publicRepository.providerCenterPurchaseOrderPayments(companyId, providerId));
+    }
+
+    @Transactional
+    public Map<String, Object> createProviderCenterPayable(
+            long companyId,
+            long providerId,
+            PublicPayableRequest request,
+            String submittedByName,
+            String submittedByEmail) {
+        var provider = providerCenterAccess.requireAccess(companyId, providerId);
+        var kiosk = providerCenterTransaction(
+            provider, request == null ? null : request.currencyCode());
+        var contactName = submittedByName == null ? "" : submittedByName.trim();
+        var contactEmail = submittedByEmail == null ? "" : submittedByEmail.trim().toLowerCase();
+        if (contactName.isBlank() || contactName.length() > 180
+                || contactEmail.length() < 5 || contactEmail.length() > 180
+                || !contactEmail.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+            throw FinanceApiException.badRequest("Provider contact name and email are required.");
+        }
+        var ownedRequest = new PublicPayableRequest(
+            providerId, request.concept(), request.description(), request.subtotalAmount(),
+            request.taxAmount(), request.totalAmount(), request.currencyCode(),
+            request.dueDate(), request.externalReference());
+        var normalized = PayableKioskSubmissionValidator.validateAndNormalize(kiosk, ownedRequest);
+        var expenseId = publicRepository.insertPayable(
+            kiosk, providerId, null, normalized, payableCustomJson(normalized),
+            providerCenterPayableMetadataJson(
+                providerId, contactName, contactEmail));
+        return Map.of(
+            "expense_id", expenseId,
+            "status", "DRAFT",
+            "review_required", true,
+            "lane", "WITHOUT_PURCHASE_ORDER");
+    }
+
+    public Object presignProviderCenterAttachment(
+            long companyId,
+            long providerId,
+            long expenseId,
+            ExpenseAttachmentUploadRequest request) {
+        var provider = providerCenterAccess.requireAccess(companyId, providerId);
+        var kiosk = providerCenterTransaction(
+            provider, requireProviderCenterPayableCurrency(companyId, providerId, expenseId));
+        return attachmentService.presignUpload(contextFor(kiosk), expenseId, request);
+    }
+
+    public Object registerProviderCenterAttachment(
+            long companyId,
+            long providerId,
+            long expenseId,
+            RegisterExpenseAttachmentRequest request) {
+        var provider = providerCenterAccess.requireAccess(companyId, providerId);
+        var kiosk = providerCenterTransaction(
+            provider, requireProviderCenterPayableCurrency(companyId, providerId, expenseId));
+        return attachmentService.register(contextFor(kiosk), expenseId, request);
+    }
+
+    @Transactional
+    public Map<String, Object> submitProviderProfileChange(
+            long companyId,
+            long providerId,
+            String category,
+            Map<String, Object> changes,
+            String submittedByName,
+            String submittedByEmail) {
+        providerCenterAccess.requireAccess(companyId, providerId);
+        var normalizedCategory = category == null ? "" : category.trim().toUpperCase();
+        var allowedFields = switch (normalizedCategory) {
+            case "FISCAL" -> Set.of("legal_name", "tax_id", "fiscal_address", "tax_regime");
+            case "BANKING" -> Set.of("account_holder", "bank_name", "account_number", "clabe", "swift", "currency_code");
+            default -> throw FinanceApiException.badRequest("Unsupported provider change category.");
+        };
+        if (changes == null || changes.isEmpty() || changes.size() > allowedFields.size()
+                || !allowedFields.containsAll(changes.keySet())) {
+            throw FinanceApiException.badRequest("Provider changes contain unsupported fields.");
+        }
+        var name = submittedByName == null ? "" : submittedByName.trim();
+        var email = submittedByEmail == null ? "" : submittedByEmail.trim().toLowerCase();
+        if (name.isBlank() || name.length() > 180 || email.length() < 5 || email.length() > 180
+                || !email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+            throw FinanceApiException.badRequest("Provider contact name and email are required.");
+        }
+        var normalizedChanges = normalizeProviderChanges(normalizedCategory, changes);
+        var serializedChanges = toJson(normalizedChanges);
+        var banking = "BANKING".equals(normalizedCategory);
+        var requestId = publicRepository.insertProviderChangeRequest(
+            companyId, providerId, normalizedCategory,
+            banking ? "{}" : serializedChanges,
+            banking ? payloadProtection.protect(serializedChanges) : null,
+            name, email);
+        return Map.of(
+            "request_id", requestId,
+            "category", normalizedCategory,
+            "status", "SUBMITTED",
+            "review_required", true);
+    }
+
+    private Map<String, Object> normalizeProviderChanges(
+            String category, Map<String, Object> changes) {
+        var normalized = new LinkedHashMap<String, Object>();
+        for (var entry : changes.entrySet()) {
+            var field = entry.getKey();
+            var raw = entry.getValue();
+            if ("payment_terms_days".equals(field)) {
+                var days = integerValue(raw, field);
+                if (days < 0 || days > 3650) {
+                    throw FinanceApiException.badRequest("Invalid payment terms.");
+                }
+                normalized.put(field, days);
+                continue;
+            }
+            if (raw != null && !(raw instanceof String) && !(raw instanceof Number)) {
+                throw FinanceApiException.badRequest("Provider changes must use simple values.");
+            }
+            var value = raw == null ? "" : String.valueOf(raw).trim();
+            var maximum = switch (field) {
+                case "name", "email", "contact_name", "account_holder", "bank_name", "tax_regime" -> 180;
+                case "legal_name" -> 220;
+                case "tax_id" -> 80;
+                case "phone" -> 60;
+                case "fiscal_address" -> 2000;
+                case "account_number" -> 100;
+                case "clabe", "swift" -> 50;
+                case "currency_code" -> 3;
+                default -> throw FinanceApiException.badRequest("Unsupported provider change field.");
+            };
+            if (value.length() > maximum) {
+                throw FinanceApiException.badRequest("Provider change value is too long.");
+            }
+            if ("name".equals(field) && value.isBlank()) {
+                throw FinanceApiException.badRequest("Provider name cannot be blank.");
+            }
+            if ("email".equals(field) && !value.isBlank()
+                    && !value.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+                throw FinanceApiException.badRequest("Provider email is invalid.");
+            }
+            if ("currency_code".equals(field)) {
+                value = value.toUpperCase(java.util.Locale.ROOT);
+                if (!value.matches("^[A-Z]{3}$")) {
+                    throw FinanceApiException.badRequest("Provider currency is invalid.");
+                }
+            }
+            normalized.put(field, value);
+        }
+        if (("FISCAL".equals(category) || "BANKING".equals(category))
+                && normalized.values().stream().allMatch(value -> String.valueOf(value).isBlank())) {
+            throw FinanceApiException.badRequest("At least one provider change is required.");
+        }
+        return Map.copyOf(normalized);
+    }
+
+    private int integerValue(Object raw, String field) {
+        try {
+            if (raw instanceof Number number) return number.intValue();
+            return Integer.parseInt(raw == null ? "" : String.valueOf(raw).trim());
+        } catch (RuntimeException invalid) {
+            throw FinanceApiException.badRequest("Invalid " + field + ".");
+        }
+    }
+
+    private PayableKioskRow providerCenterTransaction(
+            ProviderCenterAccessPolicy.ProviderIdentity provider,
+            String currencyCode) {
+        if (provider.unitId() == null || provider.businessId() == null) {
+            throw FinanceApiException.forbidden(
+                "Provider unit and business must be assigned before submitting transactions.");
+        }
+        var currency = currencyCode == null ? "" : currencyCode.trim().toUpperCase();
+        if (!currency.matches("^[A-Z]{3}$")) {
+            throw FinanceApiException.badRequest("A valid transaction currency is required.");
+        }
+        return new PayableKioskRow(
+            0L, provider.companyId(), provider.unitId(), provider.businessId(), provider.id(),
+            "PROVIDER-CENTER", "Provider Center", "ACTIVE", "PROVIDER", "", "",
+            currency, false);
+    }
+
+    private String requireProviderCenterPayableCurrency(
+            long companyId, long providerId, long expenseId) {
+        return publicRepository.providerCenterPayableCurrency(companyId, providerId, expenseId)
+            .orElseThrow(() -> new NoSuchElementException(
+                "Payable not available for this Provider Center session."));
+    }
+
     private Map<String, Object> createPayableForIdentity(
             String token,
             String identityType,
@@ -392,17 +604,21 @@ public class PayableKioskService {
         if (!publicRepository.providerAvailable(kiosk, request.providerId())) {
             throw FinanceApiException.badRequest("The provider is outside the kiosk scope.");
         }
-        var pin = newProviderPin(kiosk.id());
-        var pinHash = passwordEncoder.encode(pin);
+        var existingCredential = kioskCredentials.pinCredential(
+            context.companyId(), "PROVIDER", request.providerId()).orElse(null);
+        var reusePersonalPin = existingCredential != null
+            && "ACTIVE".equalsIgnoreCase(existingCredential.status());
+        var pin = reusePersonalPin ? null : newProviderPin(kiosk.id());
+        var pinHash = reusePersonalPin ? existingCredential.secretHash() : passwordEncoder.encode(pin);
         var saved = providerAccessRepository.issue(
                 context.companyId(), context.userId(), kiosk.id(), request.providerId(), pinHash);
         providerAccessRepository.synchronizePersonalPin(
             context.companyId(), request.providerId(), context.userId(), pinHash);
-        kioskCredentials.rotatePersonalPin(context.companyId(), "PROVIDER", request.providerId(), pinHash);
         var definition = synchronizeDefinition(kiosk, context.userId());
         kioskGrants.grant(definition, "PROVIDER", request.providerId(), "*", context.userId());
         var body = providerAccessMap(saved);
-        body.put("pin", pin);
+        body.put("personalPinCreated", false);
+        if (pin != null) body.put("pin", pin);
         return Map.of("access", body);
     }
 
@@ -411,12 +627,16 @@ public class PayableKioskService {
         var existing = providerAccessRepository.get(context.companyId(), accessId);
         var kiosk = repository.getById(context.companyId(), existing.kioskId());
         validateScope(context, kiosk.unitId(), kiosk.businessId());
+        if (kioskCredentials.activeProviderCenterPinHash(
+                context.companyId(), existing.providerId()).isPresent()) {
+            throw FinanceApiException.badRequest(
+                "El NIP común se administra únicamente en el Centro de kioscos.");
+        }
         var pin = newProviderPin(kiosk.id());
         var pinHash = passwordEncoder.encode(pin);
         providerAccessRepository.rotate(context.companyId(), context.userId(), accessId, pinHash);
         providerAccessRepository.synchronizePersonalPin(
             context.companyId(), existing.providerId(), context.userId(), pinHash);
-        kioskCredentials.rotatePersonalPin(context.companyId(), "PROVIDER", existing.providerId(), pinHash);
         var body = providerAccessMap(providerAccessRepository.get(context.companyId(), accessId));
         body.put("pin", pin);
         return Map.of("access", body);
@@ -432,7 +652,8 @@ public class PayableKioskService {
         kioskGrants.revokeIdentity(definition, "PROVIDER", existing.providerId(), context.userId());
         kioskCredentials.revokeIfUnreferenced(
             context.companyId(), "PROVIDER", existing.providerId(),
-            providerAccessRepository.hasActiveAccess(context.companyId(), existing.providerId()));
+            kioskGrants.hasActiveIdentityGrant(
+                context.companyId(), "PROVIDER", existing.providerId()));
         return Map.of("success", true);
     }
 
@@ -595,7 +816,7 @@ public class PayableKioskService {
     private String newProviderPin(long kioskId) {
         var existing = providerAccessRepository.activeForKiosk(kioskId);
         for (var attempt = 0; attempt < 20; attempt++) {
-            var candidate = newPin();
+            var candidate = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
             var collision = existing.stream().anyMatch(access -> passwordEncoder.matches(candidate, access.pinHash()));
             if (!collision) {
                 return candidate;
@@ -627,6 +848,18 @@ public class PayableKioskService {
         return toJson(Map.of(
             "source", "payable-kiosk", "kioskId", kiosk.id(),
             "actorType", identityType, "actorId", identityId));
+    }
+
+    private String providerCenterPayableMetadataJson(
+            long providerId,
+            String submittedByName,
+            String submittedByEmail) {
+        return toJson(Map.of(
+            "source", "provider-center",
+            "actorType", "PROVIDER",
+            "actorId", providerId,
+            "submittedByName", submittedByName,
+            "submittedByEmail", submittedByEmail));
     }
 
     private Map<String, Object> providerMap(PayableKioskProviderAccessRow access) {

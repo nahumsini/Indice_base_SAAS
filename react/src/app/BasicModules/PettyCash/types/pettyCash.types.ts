@@ -141,6 +141,7 @@ export interface PettyCashMovement {
 }
 
 export interface PettyCashSettlementLine {
+  version?: number;
   id: string;
   companyId: string;
   pettyCashFundId: string;

@@ -3,6 +3,7 @@ package com.indice.erp.pos.purchaseorder;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.kiosk.engine.KioskEngineFeatureFlags;
+import com.indice.erp.finance.providers.ProviderCenterReviewService;
 import com.indice.erp.pos.PosRequestGuard;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.ProductSupplierRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderActionRequest;
@@ -22,6 +23,7 @@ import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierInvoiceReviewR
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionConvertRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionCreateRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionReviewRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierQuoteRequestCreateRequest;
 import com.indice.erp.pos.purchaseorder.kiosk.ProcurementSupplierPortalAdminService;
 import com.indice.erp.pos.purchaseorder.kiosk.ProcurementSupplierPortalCapabilities;
 import com.indice.erp.pos.purchaseorder.kiosk.ProcurementSupplierPortalPublicGateway;
@@ -55,6 +57,8 @@ public class PurchaseOrderController {
     private final ProcurementSupplierPortalPublicGateway supplierPortalPublic;
     private final ObjectMapper objectMapper;
     private final KioskEngineFeatureFlags kioskFlags;
+    private final SupplierQuoteRequestService quoteRequests;
+    private final ProviderCenterReviewService providerCenterReview;
 
     public PurchaseOrderController(
             PosRequestGuard guard,
@@ -62,13 +66,98 @@ public class PurchaseOrderController {
             ProcurementSupplierPortalAdminService supplierPortalAdmin,
             ProcurementSupplierPortalPublicGateway supplierPortalPublic,
             ObjectMapper objectMapper,
-            KioskEngineFeatureFlags kioskFlags) {
+            KioskEngineFeatureFlags kioskFlags,
+            SupplierQuoteRequestService quoteRequests,
+            ProviderCenterReviewService providerCenterReview) {
         this.guard = guard;
         this.service = service;
         this.supplierPortalAdmin = supplierPortalAdmin;
         this.supplierPortalPublic = supplierPortalPublic;
         this.objectMapper = objectMapper;
         this.kioskFlags = kioskFlags;
+        this.quoteRequests = quoteRequests;
+        this.providerCenterReview = providerCenterReview;
+    }
+
+    @GetMapping("/supplier-profile-changes")
+    public ResponseEntity<?> listSupplierProfileChanges(HttpSession session) {
+        var access = guard.requireReadAccess(session);
+        return access.denied() ? access.error()
+            : ResponseEntity.ok(providerCenterReview.commercialInbox(access.context()));
+    }
+
+    @PostMapping("/supplier-registration-requests/{requestId}/approve")
+    public ResponseEntity<?> approveSupplierRegistration(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long requestId,
+            @RequestBody Map<String, Object> payload) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied() ? access.error()
+            : ResponseEntity.ok(providerCenterReview.approveRegistration(
+                access.context(), requestId, requiredLong(payload, "unit_id"),
+                requiredLong(payload, "business_id"), text(payload, "review_note")));
+    }
+
+    @PostMapping("/supplier-registration-requests/{requestId}/reject")
+    public ResponseEntity<?> rejectSupplierRegistration(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long requestId,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied() ? access.error()
+            : ResponseEntity.ok(providerCenterReview.rejectRegistration(
+                access.context(), requestId, text(payload, "review_note")));
+    }
+
+    @PostMapping("/supplier-profile-changes/{requestId}/{action:approve|reject}")
+    public ResponseEntity<?> reviewSupplierProfileChange(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long requestId,
+            @PathVariable String action,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied() ? access.error()
+            : ResponseEntity.ok(providerCenterReview.reviewCommercialChange(
+                access.context(), requestId, "approve".equals(action),
+                payload == null ? "" : String.valueOf(payload.getOrDefault("review_note", ""))));
+    }
+
+    @GetMapping("/supplier-quote-requests")
+    public ResponseEntity<?> listSupplierQuoteRequests(HttpSession session) {
+        var access = guard.requireReadAccess(session);
+        return access.denied() ? access.error() : ResponseEntity.ok(quoteRequests.list(access.context()));
+    }
+
+    @GetMapping("/supplier-quote-requests/{requestId}")
+    public ResponseEntity<?> getSupplierQuoteRequest(
+            HttpSession session, @PathVariable long requestId) {
+        var access = guard.requireReadAccess(session);
+        return access.denied() ? access.error()
+            : ResponseEntity.ok(quoteRequests.detail(access.context(), requestId));
+    }
+
+    @PostMapping("/supplier-quote-requests")
+    public ResponseEntity<?> createSupplierQuoteRequest(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @Valid @RequestBody SupplierQuoteRequestCreateRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied() ? access.error()
+            : ResponseEntity.status(HttpStatus.CREATED).body(quoteRequests.create(access.context(), request));
+    }
+
+    @PostMapping("/supplier-quote-requests/{requestId}/{action:open|close|cancel}")
+    public ResponseEntity<?> transitionSupplierQuoteRequest(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long requestId,
+            @PathVariable String action) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied() ? access.error()
+            : ResponseEntity.ok(quoteRequests.transition(access.context(), requestId, action));
     }
 
     @GetMapping("/product-suppliers")
@@ -503,6 +592,21 @@ public class PurchaseOrderController {
 
     private PurchaseOrderActionRequest emptyAction(PurchaseOrderActionRequest request) {
         return request == null ? new PurchaseOrderActionRequest(null) : request;
+    }
+
+    private long requiredLong(Map<String, Object> payload, String field) {
+        try {
+            var raw = payload == null ? null : payload.get(field);
+            var value = raw instanceof Number number ? number.longValue()
+                : Long.parseLong(String.valueOf(raw));
+            if (value > 0) return value;
+        } catch (RuntimeException ignored) { }
+        throw new IllegalArgumentException(field + " is required.");
+    }
+
+    private String text(Map<String, Object> payload, String field) {
+        var value = payload == null ? null : payload.get(field);
+        return value == null ? "" : String.valueOf(value).trim();
     }
 
     private Map<String, Object> map(Object value) {

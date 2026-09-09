@@ -54,6 +54,7 @@ import { getExpenseFundGroupCopy } from './components/expenseFundGroup.copy';
 import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 
 interface ExpensesProps {
+  dataReady?: boolean;
   expenses?: Expense[];
   onFinanceDataChanged?: () => void;
   onExpensesChange?: Dispatch<SetStateAction<Expense[]>>;
@@ -104,7 +105,7 @@ const resolveExpenseAttachmentOwner = (expenseId: string): ExpenseAttachmentOwne
   return null;
 };
 
-export default function Expenses({ expenses: controlledExpenses, onFinanceDataChanged, onExpensesChange, onProvidersChange, providers: providerRecords }: ExpensesProps = {}) {
+export default function Expenses({ dataReady = true, expenses: controlledExpenses, onFinanceDataChanged, onExpensesChange, onProvidersChange, providers: providerRecords }: ExpensesProps = {}) {
   const t = useExpensesTranslations();
   const locale = useExpensesResolvedLocale();
   const detailCopy = getExpenseDetailCopy(locale);
@@ -146,16 +147,27 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
   const expenses = controlledExpenses ?? localExpenses;
   const setExpenses = onExpensesChange ?? setLocalExpenses;
   const { preferredCurrency } = usePreferredBusinessCurrency();
-  const { businessOptions: referenceBusinessOptions, currentUser, isLoadingReferenceData, unitOptions: referenceUnitOptions, userOptions } =
+  const { businessOptions: referenceBusinessOptions, currentUser, isLoadingReferenceData, isReferenceDataReady, unitOptions: referenceUnitOptions, userOptions } =
     useFinanceReferenceData(setFailureToastMessage);
 
-  useWorkspaceNavigationMemory<ExpenseListFilters>({
+  const filtersRestored = useWorkspaceNavigationMemory<ExpenseListFilters>({
     moduleKey: 'expenses',
     tabKey: 'expenses',
     state: filters,
     defaults: defaultFilters,
     urlFields: expenseWorkspaceUrlFields,
-    onRestore: setFilters,
+    enabled: dataReady && isReferenceDataReady,
+    onRestore: restored => {
+      const unit = referenceUnitOptions.some(option => option.value === restored.businessUnitFilter) ? restored.businessUnitFilter : 'all';
+      setFilters({
+        searchTerm: typeof restored.searchTerm === 'string' ? restored.searchTerm : '',
+        periodFilter: ['this_month', 'last_month', 'two_months_ago', 'this_year', 'last_year', 'custom'].includes(restored.periodFilter) ? restored.periodFilter : 'this_month',
+        statusFilter: ['all', 'paid', 'pending', 'partial', 'overdue', 'audited', 'pending_and_overdue'].includes(restored.statusFilter) ? restored.statusFilter : 'all',
+        businessUnitFilter: unit,
+        businessFilter: referenceBusinessOptions.some(option => option.value === restored.businessFilter && (unit === 'all' || option.unitId === unit)) ? restored.businessFilter : 'all',
+        providerFilter: providerRecords?.some(provider => provider.id === restored.providerFilter) ? restored.providerFilter : 'all',
+      });
+    },
   });
 
   const { attachmentsExpense, closeAttachmentsModal, getExpenseAttachments, openAttachmentsModal } =
@@ -957,6 +969,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       />
 
       <ExpenseTable
+        dataReady={dataReady && filtersRestored}
         fundPeriodLabel={expenseGroupPeriodLabel(filters.periodFilter, referenceDate, locale, getExpenseFundGroupCopy(locale).period)}
         hasFundDetailFilters={Boolean(filters.searchTerm || filters.providerFilter !== 'all' || filters.businessUnitFilter !== 'all' || filters.businessFilter !== 'all' || filters.statusFilter !== 'all')}
         actionVisibility={{ showAudit: false, showMarkPaid: false, showStatusChange: false }}
@@ -968,6 +981,14 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
         getAttachments={getExpenseAttachments}
         onDeleteExpense={requestDeleteExpense}
         onDeleteExpenses={requestDeleteExpenses}
+        onBulkAction={async (rows, action, targetId, reason) => {
+          const saved = await expensesService.applyBulkAction(rows, action, targetId, reason, providers);
+          const selectedIds = new Set(rows.map(row => row.id));
+          const updated = new Map(saved.map(row => [row.id, row]));
+          setExpenses(current => action === 'DELETE' ? current.filter(row => !selectedIds.has(row.id)) : current.map(row => updated.get(row.id) ?? row));
+          onFinanceDataChanged?.();
+          setSuccessToastMessage(action === 'DELETE' ? t.expenses.messages.deleted : t.expenses.messages.saved);
+        }}
         onDuplicateExpense={handleDuplicate}
         onEditExpense={(expense) => {
           if (!canEditExpense(expense)) return;
@@ -982,7 +1003,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
         onReclassifyExpense={reclassifyExpense}
         paymentAccounts={paymentAccounts}
         onRecordExpensePayment={handleRecordExpensePayment}
-        businessOptions={businessOptions}
+        businessOptions={referenceBusinessOptions}
         providers={providers}
         unitOptions={unitOptions}
         userOptions={userOptions}
@@ -1068,7 +1089,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       {isAddExpenseModalOpen && (
         <ExpenseFormModal
           accountingAccountOptions={accountingAccountOptions}
-          businessOptions={businessOptions}
+          businessOptions={referenceBusinessOptions}
           editingExpense={editingExpense}
           initialExpense={initialExpense}
           onClose={closeExpenseModal}
@@ -1082,7 +1103,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
 
       <PayableAccountDialog
         accountingAccountOptions={accountingAccountOptions}
-        businessOptions={businessOptions}
+        businessOptions={referenceBusinessOptions}
         currency={preferredCurrency}
         isSubmitting={isPayableAccountSubmitting}
         onOpenChange={setIsPayableAccountModalOpen}

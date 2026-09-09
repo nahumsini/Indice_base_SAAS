@@ -9,7 +9,7 @@
     "calibrate:personal-performance": "node scripts/personal-performance-engine-calibration.mjs",
     "dev": "vite",
     "audit:pos-i18n": "node scripts/pos-i18n-audit.mjs",
-    "test:kiosks": "node --experimental-strip-types --test tests/kiosk-frontend-regression.test.mjs tests/multi-kiosk-responsiveness-regression.test.mjs tests/multi-kiosk-task-runtime-regression.test.mjs",
+    "test:kiosks": "node --experimental-strip-types --test tests/kiosk-frontend-regression.test.mjs tests/multi-kiosk-responsiveness-regression.test.mjs tests/multi-kiosk-task-runtime-regression.test.mjs tests/provider-center-regression.test.mjs",
     "test:auth": "node --experimental-strip-types --test tests/auth-session-regression.test.mjs",
     "test:expenses": "node --test tests/expenses-workflow-regression.test.mjs tests/expenses-carryover-regression.test.mjs tests/expenses-bulk-import-regression.test.mjs tests/expenses-fund-grouping-regression.test.mjs",
     "test:expenses-ui": "node --test tests/expenses-frontend-standard-regression.test.mjs",
@@ -35,6 +35,7 @@
     "test:billing-flow": "node --experimental-strip-types --test tests/billing-flow-regression.test.mjs tests/payment-request-flow.test.mjs tests/billing-payment-method-flow.test.mjs",
     "test:distributor-portal": "node --test tests/distributor-portal-flow-regression.test.mjs",
     "typecheck": "tsc --noEmit",
+    "test:finance-bulk": "node --test tests/finance-bulk-actions-regression.test.mjs tests/finance-workspace-memory-regression.test.mjs",
     "test:platform-admin-localization": "node --experimental-strip-types --test tests/platform-admin-localization.test.mjs tests/customer-account-localization.test.mjs tests/platform-admin-operations-localization.test.mjs tests/induction-localization.test.mjs tests/training-exam-localization.test.mjs src/app/PlatformAdmin/CatalogWorkspace/catalogLocalization.test.mjs src/app/InternalDevelopment/internalDevelopmentLocalization.test.mjs src/app/Training/translations/sales/salesProcessLocalization.test.mjs tests/loading-bar-localization.test.mjs"
   },
   "dependencies": {

@@ -62,6 +62,23 @@ public interface KioskModuleAdapter {
         throw new UnsupportedOperationException("This kiosk does not expose an employee workspace.");
     }
 
+    /** Whether this concrete kiosk type participates in the company Provider Center. */
+    default boolean supportsProviderCenter(KioskResolvedDefinition definition) {
+        return false;
+    }
+
+    /** Module-owned final access decision for one provider and native Provider Center tool. */
+    default boolean providerCenterAccessAllows(
+            KioskResolvedDefinition definition,
+            long providerId) {
+        return false;
+    }
+
+    /** Provider workspace data. It must contain only records owned by the session provider. */
+    default Map<String, Object> providerBootstrap(KioskExecutionContext context) {
+        throw new UnsupportedOperationException("This kiosk does not expose a provider workspace.");
+    }
+
     default KioskAuthorization authorize(KioskExecutionContext context, KioskActionRequest request) {
         return KioskAuthorization.allow();
     }
@@ -76,5 +93,11 @@ public interface KioskModuleAdapter {
             KioskExecutionContext context,
             KioskActionRequest request) {
         throw new UnsupportedOperationException("This kiosk action is not available in the employee workspace.");
+    }
+
+    default Map<String, Object> executeProvider(
+            KioskExecutionContext context,
+            KioskActionRequest request) {
+        throw new UnsupportedOperationException("This kiosk action is not available in the provider workspace.");
     }
 }

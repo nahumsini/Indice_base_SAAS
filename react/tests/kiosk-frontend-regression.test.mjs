@@ -678,7 +678,7 @@ test('kiosk center composes native and scoped operational tools while the public
   assert.match(appSource, /currentPage === 'kiosk-management'/);
   assert.match(navigationSource, /'kiosk-management'/);
   assert.match(centerSource, /getMultiKioskAdminCopy/);
-  assert.match(centerSource, /tools: \[\], kiosks: \[\], employees: \[\]/);
+  assert.match(centerSource, /tools: \[\], providerTools: \[\], kiosks: \[\], employees: \[\]/);
   assert.match(centerSource, /IndiceWorkspaceNavigation/);
   for (const view of ['multi-kiosks', 'inventory', 'people', 'activity']) {
     assert.match(centerSource, new RegExp(`['"]${view}['"]`));
@@ -741,7 +741,7 @@ test('kiosk center composes native and scoped operational tools while the public
   assert.doesNotMatch(mobileTranslations, /mobileOnly|únicamente en móvil|only on mobile/);
   assert.match(mobileSource, /MultiKioskLauncherDashboard/);
   assert.match(mobileSource, /const posWorkspace = workspace\?\.kiosk\.module === 'POINT_OF_SALE'/);
-  assert.match(mobileSource, /posWorkspace \? 'max-w-\[96rem\]' : 'max-w-3xl'/);
+  assert.match(mobileSource, /posWorkspace \? 'max-w-\[96rem\]' : providerWorkspace \? 'max-w-5xl' : 'max-w-3xl'/);
   assert.match(launcherSource, /cards\.length === 0 \? copy\.noAccess : copy\.noMatches/);
   assert.match(launcherSource, /grid-cols-1[\s\S]*min-\[360px\]:grid-cols-2[\s\S]*md:grid-cols-3[\s\S]*xl:grid-cols-4/);
   assert.match(hostSource, /toolKey === 'employee\.my-tasks@1'/);
@@ -842,7 +842,9 @@ test('multi-kiosk launcher and editor preserve accessible status, ordering and n
   assert.match(tile, /aria-label=\{\[[\s\S]*statusLabel[\s\S]*\.join\('\. '\)\}/);
   assert.match(launcher, /const resultCountLabel = copy\.accessCount\(visibleCards\.length\)/);
   assert.match(launcher, /aria-live="polite"[\s\S]*\{resultCountLabel\}/);
-  assert.match(editor, /selectableToolCount = catalog\.tools\.filter\(toolIsSelectable\)\.length/);
+  assert.match(editor, /const providerFlow = form\.audience_type === 'PROVIDER'/);
+  assert.match(editor, /const activeTools = providerFlow \? catalog\.providerTools : catalog\.tools/);
+  assert.match(editor, /selectableToolCount = activeTools\.filter\(toolIsSelectable\)\.length/);
   assert.match(editor, /footerSummary\([\s\S]*selectableToolCount/);
   assert.match(editor, /copy\.editor\.moveUp\(displayName\)/);
   assert.match(editor, /IndiceModalWizardStepper/);
@@ -1222,10 +1224,10 @@ test('multi-kiosk attendance presents a compact capability-aware mobile flow wit
   assert.match(identityPanel, /canUseFace=\{canUseFace\}/);
   assert.match(verificationSection, /\{canUseFace \? \([\s\S]*Face ID/);
   assert.match(verificationSection, /canUseFace \? 'grid-cols-2' : 'grid-cols-1'/);
-  assert.match(page, /posWorkspace \? 'max-w-\[96rem\]' : 'max-w-3xl'/);
+  assert.match(page, /posWorkspace \? 'max-w-\[96rem\]' : providerWorkspace \? 'max-w-5xl' : 'max-w-3xl'/);
   assert.match(page, /compact=\{Boolean\(session\)\}/);
   assert.match(page, /data-multi-kiosk-app-bar/);
-  assert.match(page, /employee=\{session\?\.employee\.name\}/);
+  assert.match(page, /identityName=\{session\?\.identity\?\.name \?\? session\?\.provider\?\.name \?\? session\?\.employee\?\.name\}/);
   assert.match(page, /onBack=\{workspace \? returnToLauncher : undefined\}/);
   assert.match(page, /workspace\.experience_status !== 'READY'[\s\S]*onClick=\{returnToLauncher\}/);
   assert.match(page, /aria-label=\{copy\.workspace\.back\}[\s\S]*?<ArrowLeft/);
@@ -1263,10 +1265,11 @@ test('multi-kiosk launcher preserves its localized responsive and accessible int
   assert.match(launcher, /id="multi-kiosk-access-note"[\s\S]*?\{copy\.accessNote\}/);
   assert.match(launcher, /grid-cols-1[\s\S]*?min-\[360px\]:grid-cols-2[\s\S]*?md:grid-cols-3[\s\S]*?xl:grid-cols-4/);
 
-  assert.match(page, /data-multi-kiosk-app-bar[\s\S]*?aria-label=\{copy\.launcher\.signOut\}/);
+  assert.match(page, /const signOutLabel = bootstrap\.audience_type === 'PROVIDER'/);
+  assert.match(page, /data-multi-kiosk-app-bar[\s\S]*?aria-label=\{signOutLabel\}/);
   assert.match(page, /header=\{bootstrap \? \(\(utilities\) => \(/);
   assert.match(page, /utilities=\{utilities\}/);
-  assert.match(page, /sessionLabel=\{session\.employee\.name\}/);
+  assert.match(page, /sessionLabel=\{session\.identity\?\.name \?\? session\.provider\?\.name \?\? session\.employee\?\.name \?\? ''\}/);
   assert.match(shell, /data-kiosk-utility-mode="embedded"/);
   assert.match(shell, /headerUsesEmbeddedUtilities \? header\(embeddedUtilities\) : header/);
   assert.match(launcher, /type="search"[\s\S]*?className="min-h-12/);
@@ -1343,7 +1346,8 @@ test('multi-kiosk launcher lets a shared device return safely to employee PIN id
   assert.match(page, /const returnToLauncher/);
   assert.match(page, /setToolRoute\(null, true\)/);
   assert.match(api, /signOut:[\s\S]*method: 'DELETE'/);
-  assert.match(api, /signOut:[\s\S]*'X-CSRF-Token': csrfToken/);
+  assert.match(api, /signOut:[\s\S]*'X-CSRF-Token': currentCsrfToken/);
+  assert.match(api, /signOut:[\s\S]*withPublicCsrfRecovery/);
   assert.match(api, /signOut:[\s\S]*'X-Multi-Kiosk-Session-Token': multiKioskMobileSession\.get\(token\)/);
 });
 

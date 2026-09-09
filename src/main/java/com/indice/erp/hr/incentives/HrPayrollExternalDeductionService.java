@@ -1,5 +1,7 @@
 package com.indice.erp.hr.incentives;
 
+import com.indice.erp.exchange.BusinessExchangeRateEvidence;
+import com.indice.erp.exchange.BusinessExchangeRateSnapshotRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -23,9 +25,11 @@ public class HrPayrollExternalDeductionService {
     private static final String PETTY_CASH_REFERENCE = "petty_cash_statement";
 
     private final JdbcTemplate jdbcTemplate;
+    private final BusinessExchangeRateSnapshotRepository exchangeSnapshots;
 
-    public HrPayrollExternalDeductionService(JdbcTemplate jdbcTemplate) {
+    public HrPayrollExternalDeductionService(JdbcTemplate jdbcTemplate, BusinessExchangeRateSnapshotRepository exchangeSnapshots) {
         this.jdbcTemplate = jdbcTemplate;
+        this.exchangeSnapshots = exchangeSnapshots;
     }
 
     @Transactional
@@ -52,7 +56,7 @@ public class HrPayrollExternalDeductionService {
         var membership = resolveActiveMembership(companyId, responsibleUserId);
         var enteredCurrency = normalizeCurrency(sourceCurrency);
         var payrollCurrency = resolvePayrollCurrency(membership.registrationCountry(), enteredCurrency);
-        var exchangeRate = HrIncentiveService.exchangeRateBetween(enteredCurrency, payrollCurrency);
+        var exchangeRate = shortageExchangeRate(enteredCurrency, payrollCurrency, effectiveDate);
         var payrollAmount = scale(amount.multiply(exchangeRate));
         var incentiveCode = "PC-SHORTAGE-" + statementId;
         var name = truncate("Descuento por faltante · " + normalizedLabel(fundName, "Fondo " + fundId), 180);
@@ -214,6 +218,17 @@ public class HrPayrollExternalDeductionService {
             throw new IllegalStateException("The responsible collaborator membership is invalid.");
         }
         return new ActiveMembership(number.longValue(), String.valueOf(row.getOrDefault("registration_country", "")));
+    }
+
+    private BigDecimal shortageExchangeRate(String source, String target, LocalDate effectiveDate) {
+        if (source.equals(target)) return BigDecimal.ONE;
+        var snapshot = exchangeSnapshots.find(effectiveDate)
+            .or(() -> exchangeSnapshots.findLatestBefore(effectiveDate)).orElse(null);
+        var rates = BusinessExchangeRateEvidence.verifiedRates(snapshot, effectiveDate, true);
+        if (!rates.containsKey(source) || !rates.containsKey(target)) {
+            throw new IllegalArgumentException("No verified exchange rate is available for the payroll deduction date.");
+        }
+        return rates.get(target).divide(rates.get(source), 10, RoundingMode.HALF_UP);
     }
 
     static String resolvePayrollCurrency(String country, String fallback) {

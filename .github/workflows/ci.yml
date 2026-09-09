@@ -103,6 +103,7 @@ jobs:
           npm run test:expenses
           npm run test:expenses-ui
           npm run test:petty-cash-ui
+          npm run test:finance-bulk
           npm run test:receivables-ui
           npm run test:processes-tasks-ui
           npm run test:invitation
@@ -119,6 +120,7 @@ jobs:
           npm run test:print
           npm run test:phone-validation
           node --experimental-strip-types --test tests/commission-runtime.test.mjs tests/kpi-financial-flows-regression.test.mjs tests/task-kiosk-filter-runtime.test.mjs tests/training-workspace-regression.test.mjs
+          node --test tests/internal-development-regression.test.mjs tests/system-tickets-print-regression.test.mjs
 
       - name: Validate shell scripts
         run: bash -n deployment/scripts/*.sh scripts/*.sh

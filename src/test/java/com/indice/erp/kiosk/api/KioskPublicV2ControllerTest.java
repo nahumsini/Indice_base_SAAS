@@ -163,7 +163,18 @@ class KioskPublicV2ControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
             .andExpect(status().isForbidden())
-            .andExpect(jsonPath("$.error.code").value("KIOSK_ACTION_NOT_ALLOWED"));
+            .andExpect(jsonPath("$.error.code").value("KIOSK_CSRF_INVALID"))
+            .andExpect(jsonPath("$.error.retryable").value(true));
+    }
+
+    @Test
+    void malformedJsonUsesTheStableValidationContract() throws Exception {
+        mockMvc.perform(post("/api/v2/kiosks/public/secret-token/actions/process-tasks.task.complete@1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{not-json"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.code").value("KIOSK_VALIDATION_ERROR"))
+            .andExpect(jsonPath("$.error.retryable").value(false));
     }
 
     @Test

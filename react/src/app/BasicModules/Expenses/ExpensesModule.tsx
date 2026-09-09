@@ -137,6 +137,7 @@ export default function ExpensesModule({ learningModeActive = false, onNavigate 
   const [expenses, setExpenses] = useState<Expense[]>(createInitialExpenseState);
   const [budgetLoadError, setBudgetLoadError] = useState('');
   const [isFinanceDataLoading, setIsFinanceDataLoading] = useState(false);
+  const [hasFinanceData, setHasFinanceData] = useState(false);
   const [financeRefreshKey, setFinanceRefreshKey] = useState(0);
   const [failureToastMessage, setFailureToastMessage] = useState('');
   const tabs = [
@@ -178,17 +179,20 @@ export default function ExpensesModule({ learningModeActive = false, onNavigate 
 
     const loadFinanceData = async () => {
       setIsFinanceDataLoading(true);
+      setHasFinanceData(false);
       const session = await authApi.getSessionOrNull();
       if (!session || !isMounted) {
         if (isMounted) setIsFinanceDataLoading(false);
         return;
       }
 
+      let providersLoaded = false;
       let nextProviders = mockProviderRecords;
       let nextFailureMessage = '';
 
       try {
         nextProviders = await requestWithSessionRecovery(() => providersService.getProviderRecords());
+        providersLoaded = true;
       } catch (error) {
         nextFailureMessage = toFinanceApiErrorMessage(error);
       }
@@ -216,6 +220,7 @@ export default function ExpensesModule({ learningModeActive = false, onNavigate 
         nextFailureMessage = toFinanceApiErrorMessage(budgetResult.reason);
       }
 
+      setHasFinanceData(providersLoaded && expenseResult.status === 'fulfilled');
       setProviders(nextProviders);
       setExpenses([...nextRealExpenses, ...nextBudgetExpenses]);
       setBudgetLoadError(nextBudgetLoadError);
@@ -269,6 +274,7 @@ export default function ExpensesModule({ learningModeActive = false, onNavigate 
       default:
         return (
           <Expenses
+            dataReady={hasFinanceData && !isFinanceDataLoading}
             expenses={expenses}
             onProvidersChange={setProviders}
             providers={providers}

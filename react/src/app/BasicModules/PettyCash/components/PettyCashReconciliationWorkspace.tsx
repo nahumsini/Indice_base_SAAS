@@ -1,3 +1,8 @@
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
+import { FinanceBulkActions, type FinanceBulkActionConfig } from '../../shared/FinanceBulkActions';
+import { getFinanceBulkCopy } from '../../shared/financeBulkActions.copy';
+import { FinanceSelectionTotals } from '../../shared/FinanceSelectionTotals';
+import { useRowSelection } from '../../shared/operational/useRowSelection';
 import { Ban, Banknote, Building2, CheckCircle2, Coins, Copy, Download, ExternalLink, FileText, FolderOpen, Info, Loader2, MoreHorizontal, Paperclip, Plus, ReceiptText, Search, Trash2, Upload, WalletCards, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { isAdminAccessRole } from '../../../access/accessRules';
@@ -67,6 +72,7 @@ import {
 import { PettyCashStatementDetailModal } from './statements/PettyCashStatementDetailModal';
 
 type PettyCashReconciliationWorkspaceProps = {
+  dataReady?: boolean;
   funds: PettyCashFund[];
   initialFundId?: string;
   movements: PettyCashMovement[];
@@ -354,9 +360,8 @@ const canAuthorizeExpenseFromLine = (line: PettyCashSettlementLine) => (
 );
 
 const canFinalizeSettlementLine = (line: PettyCashSettlementLine, isExternalFund: boolean) => (
-  isExternalFund
-    ? line.status === 'RECEIPT_ATTACHED'
-    : line.status === 'RECEIPT_ATTACHED' || line.status === 'VALIDATED'
+  canAuthorizeExpenseFromLine(line)
+    && !(isExternalFund && line.status === 'VALIDATED')
 );
 
 const canRejectSettlementLine = (line: PettyCashSettlementLine) => canAuthorizeExpenseFromLine(line);
@@ -400,6 +405,7 @@ function SettlementLineActionButton({
 }
 
 export function PettyCashReconciliationWorkspace({
+  dataReady = true,
   funds,
   initialFundId,
   movements,
@@ -412,6 +418,8 @@ export function PettyCashReconciliationWorkspace({
 }: PettyCashReconciliationWorkspaceProps) {
   const copy = usePettyCashTranslations();
   const { currentLanguage } = useLanguage();
+  const bulkCopy = getFinanceBulkCopy(currentLanguage.code);
+  const rowSelection = useRowSelection<string>();
   const currencyCopy = getOperationalKpiCurrencyCopy(currentLanguage.code);
   const accountStatementCopy = getPettyCashAccountStatementCopy(copy.locale);
   const { preferredCurrency } = usePreferredBusinessCurrency();
@@ -431,6 +439,8 @@ export function PettyCashReconciliationWorkspace({
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>(activePaymentAccountMocks);
   const [accountingAccounts, setAccountingAccounts] = useState<AccountingAccount[]>(activeAccountingAccountMocks);
   const [referenceError, setReferenceError] = useState('');
+  const [referencesLoaded, setReferencesLoaded] = useState(false);
+  const appliedInitialFund = useRef('');
   const [canAuthorizeWithoutSupport, setCanAuthorizeWithoutSupport] = useState(false);
   const [expenseCreationLineId, setExpenseCreationLineId] = useState<string | null>(null);
   const [rejectingLineId, setRejectingLineId] = useState<string | null>(null);
@@ -529,6 +539,50 @@ export function PettyCashReconciliationWorkspace({
     rows: movementSort.sortedRows,
   });
 
+  const bulkLines = filteredLines.filter(line => rowSelection.isSelected(line.id));
+  const visibleLineIds = linePagination.paginatedRows.map(line => line.id);
+  const visibleSelection = rowSelection.visibleSelectionState(visibleLineIds);
+  useEffect(() => { rowSelection.clearSelection(); }, [selectedFundId, selectedStatementId, operationView, rowSelection.clearSelection]);
+  useEffect(() => { rowSelection.pruneSelection(filteredLines.map(line => line.id)); }, [filteredLines, rowSelection.pruneSelection]);
+  const bulkBlocked = selectedStatement && closedStatementStatuses.includes(selectedStatement.status) ? bulkCopy.cut
+    : bulkLines.some(line => line.version === undefined || ['REVERSED', 'REJECTED'].includes(line.status)) ? bulkCopy.protected : undefined;
+  const bulkActions: FinanceBulkActionConfig[] = [
+    { action: 'DELETE', blockedReason: bulkBlocked, hint: bulkCopy.reverse },
+    { action: 'PROVIDER', options: providers.filter(provider => provider.status === 'active').map(provider => ({ value: provider.id, label: provider.name })), blockedReason: bulkBlocked },
+    { action: 'PAYMENT_ACCOUNT', blockedReason: bulkCopy.custody },
+    { action: 'ACCOUNTING_ACCOUNT', options: accountingAccounts.filter(account => account.isActive).map(account => ({ value: account.id, label: `${account.code} · ${account.name}` })), blockedReason: bulkBlocked },
+  ];
+  const selectionCheckbox = (line: PettyCashSettlementLine) => <input type="checkbox" aria-label={`${bulkCopy.row}: ${line.description}`} checked={rowSelection.isSelected(line.id)} onChange={event => rowSelection.toggleSelection(line.id, event.target.checked)} className="h-4 w-4 accent-[#147514]" />;
+  const selectVisibleCheckbox = <input type="checkbox" aria-label={bulkCopy.all} checked={visibleSelection.allVisibleSelected}
+    ref={node => { if (node) node.indeterminate = visibleSelection.someVisibleSelected; }} onChange={event => rowSelection.toggleAllVisible(visibleLineIds, event.target.checked)} className="h-4 w-4 accent-[#147514]" />;
+
+  const workspaceState = useMemo(() => ({ selectedFundId, selectedStatementId, operationView, searchTerm, receiptStatusFilter, providerFilter, evidenceFilter,
+    lineSortKey: lineSort.sortKey, lineSortDirection: lineSort.sortDirection, linePage: linePagination.currentPage, linePageSize: linePagination.pageSize,
+    movementSortKey: movementSort.sortKey, movementSortDirection: movementSort.sortDirection, movementPage: movementPagination.currentPage, movementPageSize: movementPagination.pageSize }), [selectedFundId, selectedStatementId, operationView, searchTerm, receiptStatusFilter, providerFilter, evidenceFilter,
+    lineSort.sortKey, lineSort.sortDirection, linePagination.currentPage, linePagination.pageSize,
+    movementSort.sortKey, movementSort.sortDirection, movementPagination.currentPage, movementPagination.pageSize]);
+  useWorkspaceNavigationMemory({ moduleKey: 'petty-cash', tabKey: 'control', enabled: dataReady && referencesLoaded,
+    state: workspaceState,
+    defaults: { selectedFundId: '', selectedStatementId: '', operationView: 'expenses', searchTerm: '', receiptStatusFilter: 'all', providerFilter: 'all', evidenceFilter: 'all',
+      lineSortKey: 'date', lineSortDirection: 'desc', linePage: 1, linePageSize: 10, movementSortKey: 'date', movementSortDirection: 'desc', movementPage: 1, movementPageSize: 10 },
+    urlFields: { selectedFundId: 'pc_fund', selectedStatementId: 'pc_cut', operationView: 'pc_view', searchTerm: 'pc_q', receiptStatusFilter: 'pc_status', providerFilter: 'pc_provider', evidenceFilter: 'pc_evidence' },
+    onRestore: restored => {
+      const restoredFund = funds.find(fund => fund.id === (initialFundId || restored.selectedFundId)) ?? funds[0];
+      const restoredStatements = statements.filter(statement => statement.pettyCashFundId === restoredFund?.id);
+      setSelectedFundId(restoredFund?.id ?? '');
+      setSelectedStatementId(restoredStatements.find(statement => statement.id === restored.selectedStatementId)?.id ?? restoredStatements[0]?.id ?? '');
+      setOperationView(restored.operationView === 'income' ? 'income' : 'expenses');
+      setSearchTerm(typeof restored.searchTerm === 'string' ? restored.searchTerm : '');
+      setReceiptStatusFilter(Object.prototype.hasOwnProperty.call(copy.status.line, restored.receiptStatusFilter) ? restored.receiptStatusFilter as PettyCashSettlementLineStatus : 'all');
+      setProviderFilter(providers.some(provider => provider.id === restored.providerFilter) ? restored.providerFilter : 'all');
+      setEvidenceFilter(restored.evidenceFilter === 'with' || restored.evidenceFilter === 'without' ? restored.evidenceFilter : 'all');
+      lineSort.restoreSort(restored.lineSortKey, restored.lineSortDirection);
+      movementSort.restoreSort(restored.movementSortKey, restored.movementSortDirection);
+      linePagination.restorePagination({ currentPage: restored.linePage, pageSize: restored.linePageSize });
+      movementPagination.restorePagination({ currentPage: restored.movementPage, pageSize: restored.movementPageSize });
+    },
+  });
+
   const ensureStatement = (fund: PettyCashFund) => selectedStatement ?? buildStatementForFund(fund);
 
   const syncLineAttachmentCount = (line: PettyCashSettlementLine, count: number) => {
@@ -621,7 +675,8 @@ export function PettyCashReconciliationWorkspace({
       ? initialFundId
       : undefined;
 
-    if (requestedFundId && requestedFundId !== selectedFundId) {
+    if (requestedFundId && requestedFundId !== appliedInitialFund.current) {
+      appliedInitialFund.current = requestedFundId;
       const nextStatement = statements.find(statement => statement.pettyCashFundId === requestedFundId);
       setSelectedFundId(requestedFundId);
       setSelectedStatementId(nextStatement?.id ?? '');
@@ -678,6 +733,7 @@ export function PettyCashReconciliationWorkspace({
         }
 
         setReferenceError(errors.length > 0 ? copy.reconciliation.errors.localReferences : '');
+        setReferencesLoaded(providersResult.status === 'fulfilled' && paymentAccountsResult.status === 'fulfilled' && accountingAccountsResult.status === 'fulfilled');
       });
 
     return () => {
@@ -1104,15 +1160,16 @@ export function PettyCashReconciliationWorkspace({
     try {
       const saved = await pettyCashService.closeStatement(fund.id, statement.id, {
         action: draft.action,
+        expectedClosingBalance: statement.declaredClosingBalanceAmount,
         closeDate: draft.closeDate,
         reference: draft.reference.trim() || undefined,
-        shortageAmount: Number(draft.shortageAmount) || undefined,
+        shortageAmount: ['FORGIVE_SHORTAGE', 'FORGIVE_SURPLUS', 'CHARGE_EMPLOYEE'].includes(draft.action)
+          ? Number(draft.shortageAmount) : undefined,
       });
       onFundsChange(current => current.map(currentFund => (currentFund.id === saved.fund.id ? saved.fund : currentFund)));
       onStatementsChange(current => {
-        const withClosed = current.map(currentStatement => (
-          currentStatement.id === saved.statement.id ? saved.statement : currentStatement
-        ));
+        const updates = new Map([saved.statement, ...saved.updatedStatements].map(item => [item.id, item]));
+        const withClosed = current.map(currentStatement => updates.get(currentStatement.id) ?? currentStatement);
         if (!saved.nextStatement) return withClosed;
         return withClosed.some(currentStatement => currentStatement.id === saved.nextStatement?.id)
           ? withClosed.map(currentStatement => (currentStatement.id === saved.nextStatement?.id ? saved.nextStatement : currentStatement))
@@ -1183,6 +1240,8 @@ export function PettyCashReconciliationWorkspace({
         ) : undefined}
         hasActiveFilters={Boolean(searchTerm || (operationView === 'expenses' && (providerFilter !== 'all' || receiptStatusFilter !== 'all' || evidenceFilter !== 'all')))}
         onClear={() => {
+          linePagination.onPageChange(1);
+          movementPagination.onPageChange(1);
           setSearchTerm('');
           setProviderFilter('all');
           setReceiptStatusFilter('all');
@@ -1264,12 +1323,24 @@ export function PettyCashReconciliationWorkspace({
           }}
         />
 
+        {operationView === 'expenses' && <FinanceBulkActions key={`${selectedFundId}:${selectedStatementId}:${rowSelection.selectedIdList.join(',')}`} count={bulkLines.length} locale={currentLanguage.code}
+          actions={bulkActions} onClear={rowSelection.clearSelection} formatError={toFinanceApiErrorMessage}
+          onApply={async (action, targetId, reason) => {
+            if (!selectedStatement || !selectedFund || !['DELETE', 'PROVIDER', 'ACCOUNTING_ACCOUNT'].includes(action)) throw new Error(bulkCopy.custody);
+            const saved = await pettyCashService.applyBulkAction(selectedFund.id, selectedStatement.id, bulkLines, action as 'DELETE' | 'PROVIDER' | 'ACCOUNTING_ACCOUNT', targetId, reason);
+            const updated = new Map(saved.settlementLines.map(line => [line.id, line]));
+            onSettlementLinesChange(current => current.map(line => updated.get(line.id) ?? line));
+            onFundsChange(current => current.map(fund => fund.id === saved.fund.id ? saved.fund : fund));
+            const updatedStatements = new Map([saved.statement, ...saved.updatedStatements].map(statement => [statement.id, statement]));
+            onStatementsChange(current => current.map(statement => updatedStatements.get(statement.id) ?? statement));
+          }} />}
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
           <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
             <div><h3 className="text-xl font-medium text-slate-900 dark:text-white">{operationView === 'expenses' ? copy.reconciliation.receipts.title : copy.reconciliation.movements.title}</h3><p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{operationView === 'expenses' ? copy.reconciliation.receipts.subtitle : copy.reconciliation.movements.subtitle}</p></div>
           </div>
 
           {operationView === 'expenses' ? (filteredLines.length > 0 ? <>
+            <label className="flex items-center gap-2 px-5 pt-3 text-sm md:hidden">{selectVisibleCheckbox}{bulkCopy.all}</label>
             <div className="space-y-3 p-3 md:hidden">
               {linePagination.paginatedRows.map(line => {
                 const isCaptured = line.status === 'DRAFT';
@@ -1282,6 +1353,7 @@ export function PettyCashReconciliationWorkspace({
 
                 return (
                   <article key={line.id} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                    <label className="mb-3 flex items-center gap-2 text-xs">{selectionCheckbox(line)}{bulkCopy.row}</label>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-slate-950 dark:text-white">{line.description}</p>
@@ -1321,6 +1393,7 @@ export function PettyCashReconciliationWorkspace({
               })}
             </div>
             <div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[900px]"><thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60"><tr>
+              <th className="w-12 px-4">{selectVisibleCheckbox}</th>
               <PettyCashSortableHeader columnKey="receipt" label={copy.reconciliation.receipts.columns.receipt} onSort={lineSort.onSort} sortDirection={lineSort.sortDirection} sortKey={lineSort.sortKey} />
               <PettyCashSortableHeader columnKey="provider" label={copy.reconciliation.receipts.columns.provider} onSort={lineSort.onSort} sortDirection={lineSort.sortDirection} sortKey={lineSort.sortKey} />
               <PettyCashSortableHeader columnKey="date" label={copy.reconciliation.receipts.columns.date} onSort={lineSort.onSort} sortDirection={lineSort.sortDirection} sortKey={lineSort.sortKey} />
@@ -1347,7 +1420,8 @@ export function PettyCashReconciliationWorkspace({
                       : copy.reconciliation.receipts.authorize;
 
                   return (
-                    <tr key={line.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50">
+                    <tr key={line.id} className={rowSelection.isSelected(line.id) ? "bg-emerald-50/70 dark:bg-emerald-950/30" : "hover:bg-slate-50 dark:hover:bg-slate-900/50"}>
+                      <td className="px-4">{selectionCheckbox(line)}</td>
                       <td className="px-5 py-4">
                         <p className="text-sm font-medium text-slate-900 dark:text-white">{line.description}</p>
                         <p className="mt-1 text-xs font-medium text-slate-500">{line.receiptReference ?? copy.reconciliation.receipts.noReference}</p>
@@ -1416,6 +1490,7 @@ export function PettyCashReconciliationWorkspace({
                   );
                 })}
               </tbody></table></div>
+            <FinanceSelectionTotals rows={filteredLines.map(line => ({ amount: line.totalAmount, currency: line.currencyCode }))} selected={bulkLines.map(line => ({ amount: line.totalAmount, currency: line.currencyCode }))} locale={copy.locale} currency={selectedFund.currencyCode} />
             <PettyCashPagination currentPage={linePagination.currentPage} itemLabel={copy.reconciliation.receipts.itemLabel} onPageChange={linePagination.onPageChange} onPageSizeChange={linePagination.onPageSizeChange} pageEnd={linePagination.pageEnd} pageSize={linePagination.pageSize} pageSizeOptions={linePagination.pageSizeOptions} pageStart={linePagination.pageStart} totalCount={linePagination.totalCount} totalPages={linePagination.totalPages} />
           </> : <div className="p-5"><PettyCashEmptyState label={copy.reconciliation.receipts.empty} /></div>) : (filteredIncomeMovements.length > 0 ? <>
             <div className="space-y-3 p-3 md:hidden">
@@ -1441,6 +1516,7 @@ export function PettyCashReconciliationWorkspace({
               <PettyCashSortableHeader columnKey="reference" label={copy.reconciliation.movements.columns.reference} onSort={movementSort.onSort} sortDirection={movementSort.sortDirection} sortKey={movementSort.sortKey} />
               <PettyCashSortableHeader columnKey="amount" label={copy.reconciliation.movements.columns.amount} onSort={movementSort.onSort} sortDirection={movementSort.sortDirection} sortKey={movementSort.sortKey} />
             </tr></thead><tbody className="divide-y divide-slate-200 dark:divide-slate-700">{movementPagination.paginatedRows.map(movement => <tr key={movement.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50"><td className="px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-200">{formatPettyCashIsoDate(movement.movementDate)}</td><td className="px-5 py-4"><span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300">{copy.status.movement[movement.type]}</span></td><td className="px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-200">{movement.fromPaymentAccountName ?? movement.externalSourceName ?? copy.common.notAvailable}</td><td className="px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-200">{movement.toPaymentAccountName ?? selectedFund.name}</td><td className="px-5 py-4 text-sm font-medium text-slate-500">{movement.reference || copy.common.noReference}</td><td className="px-5 py-4 text-sm font-medium tabular-nums text-[#147514]">{formatPettyCashCurrency(movement.amount, movement.currencyCode)}</td></tr>)}</tbody></table></div>
+            <FinanceSelectionTotals rows={filteredIncomeMovements.map(movement => ({ amount: movement.amount, currency: movement.currencyCode }))} selected={[]} locale={copy.locale} currency={selectedFund.currencyCode} />
             <PettyCashPagination currentPage={movementPagination.currentPage} itemLabel={copy.reconciliation.movements.itemLabel} onPageChange={movementPagination.onPageChange} onPageSizeChange={movementPagination.onPageSizeChange} pageEnd={movementPagination.pageEnd} pageSize={movementPagination.pageSize} pageSizeOptions={movementPagination.pageSizeOptions} pageStart={movementPagination.pageStart} totalCount={movementPagination.totalCount} totalPages={movementPagination.totalPages} />
           </> : <div className="p-5"><PettyCashEmptyState label={copy.reconciliation.movements.empty} /></div>)}
         </section>
@@ -1567,12 +1643,12 @@ function CloseStatementModal({
     && ![finalizedStatus, 'REJECTED', 'REVERSED'].includes(line.status)
   ));
   const pendingAmount = pendingLines.reduce((total, line) => total + line.totalAmount, 0);
-  const defaultAction: PettyCashStatementCloseAction = closingBalance > 0 ? 'CARRY_FORWARD' : 'CLOSE_CLEAN';
+  const defaultAction: PettyCashStatementCloseAction = closingBalance !== 0 ? 'CARRY_FORWARD' : 'CLOSE_CLEAN';
   const [draft, setDraft] = useState<CloseStatementDraft>({
     action: defaultAction,
     closeDate: todayIso(),
     reference: '',
-    shortageAmount: '',
+    shortageAmount: String(Math.abs(closingBalance)),
   });
   const initialDraft = useRef(draft);
   const [discardPromptOpen, setDiscardPromptOpen] = useState(false);
@@ -1584,14 +1660,20 @@ function CloseStatementModal({
     }
     onClose();
   };
-  const hasBalance = closingBalance > 0;
-  const isShortageAction = draft.action === 'FORGIVE_SHORTAGE' || draft.action === 'CHARGE_EMPLOYEE';
+  const hasBalance = closingBalance !== 0;
+  const isShortageAction = ['FORGIVE_SHORTAGE', 'FORGIVE_SURPLUS', 'CHARGE_EMPLOYEE'].includes(draft.action);
   const shortageAmount = Number(draft.shortageAmount) || 0;
+  const validAction = draft.action === 'CLOSE_CLEAN' ? closingBalance === 0
+    : draft.action === 'CARRY_FORWARD' ? hasBalance
+    : draft.action === 'RETURN_TO_SOURCE' || draft.action === 'FORGIVE_SURPLUS' ? closingBalance > 0
+    : draft.action === 'CHARGE_EMPLOYEE' ? closingBalance < 0 && Boolean(fund?.responsibleUserId)
+    : closingBalance < 0;
   const canSave = pendingLines.length === 0
-    && Number.isFinite(closingBalance) && closingBalance >= 0
+    && Number.isFinite(closingBalance)
     && Boolean(draft.closeDate)
     && !closedStatementStatuses.includes(statement.status)
-    && (isShortageAction ? shortageAmount > 0 && shortageAmount <= closingBalance : (draft.action === 'CLOSE_CLEAN' ? closingBalance === 0 : hasBalance))
+    && validAction
+    && (!isShortageAction || (shortageAmount > 0 && shortageAmount === Math.abs(closingBalance)))
     && !isSaving;
 
   return (
@@ -1625,9 +1707,10 @@ function CloseStatementModal({
           >
             <option disabled={closingBalance !== 0} value="CLOSE_CLEAN">{copy.reconciliation.closeModal.closeClean}</option>
             <option disabled={!hasBalance} value="CARRY_FORWARD">{copy.reconciliation.closeModal.carryForward}</option>
-            <option disabled={!hasBalance} value="RETURN_TO_SOURCE">{copy.reconciliation.closeModal.returnToSource}</option>
-            <option disabled={!hasBalance} value="CHARGE_EMPLOYEE">{copy.reconciliation.closeModal.chargeEmployee}</option>
-            <option disabled={!hasBalance} value="FORGIVE_SHORTAGE">{copy.reconciliation.closeModal.forgiveShortage}</option>
+            <option disabled={closingBalance <= 0} value="RETURN_TO_SOURCE">{copy.reconciliation.closeModal.returnToSource}</option>
+            <option disabled={closingBalance >= 0 || !fund?.responsibleUserId} value="CHARGE_EMPLOYEE">{copy.reconciliation.closeModal.chargeEmployee}</option>
+            <option disabled={closingBalance >= 0} value="FORGIVE_SHORTAGE">{copy.reconciliation.closeModal.forgiveShortage}</option>
+            <option disabled={closingBalance <= 0} value="FORGIVE_SURPLUS">{copy.reconciliation.closeModal.forgiveSurplus}</option>
           </select>
         </PettyCashField>
         <PettyCashField label={copy.reconciliation.closeModal.closeDate}>
@@ -1642,14 +1725,19 @@ function CloseStatementModal({
           <PettyCashField label={copy.reconciliation.closeModal.shortageAmount}>
             <input
               className={pettyCashInputClass}
-              max={closingBalance}
-              min="0"
-              onChange={(event) => setDraft(current => ({ ...current, shortageAmount: event.target.value }))}
-              placeholder="0.00"
+              readOnly
               type="number"
               value={draft.shortageAmount}
             />
           </PettyCashField>
+        ) : null}
+        {draft.action === 'CHARGE_EMPLOYEE' ? (
+          <p className="md:col-span-2 text-sm text-slate-600 dark:text-slate-300">
+            {fund?.responsibleName} — {copy.reconciliation.closeModal.payrollHint}
+          </p>
+        ) : null}
+        {isShortageAction ? (
+          <p className="md:col-span-2 text-sm text-slate-600 dark:text-slate-300">{copy.reconciliation.closeModal.adjustmentHint}</p>
         ) : null}
         <div className="md:col-span-2">
           <PettyCashField label={copy.reconciliation.closeModal.reference}>

@@ -44,6 +44,7 @@ class MigrationVersionUniquenessTest {
         assertTrue(Files.exists(migrationDir.resolve("V231__product_usage_analytics.sql")));
         assertTrue(Files.exists(migrationDir.resolve("V232__sales_meta_lead_import_audit.sql")));
         assertTrue(Files.exists(migrationDir.resolve("V233__billing_selection_change_schedule.sql")));
+        assertTrue(Files.exists(migrationDir.resolve("V265__expense_import_batches.sql")));
     }
 
     private static void recordDuplicateVersion(

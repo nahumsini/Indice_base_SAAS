@@ -157,6 +157,11 @@ workflow result, not an editable field. Partial and full payment actions always 
 flow so the user chooses an eligible account and the backend records the installment and Treasury
 movement together.
 
+Selected-row Finance actions and Petty Cash filter memory follow
+`docs/finance-bulk-actions-and-workspace-memory-contract-v1.md`. Their explicit classification
+operations are available independently of generic draft editing; protected actions explain their
+restriction instead of hiding the entire selection toolbar.
+
 Expense edit controls are available only while the record is a draft. Published expenses remain
 consultable; approval, payment, closure, adjustment, and reversal use their named actions instead
 of reopening the original commercial record.

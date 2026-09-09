@@ -1,3 +1,4 @@
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import {
   Activity,
   AlertTriangle,
@@ -43,6 +44,7 @@ import {
 } from './PettyCashShared';
 
 type PettyCashFinancialViewWorkspaceProps = {
+  dataReady?: boolean;
   funds: PettyCashFund[];
   movements: PettyCashMovement[];
   settlementLines: PettyCashSettlementLine[];
@@ -91,6 +93,7 @@ const rankTone = (value: number): KpiTone => {
 };
 
 export function PettyCashFinancialViewWorkspace({
+  dataReady = true,
   funds,
   movements,
   settlementLines,
@@ -289,7 +292,29 @@ export function PettyCashFinancialViewWorkspace({
     rows: movementSort.sortedRows,
   });
 
+  const workspaceState = useMemo(() => ({ periodFilter, statusFilter, unitFilter, businessFilter, searchTerm,
+    sortKey: statementSort.sortKey, sortDirection: statementSort.sortDirection, currentPage: statementPagination.currentPage, pageSize: statementPagination.pageSize,
+    movementSortKey: movementSort.sortKey, movementSortDirection: movementSort.sortDirection, movementPage: movementPagination.currentPage, movementPageSize: movementPagination.pageSize }),
+    [periodFilter, statusFilter, unitFilter, businessFilter, searchTerm, statementSort.sortKey, statementSort.sortDirection, statementPagination.currentPage, statementPagination.pageSize,
+      movementSort.sortKey, movementSort.sortDirection, movementPagination.currentPage, movementPagination.pageSize]);
+  useWorkspaceNavigationMemory({ moduleKey: 'petty-cash', tabKey: 'kpis', enabled: dataReady,
+    state: workspaceState, defaults: { periodFilter: 'all', statusFilter: 'all', unitFilter: 'all', businessFilter: 'all', searchTerm: '', sortKey: 'period', sortDirection: 'desc', currentPage: 1, pageSize: 10,
+      movementSortKey: 'date', movementSortDirection: 'desc', movementPage: 1, movementPageSize: 10 },
+    urlFields: { periodFilter: 'pck_period', statusFilter: 'pck_status', unitFilter: 'pck_unit', businessFilter: 'pck_business', searchTerm: 'pck_q' },
+    onRestore: restored => {
+      const unit = funds.some(fund => fund.unitId === restored.unitFilter) ? restored.unitFilter : 'all';
+      setUnitFilter(unit); setBusinessFilter(funds.some(fund => fund.businessId === restored.businessFilter && (unit === 'all' || fund.unitId === unit)) ? restored.businessFilter : 'all');
+      setSearchTerm(typeof restored.searchTerm === 'string' ? restored.searchTerm : '');
+      setPeriodFilter(periodOptions.includes(restored.periodFilter) ? restored.periodFilter : 'all');
+      setStatusFilter(Object.prototype.hasOwnProperty.call(copy.status.statement, restored.statusFilter) ? restored.statusFilter as PettyCashStatementStatus : 'all');
+      statementSort.restoreSort(restored.sortKey, restored.sortDirection); statementPagination.restorePagination(restored);
+      movementSort.restoreSort(restored.movementSortKey, restored.movementSortDirection); movementPagination.restorePagination({ currentPage: restored.movementPage, pageSize: restored.movementPageSize });
+    },
+  });
+
   const resetFilters = () => {
+    statementPagination.onPageChange(1);
+    movementPagination.onPageChange(1);
     setPeriodFilter('all');
     setStatusFilter('all');
     setUnitFilter('all');

@@ -9,6 +9,7 @@ public final class KioskExecutionChannels {
     public static final String LEGACY_PUBLIC_LINK = "LEGACY_PUBLIC_LINK";
     public static final String AUTHENTICATED_WEB = "AUTHENTICATED_WEB";
     public static final String MOBILE_MULTI_KIOSK = "MOBILE_MULTI_KIOSK";
+    public static final String PROVIDER_MULTI_KIOSK = "PROVIDER_MULTI_KIOSK";
 
     private static final Set<String> EMPLOYEE_CHANNELS = Set.of(
         AUTHENTICATED_WEB,
@@ -28,6 +29,7 @@ public final class KioskExecutionChannels {
             case PUBLIC_LINK, LEGACY_PUBLIC_LINK -> PUBLIC_LINK;
             case AUTHENTICATED_WEB -> AUTHENTICATED_WEB;
             case MOBILE_MULTI_KIOSK -> MOBILE_MULTI_KIOSK;
+            case PROVIDER_MULTI_KIOSK -> PROVIDER_MULTI_KIOSK;
             default -> throw new SecurityException("Unsupported kiosk execution channel.");
         };
     }

@@ -7,8 +7,10 @@ import com.indice.erp.kiosk.engine.KioskActionRequest;
 import com.indice.erp.kiosk.engine.KioskAuthorization;
 import com.indice.erp.kiosk.engine.KioskCapabilityDescriptor;
 import com.indice.erp.kiosk.engine.KioskExecutionContext;
+import com.indice.erp.kiosk.engine.KioskExecutionChannels;
 import com.indice.erp.kiosk.engine.KioskFileIntentService;
 import com.indice.erp.kiosk.engine.KioskModuleAdapter;
+import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import com.indice.erp.kiosk.engine.KioskValidationResult;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalDocumentRegisterRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalDocumentUploadRequest;
@@ -24,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -41,7 +44,9 @@ public class ProcurementSupplierPortalAdapter implements KioskModuleAdapter {
     private final ObjectMapper objectMapper;
     private final Validator validator;
     private final ProcurementSupplierPortalScopeReconciler scopeReconciler;
+    private final ProcurementProviderCenterService providerCenter;
 
+    @Autowired
     public ProcurementSupplierPortalAdapter(
             PurchaseOrderRepository repository,
             PurchaseOrderService service,
@@ -51,7 +56,8 @@ public class ProcurementSupplierPortalAdapter implements KioskModuleAdapter {
             ObjectStorageProperties storageProperties,
             ObjectMapper objectMapper,
             Validator validator,
-            ProcurementSupplierPortalScopeReconciler scopeReconciler) {
+            ProcurementSupplierPortalScopeReconciler scopeReconciler,
+            ProcurementProviderCenterService providerCenter) {
         this.repository = repository;
         this.service = service;
         this.identities = identities;
@@ -61,6 +67,21 @@ public class ProcurementSupplierPortalAdapter implements KioskModuleAdapter {
         this.objectMapper = objectMapper;
         this.validator = validator;
         this.scopeReconciler = scopeReconciler;
+        this.providerCenter = providerCenter;
+    }
+
+    ProcurementSupplierPortalAdapter(
+            PurchaseOrderRepository repository,
+            PurchaseOrderService service,
+            ProcurementSupplierPortalIdentityService identities,
+            ProcurementKioskModuleAuditService moduleAudit,
+            KioskFileIntentService fileIntents,
+            ObjectStorageProperties storageProperties,
+            ObjectMapper objectMapper,
+            Validator validator,
+            ProcurementSupplierPortalScopeReconciler scopeReconciler) {
+        this(repository, service, identities, moduleAudit, fileIntents, storageProperties,
+            objectMapper, validator, scopeReconciler, null);
     }
 
     @Override
@@ -71,6 +92,28 @@ public class ProcurementSupplierPortalAdapter implements KioskModuleAdapter {
     @Override
     public Set<KioskCapabilityDescriptor> capabilities() {
         return ProcurementSupplierPortalCapabilities.descriptors();
+    }
+
+    @Override
+    public Set<KioskCapabilityDescriptor> capabilities(KioskResolvedDefinition definition) {
+        return ProcurementSupplierPortalCapabilities.descriptorsFor(definition.kioskType());
+    }
+
+    @Override
+    public boolean supportsProviderCenter(KioskResolvedDefinition definition) {
+        return providerCenter != null && providerCenter.supports(definition.kioskType());
+    }
+
+    @Override
+    public boolean providerCenterAccessAllows(
+            KioskResolvedDefinition definition, long providerId) {
+        return supportsProviderCenter(definition)
+            && providerCenter.hasAccess(definition.companyId(), providerId);
+    }
+
+    @Override
+    public Map<String, Object> providerBootstrap(KioskExecutionContext context) {
+        return requireProviderCenter().bootstrap(context);
     }
 
     @Override
@@ -88,6 +131,15 @@ public class ProcurementSupplierPortalAdapter implements KioskModuleAdapter {
 
     @Override
     public KioskAuthorization authorize(KioskExecutionContext context, KioskActionRequest request) {
+        if (KioskExecutionChannels.PROVIDER_MULTI_KIOSK.equals(context.channel())) {
+            return context.session() != null
+                    && "PROVIDER".equals(context.session().identityType())
+                    && supportsProviderCenter(context.definition())
+                    && providerCenterAccessAllows(
+                        context.definition(), context.session().identityId())
+                ? KioskAuthorization.allow()
+                : KioskAuthorization.deny("Provider Center procurement session is required.");
+        }
         var access = access(context);
         if (ProcurementSupplierPortalCapabilities.IDENTITY_VERIFY.equals(request.capabilityKey())) {
             return KioskAuthorization.allow();
@@ -149,6 +201,12 @@ public class ProcurementSupplierPortalAdapter implements KioskModuleAdapter {
         audit(context, request, response);
         response.remove("_audit_record_id");
         return response;
+    }
+
+    @Override
+    public Map<String, Object> executeProvider(
+            KioskExecutionContext context, KioskActionRequest request) {
+        return requireProviderCenter().execute(context, request);
     }
 
     private Map<String, Object> authenticate(
@@ -385,5 +443,12 @@ public class ProcurementSupplierPortalAdapter implements KioskModuleAdapter {
         if (!ownerModule().equals(context.ownerModule())) {
             throw new IllegalArgumentException("Kiosk context does not belong to Procurement.");
         }
+    }
+
+    private ProcurementProviderCenterService requireProviderCenter() {
+        if (providerCenter == null) {
+            throw new SecurityException("Provider Center procurement is unavailable.");
+        }
+        return providerCenter;
     }
 }

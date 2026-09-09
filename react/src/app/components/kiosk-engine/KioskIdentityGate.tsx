@@ -1,17 +1,20 @@
 import { ArrowRight, Loader2, LockKeyhole, ShieldCheck } from 'lucide-react';
-import { useRef, type CSSProperties } from 'react';
+import { useRef, type CSSProperties, type ReactNode } from 'react';
 import { MODULE_COLORS } from '../../styles/moduleColors';
 import { KioskPinKeypad, type KioskThemeTone } from './KioskWorkspacePrimitives';
 
 interface KioskIdentityGateProps {
+  autoFocusPin?: boolean;
   backspaceLabel: string;
   clearLabel: string;
   description: string;
   disabled?: boolean;
   isSubmitting?: boolean;
+  identityField?: ReactNode;
   onPinChange: (value: string) => void;
   onSubmit: () => void;
   pinAriaLabel: string;
+  pinDescription?: string;
   pinLength: number;
   pinValue: string;
   privacyMessage: string;
@@ -23,14 +26,17 @@ interface KioskIdentityGateProps {
 
 /** Shared, presentation-only identity entry point for public kiosk workspaces. */
 export function KioskIdentityGate({
+  autoFocusPin = true,
   backspaceLabel,
   clearLabel,
   description,
   disabled = false,
   isSubmitting = false,
+  identityField,
   onPinChange,
   onSubmit,
   pinAriaLabel,
+  pinDescription,
   pinLength,
   pinValue,
   privacyMessage,
@@ -78,6 +84,12 @@ export function KioskIdentityGate({
             if (canSubmit) onSubmit();
           }}
         >
+          {identityField ? <div className="mb-4 text-left">{identityField}</div> : null}
+          {pinDescription ? (
+            <p className="mb-2 text-left text-sm font-medium leading-5 text-slate-800 dark:text-slate-100">
+              {pinDescription}
+            </p>
+          ) : null}
           <label
             className="relative flex min-h-16 cursor-text items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-4 shadow-sm transition focus-within:border-[var(--kiosk-accent)] focus-within:ring-4 focus-within:ring-[var(--kiosk-accent-soft)] dark:border-slate-700 dark:bg-slate-950"
             onClick={() => inputRef.current?.focus()}
@@ -87,7 +99,7 @@ export function KioskIdentityGate({
               ref={inputRef}
               aria-label={pinAriaLabel}
               autoComplete="off"
-              autoFocus
+              autoFocus={autoFocusPin}
               className="absolute inset-0 h-full w-full cursor-text opacity-0"
               disabled={disabled || isSubmitting}
               enterKeyHint="done"

@@ -13,6 +13,8 @@ import type { FinancialOverview } from '../types/financial-overview.types';
 import type { FinanceExpense, FinancePurchaseOrder } from '../types/finance-domain.types';
 import type { ExpenseApiDto, ExpenseListApiResponse, ExpensePaymentListApiResponse } from '../types/finance-api.types';
 
+import type { FinanceBulkAction } from '../../shared/financeBulkActions.copy';
+
 const expensesPath = '/api/v1/finance/expenses';
 
 const jsonMutation = (method: 'POST' | 'PUT' | 'PATCH', body: unknown): RequestInit => ({
@@ -21,6 +23,13 @@ const jsonMutation = (method: 'POST' | 'PUT' | 'PATCH', body: unknown): RequestI
 });
 
 export const expensesService = {
+  async applyBulkAction(rows: Expense[], action: FinanceBulkAction, targetId: string, reason: string, providers: Array<{ id: string; name: string }> = []): Promise<Expense[]> {
+    const response = await apiClient<ExpenseListApiResponse>(`${expensesPath}/bulk-actions`, jsonMutation('POST', {
+      action, rows: rows.map(row => ({ id: Number(row.id), expectedVersion: row.version })),
+      targetId: targetId ? Number(targetId) : null, reason,
+    }));
+    return response.expenses.map(expense => toExpense(expense, providers));
+  },
   async getExpenses(providers: Array<{ id: string; name: string }> = []): Promise<Expense[]> {
     const response = await apiClient<ExpenseListApiResponse>(expensesPath);
     return response.expenses.map(expense => toExpense(expense, providers));

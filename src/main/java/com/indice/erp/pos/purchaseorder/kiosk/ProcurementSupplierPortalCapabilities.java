@@ -11,6 +11,8 @@ public final class ProcurementSupplierPortalCapabilities {
 
     public static final String OWNER_MODULE = "PROCUREMENT";
     public static final String KIOSK_TYPE = "supplier_portal";
+    public static final String PROVIDER_PROPOSALS_KIOSK_TYPE = "provider_proposals";
+    public static final String PROVIDER_ORDERS_KIOSK_TYPE = "provider_orders_invoices";
 
     public static final String IDENTITY_VERIFY = "procurement.portal.identity.verify";
     public static final String CATALOG_READ = "procurement.catalog.read";
@@ -18,6 +20,15 @@ public final class ProcurementSupplierPortalCapabilities {
     public static final String INVOICE_DOCUMENT_PRESIGN = "procurement.invoice.document.presign";
     public static final String INVOICE_DOCUMENT_REGISTER = "procurement.invoice.document.register";
     public static final String INVOICE_SUBMIT = "procurement.invoice.submit";
+    public static final String PROVIDER_PROPOSALS_READ = "procurement.provider.proposals.read";
+    public static final String PROVIDER_PROPOSAL_SUBMIT = "procurement.provider.proposal.submit";
+    public static final String PROVIDER_QUOTE_RESPOND = "procurement.provider.quote.respond";
+    public static final String PROVIDER_PROFILE_CHANGE_SUBMIT =
+        "procurement.provider.profile-change.submit";
+    public static final String PROVIDER_ORDERS_READ = "procurement.provider.orders.read";
+    public static final String PROVIDER_ORDER_RESPOND = "procurement.provider.order.respond";
+    public static final String PROVIDER_ORDER_INVOICE_SUBMIT =
+        "procurement.provider.order-invoice.submit";
 
     private static final Map<String, Object> INVOICE_FILE_POLICY = Map.of(
         "mimeTypes", List.of(
@@ -43,7 +54,14 @@ public final class ProcurementSupplierPortalCapabilities {
         descriptor(SUBMISSION_CREATE, KioskOperationPolicy.REVIEW_REQUIRED, true),
         fileDescriptor(INVOICE_DOCUMENT_PRESIGN),
         fileDescriptor(INVOICE_DOCUMENT_REGISTER),
-        descriptor(INVOICE_SUBMIT, KioskOperationPolicy.REVIEW_REQUIRED, true)
+        descriptor(INVOICE_SUBMIT, KioskOperationPolicy.REVIEW_REQUIRED, true),
+        descriptor(PROVIDER_PROPOSALS_READ, KioskOperationPolicy.INFORMATION_ONLY, false),
+        descriptor(PROVIDER_PROPOSAL_SUBMIT, KioskOperationPolicy.REVIEW_REQUIRED, true),
+        descriptor(PROVIDER_QUOTE_RESPOND, KioskOperationPolicy.REVIEW_REQUIRED, true),
+        descriptor(PROVIDER_PROFILE_CHANGE_SUBMIT, KioskOperationPolicy.REVIEW_REQUIRED, true),
+        descriptor(PROVIDER_ORDERS_READ, KioskOperationPolicy.INFORMATION_ONLY, false),
+        descriptor(PROVIDER_ORDER_RESPOND, KioskOperationPolicy.REVIEW_REQUIRED, true),
+        descriptor(PROVIDER_ORDER_INVOICE_SUBMIT, KioskOperationPolicy.REVIEW_REQUIRED, true)
     );
 
     private ProcurementSupplierPortalCapabilities() {
@@ -51,6 +69,23 @@ public final class ProcurementSupplierPortalCapabilities {
 
     public static Set<KioskCapabilityDescriptor> descriptors() {
         return DESCRIPTORS;
+    }
+
+    public static Set<KioskCapabilityDescriptor> descriptorsFor(String kioskType) {
+        var keys = switch (kioskType == null ? "" : kioskType) {
+            case PROVIDER_PROPOSALS_KIOSK_TYPE -> Set.of(
+                PROVIDER_PROPOSALS_READ, PROVIDER_PROPOSAL_SUBMIT, PROVIDER_QUOTE_RESPOND,
+                PROVIDER_PROFILE_CHANGE_SUBMIT);
+            case PROVIDER_ORDERS_KIOSK_TYPE -> Set.of(
+                PROVIDER_ORDERS_READ, PROVIDER_ORDER_RESPOND,
+                INVOICE_DOCUMENT_PRESIGN, INVOICE_DOCUMENT_REGISTER,
+                PROVIDER_ORDER_INVOICE_SUBMIT);
+            default -> Set.of(
+                IDENTITY_VERIFY, CATALOG_READ, SUBMISSION_CREATE,
+                INVOICE_DOCUMENT_PRESIGN, INVOICE_DOCUMENT_REGISTER, INVOICE_SUBMIT);
+        };
+        return DESCRIPTORS.stream().filter(item -> keys.contains(item.key()))
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
     public static Set<String> operationalKeys() {

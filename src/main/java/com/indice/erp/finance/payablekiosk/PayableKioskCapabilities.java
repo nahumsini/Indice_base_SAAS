@@ -11,6 +11,7 @@ public final class PayableKioskCapabilities {
 
     public static final String OWNER_MODULE = "EXPENSES";
     public static final String KIOSK_TYPE = "accounts_payable";
+    public static final String PROVIDER_CENTER_KIOSK_TYPE = "provider_payables";
     public static final String IDENTITY_VERIFY = "payables.identity.verify";
     public static final String PROVIDER_REGISTER = "providers.registration.submit";
     public static final String PAYABLE_CREATE = "payables.submission.create";
@@ -24,16 +25,19 @@ public final class PayableKioskCapabilities {
     public static final String FACE_VERIFICATION_BEGIN = "payables.face.verification.begin";
     public static final String FACE_VERIFICATION_CAPTURE_PRESIGN = "payables.face.verification.capture.presign";
     public static final String FACE_VERIFICATION_COMPLETE = "payables.face.verification.complete";
+    public static final String PROVIDER_CENTER_READ = "payables.provider-center.read";
+    public static final String PROFILE_READ = "providers.profile.read";
+    public static final String PROFILE_CHANGE_SUBMIT = "providers.profile-change.submit";
 
     private static final Map<String, Object> FILE_POLICY = Map.of(
         "mimeTypes", List.of(
             "application/pdf", "image/png", "image/jpeg", "image/webp", "image/heic", "image/heif",
-            "text/csv", "text/plain", "application/msword",
+            "text/xml", "application/xml", "text/csv", "text/plain", "application/msword",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "application/vnd.ms-excel",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
         "extensions", List.of(
-            ".pdf", ".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif", ".csv", ".txt",
+            ".pdf", ".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif", ".xml", ".csv", ".txt",
             ".doc", ".docx", ".xls", ".xlsx"),
         "maxSizeBytes", 10L * 1024L * 1024L,
         "maxFiles", 5,
@@ -54,7 +58,10 @@ public final class PayableKioskCapabilities {
         descriptor(FACE_CONSENT_WITHDRAW, KioskOperationPolicy.DIRECT, KioskAccessLevel.CONTROLLED, true, true),
         descriptor(FACE_VERIFICATION_BEGIN, KioskOperationPolicy.DIRECT, KioskAccessLevel.CONTROLLED, true, true),
         descriptor(FACE_VERIFICATION_CAPTURE_PRESIGN, KioskOperationPolicy.DIRECT, KioskAccessLevel.CONTROLLED, true, true),
-        descriptor(FACE_VERIFICATION_COMPLETE, KioskOperationPolicy.DIRECT, KioskAccessLevel.CONTROLLED, true, true)
+        descriptor(FACE_VERIFICATION_COMPLETE, KioskOperationPolicy.DIRECT, KioskAccessLevel.CONTROLLED, true, true),
+        descriptor(PROVIDER_CENTER_READ, KioskOperationPolicy.INFORMATION_ONLY, KioskAccessLevel.CONTROLLED, false, true),
+        descriptor(PROFILE_READ, KioskOperationPolicy.INFORMATION_ONLY, KioskAccessLevel.CONTROLLED, false, true),
+        descriptor(PROFILE_CHANGE_SUBMIT, KioskOperationPolicy.REVIEW_REQUIRED, KioskAccessLevel.CONTROLLED, true, true)
     );
 
     private PayableKioskCapabilities() {
@@ -62,6 +69,20 @@ public final class PayableKioskCapabilities {
 
     public static Set<KioskCapabilityDescriptor> descriptors() {
         return DESCRIPTORS;
+    }
+
+    public static Set<KioskCapabilityDescriptor> descriptorsFor(String kioskType) {
+        if (PROVIDER_CENTER_KIOSK_TYPE.equals(kioskType)) {
+            var keys = Set.of(
+                PROVIDER_CENTER_READ, PAYABLE_CREATE, ATTACHMENT_PRESIGN,
+                ATTACHMENT_REGISTER, PROFILE_READ, PROFILE_CHANGE_SUBMIT);
+            return DESCRIPTORS.stream().filter(item -> keys.contains(item.key()))
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        }
+        return DESCRIPTORS.stream()
+            .filter(item -> !Set.of(PROVIDER_CENTER_READ, PROFILE_READ, PROFILE_CHANGE_SUBMIT)
+                .contains(item.key()))
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
     private static KioskCapabilityDescriptor descriptor(

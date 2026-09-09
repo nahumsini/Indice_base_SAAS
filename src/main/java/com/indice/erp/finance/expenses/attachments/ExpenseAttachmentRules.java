@@ -26,6 +26,7 @@ final class ExpenseAttachmentRules {
         var normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
         return switch (normalized) {
             case "application/pdf" -> "application/pdf";
+            case "application/xml", "text/xml" -> "application/xml";
             case "image/png" -> "image/png";
             case "image/jpeg", "image/jpg" -> "image/jpeg";
             case "image/gif" -> "image/gif";
@@ -116,6 +117,7 @@ final class ExpenseAttachmentRules {
     private static String extensionFor(String contentType) {
         return switch (contentType) {
             case "application/pdf" -> ".pdf";
+            case "application/xml" -> ".xml";
             case "image/png" -> ".png";
             case "image/jpeg" -> ".jpg";
             case "image/gif" -> ".gif";

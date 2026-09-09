@@ -11,7 +11,8 @@ class ProcurementSupplierPortalCapabilitiesTest {
 
     @Test
     void declaresVersionedControlledCapabilitiesAndReviewPolicies() {
-        var descriptors = ProcurementSupplierPortalCapabilities.descriptors().stream()
+        var descriptors = ProcurementSupplierPortalCapabilities.descriptorsFor(
+            ProcurementSupplierPortalCapabilities.KIOSK_TYPE).stream()
             .collect(Collectors.toMap(descriptor -> descriptor.key(), Function.identity()));
 
         assertThat(descriptors).containsOnlyKeys(

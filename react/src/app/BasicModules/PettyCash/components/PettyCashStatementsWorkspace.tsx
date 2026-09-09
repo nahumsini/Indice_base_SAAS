@@ -1,3 +1,4 @@
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import { Banknote, CheckCircle2, Coins, Eye, Info, ReceiptText, Search, WalletCards } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTablePagination } from '../../../hooks/useTablePagination';
@@ -26,6 +27,7 @@ import {
 import { PettyCashStatementDetailModal } from './statements/PettyCashStatementDetailModal';
 
 type Props = {
+  dataReady?: boolean;
   funds: PettyCashFund[];
   movements: PettyCashMovement[];
   settlementLines: PettyCashSettlementLine[];
@@ -35,7 +37,7 @@ type Props = {
 const normalize = (value: string) => value.trim().toLocaleLowerCase();
 const pettyCashStatementsColumnsStorageKey = 'indice.pettyCash.statements.columns.v1';
 
-export function PettyCashStatementsWorkspace({ funds, movements, settlementLines, statements }: Props) {
+export function PettyCashStatementsWorkspace({ dataReady = true, funds, movements, settlementLines, statements }: Props) {
   const copy = usePettyCashTranslations();
   const defaultColumns = useMemo<ColumnConfig[]>(() => [
     { id: 'statement', label: copy.statementsHistory.table.statement, visible: true, locked: true },
@@ -116,6 +118,20 @@ export function PettyCashStatementsWorkspace({ funds, movements, settlementLines
     rows: statementSort.sortedRows,
   });
 
+  const workspaceState = useMemo(() => ({ search, fundId, period, status, sortKey: statementSort.sortKey, sortDirection: statementSort.sortDirection,
+    currentPage: pagination.currentPage, pageSize: pagination.pageSize }), [search, fundId, period, status, statementSort.sortKey, statementSort.sortDirection, pagination.currentPage, pagination.pageSize]);
+  useWorkspaceNavigationMemory({ moduleKey: 'petty-cash', tabKey: 'statements', enabled: dataReady,
+    state: workspaceState, defaults: { search: '', fundId: 'all', period: 'all', status: 'all', sortKey: 'period', sortDirection: 'desc', currentPage: 1, pageSize: 10 },
+    urlFields: { search: 'pcs_q', fundId: 'pcs_fund', period: 'pcs_period', status: 'pcs_status' },
+    onRestore: restored => {
+      setSearch(typeof restored.search === 'string' ? restored.search : '');
+      setFundId(funds.some(fund => fund.id === restored.fundId) ? restored.fundId : 'all');
+      setPeriod(periods.includes(restored.period) ? restored.period : 'all');
+      setStatus(Object.prototype.hasOwnProperty.call(copy.status.statement, restored.status) ? restored.status : 'all');
+      statementSort.restoreSort(restored.sortKey, restored.sortDirection); pagination.restorePagination(restored);
+    },
+  });
+
   const statementIds = scopedStatements.map((statement) => statement.id);
   const aggregates = useKpiMonetaryAggregates([
     { key: 'opening', metric: 'PETTY_CASH_STATEMENT_OPENING', preferredCurrency, ids: statementIds },
@@ -171,6 +187,7 @@ export function PettyCashStatementsWorkspace({ funds, movements, settlementLines
         )}
         hasActiveFilters={Boolean(search || fundId !== 'all' || period !== 'all' || status !== 'all')}
         onClear={() => {
+          pagination.onPageChange(1);
           setSearch('');
           setFundId('all');
           setPeriod('all');

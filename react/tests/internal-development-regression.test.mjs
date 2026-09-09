@@ -33,7 +33,7 @@ test('alta edición y trazabilidad terminan en la API protegida', () => {
   assert.match(editor, /modalType="standard-form"/);
   assert.match(editor, /internalDevelopmentApi\.create/);
   assert.match(editor, /internalDevelopmentApi\.update/);
-  assert.match(detail, /Revision history|Historial de revisiones/);
+  assert.match(detail, /getInternalDevelopmentMessages\(locale\)\.revisionHistory/);
   assert.match(api, /endpoints\.platformAdmin\.internalDevelopment/);
   assert.match(api, /method: 'POST'/);
   assert.match(api, /method: 'PATCH'/);
@@ -41,21 +41,21 @@ test('alta edición y trazabilidad terminan en la API protegida', () => {
 
 test('el formulario prioriza captura rápida y conserva trazabilidad opcional', () => {
   assert.match(editor, /const \[advancedOpen, setAdvancedOpen\] = useState\(false\)/);
-  assert.match(editor, /Registro rápido/);
-  assert.match(editor, /Agregar detalles y trazabilidad/);
+  assert.match(editor, /getInternalDevelopmentMessages\(locale\)\.quickRecord/);
+  assert.match(editor, /getInternalDevelopmentMessages\(locale\)\.addDetailsAndTraceability/);
   assert.match(editor, /aria-expanded=\{advancedOpen\}/);
   assert.match(editor, /\{advancedOpen \? \(/);
-  assert.match(editor, /Evidencia, participantes, decisiones y siguientes pasos/);
+  assert.match(editor, /getInternalDevelopmentMessages\(locale\)\.evidenceParticipantsDecisionsAndNextSteps/);
 });
 
 test('el expediente ofrece una impresión A4 completa y segura', () => {
   assert.match(detail, /printInternalDevelopmentDetail/);
-  assert.match(detail, /Imprimir/);
+  assert.match(detail, /getInternalDevelopmentMessages\(locale\)\.print/);
   assert.match(detail, /<Printer/);
   assert.match(print, /printDocumentHtml/);
   assert.match(print, /escapeDocumentPrintHtml/);
   assert.match(print, /pageSize: 'a4'/);
-  assert.match(print, /Historial de revisiones/);
+  assert.match(print, /getInternalDevelopmentMessages\(locale\)\.revisionHistory/);
 });
 
 test('cada fila permite imprimir el expediente completo sin abrir el modal', () => {

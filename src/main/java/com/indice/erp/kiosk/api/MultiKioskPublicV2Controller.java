@@ -56,12 +56,30 @@ public class MultiKioskPublicV2Controller {
             @PathVariable String publicToken,
             @RequestBody Map<String, Object> payload) {
         requireEnabled();
-        csrf.requireCsrf(session, csrfToken);
+        requireCsrf(session, csrfToken);
         var pin = payload == null ? null : String.valueOf(payload.getOrDefault("pin", ""));
-        var result = multiKiosks.authenticate(
-            publicToken, pin, session.getId(), networkSignal(request));
+        var providerName = payload == null
+            ? null : String.valueOf(payload.getOrDefault("provider_name", ""));
+        var result = providerName == null || providerName.isBlank()
+            ? multiKiosks.authenticate(
+                publicToken, pin, session.getId(), networkSignal(request))
+            : multiKiosks.authenticate(
+                publicToken, providerName, pin, session.getId(), networkSignal(request));
         return ResponseEntity.ok(responses.success(
             result, String.valueOf(result.get("session_id")), null));
+    }
+
+    @PostMapping("/provider-registrations")
+    public ResponseEntity<?> registerProvider(
+            HttpSession session,
+            HttpServletRequest request,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable String publicToken,
+            @RequestBody Map<String, Object> payload) {
+        requireEnabled();
+        requireCsrf(session, csrfToken);
+        return ResponseEntity.ok(responses.success(
+            multiKiosks.registerProvider(publicToken, payload, networkSignal(request)), null, null));
     }
 
     @GetMapping("/session")
@@ -81,7 +99,7 @@ public class MultiKioskPublicV2Controller {
             @RequestHeader("X-Multi-Kiosk-Session-Token") String multiSessionToken,
             @PathVariable String publicToken) {
         requireEnabled();
-        csrf.requireCsrf(session, csrfToken);
+        requireCsrf(session, csrfToken);
         return ResponseEntity.ok(responses.success(
             multiKiosks.logout(publicToken, multiSessionToken, session.getId()), null, null));
     }
@@ -94,7 +112,7 @@ public class MultiKioskPublicV2Controller {
             @PathVariable String publicToken,
             @PathVariable long kioskId) {
         requireEnabled();
-        csrf.requireCsrf(session, csrfToken);
+        requireCsrf(session, csrfToken);
         var result = multiKiosks.launchChild(
             publicToken, multiSessionToken, kioskId, session.getId());
         return ResponseEntity.ok(responses.success(
@@ -126,7 +144,7 @@ public class MultiKioskPublicV2Controller {
             @PathVariable String capabilityKey,
             @RequestBody(required = false) Map<String, Object> payload) {
         requireEnabled();
-        csrf.requireCsrf(session, csrfToken);
+        requireCsrf(session, csrfToken);
         var result = multiKiosks.childAction(
             publicToken, multiSessionToken, childSessionToken, kioskId, capabilityKey,
             session.getId(), payload, idempotencyKey);
@@ -143,5 +161,13 @@ public class MultiKioskPublicV2Controller {
 
     private String networkSignal(HttpServletRequest request) {
         return KioskClientNetworkSignal.from(request);
+    }
+
+    private void requireCsrf(HttpSession session, String csrfToken) {
+        try {
+            csrf.requireCsrf(session, csrfToken);
+        } catch (IllegalArgumentException failure) {
+            throw new KioskCsrfException();
+        }
     }
 }

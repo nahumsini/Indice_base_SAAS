@@ -3,6 +3,7 @@ import type { PosContextResponse } from '../../Sale/services/posBackendApi';
 import type {
   ProductSupplierListResponse,
   ProductSupplier,
+  ProviderCenterInbox,
   ProviderListResponse,
   PurchaseOrder,
   PurchaseOrderCreatePayload,
@@ -43,6 +44,9 @@ import type {
   SupplierSubmissionListResponse,
   SupplierSubmissionReviewPayload,
   SupplierSubmissionStatus,
+  SupplierQuoteRequest,
+  SupplierQuoteRequestListResponse,
+  SupplierQuoteRequestPayload,
 } from '../types/purchaseOrder.types';
 
 const posBasePath = '/api/v1/pos';
@@ -208,6 +212,45 @@ export const purchaseOrdersApi = {
 
   providers() {
     return apiClient<ProviderListResponse>('/api/v1/finance/providers');
+  },
+
+  providerCenterInbox() {
+    return apiClient<ProviderCenterInbox>(`${posBasePath}/supplier-profile-changes`);
+  },
+
+  approveProviderCenterRegistration(requestId: number, unitId: number, businessId: number, reviewNote = '') {
+    return apiClient(`${posBasePath}/supplier-registration-requests/${requestId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ unit_id: unitId, business_id: businessId, review_note: reviewNote }),
+    });
+  },
+
+  rejectProviderCenterRegistration(requestId: number, reviewNote = '') {
+    return apiClient(`${posBasePath}/supplier-registration-requests/${requestId}/reject`, {
+      method: 'POST', body: JSON.stringify({ review_note: reviewNote }),
+    });
+  },
+
+  reviewProviderCenterChange(requestId: number, action: 'approve' | 'reject', reviewNote = '') {
+    return apiClient(`${posBasePath}/supplier-profile-changes/${requestId}/${action}`, {
+      method: 'POST', body: JSON.stringify({ review_note: reviewNote }),
+    });
+  },
+
+  supplierQuoteRequests() {
+    return apiClient<SupplierQuoteRequestListResponse>(`${posBasePath}/supplier-quote-requests`);
+  },
+
+  createSupplierQuoteRequest(payload: SupplierQuoteRequestPayload) {
+    return apiClient<SupplierQuoteRequest>(`${posBasePath}/supplier-quote-requests`, {
+      method: 'POST', body: JSON.stringify(payload),
+    });
+  },
+
+  transitionSupplierQuoteRequest(requestId: number, action: 'open' | 'close' | 'cancel') {
+    return apiClient<SupplierQuoteRequest>(`${posBasePath}/supplier-quote-requests/${requestId}/${action}`, {
+      method: 'POST',
+    });
   },
 
   productSuppliers() {

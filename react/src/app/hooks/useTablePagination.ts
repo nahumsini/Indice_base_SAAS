@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 export const DEFAULT_TABLE_PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 200] as const;
 
@@ -44,6 +44,7 @@ export function useTablePagination<Row>({
 }) {
   const [internalCurrentPage, setInternalCurrentPage] = useState(1);
   const [internalPageSize, setInternalPageSize] = useState(initialPageSize);
+  const restoring = useRef(false);
   const currentPage = controlledCurrentPage ?? internalCurrentPage;
   const pageSize = controlledPageSize ?? internalPageSize;
   const totalCount = rows.length;
@@ -59,7 +60,7 @@ export function useTablePagination<Row>({
   );
 
   useEffect(() => {
-    if (resetKey === undefined) {
+    if (resetKey === undefined || restoring.current) {
       return;
     }
 
@@ -74,7 +75,17 @@ export function useTablePagination<Row>({
     }
   }, [currentPage, totalPages]);
 
+  useEffect(() => { restoring.current = false; });
+
   return {
+    restorePagination: (restored: { currentPage: number; pageSize: number }) => {
+      restoring.current = true;
+      const restoredSize = pageSizeOptions.includes(restored.pageSize) ? restored.pageSize : initialPageSize;
+      const restoredPage = Number.isInteger(restored.currentPage) && restored.currentPage > 0 ? restored.currentPage : 1;
+      setInternalPageSize(restoredSize);
+      setInternalCurrentPage(restoredPage);
+      onPaginationChange?.({ currentPage: restoredPage, pageSize: restoredSize });
+    },
     currentPage: safeCurrentPage,
     onPageChange: (nextPage: number) => {
       setInternalCurrentPage(nextPage);

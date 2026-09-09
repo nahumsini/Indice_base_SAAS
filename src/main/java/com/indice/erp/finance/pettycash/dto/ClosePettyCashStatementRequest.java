@@ -11,6 +11,11 @@ public record ClosePettyCashStatementRequest(
     @NotNull PettyCashStatementCloseAction action,
     @DecimalMin("0.00") BigDecimal shortageAmount,
     LocalDate closeDate,
-    @Size(max = 180) String reference
+    @Size(max = 180) String reference,
+    BigDecimal expectedClosingBalance
 ) {
+    public ClosePettyCashStatementRequest(PettyCashStatementCloseAction action, BigDecimal shortageAmount,
+            LocalDate closeDate, String reference) {
+        this(action, shortageAmount, closeDate, reference, null);
+    }
 }

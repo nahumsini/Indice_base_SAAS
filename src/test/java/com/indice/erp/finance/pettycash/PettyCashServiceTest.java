@@ -377,23 +377,25 @@ class PettyCashServiceTest {
     }
 
     @Test
-    void createExpenseFromDraftLineRejectsAdministratorWithoutSupport() {
+    void administratorAuthorizesWithoutAttachmentAndDoesNotWithdrawMoneyAgain() {
         var service = service();
         var context = adminContext();
         var fund = record(99L, createCommand("fund-token-123"));
         var statement = statementRecord(501L, fund.id());
-        var pendingLine = settlementLineRecord(301L, fund.id(), statement.id(), null, PettyCashSettlementLineStatus.DRAFT, 0);
-
+        var pending = settlementLineRecord(301L, fund.id(), statement.id(), null, PettyCashSettlementLineStatus.DRAFT, 0);
+        var approved = settlementLineRecord(301L, fund.id(), statement.id(), 701L, PettyCashSettlementLineStatus.EXPENSE_CREATED, 0);
         when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund));
-        when(repository.findSettlementLineById(context, pendingLine.id())).thenReturn(Optional.of(pendingLine));
+        when(repository.findSettlementLineById(context, pending.id())).thenReturn(Optional.of(pending), Optional.of(approved));
+        when(repository.findStatementById(context, statement.id())).thenReturn(Optional.of(statement));
+        when(repository.insertExpenseFromSettlementLine(context, fund, statement, pending)).thenReturn(701L);
 
-        var error = assertThrows(
-            FinanceApiException.class,
-            () -> service.createExpenseFromSettlementLine(context, fund.id(), pendingLine.id())
-        );
-
-        assertEquals("Petty cash settlement line requires evidence before authorization.", error.getMessage());
-        verify(repository, never()).insertExpenseFromSettlementLine(any(), any(), any(), any());
+        var response = service.createExpenseFromSettlementLine(context, fund.id(), pending.id());
+        assertEquals(PettyCashSettlementLineStatus.EXPENSE_CREATED, response.settlementLine().status());
+        assertEquals(0, response.settlementLine().attachmentCount());
+        verify(expenseService).recordCustodySettlement(context, 701L, pending.id());
+        verify(repository).applySettlementLineExpenseToStatement(context, statement.id(), pending.totalAmount());
+        verify(repository, never()).adjustFundBalance(any(), anyLong(), any());
+        verifyNoInteractions(treasuryService);
     }
 
     @Test
@@ -499,6 +501,7 @@ class PettyCashServiceTest {
         var statement = statementRecord(501L, fund.id());
         var line = settlementLineRecord(301L, fund.id(), statement.id(), null, PettyCashSettlementLineStatus.RECEIPT_ATTACHED);
 
+        when(repository.findStatementById(context, statement.id())).thenReturn(Optional.of(statement));
         when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund));
         when(repository.findSettlementLineById(context, line.id())).thenReturn(Optional.of(line));
         when(repository.reverseSettlementLine(context, line, "Captured by mistake")).thenReturn(true);
@@ -518,6 +521,7 @@ class PettyCashServiceTest {
         var statement = statementRecord(501L, fund.id());
         var line = settlementLineRecord(301L, fund.id(), statement.id(), 701L, PettyCashSettlementLineStatus.EXPENSE_CREATED);
 
+        when(repository.findStatementById(context, statement.id())).thenReturn(Optional.of(statement));
         when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund));
         when(repository.findSettlementLineById(context, line.id())).thenReturn(Optional.of(line));
         when(repository.reverseGeneratedExpense(context, line.expenseId(), line.id(), "Duplicate purchase record")).thenReturn(true);
@@ -542,6 +546,7 @@ class PettyCashServiceTest {
         var statement = statementRecord(501L, fund.id());
         var line = settlementLineRecord(301L, fund.id(), statement.id(), 701L, PettyCashSettlementLineStatus.DRAFT, 0);
 
+        when(repository.findStatementById(context, statement.id())).thenReturn(Optional.of(statement));
         when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund));
         when(repository.findSettlementLineById(context, line.id())).thenReturn(Optional.of(line));
         when(repository.reverseSettlementLine(context, line, "Incorrect purchase record")).thenReturn(true);
@@ -783,6 +788,7 @@ class PettyCashServiceTest {
         when(repository.findStatementById(context, statement.id())).thenReturn(Optional.of(transferredStatement));
         when(repository.countPendingSettlementLinesForStatement(context, statement.id())).thenReturn(0L);
         when(repository.findOpenStatementForFund(context, fund.id(), "2026-07")).thenReturn(Optional.of(nextStatement));
+        when(repository.findStatementById(context, nextStatement.id())).thenReturn(Optional.of(nextStatement));
 
         var response = service.closeStatement(context, fund.id(), statement.id(), request);
 
@@ -818,6 +824,9 @@ class PettyCashServiceTest {
             .thenAnswer(invocation -> movementRecord(
                 403L, fund.id(), statement.id(), invocation.getArgument(2, PettyCashMovementCommand.class)));
 
+        var next = statementRecord(502L, fund.id(), new BigDecimal("150.00"), PettyCashStatementStatus.OPEN);
+        when(repository.findOpenStatementForFund(eq(context), eq(fund.id()), anyString())).thenReturn(Optional.of(next));
+        when(repository.findStatementById(context, next.id())).thenReturn(Optional.of(next));
         var response = service.closeStatement(context, fund.id(), statement.id(), request);
 
         assertEquals(PettyCashStatementStatus.CHARGED_TO_EMPLOYEE, response.statement().status());
@@ -830,7 +839,7 @@ class PettyCashServiceTest {
         );
         verify(repository).closeStatement(
             context, statement.id(), PettyCashStatementStatus.CHARGED_TO_EMPLOYEE,
-            BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("100.00"), new BigDecimal("150.00")
+            BigDecimal.ZERO, new BigDecimal("150.00"), new BigDecimal("100.00"), BigDecimal.ZERO
         );
     }
 
@@ -856,6 +865,9 @@ class PettyCashServiceTest {
             .thenAnswer(invocation -> movementRecord(
                 404L, fund.id(), statement.id(), invocation.getArgument(2, PettyCashMovementCommand.class)));
 
+        var next = statementRecord(502L, fund.id(), new BigDecimal("150.00"), PettyCashStatementStatus.OPEN);
+        when(repository.findOpenStatementForFund(eq(context), eq(fund.id()), anyString())).thenReturn(Optional.of(next));
+        when(repository.findStatementById(context, next.id())).thenReturn(Optional.of(next));
         var response = service.closeStatement(context, fund.id(), statement.id(), request);
 
         assertEquals(PettyCashStatementStatus.FORGIVEN_SHORTAGE, response.statement().status());
@@ -865,7 +877,7 @@ class PettyCashServiceTest {
         verify(repository, never()).applyMovementToBudgetLine(any(), any(), any(), any());
         verify(repository).closeStatement(
             context, statement.id(), PettyCashStatementStatus.FORGIVEN_SHORTAGE,
-            BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("100.00"), new BigDecimal("150.00")
+            BigDecimal.ZERO, new BigDecimal("150.00"), new BigDecimal("100.00"), BigDecimal.ZERO
         );
     }
 

@@ -149,6 +149,25 @@ public final class PurchaseOrderDtos {
     ) {
     }
 
+    public record SupplierQuoteRequestItemRequest(
+        Long productId,
+        @Size(max = 120) String sku,
+        @NotBlank @Size(max = 240) String productName,
+        @NotNull @DecimalMin("0.0001") BigDecimal quantity,
+        @Size(max = 4000) String notes
+    ) {
+    }
+
+    public record SupplierQuoteRequestCreateRequest(
+        @NotNull Long providerId,
+        @NotBlank @Size(max = 240) String title,
+        @Size(max = 4000) String description,
+        @NotBlank @Size(min = 3, max = 3) String currencyCode,
+        @NotNull Instant responseDeadline,
+        @Valid @NotEmpty @Size(max = 100) List<SupplierQuoteRequestItemRequest> items
+    ) {
+    }
+
     public record SupplierSubmissionCreateRequest(
         @NotNull Long providerId,
         Long portalAccessId,
@@ -227,7 +246,7 @@ public final class PurchaseOrderDtos {
         @NotNull Long unitId,
         @NotNull Long businessId,
         @Size(max = 120) String portalCode,
-        @NotBlank @Size(min = 4, max = 20) String pin,
+        @NotBlank @Size(min = 6, max = 6) String pin,
         @Size(max = 40) String status,
         Instant expiresAt
     ) {
@@ -247,7 +266,7 @@ public final class PurchaseOrderDtos {
     }
 
     public record SupplierPortalAccessPinRequest(
-        @NotBlank @Size(min = 4, max = 20) String pin
+        @NotBlank @Size(min = 6, max = 6) String pin
     ) {
     }
 

@@ -13,6 +13,7 @@ import com.indice.erp.pos.PosApiException;
 import com.indice.erp.pos.PosContext;
 import com.indice.erp.pos.PosScope;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.ProductSupplierRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderActionRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderCreateRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderItemRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderItemResponse;
@@ -20,6 +21,7 @@ import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderReceiveIt
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderReceiveRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderResponse;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierInvoiceRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalInvoiceRequest;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -89,6 +91,27 @@ class SpecificPosPurchaseOrderTest {
     }
 
     @Test
+    void receiveOrderAcceptsProviderConfirmedStatus() {
+        var service = service();
+        var confirmedOrder = order(PurchaseOrderStatus.CONFIRMED, 300L);
+        var receivedOrder = order(PurchaseOrderStatus.RECEIVED, 300L);
+        when(repository.findOrder(context(), 99L))
+            .thenReturn(Optional.of(confirmedOrder), Optional.of(receivedOrder));
+        when(repository.nextReceiptNumber(context())).thenReturn("RCV-2026-0002");
+        when(repository.insertReceipt(context(), confirmedOrder, "RCV-2026-0002", "Entrega confirmada"))
+            .thenReturn(56L);
+
+        service.receiveOrder(context(), 99L, new PurchaseOrderReceiveRequest(
+            "Entrega confirmada",
+            List.of(new PurchaseOrderReceiveItemRequest(900L, new BigDecimal("2.0000")))
+        ));
+
+        verify(repository).insertReceiptItem(
+            context(), 56L, confirmedOrder.items().getFirst(), new BigDecimal("2.0000"));
+        verify(repository).refreshOrderReceiveStatus(context(), 99L);
+    }
+
+    @Test
     void supplierInvoiceCannotUseOrderFromAnotherProvider() {
         var service = service();
         when(repository.findProvider(context(), 300L)).thenReturn(Optional.of(provider(300L)));
@@ -99,6 +122,51 @@ class SpecificPosPurchaseOrderTest {
             .hasMessage("purchaseOrderId does not belong to providerId.");
     }
 
+    @Test
+    void providerCenterRejectsInvoiceBeforeOrderIsConfirmedOrReceived() {
+        var service = service();
+        when(repository.findOrder(any(PosContext.class), eq(99L)))
+            .thenReturn(Optional.of(order(PurchaseOrderStatus.SENT, 300L)));
+
+        assertThatThrownBy(() -> service.createProviderCenterSupplierInvoice(
+            providerCenterAccess(), 99L, providerCenterInvoice("116.0000")))
+            .isInstanceOf(PosApiException.class)
+            .hasMessage("La orden debe estar confirmada o recibida antes de facturarla.");
+    }
+
+    @Test
+    void providerCenterRejectsInvoiceWithInconsistentTotal() {
+        var service = service();
+        when(repository.findOrder(any(PosContext.class), eq(99L)))
+            .thenReturn(Optional.of(order(PurchaseOrderStatus.CONFIRMED, 300L)));
+
+        assertThatThrownBy(() -> service.createProviderCenterSupplierInvoice(
+            providerCenterAccess(), 99L, providerCenterInvoice("115.0000")))
+            .isInstanceOf(PosApiException.class)
+            .hasMessage("El total de la factura debe ser igual al subtotal más impuestos.");
+    }
+
+    @Test
+    void buyerCanReissueAnOrderAfterReviewingSupplierAdjustment() {
+        var service = service();
+        var clarification = order(PurchaseOrderStatus.NEEDS_CLARIFICATION, 300L);
+        var reissued = order(PurchaseOrderStatus.SENT, 300L);
+        when(repository.findOrder(context(), 99L))
+            .thenReturn(Optional.of(clarification), Optional.of(reissued));
+        when(repository.updateStatus(
+            context(), 99L, PurchaseOrderStatus.SENT,
+            "Solicitud revisada; se reenvía la orden.")).thenReturn(true);
+
+        var result = service.sendOrder(
+            context(), 99L,
+            new PurchaseOrderActionRequest("Solicitud revisada; se reenvía la orden."));
+
+        assertThat(result.status()).isEqualTo(PurchaseOrderStatus.SENT);
+        verify(repository).updateStatus(
+            context(), 99L, PurchaseOrderStatus.SENT,
+            "Solicitud revisada; se reenvía la orden.");
+    }
+
     private PurchaseOrderService service() {
         return new PurchaseOrderService(
             repository,
@@ -107,7 +175,8 @@ class SpecificPosPurchaseOrderTest {
             storageProperties,
             expenseService,
             new ObjectMapper(),
-            org.mockito.Mockito.mock(com.indice.erp.billing.storage.CompanyStorageMeter.class)
+            org.mockito.Mockito.mock(com.indice.erp.billing.storage.CompanyStorageMeter.class),
+            org.mockito.Mockito.mock(com.indice.erp.kiosk.engine.KioskIdentityCredentialService.class)
         );
     }
 
@@ -149,6 +218,29 @@ class SpecificPosPurchaseOrderTest {
             null,
             "Proveedor"
         );
+    }
+
+    private SupplierPortalInvoiceRequest providerCenterInvoice(String total) {
+        return new SupplierPortalInvoiceRequest(
+            null,
+            "INV-PC-01",
+            LocalDate.parse("2026-06-21"),
+            LocalDate.parse("2026-07-05"),
+            new BigDecimal("100.0000"),
+            new BigDecimal("16.0000"),
+            new BigDecimal(total),
+            "MXN",
+            null,
+            null,
+            "Proveedor"
+        );
+    }
+
+    private PurchaseOrderRepository.SupplierPortalAccessRecord providerCenterAccess() {
+        return new PurchaseOrderRepository.SupplierPortalAccessRecord(
+            18L, 1L, "Indice", 300L, "Proveedor Retail", "proveedor@example.com", "PORTAL-ABC",
+            "hash", "ACTIVE", Instant.now().plusSeconds(3600), "[]",
+            5L, "Unidad Centro", 6L, "Negocio Centro");
     }
 
     private PurchaseOrderRepository.ProviderRef provider(long id) {

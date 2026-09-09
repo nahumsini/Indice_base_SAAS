@@ -344,6 +344,10 @@ Approved Finance domain contracts remain authoritative. General rules include:
   transaction.
 - Only `DRAFT` expenses may be edited or deleted. Submitted, approved, partially paid, paid, and
   closed expenses change through their explicit workflow, adjustment, or reversal operations.
+- Selected-row classification adjustments and audited bulk reversals follow
+  `docs/finance-bulk-actions-and-workspace-memory-contract-v1.md`. Ordinary unposted expenses
+  may change organizational/provider/account classifications through that explicit owner contract;
+  existing payment history and fund custody remain protected.
 - Expense accounting classification is an explicit account-only operation, with company/scope
   checks, optimistic version validation and server-owned audit history. Ordinary expenses may be
   classified before journal posting without modifying amounts, payment evidence, currency or
@@ -356,6 +360,10 @@ Approved Finance domain contracts remain authoritative. General rules include:
   original expense IDs on an identical retry. Automatic folio creation serializes by company.
 - A petty-cash settlement links or creates expenses from accepted evidence without double counting
   issuance, settlement, and resulting expenses.
+- Signed monthly fund closure and explicit approval without an attachment follow
+  `docs/petty-cash-statement-close-resolution-contract-v1.md`. Accepted receipt states survive
+  attachment changes; carryover is an opening projection, and balance resolutions are audited
+  adjustments. Payroll remains the owner of applying a queued shortage deduction.
 - A purchase order commits budget but does not itself move money.
 - A budget is a container; the budget line is the operational control aggregate.
 - Reporting distinguishes committed, actual, issued, and settled amounts.
