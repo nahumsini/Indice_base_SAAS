@@ -1528,7 +1528,7 @@ public class PurchaseOrderRepository {
             rs.getBigDecimal("line_total_amount"),
             nullableInteger(rs, "lead_time_days"),
             rs.getBigDecimal("minimum_order_quantity"),
-            SupplierSubmissionStatus.valueOf(rs.getString("status")),
+            SupplierSubmissionStatus.fromItemStorageValue(rs.getString("status")),
             rs.getString("review_note")
         );
         return new SupplierSubmissionItemRow(rs.getLong("submission_id"), response);
