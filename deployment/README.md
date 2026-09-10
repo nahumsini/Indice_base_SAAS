@@ -273,6 +273,15 @@ aplica también la preparación, activación y reversión descritas en
 `APP_FINANCE_BUDGET_OBLIGATIONS_ENABLED=false` detiene la generación nueva; no revierte gastos
 ni pagos existentes. El despliegue conserva el historial y las tablas agregadas por Flyway.
 
+La liberación financiera selectiva `v2026.09.10.1` parte del código público `1f6e2538`
+y agrega únicamente V269 sobre V265. V266–V268 de la línea de `main` no forman parte
+de ese artefacto. Antes de desplegar esa línea completa sobre un entorno que recibió
+la liberación selectiva, identifica y prueba las tres migraciones pendientes en una
+copia aislada del esquema V269. No asumas que Flyway aplicará versiones inferiores
+en un arranque normal; no alteres el historial ni los checksums para ocultar la diferencia.
+El [registro de esta liberación](releases/2026.09.10.1.md) identifica las imágenes y
+el backend compatible que debe usarse para revertir la aplicación conservando V269.
+
 ### Certificación del día de corte y métodos de pago
 
 Una liberación que incluya la migración de programación del día de corte
