@@ -114,7 +114,12 @@ test('provider access and its four tools are administered only from the central 
 
   assert.match(editor, /Proveedores y NIP/);
   assert.match(editor, /multiKioskAdminApi\.issueProviderPin/);
+  assert.match(editor, /multiKioskAdminApi\.updateProviderPin/);
   assert.match(editor, /multiKioskAdminApi\.revokeProviderPin/);
+  assert.match(editor, /Ver \/ cambiar/);
+  assert.match(editor, /Regenerar NIP/);
+  assert.match(editor, /El NIP actual no puede mostrarse/);
+  assert.match(editor, /type=\{showManualPin \? 'text' : 'password'\}/);
   assert.match(editor, /pendingRevoke/);
   assert.doesNotMatch(editor, /window\.confirm/);
   assert.match(editor, /Un acceso, cuatro herramientas/);

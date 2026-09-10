@@ -1551,6 +1551,10 @@ hereda permisos de un colaborador.
   creadas por un portal legacy no activan automáticamente el Multikiosco.
 - La emisión exige proveedor activo, unidad y negocio asignados. Si después se retira ese alcance,
   la autenticación y la continuidad fallan cerradas hasta corregirlo, sin ampliar acceso por defecto.
+- El NIP autoritativo se almacena solamente como hash y nunca puede recuperarse ni mostrarse después
+  de su emisión. Ante olvido, `root` o `superadmin` puede asignar manualmente un nuevo NIP de seis
+  dígitos o regenerar uno aleatorio desde el mismo modal. Ambos caminos rotan la credencial, cierran
+  las sesiones anteriores, registran auditoría sin el secreto y muestran el reemplazo una sola vez.
 - Una vez habilitado, el mismo nombre y NIP abre las cuatro herramientas fijas del Centro. El
   catálogo efectivo conserva la intersección con entitlement, estado del proveedor y disponibilidad
   de cada adapter, pero no exige accesos individuales creados dentro de Compras o Finanzas.

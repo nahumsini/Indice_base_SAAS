@@ -160,6 +160,7 @@ export interface ProviderCenterIssuedPin {
   pin: string;
   pin_ready: true;
   shown_once: true;
+  assignment_mode?: 'GENERATED' | 'MANUAL';
 }
 
 const adminBase = '/api/v2/kiosk-center/multi-kiosks';
@@ -247,6 +248,14 @@ export const multiKioskAdminApi = {
     const response = await apiClient<Envelope<ProviderCenterIssuedPin>>(
       `${adminBase}/${id}/providers/${providerId}/pin`, {
         method: 'POST', body: JSON.stringify({}),
+      },
+    );
+    return response.data;
+  },
+  async updateProviderPin(id: number, providerId: number, pin: string) {
+    const response = await apiClient<Envelope<ProviderCenterIssuedPin>>(
+      `${adminBase}/${id}/providers/${providerId}/pin`, {
+        method: 'PUT', body: JSON.stringify({ pin }),
       },
     );
     return response.data;
