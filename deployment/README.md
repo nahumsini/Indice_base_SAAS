@@ -282,6 +282,13 @@ en un arranque normal; no alteres el historial ni los checksums para ocultar la 
 El [registro de esta liberación](releases/2026.09.10.1.md) identifica las imágenes y
 el backend compatible que debe usarse para revertir la aplicación conservando V269.
 
+La liberación integrada `v2026.09.10.2` completa V266–V268 y V270–V272 sobre ese
+esquema, conservando V269 y todo el historial anterior. La ejecución fuera de orden
+se limita al paso de migración previamente ensayado; no se conserva como opción
+del arranque normal. El [registro de la liberación integrada](releases/2026.09.10.2.md)
+detalla las comprobaciones y la imagen anterior compatible con V272. Después de
+esa actualización, una reversión debe usar esa imagen compatible y conservar la base.
+
 ### Certificación del día de corte y métodos de pago
 
 Una liberación que incluya la migración de programación del día de corte
