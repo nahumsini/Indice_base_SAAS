@@ -1574,6 +1574,10 @@ hereda permisos de un colaborador.
   retirarse por producto como excepción. No se captura una tasa libre repetida por renglón; el
   frontend envía a Compras la tasa efectiva de cada partida y recalcula subtotal, impuesto y total
   inmediatamente cuando cambia la selección global, el perfil o una excepción.
+- En `provider.payables@1`, una cuenta sin orden de compra selecciona un solo perfil fiscal y lo
+  activa con una palomita. La tasa se convierte en importe sobre el subtotal y se presenta como dato
+  calculado, nunca como un importe ambiguo capturado por el proveedor. El alta y su auditoría se
+  enlazan mediante la identidad de la definición hija aunque esta no tenga una referencia legacy.
 - El selector de partidas puede buscar todos los productos activos de la compañía por nombre, SKU o
   código de producto y destaca primero los ya vinculados al proveedor. Esta proyección pública no
   expone existencias, precios internos, márgenes, condiciones de otros proveedores ni productos

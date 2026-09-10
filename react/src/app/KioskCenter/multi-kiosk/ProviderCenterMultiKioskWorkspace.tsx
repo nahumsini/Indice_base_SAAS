@@ -32,6 +32,7 @@ import {
   getBudgetTaxProfiles,
   getDefaultBudgetTaxProfile,
   inferTaxCountryFromCurrency,
+  roundMoney,
   taxRateToPercentInput,
 } from '../../BasicModules/Expenses/Budgets/budgetTaxCatalog';
 import { multiKioskPublicApi, type MultiKioskChildWorkspace } from '../../api/multiKiosks';
@@ -873,8 +874,10 @@ function ProviderPayablesWorkspace(props: ProviderWorkspaceProps) {
   const [concept, setConcept] = useState('');
   const [reference, setReference] = useState('');
   const [amount, setAmount] = useState('');
-  const [tax, setTax] = useState('0');
   const [currencyCode, setCurrencyCode] = useState('MXN');
+  const [taxEnabled, setTaxEnabled] = useState(false);
+  const [payableTaxProfileId, setPayableTaxProfileId] = useState(() => getDefaultBudgetTaxProfile('MX')?.id ?? '');
+  const [payableManualTaxPercent, setPayableManualTaxPercent] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [description, setDescription] = useState('');
   const [contactName, setContactName] = useState(text(provider.contact_name));
@@ -887,16 +890,29 @@ function ProviderPayablesWorkspace(props: ProviderWorkspaceProps) {
   const canUpload = props.workspace.session.capabilities.includes(caps.payablePresign)
     && props.workspace.session.capabilities.includes(caps.payableRegister);
   const subtotal = number(amount);
-  const taxes = number(tax);
-  const total = subtotal + taxes;
+  const payableTaxCountry = inferTaxCountryFromCurrency(currencyCode);
+  const payableTaxProfiles = useMemo(() => getBudgetTaxProfiles(payableTaxCountry), [payableTaxCountry]);
+  const payableDefaultTaxProfile = getDefaultBudgetTaxProfile(payableTaxCountry) ?? payableTaxProfiles[0];
+  const payableTaxProfile = payableTaxProfiles.find(profile => profile.id === payableTaxProfileId)
+    ?? payableDefaultTaxProfile;
+  const payableTaxPercent = payableTaxProfile?.manualRate
+    ? Math.max(0, number(payableManualTaxPercent))
+    : Number(taxRateToPercentInput(payableTaxProfile?.rate ?? 0));
+  const payableTaxLabel = payableTaxProfile?.manualRate
+    ? `${payableTaxProfile.shortName} ${payableTaxPercent}%`
+    : payableTaxProfile?.shortName ?? 'Sin impuesto';
+  const taxes = taxEnabled ? roundMoney(subtotal * (payableTaxPercent / 100)) : 0;
+  const total = roundMoney(subtotal + taxes);
   const today = new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(new Date());
 
   const reset = () => {
     setConcept('');
     setReference('');
     setAmount('');
-    setTax('0');
     setCurrencyCode('MXN');
+    setTaxEnabled(false);
+    setPayableTaxProfileId(getDefaultBudgetTaxProfile('MX')?.id ?? '');
+    setPayableManualTaxPercent('');
     setDueDate('');
     setDescription('');
     setContactName(text(provider.contact_name));
@@ -906,11 +922,24 @@ function ProviderPayablesWorkspace(props: ProviderWorkspaceProps) {
     setValidationMessages([]);
   };
 
+  const changePayableCurrency = (value: string) => {
+    const profile = getDefaultBudgetTaxProfile(inferTaxCountryFromCurrency(value));
+    setCurrencyCode(value);
+    setPayableTaxProfileId(profile?.id ?? '');
+    setPayableManualTaxPercent('');
+    setValidationMessages([]);
+  };
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const messages: string[] = [];
     if (!concept.trim()) messages.push('Escribe el concepto de la cuenta.');
     if (subtotal <= 0) messages.push('El monto debe ser mayor que cero.');
+    if (taxEnabled && payableTaxProfile?.manualRate
+        && (!payableManualTaxPercent.trim() || !Number.isFinite(Number(payableManualTaxPercent))
+          || Number(payableManualTaxPercent) < 0 || Number(payableManualTaxPercent) > 100)) {
+      messages.push('La tasa especial debe estar entre 0% y 100%.');
+    }
     if (!dueDate) messages.push('Selecciona la fecha de vencimiento.');
     if (!contactName.trim() || !/^\S+@\S+\.\S+$/.test(contactEmail.trim())) messages.push('Confirma la persona y el correo de contacto.');
     if (messages.length) {
@@ -976,8 +1005,11 @@ function ProviderPayablesWorkspace(props: ProviderWorkspaceProps) {
               <Field label="Fecha de registro"><div className={`${inputClass} flex items-center bg-slate-50 text-slate-700`}>{today}</div></Field>
               <Field label="Fecha de vencimiento *"><input required type="date" value={dueDate} onChange={event => setDueDate(event.target.value)} className={inputClass} /></Field>
               <Field label="Monto antes de impuestos *"><input required min="0.01" step="0.01" type="number" value={amount} onChange={event => setAmount(event.target.value)} placeholder="0.00" className={inputClass} /></Field>
-              <Field label="Moneda de la operación *"><TransactionCurrencySelect value={currencyCode} onChange={setCurrencyCode} /></Field>
-              <Field label="Impuestos"><input min="0" step="0.01" type="number" value={tax} onChange={event => setTax(event.target.value)} className={inputClass} /></Field>
+              <Field label="Moneda de la operación *"><TransactionCurrencySelect value={currencyCode} onChange={changePayableCurrency} /></Field>
+              <Field label="Impuesto de la operación"><select value={payableTaxProfile?.id ?? ''} onChange={event => { setPayableTaxProfileId(event.target.value); setPayableManualTaxPercent(''); setValidationMessages([]); }} className={inputClass}>{payableTaxProfiles.map(profile => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></Field>
+              <label className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 transition ${taxEnabled ? 'border-[#147514]/40 bg-[#147514]/10 text-[#147514]' : 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200'}`}><input type="checkbox" checked={taxEnabled} onChange={event => { setTaxEnabled(event.target.checked); setValidationMessages([]); }} className="h-5 w-5 rounded border-slate-300 text-[#147514] focus:ring-[#147514]" /><span><span className="block text-sm font-semibold">Aplicar {payableTaxLabel}</span><span className="mt-0.5 block text-xs opacity-75">Se calcula sobre el monto antes de impuestos</span></span></label>
+              {payableTaxProfile?.manualRate ? <Field label="Tasa especial %"><input type="number" min="0" max="100" step="0.001" value={payableManualTaxPercent} onChange={event => { setPayableManualTaxPercent(event.target.value); setValidationMessages([]); }} className={inputClass} placeholder="Ej. 8.25" /></Field> : <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950"><p className="text-xs text-slate-500">Impuesto calculado</p><p className="mt-1 text-base font-medium text-slate-900 dark:text-white">{money(taxes, currencyCode)}</p></div>}
+              {payableTaxProfile?.manualRate ? <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950"><p className="text-xs text-slate-500">Impuesto calculado</p><p className="mt-1 text-base font-medium text-slate-900 dark:text-white">{money(taxes, currencyCode)}</p></div> : null}
               <div className="rounded-2xl border border-[#147514]/20 bg-[#147514]/5 px-4 py-3"><p className="text-xs text-slate-500">Total de la cuenta</p><p className="mt-1 text-lg font-medium text-[#147514]">{money(total, currencyCode)}</p></div>
               <p className="sm:col-span-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-900">La cuenta aparecerá en Gastos con estado Borrador, pendiente de revisión.</p>
             </div>

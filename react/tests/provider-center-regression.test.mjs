@@ -190,6 +190,10 @@ test('provider payables mirror Expenses and enter its review queue directly', as
   assert.match(source, /function ProviderPayablesWorkspace/);
   assert.match(source, /Crear cuenta por pagar/);
   assert.match(source, /Cuenta enviada directamente a Gastos para revisión/);
+  assert.match(source, /Aplicar \{payableTaxLabel\}/);
+  assert.match(source, /roundMoney\(subtotal \* \(payableTaxPercent \/ 100\)\)/);
+  assert.match(source, /Impuesto calculado/);
+  assert.doesNotMatch(source, /value=\{tax\} onChange=\{event => setTax/);
   assert.match(source, /PROVIDER_PAYABLES.*ProviderPayablesWorkspace/s);
   assert.match(catalog, /"Cuentas por pagar"/);
   assert.match(catalog, /directamente a Gastos para revisión/);
