@@ -50,3 +50,12 @@ No migration is required. Existing payment dates, amounts, account balances and 
 are not rewritten. A later bank assignment to an already recorded unassigned payment requires
 an explicit correction workflow, not a generic account-label change. Deployment and visual
 verification in the target environment remain separate release steps.
+
+## Release preflight follow-up
+
+The first full VPS preflight ran after UTC midnight while the company date was still
+the preceding day. Three existing bulk-status assertions used the JVM date and
+therefore sent a future payment date or a non-overdue due date. The fixture now
+uses the same company timezone resolver as the business service. Production date
+validation is unchanged. The failed evidence is retained and the complete preflight
+must pass again on the updated release candidate before activation.
