@@ -8,6 +8,7 @@ import {
 import type { Expense } from '../types/expenses.types';
 import type { FinanceBudgetLine } from '../types/finance-domain.types';
 import type { BudgetLineApiDto, BudgetLineListApiResponse } from '../types/finance-api.types';
+import type { FinanceBulkAction } from '../../shared/financeBulkActions.copy';
 
 const budgetLinesPath = '/api/v1/finance/budget-lines';
 
@@ -17,6 +18,16 @@ const jsonMutation = (method: 'POST' | 'PUT', body: unknown): RequestInit => ({
 });
 
 export const budgetLinesService = {
+  async applyBulkAction(action: Exclude<FinanceBulkAction, 'PAYMENT_ACCOUNT'>,
+    rows: Array<{ id: string; version?: number }>, targetId: string, reason: string): Promise<Expense[]> {
+    const response = await apiClient<BudgetLineListApiResponse>(`${budgetLinesPath}/bulk-actions`, jsonMutation('POST', {
+      action,
+      rows: rows.map(row => ({ id: getBudgetLineApiId(row.id), expectedVersion: row.version })),
+      targetId: targetId ? Number(targetId) : null,
+      reason,
+    }));
+    return response.budgetLines.map(toBudgetExpense);
+  },
   async getBudgetLines(): Promise<FinanceBudgetLine[]> {
     const response = await apiClient<BudgetLineListApiResponse>(budgetLinesPath);
     return response.budgetLines.map(toFinanceBudgetLine);

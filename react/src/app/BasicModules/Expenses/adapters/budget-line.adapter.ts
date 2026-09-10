@@ -96,6 +96,7 @@ export const toBudgetExpense = (budgetLine: BudgetLineApiDto): Expense => {
 
   return {
     id: `budget-line-${budgetLine.id}`,
+    version: budgetLine.version,
     folio: asString(customFields.folio, `BUD-${budgetLine.id}`),
     businessUnit: budgetLine.unitId ? String(budgetLine.unitId) : '',
     business: budgetLine.businessId ? String(budgetLine.businessId) : '',
@@ -128,7 +129,7 @@ export const toBudgetExpense = (budgetLine: BudgetLineApiDto): Expense => {
     dueDate: scheduledDate,
     date: scheduledDate,
     paymentMethod: 'transfer',
-    accountingAccount: asString(customFields.accountingAccount, 'Gastos Operativos'),
+    accountingAccount: asString(customFields.accountingAccount, ''),
     status,
     attachments: Array.from({ length: attachmentCount }, (_, index) => `Archivo ${index + 1}`),
     attachmentCount,

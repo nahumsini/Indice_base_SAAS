@@ -59,6 +59,7 @@ export const koCA = mergeFinanceTranslations('ko-CA', {
     modal: { amount: '금액', concept: '항목', create: '비용 생성', currency: '통화', description: '항목, 금액 및 통화.', edit: '비용 편집', groupTitle: '기본 비용', mainTitle: '주요 정보', placeholderConcept: '예: 월 임대료', subtitle: '기본 비용을 빠르게 입력합니다.', summarySubtotal: '소계', summaryTaxes: '세금', summaryTotal: '총액' },
   },
   budgets: {
+    filters: { thisMonth: '이번 달', futurePeriod: '기간', customFutureRange: '사용자 지정 범위', defaultHelp: '선택한 기간의 예산과 지출을 비교합니다. 기본값은 다음 달입니다。' },
     actual: '실제',
     addLine: '예산 라인 추가',
     available: '사용 가능',

@@ -149,6 +149,8 @@ export function useKpiMonetaryAggregate(query: Query) {
 }
 
 export function useKpiMonetaryAggregates(queries: KpiMonetaryBatchQuery[]) {
+  const [revision, setRevision] = useState(0);
+  const refresh = useCallback(() => setRevision(current => current + 1), []);
   const queryKey = useMemo(() => JSON.stringify(queries.map((query) => ({
     ...query,
     ids: query.ids?.map(String),
@@ -178,7 +180,7 @@ export function useKpiMonetaryAggregates(queries: KpiMonetaryBatchQuery[]) {
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [queryKey]);
+  }, [queryKey, revision]);
 
-  return { data, error, loading };
+  return { data, error, loading, refresh };
 }

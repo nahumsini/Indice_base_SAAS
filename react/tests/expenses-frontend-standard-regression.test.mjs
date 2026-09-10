@@ -419,8 +419,8 @@ test('Control presupuestal consolida KPIs y no presenta fallas locales como regi
   assert.match(summarySource, /getBudgetLineNumericId/);
   assert.match(tableSource, /onExpensesChange\(currentExpenses => \[\.\.\.savedEntries, \.\.\.currentExpenses\]\)/);
   assert.doesNotMatch(tableSource, /\[\.\.\.savedEntries, \.\.\.failedEntries, \.\.\.currentExpenses\]/);
-  assert.match(tableSource, /Promise\.allSettled\(expenseIds\.map/);
-  assert.match(tableSource, /confirmDisabled=\{isDeleting\}/);
+  assert.match(tableSource, /budgetLinesService\.applyBulkAction/);
+  assert.match(tableSource, /<BudgetDeleteDialog/);
   assert.doesNotMatch(errorsSource, /\?\? backendMessage/);
 });
 

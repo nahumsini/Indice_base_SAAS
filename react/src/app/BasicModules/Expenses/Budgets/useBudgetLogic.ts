@@ -1,12 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { Expense } from '../types/expenses.types';
 import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
-import {
-  getNextMonthRange,
-  getNextQuarterRange,
-} from './budgetUtils';
+import { getBudgetPeriodRange, isBudgetInPeriod, type BudgetPeriod } from './budgetPeriod';
 
-export type BudgetFutureFilter = 'next_month' | 'next_quarter' | 'custom';
+export type BudgetFutureFilter = BudgetPeriod;
 export const MISSING_ACCOUNTING_ACCOUNT_FILTER = '__missing_accounting_account__';
 
 interface UseBudgetLogicParams {
@@ -52,11 +49,6 @@ const budgetsWorkspaceUrlFields: Partial<Record<keyof BudgetsWorkspaceState, str
   statusFilter: 'bu_status',
 };
 
-const isWithinRange = (date: Date, start: Date, end: Date) => {
-  const time = date.getTime();
-  return time >= start.getTime() && time <= end.getTime();
-};
-
 export function useBudgetLogic({ expenses }: UseBudgetLogicParams) {
   const [futureFilter, setFutureFilter] = useState<BudgetFutureFilter>('next_month');
   const [customEndDate, setCustomEndDate] = useState('');
@@ -97,7 +89,7 @@ export function useBudgetLogic({ expenses }: UseBudgetLogicParams) {
     setBusinessUnitFilter(restoredState.businessUnitFilter);
     setCustomEndDate(restoredState.customEndDate);
     setCustomStartDate(restoredState.customStartDate);
-    setFutureFilter(restoredState.futureFilter);
+    setFutureFilter(['this_month', 'next_month', 'next_quarter', 'custom'].includes(restoredState.futureFilter) ? restoredState.futureFilter : 'next_month');
     setHealthFilter(restoredState.healthFilter);
     setProviderFilter(restoredState.providerFilter);
     setSearchTerm(restoredState.searchTerm);
@@ -118,14 +110,7 @@ export function useBudgetLogic({ expenses }: UseBudgetLogicParams) {
   }, [expenses]);
 
   const summaryBudgetExpenses = useMemo(() => {
-    const now = new Date();
-    const customStart = customStartDate ? new Date(`${customStartDate}T00:00:00`) : getNextMonthRange(now).start;
-    const customEnd = customEndDate ? new Date(`${customEndDate}T23:59:59`) : new Date(2999, 11, 31);
-    const range = futureFilter === 'next_quarter'
-      ? getNextQuarterRange(now)
-      : futureFilter === 'custom'
-        ? { start: customStart, end: customEnd }
-        : getNextMonthRange(now);
+    const range = getBudgetPeriodRange(futureFilter, customStartDate, customEndDate);
 
     return budgetExpenses.filter(expense => {
       const search = searchTerm.trim().toLowerCase();
@@ -142,7 +127,7 @@ export function useBudgetLogic({ expenses }: UseBudgetLogicParams) {
       const matchesStatus = statusFilter === 'all' || (expense.budgetStatus ?? expense.status) === statusFilter;
 
       return (
-        isWithinRange(expense.dueDate, range.start, range.end) &&
+        isBudgetInPeriod(expense.dueDate, range) &&
         matchesSearch &&
         matchesBusinessUnit &&
         matchesBusiness &&

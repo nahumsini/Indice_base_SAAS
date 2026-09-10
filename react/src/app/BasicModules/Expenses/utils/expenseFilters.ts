@@ -15,12 +15,13 @@ export const getExpensePaidAmount = (expense: Expense) => Math.max(expense.amoun
 export const getExpenseBalance = (expense: Expense) => Math.max(expense.total - getExpensePaidAmount(expense), 0);
 
 export const canEditExpense = (expense: Expense) => (
-  !expense.originFund && !expense.accountingPosted && (expense.type === 'budget'
-  || !expense.backendStatus
-  || expense.backendStatus.toUpperCase() === 'DRAFT')
+  !expense.originFund && !expense.accountingPosted && !expense.purchaseOrderId
+  && !['CLOSED', 'CANCELLED', 'REJECTED'].includes(expense.backendStatus?.toUpperCase() ?? '')
 );
 
-export const canDeleteExpense = canEditExpense;
+export const canDeleteExpense = (expense: Expense) => canEditExpense(expense)
+  && getExpensePaidAmount(expense) === 0
+  && (expense.type === 'budget' || !expense.backendStatus || expense.backendStatus.toUpperCase() === 'DRAFT');
 
 export const canPayExpense = (expense: Expense) => !expense.originFund && expense.type !== 'budget'
   && !['CANCELLED', 'REJECTED', 'CLOSED', 'PAID'].includes(expense.backendStatus?.toUpperCase() ?? '')
