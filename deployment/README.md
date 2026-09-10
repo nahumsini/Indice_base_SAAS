@@ -203,6 +203,14 @@ ORDER BY catalog_version_id;
 Si la comparación cambia sin que la liberación incluya una publicación
 comercial autorizada, detener el despliegue y conservar la versión anterior.
 
+### Generación mensual de cuentas por pagar desde presupuestos
+
+Para una liberación que incluya `V269` y la generación de cuentas por pagar desde presupuestos,
+aplica también la preparación, activación y reversión descritas en
+[`budget-monthly-obligations-contract-v1.md`](../docs/budget-monthly-obligations-contract-v1.md#despliegue-y-reversión).
+`APP_FINANCE_BUDGET_OBLIGATIONS_ENABLED=false` detiene la generación nueva; no revierte gastos
+ni pagos existentes. El despliegue conserva el historial y las tablas agregadas por Flyway.
+
 ### Certificación del día de corte y métodos de pago
 
 Una liberación que incluya la migración de programación del día de corte

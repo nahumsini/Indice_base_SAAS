@@ -78,7 +78,8 @@ class BudgetLineServiceTest {
         var command = ArgumentCaptor.forClass(BudgetLineCommand.class);
         var current = BudgetLineTestData.record(11L, "Software", new BigDecimal("1000.00"),
             new BigDecimal("850.00"), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
-        when(repository.findById(context, 11L)).thenReturn(Optional.of(current), Optional.of(current));
+        when(repository.findByIdForUpdate(context, 11L)).thenReturn(Optional.of(current));
+        when(repository.findById(context, 11L)).thenReturn(Optional.of(current));
         when(accessService.containsAssignment(context, null, null)).thenReturn(true);
         when(repository.update(eq(context), eq(11L), command.capture())).thenReturn(true);
 
@@ -156,6 +157,17 @@ class BudgetLineServiceTest {
         assertEquals(HttpStatus.FORBIDDEN, error.status());
         verifyNoInteractions(referenceValidator);
         verify(repository, never()).insert(any(), any());
+    }
+
+    @Test
+    void deleteCannotOrphanAnExistingBudgetExpense() {
+        var context = BudgetLineTestData.context();
+        when(repository.findById(context, 12L))
+            .thenReturn(Optional.of(BudgetLineTestData.record(12L, "Software", new BigDecimal("1000.00"))));
+        when(repository.hasLinkedExpenses(context, 12L)).thenReturn(true);
+        var error = assertThrows(FinanceApiException.class, () -> service().delete(context, 12L));
+        assertEquals(HttpStatus.CONFLICT, error.status());
+        verify(repository, never()).softDelete(context, 12L);
     }
 
     private BudgetLineService service() {

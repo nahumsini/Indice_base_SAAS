@@ -159,8 +159,17 @@ remain pending. Bulk entry explicitly chooses paid (the initial selection) or pe
 when supplied, payment accounts must be eligible for that row. The import owner still records
 payment evidence when the bank is unassigned, without debiting an arbitrary account. Only
 pending imports capture a due date independently of the expense date. The visible status remains
-a workflow result. Partial and full payment actions, including overdue-row quick payment, open
-the payment flow so the backend records the installment and Treasury movement together.
+a workflow result. Per the 2026-09-10 payment-action decision, pending, partial and overdue rows
+expose two separate actions: Abonar opens the installment form; Pagar directly invokes the
+settlement owner, which calculates the current remaining balance and uses today's company business
+date. Previous installments and the original expense date remain unchanged. An unassigned account
+on direct settlement records payment history without any bank movement, as with paid capture;
+an assigned account is validated rather than replaced silently. The installment form retains its
+account/date controls and adds Liquidar, submitting the entire displayed remaining balance through
+the existing record-payment owner. Both actions accept payment without an attachment. No selector
+may automatically choose the first bank. Partial-payment amount, account and date are preserved
+on errors; both submit buttons share an in-flight guard and stable request identity. Bank balances
+refresh from the owner after success, avoiding repeated optimistic deductions on a retry.
 Registered ordinary unposted expenses expose Edit and use the versioned correction operation;
 existing payments are preserved. Editing is independent of deletion eligibility. Currency changes
 are unavailable for paid or budget-linked expenses, and a corrected total below recorded payments
@@ -176,9 +185,65 @@ budget lines; selection exposes budget-owned classification and soft deletion. T
 and selected rows sit above pagination and retain native currency separation. These are budget
 lines and must not be settled or marked paid through Expense status actions.
 
-Expense edit controls are available only while the record is a draft. Published expenses remain
-consultable; approval, payment, closure, adjustment, and reversal use their named actions instead
-of reopening the original commercial record.
+The 2026-09-10 monthly-obligation decision connects scheduled Budget Control lines to real payables
+under `docs/budget-monthly-obligations-contract-v1.md`. Entering Expenses (including returning from
+Budget Control) completes the protected synchronization request before loading expense rows.
+Unresolved legacy data or generation failures remain visible; existing expenses still load on a
+failure. Payables use the existing Abonar/Pagar actions, while the budget line stays a planning row.
+An unpaid budget payable becomes overdue only after its due date, including a partially paid balance.
+Calendar dates preserve their selected month across timezones; monthly recurrences clamp dates such
+as January 31 to February's last day and restore the original day in March.
+
+Expense edits use the versioned correction rules above. Removal follows the explicit 2026-09-10
+owner contract in `docs/finance-bulk-actions-and-workspace-memory-contract-v1.md`: every ordinary
+status except audited/closed is eligible, with received purchase-order and fund-owner protections.
+The single-row action opens a reasoned confirmation; batch removal validates the whole selection.
+Row actions omit duplicate and print. Print is available inside the expense dossier and reuses the
+standard purchase-order PDF layout (folio/status, metadata, financial summary, item table, signatures),
+retaining the expense's native currency and resolving account/user names from scoped catalogs.
+
+Expense capture, payable capture and payment use searchable selectors for large reference catalogs.
+Optional notes/evidence are collapsible; submitting and error states preserve captured values.
+The payable draft's chosen transaction currency must survive preferred-currency changes while open.
+Per the 2026-09-10 payable-capture decision, its registration date is assigned automatically on
+submission using the local calendar date; only the due date is editable. Today/+7/+15/+30 shortcuts
+set an explicit due date, and a past due date retains the existing overdue classification. Required
+fields and save failures are explained in the modal. A failed provider creation must retain its name
+for retry and must never insert or select a phantom local provider. The submit guard prevents
+concurrent submissions; monetary previews and payloads use consistent cent rounding.
+These presentation changes do not alter approval, tax, settlement or correction rules.
+
+Budget capture remains a three-step Indice wizard: Cost, Schedule, Final review. Avoid repeated
+section titles and explanations. Keep the accounting account visible and searchable; show unit
+and business as a compact editable disclosure, and keep the optional note collapsed when empty.
+The wizard's tax choices (none, included, added) map to the existing tax controls and calculations;
+other forms retain their current presentation. Calendar-period shortcuts only fill the end date:
+the existing recurrence generator owns the preview. Review all classification, tax, date and amount
+values before submission, with links back to each step that preserve the draft. Editing an existing
+line must describe that single-line operation. Summaries never imply that editing creates a series.
+Keep Cancel left, progression right, and a contextual summary in the shared footer. No new API,
+posting rule, permission, preferred-currency behavior or recurrence semantics are introduced by
+this 2026-09-10 UI decision.
+
+Provider capture and editing remain a standard form. Keep name, type and status visible; present
+optional contact, tax details, assignment and owners as native disclosures with live summaries.
+Use existing searchable reference selectors, retain unit/business scoping and preserve optional
+values when sections close. Name-only creation keeps existing defaults and does not invent an
+assignment. Native validation must open a collapsed section containing an invalid field before
+focusing it. Save errors retain the draft; in-flight guards prevent repeated submissions. Localize
+labels and feedback consistently and retain the finance/Sales modal tones. This 2026-09-10 UI
+decision preserves provider payloads, backend validation, permissions and persistence behavior.
+
+Payment Accounts uses the shared operational KPI area below its filters: one non-interactive
+active-account balance, account/status counts, a thin status distribution and a scope sentence.
+The balance uses the existing `PAYMENT_ACCOUNT_BALANCE` backend metric with explicit visible
+active account IDs and the global preferred currency. Virtual Petty Cash rows are counted
+separately and never passed as Treasury IDs or added to this balance. Label that boundary in
+the scope sentence. Counts for status navigation retain the search/type scope while ignoring
+the selected status facet; activating the selected status clears it. Monetary results follow
+the visible status scope and refresh on same-ID balance updates. Display unavailable during
+loading/failure, disclose partial conversion and provide retry. Never persist aggregates in
+filter memory. This local 2026-09-10 presentation decision changes no monetary owner formula.
 
 The accounting-account column exposes a separate classification action for an ordinary expense
 that has not generated a posted journal. This action may change only the accounting account;

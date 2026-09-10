@@ -19,11 +19,13 @@ export const canEditExpense = (expense: Expense) => (
   && !['CLOSED', 'CANCELLED', 'REJECTED'].includes(expense.backendStatus?.toUpperCase() ?? '')
 );
 
-export const canDeleteExpense = (expense: Expense) => canEditExpense(expense)
-  && getExpensePaidAmount(expense) === 0
-  && (expense.type === 'budget' || !expense.backendStatus || expense.backendStatus.toUpperCase() === 'DRAFT');
+export const canDeleteExpense = (expense: Expense) => !expense.originFund
+  && expense.status !== 'audited' && expense.backendStatus?.toUpperCase() !== 'CLOSED'
+  && expense.auditStatus?.toUpperCase() !== 'AUDITED'
+  && (!expense.purchaseOrderId || expense.purchaseOrderReceived === false);
 
 export const canPayExpense = (expense: Expense) => !expense.originFund && expense.type !== 'budget'
+  && expense.status !== 'audited' && expense.auditStatus?.toUpperCase() !== 'AUDITED'
   && !['CANCELLED', 'REJECTED', 'CLOSED', 'PAID'].includes(expense.backendStatus?.toUpperCase() ?? '')
   && getExpenseBalance(expense) > 0;
 
@@ -49,6 +51,7 @@ export const isExpenseEffectivelyOverdue = (expense: Expense, referenceDate = ne
 export const getEffectiveExpenseStatus = (expense: Expense, referenceDate = new Date()): Expense['status'] => {
   if (expense.status === 'audited') return 'audited';
   if (getExpenseBalance(expense) <= 0) return 'paid';
+  if (expense.budgetLineId && isExpenseEffectivelyOverdue(expense, referenceDate)) return 'overdue';
   if (getExpensePaidAmount(expense) > 0 || expense.status === 'partial') return 'partial';
   if (isExpenseEffectivelyOverdue(expense, referenceDate)) return 'overdue';
   return 'pending';

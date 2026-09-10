@@ -149,6 +149,25 @@ class FinanceExpensesControllerTest {
     }
 
     @Test
+    void settlePaymentUsesWriteGuardAndPreservesDeniedResponse() {
+        var request = new com.indice.erp.finance.expenses.dto.SettleExpensePaymentRequest(null, null, "payment-key");
+        var error = ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
+        when(guard.requireWriteAccess(session, null)).thenReturn(new FinanceRequestGuard.Result(null, error));
+        assertEquals(HttpStatus.FORBIDDEN, controller().settlePayment(session, null, 55L, request).getStatusCode());
+        verifyNoInteractions(expenseService);
+    }
+
+    @Test
+    void settlePaymentPassesAuthenticatedContextAndCsrfToOwner() {
+        var context = context();
+        var request = new com.indice.erp.finance.expenses.dto.SettleExpensePaymentRequest(81L, null, "payment-key");
+        when(guard.requireWriteAccess(session, "csrf-token")).thenReturn(allowed(context));
+        when(expenseService.settlePayment(context, 55L, request)).thenReturn(response(55L));
+        assertEquals(HttpStatus.OK, controller().settlePayment(session, "csrf-token", 55L, request).getStatusCode());
+        verify(expenseService).settlePayment(context, 55L, request);
+    }
+
+    @Test
     void createReturnsGuardErrorWithoutCallingService() {
         var controller = controller();
         var error = ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Invalid CSRF token."));
@@ -267,7 +286,7 @@ class FinanceExpensesControllerTest {
             null,
             0L,
             null,
-            null, null, false
+            null, null, false, false
         );
     }
 }

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type 
 import { Plus } from 'lucide-react';
 import { FailureToast } from '../../../components/FailureToast';
 import { SuccessToast } from '../../../components/SuccessToast';
-import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
+import { ExpenseDeleteModal } from '../components/modals/ExpenseDeleteModal';
 import { Button } from '../../../components/ui/button';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import { isBackendId } from '../adapters/adapter.utils';
@@ -142,7 +142,6 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
   const [pendingDeleteExpenseIds, setPendingDeleteExpenseIds] = useState<string[]>([]);
   const [deletingExpenseIds, setDeletingExpenseIds] = useState<Set<string>>(() => new Set());
   const [successToastMessage, setSuccessToastMessage] = useState('');
-  const deletingExpenseIdsRef = useRef<Set<string>>(new Set());
   const captureRequestKey = useRef(crypto.randomUUID());
   const saveTimeoutsRef = useRef<Record<string, number>>({});
   const expenses = controlledExpenses ?? localExpenses;
@@ -734,7 +733,9 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
         setSuccessToastMessage(t.expenses.messages.payableCreated);
       }
     } catch (error) {
-      setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.createFailed));
+      const message = toFinanceApiErrorMessage(error, t.expenses.messages.createFailed);
+      setFailureToastMessage(message);
+      throw new Error(message);
     } finally {
       setIsPayableAccountSubmitting(false);
     }
@@ -742,7 +743,7 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
 
   const handleQuickProviderCreate = async (name: string): Promise<Provider> => {
     const normalizedName = name.trim();
-    const existingProvider = providers.find(provider => provider.name.trim().toLocaleLowerCase() === normalizedName.toLocaleLowerCase());
+    const existingProvider = providers.find(provider => provider.status !== 'inactive' && isBackendId(provider.id) && provider.name.trim().toLocaleLowerCase() === normalizedName.toLocaleLowerCase());
     if (existingProvider) return existingProvider;
 
     const providerRecord = createQuickProviderRecord(providerRecords ?? [], normalizedName);
@@ -752,64 +753,8 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
       setSuccessToastMessage(t.expenses.payableAccount.quickProviderCreated);
       return toExpenseProvider(savedProvider);
     } catch (error) {
-      onProvidersChange?.(currentProviders => [providerRecord, ...currentProviders]);
       setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.payableAccount.quickProviderSaveFailed));
-      return toExpenseProvider(providerRecord);
-    }
-  };
-
-  const setExpenseDeleting = (id: string, isDeleting: boolean) => {
-    const nextIds = new Set(deletingExpenseIdsRef.current);
-    if (isDeleting) {
-      nextIds.add(id);
-    } else {
-      nextIds.delete(id);
-    }
-    deletingExpenseIdsRef.current = nextIds;
-    setDeletingExpenseIds(nextIds);
-  };
-
-  const executeDelete = async (id: string) => {
-    if (deletingExpenseIdsRef.current.has(id)) return;
-    const expense = expenses.find(item => item.id === id);
-    if (!expense) return;
-    if (!canDeleteExpense(expense)) {
-      setFailureToastMessage(t.expenses.messages.deleteDraftOnly);
-      return;
-    }
-
-    // Budget-line rows are synthetic and always carry this prefixed id. Some
-    // historical expense records also carry entryType="budget", but their
-    // numeric id must still be deleted through the expenses API.
-    if (expense.id.startsWith('budget-line-')) {
-      setExpenseDeleting(id, true);
-      try {
-        await budgetLinesService.deleteBudgetLine(id);
-        setExpenses(currentExpenses => currentExpenses.filter(item => item.id !== id));
-        setSuccessToastMessage(t.expenses.messages.deleted);
-      } catch (error) {
-        setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.deleteFailed));
-      } finally {
-        setExpenseDeleting(id, false);
-      }
-      return;
-    }
-
-    if (!isBackendId(id)) {
-      setExpenses(currentExpenses => currentExpenses.filter(item => item.id !== id));
-      setSuccessToastMessage(t.expenses.messages.deleted);
-      return;
-    }
-
-    setExpenseDeleting(id, true);
-    try {
-      await expensesService.deleteExpense(id);
-      setExpenses(currentExpenses => currentExpenses.filter(item => item.id !== id));
-      setSuccessToastMessage(t.expenses.messages.deleted);
-    } catch (error) {
-      setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.deleteFailed));
-    } finally {
-      setExpenseDeleting(id, false);
+      throw error;
     }
   };
 
@@ -833,12 +778,23 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
     setPendingDeleteExpenseIds(ids);
   };
 
-  const confirmPendingDelete = () => {
-    const ids = pendingDeleteExpenseIds;
-    setPendingDeleteExpenseIds([]);
-    ids.forEach(id => {
-      void executeDelete(id);
-    });
+  const confirmPendingDelete = async (reason: string) => {
+    const rows = pendingDeleteExpenseIds.map(id => expenses.find(expense => expense.id === id)).filter((row): row is Expense => Boolean(row));
+    if (!rows.length || rows.length !== pendingDeleteExpenseIds.length || rows.some(row => !canDeleteExpense(row))) throw new Error(t.expenses.messages.deleteDraftOnly);
+    setDeletingExpenseIds(new Set(rows.map(row => row.id)));
+    try {
+      if (rows.length === 1 && rows[0].id.startsWith('budget-line-')) {
+        await budgetLinesService.deleteBudgetLine(rows[0].id);
+      } else if (rows.some(row => isBackendId(row.id))) {
+        await expensesService.applyBulkAction(rows, 'DELETE', '', reason, providers);
+      }
+      const deleted = new Set(rows.map(row => row.id));
+      setExpenses(current => current.filter(row => !deleted.has(row.id)));
+      setPendingDeleteExpenseIds([]);
+      onFinanceDataChanged?.();
+      void paymentAccountsService.getPaymentAccounts().then(accounts => setPaymentAccounts(accounts.filter(account => account.isActive))).catch(() => {});
+      setSuccessToastMessage(t.expenses.messages.deleted);
+    } finally { setDeletingExpenseIds(new Set()); }
   };
 
   const pendingDeleteExpenses = pendingDeleteExpenseIds
@@ -860,6 +816,20 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
     )));
   };
 
+  const handleMarkExpensePaid = async (expense: Expense, idempotencyKey: string) => {
+    const saved = isBackendId(expense.id)
+      ? await expensesService.settleExpensePayment(expense.id, expense.paymentAccountId ?? '', idempotencyKey, providers)
+      : applyExpensePayment(expense, Math.max(expense.total - (expense.amountPaid ?? 0), 0), new Date());
+    // Refresh from the owner: retries must never subtract an optimistic bank balance twice.
+    void paymentAccountsService.getPaymentAccounts().then(accounts => setPaymentAccounts(accounts.filter(account => account.isActive))).catch(() => {});
+    void getUpdatedBudgetExpense(saved.budgetLineId).then(budget => {
+      if (budget) setExpenses(current => replaceBudgetExpense(current, budget));
+    }).catch(() => {});
+    onFinanceDataChanged?.();
+    setSuccessToastMessage(t.expenses.payment.settled);
+    return saved;
+  };
+
   const handleRecordExpensePayment = async (expense: Expense, amount: number, paymentAccountId: string, paymentDate: Date, attachmentFiles: File[], idempotencyKey?: string) => {
     try {
       const payableExpense = expense;
@@ -868,7 +838,8 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
         : isBackendId(payableExpense.id)
           ? await expensesService.recordExpensePayment(payableExpense.id, amount, paymentAccountId, paymentDate, providers, idempotencyKey)
           : { ...applyExpensePayment(payableExpense, amount, paymentDate), paymentAccountId };
-      const updatedBudgetExpense = await getUpdatedBudgetExpense(savedExpense.budgetLineId);
+      // The payment is already committed. A failed secondary refresh must not offer another payment.
+      const updatedBudgetExpense = await getUpdatedBudgetExpense(savedExpense.budgetLineId).catch(() => null);
 
       let savedExpenseWithAttachments = savedExpense;
       if (attachmentFiles.length > 0 && isBackendId(payableExpense.id) && payableExpense.type !== 'budget') {
@@ -891,9 +862,7 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
         }
       }
 
-      setPaymentAccounts(currentAccounts => currentAccounts.map(account => (
-        account.id === paymentAccountId ? { ...account, balance: account.balance - amount } : account
-      )));
+      void paymentAccountsService.getPaymentAccounts().then(accounts => setPaymentAccounts(accounts.filter(account => account.isActive))).catch(() => {});
       if (updatedBudgetExpense) {
         setExpenses(currentExpenses => replaceBudgetExpense(currentExpenses, updatedBudgetExpense));
       }
@@ -904,32 +873,6 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
       setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.saveFailed));
       return null;
     }
-  };
-
-  const handleDuplicate = (id: string) => {
-    const expense = expenses.find(item => item.id === id);
-    if (!expense) return;
-    const copy = {
-      ...expense,
-      id: `expense-${Date.now()}`,
-      folio: `${expense.folio}-COPY`,
-      amountPaid: 0,
-      paymentAccountId: undefined,
-      paymentDate: undefined,
-      status: 'pending' as const,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    expensesService.createExpense(copy, providers)
-      .then(savedExpense => {
-        setExpenses(currentExpenses => [savedExpense, ...currentExpenses]);
-        setSuccessToastMessage(t.expenses.messages.duplicated);
-      })
-      .catch(error => {
-        setExpenses(currentExpenses => [copy, ...currentExpenses]);
-        setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.duplicateFailed));
-      });
   };
 
   return (
@@ -967,7 +910,7 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
         dataReady={dataReady && filtersRestored}
         fundPeriodLabel={expenseGroupPeriodLabel(filters.periodFilter, referenceDate, locale, getExpenseFundGroupCopy(locale).period)}
         hasFundDetailFilters={Boolean(filters.searchTerm || filters.providerFilter !== 'all' || filters.businessUnitFilter !== 'all' || filters.businessFilter !== 'all' || filters.statusFilter !== 'all')}
-        actionVisibility={{ showAudit: false, showMarkPaid: true, showRecordPayment: false, showStatusChange: false }}
+        actionVisibility={{ showAudit: false, showMarkPaid: true, showRecordPayment: true, showStatusChange: false }}
         accountingAccountOptions={accountingAccountOptions}
         columns={translatedColumns}
         deletingExpenseIds={deletingExpenseIds}
@@ -990,9 +933,9 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
           const updated = new Map(saved.map(row => [row.id, row]));
           setExpenses(current => action === 'DELETE' ? current.filter(row => !selectedIds.has(row.id)) : current.map(row => updated.get(row.id) ?? row));
           onFinanceDataChanged?.();
+          if (action === 'DELETE') void paymentAccountsService.getPaymentAccounts().then(accounts => setPaymentAccounts(accounts.filter(account => account.isActive))).catch(() => {});
           setSuccessToastMessage(action === 'DELETE' ? t.expenses.messages.deleted : t.expenses.messages.saved);
         }}
-        onDuplicateExpense={handleDuplicate}
         onEditExpense={(expense) => {
           if (!canEditExpense(expense)) return;
           setEditingExpense(expense);
@@ -1005,6 +948,7 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
         onPersistExpenseUpdate={persistExpenseUpdate}
         onReclassifyExpense={reclassifyExpense}
         paymentAccounts={paymentAccounts}
+        onMarkExpensePaid={handleMarkExpensePaid}
         onRecordExpensePayment={handleRecordExpensePayment}
         businessOptions={referenceBusinessOptions}
         providers={providers}
@@ -1041,6 +985,15 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
       {detailExpense && (
         <ExpenseDetailModal
           expense={detailExpense}
+          printContext={{
+            businessUnit: unitOptions.find(option => option.value === detailExpense.businessUnit)?.label,
+            business: businessOptions.find(option => option.value === detailExpense.business)?.label,
+            accountingAccount: accountingAccountOptions.find(option => option.value === detailExpense.accountingAccount)?.label,
+            paymentAccount: paymentAccounts.find(account => account.id === detailExpense.paymentAccountId)?.name,
+            requestedBy: userOptions.find(option => option.value === detailExpense.requestedByUserId)?.label,
+            approvedBy: userOptions.find(option => option.value === detailExpense.approvedByUserId)?.label,
+            performedBy: userOptions.find(option => option.value === detailExpense.performedByUserId)?.label,
+          }}
           onClose={() => setDetailExpense(null)}
           onEdit={() => {
             if (!canEditExpense(detailExpense)) return;
@@ -1067,7 +1020,7 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
           onClose={() => setDetailPaymentExpense(null)}
           onSubmit={async (_expenseId, amount, paymentAccountId, paymentDate, attachmentFiles, idempotencyKey) => {
             const savedExpense = await handleRecordExpensePayment(detailPaymentExpense, amount, paymentAccountId, paymentDate, attachmentFiles, idempotencyKey);
-            if (!savedExpense) return;
+            if (!savedExpense) throw new Error(t.expenses.messages.saveFailed);
             setExpenses(currentExpenses => currentExpenses.map(expense => expense.id === savedExpense.id ? savedExpense : expense));
             setDetailPaymentExpense(null);
             setDetailExpense(savedExpense);
@@ -1136,16 +1089,8 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
         open={isQuickExpenseModalOpen}
       />
 
-      <ConfirmDeleteDialog
-        isVisible={pendingDeleteExpenseIds.length > 0}
-        title={pendingDeleteExpenseIds.length > 1 ? t.expenses.confirmDelete.bulkTitle : t.expenses.confirmDelete.title}
-        description={pendingDeleteExpenseIds.length > 1 ? t.expenses.confirmDelete.bulkDescription(pendingDeleteExpenseIds.length) : t.expenses.confirmDelete.description}
-        itemName={pendingDeleteExpenseIds.length > 1 ? t.expenses.confirmDelete.bulkItemName(pendingDeleteExpenseIds.length) : pendingDeleteExpenses[0]?.folio}
-        confirmLabel={t.common.delete}
-        cancelLabel={t.common.cancel}
-        onConfirm={confirmPendingDelete}
-        onCancel={() => setPendingDeleteExpenseIds([])}
-      />
+      {pendingDeleteExpenseIds.length > 0 && <ExpenseDeleteModal expenses={pendingDeleteExpenses}
+        onClose={() => setPendingDeleteExpenseIds([])} onDelete={confirmPendingDelete} />}
 
       <SuccessToast
         isVisible={Boolean(successToastMessage)}

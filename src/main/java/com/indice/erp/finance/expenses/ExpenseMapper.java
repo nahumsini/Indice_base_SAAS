@@ -61,7 +61,7 @@ public class ExpenseMapper {
             rs.getString("metadata_json"),
             nullableLong(rs, "origin_fund_id") == null ? null : new com.indice.erp.finance.expenses.dto.ExpenseFundReference(
                 nullableLong(rs, "origin_fund_id"), rs.getString("origin_fund_name"), rs.getString("origin_fund_type")),
-            rs.getBoolean("accounting_posted")
+            rs.getBoolean("accounting_posted"), rs.getBoolean("purchase_order_received")
         );
     }
 
@@ -77,7 +77,7 @@ public class ExpenseMapper {
             record.auditStatus(), record.attachmentCount(), record.createdByUserId(), record.updatedByUserId(),
             record.createdAt(), record.updatedAt(), record.deletedAt(), record.version(),
             FinanceJsonSupport.toJsonNode(record.customFieldsJson()),
-            FinanceJsonSupport.toJsonNode(record.metadataJson()), record.originFund(), record.accountingPosted()
+            FinanceJsonSupport.toJsonNode(record.metadataJson()), record.originFund(), record.accountingPosted(), record.purchaseOrderReceived()
         );
     }
 

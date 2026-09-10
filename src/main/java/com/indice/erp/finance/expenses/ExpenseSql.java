@@ -56,7 +56,13 @@ final class ExpenseSql {
                    WHERE journal.company_id = expense.company_id
                      AND journal.source_type = 'EXPENSE'
                      AND journal.source_id = CAST(expense.id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
-                     AND journal.status = 'POSTED') AS accounting_posted
+                     AND journal.status = 'POSTED') AS accounting_posted,
+            (expense.purchase_order_id IS NOT NULL AND (
+                NOT EXISTS(SELECT 1 FROM pos_purchase_orders po WHERE po.company_id = expense.company_id AND po.id = expense.purchase_order_id)
+                OR EXISTS(SELECT 1 FROM pos_purchase_orders po WHERE po.company_id = expense.company_id AND po.id = expense.purchase_order_id AND po.status IN ('PARTIALLY_RECEIVED', 'RECEIVED', 'CLOSED'))
+                OR EXISTS(SELECT 1 FROM pos_purchase_order_items item WHERE item.company_id = expense.company_id AND item.purchase_order_id = expense.purchase_order_id AND item.received_quantity > 0)
+                OR EXISTS(SELECT 1 FROM pos_purchase_receipts receipt WHERE receipt.company_id = expense.company_id AND receipt.purchase_order_id = expense.purchase_order_id)
+            )) AS purchase_order_received
             """;
 
     // Settlements are authoritative. Legacy fallback requires an unambiguous custody account;

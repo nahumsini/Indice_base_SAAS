@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type Dispatch, type MouseEvent as ReactMouseEvent, type SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type MouseEvent as ReactMouseEvent, type SetStateAction } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, Search } from 'lucide-react';
 import { mockProviders } from '../../data/expenses.mock';
 import type { Expense, ExpenseStatus, Provider } from '../../types/expenses.types';
@@ -25,7 +25,7 @@ import { getExpenseWorkflowCopy } from '../../utils/expenseWorkflow.copy';
 import { ExpensePaymentModal } from '../../components/modals/ExpensePaymentModal';
 import { useExpensesResolvedLocale, useExpensesTranslations } from '../hooks/useExpensesTranslations';
 import { formatBusinessCurrencyBreakdown } from '../../../shared/businessCurrency';
-import { canDeleteExpense, canEditExpense, getEffectiveExpenseStatus, getExpenseBalance, getExpensePaidAmount } from '../../utils/expenseFilters';
+import { canDeleteExpense, canEditExpense, canPayExpense, getEffectiveExpenseStatus, getExpenseBalance, getExpensePaidAmount } from '../../utils/expenseFilters';
 import { DataTablePagination } from '../../../../components/table/DataTablePagination';
 import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../../hooks/useTablePagination';
 import { useWorkspaceNavigationMemory } from '../../../../hooks/useWorkspaceNavigationMemory';
@@ -85,10 +85,9 @@ type ExpenseTableProps = {
   onBulkStatusChange?: (rows: Expense[], change: ExpenseBulkStatusChange) => Promise<void>;
   onBulkAction?: (rows: Expense[], action: FinanceBulkAction, targetId: string, reason: string) => Promise<void>;
   onDeleteExpenses?: (expenseIds: string[]) => void;
-  onDuplicateExpense?: (expenseId: string) => void;
   onEditExpense?: (expense: Expense) => void;
   onExpensesChange: Dispatch<SetStateAction<Expense[]>>;
-  onMarkExpensePaid?: (expense: Expense) => Promise<Expense | null>;
+  onMarkExpensePaid?: (expense: Expense, idempotencyKey: string) => Promise<Expense | null>;
   onOpenAttachments: (expense: Expense) => void;
   onViewExpense: (expense: Expense) => void;
   onPersistExpenseUpdate?: (expense: Expense) => void;
@@ -118,7 +117,6 @@ export function ExpenseTable({
   onDeleteExpense,
   onBulkAction,
   onBulkStatusChange,
-  onDuplicateExpense,
   onEditExpense,
   onExpensesChange,
   onMarkExpensePaid,
@@ -152,6 +150,9 @@ export function ExpenseTable({
   const [sortField, setSortField] = useState<ExpenseSortField | null>(null);
   const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
   const [paymentExpenseId, setPaymentExpenseId] = useState<string | null>(null);
+  const paymentAttempts = useRef(new Map<string, { busy: boolean; key: string }>());
+  const [payingExpenseIds, setPayingExpenseIds] = useState<Set<string>>(() => new Set());
+  const [paymentError, setPaymentError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [workflowByExpenseId, setWorkflowByExpenseId] = useState<Record<string, ExpenseWorkflowState>>({});
@@ -222,7 +223,7 @@ export function ExpenseTable({
     || ['CLOSED', 'CANCELLED', 'REJECTED'].includes(row.backendStatus ?? '')) ? bulkCopy.protected : undefined;
   const selectedUnits = new Set(selectedExpenses.map(row => row.businessUnit));
   const bulkActions: FinanceBulkActionConfig[] = [
-    { action: 'DELETE', blockedReason: bulkProtected || (selectedExpenses.some(row => row.backendStatus !== 'DRAFT' || getExpensePaidAmount(row) > 0) ? bulkCopy.deleteDraft : undefined) },
+    { action: 'DELETE', hint: t.expenses.confirmDelete.description, blockedReason: !onBulkAction || selectedExpenses.some(row => !/^\d+$/.test(row.id) || row.version === undefined || !canDeleteExpense(row)) ? t.expenses.messages.deleteDraftOnly : undefined },
     { action: 'UNIT', options: unitOptions, blockedReason: bulkProtected, hint: bulkCopy.unit },
     { action: 'BUSINESS', options: businessOptions.filter(option => option.unitId === selectedExpenses[0]?.businessUnit), blockedReason: bulkProtected || (selectedUnits.size !== 1 ? bulkCopy.business : undefined), hint: bulkCopy.business },
     { action: 'PAYMENT_ACCOUNT', options: paymentAccounts.filter(account => account.isActive && account.source !== 'petty_cash' && !account.linkedFundId && account.backendType !== 'PETTY_CASH' && selectedExpenses.every(row => row.currency === account.currency)).map(account => ({ value: account.id, label: `${account.name} · ${account.currency}` })), blockedReason: bulkProtected || (selectedExpenses.some(row => getExpenseBalance(row) <= 0) ? bulkCopy.noBalance : undefined), hint: bulkCopy.payment },
@@ -318,22 +319,6 @@ export function ExpenseTable({
     }
   };
 
-  const handleDuplicate = (id: string) => {
-    if (onDuplicateExpense) {
-      onDuplicateExpense(id);
-      return;
-    }
-    const expenseToDuplicate = expenses.find(expense => expense.id === id);
-    if (!expenseToDuplicate) return;
-    onExpensesChange(prev => [...prev, {
-      ...expenseToDuplicate,
-      id: `${expenseToDuplicate.id}-copy-${Date.now()}`,
-      folio: `${expenseToDuplicate.folio}-COPY`,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }]);
-  };
-
   const handleDelete = (id: string) => {
     if (deletingExpenseIds.has(id)) return;
     const expense = expenses.find(item => item.id === id);
@@ -373,23 +358,33 @@ export function ExpenseTable({
 
   const handlePay = async (id: string) => {
     const expense = expenses.find(item => item.id === id);
-    if (!expense) return;
-    if (expense.type === 'budget' || getExpenseBalance(expense) <= 0) return;
-    if (onRecordExpensePayment) {
-      setPaymentExpenseId(id);
-      return;
+    if (!expense || !canPayExpense(expense) || !onMarkExpensePaid || deletingExpenseIds.has(id)) return;
+    const attemptId = `${id}:${expense.paymentAccountId ?? ''}`;
+    const attempt = paymentAttempts.current.get(attemptId) ?? { busy: false, key: crypto.randomUUID() };
+    if (attempt.busy) return;
+    attempt.busy = true;
+    paymentAttempts.current.set(attemptId, attempt);
+    setPayingExpenseIds(current => new Set(current).add(id));
+    setPaymentError('');
+    try {
+      const savedExpense = await onMarkExpensePaid(expense, attempt.key);
+      if (savedExpense) {
+        replaceSavedExpense(savedExpense);
+        paymentAttempts.current.delete(attemptId);
+      } else {
+        setPaymentError(t.expenses.messages.saveFailed);
+      }
+    } catch (error) {
+      setPaymentError(toFinanceApiErrorMessage(error, t.expenses.messages.saveFailed));
+    } finally {
+      attempt.busy = false;
+      setPayingExpenseIds(current => { const next = new Set(current); next.delete(id); return next; });
     }
-    if (onMarkExpensePaid) {
-      const savedExpense = await onMarkExpensePaid(expense);
-      if (savedExpense) replaceSavedExpense(savedExpense);
-      return;
-    }
-    void handleStatusChange(id, 'paid');
   };
 
   const openPaymentModal = (id: string) => {
     const expense = expenses.find(item => item.id === id);
-    if (!expense || getExpenseBalance(expense) <= 0) return;
+    if (!expense || !canPayExpense(expense) || payingExpenseIds.has(id) || deletingExpenseIds.has(id)) return;
     setPaymentExpenseId(id);
   };
 
@@ -406,6 +401,7 @@ export function ExpenseTable({
         replaceSavedExpense(savedExpense);
         setPaymentExpenseId(null);
       }
+      if (!savedExpense) throw new Error(t.expenses.messages.saveFailed);
       return;
     }
 
@@ -421,6 +417,7 @@ export function ExpenseTable({
 
   return (
     <div className="space-y-3">
+      {paymentError && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{paymentError}</p>}
       {rowSelection.selectedCount > 0 ? (
         <FinanceBulkActions key={rowSelection.selectedIdList.join(',')} count={selectedExpenses.length} locale={locale}
           additionalActions={onBulkStatusChange ? [{ id: 'status', label: getExpenseWorkflowCopy(locale).changeStatus, onClick: () => setBulkStatusOpen(true) }] : []}
@@ -447,10 +444,10 @@ export function ExpenseTable({
         emptyTitle={effectiveEmptyTitle}
         expenses={[row.expense]}
         deletingExpenseIds={deletingExpenseIds}
+        payingExpenseIds={payingExpenseIds}
         isSelected={rowSelection.isSelected}
         onAudit={setEditingRowId}
         onDelete={handleDelete}
-        onDuplicate={handleDuplicate}
         onEdit={(expense) => {
           if (onEditExpense) {
             onEditExpense(expense);
@@ -503,6 +500,7 @@ export function ExpenseTable({
                   isEditing={editingRowId === expense.id}
                   isColumnVisible={isColumnVisible}
                   isDeletePending={deletingExpenseIds.has(expense.id)}
+                  isPaymentPending={payingExpenseIds.has(expense.id)}
                   isSelected={rowSelection.isSelected(expense.id)}
                   options={editableRowOptions}
                   workflow={workflowByExpenseId[expense.id] ?? getDefaultExpenseWorkflow(expense)}
@@ -513,7 +511,6 @@ export function ExpenseTable({
                   onReclassifyExpense={onReclassifyExpense}
                   onUpdateWorkflow={updateExpenseWorkflow}
                   onOpenAttachments={onOpenAttachments}
-                  onDuplicate={handleDuplicate}
                   onDelete={handleDelete}
                   onActionEdit={onEditExpense ? () => onEditExpense(expense) : undefined}
                   onMarkPaid={handlePay}

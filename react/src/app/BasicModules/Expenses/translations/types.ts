@@ -412,6 +412,16 @@ export type FinanceTranslations = {
       taxTitle: string;
     };
     payment: {
+      settle: string;
+      settled: string;
+      account: string;
+      chooseAccount: string;
+      noAccounts: string;
+      afterPayment: string;
+      accountBalance: string;
+      optionalEvidence: string;
+      settleHint: string;
+      invalidDate: string;
       action: string;
       amount: string;
       amountExceedsBalance: string;
@@ -428,6 +438,11 @@ export type FinanceTranslations = {
       total: string;
     };
     payableAccount: {
+      dueShortcuts: string;
+      dueToday: string;
+      dueInDays: (days: number) => string;
+      completeFields: (fields: string) => string;
+      readyToSave: string;
       advancedDescription: string;
       advancedTitle: string;
       attachmentDelete: string;
@@ -595,6 +610,27 @@ export type FinanceTranslations = {
     };
     statusLabels: Record<string, string>;
     modal: {
+      withoutTax: string;
+      includedTax: string;
+      addedTax: string;
+      totalAmount: string;
+      beforeTaxAmount: string;
+      assignment: string;
+      changeAssignment: string;
+      addNote: string;
+      editCost: string;
+      editSchedule: string;
+      firstDueDate: string;
+      quickPeriod: string;
+      datePreview: string;
+      showAllDates: string;
+      perOccurrence: string;
+      costHelp: string;
+      scheduleHelp: string;
+      editLineHelp: string;
+      startDateHelp: string;
+      quickMonths: (count: number) => string;
+      completeFields: (fields: string) => string;
       account: string;
       amount: string;
       back: string;
@@ -646,6 +682,18 @@ export type FinanceTranslations = {
       type: string;
     };
     modal: {
+      fiscal: string;
+      fiscalHint: string;
+      contactHint: string;
+      assignmentHint: string;
+      ownersHint: string;
+      optional: string;
+      unnamed: string;
+      nameRequired: string;
+      namePlaceholder: string;
+      saving: string;
+      saveFailed: string;
+      validationTitle: string;
       assignment: string;
       back: string;
       classification: string;
@@ -737,6 +785,23 @@ export type FinanceTranslations = {
     headerSubtitle: string;
     headerTitle: string;
     pettyCashNotice: string;
+    summary: {
+      title: string;
+      total: string;
+      active: string;
+      inactive: string;
+      pettyCash: string;
+      activeBalance: string;
+      partialBalance: string;
+      balanceScope: string;
+      showing: (visible: number, total: number) => string;
+      loading: string;
+      loadFailed: string;
+      balanceFailed: string;
+      empty: string;
+      noConversion: string;
+      retry: string;
+    };
     columns: Record<string, FinanceColumnCopy>;
     filters: {
       allTypes: string;

@@ -85,6 +85,6 @@ test('payment evidence keeps its context and the expense dossier reads the audit
   assert.match(paymentHistory, /payment\.files\.map/);
   assert.match(paymentHistory, /LEGACY_AGGREGATE/);
   assert.match(pageSource, /<ExpenseDetailModal/);
-  assert.match(filters, /expense\.backendStatus\.toUpperCase\(\) === 'DRAFT'/);
+  assert.match(filters, /expense\.auditStatus\?\.toUpperCase\(\) !== 'AUDITED'/);
   assert.doesNotMatch(filters, /expense\.type === 'real'/);
 });

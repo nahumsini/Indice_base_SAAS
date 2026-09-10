@@ -132,6 +132,7 @@ export interface ExpenseApiDto {
   version?: number;
   originFund?: { id: number; name: string; type: string } | null;
   accountingPosted?: boolean;
+  purchaseOrderReceived?: boolean;
   id: number;
   companyId: number;
   unitId?: number | null;

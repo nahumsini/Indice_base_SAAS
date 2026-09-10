@@ -624,6 +624,8 @@ public class PurchaseOrderService {
 
     @Transactional
     public PurchaseOrderResponse receiveOrder(PosContext context, long orderId, PurchaseOrderReceiveRequest request) {
+        requireOrder(context, orderId);
+        repository.lockOrder(context, orderId);
         var order = requireOrder(context, orderId);
         requireOneOf(order, PurchaseOrderStatus.SENT, PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.PARTIALLY_RECEIVED);
         var receiptNumber = repository.nextReceiptNumber(context);

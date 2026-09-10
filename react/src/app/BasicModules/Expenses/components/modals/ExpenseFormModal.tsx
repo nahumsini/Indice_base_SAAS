@@ -1,3 +1,4 @@
+import { ExpenseAccountSelect } from '../table/ExpenseAccountSelect';
 import { Camera, Check, ChevronDown, File, Pencil, Plus, SlidersHorizontal, Trash2, Upload } from 'lucide-react';
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { IndiceModalFrame, IndiceModalSummary, IndiceModalValidation } from '../../../../components/indice-modal';
@@ -266,7 +267,7 @@ export function ExpenseFormModal({
           <TextInput label={t.expenses.modal.concept} required value={draft.concept} onChange={(concept) => updateDraft({ concept })} placeholder={t.expenses.modal.placeholderConcept} />
           <MoneyInput label={t.expenses.modal.amount} required value={draft.amount} onChange={(nextAmount) => updateDraft({ amount: nextAmount })} placeholder="0.00" />
           <SelectInput label={t.expenses.modal.currency} disabled={Boolean(editingExpense && ((editingExpense.amountPaid ?? 0) > 0 || editingExpense.budgetLineId))} required value={draft.budgetCurrencyCode} onChange={updateCurrency} options={financeCurrencySelectOptions} />
-          {!isEditMode && <SelectInput label={t.paymentAccounts.headerTitle} value={draft.paymentAccountId}
+          {!isEditMode && <SelectInput searchable label={t.paymentAccounts.headerTitle} value={draft.paymentAccountId}
             onChange={(paymentAccountId) => updateDraft({ paymentAccountId })}
             options={[{ value: '', label: t.common.unassigned }, ...paymentAccounts.filter(account => account.isActive
               && account.currency === draft.budgetCurrencyCode && account.backendType !== 'PETTY_CASH'
@@ -280,9 +281,12 @@ export function ExpenseFormModal({
             value={draft.providerId}
           />
           <SelectInput label={t.expenses.columns.paymentMethod?.label ?? 'Método de pago'} value={draft.paymentMethod} onChange={(paymentMethod) => updateDraft({ paymentMethod: paymentMethod as PaymentMethod })} options={createPaymentMethodOptions(t.expenses.table.paymentMethods)} />
-          <div className="md:col-span-2">
+          <details className="md:col-span-2 group/notes" open={Boolean(editingExpense?.description) || undefined}>
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-medium text-slate-600 dark:text-slate-300 [&::-webkit-details-marker]:hidden">
+              {t.expenses.columns.description?.label}<ChevronDown className="h-4 w-4 transition-transform group-open/notes:rotate-180" />
+            </summary>
             <TextareaInput label={t.expenses.columns.description?.label ?? 'Descripción'} value={draft.description} onChange={(description) => updateDraft({ description })} placeholder={t.expenses.modal.descriptionPlaceholder} />
-          </div>
+          </details>
         </FinanceModalSection>
 
         <details
@@ -305,9 +309,9 @@ export function ExpenseFormModal({
               </FinanceModalSection>
             ) : null}
             <FinanceModalSection title={t.expenses.modal.contextTitle} description={t.expenses.modal.contextDescription}>
-              <SelectInput label={t.filters.unit} value={draft.businessUnit} onChange={updateBusinessUnit} options={[{ value: '', label: t.common.unassigned }, ...unitOptions]} />
-              <SelectInput label={t.filters.business} value={draft.business} onChange={(business) => updateDraft({ business })} options={[{ value: '', label: t.common.unassigned }, ...scopedBusinessOptions]} />
-              <SelectInput label={t.expenses.columns.accountingAccount?.label ?? 'Cuenta contable'} value={draft.accountingAccount} onChange={(accountingAccount) => updateDraft({ accountingAccount })} options={[{ value: '', label: t.common.unassigned }, ...accountingOptions]} />
+              <SelectInput searchable label={t.filters.unit} value={draft.businessUnit} onChange={updateBusinessUnit} options={[{ value: '', label: t.common.unassigned }, ...unitOptions]} />
+              <SelectInput searchable label={t.filters.business} value={draft.business} onChange={(business) => updateDraft({ business })} options={[{ value: '', label: t.common.unassigned }, ...scopedBusinessOptions]} />
+              <SelectInput searchable label={t.expenses.columns.accountingAccount?.label ?? 'Cuenta contable'} value={draft.accountingAccount} onChange={(accountingAccount) => updateDraft({ accountingAccount })} options={[{ value: '', label: t.common.unassigned }, ...accountingOptions]} />
             </FinanceModalSection>
             <FinanceModalSection title={t.expenses.modal.taxTitle} description={t.expenses.modal.taxDescription}>
               <BudgetTaxControls draft={draft} onDraftChange={updateDraft} />
@@ -460,6 +464,7 @@ function SelectInput({
   options,
   required,
   disabled,
+  searchable,
   value,
 }: {
   label: string;
@@ -467,14 +472,16 @@ function SelectInput({
   options: Array<{ value: string; label: string }>;
   required?: boolean;
   disabled?: boolean;
+  searchable?: boolean;
   value: string;
 }) {
   return (
     <label>
       <FieldLabel label={label} required={required} />
-      <select disabled={disabled} required={required} value={value} onChange={(event) => onChange(event.target.value)} className={financeModalInputClass}>
+      {searchable ? <ExpenseAccountSelect label={label} value={value} onChange={onChange} options={options} disabled={disabled}
+        allowEmpty={options.some(option => !option.value)} emptyLabel={options.find(option => !option.value)?.label} /> : <select disabled={disabled} required={required} value={value} onChange={(event) => onChange(event.target.value)} className={financeModalInputClass}>
         {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-      </select>
+      </select>}
     </label>
   );
 }

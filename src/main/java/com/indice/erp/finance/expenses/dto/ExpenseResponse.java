@@ -48,6 +48,7 @@ public record ExpenseResponse(
     JsonNode customFields,
     JsonNode metadata,
     ExpenseFundReference originFund,
-    boolean accountingPosted
+    boolean accountingPosted,
+    boolean purchaseOrderReceived
 ) {
 }

@@ -12,6 +12,8 @@ import { budgetLinesService, expensesService, providersService, toFinanceApiErro
 import { useExpensesModuleTranslations } from './hooks/useExpensesModuleTranslations';
 import type { Expense } from './types/expenses.types';
 import { generateProjectedBudgetEntries } from './Budgets/budgetUtils';
+import { BudgetObligationNotice } from './Budgets/components/BudgetObligationNotice';
+import type { BudgetObligationReview } from './services/budget-lines.service';
 import type { ProviderRecord } from './Providers/useProveedoresLogic';
 import {
   LearningModeHeaderActionsProvider,
@@ -140,6 +142,9 @@ export default function ExpensesModule({ learningModeActive = false, onNavigate 
   const [hasFinanceData, setHasFinanceData] = useState(false);
   const [financeRefreshKey, setFinanceRefreshKey] = useState(0);
   const [failureToastMessage, setFailureToastMessage] = useState('');
+  const [obligationReviews, setObligationReviews] = useState<BudgetObligationReview[]>([]);
+  const [obligationError, setObligationError] = useState('');
+  const isExpensesTab = activeTab === 'expenses';
   const tabs = [
     { id: 'expenses' as TabId, label: t.module.tabs.expenses, emoji: '💸' },
     { id: 'budgets' as TabId, label: t.module.tabs.budgets, emoji: '📋' },
@@ -190,6 +195,22 @@ export default function ExpensesModule({ learningModeActive = false, onNavigate 
       let nextProviders = mockProviderRecords;
       let nextFailureMessage = '';
 
+      // Reconcile before loading expenses, including when returning from Budget Control.
+      // This protected POST has no client-provided tenant, dates, amounts or statuses.
+      if (isExpensesTab) {
+        try {
+          const synchronization = await requestWithSessionRecovery(() => budgetLinesService.synchronizeObligations());
+          if (!isMounted) return;
+          setObligationReviews(synchronization.reviews);
+          setObligationError(synchronization.enabled ? '' : (t.locale.startsWith('es')
+            ? 'La generación automática está desactivada.' : 'Automatic generation is disabled.'));
+        } catch (error) {
+          if (!isMounted) return;
+          setObligationReviews([]);
+          setObligationError(toFinanceApiErrorMessage(error));
+        }
+      }
+
       try {
         nextProviders = await requestWithSessionRecovery(() => providersService.getProviderRecords());
         providersLoaded = true;
@@ -239,7 +260,7 @@ export default function ExpensesModule({ learningModeActive = false, onNavigate 
     return () => {
       isMounted = false;
     };
-  }, [authorizationRevision, financeRefreshKey]);
+  }, [authorizationRevision, financeRefreshKey, isExpensesTab]);
 
   const requestFinanceDataRefresh = useCallback(() => {
     setFinanceRefreshKey(currentKey => currentKey + 1);
@@ -330,6 +351,7 @@ export default function ExpensesModule({ learningModeActive = false, onNavigate 
             />
           )}
         >
+          {isExpensesTab && <BudgetObligationNotice reviews={obligationReviews} error={obligationError} locale={t.locale} onRetry={requestFinanceDataRefresh} />}
           {renderActiveTab()}
         </Suspense>
       </IndiceModuleShell>

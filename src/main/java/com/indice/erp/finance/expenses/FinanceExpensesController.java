@@ -4,6 +4,7 @@ import com.indice.erp.entitlement.RequiresCapability;
 import com.indice.erp.finance.FinanceRequestGuard;
 import com.indice.erp.finance.expenses.dto.CreateExpenseRequest;
 import com.indice.erp.finance.expenses.dto.RecordExpensePaymentRequest;
+import com.indice.erp.finance.expenses.dto.SettleExpensePaymentRequest;
 import com.indice.erp.finance.expenses.dto.RejectExpenseRequest;
 import com.indice.erp.finance.expenses.dto.UpdateExpenseRequest;
 import com.indice.erp.finance.expenses.dto.UpdateExpenseStatusRequest;
@@ -159,6 +160,17 @@ public class FinanceExpensesController {
             return access.error();
         }
         return ResponseEntity.ok(expenseService.recordPayment(access.context(), expenseId, request));
+    }
+
+    @PostMapping("/{expenseId}/settle-payment")
+    public ResponseEntity<?> settlePayment(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long expenseId,
+            @Valid @RequestBody SettleExpensePaymentRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        if (access.denied()) return access.error();
+        return ResponseEntity.ok(expenseService.settlePayment(access.context(), expenseId, request));
     }
 
     @PostMapping("/{expenseId}/status")

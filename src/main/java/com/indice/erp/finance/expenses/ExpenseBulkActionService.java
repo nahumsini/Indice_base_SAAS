@@ -20,15 +20,15 @@ public class ExpenseBulkActionService {
     private final ExpenseRepository repository;
     private final ExpenseMapper mapper;
     private final ExpenseReferenceValidator references;
-    private final ExpenseService expenses;
+    private final ExpenseDeletionService deletions;
     private final JdbcTemplate jdbc;
 
     public ExpenseBulkActionService(ExpenseRepository repository, ExpenseMapper mapper,
-            ExpenseReferenceValidator references, ExpenseService expenses, JdbcTemplate jdbc) {
+            ExpenseReferenceValidator references, ExpenseDeletionService deletions, JdbcTemplate jdbc) {
         this.repository = repository;
         this.mapper = mapper;
         this.references = references;
-        this.expenses = expenses;
+        this.deletions = deletions;
         this.jdbc = jdbc;
     }
 
@@ -45,6 +45,12 @@ public class ExpenseBulkActionService {
                 .orElseThrow(() -> FinanceApiException.notFound("Expense not found."));
             if (!Objects.equals(row.expectedVersion(), record.version()))
                 throw FinanceApiException.conflict("An expense changed. Reload the selection before retrying.");
+            if (request.action() == Action.DELETE) {
+                validateTarget(context, record, request);
+                deletions.validate(context, record);
+                records.add(record);
+                continue;
+            }
             if (record.originFund() != null || "PETTY_CASH".equals(record.auditStatus()))
                 throw FinanceApiException.conflict("Fund expenses must be changed from Petty Cash.");
             if (record.accountingPosted() || record.purchaseOrderId() != null || record.budgetLineId() != null)
@@ -57,7 +63,7 @@ public class ExpenseBulkActionService {
         // Validate the entire selection before any mutation. A stale row rolls back the entire batch.
         for (var record : records) {
             audit(context, record, request);
-            if (request.action() == Action.DELETE) expenses.deleteDraft(context, record.id());
+            if (request.action() == Action.DELETE) deletions.delete(context, record, request.reason().trim());
             else update(context, record, request);
         }
         return new ExpenseListResponse(request.action() == Action.DELETE ? java.util.List.of()
@@ -69,8 +75,6 @@ public class ExpenseBulkActionService {
         var id = request.targetId();
         switch (request.action()) {
             case DELETE -> {
-                if (record.status() != ExpenseStatus.DRAFT || record.paidAmount().signum() != 0)
-                    throw FinanceApiException.conflict("Only unpaid draft expenses can be deleted. Paid expenses require a reversal.");
                 if (request.reason() == null || request.reason().isBlank())
                     throw FinanceApiException.badRequest("A reason is required to delete expenses.");
             }
