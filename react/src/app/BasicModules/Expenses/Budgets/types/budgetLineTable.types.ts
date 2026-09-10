@@ -6,6 +6,7 @@ export type BudgetLineTableRow = {
   availableAmount: number;
   business: string;
   businessUnit: string;
+  unitId?: string;
   committedAmount: number;
   concept: string;
   createdAt: Date;
@@ -15,6 +16,7 @@ export type BudgetLineTableRow = {
   folio: string;
   healthStatus?: string;
   id: string;
+  version?: number;
   plannedAmount: number;
   providerName?: string;
   status: string;
@@ -32,6 +34,7 @@ export function toBudgetLineTableRow(expense: Expense): BudgetLineTableRow {
     availableAmount: expense.availableAmount ?? expense.total,
     business: expense.business,
     businessUnit: expense.businessUnit,
+    unitId: expense.businessUnit || undefined,
     committedAmount: expense.committedAmount ?? 0,
     concept: expense.concept,
     createdAt: expense.createdAt,
@@ -41,6 +44,7 @@ export function toBudgetLineTableRow(expense: Expense): BudgetLineTableRow {
     folio: expense.folio,
     healthStatus: expense.budgetHealthStatus,
     id: expense.id,
+    version: expense.version,
     plannedAmount: expense.total,
     providerName: expense.providerName,
     status: expense.budgetStatus ?? expense.status,

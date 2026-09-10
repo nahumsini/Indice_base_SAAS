@@ -95,7 +95,13 @@ export const expensesService = {
     return toExpense(response, providers);
   },
 
-  async createExpense(expense: Expense, providers: Array<{ id: string; name: string }> = []): Promise<Expense> {
+  async createExpense(expense: Expense, providers: Array<{ id: string; name: string }> = [], requestKey: string = crypto.randomUUID()): Promise<Expense> {
+    if (expense.type === 'real' && expense.status === 'paid' && !expense.budgetLineId && !expense.purchaseOrderId) {
+      const response = await apiClient<ExpenseListApiResponse>(`${expensesPath}/import`, jsonMutation('POST', {
+        requestKey, expenses: [{ ...toExpenseApiRequest({ ...expense, folio: 'AUTO-EXP' }), settleOnCreate: true }],
+      }));
+      return toExpense(response.expenses[0], providers);
+    }
     const request = toExpenseApiRequest(expense);
     const response = await apiClient<ExpenseApiDto>(
       expensesPath,
@@ -117,8 +123,8 @@ export const expensesService = {
 
   async updateExpense(expense: Expense, providers: Array<{ id: string; name: string }> = []): Promise<Expense> {
     const response = await apiClient<ExpenseApiDto>(
-      `${expensesPath}/${expense.id}`,
-      jsonMutation('PUT', toExpenseApiRequest(expense)),
+      `${expensesPath}/${expense.id}/corrections`,
+      jsonMutation('POST', { expectedVersion: expense.version, expense: toExpenseApiRequest(expense) }),
     );
     return toExpense(response, providers);
   },
@@ -143,6 +149,7 @@ export const expensesService = {
     paymentAccountId: string,
     paymentDate: Date,
     providers: Array<{ id: string; name: string }> = [],
+    idempotencyKey: string = crypto.randomUUID(),
   ): Promise<Expense> {
     const response = await apiClient<ExpenseApiDto>(
       `${expensesPath}/${expenseId}/record-payment`,
@@ -150,7 +157,7 @@ export const expensesService = {
         amount,
         paymentAccountId: Number(paymentAccountId),
         paymentDate: formatExpenseDate(paymentDate),
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey,
       }),
     );
     return toExpense(response, providers);

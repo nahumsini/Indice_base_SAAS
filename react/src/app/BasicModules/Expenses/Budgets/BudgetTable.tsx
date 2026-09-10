@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type Dispatch, type FormEvent, type SetSt
 import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
-import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
+import { BudgetDeleteDialog } from './components/BudgetDeleteDialog';
 import { providerRecordsToExpenseProviders, toExpenseProvider } from '../adapters/provider.adapter';
 import { mockProviders } from '../data/expenses.mock';
 import type { Expense, Provider } from '../types/expenses.types';
@@ -25,6 +25,8 @@ import { BudgetTableHeader } from './components/BudgetTableHeader';
 import { MISSING_ACCOUNTING_ACCOUNT_FILTER, useBudgetLogic } from './useBudgetLogic';
 import { useBudgetMasters } from './useBudgetMasters';
 import { useBudgetTableColumns } from './hooks/useBudgetTableColumns';
+import type { FinanceBulkAction } from '../../shared/financeBulkActions.copy';
+import type { BudgetLineTableRow } from './types/budgetLineTable.types';
 import { toBudgetLineTableRow } from './types/budgetLineTable.types';
 
 interface BudgetTableProps {
@@ -41,12 +43,12 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
   const t = useBudgetsTranslations();
   const { preferredCurrency } = usePreferredBusinessCurrency();
   const [activeAccountingAccountOptions, setActiveAccountingAccountOptions] = useState<FinanceReferenceOption[]>([]);
+  const [bulkAccountingOptions, setBulkAccountingOptions] = useState<FinanceReferenceOption[]>([]);
   const [draft, setDraft] = useState(() => createInitialBudgetDraftState(preferredCurrency));
   const [editingBudgetExpense, setEditingBudgetExpense] = useState<Expense | null>(null);
   const [failureToastMessage, setFailureToastMessage] = useState('');
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [pendingDeleteBudgetExpenseIds, setPendingDeleteBudgetExpenseIds] = useState<string[]>([]);
   const [selectionResetKey, setSelectionResetKey] = useState(0);
   const [successToastMessage, setSuccessToastMessage] = useState('');
@@ -93,6 +95,7 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
     accountingAccountsService.getAccountingAccounts()
       .then(accounts => {
         if (!isMounted) return;
+        setBulkAccountingOptions(accounts.filter(account => account.isActive).map(account => ({ value: account.id, label: `${account.code} - ${account.name}` })));
         setActiveAccountingAccountOptions(accounts
           .filter(account => account.isActive)
           .sort((first, second) => first.code.localeCompare(second.code))
@@ -141,8 +144,12 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
     ? activeAccountingAccountOptions
     : fallbackAccountingAccountOptions;
   const budgetTableRows = useMemo(
-    () => filteredBudgetExpenses.map(toBudgetLineTableRow),
-    [filteredBudgetExpenses],
+    () => filteredBudgetExpenses.map(expense => ({
+      ...toBudgetLineTableRow(expense),
+      businessUnit: unitOptions.find(option => option.value === expense.businessUnit)?.label ?? expense.businessUnit,
+      business: businessOptions.find(option => option.value === expense.business)?.label ?? expense.business,
+    })),
+    [filteredBudgetExpenses, unitOptions, businessOptions],
   );
   const accountingAccountFilterOptions = useMemo(() => {
     const accounts = new Set<string>();
@@ -338,42 +345,17 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
     }
   };
 
+  const applyBulkAction = async (action: FinanceBulkAction, rows: BudgetLineTableRow[], targetId: string, reason: string) => {
+    if (action === 'PAYMENT_ACCOUNT') throw new Error('Payment belongs to the linked expense.');
+    const saved = await budgetLinesService.applyBulkAction(action, rows, targetId, reason);
+    const ids = new Set(rows.map(row => row.id));
+    const updates = new Map(saved.map(row => [row.id, row]));
+    onExpensesChange(current => current.flatMap(row => action === 'DELETE' && ids.has(row.id) ? [] : [updates.get(row.id) ?? row]));
+    setSuccessToastMessage(action === 'DELETE' ? t.budgets.messages.deleted : t.budgets.messages.updated);
+  };
+
   const requestDeleteBudgetExpense = (expenseId: string) => {
     setPendingDeleteBudgetExpenseIds([expenseId]);
-  };
-
-  const requestDeleteBudgetExpenses = (expenseIds: string[]) => {
-    setPendingDeleteBudgetExpenseIds(expenseIds);
-  };
-
-  const confirmDeleteBudgetExpense = async () => {
-    const expenseIds = pendingDeleteBudgetExpenseIds;
-    if (expenseIds.length === 0 || isDeleting) return;
-
-    setIsDeleting(true);
-    const results = await Promise.allSettled(expenseIds.map(async expenseId => {
-      const expense = expenses.find(item => item.id === expenseId);
-      if (expense?.id.startsWith('budget-line-')) {
-        await budgetLinesService.deleteBudgetLine(expenseId);
-      }
-      return expenseId;
-    }));
-    const deletedIds = results
-      .filter((result): result is PromiseFulfilledResult<string> => result.status === 'fulfilled')
-      .map(result => result.value);
-    const firstFailure = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');
-
-    if (deletedIds.length > 0) {
-      const deletedIdSet = new Set(deletedIds);
-      onExpensesChange(currentExpenses => currentExpenses.filter(item => !deletedIdSet.has(item.id)));
-      setSelectionResetKey(current => current + 1);
-      setSuccessToastMessage(t.budgets.messages.deleted);
-    }
-    if (firstFailure) {
-      setFailureToastMessage(toFinanceApiErrorMessage(firstFailure.reason, t.budgets.messages.deleteFailed));
-    }
-    setPendingDeleteBudgetExpenseIds([]);
-    setIsDeleting(false);
   };
 
   const pendingDeleteBudgetExpenses = pendingDeleteBudgetExpenseIds
@@ -416,6 +398,7 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
       />
 
       <BudgetSummaryBar
+        key={summaryBudgetExpenses.map(row => `${row.id}:${row.version}`).join('|')}
         expenses={summaryBudgetExpenses}
         healthFilter={healthFilter}
         onHealthChange={setHealthFilter}
@@ -442,7 +425,9 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
         errorMessage={loadError}
         selectionResetKey={selectionResetKey}
         onDeleteBudgetLine={requestDeleteBudgetExpense}
-        onDeleteBudgetLines={requestDeleteBudgetExpenses}
+        bulkOptions={{ units: referenceUnitOptions, businesses: referenceBusinessOptions,
+          providers: providers.filter(provider => provider.status === 'active').map(provider => ({ value: provider.id, label: provider.name })), accounts: bulkAccountingOptions }}
+        onBulkAction={applyBulkAction}
         onEditBudgetLine={openEditBudgetLine}
         onRetry={onRetryLoad}
       />
@@ -459,17 +444,14 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
         />
       )}
 
-      <ConfirmDeleteDialog
-        isVisible={pendingDeleteBudgetExpenseIds.length > 0}
-        title={pendingDeleteBudgetExpenseIds.length > 1 ? t.budgets.confirmDelete.bulkTitle : t.budgets.confirmDelete.title}
-        description={pendingDeleteBudgetExpenseIds.length > 1 ? t.budgets.confirmDelete.bulkDescription(pendingDeleteBudgetExpenseIds.length) : t.budgets.confirmDelete.description}
-        itemName={pendingDeleteBudgetExpenseIds.length > 1 ? t.budgets.confirmDelete.bulkItemName(pendingDeleteBudgetExpenseIds.length) : pendingDeleteBudgetExpenses[0]?.folio ?? t.budgets.confirmDelete.itemNameFallback}
-        confirmLabel={t.common.delete}
-        cancelLabel={t.common.cancel}
-        confirmDisabled={isDeleting}
-        onConfirm={() => void confirmDeleteBudgetExpense()}
-        onCancel={() => setPendingDeleteBudgetExpenseIds([])}
-      />
+      {pendingDeleteBudgetExpenses.length > 0 && <BudgetDeleteDialog
+        rows={pendingDeleteBudgetExpenses.map(toBudgetLineTableRow)}
+        onClose={() => setPendingDeleteBudgetExpenseIds([])}
+        onDelete={async reason => {
+          await applyBulkAction('DELETE', pendingDeleteBudgetExpenses.map(toBudgetLineTableRow), '', reason);
+          setSelectionResetKey(current => current + 1);
+        }}
+      />}
 
       <SuccessToast
         isVisible={Boolean(successToastMessage)}

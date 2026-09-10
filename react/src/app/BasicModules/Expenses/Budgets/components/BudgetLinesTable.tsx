@@ -18,7 +18,9 @@ import { useWorkspaceNavigationMemory } from '../../../../hooks/useWorkspaceNavi
 import { useExpenseRowSelection } from '../../hooks/useExpenseRowSelection';
 import { useBudgetsResolvedLocale, useBudgetsTranslations } from '../hooks/useBudgetsTranslations';
 import type { BudgetLineTableRow } from '../types/budgetLineTable.types';
-import { BudgetBulkActionsBar } from './BudgetBulkActionsBar';
+import { BudgetBulkActionsBar, type BudgetBulkOptions } from './BudgetBulkActionsBar';
+import { BudgetTableTotals } from './BudgetTableTotals';
+import type { FinanceBulkAction } from '../../../shared/financeBulkActions.copy';
 import { BudgetLineActions, BudgetLineCell } from './BudgetLineCells';
 import { BudgetLineMobileCards } from './BudgetLineMobileCards';
 import {
@@ -42,7 +44,8 @@ type BudgetLinesTableProps = {
   errorMessage?: string;
   selectionResetKey?: number;
   onDeleteBudgetLine: (budgetLineId: string) => void;
-  onDeleteBudgetLines: (budgetLineIds: string[]) => void;
+  bulkOptions: BudgetBulkOptions;
+  onBulkAction: (action: FinanceBulkAction, rows: BudgetLineTableRow[], targetId: string, reason: string) => Promise<void>;
   onEditBudgetLine: (budgetLineId: string) => void;
   onRetry?: () => void;
 };
@@ -74,7 +77,8 @@ export function BudgetLinesTable({
   errorMessage,
   selectionResetKey = 0,
   onDeleteBudgetLine,
-  onDeleteBudgetLines,
+  bulkOptions,
+  onBulkAction,
   onEditBudgetLine,
   onRetry,
 }: BudgetLinesTableProps) {
@@ -147,6 +151,7 @@ export function BudgetLinesTable({
   });
   const visibleBudgetLineIds = useMemo(() => pagination.paginatedRows.map(budgetLine => budgetLine.id), [pagination.paginatedRows]);
   const visibleSelection = rowSelection.visibleSelectionState(visibleBudgetLineIds);
+  const selectedRows = useMemo(() => budgetLines.filter(row => rowSelection.selectedIds.has(row.id)), [budgetLines, rowSelection.selectedIds]);
   const tableMinimumWidth = getIndiceTableMinimumWidth({
     actionsWidth: budgetLineActionsWidth,
     columns: tableColumns,
@@ -172,15 +177,24 @@ export function BudgetLinesTable({
   };
 
   return (
-    <IndiceTableShell pagination={budgetLines.length > 0 ? <BudgetPagination pagination={pagination} t={t} /> : undefined}>
-      {rowSelection.selectedCount > 0 ? (
-        <BudgetBulkActionsBar selectedCount={rowSelection.selectedCount} onClearSelection={rowSelection.clearSelection} onDeleteSelected={() => onDeleteBudgetLines(rowSelection.selectedIdList)} />
+    <IndiceTableShell pagination={<>
+      <BudgetTableTotals key={budgetLines.map(row => `${row.id}:${row.version}`).join('|')} rows={budgetLines} selectedRows={selectedRows} />
+      {budgetLines.length > 0 && <BudgetPagination pagination={pagination} t={t} />}
+    </>}>
+      {selectedRows.length > 0 ? (
+        <BudgetBulkActionsBar key={selectedRows.map(row => row.id).join(',')} rows={selectedRows} options={bulkOptions} locale={locale} onClearSelection={rowSelection.clearSelection} onApply={onBulkAction} />
       ) : null}
       {errorMessage ? <BudgetTableLoadError errorMessage={errorMessage} onRetry={onRetry} /> : null}
       {budgetLines.length === 0 ? (
         <IndiceViewState className="rounded-none border-0 shadow-none" compact description={t.budgets.messages.emptyMessage} title={t.budgets.messages.emptyTitle} tone="green" variant="empty" />
       ) : (
         <>
+          <div className="flex items-center gap-3 border-b border-slate-200 p-4 md:hidden dark:border-slate-700">
+            <Checkbox aria-label={t.budgets.table.allVisibleSelection}
+              checked={visibleSelection.someVisibleSelected ? 'indeterminate' : visibleSelection.allVisibleSelected}
+              onCheckedChange={checked => rowSelection.toggleAllVisible(visibleBudgetLineIds, checked === true)} />
+            <span className="text-sm">{t.budgets.table.allVisibleSelection}</span>
+          </div>
           <BudgetLineMobileCards
             budgetLines={pagination.paginatedRows}
             isSelected={rowSelection.isSelected}

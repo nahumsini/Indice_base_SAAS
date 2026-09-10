@@ -119,6 +119,36 @@ the same selection, actions and totals.
 
 ## Workspace memory
 
+### Budget Control extension (2026-09-09, local)
+
+The period selector also offers This month, using the scheduled date of each budget line
+(calendar month, both boundaries included). Creation and payment timestamps do not move
+a line between planning periods. Next month remains the default. Actual spending is the
+Finance-owned execution of the selected lines, not a second sum of unrelated expenses.
+
+Budget Control owns `POST /api/v1/finance/budget-lines/bulk-actions`. It requires the Finance
+write guard, CSRF and the `expenses.budgets` tab permission. Requests contain 1–200 distinct
+line IDs and expected versions. Company and scope come from the session. The service locks
+the company and scoped lines, validates the whole batch, then applies one atomic operation.
+It supports unit, business, provider and accounting classification, and soft deletion with
+a reason. Previous classification, actor, target and reason are retained in metadata.
+
+Closed/archived lines are protected. Deleting or moving a line to another unit/business
+requires no execution amounts, linked expenses or linked funds, including historical links.
+Unit changes require corporate scope and clear business. A selected business must match every
+line's unit and actor scope. Provider/accounting targets must be active and company-owned;
+labels are resolved by the server. Classification never rewrites linked expenses, payments,
+amounts, currencies or dates. Payment accounts belong to the linked expense's payment flow;
+the toolbar explains this ownership. Row deletion uses the same transaction and reason flow.
+
+Filtered and selected totals appear above pagination, across pages and on mobile/desktop,
+using the existing monetary aggregate owner and separate native currency totals. Explicit
+budget ID selections include visible draft/closed/archived rows; unfiltered central planning
+metrics retain their active-only semantics. Failed/loading totals do not display stale money;
+failures expose retry. Selection is transient and is pruned when filters exclude rows.
+Existing sort, page size, column configuration and workspace filter memory remain available.
+No schema migration, historical backfill or production deployment is part of this extension.
+
 All four Petty Cash tabs use `useWorkspaceNavigationMemory`; Expenses retains and validates
 its existing filter/table memory. The safe state includes filters, fund/cut IDs, view,
 sort and pagination. The module waits for accessible data before resolving stored IDs.

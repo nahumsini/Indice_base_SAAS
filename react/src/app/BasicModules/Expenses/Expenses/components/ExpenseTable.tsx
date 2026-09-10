@@ -93,7 +93,7 @@ type ExpenseTableProps = {
   onViewExpense: (expense: Expense) => void;
   onPersistExpenseUpdate?: (expense: Expense) => void;
   onReclassifyExpense?: (expense: Expense, accountId: string) => Promise<void>;
-  onRecordExpensePayment?: (expense: Expense, amount: number, paymentAccountId: string, paymentDate: Date, attachmentFiles: File[]) => Promise<Expense | null>;
+  onRecordExpensePayment?: (expense: Expense, amount: number, paymentAccountId: string, paymentDate: Date, attachmentFiles: File[], idempotencyKey?: string) => Promise<Expense | null>;
   onStatusChange?: (expense: Expense, status: ExpenseStatus) => Promise<Expense | null>;
   businessOptions?: FinanceReferenceOption[];
   paymentAccounts?: PaymentAccount[];
@@ -393,7 +393,7 @@ export function ExpenseTable({
     setPaymentExpenseId(id);
   };
 
-  const handleRecordPayment = async (id: string, amount: number, paymentAccountId: string, paymentDate: Date, attachmentFiles: File[]) => {
+  const handleRecordPayment = async (id: string, amount: number, paymentAccountId: string, paymentDate: Date, attachmentFiles: File[], idempotencyKey?: string) => {
     const expense = expenses.find(item => item.id === id);
     if (!expense) return;
     if (getExpenseBalance(expense) <= 0) {
@@ -401,7 +401,7 @@ export function ExpenseTable({
       return;
     }
     if (onRecordExpensePayment) {
-      const savedExpense = await onRecordExpensePayment(expense, amount, paymentAccountId, paymentDate, attachmentFiles);
+      const savedExpense = await onRecordExpensePayment(expense, amount, paymentAccountId, paymentDate, attachmentFiles, idempotencyKey);
       if (savedExpense) {
         replaceSavedExpense(savedExpense);
         setPaymentExpenseId(null);

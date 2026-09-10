@@ -142,6 +142,7 @@ export function BudgetFiltersPanel({
         label={t.budgets.filters.futurePeriod}
         onValueChange={(value) => onFutureFilterChange(value as BudgetFutureFilter)}
         options={[
+          { value: 'this_month', label: t.budgets.filters.thisMonth },
           { value: 'next_month', label: t.budgets.filters.nextMonth },
           { value: 'next_quarter', label: t.budgets.filters.nextQuarter },
           { value: 'custom', label: t.budgets.filters.customFutureRange },

@@ -275,6 +275,7 @@ public class ExpenseService {
 
     @Transactional
     public ExpenseResponse recordPayment(FinanceContext context, long expenseId, RecordExpensePaymentRequest request) {
+        repository.lockCompanyForCreation(context);
         var existing = requireExpenseForUpdate(context, expenseId);
         var idempotencyKey = normalizeIdempotencyKey(request.idempotencyKey());
         var previousAttempt = paymentRepository.findByIdempotencyKey(context, idempotencyKey);
@@ -282,7 +283,10 @@ public class ExpenseService {
             requireMatchingPaymentAttempt(existing, request, previousAttempt.get());
             return mapper.toResponse(existing);
         }
-        requireStatus(existing, List.of(ExpenseStatus.APPROVED, ExpenseStatus.PARTIALLY_PAID, ExpenseStatus.PAID), "paid");
+        requireStatus(existing, List.of(ExpenseStatus.DRAFT, ExpenseStatus.PENDING_APPROVAL,
+            ExpenseStatus.APPROVED, ExpenseStatus.PARTIALLY_PAID, ExpenseStatus.PAID), "paid");
+        if (existing.originFund() != null || "PETTY_CASH".equals(existing.auditStatus()))
+            throw FinanceApiException.conflict("Fund expenses must be managed from their source fund.");
         if (request.amount().compareTo(BigDecimal.ZERO) <= 0) {
             throw FinanceApiException.badRequest("Payment amount must be greater than zero.");
         }
@@ -293,6 +297,10 @@ public class ExpenseService {
             throw FinanceApiException.badRequest("Payment amount cannot exceed balanceAmount.");
         }
         referenceValidator.validatePaymentAccountForPayment(context, request.paymentAccountId(), existing.currencyCode());
+        // Approval and payment form one transaction; a failed payment leaves the draft unchanged.
+        if (existing.status() == ExpenseStatus.DRAFT) submitForApproval(context, expenseId);
+        if (existing.status() == ExpenseStatus.DRAFT || existing.status() == ExpenseStatus.PENDING_APPROVAL)
+            approve(context, expenseId);
 
         var paidAmount = existing.paidAmount().add(request.amount());
         var balanceAmount = existing.totalAmount().subtract(paidAmount).max(BigDecimal.ZERO);

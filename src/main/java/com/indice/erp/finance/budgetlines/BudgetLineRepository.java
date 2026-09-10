@@ -40,6 +40,14 @@ class BudgetLineRepository {
     }
 
     Optional<BudgetLineRecord> findById(FinanceContext context, long budgetLineId) {
+        return findById(context, budgetLineId, false);
+    }
+
+    Optional<BudgetLineRecord> findByIdForUpdate(FinanceContext context, long budgetLineId) {
+        return findById(context, budgetLineId, true);
+    }
+
+    private Optional<BudgetLineRecord> findById(FinanceContext context, long budgetLineId, boolean forUpdate) {
         var params = scopedParams(context);
         params.add(1, budgetLineId);
         var rows = jdbcTemplate.query(
@@ -51,7 +59,7 @@ class BudgetLineRepository {
               AND line.id = ?
               AND line.deleted_at IS NULL
               AND """ + FinanceSqlSupport.scopePredicate("line", context.scope()) + """
-            """,
+            """ + (forUpdate ? " FOR UPDATE" : ""),
             mapper::mapRow,
             params.toArray()
         );

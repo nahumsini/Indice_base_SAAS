@@ -102,6 +102,7 @@ jobs:
           npm run test:kiosks
           npm run test:expenses
           npm run test:expenses-ui
+          npm run test:budgets
           npm run test:petty-cash-ui
           npm run test:finance-bulk
           npm run test:receivables-ui

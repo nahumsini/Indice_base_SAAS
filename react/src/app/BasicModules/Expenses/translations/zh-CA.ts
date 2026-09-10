@@ -59,6 +59,7 @@ export const zhCA = mergeFinanceTranslations('zh-CA', {
     modal: { amount: '金额', concept: '概念', create: '创建费用', currency: '货币', description: '概念、金额和货币。', edit: '编辑费用', groupTitle: '基础费用', mainTitle: '主要信息', placeholderConcept: '例如：月租', subtitle: '快速录入基础费用。', summarySubtotal: '小计', summaryTaxes: '税费', summaryTotal: '总计' },
   },
   budgets: {
+    filters: { thisMonth: '本月', futurePeriod: '期间', customFutureRange: '自定义范围', defaultHelp: '比较所选期间预算行的计划和实际金额。默认显示下个月。' },
     actual: '实际',
     addLine: '添加预算行',
     available: '可用',

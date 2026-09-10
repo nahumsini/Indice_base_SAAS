@@ -343,8 +343,16 @@ Approved Finance domain contracts remain authoritative. General rules include:
   supplied by the client, and records its payment history in one transaction. An assigned payment
   account also receives its Treasury movement in that transaction. The explicitly approved bulk
   import exception below records a payment without a bank assignment and cannot move bank money.
-- Only `DRAFT` expenses may be edited or deleted. Submitted, approved, partially paid, paid, and
-  closed expenses change through their explicit workflow, adjustment, or reversal operations.
+- Generic PUT/delete remain draft-only. Per the 2026-09-09 user correction decision,
+  `POST /api/v1/finance/expenses/{id}/corrections` allows versioned, audited corrections to ordinary
+  unposted drafts, submitted, approved, partially paid and paid expenses. It preserves paid amounts,
+  payment dates/history and Treasury movements; recalculates balance/status and refreshes budget
+  consumption. Paid/budget-linked currency, source links, fund custody and posted journals remain
+  protected. A total below recorded payments requires a payment correction/reversal first. Bulk
+  edits invoke this same owner atomically. Closed/cancelled/rejected and PO sources remain protected.
+- The explicit payment use case resolves draft/submitted approval and records the payment in one
+  transaction, serialized with corrections; failure rolls back approval too. Retrying the same key
+  returns the recorded result without another debit.
 - Selected-row classification adjustments and audited bulk reversals follow
   `docs/finance-bulk-actions-and-workspace-memory-contract-v1.md`. Ordinary unposted expenses
   may change organizational/provider/account classifications through that explicit owner contract;
@@ -355,7 +363,7 @@ Approved Finance domain contracts remain authoritative. General rules include:
   status. Fund-origin expenses, cancelled/rejected expenses, and posted journal sources are protected.
   Classification and financial synchronization serialize through the authenticated company row.
 - Bulk expense imports and edits are atomic transactions (1–200 rows). Per the 2026-09-09 user
-  decision, paid imports allow unassigned payment and accounting accounts. The import-specific
+  decision, paid imports and individual paid capture allow unassigned payment and accounting accounts. The import-specific
   expense owner records full payment history with native currency, original expense/payment date,
   actor and timestamp even when the payment account is null. It creates no Treasury movement and
   chooses no default account for such a payment. If supplied, the account must be active,

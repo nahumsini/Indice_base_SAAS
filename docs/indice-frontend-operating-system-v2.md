@@ -152,18 +152,29 @@ Use for:
 - finance status styling
 - money-focused operational density
 
-Ordinary new and duplicated expenses begin pending. Bulk entry explicitly chooses paid (the
-initial selection) or pending expenses. Paid imports allow unassigned payment/accounting accounts;
+Per the 2026-09-09 correction decision, Add Expense and quick capture record completed, paid
+expenses using the same transactional import owner, with a stable request key, the original
+expense/payment date and optional payment account. Duplicated expenses and accounts payable
+remain pending. Bulk entry explicitly chooses paid (the initial selection) or pending expenses. Paid imports allow unassigned payment/accounting accounts;
 when supplied, payment accounts must be eligible for that row. The import owner still records
 payment evidence when the bank is unassigned, without debiting an arbitrary account. Only
 pending imports capture a due date independently of the expense date. The visible status remains
 a workflow result. Partial and full payment actions, including overdue-row quick payment, open
 the payment flow so the backend records the installment and Treasury movement together.
+Registered ordinary unposted expenses expose Edit and use the versioned correction operation;
+existing payments are preserved. Editing is independent of deletion eligibility. Currency changes
+are unavailable for paid or budget-linked expenses, and a corrected total below recorded payments
+requires correcting the excess payment first. Fund and posted sources retain their owner controls.
 
 Selected-row Finance actions and Petty Cash filter memory follow
 `docs/finance-bulk-actions-and-workspace-memory-contract-v1.md`. Their explicit classification
 operations are available independently of generic draft editing; protected actions explain their
 restriction instead of hiding the entire selection toolbar.
+
+Budget Control follows that contract's Budget Control extension: This month filters scheduled
+budget lines; selection exposes budget-owned classification and soft deletion. Totals for filtered
+and selected rows sit above pagination and retain native currency separation. These are budget
+lines and must not be settled or marked paid through Expense status actions.
 
 Expense edit controls are available only while the record is a draft. Published expenses remain
 consultable; approval, payment, closure, adjustment, and reversal use their named actions instead
