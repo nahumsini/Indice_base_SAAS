@@ -49,7 +49,13 @@ class LoginOtpEmailServiceTest {
             .andExpect(jsonPath("$.content[1].value", containsString("Confirm your sign-in")))
             .andExpect(jsonPath("$.content[1].value", containsString("123 456")))
             .andExpect(jsonPath("$.content[1].value", containsString("Secure sign-in")))
-            .andExpect(jsonPath("$.content[1].value", containsString("Do not share this code")))
+            .andExpect(jsonPath("$.content[1].value", containsString("Keep this code private")))
+            .andExpect(jsonPath("$.content[1].value", containsString(">Índice</td>")))
+            .andExpect(jsonPath("$.content[1].value", containsString("#59C3A5")))
+            .andExpect(jsonPath("$.content[1].value", containsString("#2563EB")))
+            .andExpect(jsonPath("$.content[1].value", containsString("#143675")))
+            .andExpect(jsonPath("$.content[1].value", containsString("#FF6B5E")))
+            .andExpect(jsonPath("$.content[1].value", containsString("#F4C84A")))
             .andRespond(withAccepted());
 
         var result = service.sendOtp(login(), "123456", 300);
