@@ -170,6 +170,18 @@ test('provider proposals reuse the purchase-order wizard language and safe compa
   assert.doesNotMatch(projection, /product\.price|product\.cost|inventory_ready/);
 });
 
+test('provider proposal tax is selected once and applied dynamically by line', async () => {
+  const source = await readSource('../src/app/KioskCenter/multi-kiosk/ProviderCenterMultiKioskWorkspace.tsx');
+
+  assert.match(source, /Impuesto de la operación/);
+  assert.match(source, /getBudgetTaxProfiles\(taxCountry\)/);
+  assert.match(source, /Aplicar \{selectedTaxLabel\} a todas las partidas/);
+  assert.match(source, /taxApplied: applyTaxByDefault/);
+  assert.match(source, /line\.taxApplied \? selectedTaxPercent : 0/);
+  assert.match(source, /onToggleTax=\{toggleLineTax\}/);
+  assert.doesNotMatch(source, /ProposalNumber label="Impuesto"/);
+});
+
 test('provider payables mirror Expenses and enter its review queue directly', async () => {
   const source = await readSource('../src/app/KioskCenter/multi-kiosk/ProviderCenterMultiKioskWorkspace.tsx');
   const catalog = await readSource('../../src/main/java/com/indice/erp/kiosk/engine/KioskProviderToolCatalogService.java');

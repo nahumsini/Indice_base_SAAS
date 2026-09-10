@@ -1569,6 +1569,11 @@ hereda permisos de un colaborador.
   convertirla en orden sin volver a capturar sus partidas. También acepta respuestas a solicitudes
   de cotización. Una solicitud tiene fecha límite y conserva una sola respuesta vigente; una nueva
   revisión sustituye, pero no elimina, la anterior.
+- El perfil fiscal de la propuesta se elige una sola vez en `Datos de la propuesta`, de acuerdo con
+  la moneda de la operación. En `Partidas` puede aplicarse a todas con una sola selección y después
+  retirarse por producto como excepción. No se captura una tasa libre repetida por renglón; el
+  frontend envía a Compras la tasa efectiva de cada partida y recalcula subtotal, impuesto y total
+  inmediatamente cuando cambia la selección global, el perfil o una excepción.
 - El selector de partidas puede buscar todos los productos activos de la compañía por nombre, SKU o
   código de producto y destaca primero los ya vinculados al proveedor. Esta proyección pública no
   expone existencias, precios internos, márgenes, condiciones de otros proveedores ni productos

@@ -9,6 +9,7 @@ import {
   FileText,
   Landmark,
   LoaderCircle,
+  Minus,
   PackageCheck,
   PackagePlus,
   Paperclip,
@@ -27,6 +28,12 @@ import {
   IndiceModalValidation,
   IndiceModalWizardStepper,
 } from '../../components/indice-modal';
+import {
+  getBudgetTaxProfiles,
+  getDefaultBudgetTaxProfile,
+  inferTaxCountryFromCurrency,
+  taxRateToPercentInput,
+} from '../../BasicModules/Expenses/Budgets/budgetTaxCatalog';
 import { multiKioskPublicApi, type MultiKioskChildWorkspace } from '../../api/multiKiosks';
 import {
   uploadPresignedKioskFile,
@@ -43,7 +50,7 @@ type PurchaseProposalLine = {
   catalogSku: string;
   quantity: number;
   unitCost: number;
-  taxRate: number;
+  taxApplied: boolean;
   providerProduct: boolean;
 };
 type ProposalStep = 'reference' | 'items' | 'review';
@@ -420,6 +427,9 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
   const [activeStep, setActiveStep] = useState<ProposalStep>('reference');
   const [quoteId, setQuoteId] = useState('');
   const [currencyCode, setCurrencyCode] = useState('MXN');
+  const [taxProfileId, setTaxProfileId] = useState(() => getDefaultBudgetTaxProfile('MX')?.id ?? '');
+  const [manualTaxPercent, setManualTaxPercent] = useState('');
+  const [applyTaxByDefault, setApplyTaxByDefault] = useState(false);
   const [contactName, setContactName] = useState(text(provider.contact_name));
   const [contactEmail, setContactEmail] = useState(text(provider.email));
   const [notes, setNotes] = useState('');
@@ -431,6 +441,16 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
   const { busy, notices, run } = useProviderAction(props);
   const selectedRequest = quoteRequests.find(row => id(row.id) === Number(quoteId));
   const effectiveCurrency = text(selectedRequest?.currency_code) || currencyCode;
+  const taxCountry = inferTaxCountryFromCurrency(effectiveCurrency);
+  const taxProfiles = useMemo(() => getBudgetTaxProfiles(taxCountry), [taxCountry]);
+  const defaultTaxProfile = getDefaultBudgetTaxProfile(taxCountry) ?? taxProfiles[0];
+  const selectedTaxProfile = taxProfiles.find(profile => profile.id === taxProfileId) ?? defaultTaxProfile;
+  const selectedTaxPercent = selectedTaxProfile?.manualRate
+    ? Math.max(0, number(manualTaxPercent))
+    : Number(taxRateToPercentInput(selectedTaxProfile?.rate ?? 0));
+  const selectedTaxLabel = selectedTaxProfile?.manualRate
+    ? `${selectedTaxProfile.shortName} ${selectedTaxPercent}%`
+    : selectedTaxProfile?.shortName ?? 'Sin impuesto';
   const steps = useMemo(() => [
     { id: 'reference' as const, label: 'Datos de la propuesta' },
     { id: 'items' as const, label: 'Partidas' },
@@ -439,9 +459,12 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
   const activeStepIndex = steps.findIndex(step => step.id === activeStep);
   const totals = useMemo(() => lines.reduce((result, line) => {
     const subtotal = line.quantity * line.unitCost;
-    const tax = subtotal * (line.taxRate / 100);
+    const tax = line.taxApplied ? subtotal * (selectedTaxPercent / 100) : 0;
     return { subtotal: result.subtotal + subtotal, tax: result.tax + tax, total: result.total + subtotal + tax };
-  }, { subtotal: 0, tax: 0, total: 0 }), [lines]);
+  }, { subtotal: 0, tax: 0, total: 0 }), [lines, selectedTaxPercent]);
+  const taxedLineCount = lines.filter(line => line.taxApplied).length;
+  const allLinesTaxed = lines.length > 0 && taxedLineCount === lines.length;
+  const someLinesTaxed = taxedLineCount > 0 && !allLinesTaxed;
   const filteredProducts = useMemo(() => {
     const query = normalizeCatalogText(deferredSearch);
     return catalogProducts
@@ -464,6 +487,9 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
     setActiveStep('reference');
     setQuoteId('');
     setCurrencyCode('MXN');
+    setTaxProfileId(getDefaultBudgetTaxProfile('MX')?.id ?? '');
+    setManualTaxPercent('');
+    setApplyTaxByDefault(false);
     setContactName(text(provider.contact_name));
     setContactEmail(text(provider.email));
     setNotes('');
@@ -476,6 +502,7 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
     product: ProviderCatalogProduct,
     quantity = 1,
     transactionCurrency = effectiveCurrency,
+    taxApplied = applyTaxByDefault,
   ): PurchaseProposalLine => ({
     id: `catalog-${product.id}`,
     productId: product.id,
@@ -484,9 +511,21 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
     catalogSku: product.sku || product.productCode,
     quantity,
     unitCost: product.providerProduct && product.currencyCode === transactionCurrency ? product.costAmount : 0,
-    taxRate: 0,
+    taxApplied,
     providerProduct: product.providerProduct,
   });
+
+  const selectTaxForCurrency = (value: string) => {
+    const profile = getDefaultBudgetTaxProfile(inferTaxCountryFromCurrency(value));
+    setTaxProfileId(profile?.id ?? '');
+    setManualTaxPercent('');
+  };
+
+  const changeCurrency = (value: string) => {
+    setCurrencyCode(value);
+    selectTaxForCurrency(value);
+    setValidationMessages([]);
+  };
 
   const selectRequest = (value: string) => {
     setQuoteId(value);
@@ -494,15 +533,19 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
     const request = quoteRequests.find(row => id(row.id) === Number(value));
     if (!request) {
       setLines([]);
+      setApplyTaxByDefault(false);
+      selectTaxForCurrency(currencyCode);
       return;
     }
     const requestCurrency = text(request.currency_code) || 'MXN';
     setCurrencyCode(requestCurrency);
+    setApplyTaxByDefault(false);
+    selectTaxForCurrency(requestCurrency);
     setLines(rows(request.items).map((item, index) => {
       const productId = id(item.product_id);
       const product = catalogProducts.find(option => option.id === productId);
       return product
-        ? lineForProduct(product, number(item.quantity) || 1, requestCurrency)
+        ? lineForProduct(product, number(item.quantity) || 1, requestCurrency, false)
         : {
             id: `request-${id(item.id) || index}`,
             productId: productId || undefined,
@@ -511,7 +554,7 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
             catalogSku: text(item.sku),
             quantity: number(item.quantity) || 1,
             unitCost: 0,
-            taxRate: 0,
+            taxApplied: false,
             providerProduct: false,
           };
     }));
@@ -537,16 +580,33 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
       catalogSku: '',
       quantity: 1,
       unitCost: 0,
-      taxRate: 0,
+      taxApplied: applyTaxByDefault,
       providerProduct: true,
     }]);
     setValidationMessages([]);
   };
 
-  const updateLine = (lineId: string, field: 'quantity' | 'unitCost' | 'taxRate', value: number) => {
+  const updateLine = (lineId: string, field: 'quantity' | 'unitCost', value: number) => {
     setLines(current => current.map(line => line.id === lineId
       ? { ...line, [field]: Number.isFinite(value) ? Math.max(value, 0) : 0 }
       : line));
+    setValidationMessages([]);
+  };
+
+  const toggleAllTaxes = () => {
+    const enabled = !allLinesTaxed;
+    setApplyTaxByDefault(enabled);
+    setLines(current => current.map(line => ({ ...line, taxApplied: enabled })));
+    setValidationMessages([]);
+  };
+
+  const toggleLineTax = (lineId: string) => {
+    const nextLines = lines.map(line => line.id === lineId
+      ? { ...line, taxApplied: !line.taxApplied }
+      : line);
+    setLines(nextLines);
+    if (nextLines.every(line => line.taxApplied)) setApplyTaxByDefault(true);
+    else if (nextLines.every(line => !line.taxApplied)) setApplyTaxByDefault(false);
     setValidationMessages([]);
   };
 
@@ -558,6 +618,12 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
   const validateReference = () => {
     const messages: string[] = [];
     if (!effectiveCurrency) messages.push('Selecciona la moneda de esta propuesta.');
+    if (!selectedTaxProfile) messages.push('Selecciona el impuesto de la operación.');
+    if (selectedTaxProfile?.manualRate
+        && (!manualTaxPercent.trim() || !Number.isFinite(Number(manualTaxPercent))
+          || Number(manualTaxPercent) < 0 || Number(manualTaxPercent) > 100)) {
+      messages.push('La tasa especial debe estar entre 0% y 100%.');
+    }
     if (!contactName.trim()) messages.push('Indica quién realiza el envío.');
     if (!/^\S+@\S+\.\S+$/.test(contactEmail.trim())) messages.push('Escribe un correo de contacto válido.');
     setValidationMessages(messages);
@@ -566,8 +632,8 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
   const validateItems = () => {
     const messages: string[] = [];
     if (!lines.length) messages.push('Agrega al menos un producto a la propuesta.');
-    if (lines.some(line => !line.productName.trim() || line.quantity <= 0 || line.unitCost < 0 || line.taxRate < 0)) {
-      messages.push('Revisa cantidades, costos e impuestos de todas las partidas.');
+    if (lines.some(line => !line.productName.trim() || line.quantity <= 0 || line.unitCost < 0)) {
+      messages.push('Revisa cantidades y costos de todas las partidas.');
     }
     setValidationMessages(messages);
     return messages.length === 0;
@@ -595,7 +661,7 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
         imageUrl: null,
         quantity: line.quantity,
         unitCost: line.unitCost,
-        taxRate: line.taxRate,
+        taxRate: line.taxApplied ? selectedTaxPercent : 0,
         leadTimeDays: null,
         minimumOrderQuantity: null,
       })),
@@ -624,7 +690,9 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
           <div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#FF6B5E]/10 text-[#B63B32]"><FileText className="h-4 w-4" /></span><div><h3 className="text-base font-semibold text-slate-950 dark:text-white">Datos de la propuesta</h3><p className="mt-0.5 text-xs leading-5 text-slate-500">Ya sabemos qué proveedor eres. Elige una solicitud o inicia una propuesta espontánea.</p></div></div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <Field label="Tipo de propuesta"><select value={quoteId} onChange={event => selectRequest(event.target.value)} className={inputClass}><option value="">Propuesta espontánea</option>{openRequests.map(request => <option key={id(request.id)} value={id(request.id)}>{text(request.request_number)} · {text(request.title)}</option>)}</select></Field>
-            <Field label="Moneda de la operación *">{selectedRequest ? <div className={`${inputClass} flex items-center bg-slate-50 font-medium`}>{effectiveCurrency}</div> : <TransactionCurrencySelect value={currencyCode} onChange={setCurrencyCode} />}</Field>
+            <Field label="Moneda de la operación *">{selectedRequest ? <div className={`${inputClass} flex items-center bg-slate-50 font-medium`}>{effectiveCurrency}</div> : <TransactionCurrencySelect value={currencyCode} onChange={changeCurrency} />}</Field>
+            <Field label="Impuesto de la operación *"><select value={selectedTaxProfile?.id ?? ''} onChange={event => { setTaxProfileId(event.target.value); setManualTaxPercent(''); setValidationMessages([]); }} className={inputClass}>{taxProfiles.map(profile => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></Field>
+            {selectedTaxProfile?.manualRate ? <Field label="Tasa especial % *"><input type="number" min="0" max="100" step="0.001" value={manualTaxPercent} onChange={event => { setManualTaxPercent(event.target.value); setValidationMessages([]); }} className={inputClass} placeholder="Ej. 8.25" /></Field> : null}
             <Field label="Persona que realiza el envío *"><input required value={contactName} onChange={event => setContactName(event.target.value)} maxLength={180} autoComplete="name" className={inputClass} /></Field>
             <Field label="Correo de contacto *"><input required value={contactEmail} onChange={event => setContactEmail(event.target.value)} type="email" maxLength={180} autoComplete="email" className={inputClass} /></Field>
             <div className="sm:col-span-2"><Field label="Notas para Compras"><textarea value={notes} onChange={event => setNotes(event.target.value)} maxLength={4000} rows={2} className={`${inputClass} h-auto`} /></Field></div>
@@ -633,7 +701,11 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
         </section> : null}
 
         {activeStep === 'items' ? <section className="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900 sm:p-4">
-          <div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#FF6B5E]/10 text-[#B63B32]"><Search className="h-4 w-4" /></span><div><h3 className="text-base font-semibold text-slate-950 dark:text-white">Productos de la propuesta</h3><p className="mt-0.5 text-xs leading-5 text-slate-500">Elige productos y captura cantidades, costos e impuestos. Tus productos aparecen primero.</p></div></div>
+          <div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#FF6B5E]/10 text-[#B63B32]"><Search className="h-4 w-4" /></span><div><h3 className="text-base font-semibold text-slate-950 dark:text-white">Productos de la propuesta</h3><p className="mt-0.5 text-xs leading-5 text-slate-500">Elige productos y captura cantidad y costo. El impuesto se activa con una palomita. Tus productos aparecen primero.</p></div></div>
+          <button type="button" role="checkbox" aria-checked={someLinesTaxed ? 'mixed' : allLinesTaxed} onClick={toggleAllTaxes} className="mt-4 flex w-full items-center gap-3 rounded-xl border border-[#FF6B5E]/30 bg-[#FF6B5E]/5 px-3 py-3 text-left transition hover:bg-[#FF6B5E]/10 focus:outline-none focus:ring-2 focus:ring-[#FF6B5E]/25">
+            <span className={`grid h-5 w-5 shrink-0 place-items-center rounded border ${allLinesTaxed || someLinesTaxed ? 'border-[#B63B32] bg-[#FF6B5E] text-[#222831]' : 'border-slate-300 bg-white text-transparent dark:border-slate-600 dark:bg-slate-900'}`}>{someLinesTaxed ? <Minus className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}</span>
+            <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-slate-950 dark:text-white">Aplicar {selectedTaxLabel} a todas las partidas</span><span className="mt-0.5 block text-xs text-slate-500">{lines.length ? `${taxedLineCount} de ${lines.length} con impuesto · puedes quitarlo en productos especiales` : 'Las partidas que agregues usarán esta selección'}</span></span>
+          </button>
           {!selectedRequest ? <div className="mt-4 grid min-w-0 gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
             <section aria-label="Catálogo de productos" className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-950">
               <div className="border-b border-slate-200 p-3 dark:border-slate-700">
@@ -653,9 +725,9 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
             </section>
             <section aria-label="Partidas seleccionadas" className="min-w-0 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
               <div className="mb-3 flex items-center justify-between gap-3"><div><h4 className="text-sm font-semibold text-slate-900 dark:text-white">Partidas</h4><p className="text-xs text-slate-500">Usa Agregar y completa el costo que ofreces.</p></div><span className="rounded-full bg-[#FF6B5E]/10 px-2 py-1 text-xs font-semibold text-[#B63B32]">{lines.length}</span></div>
-              <ProposalLineItems currency={effectiveCurrency} lines={lines} onRemove={lineId => setLines(current => current.filter(line => line.id !== lineId))} onUpdate={updateLine} onUpdateText={updateLineText} />
+              <ProposalLineItems currency={effectiveCurrency} lines={lines} taxLabel={selectedTaxLabel} taxRate={selectedTaxPercent} onRemove={lineId => setLines(current => current.filter(line => line.id !== lineId))} onToggleTax={toggleLineTax} onUpdate={updateLine} onUpdateText={updateLineText} />
             </section>
-          </div> : <div className="mt-4"><div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">Estas partidas fueron solicitadas por la empresa. Completa el costo y los impuestos.</div><ProposalLineItems currency={effectiveCurrency} lines={lines} onUpdate={updateLine} /></div>}
+          </div> : <div className="mt-4"><div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">Estas partidas fueron solicitadas por la empresa. Completa el costo y marca las que llevan {selectedTaxLabel}.</div><ProposalLineItems currency={effectiveCurrency} lines={lines} taxLabel={selectedTaxLabel} taxRate={selectedTaxPercent} onToggleTax={toggleLineTax} onUpdate={updateLine} /></div>}
         </section> : null}
 
         {activeStep === 'review' ? <div className="space-y-4">
@@ -663,11 +735,12 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
             { label: 'Proveedor', value: text(provider.name) },
             { label: 'Partidas', value: String(lines.length) },
             { label: 'Moneda', value: effectiveCurrency },
+            { label: 'Impuesto base', value: selectedTaxLabel },
             { label: 'Subtotal', value: money(totals.subtotal, effectiveCurrency) },
             { label: 'Impuestos', value: money(totals.tax, effectiveCurrency) },
             { label: 'Total', value: money(totals.total, effectiveCurrency), emphasized: true },
           ]} />
-          <section className="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900 sm:p-4"><div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#FF6B5E]/10 text-[#B63B32]"><PackageCheck className="h-4 w-4" /></span><div><h3 className="text-base font-semibold text-slate-950 dark:text-white">Partidas que recibirá Compras</h3><p className="mt-0.5 text-xs leading-5 text-slate-500">La empresa podrá aprobar y convertir la propuesta sin volver a capturarla.</p></div></div><div className="mt-3"><ProposalLineItems compact currency={effectiveCurrency} lines={lines} /></div></section>
+          <section className="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900 sm:p-4"><div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#FF6B5E]/10 text-[#B63B32]"><PackageCheck className="h-4 w-4" /></span><div><h3 className="text-base font-semibold text-slate-950 dark:text-white">Partidas que recibirá Compras</h3><p className="mt-0.5 text-xs leading-5 text-slate-500">La empresa podrá aprobar y convertir la propuesta sin volver a capturarla.</p></div></div><div className="mt-3"><ProposalLineItems compact currency={effectiveCurrency} lines={lines} taxLabel={selectedTaxLabel} taxRate={selectedTaxPercent} /></div></section>
         </div> : null}
       </div>
       <footer className="sticky bottom-0 z-10 flex flex-col gap-2 border-t border-slate-200 bg-white/95 px-4 py-2.5 backdrop-blur dark:border-slate-700 dark:bg-slate-900/95 sm:flex-row sm:items-center sm:justify-between">
@@ -679,21 +752,24 @@ function PurchaseProposalWorkspace(props: ProviderWorkspaceProps) {
   </WorkspaceFrame>;
 }
 
-function ProposalLineItems({ compact = false, currency, lines, onRemove, onUpdate, onUpdateText }: {
+function ProposalLineItems({ compact = false, currency, lines, taxLabel, taxRate, onRemove, onToggleTax, onUpdate, onUpdateText }: {
   compact?: boolean;
   currency: string;
   lines: PurchaseProposalLine[];
+  taxLabel: string;
+  taxRate: number;
   onRemove?: (lineId: string) => void;
-  onUpdate?: (lineId: string, field: 'quantity' | 'unitCost' | 'taxRate', value: number) => void;
+  onToggleTax?: (lineId: string) => void;
+  onUpdate?: (lineId: string, field: 'quantity' | 'unitCost', value: number) => void;
   onUpdateText?: (lineId: string, field: 'productName' | 'providerSku', value: string) => void;
 }) {
   if (!lines.length) return <div className="grid min-h-28 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-4 text-center dark:border-slate-700 dark:bg-slate-950"><div><PackagePlus className="mx-auto h-5 w-5 text-slate-400" /><p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-200">Tu propuesta está vacía</p><p className="mt-1 text-xs text-slate-500">En el catálogo, pulsa Agregar para incluir un producto.</p></div></div>;
   return <div className="space-y-2">{lines.map(line => {
     const subtotal = line.quantity * line.unitCost;
-    const total = subtotal + subtotal * (line.taxRate / 100);
+    const total = subtotal + (line.taxApplied ? subtotal * (taxRate / 100) : 0);
     return <div key={line.id} className={`min-w-0 rounded-xl border border-slate-200 bg-white p-3 text-sm dark:border-slate-700 dark:bg-slate-900 ${compact ? 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_70px_120px] sm:items-center' : ''}`}>
-      <div className="flex min-w-0 items-start justify-between gap-2"><div className="min-w-0 flex-1">{!compact && !line.productId ? <div className="grid gap-2 sm:grid-cols-2"><Field label="Nombre del producto *"><input value={line.productName} maxLength={240} onChange={event => onUpdateText?.(line.id, 'productName', event.target.value)} className={inputClass} placeholder="Producto propuesto" /></Field><Field label="Tu SKU"><input value={line.providerSku} maxLength={120} onChange={event => onUpdateText?.(line.id, 'providerSku', event.target.value)} className={inputClass} /></Field></div> : <><div className="flex flex-wrap items-center gap-2"><p className="truncate font-medium text-slate-950 dark:text-white">{line.productName}</p>{line.providerProduct ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">Tu producto</span> : null}</div><p className="truncate text-xs text-slate-500">{line.providerSku || line.catalogSku || 'Sin SKU'}</p></>}</div>{!compact && onRemove ? <button type="button" aria-label="Quitar partida" onClick={() => onRemove(line.id)} className="-mr-1 -mt-1 rounded-lg p-2 text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button> : null}</div>
-      {compact ? <div><p className="text-[11px] text-slate-400">Cantidad</p><p className="font-medium">{line.quantity}</p></div> : <div className="mt-3 grid grid-cols-3 gap-2"><ProposalNumber label="Cantidad" value={line.quantity} min={0.0001} onChange={value => onUpdate?.(line.id, 'quantity', value)} /><ProposalNumber label="Costo unitario" value={line.unitCost} min={0} onChange={value => onUpdate?.(line.id, 'unitCost', value)} /><ProposalNumber label="Impuesto" value={line.taxRate} min={0} suffix="%" onChange={value => onUpdate?.(line.id, 'taxRate', value)} /></div>}
+      <div className="flex min-w-0 items-start justify-between gap-2"><div className="min-w-0 flex-1">{!compact && !line.productId ? <div className="grid gap-2 sm:grid-cols-2"><Field label="Nombre del producto *"><input value={line.productName} maxLength={240} onChange={event => onUpdateText?.(line.id, 'productName', event.target.value)} className={inputClass} placeholder="Producto propuesto" /></Field><Field label="Tu SKU"><input value={line.providerSku} maxLength={120} onChange={event => onUpdateText?.(line.id, 'providerSku', event.target.value)} className={inputClass} /></Field></div> : <><div className="flex flex-wrap items-center gap-2"><p className="truncate font-medium text-slate-950 dark:text-white">{line.productName}</p>{line.providerProduct ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">Tu producto</span> : null}{compact ? <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${line.taxApplied ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}>{line.taxApplied ? taxLabel : 'Sin impuesto'}</span> : null}</div><p className="truncate text-xs text-slate-500">{line.providerSku || line.catalogSku || 'Sin SKU'}</p></>}</div>{!compact && onRemove ? <button type="button" aria-label="Quitar partida" onClick={() => onRemove(line.id)} className="-mr-1 -mt-1 rounded-lg p-2 text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button> : null}</div>
+      {compact ? <div><p className="text-[11px] text-slate-400">Cantidad</p><p className="font-medium">{line.quantity}</p></div> : <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3"><ProposalNumber label="Cantidad" value={line.quantity} min={0.0001} onChange={value => onUpdate?.(line.id, 'quantity', value)} /><ProposalNumber label="Costo unitario" value={line.unitCost} min={0} onChange={value => onUpdate?.(line.id, 'unitCost', value)} /><button type="button" role="checkbox" aria-checked={line.taxApplied} aria-label={`${line.taxApplied ? 'Quitar' : 'Aplicar'} ${taxLabel} a ${line.productName}`} onClick={() => onToggleTax?.(line.id)} className={`col-span-2 flex min-h-12 items-center gap-2 rounded-lg border px-3 text-left transition sm:col-span-1 ${line.taxApplied ? 'border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300'}`}><span className={`grid h-4 w-4 shrink-0 place-items-center rounded border ${line.taxApplied ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300 text-transparent dark:border-slate-600'}`}><Check className="h-3 w-3" /></span><span><span className="block text-[10px] text-slate-400">Impuesto</span><span className="block text-xs font-semibold">{line.taxApplied ? taxLabel : 'No aplica'}</span></span></button></div>}
       <div className={compact ? '' : 'mt-3 flex items-center justify-between border-t border-slate-100 pt-2 dark:border-slate-800'}><p className="text-[11px] text-slate-400">Total</p><p className="font-semibold text-slate-950 dark:text-white">{money(total, currency)}</p></div>
     </div>;
   })}</div>;
