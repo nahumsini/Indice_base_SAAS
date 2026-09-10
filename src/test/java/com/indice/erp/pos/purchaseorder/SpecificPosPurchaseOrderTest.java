@@ -146,7 +146,7 @@ class SpecificPosPurchaseOrderTest {
         var invoice = supplierInvoice(71L);
         var expense = expenseResponse();
         when(repository.findOrder(context(), 99L))
-            .thenReturn(Optional.of(sentOrder), Optional.of(receivedOrder));
+            .thenReturn(Optional.of(sentOrder), Optional.of(sentOrder), Optional.of(receivedOrder));
         when(repository.nextReceiptNumber(context())).thenReturn("RCV-2026-0003");
         when(repository.insertReceipt(context(), sentOrder, "RCV-2026-0003", "Recepción final"))
             .thenReturn(57L);
@@ -350,7 +350,7 @@ class SpecificPosPurchaseOrderTest {
             10L, null, null,
             null, null, null, 0,
             10L, 10L, Instant.now(), Instant.now(), null, 0L,
-            null, null, null, false);
+            null, null, null, false, true);
     }
 
     private SupplierSubmissionResponse approvedUnlistedSubmission() {

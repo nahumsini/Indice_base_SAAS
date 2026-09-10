@@ -75,9 +75,10 @@ test('Mis tareas integra un workspace propio y limitado por capacidades en Multi
   assert.match(workspaceSource, /export function EmployeeTaskMultiKioskWorkspace/);
   assert.match(workspaceSource, /export function EmployeeTaskMultiKioskWorkspaceView/);
   assert.match(workspaceSource, /type MultiKioskWorkspaceCard = MultiKioskChildWorkspace\['kiosk'\]/);
-  assert.match(workspaceSource, /<KioskWorkspaceTabs/);
+  assert.match(workspaceSource, /<EmployeeTaskAgendaToolbar/);
   assert.match(workspaceSource, /<PublicTaskKioskSummaryStrip/);
-  assert.match(workspaceSource, /<PublicTaskKioskTaskCard/);
+  assert.match(workspaceSource, /<EmployeeTaskAgendaList/);
+  assert.match(workspaceSource, /<EmployeeTaskAgendaBoard/);
   assert.match(workspaceSource, /multiKioskPublicApi\.action/);
   assert.match(workspaceHookSource, /process-tasks\.tasks\.read@1/);
   assert.match(workspaceHookSource, /process-tasks\.task\.create@1/);
