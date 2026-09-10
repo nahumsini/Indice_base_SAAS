@@ -9,5 +9,12 @@ public enum SupplierSubmissionStatus {
     PARTIALLY_APPROVED,
     REJECTED,
     CONVERTED_TO_PURCHASE_ORDER,
-    SUPERSEDED
+    SUPERSEDED;
+
+    static SupplierSubmissionStatus fromItemStorageValue(String value) {
+        if ("CONVERTED".equals(value)) {
+            return CONVERTED_TO_PURCHASE_ORDER;
+        }
+        return valueOf(value);
+    }
 }

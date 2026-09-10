@@ -23,6 +23,7 @@ import com.indice.erp.kiosk.engine.ProviderCenterAccessPolicy;
 import jakarta.servlet.http.HttpSession;
 import java.security.SecureRandom;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -322,7 +323,8 @@ public class PayableKioskService {
         providerCenterAccess.requireAccess(companyId, providerId);
         return Map.of(
             "provider", publicRepository.providerCenterProfile(companyId, providerId),
-            "payables", publicRepository.providerCenterPayables(companyId, providerId),
+            "payables", withProviderPaymentEvidence(
+                companyId, providerId, publicRepository.providerCenterPayables(companyId, providerId)),
             "lane", "WITHOUT_PURCHASE_ORDER",
             "contact_required", true);
     }
@@ -331,9 +333,27 @@ public class PayableKioskService {
         if (!providerCenterHasAccess(companyId, providerId)) return Map.of();
         return Map.of(
             "payables_without_purchase_order",
-            publicRepository.providerCenterPayables(companyId, providerId),
+            withProviderPaymentEvidence(
+                companyId, providerId, publicRepository.providerCenterPayables(companyId, providerId)),
             "purchase_order_payment_tracking",
-            publicRepository.providerCenterPurchaseOrderPayments(companyId, providerId));
+            withProviderPaymentEvidence(
+                companyId, providerId,
+                publicRepository.providerCenterPurchaseOrderPayments(companyId, providerId)));
+    }
+
+    private java.util.List<Map<String, Object>> withProviderPaymentEvidence(
+            long companyId,
+            long providerId,
+            java.util.List<Map<String, Object>> rows) {
+        return rows.stream().map(row -> {
+            var result = new LinkedHashMap<String, Object>(row);
+            var rawId = row.containsKey("id") ? row.get("id") : row.get("expense_id");
+            if (rawId instanceof Number expenseId) {
+                result.put("payment_evidence", attachmentService.providerPaymentEvidence(
+                    companyId, providerId, expenseId.longValue()));
+            }
+            return Collections.unmodifiableMap(result);
+        }).toList();
     }
 
     @Transactional

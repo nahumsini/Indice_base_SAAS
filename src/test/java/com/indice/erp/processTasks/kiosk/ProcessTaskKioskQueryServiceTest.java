@@ -1,7 +1,9 @@
 package com.indice.erp.processTasks.kiosk;
 
 import com.indice.erp.processTasks.tasks.ProcessTaskAssignmentScopeService;
+import java.sql.Date;
 import java.sql.ResultSet;
+import java.sql.Time;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
@@ -103,6 +105,34 @@ class ProcessTaskKioskQueryServiceTest {
             .containsEntry("team_size", 1)
             .containsEntry("completion_action", "TASK_COMPLETE")
             .containsEntry("can_complete", true));
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void exposesReadOnlyAgendaPlacementToTheEmployeeKiosk() throws Exception {
+        givenTaskRow(taskResultSet, 41L, "pending", "lead", "pending", 1);
+        given(taskResultSet.getDate(anyString())).willAnswer(invocation ->
+            "agenda_date".equals(invocation.getArgument(0, String.class))
+                ? Date.valueOf("2026-09-10") : null);
+        given(taskResultSet.getTime(anyString())).willAnswer(invocation -> switch (
+                invocation.getArgument(0, String.class)) {
+            case "agenda_start_time" -> Time.valueOf("09:30:00");
+            case "agenda_end_time" -> Time.valueOf("10:15:00");
+            default -> null;
+        });
+        given(taskResultSet.getString("agenda_time_zone")).willReturn("America/Mexico_City");
+        given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+            .willAnswer(invocation -> {
+                var mapper = (RowMapper) invocation.getArgument(1);
+                return List.of(mapper.mapRow(taskResultSet, 0));
+            });
+
+        assertThat(service.listTasks(kiosk(), employee())).singleElement().satisfies(row ->
+            assertThat(row)
+                .containsEntry("agenda_date", "2026-09-10")
+                .containsEntry("agenda_start_time", "09:30")
+                .containsEntry("agenda_end_time", "10:15")
+                .containsEntry("agenda_time_zone", "America/Mexico_City"));
     }
 
     @Test

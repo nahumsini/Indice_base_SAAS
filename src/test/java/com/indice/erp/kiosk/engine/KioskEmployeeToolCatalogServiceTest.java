@@ -2,6 +2,7 @@ package com.indice.erp.kiosk.engine;
 
 import com.indice.erp.access.module.ModuleAccessService;
 import com.indice.erp.processTasks.kiosk.ProcessTaskKioskCapabilities;
+import com.indice.erp.sales.kiosk.RouteSalesKioskCapabilities;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,11 +43,16 @@ class KioskEmployeeToolCatalogServiceTest {
             assertThat(tool)
                 .containsEntry("key", KioskEmployeeToolCatalogService.ATTENDANCE_TOOL_KEY)
                 .containsEntry("tool_key", KioskEmployeeToolCatalogService.ATTENDANCE_TOOL_KEY)
+                .containsEntry("name", "Recursos Humanos")
                 .containsEntry("workspace_kind", "ATTENDANCE")
                 .containsEntry("audience_policy", "COMPANY_MEMBERS")
                 .containsEntry("readiness", "AVAILABLE");
             assertThat(tool.get("required_tab_scopes")).isEqualTo(List.of(
-                "human_resources.attendance", "human_resources.control"));
+                "human_resources.announcements",
+                "human_resources.attendance",
+                "human_resources.control",
+                "human_resources.permissions",
+                "human_resources.records"));
         });
         verifyNoInteractions(jdbcTemplate);
     }
@@ -88,6 +94,29 @@ class KioskEmployeeToolCatalogServiceTest {
         assertThat(catalog.availableTools(7L))
             .extracting(tool -> tool.get("key"))
             .containsExactly(KioskEmployeeToolCatalogService.MY_TASKS_TOOL_KEY);
+        verifyNoInteractions(jdbcTemplate);
+    }
+
+    @Test
+    void routeSalesAppearsAsANativeCrmToolWithOnlyItsControlledCapabilities() {
+        given(moduleAccess.companyCanAccess(7L, "human_resources")).willReturn(false);
+        given(moduleAccess.companyCanAccess(7L, "processes")).willReturn(false);
+        given(moduleAccess.companyCanAccess(7L, "crm")).willReturn(true);
+        given(featureFlags.adapterEnabled("SALES")).willReturn(true);
+
+        assertThat(catalog.availableTools(7L)).singleElement().satisfies(tool -> {
+            assertThat(tool)
+                .containsEntry("key", KioskEmployeeToolCatalogService.ROUTE_SALES_TOOL_KEY)
+                .containsEntry("module_slug", "crm")
+                .containsEntry("workspace_kind", "ROUTE_SALES");
+            assertThat(tool.get("required_tab_scopes")).isEqualTo(List.of("crm.sales"));
+            assertThat(tool.get("capabilities")).isEqualTo(List.of(
+                RouteSalesKioskCapabilities.CONTACT_CREATE + "@1",
+                RouteSalesKioskCapabilities.PAYMENT_EVIDENCE_PRESIGN + "@1",
+                RouteSalesKioskCapabilities.PAYMENT_EVIDENCE_REGISTER + "@1",
+                RouteSalesKioskCapabilities.SALE_CREATE + "@1",
+                RouteSalesKioskCapabilities.WORKSPACE_READ + "@1"));
+        });
         verifyNoInteractions(jdbcTemplate);
     }
 

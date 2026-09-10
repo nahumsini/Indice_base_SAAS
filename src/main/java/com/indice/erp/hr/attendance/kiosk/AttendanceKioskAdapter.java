@@ -23,24 +23,47 @@ public class AttendanceKioskAdapter implements KioskModuleAdapter {
 
     private static final Set<String> EMPLOYEE_TAB_PERMISSIONS = Set.of(
         "human_resources.attendance", "human_resources.control");
+    private static final Set<String> HUMAN_RESOURCES_TOOL_TAB_PERMISSIONS = Set.of(
+        "human_resources.attendance",
+        "human_resources.control",
+        "human_resources.announcements",
+        "human_resources.records",
+        "human_resources.permissions");
+    private static final Set<String> ATTENDANCE_CAPABILITIES = Set.of(
+        AttendanceKioskCapabilities.IDENTITY_VERIFY,
+        AttendanceKioskCapabilities.PHOTO_PRESIGN,
+        AttendanceKioskCapabilities.FACE_VERIFICATION_BEGIN,
+        AttendanceKioskCapabilities.FACE_VERIFICATION_CAPTURE_PRESIGN,
+        AttendanceKioskCapabilities.FACE_VERIFICATION_COMPLETE,
+        AttendanceKioskCapabilities.PUNCH_CREATE);
+    private static final Set<String> NATIVE_HUMAN_RESOURCES_CAPABILITIES = Set.of(
+        AttendanceKioskCapabilities.PHOTO_PRESIGN,
+        AttendanceKioskCapabilities.PUNCH_CREATE,
+        AttendanceKioskCapabilities.ANNOUNCEMENTS_READ,
+        AttendanceKioskCapabilities.RECORDS_READ,
+        AttendanceKioskCapabilities.PERMISSIONS_READ,
+        AttendanceKioskCapabilities.PERMISSION_CREATE);
 
     private final HrAttendanceService attendance;
     private final AttendanceKioskEngineIdentityService identities;
     private final AttendanceKioskModuleAuditService moduleAudit;
     private final KioskSessionService sessions;
     private final AttendanceEmployeeKioskService employeeCenter;
+    private final HumanResourcesEmployeeKioskService humanResourcesPortal;
 
     public AttendanceKioskAdapter(
             HrAttendanceService attendance,
             AttendanceKioskEngineIdentityService identities,
             AttendanceKioskModuleAuditService moduleAudit,
             KioskSessionService sessions,
-            AttendanceEmployeeKioskService employeeCenter) {
+            AttendanceEmployeeKioskService employeeCenter,
+            HumanResourcesEmployeeKioskService humanResourcesPortal) {
         this.attendance = attendance;
         this.identities = identities;
         this.moduleAudit = moduleAudit;
         this.sessions = sessions;
         this.employeeCenter = employeeCenter;
+        this.humanResourcesPortal = humanResourcesPortal;
     }
 
     @Override
@@ -56,13 +79,12 @@ public class AttendanceKioskAdapter implements KioskModuleAdapter {
     @Override
     public Set<KioskCapabilityDescriptor> capabilities(KioskResolvedDefinition definition) {
         if (!isNativeAttendanceTool(definition)) {
-            return capabilities();
+            return capabilities().stream()
+                .filter(capability -> ATTENDANCE_CAPABILITIES.contains(capability.key()))
+                .collect(Collectors.toUnmodifiableSet());
         }
         return capabilities().stream()
-            .filter(capability -> Set.of(
-                AttendanceKioskCapabilities.PHOTO_PRESIGN,
-                AttendanceKioskCapabilities.PUNCH_CREATE
-            ).contains(capability.key()))
+            .filter(capability -> NATIVE_HUMAN_RESOURCES_CAPABILITIES.contains(capability.key()))
             .collect(Collectors.toUnmodifiableSet());
     }
 
@@ -79,16 +101,26 @@ public class AttendanceKioskAdapter implements KioskModuleAdapter {
 
     @Override
     public Set<String> employeeCenterTabPermissionKeys(KioskResolvedDefinition definition) {
-        return EMPLOYEE_TAB_PERMISSIONS;
+        return isNativeAttendanceTool(definition)
+            ? HUMAN_RESOURCES_TOOL_TAB_PERMISSIONS
+            : EMPLOYEE_TAB_PERMISSIONS;
     }
 
     @Override
     public Set<String> employeeCapabilityTabPermissionKeys(
             KioskResolvedDefinition definition,
             KioskCapabilityDescriptor capability) {
-        return AttendanceKioskCapabilities.IDENTITY_VERIFY.equals(capability.key())
-            ? Set.of()
-            : EMPLOYEE_TAB_PERMISSIONS;
+        return switch (capability.key()) {
+            case AttendanceKioskCapabilities.IDENTITY_VERIFY -> Set.of();
+            case AttendanceKioskCapabilities.ANNOUNCEMENTS_READ ->
+                Set.of("human_resources.announcements");
+            case AttendanceKioskCapabilities.RECORDS_READ ->
+                Set.of("human_resources.records");
+            case AttendanceKioskCapabilities.PERMISSIONS_READ,
+                 AttendanceKioskCapabilities.PERMISSION_CREATE ->
+                Set.of("human_resources.permissions");
+            default -> EMPLOYEE_TAB_PERMISSIONS;
+        };
     }
 
     @Override
@@ -101,6 +133,10 @@ public class AttendanceKioskAdapter implements KioskModuleAdapter {
             result.put("authentication", "ENGINE_PIN_SESSION");
             result.put("tool_key", KioskEmployeeToolCatalogService.ATTENDANCE_TOOL_KEY);
             result.put("identity_evidence_required", true);
+            result.put("hr_portal", humanResourcesPortal.bootstrap(
+                context.definition().companyId(),
+                context.session().identityId(),
+                context.session().grantedCapabilities()));
             return java.util.Collections.unmodifiableMap(result);
         }
         return employeeCenter.bootstrap(context.definition(), context.session().identityId());
@@ -173,6 +209,11 @@ public class AttendanceKioskAdapter implements KioskModuleAdapter {
                     recorded.put("today_activity", nativeTodayActivity(refreshed));
                     yield recorded;
                 }
+                case AttendanceKioskCapabilities.PERMISSION_CREATE ->
+                    humanResourcesPortal.createPermission(
+                        context.definition().companyId(),
+                        context.session().identityId(),
+                        request.payload());
                 default -> throw new SecurityException(
                     "Attendance capability is not available for this employee tool.");
             };
@@ -236,6 +277,11 @@ public class AttendanceKioskAdapter implements KioskModuleAdapter {
                     "event_kind", String.valueOf(response.getOrDefault("event_kind", "")),
                     "identity_evidence", String.valueOf(response.getOrDefault("identity_evidence", ""))
                 ));
+            return;
+        }
+        if (AttendanceKioskCapabilities.PERMISSION_CREATE.equals(request.capabilityKey())) {
+            moduleAudit.success(context, "HR_PERMISSION_REQUEST_CREATED", "PERMISSION_REQUEST",
+                number(response.get("permissionId")), Map.of("review_required", true));
         }
     }
 
@@ -291,9 +337,13 @@ public class AttendanceKioskAdapter implements KioskModuleAdapter {
         result.put("kiosk_device", Map.of(
             "id", definition.id(),
             "code", definition.code(),
-            "name", definition.name()));
+            "name", isNativeAttendanceTool(definition)
+                ? KioskEmployeeToolCatalogService.ATTENDANCE_DISPLAY_NAME
+                : definition.name()));
         result.put("kiosk_type", definition.kioskType());
-        result.put("scope_label", "Asistencia de la compañía");
+        result.put("scope_label", isNativeAttendanceTool(definition)
+            ? "Portal personal de Recursos Humanos"
+            : "Asistencia de la compañía");
         result.put("inactivity_timeout_seconds", 1_800);
         result.put("user", firstMap(dashboard.get("users")));
         result.put("today_activity", nativeTodayActivity(dashboard));

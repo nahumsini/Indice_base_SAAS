@@ -40,6 +40,16 @@ class ExpenseAttachmentRepository {
         return count != null && count > 0;
     }
 
+    boolean providerOwnsExpense(long companyId, long providerId, long expenseId) {
+        var count = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+            FROM finance_expenses expense
+            WHERE expense.company_id = ? AND expense.provider_id = ? AND expense.id = ?
+              AND expense.deleted_at IS NULL
+            """, Long.class, companyId, providerId, expenseId);
+        return count != null && count == 1;
+    }
+
     List<ExpenseAttachmentRow> list(long companyId, long expenseId) {
         return jdbcTemplate.query(
                 """

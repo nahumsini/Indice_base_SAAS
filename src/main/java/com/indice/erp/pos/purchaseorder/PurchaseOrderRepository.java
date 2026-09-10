@@ -474,6 +474,18 @@ public class PurchaseOrderRepository {
         return attachSubmissionItems(context, submissions).stream().findFirst();
     }
 
+    public Optional<SupplierSubmissionResponse> lockSupplierSubmission(PosContext context, long submissionId) {
+        var params = scopedParams(context, "provider");
+        params.add(1, submissionId);
+        var submissions = jdbcTemplate.query(supplierSubmissionSelect() + """
+            WHERE submission.company_id = ? AND submission.id = ? AND submission.deleted_at IS NULL
+              AND provider.deleted_at IS NULL
+              AND """ + PosSqlSupport.scopePredicate("provider", context.scope()) + """
+            FOR UPDATE
+            """, this::mapSupplierSubmission, params.toArray());
+        return attachSubmissionItems(context, submissions).stream().findFirst();
+    }
+
     public long insertSupplierSubmission(
             PosContext context,
             ProviderRef provider,
@@ -584,6 +596,55 @@ public class PurchaseOrderRepository {
             context.companyId(),
             submissionId
         ) > 0;
+    }
+
+    public void resolveSupplierSubmissionItem(
+            PosContext context,
+            long submissionId,
+            long itemId,
+            Long resolvedProductId,
+            SupplierSubmissionStatus status,
+            String reviewNote,
+            SupplierCatalogDecision decision) {
+        var updated = jdbcTemplate.update("""
+            UPDATE pos_supplier_submission_items
+            SET product_id = ?, status = ?, review_note = ?,
+                metadata_json = JSON_SET(
+                    CASE WHEN JSON_TYPE(metadata_json) = 'OBJECT'
+                         THEN metadata_json ELSE JSON_OBJECT() END,
+                    '$.catalogDecision', ?, '$.resolvedProductId', ?),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE company_id = ? AND submission_id = ? AND id = ?
+            """, resolvedProductId, status.name(), trimToNull(reviewNote), decision.name(),
+            resolvedProductId, context.companyId(), submissionId, itemId);
+        if (updated != 1) {
+            throw com.indice.erp.pos.PosApiException.notFound("Supplier submission item not found.");
+        }
+    }
+
+    public void insertSupplierCatalogDecision(
+            PosContext context,
+            SupplierSubmissionResponse submission,
+            SupplierSubmissionItemResponse item,
+            SupplierCatalogDecision decision,
+            Long resolvedProductId,
+            BigDecimal previousCatalogCost,
+            BigDecimal previousSalePrice,
+            BigDecimal approvedSalePrice,
+            String reviewNote) {
+        jdbcTemplate.update("""
+            INSERT INTO pos_supplier_catalog_decisions
+              (company_id, submission_id, submission_item_id, provider_id, decision,
+               original_product_id, resolved_product_id, supplier_unit_cost,
+               previous_catalog_cost, previous_sale_price, approved_sale_price,
+               currency_code, review_note, reviewed_by_user_id,
+               metadata_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    JSON_OBJECT('source', 'INVENTORY_PURCHASE_REQUEST_REVIEW'))
+            """, context.companyId(), submission.id(), item.id(), submission.providerId(), decision.name(),
+            item.productId(), resolvedProductId, item.unitCost(), previousCatalogCost,
+            previousSalePrice, approvedSalePrice, submission.currencyCode(), trimToNull(reviewNote),
+            context.userId());
     }
 
     public void markSupplierSubmissionConverted(PosContext context, long submissionId, long purchaseOrderId) {
@@ -1088,6 +1149,33 @@ public class PurchaseOrderRepository {
             """, this::mapInvoice, context.companyId(), invoiceId).stream().findFirst();
     }
 
+    public List<SupplierInvoiceResponse> lockUnlinkedSupplierInvoicesForOrder(
+            PosContext context, long purchaseOrderId) {
+        return jdbcTemplate.query(invoiceSelect() + """
+            WHERE invoice.company_id = ? AND invoice.purchase_order_id = ?
+              AND invoice.expense_id IS NULL AND invoice.deleted_at IS NULL
+              AND invoice.status <> 'REJECTED'
+            ORDER BY invoice.id
+            FOR UPDATE
+            """, this::mapInvoice, context.companyId(), purchaseOrderId);
+    }
+
+    public void linkSupplierInvoiceExpense(PosContext context, long invoiceId, long expenseId) {
+        var updated = jdbcTemplate.update("""
+            UPDATE pos_supplier_invoices
+            SET expense_id = ?, status = 'MATCHED', updated_at = CURRENT_TIMESTAMP,
+                metadata_json = JSON_SET(
+                    CASE WHEN JSON_TYPE(metadata_json) = 'OBJECT'
+                         THEN metadata_json ELSE JSON_OBJECT() END,
+                    '$.expenseId', ?, '$.financeHandoff', 'RECEIPT_MATCHED')
+            WHERE company_id = ? AND id = ? AND expense_id IS NULL AND deleted_at IS NULL
+            """, expenseId, expenseId, context.companyId(), invoiceId);
+        if (updated != 1) {
+            throw com.indice.erp.pos.PosApiException.conflict(
+                "Supplier invoice has already been handed off to Expenses.");
+        }
+    }
+
     public boolean reviewSupplierInvoice(
             PosContext context,
             long invoiceId,
@@ -1445,7 +1533,7 @@ public class PurchaseOrderRepository {
             rs.getBigDecimal("line_total_amount"),
             nullableInteger(rs, "lead_time_days"),
             rs.getBigDecimal("minimum_order_quantity"),
-            SupplierSubmissionStatus.valueOf(rs.getString("status")),
+            SupplierSubmissionStatus.fromItemStorageValue(rs.getString("status")),
             rs.getString("review_note")
         );
         return new SupplierSubmissionItemRow(rs.getLong("submission_id"), response);

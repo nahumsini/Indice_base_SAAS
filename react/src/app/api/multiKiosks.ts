@@ -160,6 +160,7 @@ export interface ProviderCenterIssuedPin {
   pin: string;
   pin_ready: true;
   shown_once: true;
+  assignment_mode?: 'GENERATED' | 'MANUAL';
 }
 
 const adminBase = '/api/v2/kiosk-center/multi-kiosks';
@@ -251,6 +252,14 @@ export const multiKioskAdminApi = {
     );
     return response.data;
   },
+  async updateProviderPin(id: number, providerId: number, pin: string) {
+    const response = await apiClient<Envelope<ProviderCenterIssuedPin>>(
+      `${adminBase}/${id}/providers/${providerId}/pin`, {
+        method: 'PUT', body: JSON.stringify({ pin }),
+      },
+    );
+    return response.data;
+  },
   async revokeProviderPin(id: number, providerId: number) {
     const response = await apiClient<Envelope<{ provider_id: number; pin_ready: false; success: true }>>(
       `${adminBase}/${id}/providers/${providerId}/revoke`, {
@@ -318,6 +327,158 @@ export interface MultiKioskEmployeeIdentity {
   department?: string;
 }
 
+export interface HumanResourcesKioskAnnouncement {
+  id: number;
+  title: string;
+  type?: string;
+  published_at?: string;
+  author_name?: string;
+  content?: string;
+  is_read?: boolean;
+}
+
+export interface HumanResourcesKioskRecord {
+  id: number;
+  record_number?: string;
+  record_type?: string;
+  severity?: string;
+  status?: string;
+  title: string;
+  description?: string;
+  actions_taken?: string;
+  event_date?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface HumanResourcesKioskPermission {
+  id: number;
+  folio?: string;
+  type?: string;
+  payrollTreatment?: string;
+  startDate?: string;
+  endDate?: string;
+  days?: number;
+  halfDay?: boolean;
+  status?: string;
+  reason?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface HumanResourcesKioskSection<T> {
+  available: boolean;
+  items: T[];
+  summary?: Record<string, number>;
+}
+
+export interface HumanResourcesKioskBootstrap {
+  announcements?: HumanResourcesKioskSection<HumanResourcesKioskAnnouncement>;
+  records?: HumanResourcesKioskSection<HumanResourcesKioskRecord>;
+  permissions?: HumanResourcesKioskSection<HumanResourcesKioskPermission>;
+}
+
+export interface RouteSalesKioskContact {
+  id: number;
+  code?: string;
+  name: string;
+  contact_person?: string;
+  phone?: string;
+  email?: string;
+  fiscal_country?: string;
+  fiscal_legal_name?: string;
+  fiscal_tax_id?: string;
+  fiscal_registry_id?: string;
+  fiscal_address_line1?: string;
+  fiscal_address_line2?: string;
+  fiscal_city?: string;
+  fiscal_state?: string;
+  fiscal_postal_code?: string;
+  fiscal_email?: string;
+  fiscal_regime?: string;
+  fiscal_cfdi_use?: string;
+  fiscal_notes?: string;
+  status?: string;
+}
+
+export interface RouteSalesKioskProduct {
+  id: number;
+  code?: string;
+  sku?: string;
+  name: string;
+  description?: string;
+  category?: string;
+  type?: string;
+  price: number;
+  currency: string;
+  tax_category?: string;
+  tax_percent: number;
+  inventory_ready?: boolean;
+}
+
+export interface RouteSalesKioskWarehouse {
+  id: number;
+  code?: string;
+  name: string;
+  type?: string;
+  unit_id?: string;
+  unit_name?: string;
+  business_id?: string;
+  business_name?: string;
+}
+
+export interface RouteSalesKioskInventoryBalance {
+  product_id: number;
+  warehouse_id: number;
+  available_quantity: number;
+  reserved_quantity?: number;
+  uses_inventory: boolean;
+}
+
+export interface RouteSalesKioskSale {
+  id: number;
+  sale_number: string;
+  customer_name: string;
+  sale_date: string;
+  subtotal?: number;
+  tax_total?: number;
+  total_amount: number;
+  currency: string;
+  payment_method: string;
+  payment_reference?: string;
+  payment_evidence_status?: string;
+  evidence_count?: number;
+  commercial_status: string;
+  finance_status: string;
+  inventory_status: string;
+  delivery_status: string;
+}
+
+export interface RouteSalesKioskPaymentMethod {
+  id: 'cash' | 'card' | 'transfer' | 'credit';
+  label: string;
+  description: string;
+}
+
+export interface RouteSalesKioskBootstrap {
+  tool_key: 'employee.route-sales@1';
+  kiosk_type: 'employee_route_sales';
+  seller: { user_id: number; user_company_id: number; name: string; email?: string };
+  scope: { unit_id?: number; unit_name?: string; business_id?: number; business_name?: string };
+  contacts: RouteSalesKioskContact[];
+  products: RouteSalesKioskProduct[];
+  warehouses: RouteSalesKioskWarehouse[];
+  inventory_balances: RouteSalesKioskInventoryBalance[];
+  recent_sales: RouteSalesKioskSale[];
+  summary: {
+    today_count: number;
+    today_totals: Record<string, number>;
+    pending_settlement_count: number;
+  };
+  payment_methods: RouteSalesKioskPaymentMethod[];
+  settlement_policy: 'BACK_OFFICE_RECONCILIATION';
+}
+
 export interface MultiKioskEmployeeWorkspaceBootstrap extends Partial<PublicPettyCashHistory> {
   kiosk?: {
     id?: number;
@@ -381,6 +542,18 @@ export interface MultiKioskEmployeeWorkspaceBootstrap extends Partial<PublicPett
   invoices_with_purchase_order?: Array<Record<string, unknown>>;
   payables_without_purchase_order?: Array<Record<string, unknown>>;
   purchase_order_payment_tracking?: Array<Record<string, unknown>>;
+  hr_portal?: HumanResourcesKioskBootstrap;
+  tool_key?: string;
+  seller?: RouteSalesKioskBootstrap['seller'];
+  scope?: RouteSalesKioskBootstrap['scope'];
+  contacts?: RouteSalesKioskContact[];
+  products?: RouteSalesKioskProduct[];
+  warehouses?: RouteSalesKioskWarehouse[];
+  inventory_balances?: RouteSalesKioskInventoryBalance[];
+  recent_sales?: RouteSalesKioskSale[];
+  summary?: RouteSalesKioskBootstrap['summary'] | Record<string, number>;
+  payment_methods?: RouteSalesKioskPaymentMethod[];
+  settlement_policy?: RouteSalesKioskBootstrap['settlement_policy'];
 }
 
 export interface MultiKioskChildWorkspace {

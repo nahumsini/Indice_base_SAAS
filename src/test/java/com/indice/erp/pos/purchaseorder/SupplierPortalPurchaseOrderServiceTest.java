@@ -200,7 +200,8 @@ class SupplierPortalPurchaseOrderServiceTest {
             repository, passwordEncoder, objectStorageService, storageProperties,
             expenseService, new ObjectMapper(),
             org.mockito.Mockito.mock(com.indice.erp.billing.storage.CompanyStorageMeter.class),
-            kioskCredentials);
+            kioskCredentials,
+            org.mockito.Mockito.mock(com.indice.erp.sales.ProcurementProductCatalogService.class));
     }
 
     private PosContext context() {

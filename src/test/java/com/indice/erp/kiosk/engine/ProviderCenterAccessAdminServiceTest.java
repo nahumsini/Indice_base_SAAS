@@ -1,12 +1,15 @@
 package com.indice.erp.kiosk.engine;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 
 import java.sql.ResultSet;
 import java.util.List;
@@ -78,6 +81,59 @@ class ProviderCenterAccessAdminServiceTest {
         verify(credentials).revokeProviderCenterPin(7L, 80L);
         verify(jdbcTemplate).update(
             contains("INSERT INTO multi_kiosk_audit_events"), any(Object[].class));
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void rootCanReplaceAForgottenPinWithoutPersistingThePlaintext() throws Exception {
+        given(jdbcTemplate.queryForObject(
+            contains("FROM multi_kiosk_definitions"), eq(Integer.class), any(Object[].class)))
+            .willReturn(1);
+        given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+            .willAnswer(invocation -> {
+                var sql = String.valueOf((Object) invocation.getArgument(0));
+                var mapper = (RowMapper) invocation.getArgument(1);
+                if (sql.contains("FROM finance_providers") && sql.contains("FOR UPDATE")) {
+                    return List.of(mapper.mapRow(providerRow(), 0));
+                }
+                return List.of();
+            });
+        given(passwordEncoder.encode("482731")).willReturn("replacement-hash");
+
+        var result = service.updatePin(7L, 44L, 80L, 9L, "482731");
+
+        assertThat(result)
+            .containsEntry("pin", "482731")
+            .containsEntry("shown_once", true)
+            .containsEntry("assignment_mode", "MANUAL");
+        verify(credentials).rotateProviderCenterPin(7L, 80L, "replacement-hash");
+        verify(jdbcTemplate).update(
+            contains("INSERT INTO multi_kiosk_audit_events"), any(Object[].class));
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void manualPinRejectsAnAmbiguousCredentialForTheSameProviderName() throws Exception {
+        given(jdbcTemplate.queryForObject(
+            contains("FROM multi_kiosk_definitions"), eq(Integer.class), any(Object[].class)))
+            .willReturn(1);
+        given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+            .willAnswer(invocation -> {
+                var sql = String.valueOf((Object) invocation.getArgument(0));
+                var mapper = (RowMapper) invocation.getArgument(1);
+                if (sql.contains("FROM finance_providers") && sql.contains("FOR UPDATE")) {
+                    return List.of(mapper.mapRow(providerRow(), 0));
+                }
+                if (sql.contains("credential.secret_hash")) return List.of("competing-hash");
+                return List.of();
+            });
+        given(passwordEncoder.matches("482731", "competing-hash")).willReturn(true);
+
+        assertThatThrownBy(() -> service.updatePin(7L, 44L, 80L, 9L, "482731"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("mismo nombre");
+
+        verify(credentials, never()).rotateProviderCenterPin(anyLong(), anyLong(), anyString());
     }
 
     private ResultSet providerRow() throws Exception {

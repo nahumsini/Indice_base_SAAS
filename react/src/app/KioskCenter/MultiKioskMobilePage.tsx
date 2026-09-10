@@ -24,8 +24,8 @@ import type { KioskThemeTone } from '../components/kiosk-engine/KioskWorkspacePr
 import { ApiClientError } from '../lib/apiClient';
 import { useLanguage } from '../shared/context';
 import {
+  EmployeeKioskHome,
   getMultiKioskToolIdentity,
-  MultiKioskLauncherDashboard,
   MultiKioskToolGlyph,
   MultiKioskToolHost,
 } from './multi-kiosk';
@@ -34,6 +34,8 @@ import {
   type MultiKioskMobileCopy,
 } from './multiKioskMobileTranslations';
 import { ProviderCenterAccessGate } from './multi-kiosk/ProviderCenterAccessGate';
+import { ProviderPortalHome } from './multi-kiosk/ProviderPortalHome';
+import { ProviderPortalLayout } from './multi-kiosk/ProviderPortalLayout';
 import { getProviderCenterPublicCopy, type ProviderCenterPublicCopy } from './providerCenterPublicTranslations';
 
 const accents: Record<string, { color: string; soft: string; textClassName: string }> = {
@@ -127,7 +129,11 @@ function MultiKioskHeader({
 
             <div className="min-w-0 flex-1">
               <p className={`truncate text-[11px] font-medium leading-4 ${workspace ? 'text-slate-500 dark:text-slate-400' : accent.textClassName}`}>
-                {workspace ? moduleName(workspace.kiosk.module, copy) : bootstrap.company_name}
+                {workspace
+                  ? bootstrap.audience_type === 'PROVIDER'
+                    ? providerCopy?.header.portal ?? moduleName(workspace.kiosk.module, copy)
+                    : moduleName(workspace.kiosk.module, copy)
+                  : bootstrap.company_name}
               </p>
               <h1
                 className="truncate text-base font-medium leading-5 text-slate-950 dark:text-white sm:text-lg"
@@ -235,14 +241,16 @@ function PinGate({ busy, copy, error, onClearError, onSubmit, tone }: {
   );
 }
 
-function Launcher({ session, accent, busy, busyId, copy, error, onOpen }: {
+function Launcher({ session, accent, busy, busyId, copy, error, locale, onOpen, provider = false }: {
   session: MultiKioskMobileSession;
   accent: { color: string; soft: string; textClassName: string };
   busy: boolean;
   busyId: number | null;
   copy: MultiKioskMobileCopy;
   error: string;
+  locale: string;
   onOpen: (card: MultiKioskCard) => Promise<void>;
+  provider?: boolean;
 }) {
   return (
     <div aria-busy={busy || busyId !== null} className="mx-auto w-full max-w-6xl space-y-4 sm:space-y-5" data-multi-kiosk-launcher>
@@ -257,15 +265,27 @@ function Launcher({ session, accent, busy, busyId, copy, error, onOpen }: {
           {copy.loading}
         </p>
       ) : null}
-      <MultiKioskLauncherDashboard
-        busyId={busy ? -1 : busyId}
-        cards={session.kiosks}
-        copy={copy.launcher}
-        moduleLabel={ownerModule => moduleName(ownerModule, copy)}
-        onOpen={onOpen}
-        sessionLabel={session.identity?.name ?? session.provider?.name ?? session.employee?.name ?? ''}
-        sessionStatusLabel={copy.launcher.activeSession}
-      />
+      {provider ? (
+        <ProviderPortalHome
+          busyId={busy ? -1 : busyId}
+          cards={session.kiosks}
+          copy={copy}
+          locale={locale}
+          moduleLabel={ownerModule => moduleName(ownerModule, copy)}
+          onOpen={onOpen}
+          providerName={session.identity?.name ?? session.provider?.name ?? ''}
+        />
+      ) : (
+        <EmployeeKioskHome
+          accent={accent}
+          busyId={busy ? -1 : busyId}
+          cards={session.kiosks}
+          copy={copy}
+          employeeName={session.identity?.name ?? session.employee?.name ?? ''}
+          moduleLabel={ownerModule => moduleName(ownerModule, copy)}
+          onOpen={onOpen}
+        />
+      )}
     </div>
   );
 }
@@ -535,9 +555,73 @@ export default function MultiKioskMobilePage() {
   const providerWorkspace = providerAudience && Boolean(workspace);
   const shellWidth = !session
     ? providerAudience ? 'max-w-2xl' : 'max-w-[31rem]'
-    : workspace
-      ? posWorkspace ? 'max-w-[96rem]' : providerWorkspace ? 'max-w-5xl' : 'max-w-3xl'
-      : 'max-w-6xl';
+    : providerAudience ? 'max-w-7xl'
+      : workspace ? posWorkspace ? 'max-w-[96rem]' : 'max-w-3xl'
+        : 'max-w-6xl';
+
+  const authenticatedSurface = session && workspace && activeKioskId !== null ? (
+    <div
+      ref={workspaceFocusRef}
+      aria-labelledby="multi-kiosk-workspace-title"
+      tabIndex={-1}
+      className={`mx-auto min-w-0 w-full outline-none ${posWorkspace ? 'max-w-[96rem]' : providerWorkspace ? 'max-w-5xl' : 'max-w-3xl'}`}
+    >
+      {workspace.experience_status !== 'READY' ? (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center text-amber-900 dark:border-amber-800 dark:bg-amber-950/35 dark:text-amber-100">
+          <LockKeyhole className="mx-auto h-7 w-7" aria-hidden="true" />
+          <h3 className="mt-3 text-base font-medium">{copy.workspace.verificationTitle}</h3>
+          <p className="mt-2 text-sm leading-6">{copy.workspace.verificationDescription}</p>
+          <button
+            className="mt-5 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-amber-300 bg-white px-4 text-sm font-medium text-amber-900 shadow-sm transition hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-500/25 dark:border-amber-700 dark:bg-slate-950 dark:text-amber-100 dark:hover:bg-amber-950/60"
+            onClick={returnToLauncher}
+            type="button"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            {copy.workspace.back}
+          </button>
+        </section>
+      ) : (
+        <MultiKioskToolHost
+          key={workspace.session.id}
+          token={token}
+          kioskId={activeKioskId}
+          workspace={workspace}
+          locale={currentLanguage.code}
+          copy={copy}
+          onAuthorizationFailure={handleAuthorizationFailure}
+          onRefresh={refreshWorkspace}
+        />
+      )}
+    </div>
+  ) : session ? (
+    <div ref={launcherFocusRef} aria-labelledby="multi-kiosk-tool-dashboard-title" tabIndex={-1} className="outline-none">
+      <Launcher
+        session={session}
+        accent={accent}
+        busy={loading}
+        busyId={busyId}
+        copy={copy}
+        error={error}
+        locale={currentLanguage.code}
+        onOpen={openTool}
+        provider={providerAudience}
+      />
+    </div>
+  ) : null;
+
+  const portalSurface = providerAudience && session ? (
+    <ProviderPortalLayout
+      activeToolIdentity={workspace ? getMultiKioskToolIdentity(workspace.kiosk) : ''}
+      busyId={busyId}
+      cards={session.kiosks}
+      locale={currentLanguage.code}
+      onHome={returnToLauncher}
+      onOpen={openTool}
+      providerName={session.identity?.name ?? session.provider?.name ?? ''}
+    >
+      {authenticatedSurface}
+    </ProviderPortalLayout>
+  ) : authenticatedSurface;
 
   return (
     <KioskPublicShell
@@ -564,7 +648,9 @@ export default function MultiKioskMobilePage() {
           compact={Boolean(session)}
           identityName={session?.identity?.name ?? session?.provider?.name ?? session?.employee?.name}
           busy={loading || busyId !== null}
-          onBack={workspace ? returnToLauncher : undefined}
+          onBack={workspace ? providerAudience
+            ? () => window.dispatchEvent(new Event('provider-portal-home-request'))
+            : returnToLauncher : undefined}
           onSignOut={session ? () => { void signOut(); } : undefined}
           utilities={utilities}
           workspace={workspace}
@@ -588,45 +674,7 @@ export default function MultiKioskMobilePage() {
         ) : (
           <PinGate busy={loading} copy={copy} error={error} onClearError={() => setError('')} onSubmit={authenticate} tone={identityTone} />
         )
-      ) : session && workspace && activeKioskId !== null ? (
-        <div
-          ref={workspaceFocusRef}
-          aria-labelledby="multi-kiosk-workspace-title"
-          tabIndex={-1}
-          className={`mx-auto w-full outline-none ${posWorkspace ? 'max-w-[96rem]' : providerWorkspace ? 'max-w-5xl' : 'max-w-3xl'}`}
-        >
-          {workspace.experience_status !== 'READY' ? (
-            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center text-amber-900 dark:border-amber-800 dark:bg-amber-950/35 dark:text-amber-100">
-              <LockKeyhole className="mx-auto h-7 w-7" aria-hidden="true" />
-              <h3 className="mt-3 text-base font-medium">{copy.workspace.verificationTitle}</h3>
-              <p className="mt-2 text-sm leading-6">{copy.workspace.verificationDescription}</p>
-              <button
-                className="mt-5 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-amber-300 bg-white px-4 text-sm font-medium text-amber-900 shadow-sm transition hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-500/25 dark:border-amber-700 dark:bg-slate-950 dark:text-amber-100 dark:hover:bg-amber-950/60"
-                onClick={returnToLauncher}
-                type="button"
-              >
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                {copy.workspace.back}
-              </button>
-            </section>
-          ) : (
-            <MultiKioskToolHost
-              key={workspace.session.id}
-              token={token}
-              kioskId={activeKioskId}
-              workspace={workspace}
-              locale={currentLanguage.code}
-              copy={copy}
-              onAuthorizationFailure={handleAuthorizationFailure}
-              onRefresh={refreshWorkspace}
-            />
-          )}
-        </div>
-      ) : session ? (
-        <div ref={launcherFocusRef} aria-labelledby="multi-kiosk-tool-dashboard-title" tabIndex={-1} className="outline-none">
-          <Launcher session={session} accent={accent} busy={loading} busyId={busyId} copy={copy} error={error} onOpen={openTool} />
-        </div>
-      ) : null}
+      ) : portalSurface}
     </KioskPublicShell>
   );
 }

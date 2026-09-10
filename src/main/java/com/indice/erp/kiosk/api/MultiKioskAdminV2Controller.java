@@ -5,6 +5,7 @@ import com.indice.erp.kiosk.engine.KioskUnavailableException;
 import com.indice.erp.kiosk.engine.MultiKioskService;
 import com.indice.erp.kiosk.engine.ProviderCenterAccessAdminService;
 import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -58,6 +59,21 @@ public class MultiKioskAdminV2Controller {
         return ResponseEntity.ok(responses.success(
             providerAccess.issueOrRotate(
                 user.companyId(), multiKioskId, providerId, user.userId()), null, null));
+    }
+
+    @PutMapping("/{multiKioskId}/providers/{providerId}/pin")
+    public ResponseEntity<?> updateProviderPin(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long multiKioskId,
+            @PathVariable long providerId,
+            @Valid @RequestBody ProviderCenterPinUpdateRequest request) {
+        requireEnabled();
+        var user = guard.requireCenterWrite(session, csrfToken);
+        return ResponseEntity.ok(responses.success(
+            providerAccess.updatePin(
+                user.companyId(), multiKioskId, providerId, user.userId(), request.pin()),
+            null, null));
     }
 
     @PostMapping("/{multiKioskId}/providers/{providerId}/revoke")
