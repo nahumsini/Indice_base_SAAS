@@ -46,9 +46,9 @@ test('paid correction retains tax breakdown and exposes save errors without disc
   await view.runtime.flush();assert.equal(values.concept,'Corrected rent');assert.equal(values.total,116);assert.equal(values.amount,100);assert.equal(values.taxes,16);
   assert.ok(nodes(view.render()).some(node=>node.type==='IndiceModalValidation'&&node.props.messages.includes('Total below payments')));
 });
-test('edit and deletion eligibility are separate; fund, posted and closed sources stay protected',()=>{
+test('edit and deletion eligibility are separate; paid deletion is allowed while source editing stays protected',()=>{
   const {canEditExpense,canDeleteExpense,canPayExpense}=load('utils/expenseFilters.ts');
-  assert.equal(canEditExpense(paidExpense),true);assert.equal(canDeleteExpense(paidExpense),false);
+  assert.equal(canEditExpense(paidExpense),true);assert.equal(canDeleteExpense(paidExpense),true);
   const partial={...paidExpense,total:150,backendStatus:'PARTIALLY_PAID',status:'partial'};
   assert.equal(canEditExpense(partial),true);assert.equal(canPayExpense(partial),true);
   for(const change of [{originFund:{id:'1'}},{accountingPosted:true},{purchaseOrderId:'2'},{backendStatus:'CLOSED'}])assert.equal(canEditExpense({...paidExpense,...change}),false);

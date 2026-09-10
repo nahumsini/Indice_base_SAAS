@@ -59,11 +59,18 @@ export default function PaymentAccounts({ headerSubtitle, headerTitle, headerTon
   const [accounts, setAccounts] = useState<PaymentAccount[]>([]);
   const [editingAccount, setEditingAccount] = useState<PaymentAccount | null>(null);
   const [failureToastMessage, setFailureToastMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadRevision, setLoadRevision] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [paginationResetKey, setPaginationResetKey] = useState(0);
+  const handleStatusChange = (status: string) => {
+    setStatusFilter(status);
+    setPaginationResetKey(value => value + 1);
+  };
   const [sortField, setSortField] = useState<PaymentSortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -115,12 +122,16 @@ export default function PaymentAccounts({ headerSubtitle, headerTitle, headerTon
   useEffect(() => {
     let isMounted = true;
     setIsLoading(true);
+    setLoadFailed(false);
     paymentAccountsService.getPaymentAccounts()
       .then(nextAccounts => {
         if (isMounted) setAccounts(nextAccounts);
       })
       .catch(error => {
-        if (isMounted) setFailureToastMessage(toFinanceApiErrorMessage(error));
+        if (isMounted) {
+          setLoadFailed(true);
+          setFailureToastMessage(toFinanceApiErrorMessage(error));
+        }
       })
       .finally(() => {
         if (isMounted) setIsLoading(false);
@@ -129,7 +140,7 @@ export default function PaymentAccounts({ headerSubtitle, headerTitle, headerTon
     return () => {
       isMounted = false;
     };
-  }, [refreshKey]);
+  }, [refreshKey, loadRevision]);
 
   const paymentAccounts = useMemo<PaymentAccount[]>(() => {
     const pettyCashPaymentAccountIds = new Set(
@@ -218,6 +229,7 @@ export default function PaymentAccounts({ headerSubtitle, headerTitle, headerTon
         setSearchTerm('');
         setTypeFilter('all');
         setStatusFilter('all');
+        setPaginationResetKey(value => value + 1);
       }
       setSuccessToastMessage(isEditing ? t.paymentAccounts.messages.updated : t.paymentAccounts.messages.created);
       closeModal();
@@ -269,9 +281,9 @@ export default function PaymentAccounts({ headerSubtitle, headerTitle, headerTon
         statusFilter={statusFilter}
         typeFilter={typeFilter}
         tone={headerTone}
-        onSearchChange={setSearchTerm}
-        onStatusChange={setStatusFilter}
-        onTypeChange={setTypeFilter}
+        onSearchChange={value => { setSearchTerm(value); setPaginationResetKey(key => key + 1); }}
+        onStatusChange={handleStatusChange}
+        onTypeChange={value => { setTypeFilter(value); setPaginationResetKey(key => key + 1); }}
       />
 
       <div className={`rounded-2xl border px-4 py-3 ${headerTone === 'coral' ? 'border-[#FF6B5E]/25 bg-[#FF6B5E]/5 dark:border-[#FF6B5E]/30 dark:bg-[#FF6B5E]/10' : 'border-[#147514]/20 bg-[#147514]/5 dark:border-[#147514]/30 dark:bg-[#147514]/10'}`}>
@@ -285,12 +297,16 @@ export default function PaymentAccounts({ headerSubtitle, headerTitle, headerTon
 
       <PaymentAccountsSummary
         accounts={summaryAccounts}
+        loading={isLoading}
+        loadFailed={loadFailed}
+        onRetry={() => setLoadRevision(value => value + 1)}
         statusFilter={statusFilter}
         tone={headerTone}
-        onStatusChange={setStatusFilter}
+        onStatusChange={handleStatusChange}
       />
       <PaymentAccountsTable
         accounts={filteredAccounts}
+        paginationResetKey={paginationResetKey}
         businessOptions={businessOptions}
         onDelete={handleDeleteAccount}
         onEdit={(account) => {

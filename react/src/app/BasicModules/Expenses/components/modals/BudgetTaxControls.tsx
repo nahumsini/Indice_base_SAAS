@@ -29,13 +29,14 @@ export type TaxControlDraft = {
 
 type BudgetTaxControlsProps<TDraft extends TaxControlDraft> = {
   compact?: boolean;
+  presentation?: 'checkboxes' | 'choice';
   draft: TDraft;
   onDraftChange: (updates: Partial<TDraft>) => void;
 };
 
 const fieldClass = 'h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 disabled:bg-slate-100 disabled:text-slate-500 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100 dark:disabled:bg-slate-800 dark:disabled:text-slate-500';
 
-export function BudgetTaxControls<TDraft extends TaxControlDraft>({ compact = false, draft, onDraftChange }: BudgetTaxControlsProps<TDraft>) {
+export function BudgetTaxControls<TDraft extends TaxControlDraft>({ compact = false, presentation = 'checkboxes', draft, onDraftChange }: BudgetTaxControlsProps<TDraft>) {
   const t = useBudgetsTranslations();
   const applyDraftChange = (updates: Partial<TaxControlDraft>) => {
     onDraftChange(updates as Partial<TDraft>);
@@ -149,7 +150,31 @@ export function BudgetTaxControls<TDraft extends TaxControlDraft>({ compact = fa
 
   return (
     <section className="md:col-span-2 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/55">
-      <div className={compact ? 'flex flex-col gap-3' : 'flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'}>
+      {presentation === 'choice' ? (
+        <fieldset>
+          <legend className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-200">{t.tax.consumptionTaxes}</legend>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {([
+              { value: 'none', label: t.budgets.modal.withoutTax },
+              { value: 'included', label: t.budgets.modal.includedTax },
+              { value: 'added', label: t.budgets.modal.addedTax },
+            ] as const).map(option => {
+              const checked = option.value === (!draft.taxEnabled ? 'none' : draft.taxIncluded ? 'included' : 'added');
+              return <label key={option.value} className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm ${checked ? 'border-[#147514] bg-[#147514]/5 text-[#147514] dark:border-emerald-400 dark:bg-emerald-400/10 dark:text-emerald-300' : 'border-slate-200 text-slate-700 dark:border-slate-700 dark:text-slate-200'}`}>
+                <input type="radio" name="budget-tax-mode" value={option.value} checked={checked}
+                  className="h-4 w-4 shrink-0 accent-[#147514]"
+                  onChange={() => {
+                    if (option.value === 'none') toggleTax(false);
+                    else if (option.value === 'included') toggleTaxIncluded(true);
+                    else if (draft.taxEnabled) toggleTaxIncluded(false);
+                    else toggleTax(true);
+                  }} />
+                {option.label}
+              </label>;
+            })}
+          </div>
+        </fieldset>
+      ) : <div className={compact ? 'flex flex-col gap-3' : 'flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'}>
         <div>
           <p className="text-sm font-medium text-slate-950 dark:text-white">{t.tax.consumptionTaxes}</p>
           <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -176,7 +201,7 @@ export function BudgetTaxControls<TDraft extends TaxControlDraft>({ compact = fa
             {t.tax.amountIncludesTax}
           </label>
         </div>
-      </div>
+      </div>}
 
       {draft.taxEnabled ? (
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">

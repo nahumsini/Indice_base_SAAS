@@ -143,6 +143,19 @@ export const expensesService = {
     return toExpense(response, providers);
   },
 
+  async settleExpensePayment(
+    expenseId: string,
+    paymentAccountId: string,
+    idempotencyKey: string,
+    providers: Array<{ id: string; name: string }> = [],
+  ): Promise<Expense> {
+    const response = await apiClient<ExpenseApiDto>(
+      `${expensesPath}/${expenseId}/settle-payment`,
+      jsonMutation('POST', { paymentAccountId: paymentAccountId ? Number(paymentAccountId) : null, idempotencyKey }),
+    );
+    return toExpense(response, providers);
+  },
+
   async recordExpensePayment(
     expenseId: string,
     amount: number,

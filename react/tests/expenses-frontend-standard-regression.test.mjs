@@ -58,8 +58,9 @@ test('Expenses mantiene acciones visibles y semánticas con el patrón de Agenda
   assert.match(actionsSource, /<Eye/);
   assert.match(actionsSource, /<HandCoins/);
   assert.match(actionsSource, /<Pencil/);
-  assert.match(actionsSource, /<Printer/);
-  assert.match(actionsSource, /<Copy/);
+  assert.doesNotMatch(actionsSource, /<Printer/);
+  assert.match(detailSource, /<Printer/);
+  assert.doesNotMatch(actionsSource, /<Copy/);
   assert.match(actionsSource, /<ShieldCheck/);
   assert.match(actionsSource, /<Trash2/);
   assert.match(actionsSource, /rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2/);
@@ -104,7 +105,7 @@ test('Expenses recupera la primera carga cuando la sesion acaba de iniciar', () 
   assert.match(moduleSource, /requestWithSessionRecovery/);
   assert.match(moduleSource, /error\.status === 401 \|\| error\.status === 403/);
   assert.match(moduleSource, /await recoverSession\(\)/);
-  assert.match(moduleSource, /\[authorizationRevision, financeRefreshKey\]/);
+  assert.match(moduleSource, /\[authorizationRevision, financeRefreshKey, isExpensesTab\]/);
   assert.match(navigationMemorySource, /const authorizationRevision = useAuthorizationRevision\(\)/);
   assert.match(navigationMemorySource, /\[authorizationRevision, enabled, moduleKey, rememberScroll, tabKey\]/);
 });
@@ -129,8 +130,8 @@ test('El administrador de kioscos mantiene una vista compacta, filtrable y prote
 test('Expenses elimina gastos numéricos por su API aunque el metadato histórico diga budget', () => {
   const expensesSource = readFileSync(resolve(expensesRoot, 'Expenses/Expenses.tsx'), 'utf8');
 
-  assert.match(expensesSource, /if \(expense\.id\.startsWith\('budget-line-'\)\)/);
-  assert.match(expensesSource, /await expensesService\.deleteExpense\(id\)/);
+  assert.match(expensesSource, /rows\[0\]\.id\.startsWith\('budget-line-'\)/);
+  assert.match(expensesSource, /await expensesService\.applyBulkAction\(rows, 'DELETE'/);
 });
 
 test('Saldo permite ordenar ascendente y descendente por el saldo calculado', () => {
@@ -151,9 +152,9 @@ test('Gastos vencidos conserva Pagar y no mezcla lineas presupuestales', () => {
   assert.match(pageSource, /expenses\.filter\(expense => expense\.type !== 'budget'\)/);
   assert.match(pageSource, /filterExpenses\(operationalExpenses, filters, referenceDate\)/);
   assert.match(rowSource, /const canMarkPaid = canPayExpense\(expense\)/);
-  assert.match(pageSource, /showMarkPaid: true, showRecordPayment: false/);
+  assert.match(pageSource, /showMarkPaid: true, showRecordPayment: true/);
   assert.match(rowSource, /showMarkPaid=\{canMarkPaid/);
-  assert.match(tableSource, /const savedExpense = await onMarkExpensePaid\(expense\)/);
+  assert.match(tableSource, /const savedExpense = await onMarkExpensePaid\(expense, attempt.key\)/);
 });
 
 test('La vista predeterminada de Gastos prioriza operación y vencimiento', () => {
@@ -275,11 +276,11 @@ test('Gastos publicados se consultan y pagan sin sobrescribir su historia financ
   const detailSource = readFileSync(resolve(expensesRoot, 'Expenses/components/ExpenseDetailModal.tsx'), 'utf8');
   const filtersSource = readFileSync(resolve(expensesRoot, 'utils/expenseFilters.ts'), 'utf8');
 
-  assert.match(filtersSource, /backendStatus\.toUpperCase\(\) === 'DRAFT'/);
+  assert.match(filtersSource, /purchaseOrderReceived === false/);
   assert.match(pageSource, /if \(!canEditExpense\(expense\)\) return/);
   assert.match(tableSource, /if \(!currentExpense \|\| !canEditExpense\(currentExpense\)\) return/);
   assert.match(tableSource, /<FinanceBulkActions/);
-  assert.match(tableSource, /row\.backendStatus !== 'DRAFT' \|\| getExpensePaidAmount\(row\) > 0/);
+  assert.match(tableSource, /!canDeleteExpense\(row\)/);
   assert.doesNotMatch(tableSource, /applyBulkExpenseUpdates/);
   assert.match(rowSource, /showEdit=\{canEdit\}/);
   assert.match(detailSource, /canEditExpense\(expense\) \? <button/);
@@ -306,9 +307,10 @@ test('Cuenta por pagar exige la obligación principal y reserva clasificación e
   const pageSource = readFileSync(resolve(expensesRoot, 'Expenses/Expenses.tsx'), 'utf8');
   const adapterSource = readFileSync(resolve(expensesRoot, 'adapters/expense.adapter.ts'), 'utf8');
 
-  assert.match(modalSource, /draft\.providerId\.trim\(\)\.length > 0/);
-  assert.match(modalSource, /draft\.expenseDate\.trim\(\)\.length > 0/);
-  assert.match(modalSource, /draft\.dueDate\.trim\(\)\.length > 0/);
+  // Required-field behavior is exercised in payable-capture-regression.test.mjs.
+  // Registration is automatic; the due date remains a visible operational input.
+  assert.doesNotMatch(modalSource, /label=\{[^}]*recordDate\}/);
+  assert.match(modalSource, /dueShortcuts/);
   assert.match(modalSource, /reference: draft\.reference\.trim\(\)/);
   assert.match(modalSource, /capture="environment"/);
   assert.match(modalSource, /advancedTitle/);
@@ -454,7 +456,7 @@ test('Las barras operativas de Finanzas permiten navegar por estado sin duplicar
   assert.match(budgetSummary, /onHealthChange\('WARNING'\)/);
   assert.doesNotMatch(budgetSummary, /else if \(healthTotals\.warningCount/);
   assert.match(accountingSummary, /<OperationalStatusNavigator/);
-  assert.match(paymentSummary, /<OperationalStatusNavigator/);
+  assert.match(paymentSummary, /<OperationalKpiArea/);
 });
 
 test('Indicadores usa alcance monetario unico, filtros progresivos y PDF coherente', () => {

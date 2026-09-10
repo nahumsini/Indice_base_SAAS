@@ -65,9 +65,11 @@ export interface Expense {
   status: ExpenseStatus;
   backendPaymentStatus?: string;
   backendStatus?: string;
+  auditStatus?: string;
   version?: number;
   originFund?: { id: string; name: string; type: string };
   accountingPosted?: boolean;
+  purchaseOrderReceived?: boolean;
   approver?: string;
   requestedByUserId?: string;
   approvedByUserId?: string;

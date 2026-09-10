@@ -1,5 +1,6 @@
 import { expenseCategories } from '../data/categories.data';
 import { DEFAULT_FINANCE_CURRENCY } from '../constants/financeCurrencyOptions';
+import { formatExpenseDate } from '../utils/expenseDates';
 import type { Expense } from '../types/expenses.types';
 import { BudgetHealthStatus, BudgetStatus } from '../types/finance-status.types';
 import type { FinanceBudgetLine } from '../types/finance-domain.types';
@@ -11,7 +12,6 @@ import {
   numericId,
   optionalString,
   toDate,
-  toDateInputValue,
 } from './adapter.utils';
 import type { BudgetLineApiDto, BudgetLineApiRequest } from '../types/finance-api.types';
 
@@ -159,15 +159,15 @@ export const toBudgetLineApiRequest = (expense: Expense): BudgetLineApiRequest =
     accountingAccount: expense.accountingAccount,
     amountPaid: expense.amountPaid,
     concept: expense.concept,
-    dueDate: toDateInputValue(expense.dueDate),
+    dueDate: formatExpenseDate(expense.dueDate),
     duration: expense.duration,
     folio: expense.folio,
     frequency: expense.frequency,
     legacyStatus: expense.status,
-    paymentDate: toDateInputValue(expense.paymentDate),
+    paymentDate: formatExpenseDate(expense.paymentDate),
     providerId: expense.providerId,
     providerName: expense.providerName,
-    startDate: toDateInputValue(expense.startDate),
+    startDate: formatExpenseDate(expense.startDate),
     taxes: expense.taxes,
     taxCountry: expense.taxCountry,
     taxIncluded: expense.taxIncluded,

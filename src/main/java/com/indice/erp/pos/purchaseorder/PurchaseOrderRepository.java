@@ -36,6 +36,11 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class PurchaseOrderRepository {
 
+    void lockOrder(PosContext context, long orderId) {
+        jdbcTemplate.queryForList("SELECT id FROM pos_purchase_orders WHERE company_id = ? AND id = ? FOR UPDATE",
+            Long.class, context.companyId(), orderId);
+    }
+
     private final JdbcTemplate jdbcTemplate;
     private final CustomerDisplaySecretCodec secrets;
 

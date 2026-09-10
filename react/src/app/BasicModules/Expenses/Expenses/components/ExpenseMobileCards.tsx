@@ -9,7 +9,6 @@ import { formatCurrency } from '../../utils/expenses.utils';
 import { canDeleteExpense, canEditExpense, getEffectiveExpenseStatus, isExpenseEffectivelyOverdue } from '../../utils/expenseFilters';
 import type { ExpenseRowActionVisibility } from './EditableExpenseRow';
 import { getExpenseDetailCopy } from './expenseDetail.copy';
-import { printExpenseVoucher } from '../../utils/expensePrintDocument';
 
 type ExpenseMobileCardsProps = {
   actionVisibility?: ExpenseRowActionVisibility;
@@ -18,10 +17,10 @@ type ExpenseMobileCardsProps = {
   expenses: Expense[];
   carryoverExpenseIds?: ReadonlySet<string>;
   deletingExpenseIds?: Set<string>;
+  payingExpenseIds?: Set<string>;
   isSelected: (expenseId: string) => boolean;
   onAudit: (expenseId: string) => void;
   onDelete: (expenseId: string) => void;
-  onDuplicate: (expenseId: string) => void;
   onEdit: (expense: Expense) => void;
   onMarkPaid: (expenseId: string) => void;
   onRecordPayment: (expenseId: string) => void;
@@ -36,10 +35,10 @@ export function ExpenseMobileCards({
   expenses,
   carryoverExpenseIds = new Set<string>(),
   deletingExpenseIds = new Set<string>(),
+  payingExpenseIds = new Set<string>(),
   isSelected,
   onAudit,
   onDelete,
-  onDuplicate,
   onEdit,
   onMarkPaid,
   onRecordPayment,
@@ -65,10 +64,10 @@ export function ExpenseMobileCards({
           expense={expense}
           isCarryover={carryoverExpenseIds.has(expense.id)}
           isDeletePending={deletingExpenseIds.has(expense.id)}
+          isPaymentPending={payingExpenseIds.has(expense.id)}
           isSelected={isSelected(expense.id)}
           onAudit={onAudit}
           onDelete={onDelete}
-          onDuplicate={onDuplicate}
           onEdit={() => onEdit(expense)}
           onMarkPaid={onMarkPaid}
           onRecordPayment={onRecordPayment}
@@ -85,10 +84,10 @@ function ExpenseMobileCard({
   expense,
   isCarryover,
   isDeletePending,
+  isPaymentPending,
   isSelected,
   onAudit,
   onDelete,
-  onDuplicate,
   onEdit,
   onMarkPaid,
   onRecordPayment,
@@ -99,10 +98,10 @@ function ExpenseMobileCard({
   expense: Expense;
   isCarryover: boolean;
   isDeletePending: boolean;
+  isPaymentPending: boolean;
   isSelected: boolean;
   onAudit: (expenseId: string) => void;
   onDelete: (expenseId: string) => void;
-  onDuplicate: (expenseId: string) => void;
   onEdit: () => void;
   onMarkPaid: (expenseId: string) => void;
   onRecordPayment: (expenseId: string) => void;
@@ -167,13 +166,12 @@ function ExpenseMobileCard({
             expenseId={expense.id}
             onAudit={onAudit}
             onDelete={onDelete}
-            onDuplicate={onDuplicate}
             onMarkPaid={onMarkPaid}
-            onPrint={() => printExpenseVoucher({ expense, locale, t })}
             onRecordPayment={onRecordPayment}
             onStartEdit={onEdit}
             onView={onView}
             isDeletePending={isDeletePending}
+            isPaymentPending={isPaymentPending}
             showAudit={actionVisibility?.showAudit}
             showDelete={canDeleteExpense(expense)}
             showEdit={canEditExpense(expense)}

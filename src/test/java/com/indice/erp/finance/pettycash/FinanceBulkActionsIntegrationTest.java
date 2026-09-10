@@ -59,9 +59,9 @@ class FinanceBulkActionsIntegrationTest {
         assertThat(value("finance_expenses","metadata_json",first)).isNull();
     }
 
-    @Test void deletingPaidAndDraftTogetherDoesNotDeleteEither() {
-        var f=fixture("MXN");long draft=expense(f,"DRAFT","MXN"),paid=expense(f,"PAID","MXN");
-        assertThatThrownBy(() -> expenses.apply(f.context,expenseRequest(ExpenseBulkActionRequest.Action.DELETE,null,draft,paid))).hasMessageContaining("unpaid draft");
+    @Test void deletingAuditedAndDraftTogetherDoesNotDeleteEither() {
+        var f=fixture("MXN");long draft=expense(f,"DRAFT","MXN"),paid=expense(f,"CLOSED","MXN");
+        assertThatThrownBy(() -> expenses.apply(f.context,expenseRequest(ExpenseBulkActionRequest.Action.DELETE,null,draft,paid))).hasMessageContaining("Audited");
         assertThat(value("finance_expenses","deleted_at",draft)).isNull();
         assertThat(value("finance_expenses","deleted_at",paid)).isNull();
     }

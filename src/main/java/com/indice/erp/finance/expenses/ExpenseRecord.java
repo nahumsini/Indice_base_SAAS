@@ -46,6 +46,7 @@ record ExpenseRecord(
     String customFieldsJson,
     String metadataJson,
     com.indice.erp.finance.expenses.dto.ExpenseFundReference originFund,
-    boolean accountingPosted
+    boolean accountingPosted,
+    boolean purchaseOrderReceived
 ) {
 }

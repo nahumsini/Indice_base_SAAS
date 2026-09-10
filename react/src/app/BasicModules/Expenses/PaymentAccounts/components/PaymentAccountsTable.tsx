@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Edit2, ExternalLink, LockKeyhole, Power, PowerOff, Search, Trash2 } from 'lucide-react';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import { usePaymentAccountsResolvedLocale, usePaymentAccountsTranslations } from '../hooks/usePaymentAccountsTranslations';
@@ -48,6 +48,7 @@ const defaultPaymentOperationalColumnWidths: Record<PaymentColumnKey, number> = 
 const paymentActionsColumnWidth = 198;
 
 type PaymentAccountsTableProps = {
+  paginationResetKey?: number;
   accounts: PaymentAccount[];
   businessOptions: FinanceReferenceOption[];
   columns: PaymentColumnConfig[];
@@ -79,6 +80,7 @@ const paymentAccountsTableWorkspaceUrlFields: Partial<Record<keyof PaymentAccoun
 
 export function PaymentAccountsTable({
   accounts,
+  paginationResetKey = 0,
   businessOptions,
   columns,
   onDelete,
@@ -94,6 +96,13 @@ export function PaymentAccountsTable({
   const t = usePaymentAccountsTranslations();
   const locale = usePaymentAccountsResolvedLocale();
   const [currentPage, setCurrentPage] = useState(1);
+  const previousResetKey = useRef(paginationResetKey);
+  useEffect(() => {
+    if (previousResetKey.current !== paginationResetKey) {
+      previousResetKey.current = paginationResetKey;
+      setCurrentPage(1);
+    }
+  }, [paginationResetKey]);
   const [pageSize, setPageSize] = useState(10);
   const workspaceState = useMemo<PaymentAccountsTableWorkspaceState>(() => ({
     currentPage,

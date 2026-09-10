@@ -159,7 +159,7 @@ export function OperationalDistributionBar({
 
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+      <div className="h-2 min-h-2 shrink-0 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700 lg:flex-1">
         <div className="flex h-full">
           {segments.map((segment) => segment.onClick ? (
             <button
