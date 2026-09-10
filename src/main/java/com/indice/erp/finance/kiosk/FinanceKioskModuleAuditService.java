@@ -34,13 +34,15 @@ public class FinanceKioskModuleAuditService {
         jdbcTemplate.update(
             """
                 INSERT INTO finance_kiosk_module_audit (
-                    event_id, action_id, company_id, owner_module, legacy_reference_id,
+                    event_id, action_id, company_id, owner_module,
+                    kiosk_definition_id, legacy_reference_id,
                     event_type, outcome, actor_type, actor_id,
                     module_record_type, module_record_id, detail_json
-                ) VALUES (?, ?, ?, ?, ?, ?, 'SUCCEEDED', ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'SUCCEEDED', ?, ?, ?, ?, ?)
                 """,
             UUID.randomUUID().toString(), MDC.get("actionId"), context.definition().companyId(),
-            context.ownerModule(), context.definition().legacyReferenceId(), eventType,
+            context.ownerModule(), context.definition().id(),
+            context.definition().legacyReferenceId(), eventType,
             session == null ? "PUBLIC" : session.identityType(),
             session == null ? null : session.identityId(), moduleRecordType, moduleRecordId,
             json(detail == null ? Map.of() : detail)

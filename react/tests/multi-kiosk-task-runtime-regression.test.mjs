@@ -70,3 +70,27 @@ test('native task quick capture is capability-bound, guarded and updates from re
   assert.match(dialog, /maxLength=\{2000\}/);
   assert.doesNotMatch(dialog, /responsibleLabel|evidence|attachment/i);
 });
+
+test('native task workspace exposes an operational agenda and a read-only compact board', async () => {
+  const [hook, workspace, agenda, api] = await Promise.all([
+    readFile(new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/hooks/useEmployeeTaskMultiKioskWorkspace.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/EmployeeTaskMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/components/EmployeeTaskAgendaWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/processTaskKioskApi.ts', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(hook, /useState<AgendaFocusFilter>\('mine'\)/);
+  assert.match(hook, /useState<EmployeeTaskDateRange>\('day'\)/);
+  assert.match(hook, /useState<EmployeeTaskStatusFilter>\('pending_overdue'\)/);
+  assert.match(hook, /useState<EmployeeTaskAgendaView>\('agenda'\)/);
+  assert.match(workspace, /<EmployeeTaskAgendaToolbar/);
+  assert.match(agenda, /role="tablist"/);
+  assert.match(agenda, /data-task-kiosk-agenda/);
+  assert.match(agenda, /data-task-kiosk-board/);
+  assert.match(agenda, /overflow-x-auto pb-2 snap-x snap-mandatory/);
+  assert.doesNotMatch(agenda, /draggable=|onDrop=|onDragStart=/);
+  assert.match(api, /agenda_date\?: string \| null/);
+  assert.match(api, /agenda_start_time\?: string \| null/);
+  assert.match(api, /agenda_end_time\?: string \| null/);
+  assert.match(api, /agenda_time_zone\?: string \| null/);
+});

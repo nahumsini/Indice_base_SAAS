@@ -3,6 +3,7 @@ export {
   type MultiKioskLauncherDashboardCopy,
   type MultiKioskLauncherDashboardProps,
 } from './MultiKioskLauncherDashboard';
+export { EmployeeKioskHome } from './EmployeeKioskHome';
 export {
   MultiKioskToolHost,
   type MultiKioskToolHostProps,

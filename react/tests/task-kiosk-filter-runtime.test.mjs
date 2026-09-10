@@ -33,3 +33,11 @@ test('organization, today and cancellation filters retain their boundaries', () 
   assert.deepEqual(ids(rows, { period: 'today', unit: '3' }), [1]);
   assert.deepEqual(ids(rows, { status: 'all', unit: '3' }), [1, 2]);
 });
+
+test('agenda placement makes scheduled work visible even when its due date is later', () => {
+  const rows = [
+    task(1, '2026-09-20', { agenda_date: today, agenda_start_time: '09:30' }),
+    task(2, '2026-09-20', { agenda_date: '2026-09-07', agenda_start_time: '10:00' }),
+  ];
+  assert.deepEqual(ids(rows, { period: 'today' }), [1]);
+});

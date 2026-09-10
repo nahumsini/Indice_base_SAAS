@@ -11,6 +11,8 @@ import com.indice.erp.kiosk.engine.KioskRegistryService;
 import com.indice.erp.kiosk.engine.ProviderCenterAccessPolicy;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -151,6 +153,27 @@ class PayableKioskEmployeeSubmissionTest {
         then(publicRepository).should(never()).insertProviderChangeRequest(
             eq(7L), eq(222L), anyString(), anyString(),
             org.mockito.ArgumentMatchers.nullable(String.class), anyString(), anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void providerTrackingAddsPaymentEvidenceWithoutRejectingNullableFinanceFields() {
+        var payable = new LinkedHashMap<String, Object>();
+        payable.put("id", 901L);
+        payable.put("document_reference", "INV-901");
+        payable.put("due_date", null);
+        var evidence = Map.<String, Object>of("attachment_id", 41L, "file_name", "payment.pdf");
+        given(providerCenterAccess.hasAccess(7L, 222L)).willReturn(true);
+        given(publicRepository.providerCenterPayables(7L, 222L)).willReturn(List.of(payable));
+        given(publicRepository.providerCenterPurchaseOrderPayments(7L, 222L)).willReturn(List.of());
+        given(attachmentService.providerPaymentEvidence(7L, 222L, 901L)).willReturn(List.of(evidence));
+
+        var tracking = service.providerCenterTracking(7L, 222L);
+        var payables = (List<Map<String, Object>>) tracking.get("payables_without_purchase_order");
+
+        assertThat(payables).hasSize(1);
+        assertThat(payables.getFirst()).containsEntry("due_date", null);
+        assertThat(payables.getFirst().get("payment_evidence")).isEqualTo(List.of(evidence));
     }
 
     private void allowProviderCenterAccess(long providerId) {

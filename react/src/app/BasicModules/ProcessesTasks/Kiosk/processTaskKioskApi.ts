@@ -90,6 +90,10 @@ export interface PublicTaskKioskTask {
   priority: 'low' | 'medium' | 'high';
   start_date: string | null;
   due_date: string | null;
+  agenda_date?: string | null;
+  agenda_start_time?: string | null;
+  agenda_end_time?: string | null;
+  agenda_time_zone?: string | null;
   completed_at: string | null;
   completion_percent: number;
   notes: string | null;

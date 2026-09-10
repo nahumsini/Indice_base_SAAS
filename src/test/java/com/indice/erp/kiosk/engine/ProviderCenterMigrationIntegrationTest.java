@@ -8,6 +8,8 @@ import com.indice.erp.finance.shared.FinanceScope;
 import com.indice.erp.pos.PosContext;
 import com.indice.erp.pos.PosScope;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderRepository;
+import com.indice.erp.sales.ProcurementProductCatalogService;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -32,6 +34,9 @@ class ProviderCenterMigrationIntegrationTest {
     @Autowired
     private PurchaseOrderRepository purchaseOrders;
 
+    @Autowired
+    private ProcurementProductCatalogService productCatalog;
+
     @Test
     void providerCenterSchemaIsAvailableAfterFlywayStartup() {
         assertThat(tableExists("provider_registration_requests")).isTrue();
@@ -40,12 +45,36 @@ class ProviderCenterMigrationIntegrationTest {
         assertThat(tableExists("pos_supplier_quote_requests")).isTrue();
         assertThat(tableExists("pos_supplier_quote_request_items")).isTrue();
         assertThat(tableExists("pos_purchase_order_supplier_responses")).isTrue();
+        assertThat(tableExists("pos_supplier_catalog_decisions")).isTrue();
         assertThat(columnExists("multi_kiosk_definitions", "audience_type")).isTrue();
         assertThat(columnExists("multi_kiosk_definitions", "provider_company_id")).isTrue();
         assertThat(columnExists("multi_kiosk_sessions", "identity_type")).isTrue();
         assertThat(columnExists("provider_profile_change_requests", "protected_changes")).isTrue();
         assertThat(columnExists("pos_supplier_submissions", "quote_request_id")).isTrue();
+        assertThat(columnExists("pos_supplier_invoices", "expense_id")).isTrue();
+        assertThat(columnScale("sales_products", "price")).isEqualTo(4);
+        assertThat(columnScale("sales_products", "cost")).isEqualTo(4);
         assertThat(indexExists("multi_kiosk_definitions", "uq_multi_kiosk_provider_company")).isTrue();
+    }
+
+    @Test
+    @Transactional
+    void reviewedSupplierProductPreservesFourDecimalCostAndSalePrice() {
+        var companyId = id("SELECT id FROM companies ORDER BY id LIMIT 1");
+        var userId = id("SELECT id FROM users ORDER BY id LIMIT 1");
+        var code = "PC-CATALOG-" + UUID.randomUUID().toString().substring(0, 8);
+
+        var result = productCatalog.createNew(
+            new PosContext(userId, companyId, "Buyer", "admin", true, PosScope.corporateOffice()),
+            code, "SUP-4DEC", "Producto proveedor cuatro decimales", null,
+            "Pruebas", null, new BigDecimal("10.1234"),
+            new BigDecimal("12.3456"), "MXN");
+
+        var stored = jdbcTemplate.queryForMap(
+            "SELECT cost, price FROM sales_products WHERE company_id = ? AND id = ?",
+            companyId, result.productId());
+        assertThat((BigDecimal) stored.get("cost")).isEqualByComparingTo("10.1234");
+        assertThat((BigDecimal) stored.get("price")).isEqualByComparingTo("12.3456");
     }
 
     @Test
@@ -234,6 +263,15 @@ class ProviderCenterMigrationIntegrationTest {
                 WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?
                 """,
             tableName, indexName) == 1;
+    }
+
+    private int columnScale(String tableName, String columnName) {
+        return count(
+            """
+                SELECT numeric_scale FROM information_schema.columns
+                WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?
+                """,
+            tableName, columnName);
     }
 
     private int count(String sql, Object... parameters) {

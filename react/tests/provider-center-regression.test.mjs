@@ -65,7 +65,36 @@ test('tracking includes safe payment projections for invoices with and without p
   assert.match(source, /purchase_order_payment_tracking/);
   assert.match(source, /purchaseOrderPaymentByInvoice/);
   assert.match(source, /\[\.\.\.payables, \.\.\.purchaseOrderPayments\]/);
+  assert.match(source, /paymentEvidenceRows/);
+  assert.match(source, /Comprobantes de pago/);
+  assert.match(source, /evidence\.download_url/);
   assert.doesNotMatch(source, /internal_account|approver_id|financial_notes/);
+});
+
+test('provider can propose an unlisted product without receiving catalog authority', async () => {
+  const source = await readSource('../src/app/KioskCenter/multi-kiosk/ProviderCenterMultiKioskWorkspace.tsx');
+
+  assert.match(source, /Proponer un producto nuevo/);
+  assert.match(source, /const addUnlistedProduct/);
+  assert.match(source, /productId\?: number/);
+  assert.match(source, /providerProduct: false/);
+  assert.match(source, /updateLineText/);
+  assert.match(source, /Nombre del producto/);
+  assert.match(source, /Tu SKU/);
+  assert.doesNotMatch(source, /salesProductBackendId\s*=/);
+});
+
+test('inventory review resolves every supplier line and blocks negative margin', async () => {
+  const modal = await readSource('../src/app/BasicModules/PointOfSale/OrdenesCompra/components/SupplierSubmissionDetailModal.tsx');
+  const types = await readSource('../src/app/BasicModules/PointOfSale/OrdenesCompra/types/purchaseOrder.types.ts');
+
+  assert.match(modal, /LINK_EXISTING/);
+  assert.match(modal, /CREATE_NEW/);
+  assert.match(modal, /REJECT/);
+  assert.match(modal, /itemResolutions: submission\.items\.map/);
+  assert.match(modal, /salePrice < supplierCost/);
+  assert.match(modal, /product\.currency\.toUpperCase\(\) !== submission\.currencyCode\.toUpperCase\(\)/);
+  assert.match(types, /itemResolutions: SupplierSubmissionItemResolutionPayload\[\]/);
 });
 
 test('provider center creation is separate from employee multi-kiosks', async () => {
@@ -85,7 +114,14 @@ test('provider access and its four tools are administered only from the central 
 
   assert.match(editor, /Proveedores y NIP/);
   assert.match(editor, /multiKioskAdminApi\.issueProviderPin/);
+  assert.match(editor, /multiKioskAdminApi\.updateProviderPin/);
   assert.match(editor, /multiKioskAdminApi\.revokeProviderPin/);
+  assert.match(editor, /Ver \/ cambiar/);
+  assert.match(editor, /Regenerar NIP/);
+  assert.match(editor, /El NIP actual no puede mostrarse/);
+  assert.match(editor, /type=\{showManualPin \? 'text' : 'password'\}/);
+  assert.match(editor, /pendingRevoke/);
+  assert.doesNotMatch(editor, /window\.confirm/);
   assert.match(editor, /Un acceso, cuatro herramientas/);
   assert.match(catalog, /provider\.proposals@1/);
   assert.match(catalog, /provider\.orders-and-invoices@1/);
@@ -134,6 +170,18 @@ test('provider proposals reuse the purchase-order wizard language and safe compa
   assert.doesNotMatch(projection, /product\.price|product\.cost|inventory_ready/);
 });
 
+test('provider proposal tax is selected once and applied dynamically by line', async () => {
+  const source = await readSource('../src/app/KioskCenter/multi-kiosk/ProviderCenterMultiKioskWorkspace.tsx');
+
+  assert.match(source, /Impuesto de la operación/);
+  assert.match(source, /getBudgetTaxProfiles\(taxCountry\)/);
+  assert.match(source, /Aplicar \{selectedTaxLabel\} a todas las partidas/);
+  assert.match(source, /taxApplied: applyTaxByDefault/);
+  assert.match(source, /line\.taxApplied \? selectedTaxPercent : 0/);
+  assert.match(source, /onToggleTax=\{toggleLineTax\}/);
+  assert.doesNotMatch(source, /ProposalNumber label="Impuesto"/);
+});
+
 test('provider payables mirror Expenses and enter its review queue directly', async () => {
   const source = await readSource('../src/app/KioskCenter/multi-kiosk/ProviderCenterMultiKioskWorkspace.tsx');
   const catalog = await readSource('../../src/main/java/com/indice/erp/kiosk/engine/KioskProviderToolCatalogService.java');
@@ -142,6 +190,10 @@ test('provider payables mirror Expenses and enter its review queue directly', as
   assert.match(source, /function ProviderPayablesWorkspace/);
   assert.match(source, /Crear cuenta por pagar/);
   assert.match(source, /Cuenta enviada directamente a Gastos para revisión/);
+  assert.match(source, /Aplicar \{payableTaxLabel\}/);
+  assert.match(source, /roundMoney\(subtotal \* \(payableTaxPercent \/ 100\)\)/);
+  assert.match(source, /Impuesto calculado/);
+  assert.doesNotMatch(source, /value=\{tax\} onChange=\{event => setTax/);
   assert.match(source, /PROVIDER_PAYABLES.*ProviderPayablesWorkspace/s);
   assert.match(catalog, /"Cuentas por pagar"/);
   assert.match(catalog, /directamente a Gastos para revisión/);
@@ -171,4 +223,31 @@ test('confirmed orders continue through receiving and only mature orders can be 
   assert.match(providerWorkspace, /invoiceable\.map/);
   assert.match(providerWorkspace, /Primero confirma o recibe una orden para poder facturarla/);
   assert.match(purchaseOrdersTable, /'SENT', 'CONFIRMED', 'PARTIALLY_RECEIVED'/);
+});
+
+test('provider portal behaves as one responsive app shell without changing its four tool contracts', async () => {
+  const page = await readSource('../src/app/KioskCenter/MultiKioskMobilePage.tsx');
+  const layout = await readSource('../src/app/KioskCenter/multi-kiosk/ProviderPortalLayout.tsx');
+  const home = await readSource('../src/app/KioskCenter/multi-kiosk/ProviderPortalHome.tsx');
+  const portalTranslations = await readSource('../src/app/KioskCenter/multi-kiosk/providerPortalTranslations.ts');
+  const workspace = await readSource('../src/app/KioskCenter/multi-kiosk/ProviderCenterMultiKioskWorkspace.tsx');
+  const presentation = await readSource('../src/app/KioskCenter/multi-kiosk/toolPresentation.tsx');
+
+  assert.match(page, /<ProviderPortalLayout/);
+  assert.match(page, /<ProviderPortalHome/);
+  assert.match(layout, /lg:grid-cols-\[14rem_minmax\(0,1fr\)\]/);
+  assert.match(layout, /fixed inset-x-0 bottom-0/);
+  assert.match(layout, /grid max-w-2xl grid-cols-4/);
+  assert.match(layout, /data-provider-unsaved/);
+  assert.match(layout, /<KioskModalFrame/);
+  assert.match(home, /portalCopy\.homeTitle/);
+  assert.match(portalTranslations, /¿Qué necesitas hacer hoy\?/);
+  assert.match(home, /productPathTitle/);
+  assert.match(home, /servicePathTitle/);
+  assert.match(workspace, /function ProviderWorkspaceTabs/);
+  assert.match(workspace, /size="form"/);
+  assert.match(workspace, /surface="public"/);
+  assert.match(workspace, /data-provider-unsaved/);
+  assert.match(presentation, /'provider\.proposals@1': \{ Icon: Send, tone: 'coral' \}/);
+  assert.match(presentation, /'provider\.tracking@1': \{ Icon: CircleDollarSign, tone: 'aqua' \}/);
 });

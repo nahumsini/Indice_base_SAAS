@@ -574,6 +574,8 @@ public class KioskMultiDashboardService {
         card.put("module_slug", KioskEmployeeAccessService.moduleSlug(definition.ownerModule()));
         card.put("kiosk_type", definition.kioskType());
         employeeTools.manifestFor(definition).ifPresent(tool -> {
+            card.put("name", tool.name());
+            card.put("purpose", tool.description());
             card.put("tool_key", tool.toolKey());
             card.put("key", tool.toolKey());
             card.put("workspace_kind", tool.workspaceKind());
@@ -585,7 +587,7 @@ public class KioskMultiDashboardService {
             card.put("audience_policy", "SCOPED_COMPANY_MEMBERS");
             card.put("readiness", employeeCenterReady ? "AVAILABLE" : "UNAVAILABLE");
         }
-        card.put("purpose", purpose(definition.ownerModule()));
+        card.putIfAbsent("purpose", purpose(definition.ownerModule()));
         card.put("scope", Map.of(
             "unit_id", definition.unitId() == null ? "" : definition.unitId(),
             "business_id", definition.businessId() == null ? "" : definition.businessId(),

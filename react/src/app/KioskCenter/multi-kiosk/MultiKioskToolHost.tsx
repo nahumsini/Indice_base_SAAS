@@ -2,7 +2,8 @@ import { ShieldCheck } from 'lucide-react';
 import type { MultiKioskChildWorkspace } from '../../api/multiKiosks';
 import { EmployeeTaskMultiKioskWorkspace } from '../../BasicModules/ProcessesTasks/Kiosk/EmployeeTaskMultiKioskWorkspace';
 import { LegacyTaskMultiKioskWorkspace } from '../../BasicModules/ProcessesTasks/Kiosk/LegacyTaskMultiKioskWorkspace';
-import { AttendanceMultiKioskWorkspace } from '../AttendanceMultiKioskWorkspace';
+import { RouteSalesMultiKioskWorkspace } from '../../BasicModules/Sales/Kiosk/RouteSalesMultiKioskWorkspace';
+import { HumanResourcesMultiKioskWorkspace } from '../HumanResourcesMultiKioskWorkspace';
 import { PettyCashMultiKioskWorkspace } from '../PettyCashMultiKioskWorkspace';
 import { PayablesMultiKioskWorkspace } from '../PayablesMultiKioskWorkspace';
 import { PointOfSaleMultiKioskWorkspace } from '../PointOfSaleMultiKioskWorkspace';
@@ -81,7 +82,21 @@ export function MultiKioskToolHost({
   if (toolKey === 'employee.attendance@1'
       || (!toolKey && (workspaceKind === 'ATTENDANCE' || ownerModule === 'HUMAN_RESOURCES'))) {
     return (
-      <AttendanceMultiKioskWorkspace
+      <HumanResourcesMultiKioskWorkspace
+        token={token}
+        kioskId={kioskId}
+        workspace={workspace}
+        locale={locale}
+        onAuthorizationFailure={onAuthorizationFailure}
+        onRefresh={onRefresh}
+      />
+    );
+  }
+
+  if (toolKey === 'employee.route-sales@1'
+      || (!toolKey && workspaceKind === 'ROUTE_SALES')) {
+    return (
+      <RouteSalesMultiKioskWorkspace
         token={token}
         kioskId={kioskId}
         workspace={workspace}

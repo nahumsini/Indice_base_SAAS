@@ -2,6 +2,7 @@ package com.indice.erp.pos.purchaseorder;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -185,10 +186,26 @@ public final class PurchaseOrderDtos {
     ) {
     }
 
+    public record SupplierSubmissionItemResolutionRequest(
+        @NotNull Long itemId,
+        @NotNull SupplierCatalogDecision decision,
+        Long productId,
+        @Size(max = 40) String productCode,
+        @Size(max = 80) String sku,
+        @Size(max = 220) String productName,
+        @Size(max = 4000) String productDescription,
+        @Size(max = 100) String category,
+        @Size(max = 80) String taxCategory,
+        @DecimalMin("0.00") @Digits(integer = 15, fraction = 4) BigDecimal salePrice,
+        @Size(max = 4000) String reviewNote
+    ) {
+    }
+
     public record SupplierSubmissionConvertRequest(
         @NotNull Long warehouseId,
         LocalDate expectedDate,
-        @Size(max = 4000) String notes
+        @Size(max = 4000) String notes,
+        @Valid @NotEmpty @Size(max = 100) List<SupplierSubmissionItemResolutionRequest> itemResolutions
     ) {
     }
 

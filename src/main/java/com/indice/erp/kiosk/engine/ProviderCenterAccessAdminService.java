@@ -1,8 +1,8 @@
 package com.indice.erp.kiosk.engine;
 
 import java.security.SecureRandom;
-import java.util.LinkedHashMap;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -86,19 +86,53 @@ public class ProviderCenterAccessAdminService {
             long companyId, long multiKioskId, long providerId, long actorUserId) {
         requireProviderCenter(companyId, multiKioskId, true);
         var provider = requireActiveProviderForUpdate(companyId, providerId);
-        if (provider.unitId() == null || provider.businessId() == null) {
-            throw new IllegalArgumentException(
-                "Asigna unidad y negocio al proveedor antes de generar su NIP.");
-        }
+        requireScope(provider);
         var pin = uniquePin(companyId, provider);
-        credentials.rotateProviderCenterPin(companyId, providerId, passwordEncoder.encode(pin));
-        audit(companyId, multiKioskId, providerId, actorUserId, "PROVIDER_CENTER_PIN_ROTATED");
+        return activatePin(
+            companyId, multiKioskId, provider, actorUserId, pin,
+            "PROVIDER_CENTER_PIN_ROTATED", "GENERATED");
+    }
+
+    @Transactional
+    public Map<String, Object> updatePin(
+            long companyId,
+            long multiKioskId,
+            long providerId,
+            long actorUserId,
+            String requestedPin) {
+        requireProviderCenter(companyId, multiKioskId, true);
+        var provider = requireActiveProviderForUpdate(companyId, providerId);
+        requireScope(provider);
+        var pin = requestedPin == null ? "" : requestedPin.trim();
+        if (!pin.matches("^[0-9]{6}$")) {
+            throw new IllegalArgumentException("El NIP debe contener exactamente seis dígitos.");
+        }
+        if (!pinAvailable(companyId, provider, pin)) {
+            throw new IllegalArgumentException(
+                "Ese NIP ya pertenece a otro proveedor activo con el mismo nombre.");
+        }
+        return activatePin(
+            companyId, multiKioskId, provider, actorUserId, pin,
+            "PROVIDER_CENTER_PIN_CHANGED", "MANUAL");
+    }
+
+    private Map<String, Object> activatePin(
+            long companyId,
+            long multiKioskId,
+            ProviderAdminRow provider,
+            long actorUserId,
+            String pin,
+            String eventType,
+            String assignmentMode) {
+        credentials.rotateProviderCenterPin(companyId, provider.id(), passwordEncoder.encode(pin));
+        audit(companyId, multiKioskId, provider.id(), actorUserId, eventType);
         return Map.of(
-            "provider_id", providerId,
+            "provider_id", provider.id(),
             "provider_name", provider.name(),
             "pin", pin,
             "pin_ready", true,
-            "shown_once", true);
+            "shown_once", true,
+            "assignment_mode", assignmentMode);
     }
 
     @Transactional
@@ -144,7 +178,23 @@ public class ProviderCenterAccessAdminService {
     }
 
     private String uniquePin(long companyId, ProviderAdminRow provider) {
-        var competingHashes = jdbcTemplate.query(
+        var competingHashes = competingPinHashes(companyId, provider);
+        for (var attempt = 0; attempt < 100; attempt++) {
+            var pin = String.format("%06d", RANDOM.nextInt(1_000_000));
+            if (competingHashes.stream().noneMatch(hash -> passwordEncoder.matches(pin, hash))) {
+                return pin;
+            }
+        }
+        throw new IllegalStateException("No fue posible generar un NIP único. Intenta nuevamente.");
+    }
+
+    private boolean pinAvailable(long companyId, ProviderAdminRow provider, String pin) {
+        return competingPinHashes(companyId, provider).stream()
+            .noneMatch(hash -> passwordEncoder.matches(pin, hash));
+    }
+
+    private List<String> competingPinHashes(long companyId, ProviderAdminRow provider) {
+        return jdbcTemplate.query(
             """
                 SELECT credential.secret_hash
                 FROM finance_providers other_provider
@@ -158,16 +208,16 @@ public class ProviderCenterAccessAdminService {
                 WHERE other_provider.company_id = ? AND other_provider.id <> ?
                   AND other_provider.status = 'ACTIVE' AND other_provider.deleted_at IS NULL
                   AND LOWER(TRIM(other_provider.name)) = LOWER(TRIM(?))
-                """,
+            """,
             (rs, rowNum) -> rs.getString("secret_hash"),
             companyId, provider.id(), provider.name());
-        for (var attempt = 0; attempt < 100; attempt++) {
-            var pin = String.format("%06d", RANDOM.nextInt(1_000_000));
-            if (competingHashes.stream().noneMatch(hash -> passwordEncoder.matches(pin, hash))) {
-                return pin;
-            }
+    }
+
+    private void requireScope(ProviderAdminRow provider) {
+        if (provider.unitId() == null || provider.businessId() == null) {
+            throw new IllegalArgumentException(
+                "Asigna unidad y negocio al proveedor antes de generar su NIP.");
         }
-        throw new IllegalStateException("No fue posible generar un NIP único. Intenta nuevamente.");
     }
 
     private void audit(

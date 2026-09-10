@@ -12,6 +12,7 @@ import {
   ShoppingBag,
   UtensilsCrossed,
   UserRoundCheck,
+  UsersRound,
   PackageCheck,
   WalletCards,
 } from 'lucide-react';
@@ -28,6 +29,7 @@ export type MultiKioskToolSource = MultiKioskCard | MultiKioskCatalogTool;
 export const MULTI_KIOSK_TOOL_KEYS = [
   'employee.attendance@1',
   'employee.my-tasks@1',
+  'employee.route-sales@1',
   'provider.proposals@1',
   'provider.orders-and-invoices@1',
   'provider.payables@1',
@@ -104,17 +106,19 @@ export interface MultiKioskToolVisualDefinition {
 }
 
 export const MULTI_KIOSK_TOOL_KEY_REGISTRY: Readonly<Record<KnownMultiKioskToolKey, MultiKioskToolVisualDefinition>> = {
-  'employee.attendance@1': { Icon: UserRoundCheck, tone: 'aqua' },
+  'employee.attendance@1': { Icon: UsersRound, tone: 'aqua' },
   'employee.my-tasks@1': { Icon: ListChecks, tone: 'yellow' },
-  'provider.proposals@1': { Icon: Send, tone: 'blue' },
+  'employee.route-sales@1': { Icon: ShoppingBag, tone: 'coral' },
+  'provider.proposals@1': { Icon: Send, tone: 'coral' },
   'provider.orders-and-invoices@1': { Icon: PackageCheck, tone: 'coral' },
   'provider.payables@1': { Icon: ReceiptText, tone: 'green' },
-  'provider.tracking@1': { Icon: CircleDollarSign, tone: 'violet' },
+  'provider.tracking@1': { Icon: CircleDollarSign, tone: 'aqua' },
 };
 
 export const MULTI_KIOSK_WORKSPACE_KIND_REGISTRY: Readonly<Record<string, MultiKioskToolVisualDefinition>> = {
   ATTENDANCE: { Icon: Clock3, tone: 'aqua' },
   MY_TASKS: { Icon: ListChecks, tone: 'yellow' },
+  ROUTE_SALES: { Icon: ShoppingBag, tone: 'coral' },
   TASKS: { Icon: ListChecks, tone: 'yellow' },
   PETTY_CASH: { Icon: WalletCards, tone: 'green' },
   PAYABLES: { Icon: ReceiptText, tone: 'green' },
@@ -123,10 +127,10 @@ export const MULTI_KIOSK_WORKSPACE_KIND_REGISTRY: Readonly<Record<string, MultiK
   POS_WAITER_STATION: { Icon: UtensilsCrossed, tone: 'coral' },
   SELF_SERVICE: { Icon: ShoppingBag, tone: 'coral' },
   WAITER_STATION: { Icon: UtensilsCrossed, tone: 'coral' },
-  PROVIDER_PROPOSALS: { Icon: Send, tone: 'blue' },
+  PROVIDER_PROPOSALS: { Icon: Send, tone: 'coral' },
   PROVIDER_ORDERS_INVOICES: { Icon: PackageCheck, tone: 'coral' },
   PROVIDER_PAYABLES: { Icon: ReceiptText, tone: 'green' },
-  PROVIDER_TRACKING: { Icon: CircleDollarSign, tone: 'violet' },
+  PROVIDER_TRACKING: { Icon: CircleDollarSign, tone: 'aqua' },
 };
 
 const ownerModuleRegistry: Readonly<Record<string, MultiKioskToolVisualDefinition>> = {
@@ -138,12 +142,13 @@ const ownerModuleRegistry: Readonly<Record<string, MultiKioskToolVisualDefinitio
   POINT_OF_SALE: { Icon: MonitorSmartphone, tone: 'coral' },
   INVENTORY: { Icon: Boxes, tone: 'coral' },
   PROCUREMENT: { Icon: PackageCheck, tone: 'coral' },
-  PROVIDER_CENTER: { Icon: CircleDollarSign, tone: 'violet' },
+  PROVIDER_CENTER: { Icon: CircleDollarSign, tone: 'aqua' },
 };
 
 const toolKeyModuleSlugRegistry: Readonly<Record<KnownMultiKioskToolKey, string>> = {
   'employee.attendance@1': 'human_resources',
   'employee.my-tasks@1': 'processes',
+  'employee.route-sales@1': 'crm',
   'provider.proposals@1': 'pos',
   'provider.orders-and-invoices@1': 'pos',
   'provider.payables@1': 'expenses',
@@ -153,6 +158,7 @@ const toolKeyModuleSlugRegistry: Readonly<Record<KnownMultiKioskToolKey, string>
 const workspaceModuleSlugRegistry: Readonly<Record<string, string>> = {
   ATTENDANCE: 'human_resources',
   MY_TASKS: 'processes',
+  ROUTE_SALES: 'crm',
   TASKS: 'processes',
   PETTY_CASH: 'petty_cash',
   PAYABLES: 'expenses',
@@ -172,7 +178,7 @@ const ownerModuleSlugRegistry: Readonly<Record<string, string>> = {
   PROCESS_TASKS: 'processes',
   PETTY_CASH: 'petty_cash',
   EXPENSES: 'expenses',
-  SALES: 'sales',
+  SALES: 'crm',
   POINT_OF_SALE: 'pos',
   INVENTORY: 'inventory',
   PROCUREMENT: 'pos',

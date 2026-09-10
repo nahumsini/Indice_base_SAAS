@@ -31,6 +31,10 @@ function taskDueDateValue(task: PublicTaskKioskTask) {
   return task.due_date ?? task.start_date ?? null;
 }
 
+function taskAgendaDateValue(task: PublicTaskKioskTask) {
+  return task.agenda_date ?? null;
+}
+
 function taskExistsByDate(task: PublicTaskKioskTask, dateKey: string) {
   const createdDate = dateKeyFromDateTime(task.created_at);
   return !createdDate || createdDate <= dateKey;
@@ -68,6 +72,20 @@ function isDateInRange(dateKey: string | null, range: AgendaLoadRange) {
   return Boolean(dateKey && dateKey >= range.from && dateKey <= range.to);
 }
 
+function isTaskScheduledForPeriod(
+  task: PublicTaskKioskTask,
+  period: PeriodFilter,
+  referenceDate: string,
+) {
+  const agendaDate = taskAgendaDateValue(task);
+  if (!agendaDate || period === 'all') return false;
+  if (period === 'today' || period === 'custom') return agendaDate === referenceDate;
+  if (period === 'tomorrow') return agendaDate === toRelativeDateKey(referenceDate, 1);
+  if (period === 'yesterday') return agendaDate === toRelativeDateKey(referenceDate, -1);
+  const range = buildRange(period, referenceDate);
+  return range ? isDateInRange(agendaDate, range) : false;
+}
+
 function currentOpenStatus(task: PublicTaskKioskTask): Extract<AgendaStatus, 'in_progress' | 'paused'> | null {
   return task.status === 'in_progress' || task.status === 'paused' ? task.status : null;
 }
@@ -89,6 +107,10 @@ export function getKioskTaskAgendaStatus(
   const openStatus = currentOpenStatus(task);
   if (openStatus) {
     return openStatus;
+  }
+
+  if (taskAgendaDateValue(task) === referenceDate) {
+    return 'pending';
   }
 
   const dueDate = taskDueDateValue(task);
@@ -121,6 +143,10 @@ function getKioskTaskAgendaStatusInRange(
   const openStatus = currentOpenStatus(task);
   if (openStatus) {
     return openStatus;
+  }
+
+  if (isDateInRange(taskAgendaDateValue(task), range)) {
+    return 'pending';
   }
 
   const dueDate = taskDueDateValue(task);
@@ -162,6 +188,7 @@ export function matchesKioskPeriod(
   period: PeriodFilter,
   todayValue: string = todayKioskDateKey(),
 ) {
+  if (isTaskScheduledForPeriod(task, period, todayValue)) return true;
   switch (period) {
     case 'all':
       return true;

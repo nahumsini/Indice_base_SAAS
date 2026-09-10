@@ -11,6 +11,10 @@ import com.indice.erp.finance.shared.FinanceContext;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +45,31 @@ public class ExpenseAttachmentService {
                 .map(row -> row.toResponse(signedUrl(row.objectKey())))
                 .toList();
         return new ExpenseAttachmentListResponse(items, items.size());
+    }
+
+    /** Provider-safe payment evidence projection; never exposes object keys, accounts or actors. */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> providerPaymentEvidence(
+            long companyId, long providerId, long expenseId) {
+        if (!repository.providerOwnsExpense(companyId, providerId, expenseId)) {
+            throw new SecurityException("Payment evidence is unavailable for this provider.");
+        }
+        return repository.list(companyId, expenseId).stream()
+            .filter(row -> row.paymentAmount() != null && row.paymentDate() != null)
+            .map(row -> {
+                var result = new LinkedHashMap<String, Object>();
+                result.put("attachment_id", row.id());
+                result.put("file_name", row.originalFilename());
+                result.put("mime_type", row.mimeType());
+                result.put("size_bytes", row.sizeBytes());
+                result.put("payment_amount", row.paymentAmount());
+                result.put("payment_date", row.paymentDate().toString());
+                var downloadUrl = signedUrl(row.objectKey());
+                result.put("download_available", downloadUrl != null);
+                if (downloadUrl != null) result.put("download_url", downloadUrl);
+                return Collections.unmodifiableMap(result);
+            })
+            .toList();
     }
 
     @Transactional
