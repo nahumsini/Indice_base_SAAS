@@ -73,7 +73,7 @@ class SpecificPosPurchaseOrderTest {
         var service = service();
         var sentOrder = order(PurchaseOrderStatus.SENT, 300L);
         var receivedOrder = order(PurchaseOrderStatus.RECEIVED, 300L);
-        when(repository.findOrder(context(), 99L)).thenReturn(Optional.of(sentOrder), Optional.of(receivedOrder));
+        when(repository.findOrder(context(), 99L)).thenReturn(Optional.of(sentOrder), Optional.of(sentOrder), Optional.of(receivedOrder));
         when(repository.nextReceiptNumber(context())).thenReturn("RCV-2026-0001");
         when(repository.insertReceipt(context(), sentOrder, "RCV-2026-0001", "Entrega parcial")).thenReturn(55L);
 
@@ -96,7 +96,7 @@ class SpecificPosPurchaseOrderTest {
         var confirmedOrder = order(PurchaseOrderStatus.CONFIRMED, 300L);
         var receivedOrder = order(PurchaseOrderStatus.RECEIVED, 300L);
         when(repository.findOrder(context(), 99L))
-            .thenReturn(Optional.of(confirmedOrder), Optional.of(receivedOrder));
+            .thenReturn(Optional.of(confirmedOrder), Optional.of(confirmedOrder), Optional.of(receivedOrder));
         when(repository.nextReceiptNumber(context())).thenReturn("RCV-2026-0002");
         when(repository.insertReceipt(context(), confirmedOrder, "RCV-2026-0002", "Entrega confirmada"))
             .thenReturn(56L);
@@ -109,6 +109,22 @@ class SpecificPosPurchaseOrderTest {
         verify(repository).insertReceiptItem(
             context(), 56L, confirmedOrder.items().getFirst(), new BigDecimal("2.0000"));
         verify(repository).refreshOrderReceiveStatus(context(), 99L);
+    }
+
+    @Test
+    void receiveOrderRejectsOrderAlreadyReceivedWhileWaitingForLock() {
+        var service = service();
+        when(repository.findOrder(context(), 99L)).thenReturn(
+            Optional.of(order(PurchaseOrderStatus.SENT, 300L)),
+            Optional.of(order(PurchaseOrderStatus.RECEIVED, 300L)));
+
+        assertThatThrownBy(() -> service.receiveOrder(context(), 99L, new PurchaseOrderReceiveRequest(
+            "Concurrent receipt", List.of(new PurchaseOrderReceiveItemRequest(900L, new BigDecimal("2.0000")))
+        ))).isInstanceOf(PosApiException.class)
+            .hasMessage("Purchase order status does not allow this action.");
+
+        verify(repository).lockOrder(context(), 99L);
+        verify(repository, org.mockito.Mockito.never()).nextReceiptNumber(any());
     }
 
     @Test
