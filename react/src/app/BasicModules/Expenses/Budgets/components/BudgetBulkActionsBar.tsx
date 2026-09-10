@@ -1,35 +1,36 @@
-import { Trash2, X } from 'lucide-react';
-import { Button } from '../../../../components/ui/button';
-import { useBudgetsTranslations } from '../hooks/useBudgetsTranslations';
+import { FinanceBulkActions, type FinanceBulkActionConfig } from '../../../shared/FinanceBulkActions';
+import { getFinanceBulkCopy, type FinanceBulkAction } from '../../../shared/financeBulkActions.copy';
+import { toFinanceApiErrorMessage } from '../../services';
+import type { FinanceReferenceOption } from '../../types/finance-reference.types';
+import type { BudgetLineTableRow } from '../types/budgetLineTable.types';
+import { getBudgetWorkspaceCopy } from '../budgetWorkspace.copy';
 
-export function BudgetBulkActionsBar({
-  selectedCount,
-  onClearSelection,
-  onDeleteSelected,
-}: {
-  selectedCount: number;
+export type BudgetBulkOptions = {
+  units: FinanceReferenceOption[];
+  businesses: FinanceReferenceOption[];
+  providers: FinanceReferenceOption[];
+  accounts: FinanceReferenceOption[];
+};
+
+export function BudgetBulkActionsBar({ rows, options, locale, onClearSelection, onApply }: {
+  rows: BudgetLineTableRow[]; options: BudgetBulkOptions; locale: string;
   onClearSelection: () => void;
-  onDeleteSelected: () => void;
+  onApply: (action: FinanceBulkAction, rows: BudgetLineTableRow[], targetId: string, reason: string) => Promise<void>;
 }) {
-  const t = useBudgetsTranslations();
-
-  return (
-    <section className="border-b border-[#147514]/20 bg-[#147514]/10 px-4 py-3 dark:border-[#147514]/40 dark:bg-[#147514]/15">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <span className="w-fit rounded-full border border-[#147514]/30 bg-white px-3 py-1 text-sm text-[#147514] dark:bg-slate-800 dark:text-emerald-200">
-          {t.budgets.summary.selectedRows(selectedCount)}
-        </span>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" className="h-9 rounded-xl border-red-200 bg-red-50 px-3 text-sm text-red-700 shadow-none hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300" onClick={onDeleteSelected}>
-            <Trash2 aria-hidden="true" className="h-4 w-4" />
-            {t.common.delete}
-          </Button>
-          <Button type="button" variant="outline" className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm text-slate-600 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" onClick={onClearSelection}>
-            <X aria-hidden="true" className="h-4 w-4" />
-            {t.common.cancel}
-          </Button>
-        </div>
-      </div>
-    </section>
-  );
+  const copy = getBudgetWorkspaceCopy(locale);
+  const common = getFinanceBulkCopy(locale);
+  const protectedReason = rows.some(row => row.version === undefined || !/^budget-line-\d+$/.test(row.id)
+    || ['CLOSED', 'ARCHIVED'].includes(row.status)) ? copy.protected : undefined;
+  const units = new Set(rows.map(row => row.unitId));
+  const actions: FinanceBulkActionConfig[] = [
+    { action: 'DELETE', blockedReason: protectedReason, hint: copy.delete },
+    { action: 'UNIT', options: options.units, blockedReason: protectedReason, hint: copy.unit },
+    { action: 'BUSINESS', options: options.businesses.filter(option => option.unitId === rows[0]?.unitId), blockedReason: protectedReason || (units.size !== 1 ? copy.business : undefined), hint: copy.business },
+    { action: 'PROVIDER', options: options.providers, blockedReason: protectedReason, hint: copy.classification },
+    { action: 'ACCOUNTING_ACCOUNT', options: options.accounts, blockedReason: protectedReason, hint: copy.classification },
+    { action: 'PAYMENT_ACCOUNT', blockedReason: copy.payment },
+  ];
+  return <FinanceBulkActions count={rows.length} locale={locale} actions={actions} onClear={onClearSelection}
+    onApply={(action, targetId, reason) => onApply(action, rows, targetId, reason)}
+    formatError={error => toFinanceApiErrorMessage(error, common.error)} />;
 }

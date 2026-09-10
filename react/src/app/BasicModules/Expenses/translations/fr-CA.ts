@@ -66,6 +66,7 @@ export const frCA = mergeFinanceTranslations('fr-CA', {
     modal: { amount: 'Montant', concept: 'Concept', create: 'Créer la dépense', currency: 'Devise', description: 'Concept, montant et devise.', edit: 'Modifier la dépense', groupTitle: 'Dépense de base', mainTitle: 'Détails principaux', placeholderConcept: 'Ex. Loyer mensuel', subtitle: 'Saisie rapide de la dépense de base.', summarySubtotal: 'Sous-total', summaryTaxes: 'Taxes', summaryTotal: 'Total' },
   },
   budgets: {
+    filters: { thisMonth: 'Ce mois-ci', futurePeriod: 'Période', customFutureRange: 'Plage personnalisée', defaultHelp: 'Comparez les montants prévus et dépensés des lignes de la période sélectionnée. Le mois prochain est affiché par défaut.' },
     actual: 'Réel',
     addLine: 'Ajouter une ligne budgétaire',
     available: 'Disponible',

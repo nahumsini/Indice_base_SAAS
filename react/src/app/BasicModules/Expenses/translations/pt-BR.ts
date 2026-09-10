@@ -66,6 +66,7 @@ export const ptBR = mergeFinanceTranslations('pt-BR', {
     modal: { amount: 'Valor', concept: 'Conceito', create: 'Criar despesa', currency: 'Moeda', description: 'Conceito, valor e moeda.', edit: 'Editar despesa', groupTitle: 'Despesa base', mainTitle: 'Dados principais', placeholderConcept: 'Ex. Aluguel mensal', subtitle: 'Registro rápido da despesa base.', summarySubtotal: 'Subtotal', summaryTaxes: 'Impostos', summaryTotal: 'Total' },
   },
   budgets: {
+    filters: { thisMonth: 'Este mês', futurePeriod: 'Período', customFutureRange: 'Intervalo personalizado', defaultHelp: 'Compare o planejado e o gasto nas linhas do período selecionado. O próximo mês aparece por padrão.' },
     actual: 'Realizado',
     addLine: 'Adicionar linha orçamentária',
     available: 'Disponível',

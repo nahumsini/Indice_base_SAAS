@@ -87,9 +87,9 @@ test('a 35-row import sends one pending batch and keeps the same request key and
   failRequest = false;
 });
 
-test('funds and posted journals stay protected while ordinary paid expenses allow account-only classification', () => {
+test('funds and posted journals stay protected while ordinary paid expenses allow correction and classification', () => {
   const paid = expense({ backendStatus: 'PAID', status: 'paid' });
-  assert.equal(canEditExpense(paid), false);
+  assert.equal(canEditExpense(paid), true);
   assert.equal(canReclassifyExpense(paid), true);
   for (const protectedExpense of [expense({ originFund: { id: '1', name: 'Fund', type: 'INTERNAL_COMPANY' } }),
     expense({ accountingPosted: true }), expense({ backendStatus: 'CANCELLED' })]) {

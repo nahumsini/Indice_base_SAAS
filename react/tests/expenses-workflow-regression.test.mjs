@@ -2,18 +2,18 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-test('the full expense form starts new operational expenses pending and does not expose a free status selector', async () => {
+test('the full expense form starts new operational expenses paid and does not expose a free status selector', async () => {
   const source = await readFile(
     new URL('../src/app/BasicModules/Expenses/components/modals/ExpenseFormModal.tsx', import.meta.url),
     'utf8',
   );
 
-  assert.match(source, /status:\s*expense\?\.status\s*\?\?\s*'pending'/);
-  assert.match(source, /status:\s*isEditMode\s*\?\s*draft\.status\s*:\s*'pending'/);
+  assert.match(source, /status:\s*expense\?\.status\s*\?\?\s*'paid'/);
+  assert.match(source, /status:\s*isEditMode\s*\?\s*draft\.status\s*:\s*'paid'/);
   assert.doesNotMatch(source, /<SelectInput label=\{t\.expenses\.columns\.status/);
 });
 
-test('creating an operational expense remains pending until the explicit payment workflow', async () => {
+test('creating an operational expense records payment while preserving payable and edit states', async () => {
   const source = await readFile(
     new URL('../src/app/BasicModules/Expenses/Expenses/Expenses.tsx', import.meta.url),
     'utf8',
@@ -23,12 +23,12 @@ test('creating an operational expense remains pending until the explicit payment
     source.indexOf('const handlePayableAccountSubmit'),
   );
 
-  assert.match(submitHandler, /const effectiveStatus = editingExpense\?\.status \?\? 'pending'/);
+  assert.match(submitHandler, /const effectiveStatus = editingExpense\?\.status \?\? \(sourceExpense\?\.type === 'payable' \? 'pending' : 'paid'\)/);
   assert.doesNotMatch(submitHandler, /expensesService\.updateExpenseStatus\(/);
   assert.match(submitHandler, /status:\s*effectiveStatus/);
 });
 
-test('the expense creation request only settles an explicitly paid expense with an account', async () => {
+test('source-linked creation still requires an assigned account to settle', async () => {
   const source = await readFile(
     new URL('../src/app/BasicModules/Expenses/services/expenses.service.ts', import.meta.url),
     'utf8',

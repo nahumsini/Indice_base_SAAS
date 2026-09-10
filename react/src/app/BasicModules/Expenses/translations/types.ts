@@ -553,6 +553,7 @@ export type FinanceTranslations = {
       defaultHelp: string;
       from: string;
       futurePeriod: string;
+      thisMonth: string;
       nextMonth: string;
       nextQuarter: string;
       searchPlaceholder: string;

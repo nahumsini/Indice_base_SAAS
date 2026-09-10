@@ -143,6 +143,7 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
   const [deletingExpenseIds, setDeletingExpenseIds] = useState<Set<string>>(() => new Set());
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const deletingExpenseIdsRef = useRef<Set<string>>(new Set());
+  const captureRequestKey = useRef(crypto.randomUUID());
   const saveTimeoutsRef = useRef<Record<string, number>>({});
   const expenses = controlledExpenses ?? localExpenses;
   const setExpenses = onExpensesChange ?? setLocalExpenses;
@@ -396,6 +397,7 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
     }
     setEditingExpense(null);
     setInitialExpense(null);
+    captureRequestKey.current = crypto.randomUUID();
     setIsAddExpenseModalOpen(true);
   };
 
@@ -406,6 +408,7 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
     }
     setEditingExpense(null);
     setInitialExpense(null);
+    captureRequestKey.current = crypto.randomUUID();
     setIsQuickExpenseModalOpen(true);
   };
 
@@ -434,13 +437,13 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
         total,
         taxes,
         amount,
-        amountPaid: 0,
+        amountPaid: total,
         currency,
         dueDate: now,
-        paymentDate: undefined,
+        paymentDate: now,
         date: now,
         paymentMethod: 'transfer',
-        status: 'pending',
+        status: 'paid',
         requestedByUserId: currentUser?.id,
         attachments: [],
         taxCountry,
@@ -454,7 +457,7 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
         createdAt: now,
         updatedAt: now,
       };
-      const paidExpense = await expensesService.createExpense(draftExpense, providers);
+      const paidExpense = await expensesService.createExpense(draftExpense, providers, captureRequestKey.current);
       const uploadedAttachments = [];
       for (const file of attachmentFiles) {
         uploadedAttachments.push(await expenseAttachmentsService.upload(paidExpense.id, file));
@@ -501,6 +504,11 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
         })
         .catch(error => {
           setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.saveFailed));
+          if (isBackendId(expense.id)) {
+            void expensesService.getExpenseById(expense.id, providers).then(saved => {
+              if (saved) setExpenses(rows => rows.map(row => row.id === saved.id ? saved : row));
+            }).catch(() => {});
+          }
         });
     }, 700);
   }, [providers, setExpenses, t.expenses.messages.saveFailed]);
@@ -536,17 +544,13 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
     const inputPaymentDate = values.paymentDate ? new Date(`${values.paymentDate}T00:00:00`) : undefined;
     const inputDueDate = values.dueDate ? new Date(`${values.dueDate}T00:00:00`) : undefined;
     const sourceExpense = editingExpense ?? initialExpense;
-    const effectiveStatus = editingExpense?.status ?? 'pending';
+    const effectiveStatus = editingExpense?.status ?? (sourceExpense?.type === 'payable' ? 'pending' : 'paid');
     const paymentDate = inputPaymentDate ?? sourceExpense?.paymentDate;
     const inputExpenseDate = values.expenseDate ? new Date(`${values.expenseDate}T00:00:00`) : undefined;
     const recordDate = inputExpenseDate ?? sourceExpense?.date ?? inputPaymentDate ?? now;
     const dueDate = inputDueDate ?? sourceExpense?.dueDate ?? now;
-    const previousAmountPaid = sourceExpense?.amountPaid ?? 0;
-    const amountPaid = effectiveStatus === 'paid' || effectiveStatus === 'audited'
-      ? values.total
-      : effectiveStatus === 'partial' || effectiveStatus === 'overdue'
-        ? Math.min(previousAmountPaid, values.total)
-        : 0;
+    // Correcting consumption never manufactures or erases a bank payment.
+    const amountPaid = editingExpense ? editingExpense.amountPaid ?? 0 : effectiveStatus === 'paid' ? values.total : 0;
     const draftExpense: Expense = {
       ...(sourceExpense ?? {}),
       id: editingExpense?.id ?? `expense-${Date.now()}`,
@@ -579,6 +583,7 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
       paymentDate,
       date: recordDate,
       paymentMethod: values.paymentMethod,
+      paymentAccountId: editingExpense ? editingExpense.paymentAccountId : values.paymentAccountId || undefined,
       accountingAccount: values.accountingAccount,
       status: effectiveStatus,
       attachments: values.attachments ?? sourceExpense?.attachments ?? [],
@@ -594,7 +599,7 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
           ? await expensesService.updateExpense(draftExpense, providers)
           : draftExpense.type === 'payable'
             ? await createPayableExpense(draftExpense)
-            : await expensesService.createExpense(draftExpense, providers);
+            : await expensesService.createExpense(draftExpense, providers, captureRequestKey.current);
 
       const attachmentOwner = resolveExpenseAttachmentOwner(savedExpense.id);
       const attachmentResults = attachmentOwner
@@ -640,6 +645,8 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
           : [savedExpense, ...replaceBudgetExpense(currentExpenses, updatedBudgetExpense)]
       ));
       closeExpenseModal();
+      onFinanceDataChanged?.();
+      void paymentAccountsService.getPaymentAccounts().then(accounts => setPaymentAccounts(accounts.filter(account => account.isActive))).catch(() => {});
       if (attachmentUploadFailed || attachmentRefreshFailed) {
         setFailureToastMessage(
           `${editingExpense ? t.expenses.messages.saved : t.expenses.messages.created} ${t.expenses.attachments.operationFailed}`,
@@ -853,28 +860,13 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
     )));
   };
 
-  const ensureExpensePayable = async (expense: Expense) => {
-    if (!isBackendId(expense.id) || expense.type === 'budget') {
-      return expense;
-    }
-
-    let currentExpense = expense;
-    if (currentExpense.backendStatus === 'DRAFT') {
-      currentExpense = await expensesService.submitExpense(currentExpense.id, providers);
-    }
-    if (currentExpense.backendStatus === 'PENDING_APPROVAL') {
-      currentExpense = await expensesService.approveExpense(currentExpense.id, providers);
-    }
-    return currentExpense;
-  };
-
-  const handleRecordExpensePayment = async (expense: Expense, amount: number, paymentAccountId: string, paymentDate: Date, attachmentFiles: File[]) => {
+  const handleRecordExpensePayment = async (expense: Expense, amount: number, paymentAccountId: string, paymentDate: Date, attachmentFiles: File[], idempotencyKey?: string) => {
     try {
-      const payableExpense = await ensureExpensePayable(expense);
+      const payableExpense = expense;
       const savedExpense = payableExpense.type === 'budget'
         ? await budgetLinesService.updateBudgetLineFromExpense(applyExpensePayment(payableExpense, amount, paymentDate))
         : isBackendId(payableExpense.id)
-          ? await expensesService.recordExpensePayment(payableExpense.id, amount, paymentAccountId, paymentDate, providers)
+          ? await expensesService.recordExpensePayment(payableExpense.id, amount, paymentAccountId, paymentDate, providers, idempotencyKey)
           : { ...applyExpensePayment(payableExpense, amount, paymentDate), paymentAccountId };
       const updatedBudgetExpense = await getUpdatedBudgetExpense(savedExpense.budgetLineId);
 
@@ -1073,8 +1065,8 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
         <ExpensePaymentModal
           expense={detailPaymentExpense}
           onClose={() => setDetailPaymentExpense(null)}
-          onSubmit={async (_expenseId, amount, paymentAccountId, paymentDate, attachmentFiles) => {
-            const savedExpense = await handleRecordExpensePayment(detailPaymentExpense, amount, paymentAccountId, paymentDate, attachmentFiles);
+          onSubmit={async (_expenseId, amount, paymentAccountId, paymentDate, attachmentFiles, idempotencyKey) => {
+            const savedExpense = await handleRecordExpensePayment(detailPaymentExpense, amount, paymentAccountId, paymentDate, attachmentFiles, idempotencyKey);
             if (!savedExpense) return;
             setExpenses(currentExpenses => currentExpenses.map(expense => expense.id === savedExpense.id ? savedExpense : expense));
             setDetailPaymentExpense(null);
@@ -1099,6 +1091,7 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
 
       {isAddExpenseModalOpen && (
         <ExpenseFormModal
+          paymentAccounts={paymentAccounts}
           accountingAccountOptions={accountingAccountOptions}
           businessOptions={referenceBusinessOptions}
           editingExpense={editingExpense}

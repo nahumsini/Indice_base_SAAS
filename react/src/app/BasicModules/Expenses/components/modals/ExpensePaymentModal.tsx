@@ -1,5 +1,5 @@
 import { Check, HandCoins, Loader2, Paperclip, X } from 'lucide-react';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { useExpensesResolvedLocale, useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
 import { getExpenseDetailCopy } from '../../Expenses/components/expenseDetail.copy';
 import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
@@ -11,7 +11,7 @@ import { formatCurrency } from '../../utils/expenses.utils';
 type ExpensePaymentModalProps = {
   expense: Expense;
   onClose: () => void;
-  onSubmit: (expenseId: string, amount: number, paymentAccountId: string, paymentDate: Date, attachmentFiles: File[]) => void | Promise<void>;
+  onSubmit: (expenseId: string, amount: number, paymentAccountId: string, paymentDate: Date, attachmentFiles: File[], idempotencyKey?: string) => void | Promise<void>;
   paymentAccounts: PaymentAccount[];
 };
 
@@ -21,6 +21,7 @@ const inputClass =
 export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccounts }: ExpensePaymentModalProps) {
   const t = useExpensesTranslations();
   const detailCopy = getExpenseDetailCopy(useExpensesResolvedLocale());
+  const submission = useRef({ busy: false, key: crypto.randomUUID() });
   const [amount, setAmount] = useState('');
   const [paymentAccountId, setPaymentAccountId] = useState(expense.paymentAccountId ?? '');
   const [paymentDate, setPaymentDate] = useState(formatDateInputValue(new Date()));
@@ -51,14 +52,16 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccount
   };
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || submission.current.busy) return;
+    submission.current.busy = true;
     setError('');
     setIsSubmitting(true);
     try {
-      await onSubmit(expense.id, paymentAmount, selectedPaymentAccountId, toDateValue(paymentDate), attachmentFiles);
+      await onSubmit(expense.id, paymentAmount, selectedPaymentAccountId, toDateValue(paymentDate), attachmentFiles, submission.current.key);
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : t.expenses.messages.saveFailed);
     } finally {
+      submission.current.busy = false;
       setIsSubmitting(false);
     }
   };

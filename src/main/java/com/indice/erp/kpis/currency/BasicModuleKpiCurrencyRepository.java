@@ -39,6 +39,12 @@ public class BasicModuleKpiCurrencyRepository {
         var params = new ArrayList<Object>();
         params.add(companyId);
         String baseFilter = definition.baseFilter();
+        // An explicit budget table selection must total exactly those visible rows,
+        // including closed/draft lines. Unfiltered central KPIs retain active-only planning.
+        if (restrictToIds && (metric == BasicModuleKpiMetric.BUDGET_PLANNED
+                || metric == BasicModuleKpiMetric.BUDGET_COMMITTED || metric == BasicModuleKpiMetric.BUDGET_ACTUAL)) {
+            baseFilter = " AND deleted_at IS NULL";
+        }
         int dateReferences = baseFilter.split("CURRENT_DATE\\(\\)", -1).length - 1;
         baseFilter = baseFilter.replace("CURRENT_DATE()", "?");
         for (int index = 0; index < dateReferences; index++) params.add(today);

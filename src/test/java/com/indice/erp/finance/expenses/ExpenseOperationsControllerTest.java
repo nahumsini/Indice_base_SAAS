@@ -30,6 +30,9 @@ class ExpenseOperationsControllerTest {
         assertThat(controller.updateAccountingAccount(session, null, 1, new UpdateExpenseAccountingAccountRequest(2L, 0L))).isEqualTo(denial);
         assertThat(controller.bulkAction(session, null, new ExpenseBulkActionRequest(ExpenseBulkActionRequest.Action.DELETE, List.of(), null, "test"))).isEqualTo(denial);
         assertThat(controller.bulkStatus(session, null, null)).isEqualTo(denial);
+        var corrections = mock(ExpenseCorrectionService.class);
+        assertThat(new ExpenseCorrectionsController(guard, corrections).correct(session, 1, null, null)).isEqualTo(denial);
+        verifyNoInteractions(corrections);
         verifyNoInteractions(imports, classification, bulk, status);
     }
 

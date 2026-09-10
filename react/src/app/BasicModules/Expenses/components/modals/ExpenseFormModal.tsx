@@ -13,6 +13,8 @@ import {
   financeCurrencySelectOptions,
   isFinanceCurrencyOption,
 } from '../../constants/financeCurrencyOptions';
+import type { PaymentAccount } from '../../PaymentAccounts/types';
+import { toFinanceApiErrorMessage } from '../../services/finance-api.errors';
 import type { Expense, ExpenseStatus, PaymentMethod, Provider } from '../../types/expenses.types';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import { formatCurrency } from '../../utils/expenses.utils';
@@ -41,6 +43,7 @@ export type ExpenseFormValues = {
   expenseDate: string;
   paymentDate: string;
   paymentMethod: PaymentMethod;
+  paymentAccountId: string;
   providerId: string;
   status: ExpenseStatus;
   taxes: number;
@@ -63,6 +66,7 @@ type ExpenseFormModalProps = {
   onClose: () => void;
   onCreateProvider?: (name: string) => Promise<Provider>;
   preferredCurrency?: string;
+  paymentAccounts?: PaymentAccount[];
   providers?: Provider[];
   unitOptions?: FinanceReferenceOption[];
   onSubmitExpense: (values: ExpenseFormValues) => void | Promise<void>;
@@ -78,6 +82,7 @@ type ExpenseDraftState = TaxControlDraft & {
   expenseDate: string;
   paymentDate: string;
   paymentMethod: PaymentMethod;
+  paymentAccountId: string;
   providerId: string;
   status: ExpenseStatus;
 };
@@ -91,6 +96,7 @@ export function ExpenseFormModal({
   onCreateProvider,
   preferredCurrency = DEFAULT_FINANCE_CURRENCY,
   providers = [],
+  paymentAccounts = [],
   unitOptions = [],
   onSubmitExpense,
 }: ExpenseFormModalProps) {
@@ -101,13 +107,14 @@ export function ExpenseFormModal({
   const [attachmentError, setAttachmentError] = useState('');
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(Boolean(editingExpense));
   const [errorMessage, setErrorMessage] = useState('');
+  const savingRef = useRef(false);
   const [isSaving, setIsSaving] = useState(false);
   const [draft, setDraft] = useState<ExpenseDraftState>(() => createExpenseDraftState(editingExpense ?? initialExpense, preferredCurrency));
   const isEditMode = Boolean(editingExpense);
   const amount = toMoneyNumber(draft.amount);
   const taxes = draft.taxEnabled ? toMoneyNumber(draft.taxes) : 0;
-  const subtotal = draft.taxEnabled && draft.taxIncluded ? Math.max(amount - taxes, 0) : amount;
-  const total = draft.taxEnabled && draft.taxIncluded ? amount : amount + taxes;
+  const subtotal = draft.taxEnabled && draft.taxIncluded ? roundMoney(Math.max(amount - taxes, 0)) : amount;
+  const total = draft.taxEnabled && draft.taxIncluded ? amount : roundMoney(amount + taxes);
   const existingAttachmentCount = Math.max(
     editingExpense?.attachmentCount ?? 0,
     editingExpense?.attachments?.length ?? 0,
@@ -133,6 +140,7 @@ export function ExpenseFormModal({
     const defaultTaxProfile = getDefaultBudgetTaxProfile(taxCountry);
     updateDraft({
       budgetCurrencyCode,
+      paymentAccountId: '',
       taxCountry,
       taxProfileId: defaultTaxProfile?.id ?? '',
       taxRate: defaultTaxProfile ? taxRateToPercentInput(defaultTaxProfile.rate) : '',
@@ -186,7 +194,8 @@ export function ExpenseFormModal({
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || savingRef.current) return;
+    savingRef.current = true;
 
     const taxProfile = draft.taxEnabled ? getBudgetTaxProfile(draft.taxProfileId, draft.taxCountry) : undefined;
     setIsSaving(true);
@@ -206,8 +215,9 @@ export function ExpenseFormModal({
         expenseDate: draft.expenseDate,
         paymentDate: isEditMode ? draft.paymentDate : draft.expenseDate,
         paymentMethod: draft.paymentMethod,
+        paymentAccountId: draft.paymentAccountId,
         providerId: draft.providerId,
-        status: isEditMode ? draft.status : 'pending',
+        status: isEditMode ? draft.status : 'paid',
         taxes,
         taxCountry: draft.taxEnabled ? draft.taxCountry : undefined,
         taxIncluded: draft.taxEnabled ? draft.taxIncluded : false,
@@ -219,9 +229,10 @@ export function ExpenseFormModal({
         taxSpecialAmount: draft.taxEnabled ? toMoneyNumber(draft.taxSpecialAmount) : undefined,
         total,
       });
-    } catch {
-      setErrorMessage(isEditMode ? t.expenses.messages.updateFailed : t.expenses.messages.createFailed);
+    } catch (error) {
+      setErrorMessage(toFinanceApiErrorMessage(error, isEditMode ? t.expenses.messages.updateFailed : t.expenses.messages.createFailed));
     } finally {
+      savingRef.current = false;
       setIsSaving(false);
     }
   };
@@ -254,7 +265,12 @@ export function ExpenseFormModal({
           <DateInput label={t.expenses.modal.date} required value={draft.expenseDate} onChange={(expenseDate) => updateDraft({ expenseDate })} />
           <TextInput label={t.expenses.modal.concept} required value={draft.concept} onChange={(concept) => updateDraft({ concept })} placeholder={t.expenses.modal.placeholderConcept} />
           <MoneyInput label={t.expenses.modal.amount} required value={draft.amount} onChange={(nextAmount) => updateDraft({ amount: nextAmount })} placeholder="0.00" />
-          <SelectInput label={t.expenses.modal.currency} required value={draft.budgetCurrencyCode} onChange={updateCurrency} options={financeCurrencySelectOptions} />
+          <SelectInput label={t.expenses.modal.currency} disabled={Boolean(editingExpense && ((editingExpense.amountPaid ?? 0) > 0 || editingExpense.budgetLineId))} required value={draft.budgetCurrencyCode} onChange={updateCurrency} options={financeCurrencySelectOptions} />
+          {!isEditMode && <SelectInput label={t.paymentAccounts.headerTitle} value={draft.paymentAccountId}
+            onChange={(paymentAccountId) => updateDraft({ paymentAccountId })}
+            options={[{ value: '', label: t.common.unassigned }, ...paymentAccounts.filter(account => account.isActive
+              && account.currency === draft.budgetCurrencyCode && account.backendType !== 'PETTY_CASH'
+              && account.source !== 'petty_cash' && !account.linkedFundId).map(account => ({ value: account.id, label: account.name }))]} />}
           <QuickProviderField
             emptyLabel={t.common.unassigned}
             label={t.filters.provider}
@@ -443,18 +459,20 @@ function SelectInput({
   onChange,
   options,
   required,
+  disabled,
   value,
 }: {
   label: string;
   onChange: (value: string) => void;
   options: Array<{ value: string; label: string }>;
   required?: boolean;
+  disabled?: boolean;
   value: string;
 }) {
   return (
     <label>
       <FieldLabel label={label} required={required} />
-      <select required={required} value={value} onChange={(event) => onChange(event.target.value)} className={financeModalInputClass}>
+      <select disabled={disabled} required={required} value={value} onChange={(event) => onChange(event.target.value)} className={financeModalInputClass}>
         {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
     </label>
@@ -465,7 +483,7 @@ function createExpenseDraftState(expense: Expense | null, preferredCurrency: str
   const currency = expense?.currency || (isFinanceCurrencyOption(preferredCurrency) ? preferredCurrency : DEFAULT_FINANCE_CURRENCY);
   const taxCountry = normalizeTaxCountry(expense?.taxCountry || inferTaxCountryFromCurrency(currency));
   const defaultTaxProfile = getDefaultBudgetTaxProfile(taxCountry);
-  const hasTaxMetadata = Boolean(expense?.taxMode || expense?.taxProfileId || expense?.taxRate || expense?.taxSpecialAmount);
+  const hasTaxMetadata = Boolean((expense?.taxMode && expense.taxMode !== 'none') || expense?.taxProfileId || expense?.taxRate || expense?.taxSpecialAmount);
   const hasTaxAmount = (expense?.taxes ?? 0) > 0;
 
   return {
@@ -480,8 +498,9 @@ function createExpenseDraftState(expense: Expense | null, preferredCurrency: str
     expenseDate: formatDateInputValue(expense?.date ?? new Date()),
     paymentDate: formatDateInputValue(expense?.paymentDate),
     paymentMethod: expense?.paymentMethod ?? 'transfer',
+    paymentAccountId: expense?.paymentAccountId ?? '',
     providerId: expense?.providerId ?? '',
-    status: expense?.status ?? 'pending',
+    status: expense?.status ?? 'paid',
     taxes: expense ? String(expense.taxes ?? '') : '',
     taxCountry,
     taxEnabled: hasTaxMetadata || hasTaxAmount,
@@ -514,6 +533,10 @@ function toMoneyNumber(value: string) {
   const normalizedValue = value.replace(/,/g, '').trim();
   const parsedValue = Number(normalizedValue);
   return Number.isFinite(parsedValue) ? parsedValue : 0;
+}
+
+function roundMoney(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 function toPercentNumber(value: string) {

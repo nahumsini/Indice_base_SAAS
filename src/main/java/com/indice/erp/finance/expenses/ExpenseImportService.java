@@ -28,16 +28,18 @@ public class ExpenseImportService {
     private final ExpenseImportRepository batches;
     private final ObjectMapper json;
     private final FinanceBusinessTimeZoneResolver timeZones;
+    private final ExpenseCorrectionService corrections;
 
     public ExpenseImportService(ExpenseRepository repository, ExpenseService expenses,
             ExpenseReferenceValidator references, ExpenseImportRepository batches, ObjectMapper json,
-            FinanceBusinessTimeZoneResolver timeZones) {
+            FinanceBusinessTimeZoneResolver timeZones, ExpenseCorrectionService corrections) {
         this.repository = repository;
         this.expenses = expenses;
         this.references = references;
         this.batches = batches;
         this.json = json;
         this.timeZones = timeZones;
+        this.corrections = corrections;
     }
 
     @Transactional
@@ -116,7 +118,8 @@ public class ExpenseImportService {
                 }
                 references.validateImportPaymentAccount(context, row.expense().paymentAccountId(), row.expense().currencyCode());
                 references.validateImportAccountingAccount(context, row.expense().accountingAccountId());
-                saved.add(expenses.updateDraft(context, row.id(), row.expense()));
+                saved.add(corrections.correct(context, row.id(),
+                    new com.indice.erp.finance.expenses.dto.CorrectExpenseRequest(row.expectedVersion(), row.expense())));
             } catch (FinanceApiException ex) {
                 throw new FinanceApiException(ex.status(), "Row " + (index + 1) + ": " + ex.getMessage());
             }

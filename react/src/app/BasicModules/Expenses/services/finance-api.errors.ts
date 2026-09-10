@@ -9,6 +9,16 @@ const statusMessages: Record<number, string> = {
 };
 
 const backendMessageTranslations: Record<string, string> = {
+  'Select between 1 and 200 budget lines.': 'Selecciona entre 1 y 200 líneas presupuestales.',
+  'Invalid or duplicate budget line selection.': 'La selección contiene líneas inválidas o repetidas. Actualiza la tabla.',
+  'Budget line not found.': 'No se encontró la línea presupuestal en tu ámbito de acceso.',
+  'A budget line changed. Reload the selection before retrying.': 'Una línea presupuestal cambió. Actualiza la tabla y vuelve a seleccionar.',
+  'Closed or archived budget lines cannot be changed in bulk.': 'Las líneas cerradas o archivadas no se pueden modificar en masa.',
+  'A reason of at least 8 characters is required to delete budget lines.': 'Escribe un motivo de al menos 8 caracteres para eliminar las líneas.',
+  'The business must belong to the unit of every selected budget line.': 'El negocio debe pertenecer a la unidad de todas las líneas seleccionadas.',
+  'Budget lines with execution or linked funds cannot be deleted or moved to another unit or business.': 'Las líneas con ejecución o fondos vinculados no se pueden eliminar ni cambiar de unidad o negocio.',
+  'Select an active accounting account from this company.': 'Selecciona una cuenta contable activa de esta empresa.',
+
   'Paid imports require a payment account on every row.': 'Selecciona una cuenta de pago en cada fila para importar gastos pagados.',
   'Paid imports require an expense date no later than today.': 'Un gasto pagado no puede tener una fecha futura. Corrige la fecha o impórtalo como pendiente.',
   'Includes tax must be true or false.': 'Revisa la palomita Incluye impuesto de esta fila.',
@@ -61,6 +71,14 @@ const backendMessageTranslations: Record<string, string> = {
   'This import was already saved. Reload Expenses before importing another batch.': 'Este lote ya se guardó. Actualiza Gastos antes de iniciar otro lote.',
   'This expense is protected and cannot be edited in a batch.': 'El gasto está protegido y no admite edición masiva.',
   'Fund expenses must be managed from their source fund.': 'Este gasto debe gestionarse desde su fondo de origen.',
+  'The corrected expense total must be greater than zero.': 'El total corregido debe ser mayor a cero.',
+  'A correction cannot replace the source budget or purchase order.': 'La corrección debe conservar el presupuesto o pedido de origen.',
+  'An expense with payments or a budget must retain its original currency.': 'Conserva la moneda original: este gasto ya tiene pagos o un presupuesto vinculado.',
+  'The corrected total is below payments already recorded. Correct or reverse the excess payment first.': 'El total es menor a lo ya pagado. Primero corrige o revierte el pago excedente; sus movimientos se conservan.',
+  'Changing the expense cannot move an existing payment to another account.': 'La edición conserva la cuenta de los pagos ya registrados.',
+  'A paid expense cannot have a future expense date.': 'Un gasto pagado no puede tener una fecha futura.',
+  'Closed, cancelled, rejected or purchase-order expenses require their source correction workflow.': 'Corrige este registro desde su operación de origen: está cerrado, cancelado, rechazado o vinculado a un pedido.',
+  'idempotencyKey was already used for a different payment.': 'Este intento corresponde a otro pago. Actualiza la vista y revisa el historial antes de continuar.',
   'Only draft expenses can be updated.': 'El gasto ya fue registrado y no admite edición de sus importes.',
   'Cancelled or rejected expenses cannot be reclassified.': 'Los gastos cancelados o rechazados no admiten reclasificación.',
   'Imported expenses must start pending.': 'Los gastos importados deben comenzar pendientes de pago.',

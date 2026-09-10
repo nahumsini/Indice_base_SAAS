@@ -259,6 +259,7 @@ export interface BudgetApiRequest {
 }
 
 export interface BudgetLineApiDto {
+  version?: number;
   id: number;
   companyId: number;
   unitId?: number | null;
