@@ -104,6 +104,17 @@ public class ExpenseService {
 
     @Transactional
     public ExpenseResponse createDraft(FinanceContext context, CreateExpenseRequest request) {
+        return createExpense(context, request, false);
+    }
+
+    /** Only the import owner may record a paid expense whose payment account is unassigned. */
+    @Transactional
+    ExpenseResponse createImportedExpense(FinanceContext context, CreateExpenseRequest request) {
+        return createExpense(context, request, true);
+    }
+
+    private ExpenseResponse createExpense(FinanceContext context, CreateExpenseRequest request,
+            boolean allowUnassignedPaymentAccount) {
         // Serialize automatic numbers before any consistent read establishes a stale snapshot.
         repository.lockCompanyForCreation(context);
         var assignment = validator.validateCreate(context, request);
@@ -112,7 +123,7 @@ public class ExpenseService {
         if (autoPrefix == null) {
             try {
                 var created = repository.insert(context, mapper.toCreateCommand(context, request, assignment));
-                return finalizeCreatedExpense(context, request, created);
+                return finalizeCreatedExpense(context, request, created, allowUnassignedPaymentAccount);
             } catch (DuplicateKeyException exception) {
                 throw FinanceApiException.conflict("An expense with this folio already exists.");
             }
@@ -123,7 +134,7 @@ public class ExpenseService {
             try {
                 var command = mapper.toCreateCommand(context, request, assignment, folio);
                 var created = repository.insert(context, command);
-                return finalizeCreatedExpense(context, request, created);
+                return finalizeCreatedExpense(context, request, created, allowUnassignedPaymentAccount);
             } catch (DuplicateKeyException exception) {
                 // Another request may have reserved the same sequence. Re-read and retry.
             }
@@ -134,12 +145,15 @@ public class ExpenseService {
     private ExpenseResponse finalizeCreatedExpense(
             FinanceContext context,
             CreateExpenseRequest request,
-            ExpenseRecord created) {
+            ExpenseRecord created,
+            boolean allowUnassignedPaymentAccount) {
         if (!Boolean.TRUE.equals(request.settleOnCreate())) {
             return mapper.toResponse(created);
         }
-        referenceValidator.validatePaymentAccountForPayment(
-            context, created.paymentAccountId(), created.currencyCode());
+        if (!allowUnassignedPaymentAccount || created.paymentAccountId() != null) {
+            referenceValidator.validatePaymentAccountForPayment(
+                context, created.paymentAccountId(), created.currencyCode());
+        }
         if (!workflowRepository.applyManualStatus(
                 context,
                 created.id(),
@@ -163,14 +177,18 @@ public class ExpenseService {
                 "expense-settle-on-create-" + created.id())) {
             throw FinanceApiException.conflict("Initial expense payment history could not be recorded.");
         }
-        postExpensePayment(
-            context,
-            created,
-            created.paymentAccountId(),
-            created.totalAmount(),
-            "SETTLED_ON_CREATE:" + created.id(),
-            "Pago al crear el gasto"
-        );
+        // The history above records the reported payment even when its bank is unknown.
+        // Never debit an arbitrary/default account or invent a Treasury movement in that case.
+        if (created.paymentAccountId() != null) {
+            postExpensePayment(
+                context,
+                created,
+                created.paymentAccountId(),
+                created.totalAmount(),
+                "SETTLED_ON_CREATE:" + created.id(),
+                "Pago al crear el gasto"
+            );
+        }
         refreshBudgetLine(context, created.budgetLineId());
         return get(context, created.id());
     }
