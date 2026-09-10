@@ -40,17 +40,88 @@ function setup(name, overrides={}) {
 }
 const paste=(view,value)=>nodes(view.render()).find(node=>node.type==='td' && node.props.onPaste).props.onPaste({clipboardData:{getData:()=>value},preventDefault(){}});
 
-test('paid spreadsheet import requires each account, preserves gross totals and has a final includes-tax checkbox', async()=>{
+test('paid spreadsheet import accepts optional accounts and tax, preserving dates and gross totals', async()=>{
   const view=setup('ExpenseBulkIntegrationModal');
   paste(view,'15/08/2026\tExpense A\t116\tBank\t6000\tsi\n15/08/2026\tExpense B\t232');
-  assert.equal(view.button().props.disabled,true);
-  view.field('Cuenta de pago, fila 2').props.onChange('10');
   assert.equal(view.button().props.disabled,false);
-  assert.equal(nodes(view.render()).filter(node=>node.type==='th').map(text).at(-1),'Incluye impuesto');
+  assert.ok(nodes(view.render()).filter(node=>node.type==='th').map(text).at(-1).startsWith('Incluye impuesto'));
   view.button().props.onClick(); await view.runtime.flush();
   const [rows,key]=view.calls[0]; assert.ok(key);
   assert.equal(rows[0].paid,true);assert.equal(rows[0].total,116);assert.equal(rows[0].taxIncluded,true);assert.equal(rows[0].taxRate,0.16);
   assert.equal(rows[1].total,232);assert.equal(rows[1].taxIncluded,false);assert.equal(rows[1].taxRate,0);
+  assert.equal(rows[1].paid,true);assert.equal(rows[1].date,'2026-08-15');
+  assert.equal(rows[1].paymentAccountId,undefined);assert.equal(rows[1].accountingAccountId,undefined);
+});
+
+test('header controls fill 35 entered rows, leave blank rows unused and allow individual overrides', async()=>{
+  const view=setup('ExpenseBulkIntegrationModal');
+  paste(view,Array.from({length:35},(_,i)=>`15/08/2026\tExpense ${i}\t50`).join('\n'));
+  view.field('Cuenta de pago para todas las filas').props.onChange('10');
+  view.field('Cuenta contable para todas las filas').props.onChange('20');
+  view.field('Incluye impuesto en todas las filas capturadas').props.onChange({target:{checked:true}});
+  assert.equal(view.field('Incluye impuesto en todas las filas capturadas').props.checked,true);
+  view.field('Cuenta de pago, fila 2').props.onChange('');
+  view.field('Cuenta contable, fila 2').props.onChange('');
+  view.field('Incluye impuesto, 2').props.onChange({target:{checked:false}});
+  assert.equal(view.field('Incluye impuesto en todas las filas capturadas').props['aria-checked'],'mixed');
+  view.button().props.onClick();await view.runtime.flush();
+  const rows=view.calls[0][0];assert.equal(rows.length,35);
+  rows.forEach((row,i)=>{
+    assert.equal(row.total,50);assert.equal(row.paid,true);
+    assert.equal(row.paymentAccountId,i===1?undefined:'10');
+    assert.equal(row.accountingAccountId,i===1?undefined:'20');
+    assert.equal(row.taxIncluded,i!==1);
+  });
+});
+
+test('header defaults work before pasting and explicit spreadsheet accounts and tax override them', async()=>{
+  const view=setup('ExpenseBulkIntegrationModal');
+  view.field('Cuenta de pago para todas las filas').props.onChange('10');
+  view.field('Cuenta contable para todas las filas').props.onChange('20');
+  view.field('Incluye impuesto en todas las filas capturadas').props.onChange({target:{checked:true}});
+  assert.equal(view.button().props.disabled,true); // Defaults never create empty expenses.
+  view.field('Fecha, fila 3').props.onChange({target:{value:'19/08/2026'}});
+  paste(view,'15/08/2026\tDefault row\t50\n15/08/2026\tExplicit unassigned\t50\t\t\t0');
+  view.field('Concepto, fila 3').props.onChange({target:{value:'Typed row'}});
+  view.field('Monto (MXN), fila 3').props.onChange({target:{value:'50'}});
+  view.button().props.onClick();await view.runtime.flush();
+  const rows=view.calls[0][0];assert.equal(rows.length,3);
+  for(const i of [0,2]){
+    assert.equal(rows[i].paymentAccountId,'10');assert.equal(rows[i].accountingAccountId,'20');assert.equal(rows[i].taxIncluded,true);
+  }
+  assert.equal(rows[1].paymentAccountId,undefined);assert.equal(rows[1].accountingAccountId,undefined);assert.equal(rows[1].taxIncluded,false);
+});
+
+test('all-tax checkbox can clear every row and accounts can be cleared in one operation', async()=>{
+  const view=setup('ExpenseBulkIntegrationModal');
+  paste(view,'15/08/2026\tA\t50\tBank\t6000\tsi\n15/08/2026\tB\t50\tBank\t6000\tsi');
+  view.field('Incluye impuesto en todas las filas capturadas').props.onChange({target:{checked:false}});
+  view.field('Cuenta de pago para todas las filas').props.onChange('');
+  view.field('Cuenta contable para todas las filas').props.onChange('');
+  view.button().props.onClick();await view.runtime.flush();
+  assert.equal(view.calls[0][0].length,2);
+  view.calls[0][0].forEach(row=>{assert.equal(row.taxIncluded,false);assert.equal(row.taxRate,0);assert.equal(row.paymentAccountId,undefined);assert.equal(row.accountingAccountId,undefined);});
+});
+
+test('an explicitly invalid payment account still blocks import; header choices follow batch currency',()=>{
+  const view=setup('ExpenseBulkIntegrationModal',{paymentAccounts:[{value:'10',label:'Bank',currency:'MXN'},{value:'11',label:'US bank',currency:'USD'}]});
+  assert.deepEqual(view.field('Cuenta de pago para todas las filas').props.options.map(x=>x.value),['10']);
+  paste(view,'15/08/2026\tInvalid account\t50\tUS bank');
+  assert.equal(view.button().props.disabled,true);
+  view.field('Cuenta de pago para todas las filas').props.onChange('10');
+  assert.equal(view.button().props.disabled,false);
+});
+
+test('bulk fill is disabled while saving and resets when capture is cleared',()=>{
+  const view=setup('ExpenseBulkIntegrationModal');
+  view.field('Cuenta de pago para todas las filas').props.onChange('10');
+  view.field('Incluye impuesto en todas las filas capturadas').props.onChange({target:{checked:true}});
+  view.props.isSaving=true;
+  for(const label of ['Cuenta de pago para todas las filas','Cuenta contable para todas las filas','Incluye impuesto en todas las filas capturadas'])assert.equal(view.field(label).props.disabled,true);
+  view.props.isSaving=false;
+  nodes(view.render()).find(node=>node.type==='Button' && text(node)==='Limpiar tabla').props.onClick();
+  assert.equal(view.field('Cuenta de pago para todas las filas').props.value,'');
+  assert.equal(view.field('Incluye impuesto en todas las filas capturadas').props.checked,false);
 });
 
 test('pending import uses a separate due date and does not require a payment account', async()=>{

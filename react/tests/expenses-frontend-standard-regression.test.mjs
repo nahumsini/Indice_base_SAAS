@@ -241,7 +241,8 @@ test('Gastos permite integración masiva validada y protege registros con origen
   const adapterSource = readFileSync(resolve(expensesRoot, 'adapters/expense.adapter.ts'), 'utf8');
 
   assert.match(headerSource, /Integración masiva/);
-  assert.match(modalSource, /Pega desde Excel: fecha \| concepto \| monto/);
+  assert.match(modalSource, /copy\.pasteHint/);
+  assert.match(readFileSync(resolve(expensesRoot, 'utils/expenseWorkflow.copy.ts'), 'utf8'), /Pega desde Excel: fecha \| concepto \| monto/);
   assert.match(modalSource, /importStatus === 'paid' \? copy\.importPaidHint : copy\.importPendingHint/);
   assert.match(modalSource, /date: displayDate\(toDateInput\(new Date\(\)\)\)/);
   assert.match(readFileSync(resolve(expensesRoot, 'utils/expenseBulkInput.ts'), 'utf8'), /compactMatch/);

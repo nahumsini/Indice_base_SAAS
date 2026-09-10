@@ -1,6 +1,6 @@
 const en = {
   changeStatus: 'Change status', paid: 'Paid', pending: 'Pending', overdue: 'Overdue',
-  importStatus: 'Import expenses as', importPaidHint: 'Records the full payment from each selected account, on the expense date.',
+  importStatus: 'Import expenses as', importPaidHint: 'Records expenses as paid on the entered date. Accounts are optional; only a selected payment account is debited.',
   importPendingHint: 'Creates unpaid expenses with the selected due date. Selecting an account does not record a payment.',
   taxHint: 'Checked amounts already include the selected tax. Currency:', includesTax: 'Includes tax',
   tax: 'Tax for this import', taxRate: 'Tax rate (%)', taxRequired: 'Select a positive tax rate.',
@@ -15,10 +15,14 @@ const en = {
   paymentDateInvalid: 'The payment date must be between the latest expense date and today.',
   pendingDateInvalid: 'Use today or a later due date.', overdueDateInvalid: 'Use a due date before today.',
   limit: 'Select up to 200 expenses.', selected: 'selected expenses',
+  pasteHint: 'Paste from Excel: date | description | amount | payment account | accounting account | includes tax',
+  fillHint: 'Header controls apply accounts or tax to all entered rows and new rows. You can adjust each row individually. Accounts and tax are optional.',
+  paymentForAll: 'Payment account for all rows', accountingForAll: 'Accounting account for all rows',
+  taxForAll: 'Includes tax for all entered rows', allRows: 'All',
 };
 const es: typeof en = {
   changeStatus: 'Cambiar estatus', paid: 'Pagados', pending: 'Pendientes', overdue: 'Vencidos',
-  importStatus: 'Importar gastos como', importPaidHint: 'Registra el pago completo desde la cuenta elegida en cada fila, con la fecha del gasto.',
+  importStatus: 'Importar gastos como', importPaidHint: 'Registra los gastos como pagados con la fecha capturada. Las cuentas son opcionales; solo se descuenta de la cuenta de pago que elijas.',
   importPendingHint: 'Crea gastos sin pagar con la fecha de vencimiento seleccionada. Elegir cuenta no registra un pago.',
   taxHint: 'Los montos con palomita ya incluyen el impuesto seleccionado. Moneda:', includesTax: 'Incluye impuesto',
   tax: 'Impuesto de esta carga', taxRate: 'Tasa de impuesto (%)', taxRequired: 'Selecciona una tasa de impuesto mayor a cero.',
@@ -33,5 +37,9 @@ const es: typeof en = {
   paymentDateInvalid: 'La fecha de pago debe estar entre la fecha más reciente de los gastos y hoy.',
   pendingDateInvalid: 'El vencimiento debe ser hoy o después.', overdueDateInvalid: 'El vencimiento debe ser anterior a hoy.',
   limit: 'Selecciona hasta 200 gastos.', selected: 'gastos seleccionados',
+  pasteHint: 'Pega desde Excel: fecha | concepto | monto | cuenta de pago | cuenta contable | incluye impuesto',
+  fillHint: 'Los controles del encabezado aplican cuentas o impuesto a todas las filas capturadas y a las nuevas. Puedes ajustar cada fila. Las cuentas y el impuesto son opcionales.',
+  paymentForAll: 'Cuenta de pago para todas las filas', accountingForAll: 'Cuenta contable para todas las filas',
+  taxForAll: 'Incluye impuesto en todas las filas capturadas', allRows: 'Todas',
 };
 export const getExpenseWorkflowCopy = (locale: string) => locale.toLowerCase().startsWith('es') ? es : en;

@@ -340,8 +340,9 @@ Approved Finance domain contracts remain authoritative. General rules include:
   workflows. A generic status endpoint may preserve an already-current legacy value for
   compatibility, but it must not manufacture paid amounts or move money.
 - Every expense payment locks the expense aggregate, carries a company-scoped idempotency key when
-  supplied by the client, records its payment history, and posts the Treasury movement in one
-  transaction.
+  supplied by the client, and records its payment history in one transaction. An assigned payment
+  account also receives its Treasury movement in that transaction. The explicitly approved bulk
+  import exception below records a payment without a bank assignment and cannot move bank money.
 - Only `DRAFT` expenses may be edited or deleted. Submitted, approved, partially paid, paid, and
   closed expenses change through their explicit workflow, adjustment, or reversal operations.
 - Selected-row classification adjustments and audited bulk reversals follow
@@ -353,9 +354,13 @@ Approved Finance domain contracts remain authoritative. General rules include:
   classified before journal posting without modifying amounts, payment evidence, currency or
   status. Fund-origin expenses, cancelled/rejected expenses, and posted journal sources are protected.
   Classification and financial synchronization serialize through the authenticated company row.
-- Bulk expense imports and edits are atomic transactions (1–200 rows). Explicit paid imports
-  require an active, company-owned payment account matching native currency, outside fund custody,
-  and record payment history and Treasury through the existing expense owner in the same transaction.
+- Bulk expense imports and edits are atomic transactions (1–200 rows). Per the 2026-09-09 user
+  decision, paid imports allow unassigned payment and accounting accounts. The import-specific
+  expense owner records full payment history with native currency, original expense/payment date,
+  actor and timestamp even when the payment account is null. It creates no Treasury movement and
+  chooses no default account for such a payment. If supplied, the account must be active,
+  company-owned, match native currency and be outside fund custody; payment history and Treasury
+  remain atomic. Ordinary payment endpoints and selected-row settlement still require an account.
   Pending imports preserve the supplied due date and only preselect an optional eligible account.
   Import-specific included-tax markers require a boolean and an explicit valid rate when enabled;
   the backend splits the gross amount with BigDecimal and existing two-decimal rounding. Legacy

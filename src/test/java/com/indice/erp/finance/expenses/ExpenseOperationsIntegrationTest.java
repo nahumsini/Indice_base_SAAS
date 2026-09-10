@@ -322,13 +322,68 @@ class ExpenseOperationsIntegrationTest {
             .isEqualByComparingTo("5000");
     }
 
-    @Test void includedTaxRequiresAnExplicitRateAndPaidImportRequiresAnAccount() {
-        assertThatThrownBy(() -> imports.importExpenses(context, new ImportExpensesRequest("missing-account", List.of(
-            importRow("No account", null, "MXN", true, false, "0"))))).hasMessageContaining("payment account");
+    @Test void includedTaxRequiresAnExplicitRate() {
         assertThatThrownBy(() -> imports.importExpenses(context, new ImportExpensesRequest("missing-rate", List.of(
             importRow("No rate", bank, "MXN", false, true, "0")))))
             .hasMessageContaining("Included tax rate");
         assertThat(count("finance_expenses")).isZero();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"MXN", "USD", "CAD", "COP", "BRL"})
+    void paidImportWithoutAccountsPreservesPaymentEvidenceAndNeverDebitsABank(String currency) {
+        var row = new CreateExpenseRequest(null, null, null, null, null, null, null, "AUTO-EXP", "Historical expense", null,
+            ExpenseType.VARIABLE, new BigDecimal("50"), BigDecimal.ZERO, new BigDecimal("50"), currency,
+            LocalDate.of(2026, 8, 19), null, null, null, null, true,
+            com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode().put("bulkTaxIncluded", false), null);
+        var request = new ImportExpensesRequest("unassigned-accounts", List.of(row));
+        var saved = imports.importExpenses(context, request).expenses().getFirst();
+        assertThat(saved.status()).isEqualTo(ExpenseStatus.PAID);
+        assertThat(saved.paidAmount()).isEqualByComparingTo("50");
+        assertThat(saved.balanceAmount()).isZero();
+        assertThat(saved.taxAmount()).isZero();
+        assertThat(saved.accountingAccountId()).isNull();
+        assertThat(saved.paymentAccountId()).isNull();
+        assertThat(saved.paymentDate()).isEqualTo(row.expenseDate());
+        assertThat(payments.findAll(context, saved.id())).singleElement().satisfies(payment -> {
+            assertThat(payment.paymentAccountId()).isNull();
+            assertThat(payment.amount()).isEqualByComparingTo("50");
+            assertThat(payment.currencyCode()).isEqualTo(currency);
+            assertThat(payment.paymentDate()).isEqualTo(row.expenseDate());
+            assertThat(payment.registeredByUserId()).isEqualTo(user);
+            assertThat(payment.source()).isEqualTo(ExpensePaymentRepository.SOURCE_SETTLED_ON_CREATE);
+        });
+        assertThat(imports.importExpenses(context, request).expenses().getFirst().id()).isEqualTo(saved.id());
+        assertThat(count("finance_expense_payments")).isEqualTo(1);
+        assertThat(count("finance_payment_account_movements")).isZero();
+        assertThat(jdbc.queryForObject("SELECT current_balance FROM finance_payment_accounts WHERE id=?", BigDecimal.class, bank))
+            .isEqualByComparingTo("5000");
+    }
+
+    @Test void mixedPaidImportOnlyDebitsExplicitAccountsAndKeepsTaxIndependentOfAccountAssignment() {
+        var result = imports.importExpenses(context, new ImportExpensesRequest("mixed-accounts", List.of(
+            importRow("Unassigned with tax", null, "MXN", true, true, "0.16"),
+            importRow("Bank without tax", bank, "MXN", true, false, "0")))).expenses();
+        assertThat(result).allSatisfy(saved -> assertThat(saved.status()).isEqualTo(ExpenseStatus.PAID));
+        assertThat(result.getFirst().taxAmount()).isEqualByComparingTo("16");
+        assertThat(result.getFirst().paymentAccountId()).isNull();
+        assertThat(result.getLast().taxAmount()).isZero();
+        assertThat(count("finance_expense_payments")).isEqualTo(2);
+        assertThat(count("finance_payment_account_movements")).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT current_balance FROM finance_payment_accounts WHERE id=?", BigDecimal.class, bank))
+            .isEqualByComparingTo("4884");
+    }
+
+    @Test void failedMixedImportRollsBackUnassignedPaymentEvidenceAndOrdinaryPaymentStillRequiresAccount() {
+        var unassigned = importRow("Unassigned", null, "MXN", true, false, "0");
+        assertThatThrownBy(() -> imports.importExpenses(context, new ImportExpensesRequest("mixed-error", List.of(
+            unassigned, importRow("Wrong currency", bank, "USD", true, false, "0")))))
+            .hasMessageContaining("Row 2:");
+        assertThatThrownBy(() -> expenses.createDraft(context, unassigned)).hasMessageContaining("paymentAccountId");
+        assertThat(count("finance_expenses")).isZero();
+        assertThat(count("finance_expense_payments")).isZero();
+        assertThat(count("finance_expense_import_batches")).isZero();
+        assertThat(count("finance_payment_account_movements")).isZero();
     }
 
     @Test void pendingImportKeepsDueDateThenBulkPaymentPaysOnlyTheRemainingBalance() {
