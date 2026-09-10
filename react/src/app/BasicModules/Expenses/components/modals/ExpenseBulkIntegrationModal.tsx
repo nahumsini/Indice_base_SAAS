@@ -40,6 +40,8 @@ type EditableRow = Record<EditableField, string> & {
 
 const initialRowCount = 15;
 const editPageSize = 100;
+const emptyBulkFill = { paymentAccount: '', accountingAccount: '', taxIncluded: false };
+const hasExpenseInput = (row: EditableRow) => Boolean(row.concept.trim() || row.total.trim());
 const currentMonth = () => toDateInput(new Date()).slice(0, 7);
 const emptyValues = (): Record<EditableField, string> => ({
   concept: '', date: displayDate(toDateInput(new Date())), provider: '', total: '', paymentAccount: '', accountingAccount: '',
@@ -119,6 +121,7 @@ export function ExpenseBulkIntegrationModal({
   const [batchCurrency, setBatchCurrency] = useState(preferredCurrency);
   const [mode, setMode] = useState<BulkMode>('create');
   const [rows, setRows] = useState<EditableRow[]>(() => emptyRows());
+  const [bulkFill, setBulkFill] = useState(emptyBulkFill);
   const [message, setMessage] = useState('');
   const [editMonth, setEditMonth] = useState(currentMonth);
   const [editPage, setEditPage] = useState(1);
@@ -126,6 +129,7 @@ export function ExpenseBulkIntegrationModal({
 
   useEffect(() => {
     if (!open) return;
+    setBulkFill(emptyBulkFill);
     requestKey.current = crypto.randomUUID();
     setBatchCurrency(preferredCurrency);
     setImportStatus('paid');
@@ -147,6 +151,7 @@ export function ExpenseBulkIntegrationModal({
   const taxValid = Number.isFinite(taxRate) && taxRate > 0 && taxRate <= 1;
 
   const changeMode = (nextMode: BulkMode) => {
+    setBulkFill(emptyBulkFill);
     setMode(nextMode);
     setMessage('');
     setEditMonth(currentMonth());
@@ -163,7 +168,7 @@ export function ExpenseBulkIntegrationModal({
   };
 
   const evaluations = useMemo(() => rows.map((row, rowIndex) => {
-    const used = mode === 'edit' ? rowChanged(row) : Boolean(row.concept.trim() || row.total.trim());
+    const used = mode === 'edit' ? rowChanged(row) : hasExpenseInput(row);
     const provider = providerId(providers, row.provider);
     const currency = mode === 'edit' ? editableExpenses.find(expense => expense.id === row.expenseId)?.currency ?? batchCurrency : batchCurrency;
     const paymentOptions = paymentAccounts.filter(account => account.currency === currency);
@@ -176,7 +181,7 @@ export function ExpenseBulkIntegrationModal({
       dueDate: mode === 'create' && importStatus === 'pending' && !parseDate(dueDate) ? copy.dateRequired : '',
       concept: !row.concept.trim() ? 'Escribe el concepto del gasto.' : row.concept.trim().length > 220 ? 'El concepto admite hasta 220 caracteres.' : '',
       date: !date ? 'Escribe una fecha válida en DD/MM/AAAA.' : mode === 'create' && importStatus === 'paid' && date > toDateInput(new Date()) ? copy.importDateInvalid : '',
-      paymentAccount: ((mode === 'create' && importStatus === 'paid') || row.paymentAccount.trim()) && !paymentAccountId ? 'Selecciona una cuenta de pago activa en la moneda de la fila.' : '',
+      paymentAccount: row.paymentAccount.trim() && !paymentAccountId ? 'Selecciona una cuenta de pago activa en la moneda de la fila.' : '',
       accountingAccount: row.accountingAccount.trim() && !accountingAccountId ? 'Selecciona una cuenta contable existente.' : '',
       provider: mode === 'edit' && row.provider.trim() && !provider ? 'Selecciona un proveedor existente.' : '',
       total: !Number.isFinite(total) || total <= 0 ? 'Escribe un monto mayor a cero, con máximo dos decimales.' : '',
@@ -187,6 +192,10 @@ export function ExpenseBulkIntegrationModal({
 
   const ready = evaluations.filter(result => result.valid);
   const invalid = evaluations.filter(result => result.used && !result.valid);
+  const capturedRows = rows.filter(hasExpenseInput);
+  const allIncludeTax = capturedRows.length > 0 ? capturedRows.every(row => row.taxIncluded) : bulkFill.taxIncluded;
+  const someIncludeTax = capturedRows.some(row => row.taxIncluded);
+  const batchPaymentOptions = paymentAccounts.filter(account => account.currency === batchCurrency);
   const monthEvaluations = useMemo(() => mode === 'edit'
     ? evaluations.filter(({ row }) => parseDate(row.original.date).slice(0, 7) === editMonth)
     : evaluations, [editMonth, evaluations, mode]);
@@ -204,9 +213,33 @@ export function ExpenseBulkIntegrationModal({
     if (editPage > editPageCount) setEditPage(editPageCount);
   }, [editPage, editPageCount]);
 
-  const updateCell = (index: number, field: EditableField, value: string) => {
+  const prepareNewRow = (previous: EditableRow, row: EditableRow, explicitFields: string[]): EditableRow => (
+    mode === 'create' && !hasExpenseInput(previous) && hasExpenseInput(row) ? {
+      ...row,
+      paymentAccount: row.paymentAccount || (explicitFields.includes('paymentAccount') ? '' : bulkFill.paymentAccount),
+      accountingAccount: row.accountingAccount || (explicitFields.includes('accountingAccount') ? '' : bulkFill.accountingAccount),
+      taxIncluded: row.taxIncluded ?? bulkFill.taxIncluded,
+    } : row
+  );
+
+  const applyAccountToAll = (field: 'paymentAccount' | 'accountingAccount', value: string) => {
+    if (isSaving || submitInFlight.current) return;
     setMessage('');
-    setRows(current => current.map((row, rowIndex) => rowIndex === index ? { ...row, [field]: value } : row));
+    setBulkFill(current => ({ ...current, [field]: value }));
+    setRows(current => current.map(row => hasExpenseInput(row) ? { ...row, [field]: value } : row));
+  };
+
+  const applyTaxToAll = (taxIncluded: boolean) => {
+    if (isSaving || submitInFlight.current) return;
+    setMessage('');
+    setBulkFill(current => ({ ...current, taxIncluded }));
+    setRows(current => current.map(row => hasExpenseInput(row) ? { ...row, taxIncluded } : row));
+  };
+
+  const updateCell = (index: number, field: EditableField, value: string) => {
+    if (isSaving || submitInFlight.current) return;
+    setMessage('');
+    setRows(current => current.map((row, rowIndex) => rowIndex === index ? prepareNewRow(row, { ...row, [field]: value }, [field]) : row));
   };
 
   const normalizeDateCell = (index: number) => {
@@ -234,13 +267,14 @@ export function ExpenseBulkIntegrationModal({
       data.forEach((cells, rowOffset) => {
         const targetIndex = mode === 'edit' ? visibleEvaluations[visibleStart + rowOffset]?.rowIndex : startRow + rowOffset;
         if (targetIndex === undefined) return;
-        const target = { ...next[targetIndex] };
+        const previous = next[targetIndex];
+        const target = { ...previous };
         cells.forEach((cell, columnOffset) => {
           const field = fields[startColumn + columnOffset];
           if (mode === 'create' && startColumn + columnOffset === fields.length) target.taxIncluded = /^(true|1|sí|si|yes|x|✓)$/i.test(cell.trim());
           if (field) target[field] = field === 'date' && parseDate(cell) ? displayDate(parseDate(cell)) : cell.trim();
         });
-        next[targetIndex] = target;
+        next[targetIndex] = prepareNewRow(previous, target, fields.slice(startColumn, startColumn + cells.length));
       });
       return next;
     });
@@ -314,7 +348,7 @@ export function ExpenseBulkIntegrationModal({
           <Button variant={mode === 'edit' ? 'default' : 'ghost'} className={mode === 'edit' ? 'bg-[#147514] hover:bg-[#105010]' : ''} disabled={isSaving} onClick={() => changeMode('edit')}><PencilLine className="h-4 w-4" />Editar gastos existentes</Button>
         </div>
         <div className="hidden shrink-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 sm:flex bg-blue-50 px-4 py-2.5 text-sm text-blue-950">
-          <span className="flex items-center gap-2 font-medium"><ClipboardPaste className="h-4 w-4" />{mode === 'create' ? 'Pega desde Excel: fecha | concepto | monto | cuenta de pago | cuenta contable' : 'Filtra por mes y busca los gastos que deseas modificar'}</span>
+          <span className="flex items-center gap-2 font-medium"><ClipboardPaste className="h-4 w-4" />{mode === 'create' ? copy.pasteHint : 'Filtra por mes y busca los gastos que deseas modificar'}</span>
           <span>{mode === 'create' ? 'Las filas vacías no se importan.' : `${monthEvaluations.length} editables este mes · ${lockedExpenseCount} protegidos · ${filteredEditEvaluations.length} coinciden con la búsqueda`}</span>
         </div>
         {mode === 'edit' ? (
@@ -341,11 +375,32 @@ export function ExpenseBulkIntegrationModal({
           <label className="grid gap-1 text-sm">{copy.tax}<select aria-label={copy.tax} disabled={isSaving} className="h-11 rounded-xl border bg-transparent px-3" value={taxProfile?.id} onChange={event => setTaxProfileId(event.target.value)}>{taxProfiles.map(profile => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label>
           {taxProfile?.manualRate && <label className="grid gap-1 text-sm">{copy.taxRate}<input aria-label={copy.taxRate} inputMode="decimal" disabled={isSaving} className="h-11 rounded-xl border bg-transparent px-3" value={manualTaxRate} onChange={event => setManualTaxRate(event.target.value)} /></label>}
         </div>}
+        {mode === 'create' && <p className="shrink-0 text-xs text-slate-600 dark:text-slate-300">{copy.fillHint}</p>}
         <datalist id="bulk-expense-providers">{providers.filter(provider => provider.status === 'active').map(provider => <option key={provider.id} value={provider.name} />)}</datalist>
         <IndiceModalValidation messages={message ? [message] : ready.length > 200 ? ['Importa hasta 200 gastos por lote.'] : invalid.length ? [`Corrige ${invalid.length} fila${invalid.length === 1 ? '' : 's'} antes de guardar.`] : []} />
         <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-slate-300 bg-white shadow-sm">
           <table className={`w-full ${mode === 'create' ? 'min-w-[1160px]' : 'min-w-[1360px]'} border-collapse text-sm`}>
-            <thead className="sticky top-0 z-10 bg-slate-100"><tr><th className="w-12 border-b border-r border-slate-300 px-2 py-3 text-xs font-medium text-slate-500">#</th>{columns.map(column => <th key={column.field} className={`${column.width} border-b border-r border-slate-300 px-3 py-3 text-left font-medium text-slate-800`}>{column.label}</th>)}{mode === 'create' && <th className="w-36 border-b px-3 py-3 font-medium">{copy.includesTax}</th>}</tr></thead>
+            <thead className="sticky top-0 z-10 bg-slate-100"><tr>
+              <th className="w-12 border-b border-r border-slate-300 px-2 py-3 text-xs font-medium text-slate-500">#</th>
+              {columns.map(column => <th key={column.field} className={`${column.width} border-b border-r border-slate-300 px-3 py-3 text-left font-medium text-slate-800`}>
+                {column.label}
+                {mode === 'create' && (column.field === 'paymentAccount' || column.field === 'accountingAccount') && <div className="mt-2">
+                  <ExpenseAccountSelect label={column.field === 'paymentAccount' ? copy.paymentForAll : copy.accountingForAll}
+                    disabled={isSaving} value={bulkFill[column.field]}
+                    options={column.field === 'paymentAccount' ? batchPaymentOptions : accountingAccounts}
+                    onChange={value => applyAccountToAll(column.field as 'paymentAccount' | 'accountingAccount', value)} />
+                </div>}
+              </th>)}
+              {mode === 'create' && <th className="w-36 border-b px-3 py-3 font-medium">
+                {copy.includesTax}
+                <label className="mt-2 flex items-center justify-center gap-2 text-xs font-normal">
+                  <input type="checkbox" aria-label={copy.taxForAll} aria-checked={someIncludeTax && !allIncludeTax ? 'mixed' : allIncludeTax}
+                    ref={node => { if (node) node.indeterminate = someIncludeTax && !allIncludeTax; }}
+                    checked={allIncludeTax} disabled={isSaving} onChange={event => applyTaxToAll(event.target.checked)} className="h-5 w-5 accent-green-700" />
+                  {copy.allRows}
+                </label>
+              </th>}
+            </tr></thead>
             <tbody>{visibleEvaluations.map(({ errors, row, rowIndex, used, valid, currency, paymentOptions, paymentAccountId, accountingAccountId }) => (
               <tr key={row.id} className={used && !valid ? 'bg-red-50' : mode === 'edit' && rowChanged(row) ? 'bg-amber-50' : 'bg-emerald-50/25'}>
                 <td className="border-b border-r border-slate-200 px-2 py-2 text-center text-xs text-slate-400">{rowIndex + 1}</td>
@@ -362,7 +417,7 @@ export function ExpenseBulkIntegrationModal({
             ))}{mode === 'edit' && visibleEvaluations.length === 0 ? <tr><td colSpan={columns.length + 1} className="px-6 py-10 text-center text-sm text-slate-500">No hay gastos abiertos que coincidan con el mes y la búsqueda seleccionados.</td></tr> : null}</tbody>
           </table>
         </div>
-        {mode === 'create' ? <div className="flex shrink-0 justify-between gap-3"><Button variant="outline" disabled={isSaving} onClick={() => setRows(current => [...current, ...emptyRows(10)])}><Plus className="h-4 w-4" />Agregar 10 filas</Button><Button variant="ghost" disabled={isSaving} onClick={() => { setRows(emptyRows()); setMessage(''); }}><Trash2 className="h-4 w-4" />Limpiar tabla</Button></div> : (
+        {mode === 'create' ? <div className="flex shrink-0 justify-between gap-3"><Button variant="outline" disabled={isSaving} onClick={() => setRows(current => [...current, ...emptyRows(10)])}><Plus className="h-4 w-4" />Agregar 10 filas</Button><Button variant="ghost" disabled={isSaving} onClick={() => { setRows(emptyRows()); setBulkFill(emptyBulkFill); setMessage(''); }}><Trash2 className="h-4 w-4" />Limpiar tabla</Button></div> : (
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="flex items-start gap-2 text-xs text-slate-500"><Info className="mt-0.5 h-4 w-4 shrink-0" />Las filas amarillas tienen cambios. Los gastos pagados, auditados, presupuestales o ligados a órdenes de compra están protegidos para conservar su trazabilidad.</p>
             {editPageCount > 1 ? <div className="flex shrink-0 items-center gap-2 text-xs font-medium text-slate-600"><span>Página {editPage} de {editPageCount}</span><Button type="button" variant="outline" size="icon" aria-label="Página anterior" disabled={editPage === 1} onClick={() => setEditPage(page => Math.max(1, page - 1))}><ChevronLeft className="h-4 w-4" /></Button><Button type="button" variant="outline" size="icon" aria-label="Página siguiente" disabled={editPage === editPageCount} onClick={() => setEditPage(page => Math.min(editPageCount, page + 1))}><ChevronRight className="h-4 w-4" /></Button></div> : null}

@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.indice.erp.finance.FinanceApiException;
 import com.indice.erp.finance.expenses.dto.*;
 import com.indice.erp.finance.shared.FinanceContext;
+import com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver;
 import com.indice.erp.finance.shared.FinanceScope;
 import com.indice.erp.finance.status.ExpenseStatus;
 import java.math.BigDecimal;
@@ -30,6 +31,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 class ExpenseOperationsIntegrationTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired ExpenseImportService imports;
+    @Autowired FinanceBusinessTimeZoneResolver timeZones;
     @Autowired ExpenseService expenses;
     @Autowired ExpenseBulkStatusService bulkStatus;
     @Autowired ExpensePaymentRepository payments;
@@ -322,25 +324,80 @@ class ExpenseOperationsIntegrationTest {
             .isEqualByComparingTo("5000");
     }
 
-    @Test void includedTaxRequiresAnExplicitRateAndPaidImportRequiresAnAccount() {
-        assertThatThrownBy(() -> imports.importExpenses(context, new ImportExpensesRequest("missing-account", List.of(
-            importRow("No account", null, "MXN", true, false, "0"))))).hasMessageContaining("payment account");
+    @Test void includedTaxRequiresAnExplicitRate() {
         assertThatThrownBy(() -> imports.importExpenses(context, new ImportExpensesRequest("missing-rate", List.of(
             importRow("No rate", bank, "MXN", false, true, "0")))))
             .hasMessageContaining("Included tax rate");
         assertThat(count("finance_expenses")).isZero();
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"MXN", "USD", "CAD", "COP", "BRL"})
+    void paidImportWithoutAccountsPreservesPaymentEvidenceAndNeverDebitsABank(String currency) {
+        var row = new CreateExpenseRequest(null, null, null, null, null, null, null, "AUTO-EXP", "Historical expense", null,
+            ExpenseType.VARIABLE, new BigDecimal("50"), BigDecimal.ZERO, new BigDecimal("50"), currency,
+            LocalDate.of(2026, 8, 19), null, null, null, null, true,
+            com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode().put("bulkTaxIncluded", false), null);
+        var request = new ImportExpensesRequest("unassigned-accounts", List.of(row));
+        var saved = imports.importExpenses(context, request).expenses().getFirst();
+        assertThat(saved.status()).isEqualTo(ExpenseStatus.PAID);
+        assertThat(saved.paidAmount()).isEqualByComparingTo("50");
+        assertThat(saved.balanceAmount()).isZero();
+        assertThat(saved.taxAmount()).isZero();
+        assertThat(saved.accountingAccountId()).isNull();
+        assertThat(saved.paymentAccountId()).isNull();
+        assertThat(saved.paymentDate()).isEqualTo(row.expenseDate());
+        assertThat(payments.findAll(context, saved.id())).singleElement().satisfies(payment -> {
+            assertThat(payment.paymentAccountId()).isNull();
+            assertThat(payment.amount()).isEqualByComparingTo("50");
+            assertThat(payment.currencyCode()).isEqualTo(currency);
+            assertThat(payment.paymentDate()).isEqualTo(row.expenseDate());
+            assertThat(payment.registeredByUserId()).isEqualTo(user);
+            assertThat(payment.source()).isEqualTo(ExpensePaymentRepository.SOURCE_SETTLED_ON_CREATE);
+        });
+        assertThat(imports.importExpenses(context, request).expenses().getFirst().id()).isEqualTo(saved.id());
+        assertThat(count("finance_expense_payments")).isEqualTo(1);
+        assertThat(count("finance_payment_account_movements")).isZero();
+        assertThat(jdbc.queryForObject("SELECT current_balance FROM finance_payment_accounts WHERE id=?", BigDecimal.class, bank))
+            .isEqualByComparingTo("5000");
+    }
+
+    @Test void mixedPaidImportOnlyDebitsExplicitAccountsAndKeepsTaxIndependentOfAccountAssignment() {
+        var result = imports.importExpenses(context, new ImportExpensesRequest("mixed-accounts", List.of(
+            importRow("Unassigned with tax", null, "MXN", true, true, "0.16"),
+            importRow("Bank without tax", bank, "MXN", true, false, "0")))).expenses();
+        assertThat(result).allSatisfy(saved -> assertThat(saved.status()).isEqualTo(ExpenseStatus.PAID));
+        assertThat(result.getFirst().taxAmount()).isEqualByComparingTo("16");
+        assertThat(result.getFirst().paymentAccountId()).isNull();
+        assertThat(result.getLast().taxAmount()).isZero();
+        assertThat(count("finance_expense_payments")).isEqualTo(2);
+        assertThat(count("finance_payment_account_movements")).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT current_balance FROM finance_payment_accounts WHERE id=?", BigDecimal.class, bank))
+            .isEqualByComparingTo("4884");
+    }
+
+    @Test void failedMixedImportRollsBackUnassignedPaymentEvidenceAndOrdinaryPaymentStillRequiresAccount() {
+        var unassigned = importRow("Unassigned", null, "MXN", true, false, "0");
+        assertThatThrownBy(() -> imports.importExpenses(context, new ImportExpensesRequest("mixed-error", List.of(
+            unassigned, importRow("Wrong currency", bank, "USD", true, false, "0")))))
+            .hasMessageContaining("Row 2:");
+        assertThatThrownBy(() -> expenses.createDraft(context, unassigned)).hasMessageContaining("paymentAccountId");
+        assertThat(count("finance_expenses")).isZero();
+        assertThat(count("finance_expense_payments")).isZero();
+        assertThat(count("finance_expense_import_batches")).isZero();
+        assertThat(count("finance_payment_account_movements")).isZero();
+    }
+
     @Test void pendingImportKeepsDueDateThenBulkPaymentPaysOnlyTheRemainingBalance() {
         var imported = imports.importExpenses(context, new ImportExpensesRequest("pending", List.of(
             importRow("Imported pending", bank, "MXN", false, true, "0.16")))).expenses().getFirst();
         assertThat(imported.paidAmount()).isZero();
-        assertThat(imported.dueDate()).isEqualTo(LocalDate.now().plusDays(10));
+        assertThat(imported.dueDate()).isEqualTo(businessToday().plusDays(10));
         expenses.submitForApproval(context, imported.id());
         expenses.approve(context, imported.id());
-        expenses.recordPayment(context, imported.id(), new RecordExpensePaymentRequest(new BigDecimal("16"), bank, LocalDate.now(), "partial"));
+        expenses.recordPayment(context, imported.id(), new RecordExpensePaymentRequest(new BigDecimal("16"), bank, businessToday(), "partial"));
         var partial = expenses.get(context, imported.id());
-        var request = statusRequest(ExpenseBulkStatusRequest.Target.PAID, bank, LocalDate.now(), partial);
+        var request = statusRequest(ExpenseBulkStatusRequest.Target.PAID, bank, businessToday(), partial);
         var paid = bulkStatus.apply(context, request).expenses().getFirst();
         assertThat(paid.paidAmount()).isEqualByComparingTo("116");
         assertThat(paid.balanceAmount()).isZero();
@@ -356,7 +413,7 @@ class ExpenseOperationsIntegrationTest {
         var template = importRow("Future", bank, "MXN", true, false, "0");
         var future = new CreateExpenseRequest(null, null, null, null, account, bank, null, "AUTO-EXP", "Future", "Future",
             ExpenseType.VARIABLE, template.subtotalAmount(), template.taxAmount(), template.totalAmount(), "MXN",
-            LocalDate.now().plusDays(2), LocalDate.now().plusDays(2), null, null, null, true, template.customFields(), null);
+            businessToday().plusDays(2), businessToday().plusDays(2), null, null, null, true, template.customFields(), null);
         assertThatThrownBy(() -> imports.importExpenses(context, new ImportExpensesRequest("future", List.of(future))))
             .hasMessageContaining("no later than today");
         assertThat(count("finance_expenses")).isZero();
@@ -367,11 +424,11 @@ class ExpenseOperationsIntegrationTest {
     @Test void bulkDueDateChangesNeverRewriteExpenseDateOrCreatePayments() {
         var expense = expenses.createDraft(context, row("Past expense", bank, account, "MXN"));
         var overdue = bulkStatus.apply(context, statusRequest(ExpenseBulkStatusRequest.Target.OVERDUE, null,
-            LocalDate.now().minusDays(1), expense)).expenses().getFirst();
+            businessToday().minusDays(1), expense)).expenses().getFirst();
         assertThat(overdue.paymentStatus().name()).isEqualTo("OVERDUE");
         assertThat(overdue.expenseDate()).isEqualTo(expense.expenseDate());
         var pending = bulkStatus.apply(context, statusRequest(ExpenseBulkStatusRequest.Target.PENDING, null,
-            LocalDate.now().plusDays(7), overdue)).expenses().getFirst();
+            businessToday().plusDays(7), overdue)).expenses().getFirst();
         assertThat(pending.paymentStatus().name()).isEqualTo("UNPAID");
         assertThat(pending.balanceAmount()).isEqualByComparingTo("100.25");
         assertThat(count("finance_expense_payments")).isZero();
@@ -381,14 +438,18 @@ class ExpenseOperationsIntegrationTest {
     @Test void bulkStatusRejectsForeignScopeStaleSelectionMixedCurrenciesAndPaidToPending() {
         var first = expenses.createDraft(context, row("First", bank, account, "MXN"));
         var second = expenses.createDraft(context, row("Second", null, account, "USD"));
-        assertThatThrownBy(() -> bulkStatus.apply(context, statusRequest(ExpenseBulkStatusRequest.Target.PAID, bank, LocalDate.now(), first, second)));
+        assertThatThrownBy(() -> bulkStatus.apply(context, statusRequest(ExpenseBulkStatusRequest.Target.PAID, bank, businessToday(), first, second)));
         assertThat(count("finance_expense_payments")).isZero();
         var outside = new FinanceContext(user, context.companyId(), "Test", "admin", true, FinanceScope.businessOffice(null, Long.MAX_VALUE));
-        assertThatThrownBy(() -> bulkStatus.apply(outside, statusRequest(ExpenseBulkStatusRequest.Target.PAID, bank, LocalDate.now(), first)))
+        assertThatThrownBy(() -> bulkStatus.apply(outside, statusRequest(ExpenseBulkStatusRequest.Target.PAID, bank, businessToday(), first)))
             .hasMessageContaining("not found");
-        var paid = bulkStatus.apply(context, statusRequest(ExpenseBulkStatusRequest.Target.PAID, bank, LocalDate.now(), first)).expenses().getFirst();
-        assertThatThrownBy(() -> bulkStatus.apply(context, statusRequest(ExpenseBulkStatusRequest.Target.PENDING, null, LocalDate.now(), paid)))
+        var paid = bulkStatus.apply(context, statusRequest(ExpenseBulkStatusRequest.Target.PAID, bank, businessToday(), first)).expenses().getFirst();
+        assertThatThrownBy(() -> bulkStatus.apply(context, statusRequest(ExpenseBulkStatusRequest.Target.PENDING, null, businessToday(), paid)))
             .hasMessageContaining("reversal");
+    }
+
+    private LocalDate businessToday() {
+        return LocalDate.now(timeZones.resolve(context.companyId()));
     }
 
     private ExpenseBulkStatusRequest statusRequest(ExpenseBulkStatusRequest.Target target, Long payment, LocalDate date, ExpenseResponse... rows) {
@@ -401,7 +462,7 @@ class ExpenseOperationsIntegrationTest {
             .put("bulkTaxIncluded", taxIncluded).put("taxIncluded", taxIncluded).put("taxRate", new BigDecimal(rate));
         return new CreateExpenseRequest(null, null, null, null, account, payment, null, "AUTO-EXP", concept, concept,
             ExpenseType.VARIABLE, new BigDecimal("116"), BigDecimal.ZERO, new BigDecimal("116"), currency,
-            LocalDate.of(2026, 8, 15), LocalDate.now().plusDays(10), null, null, null, paid, fields, null);
+            LocalDate.of(2026, 8, 15), businessToday().plusDays(10), null, null, null, paid, fields, null);
     }
 
     private CreateExpenseRequest row(String concept, Long payment, Long accounting, String currency) {

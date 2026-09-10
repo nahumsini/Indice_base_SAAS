@@ -1,7 +1,7 @@
 # Finance bulk actions and workspace memory
 
-Decision: 2026-09-08. Expense import/payment extension: 2026-09-09, implemented locally,
-pending deployment. Deployment status of earlier decisions is tracked in release evidence.
+Decision: 2026-09-08. Expense import/payment extension: 2026-09-09, released as v2026.09.09.3.
+Optional import accounts and column fill extension: 2026-09-09, pending deployment.
 
 ## Ownership and transaction boundaries
 
@@ -60,15 +60,30 @@ posted and terminal records remain protected. The entire batch is validated befo
 - Paid expenses require reversal to reopen. A status action never silently removes a payment,
   rebooks its account, manufactures a balance, or modifies a fund's monthly cut.
 
-Bulk entry initially selects paid and lets the user choose pending before importing. Paid
-rows require payment accounts and an expense date no later than today in the company timezone;
-pending rows use a separately selected due date. Selecting
+Bulk entry initially selects paid and lets the user choose pending before importing. The user
+decision of 2026-09-09 permits paid imports without a payment account or accounting account.
+The import owner records the full payment, native currency, original expense/payment date,
+actor and creation timestamp in the existing payment history (`SETTLED_ON_CREATE`), even when
+the payment account is null. That explicit unassigned payment never debits a default bank or
+creates a Treasury movement. A supplied account must still be eligible; its Treasury movement
+and payment history remain atomic. The exception belongs only to import: ordinary payment and
+selected-row settlement still require an account. Assigning a bank to a recorded payment later
+requires its own explicit correction workflow; generic classification must not rebook it.
+Paid rows require an expense date no later than today in the company timezone; pending rows
+use a separately selected due date. Selecting
 Includes tax treats the captured amount as gross. The import owner derives the included
 tax from an explicit fractional rate with BigDecimal and HALF_UP two-decimal rounding;
 unchecked rows have zero tax. Existing currency-associated tax profiles supply defaults;
 variable rates must be entered explicitly. Currency is fixed for the open capture, and
 each account must match it. Legacy import callers without the marker retain their explicit
 breakdown. Batch retries reuse actor/payload-bound request evidence and return original IDs.
+
+The create grid headers provide searchable payment/accounting selectors that apply to every
+entered row, plus an all/none/mixed tax checkbox. These selections also supply defaults when
+new rows are typed or pasted. Explicit spreadsheet cells and individual row edits override
+defaults; blank rows are never imported because of a default. Bulk controls respect the open
+batch's currency, are disabled during saving and reset on clearing or reopening the capture.
+They operate on the capture only; existing records are unchanged until a successful import.
 
 Overdue rows expose quick payment on desktop and mobile through the existing payment modal,
 including account selection and partial-payment support. Successful mutations refresh expenses

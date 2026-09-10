@@ -71,13 +71,11 @@ public class ExpenseImportService {
                 references.validateImportPaymentAccount(context, row.paymentAccountId(), row.currencyCode());
                 references.validateImportAccountingAccount(context, row.accountingAccountId());
                 if (Boolean.TRUE.equals(row.settleOnCreate())) {
-                    if (row.paymentAccountId() == null)
-                        throw FinanceApiException.badRequest("Paid imports require a payment account on every row.");
                     if (row.expenseDate() == null || row.expenseDate().isAfter(LocalDate.now(timeZones.resolve(context.companyId()))))
                         throw FinanceApiException.badRequest("Paid imports require an expense date no later than today.");
                 }
                 row = ExpenseImportTax.normalize(row);
-                saved.add(expenses.createDraft(context, row));
+                saved.add(expenses.createImportedExpense(context, row));
             } catch (FinanceApiException ex) {
                 throw new FinanceApiException(ex.status(), "Row " + (index + 1) + ": " + ex.getMessage());
             }

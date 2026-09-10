@@ -153,7 +153,9 @@ Use for:
 - money-focused operational density
 
 Ordinary new and duplicated expenses begin pending. Bulk entry explicitly chooses paid (the
-initial selection) or pending expenses. Paid imports require an eligible payment account per row;
+initial selection) or pending expenses. Paid imports allow unassigned payment/accounting accounts;
+when supplied, payment accounts must be eligible for that row. The import owner still records
+payment evidence when the bank is unassigned, without debiting an arbitrary account. Only
 pending imports capture a due date independently of the expense date. The visible status remains
 a workflow result. Partial and full payment actions, including overdue-row quick payment, open
 the payment flow so the backend records the installment and Treasury movement together.
@@ -188,8 +190,12 @@ columns with searchable selectors, followed by an Includes tax checkbox. Checked
 gross: the backend separates subtotal and tax without increasing the entered total; unchecked
 rows have no tax. Currency is captured from the preference when opening the modal; tax profiles
 use the existing currency-associated catalog and variable profiles require an explicit rate.
-Paid imports record full payment; pending imports only preselect the account for future payment.
-Accounts must match native currency. Each batch contains at most 200 used rows. Save failures keep
+Paid imports record full payment with optional payment/accounting accounts; an unassigned payment
+must not move any bank balance. Pending imports only preselect the account for future payment.
+Header selectors apply a payment/accounting account to all entered rows and supply defaults for
+new capture; a header tax checkbox supports all/none/mixed. Explicit spreadsheet cells and row
+edits override defaults. Blank rows stay excluded and clearing/reopening resets defaults.
+Supplied payment accounts must match native currency. Each batch contains at most 200 used rows. Save failures keep
 the capture open; creation retries reuse a request key, and bulk edits preserve existing taxes
 and native currency. Selected-row status actions follow the Finance bulk owner contract: paid
 records actual remaining-balance payments, while pending/overdue explicitly change the due date.
