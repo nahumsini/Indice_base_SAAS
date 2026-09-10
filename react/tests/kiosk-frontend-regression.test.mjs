@@ -739,7 +739,7 @@ test('kiosk center composes native and scoped operational tools while the public
   assert.match(mobileSource, /bootstrap && !session/);
   assert.doesNotMatch(mobileSource, /useDesktopViewport|bootstrap && desktop|copy\.desktop/);
   assert.doesNotMatch(mobileTranslations, /mobileOnly|únicamente en móvil|only on mobile/);
-  assert.match(mobileSource, /MultiKioskLauncherDashboard/);
+  assert.match(mobileSource, /EmployeeKioskHome/);
   assert.match(mobileSource, /const posWorkspace = workspace\?\.kiosk\.module === 'POINT_OF_SALE'/);
   assert.match(mobileSource, /posWorkspace \? 'max-w-\[96rem\]' : providerWorkspace \? 'max-w-5xl' : 'max-w-3xl'/);
   assert.match(launcherSource, /cards\.length === 0 \? copy\.noAccess : copy\.noMatches/);
@@ -1153,9 +1153,10 @@ test('multi-kiosk mobile client binds parent and child sessions without exposing
 });
 
 test('multi-kiosk employee workspaces dispatch attendance and petty cash only through child actions', async () => {
-  const [page, host, attendance, pettyCash, uploads, attendanceCapture] = await Promise.all([
+  const [page, host, humanResources, attendance, pettyCash, uploads, attendanceCapture] = await Promise.all([
     readFile(new URL('../src/app/KioskCenter/MultiKioskMobilePage.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/KioskCenter/multi-kiosk/MultiKioskToolHost.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/HumanResourcesMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/KioskCenter/AttendanceMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/KioskCenter/PettyCashMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/KioskCenter/multiKioskWorkspaceUploads.ts', import.meta.url), 'utf8'),
@@ -1165,7 +1166,8 @@ test('multi-kiosk employee workspaces dispatch attendance and petty cash only th
   assert.match(page, /<MultiKioskToolHost/);
   assert.match(host, /toolKey === 'employee\.attendance@1'/);
   assert.match(host, /workspaceKind === 'PETTY_CASH'/);
-  assert.match(host, /<AttendanceMultiKioskWorkspace/);
+  assert.match(host, /<HumanResourcesMultiKioskWorkspace/);
+  assert.match(humanResources, /<AttendanceMultiKioskWorkspace/);
   assert.match(host, /<PettyCashMultiKioskWorkspace/);
   assert.match(attendance, /PublicKioskIdentityPanel/);
   assert.match(attendance, /usePublicKioskViewModel/);
@@ -1228,7 +1230,7 @@ test('multi-kiosk attendance presents a compact capability-aware mobile flow wit
   assert.match(page, /compact=\{Boolean\(session\)\}/);
   assert.match(page, /data-multi-kiosk-app-bar/);
   assert.match(page, /identityName=\{session\?\.identity\?\.name \?\? session\?\.provider\?\.name \?\? session\?\.employee\?\.name\}/);
-  assert.match(page, /onBack=\{workspace \? returnToLauncher : undefined\}/);
+  assert.match(page, /onBack=\{workspace \? providerAudience[\s\S]*?: returnToLauncher : undefined\}/);
   assert.match(page, /workspace\.experience_status !== 'READY'[\s\S]*onClick=\{returnToLauncher\}/);
   assert.match(page, /aria-label=\{copy\.workspace\.back\}[\s\S]*?<ArrowLeft/);
   assert.match(shell, /env\(safe-area-inset-top\)/);
@@ -1269,7 +1271,7 @@ test('multi-kiosk launcher preserves its localized responsive and accessible int
   assert.match(page, /data-multi-kiosk-app-bar[\s\S]*?aria-label=\{signOutLabel\}/);
   assert.match(page, /header=\{bootstrap \? \(\(utilities\) => \(/);
   assert.match(page, /utilities=\{utilities\}/);
-  assert.match(page, /sessionLabel=\{session\.identity\?\.name \?\? session\.provider\?\.name \?\? session\.employee\?\.name \?\? ''\}/);
+  assert.match(page, /employeeName=\{session\.identity\?\.name \?\? session\.employee\?\.name \?\? ''\}/);
   assert.match(shell, /data-kiosk-utility-mode="embedded"/);
   assert.match(shell, /headerUsesEmbeddedUtilities \? header\(embeddedUtilities\) : header/);
   assert.match(launcher, /type="search"[\s\S]*?className="min-h-12/);
@@ -1301,17 +1303,60 @@ test('multi-kiosk launcher preserves its localized responsive and accessible int
   assert.doesNotMatch(`${page}\n${launcher}\n${tile}`, /\bfont-(?:bold|extrabold|black)\b/);
 });
 
+test('employee multi-kiosk home remasters only the launcher and preserves authorized tool order', async () => {
+  const [page, home, launcher] = await Promise.all([
+    readFile(new URL('../src/app/KioskCenter/MultiKioskMobilePage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/multi-kiosk/EmployeeKioskHome.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/multi-kiosk/MultiKioskLauncherDashboard.tsx', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(page, /provider \? \([\s\S]*ProviderPortalHome[\s\S]*\) : \([\s\S]*EmployeeKioskHome/);
+  assert.match(home, /data-employee-kiosk-home/);
+  assert.match(home, /<h2[\s\S]*\{employeeName\}/);
+  assert.match(home, /copy\.launcher\.activeSession/);
+  assert.match(home, /copy\.launcher\.accessCount\(cards\.length\)/);
+  assert.match(home, /<MultiKioskLauncherDashboard[\s\S]*cards=\{cards\}/);
+  assert.doesNotMatch(home, /copy\.header\.defaultDescription|copy\.launcher\.accessNote/);
+  assert.doesNotMatch(home, /\.sort\(|multiKioskPublicApi|MultiKioskToolHost|workspace/);
+  assert.match(launcher, /min-\[360px\]:grid-cols-2/);
+});
+
+test('human resources kiosk expands attendance with capability-scoped employee sections', async () => {
+  const [host, workspace, api, translations] = await Promise.all([
+    readFile(new URL('../src/app/KioskCenter/multi-kiosk/MultiKioskToolHost.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/HumanResourcesMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/api/multiKiosks.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/humanResourcesKioskTranslations.ts', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(host, /toolKey === 'employee\.attendance@1'[\s\S]*<HumanResourcesMultiKioskWorkspace/);
+  assert.match(workspace, /human-resources\.announcements\.read@1/);
+  assert.match(workspace, /human-resources\.records\.read@1/);
+  assert.match(workspace, /human-resources\.permissions\.read@1/);
+  assert.match(workspace, /human-resources\.permission\.create@1/);
+  assert.match(workspace, /role="tablist"/);
+  assert.match(workspace, /<AttendanceMultiKioskWorkspace/);
+  assert.match(workspace, /multiKioskPublicApi\.action/);
+  assert.match(workspace, /<KioskModalFrame/);
+  assert.match(workspace, /surface="public"/);
+  assert.match(workspace, /min-h-12/);
+  assert.match(api, /hr_portal\?: HumanResourcesKioskBootstrap/);
+  assert.match(translations, /Asistencia[\s\S]*Comunicados[\s\S]*Actas[\s\S]*Permisos/);
+  assert.doesNotMatch(workspace, /dangerouslySetInnerHTML|humanResourcesApi/);
+});
+
 test('multi-kiosk mobile workspace uses only canonical version-one capability keys', async () => {
-  const [page, host, tasks, taskHook, attendance, pettyCash] = await Promise.all([
+  const [page, host, tasks, taskHook, humanResources, attendance, pettyCash] = await Promise.all([
     readFile(new URL('../src/app/KioskCenter/MultiKioskMobilePage.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/KioskCenter/multi-kiosk/MultiKioskToolHost.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/EmployeeTaskMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/hooks/useEmployeeTaskMultiKioskWorkspace.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/HumanResourcesMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/KioskCenter/AttendanceMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/KioskCenter/PettyCashMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
   ]);
 
-  const mobileWorkspaceSource = `${page}\n${host}\n${tasks}\n${taskHook}\n${attendance}\n${pettyCash}`;
+  const mobileWorkspaceSource = `${page}\n${host}\n${tasks}\n${taskHook}\n${humanResources}\n${attendance}\n${pettyCash}`;
   assert.doesNotMatch(mobileWorkspaceSource, /@[vV]1\b/);
   assert.match(taskHook, /process-tasks\.tasks\.read@1/);
   assert.match(taskHook, /process-tasks\.task\.create@1/);
@@ -1365,11 +1410,12 @@ test('multi-kiosk deep links keep the requested tool authoritative and permit a 
 });
 
 test('multi-kiosk separates parent session failure from loss of one child kiosk', async () => {
-  const [page, api, host, taskHook, attendance, pettyCash] = await Promise.all([
+  const [page, api, host, taskHook, humanResources, attendance, pettyCash] = await Promise.all([
     readFile(new URL('../src/app/KioskCenter/MultiKioskMobilePage.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/api/multiKiosks.ts', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/KioskCenter/multi-kiosk/MultiKioskToolHost.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/hooks/useEmployeeTaskMultiKioskWorkspace.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/HumanResourcesMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/KioskCenter/AttendanceMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/KioskCenter/PettyCashMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
   ]);
@@ -1384,10 +1430,11 @@ test('multi-kiosk separates parent session failure from loss of one child kiosk'
   assert.match(page, /clearChildAuthority\(kioskId, copy\.errors\.toolUnavailable\)/);
   assert.match(page, /<MultiKioskToolHost[\s\S]*onAuthorizationFailure=\{handleAuthorizationFailure\}/);
   assert.match(host, /<EmployeeTaskMultiKioskWorkspace[\s\S]*onAuthorizationFailure=\{onAuthorizationFailure\}/);
-  assert.match(host, /<AttendanceMultiKioskWorkspace[\s\S]*onAuthorizationFailure=\{onAuthorizationFailure\}/);
+  assert.match(host, /<HumanResourcesMultiKioskWorkspace[\s\S]*onAuthorizationFailure=\{onAuthorizationFailure\}/);
   assert.match(host, /<PettyCashMultiKioskWorkspace[\s\S]*onAuthorizationFailure=\{onAuthorizationFailure\}/);
   assert.match(taskHook, /onAuthorizationFailure\(error\)/);
   assert.match(attendance, /onAuthorizationFailure\(error\)/);
+  assert.match(humanResources, /onAuthorizationFailure\(error\)/);
   assert.match(pettyCash, /onAuthorizationFailure\(error\)/);
 });
 
@@ -1437,4 +1484,41 @@ test('multi-kiosk financial and POS writes prevent double submit and retry evide
   assert.match(pointOfSale, /const createInFlightRef = useRef\(false\)/);
   assert.match(pointOfSale, /if \(!canCreate \|\| createInFlightRef\.current\) return/);
   assert.match(pointOfSale, /createInFlightRef\.current = false/);
+});
+
+test('employee route sales is a native mobile tool with a guarded end-to-end checkout', async () => {
+  const [workspace, host, presentation, api] = await Promise.all([
+    readFile(new URL('../src/app/BasicModules/Sales/Kiosk/RouteSalesMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/multi-kiosk/MultiKioskToolHost.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/multi-kiosk/toolPresentation.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/api/multiKiosks.ts', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(host, /toolKey === 'employee\.route-sales@1'/);
+  assert.match(host, /<RouteSalesMultiKioskWorkspace[\s\S]*onAuthorizationFailure=\{onAuthorizationFailure\}/);
+  assert.match(presentation, /'employee\.route-sales@1': \{ Icon: ShoppingBag, tone: 'coral' \}/);
+  assert.match(presentation, /ROUTE_SALES: \{ Icon: ShoppingBag, tone: 'coral' \}/);
+  assert.match(api, /export interface RouteSalesKioskBootstrap/);
+  assert.match(workspace, /sales\.route\.contact\.create@1/);
+  assert.match(workspace, /sales\.route\.sale\.create@1/);
+  assert.match(workspace, /sales\.route\.payment-evidence\.presign@1/);
+  assert.match(workspace, /sales\.route\.payment-evidence\.register@1/);
+  assert.match(workspace, /fiscal: ContactFiscalDraft/);
+  assert.match(workspace, /<details[\s\S]*Datos fiscales/);
+  assert.match(workspace, /Uso de CFDI/);
+  assert.match(workspace, /setFiscalField\('taxId'/);
+  assert.match(workspace, /Se guardan en la ficha real del cliente/);
+  assert.match(api, /fiscal_tax_id\?: string/);
+  assert.match(workspace, /capture="environment"/);
+  assert.match(workspace, /uploadPresignedKioskFile\(upload, file, contentType/);
+  assert.match(workspace, /La venta quedó registrada, pero no pudimos subir el comprobante/);
+  assert.match(workspace, /Reintentar comprobante/);
+  assert.match(workspace, /const saleInFlightRef = useRef\(false\)/);
+  assert.match(workspace, /if \(saleInFlightRef\.current \|\| !contactId \|\| !warehouseId \|\| !cartLines\.length\) return/);
+  assert.match(workspace, /items: cartLines\.map\(line => \(\{ productId: line\.product\.id, quantity: line\.quantity \}\)\)/);
+  assert.match(workspace, /No hay almacenes activos disponibles/);
+  assert.match(workspace, /disabled=\{!warehouseId\}/);
+  assert.match(workspace, /Selecciona un almacén para ver existencias/);
+  assert.match(workspace, /Terminar venta/);
+  assert.match(workspace, /Finanzas concilia el cobro después/);
 });

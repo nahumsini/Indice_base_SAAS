@@ -73,6 +73,7 @@ export function PublicTaskKioskHeader({
 }
 
 export function PublicTaskKioskIdentityCard({
+  compact = false,
   detail,
   initials,
   name,
@@ -81,6 +82,7 @@ export function PublicTaskKioskIdentityCard({
   scopeLabel,
   verifiedLabel,
 }: {
+  compact?: boolean;
   detail: string;
   initials: string;
   name: string;
@@ -89,6 +91,24 @@ export function PublicTaskKioskIdentityCard({
   scopeLabel: string;
   verifiedLabel: string;
 }) {
+  if (compact) {
+    return (
+      <section className="rounded-2xl border border-[#F4C84A]/45 bg-white px-3 py-2.5 shadow-sm dark:border-[#F4C84A]/25 dark:bg-slate-950">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F4C84A] text-sm font-medium text-[#5F4003]">{initials}</div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-slate-950 dark:text-white">{name}</p>
+            <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">{detail} · {scopeLabel}</p>
+            <span className="sr-only">{verifiedLabel}</span>
+          </div>
+          <Button type="button" variant="outline" aria-label={resetLabel} className="h-11 w-11 shrink-0 rounded-xl border-slate-200 bg-white p-0 text-slate-600 hover:border-[#F4C84A] hover:bg-[#F4C84A]/10 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300" onClick={onReset}>
+            <RefreshCw aria-hidden="true" className="h-4 w-4" />
+          </Button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="rounded-2xl border border-[#F4C84A]/45 bg-white p-4 shadow-[0_14px_34px_-32px_rgba(15,23,42,0.8)] dark:border-[#F4C84A]/25 dark:bg-slate-950">
       <div className="flex min-w-0 items-start gap-3">
@@ -120,6 +140,7 @@ export function PublicTaskKioskIdentityCard({
 }
 
 export function PublicTaskKioskSummaryStrip({
+  compact = false,
   openLabel,
   openValue,
   overdueLabel,
@@ -127,6 +148,7 @@ export function PublicTaskKioskSummaryStrip({
   resolvedLabel,
   resolvedValue,
 }: {
+  compact?: boolean;
   openLabel: string;
   openValue: number;
   overdueLabel: string;
@@ -139,6 +161,21 @@ export function PublicTaskKioskSummaryStrip({
     { icon: <CircleAlert className="h-4 w-4" />, label: overdueLabel, value: overdueValue, valueClass: overdueValue > 0 ? 'text-rose-600 dark:text-rose-300' : 'text-slate-950 dark:text-white' },
     { icon: <CheckCircle2 className="h-4 w-4" />, label: resolvedLabel, value: resolvedValue, valueClass: 'text-emerald-700 dark:text-emerald-300' },
   ];
+
+  if (compact) {
+    return (
+      <section className="flex min-h-11 items-center divide-x divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-white px-1 shadow-sm dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-950">
+        {metrics.map(metric => (
+          <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 px-2 py-2" key={metric.label}>
+            <span className="shrink-0 text-[#9A6B05] dark:text-[#FDE68A]">{metric.icon}</span>
+            <span className={`text-sm font-medium ${metric.valueClass}`}>{metric.value}</span>
+            <span className="hidden truncate text-[10px] text-slate-500 min-[390px]:inline dark:text-slate-400">{metric.label}</span>
+            <span className="sr-only min-[390px]:hidden">{metric.label}</span>
+          </div>
+        ))}
+      </section>
+    );
+  }
 
   return (
     <section className="grid grid-cols-3 divide-x divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-950">
@@ -261,6 +298,9 @@ export function PublicTaskKioskTaskCard({
   dueLabel,
   formattedDueDate,
   onOpen,
+  scheduleLabel,
+  statusLabelOverride,
+  statusTone,
   task,
   taskType,
   viewLabel,
@@ -270,6 +310,9 @@ export function PublicTaskKioskTaskCard({
   dueLabel: string;
   formattedDueDate: string;
   onOpen: () => void;
+  scheduleLabel?: string;
+  statusLabelOverride?: string;
+  statusTone?: 'danger' | 'success' | 'info' | 'warning' | 'neutral';
   task: PublicTaskKioskTask;
   taskType: string;
   viewLabel: string;
@@ -280,21 +323,29 @@ export function PublicTaskKioskTaskCard({
     : task.priority === 'low'
       ? copy.create.priorityLow
       : copy.create.priorityMedium;
-  const statusLabel = task.status === 'completed'
+  const statusLabel = statusLabelOverride ?? (task.status === 'completed'
     ? copy.task.resolved
     : task.is_overdue
       ? copy.task.overdue
-      : priorityLabel;
+      : priorityLabel);
+  const resolvedTone = statusTone ?? (task.is_overdue ? 'danger' : task.status === 'completed' ? 'success' : 'neutral');
+  const statusClassName = {
+    danger: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200',
+    success: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200',
+    info: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200',
+    warning: 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200',
+    neutral: 'bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300',
+  }[resolvedTone];
 
   return (
-    <article className={`overflow-hidden rounded-xl border bg-white shadow-sm transition dark:bg-slate-950 ${task.is_overdue ? 'border-rose-200 dark:border-rose-900/60' : 'border-[#F4C84A]/35 dark:border-[#F4C84A]/20'}`}>
+    <article className={`overflow-hidden rounded-xl border bg-white shadow-sm transition dark:bg-slate-950 ${resolvedTone === 'danger' ? 'border-rose-200 dark:border-rose-900/60' : 'border-[#F4C84A]/35 dark:border-[#F4C84A]/20'}`}>
       <button type="button" className="block w-full p-3 text-left outline-none transition hover:bg-slate-50/70 focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#F4C84A]/25 dark:hover:bg-slate-900/60" onClick={onOpen}>
         <div className="flex items-start justify-between gap-3">
           <span className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-[#F4C84A]/25 px-2.5 py-1 text-[10px] font-medium text-[#7A5204] dark:text-[#FDE68A]">
             <FolderKanban aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">{taskType}</span>
           </span>
-          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium ${task.is_overdue ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200' : task.status === 'completed' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200' : 'bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300'}`}>{statusLabel}</span>
+          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium ${statusClassName}`}>{statusLabel}</span>
         </div>
 
         <h3 className="mt-2 line-clamp-2 text-[15px] font-medium leading-5 tracking-tight text-slate-950 dark:text-white">{task.title}</h3>
@@ -309,6 +360,7 @@ export function PublicTaskKioskTaskCard({
         <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-slate-100 pt-2.5 dark:border-slate-800">
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-slate-500 dark:text-slate-400">
             <span className="inline-flex items-center gap-1"><CalendarDays aria-hidden="true" className="h-3.5 w-3.5" /><span className="sr-only">{dueLabel}: </span>{formattedDueDate}</span>
+            {scheduleLabel ? <span className="inline-flex items-center gap-1"><Clock3 aria-hidden="true" className="h-3.5 w-3.5" />{scheduleLabel}</span> : null}
             {task.attachments > 0 ? <span className="inline-flex items-center gap-1.5"><Paperclip aria-hidden="true" className="h-3.5 w-3.5" />{task.attachments} {attachmentsLabel}</span> : null}
           </div>
           <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-[#F4C84A]/20 px-2 text-[11px] font-medium text-[#7A5204] dark:text-[#FDE68A]">{viewLabel}<ChevronRight aria-hidden="true" className="h-3.5 w-3.5" /></span>

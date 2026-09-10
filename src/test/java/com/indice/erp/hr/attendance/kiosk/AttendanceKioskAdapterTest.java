@@ -6,6 +6,7 @@ import com.indice.erp.kiosk.engine.KioskActionRequest;
 import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
 import com.indice.erp.kiosk.engine.KioskEmployeeToolCatalogService;
 import com.indice.erp.kiosk.engine.KioskExecutionContext;
+import com.indice.erp.kiosk.engine.KioskOperationPolicy;
 import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import com.indice.erp.kiosk.engine.KioskSessionPrincipal;
 import com.indice.erp.kiosk.engine.KioskSessionService;
@@ -33,25 +34,30 @@ class AttendanceKioskAdapterTest {
     @Mock private AttendanceKioskModuleAuditService moduleAudit;
     @Mock private KioskSessionService sessions;
     @Mock private AttendanceEmployeeKioskService employeeCenter;
+    @Mock private HumanResourcesEmployeeKioskService humanResourcesPortal;
 
     private AttendanceKioskAdapter adapter;
 
     @BeforeEach
     void setUp() {
         adapter = new AttendanceKioskAdapter(
-            attendance, identities, moduleAudit, sessions, employeeCenter);
+            attendance, identities, moduleAudit, sessions, employeeCenter, humanResourcesPortal);
     }
 
     @Test
     void publishesControlledSensitiveRhCapabilities() {
         assertThat(adapter.ownerModule()).isEqualTo("HUMAN_RESOURCES");
         assertThat(adapter.capabilities())
-            .hasSize(6)
+            .hasSize(10)
             .allSatisfy(capability -> {
                 assertThat(capability.version()).isEqualTo(1);
                 assertThat(capability.accessLevel()).isEqualTo(KioskAccessLevel.CONTROLLED);
                 assertThat(capability.sensitive()).isTrue();
             });
+        assertThat(AttendanceKioskCapabilities.require(AttendanceKioskCapabilities.ANNOUNCEMENTS_READ)
+            .operationPolicy()).isEqualTo(KioskOperationPolicy.INFORMATION_ONLY);
+        assertThat(AttendanceKioskCapabilities.require(AttendanceKioskCapabilities.PERMISSION_CREATE)
+            .operationPolicy()).isEqualTo(KioskOperationPolicy.REVIEW_REQUIRED);
     }
 
     @Test
@@ -149,13 +155,22 @@ class AttendanceKioskAdapterTest {
                     "minutes_late", 0)),
                 "locations", java.util.List.of(),
                 "summary", Map.of("present", 1)));
+        given(humanResourcesPortal.bootstrap(
+            org.mockito.ArgumentMatchers.eq(7L),
+            org.mockito.ArgumentMatchers.eq(501L),
+            any(Set.class))).willReturn(Map.of(
+                "announcements", Map.of("available", true, "items", java.util.List.of())));
 
         assertThat(adapter.supportsEmployeeCenter(definition)).isTrue();
         assertThat(adapter.capabilities(definition))
             .extracting(capability -> capability.key())
             .containsExactlyInAnyOrder(
                 AttendanceKioskCapabilities.PHOTO_PRESIGN,
-                AttendanceKioskCapabilities.PUNCH_CREATE);
+                AttendanceKioskCapabilities.PUNCH_CREATE,
+                AttendanceKioskCapabilities.ANNOUNCEMENTS_READ,
+                AttendanceKioskCapabilities.RECORDS_READ,
+                AttendanceKioskCapabilities.PERMISSIONS_READ,
+                AttendanceKioskCapabilities.PERMISSION_CREATE);
         assertThat(adapter.employeeBootstrap(engineEmployeeContext(definition)))
             .containsEntry("tool_key", KioskEmployeeToolCatalogService.ATTENDANCE_TOOL_KEY)
             .satisfies(workspace -> {
@@ -166,7 +181,49 @@ class AttendanceKioskAdapterTest {
                 assertThat(activity.get("has_check_in")).isEqualTo(true);
                 assertThat(activity.get("has_check_out")).isEqualTo(false);
                 assertThat(activity.get("has_active_check_in")).isEqualTo(true);
+                assertThat(workspace.get("hr_portal")).isEqualTo(Map.of(
+                    "announcements", Map.of("available", true, "items", java.util.List.of())));
             });
+    }
+
+    @Test
+    void scopesEachHumanResourcesSectionToItsOwningTab() {
+        var definition = nativeToolDefinition();
+
+        assertThat(adapter.employeeCenterTabPermissionKeys(definition)).containsExactlyInAnyOrder(
+            "human_resources.attendance",
+            "human_resources.control",
+            "human_resources.announcements",
+            "human_resources.records",
+            "human_resources.permissions");
+        assertThat(adapter.employeeCapabilityTabPermissionKeys(
+            definition, AttendanceKioskCapabilities.require(AttendanceKioskCapabilities.ANNOUNCEMENTS_READ)))
+            .containsExactly("human_resources.announcements");
+        assertThat(adapter.employeeCapabilityTabPermissionKeys(
+            definition, AttendanceKioskCapabilities.require(AttendanceKioskCapabilities.RECORDS_READ)))
+            .containsExactly("human_resources.records");
+        assertThat(adapter.employeeCapabilityTabPermissionKeys(
+            definition, AttendanceKioskCapabilities.require(AttendanceKioskCapabilities.PERMISSION_CREATE)))
+            .containsExactly("human_resources.permissions");
+    }
+
+    @Test
+    void createsOnlyTheAuthenticatedEmployeesPermissionRequestAndAuditsReviewFlow() {
+        var context = engineEmployeeContext(nativeToolDefinition());
+        var payload = Map.<String, Object>of(
+            "type", "personal",
+            "start_date", "2026-09-11",
+            "end_date", "2026-09-11",
+            "reason", "Cita personal");
+        var request = KioskActionRequest.of(AttendanceKioskCapabilities.PERMISSION_CREATE, payload);
+        var response = Map.<String, Object>of("permissionId", 71L, "permission", Map.of("id", 71L));
+        given(humanResourcesPortal.createPermission(7L, 501L, payload)).willReturn(response);
+
+        assertThat(adapter.executeEmployee(context, request)).isSameAs(response);
+        then(humanResourcesPortal).should().createPermission(7L, 501L, payload);
+        then(moduleAudit).should().success(
+            context, "HR_PERMISSION_REQUEST_CREATED", "PERMISSION_REQUEST", 71L,
+            Map.of("review_required", true));
     }
 
     @Test

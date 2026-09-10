@@ -478,13 +478,29 @@ public class SalesService {
     }
 
     public Map<String, Object> createSalePaymentEvidenceUpload(long companyId, Map<String, Object> payload) {
+        return prepareSalePaymentEvidenceUpload(companyId, payload, paymentEvidencePrefix(companyId));
+    }
+
+    public Map<String, Object> createSalePaymentEvidenceUploadForSale(
+            long companyId,
+            long saleId,
+            Map<String, Object> payload) {
+        salesRepository.get(companyId, definition("sales"), saleId);
+        return prepareSalePaymentEvidenceUpload(
+                companyId, payload, paymentEvidencePrefix(companyId) + saleId + "/");
+    }
+
+    private Map<String, Object> prepareSalePaymentEvidenceUpload(
+            long companyId,
+            Map<String, Object> payload,
+            String objectKeyPrefix) {
         requireProductImageStorage();
         var fileName = requireFileName(payload, "payment-evidence");
         var contentType = requirePaymentEvidenceContentType(
                 SalesPayloadSupport.stringValue(payload, "contentType"),
                 fileName);
         var sizeBytes = requirePaymentEvidenceSize(payload);
-        var objectKey = paymentEvidencePrefix(companyId) + UUID.randomUUID() + "-" + sanitizeFileName(fileName);
+        var objectKey = objectKeyPrefix + UUID.randomUUID() + "-" + sanitizeFileName(fileName);
         var upload = storageMeter.presign(
                 companyId,
                 "SALES",
@@ -515,13 +531,37 @@ public class SalesService {
             long userId,
             long saleId,
             Map<String, Object> payload) {
+        return registerSalePaymentEvidenceWithPrefix(
+                companyId, userId, saleId, payload, paymentEvidencePrefix(companyId));
+    }
+
+    @Transactional
+    public Map<String, Object> registerSalePaymentEvidenceForSale(
+            long companyId,
+            long userId,
+            long saleId,
+            Map<String, Object> payload) {
+        return registerSalePaymentEvidenceWithPrefix(
+                companyId,
+                userId,
+                saleId,
+                payload,
+                paymentEvidencePrefix(companyId) + saleId + "/");
+    }
+
+    private Map<String, Object> registerSalePaymentEvidenceWithPrefix(
+            long companyId,
+            long userId,
+            long saleId,
+            Map<String, Object> payload,
+            String requiredObjectKeyPrefix) {
         salesRepository.get(companyId, definition("sales"), saleId);
         requireProductImageStorage();
 
         var objectKey = firstNonBlank(
                 SalesPayloadSupport.stringValue(payload, "objectKey"),
                 SalesPayloadSupport.stringValue(payload, "object_key"));
-        if (objectKey == null || !objectKey.startsWith(paymentEvidencePrefix(companyId))) {
+        if (objectKey == null || !objectKey.startsWith(requiredObjectKeyPrefix)) {
             throw new IllegalArgumentException("A valid payment evidence objectKey is required.");
         }
         if (!objectStorageService.objectExists(productImagesBucket(), objectKey)) {

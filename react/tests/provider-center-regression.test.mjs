@@ -224,3 +224,30 @@ test('confirmed orders continue through receiving and only mature orders can be 
   assert.match(providerWorkspace, /Primero confirma o recibe una orden para poder facturarla/);
   assert.match(purchaseOrdersTable, /'SENT', 'CONFIRMED', 'PARTIALLY_RECEIVED'/);
 });
+
+test('provider portal behaves as one responsive app shell without changing its four tool contracts', async () => {
+  const page = await readSource('../src/app/KioskCenter/MultiKioskMobilePage.tsx');
+  const layout = await readSource('../src/app/KioskCenter/multi-kiosk/ProviderPortalLayout.tsx');
+  const home = await readSource('../src/app/KioskCenter/multi-kiosk/ProviderPortalHome.tsx');
+  const portalTranslations = await readSource('../src/app/KioskCenter/multi-kiosk/providerPortalTranslations.ts');
+  const workspace = await readSource('../src/app/KioskCenter/multi-kiosk/ProviderCenterMultiKioskWorkspace.tsx');
+  const presentation = await readSource('../src/app/KioskCenter/multi-kiosk/toolPresentation.tsx');
+
+  assert.match(page, /<ProviderPortalLayout/);
+  assert.match(page, /<ProviderPortalHome/);
+  assert.match(layout, /lg:grid-cols-\[14rem_minmax\(0,1fr\)\]/);
+  assert.match(layout, /fixed inset-x-0 bottom-0/);
+  assert.match(layout, /grid max-w-2xl grid-cols-4/);
+  assert.match(layout, /data-provider-unsaved/);
+  assert.match(layout, /<KioskModalFrame/);
+  assert.match(home, /portalCopy\.homeTitle/);
+  assert.match(portalTranslations, /¿Qué necesitas hacer hoy\?/);
+  assert.match(home, /productPathTitle/);
+  assert.match(home, /servicePathTitle/);
+  assert.match(workspace, /function ProviderWorkspaceTabs/);
+  assert.match(workspace, /size="form"/);
+  assert.match(workspace, /surface="public"/);
+  assert.match(workspace, /data-provider-unsaved/);
+  assert.match(presentation, /'provider\.proposals@1': \{ Icon: Send, tone: 'coral' \}/);
+  assert.match(presentation, /'provider\.tracking@1': \{ Icon: CircleDollarSign, tone: 'aqua' \}/);
+});

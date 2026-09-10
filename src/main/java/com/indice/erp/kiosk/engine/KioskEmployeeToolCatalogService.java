@@ -3,6 +3,7 @@ package com.indice.erp.kiosk.engine;
 import com.indice.erp.access.module.ModuleAccessService;
 import com.indice.erp.hr.attendance.kiosk.AttendanceKioskCapabilities;
 import com.indice.erp.processTasks.kiosk.ProcessTaskKioskCapabilities;
+import com.indice.erp.sales.kiosk.RouteSalesKioskCapabilities;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -35,13 +36,18 @@ public class KioskEmployeeToolCatalogService {
 
     public static final String RESERVED_CODE_PREFIX = "INDICE-EMPLOYEE-TOOL-";
     public static final String ATTENDANCE_TOOL_KEY = "employee.attendance@1";
+    public static final String ATTENDANCE_DISPLAY_NAME = "Recursos Humanos";
     public static final String MY_TASKS_TOOL_KEY = "employee.my-tasks@1";
+    public static final String ROUTE_SALES_TOOL_KEY = "employee.route-sales@1";
     public static final String ATTENDANCE_KIOSK_TYPE = "employee_attendance";
     public static final String MY_TASKS_KIOSK_TYPE = "employee_tasks";
+    public static final String ROUTE_SALES_KIOSK_TYPE = "employee_route_sales";
     public static final String ATTENDANCE_RESERVED_CODE =
         RESERVED_CODE_PREFIX + "ATTENDANCE-V1";
     public static final String MY_TASKS_RESERVED_CODE =
         RESERVED_CODE_PREFIX + "MY-TASKS-V1";
+    public static final String ROUTE_SALES_RESERVED_CODE =
+        RESERVED_CODE_PREFIX + "ROUTE-SALES-V1";
 
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final List<EmployeeToolManifest> MANIFESTS = List.of(
@@ -51,14 +57,23 @@ public class KioskEmployeeToolCatalogService {
             "human_resources",
             ATTENDANCE_KIOSK_TYPE,
             ATTENDANCE_RESERVED_CODE,
-            "Asistencia",
-            "Registra entradas y salidas con ubicación y evidencia fotográfica.",
+            ATTENDANCE_DISPLAY_NAME,
+            "Registra asistencia y consulta comunicados, actas y permisos.",
             "ATTENDANCE",
             "attendance",
-            Set.of("human_resources.attendance", "human_resources.control"),
+            Set.of(
+                "human_resources.attendance",
+                "human_resources.control",
+                "human_resources.announcements",
+                "human_resources.records",
+                "human_resources.permissions"),
             Set.of(
                 AttendanceKioskCapabilities.PHOTO_PRESIGN + "@1",
-                AttendanceKioskCapabilities.PUNCH_CREATE + "@1")
+                AttendanceKioskCapabilities.PUNCH_CREATE + "@1",
+                AttendanceKioskCapabilities.ANNOUNCEMENTS_READ + "@1",
+                AttendanceKioskCapabilities.RECORDS_READ + "@1",
+                AttendanceKioskCapabilities.PERMISSIONS_READ + "@1",
+                AttendanceKioskCapabilities.PERMISSION_CREATE + "@1")
         ),
         new EmployeeToolManifest(
             MY_TASKS_TOOL_KEY,
@@ -75,6 +90,24 @@ public class KioskEmployeeToolCatalogService {
                 ProcessTaskKioskCapabilities.TASKS_READ + "@1",
                 ProcessTaskKioskCapabilities.TASK_CREATE + "@1",
                 ProcessTaskKioskCapabilities.TASK_COMPLETE + "@1")
+        ),
+        new EmployeeToolManifest(
+            ROUTE_SALES_TOOL_KEY,
+            RouteSalesKioskCapabilities.OWNER_MODULE,
+            "crm",
+            ROUTE_SALES_KIOSK_TYPE,
+            ROUTE_SALES_RESERVED_CODE,
+            "Venta en ruta",
+            "Registra clientes, cobra y termina ventas propias desde el celular.",
+            "ROUTE_SALES",
+            "sales",
+            Set.of("crm.sales"),
+            Set.of(
+                RouteSalesKioskCapabilities.WORKSPACE_READ + "@1",
+                RouteSalesKioskCapabilities.CONTACT_CREATE + "@1",
+                RouteSalesKioskCapabilities.SALE_CREATE + "@1",
+                RouteSalesKioskCapabilities.PAYMENT_EVIDENCE_PRESIGN + "@1",
+                RouteSalesKioskCapabilities.PAYMENT_EVIDENCE_REGISTER + "@1")
         )
     );
     private static final Map<String, EmployeeToolManifest> BY_KEY = manifestsByKey();

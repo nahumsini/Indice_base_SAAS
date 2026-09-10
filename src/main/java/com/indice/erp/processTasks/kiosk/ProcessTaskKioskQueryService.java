@@ -130,6 +130,8 @@ class ProcessTaskKioskQueryService {
         return """
             SELECT task.id, task.folio, task.title, task.description, task.status, task.priority,
                    task.start_date, task.due_date, task.completed_at, task.completion_percent,
+                   task.agenda_date, task.agenda_start_time, task.agenda_end_time,
+                   task.agenda_time_zone,
                    task.notes, task.assigned_user_company_id,
                    COALESCE(
                             NULLIF(TRIM(assigned_user_display_profile.full_name), ''), NULLIF(TRIM(assigned_user.full_name), ''),
@@ -245,6 +247,10 @@ class ProcessTaskKioskQueryService {
         row.put("priority", fallback(rs.getString("priority"), "medium"));
         row.put("start_date", date(rs, "start_date"));
         row.put("due_date", dueDate == null ? null : dueDate.toString());
+        row.put("agenda_date", date(rs, "agenda_date"));
+        row.put("agenda_start_time", time(rs, "agenda_start_time"));
+        row.put("agenda_end_time", time(rs, "agenda_end_time"));
+        row.put("agenda_time_zone", rs.getString("agenda_time_zone"));
         row.put("completed_at", dateTime(rs, "completed_at"));
         row.put("completion_percent", rs.getInt("completion_percent"));
         row.put("notes", rs.getString("notes"));
@@ -402,5 +408,10 @@ class ProcessTaskKioskQueryService {
     private String dateTime(ResultSet rs, String column) throws SQLException {
         var value = rs.getTimestamp(column);
         return value == null ? null : value.toLocalDateTime().toString();
+    }
+
+    private String time(ResultSet rs, String column) throws SQLException {
+        var value = rs.getTime(column);
+        return value == null ? null : value.toLocalTime().toString();
     }
 }

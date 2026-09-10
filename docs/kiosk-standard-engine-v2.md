@@ -1409,6 +1409,28 @@ siendo validado por el módulo.
 Todos los modales de kiosko ocupan el viewport seguro en teléfono, mantienen header y footer
 visibles, dejan únicamente el body con scroll y respetan teclado y `safe-area-inset-bottom`.
 
+#### 24.3.2 Recursos Humanos para el colaborador operativo
+
+La herramienta nativa `employee.attendance@1` conserva su identificador estable y toda la
+semántica existente del pase de lista, pero se presenta al colaborador como la app **Recursos
+Humanos**. Dentro de ella, una navegación compacta puede habilitar `Asistencia`, `Comunicados`,
+`Actas` y `Permisos`; cada sección aparece solamente cuando la sesión hija recibió la capacidad y
+el permiso de pestaña correspondiente.
+
+- `Asistencia` reutiliza sin cambios el flujo propietario de foto, ubicación, rostro cuando aplica,
+  entrada y salida.
+- `Comunicados` contiene únicamente publicaciones visibles para el empleado por compañía,
+  persona, unidad o departamento.
+- `Actas` muestra sólo registros ligados al expediente del colaborador autenticado y elimina de la
+  proyección pública los campos administrativos de otras personas.
+- `Permisos` muestra sólo solicitudes propias. Crear una solicitud es una operación
+  `REVIEW_REQUIRED`; el kiosko no puede aprobarla, rechazarla ni cambiar su propietario.
+
+Una falla al consultar una sección informativa no debe inutilizar el pase de lista ni las demás
+secciones autorizadas. Esta app de campo no incorpora administración de colaboradores,
+publicación de comunicados, creación de actas, revisión de permisos, nómina ni configuración de RH.
+Las demás cards del Multikiosco permanecen independientes.
+
 ### 24.4 Catálogo efectivo
 
 Una card aparece únicamente por la intersección de:
@@ -1691,6 +1713,18 @@ Completar una tarea individual o actuar como líder devuelve
 su aportación como lista y recibe `action_outcome=CONTRIBUTION_READY`; la tarea continúa abierta, el
 workspace no presenta porcentaje de cierre y una aportación ya lista publica `can_complete=false`
 para impedir envíos repetidos.
+
+El workspace nativo se presenta como una **Agenda Operativa** reducida para personal de campo. Su
+punto de entrada es `Hoy`, con el selector `Enfoque` siempre visible (`Mis tareas`, `Delegadas por
+mí` y `Todas visibles`), búsqueda directa, navegación por fecha y filtros secundarios de estado,
+periodo, proyecto/proceso y alcance. `Todas visibles` significa exclusivamente la colección ya
+autorizada por el backend; no amplía la visibilidad de la sesión.
+
+La vista Agenda agrupa vencidas, trabajo programado y trabajo sin horario. La consulta puede exponer
+`agenda_date`, `agenda_start_time`, `agenda_end_time` y `agenda_time_zone` como datos de sólo lectura
+para respetar la programación de la Agenda principal. El Tablero compacto conserva columnas de
+estado y scroll horizontal en móvil, pero no permite drag-and-drop ni mutaciones implícitas: abrir,
+completar y aportar evidencia siguen usando los comandos y modales existentes.
 
 ### 25.3 Caja Chica
 
@@ -2212,6 +2246,38 @@ El Engine v2 se considera establecido cuando:
 - Petty Cash guía el diseño público.
 - El sistema React `indice-modal` guía la administración.
 - La migración es incremental, compatible y sin cambio operativo.
+
+### Decisión de producto: Venta en ruta para colaboradores
+
+- `employee.route-sales@1` es una herramienta nativa del Multikiosco cuyo propietario funcional es
+  Ventas (`SALES`); no sustituye el Catálogo Público de Ventas ni el flujo de caja de POS.
+- La experiencia es mobile-first y permite que un vendedor de campo registre un cliente propio,
+  seleccione almacén y productos, identifique el medio de cobro y termine la venta desde el teléfono.
+- El alta rápida de cliente puede incluir un perfil fiscal opcional y plegable: país, razón social,
+  identificador y registro fiscal, régimen, domicilio, código postal, correo de facturación, notas y,
+  para México, uso de CFDI. La información se persiste en el contacto autoritativo de Sales; el kiosco
+  no mantiene una copia paralela y omite por completo el perfil cuando no se captura ningún dato fiscal.
+- La identidad del vendedor, el alcance organizacional, los precios, impuestos, moneda y totales se
+  resuelven de forma autoritativa en backend. El navegador no puede sobrescribirlos.
+- Una venta de productos se considera terminada en el kiosco sólo si la salida de inventario completa
+  en la misma transacción. Un error de existencia o configuración revierte la venta completa.
+- El selector usa únicamente almacenes activos de la misma compañía publicados por Inventarios. La
+  selección se revalida en backend al confirmar y la venta hereda los identificadores organizacionales
+  canónicos del almacén cuando existen. Los campos textuales legacy de almacén no se comparan contra
+  IDs de RH porque pertenecen a contratos históricos distintos y pueden ocultar almacenes válidos.
+- La captura del medio de pago no declara por sí sola un depósito contable. Efectivo en custodia,
+  referencias de tarjeta/transferencia y ventas a crédito quedan pendientes de conciliación por el
+  módulo financiero propietario; el kiosco lo comunica de forma explícita.
+- El paso **Cobro** permite seleccionar un comprobante o capturar una foto desde el dispositivo.
+  Sales conserva la autoridad del archivo: el Engine exige capacidades controladas separadas para
+  presign y registro, el backend valida que la venta sea del vendedor autenticado y el object key
+  queda sellado al ID de esa venta. Se aceptan PDF, JPEG, PNG y WebP de hasta 15 MB. La venta se
+  registra antes de transferir la evidencia; un fallo de red conserva la venta y ofrece reintentar
+  únicamente el comprobante, sin reenviar ni duplicar la operación.
+- Clientes y ventas visibles se limitan a la cartera del vendedor autenticado y a su unidad/negocio;
+  la card exige entitlement de CRM, permiso `crm.sales`, grant y sesión personal de Multikiosco.
+- Las mutaciones usan las capacidades versionadas `sales.route.contact.create@1` y
+  `sales.route.sale.create@1`, con CSRF, idempotencia y auditoría del Engine.
 
 ---
 
