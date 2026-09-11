@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { ArrowDown, ArrowUp, ArrowUpDown, Columns3, MoreHorizontal, Plus } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Columns3, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { ColumnConfig } from '../../../components/rh/ColumnasConfigModal';
 import { DataTablePagination } from '../../../components/table/DataTablePagination';
@@ -10,15 +10,11 @@ import {
   IndiceFilterDisclosureActions,
   IndiceFilterField,
   IndiceTitleBar,
+  IndiceTitleBarOverflow,
   IndiceViewState,
 } from '../../../components/frontend-os';
 import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../hooks/useTablePagination';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../../../components/ui/dropdown-menu';
+import { Button } from '../../../components/ui/button';
 import {
   pettyCashFundStatusClasses,
   pettyCashSettlementLineStatusClasses,
@@ -82,83 +78,107 @@ export function PettyCashHeaderBanner({
   tertiaryActionLabel?: string;
   title: string;
 }) {
-  const eligibleActionCount = [
-    Boolean(actionLabel && onAction),
-    Boolean(secondaryActionLabel && onSecondaryAction),
-    Boolean(tertiaryActionLabel && onTertiaryAction),
-    Boolean(onColumns),
-  ].filter(Boolean).length;
+  const contextualActions: Array<{
+    disabled?: boolean;
+    icon?: LucideIcon;
+    id: string;
+    label: string;
+    onSelect: () => void;
+  }> = [];
+
+  if (additionalActionLabel && onAdditionalAction) {
+    contextualActions.push({
+      disabled: additionalActionDisabled,
+      icon: AdditionalActionIcon,
+      id: 'additional',
+      label: additionalActionLabel,
+      onSelect: onAdditionalAction,
+    });
+  }
+  if (secondaryActionLabel && onSecondaryAction) {
+    contextualActions.push({
+      icon: SecondaryActionIcon,
+      id: 'secondary',
+      label: secondaryActionLabel,
+      onSelect: onSecondaryAction,
+    });
+  }
+  if (tertiaryActionLabel && onTertiaryAction) {
+    contextualActions.push({
+      icon: TertiaryActionIcon,
+      id: 'tertiary',
+      label: tertiaryActionLabel,
+      onSelect: onTertiaryAction,
+    });
+  }
+
+  const hasPrimaryAction = Boolean(actionLabel && onAction);
+  const eligibleActionCount = contextualActions.length + Number(hasPrimaryAction) + Number(Boolean(onColumns));
   const hasOverflow = eligibleActionCount > 3;
+  const directContextualLimit = hasPrimaryAction ? 2 : 3;
+  const directContextualActions = hasOverflow
+    ? contextualActions.slice(0, directContextualLimit)
+    : contextualActions;
+  const overflowContextualActions = hasOverflow
+    ? contextualActions.slice(directContextualLimit)
+    : [];
+  const secondaryButtonClass = 'h-11 w-full shrink-0 justify-center gap-2 whitespace-nowrap rounded-xl border-[#147514]/25 bg-white px-4 text-sm font-medium text-[#147514] shadow-none hover:bg-[#147514] hover:text-white disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 dark:border-emerald-400/25 dark:bg-slate-800 dark:text-white sm:w-auto';
+  const primaryButtonClass = 'h-11 w-full shrink-0 justify-center gap-2 whitespace-nowrap rounded-xl bg-[#147514] px-4 text-sm font-medium text-white shadow-sm hover:bg-[#105010] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 sm:w-auto';
   const actionLayout = (
-    <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-row sm:items-center">
-      {additionalActionLabel && onAdditionalAction ? (
-        <button
+    <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
+      {directContextualActions.map(({ disabled, icon: ActionIcon, id, label, onSelect }) => (
+        <Button
+          key={id}
           type="button"
-          disabled={additionalActionDisabled}
-          onClick={onAdditionalAction}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-none transition hover:border-[#147514]/30 hover:bg-[#147514]/5 hover:text-[#147514] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
+          disabled={disabled}
+          onClick={onSelect}
+          variant="outline"
+          className={secondaryButtonClass}
         >
-          {AdditionalActionIcon ? <AdditionalActionIcon className="h-4 w-4" /> : null}
-          {additionalActionLabel}
-        </button>
-      ) : null}
-      {secondaryActionLabel && onSecondaryAction ? (
-        <button
-          type="button"
-          onClick={onSecondaryAction}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-700 dark:hover:text-white"
-        >
-          {SecondaryActionIcon ? <SecondaryActionIcon className="h-4 w-4" /> : null}
-          {secondaryActionLabel}
-        </button>
-      ) : null}
-      {!hasOverflow && tertiaryActionLabel && onTertiaryAction ? (
-        <button
-          type="button"
-          onClick={onTertiaryAction}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-700 dark:hover:text-white"
-        >
-          {TertiaryActionIcon ? <TertiaryActionIcon className="h-4 w-4" /> : null}
-          {tertiaryActionLabel}
-        </button>
-      ) : null}
+          {ActionIcon ? <ActionIcon className="h-4 w-4" /> : null}
+          {label}
+        </Button>
+      ))}
       {!hasOverflow && onColumns ? (
-        <button
+        <Button
           type="button"
           onClick={onColumns}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-none transition hover:border-[#147514]/30 hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+          variant="outline"
+          className={secondaryButtonClass}
         >
           <Columns3 className="h-4 w-4" />
           <HeaderColumnsLabel />
-        </button>
+        </Button>
       ) : null}
       {actionLabel && onAction ? (
-        <button
+        <Button
           type="button"
           onClick={onAction}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#147514] px-4 text-sm font-medium text-white shadow-sm transition hover:bg-[#105010] dark:bg-emerald-600 dark:hover:bg-emerald-500"
+          className={primaryButtonClass}
         >
           <Plus className="h-4 w-4" />
           {actionLabel}
-        </button>
+        </Button>
       ) : null}
       {hasOverflow ? (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button type="button" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-none transition hover:border-[#147514]/30 hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-              <MoreHorizontal className="h-4 w-4" />
-              <HeaderActionsLabel />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 rounded-xl p-1.5">
-            {onColumns ? (
-              <DropdownMenuItem className="rounded-lg py-2.5" onClick={onColumns}>
-                <Columns3 />
-                <HeaderColumnsLabel />
-              </DropdownMenuItem>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <IndiceTitleBarOverflow
+          items={[
+            ...overflowContextualActions.map(({ disabled, icon: ActionIcon, id, label, onSelect }) => ({
+              disabled,
+              icon: ActionIcon ? <ActionIcon className="h-4 w-4" /> : undefined,
+              id,
+              label,
+              onSelect,
+            })),
+            ...(onColumns ? [{
+              icon: <Columns3 className="h-4 w-4" />,
+              id: 'columns',
+              label: <HeaderColumnsLabel />,
+              onSelect: onColumns,
+            }] : []),
+          ]}
+          label={<HeaderActionsLabel />}
+        />
       ) : null}
     </div>
   );

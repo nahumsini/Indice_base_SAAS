@@ -73,10 +73,14 @@ test('Petty Cash usa filtros progresivos y columnas persistentes en sus índices
   assert.match(sharedSource, /<IndiceFilterDisclosureActions/);
   assert.match(sharedSource, /<IndiceFilterAdvancedSection/);
   assert.match(sharedSource, /usePettyCashColumns/);
-  assert.match(sharedSource, /const eligibleActionCount = \[/);
+  assert.match(sharedSource, /const eligibleActionCount = contextualActions\.length \+ Number\(hasPrimaryAction\) \+ Number\(Boolean\(onColumns\)\)/);
   assert.match(sharedSource, /const hasOverflow = eligibleActionCount > 3/);
+  assert.match(sharedSource, /const directContextualLimit = hasPrimaryAction \? 2 : 3/);
+  assert.match(sharedSource, /whitespace-nowrap/);
   assert.match(sharedSource, /!hasOverflow && onColumns/);
   assert.match(sharedSource, /\{hasOverflow \? \(/);
+  assert.match(sharedSource, /<IndiceTitleBarOverflow/);
+  assert.match(sharedSource, /\.\.\.overflowContextualActions\.map/);
   assert.match(fundsSource, /indice\.pettyCash\.funds\.columns\.v1/);
   assert.match(fundsSource, /onColumns=\{\(\) => setShowColumnsModal\(true\)\}/);
   assert.match(fundsSource, /onSecondaryAction=\{\(\) => setIsKioskOpen\(true\)\}/);
