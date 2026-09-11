@@ -21,7 +21,13 @@ class PettyCashFundSnapshots {
                     "fundingSourcePaymentAccountId", "fundingSourceName", "unitId", "businessId", "responsibleUserId",
                     "externalOwnerType", "externalOwnerName", "externalOwnerRelationship", "externalOwnerReference",
                     "statementRecipientEmail", "managedAssetType", "managedAssetName", "managedAssetReference", "managedAssetsJson")) {
-                if (saved.has(field)) record.set(field, saved.get(field));
+                if (!saved.has(field)) continue;
+                var value = saved.get(field);
+                if ("managedAssetsJson".equals(field) && value != null && !value.isNull() && !value.isTextual()) {
+                    record.put(field, json.writeValueAsString(value));
+                } else {
+                    record.set(field, value);
+                }
             }
             return json.treeToValue(record, PettyCashFundRecord.class);
         } catch (java.io.IOException e) { throw new IllegalStateException("Invalid fund accounting snapshot", e); }

@@ -114,7 +114,8 @@ class PettyCashMonthlyCutScheduler {
                      'externalOwnerReference', fund.external_owner_reference,
                      'statementRecipientEmail', fund.statement_recipient_email,
                      'managedAssetType', fund.managed_asset_type, 'managedAssetName', fund.managed_asset_name,
-                     'managedAssetReference', fund.managed_asset_reference, 'managedAssetsJson', fund.managed_assets_json)
+                     'managedAssetReference', fund.managed_asset_reference,
+                     'managedAssetsJson', CAST(fund.managed_assets_json AS CHAR))
             FROM finance_petty_cash_funds fund
             WHERE fund.deleted_at IS NULL
               AND fund.company_id = ?

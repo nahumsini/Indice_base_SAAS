@@ -126,6 +126,28 @@ class FinanceBulkActionsIntegrationTest {
         assertThatThrownBy(() -> expenses.apply(f.context,new ExpenseBulkActionRequest(ExpenseBulkActionRequest.Action.PROVIDER,List.of(new ExpenseBulkActionRequest.Selection(authorized.settlementLine().expenseId(),jdbc.queryForObject("SELECT version FROM finance_expenses WHERE id=?",Long.class,authorized.settlementLine().expenseId()))),provider,"test"))).hasMessageContaining("Petty Cash");
     }
 
+    @Test void authorizesReceiptWhenHistoricalSnapshotEmbeddedManagedAssetsAsJson() {
+        var f=fixture("MXN");long line=receipt(f);
+        jdbc.update("""
+            UPDATE finance_petty_cash_statements
+            SET fund_snapshot_json = JSON_OBJECT(
+                'fundType', 'INTERNAL_COMPANY',
+                'paymentAccountId', ?,
+                'responsibleUserId', ?,
+                'managedAssetsJson', JSON_ARRAY())
+            WHERE company_id = ? AND id = ?
+            """, f.custody, f.context.userId(), f.context.companyId(), f.cut);
+        var balance=money("finance_payment_accounts","current_balance",f.custody);
+
+        var authorized=service.createExpenseFromSettlementLine(f.context,f.fund,line);
+
+        assertThat(authorized.settlementLine().status()).isEqualTo(PettyCashSettlementLineStatus.EXPENSE_CREATED);
+        assertThat(authorized.settlementLine().expenseId()).isNotNull();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM finance_expense_payments WHERE expense_id=?",Integer.class,
+            authorized.settlementLine().expenseId())).isEqualTo(1);
+        assertThat(money("finance_payment_accounts","current_balance",f.custody)).isEqualByComparingTo(balance);
+    }
+
     @Test void closedCutAndStaleReceiptProtectTheWholeSelection() {
         var f=fixture("MXN");long first=receipt(f),second=receipt(f);var request=pettyRequest(f,PettyCashBulkActionRequest.Action.PROVIDER,provider(f),first,second);
         jdbc.update("UPDATE finance_petty_cash_settlement_lines SET version=version+1 WHERE id=?",second);

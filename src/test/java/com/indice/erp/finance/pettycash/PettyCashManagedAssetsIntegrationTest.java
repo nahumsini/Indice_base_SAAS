@@ -61,6 +61,10 @@ class PettyCashManagedAssetsIntegrationTest {
         assertThat(cuts).hasSize(2);
         var nextCut = cuts.stream().filter(cut -> cut.periodKey().equals(nextPeriod.toString())).findFirst().orElseThrow();
         assertThat(mapper.toResponse(nextCut).managedAssetsSnapshot()).isEqualTo(updated.managedAssets());
+        assertThat(jdbc.queryForObject("""
+            SELECT JSON_TYPE(JSON_EXTRACT(fund_snapshot_json, '$.managedAssetsJson'))
+            FROM finance_petty_cash_statements WHERE company_id = ? AND id = ?
+            """, String.class, f.context.companyId(), nextCut.id())).isEqualTo("STRING");
 
         body.set("managedAssets", json.createArrayNode());
         var cleared = service.updateFund(f.context, created.id(), json.treeToValue(body, UpdatePettyCashFundRequest.class));
