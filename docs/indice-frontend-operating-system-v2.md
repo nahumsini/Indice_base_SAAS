@@ -201,6 +201,11 @@ optional reference. Back preserves all rows, and final review shows each asset. 
 `managedAssets` list, including `[]` when cleared. Account statements and PDFs use their own
 `managedAssetsSnapshot`; never fill a historical empty list from today's fund. See
 `docs/petty-cash-managed-assets-contract-v1.md`.
+Petty Cash account-statement preview, download and print share one transaction-document definition
+and the standard PDF engine used by Finance. The document uses a single green accent, neutral
+metadata and table-first sections; decorative multicolor bands and semantic color without meaning
+do not belong in this report. Preserve the statement folio, status, fund and owner identity,
+historical assets, native-currency balances, entries, expenses and reconciliation in every output.
 Fund forms do not show or require funding or spending method checklists. The deposit modal selects
 created active accounts in the same currency for both fund types, excluding custody. External
 managed funds additionally offer **Medios externos**, which reveals the named-origin field. It

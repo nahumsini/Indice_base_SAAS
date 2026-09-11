@@ -1,20 +1,19 @@
-import { describeManagedAsset, getStatementManagedAssets } from '../../utils/managedAssets';
-import {
-  ArrowDownToLine,
-  CalendarRange,
-  Download,
-  FileText,
-  Printer,
-  ReceiptText,
-  WalletCards,
-} from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Download, FileText, Printer } from 'lucide-react';
+import { useState } from 'react';
 import { IndiceModalFrame } from '../../../../components/indice-modal';
 import type { PettyCashTranslations } from '../../translations';
 import type { PettyCashFund, PettyCashMovement, PettyCashSettlementLine, PettyCashStatement } from '../../types/pettyCash.types';
 import { getPettyCashAccountStatementCopy } from '../../utils/pettyCashAccountStatementCopy';
-import { downloadPettyCashStatementPdf, printPettyCashStatementPdf } from '../../utils/pettyCashStatementPdf';
-import { formatPettyCashCurrency, formatPettyCashIsoDate, getStatementSettlementBalance } from '../../utils/pettyCash.utils';
+import {
+  buildPettyCashStatementDocument,
+  downloadPettyCashStatementPdf,
+  printPettyCashStatementPdf,
+} from '../../utils/pettyCashStatementPdf';
+import {
+  documentPrintAttribution,
+  formatDocumentPrintDateTime,
+  getDocumentPrintLabels,
+} from '../../../shared/print/documentPrintContract';
 
 interface PettyCashStatementDetailModalProps {
   copy: PettyCashTranslations;
@@ -26,6 +25,11 @@ interface PettyCashStatementDetailModalProps {
   statement: PettyCashStatement | null;
 }
 
+const displayValue = (
+  value: string | number | null | undefined,
+  fallback: string,
+) => value === null || value === undefined || value === '' ? fallback : value;
+
 export function PettyCashStatementDetailModal({
   copy,
   fund,
@@ -35,30 +39,22 @@ export function PettyCashStatementDetailModal({
   receipts,
   statement,
 }: PettyCashStatementDetailModalProps) {
+  const [generatedAt] = useState(() => new Date());
   if (!statement || !fund) return null;
 
   const labels = getPettyCashAccountStatementCopy(copy.locale);
-  const isExternalFund = statement.fundTypeSnapshot === 'EXTERNAL_MANAGED';
-  const documentTitle = isExternalFund ? labels.externalDocumentTitle : labels.documentTitle;
-  const documentLabel = isExternalFund ? labels.externalDocumentLabel : labels.documentLabel;
-  const documentSubtitle = isExternalFund ? labels.externalDocumentSubtitle : labels.documentSubtitle;
-  const externalOwnerName = statement.externalOwnerNameSnapshot ?? fund.externalOwnerName ?? copy.common.notAvailable;
-  const externalIdentityRows: Array<[string, string]> = [
-    [labels.owner, externalOwnerName],
-    [labels.relationship, (statement.externalOwnerRelationshipSnapshot ?? fund.externalOwnerRelationship ?? copy.common.notAvailable).split('_').join(' ')],
-    [labels.statementRecipient, statement.statementRecipientEmailSnapshot ?? fund.statementRecipientEmail ?? copy.common.notAvailable],
-  ];
-  getStatementManagedAssets(statement).forEach((asset, index) => {
-    externalIdentityRows.push([`${labels.managedAsset} ${index + 1}`, describeManagedAsset(asset, copy)]);
-  });
-  const ownerReference = statement.externalOwnerReferenceSnapshot ?? fund.externalOwnerReference;
-  if (ownerReference) externalIdentityRows.push([labels.ownerReference, ownerReference]);
-  const fundedAmount = statement.assignedAmount + statement.additionalDepositAmount;
-  const pendingAmount = getStatementSettlementBalance(statement);
-  const generatedAt = new Intl.DateTimeFormat(copy.locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date());
-  const orderedMovements = [...movements].sort((left, right) => right.movementDate.localeCompare(left.movementDate));
-  const orderedReceipts = [...receipts].sort((left, right) => right.expenseDate.localeCompare(left.expenseDate));
-  const pdfContext = { copy, fund, locale: copy.locale, movements, settlementLines: receipts, statement };
+  const pdfContext = {
+    copy,
+    fund,
+    generatedAt,
+    locale: copy.locale,
+    movements,
+    originText,
+    settlementLines: receipts,
+    statement,
+  };
+  const definition = buildPettyCashStatementDocument(pdfContext);
+  const footerLabels = getDocumentPrintLabels(copy.locale);
 
   return (
     <IndiceModalFrame
@@ -68,9 +64,9 @@ export function PettyCashStatementDetailModal({
       description={`${statement.folio} · ${labels.description}`}
       footer={(
         <div className="flex flex-wrap justify-end gap-2">
-          <button className="inline-flex h-10 items-center justify-center rounded-lg border border-white/30 bg-white/10 px-4 text-sm font-medium text-white transition hover:bg-white/20" onClick={onClose} type="button">{labels.close}</button>
-          <button className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-white px-4 text-sm font-medium text-[#147514] transition hover:bg-emerald-50" onClick={() => downloadPettyCashStatementPdf(pdfContext)} type="button"><Download className="h-4 w-4" />{labels.download}</button>
-          <button className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-white px-4 text-sm font-medium text-[#147514] transition hover:bg-emerald-50" onClick={() => printPettyCashStatementPdf(pdfContext)} type="button"><Printer className="h-4 w-4" />{labels.print}</button>
+          <button className="inline-flex h-10 items-center justify-center rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-medium text-white transition hover:bg-white/20" onClick={onClose} type="button">{labels.close}</button>
+          <button className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-medium text-white transition hover:bg-white/20" onClick={() => downloadPettyCashStatementPdf(pdfContext)} type="button"><Download className="h-4 w-4" />{labels.download}</button>
+          <button className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-medium text-[#147514] shadow-sm transition hover:bg-slate-100" onClick={() => printPettyCashStatementPdf(pdfContext)} type="button"><Printer className="h-4 w-4" />{labels.print}</button>
         </div>
       )}
       footerSummary={statement.folio}
@@ -81,99 +77,83 @@ export function PettyCashStatementDetailModal({
       title={labels.previewTitle}
       tone="green"
     >
-      <article className="mx-auto min-h-[980px] w-full max-w-[920px] bg-white px-6 py-7 text-slate-950 shadow-xl ring-1 ring-slate-200 sm:px-10 sm:py-9">
-        <header className="border-b border-slate-200 pb-7">
-          <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-start">
-            <div><p className="text-xs font-medium text-slate-500">{labels.statement}</p><p className="mt-1 text-lg font-medium">{statement.folio}</p></div>
-            <div className="text-left md:text-center"><p className="text-2xl font-medium">{documentTitle}</p><p className="mt-1 text-xs font-medium text-slate-500">{documentLabel}</p></div>
-            <div className="text-left text-sm text-slate-500 md:text-right"><p>{labels.period}: {statement.periodKey}</p><p className="mt-1">{labels.generated}: {generatedAt}</p></div>
-          </div>
-          <div className="mt-5 flex h-2 overflow-hidden rounded-full" aria-hidden="true"><span className="w-[34%] bg-[#FF6B5E]" /><span className="w-[22%] bg-[#F4C84A]" /><span className="w-[22%] bg-[#59C3A5]" /><span className="w-[22%] bg-[#2563EB]" /></div>
-          <div className="mt-9 grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-end">
-            <div><p className="text-xs font-medium text-[#147514]">{fund.businessName || fund.name}</p><h1 className="mt-3 text-4xl font-medium leading-none sm:text-5xl">{fund.name}</h1><p className="mt-4 max-w-xl text-base leading-7 text-slate-600">{documentSubtitle}</p></div>
-            <div className="rounded-lg border border-[#147514]/25 bg-[#147514]/5 p-5 text-right"><p className="text-xs font-medium text-[#147514]">{labels.closing} · {statement.currencyCode}</p><p className="mt-2 text-3xl font-medium tabular-nums">{formatPettyCashCurrency(statement.declaredClosingBalanceAmount, statement.currencyCode)}</p></div>
+      <article className="mx-auto w-full max-w-[920px] space-y-6 rounded-xl border border-slate-200 bg-white p-5 text-slate-900 shadow-sm sm:p-8">
+        <header className="border-b border-slate-200 pb-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="min-w-0">
+              <p className="text-lg font-medium text-slate-900">{definition.issuer}</p>
+              <h2 className="mt-2 text-2xl font-medium text-[#147514]">{definition.title}</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{definition.subtitle}</p>
+            </div>
+            <dl className="shrink-0 text-sm md:text-right">
+              <dt className="text-xs text-slate-500">{labels.statement}</dt>
+              <dd className="mt-1 font-medium text-slate-900">{definition.folio}</dd>
+              <dt className="mt-3 text-xs text-slate-500">{labels.status}</dt>
+              <dd className="mt-1 font-medium text-slate-900">{definition.status}</dd>
+            </dl>
           </div>
         </header>
 
-        <section className="grid gap-4 border-b border-slate-200 py-7 sm:grid-cols-2 lg:grid-cols-4">
-          <StatementMetric accent="bg-[#2563EB]" label={labels.opening} value={formatPettyCashCurrency(statement.openingBalanceAmount, statement.currencyCode)} />
-          <StatementMetric accent="bg-[#59C3A5]" label={labels.funded} value={formatPettyCashCurrency(fundedAmount, statement.currencyCode)} />
-          <StatementMetric accent="bg-[#F4C84A]" label={labels.captured} value={formatPettyCashCurrency(statement.estimatedUsageAmount, statement.currencyCode)} />
-          <StatementMetric accent="bg-[#147514]" label={labels.currentBalance} value={formatPettyCashCurrency(fund.currentBalanceAmount, fund.currencyCode)} />
-        </section>
+        {definition.metadata?.length ? (
+          <dl className="grid gap-x-8 gap-y-4 border-b border-slate-200 pb-6 sm:grid-cols-3">
+            {definition.metadata.map(field => (
+              <div key={field.label}>
+                <dt className="text-xs text-slate-500">{field.label}</dt>
+                <dd className="mt-1 text-sm font-medium text-slate-900">{displayValue(field.value, copy.common.notAvailable)}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
 
-        <section className="grid gap-4 border-b border-slate-200 py-7 md:grid-cols-2">
-          <StatementIdentity title={isExternalFund ? labels.owner : labels.fund} icon={<WalletCards className="h-4 w-4" />} rows={isExternalFund ? externalIdentityRows : [[labels.fund, fund.name], [labels.responsible, statement.responsibleName], [labels.currentBalance, formatPettyCashCurrency(fund.currentBalanceAmount, fund.currencyCode)]]} />
-          <StatementIdentity title={labels.statement} icon={<CalendarRange className="h-4 w-4" />} rows={[[labels.period, `${formatPettyCashIsoDate(statement.periodStart)} – ${formatPettyCashIsoDate(statement.periodEnd)}`], [labels.status, copy.status.statement[statement.status]], [labels.opening, originText]]} />
-        </section>
+        {definition.sections?.map(section => (
+          <section className="space-y-3" key={section.title}>
+            <h3 className="border-b border-slate-200 pb-2 text-base font-medium text-slate-900">{section.title}</h3>
+            {section.fields?.length ? (
+              <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+                {section.fields.map(field => (
+                  <div className="grid gap-1 sm:grid-cols-[140px_1fr] sm:gap-3" key={field.label}>
+                    <dt className="text-sm text-slate-500">{field.label}</dt>
+                    <dd className="break-words text-sm font-medium text-slate-800">{displayValue(field.value, copy.common.notAvailable)}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
+            {section.paragraphs?.map(paragraph => (
+              <p className="text-sm leading-6 text-slate-600" key={paragraph}>{paragraph}</p>
+            ))}
+          </section>
+        ))}
 
-        <StatementTableSection count={orderedMovements.length} icon={<ArrowDownToLine className="h-4 w-4" />} title={labels.movements} tone="blue">
-          <table className="w-full min-w-[680px] border-collapse text-left text-xs"><thead className="bg-slate-100 text-slate-700"><tr><th className="px-3 py-3 font-medium">{copy.common.date}</th><th className="px-3 py-3 font-medium">{labels.type}</th><th className="px-3 py-3 font-medium">{labels.reference}</th><th className="px-3 py-3 font-medium">{labels.destination}</th><th className="px-3 py-3 text-right font-medium">{labels.total}</th></tr></thead><tbody>
-            {orderedMovements.length ? orderedMovements.map(movement => <tr className="border-t border-slate-200 odd:bg-white even:bg-slate-50" key={movement.id}><td className="px-3 py-3 text-slate-600">{formatPettyCashIsoDate(movement.movementDate)}</td><td className="px-3 py-3 font-medium text-slate-800">{copy.status.movement[movement.type]}</td><td className="px-3 py-3 text-slate-600">{movement.statementDescription || movement.reference || copy.common.notAvailable}</td><td className="px-3 py-3 text-slate-600">{movement.toPaymentAccountName ?? (movement.type === 'RETURN_TO_SOURCE' ? movement.externalSourceName : fund.name) ?? copy.common.notAvailable}</td><td className="px-3 py-3 text-right font-medium tabular-nums text-sky-700">{formatPettyCashCurrency(movement.amount, movement.currencyCode)}</td></tr>) : <tr><td className="px-4 py-8 text-center text-sm text-slate-500" colSpan={5}>{labels.emptyMovements}</td></tr>}
-          </tbody></table>
-        </StatementTableSection>
+        {definition.tables?.map((table, index) => (
+          <section className="space-y-3" key={`${table.title ?? 'table'}-${index}`}>
+            {table.title ? <h3 className="border-b border-slate-200 pb-2 text-base font-medium text-slate-900">{table.title}</h3> : null}
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="w-full min-w-[680px] border-collapse text-left text-xs">
+                <thead className="bg-slate-50 text-slate-700">
+                  <tr>{table.columns.map((column, position) => (
+                    <th className={`px-3 py-3 font-medium ${table.numericColumnIndices?.includes(position) ? 'text-right' : ''}`} key={`${column}-${position}`}>{column}</th>
+                  ))}</tr>
+                </thead>
+                <tbody>
+                  {table.rows.length ? table.rows.map((row, rowIndex) => (
+                    <tr className="border-t border-slate-200 even:bg-slate-50/70" key={rowIndex}>
+                      {row.map((value, position) => (
+                        <td className={`min-w-24 whitespace-pre-wrap break-words px-3 py-3 text-slate-700 ${table.numericColumnIndices?.includes(position) ? 'text-right tabular-nums font-medium text-slate-900' : ''}`} key={position}>{value ?? copy.common.notAvailable}</td>
+                      ))}
+                    </tr>
+                  )) : (
+                    <tr><td className="px-4 py-8 text-center text-sm text-slate-500" colSpan={table.columns.length}>{table.emptyMessage ?? copy.common.notAvailable}</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ))}
 
-        <StatementTableSection count={orderedReceipts.length} icon={<ReceiptText className="h-4 w-4" />} title={labels.expenses} tone="amber">
-          <table className="w-full min-w-[760px] border-collapse text-left text-xs"><thead className="bg-slate-100 text-slate-700"><tr><th className="px-3 py-3 font-medium">{copy.common.date}</th><th className="px-3 py-3 font-medium">{copy.reconciliation.receipts.columns.receipt}</th><th className="px-3 py-3 font-medium">{labels.provider}</th><th className="px-3 py-3 font-medium">{labels.status}</th><th className="px-3 py-3 text-right font-medium">{labels.total}</th></tr></thead><tbody>
-            {orderedReceipts.length ? orderedReceipts.map(receipt => <tr className="border-t border-slate-200 odd:bg-white even:bg-slate-50" key={receipt.id}><td className="px-3 py-3 text-slate-600">{formatPettyCashIsoDate(receipt.expenseDate)}</td><td className="px-3 py-3"><p className="font-medium text-slate-800">{receipt.description}</p><p className="mt-1 text-slate-500">{receipt.receiptReference ?? copy.reconciliation.receipts.noReference}</p></td><td className="px-3 py-3 text-slate-600">{receipt.providerName ?? copy.common.notAvailable}</td><td className="px-3 py-3 text-slate-600">{copy.status.line[receipt.status]}</td><td className="px-3 py-3 text-right font-medium tabular-nums">{formatPettyCashCurrency(receipt.totalAmount, receipt.currencyCode)}</td></tr>) : <tr><td className="px-4 py-8 text-center text-sm text-slate-500" colSpan={5}>{labels.emptyExpenses}</td></tr>}
-          </tbody></table>
-        </StatementTableSection>
-
-        <section className="grid gap-4 border-t border-slate-200 pt-7 md:grid-cols-[1fr_320px]">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-5"><h3 className="text-sm font-medium text-slate-700">{isExternalFund ? documentLabel : labels.internalNote}</h3><p className="mt-3 text-sm leading-6 text-slate-600">{isExternalFund ? labels.externalLegalNote : originText}</p></div>
-          <div className="rounded-lg border border-[#147514]/25 bg-[#147514]/5 p-5"><p className="mb-2 text-xs font-medium text-[#147514]">{labels.reconciliation}</p>{[[labels.funded, fundedAmount], [labels.captured, statement.estimatedUsageAmount], [isExternalFund ? labels.externalAuthorized : labels.authorized, statement.verifiedExpenseAmount], [copy.reconciliation.metrics.pendingSettlement, pendingAmount], [labels.closing, statement.declaredClosingBalanceAmount]].map(([label, amount], index, rows) => <div className={`flex items-center justify-between py-2 text-sm ${index === rows.length - 1 ? 'mt-2 border-t border-[#147514]/20 pt-4 text-base' : ''}`} key={String(label)}><span className="font-medium text-slate-600">{label}</span><span className="font-medium tabular-nums">{formatPettyCashCurrency(Number(amount), statement.currencyCode)}</span></div>)}</div>
-        </section>
+        <footer className="border-t border-slate-200 pt-4 text-xs text-slate-500">
+          {documentPrintAttribution} · {footerLabels.updated}: {formatDocumentPrintDateTime(generatedAt, copy.locale)}
+        </footer>
       </article>
     </IndiceModalFrame>
-  );
-}
-
-function StatementMetric({ accent, label, value }: { accent: string; label: string; value: string }) {
-  return (
-    <div className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-      <div className="flex min-h-[86px]">
-        <span className={`w-2 shrink-0 ${accent}`} aria-hidden="true" />
-        <div className="flex min-w-0 flex-1 flex-col justify-between p-4"><p className="text-xs font-medium text-slate-500">{label}</p><p className="truncate text-xl font-medium tabular-nums">{value}</p></div>
-      </div>
-    </div>
-  );
-}
-
-function StatementIdentity({
-  icon,
-  rows,
-  title,
-}: {
-  icon: ReactNode;
-  rows: Array<[string, string]>;
-  title: string;
-}) {
-  return (
-    <section className="rounded-lg border border-slate-200 bg-slate-50 p-5">
-      <div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-[#147514] ring-1 ring-slate-200">{icon}</span><h2 className="text-base font-medium">{title}</h2></div>
-      <dl className="mt-4 space-y-3 text-sm">{rows.map(([label, value]) => <div className="grid gap-1 sm:grid-cols-[140px_1fr] sm:gap-3" key={label}><dt className="text-slate-500">{label}</dt><dd className="font-medium text-slate-800">{value}</dd></div>)}</dl>
-    </section>
-  );
-}
-
-function StatementTableSection({
-  children,
-  count,
-  icon,
-  title,
-  tone,
-}: {
-  children: ReactNode;
-  count: number;
-  icon: ReactNode;
-  title: string;
-  tone: 'amber' | 'blue';
-}) {
-  const toneClass = tone === 'blue' ? 'bg-sky-50 text-sky-700' : 'bg-amber-50 text-amber-700';
-  return (
-    <section className="border-b border-slate-200 py-7">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><span className={`flex h-9 w-9 items-center justify-center rounded-lg ${toneClass}`}>{icon}</span><h2 className="text-xl font-medium">{title}</h2></div><span className={`rounded-full px-3 py-1 text-xs font-medium ${toneClass}`}>{count}</span></div>
-      <div className="overflow-x-auto rounded-lg border border-slate-200">{children}</div>
-    </section>
   );
 }

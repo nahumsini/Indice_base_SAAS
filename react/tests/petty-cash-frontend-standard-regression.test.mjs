@@ -43,6 +43,7 @@ test('Petty Cash conserva índices móviles y detalle operativo de cortes', () =
   const statementsSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashStatementsWorkspace.tsx'), 'utf8');
   const financialSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashFinancialViewWorkspace.tsx'), 'utf8');
   const detailSource = readFileSync(resolve(pettyCashRoot, 'components/statements/PettyCashStatementDetailModal.tsx'), 'utf8');
+  const statementDocumentSource = readFileSync(resolve(pettyCashRoot, 'utils/pettyCashStatementPdf.ts'), 'utf8');
 
   for (const source of [fundsSource, reconciliationSource, statementsSource, financialSource]) {
     assert.match(source, /md:hidden/);
@@ -51,8 +52,9 @@ test('Petty Cash conserva índices móviles y detalle operativo de cortes', () =
   assert.match(fundsSource, /<FundActionsMenu/);
   assert.doesNotMatch(fundsSource, /DropdownMenu/);
   assert.match(reconciliationSource, /<DropdownMenu/);
-  assert.match(detailSource, /statement\.responsibleName/);
-  assert.match(detailSource, /copy\.status\.statement/);
+  assert.match(detailSource, /buildPettyCashStatementDocument/);
+  assert.match(statementDocumentSource, /statement\.responsibleName/);
+  assert.match(statementDocumentSource, /copy\.status\.statement/);
 });
 
 test('Petty Cash no introduce texto operativo menor a 12 px', () => {
@@ -112,8 +114,12 @@ test('Saldos ofrece vista previa, descarga e impresión del estado de cuenta', (
   assert.match(reconciliationSource, /setPreviewStatement\(selectedStatement\)/);
   assert.match(detailSource, /downloadPettyCashStatementPdf/);
   assert.match(detailSource, /printPettyCashStatementPdf/);
-  assert.match(pdfSource, /format: 'a4'/);
-  assert.match(pdfSource, /openStandardPdfForPrint/);
+  assert.match(detailSource, /definition\.tables\?\.map/);
+  assert.doesNotMatch(detailSource, /bg-\[#FF6B5E\]|bg-\[#F4C84A\]|bg-\[#59C3A5\]|bg-\[#2563EB\]/);
+  assert.match(pdfSource, /pageSize: 'a4'/);
+  assert.match(pdfSource, /buildStandardDocumentPdf/);
+  assert.match(pdfSource, /downloadStandardDocumentPdf/);
+  assert.match(pdfSource, /printStandardDocumentPdf/);
 });
 
 test('Las compras contabilizadas se anulan con motivo y conservan auditoría', () => {
@@ -138,7 +144,7 @@ test('Los fondos distinguen dinero de empresa y dinero administrado con identida
   const reconciliationSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashReconciliationWorkspace.tsx'), 'utf8');
   const serviceSource = readFileSync(resolve(pettyCashRoot, 'services/petty-cash.service.ts'), 'utf8');
   const typesSource = readFileSync(resolve(pettyCashRoot, 'types/pettyCash.types.ts'), 'utf8');
-  const statementSource = readFileSync(resolve(pettyCashRoot, 'components/statements/PettyCashStatementDetailModal.tsx'), 'utf8');
+  const statementSource = readFileSync(resolve(pettyCashRoot, 'utils/pettyCashStatementPdf.ts'), 'utf8');
 
   assert.match(typesSource, /PettyCashFundType = 'INTERNAL_COMPANY' \| 'EXTERNAL_MANAGED'/);
   assert.match(fundsSource, /externalOwnerName/);

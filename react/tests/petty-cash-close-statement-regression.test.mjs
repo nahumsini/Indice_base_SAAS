@@ -511,6 +511,33 @@ test('statement PDF prints every historical asset across pages without inheritin
   assert.ok(!empty.includes('HistoricalAsset') && !empty.includes('CurrentAssetNeverPrinted'));
 });
 
+test('statement preview and PDF use one restrained standard-document definition without losing financial detail', () => {
+  const { buildPettyCashStatementDocument } = load(resolve(root, 'utils/pettyCashStatementPdf.ts'));
+  const copy = load(resolve(root, 'translations/index.ts')).getPettyCashTranslations('es-MX');
+  const generatedAt = new Date('2026-09-11T19:22:00Z');
+  const definition = buildPettyCashStatementDocument({
+    copy,
+    generatedAt,
+    locale: copy.locale,
+    movements: [],
+    originText: 'Saldo del corte anterior CUT-50',
+    settlementLines: [],
+    fund: fund({ currentBalanceAmount: 625, budgetLineName: 'Mantenimiento' }),
+    statement: statement({ openingBalanceAmount: 1000, assignedAmount: 800, additionalDepositAmount: 200,
+      declaredClosingBalanceAmount: 625, estimatedUsageAmount: 375, verifiedExpenseAmount: 300,
+      attachmentCount: 0, responsibleName: 'Responsable', fundTypeSnapshot: 'INTERNAL_COMPANY' }),
+  });
+  assert.deepEqual(definition.accentColor, [20, 117, 20]);
+  assert.deepEqual(definition.contract, {
+    category: 'transaction-document', modifiers: ['confidential', 'internal', 'multi-currency', 'approval-required'],
+    orientation: 'portrait', pageSize: 'a4', version: '1.0',
+  });
+  assert.equal(definition.generatedAt, generatedAt);
+  assert.ok(definition.sections.some(section => section.fields?.some(field => field.value === 'Saldo del corte anterior CUT-50')));
+  assert.ok(definition.tables[0].rows.some(row => row[0] === 'Saldo actual del fondo' && row[1] === '$625.00'));
+  assert.equal(definition.tables.at(-1).emptyMessage, 'Este corte no tiene gastos registrados.');
+});
+
 test('statement PDF identifies the selected external destination of a returned balance', () => {
   const { buildPettyCashStatementPdf } = load(resolve(root, 'utils/pettyCashStatementPdf.ts'));
   const copy = load(resolve(root, 'translations/index.ts')).getPettyCashTranslations('es-MX');
