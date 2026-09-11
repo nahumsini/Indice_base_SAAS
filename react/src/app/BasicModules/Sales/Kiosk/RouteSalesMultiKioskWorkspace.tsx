@@ -7,13 +7,12 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleDollarSign,
+  ClipboardCheck,
   CreditCard,
   FileText,
+  Landmark,
   LoaderCircle,
-  MapPin,
-  Minus,
   PackageCheck,
-  Plus,
   RefreshCw,
   Search,
   ShoppingBag,
@@ -24,9 +23,24 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
+import { KioskModalFrame } from '../../../components/kiosk-engine/KioskModalFrame';
+import {
+  KioskFileDropzone,
+  KioskStickyActionBar,
+  KioskToolWorkspaceFrame,
+  KioskWorkflowStepper,
+  KioskWorkspaceChoiceCard,
+  KioskWorkspaceContextBar,
+  KioskWorkspaceFieldStatus,
+  KioskWorkspaceNotice,
+  KioskWorkspaceSectionHeader,
+  KioskWorkspaceSurface,
+} from '../../../components/kiosk-engine/KioskToolWorkspace';
+import { KioskWorkspaceTabs } from '../../../components/kiosk-engine/KioskWorkspacePrimitives';
 import {
   multiKioskPublicApi,
   type MultiKioskChildWorkspace,
+  type RouteSalesKioskBootstrap,
   type RouteSalesKioskContact,
   type RouteSalesKioskProduct,
   type RouteSalesKioskSale,
@@ -36,6 +50,7 @@ import {
   type KioskPresignedUpload,
 } from '../../../KioskCenter/multiKioskWorkspaceUploads';
 import { fiscalCountryOptions, fallbackFiscalCountry } from '../Contactos/constants/contactConstants';
+import { RouteSalesProductPicker } from './components/RouteSalesProductPicker';
 
 const capabilities = {
   contactCreate: 'sales.route.contact.create@1',
@@ -47,6 +62,13 @@ const capabilities = {
 type WorkspaceTab = 'sell' | 'sales' | 'customers';
 type SaleStep = 1 | 2 | 3 | 4;
 type PaymentMethod = 'cash' | 'card' | 'transfer' | 'credit';
+
+const fallbackPaymentMethods: RouteSalesKioskBootstrap['payment_methods'] = [
+  { id: 'cash', label: 'Efectivo', description: 'Bajo tu custodia hasta entregarlo.' },
+  { id: 'card', label: 'Tarjeta', description: 'Ingresa a la cuenta que selecciones.' },
+  { id: 'transfer', label: 'Transferencia', description: 'Ingresa a la cuenta que selecciones.' },
+  { id: 'credit', label: 'Crédito', description: 'Pendiente de cobranza.' },
+];
 
 interface RouteSalesMultiKioskWorkspaceProps {
   token: string;
@@ -207,8 +229,11 @@ export function RouteSalesMultiKioskWorkspace({
   const products = bootstrap?.products ?? [];
   const warehouses = bootstrap?.warehouses ?? [];
   const balances = bootstrap?.inventory_balances ?? [];
+  const paymentAccounts = bootstrap?.payment_accounts ?? [];
   const recentSales = bootstrap?.recent_sales ?? [];
   const paymentMethods = bootstrap?.payment_methods ?? [];
+  const availablePaymentMethods = paymentMethods.length ? paymentMethods : fallbackPaymentMethods;
+  const routeSummary = bootstrap?.summary as RouteSalesKioskBootstrap['summary'] | undefined;
   const [contacts, setContacts] = useState<RouteSalesKioskContact[]>(bootstrap?.contacts ?? []);
   const [tab, setTab] = useState<WorkspaceTab>('sell');
   const [step, setStep] = useState<SaleStep>(1);
@@ -217,6 +242,7 @@ export function RouteSalesMultiKioskWorkspace({
   const [quantities, setQuantities] = useState<Record<number, number>>({});
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [paymentReference, setPaymentReference] = useState('');
+  const [paymentAccountId, setPaymentAccountId] = useState<number | null>(null);
   const [deliveredNow, setDeliveredNow] = useState(true);
   const [notes, setNotes] = useState('');
   const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
@@ -253,7 +279,20 @@ export function RouteSalesMultiKioskWorkspace({
   const subtotal = cartLines.reduce((sum, line) => sum + line.subtotal, 0);
   const taxTotal = cartLines.reduce((sum, line) => sum + line.tax, 0);
   const total = subtotal + taxTotal;
+  const selectedUnits = cartLines.reduce((sum, line) => sum + line.quantity, 0);
   const currency = cartLines[0]?.product.currency ?? products[0]?.currency ?? 'MXN';
+  const selectedWarehouse = warehouses.find(warehouse => warehouse.id === warehouseId);
+  const electronicPayment = paymentMethod === 'card' || paymentMethod === 'transfer';
+  const eligiblePaymentAccounts = useMemo(() => paymentAccounts.filter(account => {
+    if (account.currency !== currency) return false;
+    const businessId = selectedWarehouse?.business_id ?? bootstrap?.scope?.business_id;
+    const unitId = selectedWarehouse?.unit_id ?? bootstrap?.scope?.unit_id;
+    if (account.business_id != null) return businessId != null && String(account.business_id) === String(businessId);
+    if (account.unit_id != null) return unitId != null && String(account.unit_id) === String(unitId);
+    return true;
+  }), [bootstrap?.scope?.business_id, bootstrap?.scope?.unit_id, currency, paymentAccounts, selectedWarehouse]);
+  const selectedPaymentAccount = eligiblePaymentAccounts.find(account => account.id === paymentAccountId);
+  const selectedPaymentMethod = availablePaymentMethods.find(method => method.id === paymentMethod);
   const canAttachEvidence = workspace.session.capabilities.includes(capabilities.evidencePresign)
     && workspace.session.capabilities.includes(capabilities.evidenceRegister);
   const selectedFiscalCountry = fiscalCountryOptions.find(
@@ -266,11 +305,6 @@ export function RouteSalesMultiKioskWorkspace({
     balance => balance.product_id === productId && balance.warehouse_id === warehouseId,
   )?.available_quantity ?? 0;
 
-  const visibleProducts = products.filter(product => {
-    const needle = query.trim().toLocaleLowerCase();
-    return !needle || [product.name, product.sku, product.code, product.category]
-      .some(value => value?.toLocaleLowerCase().includes(needle));
-  });
   const visibleContacts = contacts.filter(contact => {
     const needle = contactQuery.trim().toLocaleLowerCase();
     return !needle || [contact.name, contact.contact_person, contact.phone, contact.email]
@@ -299,6 +333,7 @@ export function RouteSalesMultiKioskWorkspace({
     setQuantities({});
     setPaymentMethod('cash');
     setPaymentReference('');
+    setPaymentAccountId(null);
     setDeliveredNow(true);
     setNotes('');
     setEvidenceFile(null);
@@ -307,6 +342,15 @@ export function RouteSalesMultiKioskWorkspace({
     setStep(1);
     setCreatedSale(null);
   };
+
+  useEffect(() => {
+    if (!electronicPayment) {
+      if (paymentAccountId != null) setPaymentAccountId(null);
+      return;
+    }
+    if (paymentAccountId != null && eligiblePaymentAccounts.some(account => account.id === paymentAccountId)) return;
+    setPaymentAccountId(eligiblePaymentAccounts.length === 1 ? eligiblePaymentAccounts[0].id : null);
+  }, [electronicPayment, eligiblePaymentAccounts, paymentAccountId]);
 
   const selectEvidence = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
@@ -373,9 +417,15 @@ export function RouteSalesMultiKioskWorkspace({
         return;
       }
     }
-    if (step === 3 && (paymentMethod === 'card' || paymentMethod === 'transfer') && !paymentReference.trim()) {
-      setError('Captura la referencia del cobro para continuar.');
-      return;
+    if (step === 3 && electronicPayment) {
+      if (!paymentReference.trim()) {
+        setError('Captura la referencia del cobro para continuar.');
+        return;
+      }
+      if (!selectedPaymentAccount) {
+        setError('Selecciona la cuenta bancaria donde se recibió el cobro.');
+        return;
+      }
     }
     setStep(current => Math.min(4, current + 1) as SaleStep);
   };
@@ -427,6 +477,7 @@ export function RouteSalesMultiKioskWorkspace({
           warehouseId,
           paymentMethod,
           paymentReference: paymentReference.trim() || null,
+          paymentAccountId: electronicPayment ? paymentAccountId : null,
           deliveredNow,
           notes: notes.trim() || null,
           items: cartLines.map(line => ({ productId: line.product.id, quantity: line.quantity })),
@@ -504,18 +555,38 @@ export function RouteSalesMultiKioskWorkspace({
   }
 
   const contactForm = (
-    <section className="rounded-2xl border border-rose-200 bg-rose-50/60 p-4 dark:border-rose-900/60 dark:bg-rose-950/20">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="font-medium text-slate-950 dark:text-white">Nuevo cliente</p>
-          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Quedará asignado a tu cartera y alcance actual.</p>
-        </div>
-        <Button type="button" size="sm" variant="ghost" className="min-h-11" onClick={() => setShowNewContact(false)}>Cerrar</Button>
-      </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+    <KioskModalFrame
+      busy={busy === 'contact'}
+      closeLabel="Cerrar"
+      description="Quedará asignado a tu cartera y alcance actual."
+      footer={(
+        <Button aria-busy={busy === 'contact' || undefined} disabled={busy === 'contact'} form="route-sales-contact-form" type="submit">
+          {busy === 'contact' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+          {busy === 'contact' ? 'Guardando…' : 'Guardar cliente'}
+        </Button>
+      )}
+      footerLeading={<Button type="button" variant="outline" disabled={busy === 'contact'} onClick={() => { setShowNewContact(false); setError(''); }}>Cancelar</Button>}
+      footerSummary={fiscalDataCount ? `${fiscalDataCount} datos fiscales capturados` : 'Datos fiscales opcionales'}
+      icon={<UsersRound className="h-5 w-5" />}
+      onOpenChange={open => { if (!open && busy !== 'contact') { setShowNewContact(false); setError(''); } }}
+      open={showNewContact}
+      size="form"
+      surface="public"
+      title="Nuevo cliente"
+      tone="coral"
+    >
+      <form
+        aria-busy={busy === 'contact' || undefined}
+        className="space-y-4"
+        id="route-sales-contact-form"
+        noValidate
+        onSubmit={event => { event.preventDefault(); void createContact(); }}
+      >
+      {error ? <KioskWorkspaceNotice kind="error">{error}</KioskWorkspaceNotice> : null}
+      <div className="grid gap-3 min-[430px]:grid-cols-2">
         <label className="text-xs font-medium text-slate-600 dark:text-slate-300">
           Empresa o cliente *
-          <input value={contactDraft.companyName} maxLength={180} className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none focus:border-[#E85D52] focus:ring-4 focus:ring-rose-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-rose-950" onChange={event => setContactDraft(current => ({ ...current, companyName: event.target.value }))} />
+          <input autoFocus required value={contactDraft.companyName} maxLength={180} className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none focus:border-[#E85D52] focus:ring-4 focus:ring-rose-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-rose-950" onChange={event => setContactDraft(current => ({ ...current, companyName: event.target.value }))} />
         </label>
         <label className="text-xs font-medium text-slate-600 dark:text-slate-300">
           Persona de contacto
@@ -530,7 +601,7 @@ export function RouteSalesMultiKioskWorkspace({
           <input value={contactDraft.email} type="email" maxLength={240} className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none focus:border-[#E85D52] dark:border-slate-700 dark:bg-slate-950 dark:text-white" onChange={event => setContactDraft(current => ({ ...current, email: event.target.value }))} />
         </label>
       </div>
-      <details className="group mt-4 overflow-hidden rounded-xl border border-rose-200 bg-white dark:border-rose-900/60 dark:bg-slate-950">
+      <details className="group overflow-hidden rounded-xl border border-rose-200 bg-white dark:border-rose-900/60 dark:bg-slate-950">
         <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-3 py-2 outline-none focus-visible:ring-4 focus-visible:ring-rose-100 [&::-webkit-details-marker]:hidden">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-rose-50 text-[#C94840] dark:bg-rose-950/40 dark:text-rose-200"><FileText className="h-4 w-4" /></span>
           <span className="min-w-0 flex-1">
@@ -598,52 +669,64 @@ export function RouteSalesMultiKioskWorkspace({
           </label>
         </div>
       </details>
-      <Button type="button" className="mt-4 h-11 w-full bg-[#E85D52] text-white hover:bg-[#cf4d44] sm:w-auto" disabled={busy === 'contact'} onClick={() => void createContact()}>
-        {busy === 'contact' ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-        Guardar cliente
-      </Button>
-    </section>
+      </form>
+    </KioskModalFrame>
   );
 
   return (
-    <div className="min-w-0 max-w-full space-y-3 overflow-x-hidden" data-route-sales-workspace>
-      {error ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">{error}</p> : null}
-      {success ? <p aria-live="polite" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">{success}</p> : null}
+    <KioskToolWorkspaceFrame data-route-sales-workspace width="catalog">
+      {error && !showNewContact && (tab !== 'sell' || Boolean(createdSale)) ? <KioskWorkspaceNotice kind="error">{error}</KioskWorkspaceNotice> : null}
+      {success ? <KioskWorkspaceNotice kind="success">{success}</KioskWorkspaceNotice> : null}
 
-      <section className="overflow-hidden rounded-2xl border border-rose-200 bg-white shadow-sm dark:border-rose-900/60 dark:bg-slate-950">
-        <div className="flex items-center gap-3 bg-gradient-to-r from-[#E85D52] to-[#c94840] px-4 py-3 text-white sm:px-5">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/15"><ShoppingBag className="h-5 w-5" /></span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-medium">Venta en ruta</p>
-            <p className="truncate text-xs text-white/80">{seller.name} · {bootstrap?.scope?.business_name || bootstrap?.scope?.unit_name || 'Alcance de empresa'}</p>
-          </div>
-          <button type="button" aria-label="Actualizar" className="grid h-11 w-11 place-items-center rounded-xl border border-white/25 bg-white/10 hover:bg-white/20" onClick={() => void refresh()}>
-            <RefreshCw className={`h-4 w-4 ${busy === 'refresh' ? 'animate-spin' : ''}`} />
+      <KioskWorkspaceTabs<WorkspaceTab>
+        activeTextClassName="text-slate-950"
+        activeValue={tab}
+        ariaLabel="Secciones de venta en ruta"
+        items={[
+          { icon: <ShoppingBag className="h-4 w-4" />, label: 'Vender', value: 'sell' },
+          { icon: <PackageCheck className="h-4 w-4" />, label: 'Mis ventas', value: 'sales' },
+          { icon: <UsersRound className="h-4 w-4" />, label: 'Clientes', value: 'customers' },
+        ]}
+        onChange={setTab}
+        sticky={false}
+        tone="coral"
+      />
+
+      <KioskWorkspaceContextBar
+        action={(
+          <button
+            aria-label="Actualizar"
+            className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-[#FF6B5E] hover:bg-[#FF6B5E]/5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+            onClick={() => void refresh()}
+            type="button"
+          >
+            <RefreshCw aria-hidden="true" className={`h-4 w-4 ${busy === 'refresh' ? 'animate-spin' : ''}`} />
           </button>
-        </div>
-        <div className="grid grid-cols-3 divide-x divide-slate-100 dark:divide-slate-800">
-          <button type="button" className={`min-h-14 px-2 py-2 text-xs font-medium ${tab === 'sell' ? 'bg-rose-50 text-[#C94840] dark:bg-rose-950/30 dark:text-rose-200' : 'text-slate-500 dark:text-slate-400'}`} onClick={() => setTab('sell')}><ShoppingBag className="mx-auto mb-1 h-4 w-4" />Vender</button>
-          <button type="button" className={`min-h-14 px-2 py-2 text-xs font-medium ${tab === 'sales' ? 'bg-rose-50 text-[#C94840] dark:bg-rose-950/30 dark:text-rose-200' : 'text-slate-500 dark:text-slate-400'}`} onClick={() => setTab('sales')}><PackageCheck className="mx-auto mb-1 h-4 w-4" />Mis ventas</button>
-          <button type="button" className={`min-h-14 px-2 py-2 text-xs font-medium ${tab === 'customers' ? 'bg-rose-50 text-[#C94840] dark:bg-rose-950/30 dark:text-rose-200' : 'text-slate-500 dark:text-slate-400'}`} onClick={() => setTab('customers')}><UsersRound className="mx-auto mb-1 h-4 w-4" />Clientes</button>
-        </div>
-      </section>
+        )}
+        density="compact"
+        description={bootstrap?.scope?.business_name || bootstrap?.scope?.unit_name || 'Alcance de empresa'}
+        eyebrow="Vendedor en ruta"
+        icon={<ShoppingBag className="h-5 w-5" />}
+        meta={(
+          <div className="flex items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-300">
+            <span>{currency}</span>
+            <span>{recentSales.length} ventas registradas</span>
+          </div>
+        )}
+        title={seller.name}
+        tone="coral"
+      />
 
       {tab === 'sell' ? (
         <div className="space-y-3">
-          <section className="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
-            <div className="grid grid-cols-4 gap-1.5" aria-label={`Paso ${step} de 4`}>
-              {(['Cliente', 'Productos', 'Cobro', 'Revisar'] as const).map((label, index) => {
-                const number = index + 1;
-                const complete = number < step;
-                const active = number === step;
-                return (
-                  <div key={label} className="min-w-0 text-center">
-                    <span className={`mx-auto grid h-7 w-7 place-items-center rounded-full text-xs font-medium ${complete ? 'bg-emerald-500 text-white' : active ? 'bg-[#E85D52] text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'}`}>{complete ? <Check className="h-4 w-4" /> : number}</span>
-                    <span className={`mt-1 block truncate text-[10px] font-medium sm:text-xs ${active ? 'text-[#C94840] dark:text-rose-300' : 'text-slate-500'}`}>{label}</span>
-                  </div>
-                );
-              })}
-            </div>
+          <section className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+            <KioskWorkflowStepper
+              ariaLabel={`Paso ${step} de 4`}
+              currentStep={step}
+              density="compact"
+              labels={['Cliente', 'Productos', 'Cobro', 'Revisar']}
+              tone="coral"
+            />
           </section>
 
           {createdSale ? (
@@ -652,10 +735,16 @@ export function RouteSalesMultiKioskWorkspace({
               <h3 className="mt-3 text-lg font-medium text-slate-950 dark:text-white">Venta terminada</h3>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Folio {createdSale.sale_number}</p>
               <p className="mt-3 text-2xl font-medium text-slate-950 dark:text-white">{money(createdSale.total_amount, createdSale.currency, locale)}</p>
-              <div className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/35 dark:text-amber-200">Cobro pendiente de conciliación por Finanzas. La venta y el inventario ya quedaron registrados.</div>
-              {evidenceFile ? <div className={`mt-3 rounded-xl border px-3 py-2 text-xs ${evidenceStatus === 'uploaded' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : evidenceStatus === 'failed' ? 'border-red-200 bg-red-50 text-red-700' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
+              <KioskWorkspaceFieldStatus className="mt-4 text-left" kind={createdSale.settlement_status === 'settled' ? 'success' : 'warning'}>
+                {createdSale.settlement_status === 'settled'
+                  ? `Ingreso registrado en Tesorería${createdSale.payment_account_name ? ` · ${createdSale.payment_account_name}` : ''}.`
+                  : createdSale.settlement_status === 'receivable_pending'
+                    ? 'Venta a crédito registrada; el saldo queda pendiente de cobranza.'
+                    : 'El efectivo queda bajo tu custodia hasta entregarlo a Finanzas.'}
+              </KioskWorkspaceFieldStatus>
+              {evidenceFile ? <KioskWorkspaceFieldStatus className="mt-3 text-left" kind={evidenceStatus === 'uploaded' ? 'success' : evidenceStatus === 'failed' ? 'error' : 'help'}>
                 {evidenceStatus === 'uploading' ? <span className="inline-flex items-center gap-2"><LoaderCircle className="h-4 w-4 animate-spin" />Guardando comprobante…</span> : evidenceStatus === 'uploaded' ? 'Comprobante enviado a revisión.' : evidenceStatus === 'failed' ? 'El comprobante no se cargó; la venta sí quedó guardada.' : 'Comprobante pendiente.'}
-              </div> : null}
+              </KioskWorkspaceFieldStatus> : null}
               {evidenceStatus === 'failed' ? <Button type="button" variant="outline" className="mt-3 h-11 w-full border-red-200 text-red-700" disabled={busy === 'evidence'} onClick={() => void retryEvidence()}>{busy === 'evidence' ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}Reintentar comprobante</Button> : null}
               <div className="mt-5 grid gap-2 sm:grid-cols-2">
                 <Button type="button" variant="outline" className="h-11" disabled={busy === 'sale' || busy === 'evidence'} onClick={() => { resetSale(); setTab('sales'); }}>Ver mis ventas</Button>
@@ -665,12 +754,14 @@ export function RouteSalesMultiKioskWorkspace({
           ) : null}
 
           {!createdSale && step === 1 ? (
-            <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950 sm:p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div><h3 className="font-medium text-slate-950 dark:text-white">¿A quién le vendes?</h3><p className="mt-1 text-xs text-slate-500">Sólo ves clientes de tu cartera.</p></div>
-                <Button type="button" size="sm" variant="outline" className="min-h-11" onClick={() => setShowNewContact(true)}><UserPlus className="mr-1.5 h-4 w-4" />Nuevo</Button>
-              </div>
-              {showNewContact ? contactForm : null}
+            <KioskWorkspaceSurface className="space-y-3">
+              <KioskWorkspaceSectionHeader
+                action={<Button type="button" size="sm" variant="outline" className="min-h-11" onClick={() => { setError(''); setShowNewContact(true); }}><UserPlus className="mr-1.5 h-4 w-4" />Nuevo</Button>}
+                description="Sólo ves clientes de tu cartera."
+                icon={<UsersRound className="h-5 w-5" />}
+                title="¿A quién le vendes?"
+                tone="coral"
+              />
               <label className="relative block">
                 <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
                 <input value={contactQuery} placeholder="Buscar cliente, teléfono o correo" className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-[#E85D52] dark:border-slate-700 dark:bg-slate-950 dark:text-white" onChange={event => setContactQuery(event.target.value)} />
@@ -683,103 +774,234 @@ export function RouteSalesMultiKioskWorkspace({
                 ))}
                 {!visibleContacts.length ? <p className="col-span-full rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-500 dark:bg-slate-900">No hay clientes con esa búsqueda.</p> : null}
               </div>
-            </section>
+            </KioskWorkspaceSurface>
           ) : null}
 
           {!createdSale && step === 2 ? (
-            <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950 sm:p-5">
-              <div><h3 className="font-medium text-slate-950 dark:text-white">Productos de la venta</h3><p className="mt-1 text-xs text-slate-500">Precio e impuesto vienen del catálogo; tú capturas la cantidad.</p></div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">
-                <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />Almacén de salida</span>
-                <select value={warehouseId ?? ''} className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none focus:border-[#E85D52] dark:border-slate-700 dark:bg-slate-950 dark:text-white" onChange={event => { setWarehouseId(Number(event.target.value) || null); setQuantities({}); }}>
-                  <option value="">Selecciona un almacén</option>
-                  {warehouses.map(warehouse => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}
-                </select>
-              </label>
-              {!warehouses.length ? <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">No hay almacenes activos disponibles. Configura uno en Inventarios → Almacenes para poder terminar ventas.</p> : null}
-              <label className="relative block"><Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" /><input value={query} disabled={!warehouseId} placeholder={warehouseId ? 'Buscar producto o SKU' : 'Selecciona un almacén para ver existencias'} className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-[#E85D52] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:disabled:bg-slate-900" onChange={event => setQuery(event.target.value)} /></label>
-              <div className={`grid max-h-[52vh] gap-2 overflow-y-auto sm:grid-cols-2 ${warehouseId ? '' : 'opacity-60'}`}>
-                {visibleProducts.map(product => {
-                  const quantity = quantities[product.id] ?? 0;
-                  const isService = (product.type || '').toUpperCase() === 'SERVICE';
-                  const available = stockFor(product.id);
-                  const incompatibleCurrency = Boolean(selectedCurrency && selectedCurrency !== product.currency && quantity === 0);
-                  return (
-                    <article key={product.id} className={`rounded-xl border p-3 ${quantity ? 'border-rose-300 bg-rose-50/50 dark:border-rose-900 dark:bg-rose-950/20' : 'border-slate-200 dark:border-slate-700'}`}>
-                      <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-medium text-slate-950 dark:text-white">{product.name}</p><p className="truncate text-xs text-slate-500">{product.sku || product.code || product.category}</p></div><p className="shrink-0 text-sm font-medium text-slate-950 dark:text-white">{money(product.price, product.currency, locale)}</p></div>
-                      <div className="mt-2 flex items-center justify-between gap-3"><p className={`text-xs ${warehouseId && !isService && available <= 0 ? 'text-red-600' : 'text-slate-500'}`}>{!warehouseId ? 'Selecciona un almacén' : isService ? 'Servicio' : `${available} disponibles`} · Imp. {product.tax_percent}%</p><div className="flex items-center rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950"><button type="button" aria-label={`Quitar ${product.name}`} className="grid h-11 w-11 place-items-center disabled:opacity-30" disabled={!warehouseId || quantity <= 0} onClick={() => setQuantity(product, quantity - 1)}><Minus className="h-4 w-4" /></button><span className="min-w-8 text-center text-sm font-medium">{quantity}</span><button type="button" aria-label={`Agregar ${product.name}`} className="grid h-11 w-11 place-items-center text-[#C94840] disabled:opacity-30" disabled={!warehouseId || incompatibleCurrency || (!isService && quantity >= available)} onClick={() => setQuantity(product, quantity + 1)}><Plus className="h-4 w-4" /></button></div></div>
-                    </article>
-                  );
-                })}
-              </div>
-              {cartLines.length ? <div className="flex items-center justify-between rounded-xl bg-slate-950 px-4 py-3 text-white dark:bg-white dark:text-slate-950"><span className="text-sm">{cartLines.reduce((sum, line) => sum + line.quantity, 0)} artículos</span><strong className="font-medium">{money(total, currency, locale)}</strong></div> : null}
-            </section>
+            <RouteSalesProductPicker
+              products={products}
+              warehouses={warehouses}
+              warehouseId={warehouseId}
+              quantities={quantities}
+              selectedCurrency={selectedCurrency}
+              query={query}
+              locale={locale}
+              currency={currency}
+              total={total}
+              stockFor={stockFor}
+              onQueryChange={setQuery}
+              onWarehouseChange={nextWarehouseId => {
+                setWarehouseId(nextWarehouseId);
+                setQuantities({});
+                setPaymentAccountId(null);
+              }}
+              onQuantityChange={setQuantity}
+            />
           ) : null}
 
           {!createdSale && step === 3 ? (
-            <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950 sm:p-5">
-              <div><h3 className="font-medium text-slate-950 dark:text-white">¿Cómo paga el cliente?</h3><p className="mt-1 text-xs text-slate-500">La venta termina aquí; Finanzas concilia el cobro después.</p></div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {(paymentMethods.length ? paymentMethods : [
-                  { id: 'cash', label: 'Efectivo', description: 'Cobro recibido en ruta.' },
-                  { id: 'card', label: 'Tarjeta', description: 'Referencia de terminal.' },
-                  { id: 'transfer', label: 'Transferencia', description: 'Referencia bancaria.' },
-                  { id: 'credit', label: 'Crédito', description: 'Pendiente de cobranza.' },
-                ]).map(method => {
+            <KioskWorkspaceSurface className="space-y-3">
+              <KioskWorkspaceSectionHeader
+                description="Indica el método y, si es electrónico, dónde entró el dinero."
+                icon={<CreditCard className="h-5 w-5" />}
+                title="¿Cómo paga el cliente?"
+                tone="coral"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                {availablePaymentMethods.map(method => {
                   const id = method.id as PaymentMethod;
                   const Icon = paymentIcon(id);
-                  return <button key={id} type="button" className={`rounded-xl border p-3 text-left ${paymentMethod === id ? 'border-[#E85D52] bg-rose-50 ring-2 ring-rose-100 dark:bg-rose-950/30 dark:ring-rose-950' : 'border-slate-200 dark:border-slate-700'}`} onClick={() => { setPaymentMethod(id); setPaymentReference(''); if (id === 'credit') { setEvidenceFile(null); setEvidenceStatus('idle'); } }}><div className="flex gap-3"><span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${paymentMethod === id ? 'bg-[#E85D52] text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}><Icon className="h-4 w-4" /></span><div><p className="text-sm font-medium text-slate-950 dark:text-white">{method.label}</p><p className="mt-0.5 text-xs text-slate-500">{method.description}</p></div></div></button>;
+                  return (
+                    <KioskWorkspaceChoiceCard
+                      density="compact"
+                      icon={<Icon className="h-4 w-4" />}
+                      key={id}
+                      onClick={() => { setPaymentMethod(id); setPaymentReference(''); if (id !== 'card' && id !== 'transfer') setPaymentAccountId(null); if (id === 'credit') { setEvidenceFile(null); setEvidenceStatus('idle'); } }}
+                      selected={paymentMethod === id}
+                      title={method.label}
+                      tone="coral"
+                    />
+                  );
                 })}
               </div>
-              {(paymentMethod === 'card' || paymentMethod === 'transfer') ? <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Referencia del cobro *<input value={paymentReference} maxLength={180} placeholder={paymentMethod === 'card' ? 'Folio de terminal' : 'Referencia bancaria'} className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#E85D52] dark:border-slate-700 dark:bg-slate-950 dark:text-white" onChange={event => setPaymentReference(event.target.value)} /></label> : null}
+              {selectedPaymentMethod?.description ? (
+                <KioskWorkspaceFieldStatus>{selectedPaymentMethod.description}</KioskWorkspaceFieldStatus>
+              ) : null}
+              {(paymentMethod === 'card' || paymentMethod === 'transfer') ? <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Referencia del cobro *<input value={paymentReference} maxLength={180} required placeholder={paymentMethod === 'card' ? 'Folio de terminal' : 'Referencia bancaria'} className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#E85D52] focus:ring-4 focus:ring-rose-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-rose-950" onChange={event => setPaymentReference(event.target.value)} /></label> : null}
+              {electronicPayment ? (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-3 dark:border-emerald-900/60 dark:bg-emerald-950/20">
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-200">
+                    <span className="flex items-center gap-1.5"><Landmark className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-300" />Cuenta bancaria destino *</span>
+                    <select
+                      value={paymentAccountId ?? ''}
+                      required
+                      className="mt-1 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-slate-950 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 dark:border-emerald-900 dark:bg-slate-950 dark:text-white dark:focus:ring-emerald-950"
+                      onChange={event => setPaymentAccountId(Number(event.target.value) || null)}
+                    >
+                      <option value="">Selecciona dónde se recibió el dinero</option>
+                      {eligiblePaymentAccounts.map(account => <option key={account.id} value={account.id}>{account.name} · {account.currency}</option>)}
+                    </select>
+                  </label>
+                  {eligiblePaymentAccounts.length ? (
+                    <KioskWorkspaceFieldStatus className="mt-2" kind={selectedPaymentAccount ? 'success' : 'help'}>
+                      {selectedPaymentAccount
+                        ? `Al terminar, ${money(total, currency, locale)} entrará en Tesorería · ${selectedPaymentAccount.name}.`
+                        : 'Selecciona la cuenta donde se recibió el dinero para cerrar correctamente el flujo.'}
+                    </KioskWorkspaceFieldStatus>
+                  ) : (
+                    <KioskWorkspaceFieldStatus className="mt-2" kind="warning">No hay una cuenta bancaria activa en {currency} para el alcance de esta venta. Configúrala en Finanzas → Cuentas de pago.</KioskWorkspaceFieldStatus>
+                  )}
+                </div>
+              ) : null}
               {paymentMethod !== 'credit' ? <div className="rounded-2xl border border-slate-200 p-3 dark:border-slate-700">
-                <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-rose-50 text-[#C94840] dark:bg-rose-950/30 dark:text-rose-200"><FileText className="h-5 w-5" /></span><div><p className="text-sm font-medium text-slate-950 dark:text-white">Comprobante del cobro</p><p className="mt-0.5 text-xs text-slate-500">Opcional · foto o PDF · máximo 15 MB.</p></div></div>
-                {canAttachEvidence ? <div className="mt-3 grid grid-cols-2 gap-2">
-                  <label className="inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#E85D52] px-3 text-sm font-medium text-white outline-none focus-within:ring-4 focus-within:ring-rose-200"><Camera className="h-4 w-4" />Tomar foto<input type="file" className="sr-only" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={selectEvidence} /></label>
-                  <label className="inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-medium text-slate-700 outline-none focus-within:ring-4 focus-within:ring-rose-100 dark:border-slate-700 dark:text-slate-200"><Upload className="h-4 w-4" />Elegir archivo<input type="file" className="sr-only" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={selectEvidence} /></label>
-                </div> : <p role="status" className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">Vuelve a identificarte con tu PIN para habilitar la carga segura de comprobantes.</p>}
+                <KioskWorkspaceSectionHeader
+                  description="Opcional · foto o PDF · máximo 15 MB."
+                  icon={<FileText className="h-5 w-5" />}
+                  title="Comprobante del cobro"
+                  tone="coral"
+                />
+                {canAttachEvidence ? <div className="mt-3 grid gap-2 min-[430px]:grid-cols-2">
+                  <KioskFileDropzone
+                    accept="image/jpeg,image/png,image/webp"
+                    capture="environment"
+                    density="compact"
+                    description="Cámara del dispositivo"
+                    icon={<Camera className="h-4 w-4" />}
+                    onChange={selectEvidence}
+                    title="Tomar foto"
+                    tone="coral"
+                  />
+                  <KioskFileDropzone
+                    accept="application/pdf,image/jpeg,image/png,image/webp"
+                    density="compact"
+                    description="Foto o documento PDF"
+                    icon={<Upload className="h-4 w-4" />}
+                    onChange={selectEvidence}
+                    title="Elegir archivo"
+                    tone="coral"
+                  />
+                </div> : <KioskWorkspaceFieldStatus className="mt-3" kind="warning">Vuelve a identificarte con tu PIN para habilitar la carga segura de comprobantes.</KioskWorkspaceFieldStatus>}
                 {evidenceFile ? <div className="mt-3 flex min-h-14 items-center gap-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-900"><FileText className="h-5 w-5 shrink-0 text-[#C94840]" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-slate-950 dark:text-white">{evidenceFile.name}</p><p className="text-xs text-slate-500">{Math.max(1, evidenceFile.size / 1024).toFixed(0)} KB · listo para enviar</p></div><button type="button" aria-label="Quitar comprobante" className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-red-600 hover:bg-red-50" onClick={() => { setEvidenceFile(null); setEvidenceStatus('idle'); }}><Trash2 className="h-4 w-4" /></button></div> : null}
               </div> : null}
               <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700"><input type="checkbox" checked={deliveredNow} className="h-5 w-5 accent-[#E85D52]" onChange={event => setDeliveredNow(event.target.checked)} /><span><span className="block text-sm font-medium text-slate-950 dark:text-white">Mercancía entregada ahora</span><span className="block text-xs text-slate-500">Desactívalo si queda una entrega pendiente.</span></span></label>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Notas de la venta<textarea value={notes} maxLength={2000} rows={3} className="mt-1 w-full resize-y rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:border-[#E85D52] dark:border-slate-700 dark:bg-slate-950 dark:text-white" onChange={event => setNotes(event.target.value)} /></label>
-            </section>
+              <details className="group overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700" data-route-sales-optional-notes>
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-medium text-slate-700 outline-none focus-visible:ring-4 focus-visible:ring-rose-100 dark:text-slate-200 dark:focus-visible:ring-rose-950 [&::-webkit-details-marker]:hidden">
+                  <span>Notas de la venta <span className="font-normal text-slate-400">· opcional</span></span>
+                  <ChevronRight aria-hidden="true" className="h-4 w-4 transition group-open:rotate-90" />
+                </summary>
+                <div className="border-t border-slate-100 p-2 dark:border-slate-800">
+                  <textarea aria-label="Notas de la venta" value={notes} maxLength={2000} rows={3} className="w-full resize-y rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:border-[#E85D52] focus:ring-4 focus:ring-rose-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-rose-950" onChange={event => setNotes(event.target.value)} />
+                </div>
+              </details>
+            </KioskWorkspaceSurface>
           ) : null}
 
           {!createdSale && step === 4 ? (
-            <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950 sm:p-5">
-              <div><h3 className="font-medium text-slate-950 dark:text-white">Revisa y termina la venta</h3><p className="mt-1 text-xs text-slate-500">Al confirmar se registra la venta y se descuenta el inventario.</p></div>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"><div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900"><p className="text-[11px] text-slate-500">Cliente</p><p className="mt-1 text-sm font-medium text-slate-950 dark:text-white">{selectedContact?.name}</p></div><div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900"><p className="text-[11px] text-slate-500">Almacén</p><p className="mt-1 text-sm font-medium text-slate-950 dark:text-white">{warehouses.find(item => item.id === warehouseId)?.name}</p></div><div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900"><p className="text-[11px] text-slate-500">Cobro</p><p className="mt-1 text-sm font-medium capitalize text-slate-950 dark:text-white">{paymentMethods.find(item => item.id === paymentMethod)?.label || paymentMethod}</p></div><div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900"><p className="text-[11px] text-slate-500">Comprobante</p><p className="mt-1 truncate text-sm font-medium text-slate-950 dark:text-white">{paymentMethod === 'credit' ? 'No aplica' : evidenceFile?.name || 'Sin archivo'}</p></div></div>
+            <KioskWorkspaceSurface className="space-y-4">
+              <KioskWorkspaceSectionHeader
+                description="Al confirmar se registra la venta y se descuenta el inventario."
+                icon={<ClipboardCheck className="h-5 w-5" />}
+                title="Revisa y termina la venta"
+                tone="coral"
+              />
+              <div className="grid grid-cols-2 gap-2"><div className="min-w-0 rounded-xl bg-slate-50 p-2.5 dark:bg-slate-900"><p className="text-[10px] text-slate-500">Cliente</p><p className="mt-1 truncate text-sm font-medium text-slate-950 dark:text-white">{selectedContact?.name}</p></div><div className="min-w-0 rounded-xl bg-slate-50 p-2.5 dark:bg-slate-900"><p className="text-[10px] text-slate-500">Almacén</p><p className="mt-1 truncate text-sm font-medium text-slate-950 dark:text-white">{selectedWarehouse?.name}</p></div><div className="min-w-0 rounded-xl bg-slate-50 p-2.5 dark:bg-slate-900"><p className="text-[10px] text-slate-500">Cobro</p><p className="mt-1 truncate text-sm font-medium text-slate-950 dark:text-white">{selectedPaymentMethod?.label || paymentMethod}</p>{electronicPayment ? <><p className="mt-1 truncate text-[11px] text-slate-500">{selectedPaymentAccount?.name}</p><p className="truncate text-[10px] text-slate-400">Ref. {paymentReference}</p></> : null}</div><div className="min-w-0 rounded-xl bg-slate-50 p-2.5 dark:bg-slate-900"><p className="text-[10px] text-slate-500">Comprobante</p><p className="mt-1 truncate text-sm font-medium text-slate-950 dark:text-white">{paymentMethod === 'credit' ? 'No aplica' : evidenceFile?.name || 'Sin archivo'}</p></div></div>
               <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-700">{cartLines.map(line => <div key={line.product.id} className="flex items-center justify-between gap-3 p-3"><div className="min-w-0"><p className="truncate text-sm font-medium text-slate-950 dark:text-white">{line.product.name}</p><p className="text-xs text-slate-500">{line.quantity} × {money(line.product.price, line.product.currency, locale)} · Imp. {line.product.tax_percent}%</p></div><strong className="font-medium text-sm text-slate-950 dark:text-white">{money(line.total, line.product.currency, locale)}</strong></div>)}</div>
               <div className="space-y-1 rounded-xl bg-rose-50 p-4 dark:bg-rose-950/25"><div className="flex justify-between text-sm text-slate-600 dark:text-slate-300"><span>Subtotal</span><span>{money(subtotal, currency, locale)}</span></div><div className="flex justify-between text-sm text-slate-600 dark:text-slate-300"><span>Impuestos</span><span>{money(taxTotal, currency, locale)}</span></div><div className="flex justify-between border-t border-rose-200 pt-2 text-lg font-medium text-slate-950 dark:border-rose-900 dark:text-white"><span>Total</span><span>{money(total, currency, locale)}</span></div></div>
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">El cobro se entrega o concilia posteriormente en Finanzas. Este paso no deposita dinero automáticamente en una cuenta.</div>
-            </section>
+              <div className={`rounded-xl border p-3 text-xs ${electronicPayment ? 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200' : 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200'}`}>
+                {electronicPayment
+                  ? `Al confirmar, ${money(total, currency, locale)} entrará en Tesorería · ${selectedPaymentAccount?.name}.`
+                  : paymentMethod === 'cash'
+                    ? 'El efectivo queda en custodia de ruta hasta su entrega; todavía no aumenta una cuenta bancaria.'
+                    : 'La venta quedará como saldo pendiente de cobranza y no registrará un ingreso bancario.'}
+              </div>
+            </KioskWorkspaceSurface>
           ) : null}
 
           {!createdSale ? (
-            <div className="sticky bottom-2 z-10 flex gap-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-950/95">
-              {step > 1 ? <Button type="button" variant="outline" className="h-11" disabled={busy === 'sale'} onClick={() => { setError(''); setStep(current => Math.max(1, current - 1) as SaleStep); }}><ChevronLeft className="mr-1 h-4 w-4" />Anterior</Button> : null}
-              {step < 4 ? <Button type="button" className="h-11 flex-1 bg-[#E85D52] text-white hover:bg-[#cf4d44]" onClick={advance}>Continuar<ChevronRight className="ml-1 h-4 w-4" /></Button> : <Button type="button" className="h-11 flex-1 bg-[#E85D52] text-white hover:bg-[#cf4d44]" disabled={busy === 'sale'} onClick={() => void createSale()}>{busy === 'sale' ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}Terminar venta</Button>}
-            </div>
+            <>
+              {error && !showNewContact ? <KioskWorkspaceNotice kind="error">{error}</KioskWorkspaceNotice> : null}
+              <KioskStickyActionBar
+                summary={step === 2 && cartLines.length ? (
+                  <div className="flex items-center justify-between gap-3 text-xs">
+                    <span className="truncate text-slate-600 dark:text-slate-300">{selectedUnits} unidades · {cartLines.length} productos</span>
+                    <strong className="shrink-0 font-medium text-[#C94840] dark:text-rose-200">{money(total, currency, locale)}</strong>
+                  </div>
+                ) : undefined}
+              >
+                {step > 1 ? <Button type="button" variant="outline" className="h-11" disabled={busy === 'sale'} onClick={() => { setError(''); setStep(current => Math.max(1, current - 1) as SaleStep); }}><ChevronLeft className="mr-1 h-4 w-4" />Anterior</Button> : null}
+                {step < 4 ? <Button type="button" className="h-11 flex-1 bg-[#E85D52] text-white hover:bg-[#cf4d44]" onClick={advance}>Continuar<ChevronRight className="ml-1 h-4 w-4" /></Button> : <Button type="button" className="h-11 flex-1 bg-[#E85D52] text-white hover:bg-[#cf4d44]" disabled={busy === 'sale'} onClick={() => void createSale()}>{busy === 'sale' ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}Terminar venta</Button>}
+              </KioskStickyActionBar>
+            </>
           ) : null}
         </div>
       ) : null}
 
       {tab === 'sales' ? (
-        <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950 sm:p-5">
-          <div><h3 className="font-medium text-slate-950 dark:text-white">Mis ventas</h3><p className="mt-1 text-xs text-slate-500">Seguimiento de las ventas registradas con tu usuario.</p></div>
-          <div className="grid gap-2">{recentSales.map(sale => <article key={sale.id} className="rounded-xl border border-slate-200 p-3 dark:border-slate-700"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-medium text-slate-950 dark:text-white">{sale.customer_name}</p><p className="mt-0.5 text-xs text-slate-500">{sale.sale_number} · {dateLabel(sale.sale_date, locale)}</p></div><strong className="font-medium shrink-0 text-sm text-slate-950 dark:text-white">{money(sale.total_amount, sale.currency, locale)}</strong></div><div className="mt-3 flex flex-wrap gap-1.5"><span className={`rounded-full border px-2 py-1 text-[10px] font-medium ${statusClass(sale.inventory_status)}`}>Inventario: {statusLabel(sale.inventory_status)}</span><span className={`rounded-full border px-2 py-1 text-[10px] font-medium ${statusClass(sale.delivery_status)}`}>Entrega: {statusLabel(sale.delivery_status)}</span><span className={`rounded-full border px-2 py-1 text-[10px] font-medium ${statusClass(sale.finance_status)}`}>Cobro: {statusLabel(sale.finance_status)}</span><span className={`rounded-full border px-2 py-1 text-[10px] font-medium ${statusClass(sale.payment_evidence_status || 'missing')}`}>Comprobante: {sale.payment_evidence_status === 'not_required' ? 'No aplica' : Number(sale.evidence_count || 0) > 0 ? 'Enviado' : 'Pendiente'}</span></div></article>)}</div>
+        <KioskWorkspaceSurface className="space-y-3">
+          <KioskWorkspaceSectionHeader
+            description="Seguimiento de las ventas registradas con tu usuario."
+            icon={<PackageCheck className="h-5 w-5" />}
+            title="Mis ventas"
+            tone="coral"
+          />
+          {routeSummary ? (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-xl bg-rose-50 p-3 dark:bg-rose-950/25"><p className="text-[11px] text-slate-500">Ventas de hoy</p><p className="mt-1 text-xl font-medium text-slate-950 dark:text-white">{routeSummary.today_count}</p></div>
+              <div className="rounded-xl bg-amber-50 p-3 dark:bg-amber-950/25"><p className="text-[11px] text-slate-500">Por entregar o cobrar</p><p className="mt-1 text-xl font-medium text-slate-950 dark:text-white">{routeSummary.pending_settlement_count}</p></div>
+              <div className="col-span-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-900"><p className="text-[11px] text-slate-500">Vendido hoy</p><p className="mt-1 text-sm font-medium text-slate-950 dark:text-white">{Object.entries(routeSummary.today_totals).map(([summaryCurrency, amount]) => money(Number(amount), summaryCurrency, locale)).join(' · ') || 'Sin ventas todavía'}</p></div>
+            </div>
+          ) : null}
+          <div className="grid gap-2">
+            {recentSales.map(sale => (
+              <article key={sale.id} className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-950 dark:text-white">{sale.customer_name}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">{sale.sale_number} · {dateLabel(sale.sale_date, locale)}</p>
+                  </div>
+                  <strong className="shrink-0 text-sm font-medium text-slate-950 dark:text-white">{money(sale.total_amount, sale.currency, locale)}</strong>
+                </div>
+                <div className="mt-2 flex items-start gap-2 rounded-lg bg-slate-50 px-2.5 py-2 dark:bg-slate-900">
+                  <Landmark className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                  <p className="min-w-0 text-xs text-slate-600 dark:text-slate-300">
+                    {sale.settlement_status === 'settled'
+                      ? sale.payment_method.toLowerCase() === 'cash'
+                        ? 'Efectivo entregado a Finanzas'
+                        : <>Tesorería · <span className="font-medium">{sale.payment_account_name || 'Cuenta bancaria'}</span>{sale.payment_reference ? ` · Ref. ${sale.payment_reference}` : ''}</>
+                      : sale.payment_method.toLowerCase() === 'cash'
+                        ? 'Efectivo en custodia de ruta'
+                        : sale.payment_method.toLowerCase() === 'credit'
+                          ? 'Saldo pendiente de cobranza'
+                          : 'Cobro electrónico pendiente de conciliación'}
+                  </p>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  <span className={`rounded-full border px-2 py-1 text-[10px] font-medium ${statusClass(sale.inventory_status)}`}>Inventario: {statusLabel(sale.inventory_status)}</span>
+                  <span className={`rounded-full border px-2 py-1 text-[10px] font-medium ${statusClass(sale.delivery_status)}`}>Entrega: {statusLabel(sale.delivery_status)}</span>
+                  <span className={`rounded-full border px-2 py-1 text-[10px] font-medium ${statusClass(sale.finance_status)}`}>Cobro: {statusLabel(sale.finance_status)}</span>
+                  <span className={`rounded-full border px-2 py-1 text-[10px] font-medium ${statusClass(sale.payment_evidence_status || 'missing')}`}>Comprobante: {sale.payment_evidence_status === 'not_required' ? 'No aplica' : Number(sale.evidence_count || 0) > 0 ? 'Enviado' : 'Pendiente'}</span>
+                </div>
+              </article>
+            ))}
+          </div>
           {!recentSales.length ? <div className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500 dark:bg-slate-900">Todavía no tienes ventas registradas.</div> : null}
-        </section>
+        </KioskWorkspaceSurface>
       ) : null}
 
       {tab === 'customers' ? (
-        <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950 sm:p-5">
-          <div className="flex items-start justify-between gap-3"><div><h3 className="font-medium text-slate-950 dark:text-white">Mis clientes</h3><p className="mt-1 text-xs text-slate-500">Tu cartera disponible para ventas en ruta.</p></div><Button type="button" size="sm" className="min-h-11 bg-[#E85D52] text-white hover:bg-[#cf4d44]" onClick={() => setShowNewContact(true)}><UserPlus className="mr-1.5 h-4 w-4" />Nuevo</Button></div>
-          {showNewContact ? contactForm : null}
+        <KioskWorkspaceSurface className="space-y-3">
+          <KioskWorkspaceSectionHeader
+            action={<Button type="button" size="sm" className="min-h-11 bg-[#E85D52] text-white hover:bg-[#cf4d44]" onClick={() => { setError(''); setShowNewContact(true); }}><UserPlus className="mr-1.5 h-4 w-4" />Nuevo</Button>}
+            description="Tu cartera disponible para ventas en ruta."
+            icon={<UsersRound className="h-5 w-5" />}
+            title="Mis clientes"
+            tone="coral"
+          />
           <label className="relative block"><Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" /><input value={contactQuery} placeholder="Buscar cliente" className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-[#E85D52] dark:border-slate-700 dark:bg-slate-950 dark:text-white" onChange={event => setContactQuery(event.target.value)} /></label>
           <div className="grid gap-2 sm:grid-cols-2">{visibleContacts.map(contact => <article key={contact.id} className="rounded-xl border border-slate-200 p-3 dark:border-slate-700"><div className="flex gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-rose-50 text-[#C94840] dark:bg-rose-950/30 dark:text-rose-300"><UsersRound className="h-4 w-4" /></span><div className="min-w-0"><p className="truncate text-sm font-medium text-slate-950 dark:text-white">{contact.name}</p><p className="mt-0.5 truncate text-xs text-slate-500">{contact.contact_person || contact.code || 'Cliente de ruta'}</p><p className="mt-1 truncate text-xs text-slate-500">{contact.phone || contact.email || 'Sin contacto capturado'}</p>{contact.fiscal_tax_id ? <p className="mt-1 truncate text-[11px] font-medium text-[#C94840]">{contact.fiscal_country === 'MX' ? 'RFC' : 'ID fiscal'}: {contact.fiscal_tax_id}</p> : <p className="mt-1 text-[11px] text-slate-400">Sin datos fiscales</p>}</div></div><Button type="button" size="sm" variant="outline" className="mt-3 min-h-11 w-full" onClick={() => { setContactId(contact.id); setTab('sell'); setStep(2); }}>Vender a este cliente</Button></article>)}</div>
-        </section>
+        </KioskWorkspaceSurface>
       ) : null}
-    </div>
+      {contactForm}
+    </KioskToolWorkspaceFrame>
   );
 }

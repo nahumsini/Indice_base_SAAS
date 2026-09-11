@@ -87,6 +87,7 @@ test('Expenses mantiene acciones visibles y semánticas con el patrón de Agenda
 
 test('Expenses conserva el shell financiero y el Kiosk Engine compartido', () => {
   const moduleSource = readFileSync(resolve(expensesRoot, 'ExpensesModule.tsx'), 'utf8');
+  const expensesSource = readFileSync(resolve(expensesRoot, 'Expenses/Expenses.tsx'), 'utf8');
   const kioskSource = readFileSync(resolve(expensesRoot, 'Kiosk/PayablesKioskPage.tsx'), 'utf8');
   const managerSource = readFileSync(resolve(expensesRoot, 'components/modals/PayablesKioskManagementModal.tsx'), 'utf8');
 
@@ -94,6 +95,9 @@ test('Expenses conserva el shell financiero y el Kiosk Engine compartido', () =>
   assert.match(kioskSource, /<KioskPublicShell/);
   assert.match(kioskSource, /<KioskIdentityGate/);
   assert.match(managerSource, /<KioskModalFrame/);
+  assert.match(expensesSource, /<PayablesKioskManagementModal/);
+  assert.match(expensesSource, /readKioskAdminNavigationTarget/);
+  assert.match(managerSource, /initialKioskId/);
 });
 
 test('Expenses recupera la primera carga cuando la sesion acaba de iniciar', () => {

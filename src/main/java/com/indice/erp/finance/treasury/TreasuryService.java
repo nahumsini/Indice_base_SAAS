@@ -100,6 +100,26 @@ public class TreasuryService {
         );
     }
 
+    /** Safe catalog used by collection surfaces before the final currency and scope are known. */
+    @Transactional(readOnly = true)
+    public List<TreasuryAccount> listBankCollectionDestinations(long companyId) {
+        return jdbcTemplate.query(
+            """
+            SELECT id, company_id, unit_id, business_id, name, type, currency_code,
+                   current_balance, pending_balance, status, system_key, is_system_managed
+            FROM finance_payment_accounts
+            WHERE company_id = ?
+              AND type = 'BANK'
+              AND status = 'ACTIVE'
+              AND deleted_at IS NULL
+              AND (system_key IS NULL OR system_key NOT LIKE 'POS_UNASSIGNED_%')
+            ORDER BY currency_code ASC, name ASC, id ASC
+            """,
+            this::mapAccount,
+            companyId
+        );
+    }
+
     @Transactional(readOnly = true)
     public TreasuryAccount requireEligibleAccount(
             long companyId,

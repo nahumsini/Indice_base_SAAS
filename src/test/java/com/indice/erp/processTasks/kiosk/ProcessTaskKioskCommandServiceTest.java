@@ -236,6 +236,42 @@ class ProcessTaskKioskCommandServiceTest {
         then(audit).shouldHaveNoInteractions();
     }
 
+    @Test
+    void agendaUpdateUsesOnlyTheKioskPlacementContractAndReturnsAuthoritativeItems() {
+        var before = Map.<String, Object>of(
+            "id", 41L,
+            "agenda_date", "2026-09-10");
+        var updated = Map.<String, Object>of(
+            "id", 41L,
+            "agenda_date", "2026-09-11",
+            "agenda_start_time", "09:30",
+            "agenda_end_time", "10:30");
+        given(queries.completableTask(context.kiosk(), context.employee(), 41L)).willReturn(before);
+        given(queries.visibleTask(context.kiosk(), context.employee(), 41L)).willReturn(updated);
+        given(queries.listTasks(context.kiosk(), context.employee())).willReturn(List.of(updated));
+
+        var result = service.updateAgenda(context, 41L, Map.of(
+            "agenda_date", "2026-09-11",
+            "agenda_start_time", "09:30",
+            "agenda_end_time", "10:30",
+            "agenda_time_zone", "America/Mexico_City",
+            "assignedUserCompanyId", 999L));
+
+        assertThat(result)
+            .containsEntry("task", updated)
+            .containsEntry("items", List.of(updated));
+        then(processTasksService).should().updateAgendaPlacement(7L, 9L, 41L, Map.of(
+            "agendaDate", "2026-09-11",
+            "agendaStartTime", "09:30",
+            "agendaEndTime", "10:30",
+            "agendaTimeZone", "America/Mexico_City"));
+        then(audit).should().record(context, 41L, "TASK_AGENDA_UPDATED", Map.of(
+            "previous_agenda_date", "2026-09-10",
+            "agenda_date", "2026-09-11",
+            "agenda_start_time", "09:30",
+            "agenda_end_time", "10:30"));
+    }
+
     private Map<String, Object> teamTask(String role, String contributionStatus) {
         return Map.of(
             "id", 41L,

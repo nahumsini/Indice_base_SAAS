@@ -15,13 +15,14 @@ function collectFiles(path) {
   });
 }
 
-test('Control aplica la regla de tres acciones directas y un overflow final', () => {
+test('Control conserva sus acciones operativas y retira el acceso duplicado de kioscos', () => {
   const actionsSource = readFileSync(resolve(moduleRoot, 'Control/components/AttendanceSettingsActions.tsx'), 'utf8');
 
   assert.match(actionsSource, /<IndiceTitleBarOverflow/);
   assert.match(actionsSource, /onClick=\{onOpenTimeTable\}/);
   assert.match(actionsSource, /onClick=\{onOpenSchedules\}/);
   assert.match(actionsSource, /onClick=\{onOpenKiosks\}/);
+  assert.match(actionsSource, /legacyOwnerKioskEntryPointsEnabled \? <Button/);
   assert.doesNotMatch(actionsSource, /onClick=\{onOpenContractSites\}/);
   assert.match(actionsSource, /id: 'contract-sites'/);
   assert.match(actionsSource, /onSelect: onOpenContractSites/);

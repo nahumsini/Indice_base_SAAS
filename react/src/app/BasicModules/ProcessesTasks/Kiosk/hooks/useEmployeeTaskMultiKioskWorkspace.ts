@@ -8,13 +8,19 @@ export const employeeTaskCapabilities = {
   read: 'process-tasks.tasks.read@1',
   create: 'process-tasks.task.create@1',
   complete: 'process-tasks.task.complete@1',
+  agendaUpdate: 'process-tasks.task.agenda.update@1',
+  attachmentPresign: 'process-tasks.task.attachment.presign@1',
+  attachmentRegister: 'process-tasks.task.attachment.register@1',
+  occasionalRead: 'process-tasks.processes.occasional.read@1',
+  occasionalPreview: 'process-tasks.process-run.occasional.preview@1',
+  occasionalCreate: 'process-tasks.process-run.occasional.create@1',
 } as const;
 
 export const employeeTaskAllFilterValue = 'all';
 const emptyFilterValue = 'empty';
 
 export type EmployeeTaskMultiKioskAction = <T = unknown>(capability: string, payload: Record<string, unknown>) => Promise<T>;
-export type EmployeeTaskAgendaView = 'agenda' | 'board';
+export type EmployeeTaskAgendaView = 'agenda' | 'schedule' | 'board';
 export type EmployeeTaskDateRange = 'day' | 'week' | 'month' | 'all';
 export type EmployeeTaskStatusFilter = Extract<StatusFilter, 'pending_overdue' | 'overdue' | 'pending' | 'in_progress' | 'paused' | 'completed'>;
 export type EmployeeTaskCreatePriority = 'low' | 'medium' | 'high';
@@ -342,13 +348,14 @@ export function useEmployeeTaskMultiKioskWorkspace({
     setUnitFilter(value);
     setBusinessFilter(employeeTaskAllFilterValue);
   };
+  const replaceTasks = useCallback((items: PublicTaskKioskTask[]) => setTasks(items), []);
 
   return {
     activeFilterCount, businessFilter, businessOptions, busy, changeUnitFilter, clearFilters,
     completionNotes, completionPercent, createDraft, createError, createOpen, dateRange, dialogError,
     errorMessage, filtersOpen, focusCounts, focusFilter, handleComplete, handleCloseCreate, handleCreate,
     handleOpenCreate, handleOpenTask, handleRefresh, moveDate, openTasks, originFilter, originOptions,
-    overdueTasks, resolvedTasks, searchQuery, selectedDate, selectedTask, setBusinessFilter,
+    overdueTasks, replaceTasks, resolvedTasks, searchQuery, selectedDate, selectedTask, setBusinessFilter,
     setCompletionNotes, setCompletionPercent, setDateRange, setFiltersOpen, setFocusFilter,
     setOriginFilter, setSearchQuery, setSelectedTaskId, setStatusFilter, setViewMode, showToday,
     setSelectedDate, showTomorrow, showWeek, statusFilter, successMessage, tasks, unitFilter, unitOptions,

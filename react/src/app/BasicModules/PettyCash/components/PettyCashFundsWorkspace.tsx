@@ -1,6 +1,6 @@
 import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import { Archive, Banknote, Coins, Copy, ExternalLink, Eye, Info, KeyRound, Landmark, Link2, MoreHorizontal, Pencil, QrCode, ReceiptText, RotateCw, Search, Share2, ShieldCheck, Trash2, UserRound, WalletCards, X } from 'lucide-react';
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { getCategoryById } from '../../Expenses/data/categories.data';
 import { useFinanceReferenceData } from '../../Expenses/hooks/useFinanceReferenceData';
 import { mockPaymentAccounts } from '../../Expenses/PaymentAccounts/paymentAccounts.mock';
@@ -17,6 +17,7 @@ import { IndiceModalFrame, IndiceModalSummary, IndiceModalValidation } from '../
 import { KioskAdminActionButton, KioskAdminPanelAction } from '../../../components/kiosk-engine/KioskAdminPrimitives';
 import { KioskModalFrame } from '../../../components/kiosk-engine/KioskModalFrame';
 import { useKioskQrCode } from '../../../components/kiosk-engine/useKioskQrCode';
+import { legacyOwnerKioskEntryPointsEnabled } from '../../../components/kiosk-engine/kioskAdminNavigation';
 import {
   formatPettyCashCurrency,
   getStatementSettlementBalance,
@@ -53,6 +54,7 @@ const pettyCashFundsColumnsStorageKey = 'indice.pettyCash.funds.columns.v1';
 type PettyCashFundsWorkspaceProps = {
   dataReady?: boolean;
   funds: PettyCashFund[];
+  initialKioskFundId?: string;
   onFundsChange: Dispatch<SetStateAction<PettyCashFund[]>>;
   onViewReceipts: (fundId: string) => void;
   statements: PettyCashStatement[];
@@ -311,7 +313,7 @@ const getUsableKioskPath = (fund?: PettyCashFund) => {
   return '';
 };
 
-export function PettyCashFundsWorkspace({ dataReady = true, funds, onFundsChange, onViewReceipts, statements }: PettyCashFundsWorkspaceProps) {
+export function PettyCashFundsWorkspace({ dataReady = true, funds, initialKioskFundId = '', onFundsChange, onViewReceipts, statements }: PettyCashFundsWorkspaceProps) {
   const copy = usePettyCashTranslations();
   const defaultColumns = useMemo<ColumnConfig[]>(() => [
     { id: 'fund', label: copy.funds.table.fund, visible: true, locked: true },
@@ -398,6 +400,10 @@ export function PettyCashFundsWorkspace({ dataReady = true, funds, onFundsChange
   const limitLabel = limitAggregate.data && !limitAggregate.loading
     ? formatPettyCashCurrency(limitAggregate.data.preferredTotal, preferredCurrency) : '—';
   const riskCount = scopedFunds.filter((fund) => fund.status === 'LOW_BALANCE' || fund.status === 'NEEDS_RECONCILIATION').length;
+
+  useEffect(() => {
+    if (initialKioskFundId) setIsKioskOpen(true);
+  }, [initialKioskFundId]);
   const currencyCount = useMemo(
     () => new Set(scopedFunds.map(fund => fund.currencyCode)).size,
     [scopedFunds],
@@ -773,9 +779,9 @@ export function PettyCashFundsWorkspace({ dataReady = true, funds, onFundsChange
         emoji="🗃️"
         onAction={() => setIsCreateFundOpen(true)}
         onColumns={() => setShowColumnsModal(true)}
-        onSecondaryAction={() => setIsKioskOpen(true)}
-        secondaryActionIcon={KeyRound}
-        secondaryActionLabel={copy.funds.header.kiosk}
+        onSecondaryAction={legacyOwnerKioskEntryPointsEnabled ? () => setIsKioskOpen(true) : undefined}
+        secondaryActionIcon={legacyOwnerKioskEntryPointsEnabled ? KeyRound : undefined}
+        secondaryActionLabel={legacyOwnerKioskEntryPointsEnabled ? copy.funds.header.kiosk : undefined}
         title={copy.funds.header.title}
       />
 
@@ -1092,6 +1098,7 @@ export function PettyCashFundsWorkspace({ dataReady = true, funds, onFundsChange
         <KioskModal
           funds={funds}
           businessOptions={businessOptions}
+          initialFundId={initialKioskFundId}
           onClose={() => setIsKioskOpen(false)}
           onDelete={handleDeleteKiosk}
           onRotate={handleRotateKioskToken}
@@ -1678,6 +1685,7 @@ function CreateFundModal({
 function KioskModal({
   businessOptions,
   funds,
+  initialFundId,
   onClose,
   onDelete,
   onRotate,
@@ -1686,6 +1694,7 @@ function KioskModal({
 }: {
   businessOptions: FinanceReferenceOption[];
   funds: PettyCashFund[];
+  initialFundId?: string;
   onClose: () => void;
   onDelete: (fundId: string) => Promise<void> | void;
   onRotate: (fundId: string) => Promise<void>;
@@ -1711,6 +1720,7 @@ function KioskModal({
   const [shareFundId, setShareFundId] = useState('');
   const [optionsFundId, setOptionsFundId] = useState('');
   const [qrFundId, setQrFundId] = useState('');
+  const openedInitialFundId = useRef('');
   const activeKiosks = funds.filter(fund => fund.kioskEnabled).length;
   const nextFundToConfigure = funds.find(fund => !fund.kioskEnabled) ?? funds[0];
   const unitChoices = useMemo(() => {
@@ -1755,6 +1765,13 @@ function KioskModal({
     setSelectedFundId('');
     setDraft(buildDraft());
   };
+
+  useEffect(() => {
+    if (!initialFundId || openedInitialFundId.current === initialFundId) return;
+    if (!funds.some(fund => fund.id === initialFundId)) return;
+    openedInitialFundId.current = initialFundId;
+    openEditor(initialFundId);
+  }, [funds, initialFundId]);
 
   const canSave = selectedFundId.length > 0
     && draft.name.trim().length > 0

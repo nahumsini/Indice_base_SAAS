@@ -217,19 +217,42 @@ test('revocar rol o permisos refresca sesion catalogo rutas pestanas y cabecera'
   assert.match(kpisSource, /useAuthorizationRevision\(\)/);
 });
 
-test('el centro global de kioscos exige root incluso con permisos de kiosco individuales', async () => {
+test('el inventario respeta permisos propietarios y Multikioscos exige root', async () => {
   const source = ts.transpileModule(tabScopeCatalogSource, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
   }).outputText;
-  const { canAccessKioskCenter } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+  const { canAccessKioskCenter, canManageMultiKiosks } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
   for (const role of ['root', 'superadmin', 'super admin']) {
     assert.equal(canAccessKioskCenter({ user: { role } }), true, role);
+    assert.equal(canManageMultiKiosks({ user: { role } }), true, role);
   }
   for (const role of ['admin', 'owner', 'manager', 'user', '']) {
-    assert.equal(canAccessKioskCenter({ user: {
+    const session = { user: {
       role, tab_permissions_configured: true,
-      tab_permission_keys: ['human_resources.kiosks', 'processes.kiosks', 'pos.kiosks'],
-    } }), false, role);
+      tab_permission_keys: ['human_resources.kiosks', 'processes.kiosks'],
+    } };
+    assert.equal(canAccessKioskCenter(session), false, role);
+    assert.equal(canManageMultiKiosks(session), false, role);
   }
+  assert.equal(canAccessKioskCenter({ user: {
+    role: 'manager', tab_permissions_configured: true,
+    tab_permission_keys: ['human_resources.control'],
+  } }), true);
+  assert.equal(canAccessKioskCenter({ user: {
+    role: 'admin', tab_permissions_configured: true,
+    tab_permission_keys: ['processes.calendar'],
+  } }), true);
+  assert.equal(canAccessKioskCenter({ user: {
+    role: 'admin', tab_permissions_configured: true,
+    tab_permission_keys: ['pos.kiosks'],
+  } }), true);
+  assert.equal(canAccessKioskCenter({ user: {
+    role: 'user', tab_permissions_configured: true,
+    tab_permission_keys: ['expenses.expenses'],
+  } }), true);
+  assert.equal(canAccessKioskCenter({ user: {
+    role: 'user', tab_permissions_configured: true,
+    tab_permission_keys: ['petty_cash.cash'],
+  } }), true);
   assert.equal(canAccessKioskCenter(null), false);
 });

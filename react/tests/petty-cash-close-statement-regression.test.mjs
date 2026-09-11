@@ -52,34 +52,35 @@ function load(file) {
   const path = [file, `${file}.ts`, `${file}.tsx`, resolve(file, 'index.ts'), resolve(file, 'index.tsx')]
     .find(value => existsSync(value) && /\.tsx?$/.test(value));
   if (!path) throw new Error(`Missing module: ${file}`);
-  if (path.endsWith('/lib/apiClient.ts')) return { ApiClientError, apiClient: async (url, options) => {
+  const normalizedPath = path.replaceAll('\\', '/');
+  if (normalizedPath.endsWith('/lib/apiClient.ts')) return { ApiClientError, apiClient: async (url, options) => {
     const request = { url, method: options.method, body: JSON.parse(options.body) };
     requests.push(request);
     return respond(request);
   } };
-  if (path.endsWith('/hooks/usePettyCashTranslations.ts')) return {
+  if (normalizedPath.endsWith('/hooks/usePettyCashTranslations.ts')) return {
     usePettyCashTranslations: () => load(resolve(root, 'translations/index.ts')).getPettyCashTranslations('es-MX'),
   };
-  if (path.endsWith('/Expenses/services/index.ts')) return {
+  if (normalizedPath.endsWith('/Expenses/services/index.ts')) return {
     ...load(resolve(dirname(path), 'finance-api.errors.ts')),
     providersService: { getProviderRecords: async () => [] },
     paymentAccountsService: { getPaymentAccounts: async () => [] },
     accountingAccountsService: { getAccountingAccounts: async () => [] },
   };
-  if (path.endsWith('/AccountingAccounts/accountingAccounts.mock.ts')) return { mockAccounts: [] };
-  if (path.endsWith('/data/providerRecords.mock.ts')) return { mockProviderRecords: [] };
-  if (path.endsWith('/PaymentAccounts/paymentAccounts.mock.ts')) return { mockPaymentAccounts: [] };
-  if (path.endsWith('/shared/context/index.ts')) return { useLanguage: () => ({ currentLanguage: { code: 'es-MX' } }) };
-  if (path.endsWith('/shared/BusinessCurrencyContext.tsx')) return { usePreferredBusinessCurrency: () => ({ preferredCurrency: 'USD' }) };
-  if (path.endsWith('/shared/kpiMonetaryApi.ts')) return { useKpiMonetaryAggregate: () => ({}) };
-  if (path.endsWith('/shared/operational/index.ts')) return { ...ui, OperationalKpiArea: 'OperationalKpiArea', getOperationalKpiCurrencyCopy: () => ({}) };
-  if (path.endsWith('/hooks/useWorkspaceNavigationMemory.ts')) return { useWorkspaceNavigationMemory: options => { memoryOptions = options; } };
-  if (path.endsWith('/hooks/useTablePagination.ts')) return { useTablePagination: ({ rows }) => ({ paginatedRows: rows, restorePagination: () => {}, onPageChange: () => {} }) };
-  if (path.endsWith('/components/PettyCashShared.tsx')) return new Proxy({
+  if (normalizedPath.endsWith('/AccountingAccounts/accountingAccounts.mock.ts')) return { mockAccounts: [] };
+  if (normalizedPath.endsWith('/data/providerRecords.mock.ts')) return { mockProviderRecords: [] };
+  if (normalizedPath.endsWith('/PaymentAccounts/paymentAccounts.mock.ts')) return { mockPaymentAccounts: [] };
+  if (normalizedPath.endsWith('/shared/context/index.ts')) return { useLanguage: () => ({ currentLanguage: { code: 'es-MX' } }) };
+  if (normalizedPath.endsWith('/shared/BusinessCurrencyContext.tsx')) return { usePreferredBusinessCurrency: () => ({ preferredCurrency: 'USD' }) };
+  if (normalizedPath.endsWith('/shared/kpiMonetaryApi.ts')) return { useKpiMonetaryAggregate: () => ({}) };
+  if (normalizedPath.endsWith('/shared/operational/index.ts')) return { ...ui, OperationalKpiArea: 'OperationalKpiArea', getOperationalKpiCurrencyCopy: () => ({}) };
+  if (normalizedPath.endsWith('/hooks/useWorkspaceNavigationMemory.ts')) return { useWorkspaceNavigationMemory: options => { memoryOptions = options; } };
+  if (normalizedPath.endsWith('/hooks/useTablePagination.ts')) return { useTablePagination: ({ rows }) => ({ paginatedRows: rows, restorePagination: () => {}, onPageChange: () => {} }) };
+  if (normalizedPath.endsWith('/components/PettyCashShared.tsx')) return new Proxy({
     usePettyCashTableSort: rows => ({ sortedRows: rows, sortKey: 'date', sortDirection: 'desc', restoreSort: () => {} }),
   }, { get: (target, name) => target[name] ?? name });
   // Shared modal/view primitives are boundaries; the existing operation modal itself is exercised below.
-  if (path.includes('/components/') && !path.endsWith('/PettyCashReconciliationWorkspace.tsx')) return ui;
+  if (normalizedPath.includes('/components/') && !normalizedPath.endsWith('/PettyCashReconciliationWorkspace.tsx')) return ui;
   if (cache.has(path)) return cache.get(path).exports;
   const module = { exports: {} }; cache.set(path, module);
   const code = ts.transpileModule(readFileSync(path, 'utf8').replaceAll('import.meta.env', '({DEV:false})'), {

@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
+import { KioskWorkspaceEmptyState } from '../../../../components/kiosk-engine/KioskToolWorkspace';
 import { Button } from '../../../../components/ui/button';
 import type { PublicTaskKioskTask } from '../processTaskKioskApi';
 import type { TaskKioskTranslations } from '../translations';
@@ -317,7 +318,12 @@ export function PublicTaskKioskTaskCard({
   taskType: string;
   viewLabel: string;
 }) {
-  const origin = task.process_title || task.project_name || task.business_name || task.unit_name;
+  const origin = task.process_title || task.project_name;
+  const originReference = task.process_reference || task.process_run_folio;
+  const location = [task.unit_name, task.business_name].filter(Boolean).join(' · ');
+  const processPosition = task.process_step && task.process_total_steps
+    ? `${task.process_step}/${task.process_total_steps}`
+    : task.process_stage ? `E${task.process_stage}` : null;
   const priorityLabel = task.priority === 'high'
     ? copy.create.priorityHigh
     : task.priority === 'low'
@@ -351,16 +357,25 @@ export function PublicTaskKioskTaskCard({
         <h3 className="mt-2 line-clamp-2 text-[15px] font-medium leading-5 tracking-tight text-slate-950 dark:text-white">{task.title}</h3>
         {task.description ? <p className="mt-1 hidden line-clamp-1 text-xs leading-4 text-slate-500 dark:text-slate-400 min-[420px]:block">{task.description}</p> : null}
         {origin ? (
-          <p className="mt-2 flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+          <div className="mt-2 flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-300">
             <FolderKanban aria-hidden="true" className="h-4 w-4 shrink-0 text-[#9A6B05]" />
-            <span className="truncate">{origin}</span>
-          </p>
+            <span className="min-w-0 truncate">{origin}{originReference ? ` · ${originReference}` : ''}</span>
+            {processPosition ? <span className="shrink-0 rounded-md bg-amber-50 px-1.5 py-0.5 text-[9px] text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">{processPosition}</span> : null}
+          </div>
+        ) : null}
+        {location ? <p className="mt-1.5 flex min-w-0 items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400"><MapPin aria-hidden="true" className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{location}</span></p> : null}
+
+        {task.evidence_required ? (
+          <div className={`mt-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-medium ${task.evidence_satisfied || task.attachments > 0 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200' : 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200'}`}>
+            <Paperclip aria-hidden="true" className="h-3.5 w-3.5" />
+            {copy.selectedTask.evidence}: {task.attachments}/1
+          </div>
         ) : null}
 
         <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-slate-100 pt-2.5 dark:border-slate-800">
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-            <span className="inline-flex items-center gap-1"><CalendarDays aria-hidden="true" className="h-3.5 w-3.5" /><span className="sr-only">{dueLabel}: </span>{formattedDueDate}</span>
             {scheduleLabel ? <span className="inline-flex items-center gap-1"><Clock3 aria-hidden="true" className="h-3.5 w-3.5" />{scheduleLabel}</span> : null}
+            <span className="inline-flex items-center gap-1"><CalendarDays aria-hidden="true" className="h-3.5 w-3.5" /><span className="sr-only">{dueLabel}: </span>{formattedDueDate}</span>
             {task.attachments > 0 ? <span className="inline-flex items-center gap-1.5"><Paperclip aria-hidden="true" className="h-3.5 w-3.5" />{task.attachments} {attachmentsLabel}</span> : null}
           </div>
           <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-[#F4C84A]/20 px-2 text-[11px] font-medium text-[#7A5204] dark:text-[#FDE68A]">{viewLabel}<ChevronRight aria-hidden="true" className="h-3.5 w-3.5" /></span>
@@ -387,11 +402,12 @@ export function PublicTaskKioskEmptyState({
   title: string;
 }) {
   return (
-    <section className="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-950">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4C84A]/25 text-[#9A6B05] dark:bg-[#F4C84A]/10 dark:text-[#FDE68A]">{icon}</div>
-      <h3 className="mt-4 text-lg font-medium tracking-tight text-slate-950 dark:text-white">{title}</h3>
-      <p className="mx-auto mt-2 max-w-sm text-sm leading-5 text-slate-500 dark:text-slate-400">{body}</p>
-    </section>
+    <KioskWorkspaceEmptyState
+      description={body}
+      icon={icon}
+      title={title}
+      tone="yellow"
+    />
   );
 }
 

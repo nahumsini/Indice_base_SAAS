@@ -1,11 +1,19 @@
-import { ShieldAlert } from 'lucide-react';
-import { multiKioskPublicApi, type MultiKioskChildWorkspace } from '../../../api/multiKiosks';
+import { useEffect, useRef, useState } from 'react';
+import { RefreshCw, ShieldAlert } from 'lucide-react';
+import { multiKioskMobileSession, multiKioskPublicApi, type MultiKioskChildWorkspace } from '../../../api/multiKiosks';
+import {
+  KioskToolWorkspaceFrame,
+  KioskWorkspaceContextBar,
+  KioskWorkspaceNotice,
+} from '../../../components/kiosk-engine/KioskToolWorkspace';
 import { EmployeeTaskAgendaList, EmployeeTaskAgendaBoard, EmployeeTaskAgendaToolbar } from './components/EmployeeTaskAgendaWorkspace';
 import { EmployeeTaskMultiKioskCreateDialog } from './components/EmployeeTaskMultiKioskCreateDialog';
 import { EmployeeTaskMultiKioskTaskDialog } from './components/EmployeeTaskMultiKioskTaskDialog';
+import { EmployeeTaskOccasionalProcessDialog } from './components/EmployeeTaskOccasionalProcessDialog';
+import { EmployeeTaskScheduleDialog } from './components/EmployeeTaskScheduleDialog';
+import { EmployeeTaskScheduleView } from './components/EmployeeTaskScheduleView';
 import {
   PublicTaskKioskFiltersSheet,
-  PublicTaskKioskIdentityCard,
   PublicTaskKioskSummaryStrip,
   TaskKioskFilterField,
   TaskKioskFilterSelect,
@@ -20,6 +28,7 @@ import {
   type EmployeeTaskMultiKioskAction,
   type EmployeeTaskStatusFilter,
 } from './hooks/useEmployeeTaskMultiKioskWorkspace';
+import { useEmployeeTaskKioskEnhancements } from './hooks/useEmployeeTaskKioskEnhancements';
 import type { PublicTaskKioskTask } from './processTaskKioskApi';
 import { getTaskKioskTranslations, resolveTaskKioskLocale } from './translations';
 
@@ -63,6 +72,15 @@ export function EmployeeTaskMultiKioskWorkspaceView({
   const canRead = granted.includes(employeeTaskCapabilities.read);
   const canCreate = Boolean(employee) && granted.includes(employeeTaskCapabilities.create);
   const canComplete = granted.includes(employeeTaskCapabilities.complete);
+  const canReschedule = granted.includes(employeeTaskCapabilities.agendaUpdate);
+  const canPreviewProcess = granted.includes(employeeTaskCapabilities.occasionalPreview);
+  const canCreateProcess = granted.includes(employeeTaskCapabilities.occasionalCreate);
+  const canStartProcess = Boolean(employee)
+    && granted.includes(employeeTaskCapabilities.occasionalRead)
+    && canPreviewProcess
+    && canCreateProcess;
+  const [processDialogOpen, setProcessDialogOpen] = useState(false);
+  const [processSuccessMessage, setProcessSuccessMessage] = useState('');
   const state = useEmployeeTaskMultiKioskWorkspace({
     bootstrapTasks,
     canComplete,
@@ -78,13 +96,22 @@ export function EmployeeTaskMultiKioskWorkspaceView({
     completionNotes, completionPercent, createDraft, createError, createOpen, dateRange, dialogError,
     errorMessage, filtersOpen, focusCounts, focusFilter, handleComplete, handleCloseCreate, handleCreate,
     handleOpenCreate, handleOpenTask, handleRefresh, moveDate, openTasks, originFilter, originOptions,
-    overdueTasks, resolvedTasks, searchQuery, selectedDate, selectedTask, setBusinessFilter,
+    overdueTasks, replaceTasks, resolvedTasks, searchQuery, selectedDate, selectedTask, setBusinessFilter,
     setCompletionNotes, setCompletionPercent, setDateRange, setFiltersOpen, setFocusFilter,
     setOriginFilter, setSearchQuery, setSelectedDate, setSelectedTaskId, setStatusFilter, setViewMode,
     showToday, showTomorrow, showWeek, statusFilter, successMessage, tasks, unitFilter, unitOptions,
     updateCreateDraft, viewMode, visibleTasks,
   } = state;
+  const enhancements = useEmployeeTaskKioskEnhancements({
+    agendaCopy,
+    canReschedule,
+    copy,
+    onAction,
+    onAuthorizationFailure,
+    onItems: replaceTasks,
+  });
   const scopeLabel = workspace.bootstrap?.scope_label ?? card.purpose;
+  const occasionalProcesses = workspace.bootstrap?.occasional_processes?.items ?? [];
 
   if (!canRead) {
     return (
@@ -96,20 +123,31 @@ export function EmployeeTaskMultiKioskWorkspaceView({
   }
 
   return (
-    <div className="min-w-0 max-w-full overflow-x-hidden space-y-3">
-      {errorMessage ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">{errorMessage}</p> : null}
-      {successMessage ? <p aria-live="polite" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">{successMessage}</p> : null}
+    <KioskToolWorkspaceFrame>
+      {errorMessage ? <KioskWorkspaceNotice kind="error">{errorMessage}</KioskWorkspaceNotice> : null}
+      {successMessage ? <KioskWorkspaceNotice kind="success">{successMessage}</KioskWorkspaceNotice> : null}
+      {enhancements.successMessage ? <KioskWorkspaceNotice kind="success">{enhancements.successMessage}</KioskWorkspaceNotice> : null}
+      {processSuccessMessage ? <KioskWorkspaceNotice kind="success">{processSuccessMessage}</KioskWorkspaceNotice> : null}
 
       {employee ? (
-        <PublicTaskKioskIdentityCard
-          compact
-          detail={employee.position_title || employee.department || employee.user_code || copy.identity.fallbackStatus}
-          initials={employeeInitials(employee.full_name)}
-          name={employee.full_name}
-          onReset={() => void handleRefresh()}
-          resetLabel={busy === 'refresh' ? copy.loading.title : copy.identity.refresh}
-          scopeLabel={scopeLabel}
-          verifiedLabel={copy.identity.eyebrow}
+        <KioskWorkspaceContextBar
+          action={(
+            <button
+              aria-label={busy === 'refresh' ? copy.loading.title : copy.identity.refresh}
+              className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-[#F4C84A] hover:bg-[#F4C84A]/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#F4C84A]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+              onClick={() => void handleRefresh()}
+              type="button"
+            >
+              <RefreshCw aria-hidden="true" className={`h-4 w-4 ${busy === 'refresh' ? 'animate-spin' : ''}`} />
+            </button>
+          )}
+          density="compact"
+          description={employee.position_title || employee.department || employee.user_code || copy.identity.fallbackStatus}
+          eyebrow={copy.identity.eyebrow}
+          icon={employeeInitials(employee.full_name)}
+          meta={<p className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">{scopeLabel}</p>}
+          title={employee.full_name}
+          tone="yellow"
         />
       ) : null}
 
@@ -127,6 +165,7 @@ export function EmployeeTaskMultiKioskWorkspaceView({
         activeFilterCount={activeFilterCount}
         busy={Boolean(busy)}
         canCreate={canCreate}
+        canStartProcess={canStartProcess}
         copy={agendaCopy}
         dateRange={dateRange}
         focusCounts={focusCounts}
@@ -136,11 +175,18 @@ export function EmployeeTaskMultiKioskWorkspaceView({
         onFocusChange={setFocusFilter}
         onMoveDate={moveDate}
         onOpenFilters={() => setFiltersOpen(true)}
+        onStartProcess={() => {
+          setProcessSuccessMessage('');
+          setProcessDialogOpen(true);
+        }}
         onSearchChange={setSearchQuery}
         onShowToday={showToday}
         onShowTomorrow={showTomorrow}
         onShowWeek={showWeek}
-        onViewChange={setViewMode}
+        onViewChange={(nextView) => {
+          setViewMode(nextView);
+          if (nextView === 'schedule') setDateRange('day');
+        }}
         searchQuery={searchQuery}
         selectedDate={selectedDate}
         statusFilter={statusFilter}
@@ -152,6 +198,17 @@ export function EmployeeTaskMultiKioskWorkspaceView({
         <EmployeeTaskAgendaList copy={agendaCopy} emptyBody={copy.empty.body} emptyTitle={copy.empty.title} locale={selectedLocale} onOpen={handleOpenTask} referenceDate={selectedDate} taskCopy={copy} tasks={[]} />
       ) : viewMode === 'board' ? (
         <EmployeeTaskAgendaBoard copy={agendaCopy} locale={selectedLocale} onOpen={handleOpenTask} referenceDate={selectedDate} taskCopy={copy} tasks={visibleTasks} />
+      ) : viewMode === 'schedule' ? (
+        <EmployeeTaskScheduleView
+          canReschedule={canReschedule}
+          copy={agendaCopy}
+          locale={selectedLocale}
+          onOpen={handleOpenTask}
+          onSchedule={enhancements.openSchedule}
+          referenceDate={selectedDate}
+          taskCopy={copy}
+          tasks={visibleTasks}
+        />
       ) : (
         <EmployeeTaskAgendaList copy={agendaCopy} emptyBody={copy.empty.filteredBody} emptyTitle={copy.empty.filteredTitle} locale={selectedLocale} onOpen={handleOpenTask} referenceDate={selectedDate} taskCopy={copy} tasks={visibleTasks} />
       )}
@@ -231,24 +288,81 @@ export function EmployeeTaskMultiKioskWorkspaceView({
         />
       ) : null}
       <EmployeeTaskMultiKioskTaskDialog
+        agendaCopy={agendaCopy}
         busy={busy === 'complete'}
         canComplete={canComplete}
+        canReschedule={canReschedule}
         completionNotes={completionNotes}
         completionPercent={completionPercent}
         copy={copy}
-        errorMessage={dialogError}
+        errorMessage={dialogError || enhancements.evidenceError}
+        evidenceBusy={enhancements.evidenceTaskId === selectedTask?.id}
         locale={selectedLocale}
-        onClose={() => setSelectedTaskId(null)}
+        onClose={() => {
+          setSelectedTaskId(null);
+          enhancements.clearEvidenceError();
+        }}
         onComplete={handleComplete}
         onCompletionNotesChange={setCompletionNotes}
         onCompletionPercentChange={setCompletionPercent}
+        onEvidenceFiles={(task, files) => void enhancements.uploadEvidence(task, files)}
+        onOpenSchedule={(task) => {
+          setSelectedTaskId(null);
+          enhancements.openSchedule(task);
+        }}
         task={selectedTask}
       />
-    </div>
+      <EmployeeTaskScheduleDialog
+        busy={enhancements.scheduleBusy}
+        copy={agendaCopy}
+        draft={enhancements.scheduleDraft}
+        errorMessage={enhancements.scheduleError}
+        onChange={enhancements.setScheduleDraft}
+        onClose={enhancements.closeSchedule}
+        onRemove={() => void enhancements.removeSchedule()}
+        onSave={() => void enhancements.saveSchedule()}
+        task={enhancements.scheduleTask}
+      />
+      <EmployeeTaskOccasionalProcessDialog
+        canCreate={canCreateProcess}
+        canPreview={canPreviewProcess}
+        copy={agendaCopy}
+        onAction={onAction}
+        onAuthorizationFailure={onAuthorizationFailure}
+        onCreated={(items, message) => {
+          replaceTasks(items);
+          setProcessSuccessMessage(message);
+          setFocusFilter('mine');
+          setStatusFilter('pending_overdue');
+          setViewMode('agenda');
+          showToday();
+        }}
+        onOpenChange={setProcessDialogOpen}
+        open={processDialogOpen}
+        options={occasionalProcesses}
+      />
+    </KioskToolWorkspaceFrame>
   );
 }
 
 export function EmployeeTaskMultiKioskWorkspace({ kioskId, locale, onAuthorizationFailure, onRefresh, token, workspace }: EmployeeTaskMultiKioskWorkspaceProps) {
+  const evidenceSessionRenewalAttempted = useRef(false);
+  const evidenceCapabilitiesReady = workspace.session.capabilities.includes(employeeTaskCapabilities.attachmentPresign)
+    && workspace.session.capabilities.includes(employeeTaskCapabilities.attachmentRegister);
+
+  useEffect(() => {
+    if (evidenceCapabilitiesReady || evidenceSessionRenewalAttempted.current) return;
+    evidenceSessionRenewalAttempted.current = true;
+    let cancelled = false;
+    multiKioskMobileSession.childClear(token, kioskId);
+    void multiKioskPublicApi.launch(token, kioskId, multiKioskCsrfFor(token))
+      .then(() => (cancelled ? undefined : onRefresh()))
+      .catch((error: unknown) => {
+        if (!cancelled) onAuthorizationFailure(error);
+      });
+    return () => { cancelled = true; };
+  }, [evidenceCapabilitiesReady, kioskId, onAuthorizationFailure, onRefresh, token]);
+
   const handleAction: EmployeeTaskMultiKioskAction = async <T,>(capability: string, payload: Record<string, unknown>) => (
     multiKioskPublicApi.action<T>(token, kioskId, capability, payload, multiKioskCsrfFor(token))
   );

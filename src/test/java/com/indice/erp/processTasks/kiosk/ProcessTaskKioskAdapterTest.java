@@ -42,7 +42,7 @@ class ProcessTaskKioskAdapterTest {
     void publishesVersionedControlledCapabilities() {
         assertThat(adapter.ownerModule()).isEqualTo("PROCESS_TASKS");
         assertThat(adapter.capabilities())
-            .hasSize(7)
+            .hasSize(11)
             .allSatisfy(capability -> {
                 assertThat(capability.version()).isEqualTo(1);
                 assertThat(capability.ownerModule()).isEqualTo("PROCESS_TASKS");
@@ -66,10 +66,15 @@ class ProcessTaskKioskAdapterTest {
         assertThat(adapter.employeeCapabilityTabPermissionKeys(definition, identity)).isEmpty();
         assertThat(adapter.employeeCapabilityTabPermissionKeys(definition, tasksRead))
             .containsExactly("processes.calendar");
+        assertThat(adapter.employeeCapabilityTabPermissionKeys(
+            definition,
+            ProcessTaskKioskCapabilities.require(
+                ProcessTaskKioskCapabilities.OCCASIONAL_PROCESS_CREATE)))
+            .containsExactly("processes.processes");
     }
 
     @Test
-    void nativeTaskToolIsSignedAndLimitedToReadCreateAndComplete() {
+    void nativeTaskToolIsSignedAndLimitedToItsEmployeeWorkflowCapabilities() {
         var nativeTool = nativeToolDefinition();
         var unsignedDefinition = new KioskResolvedDefinition(
             18L, 7L, ProcessTaskKioskCapabilities.OWNER_MODULE,
@@ -85,7 +90,23 @@ class ProcessTaskKioskAdapterTest {
             .containsExactlyInAnyOrder(
                 ProcessTaskKioskCapabilities.TASKS_READ,
                 ProcessTaskKioskCapabilities.TASK_CREATE,
-                ProcessTaskKioskCapabilities.TASK_COMPLETE);
+                ProcessTaskKioskCapabilities.TASK_COMPLETE,
+                ProcessTaskKioskCapabilities.TASK_AGENDA_UPDATE,
+                ProcessTaskKioskCapabilities.TASK_ATTACHMENT_PRESIGN,
+                ProcessTaskKioskCapabilities.TASK_ATTACHMENT_REGISTER,
+                ProcessTaskKioskCapabilities.OCCASIONAL_PROCESSES_READ,
+                ProcessTaskKioskCapabilities.OCCASIONAL_PROCESS_PREVIEW,
+                ProcessTaskKioskCapabilities.OCCASIONAL_PROCESS_CREATE);
+        assertThat(adapter.capabilities(employeeDefinition()))
+            .extracting(capability -> capability.key())
+            .containsExactlyInAnyOrder(
+                ProcessTaskKioskCapabilities.IDENTITY_VERIFY,
+                ProcessTaskKioskCapabilities.TASKS_READ,
+                ProcessTaskKioskCapabilities.TASK_CREATE,
+                ProcessTaskKioskCapabilities.TASK_COMPLETE,
+                ProcessTaskKioskCapabilities.TASK_RESPONSIBLE_ASSIGN,
+                ProcessTaskKioskCapabilities.TASK_ATTACHMENT_PRESIGN,
+                ProcessTaskKioskCapabilities.TASK_ATTACHMENT_REGISTER);
     }
 
     @Test
@@ -159,12 +180,31 @@ class ProcessTaskKioskAdapterTest {
         given(kioskService.employeeBootstrap(employeeDefinition(), 9L)).willReturn(bootstrap);
 
         assertThat(adapter.employeeBootstrap(employeeContext(
-            KioskExecutionChannels.AUTHENTICATED_WEB))).isSameAs(bootstrap);
+            KioskExecutionChannels.AUTHENTICATED_WEB))).containsAllEntriesOf(bootstrap);
         assertThat(adapter.employeeBootstrap(employeeContext(
-            KioskExecutionChannels.MOBILE_MULTI_KIOSK))).isSameAs(bootstrap);
+            KioskExecutionChannels.MOBILE_MULTI_KIOSK))).containsAllEntriesOf(bootstrap);
 
         then(kioskService).should(org.mockito.Mockito.times(2))
             .employeeBootstrap(employeeDefinition(), 9L);
+    }
+
+    @Test
+    void nativeBootstrapIncludesOccasionalProcessesOnlyWhenGranted() {
+        var nativeDefinition = nativeToolDefinition();
+        var nativeContext = employeeContext(
+            nativeDefinition,
+            KioskExecutionChannels.MOBILE_MULTI_KIOSK,
+            Set.of(
+                ProcessTaskKioskCapabilities.TASKS_READ + "@1",
+                ProcessTaskKioskCapabilities.OCCASIONAL_PROCESSES_READ + "@1"));
+        var bootstrap = Map.<String, Object>of("tasks", java.util.List.of());
+        var processes = Map.<String, Object>of("items", java.util.List.of(), "count", 0);
+        given(kioskService.employeeBootstrap(nativeDefinition, 9L)).willReturn(bootstrap);
+        given(kioskService.employeeOccasionalProcesses(nativeDefinition, 9L)).willReturn(processes);
+
+        assertThat(adapter.employeeBootstrap(nativeContext))
+            .containsAllEntriesOf(bootstrap)
+            .containsEntry("occasional_processes", processes);
     }
 
     @Test
@@ -219,29 +259,32 @@ class ProcessTaskKioskAdapterTest {
     }
 
     @Test
-    void nativeTaskToolNeverExposesResponsibleOrEvidenceMutations() {
+    void nativeTaskToolRejectsResponsibleButDelegatesGrantedEvidenceMutations() {
         var nativeDefinition = nativeToolDefinition();
-        var maliciousContext = employeeContext(
+        var nativeContext = employeeContext(
             nativeDefinition,
             KioskExecutionChannels.MOBILE_MULTI_KIOSK,
             Set.of(
                 ProcessTaskKioskCapabilities.TASK_RESPONSIBLE_ASSIGN + "@1",
                 ProcessTaskKioskCapabilities.TASK_ATTACHMENT_REGISTER + "@1"));
+        var response = Map.<String, Object>of("attachment", Map.of("id", 71L));
+        given(kioskService.employeeRegisterAttachment(nativeDefinition, 9L, 42L, Map.of()))
+            .willReturn(response);
 
         assertThatThrownBy(() -> adapter.executeEmployee(
-            maliciousContext,
+            nativeContext,
             KioskActionRequest.forResource(
                 ProcessTaskKioskCapabilities.TASK_RESPONSIBLE_ASSIGN, 42L, Map.of())))
             .isInstanceOf(SecurityException.class)
             .hasMessageContaining("not available");
-        assertThatThrownBy(() -> adapter.executeEmployee(
-            maliciousContext,
+
+        assertThat(adapter.executeEmployee(
+            nativeContext,
             KioskActionRequest.forResource(
                 ProcessTaskKioskCapabilities.TASK_ATTACHMENT_REGISTER, 42L, Map.of())))
-            .isInstanceOf(SecurityException.class)
-            .hasMessageContaining("not available");
-
-        then(kioskService).shouldHaveNoInteractions();
+            .isSameAs(response);
+        then(kioskService).should().employeeRegisterAttachment(
+            nativeDefinition, 9L, 42L, Map.of());
     }
 
     private KioskResolvedDefinition employeeDefinition() {

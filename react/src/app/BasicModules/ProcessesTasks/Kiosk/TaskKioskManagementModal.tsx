@@ -17,7 +17,7 @@ import {
   ShieldCheck,
   Trash2,
 } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { KioskModalFrame } from '../../../components/kiosk-engine/KioskModalFrame';
 import { KioskAdminActionButton, KioskAdminPanelAction } from '../../../components/kiosk-engine/KioskAdminPrimitives';
 import { IndiceModalSummary, IndiceModalValidation } from '../../../components/indice-modal';
@@ -31,6 +31,7 @@ import type { ProcessTaskKiosk, ProcessTaskKioskPayload } from './processTaskKio
 import type { TaskKioskTranslations } from './translations/types';
 
 interface TaskKioskManagementModalProps {
+  initialKioskId?: number | null;
   isOpen: boolean;
   isSaving: boolean;
   kiosks: ProcessTaskKiosk[];
@@ -76,6 +77,7 @@ function kioskSaveErrorMessage(error: unknown, copy: TaskKioskTranslations['admi
 }
 
 export function TaskKioskManagementModal({
+  initialKioskId,
   isOpen,
   isSaving,
   kiosks,
@@ -99,6 +101,7 @@ export function TaskKioskManagementModal({
   const [securityKioskId, setSecurityKioskId] = useState<number | null>(null);
   const [shareKioskId, setShareKioskId] = useState<number | null>(null);
   const [optionsKioskId, setOptionsKioskId] = useState<number | null>(null);
+  const handledInitialKioskIdRef = useRef<number | null>(null);
 
   const activeCount = kiosks.filter((kiosk) => kiosk.engine_status === 'ACTIVE').length;
   const readyCount = kiosks.filter((kiosk) => Boolean(kiosk.public_token_hint)).length;
@@ -150,6 +153,13 @@ export function TaskKioskManagementModal({
     setForm(formFromKiosk(kiosk));
     setIsEditorOpen(true);
   };
+  useEffect(() => {
+    if (!isOpen || !initialKioskId || handledInitialKioskIdRef.current === initialKioskId) return;
+    const kiosk = kiosks.find((item) => item.id === initialKioskId);
+    if (!kiosk) return;
+    handledInitialKioskIdRef.current = initialKioskId;
+    handleStartEdit(kiosk);
+  }, [initialKioskId, isOpen, kiosks]);
   const handleNameChange = (name: string) => {
     setForm((current) => {
       const shouldSyncCode = !current.code || current.code === referenceFromName(current.name);

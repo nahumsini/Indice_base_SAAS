@@ -7,10 +7,14 @@ import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
 import com.indice.erp.kiosk.engine.KioskEmployeeToolCatalogService;
 import com.indice.erp.kiosk.engine.KioskRegistryService;
 import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
+import com.indice.erp.processTasks.processes.ProcessRunContracts.OccasionalPreviewRequest;
+import com.indice.erp.processTasks.processes.ProcessRunContracts.OccasionalRunRequest;
+import com.indice.erp.processTasks.processes.ProcessRunsService;
 import java.security.SecureRandom;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.LinkedHashMap;
@@ -38,6 +42,7 @@ public class ProcessTaskKioskService {
     private final ProcessTaskKioskCommandService commands;
     private final ProcessTaskKioskFileService files;
     private final ProcessTaskKioskViewMapper views;
+    private final ProcessRunsService processRunsService;
     private final int inactivityTimeoutSeconds;
     private final int sessionTtlSeconds;
 
@@ -51,6 +56,7 @@ public class ProcessTaskKioskService {
         ProcessTaskKioskCommandService commands,
         ProcessTaskKioskFileService files,
         ProcessTaskKioskViewMapper views,
+        ProcessRunsService processRunsService,
         @Value("${app.process-tasks.kiosk.inactivity-timeout-seconds:1800}") int inactivityTimeoutSeconds,
         @Value("${app.process-tasks.kiosk.session-ttl-seconds:28800}") int sessionTtlSeconds
     ) {
@@ -63,6 +69,7 @@ public class ProcessTaskKioskService {
         this.commands = commands;
         this.files = files;
         this.views = views;
+        this.processRunsService = processRunsService;
         this.inactivityTimeoutSeconds = Math.max(30, inactivityTimeoutSeconds);
         this.sessionTtlSeconds = Math.max(this.inactivityTimeoutSeconds, sessionTtlSeconds);
     }
@@ -271,13 +278,74 @@ public class ProcessTaskKioskService {
     @Transactional
     public Map<String, Object> employeeRegisterAttachment(
             KioskResolvedDefinition definition, long userId, long taskId, Map<String, Object> payload) {
-        return files.register(requireEmployeeContext(definition, userId), taskId, payload);
+        var context = requireEmployeeContext(definition, userId);
+        var attachment = files.register(context, taskId, payload);
+        return Map.of(
+            "attachment", attachment,
+            "task", queries.visibleTask(context.kiosk(), context.employee(), taskId),
+            "items", queries.listTasks(context.kiosk(), context.employee())
+        );
     }
 
     @Transactional
     public Map<String, Object> employeeCompleteTask(
             KioskResolvedDefinition definition, long userId, long taskId, Map<String, Object> payload) {
         return commands.complete(requireEmployeeContext(definition, userId), taskId, payload);
+    }
+
+    @Transactional
+    public Map<String, Object> employeeUpdateTaskAgenda(
+            KioskResolvedDefinition definition, long userId, long taskId, Map<String, Object> payload) {
+        return commands.updateAgenda(requireNativeEmployeeContext(definition, userId), taskId, payload);
+    }
+
+    public Map<String, Object> employeeOccasionalProcesses(
+            KioskResolvedDefinition definition, long userId) {
+        var context = requireNativeEmployeeContext(definition, userId);
+        return toMap(processRunsService.listOccasionalProcesses(context.kiosk().companyId()));
+    }
+
+    public Map<String, Object> employeePreviewOccasionalProcess(
+            KioskResolvedDefinition definition, long userId, Map<String, Object> payload) {
+        var context = requireNativeEmployeeContext(definition, userId);
+        var processId = requirePositiveId(payload, "process_id", "processId");
+        var preview = processRunsService.previewOccasionalRun(
+            context.kiosk().companyId(),
+            new OccasionalPreviewRequest(
+                processId,
+                stringValue(payload, "reference"),
+                optionalLocalDate(payload, "start_date", "startDate")
+            )
+        );
+        return Map.of("preview", toMap(preview));
+    }
+
+    @Transactional
+    public Map<String, Object> employeeCreateOccasionalProcess(
+            KioskResolvedDefinition definition, long userId, Map<String, Object> payload) {
+        var context = requireNativeEmployeeContext(definition, userId);
+        var processId = requirePositiveId(payload, "process_id", "processId");
+        var requestId = stringValue(payload, "request_id", "requestId");
+        if (requestId.isBlank() || requestId.length() > 64) {
+            throw new IllegalArgumentException("request_id is required and must contain 64 characters or fewer.");
+        }
+        var run = processRunsService.createOccasionalRun(
+            context.kiosk().companyId(),
+            context.employee().userId(),
+            new OccasionalRunRequest(
+                processId,
+                stringValue(payload, "reference"),
+                optionalLocalDate(payload, "start_date", "startDate"),
+                nullableString(payload, "notes"),
+                booleanValue(payload, "allow_duplicate_reference", "allowDuplicateReference")
+            ),
+            "employee-kiosk:" + context.kiosk().companyId() + ":"
+                + context.employee().userCompanyId() + ":" + requestId
+        );
+        var body = new LinkedHashMap<String, Object>();
+        body.put("run", toMap(run));
+        body.put("items", queries.listTasks(context.kiosk(), context.employee()));
+        return body;
     }
 
     @Transactional(noRollbackFor = IllegalArgumentException.class)
@@ -374,6 +442,15 @@ public class ProcessTaskKioskService {
             : identityService.loadEmployeeByUserId(definition.companyId(), userId);
         identityService.requireScope(kiosk, employee);
         return new ProcessTaskPublicKioskContext(kiosk, employee);
+    }
+
+    private ProcessTaskPublicKioskContext requireNativeEmployeeContext(
+            KioskResolvedDefinition definition,
+            long userId) {
+        if (!isNativeEmployeeTasksTool(definition)) {
+            throw new SecurityException("This operation is only available in the native employee task tool.");
+        }
+        return requireEmployeeContext(definition, userId);
     }
 
     private boolean isNativeEmployeeTasksTool(KioskResolvedDefinition definition) {
@@ -700,6 +777,44 @@ public class ProcessTaskKioskService {
             }
         }
         return null;
+    }
+
+    private long requirePositiveId(Map<String, Object> payload, String... keys) {
+        var value = longValue(payload, keys);
+        if (value == null || value <= 0) {
+            throw new IllegalArgumentException(keys[0] + " is required.");
+        }
+        return value;
+    }
+
+    private LocalDate optionalLocalDate(Map<String, Object> payload, String... keys) {
+        var value = nullableString(payload, keys);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(value);
+        } catch (java.time.format.DateTimeParseException invalidDate) {
+            throw new IllegalArgumentException(keys[0] + " must be an ISO date.", invalidDate);
+        }
+    }
+
+    private boolean booleanValue(Map<String, Object> payload, String... keys) {
+        if (payload == null) return false;
+        for (var key : keys) {
+            var value = payload.get(key);
+            if (value instanceof Boolean bool) return bool;
+            if (value != null) return Boolean.parseBoolean(String.valueOf(value));
+        }
+        return false;
+    }
+
+    private Map<String, Object> toMap(Object value) {
+        return objectMapper.convertValue(
+            value,
+            new TypeReference<LinkedHashMap<String, Object>>() {
+            }
+        );
     }
 
     private String stringValue(Map<String, Object> payload, String... keys) {

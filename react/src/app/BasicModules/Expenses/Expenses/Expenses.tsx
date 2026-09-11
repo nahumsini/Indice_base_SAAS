@@ -1,6 +1,7 @@
 import { formatExpenseDate } from '../utils/expenseDates';
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { Plus } from 'lucide-react';
+import { useSearchParams } from 'react-router';
 import { FailureToast } from '../../../components/FailureToast';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { ExpenseDeleteModal } from '../components/modals/ExpenseDeleteModal';
@@ -43,6 +44,7 @@ import {
   type ExpenseBulkEditDraft,
 } from '../components/modals/ExpenseBulkIntegrationModal';
 import { PayableAccountDialog, type PayableAccountValues } from '../components/modals/PayableAccountDialog';
+import { PayablesKioskManagementModal } from '../components/modals/PayablesKioskManagementModal';
 import { QuickExpenseDialog, type QuickExpenseValues } from '../components/modals/QuickExpenseDialog';
 import type { FinanceReferenceOption } from '../types/finance-reference.types';
 import { AttachmentsModal } from './components/AttachmentsModal';
@@ -52,6 +54,7 @@ import { ExpenseTable } from './components/ExpenseTable';
 import { expenseGroupPeriodLabel } from '../utils/expenseFundGroups';
 import { getExpenseFundGroupCopy } from './components/expenseFundGroup.copy';
 import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
+import { readKioskAdminNavigationTarget } from '../../../components/kiosk-engine/kioskAdminNavigation';
 
 interface ExpensesProps {
   dataReady?: boolean;
@@ -107,6 +110,13 @@ const resolveExpenseAttachmentOwner = (expenseId: string): ExpenseAttachmentOwne
 
 export default function Expenses({ dataReady = true, expenses: controlledExpenses, onFinanceDataChanged, onExpensesChange, onProvidersChange, providers: providerRecords }: ExpensesProps = {}) {
   const t = useExpensesTranslations();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const kioskAdminSearch = searchParams.toString();
+  const kioskAdminTarget = useMemo(
+    () => readKioskAdminNavigationTarget(kioskAdminSearch),
+    [kioskAdminSearch],
+  );
+  const isPayablesKioskTarget = kioskAdminTarget?.kioskType === 'accounts_payable';
   const locale = useExpensesResolvedLocale();
   const detailCopy = getExpenseDetailCopy(locale);
   const [localExpenses, setLocalExpenses] = useState<Expense[]>(mockExpenses);
@@ -142,6 +152,7 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
   const [pendingDeleteExpenseIds, setPendingDeleteExpenseIds] = useState<string[]>([]);
   const [deletingExpenseIds, setDeletingExpenseIds] = useState<Set<string>>(() => new Set());
   const [successToastMessage, setSuccessToastMessage] = useState('');
+  const [isPayablesKioskOpen, setIsPayablesKioskOpen] = useState(isPayablesKioskTarget);
   const captureRequestKey = useRef(crypto.randomUUID());
   const saveTimeoutsRef = useRef<Record<string, number>>({});
   const expenses = controlledExpenses ?? localExpenses;
@@ -149,6 +160,20 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
   const { preferredCurrency } = usePreferredBusinessCurrency();
   const { businessOptions: referenceBusinessOptions, currentUser, isLoadingReferenceData, isReferenceDataReady, unitOptions: referenceUnitOptions, userOptions } =
     useFinanceReferenceData(setFailureToastMessage);
+
+  useEffect(() => {
+    if (isPayablesKioskTarget) setIsPayablesKioskOpen(true);
+  }, [isPayablesKioskTarget, kioskAdminTarget?.engineId]);
+
+  const closePayablesKiosk = () => {
+    setIsPayablesKioskOpen(false);
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.delete('kioskAdminSource');
+    nextSearchParams.delete('kioskEngineId');
+    nextSearchParams.delete('kioskReferenceId');
+    nextSearchParams.delete('kioskType');
+    setSearchParams(nextSearchParams, { replace: true });
+  };
 
   const filtersRestored = useWorkspaceNavigationMemory<ExpenseListFilters>({
     moduleKey: 'expenses',
@@ -1069,6 +1094,16 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
         open={isPayableAccountModalOpen}
         providers={providers}
         unitOptions={unitOptions}
+      />
+
+      <PayablesKioskManagementModal
+        businessOptions={referenceBusinessOptions}
+        initialKioskId={isPayablesKioskTarget ? kioskAdminTarget.referenceId : null}
+        isOpen={isPayablesKioskOpen}
+        onClose={closePayablesKiosk}
+        onError={setFailureToastMessage}
+        onSuccess={setSuccessToastMessage}
+        unitOptions={referenceUnitOptions}
       />
 
       <Button

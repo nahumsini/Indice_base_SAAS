@@ -25,6 +25,7 @@ MINIO_PUBLIC_ENDPOINT ?= http://127.0.0.1:$(MINIO_API_HOST_PORT)
 MINIO_SERVICE_PUBLIC_ENDPOINT ?= http://host.docker.internal:$(MINIO_API_HOST_PORT)
 VITE_BACKEND_URL ?= http://127.0.0.1:8082
 VITE_API_BASE_URL ?=
+VITE_LEGACY_OWNER_KIOSK_ENTRY_POINTS_ENABLED ?= false
 LOCAL_DEMO_SEED_ON_DEV ?= true
 LOCAL_DEMO_LOGIN_EMAIL ?= demo@example.com
 LOCAL_DEMO_LOGIN_COMPANY ?= Empresa Demo Spring
@@ -118,6 +119,7 @@ dev: prepare ## Start the full local dev stack
 	echo "Starting frontend with Vite on http://$(FRONTEND_HOST):$(FRONTEND_PORT)"; \
 	VITE_BACKEND_URL="$(VITE_BACKEND_URL)" \
 	VITE_API_BASE_URL="$(VITE_API_BASE_URL)" \
+	VITE_LEGACY_OWNER_KIOSK_ENTRY_POINTS_ENABLED="$(VITE_LEGACY_OWNER_KIOSK_ENTRY_POINTS_ENABLED)" \
 	npm --prefix "$(FRONTEND_DIR)" run dev -- --host "$(FRONTEND_HOST)" --port "$(FRONTEND_PORT)" --strictPort & frontend_pid=$$!; \
 	while true; do \
 		running_jobs="$$(jobs -rp || true)"; \
@@ -235,6 +237,7 @@ backend: ## Run only the Spring Boot backend with the MinIO profile
 frontend: ## Run only the React/Vite frontend
 	@VITE_BACKEND_URL="$(VITE_BACKEND_URL)" \
 	VITE_API_BASE_URL="$(VITE_API_BASE_URL)" \
+	VITE_LEGACY_OWNER_KIOSK_ENTRY_POINTS_ENABLED="$(VITE_LEGACY_OWNER_KIOSK_ENTRY_POINTS_ENABLED)" \
 	npm --prefix "$(FRONTEND_DIR)" run dev -- --host "$(FRONTEND_HOST)" --port "$(FRONTEND_PORT)" --strictPort
 
 ps: ## Show Docker service status

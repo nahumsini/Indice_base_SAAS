@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class KioskCenterV2Controller {
 
     private final KioskInternalRequestGuard guard;
+    private final KioskCenterInventoryAccessService inventoryAccess;
     private final KioskEngineFeatureFlags flags;
     private final KioskCenterService center;
     private final KioskRegistryService registry;
@@ -30,12 +31,14 @@ public class KioskCenterV2Controller {
 
     public KioskCenterV2Controller(
             KioskInternalRequestGuard guard,
+            KioskCenterInventoryAccessService inventoryAccess,
             KioskEngineFeatureFlags flags,
             KioskCenterService center,
             KioskRegistryService registry,
             KioskLifecycleCoordinator lifecycle,
             KioskV2ResponseFactory responses) {
         this.guard = guard;
+        this.inventoryAccess = inventoryAccess;
         this.flags = flags;
         this.center = center;
         this.registry = registry;
@@ -46,16 +49,21 @@ public class KioskCenterV2Controller {
     @GetMapping
     public ResponseEntity<?> list(HttpSession session) {
         requireEnabled();
-        var user = guard.requireCenterRead(session);
+        var access = inventoryAccess.requireRead(session);
         return ResponseEntity.ok(responses.success(
-            Map.of("items", center.list(user.companyId())), null, null));
+            Map.of("items", access.global()
+                ? center.list(access.user().companyId())
+                : center.list(access.user().companyId(), access.ownerScopes())), null, null));
     }
 
     @GetMapping("/{kioskId}")
     public ResponseEntity<?> detail(HttpSession session, @PathVariable long kioskId) {
         requireEnabled();
-        var user = guard.requireCenterRead(session);
-        return ResponseEntity.ok(responses.success(center.detail(user.companyId(), kioskId), null, null));
+        var access = inventoryAccess.requireRead(session);
+        var detail = access.global()
+            ? center.detail(access.user().companyId(), kioskId)
+            : center.detail(access.user().companyId(), kioskId, access.ownerScopes());
+        return ResponseEntity.ok(responses.success(detail, null, null));
     }
 
     @GetMapping("/{kioskId}/audit")

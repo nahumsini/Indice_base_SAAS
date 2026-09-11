@@ -82,14 +82,20 @@ public class KioskEmployeeToolCatalogService {
             MY_TASKS_KIOSK_TYPE,
             MY_TASKS_RESERVED_CODE,
             "Mis tareas",
-            "Consulta, registra y completa únicamente tareas propias del colaborador.",
+            "Organiza, documenta y completa trabajo autorizado; inicia procesos ocasionales cuando tiene permiso.",
             "MY_TASKS",
             "process-tasks",
             Set.of("processes.calendar"),
             Set.of(
                 ProcessTaskKioskCapabilities.TASKS_READ + "@1",
                 ProcessTaskKioskCapabilities.TASK_CREATE + "@1",
-                ProcessTaskKioskCapabilities.TASK_COMPLETE + "@1")
+                ProcessTaskKioskCapabilities.TASK_COMPLETE + "@1",
+                ProcessTaskKioskCapabilities.TASK_AGENDA_UPDATE + "@1",
+                ProcessTaskKioskCapabilities.TASK_ATTACHMENT_PRESIGN + "@1",
+                ProcessTaskKioskCapabilities.TASK_ATTACHMENT_REGISTER + "@1",
+                ProcessTaskKioskCapabilities.OCCASIONAL_PROCESSES_READ + "@1",
+                ProcessTaskKioskCapabilities.OCCASIONAL_PROCESS_PREVIEW + "@1",
+                ProcessTaskKioskCapabilities.OCCASIONAL_PROCESS_CREATE + "@1")
         ),
         new EmployeeToolManifest(
             ROUTE_SALES_TOOL_KEY,

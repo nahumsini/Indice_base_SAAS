@@ -327,8 +327,11 @@ Approved Finance domain contracts remain authoritative. General rules include:
 
 - Treasury is the sole owner of payment-account balance mutations. New account impacts from
   Expenses, Funds, and POS append idempotent movements through that owner contract; they do not
-  update account balance projections directly. Sales retains its separately approved collection
-  flow until an explicit adoption contract replaces it.
+  update account balance projections directly. Sales collections use `SalesCollectionService` as
+  the explicit Sales-to-Treasury owner bridge. A confirmed electronic route sale must carry a
+  tenant-, currency-, type-, and scope-valid bank account and append its Treasury movement in the
+  same transaction as the sale. Route cash remains in seller custody until an explicit handoff, and
+  route credit remains receivable; neither invents a bank deposit.
 - A payment account answers where money is held, a fund answers its purpose and custody, and a
   budget answers how much spending is authorized. These concepts remain separate even when one
   operation links all three.

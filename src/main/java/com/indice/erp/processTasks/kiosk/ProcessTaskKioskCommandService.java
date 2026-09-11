@@ -201,6 +201,40 @@ class ProcessTaskKioskCommandService {
         );
     }
 
+    @Transactional
+    Map<String, Object> updateAgenda(
+            ProcessTaskPublicKioskContext context,
+            long taskId,
+            Map<String, Object> payload) {
+        var before = queries.completableTask(context.kiosk(), context.employee(), taskId);
+        var normalized = payload == null ? Map.<String, Object>of() : payload;
+        var placement = new LinkedHashMap<String, Object>();
+        placement.put("agendaDate", nullable(normalized, "agenda_date", "agendaDate"));
+        placement.put("agendaStartTime", nullable(
+            normalized, "agenda_start_time", "agendaStartTime"));
+        placement.put("agendaEndTime", nullable(
+            normalized, "agenda_end_time", "agendaEndTime"));
+        placement.put("agendaTimeZone", nullable(
+            normalized, "agenda_time_zone", "agendaTimeZone"));
+
+        processTasksService.updateAgendaPlacement(
+            context.kiosk().companyId(), context.employee().userId(), taskId, placement);
+        var updated = queries.visibleTask(context.kiosk(), context.employee(), taskId);
+        var auditDetails = new LinkedHashMap<String, Object>();
+        auditDetails.put("previous_agenda_date", fallback(
+            text(before, "agenda_date"), ""));
+        auditDetails.put("agenda_date", fallback(text(updated, "agenda_date"), ""));
+        auditDetails.put("agenda_start_time", fallback(
+            text(updated, "agenda_start_time"), ""));
+        auditDetails.put("agenda_end_time", fallback(
+            text(updated, "agenda_end_time"), ""));
+        audit.record(context, taskId, "TASK_AGENDA_UPDATED", auditDetails);
+        return Map.of(
+            "task", updated,
+            "items", queries.listTasks(context.kiosk(), context.employee())
+        );
+    }
+
     private CurrentAssignment currentAssignment(Map<String, Object> task, long userCompanyId) {
         var assignees = task.get("assignees");
         if (!(assignees instanceof Iterable<?> values)) {

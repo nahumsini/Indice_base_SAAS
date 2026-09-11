@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDown,
   ArrowUp,
@@ -171,7 +171,7 @@ function kioskCashRegisterFilterLabel(row: PosKioskAdminItem, unassignedLabel: s
   return name || code || row.assignment.secondaryLabel?.trim() || unassignedLabel;
 }
 
-export function KioskCenterWorkspace({ onCreateView, refreshKey = 0, createdKioskName = '' }: { onCreateView: (view: CreatableKioskExperience) => void; refreshKey?: number; createdKioskName?: string }) {
+export function KioskCenterWorkspace({ onCreateView, refreshKey = 0, createdKioskName = '', initialKioskId = null }: { onCreateView: (view: CreatableKioskExperience) => void; refreshKey?: number; createdKioskName?: string; initialKioskId?: number | null }) {
   const { copy, locale } = usePointOfSaleKioskTranslations();
   const minimumColumnWidths = useMemo(() => getKioskMinimumColumnWidths(copy.center), [copy.center]);
   const [rows, setRows] = useState<PosKioskAdminItem[]>([]);
@@ -194,6 +194,7 @@ export function KioskCenterWorkspace({ onCreateView, refreshKey = 0, createdKios
   const [sortKey, setSortKey] = useState<KioskSortKey>('name');
   const [sortDirection, setSortDirection] = useState<KioskSortDirection>('asc');
   const [columnWidths, setColumnWidths] = useState<KioskColumnWidths>(() => loadKioskColumnWidths(minimumColumnWidths));
+  const openedInitialKioskId = useRef<number | null>(null);
 
   const reload = async () => {
     setLoading(true);
@@ -250,6 +251,14 @@ export function KioskCenterWorkspace({ onCreateView, refreshKey = 0, createdKios
       return changed ? next : current;
     });
   }, [minimumColumnWidths]);
+
+  useEffect(() => {
+    if (!initialKioskId || openedInitialKioskId.current === initialKioskId) return;
+    const initialKiosk = rows.find(row => row.id === initialKioskId);
+    if (!initialKiosk) return;
+    openedInitialKioskId.current = initialKioskId;
+    setEditingKiosk(initialKiosk);
+  }, [initialKioskId, rows]);
 
   useEffect(() => {
     try {

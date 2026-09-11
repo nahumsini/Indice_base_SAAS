@@ -47,6 +47,11 @@ cp deployment/env/.env.example deployment/env/.env
   y el bloque comercial aprobados de 5 GiB; el excedente se programa para la
   siguiente factura sin interrumpir el servicio
 - tiempos de sesión de kioskos (`APP_*_KIOSK_*_SECONDS`); la plantilla contiene los valores estándar aprobados
+- `VITE_LEGACY_OWNER_KIOSK_ENTRY_POINTS_ENABLED` debe permanecer `true` mientras
+  `KIOSK_GLOBAL_CENTER_ENABLED` no esté certificado; al cambiarlo a `false`, verifica primero el
+  inventario filtrado y el handoff exacto hacia Recursos Humanos, Procesos/Tareas, Cuentas por
+  Pagar, Caja Chica y Punto de Venta. El preflight rechaza la combinación insegura de accesos
+  propietarios ocultos con el Centro deshabilitado.
 - `MYSQL_*`
 - `MINIO_*`
 
@@ -57,6 +62,16 @@ Production-safe base stack:
 ```bash
 ./deployment/scripts/up.sh
 ```
+
+El Compose específico de APPTEST habilita por defecto el Centro global, los adaptadores de Cuentas
+por Pagar, Caja Chica y Punto de Venta, y oculta los accesos propietarios duplicados. La plantilla y
+el Compose base de producción conservan el rollback seguro (`Centro=false`, `accesos legacy=true`)
+hasta que el ambiente productivo complete su propia certificación.
+
+El rollback de presentación no elimina datos: configura `KIOSK_GLOBAL_CENTER_ENABLED=false` y
+`VITE_LEGACY_OWNER_KIOSK_ENTRY_POINTS_ENABLED=true`, reconstruye `web` y recrea `backend`. Si el
+incidente pertenece a un adaptador, restaura además su bandera a `false`; los gestores, contratos y
+rutas propietarias permanecen disponibles durante todo el rollback.
 
 Local stack with extra admin/debug ports:
 
@@ -145,6 +160,10 @@ las credenciales. Para comprobar solamente el repositorio con la plantilla:
 ```bash
 ./deployment/scripts/preflight.sh --example
 ```
+
+La validación del backend comienza con `mvnw clean test`; esta limpieza es obligatoria para que un
+recurso Flyway renombrado en una integración no permanezca en `target/classes` simulando una versión
+duplicada que ya no existe en el árbol fuente.
 
 `--example` permite los valores inseguros documentales de `.env.example`; nunca
 debe usarse como autorización para desplegar esos valores en producción.

@@ -4,6 +4,11 @@ import type {
   PublicTaskKioskTask,
 } from '../BasicModules/ProcessesTasks/Kiosk/processTaskKioskApi';
 import type {
+  OccasionalProcessOption,
+  ProcessRun,
+  ProcessRunPreview,
+} from '../BasicModules/ProcessesTasks/Processes/processesApi';
+import type {
   PublicPettyCashFund,
   PublicPettyCashHistory,
   PublicPettyCashReceipt,
@@ -414,6 +419,8 @@ export interface RouteSalesKioskProduct {
   tax_category?: string;
   tax_percent: number;
   inventory_ready?: boolean;
+  image_url?: string;
+  image_alt?: string;
 }
 
 export interface RouteSalesKioskWarehouse {
@@ -446,12 +453,24 @@ export interface RouteSalesKioskSale {
   currency: string;
   payment_method: string;
   payment_reference?: string;
+  payment_account_id?: number;
+  payment_account_name?: string;
   payment_evidence_status?: string;
   evidence_count?: number;
   commercial_status: string;
   finance_status: string;
   inventory_status: string;
   delivery_status: string;
+  settlement_status?: 'settled' | 'route_cash_custody' | 'receivable_pending' | string;
+}
+
+export interface RouteSalesKioskPaymentAccount {
+  id: number;
+  name: string;
+  type: 'BANK';
+  currency: string;
+  unit_id?: number;
+  business_id?: number;
 }
 
 export interface RouteSalesKioskPaymentMethod {
@@ -469,6 +488,7 @@ export interface RouteSalesKioskBootstrap {
   products: RouteSalesKioskProduct[];
   warehouses: RouteSalesKioskWarehouse[];
   inventory_balances: RouteSalesKioskInventoryBalance[];
+  payment_accounts: RouteSalesKioskPaymentAccount[];
   recent_sales: RouteSalesKioskSale[];
   summary: {
     today_count: number;
@@ -476,7 +496,7 @@ export interface RouteSalesKioskBootstrap {
     pending_settlement_count: number;
   };
   payment_methods: RouteSalesKioskPaymentMethod[];
-  settlement_policy: 'BACK_OFFICE_RECONCILIATION';
+  settlement_policy: 'METHOD_AWARE_TREASURY';
 }
 
 export interface MultiKioskEmployeeWorkspaceBootstrap extends Partial<PublicPettyCashHistory> {
@@ -494,6 +514,7 @@ export interface MultiKioskEmployeeWorkspaceBootstrap extends Partial<PublicPett
   scope_label?: string;
   user?: MultiKioskEmployeeIdentity;
   tasks?: PublicTaskKioskTask[];
+  occasional_processes?: { items: OccasionalProcessOption[]; count: number };
   assignment_options?: PublicTaskKioskAssignmentOption;
   today_activity?: PublicKioskDayActivity;
   identity_evidence_required?: boolean;
@@ -550,10 +571,20 @@ export interface MultiKioskEmployeeWorkspaceBootstrap extends Partial<PublicPett
   products?: RouteSalesKioskProduct[];
   warehouses?: RouteSalesKioskWarehouse[];
   inventory_balances?: RouteSalesKioskInventoryBalance[];
+  payment_accounts?: RouteSalesKioskPaymentAccount[];
   recent_sales?: RouteSalesKioskSale[];
   summary?: RouteSalesKioskBootstrap['summary'] | Record<string, number>;
   payment_methods?: RouteSalesKioskPaymentMethod[];
   settlement_policy?: RouteSalesKioskBootstrap['settlement_policy'];
+}
+
+export interface EmployeeOccasionalProcessPreviewResponse {
+  preview: ProcessRunPreview;
+}
+
+export interface EmployeeOccasionalProcessCreateResponse {
+  run: ProcessRun;
+  items: PublicTaskKioskTask[];
 }
 
 export interface MultiKioskChildWorkspace {

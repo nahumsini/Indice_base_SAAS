@@ -16,6 +16,14 @@ import type {
 } from '../api/multiKiosks';
 import { multiKioskPublicApi } from '../api/multiKiosks';
 import { KioskModalFrame } from '../components/kiosk-engine/KioskModalFrame';
+import {
+  KioskToolWorkspaceFrame,
+  KioskWorkspaceEmptyState,
+  KioskWorkspaceNotice,
+  KioskWorkspaceSectionHeader,
+  KioskWorkspaceSurface,
+} from '../components/kiosk-engine/KioskToolWorkspace';
+import { KioskWorkspaceTabs } from '../components/kiosk-engine/KioskWorkspacePrimitives';
 import { cn } from '../components/ui/utils';
 import { getHumanResourcesKioskCopy } from './humanResourcesKioskTranslations';
 import { AttendanceMultiKioskWorkspace } from './AttendanceMultiKioskWorkspace';
@@ -88,33 +96,13 @@ function StatusBadge({ value, labels }: { value?: string; labels: Record<string,
   );
 }
 
-function SectionHeading({ icon, title, description, action }: {
-  icon: ReactNode;
-  title: string;
-  description: string;
-  action?: ReactNode;
-}) {
-  return (
-    <header className="flex items-start justify-between gap-3">
-      <div className="flex min-w-0 items-start gap-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#59C3A5]/15 text-[#177D66] dark:text-emerald-300">
-          {icon}
-        </span>
-        <div className="min-w-0">
-          <h3 className="text-base font-semibold text-slate-950 dark:text-white">{title}</h3>
-          <p className="mt-0.5 text-sm leading-5 text-slate-500 dark:text-slate-400">{description}</p>
-        </div>
-      </div>
-      {action}
-    </header>
-  );
-}
-
 function EmptyState({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-      {children}
-    </div>
+    <KioskWorkspaceEmptyState
+      description={children}
+      icon={<ClipboardList className="h-7 w-7" />}
+      tone="aqua"
+    />
   );
 }
 
@@ -202,38 +190,21 @@ export function HumanResourcesMultiKioskWorkspace({
   }
 
   return (
-    <div className="space-y-4" data-human-resources-kiosk>
-      <nav
-        aria-label={copy.navigationLabel}
-        className="grid gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-950"
-        role="tablist"
-        style={{ gridTemplateColumns: `repeat(${sections.length}, minmax(0, 1fr))` }}
-      >
-        {sections.map(({ key, label, Icon }) => {
-          const active = activeSection === key;
-          return (
-            <button
-              aria-selected={active}
-              className={cn(
-                'flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 text-[11px] font-medium leading-none transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#177D66]/20 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm',
-                active
-                  ? 'bg-[#177D66] text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-[#59C3A5]/10 hover:text-[#177D66] dark:text-slate-300 dark:hover:text-emerald-200',
-              )}
-              id={`hr-tab-${key}`}
-              key={key}
-              onClick={() => setActiveSection(key)}
-              role="tab"
-              type="button"
-            >
-              <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
-              <span className="truncate">{label}</span>
-            </button>
-          );
-        })}
-      </nav>
+    <KioskToolWorkspaceFrame data-human-resources-kiosk>
+      <KioskWorkspaceTabs<HrSection>
+        activeValue={activeSection}
+        ariaLabel={copy.navigationLabel}
+        items={sections.map(({ key, label, Icon }) => ({
+          icon: <Icon className="h-4 w-4" />,
+          label,
+          value: key,
+        }))}
+        onChange={setActiveSection}
+        sticky={false}
+        tone="aqua"
+      />
 
-      <div aria-labelledby={`hr-tab-${activeSection}`} role="tabpanel">
+      <div aria-label={sections.find(section => section.key === activeSection)?.label} role="tabpanel">
         {activeSection === 'attendance' ? (
           <AttendanceMultiKioskWorkspace
             token={token}
@@ -246,8 +217,8 @@ export function HumanResourcesMultiKioskWorkspace({
         ) : null}
 
         {activeSection === 'announcements' ? (
-          <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950 sm:p-5">
-            <SectionHeading icon={<Bell className="h-5 w-5" />} title={copy.announcements.title} description={copy.announcements.description} />
+          <KioskWorkspaceSurface className="space-y-4">
+            <KioskWorkspaceSectionHeader icon={<Bell className="h-5 w-5" />} title={copy.announcements.title} description={copy.announcements.description} tone="aqua" />
             {!announcements?.available ? <EmptyState>{copy.unavailable}</EmptyState> : announcements.items.length === 0 ? (
               <EmptyState>{copy.announcements.empty}</EmptyState>
             ) : (
@@ -269,12 +240,12 @@ export function HumanResourcesMultiKioskWorkspace({
                 ))}
               </div>
             )}
-          </section>
+          </KioskWorkspaceSurface>
         ) : null}
 
         {activeSection === 'records' ? (
-          <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950 sm:p-5">
-            <SectionHeading icon={<ClipboardList className="h-5 w-5" />} title={copy.records.title} description={copy.records.description} />
+          <KioskWorkspaceSurface className="space-y-4">
+            <KioskWorkspaceSectionHeader icon={<ClipboardList className="h-5 w-5" />} title={copy.records.title} description={copy.records.description} tone="aqua" />
             {!records?.available ? <EmptyState>{copy.unavailable}</EmptyState> : records.items.length === 0 ? (
               <EmptyState>{copy.records.empty}</EmptyState>
             ) : (
@@ -297,15 +268,16 @@ export function HumanResourcesMultiKioskWorkspace({
                 ))}
               </div>
             )}
-          </section>
+          </KioskWorkspaceSurface>
         ) : null}
 
         {activeSection === 'permissions' ? (
-          <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950 sm:p-5">
-            <SectionHeading
+          <KioskWorkspaceSurface className="space-y-4">
+            <KioskWorkspaceSectionHeader
               icon={<CalendarDays className="h-5 w-5" />}
               title={copy.permissions.title}
               description={copy.permissions.description}
+              tone="aqua"
               action={has(capabilities.permissionCreate) ? (
                 <button
                   aria-label={copy.permissions.create}
@@ -340,7 +312,7 @@ export function HumanResourcesMultiKioskWorkspace({
                 ))}
               </div>
             )}
-          </section>
+          </KioskWorkspaceSurface>
         ) : null}
       </div>
 
@@ -372,11 +344,12 @@ export function HumanResourcesMultiKioskWorkspace({
         <div className="space-y-4 text-sm leading-6 text-slate-700 dark:text-slate-200">
           <div className="flex flex-wrap gap-2"><StatusBadge value={selectedRecord?.status} labels={copy.status} />{selectedRecord?.severity ? <StatusBadge value={selectedRecord.severity} labels={copy.status} /> : null}</div>
           <p className="whitespace-pre-wrap">{selectedRecord?.description}</p>
-          {selectedRecord?.actions_taken ? <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900"><p className="text-xs font-medium uppercase tracking-wide text-slate-500">{copy.records.actions}</p><p className="mt-1 whitespace-pre-wrap">{selectedRecord.actions_taken}</p></div> : null}
+          {selectedRecord?.actions_taken ? <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900"><p className="text-xs font-medium text-slate-500">{copy.records.actions}</p><p className="mt-1 whitespace-pre-wrap">{selectedRecord.actions_taken}</p></div> : null}
         </div>
       </KioskModalFrame>
 
       <KioskModalFrame
+        busy={permissionBusy}
         open={permissionModalOpen}
         onOpenChange={open => { if (!permissionBusy) setPermissionModalOpen(open); }}
         size="form"
@@ -385,15 +358,11 @@ export function HumanResourcesMultiKioskWorkspace({
         icon={<CalendarDays className="h-5 w-5" />}
         title={copy.permissions.formTitle}
         description={copy.permissions.formDescription}
-        footer={(
-          <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button className="min-h-12 rounded-xl border border-slate-300 px-4 text-sm font-medium" disabled={permissionBusy} onClick={() => setPermissionModalOpen(false)} type="button">{copy.permissions.cancel}</button>
-            <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white disabled:opacity-60" disabled={permissionBusy} form="hr-permission-form" type="submit">{permissionBusy ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}{copy.permissions.submit}</button>
-          </div>
-        )}
+        footer={<button aria-busy={permissionBusy || undefined} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium disabled:opacity-60" disabled={permissionBusy} form="hr-permission-form" type="submit">{permissionBusy ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}{copy.permissions.submit}</button>}
+        footerLeading={<button className="min-h-12 rounded-xl border border-slate-300 px-4 text-sm font-medium" disabled={permissionBusy} onClick={() => setPermissionModalOpen(false)} type="button">{copy.permissions.cancel}</button>}
       >
-        <form className="space-y-4" id="hr-permission-form" onSubmit={submitPermission}>
-          {permissionError ? <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-700">{permissionError}</p> : null}
+        <form aria-busy={permissionBusy || undefined} className="space-y-4" id="hr-permission-form" onSubmit={submitPermission}>
+          {permissionError ? <KioskWorkspaceNotice kind="error">{permissionError}</KioskWorkspaceNotice> : null}
           <label className="block space-y-1.5">
             <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.permissions.type}</span>
             <select className="h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#177D66] focus:ring-4 focus:ring-[#177D66]/15 dark:border-slate-700 dark:bg-slate-950" name="type" defaultValue="personal" required>
@@ -408,6 +377,6 @@ export function HumanResourcesMultiKioskWorkspace({
           <label className="block space-y-1.5"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.permissions.reason}</span><textarea className="min-h-28 w-full resize-y rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm outline-none focus:border-[#177D66] focus:ring-4 focus:ring-[#177D66]/15 dark:border-slate-700 dark:bg-slate-950" maxLength={2000} name="reason" placeholder={copy.permissions.reasonPlaceholder} required /></label>
         </form>
       </KioskModalFrame>
-    </div>
+    </KioskToolWorkspaceFrame>
   );
 }
