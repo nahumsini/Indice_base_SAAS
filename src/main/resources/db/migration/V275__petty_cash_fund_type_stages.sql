@@ -19,7 +19,8 @@ SET s.fund_snapshot_json = JSON_OBJECT(
     'statementRecipientEmail', s.statement_recipient_email_snapshot,
     'managedAssetType', s.managed_asset_type_snapshot, 'managedAssetName', s.managed_asset_name_snapshot,
     'managedAssetReference', s.managed_asset_reference_snapshot,
-    'managedAssetsJson', s.managed_assets_snapshot_json);
+    'managedAssetsJson', s.managed_assets_snapshot_json),
+    s.updated_at = s.updated_at;
 
 CREATE TABLE finance_petty_cash_type_changes (
     id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,

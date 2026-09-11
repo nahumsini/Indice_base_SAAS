@@ -53,3 +53,8 @@ completing the fixture allowed rendering. Existing Vite bundle-size warnings rem
 An interactive browser was unavailable (`agent.browsers.list()` returned an empty list), so
 modal verification used actual component handlers rather than a live browser session. Production
 deployment: N/A. Production migration/rollback validation: N/A; this task updated local preview.
+
+Predeployment rehearsal on 2026-09-11 detected that the JSON backfill could activate MySQL's
+automatic `updated_at` behavior on existing funds and statements. V274 and V275 now assign each
+row's existing `updated_at` value explicitly while filling only the new snapshot columns. A fresh
+V272-to-V275 restore rehearsal is required before activation.
