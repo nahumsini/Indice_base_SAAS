@@ -289,6 +289,13 @@ del arranque normal. El [registro de la liberación integrada](releases/2026.09.
 detalla las comprobaciones y la imagen anterior compatible con V272. Después de
 esa actualización, una reversión debe usar esa imagen compatible y conservar la base.
 
+La liberación `v2026.09.11.1` agrega V273–V275 sobre V272 para la reversión auditada
+de pagos y las etapas prospectivas de fondos de caja chica. Las migraciones conservan
+los valores y marcas de actualización existentes; no reclasifican movimientos históricos.
+El [registro de la liberación](releases/2026.09.11.1.md) identifica las imágenes,
+los respaldos verificados y el backend anterior compatible con V275. Una reversión de
+aplicación posterior debe conservar la base V275 y usar esa imagen compatible.
+
 ### Certificación del día de corte y métodos de pago
 
 Una liberación que incluya la migración de programación del día de corte
