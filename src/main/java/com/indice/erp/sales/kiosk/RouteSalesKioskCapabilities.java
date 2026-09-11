@@ -53,6 +53,7 @@ public final class RouteSalesKioskCapabilities {
                     "contactId", Map.of("type", "integer", "minimum", 1),
                     "warehouseId", Map.of("type", "integer", "minimum", 1),
                     "paymentMethod", Map.of("enum", List.of("cash", "card", "transfer", "credit")),
+                    "paymentAccountId", Map.of("type", "integer", "minimum", 1),
                     "items", Map.of("type", "array", "minItems", 1, "maxItems", 100))),
             Map.of("type", "object", "description", "Authoritative completed route sale")),
         descriptor(

@@ -42,6 +42,7 @@ public class BudgetLineService {
 
     @Transactional
     public BudgetLineResponse create(FinanceContext context, CreateBudgetLineRequest request) {
+        repository.lockCompany(context);
         var assignment = validator.validateCreate(context, request);
         referenceValidator.validateReferences(context, request.budgetId(), assignment);
         var command = mapper.toCreateCommand(context, request, assignment);
@@ -51,7 +52,9 @@ public class BudgetLineService {
 
     @Transactional
     public BudgetLineResponse update(FinanceContext context, long budgetLineId, UpdateBudgetLineRequest request) {
-        var current = requireBudgetLine(context, budgetLineId);
+        repository.lockCompany(context);
+        var current = repository.findByIdForUpdate(context, budgetLineId)
+            .orElseThrow(() -> new NoSuchElementException("Budget line not found."));
         var assignment = validator.validateUpdate(context, request);
         referenceValidator.validateReferences(context, request.budgetId(), assignment);
         var command = mapper.toUpdateCommand(context, request, assignment, current);
@@ -64,7 +67,10 @@ public class BudgetLineService {
 
     @Transactional
     public DeleteBudgetLineResponse delete(FinanceContext context, long budgetLineId) {
+        repository.lockCompany(context);
         requireBudgetLine(context, budgetLineId);
+        if (repository.hasLinkedExpenses(context, budgetLineId))
+            throw FinanceApiException.conflict("Budget lines with linked expenses cannot be deleted. Manage the expense from Expenses.");
         if (!repository.softDelete(context, budgetLineId)) {
             throw new NoSuchElementException("Budget line not found.");
         }

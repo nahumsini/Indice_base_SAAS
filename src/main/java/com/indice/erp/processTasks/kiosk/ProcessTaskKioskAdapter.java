@@ -9,6 +9,7 @@ import com.indice.erp.kiosk.engine.KioskEmployeeToolCatalogService;
 import com.indice.erp.kiosk.engine.KioskModuleAdapter;
 import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import com.indice.erp.kiosk.engine.KioskValidationResult;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -18,6 +19,32 @@ import org.springframework.stereotype.Component;
 public class ProcessTaskKioskAdapter implements KioskModuleAdapter {
 
     private static final Set<String> EMPLOYEE_TAB_PERMISSIONS = Set.of("processes.calendar");
+    private static final Set<String> PROCESS_TAB_PERMISSIONS = Set.of("processes.processes");
+    private static final Set<String> LEGACY_CAPABILITY_KEYS = Set.of(
+        ProcessTaskKioskCapabilities.IDENTITY_VERIFY,
+        ProcessTaskKioskCapabilities.TASKS_READ,
+        ProcessTaskKioskCapabilities.TASK_CREATE,
+        ProcessTaskKioskCapabilities.TASK_COMPLETE,
+        ProcessTaskKioskCapabilities.TASK_RESPONSIBLE_ASSIGN,
+        ProcessTaskKioskCapabilities.TASK_ATTACHMENT_PRESIGN,
+        ProcessTaskKioskCapabilities.TASK_ATTACHMENT_REGISTER
+    );
+    private static final Set<String> NATIVE_CAPABILITY_KEYS = Set.of(
+        ProcessTaskKioskCapabilities.TASKS_READ,
+        ProcessTaskKioskCapabilities.TASK_CREATE,
+        ProcessTaskKioskCapabilities.TASK_COMPLETE,
+        ProcessTaskKioskCapabilities.TASK_AGENDA_UPDATE,
+        ProcessTaskKioskCapabilities.TASK_ATTACHMENT_PRESIGN,
+        ProcessTaskKioskCapabilities.TASK_ATTACHMENT_REGISTER,
+        ProcessTaskKioskCapabilities.OCCASIONAL_PROCESSES_READ,
+        ProcessTaskKioskCapabilities.OCCASIONAL_PROCESS_PREVIEW,
+        ProcessTaskKioskCapabilities.OCCASIONAL_PROCESS_CREATE
+    );
+    private static final Set<String> OCCASIONAL_PROCESS_CAPABILITY_KEYS = Set.of(
+        ProcessTaskKioskCapabilities.OCCASIONAL_PROCESSES_READ,
+        ProcessTaskKioskCapabilities.OCCASIONAL_PROCESS_PREVIEW,
+        ProcessTaskKioskCapabilities.OCCASIONAL_PROCESS_CREATE
+    );
 
     private final ProcessTaskKioskService kioskService;
 
@@ -37,15 +64,10 @@ public class ProcessTaskKioskAdapter implements KioskModuleAdapter {
 
     @Override
     public Set<KioskCapabilityDescriptor> capabilities(KioskResolvedDefinition definition) {
-        if (!isNativeEmployeeTasksTool(definition)) {
-            return capabilities();
-        }
+        var allowedKeys = isNativeEmployeeTasksTool(definition)
+            ? NATIVE_CAPABILITY_KEYS : LEGACY_CAPABILITY_KEYS;
         return capabilities().stream()
-            .filter(capability -> Set.of(
-                ProcessTaskKioskCapabilities.TASKS_READ,
-                ProcessTaskKioskCapabilities.TASK_CREATE,
-                ProcessTaskKioskCapabilities.TASK_COMPLETE
-            ).contains(capability.key()))
+            .filter(capability -> allowedKeys.contains(capability.key()))
             .collect(Collectors.toUnmodifiableSet());
     }
 
@@ -72,16 +94,26 @@ public class ProcessTaskKioskAdapter implements KioskModuleAdapter {
     public Set<String> employeeCapabilityTabPermissionKeys(
             KioskResolvedDefinition definition,
             KioskCapabilityDescriptor capability) {
-        return ProcessTaskKioskCapabilities.IDENTITY_VERIFY.equals(capability.key())
-            ? Set.of()
-            : EMPLOYEE_TAB_PERMISSIONS;
+        if (ProcessTaskKioskCapabilities.IDENTITY_VERIFY.equals(capability.key())) {
+            return Set.of();
+        }
+        return OCCASIONAL_PROCESS_CAPABILITY_KEYS.contains(capability.key())
+            ? PROCESS_TAB_PERMISSIONS : EMPLOYEE_TAB_PERMISSIONS;
     }
 
     @Override
     public Map<String, Object> employeeBootstrap(KioskExecutionContext context) {
         requireEmployeeContext(context);
         requireGrantedEmployeeCapability(context, ProcessTaskKioskCapabilities.TASKS_READ);
-        return kioskService.employeeBootstrap(context.definition(), context.session().identityId());
+        var body = new LinkedHashMap<>(
+            kioskService.employeeBootstrap(context.definition(), context.session().identityId()));
+        if (isNativeEmployeeTasksTool(context.definition())
+                && hasGrantedEmployeeCapability(
+                    context, ProcessTaskKioskCapabilities.OCCASIONAL_PROCESSES_READ)) {
+            body.put("occasional_processes", kioskService.employeeOccasionalProcesses(
+                context.definition(), context.session().identityId()));
+        }
+        return body;
     }
 
     @Override
@@ -106,6 +138,12 @@ public class ProcessTaskKioskAdapter implements KioskModuleAdapter {
         if (ProcessTaskKioskCapabilities.TASK_CREATE.equals(request.capabilityKey())
                 && blank(payload.get("title"))) {
             return KioskValidationResult.invalid("title is required.");
+        }
+        if (Set.of(
+                ProcessTaskKioskCapabilities.OCCASIONAL_PROCESS_PREVIEW,
+                ProcessTaskKioskCapabilities.OCCASIONAL_PROCESS_CREATE
+            ).contains(request.capabilityKey()) && blank(payload.get("process_id"))) {
+            return KioskValidationResult.invalid("process_id is required.");
         }
         return KioskValidationResult.success();
     }
@@ -140,11 +178,7 @@ public class ProcessTaskKioskAdapter implements KioskModuleAdapter {
         requireEmployeeContext(context);
         ProcessTaskKioskCapabilities.require(request.capabilityKey());
         if (isNativeEmployeeTasksTool(context.definition())
-                && !Set.of(
-                    ProcessTaskKioskCapabilities.TASKS_READ,
-                    ProcessTaskKioskCapabilities.TASK_CREATE,
-                    ProcessTaskKioskCapabilities.TASK_COMPLETE
-                ).contains(request.capabilityKey())) {
+                && !NATIVE_CAPABILITY_KEYS.contains(request.capabilityKey())) {
             throw new SecurityException(
                 "Process capability is not available for this employee tool.");
         }
@@ -158,6 +192,9 @@ public class ProcessTaskKioskAdapter implements KioskModuleAdapter {
             case ProcessTaskKioskCapabilities.TASK_COMPLETE ->
                 kioskService.employeeCompleteTask(
                     context.definition(), userId, requireResourceId(request), request.payload());
+            case ProcessTaskKioskCapabilities.TASK_AGENDA_UPDATE ->
+                kioskService.employeeUpdateTaskAgenda(
+                    context.definition(), userId, requireResourceId(request), request.payload());
             case ProcessTaskKioskCapabilities.TASK_RESPONSIBLE_ASSIGN ->
                 kioskService.employeeAssignTaskResponsible(
                     context.definition(), userId, requireResourceId(request), request.payload());
@@ -167,6 +204,14 @@ public class ProcessTaskKioskAdapter implements KioskModuleAdapter {
             case ProcessTaskKioskCapabilities.TASK_ATTACHMENT_REGISTER ->
                 kioskService.employeeRegisterAttachment(
                     context.definition(), userId, requireResourceId(request), request.payload());
+            case ProcessTaskKioskCapabilities.OCCASIONAL_PROCESSES_READ ->
+                kioskService.employeeOccasionalProcesses(context.definition(), userId);
+            case ProcessTaskKioskCapabilities.OCCASIONAL_PROCESS_PREVIEW ->
+                kioskService.employeePreviewOccasionalProcess(
+                    context.definition(), userId, request.payload());
+            case ProcessTaskKioskCapabilities.OCCASIONAL_PROCESS_CREATE ->
+                kioskService.employeeCreateOccasionalProcess(
+                    context.definition(), userId, request.payload());
             default -> throw new IllegalArgumentException(
                 "Unsupported employee process-task capability: " + request.capabilityKey());
         };
@@ -195,6 +240,12 @@ public class ProcessTaskKioskAdapter implements KioskModuleAdapter {
         if (grantedCapabilities == null || !grantedCapabilities.contains(versionedCapability)) {
             throw new SecurityException("Kiosk capability is not granted: " + versionedCapability + ".");
         }
+    }
+
+    private boolean hasGrantedEmployeeCapability(KioskExecutionContext context, String capabilityKey) {
+        var grantedCapabilities = context.session().grantedCapabilities();
+        return grantedCapabilities != null
+            && grantedCapabilities.contains(ProcessTaskKioskCapabilities.require(capabilityKey).versionedKey());
     }
 
     private void requireContext(KioskExecutionContext context) {

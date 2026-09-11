@@ -12,12 +12,18 @@ import type { FinanceBulkAction } from '../../shared/financeBulkActions.copy';
 
 const budgetLinesPath = '/api/v1/finance/budget-lines';
 
+export interface BudgetObligationReview { budgetLineId: number; name: string; reason: string }
+export interface BudgetObligationSyncResult { enabled: boolean; generated: number; reviews: BudgetObligationReview[] }
+
 const jsonMutation = (method: 'POST' | 'PUT', body: unknown): RequestInit => ({
   method,
   body: JSON.stringify(body),
 });
 
 export const budgetLinesService = {
+  async synchronizeObligations(): Promise<BudgetObligationSyncResult> {
+    return apiClient<BudgetObligationSyncResult>('/api/v1/finance/expenses/budget-obligations/synchronize', { method: 'POST' });
+  },
   async applyBulkAction(action: Exclude<FinanceBulkAction, 'PAYMENT_ACCOUNT'>,
     rows: Array<{ id: string; version?: number }>, targetId: string, reason: string): Promise<Expense[]> {
     const response = await apiClient<BudgetLineListApiResponse>(`${budgetLinesPath}/bulk-actions`, jsonMutation('POST', {

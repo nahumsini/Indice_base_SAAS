@@ -64,6 +64,25 @@ validate_deployed_auth_configuration() {
   fi
 }
 
+validate_kiosk_consolidation_configuration() {
+  local global_center legacy_entries
+  global_center="$(read_env_value KIOSK_GLOBAL_CENTER_ENABLED)"
+  legacy_entries="$(read_env_value VITE_LEGACY_OWNER_KIOSK_ENTRY_POINTS_ENABLED)"
+  global_center="${global_center,,}"
+  legacy_entries="${legacy_entries,,}"
+  global_center="${global_center//\"/}"
+  legacy_entries="${legacy_entries//\"/}"
+  global_center="${global_center//\'/}"
+  legacy_entries="${legacy_entries//\'/}"
+  global_center="${global_center//[[:space:]]/}"
+  legacy_entries="${legacy_entries//[[:space:]]/}"
+
+  if [[ "${legacy_entries:-true}" == "false" && "${global_center:-false}" != "true" ]]; then
+    echo "VITE_LEGACY_OWNER_KIOSK_ENTRY_POINTS_ENABLED=false requires KIOSK_GLOBAL_CENTER_ENABLED=true." >&2
+    return 1
+  fi
+}
+
 require_env_value() {
   local key="$1"
   if [[ -z "$(read_env_value "${key}")" ]]; then
@@ -138,6 +157,7 @@ validate_mcp_configuration() {
 }
 
 validate_deployed_auth_configuration
+validate_kiosk_consolidation_configuration
 validate_mcp_configuration
 
 if [[ "${USE_EXAMPLE}" == "false" ]]; then
@@ -394,7 +414,9 @@ echo "Validating and building frontend..."
 echo "Running backend tests..."
 (
   cd "${ROOT_DIR}"
-  ./mvnw test
+  # A clean output directory is mandatory here. Renamed Flyway resources can otherwise remain in
+  # target/classes and create a false duplicate-version failure against the current source tree.
+  ./mvnw clean test
 )
 
 if [[ "${SKIP_DOCKER_BUILD:-false}" != "true" ]]; then

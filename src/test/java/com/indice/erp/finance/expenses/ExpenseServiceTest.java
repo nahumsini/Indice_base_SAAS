@@ -291,7 +291,7 @@ class ExpenseServiceTest {
     void deleteDraftSoftDeletesDraftRecordsOnly() {
         var service = service();
         var context = context();
-        when(repository.findById(context, 13L)).thenReturn(Optional.of(record(13L, ExpenseStatus.DRAFT, "Draft")));
+        when(repository.findByIdForUpdate(context, 13L)).thenReturn(Optional.of(record(13L, ExpenseStatus.DRAFT, "Draft")));
         when(repository.softDelete(context, 13L, ExpenseStatus.DRAFT)).thenReturn(true);
 
         var response = service.deleteDraft(context, 13L);
@@ -313,7 +313,7 @@ class ExpenseServiceTest {
             new BigDecimal("116.00"),
             "{\"source\":\"payable-kiosk\",\"kioskId\":1}"
         );
-        when(repository.findById(context, 14L)).thenReturn(Optional.of(kioskExpense));
+        when(repository.findByIdForUpdate(context, 14L)).thenReturn(Optional.of(kioskExpense));
         when(repository.softDelete(context, 14L, ExpenseStatus.APPROVED)).thenReturn(true);
 
         var response = service.deleteDraft(context, 14L);
@@ -330,7 +330,7 @@ class ExpenseServiceTest {
             15L, ExpenseStatus.PAID, PaymentStatus.PAID, "Paid expense",
             new BigDecimal("116.00"), BigDecimal.ZERO,
             "{ \"entryType\" : \"real\" }", null);
-        when(repository.findById(context, 15L)).thenReturn(Optional.of(operationalExpense));
+        when(repository.findByIdForUpdate(context, 15L)).thenReturn(Optional.of(operationalExpense));
         assertThrows(FinanceApiException.class, () -> service.deleteDraft(context, 15L));
         verify(repository, never()).softDelete(context, 15L, ExpenseStatus.PAID);
     }
@@ -797,7 +797,7 @@ class ExpenseServiceTest {
             null,
             0L,
             customFieldsJson,
-            metadataJson, null, false
+            metadataJson, null, false, false
         );
     }
 }

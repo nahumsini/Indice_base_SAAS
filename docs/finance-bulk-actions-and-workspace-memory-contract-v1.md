@@ -38,8 +38,26 @@ currency and not be a fund custody account. This operation does not rewrite reco
 payments or transfer their money. A request to correct the source of an existing payment
 requires a separate reversal/rebooking decision.
 
-Delete is soft deletion of unpaid drafts only, with a reason. Paid expenses cannot be
-deleted through classification. Their payment reversal remains a separate financial flow.
+### Expense removal (user decision, 2026-09-10)
+
+DELETE through the selected-row endpoint is an explicit financial reversal use case, separate
+from classification. A single-row confirmation uses the same endpoint, expected version and reason.
+Any ordinary expense status is eligible except CLOSED/AUDITED. A linked purchase order with any
+recorded receipt (including partial receipt), received quantity, or RECEIVED/PARTIALLY_RECEIVED/CLOSED
+status prevents removal. Missing linked orders fail closed. Fund rows retain Petty Cash ownership;
+aggregate fund rows remain presentation-only and cannot be selected for mutation.
+
+The complete selection is validated before any write, including tenant/scope and current versions.
+Expense deletion preserves the original record, payment history, attachments and audit. It compensates
+only actual Treasury payment movements in their original accounts/currencies, even when an account
+has subsequently become inactive; it never reactivates that account. A historical payment without a
+Treasury debit cannot create a bank credit. Posted expense and payment journals receive linked,
+balanced reversals in the current open company accounting period, retaining original rates/dimensions.
+An unavailable accounting period/account/configuration fails atomically; existing journals are never
+rewritten. Finally, mark the expense deleted and refresh its budget impact. Retry cannot credit twice.
+
+The legacy draft DELETE endpoint remains restricted and cannot bypass audited/linked/posted guards.
+No migration, historical rewrite, hard deletion, or production data backfill is part of this decision.
 
 ### Explicit selected-row status actions and paid import (2026-09-09)
 

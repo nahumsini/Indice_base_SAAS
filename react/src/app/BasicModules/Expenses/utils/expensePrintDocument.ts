@@ -1,7 +1,7 @@
 import type { FinanceTranslations } from '../translations';
 import type { Expense } from '../types/expenses.types';
-import { getExpenseBalance, getExpensePaidAmount } from './expenseFilters';
-import { printStandardDocumentPdf } from '../../shared/print/standardDocumentPdf';
+import { getEffectiveExpenseStatus, getExpenseBalance, getExpensePaidAmount } from './expenseFilters';
+import { printStandardDocumentPdf, type StandardDocumentDefinition } from '../../shared/print/standardDocumentPdf';
 
 const labelsFor = (locale: string) => {
   const language = locale.toLowerCase().split('-')[0];
@@ -21,81 +21,83 @@ const money = (amount: number, currency: string, locale: string) => new Intl.Num
   style: 'currency',
 }).format(amount);
 
-const date = (value: Date | undefined, locale: string) => value
+const date = (value: Date | undefined, locale: string) => value && !Number.isNaN(value.getTime())
   ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(value)
   : '-';
 
-export function printExpenseVoucher({
-  expense,
-  locale,
-  t,
-}: {
-  expense: Expense;
-  locale: string;
-  t: FinanceTranslations;
-}) {
+export interface ExpensePrintContext {
+  business?: string;
+  businessUnit?: string;
+  accountingAccount?: string;
+  paymentAccount?: string;
+  requestedBy?: string;
+  approvedBy?: string;
+  performedBy?: string;
+}
+
+type ExpenseVoucherOptions = { expense: Expense; locale: string; t: FinanceTranslations; context?: ExpensePrintContext };
+
+// Labels from tenant-scoped reference catalogs; internal identifiers are not printed as names.
+const readableLabel = (label?: string) => label && !/^\d+$/.test(label) ? label : undefined;
+
+export function buildExpenseVoucherDefinition({ expense, locale, t, context = {} }: ExpenseVoucherOptions): StandardDocumentDefinition {
   const labels = labelsFor(locale);
   const paid = getExpensePaidAmount(expense);
   const balance = getExpenseBalance(expense);
-  return printStandardDocumentPdf({
+  const business = context.business ?? readableLabel(expense.business);
+  const businessUnit = context.businessUnit ?? readableLabel(expense.businessUnit);
+  return {
     accentColor: [20, 117, 20],
     confidentiality: 'Internal',
     contract: {
       category: 'transaction-document',
       modifiers: ['approval-required', 'confidential', 'internal', 'multi-currency'],
-      orientation: 'portrait',
-      pageSize: 'letter',
-      version: '1.0',
+      orientation: 'portrait', pageSize: 'letter', version: '1.0',
     },
     fileName: { documentType: labels.expenseVoucher, identifier: expense.folio },
     folio: expense.folio,
-    issuer: expense.business || expense.businessUnit,
+    issuer: business || businessUnit,
     locale,
     metadata: [
-      { label: t.expenses.columns.businessUnit?.label || labels.issuer, value: expense.businessUnit },
-      { label: t.expenses.columns.business?.label || 'Business', value: expense.business },
+      { label: t.expenses.modal.date, value: date(expense.date, locale) },
       { label: labels.provider, value: expense.providerName },
-      { label: labels.category, value: `${expense.category.emoji} ${expense.category.name}` },
+      { label: t.filters.unit, value: businessUnit },
+      { label: t.filters.business, value: business },
       { label: labels.dueDate, value: date(expense.dueDate, locale) },
       { label: labels.paymentDate, value: date(expense.paymentDate, locale) },
+      { label: labels.method, value: t.expenses.table.paymentMethods[expense.paymentMethod] ?? expense.paymentMethod },
+      { label: t.expenses.payableAccount.reference, value: expense.reference },
+      { label: labels.account, value: context.accountingAccount ?? readableLabel(expense.accountingAccount) },
+      { label: t.paymentAccounts.headerTitle, value: context.paymentAccount },
     ],
     metrics: [
-      { label: labels.amount, value: money(expense.amount, expense.currency, locale) },
-      { label: labels.tax, value: money(expense.taxes, expense.currency, locale) },
-      { label: labels.total, value: money(expense.total, expense.currency, locale) },
+      { label: `${labels.total} (${expense.currency})`, value: money(expense.total, expense.currency, locale) },
       { label: labels.paid, tone: paid > 0 ? 'positive' : 'default', value: money(paid, expense.currency, locale) },
       { label: labels.balance, tone: balance > 0 ? 'warning' : 'positive', value: money(balance, expense.currency, locale) },
     ],
     notice: labels.notice,
     recipient: expense.providerName,
-    sections: [
-      {
-        fields: [
-          { label: labels.concept, value: expense.concept },
-          { label: labels.description, value: expense.description },
-          { label: labels.method, value: t.expenses.table.paymentMethods[expense.paymentMethod] ?? expense.paymentMethod },
-          { label: labels.account, value: expense.accountingAccount },
-          { label: labels.attachments, value: expense.attachmentCount ?? expense.attachments?.length ?? 0 },
-        ],
-        title: labels.expenseVoucher,
-      },
-      {
-        fields: [
-          { label: labels.requestedBy, value: expense.requestedByUserId },
-          { label: labels.approver, value: expense.approver || expense.approvedByUserId },
-          { label: labels.responsible, value: expense.performedByUserId },
-        ],
-        paragraphs: expense.notes ? [expense.notes] : undefined,
-        title: labels.approval,
-      },
-    ],
+    sections: expense.description || expense.notes ? [{
+      title: labels.notes,
+      paragraphs: [expense.description, expense.notes].filter((value): value is string => Boolean(value)),
+    }] : undefined,
+    tables: [{
+      title: labels.expenseVoucher,
+      columns: [labels.concept, labels.amount, labels.tax, labels.total],
+      rows: [[expense.concept, money(expense.amount, expense.currency, locale),
+        money(expense.taxes, expense.currency, locale), money(expense.total, expense.currency, locale)]],
+    }],
     signatures: [
-      { caption: expense.requestedByUserId, label: labels.requestedBy },
-      { caption: expense.approver || expense.approvedByUserId, label: labels.approver },
-      { caption: expense.performedByUserId, label: labels.responsible },
+      { caption: context.requestedBy, label: labels.requestedBy },
+      { caption: context.approvedBy ?? readableLabel(expense.approver), label: labels.approver },
+      { caption: context.performedBy, label: labels.responsible },
     ],
-    status: t.expenses.table.statuses[expense.status] ?? expense.status,
+    status: t.expenses.table.statuses[getEffectiveExpenseStatus(expense)] ?? expense.status,
     subtitle: expense.concept,
     title: labels.expenseVoucher,
-  });
+  };
+}
+
+export function printExpenseVoucher(options: ExpenseVoucherOptions) {
+  return printStandardDocumentPdf(buildExpenseVoucherDefinition(options));
 }

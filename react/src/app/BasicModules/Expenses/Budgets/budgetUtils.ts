@@ -43,6 +43,14 @@ export const budgetFrequencyOptions: Array<{ value: ExpenseFrequency; label: str
 
 export const addFrequencyInterval = (date: Date, frequency: ExpenseFrequency, index: number): Date => {
   const nextDate = new Date(date);
+  const addMonths = (months: number) => {
+    const day = date.getDate();
+    nextDate.setDate(1);
+    nextDate.setMonth(date.getMonth() + months);
+    const lastDay = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0).getDate();
+    nextDate.setDate(Math.min(day, lastDay));
+    return nextDate;
+  };
 
   switch (frequency) {
     case 'daily':
@@ -55,20 +63,15 @@ export const addFrequencyInterval = (date: Date, frequency: ExpenseFrequency, in
       nextDate.setDate(nextDate.getDate() + index * 14);
       return nextDate;
     case 'monthly':
-      nextDate.setMonth(nextDate.getMonth() + index);
-      return nextDate;
+      return addMonths(index);
     case 'bimonthly':
-      nextDate.setMonth(nextDate.getMonth() + index * 2);
-      return nextDate;
+      return addMonths(index * 2);
     case 'quarterly':
-      nextDate.setMonth(nextDate.getMonth() + index * 3);
-      return nextDate;
+      return addMonths(index * 3);
     case 'semiannual':
-      nextDate.setMonth(nextDate.getMonth() + index * 6);
-      return nextDate;
+      return addMonths(index * 6);
     case 'annual':
-      nextDate.setFullYear(nextDate.getFullYear() + index);
-      return nextDate;
+      return addMonths(index * 12);
     case 'once':
     default:
       return nextDate;

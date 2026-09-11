@@ -12,6 +12,7 @@ import com.indice.erp.kiosk.engine.KioskUnavailableException;
 import jakarta.servlet.http.HttpSession;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -24,6 +25,7 @@ import static org.mockito.Mockito.when;
 class KioskCenterV2ControllerTest {
 
     private final KioskInternalRequestGuard guard = mock(KioskInternalRequestGuard.class);
+    private final KioskCenterInventoryAccessService inventoryAccess = mock(KioskCenterInventoryAccessService.class);
     private final KioskEngineFeatureFlags flags = mock(KioskEngineFeatureFlags.class);
     private final KioskCenterService center = mock(KioskCenterService.class);
     private final KioskRegistryService registry = mock(KioskRegistryService.class);
@@ -38,7 +40,35 @@ class KioskCenterV2ControllerTest {
         when(flags.auditEnabled()).thenReturn(true);
         when(flags.globalCenterEnabled()).thenReturn(true);
         controller = new KioskCenterV2Controller(
-            guard, flags, center, registry, lifecycle, new KioskV2ResponseFactory());
+            guard, inventoryAccess, flags, center, registry, lifecycle, new KioskV2ResponseFactory());
+    }
+
+    @Test
+    void scopedInventoryOnlyReadsKiosksOwnedByAuthorizedModules() {
+        var modules = Set.of("HUMAN_RESOURCES", "PROCESS_TASKS");
+        var expected = List.<Map<String, Object>>of(Map.of("owner_module", "HUMAN_RESOURCES"));
+        var access = new KioskCenterInventoryAccessService.InventoryAccess(user, false, modules);
+        when(inventoryAccess.requireRead(session)).thenReturn(access);
+        when(center.list(20L, access.ownerScopes())).thenReturn(expected);
+
+        var response = controller.list(session);
+
+        assertThat(items(response.getBody())).isEqualTo(expected);
+        verify(center).list(20L, access.ownerScopes());
+        verify(center, never()).list(20L);
+    }
+
+    @Test
+    void scopedDetailCannotFallBackToTheGlobalTenantRead() {
+        var modules = Set.of("PROCESS_TASKS");
+        var access = new KioskCenterInventoryAccessService.InventoryAccess(user, false, modules);
+        when(inventoryAccess.requireRead(session)).thenReturn(access);
+        when(center.detail(20L, 91L, access.ownerScopes())).thenReturn(Map.of("id", 91L));
+
+        controller.detail(session, 91L);
+
+        verify(center).detail(20L, 91L, access.ownerScopes());
+        verify(center, never()).detail(20L, 91L);
     }
 
     @Test

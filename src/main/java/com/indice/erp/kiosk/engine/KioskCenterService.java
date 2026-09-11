@@ -8,9 +8,12 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -37,6 +40,42 @@ public class KioskCenterService {
         );
     }
 
+    public List<Map<String, Object>> list(long companyId, Collection<String> ownerModules) {
+        var modules = normalizedOwnerModules(ownerModules);
+        if (modules.isEmpty()) {
+            return List.of();
+        }
+        var parameters = new ArrayList<Object>();
+        parameters.add(companyId);
+        parameters.addAll(modules);
+        return jdbcTemplate.query(centerSelect()
+                + " WHERE definition.company_id = ?"
+                + " AND definition.owner_module IN ("
+                + String.join(", ", Collections.nCopies(modules.size(), "?")) + ")"
+                + " AND definition.code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%'"
+                + " ORDER BY definition.owner_module ASC, definition.name ASC",
+            this::mapCenterRow,
+            parameters.toArray()
+        );
+    }
+
+    public List<Map<String, Object>> list(long companyId, Map<String, OwnerScope> ownerScopes) {
+        var parameters = new ArrayList<Object>();
+        parameters.add(companyId);
+        var ownerPredicate = ownerScopePredicate(ownerScopes, parameters);
+        if (ownerPredicate.isBlank()) {
+            return List.of();
+        }
+        return jdbcTemplate.query(centerSelect()
+                + " WHERE definition.company_id = ?"
+                + " AND (" + ownerPredicate + ")"
+                + " AND definition.code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%'"
+                + " ORDER BY definition.owner_module ASC, definition.name ASC",
+            this::mapCenterRow,
+            parameters.toArray()
+        );
+    }
+
     public Map<String, Object> detail(long companyId, long kioskDefinitionId) {
         var rows = jdbcTemplate.query(centerSelect()
                 + " WHERE definition.company_id = ? AND definition.id = ?"
@@ -44,6 +83,56 @@ public class KioskCenterService {
             this::mapCenterRow,
             companyId,
             kioskDefinitionId
+        );
+        if (rows.isEmpty()) {
+            throw new KioskUnavailableException();
+        }
+        return rows.getFirst();
+    }
+
+    public Map<String, Object> detail(
+            long companyId,
+            long kioskDefinitionId,
+            Collection<String> ownerModules) {
+        var modules = normalizedOwnerModules(ownerModules);
+        if (modules.isEmpty()) {
+            throw new KioskUnavailableException();
+        }
+        var parameters = new ArrayList<Object>();
+        parameters.add(companyId);
+        parameters.add(kioskDefinitionId);
+        parameters.addAll(modules);
+        var rows = jdbcTemplate.query(centerSelect()
+                + " WHERE definition.company_id = ? AND definition.id = ?"
+                + " AND definition.owner_module IN ("
+                + String.join(", ", Collections.nCopies(modules.size(), "?")) + ")"
+                + " AND definition.code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%' LIMIT 1",
+            this::mapCenterRow,
+            parameters.toArray()
+        );
+        if (rows.isEmpty()) {
+            throw new KioskUnavailableException();
+        }
+        return rows.getFirst();
+    }
+
+    public Map<String, Object> detail(
+            long companyId,
+            long kioskDefinitionId,
+            Map<String, OwnerScope> ownerScopes) {
+        var parameters = new ArrayList<Object>();
+        parameters.add(companyId);
+        parameters.add(kioskDefinitionId);
+        var ownerPredicate = ownerScopePredicate(ownerScopes, parameters);
+        if (ownerPredicate.isBlank()) {
+            throw new KioskUnavailableException();
+        }
+        var rows = jdbcTemplate.query(centerSelect()
+                + " WHERE definition.company_id = ? AND definition.id = ?"
+                + " AND (" + ownerPredicate + ")"
+                + " AND definition.code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%' LIMIT 1",
+            this::mapCenterRow,
+            parameters.toArray()
         );
         if (rows.isEmpty()) {
             throw new KioskUnavailableException();
@@ -263,6 +352,82 @@ public class KioskCenterService {
             return Long.parseLong(value);
         } catch (NumberFormatException ignored) {
             return null;
+        }
+    }
+
+    private List<String> normalizedOwnerModules(Collection<String> ownerModules) {
+        if (ownerModules == null) {
+            return List.of();
+        }
+        return ownerModules.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .map(value -> value.trim().toUpperCase(java.util.Locale.ROOT))
+            .distinct()
+            .sorted()
+            .toList();
+    }
+
+    static String ownerScopePredicate(Map<String, OwnerScope> ownerScopes, List<Object> parameters) {
+        if (ownerScopes == null || ownerScopes.isEmpty()) {
+            return "";
+        }
+        var clauses = new ArrayList<String>();
+        ownerScopes.entrySet().stream()
+            .filter(entry -> entry.getKey() != null && !entry.getKey().isBlank() && entry.getValue() != null)
+            .sorted(Map.Entry.comparingByKey(String.CASE_INSENSITIVE_ORDER))
+            .forEach(entry -> {
+                var ownerModule = entry.getKey().trim().toUpperCase(java.util.Locale.ROOT);
+                var scope = entry.getValue();
+                parameters.add(ownerModule);
+                switch (scope.type()) {
+                    case CORPORATE_OFFICE -> clauses.add("definition.owner_module = ?");
+                    case UNIT_HEADQUARTERS -> {
+                        if (scope.unitId() == null) {
+                            clauses.add("definition.owner_module = ? AND 1 = 0");
+                        } else {
+                            clauses.add("definition.owner_module = ? AND (definition.unit_id = ?"
+                                + " OR definition.business_id IN (SELECT scoped_business.id FROM businesses scoped_business"
+                                + " WHERE scoped_business.unit_id = ?"
+                                + " AND (scoped_business.company_id = definition.company_id OR scoped_business.company_id IS NULL)))");
+                            parameters.add(scope.unitId());
+                            parameters.add(scope.unitId());
+                        }
+                    }
+                    case BUSINESS_OFFICE -> {
+                        if (scope.businessId() == null) {
+                            clauses.add("definition.owner_module = ? AND 1 = 0");
+                        } else {
+                            clauses.add("definition.owner_module = ? AND definition.business_id = ?");
+                            parameters.add(scope.businessId());
+                        }
+                    }
+                }
+            });
+        return String.join(" OR ", clauses);
+    }
+
+    public record OwnerScope(Type type, Long unitId, Long businessId) {
+
+        public OwnerScope {
+            Objects.requireNonNull(type, "type");
+        }
+
+        public static OwnerScope corporateOffice() {
+            return new OwnerScope(Type.CORPORATE_OFFICE, null, null);
+        }
+
+        public static OwnerScope unitHeadquarters(Long unitId) {
+            return new OwnerScope(Type.UNIT_HEADQUARTERS, unitId, null);
+        }
+
+        public static OwnerScope businessOffice(Long unitId, Long businessId) {
+            return new OwnerScope(Type.BUSINESS_OFFICE, unitId, businessId);
+        }
+
+        public enum Type {
+            CORPORATE_OFFICE,
+            UNIT_HEADQUARTERS,
+            BUSINESS_OFFICE
         }
     }
 

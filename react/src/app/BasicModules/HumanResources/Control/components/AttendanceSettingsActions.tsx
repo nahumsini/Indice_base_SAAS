@@ -1,5 +1,6 @@
 import { CalendarDays, MapPin, ShieldCheck, Table2 } from 'lucide-react';
 import { IndiceTitleBarOverflow } from '../../../../components/frontend-os';
+import { legacyOwnerKioskEntryPointsEnabled } from '../../../../components/kiosk-engine/kioskAdminNavigation';
 import { Button } from '../../../../components/ui/button';
 import type { AttendanceControlCopy } from './ControlAttendanceWidgets';
 import { cn } from '../../../../components/ui/utils';
@@ -32,10 +33,10 @@ export function AttendanceSettingsActions({
             <CalendarDays className="h-4 w-4" />
             {copy.labels.setSchedules}
           </Button>
-          <Button className={cn(primaryActionButtonClassName, hrTitleBarPrimaryActionClass)} onClick={onOpenKiosks}>
+          {legacyOwnerKioskEntryPointsEnabled ? <Button className={cn(primaryActionButtonClassName, hrTitleBarPrimaryActionClass)} onClick={onOpenKiosks}>
             <ShieldCheck className="h-4 w-4" />
             {copy.kiosk.management.title}
-          </Button>
+          </Button> : null}
           <IndiceTitleBarOverflow
             className={cn(actionButtonClassName, hrTitleBarSecondaryActionClass)}
             items={[{

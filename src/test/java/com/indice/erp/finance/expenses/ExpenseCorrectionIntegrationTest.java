@@ -60,12 +60,41 @@ class ExpenseCorrectionIntegrationTest {
         for (long company : companies) {
             for (var table : List.of("finance_payment_account_movements", "finance_journal_entries", "finance_accounting_periods", "finance_expense_import_batches",
                     "finance_petty_cash_settlement_lines", "finance_petty_cash_statements", "finance_expense_payments",
-                    "finance_expenses", "finance_petty_cash_funds", "finance_payment_accounts", "finance_accounting_accounts")) {
+                    "finance_expenses", "finance_providers", "finance_petty_cash_funds", "finance_payment_accounts", "finance_accounting_accounts")) {
                 jdbc.update("DELETE FROM " + table + " WHERE company_id = ?", company);
             }
             jdbc.update("DELETE FROM companies WHERE id = ?", company);
         }
         jdbc.update("DELETE FROM users WHERE id = ?", user);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"MXN", "USD", "CAD", "COP", "BRL"})
+    void payableCaptureKeepsAutomaticRegistrationSeparateFromDueDateAndDoesNotPay(String currency) {
+        jdbc.update("INSERT INTO finance_providers (company_id, name, status) VALUES (?, 'Payable supplier', 'ACTIVE')", context.companyId());
+        var provider = jdbc.queryForObject("SELECT id FROM finance_providers WHERE company_id = ?", Long.class, context.companyId());
+        var today = businessToday();
+        var fields = com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode()
+                .put("entryType", "payable").put("legacyStatus", "pending").put("reference", "INV-TEST");
+        for (var dueDate : List.of(today.minusDays(5), today.plusDays(15))) {
+            var request = new CreateExpenseRequest(null, null, provider, null, account, null, null,
+                    "AUTO-CXP", "Payable capture", null, ExpenseType.VARIABLE,
+                    new BigDecimal("60.34"), new BigDecimal("9.65"), new BigDecimal("69.99"), currency,
+                    today, dueDate, null, null, null, false, fields, null);
+            var saved = expenses.createDraft(context, request);
+            var persisted = expenses.get(context, saved.id());
+            assertThat(persisted.expenseDate()).isEqualTo(today);
+            assertThat(persisted.dueDate()).isEqualTo(dueDate);
+            assertThat(persisted.providerId()).isEqualTo(provider);
+            assertThat(persisted.currencyCode()).isEqualTo(currency);
+            assertThat(persisted.subtotalAmount().add(persisted.taxAmount())).isEqualByComparingTo("69.99");
+            assertThat(persisted.balanceAmount()).isEqualByComparingTo("69.99");
+            assertThat(persisted.paidAmount()).isZero();
+            assertThat(persisted.paymentDate()).isNull();
+            assertThat(persisted.attachmentCount()).isZero();
+        }
+        assertThat(count("finance_expense_payments")).isZero();
+        assertThat(count("finance_payment_account_movements")).isZero();
     }
 
     @ParameterizedTest
@@ -142,6 +171,110 @@ class ExpenseCorrectionIntegrationTest {
         assertThat(count("finance_expense_payments")).isEqualTo(1);
         assertThat(count("finance_payment_account_movements")).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT current_balance FROM finance_payment_accounts WHERE id = ?", BigDecimal.class, bank)).isEqualByComparingTo("-200.25");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"MXN", "USD", "CAD", "COP", "BRL"})
+    void settlementAddsOnlyTheRemainingBalancePreservingEarlierPayments(String currency) {
+        long source = currency.equals("MXN") ? bank : paymentAccount(context.companyId(), currency, currency, "BANK");
+        var saved = expenses.createDraft(context, row("Remaining balance", source, account, currency));
+        var earlierDate = businessToday().minusDays(1);
+        expenses.recordPayment(context, saved.id(), new RecordExpensePaymentRequest(new BigDecimal("30.15"), source, earlierDate, "partial-1"));
+        var originalPayment = payments.findAll(context, saved.id()).getFirst();
+        var request = new SettleExpensePaymentRequest(source, null, "final-1");
+        var settled = expenses.settlePayment(context, saved.id(), request);
+        var retried = expenses.settlePayment(context, saved.id(), request);
+        assertThat(settled.status()).isEqualTo(ExpenseStatus.PAID);
+        assertThat(settled.paidAmount()).isEqualByComparingTo("100.25");
+        assertThat(settled.balanceAmount()).isEqualByComparingTo("0");
+        assertThat(settled.paymentDate()).isEqualTo(businessToday());
+        assertThat(settled.expenseDate()).isEqualTo(saved.expenseDate());
+        assertThat(retried.version()).isEqualTo(settled.version());
+        var history = payments.findAll(context, saved.id());
+        assertThat(history).hasSize(2).contains(originalPayment);
+        assertThat(history.getFirst().amount()).isEqualByComparingTo("70.10");
+        assertThat(history.getFirst().currencyCode()).isEqualTo(currency);
+        assertThat(count("finance_payment_account_movements")).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT current_balance FROM finance_payment_accounts WHERE id = ?", BigDecimal.class, source)).isEqualByComparingTo("4899.75");
+        assertThatThrownBy(() -> expenses.settlePayment(context, saved.id(), new SettleExpensePaymentRequest(null, null, "final-1")))
+            .hasMessageContaining("different payment");
+    }
+
+    @Test
+    void unassignedSettlementRecordsPaymentWithoutDebitingAnyBankAndKeepsPartialPaymentBank() {
+        var saved = expenses.createDraft(context, row("Unknown final bank", null, account, "MXN"));
+        expenses.recordPayment(context, saved.id(), new RecordExpensePaymentRequest(new BigDecimal("25.10"), bank, businessToday().minusDays(1), "known-bank"));
+        var original = payments.findAll(context, saved.id()).getFirst();
+        var request = new SettleExpensePaymentRequest(null, null, "unassigned-final");
+        var settled = expenses.settlePayment(context, saved.id(), request);
+        expenses.settlePayment(context, saved.id(), request);
+        assertThat(settled.status()).isEqualTo(ExpenseStatus.PAID);
+        assertThat(settled.paymentAccountId()).isNull();
+        var history = payments.findAll(context, saved.id());
+        assertThat(history).hasSize(2).contains(original);
+        assertThat(history.getFirst().amount()).isEqualByComparingTo("75.15");
+        assertThat(history.getFirst().paymentAccountId()).isNull();
+        assertThat(count("finance_payment_account_movements")).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT current_balance FROM finance_payment_accounts WHERE id = ?", BigDecimal.class, bank)).isEqualByComparingTo("4974.90");
+    }
+
+    @Test
+    void directSettlementFromAnUnassignedDraftRecordsHistoryWithNoBankMovement() {
+        var saved = expenses.createDraft(context, row("Paid without known bank", null, account, "MXN"));
+        assertThatThrownBy(() -> expenses.recordPayment(context, saved.id(),
+            new RecordExpensePaymentRequest(new BigDecimal("20"), bank, businessToday(), "SETTLE:reserved")))
+            .hasMessageContaining("reserved");
+        var settled = expenses.settlePayment(context, saved.id(), new SettleExpensePaymentRequest(null, null, "direct-no-bank"));
+        assertThat(settled.status()).isEqualTo(ExpenseStatus.PAID);
+        assertThat(settled.balanceAmount()).isEqualByComparingTo("0");
+        assertThat(payments.findAll(context, saved.id()).getFirst().paymentAccountId()).isNull();
+        assertThat(count("finance_expense_payments")).isEqualTo(1);
+        assertThat(count("finance_payment_account_movements")).isZero();
+    }
+
+    @Test
+    void settlementRejectsForeignInactiveWrongCurrencyAndFundAccountsWithoutApproving() {
+        var saved = expenses.createDraft(context, row("Validate before payment", bank, account, "MXN"));
+        long foreignCompany = company("foreign-settlement-" + UUID.randomUUID());
+        long foreignBank = paymentAccount(foreignCompany, "Foreign", "MXN", "BANK");
+        long usdBank = paymentAccount(context.companyId(), "USD", "USD", "BANK");
+        long custody = paymentAccount(context.companyId(), "Custody", "MXN", "PETTY_CASH");
+        jdbc.update("UPDATE finance_payment_accounts SET status = 'INACTIVE' WHERE id = ?", bank);
+        for (long target : List.of(bank, foreignBank, usdBank, custody)) {
+            assertThatThrownBy(() -> expenses.settlePayment(context, saved.id(), new SettleExpensePaymentRequest(target, null, "rejected-" + target)))
+                .isInstanceOf(FinanceApiException.class);
+        }
+        var foreignContext = new FinanceContext(user, foreignCompany, "Foreign", "admin", true, FinanceScope.corporateOffice());
+        assertThatThrownBy(() -> expenses.settlePayment(foreignContext, saved.id(), new SettleExpensePaymentRequest(null, null, "foreign-row")))
+            .isInstanceOf(RuntimeException.class);
+        assertThatThrownBy(() -> expenses.settlePayment(context, saved.id(), new SettleExpensePaymentRequest(null, businessToday().plusDays(1), "future")))
+            .hasMessageContaining("future");
+        assertThat(expenses.get(context, saved.id()).status()).isEqualTo(ExpenseStatus.DRAFT);
+        assertThat(count("finance_expense_payments")).isZero();
+        assertThat(count("finance_payment_account_movements")).isZero();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"CLOSED", "CANCELLED", "REJECTED"})
+    void settlementCannotPayTerminalStatuses(String status) {
+        var saved = expenses.createDraft(context, row("Protected from payment", null, account, "MXN"));
+        jdbc.update("UPDATE finance_expenses SET status = ? WHERE id = ?", status, saved.id());
+        assertThatThrownBy(() -> expenses.settlePayment(context, saved.id(), new SettleExpensePaymentRequest(null, null, "terminal")))
+            .isInstanceOf(FinanceApiException.class);
+        assertThat(count("finance_expense_payments")).isZero();
+    }
+
+    @Test
+    void concurrentSettlementRequestsCannotDuplicateTheFinalPayment() throws Exception {
+        var saved = expenses.createDraft(context, row("Concurrent final payment", bank, account, "MXN"));
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            var first = pool.submit(() -> expenses.settlePayment(context, saved.id(), new SettleExpensePaymentRequest(bank, null, "concurrent")));
+            var second = pool.submit(() -> expenses.settlePayment(context, saved.id(), new SettleExpensePaymentRequest(bank, null, "concurrent")));
+            assertThat(first.get(20, TimeUnit.SECONDS).status()).isEqualTo(ExpenseStatus.PAID);
+            assertThat(second.get(20, TimeUnit.SECONDS).status()).isEqualTo(ExpenseStatus.PAID);
+        }
+        assertThat(count("finance_expense_payments")).isEqualTo(1);
+        assertThat(count("finance_payment_account_movements")).isEqualTo(1);
     }
 
     @ParameterizedTest

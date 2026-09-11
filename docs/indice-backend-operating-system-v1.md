@@ -327,8 +327,11 @@ Approved Finance domain contracts remain authoritative. General rules include:
 
 - Treasury is the sole owner of payment-account balance mutations. New account impacts from
   Expenses, Funds, and POS append idempotent movements through that owner contract; they do not
-  update account balance projections directly. Sales retains its separately approved collection
-  flow until an explicit adoption contract replaces it.
+  update account balance projections directly. Sales collections use `SalesCollectionService` as
+  the explicit Sales-to-Treasury owner bridge. A confirmed electronic route sale must carry a
+  tenant-, currency-, type-, and scope-valid bank account and append its Treasury movement in the
+  same transaction as the sale. Route cash remains in seller custody until an explicit handoff, and
+  route credit remains receivable; neither invents a bank deposit.
 - A payment account answers where money is held, a fund answers its purpose and custody, and a
   budget answers how much spending is authorized. These concepts remain separate even when one
   operation links all three.
@@ -341,9 +344,10 @@ Approved Finance domain contracts remain authoritative. General rules include:
   compatibility, but it must not manufacture paid amounts or move money.
 - Every expense payment locks the expense aggregate, carries a company-scoped idempotency key when
   supplied by the client, and records its payment history in one transaction. An assigned payment
-  account also receives its Treasury movement in that transaction. The explicitly approved bulk
-  import exception below records a payment without a bank assignment and cannot move bank money.
-- Generic PUT/delete remain draft-only. Per the 2026-09-09 user correction decision,
+  account also receives its Treasury movement in that transaction. The explicitly approved paid
+  capture and single-expense settlement exceptions below can record payment without a bank
+  assignment and cannot move bank money.
+- Generic PUT/delete remain draft-only; explicit removal is governed below. Per the 2026-09-09 user correction decision,
   `POST /api/v1/finance/expenses/{id}/corrections` allows versioned, audited corrections to ordinary
   unposted drafts, submitted, approved, partially paid and paid expenses. It preserves paid amounts,
   payment dates/history and Treasury movements; recalculates balance/status and refreshes budget
@@ -353,10 +357,25 @@ Approved Finance domain contracts remain authoritative. General rules include:
 - The explicit payment use case resolves draft/submitted approval and records the payment in one
   transaction, serialized with corrections; failure rolls back approval too. Retrying the same key
   returns the recorded result without another debit.
+- Per the 2026-09-10 payment-action decision, `POST /api/v1/finance/expenses/{id}/settle-payment`
+  is a protected, CSRF-checked Expenses write. Its typed request supplies an optional payment account
+  and a required idempotency key; the server locks company and scoped expense, calculates the exact
+  remaining balance and defaults the payment date to today in the company's business timezone.
+  It records one final installment through the same transactional payment owner, preserving prior
+  payments and the original expense date. A supplied account must be active, company-owned, outside
+  fund custody and match native currency. An explicitly unassigned settlement records history with
+  a null account and no Treasury debit, following the paid-capture rule. No evidence file is required.
+  Audited/terminal/fund-owned expenses remain protected. The `SETTLE:` key namespace is reserved;
+  settlement retries return the existing result without a second payment, including across midnight.
+  The ordinary record-payment and selected-row settlement contracts still require an account.
 - Selected-row classification adjustments and audited bulk reversals follow
   `docs/finance-bulk-actions-and-workspace-memory-contract-v1.md`. Ordinary unposted expenses
   may change organizational/provider/account classifications through that explicit owner contract;
   existing payment history and fund custody remain protected.
+- Per the 2026-09-10 expense-removal decision, DELETE in the explicit bulk-action owner performs
+  a reasoned, versioned soft deletion plus exact Treasury/posted-journal reversal atomically.
+  Audited/closed expenses and purchase orders with any receipt are protected; fund ownership remains
+  unchanged. The detailed reversal and accounting-period requirements live in the bulk-actions contract.
 - Expense accounting classification is an explicit account-only operation, with company/scope
   checks, optimistic version validation and server-owned audit history. Ordinary expenses may be
   classified before journal posting without modifying amounts, payment evidence, currency or
@@ -384,6 +403,11 @@ Approved Finance domain contracts remain authoritative. General rules include:
   adjustments. Payroll remains the owner of applying a queued shortage deduction.
 - A purchase order commits budget but does not itself move money.
 - A budget is a container; the budget line is the operational control aggregate.
+- Per the 2026-09-10 monthly-obligation decision, scheduled Budget Control lines create real unpaid
+  payables through the Expense owner when their scheduled month arrives. The occurrence ledger,
+  company/scope validation, rollout reconciliation and retry rules are defined in
+  `docs/budget-monthly-obligations-contract-v1.md`. Generation creates no payment or Treasury
+  movement; existing installments, deletions and linked expenses cannot be regenerated or overwritten.
 - Reporting distinguishes committed, actual, issued, and settled amounts.
 - Approved financial records are reversed or adjusted through an auditable workflow, not silently
   overwritten or deleted.

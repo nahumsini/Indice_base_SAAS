@@ -100,6 +100,26 @@ public class TreasuryService {
         );
     }
 
+    /** Safe catalog used by collection surfaces before the final currency and scope are known. */
+    @Transactional(readOnly = true)
+    public List<TreasuryAccount> listBankCollectionDestinations(long companyId) {
+        return jdbcTemplate.query(
+            """
+            SELECT id, company_id, unit_id, business_id, name, type, currency_code,
+                   current_balance, pending_balance, status, system_key, is_system_managed
+            FROM finance_payment_accounts
+            WHERE company_id = ?
+              AND type = 'BANK'
+              AND status = 'ACTIVE'
+              AND deleted_at IS NULL
+              AND (system_key IS NULL OR system_key NOT LIKE 'POS_UNASSIGNED_%')
+            ORDER BY currency_code ASC, name ASC, id ASC
+            """,
+            this::mapAccount,
+            companyId
+        );
+    }
+
     @Transactional(readOnly = true)
     public TreasuryAccount requireEligibleAccount(
             long companyId,
@@ -182,6 +202,31 @@ public class TreasuryService {
 
     @Transactional
     public TreasuryMovementResult post(TreasuryMovementCommand command) {
+        return post(command, false);
+    }
+
+    /** Expense removal compensates only recorded debits; an unassigned legacy payment creates no cash. */
+    @Transactional
+    public void reverseExpensePayments(long companyId, long expenseId, long userId, String reason) {
+        var movements = jdbcTemplate.queryForList("""
+            SELECT movement.* FROM finance_payment_account_movements movement
+            WHERE movement.company_id = ? AND movement.source_module = 'EXPENSES'
+              AND movement.source_type = 'EXPENSE_PAYMENT' AND movement.source_id = ?
+              AND NOT EXISTS(SELECT 1 FROM finance_payment_account_movements reversal
+                  WHERE reversal.company_id = movement.company_id AND reversal.reversal_of_movement_id = movement.id)
+            ORDER BY movement.payment_account_id, movement.id FOR UPDATE
+            """, companyId, String.valueOf(expenseId));
+        for (var row : movements) {
+            long movementId = ((Number) row.get("id")).longValue();
+            post(new TreasuryMovementCommand(companyId, ((Number) row.get("payment_account_id")).longValue(),
+                (Long) row.get("unit_id"), (Long) row.get("business_id"), (String) row.get("currency_code"),
+                "EXPENSES", "EXPENSE_PAYMENT_REVERSAL", String.valueOf(expenseId), "EXPENSE_DELETION:" + movementId,
+                ((BigDecimal) row.get("available_delta")).negate(), ((BigDecimal) row.get("pending_delta")).negate(),
+                reason, java.time.Instant.now(), userId, movementId, null), true);
+        }
+    }
+
+    private TreasuryMovementResult post(TreasuryMovementCommand command, boolean restoreOriginalMovement) {
         var availableDelta = amount(command.availableDelta());
         var pendingDelta = amount(command.pendingDelta());
         if (availableDelta.signum() == 0 && pendingDelta.signum() == 0) {
@@ -189,13 +234,13 @@ public class TreasuryService {
         }
         var eventKey = requireText(command.eventKey(), "eventKey", 190);
         var account = lockAccount(command.companyId(), command.paymentAccountId());
-        if (!"ACTIVE".equals(account.status())) {
+        if (!restoreOriginalMovement && !"ACTIVE".equals(account.status())) {
             throw FinanceApiException.conflict("Payment account is not active.");
         }
         if (!account.currencyCode().equals(normalizeCurrency(command.currencyCode()))) {
             throw FinanceApiException.badRequest("Treasury movement currency does not match the payment account.");
         }
-        if (!matchesScope(account, command.unitId(), command.businessId())) {
+        if (!restoreOriginalMovement && !matchesScope(account, command.unitId(), command.businessId())) {
             throw FinanceApiException.forbidden("Payment account is outside the movement scope.");
         }
 
@@ -249,14 +294,15 @@ public class TreasuryService {
                 version = version + 1
             WHERE company_id = ?
               AND id = ?
-              AND status = 'ACTIVE'
+              AND (status = 'ACTIVE' OR ? = TRUE)
               AND deleted_at IS NULL
             """,
             availableDelta,
             pendingDelta,
             command.actorUserId(),
             command.companyId(),
-            command.paymentAccountId()
+            command.paymentAccountId(),
+            restoreOriginalMovement
         );
         if (updated != 1) {
             throw FinanceApiException.conflict("Payment account balance could not be updated.");

@@ -36,6 +36,7 @@ import {
   useIndiceFilterDisclosureCopy,
 } from '../components/frontend-os';
 import { KioskAdminActionButton } from '../components/kiosk-engine/KioskAdminPrimitives';
+import { buildKioskAdminNavigationSearch } from '../components/kiosk-engine/kioskAdminNavigation';
 import { KioskModalFrame } from '../components/kiosk-engine/KioskModalFrame';
 import {
   getIndiceTableMinimumWidth,
@@ -51,6 +52,8 @@ import { Button } from '../components/ui/button';
 import { TableBody, TableCell, TableRow } from '../components/ui/table';
 import { cn } from '../components/ui/utils';
 import { useLanguage } from '../shared/context';
+import { getCachedAuthSession } from '../api/authSessionStore';
+import { canManageMultiKiosks } from '../access/tabScopeCatalog';
 import { getKioskCenterCopy, type KioskCenterCopy } from './kioskCenterTranslations';
 import { KioskStatusNavigator } from './components/KioskStatusNavigator';
 
@@ -70,6 +73,14 @@ const inventoryColumnDefaults: Record<InventoryColumnId, number> = {
   status: 220,
 };
 const inventoryActionsWidth = 132;
+const pointOfSaleAdminKioskTypes = new Set([
+  'customer_display',
+  'self_service',
+  'self_checkout',
+  'waiter_station',
+  'table_order_center',
+  'kitchen_display',
+]);
 
 const safeSnapshotKeys = new Set([
   'name',
@@ -146,23 +157,24 @@ const formatRelativeDate = (value: string | undefined, locale: string) => {
 };
 
 const adminPathFor = (kiosk: KioskCenterItem) => {
-  const query = new URLSearchParams({
-    kioskId: String(kiosk.id),
+  const query = buildKioskAdminNavigationSearch({
+    engineId: kiosk.id,
+    referenceId: kiosk.legacy_reference_id,
     kioskType: kiosk.kiosk_type,
   });
   const route = (() => {
     switch (kiosk.owner_module) {
       case 'PROCESS_TASKS': return '/processes-tasks/calendar';
-      case 'EXPENSES': return '/expenses/expenses';
-      case 'PETTY_CASH': return '/petty-cash/cash';
+      case 'EXPENSES': return kiosk.kiosk_type === 'accounts_payable' ? '/expenses/expenses' : null;
+      case 'PETTY_CASH': return kiosk.kiosk_type === 'receipt_capture' ? '/petty-cash/cash' : null;
       case 'HUMAN_RESOURCES': return '/human-resources/control';
-      case 'POINT_OF_SALE': return '/point-of-sale/kiosks';
+      case 'POINT_OF_SALE': return pointOfSaleAdminKioskTypes.has(kiosk.kiosk_type) ? '/point-of-sale/kiosks' : null;
       case 'SALES': return '/inventory/products';
       case 'PROCUREMENT': return '/inventory/purchase-orders';
       default: return null;
     }
   })();
-  return route ? `${route}?${query.toString()}` : null;
+  return route ? `${route}?${query}` : null;
 };
 
 const safeModuleReference = (value?: string) => {
@@ -360,6 +372,7 @@ function AuditTimeline({
 
 export default function KioskCenterPage({ embedded = false }: { embedded?: boolean }) {
   const navigate = useNavigate();
+  const canUseGlobalControls = canManageMultiKiosks(getCachedAuthSession());
   const routeParams = useParams();
   const { currentLanguage } = useLanguage();
   const disclosureCopy = useIndiceFilterDisclosureCopy();
@@ -420,6 +433,7 @@ export default function KioskCenterPage({ embedded = false }: { embedded?: boole
   }, [loadInventory]);
 
   const loadAudit = useCallback(async (kioskId: number) => {
+    if (!canUseGlobalControls) return;
     setAuditLoading(true);
     setAuditError('');
     try {
@@ -429,7 +443,7 @@ export default function KioskCenterPage({ embedded = false }: { embedded?: boole
     } finally {
       setAuditLoading(false);
     }
-  }, [copy]);
+  }, [canUseGlobalControls, copy]);
 
   const openDetail = useCallback(async (kiosk: KioskCenterItem) => {
     const requestId = ++detailRequestRef.current;
@@ -441,10 +455,10 @@ export default function KioskCenterPage({ embedded = false }: { embedded?: boole
     setDetailError('');
     setAuditError('');
     setDetailLoading(true);
-    setAuditLoading(true);
+    setAuditLoading(canUseGlobalControls);
     const [detailResult, auditResult] = await Promise.allSettled([
       kioskCenterApi.detail(kiosk.id),
-      kioskCenterApi.audit(kiosk.id),
+      canUseGlobalControls ? kioskCenterApi.audit(kiosk.id) : Promise.resolve([]),
     ]);
     if (requestId !== detailRequestRef.current) return;
     if (detailResult.status === 'fulfilled') {
@@ -459,7 +473,7 @@ export default function KioskCenterPage({ embedded = false }: { embedded?: boole
     }
     setDetailLoading(false);
     setAuditLoading(false);
-  }, [copy]);
+  }, [canUseGlobalControls, copy]);
 
   const requestedKioskId = useMemo(() => {
     const firstSegment = routeParams['*']?.split('/').filter(Boolean)[0];
@@ -476,6 +490,7 @@ export default function KioskCenterPage({ embedded = false }: { embedded?: boole
       void openDetail(liveKiosk);
       return;
     }
+    if (!canUseGlobalControls) return;
     const requestId = ++detailRequestRef.current;
     setSelected(null);
     setDetail(null);
@@ -494,7 +509,7 @@ export default function KioskCenterPage({ embedded = false }: { embedded?: boole
       .finally(() => {
         if (requestId === detailRequestRef.current) setAuditLoading(false);
       });
-  }, [copy, isLoading, items, openDetail, requestedKioskId]);
+  }, [canUseGlobalControls, copy, isLoading, items, openDetail, requestedKioskId]);
 
   const modules = useMemo(() => Array.from(new Set(items.map(item => item.owner_module)))
     .sort((left, right) => dictionaryLabel(copy.modules, left).localeCompare(dictionaryLabel(copy.modules, right), copy.locale)), [copy, items]);
@@ -723,9 +738,9 @@ export default function KioskCenterPage({ embedded = false }: { embedded?: boole
       >
         {detailItem ? (
           <div className="space-y-5">
-            <nav className="flex gap-2 rounded-xl bg-slate-200/70 p-1 dark:bg-slate-900" aria-label={copy.title}>
+            {canUseGlobalControls ? <nav className="flex gap-2 rounded-xl bg-slate-200/70 p-1 dark:bg-slate-900" aria-label={copy.title}>
               {(['overview', 'audit'] as const).map(tab => <button key={tab} type="button" onClick={() => setDetailTab(tab)} className={cn('flex-1 rounded-lg px-4 py-2 text-sm font-medium transition', detailTab === tab ? 'bg-white text-[#177D66] shadow-sm dark:bg-slate-800 dark:text-emerald-300' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white')}>{tab === 'overview' ? copy.detail.overview : copy.detail.audit}{tab === 'audit' && audit.length > 0 ? ` (${audit.length})` : ''}</button>)}
-            </nav>
+            </nav> : null}
             {detailLoading ? <div className="grid gap-3 sm:grid-cols-2" aria-busy="true">{[0, 1, 2, 3].map(index => <div key={index} className="h-28 animate-pulse rounded-2xl bg-slate-200/70 dark:bg-slate-800" />)}</div> : null}
             {detailError ? <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">{detailError}</div> : null}
             {!detailLoading && detailTab === 'overview' ? (
@@ -750,10 +765,10 @@ export default function KioskCenterPage({ embedded = false }: { embedded?: boole
                     <div><dt className="text-xs text-slate-500">{copy.table.kiosk}</dt><dd className="mt-1 break-all text-sm font-medium text-slate-900 dark:text-white">{detailItem.code}</dd></div>
                   </dl>
                 </details>
-                <div className="flex flex-wrap justify-end gap-2">
+                {canUseGlobalControls ? <div className="flex flex-wrap justify-end gap-2">
                   {detailItem.status === 'ACTIVE' ? <Button type="button" variant="outline" onClick={() => beginLifecycle(detailItem, 'disable')} className="border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-300"><Power className="mr-2 h-4 w-4" />{copy.actions.disable}</Button> : null}
                   {!['REVOKED', 'DELETED'].includes(detailItem.status) ? <Button type="button" variant="outline" onClick={() => beginLifecycle(detailItem, 'revoke')} className="border-red-300 text-red-700 dark:border-red-700 dark:text-red-300"><Ban className="mr-2 h-4 w-4" />{copy.actions.revoke}</Button> : null}
-                </div>
+                </div> : null}
               </>
             ) : null}
             {!detailLoading && detailTab === 'audit' ? <AuditTimeline audit={audit} copy={copy} error={auditError} loading={auditLoading} onRetry={() => void loadAudit(detailItem.id)} /> : null}

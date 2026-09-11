@@ -1,13 +1,13 @@
-import { Building2, Check } from 'lucide-react';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Building2, Check, ChevronDown, ContactRound, FileText, MapPin, Users } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
 import {
   FinanceFieldLabel,
-  FinanceModalSection,
   financeModalInputClass,
   financeModalPrimaryButtonClass,
   financeModalSecondaryButtonClass,
 } from '../../components/modals/FinanceModalPrimitives';
+import { ExpenseAccountSelect } from '../../components/table/ExpenseAccountSelect';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import { useProvidersTranslations } from '../hooks/useProvidersTranslations';
 import {
@@ -66,13 +66,12 @@ export function ProviderCreateModal({
   const t = useProvidersTranslations();
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const savingRef = useRef(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const [values, setValues] = useState<ProviderFormValues>(initialValues);
   const availableBusinessOptions = useMemo(() => (
     businessOptions.filter(option => !option.unitId || !values.businessUnit || option.unitId === values.businessUnit)
   ), [businessOptions, values.businessUnit]);
-  const selectableAccountingAccountOptions = useMemo(() => (
-    accountingAccountOptions.length > 0 ? accountingAccountOptions : [{ value: '', label: t.providers.modal.noActiveAccounts }]
-  ), [accountingAccountOptions, t.providers.modal.noActiveAccounts]);
   const localizedProviderTypeOptions = useMemo(() => providerTypeOptions.map(option => ({
     ...option,
     label: t.providers.types[option.value] ?? option.label,
@@ -104,77 +103,101 @@ export function ProviderCreateModal({
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!canSave) return;
+    if (!canSave || savingRef.current) return;
+    savingRef.current = true;
     setIsSaving(true);
     setErrorMessage('');
     try {
       await onSubmit({ ...values, name: values.name.trim(), company: values.company.trim() });
     } catch {
-      setErrorMessage('No se pudo guardar el proveedor. Revisa la información e inténtalo nuevamente.');
+      setErrorMessage(t.providers.modal.saveFailed);
+      if (bodyRef.current) bodyRef.current.scrollTop = 0;
     } finally {
+      savingRef.current = false;
       setIsSaving(false);
     }
   };
 
+  const referenceLabel = (options: FinanceReferenceOption[], value: string) => options.find(option => option.value === value)?.label || value;
+  const contactSummary = [values.contactName, values.email, values.phone].filter(Boolean).join(' · ');
+  const fiscalSummary = [values.company, values.taxId, values.address].filter(Boolean).join(' · ');
+  const assignmentSummary = [referenceLabel(unitOptions, values.businessUnit), referenceLabel(availableBusinessOptions, values.business), referenceLabel(accountingAccountOptions, values.accountingAccount)].filter(Boolean).join(' · ');
+  const ownersSummary = [referenceLabel(userOptions, values.authorizer), referenceLabel(userOptions, values.performer)].filter(Boolean).join(' · ');
+  const revealInvalidField = (event: FormEvent<HTMLFormElement>) => {
+    const field = event.target;
+    if (!(field instanceof HTMLInputElement)) return;
+    const section = field.closest('details');
+    if (section) section.open = true;
+    field.focus();
+  };
   const formId = `provider-form-${initialValues.name || 'new'}`.replace(/\s+/g, '-');
   return (
     <IndiceModalFrame
       busy={isSaving}
+      bodyRef={bodyRef}
+      modalType="standard-form"
       closeLabel={t.columnModal.close}
       description={subtitle ?? t.providers.modal.defaultSubtitle}
+      footerLeading={<button type="button" className={financeModalSecondaryButtonClass} disabled={isSaving} onClick={onClose}>{t.common.cancel}</button>}
       footer={(
         <>
-          <button type="button" className={financeModalSecondaryButtonClass} disabled={isSaving} onClick={onClose}>{t.common.cancel}</button>
-          <button type="submit" form={formId} className={financeModalPrimaryButtonClass} disabled={!canSave} style={variant === 'sales' ? { color: '#B63B32' } : undefined}>
+          <button type="submit" form={formId} className={`${financeModalPrimaryButtonClass} disabled:opacity-50`} aria-describedby={!values.name.trim() ? 'provider-name-help' : undefined} disabled={!canSave} style={variant === 'sales' ? { color: '#B63B32' } : undefined}>
             <Check className="h-4 w-4" />
-            {isSaving ? 'Guardando…' : effectiveSubmitLabel}
+            {isSaving ? t.providers.modal.saving : effectiveSubmitLabel}
           </button>
         </>
       )}
-      footerSummary={`${values.name.trim() || 'Proveedor sin nombre'} · ${t.providers.types[values.type] ?? values.type}`}
+      footerSummary={`${values.name.trim() || t.providers.modal.unnamed} · ${t.providers.types[values.type] ?? values.type}`}
       icon={<Building2 className="h-5 w-5" />}
       onOpenChange={(open) => !open && onClose()}
       open
       title={effectiveTitle}
       tone={variant === 'sales' ? 'coral' : 'green'}
     >
-      <form id={formId} className="space-y-4" onSubmit={handleSubmit}>
-        <IndiceModalValidation messages={errorMessage ? [errorMessage] : []} title="No se pudo guardar" />
-        <FinanceModalSection title={t.providers.modal.identity} description={t.providers.modal.titleDescription}>
-          <TextField label={t.providers.columns.name.label} required value={values.name} onChange={(value) => update('name', value)} />
-          <TextField label={t.providers.columns.company.label} value={values.company} onChange={(value) => update('company', value)} />
-          <SelectField label={t.providers.filters.type} value={values.type} options={localizedProviderTypeOptions} onChange={(value) => update('type', value as ProviderType)} />
-          <SelectField label={t.filters.status} value={values.status} options={localizedProviderStatusOptions} onChange={(value) => update('status', value as ProviderStatus)} />
-        </FinanceModalSection>
-        <FinanceModalSection title={t.providers.modal.assignment} description={t.providers.modal.scopeDescription}>
-          <SelectField label={t.filters.unit} value={values.businessUnit} options={unitOptions} onChange={(value) => update('businessUnit', value)} includeEmpty />
-          <SelectField label={t.filters.business} value={values.business} options={availableBusinessOptions} onChange={(value) => update('business', value)} includeEmpty />
-          <SelectField label={t.providers.columns.accountingAccount.label} value={values.accountingAccount} options={selectableAccountingAccountOptions} onChange={(value) => update('accountingAccount', value)} includeEmpty />
-        </FinanceModalSection>
-        <FinanceModalSection title={t.providers.modal.contact} description={t.providers.modal.contactDescription}>
-          <TextField label={t.providers.columns.contactName.label} value={values.contactName} onChange={(value) => update('contactName', value)} />
-          <TextField label={t.providers.columns.email.label} type="email" value={values.email} onChange={(value) => update('email', value)} />
-          <TextField label={t.providers.columns.phone.label} value={values.phone} onChange={(value) => update('phone', value)} />
-          <TextField label={t.providers.columns.taxId.label} value={values.taxId} onChange={(value) => update('taxId', value)} />
-          <label className="md:col-span-2">
-            <FinanceFieldLabel label={t.providers.columns.address.label} />
-            <input value={values.address} onChange={(event) => update('address', event.target.value)} className={financeModalInputClass} />
-          </label>
-        </FinanceModalSection>
-        <FinanceModalSection title={t.providers.modal.owners} description={t.providers.modal.ownersDescription}>
-          <SelectField label={t.providers.columns.authorizer.label} value={values.authorizer} options={userOptions} onChange={(value) => update('authorizer', value)} includeEmpty />
-          <SelectField label={t.providers.columns.performer.label} value={values.performer} options={userOptions} onChange={(value) => update('performer', value)} includeEmpty />
-        </FinanceModalSection>
+      <form id={formId} className="space-y-4" onSubmit={handleSubmit} onInvalidCapture={revealInvalidField}>
+        <IndiceModalValidation messages={errorMessage ? [errorMessage] : []} title={t.providers.modal.validationTitle} />
+        <fieldset disabled={isSaving} className="min-w-0 space-y-3">
+          <legend className="sr-only">{effectiveTitle}</legend>
+          <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+            <TextField label={t.providers.columns.name.label} required autoFocus placeholder={t.providers.modal.namePlaceholder} value={values.name} onChange={(value) => update('name', value)} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <SelectField label={t.providers.filters.type} value={values.type} options={localizedProviderTypeOptions} onChange={(value) => update('type', value as ProviderType)} />
+              <SelectField label={t.filters.status} value={values.status} options={localizedProviderStatusOptions} onChange={(value) => update('status', value as ProviderStatus)} />
+            </div>
+            {!values.name.trim() && <p id="provider-name-help" className="text-xs text-slate-500 dark:text-slate-400">{t.providers.modal.nameRequired}</p>}
+          </section>
+          <ProviderDisclosure title={t.providers.modal.contact} icon={<ContactRound className="h-5 w-5" />} summary={contactSummary} hint={t.providers.modal.contactHint} optionalLabel={t.providers.modal.optional}>
+            <TextField label={t.providers.columns.contactName.label} value={values.contactName} onChange={(value) => update('contactName', value)} />
+            <TextField label={t.providers.columns.email.label} type="email" value={values.email} onChange={(value) => update('email', value)} />
+            <TextField label={t.providers.columns.phone.label} type="tel" value={values.phone} onChange={(value) => update('phone', value)} />
+          </ProviderDisclosure>
+          <ProviderDisclosure title={t.providers.modal.fiscal} icon={<FileText className="h-5 w-5" />} summary={fiscalSummary} hint={t.providers.modal.fiscalHint} optionalLabel={t.providers.modal.optional}>
+            <TextField label={t.providers.columns.company.label} value={values.company} onChange={(value) => update('company', value)} />
+            <TextField label={t.providers.columns.taxId.label} value={values.taxId} onChange={(value) => update('taxId', value)} />
+            <div className="sm:col-span-2"><TextField label={t.providers.columns.address.label} value={values.address} onChange={(value) => update('address', value)} /></div>
+          </ProviderDisclosure>
+          <ProviderDisclosure title={t.providers.modal.assignment} icon={<MapPin className="h-5 w-5" />} summary={assignmentSummary} hint={t.providers.modal.assignmentHint} optionalLabel={t.providers.modal.optional}>
+            <ReferenceField label={t.filters.unit} value={values.businessUnit} options={unitOptions} onChange={(value) => update('businessUnit', value)} disabled={isSaving} />
+            <ReferenceField label={t.filters.business} value={values.business} options={availableBusinessOptions} onChange={(value) => update('business', value)} disabled={isSaving} />
+            <div className="sm:col-span-2"><ReferenceField label={t.providers.columns.accountingAccount.label} value={values.accountingAccount} options={accountingAccountOptions} onChange={(value) => update('accountingAccount', value)} disabled={isSaving} />
+              {accountingAccountOptions.length === 0 && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{t.providers.modal.noActiveAccounts}</p>}
+            </div>
+          </ProviderDisclosure>
+          <ProviderDisclosure title={t.providers.modal.owners} icon={<Users className="h-5 w-5" />} summary={ownersSummary} hint={t.providers.modal.ownersHint} optionalLabel={t.providers.modal.optional}>
+            <ReferenceField label={t.providers.columns.authorizer.label} value={values.authorizer} options={userOptions} onChange={(value) => update('authorizer', value)} disabled={isSaving} />
+            <ReferenceField label={t.providers.columns.performer.label} value={values.performer} options={userOptions} onChange={(value) => update('performer', value)} disabled={isSaving} />
+          </ProviderDisclosure>
+        </fieldset>
       </form>
     </IndiceModalFrame>
   );
 }
 
-function TextField({ label, onChange, required, type = 'text', value }: { label: string; onChange: (value: string) => void; required?: boolean; type?: string; value: string }) {
+function TextField({ label, onChange, required, autoFocus, placeholder, type = 'text', value }: { label: string; onChange: (value: string) => void; required?: boolean; autoFocus?: boolean; placeholder?: string; type?: string; value: string }) {
   return (
-    <label>
+    <label className="block min-w-0">
       <FinanceFieldLabel label={label} required={required} />
-      <input type={type} required={required} value={value} onChange={(event) => onChange(event.target.value)} className={financeModalInputClass} />
+      <input aria-label={label} autoFocus={autoFocus} placeholder={placeholder} type={type} required={required} value={value} onChange={(event) => onChange(event.target.value)} className={`${financeModalInputClass} min-w-0 dark:[color-scheme:dark]`} />
     </label>
   );
 }
@@ -182,12 +205,37 @@ function TextField({ label, onChange, required, type = 'text', value }: { label:
 function SelectField({ includeEmpty = false, label, onChange, options, value }: { includeEmpty?: boolean; label: string; onChange: (value: string) => void; options: Array<{ value: string; label: string }>; value: string }) {
   const t = useProvidersTranslations();
   return (
-    <label>
+    <label className="block min-w-0">
       <FinanceFieldLabel label={label} />
-      <select value={value} onChange={(event) => onChange(event.target.value)} className={financeModalInputClass}>
+      <select value={value} onChange={(event) => onChange(event.target.value)} className={`${financeModalInputClass} min-w-0 dark:[color-scheme:dark]`}>
         {includeEmpty ? <option value="">{t.common.unassigned}</option> : null}
         {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
     </label>
   );
+}
+
+function ReferenceField({ label, value, options, onChange, disabled }: {
+  label: string; value: string; options: FinanceReferenceOption[]; onChange: (value: string) => void; disabled: boolean;
+}) {
+  return <div className="min-w-0">
+    <FinanceFieldLabel label={label} />
+    <ExpenseAccountSelect label={label} value={value} options={options} onChange={onChange} disabled={disabled} />
+  </div>;
+}
+
+function ProviderDisclosure({ children, title, icon, summary, hint, optionalLabel }: {
+  children: ReactNode; title: string; icon: ReactNode; summary: string; hint: string; optionalLabel: string;
+}) {
+  return <details className="group rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+    <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-2xl p-4 focus-visible:outline-2 focus-visible:outline-slate-500 [&::-webkit-details-marker]:hidden">
+      <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-300">{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-center gap-x-2 text-sm font-medium text-slate-900 dark:text-slate-100">{title}{!summary && <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{optionalLabel}</span>}</span>
+        <span className="mt-1 block break-words text-xs leading-5 text-slate-500 dark:text-slate-400">{summary || hint}</span>
+      </span>
+      <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
+    </summary>
+    <div className="grid gap-4 border-t border-slate-100 p-4 sm:grid-cols-2 dark:border-slate-800">{children}</div>
+  </details>;
 }

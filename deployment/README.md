@@ -47,6 +47,11 @@ cp deployment/env/.env.example deployment/env/.env
   y el bloque comercial aprobados de 5 GiB; el excedente se programa para la
   siguiente factura sin interrumpir el servicio
 - tiempos de sesión de kioskos (`APP_*_KIOSK_*_SECONDS`); la plantilla contiene los valores estándar aprobados
+- `VITE_LEGACY_OWNER_KIOSK_ENTRY_POINTS_ENABLED` debe permanecer `true` mientras
+  `KIOSK_GLOBAL_CENTER_ENABLED` no esté certificado; al cambiarlo a `false`, verifica primero el
+  inventario filtrado y el handoff exacto hacia Recursos Humanos, Procesos/Tareas, Cuentas por
+  Pagar, Caja Chica y Punto de Venta. El preflight rechaza la combinación insegura de accesos
+  propietarios ocultos con el Centro deshabilitado.
 - `MYSQL_*`
 - `MINIO_*`
 
@@ -57,6 +62,16 @@ Production-safe base stack:
 ```bash
 ./deployment/scripts/up.sh
 ```
+
+El Compose específico de APPTEST habilita por defecto el Centro global, los adaptadores de Cuentas
+por Pagar, Caja Chica y Punto de Venta, y oculta los accesos propietarios duplicados. La plantilla y
+el Compose base de producción conservan el rollback seguro (`Centro=false`, `accesos legacy=true`)
+hasta que el ambiente productivo complete su propia certificación.
+
+El rollback de presentación no elimina datos: configura `KIOSK_GLOBAL_CENTER_ENABLED=false` y
+`VITE_LEGACY_OWNER_KIOSK_ENTRY_POINTS_ENABLED=true`, reconstruye `web` y recrea `backend`. Si el
+incidente pertenece a un adaptador, restaura además su bandera a `false`; los gestores, contratos y
+rutas propietarias permanecen disponibles durante todo el rollback.
 
 Local stack with extra admin/debug ports:
 
@@ -145,6 +160,10 @@ las credenciales. Para comprobar solamente el repositorio con la plantilla:
 ```bash
 ./deployment/scripts/preflight.sh --example
 ```
+
+La validación del backend comienza con `mvnw clean test`; esta limpieza es obligatoria para que un
+recurso Flyway renombrado en una integración no permanezca en `target/classes` simulando una versión
+duplicada que ya no existe en el árbol fuente.
 
 `--example` permite los valores inseguros documentales de `.env.example`; nunca
 debe usarse como autorización para desplegar esos valores en producción.
@@ -264,6 +283,30 @@ ORDER BY catalog_version_id;
 
 Si la comparación cambia sin que la liberación incluya una publicación
 comercial autorizada, detener el despliegue y conservar la versión anterior.
+
+### Generación mensual de cuentas por pagar desde presupuestos
+
+Para una liberación que incluya `V269` y la generación de cuentas por pagar desde presupuestos,
+aplica también la preparación, activación y reversión descritas en
+[`budget-monthly-obligations-contract-v1.md`](../docs/budget-monthly-obligations-contract-v1.md#despliegue-y-reversión).
+`APP_FINANCE_BUDGET_OBLIGATIONS_ENABLED=false` detiene la generación nueva; no revierte gastos
+ni pagos existentes. El despliegue conserva el historial y las tablas agregadas por Flyway.
+
+La liberación financiera selectiva `v2026.09.10.1` parte del código público `1f6e2538`
+y agrega únicamente V269 sobre V265. V266–V268 de la línea de `main` no forman parte
+de ese artefacto. Antes de desplegar esa línea completa sobre un entorno que recibió
+la liberación selectiva, identifica y prueba las tres migraciones pendientes en una
+copia aislada del esquema V269. No asumas que Flyway aplicará versiones inferiores
+en un arranque normal; no alteres el historial ni los checksums para ocultar la diferencia.
+El [registro de esta liberación](releases/2026.09.10.1.md) identifica las imágenes y
+el backend compatible que debe usarse para revertir la aplicación conservando V269.
+
+La liberación integrada `v2026.09.10.2` completa V266–V268 y V270–V272 sobre ese
+esquema, conservando V269 y todo el historial anterior. La ejecución fuera de orden
+se limita al paso de migración previamente ensayado; no se conserva como opción
+del arranque normal. El [registro de la liberación integrada](releases/2026.09.10.2.md)
+detalla las comprobaciones y la imagen anterior compatible con V272. Después de
+esa actualización, una reversión debe usar esa imagen compatible y conservar la base.
 
 ### Certificación del día de corte y métodos de pago
 

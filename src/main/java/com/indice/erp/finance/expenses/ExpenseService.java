@@ -8,6 +8,7 @@ import com.indice.erp.finance.expenses.dto.ExpenseListResponse;
 import com.indice.erp.finance.expenses.dto.ExpensePaymentListResponse;
 import com.indice.erp.finance.expenses.dto.ExpenseResponse;
 import com.indice.erp.finance.expenses.dto.RecordExpensePaymentRequest;
+import com.indice.erp.finance.expenses.dto.SettleExpensePaymentRequest;
 import com.indice.erp.finance.expenses.dto.RejectExpenseRequest;
 import com.indice.erp.finance.expenses.dto.UpdateExpenseRequest;
 import com.indice.erp.finance.expenses.dto.UpdateExpenseStatusRequest;
@@ -216,7 +217,13 @@ public class ExpenseService {
 
     @Transactional
     public DeleteExpenseResponse deleteDraft(FinanceContext context, long expenseId) {
-        var existing = requireExpense(context, expenseId);
+        repository.lockCompanyForCreation(context);
+        var existing = repository.findByIdForUpdate(context, expenseId)
+            .orElseThrow(() -> FinanceApiException.notFound("Expense not found."));
+        if (existing.status() == ExpenseStatus.CLOSED || "AUDITED".equalsIgnoreCase(existing.auditStatus())
+                || existing.purchaseOrderId() != null || existing.accountingPosted() || existing.originFund() != null
+                || "PETTY_CASH".equalsIgnoreCase(existing.auditStatus()) || existing.paidAmount().signum() > 0)
+            throw FinanceApiException.conflict("Use the expense removal workflow for linked or posted expenses.");
         if (existing.status() != ExpenseStatus.DRAFT
                 && !isUnpaidPayableKioskSubmission(existing)) {
             validator.requireDraft(existing, "deleted");
@@ -275,6 +282,43 @@ public class ExpenseService {
 
     @Transactional
     public ExpenseResponse recordPayment(FinanceContext context, long expenseId, RecordExpensePaymentRequest request) {
+        if (request.idempotencyKey() != null && request.idempotencyKey().trim().startsWith("SETTLE:")) {
+            throw FinanceApiException.badRequest("The SETTLE: idempotency prefix is reserved for settlements.");
+        }
+        return recordPayment(context, expenseId, request, false);
+    }
+
+    @Transactional
+    public ExpenseResponse settlePayment(FinanceContext context, long expenseId, SettleExpensePaymentRequest request) {
+        repository.lockCompanyForCreation(context);
+        var existing = requireExpenseForUpdate(context, expenseId);
+        var suppliedKey = normalizeIdempotencyKey(request.idempotencyKey());
+        if (suppliedKey == null || suppliedKey.length() > 100) {
+            throw FinanceApiException.badRequest("A settlement idempotencyKey is required (maximum 100 characters).");
+        }
+        // Keep settlement retry identity separate from an ordinary installment request.
+        var key = "SETTLE:" + suppliedKey;
+        var previous = paymentRepository.findByIdempotencyKey(context, key);
+        if (previous.isPresent()) {
+            var attempt = previous.get();
+            if (attempt.expenseId() != expenseId
+                    || !Objects.equals(attempt.paymentAccountId(), request.paymentAccountId())
+                    || (request.paymentDate() != null && !attempt.paymentDate().equals(request.paymentDate()))) {
+                throw FinanceApiException.conflict("idempotencyKey was already used for a different payment.");
+            }
+            return mapper.toResponse(existing);
+        }
+        var date = request.paymentDate() == null ? businessDate(context) : request.paymentDate();
+        if (date.isAfter(businessDate(context))) {
+            throw FinanceApiException.badRequest("Payment date cannot be in the future.");
+        }
+        referenceValidator.validateImportPaymentAccount(context, request.paymentAccountId(), existing.currencyCode());
+        return recordPayment(context, expenseId,
+            new RecordExpensePaymentRequest(existing.balanceAmount(), request.paymentAccountId(), date, key), true);
+    }
+
+    private ExpenseResponse recordPayment(FinanceContext context, long expenseId,
+            RecordExpensePaymentRequest request, boolean allowUnassignedPaymentAccount) {
         repository.lockCompanyForCreation(context);
         var existing = requireExpenseForUpdate(context, expenseId);
         var idempotencyKey = normalizeIdempotencyKey(request.idempotencyKey());
@@ -285,6 +329,8 @@ public class ExpenseService {
         }
         requireStatus(existing, List.of(ExpenseStatus.DRAFT, ExpenseStatus.PENDING_APPROVAL,
             ExpenseStatus.APPROVED, ExpenseStatus.PARTIALLY_PAID, ExpenseStatus.PAID), "paid");
+        if ("AUDITED".equals(existing.auditStatus()))
+            throw FinanceApiException.conflict("Audited expenses cannot receive payments.");
         if (existing.originFund() != null || "PETTY_CASH".equals(existing.auditStatus()))
             throw FinanceApiException.conflict("Fund expenses must be managed from their source fund.");
         if (request.amount().compareTo(BigDecimal.ZERO) <= 0) {
@@ -296,7 +342,9 @@ public class ExpenseService {
         if (request.amount().compareTo(existing.balanceAmount()) > 0) {
             throw FinanceApiException.badRequest("Payment amount cannot exceed balanceAmount.");
         }
-        referenceValidator.validatePaymentAccountForPayment(context, request.paymentAccountId(), existing.currencyCode());
+        if (!allowUnassignedPaymentAccount || request.paymentAccountId() != null) {
+            referenceValidator.validatePaymentAccountForPayment(context, request.paymentAccountId(), existing.currencyCode());
+        }
         // Approval and payment form one transaction; a failed payment leaves the draft unchanged.
         if (existing.status() == ExpenseStatus.DRAFT) submitForApproval(context, expenseId);
         if (existing.status() == ExpenseStatus.DRAFT || existing.status() == ExpenseStatus.PENDING_APPROVAL)
@@ -322,7 +370,7 @@ public class ExpenseService {
                 idempotencyKey)) {
             throw FinanceApiException.conflict("Expense payment history could not be recorded.");
         }
-        postExpensePayment(
+        if (request.paymentAccountId() != null) postExpensePayment(
             context,
             existing,
             request.paymentAccountId(),

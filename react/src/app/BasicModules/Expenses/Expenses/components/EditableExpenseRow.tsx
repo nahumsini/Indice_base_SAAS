@@ -28,7 +28,6 @@ import {
   getExpenseBalance,
   isExpenseEffectivelyOverdue,
 } from '../../utils/expenseFilters';
-import { printExpenseVoucher } from '../../utils/expensePrintDocument';
 
 export type ExpenseWorkflowState = {
   authorizer: string;
@@ -55,6 +54,7 @@ type EditableExpenseRowProps = {
   isEditing: boolean;
   isColumnVisible: (key: string) => boolean;
   isDeletePending?: boolean;
+  isPaymentPending?: boolean;
   options: EditableExpenseRowOptions;
   workflow: ExpenseWorkflowState;
   isSelected: boolean;
@@ -65,7 +65,6 @@ type EditableExpenseRowProps = {
   onReclassifyExpense?: (expense: Expense, accountId: string) => Promise<void>;
   onUpdateWorkflow: (expenseId: string, updates: Partial<ExpenseWorkflowState>) => void;
   onOpenAttachments: (expense: Expense) => void;
-  onDuplicate: (expenseId: string) => void;
   onDelete: (expenseId: string) => void;
   onActionEdit?: () => void;
   onMarkPaid: (expenseId: string) => void;
@@ -90,6 +89,7 @@ export function EditableExpenseRow({
   isEditing,
   isColumnVisible,
   isDeletePending = false,
+  isPaymentPending = false,
   isSelected,
   options,
   workflow,
@@ -100,7 +100,6 @@ export function EditableExpenseRow({
   onReclassifyExpense,
   onUpdateWorkflow,
   onOpenAttachments,
-  onDuplicate,
   onDelete,
   onActionEdit,
   onMarkPaid,
@@ -431,13 +430,12 @@ export function EditableExpenseRow({
           expenseId={expense.id}
           onAudit={onAudit}
           onDelete={onDelete}
-          onDuplicate={onDuplicate}
           onMarkPaid={onMarkPaid}
-          onPrint={() => printExpenseVoucher({ expense, locale, t })}
           onRecordPayment={onRecordPayment}
           onStartEdit={startActionEdit}
           onView={onView}
           isDeletePending={isDeletePending}
+          isPaymentPending={isPaymentPending}
           showAudit={actionVisibility?.showAudit}
           showDelete={canDeleteExpense(expense)}
           showEdit={canEdit}

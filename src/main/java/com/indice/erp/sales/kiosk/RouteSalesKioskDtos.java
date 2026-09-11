@@ -48,6 +48,7 @@ public final class RouteSalesKioskDtos {
             @NotNull @Positive Long warehouseId,
             @NotBlank @Size(max = 24) String paymentMethod,
             @Size(max = 180) String paymentReference,
+            @Positive Long paymentAccountId,
             boolean deliveredNow,
             @Size(max = 2000) String notes,
             @NotEmpty @Size(max = 100) List<@Valid SaleItemRequest> items) {

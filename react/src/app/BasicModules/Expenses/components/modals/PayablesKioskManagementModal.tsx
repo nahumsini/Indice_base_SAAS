@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Building2,
   ChevronDown,
@@ -41,6 +41,7 @@ import { usePreferredBusinessCurrency } from '../../../shared/BusinessCurrencyCo
 
 type PayablesKioskManagementModalProps = {
   businessOptions: FinanceReferenceOption[];
+  initialKioskId?: number | null;
   isOpen: boolean;
   onClose: () => void;
   onError: (message: string) => void;
@@ -64,6 +65,7 @@ const emptyForm: PayableKioskFormState = {
 
 export function PayablesKioskManagementModal({
   businessOptions,
+  initialKioskId,
   isOpen,
   onClose,
   onError,
@@ -91,6 +93,7 @@ export function PayablesKioskManagementModal({
   const [securityOpen, setSecurityOpen] = useState(false);
   const [pendingBiometricEnabled, setPendingBiometricEnabled] = useState<boolean | null>(null);
   const [formError, setFormError] = useState('');
+  const openedInitialKioskId = useRef<number | null>(null);
 
   const publicUrl = (kiosk: PayableKiosk) => `${window.location.origin}/expenses/kiosk/cuentas-por-pagar/${kiosk.publicAccessToken}`;
   const optionLabel = (options: FinanceReferenceOption[], id?: number | null) => (
@@ -156,6 +159,14 @@ export function PayablesKioskManagementModal({
     });
     setIsFormOpen(true);
   };
+
+  useEffect(() => {
+    if (!isOpen || !initialKioskId || openedInitialKioskId.current === initialKioskId) return;
+    const initialKiosk = kiosks.find(kiosk => kiosk.id === initialKioskId);
+    if (!initialKiosk) return;
+    openedInitialKioskId.current = initialKioskId;
+    openEdit(initialKiosk);
+  }, [initialKioskId, isOpen, kiosks]);
 
   const closeForm = () => {
     setFormError('');

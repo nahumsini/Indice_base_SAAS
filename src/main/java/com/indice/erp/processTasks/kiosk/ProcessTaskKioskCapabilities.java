@@ -14,18 +14,26 @@ public final class ProcessTaskKioskCapabilities {
     public static final String TASKS_READ = "process-tasks.tasks.read";
     public static final String TASK_CREATE = "process-tasks.task.create";
     public static final String TASK_COMPLETE = "process-tasks.task.complete";
+    public static final String TASK_AGENDA_UPDATE = "process-tasks.task.agenda.update";
     public static final String TASK_RESPONSIBLE_ASSIGN = "process-tasks.task.responsible.assign";
     public static final String TASK_ATTACHMENT_PRESIGN = "process-tasks.task.attachment.presign";
     public static final String TASK_ATTACHMENT_REGISTER = "process-tasks.task.attachment.register";
+    public static final String OCCASIONAL_PROCESSES_READ = "process-tasks.processes.occasional.read";
+    public static final String OCCASIONAL_PROCESS_PREVIEW = "process-tasks.process-run.occasional.preview";
+    public static final String OCCASIONAL_PROCESS_CREATE = "process-tasks.process-run.occasional.create";
 
     private static final Set<KioskCapabilityDescriptor> DESCRIPTORS = Set.of(
         descriptor(IDENTITY_VERIFY, KioskOperationPolicy.DIRECT, false, true),
         descriptor(TASKS_READ, KioskOperationPolicy.INFORMATION_ONLY, false, false),
         descriptor(TASK_CREATE, KioskOperationPolicy.DIRECT, true, false),
         descriptor(TASK_COMPLETE, KioskOperationPolicy.DIRECT, true, false),
+        descriptor(TASK_AGENDA_UPDATE, KioskOperationPolicy.DIRECT, true, false),
         descriptor(TASK_RESPONSIBLE_ASSIGN, KioskOperationPolicy.DIRECT, true, false),
         fileDescriptor(TASK_ATTACHMENT_PRESIGN, true),
-        fileDescriptor(TASK_ATTACHMENT_REGISTER, true)
+        fileDescriptor(TASK_ATTACHMENT_REGISTER, true),
+        descriptor(OCCASIONAL_PROCESSES_READ, KioskOperationPolicy.INFORMATION_ONLY, false, false),
+        descriptor(OCCASIONAL_PROCESS_PREVIEW, KioskOperationPolicy.INFORMATION_ONLY, false, false),
+        descriptor(OCCASIONAL_PROCESS_CREATE, KioskOperationPolicy.DIRECT, true, false)
     );
 
     private static final Map<String, KioskCapabilityDescriptor> BY_KEY = indexDescriptors();

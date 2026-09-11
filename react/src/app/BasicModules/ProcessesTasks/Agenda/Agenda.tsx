@@ -74,6 +74,10 @@ import { TaskKioskConfirmationDialog } from '../Kiosk/components/TaskKioskConfir
 import { useRowSelection } from '../../shared/operational';
 import { IndiceTitleBar } from '../../../components/frontend-os';
 import {
+  legacyOwnerKioskEntryPointsEnabled,
+  readKioskAdminNavigationTarget,
+} from '../../../components/kiosk-engine/kioskAdminNavigation';
+import {
   collaboratorCanReceiveAssignment,
   filterBusinessesForActor,
   filterUnitsForActor,
@@ -272,6 +276,11 @@ interface AgendaProps {
 
 export default function Agenda({ learningModeActive = false }: AgendaProps) {
   const location = useLocation();
+  const kioskAdminTarget = useMemo(
+    () => readKioskAdminNavigationTarget(location.search),
+    [location.search],
+  );
+  const handledKioskAdminTargetRef = useRef<string | null>(null);
   const { currentLanguage } = useLanguage();
   const locale = currentLanguage.code;
   const todayAgendaValue = useMemo(() => toDateInputValue(new Date()), []);
@@ -580,6 +589,14 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
     taskKioskPendingTransition,
     taskKiosks,
   } = useAgendaTaskKiosks({ setAgendaError });
+
+  useEffect(() => {
+    if (!kioskAdminTarget) return;
+    const targetKey = `${kioskAdminTarget.engineId}:${kioskAdminTarget.referenceId ?? 'catalog'}`;
+    if (handledKioskAdminTargetRef.current === targetKey) return;
+    handledKioskAdminTargetRef.current = targetKey;
+    handleOpenTaskKiosks();
+  }, [handleOpenTaskKiosks, kioskAdminTarget]);
 
   useEffect(() => {
     void loadVisibleAgenda();
@@ -1017,7 +1034,7 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
         <Columns3 className="h-4 w-4" />
         {headerCopy.actions.columns}
       </Button>
-      <Button
+      {legacyOwnerKioskEntryPointsEnabled ? <Button
         type="button"
         variant="outline"
         className="h-10 w-full gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-medium text-[#9A6B05] shadow-none hover:border-[#F4C84A]/50 hover:bg-[#F4C84A]/15 dark:border-slate-700 dark:bg-slate-800 dark:text-[#FEF3C7] sm:w-auto"
@@ -1025,7 +1042,7 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       >
         <MonitorSmartphone className="h-5 w-5" />
         {headerCopy.actions.kiosk}
-      </Button>
+      </Button> : null}
       <Button
         type="button"
         className={cn('h-10 w-full gap-2 rounded-xl px-4 text-sm font-medium sm:w-auto', accentButtonClass)}
@@ -1171,6 +1188,7 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       />
 
       <TaskKioskManagementModal
+        initialKioskId={kioskAdminTarget?.referenceId}
         isOpen={isTaskKioskModalOpen}
         isSaving={isTaskKioskSaving}
         kiosks={taskKiosks}

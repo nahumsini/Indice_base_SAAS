@@ -58,12 +58,12 @@ export const addStandardPdfFooters = (
     doc.setFontSize(7);
     doc.setTextColor(108, 114, 122);
     doc.text(`${documentPrintAttribution} · ${labels.updated}: ${updatedValue}`, margin, footerY, {
-      maxWidth: pageWidth * 0.55,
+      maxWidth: pageWidth - margin * 2 - millimeters(35),
     });
     if (folio || confidentiality || version) {
-      doc.text([folio, confidentiality, version ? `v${version}` : ''].filter(Boolean).join(' · '), pageWidth / 2, footerY, {
+      doc.text([folio, confidentiality, version ? `v${version}` : ''].filter(Boolean).join(' · '), pageWidth / 2, pageHeight - millimeters(4), {
         align: 'center',
-        maxWidth: pageWidth * 0.25,
+        maxWidth: pageWidth - margin * 2,
       });
     }
     doc.text(`${labels.page} ${page} / ${pageCount}`, pageWidth - margin, footerY, { align: 'right' });

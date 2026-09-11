@@ -13,7 +13,7 @@ import {
   subscribeToAuthorizationChanged,
   subscribeToAuthenticationExpired,
 } from '../src/app/api/authSessionStore.ts';
-import { canAccessKioskCenter } from '../src/app/access/tabScopeCatalog.ts';
+import { canAccessKioskCenter, canManageMultiKiosks } from '../src/app/access/tabScopeCatalog.ts';
 import {
   buildPublicPlanSearch,
   parsePublicPlanSearch,
@@ -158,7 +158,7 @@ test('a role or grant revocation publishes one authorization revision without re
   unsubscribe();
 });
 
-test('kiosk center administration is restricted to root and superadmin', () => {
+test('kiosk inventory follows owner permissions while global composition stays restricted', () => {
   assert.equal(canAccessKioskCenter(sessionWithAccess({
     role: 'root',
     modules: [],
@@ -173,6 +173,41 @@ test('kiosk center administration is restricted to root and superadmin', () => {
     role: 'admin',
     modules: ['pos'],
     tabs: ['pos.kiosks'],
+  })), true);
+  assert.equal(canAccessKioskCenter(sessionWithAccess({
+    role: 'user',
+    modules: ['pos'],
+    tabs: ['pos.kiosks'],
+  })), false);
+  assert.equal(canAccessKioskCenter(sessionWithAccess({
+    role: 'user',
+    modules: ['expenses'],
+    tabs: ['expenses.expenses'],
+  })), true);
+  assert.equal(canAccessKioskCenter(sessionWithAccess({
+    role: 'user',
+    modules: ['petty_cash'],
+    tabs: ['petty_cash.cash'],
+  })), true);
+  assert.equal(canAccessKioskCenter(sessionWithAccess({
+    role: 'manager',
+    modules: ['human_resources'],
+    tabs: ['human_resources.control'],
+  })), true);
+  assert.equal(canAccessKioskCenter(sessionWithAccess({
+    role: 'user',
+    modules: ['human_resources'],
+    tabs: ['human_resources.control'],
+  })), false);
+  assert.equal(canAccessKioskCenter(sessionWithAccess({
+    role: 'admin',
+    modules: ['processes'],
+    tabs: ['processes.calendar'],
+  })), true);
+  assert.equal(canManageMultiKiosks(sessionWithAccess({
+    role: 'admin',
+    modules: ['processes'],
+    tabs: ['processes.calendar'],
   })), false);
 });
 

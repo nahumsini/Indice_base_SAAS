@@ -79,7 +79,8 @@ test('Petty Cash usa filtros progresivos y columnas persistentes en sus índices
   assert.match(sharedSource, /\{hasOverflow \? \(/);
   assert.match(fundsSource, /indice\.pettyCash\.funds\.columns\.v1/);
   assert.match(fundsSource, /onColumns=\{\(\) => setShowColumnsModal\(true\)\}/);
-  assert.match(fundsSource, /onSecondaryAction=\{\(\) => setIsKioskOpen\(true\)\}/);
+  assert.match(fundsSource, /onSecondaryAction=\{legacyOwnerKioskEntryPointsEnabled \? \(\) => setIsKioskOpen\(true\) : undefined\}/);
+  assert.match(fundsSource, /initialFundId=\{initialKioskFundId\}/);
   assert.match(statementsSource, /indice\.pettyCash\.statements\.columns\.v1/);
   assert.match(statementsSource, /<ColumnasConfigModal/);
   assert.match(reconciliationSource, /<PettyCashFilterShell/);

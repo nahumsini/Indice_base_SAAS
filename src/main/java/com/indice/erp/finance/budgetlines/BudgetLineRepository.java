@@ -22,6 +22,15 @@ class BudgetLineRepository {
         this.mapper = mapper;
     }
 
+    void lockCompany(FinanceContext context) {
+        jdbcTemplate.queryForObject("SELECT id FROM companies WHERE id = ? FOR UPDATE", Long.class, context.companyId());
+    }
+
+    boolean hasLinkedExpenses(FinanceContext context, long lineId) {
+        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM finance_expenses WHERE company_id = ? AND budget_line_id = ?",
+            Long.class, context.companyId(), lineId) > 0;
+    }
+
     List<BudgetLineRecord> findAll(FinanceContext context) {
         var params = scopedParams(context);
         return jdbcTemplate.query(

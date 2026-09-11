@@ -1,6 +1,7 @@
+import { printExpenseVoucher, type ExpensePrintContext } from '../../utils/expensePrintDocument';
 import { formatExpenseDate } from '../../utils/expenseDates';
 import { useEffect, useState, type ReactNode } from 'react';
-import { CalendarDays, Clock3, FileText, HandCoins, Landmark, Loader2, Pencil, ReceiptText, ShieldCheck } from 'lucide-react';
+import { CalendarDays, Clock3, FileText, HandCoins, Landmark, Loader2, Pencil, Printer, ReceiptText, ShieldCheck } from 'lucide-react';
 import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
 import type { Expense, ExpensePayment } from '../../types/expenses.types';
 import type { PaymentAccount } from '../../PaymentAccounts/types';
@@ -8,7 +9,7 @@ import { expenseAttachmentsService, type ExpenseAttachment } from '../../service
 import { expensesService } from '../../services/expenses.service';
 import { isBackendId } from '../../adapters/adapter.utils';
 import { formatCurrency } from '../../utils/expenses.utils';
-import { canEditExpense, getEffectiveExpenseStatus, getExpenseBalance, getExpensePaidAmount } from '../../utils/expenseFilters';
+import { canEditExpense, canPayExpense, getEffectiveExpenseStatus, getExpenseBalance, getExpensePaidAmount } from '../../utils/expenseFilters';
 import { useExpensesResolvedLocale, useExpensesTranslations } from '../hooks/useExpensesTranslations';
 import { getExpenseDetailCopy } from './expenseDetail.copy';
 import { ExpenseAttachmentLink } from './ExpenseAttachmentLink';
@@ -16,6 +17,7 @@ import { ExpensePaymentHistory } from './ExpensePaymentHistory';
 
 type ExpenseDetailModalProps = {
   expense: Expense;
+  printContext?: ExpensePrintContext;
   paymentAccounts: PaymentAccount[];
   onClose: () => void;
   onEdit: () => void;
@@ -23,7 +25,7 @@ type ExpenseDetailModalProps = {
   onRecordPayment: () => void;
 };
 
-export function ExpenseDetailModal({ expense, onClose, onEdit, onOpenAttachments, onRecordPayment, paymentAccounts }: ExpenseDetailModalProps) {
+export function ExpenseDetailModal({ expense, printContext, onClose, onEdit, onOpenAttachments, onRecordPayment, paymentAccounts }: ExpenseDetailModalProps) {
   const t = useExpensesTranslations();
   const locale = useExpensesResolvedLocale();
   const copy = getExpenseDetailCopy(locale);
@@ -64,8 +66,9 @@ export function ExpenseDetailModal({ expense, onClose, onEdit, onOpenAttachments
       description={`${expense.folio} · ${copy.subtitle}`}
       footer={(
         <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
-          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-medium text-white hover:bg-white/20">{copy.close}</button>
-          {balance > 0 && expense.type !== 'budget' ? <button type="button" onClick={onRecordPayment} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-medium text-[#147514]"><HandCoins className="h-4 w-4" />{copy.recordPayment}</button> : null}
+          <button type="button" onClick={onClose} className="min-h-11 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-medium text-white hover:bg-white/20">{copy.close}</button>
+          <button type="button" onClick={() => printExpenseVoucher({ expense, locale, t, context: printContext })} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 text-sm font-medium text-white hover:bg-white/20"><Printer className="h-4 w-4" />{copy.printVoucher}</button>
+          {canPayExpense(expense) ? <button type="button" onClick={onRecordPayment} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-medium text-[#147514]"><HandCoins className="h-4 w-4" />{copy.recordPayment}</button> : null}
         </div>
       )}
       footerSummary={`${copy.balance}: ${formatCurrency(balance, expense.currency)}`}
@@ -153,7 +156,7 @@ export function ExpenseDetailModal({ expense, onClose, onEdit, onOpenAttachments
 
 function DetailSection({ action, children, icon, title }: { action?: ReactNode; children: ReactNode; icon: ReactNode; title: string }) { return <section className="rounded-xl border border-slate-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-800"><div className="mb-3 flex items-center justify-between gap-3"><h3 className="flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-white"><span className="text-[#147514]">{icon}</span>{title}</h3>{action}</div>{children}</section>; }
 function DetailRow({ label, multiline = false, value }: { label: string; multiline?: boolean; value: string }) { return <div className={`flex gap-4 border-b border-slate-100 py-2.5 last:border-0 dark:border-slate-700 ${multiline ? 'flex-col gap-1' : 'items-start justify-between'}`}><span className="text-xs text-slate-500">{label}</span><span className={`${multiline ? '' : 'text-right'} text-sm font-medium text-slate-800 dark:text-slate-100`}>{value}</span></div>; }
-function Metric({ accent = false, label, value }: { accent?: boolean; label: string; value: string }) { return <div className="min-w-0 px-3 py-4 text-center"><p className="text-xs text-slate-500">{label}</p><p className={`mt-1 truncate text-sm font-medium ${accent ? 'text-amber-700 dark:text-amber-300' : 'text-slate-900 dark:text-white'}`}>{value}</p></div>; }
+function Metric({ accent = false, label, value }: { accent?: boolean; label: string; value: string }) { return <div className="min-w-0 px-3 py-4 text-center"><p className="text-xs text-slate-500">{label}</p><p className={`mt-1 break-words text-sm font-medium ${accent ? 'text-amber-700 dark:text-amber-300' : 'text-slate-900 dark:text-white'}`}>{value}</p></div>; }
 function Empty({ label }: { label: string }) { return <p className="rounded-lg bg-slate-50 px-3 py-4 text-sm text-slate-500 dark:bg-slate-900/60">{label}</p>; }
 function Loading({ label }: { label: string }) { return <p className="flex items-center gap-2 py-3 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />{label}</p>; }
 function formatDisplayDate(value: Date, locale: string) { return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(value); }

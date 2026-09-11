@@ -1,5 +1,17 @@
 import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
-import { Check, FileText, LoaderCircle, Paperclip, Trash2, Upload, WalletCards } from 'lucide-react';
+import {
+  CalendarClock,
+  Check,
+  ChevronDown,
+  CircleDollarSign,
+  FileText,
+  LoaderCircle,
+  Paperclip,
+  ReceiptText,
+  Trash2,
+  Upload,
+  WalletCards,
+} from 'lucide-react';
 import type { MultiKioskChildWorkspace } from '../api/multiKiosks';
 import { multiKioskPublicApi } from '../api/multiKiosks';
 import {
@@ -14,6 +26,15 @@ import {
 } from '../BasicModules/Expenses/components/modals/BudgetTaxControls';
 import { useExpensesTranslations } from '../BasicModules/Expenses/Expenses/hooks/useExpensesTranslations';
 import { Button } from '../components/ui/button';
+import {
+  KioskFileDropzone,
+  KioskStickyActionBar,
+  KioskToolWorkspaceFrame,
+  KioskWorkspaceContextBar,
+  KioskWorkspaceNotice,
+  KioskWorkspaceSectionHeader,
+  KioskWorkspaceSurface,
+} from '../components/kiosk-engine/KioskToolWorkspace';
 import {
   uploadPresignedKioskFile,
   type KioskPresignedUpload,
@@ -48,7 +69,7 @@ const capabilities = {
 };
 const maxAttachments = 5;
 const maxAttachmentSize = 10 * 1024 * 1024;
-const inputClass = 'min-h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-700 dark:bg-slate-950 dark:text-white';
+const inputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/10 dark:border-slate-700 dark:bg-slate-950 dark:text-white';
 
 function csrfFor(token: string) {
   try { return sessionStorage.getItem(`indice.multi-kiosk.${token}.csrf`) ?? ''; } catch { return ''; }
@@ -124,6 +145,7 @@ export function PayablesMultiKioskWorkspace({
     ? canAttach && attachments.length > 0 && !busy
     : granted.includes(capabilities.create)
       && draft.providerId !== null && draft.concept.trim().length > 0 && totals.total > 0 && !busy;
+  const selectedProvider = providers.find(provider => provider.id === draft.providerId);
 
   const action = async <T,>(capability: string, payload: Record<string, unknown>) => {
     try {
@@ -225,38 +247,107 @@ export function PayablesMultiKioskWorkspace({
   };
 
   return (
-    <form onSubmit={submit} className="space-y-4" data-multi-kiosk-payables>
-      {error ? <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
-      {success ? <p role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{success}</p> : null}
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
-        <div className="flex items-center gap-3">
-          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-50 text-emerald-700"><WalletCards className="h-5 w-5" /></span>
-          <div className="min-w-0"><h3 className="text-base font-medium text-slate-950 dark:text-white">{copy.payableTitle}</h3><p className="truncate text-xs text-slate-500">{bootstrap?.scope_label}</p></div>
-          <span className="ml-auto rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">{currency}</span>
-        </div>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <label className="sm:col-span-2"><span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">{copy.provider} *</span><select required className={inputClass} value={draft.providerId ?? ''} onChange={event => updateDraft({ providerId: event.target.value ? Number(event.target.value) : null })}><option value="">{copy.providerPlaceholder}</option>{providers.map(provider => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select></label>
-          <label><span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">{copy.dueDate}</span><input className={inputClass} type="date" value={draft.dueDate} onChange={event => updateDraft({ dueDate: event.target.value })} /></label>
-          <label><span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">{copy.externalReference}</span><input className={inputClass} value={draft.externalReference} onChange={event => updateDraft({ externalReference: event.target.value })} /></label>
-          <label className="sm:col-span-2"><span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">{copy.concept} *</span><input required className={inputClass} value={draft.concept} onChange={event => updateDraft({ concept: event.target.value })} placeholder={copy.conceptPlaceholder} /></label>
-          <label><span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">{t.expenses.modal.amount} *</span><input required min="0.01" step="0.01" inputMode="decimal" type="number" className={inputClass} value={draft.amount} onChange={event => updateDraft({ amount: event.target.value })} placeholder="0.00" /></label>
-          <div className="sm:col-span-2"><BudgetTaxControls draft={draft} onDraftChange={updateDraft} /></div>
-          <div className="grid grid-cols-3 gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3 sm:col-span-2"><Metric label={t.expenses.modal.summarySubtotal} value={money(totals.subtotal, currency)} /><Metric label={copy.taxAmount} value={money(totals.tax, currency)} /><Metric label={copy.totalAmount} value={money(totals.total, currency)} /></div>
-          <label className="sm:col-span-2"><span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">{copy.notes}</span><textarea className={`${inputClass} min-h-24 resize-y`} value={draft.notes} onChange={event => updateDraft({ notes: event.target.value })} /></label>
-        </div>
-      </section>
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
-        <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200"><Paperclip className="h-4 w-4 text-emerald-700" />{copy.evidence}</div>
-        <label className="mt-3 flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/40 p-4 text-center"><input type="file" multiple className="hidden" disabled={!canAttach || busy || attachments.length >= maxAttachments} onChange={selectFiles} accept="image/png,image/jpeg,image/webp,.pdf,.csv,.txt" /><Upload className="h-5 w-5 text-emerald-700" /><span className="mt-2 text-sm font-medium text-slate-900">{copy.attachmentAction}</span><span className="mt-1 text-xs text-slate-500">{copy.attachmentHint}</span></label>
-        {attachments.length ? <ul className="mt-3 space-y-2">{attachments.map(file => <li key={`${file.name}-${file.lastModified}`} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3"><FileText className="h-4 w-4 shrink-0 text-slate-500" /><span className="min-w-0 flex-1 truncate text-sm">{file.name}</span><button type="button" aria-label={t.common.delete} disabled={busy || (retryingEvidence && attachments.length === 1)} onClick={() => setAttachments(current => current.filter(candidate => candidate !== file))} className="grid h-10 w-10 place-items-center rounded-xl text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"><Trash2 className="h-4 w-4" /></button></li>)}</ul> : null}
-      </section>
-      <div className="sticky bottom-0 z-20 -mx-1 border-t border-slate-200 bg-slate-50/95 px-1 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">
-        <Button type="submit" disabled={!canCreate} className="min-h-12 w-full rounded-2xl bg-emerald-700 text-base text-white hover:bg-emerald-800">{busy ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}{retryingEvidence ? copy.retryEvidence : copy.submitPayable}</Button>
+    <KioskToolWorkspaceFrame>
+      <form aria-busy={busy || undefined} onSubmit={submit} className="space-y-3" data-multi-kiosk-payables>
+
+      <div data-payables-overview>
+        <KioskWorkspaceContextBar
+          density="compact"
+          description={bootstrap?.scope_label}
+          eyebrow={copy.provider}
+          icon={<WalletCards className="h-5 w-5" />}
+          meta={(
+            <div className="flex items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-300">
+              <span>{currency}</span>
+              <span>{copy.totalAmount}: <strong className="text-sm font-medium text-[#147514] dark:text-emerald-300">{money(totals.total, currency)}</strong></span>
+            </div>
+          )}
+          title={selectedProvider?.name ?? copy.providerPlaceholder}
+          tone="green"
+        />
       </div>
-    </form>
+
+      <KioskWorkspaceSurface className="space-y-3" data-payables-section="primary">
+        <KioskWorkspaceSectionHeader
+          description={copy.payableDescription}
+          icon={<ReceiptText className="h-4 w-4" />}
+          title={copy.payableTitle}
+          tone="green"
+        />
+        <label className="block"><span className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-300">{copy.provider} *</span><select required className={inputClass} value={draft.providerId ?? ''} onChange={event => updateDraft({ providerId: event.target.value ? Number(event.target.value) : null })}><option value="">{copy.providerPlaceholder}</option>{providers.map(provider => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select></label>
+        <label className="block"><span className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-300">{copy.concept} *</span><input required className={inputClass} value={draft.concept} onChange={event => updateDraft({ concept: event.target.value })} placeholder={copy.conceptPlaceholder} /></label>
+      </KioskWorkspaceSurface>
+
+      <KioskWorkspaceSurface className="space-y-3" data-payables-section="amount">
+        <KioskWorkspaceSectionHeader
+          action={<span className="rounded-xl bg-[#147514]/10 px-3 py-1.5 text-sm font-medium text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300">{money(totals.total, currency)}</span>}
+          icon={<CircleDollarSign className="h-4 w-4" />}
+          title={copy.totalAmount}
+          tone="green"
+        />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block"><span className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-300">{t.expenses.modal.amount} *</span><input required min="0.01" step="0.01" inputMode="decimal" type="number" className={`${inputClass} text-base font-medium`} value={draft.amount} onChange={event => updateDraft({ amount: event.target.value })} placeholder="0.00" /></label>
+          <label className="block"><span className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-300"><CalendarClock className="h-3.5 w-3.5" />{copy.dueDate}</span><input className={inputClass} type="date" value={draft.dueDate} onChange={event => updateDraft({ dueDate: event.target.value })} /></label>
+        </div>
+        <details className="group overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700" data-payables-section="taxes">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-3 py-2 outline-none focus-visible:ring-4 focus-visible:ring-[#147514]/10 [&::-webkit-details-marker]:hidden">
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-slate-900 dark:text-white">{copy.taxAmount}</span>
+              <span className="block truncate text-xs text-slate-500">{draft.taxEnabled ? money(totals.tax, currency) : currency}</span>
+            </span>
+            <ChevronDown className="h-4 w-4 text-slate-400 transition group-open:rotate-180" />
+          </summary>
+          <div className="border-t border-slate-200 p-2 dark:border-slate-700"><BudgetTaxControls compact presentation="choice" draft={draft} onDraftChange={updateDraft} /></div>
+        </details>
+        <div className="grid grid-cols-3 gap-2 rounded-xl bg-[#147514]/5 p-3 dark:bg-emerald-400/5" data-payables-totals><Metric label={t.expenses.modal.summarySubtotal} value={money(totals.subtotal, currency)} /><Metric label={copy.taxAmount} value={money(totals.tax, currency)} /><Metric strong label={copy.totalAmount} value={money(totals.total, currency)} /></div>
+      </KioskWorkspaceSurface>
+
+      <details className="group overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950" data-payables-section="additional">
+        <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-3 py-2 outline-none focus-visible:ring-4 focus-visible:ring-[#147514]/10 sm:px-5 [&::-webkit-details-marker]:hidden">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"><FileText className="h-4 w-4" /></span>
+          <span className="min-w-0 flex-1"><span className="block text-sm font-medium text-slate-950 dark:text-white">{copy.externalReference} · {copy.notes}</span><span className="block truncate text-xs text-slate-500">{draft.externalReference || draft.notes || copy.externalReferencePlaceholder}</span></span>
+          <ChevronDown className="h-4 w-4 text-slate-400 transition group-open:rotate-180" />
+        </summary>
+        <div className="grid gap-3 border-t border-slate-200 p-3 dark:border-slate-700 sm:p-5">
+          <label className="block"><span className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-300">{copy.externalReference}</span><input className={inputClass} value={draft.externalReference} onChange={event => updateDraft({ externalReference: event.target.value })} placeholder={copy.externalReferencePlaceholder} /></label>
+          <label className="block"><span className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-300">{copy.notes}</span><textarea className={`${inputClass} h-auto min-h-20 resize-y py-2.5`} value={draft.notes} onChange={event => updateDraft({ notes: event.target.value })} placeholder={copy.notesPlaceholder} /></label>
+        </div>
+      </details>
+
+      <KioskWorkspaceSurface data-payables-section="evidence">
+        <KioskWorkspaceSectionHeader
+          action={<span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">{attachments.length}/{maxAttachments}</span>}
+          icon={<Paperclip className="h-4 w-4" />}
+          title={copy.evidence}
+          tone="green"
+        />
+        <KioskFileDropzone
+          accept="image/png,image/jpeg,image/webp,.pdf,.csv,.txt"
+          className="mt-3"
+          description={copy.attachmentHint}
+          disabled={!canAttach || busy || attachments.length >= maxAttachments}
+          icon={<Upload className="h-5 w-5" />}
+          multiple
+          onChange={selectFiles}
+          title={copy.attachmentAction}
+          tone="green"
+        />
+        {attachments.length ? <ul className="mt-3 space-y-2">{attachments.map(file => <li key={`${file.name}-${file.lastModified}`} className="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700"><FileText className="h-4 w-4 shrink-0 text-[#147514] dark:text-emerald-300" /><span className="min-w-0 flex-1"><span className="block truncate text-sm text-slate-700 dark:text-slate-200">{file.name}</span><span className="mt-0.5 block text-[11px] text-slate-400">{Math.max(1, file.size / 1024).toFixed(0)} KB · listo para enviar</span></span><button type="button" aria-label={t.common.delete} disabled={busy || (retryingEvidence && attachments.length === 1)} onClick={() => setAttachments(current => current.filter(candidate => candidate !== file))} className="grid h-10 w-10 place-items-center rounded-xl text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-red-950/30"><Trash2 className="h-4 w-4" /></button></li>)}</ul> : null}
+      </KioskWorkspaceSurface>
+
+      {error ? <KioskWorkspaceNotice kind="error">{error}</KioskWorkspaceNotice> : null}
+      {success ? <KioskWorkspaceNotice kind="success">{success}</KioskWorkspaceNotice> : null}
+      <KioskStickyActionBar
+        data-payables-sticky-summary
+        summary={<div className="flex items-center justify-between gap-3 text-xs text-slate-500"><span>{attachments.length ? `${copy.evidence}: ${attachments.length}` : copy.evidence}</span><span>{copy.totalAmount} <strong className="ml-1 text-sm font-medium text-slate-950 dark:text-white">{money(totals.total, currency)}</strong></span></div>}
+      >
+        <Button type="submit" disabled={!canCreate} className="min-h-12 w-full rounded-xl bg-[#147514] text-base text-white shadow-lg shadow-[#147514]/15 hover:bg-[#105010]">{busy ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}{retryingEvidence ? copy.retryEvidence : copy.submitPayable}</Button>
+      </KioskStickyActionBar>
+      </form>
+    </KioskToolWorkspaceFrame>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return <div className="min-w-0"><p className="truncate text-[11px] text-slate-500">{label}</p><p className="mt-1 truncate text-xs font-medium text-slate-950">{value}</p></div>;
+function Metric({ label, strong = false, value }: { label: string; strong?: boolean; value: string }) {
+  return <div className={`min-w-0 ${strong ? 'text-right' : ''}`}><p className="truncate text-[10px] text-slate-500">{label}</p><p className={`mt-1 truncate text-xs font-medium ${strong ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-950 dark:text-white'}`}>{value}</p></div>;
 }

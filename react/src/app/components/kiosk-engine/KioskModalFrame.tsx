@@ -64,10 +64,11 @@ export function KioskModalFrame({
   return (
     <IndiceModalFrame
       {...props}
-      bodyClassName={cn('overscroll-contain !px-4 !py-4 sm:!px-6 sm:!py-5', bodyClassName)}
+      bodyClassName={cn('overscroll-contain scroll-pb-32 !px-4 !py-4 [scrollbar-gutter:stable] sm:!px-6 sm:!py-5', bodyClassName)}
       contentClassName={cn(
-        '!h-dvh !max-h-dvh !w-full !max-w-none !rounded-none sm:!h-auto sm:!max-h-[92dvh] sm:!rounded-[28px]',
+        '!h-dvh !max-h-dvh !w-full !max-w-none !rounded-none overscroll-none sm:!h-auto sm:!max-h-[92dvh] sm:!rounded-[28px]',
         '[&_[data-slot=dialog-header]]:!pt-[calc(1rem+env(safe-area-inset-top))] sm:[&_[data-slot=dialog-header]]:!pt-4',
+        '[&_[data-slot=dialog-title]]:[overflow-wrap:anywhere] [&_[data-slot=dialog-description]]:[overflow-wrap:anywhere]',
         widthClassName,
         tone === 'yellow' && [
           '[&_[data-slot=dialog-header]]:!text-[#222831]',
@@ -79,7 +80,13 @@ export function KioskModalFrame({
         ],
         contentClassName,
       )}
-      footerClassName={cn('!px-4 !pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:!px-6 sm:!pb-4', footerClassName)}
+      footerClassName={cn(
+        '!px-4 !pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:!px-6 sm:!pb-4',
+        '[&>div]:!gap-2 sm:[&>div]:!gap-3',
+        '[&>div>div:first-child]:w-full sm:[&>div>div:first-child]:w-auto',
+        '[&>div>div:first-child>div:first-child>button]:w-full sm:[&>div>div:first-child>div:first-child>button]:w-auto',
+        footerClassName,
+      )}
       modalType={modalTypeBySize[size]}
       tone={tone}
     >

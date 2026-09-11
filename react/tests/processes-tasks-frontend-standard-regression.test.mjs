@@ -42,6 +42,7 @@ test('Procesos y Tareas respeta la escala tipográfica del Frontend Engine V2', 
 
 test('Procesos y Tareas conserva el shell, los modales y el Kiosk Engine compartidos', () => {
   const moduleSource = readFileSync(resolve(moduleRoot, 'ProcessesTasks.tsx'), 'utf8');
+  const agendaSource = readFileSync(resolve(moduleRoot, 'Agenda/Agenda.tsx'), 'utf8');
   const kioskSource = readFileSync(resolve(moduleRoot, 'Kiosk/PublicTaskKioskPage.tsx'), 'utf8');
   const managerSource = readFileSync(resolve(moduleRoot, 'Kiosk/TaskKioskManagementModal.tsx'), 'utf8');
 
@@ -49,6 +50,9 @@ test('Procesos y Tareas conserva el shell, los modales y el Kiosk Engine compart
   assert.match(kioskSource, /<KioskPublicShell/);
   assert.match(kioskSource, /<KioskIdentityGate/);
   assert.match(managerSource, /<KioskModalFrame/);
+  assert.match(agendaSource, /legacyOwnerKioskEntryPointsEnabled \? <Button/);
+  assert.match(agendaSource, /<TaskKioskManagementModal/);
+  assert.match(agendaSource, /readKioskAdminNavigationTarget/);
 });
 
 test('Mis tareas integra un workspace propio y limitado por capacidades en Multikiosco', () => {
@@ -70,18 +74,25 @@ test('Mis tareas integra un workspace propio y limitado por capacidades en Multi
   );
   const apiSource = readFileSync(resolve(moduleRoot, 'Kiosk/processTaskKioskApi.ts'), 'utf8');
   const publicPageSource = readFileSync(resolve(moduleRoot, 'Kiosk/PublicTaskKioskPage.tsx'), 'utf8');
+  const kioskFamilySource = readFileSync(resolve(root, 'src/app/components/kiosk-engine/KioskToolWorkspace.tsx'), 'utf8');
   const nativeWorkspaceSource = `${workspaceSource}\n${workspaceHookSource}\n${taskDialogSource}\n${createDialogSource}`;
 
   assert.match(workspaceSource, /export function EmployeeTaskMultiKioskWorkspace/);
   assert.match(workspaceSource, /export function EmployeeTaskMultiKioskWorkspaceView/);
   assert.match(workspaceSource, /type MultiKioskWorkspaceCard = MultiKioskChildWorkspace\['kiosk'\]/);
-  assert.match(workspaceSource, /<KioskWorkspaceTabs/);
+  assert.match(workspaceSource, /<EmployeeTaskAgendaToolbar/);
   assert.match(workspaceSource, /<PublicTaskKioskSummaryStrip/);
-  assert.match(workspaceSource, /<PublicTaskKioskTaskCard/);
+  assert.match(workspaceSource, /<EmployeeTaskAgendaList/);
+  assert.match(workspaceSource, /<EmployeeTaskAgendaBoard/);
+  assert.match(workspaceSource, /<EmployeeTaskScheduleView/);
+  assert.match(workspaceSource, /<EmployeeTaskOccasionalProcessDialog/);
   assert.match(workspaceSource, /multiKioskPublicApi\.action/);
   assert.match(workspaceHookSource, /process-tasks\.tasks\.read@1/);
   assert.match(workspaceHookSource, /process-tasks\.task\.create@1/);
   assert.match(workspaceHookSource, /process-tasks\.task\.complete@1/);
+  assert.match(workspaceHookSource, /process-tasks\.task\.agenda\.update@1/);
+  assert.match(workspaceHookSource, /process-tasks\.task\.attachment\.presign@1/);
+  assert.match(workspaceHookSource, /process-tasks\.process-run\.occasional\.create@1/);
   assert.match(workspaceHookSource, /const createRequestInFlightRef = useRef\(false\)/);
   assert.match(workspaceHookSource, /if \(!canCreate \|\| busy \|\| createRequestInFlightRef\.current\) return/);
   assert.match(workspaceHookSource, /if \(receivedUpdatedItems\) setTasks\(result\.items\)/);
@@ -101,7 +112,11 @@ test('Mis tareas integra un workspace propio y limitado por capacidades en Multi
   assert.match(apiSource, /completion_action\?: 'TASK_COMPLETE' \| 'CONTRIBUTION_READY'/);
   assert.match(apiSource, /action_outcome\?: 'TASK_COMPLETED' \| 'CONTRIBUTION_READY'/);
   assert.match(publicPageSource, /response\.action_outcome === 'CONTRIBUTION_READY'/);
-  assert.doesNotMatch(nativeWorkspaceSource, /process-tasks\.task\.(?:responsible|attachment)/);
+  assert.doesNotMatch(nativeWorkspaceSource, /process-tasks\.task\.responsible/);
+  assert.match(nativeWorkspaceSource, /process-tasks\.task\.attachment/);
+  assert.match(taskDialogSource, /requiredEvidenceMissing/);
+  assert.match(taskDialogSource, /KioskFileDropzone/);
+  assert.match(kioskFamilySource, /type="file"/);
 });
 
 test('los catálogos de asignación pertenecen a Procesos y no requieren acceso a Colaboradores de RH', () => {

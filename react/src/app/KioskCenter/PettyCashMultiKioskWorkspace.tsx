@@ -43,6 +43,16 @@ import {
   type KioskPresignedUpload,
   uploadPresignedKioskFile,
 } from './multiKioskWorkspaceUploads';
+import {
+  KioskFileDropzone,
+  KioskStickyActionBar,
+  KioskToolWorkspaceFrame,
+  KioskWorkspaceContextBar,
+  KioskWorkspaceEmptyState,
+  KioskWorkspaceNotice,
+  KioskWorkspaceSectionHeader,
+  KioskWorkspaceSurface,
+} from '../components/kiosk-engine/KioskToolWorkspace';
 
 const maxAttachmentSizeBytes = 10 * 1024 * 1024;
 const maxAttachments = 5;
@@ -420,30 +430,28 @@ export function PettyCashMultiKioskWorkspace({
 
   if (!fund || !bootstrap?.user) {
     return (
-      <section role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-medium text-amber-900">
-        {copy.publicKiosk.errors.bootstrap}
-      </section>
+      <KioskToolWorkspaceFrame>
+        <KioskWorkspaceNotice kind="error">{copy.publicKiosk.errors.bootstrap}</KioskWorkspaceNotice>
+      </KioskToolWorkspaceFrame>
     );
   }
 
   return (
-    <div className="space-y-3">
-      <section className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm dark:border-emerald-500/20 dark:bg-slate-950">
-        <div className="flex items-start gap-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-50 text-[#147514] dark:bg-emerald-500/10 dark:text-emerald-300">
-            <ShieldCheck className="h-5 w-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-[#147514] dark:text-emerald-300">{copy.publicKiosk.workspace.identified}</p>
-            <h3 className="mt-1 truncate text-base font-medium text-slate-950 dark:text-white">{bootstrap.user.full_name}</h3>
-            <p className="mt-1 truncate text-xs text-slate-500">{bootstrap.user.position_title || bootstrap.user.department || copy.publicKiosk.header.secureAccess}</p>
-          </div>
-        </div>
-        <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3 text-xs text-slate-500 dark:border-slate-800">
+    <KioskToolWorkspaceFrame>
+      <KioskWorkspaceContextBar
+        density="compact"
+        description={bootstrap.user.position_title || bootstrap.user.department || copy.publicKiosk.header.secureAccess}
+        eyebrow={copy.publicKiosk.workspace.identified}
+        icon={<ShieldCheck className="h-5 w-5" />}
+        meta={(
+          <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
           <MapPin className="h-4 w-4 shrink-0 text-[#147514]" />
           <span className="truncate">{bootstrap.scope_label || fund.scope_label}</span>
-        </div>
-      </section>
+          </div>
+        )}
+        title={bootstrap.user.full_name}
+        tone="green"
+      />
 
       <PettyCashKioskBalanceStrip
         currentBalance={{
@@ -484,16 +492,18 @@ export function PettyCashMultiKioskWorkspace({
         tone="green"
       />
 
-      {errorMessage ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{errorMessage}</p> : null}
-      {successMessage ? <p aria-live="polite" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">{successMessage}</p> : null}
+      {errorMessage ? <KioskWorkspaceNotice kind="error">{errorMessage}</KioskWorkspaceNotice> : null}
+      {successMessage ? <KioskWorkspaceNotice kind="success">{successMessage}</KioskWorkspaceNotice> : null}
 
       {activeTab === 'capture' ? (
         <section className="space-y-3" role="tabpanel" aria-label={copy.publicKiosk.receipt.title}>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-            <div className="flex items-start gap-3">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-[#147514] dark:bg-emerald-500/10 dark:text-emerald-300"><ReceiptText className="h-5 w-5" /></span>
-              <div><h3 className="text-base font-medium text-slate-950 dark:text-white">{copy.publicKiosk.receipt.title}</h3><p className="mt-1 text-xs leading-5 text-slate-500">{copy.publicKiosk.receipt.description}</p></div>
-            </div>
+          <KioskWorkspaceSurface>
+            <KioskWorkspaceSectionHeader
+              description={copy.publicKiosk.receipt.description}
+              icon={<ReceiptText className="h-5 w-5" />}
+              title={copy.publicKiosk.receipt.title}
+              tone="green"
+            />
             <div className="mt-4 grid gap-3">
               <label className="space-y-1.5" htmlFor={`petty-multi-${kioskId}-description`}><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.publicKiosk.receipt.concept}</span><input id={`petty-multi-${kioskId}-description`} value={form.description} onChange={event => setForm(current => ({ ...current, description: event.target.value }))} placeholder={copy.publicKiosk.receipt.conceptPlaceholder} className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base outline-none focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-950" /></label>
               <label className="space-y-1.5" htmlFor={`petty-multi-${kioskId}-amount`}><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.publicKiosk.receipt.amount}</span><input id={`petty-multi-${kioskId}-amount`} inputMode="decimal" value={form.amount} onChange={event => setForm(current => ({ ...current, amount: event.target.value }))} placeholder="0.00" className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base outline-none focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-950" /></label>
@@ -502,47 +512,59 @@ export function PettyCashMultiKioskWorkspace({
                 <label className="space-y-1.5" htmlFor={`petty-multi-${kioskId}-date`}><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.publicKiosk.receipt.date}</span><input id={`petty-multi-${kioskId}-date`} type="date" value={form.expenseDate} onChange={event => setForm(current => ({ ...current, expenseDate: event.target.value }))} className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#147514] dark:border-slate-700 dark:bg-slate-950" /></label>
               </div>
             </div>
-          </div>
+          </KioskWorkspaceSurface>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-            <div className="mb-3 flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-50 text-[#147514]"><CheckCircle2 className="h-4 w-4" /></span><div><h3 className="text-sm font-medium text-slate-950 dark:text-white">{copy.publicKiosk.workspace.calculation}</h3><p className="text-xs text-slate-500">{copy.publicKiosk.receipt.currency(currencyCode)}</p></div></div>
+          <KioskWorkspaceSurface>
+            <KioskWorkspaceSectionHeader
+              description={copy.publicKiosk.receipt.currency(currencyCode)}
+              icon={<CheckCircle2 className="h-4 w-4" />}
+              title={copy.publicKiosk.workspace.calculation}
+              tone="green"
+            />
+            <div className="mt-3">
             <BudgetTaxControls compact draft={form} onDraftChange={updates => setForm(current => ({ ...current, ...updates }))} />
+            </div>
             <div className="mt-3 grid grid-cols-3 divide-x divide-emerald-100 overflow-hidden rounded-xl border border-emerald-100 bg-emerald-50/70 text-center dark:divide-emerald-500/20 dark:border-emerald-500/20 dark:bg-emerald-500/10">
               {[[copy.publicKiosk.workspace.subtotal, totals.subtotalAmount], [copy.publicKiosk.workspace.taxes, totals.taxAmount], [copy.common.total, totals.totalAmount]].map(([label, value]) => <div key={String(label)} className="min-w-0 px-2 py-3"><p className="truncate text-xs text-slate-500">{label}</p><p className="mt-1 truncate text-xs font-medium text-slate-950 dark:text-white">{formatCurrency(Number(value), currencyCode, displayLocale)}</p></div>)}
             </div>
-          </section>
+          </KioskWorkspaceSurface>
 
-          <section className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm dark:border-emerald-500/20 dark:bg-slate-950">
-            <div className="flex items-start gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#147514] text-white"><Camera className="h-5 w-5" /></span><div><h3 className="text-sm font-medium text-slate-950 dark:text-white">{copy.publicKiosk.workspace.evidenceTitle}</h3><p className="mt-1 text-xs leading-5 text-slate-500">{copy.publicKiosk.workspace.evidenceDescription}</p></div></div>
+          <KioskWorkspaceSurface>
+            <KioskWorkspaceSectionHeader
+              description={copy.publicKiosk.workspace.evidenceDescription}
+              icon={<Camera className="h-5 w-5" />}
+              title={copy.publicKiosk.workspace.evidenceTitle}
+              tone="green"
+            />
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-3 text-center text-sm font-medium text-[#147514]"><Camera className="h-5 w-5" />{copy.publicKiosk.workspace.takePhoto}<input type="file" className="sr-only" accept="image/*" capture="environment" disabled={!canAttach || isSaving} onChange={handleAttachmentChange} /></label>
-              <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-center text-sm font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"><FileUp className="h-5 w-5" />{copy.publicKiosk.workspace.chooseFile}<input type="file" className="sr-only" multiple accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" disabled={!canAttach || isSaving} onChange={handleAttachmentChange} /></label>
+              <KioskFileDropzone accept="image/*" capture="environment" density="compact" disabled={!canAttach || isSaving} icon={<Camera className="h-5 w-5" />} onChange={handleAttachmentChange} title={copy.publicKiosk.workspace.takePhoto} tone="green" />
+              <KioskFileDropzone accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" density="compact" disabled={!canAttach || isSaving} icon={<FileUp className="h-5 w-5" />} multiple onChange={handleAttachmentChange} title={copy.publicKiosk.workspace.chooseFile} tone="green" />
             </div>
             <p className="mt-2 text-center text-xs text-slate-500">{copy.publicKiosk.workspace.evidenceHint}</p>
             {attachments.length > 0 ? <div className="mt-3 grid gap-2">{attachments.map((file, index) => <div key={`${file.name}-${file.lastModified}-${index}`} className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2"><Paperclip className="h-4 w-4 shrink-0 text-[#147514]" /><span className="min-w-0 flex-1 truncate text-sm text-slate-700 dark:text-slate-200">{file.name}</span><button type="button" aria-label={copy.common.deleteAttachment} disabled={isSaving || (retryingEvidence && attachments.length === 1)} onClick={() => setAttachments(current => current.filter((_, fileIndex) => fileIndex !== index))} className="grid h-9 w-9 place-items-center rounded-lg text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"><X className="h-4 w-4" /></button></div>)}</div> : null}
-          </section>
+          </KioskWorkspaceSurface>
 
-          <div className="sticky bottom-0 z-20 -mx-3 border-t border-slate-200 bg-white/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
+          <KioskStickyActionBar summary={retryingEvidence ? copy.publicKiosk.workspace.evidenceHint : undefined}>
             <Button type="button" disabled={!canCreate} onClick={() => void handleCreateReceipt()} className="h-14 w-full gap-2 rounded-xl bg-[#147514] text-base font-medium text-white hover:bg-[#0f5f0f] disabled:opacity-45">
               {isSaving ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}
               {retryingEvidence ? copy.publicKiosk.receipt.retryEvidence : copy.publicKiosk.receipt.submit}
             </Button>
-          </div>
+          </KioskStickyActionBar>
         </section>
       ) : null}
 
       {activeTab !== 'capture' ? (
-        <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+        <KioskWorkspaceSurface className="p-3 sm:p-3">
           <label className="flex items-center gap-3 rounded-xl bg-emerald-50 px-3 py-2 dark:bg-emerald-500/10">
             <WalletCards className="h-4 w-4 shrink-0 text-[#147514]" />
             <span className="min-w-0 flex-1"><span className="block text-xs font-medium text-[#147514]">{copy.publicKiosk.history.period}</span><select aria-label={copy.publicKiosk.history.period} value={selectedPeriodKey} onChange={event => setSelectedPeriodKey(event.target.value)} className="mt-0.5 h-7 w-full bg-transparent text-sm font-medium text-slate-950 outline-none dark:text-white">{periods.length === 0 ? <option value="">{copy.publicKiosk.history.noPeriods}</option> : periods.map(period => <option key={period.id} value={period.period_key}>{formatDate(period.period_start, period.period_key, displayLocale)} – {formatDate(period.period_end, period.period_key, displayLocale)}</option>)}</select></span>
           </label>
-        </section>
+        </KioskWorkspaceSurface>
       ) : null}
 
       {activeTab === 'expenses' ? (
         <section className="space-y-2" role="tabpanel" aria-label={copy.publicKiosk.history.expensesTitle}>
-          {filteredExpenses.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center"><ReceiptText className="mx-auto h-6 w-6 text-slate-400" /><p className="mt-3 text-sm text-slate-500">{copy.publicKiosk.history.emptyExpenses}</p></div> : filteredExpenses.map(receipt => (
+          {filteredExpenses.length === 0 ? <KioskWorkspaceEmptyState description={copy.publicKiosk.history.emptyExpenses} icon={<ReceiptText className="h-6 w-6" />} tone="green" /> : filteredExpenses.map(receipt => (
             <article key={receipt.id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
               <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs text-slate-500">{formatDate(receipt.expense_date, copy.publicKiosk.date.empty, displayLocale)}</p><h3 className="mt-1 line-clamp-2 text-sm font-medium text-slate-950 dark:text-white">{receipt.description}</h3></div><p className="shrink-0 text-sm font-medium text-rose-600">{formatCurrency(Number(receipt.total_amount), receipt.currency_code, displayLocale)}</p></div>
               <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-100 pt-3 dark:border-slate-800"><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-[#147514]">{copy.status.line[receipt.status as keyof typeof copy.status.line] ?? receipt.status}</span><button type="button" onClick={() => void handleViewAttachments(receipt)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-medium text-slate-700 hover:text-[#147514] dark:border-slate-700 dark:text-slate-200">{receipt.attachment_count > 0 ? <Eye className="h-4 w-4" /> : <Paperclip className="h-4 w-4" />}{copy.publicKiosk.side.attachments(receipt.attachment_count)}</button></div>
@@ -553,7 +575,7 @@ export function PettyCashMultiKioskWorkspace({
 
       {activeTab === 'income' ? (
         <section className="space-y-2" role="tabpanel" aria-label={copy.publicKiosk.history.incomeTitle}>
-          {filteredIncome.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center"><Banknote className="mx-auto h-6 w-6 text-slate-400" /><p className="mt-3 text-sm text-slate-500">{copy.publicKiosk.history.emptyIncome}</p></div> : filteredIncome.map(movement => (
+          {filteredIncome.length === 0 ? <KioskWorkspaceEmptyState description={copy.publicKiosk.history.emptyIncome} icon={<Banknote className="h-6 w-6" />} tone="green" /> : filteredIncome.map(movement => (
             <PettyCashKioskIncomeCard key={movement.id} amount={`+${formatCurrency(Number(movement.amount), movement.currency_code, displayLocale)}`} date={formatDate(movement.movement_date, copy.publicKiosk.date.empty, displayLocale)} movement={movement} noReferenceLabel={copy.common.noReference} referenceLabel={copy.publicKiosk.history.reference} title={copy.status.movement[movement.type]} />
           ))}
         </section>
@@ -573,6 +595,6 @@ export function PettyCashMultiKioskWorkspace({
         title={copy.publicKiosk.attachments.title}
         uploadedByLabel={copy.publicKiosk.attachments.uploadedBy}
       />
-    </div>
+    </KioskToolWorkspaceFrame>
   );
 }

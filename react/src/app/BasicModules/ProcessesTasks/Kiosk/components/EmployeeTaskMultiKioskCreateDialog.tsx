@@ -6,6 +6,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { KioskModalFrame } from '../../../../components/kiosk-engine/KioskModalFrame';
+import { KioskWorkspaceNotice } from '../../../../components/kiosk-engine/KioskToolWorkspace';
 import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
 import { Textarea } from '../../../../components/ui/textarea';
@@ -106,15 +107,7 @@ export function EmployeeTaskMultiKioskCreateDialog({
           {busy ? copy.create.submitting : ''}
         </span>
 
-        {errorMessage ? (
-          <p
-            className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200"
-            id={errorId}
-            role="alert"
-          >
-            {errorMessage}
-          </p>
-        ) : null}
+        {errorMessage ? <div id={errorId}><KioskWorkspaceNotice kind="error">{errorMessage}</KioskWorkspaceNotice></div> : null}
 
         <p className="flex items-start gap-3 rounded-2xl border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-4 py-3 text-sm leading-5 text-slate-700 dark:border-[#F4C84A]/20 dark:bg-[#F4C84A]/10 dark:text-slate-200">
           <ShieldCheck aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-[#8A5E05] dark:text-[#FDE68A]" />

@@ -1,5 +1,8 @@
 package com.indice.erp.sales.kiosk;
 
+import com.indice.erp.finance.FinanceApiException;
+import com.indice.erp.finance.treasury.TreasuryAccount;
+import com.indice.erp.finance.treasury.TreasuryService;
 import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import com.indice.erp.sales.SalesService;
 import com.indice.erp.sales.kiosk.RouteSalesKioskDtos.CreateContactRequest;
@@ -36,10 +39,12 @@ public class RouteSalesEmployeeKioskService {
 
     private final JdbcTemplate jdbc;
     private final SalesService sales;
+    private final TreasuryService treasury;
 
-    public RouteSalesEmployeeKioskService(JdbcTemplate jdbc, SalesService sales) {
+    public RouteSalesEmployeeKioskService(JdbcTemplate jdbc, SalesService sales, TreasuryService treasury) {
         this.jdbc = jdbc;
         this.sales = sales;
+        this.treasury = treasury;
     }
 
     @Transactional
@@ -50,6 +55,9 @@ public class RouteSalesEmployeeKioskService {
         var products = products(definition.companyId());
         var balances = inventoryBalances(definition.companyId(), warehouses);
         var recentSales = recentSales(definition.companyId(), seller);
+        var paymentAccounts = treasury.listBankCollectionDestinations(definition.companyId()).stream()
+            .map(this::paymentAccountResponse)
+            .toList();
 
         var result = new LinkedHashMap<String, Object>();
         result.put("tool_key", "employee.route-sales@1");
@@ -60,14 +68,15 @@ public class RouteSalesEmployeeKioskService {
         result.put("products", products);
         result.put("warehouses", warehouses);
         result.put("inventory_balances", balances);
+        result.put("payment_accounts", paymentAccounts);
         result.put("recent_sales", recentSales);
         result.put("summary", summary(recentSales));
         result.put("payment_methods", List.of(
-            option("cash", "Efectivo", "Cobro recibido en ruta; Finanzas concilia la entrega."),
-            option("card", "Tarjeta", "Registra la referencia de la terminal."),
-            option("transfer", "Transferencia", "Registra la referencia bancaria."),
+            option("cash", "Efectivo", "Cobro bajo tu custodia hasta entregarlo."),
+            option("card", "Tarjeta", "Confirma el cobro en una cuenta bancaria."),
+            option("transfer", "Transferencia", "Confirma el depósito en una cuenta bancaria."),
             option("credit", "Crédito", "Cierra la venta y la deja pendiente de cobranza.")));
-        result.put("settlement_policy", "BACK_OFFICE_RECONCILIATION");
+        result.put("settlement_policy", "METHOD_AWARE_TREASURY");
         return Collections.unmodifiableMap(result);
     }
 
@@ -122,6 +131,26 @@ public class RouteSalesEmployeeKioskService {
         var warehouseBusinessId = longOrNull(warehouse.businessId());
         var saleUnitId = warehouseUnitId != null ? warehouseUnitId : seller.unitId();
         var saleBusinessId = warehouseBusinessId != null ? warehouseBusinessId : seller.businessId();
+        var electronicPayment = Set.of("card", "transfer").contains(paymentMethod);
+        TreasuryAccount paymentAccount = null;
+        if (electronicPayment) {
+            if (request.paymentAccountId() == null) {
+                throw new IllegalArgumentException(
+                    "Selecciona la cuenta bancaria donde se recibió el cobro.");
+            }
+            try {
+                paymentAccount = treasury.requireEligibleAccount(
+                    definition.companyId(), request.paymentAccountId(), currency,
+                    saleUnitId, saleBusinessId, Set.of("BANK"));
+            } catch (FinanceApiException failure) {
+                throw new IllegalArgumentException(
+                    "La cuenta bancaria ya no está activa o no corresponde a la moneda y alcance de la venta.",
+                    failure);
+            }
+        } else if (request.paymentAccountId() != null) {
+            throw new IllegalArgumentException(
+                "La cuenta bancaria destino sólo aplica a cobros con tarjeta o transferencia.");
+        }
         var lines = new ArrayList<Map<String, Object>>();
         var hasStockItems = false;
         for (var entry : requestedQuantities.entrySet()) {
@@ -151,6 +180,11 @@ public class RouteSalesEmployeeKioskService {
         customFields.put("businessId", warehouse.businessId());
         customFields.put("businessName", warehouse.businessName());
         customFields.put("routeSettlementMode", settlementMode(paymentMethod));
+        if (paymentAccount != null) {
+            customFields.put("paymentAccountId", paymentAccount.id());
+            customFields.put("paymentAccountName", paymentAccount.name());
+            customFields.put("paymentAccountCurrency", paymentAccount.currencyCode());
+        }
 
         var payload = new LinkedHashMap<String, Object>();
         payload.put("contactId", contact.id());
@@ -162,7 +196,7 @@ public class RouteSalesEmployeeKioskService {
         payload.put("paymentReference", paymentReference(paymentMethod, paymentReference));
         payload.put("paymentEvidenceStatus", "credit".equals(paymentMethod) ? "not_required" : "missing");
         payload.put("commercialStatus", "approved");
-        payload.put("financeStatus", "pending");
+        payload.put("financeStatus", electronicPayment ? "approved" : "pending");
         payload.put("inventoryStatus", hasStockItems ? "approved" : "not_required");
         payload.put("inventoryMovementStatus", hasStockItems ? "pending" : "not_required");
         payload.put("deliveryStatus", request.deliveredNow() ? "delivered" : "pending");
@@ -173,7 +207,7 @@ public class RouteSalesEmployeeKioskService {
         payload.put("metadata", Map.of(
             "source", "EMPLOYEE_ROUTE_SALES",
             "kioskDefinitionId", definition.id(),
-            "settlementPolicy", "BACK_OFFICE_RECONCILIATION"));
+            "settlementPolicy", "METHOD_AWARE_TREASURY"));
 
         var saved = sales.create(definition.companyId(), userId, "sales", payload);
         if (hasStockItems && !"completed".equalsIgnoreCase(text(saved.get("inventoryMovementStatus")))) {
@@ -184,8 +218,8 @@ public class RouteSalesEmployeeKioskService {
         }
         var response = new LinkedHashMap<String, Object>();
         response.put("sale", saleResponse(saved));
-        response.put("settlement_status", "pending_reconciliation");
-        response.put("message", "Venta registrada. El inventario quedó actualizado y Finanzas conciliará el cobro.");
+        response.put("settlement_status", settlementStatus(paymentMethod));
+        response.put("message", settlementMessage(paymentMethod));
         return Collections.unmodifiableMap(response);
     }
 
@@ -301,7 +335,9 @@ public class RouteSalesEmployeeKioskService {
         return jdbc.query(
             """
                 SELECT id, product_code, sku, name, description, category, type,
-                       price, UPPER(currency) AS currency, tax_category, inventory_ready
+                       price, UPPER(currency) AS currency, tax_category, inventory_ready,
+                       JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.imageUrl')) AS image_url,
+                       JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.imageAlt')) AS image_alt
                 FROM sales_products
                 WHERE company_id = ? AND deleted_at IS NULL
                   AND LOWER(COALESCE(status, 'active')) = 'active'
@@ -322,6 +358,8 @@ public class RouteSalesEmployeeKioskService {
                 "currency", rs.getString("currency"),
                 "tax_category", rs.getString("tax_category"),
                 "tax_percent", taxPercent(rs.getString("tax_category")),
+                "image_url", rs.getString("image_url"),
+                "image_alt", rs.getString("image_alt"),
                 "inventory_ready", rs.getBoolean("inventory_ready")),
             companyId);
     }
@@ -382,6 +420,10 @@ public class RouteSalesEmployeeKioskService {
                 SELECT id, sale_number, customer_name, sale_date, total_amount, UPPER(currency) currency,
                        payment_method, payment_reference, commercial_status, finance_status,
                        inventory_movement_status, delivery_status, payment_evidence_status,
+                       CAST(JSON_UNQUOTE(JSON_EXTRACT(custom_fields_json, '$.paymentAccountId')) AS UNSIGNED)
+                           AS payment_account_id,
+                       JSON_UNQUOTE(JSON_EXTRACT(custom_fields_json, '$.paymentAccountName'))
+                           AS payment_account_name,
                        (SELECT COUNT(*) FROM sales_files file
                          WHERE file.company_id = sale.company_id
                            AND file.entity_type = 'sale' AND file.entity_id = sale.id
@@ -392,21 +434,29 @@ public class RouteSalesEmployeeKioskService {
                 ORDER BY sale.sale_date DESC, sale.id DESC
                 LIMIT 50
                 """,
-            (rs, rowNum) -> row(
-                "id", rs.getLong("id"),
-                "sale_number", rs.getString("sale_number"),
-                "customer_name", rs.getString("customer_name"),
-                "sale_date", rs.getObject("sale_date") == null ? null : rs.getObject("sale_date").toString(),
-                "total_amount", rs.getBigDecimal("total_amount"),
-                "currency", rs.getString("currency"),
-                "payment_method", rs.getString("payment_method"),
-                "payment_reference", rs.getString("payment_reference"),
-                "commercial_status", rs.getString("commercial_status"),
-                "finance_status", rs.getString("finance_status"),
-                "inventory_status", rs.getString("inventory_movement_status"),
-                "delivery_status", rs.getString("delivery_status"),
-                "payment_evidence_status", rs.getString("payment_evidence_status"),
-                "evidence_count", rs.getLong("evidence_count")),
+            (rs, rowNum) -> {
+                var paymentAccountId = rs.getLong("payment_account_id");
+                var hasPaymentAccount = !rs.wasNull();
+                return row(
+                    "id", rs.getLong("id"),
+                    "sale_number", rs.getString("sale_number"),
+                    "customer_name", rs.getString("customer_name"),
+                    "sale_date", rs.getObject("sale_date") == null ? null : rs.getObject("sale_date").toString(),
+                    "total_amount", rs.getBigDecimal("total_amount"),
+                    "currency", rs.getString("currency"),
+                    "payment_method", rs.getString("payment_method"),
+                    "payment_reference", rs.getString("payment_reference"),
+                    "payment_account_id", hasPaymentAccount ? paymentAccountId : null,
+                    "payment_account_name", rs.getString("payment_account_name"),
+                    "commercial_status", rs.getString("commercial_status"),
+                    "finance_status", rs.getString("finance_status"),
+                    "inventory_status", rs.getString("inventory_movement_status"),
+                    "delivery_status", rs.getString("delivery_status"),
+                    "payment_evidence_status", rs.getString("payment_evidence_status"),
+                    "settlement_status", settlementStatus(
+                        rs.getString("payment_method"), rs.getString("finance_status")),
+                    "evidence_count", rs.getLong("evidence_count"));
+            },
             companyId, seller.userCompanyId());
     }
 
@@ -530,6 +580,16 @@ public class RouteSalesEmployeeKioskService {
             "business_name", seller.businessName());
     }
 
+    private Map<String, Object> paymentAccountResponse(TreasuryAccount account) {
+        return row(
+            "id", account.id(),
+            "name", account.name(),
+            "type", account.type(),
+            "currency", account.currencyCode(),
+            "unit_id", account.unitId(),
+            "business_id", account.businessId());
+    }
+
     private Map<String, Object> contactResponse(Map<String, Object> saved) {
         return row(
             "id", saved.get("id"),
@@ -588,6 +648,9 @@ public class RouteSalesEmployeeKioskService {
     }
 
     private Map<String, Object> saleResponse(Map<String, Object> saved) {
+        var customFields = saved.get("customFields") instanceof Map<?, ?> values
+            ? values
+            : Map.of();
         return row(
             "id", saved.get("id"),
             "sale_number", saved.get("saleNumber"),
@@ -599,12 +662,16 @@ public class RouteSalesEmployeeKioskService {
             "currency", saved.get("currency"),
             "payment_method", saved.get("paymentMethod"),
             "payment_reference", saved.get("paymentReference"),
+            "payment_account_id", customFields.get("paymentAccountId"),
+            "payment_account_name", customFields.get("paymentAccountName"),
             "payment_evidence_status", saved.get("paymentEvidenceStatus"),
             "evidence_count", saved.getOrDefault("filesCount", 0),
             "commercial_status", saved.get("commercialStatus"),
             "finance_status", saved.get("financeStatus"),
             "inventory_status", saved.get("inventoryMovementStatus"),
-            "delivery_status", saved.get("deliveryStatus"));
+            "delivery_status", saved.get("deliveryStatus"),
+            "settlement_status", settlementStatus(
+                text(saved.get("paymentMethod")), text(saved.get("financeStatus"))));
     }
 
     private Map<String, Object> paymentEvidencePayload(PaymentEvidencePresignRequest request) {
@@ -634,7 +701,37 @@ public class RouteSalesEmployeeKioskService {
         return switch (paymentMethod) {
             case "cash" -> "ROUTE_CASH_CUSTODY";
             case "credit" -> "RECEIVABLE_PENDING";
-            default -> "REFERENCE_PENDING_RECONCILIATION";
+            default -> "DIRECT_TREASURY_BANK";
+        };
+    }
+
+    private String settlementStatus(String paymentMethod) {
+        return switch (text(paymentMethod).toLowerCase(Locale.ROOT)) {
+            case "card", "transfer" -> "settled";
+            case "cash" -> "route_cash_custody";
+            default -> "receivable_pending";
+        };
+    }
+
+    private String settlementStatus(String paymentMethod, String financeStatus) {
+        var normalizedMethod = text(paymentMethod).toLowerCase(Locale.ROOT);
+        if ("approved".equalsIgnoreCase(text(financeStatus)) && !"credit".equals(normalizedMethod)) {
+            return "settled";
+        }
+        if (Set.of("card", "transfer").contains(normalizedMethod)) {
+            return "pending_reconciliation";
+        }
+        return settlementStatus(normalizedMethod);
+    }
+
+    private String settlementMessage(String paymentMethod) {
+        return switch (paymentMethod) {
+            case "card", "transfer" ->
+                "Venta registrada. El inventario y el ingreso en Tesorería quedaron actualizados.";
+            case "cash" ->
+                "Venta registrada. El efectivo queda bajo tu custodia hasta entregarlo a Finanzas.";
+            default ->
+                "Venta registrada. El saldo quedó pendiente de cobranza.";
         };
     }
 
