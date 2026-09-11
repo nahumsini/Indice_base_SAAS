@@ -188,6 +188,9 @@ export interface ExpensePaymentApiDto {
   currencyCode: string;
   paymentDate: string;
   source: ExpensePaymentSource;
+  reversedAt?: string | null;
+  reversalReason?: string | null;
+  reversedByUserId?: number | null;
   registeredByUserId?: number | null;
   registeredByName?: string | null;
   createdAt: string;

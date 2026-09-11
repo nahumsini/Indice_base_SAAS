@@ -301,6 +301,7 @@ public class ExpenseService {
         var previous = paymentRepository.findByIdempotencyKey(context, key);
         if (previous.isPresent()) {
             var attempt = previous.get();
+            if (attempt.reversed()) throw FinanceApiException.conflict("This payment was reversed. Use a new payment request.");
             if (attempt.expenseId() != expenseId
                     || !Objects.equals(attempt.paymentAccountId(), request.paymentAccountId())
                     || (request.paymentDate() != null && !attempt.paymentDate().equals(request.paymentDate()))) {
@@ -322,8 +323,11 @@ public class ExpenseService {
         repository.lockCompanyForCreation(context);
         var existing = requireExpenseForUpdate(context, expenseId);
         var idempotencyKey = normalizeIdempotencyKey(request.idempotencyKey());
+        // A later payment after an undo must never reuse a cumulative-amount Treasury key.
+        if (idempotencyKey == null) idempotencyKey = "generated:" + java.util.UUID.randomUUID();
         var previousAttempt = paymentRepository.findByIdempotencyKey(context, idempotencyKey);
         if (previousAttempt.isPresent()) {
+            if (previousAttempt.get().reversed()) throw FinanceApiException.conflict("This payment was reversed. Use a new payment request.");
             requireMatchingPaymentAttempt(existing, request, previousAttempt.get());
             return mapper.toResponse(existing);
         }

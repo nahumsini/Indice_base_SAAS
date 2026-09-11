@@ -70,11 +70,11 @@ class PettyCashMonthlyCutScheduler {
              external_owner_relationship_snapshot, external_owner_reference_snapshot, statement_recipient_email_snapshot,
              managed_asset_type_snapshot, managed_asset_name_snapshot, managed_asset_reference_snapshot,
              attachment_count, created_by_user_id,
-             custom_fields_json, metadata_json)
+             custom_fields_json, metadata_json, managed_assets_snapshot_json, type_stage_id, fund_snapshot_json)
             SELECT fund.company_id,
                    fund.id,
                    fund.fund_type,
-                   CONCAT('PC-ST-', ?, '-', fund.id),
+                   CONCAT('PC-ST-', ?, '-', fund.id, IF(fund.type_stage_id = 0, '', CONCAT('-', fund.type_stage_id))),
                    ?,
                    ?,
                    ?,
@@ -97,7 +97,24 @@ class PettyCashMonthlyCutScheduler {
                    0,
                    NULL,
                    NULL,
-                   NULL
+                   NULL,
+                   COALESCE(fund.managed_assets_json, CASE
+                     WHEN fund.managed_asset_type IS NOT NULL OR fund.managed_asset_name IS NOT NULL OR fund.managed_asset_reference IS NOT NULL
+                     THEN JSON_ARRAY(JSON_OBJECT('type', fund.managed_asset_type, 'name', fund.managed_asset_name, 'reference', fund.managed_asset_reference))
+                     ELSE JSON_ARRAY() END),
+                   fund.type_stage_id,
+                   JSON_OBJECT(
+                     'fundType', fund.fund_type, 'budgetId', fund.budget_id, 'budgetLineId', fund.budget_line_id,
+                     'paymentAccountId', fund.payment_account_id,
+                     'fundingSourcePaymentAccountId', fund.funding_source_payment_account_id,
+                     'fundingSourceName', fund.funding_source_name, 'unitId', fund.unit_id, 'businessId', fund.business_id,
+                     'responsibleUserId', fund.responsible_user_id,
+                     'externalOwnerType', fund.external_owner_type, 'externalOwnerName', fund.external_owner_name,
+                     'externalOwnerRelationship', fund.external_owner_relationship,
+                     'externalOwnerReference', fund.external_owner_reference,
+                     'statementRecipientEmail', fund.statement_recipient_email,
+                     'managedAssetType', fund.managed_asset_type, 'managedAssetName', fund.managed_asset_name,
+                     'managedAssetReference', fund.managed_asset_reference, 'managedAssetsJson', fund.managed_assets_json)
             FROM finance_petty_cash_funds fund
             WHERE fund.deleted_at IS NULL
               AND fund.company_id = ?
@@ -107,6 +124,7 @@ class PettyCashMonthlyCutScheduler {
                 FROM finance_petty_cash_statements existing
                 WHERE existing.petty_cash_fund_id = fund.id
                   AND existing.period_key = ?
+                  AND existing.type_stage_id = fund.type_stage_id
                   AND existing.deleted_at IS NULL
               )
             """,

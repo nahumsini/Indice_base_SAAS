@@ -5,6 +5,7 @@ import com.indice.erp.finance.pettycash.PettyCashFundStatus;
 import com.indice.erp.finance.pettycash.PettyCashFundType;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 public record PettyCashFundResponse(
@@ -48,6 +49,10 @@ public record PettyCashFundResponse(
     Instant deletedAt,
     Long version,
     JsonNode customFields,
-    JsonNode metadata
+    JsonNode metadata,
+    List<PettyCashManagedAsset> managedAssets,
+    Long pendingTypeChangeId,
+    PettyCashFundType pendingFundType,
+    LocalDate pendingTypeEffectiveDate
 ) {
 }

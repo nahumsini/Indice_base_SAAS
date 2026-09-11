@@ -1,3 +1,5 @@
+import type { PettyCashManagedAsset } from '../types/pettyCash.types';
+import { getFundManagedAssets } from '../utils/managedAssets';
 import { apiClient } from '../../../lib/apiClient';
 import { numericId } from '../../Expenses/adapters/adapter.utils';
 import type {
@@ -41,6 +43,7 @@ type PettyCashFundApiDto = {
   managedAssetType?: string | null;
   managedAssetName?: string | null;
   managedAssetReference?: string | null;
+  managedAssets?: PettyCashManagedAsset[] | null;
   externalIdentityPending?: boolean | null;
   budgetLinkPending?: boolean | null;
   fundingMethods?: string[] | null;
@@ -54,6 +57,10 @@ type PettyCashFundApiDto = {
   updatedByUserId?: number | null;
   customFields?: PettyCashJson;
   metadata?: PettyCashJson;
+  version?: number | null;
+  pendingTypeChangeId?: number | null;
+  pendingFundType?: PettyCashFundType | null;
+  pendingTypeEffectiveDate?: string | null;
 };
 
 type PettyCashStatementApiDto = {
@@ -86,6 +93,7 @@ type PettyCashStatementApiDto = {
   managedAssetTypeSnapshot?: string | null;
   managedAssetNameSnapshot?: string | null;
   managedAssetReferenceSnapshot?: string | null;
+  managedAssetsSnapshot?: PettyCashManagedAsset[] | null;
   reviewedByUserId?: number | null;
   attachmentCount?: number | null;
   customFields?: PettyCashJson;
@@ -260,6 +268,7 @@ type PettyCashFundApiRequest = {
   managedAssetType?: string | null;
   managedAssetName?: string | null;
   managedAssetReference?: string | null;
+  managedAssets?: PettyCashManagedAsset[] | null;
   fundingMethods?: string[];
   spendingMethods?: string[];
   kioskEnabled?: boolean;
@@ -310,6 +319,8 @@ type PettyCashSettlementLineApiRequest = {
 
 type PettyCashStatementCloseApiRequest = {
   action: PettyCashStatementCloseAction;
+  destinationPaymentAccountId?: number;
+  externalDestinationName?: string;
   expectedClosingBalance?: number;
   shortageAmount?: number;
   closeDate?: string;
@@ -379,6 +390,7 @@ const toFund = (dto: PettyCashFundApiDto): PettyCashFund => ({
   managedAssetType: dto.managedAssetType ?? undefined,
   managedAssetName: dto.managedAssetName ?? undefined,
   managedAssetReference: dto.managedAssetReference ?? undefined,
+  managedAssets: getFundManagedAssets(dto),
   externalIdentityPending: Boolean(dto.externalIdentityPending),
   budgetLinkPending: Boolean(dto.budgetLinkPending),
   kioskAccessUrl: dto.kioskAccessUrl
@@ -396,6 +408,10 @@ const toFund = (dto: PettyCashFundApiDto): PettyCashFund => ({
   status: dto.status ?? 'OPEN',
   unitId: idString(dto.unitId),
   unitName: customString(dto.customFields, 'unitName') ?? labelWithId('Unit', dto.unitId),
+  version: dto.version ?? 0,
+  pendingTypeChangeId: idString(dto.pendingTypeChangeId) || undefined,
+  pendingFundType: dto.pendingFundType ?? undefined,
+  pendingTypeEffectiveDate: dto.pendingTypeEffectiveDate ?? undefined,
 });
 
 const toStatement = (
@@ -432,6 +448,12 @@ const toStatement = (
     managedAssetTypeSnapshot: dto.managedAssetTypeSnapshot ?? undefined,
     managedAssetNameSnapshot: dto.managedAssetNameSnapshot ?? undefined,
     managedAssetReferenceSnapshot: dto.managedAssetReferenceSnapshot ?? undefined,
+    managedAssetsSnapshot: getFundManagedAssets({
+      managedAssets: dto.managedAssetsSnapshot,
+      managedAssetType: dto.managedAssetTypeSnapshot,
+      managedAssetName: dto.managedAssetNameSnapshot,
+      managedAssetReference: dto.managedAssetReferenceSnapshot,
+    }),
     returnedAmount: asNumber(dto.returnedAmount),
     reviewedByName: customString(dto.customFields, 'reviewedByName') ?? optionalLabelWithId('User', dto.reviewedByUserId),
     shortageAmount: asNumber(dto.shortageAmount),
@@ -549,9 +571,10 @@ const toFundCreateRequest = (fund: PettyCashFund): PettyCashFundApiRequest => ({
   externalOwnerRelationship: fund.externalOwnerRelationship ?? null,
   externalOwnerReference: fund.externalOwnerReference ?? null,
   statementRecipientEmail: fund.statementRecipientEmail ?? null,
-  managedAssetType: fund.managedAssetType ?? null,
-  managedAssetName: fund.managedAssetName ?? null,
-  managedAssetReference: fund.managedAssetReference ?? null,
+  managedAssetType: getFundManagedAssets(fund)[0]?.type ?? null,
+  managedAssetName: getFundManagedAssets(fund)[0]?.name ?? null,
+  managedAssetReference: getFundManagedAssets(fund)[0]?.reference ?? null,
+  managedAssets: getFundManagedAssets(fund).map(({ type, name, reference }) => ({ type, name, reference: reference ?? null })),
   kioskAccessUrl: fund.kioskAccessUrl ?? null,
   kioskEnabled: fund.kioskEnabled,
   kioskPublicToken: fund.kioskPublicToken ?? null,
@@ -658,6 +681,21 @@ export const pettyCashService = {
       jsonMutation('PUT', toFundUpdateRequest(fund)),
     );
     return toFund(response);
+  },
+
+  async changeFundType(fund: PettyCashFund, effectiveDate: string, reason: string): Promise<PettyCashFund> {
+    const fundId = requireBackendId(fund.id, 'Petty cash fund');
+    await apiClient(`${pettyCashPath}/funds/${fundId}/type-changes`, jsonMutation('POST', {
+      configuration: toFundUpdateRequest(fund), effectiveDate, reason, expectedVersion: fund.version ?? 0,
+    }));
+    return toFund(await apiClient<PettyCashFundApiDto>(`${pettyCashPath}/funds/${fundId}`));
+  },
+
+  async cancelFundTypeChange(fund: PettyCashFund): Promise<PettyCashFund> {
+    if (!fund.pendingTypeChangeId) return fund;
+    const fundId = requireBackendId(fund.id, 'Petty cash fund');
+    await apiClient(`${pettyCashPath}/funds/${fundId}/type-changes/${requireBackendId(fund.pendingTypeChangeId, 'Fund type change')}`, { method: 'DELETE' });
+    return toFund(await apiClient<PettyCashFundApiDto>(`${pettyCashPath}/funds/${fundId}`));
   },
 
   async rotateFundKioskToken(fundId: string): Promise<PettyCashFund> {

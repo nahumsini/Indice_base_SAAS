@@ -33,6 +33,7 @@ class BudgetExpenseIntegrationTest {
     @Autowired BudgetExpenseMaterializer materializer;
     @Autowired BudgetExpenseOccurrenceRepository occurrences;
     @Autowired ExpenseService expenses;
+    @Autowired com.indice.erp.finance.expenses.ExpensePaymentReversalService paymentReversals;
     @Autowired FinanceBusinessTimeZoneResolver zones;
     @Autowired PlatformTransactionManager transactions;
     private FinanceContext context;
@@ -107,6 +108,21 @@ class BudgetExpenseIntegrationTest {
         assertThat(count("finance_expense_payments")).isEqualTo(2);
         assertThat(jdbc.queryForObject("SELECT actual_expense_amount FROM finance_budget_lines WHERE id=? AND company_id=?",
             BigDecimal.class, overdue, context.companyId())).isEqualByComparingTo("116.00");
+    }
+
+    @Test void undoPaymentReopensDebtWithoutUndoingBudgetConsumptionOrRegeneratingTheObligation() {
+        long budgetLine = line(context.companyId(), today, "MXN", "Reversal budget");
+        synchronization.synchronize(context);
+        var payable = expenses.list(context).expenses().getFirst();
+        var paid = expenses.settlePayment(context, payable.id(), new SettleExpensePaymentRequest(null, null, UUID.randomUUID().toString()));
+        var before = jdbc.queryForMap("SELECT actual_expense_amount, available_amount FROM finance_budget_lines WHERE id = ?", budgetLine);
+        long payment = jdbc.queryForObject("SELECT id FROM finance_expense_payments WHERE company_id = ? AND expense_id = ?", Long.class, context.companyId(), paid.id());
+        var reopened = paymentReversals.reverse(context, paid.id(), payment,
+            new com.indice.erp.finance.expenses.dto.ReverseExpensePaymentRequest(paid.version(), "Payment entered by mistake"));
+        assertThat(reopened.balanceAmount()).isEqualByComparingTo("116");
+        assertThat(reopened.paidAmount()).isZero();
+        assertThat(jdbc.queryForMap("SELECT actual_expense_amount, available_amount FROM finance_budget_lines WHERE id = ?", budgetLine)).isEqualTo(before);
+        assertThat(synchronization.synchronize(context).generated()).isZero();
     }
 
     @Test void monthAndYearRolloverGeneratesOnlyDueOccurrencesAndNeverRecreatesDeletedExpense() {

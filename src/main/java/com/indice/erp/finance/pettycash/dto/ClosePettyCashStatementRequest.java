@@ -12,10 +12,17 @@ public record ClosePettyCashStatementRequest(
     @DecimalMin("0.00") BigDecimal shortageAmount,
     LocalDate closeDate,
     @Size(max = 180) String reference,
-    BigDecimal expectedClosingBalance
+    BigDecimal expectedClosingBalance,
+    Long destinationPaymentAccountId,
+    @Size(max = 180) String externalDestinationName
 ) {
     public ClosePettyCashStatementRequest(PettyCashStatementCloseAction action, BigDecimal shortageAmount,
             LocalDate closeDate, String reference) {
-        this(action, shortageAmount, closeDate, reference, null);
+        this(action, shortageAmount, closeDate, reference, null, null, null);
+    }
+
+    public ClosePettyCashStatementRequest(PettyCashStatementCloseAction action, BigDecimal shortageAmount,
+            LocalDate closeDate, String reference, BigDecimal expectedClosingBalance) {
+        this(action, shortageAmount, closeDate, reference, expectedClosingBalance, null, null);
     }
 }

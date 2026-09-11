@@ -64,7 +64,8 @@ test('Expenses mantiene acciones visibles y semánticas con el patrón de Agenda
   assert.match(actionsSource, /<ShieldCheck/);
   assert.match(actionsSource, /<Trash2/);
   assert.match(actionsSource, /rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2/);
-  assert.match(headerSource, /const eligibleActionCount = 4/);
+  assert.match(headerSource, /const eligibleActionCount = 5/);
+  assert.match(headerSource, /onClick=\{onPrintSelection\}/);
   assert.match(headerSource, /const hasOverflow = eligibleActionCount > 3/);
   assert.match(headerSource, /<DropdownMenu>/);
   assert.doesNotMatch(headerSource, /onOpenPayablesKiosk/);

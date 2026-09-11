@@ -90,7 +90,7 @@ class ExpensePaymentRepository {
         }
         var rows = jdbcTemplate.query(
             """
-            SELECT expense_id, payment_account_id, amount, currency_code, payment_date
+            SELECT expense_id, payment_account_id, amount, currency_code, payment_date, reversed_at
             FROM finance_expense_payments
             WHERE company_id = ?
               AND idempotency_key = ?
@@ -100,7 +100,8 @@ class ExpensePaymentRepository {
                 nullableLong(rs.getObject("payment_account_id")),
                 rs.getBigDecimal("amount"),
                 rs.getString("currency_code"),
-                rs.getDate("payment_date").toLocalDate()
+                rs.getDate("payment_date").toLocalDate(),
+                rs.getTimestamp("reversed_at") != null
             ),
             context.companyId(),
             idempotencyKey.trim()
@@ -127,7 +128,10 @@ class ExpensePaymentRepository {
                    payment.source,
                    payment.registered_by_user_id,
                    COALESCE(NULLIF(TRIM(registered_by.full_name), ''), registered_by.email) AS registered_by_name,
-                   payment.created_at
+                   payment.created_at,
+                   payment.reversed_at,
+                   payment.reversed_by_user_id,
+                   payment.reversal_reason
             FROM finance_expense_payments payment
             JOIN finance_expenses expense
               ON expense.id = payment.expense_id
@@ -154,7 +158,10 @@ class ExpensePaymentRepository {
                 rs.getString("source"),
                 nullableLong(rs.getObject("registered_by_user_id")),
                 rs.getString("registered_by_name"),
-                rs.getTimestamp("created_at").toInstant()
+                rs.getTimestamp("created_at").toInstant(),
+                rs.getTimestamp("reversed_at") == null ? null : rs.getTimestamp("reversed_at").toInstant(),
+                nullableLong(rs.getObject("reversed_by_user_id")),
+                rs.getString("reversal_reason")
             ),
             params.toArray()
         );
@@ -177,7 +184,8 @@ class ExpensePaymentRepository {
         Long paymentAccountId,
         BigDecimal amount,
         String currencyCode,
-        LocalDate paymentDate
+        LocalDate paymentDate,
+        boolean reversed
     ) {
     }
 }

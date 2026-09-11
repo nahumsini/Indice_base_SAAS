@@ -110,6 +110,7 @@ class PettyCashEmployeeHistoryPrivacyTest {
             25, "Cash", null, null, null, null, null, null, null, null, true,
             "[]", "[]", true, false,
             null, "shared-fund-token", PettyCashFundStatus.OPEN,
-            1L, 1L, now, now, null, 1L, "{}", "{}");
+            1L, 1L, now, now, null, 1L, "{}", "{}",
+            null, null, null, null);
     }
 }

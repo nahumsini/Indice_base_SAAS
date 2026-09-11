@@ -1,3 +1,4 @@
+import { describeManagedAsset, getStatementManagedAssets } from '../../utils/managedAssets';
 import {
   ArrowDownToLine,
   CalendarRange,
@@ -47,8 +48,9 @@ export function PettyCashStatementDetailModal({
     [labels.relationship, (statement.externalOwnerRelationshipSnapshot ?? fund.externalOwnerRelationship ?? copy.common.notAvailable).split('_').join(' ')],
     [labels.statementRecipient, statement.statementRecipientEmailSnapshot ?? fund.statementRecipientEmail ?? copy.common.notAvailable],
   ];
-  const managedAssetName = statement.managedAssetNameSnapshot ?? fund.managedAssetName;
-  if (managedAssetName) externalIdentityRows.push([labels.managedAsset, managedAssetName]);
+  getStatementManagedAssets(statement).forEach((asset, index) => {
+    externalIdentityRows.push([`${labels.managedAsset} ${index + 1}`, describeManagedAsset(asset, copy)]);
+  });
   const ownerReference = statement.externalOwnerReferenceSnapshot ?? fund.externalOwnerReference;
   if (ownerReference) externalIdentityRows.push([labels.ownerReference, ownerReference]);
   const fundedAmount = statement.assignedAmount + statement.additionalDepositAmount;
@@ -107,7 +109,7 @@ export function PettyCashStatementDetailModal({
 
         <StatementTableSection count={orderedMovements.length} icon={<ArrowDownToLine className="h-4 w-4" />} title={labels.movements} tone="blue">
           <table className="w-full min-w-[680px] border-collapse text-left text-xs"><thead className="bg-slate-100 text-slate-700"><tr><th className="px-3 py-3 font-medium">{copy.common.date}</th><th className="px-3 py-3 font-medium">{labels.type}</th><th className="px-3 py-3 font-medium">{labels.reference}</th><th className="px-3 py-3 font-medium">{labels.destination}</th><th className="px-3 py-3 text-right font-medium">{labels.total}</th></tr></thead><tbody>
-            {orderedMovements.length ? orderedMovements.map(movement => <tr className="border-t border-slate-200 odd:bg-white even:bg-slate-50" key={movement.id}><td className="px-3 py-3 text-slate-600">{formatPettyCashIsoDate(movement.movementDate)}</td><td className="px-3 py-3 font-medium text-slate-800">{copy.status.movement[movement.type]}</td><td className="px-3 py-3 text-slate-600">{movement.statementDescription || movement.reference || copy.common.notAvailable}</td><td className="px-3 py-3 text-slate-600">{movement.toPaymentAccountName ?? fund.name}</td><td className="px-3 py-3 text-right font-medium tabular-nums text-sky-700">{formatPettyCashCurrency(movement.amount, movement.currencyCode)}</td></tr>) : <tr><td className="px-4 py-8 text-center text-sm text-slate-500" colSpan={5}>{labels.emptyMovements}</td></tr>}
+            {orderedMovements.length ? orderedMovements.map(movement => <tr className="border-t border-slate-200 odd:bg-white even:bg-slate-50" key={movement.id}><td className="px-3 py-3 text-slate-600">{formatPettyCashIsoDate(movement.movementDate)}</td><td className="px-3 py-3 font-medium text-slate-800">{copy.status.movement[movement.type]}</td><td className="px-3 py-3 text-slate-600">{movement.statementDescription || movement.reference || copy.common.notAvailable}</td><td className="px-3 py-3 text-slate-600">{movement.toPaymentAccountName ?? (movement.type === 'RETURN_TO_SOURCE' ? movement.externalSourceName : fund.name) ?? copy.common.notAvailable}</td><td className="px-3 py-3 text-right font-medium tabular-nums text-sky-700">{formatPettyCashCurrency(movement.amount, movement.currencyCode)}</td></tr>) : <tr><td className="px-4 py-8 text-center text-sm text-slate-500" colSpan={5}>{labels.emptyMovements}</td></tr>}
           </tbody></table>
         </StatementTableSection>
 

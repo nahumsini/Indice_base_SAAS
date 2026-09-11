@@ -22,6 +22,10 @@ export interface StandardDocumentSection {
 
 export interface StandardDocumentTable {
   columns: string[];
+  numericColumnIndices?: number[];
+  avoidRowSplit?: boolean;
+  keepTogether?: boolean;
+  fontSize?: number;
   emptyMessage?: string;
   rows: Array<Array<string | number | null | undefined>>;
   title?: string;
@@ -45,6 +49,8 @@ export interface StandardDocumentDefinition {
   folio?: string;
   generatedAt?: Date;
   issuer?: string;
+  showIssuerMetadata?: boolean;
+  continuationHeader?: string;
   locale?: string;
   metadata?: StandardDocumentField[];
   metrics?: StandardDocumentMetric[];
@@ -137,7 +143,7 @@ export const buildStandardDocumentPdf = (definition: StandardDocumentDefinition)
   const ensureRoom = (height: number) => {
     if (y + height <= footerTop) return;
     doc.addPage();
-    y = 18;
+    y = definition.continuationHeader ? 30 : 18;
   };
 
   const writeSectionTitle = (title: string) => {
@@ -190,7 +196,7 @@ export const buildStandardDocumentPdf = (definition: StandardDocumentDefinition)
   y += headerHeight + 8;
 
   const primaryMetadata: StandardDocumentField[] = [
-    definition.issuer ? { label: labels.issuer, value: definition.issuer } : null,
+    definition.issuer && definition.showIssuerMetadata !== false ? { label: labels.issuer, value: definition.issuer } : null,
     definition.recipient ? { label: labels.recipient, value: definition.recipient } : null,
     definition.status ? { label: labels.status, value: definition.status } : null,
     ...(definition.metadata ?? []),
@@ -270,6 +276,7 @@ export const buildStandardDocumentPdf = (definition: StandardDocumentDefinition)
   });
 
   definition.tables?.forEach((table) => {
+    if (table.keepTogether) ensureRoom(24 + table.rows.length * 11);
     if (table.title) writeSectionTitle(table.title);
     const rows = table.rows.length > 0
       ? table.rows.map((row) => row.map(cleanValue))
@@ -277,12 +284,14 @@ export const buildStandardDocumentPdf = (definition: StandardDocumentDefinition)
     autoTable(doc, {
       body: rows,
       head: [table.columns],
-      margin: { bottom: 24, left: margin, right: margin },
+      margin: { ...(definition.continuationHeader ? { top: 26 } : {}), bottom: 24, left: margin, right: margin },
       startY: y,
+      rowPageBreak: table.avoidRowSplit ? 'avoid' : 'auto',
+      columnStyles: Object.fromEntries((table.numericColumnIndices ?? []).map(index => [index, { halign: 'right' as const }])),
       styles: {
         cellPadding: 2.4,
         font: 'helvetica',
-        fontSize: 7.4,
+        fontSize: table.fontSize ?? 7.4,
         lineColor: [228, 231, 235],
         lineWidth: 0.15,
         overflow: 'linebreak',
@@ -295,7 +304,13 @@ export const buildStandardDocumentPdf = (definition: StandardDocumentDefinition)
         textColor: [69, 76, 87],
       },
       alternateRowStyles: { fillColor: [250, 251, 252] },
-      didDrawPage: () => undefined,
+      didDrawPage: () => {
+        if (!definition.continuationHeader || doc.getCurrentPageInfo().pageNumber === 1) return;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        setColor(doc, [74, 82, 94]);
+        doc.text(definition.continuationHeader, margin, 16, { maxWidth: contentWidth });
+      },
     });
     y = ((doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y) + 8;
   });

@@ -8,14 +8,14 @@ class PettyCashSqlContractTest {
 
     @Test
     void insertContractsKeepOnePlaceholderPerBoundValue() {
-        assertThat(placeholderCount(PettyCashSql.INSERT_FUND)).isEqualTo(34);
-        assertThat(placeholderCount(PettyCashSql.INSERT_STATEMENT)).isEqualTo(32);
+        assertThat(placeholderCount(PettyCashSql.INSERT_FUND)).isEqualTo(35);
+        assertThat(placeholderCount(PettyCashSql.INSERT_STATEMENT)).isEqualTo(34);
         assertThat(placeholderCount(PettyCashSql.INSERT_MOVEMENT)).isEqualTo(19);
     }
 
     @Test
     void fundUpdateKeepsOnePlaceholderPerBoundValue() {
-        assertThat(placeholderCount(PettyCashSql.UPDATE_FUND)).isEqualTo(34);
+        assertThat(placeholderCount(PettyCashSql.UPDATE_FUND)).isEqualTo(35);
     }
 
     private long placeholderCount(String sql) {

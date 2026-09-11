@@ -40,6 +40,12 @@ export type PettyCashSettlementLineStatus =
   | 'REJECTED'
   | 'REVERSED';
 
+export interface PettyCashManagedAsset {
+  type: string;
+  name: string;
+  reference?: string | null;
+}
+
 export interface PettyCashFund {
   id: string;
   companyId: string;
@@ -71,6 +77,7 @@ export interface PettyCashFund {
   managedAssetType?: string;
   managedAssetName?: string;
   managedAssetReference?: string;
+  managedAssets?: PettyCashManagedAsset[];
   externalIdentityPending?: boolean;
   budgetLinkPending?: boolean;
   fundingMethods: string[];
@@ -81,6 +88,10 @@ export interface PettyCashFund {
   kioskAccessUrl?: string;
   kioskPublicToken?: string;
   status: PettyCashFundStatus;
+  version?: number;
+  pendingTypeChangeId?: string;
+  pendingFundType?: PettyCashFundType;
+  pendingTypeEffectiveDate?: string;
 }
 
 export interface PettyCashStatement {
@@ -114,6 +125,7 @@ export interface PettyCashStatement {
   managedAssetTypeSnapshot?: string;
   managedAssetNameSnapshot?: string;
   managedAssetReferenceSnapshot?: string;
+  managedAssetsSnapshot?: PettyCashManagedAsset[];
   reviewedByName?: string;
   attachmentCount: number;
 }

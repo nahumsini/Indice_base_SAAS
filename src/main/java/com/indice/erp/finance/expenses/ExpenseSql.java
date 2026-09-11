@@ -51,7 +51,13 @@ final class ExpenseSql {
             expense.metadata_json,
             origin_fund.id AS origin_fund_id,
             origin_fund.name AS origin_fund_name,
-            origin_fund.fund_type AS origin_fund_type,
+            COALESCE((SELECT statement_record.fund_type_snapshot
+                FROM finance_petty_cash_settlement_lines source_line
+                JOIN finance_petty_cash_statements statement_record
+                  ON statement_record.company_id = source_line.company_id
+                 AND statement_record.id = source_line.petty_cash_statement_id
+                WHERE source_line.company_id = expense.company_id AND source_line.expense_id = expense.id
+                ORDER BY source_line.id LIMIT 1), origin_fund.fund_type) AS origin_fund_type,
             EXISTS(SELECT 1 FROM finance_journal_entries journal
                    WHERE journal.company_id = expense.company_id
                      AND journal.source_type = 'EXPENSE'
@@ -82,7 +88,18 @@ final class ExpenseSql {
                 AND fund.payment_account_id = expense.payment_account_id
               HAVING COUNT(*) = 1))
         """;
-    static final String COMPANY_EXPENSE = "(origin_fund.id IS NULL OR origin_fund.fund_type = 'INTERNAL_COMPANY')";
+    static final String COMPANY_EXPENSE = """
+        (origin_fund.id IS NULL
+         OR EXISTS (SELECT 1 FROM finance_petty_cash_settlement_lines source_line
+              JOIN finance_petty_cash_statements statement_record
+                ON statement_record.company_id = source_line.company_id
+               AND statement_record.id = source_line.petty_cash_statement_id
+             WHERE source_line.company_id = expense.company_id AND source_line.expense_id = expense.id
+               AND statement_record.fund_type_snapshot = 'INTERNAL_COMPANY')
+         OR (origin_fund.fund_type = 'INTERNAL_COMPANY'
+             AND NOT EXISTS (SELECT 1 FROM finance_petty_cash_settlement_lines source_line
+                 WHERE source_line.company_id = expense.company_id AND source_line.expense_id = expense.id)))
+        """;
 
     private ExpenseSql() {
     }

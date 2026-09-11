@@ -17,6 +17,9 @@ export interface ExpensePayment {
   currency: string;
   paymentDate: string;
   source: ExpensePaymentSource;
+  reversedAt?: Date;
+  reversalReason?: string;
+  reversedByUserId?: string;
   registeredByUserId?: string;
   registeredByName?: string;
   createdAt: Date;

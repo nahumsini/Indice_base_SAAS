@@ -1,4 +1,6 @@
-import { Columns3, Landmark, MoreHorizontal, Plus, TableProperties } from 'lucide-react';
+import { Columns3, Landmark, MoreHorizontal, Plus, Printer, TableProperties } from 'lucide-react';
+import { getExpenseTablePrintCopy } from '../../utils/expenseTablePrint.copy';
+import { useExpensesResolvedLocale } from '../../Expenses/hooks/useExpensesTranslations';
 import { IndiceTitleBar } from '../../../../components/frontend-os';
 import { Button } from '../../../../components/ui/button';
 import {
@@ -10,6 +12,8 @@ import {
 import { useExpensesModuleTranslations } from '../../hooks/useExpensesModuleTranslations';
 
 type ExpensesHeaderProps = {
+  onPrintSelection?: () => void;
+  printDisabled?: boolean;
   createExpenseDisabled?: boolean;
   createExpenseDisabledReason?: string;
   onConfigureColumns: () => void;
@@ -19,6 +23,8 @@ type ExpensesHeaderProps = {
 };
 
 export function ExpensesHeader({
+  onPrintSelection,
+  printDisabled = false,
   createExpenseDisabled = false,
   createExpenseDisabledReason,
   onConfigureColumns,
@@ -27,7 +33,8 @@ export function ExpensesHeader({
   onCreateExpense,
 }: ExpensesHeaderProps) {
   const t = useExpensesModuleTranslations();
-  const eligibleActionCount = 4;
+  const printCopy = getExpenseTablePrintCopy(useExpensesResolvedLocale());
+  const eligibleActionCount = 5;
   const hasOverflow = eligibleActionCount > 3;
   const ActionLayout = () => (
     <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
@@ -52,6 +59,9 @@ export function ExpensesHeader({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 rounded-xl p-1.5">
+            <DropdownMenuItem className="rounded-lg py-2.5" disabled={printDisabled || !onPrintSelection} onClick={onPrintSelection}>
+              <Printer className="h-4 w-4" />{printCopy.action}
+            </DropdownMenuItem>
             <DropdownMenuItem className="rounded-lg py-2.5" onClick={onConfigureColumns}>
               <Columns3 className="h-4 w-4" />
               {t.common.columns}

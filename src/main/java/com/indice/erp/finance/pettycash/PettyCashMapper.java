@@ -73,7 +73,11 @@ public class PettyCashMapper {
             instant(rs, "deleted_at"),
             rs.getLong("version"),
             rs.getString("custom_fields_json"),
-            rs.getString("metadata_json")
+            rs.getString("metadata_json"),
+            rs.getString("managed_assets_json"),
+            nullableLong(rs, "pending_type_change_id"),
+            rs.getString("pending_fund_type") == null ? null : PettyCashFundType.valueOf(rs.getString("pending_fund_type")),
+            rs.getObject("pending_type_effective_date", LocalDate.class)
         );
     }
 
@@ -117,7 +121,8 @@ public class PettyCashMapper {
             instant(rs, "deleted_at"),
             rs.getLong("version"),
             rs.getString("custom_fields_json"),
-            rs.getString("metadata_json")
+            rs.getString("metadata_json"),
+            rs.getString("managed_assets_snapshot_json")
         );
     }
 
@@ -196,7 +201,9 @@ public class PettyCashMapper {
             toStringList(record.fundingMethodsJson()), toStringList(record.spendingMethodsJson()),
             record.kioskEnabled(), record.kioskUsesUniversalPin(), record.kioskAccessUrl(), record.kioskPublicToken(), record.status(),
             record.createdByUserId(), record.updatedByUserId(), record.createdAt(), record.updatedAt(),
-            record.deletedAt(), record.version(), toJsonNode(record.customFieldsJson()), toJsonNode(record.metadataJson())
+            record.deletedAt(), record.version(), toJsonNode(record.customFieldsJson()), toJsonNode(record.metadataJson()),
+            PettyCashManagedAssets.read(record.managedAssetsJson(), record.managedAssetType(), record.managedAssetName(), record.managedAssetReference()),
+            record.pendingTypeChangeId(), record.pendingFundType(), record.pendingTypeEffectiveDate()
         );
     }
 
@@ -213,7 +220,8 @@ public class PettyCashMapper {
             record.managedAssetNameSnapshot(), record.managedAssetReferenceSnapshot(),
             record.reviewedByUserId(), record.attachmentCount(),
             record.createdByUserId(), record.updatedByUserId(), record.createdAt(), record.updatedAt(),
-            record.deletedAt(), record.version(), toJsonNode(record.customFieldsJson()), toJsonNode(record.metadataJson())
+            record.deletedAt(), record.version(), toJsonNode(record.customFieldsJson()), toJsonNode(record.metadataJson()),
+            PettyCashManagedAssets.read(record.managedAssetsSnapshotJson(), record.managedAssetTypeSnapshot(), record.managedAssetNameSnapshot(), record.managedAssetReferenceSnapshot())
         );
     }
 
@@ -252,6 +260,9 @@ public class PettyCashMapper {
         var fundType = resolveFundType(request.fundType(), request.fundingSourcePaymentAccountId());
         var externalIdentityPending = isExternalIdentityPending(
             fundType, request.externalOwnerType(), request.externalOwnerName(), request.statementRecipientEmail());
+        var assets = PettyCashManagedAssets.resolve(request.managedAssets(), request.managedAssetType(),
+            request.managedAssetName(), request.managedAssetReference(), null);
+        var firstAsset = PettyCashManagedAssets.first(assets);
         return new PettyCashFundCommand(
             assignment.unitId(), assignment.businessId(), request.budgetId(), request.budgetLineId(),
             request.paymentAccountId(), request.fundingSourcePaymentAccountId(), request.responsibleUserId(),
@@ -259,8 +270,8 @@ public class PettyCashMapper {
             request.cutOffDay() == null ? 30 : request.cutOffDay(), trimToNull(request.fundingSourceName()),
             normalizeCode(request.externalOwnerType()), trimToNull(request.externalOwnerName()),
             normalizeCode(request.externalOwnerRelationship()), trimToNull(request.externalOwnerReference()),
-            normalizeEmail(request.statementRecipientEmail()), normalizeCode(request.managedAssetType()),
-            trimToNull(request.managedAssetName()), trimToNull(request.managedAssetReference()), externalIdentityPending,
+            normalizeEmail(request.statementRecipientEmail()), firstAsset.type(),
+            firstAsset.name(), firstAsset.reference(), externalIdentityPending,
             FinanceJsonSupport.toJson(cleanList(request.fundingMethods())),
             FinanceJsonSupport.toJson(cleanList(request.spendingMethods())),
             kioskEnabled,
@@ -268,7 +279,8 @@ public class PettyCashMapper {
             kioskAccessUrl(request.kioskAccessUrl(), kioskPublicToken, kioskEnabled), kioskPublicToken,
             request.status() == null ? PettyCashFundStatus.OPEN : request.status(),
             context.userId(), null, FinanceJsonSupport.toJson(request.customFields()),
-            FinanceJsonSupport.toJson(request.metadata())
+            FinanceJsonSupport.toJson(request.metadata()),
+            FinanceJsonSupport.toJson(assets)
         );
     }
 
@@ -282,6 +294,9 @@ public class PettyCashMapper {
         var fundType = resolveFundType(request.fundType(), request.fundingSourcePaymentAccountId());
         var externalIdentityPending = isExternalIdentityPending(
             fundType, request.externalOwnerType(), request.externalOwnerName(), request.statementRecipientEmail());
+        var assets = PettyCashManagedAssets.resolve(request.managedAssets(), request.managedAssetType(),
+            request.managedAssetName(), request.managedAssetReference(), PettyCashManagedAssets.read(existing.managedAssetsJson(), existing.managedAssetType(), existing.managedAssetName(), existing.managedAssetReference()));
+        var firstAsset = PettyCashManagedAssets.first(assets);
         return new PettyCashFundCommand(
             assignment.unitId(), assignment.businessId(), request.budgetId(), request.budgetLineId(),
             request.paymentAccountId(), request.fundingSourcePaymentAccountId(), request.responsibleUserId(),
@@ -290,8 +305,8 @@ public class PettyCashMapper {
             trimToNull(request.fundingSourceName()), normalizeCode(request.externalOwnerType()),
             trimToNull(request.externalOwnerName()), normalizeCode(request.externalOwnerRelationship()),
             trimToNull(request.externalOwnerReference()), normalizeEmail(request.statementRecipientEmail()),
-            normalizeCode(request.managedAssetType()), trimToNull(request.managedAssetName()),
-            trimToNull(request.managedAssetReference()), externalIdentityPending,
+            firstAsset.type(), firstAsset.name(),
+            firstAsset.reference(), externalIdentityPending,
             FinanceJsonSupport.toJson(cleanList(request.fundingMethods())),
             FinanceJsonSupport.toJson(cleanList(request.spendingMethods())),
             kioskEnabled,
@@ -299,7 +314,8 @@ public class PettyCashMapper {
             kioskAccessUrl(request.kioskAccessUrl(), kioskPublicToken, kioskEnabled), kioskPublicToken,
             request.status() == null ? existing.status() : request.status(),
             null, context.userId(), FinanceJsonSupport.toJson(request.customFields()),
-            FinanceJsonSupport.toJson(request.metadata())
+            FinanceJsonSupport.toJson(request.metadata()),
+            FinanceJsonSupport.toJson(assets)
         );
     }
 

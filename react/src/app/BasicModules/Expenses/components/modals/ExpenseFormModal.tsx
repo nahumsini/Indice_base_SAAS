@@ -29,6 +29,7 @@ import {
   financeModalSecondaryButtonClass,
 } from './FinanceModalPrimitives';
 import { QuickProviderField } from './QuickProviderField';
+import { ExpensePaymentReversalSection } from './ExpensePaymentReversalSection';
 
 export type ExpenseFormValues = {
   accountingAccount: string;
@@ -71,6 +72,7 @@ type ExpenseFormModalProps = {
   providers?: Provider[];
   unitOptions?: FinanceReferenceOption[];
   onSubmitExpense: (values: ExpenseFormValues) => void | Promise<void>;
+  onReverseExpensePayment?: (paymentId: string, reason: string) => Promise<Expense>;
 };
 
 type ExpenseDraftState = TaxControlDraft & {
@@ -100,6 +102,7 @@ export function ExpenseFormModal({
   paymentAccounts = [],
   unitOptions = [],
   onSubmitExpense,
+  onReverseExpensePayment,
 }: ExpenseFormModalProps) {
   const t = useExpensesTranslations();
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -110,6 +113,8 @@ export function ExpenseFormModal({
   const [errorMessage, setErrorMessage] = useState('');
   const savingRef = useRef(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isReversing, setIsReversing] = useState(false);
+  const [hasPaymentHistory, setHasPaymentHistory] = useState((editingExpense?.amountPaid ?? 0) > 0);
   const [draft, setDraft] = useState<ExpenseDraftState>(() => createExpenseDraftState(editingExpense ?? initialExpense, preferredCurrency));
   const isEditMode = Boolean(editingExpense);
   const amount = toMoneyNumber(draft.amount);
@@ -126,6 +131,7 @@ export function ExpenseFormModal({
     && draft.expenseDate.trim().length > 0
     && draft.budgetCurrencyCode.trim().length > 0
     && !attachmentError
+    && !isReversing
     && !isSaving;
   const scopedBusinessOptions = filterBusinessesForUnit(businessOptions, draft.businessUnit);
   const accountingOptions = accountingAccountOptions.length > 0
@@ -241,12 +247,12 @@ export function ExpenseFormModal({
   const formId = `expense-form-${editingExpense?.id ?? 'new'}`;
   return (
     <IndiceModalFrame
-      busy={isSaving}
+      busy={isSaving || isReversing}
       closeLabel={t.columnModal.close}
       description={isEditMode ? t.expenses.modal.editSubtitle : t.expenses.modal.subtitle}
       footer={(
         <>
-          <button type="button" className={financeModalSecondaryButtonClass} disabled={isSaving} onClick={onClose}>{t.common.cancel}</button>
+          <button type="button" className={financeModalSecondaryButtonClass} disabled={isSaving || isReversing} onClick={onClose}>{t.common.cancel}</button>
           <button type="submit" form={formId} disabled={!canSubmit} className={financeModalPrimaryButtonClass}>
             <Check className="h-4 w-4" />
             {isSaving ? 'Guardando…' : isEditMode ? t.common.saveChanges : t.expenses.modal.register}
@@ -266,7 +272,7 @@ export function ExpenseFormModal({
           <DateInput label={t.expenses.modal.date} required value={draft.expenseDate} onChange={(expenseDate) => updateDraft({ expenseDate })} />
           <TextInput label={t.expenses.modal.concept} required value={draft.concept} onChange={(concept) => updateDraft({ concept })} placeholder={t.expenses.modal.placeholderConcept} />
           <MoneyInput label={t.expenses.modal.amount} required value={draft.amount} onChange={(nextAmount) => updateDraft({ amount: nextAmount })} placeholder="0.00" />
-          <SelectInput label={t.expenses.modal.currency} disabled={Boolean(editingExpense && ((editingExpense.amountPaid ?? 0) > 0 || editingExpense.budgetLineId))} required value={draft.budgetCurrencyCode} onChange={updateCurrency} options={financeCurrencySelectOptions} />
+          <SelectInput label={t.expenses.modal.currency} disabled={Boolean(editingExpense && (hasPaymentHistory || (editingExpense.amountPaid ?? 0) > 0 || editingExpense.budgetLineId))} required value={draft.budgetCurrencyCode} onChange={updateCurrency} options={financeCurrencySelectOptions} />
           {!isEditMode && <SelectInput searchable label={t.paymentAccounts.headerTitle} value={draft.paymentAccountId}
             onChange={(paymentAccountId) => updateDraft({ paymentAccountId })}
             options={[{ value: '', label: t.common.unassigned }, ...paymentAccounts.filter(account => account.isActive
@@ -305,7 +311,14 @@ export function ExpenseFormModal({
           <div className="space-y-4 border-t border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-950/30">
             {isEditMode ? (
               <FinanceModalSection title={t.expenses.modal.controlTitle} description={t.expenses.modal.controlDescription}>
+                <div><FinanceFieldLabel label={t.filters.status} /><p className="py-3 text-sm font-medium">{editingExpense ? t.expenses.table.statuses[editingExpense.status] : ''}</p></div>
                 <DateInput label={t.expenses.columns.dueDate?.label ?? 'Fecha de vencimiento'} value={draft.dueDate} onChange={(dueDate) => updateDraft({ dueDate })} />
+                {editingExpense && onReverseExpensePayment && <ExpensePaymentReversalSection expense={editingExpense}
+                  disabled={isSaving || isReversing} onBusyChange={setIsReversing} onHistoryLoaded={setHasPaymentHistory}
+                  onReverse={async (paymentId, reason) => {
+                    const saved = await onReverseExpensePayment(paymentId, reason);
+                    updateDraft({ status: saved.status, paymentDate: formatDateInputValue(saved.paymentDate), paymentAccountId: saved.paymentAccountId ?? '' });
+                  }} />}
               </FinanceModalSection>
             ) : null}
             <FinanceModalSection title={t.expenses.modal.contextTitle} description={t.expenses.modal.contextDescription}>

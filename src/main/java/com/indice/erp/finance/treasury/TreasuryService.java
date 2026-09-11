@@ -37,13 +37,17 @@ public class TreasuryService {
     public java.util.Map<String, BigDecimal> ownedCashBalances(long companyId) {
         var balances = new java.util.LinkedHashMap<String, BigDecimal>();
         jdbcTemplate.query("""
-            SELECT account.currency_code, SUM(account.current_balance + account.pending_balance) amount
+            SELECT account.currency_code,
+                   SUM(account.current_balance + account.pending_balance
+                     - COALESCE((SELECT SUM(fund.current_balance_amount)
+                         FROM finance_petty_cash_funds fund
+                         WHERE fund.company_id = account.company_id
+                           AND fund.payment_account_id = account.id
+                           AND fund.fund_type = 'EXTERNAL_MANAGED'
+                           AND fund.deleted_at IS NULL), 0)) amount
             FROM finance_payment_accounts account
             WHERE account.company_id = ? AND account.deleted_at IS NULL
               AND (account.type IN ('CASH', 'BANK', 'PETTY_CASH') OR account.system_key LIKE 'POS_UNASSIGNED_CARD:%')
-              AND NOT EXISTS (SELECT 1 FROM finance_petty_cash_funds fund
-                WHERE fund.company_id = account.company_id AND fund.payment_account_id = account.id
-                  AND fund.fund_type = 'EXTERNAL_MANAGED')
             GROUP BY account.currency_code
             """, (org.springframework.jdbc.core.RowCallbackHandler) rs -> balances.put(rs.getString(1), rs.getBigDecimal(2)), companyId);
         return balances;
@@ -204,6 +208,38 @@ public class TreasuryService {
                 ((BigDecimal) row.get("available_delta")).negate(), ((BigDecimal) row.get("pending_delta")).negate(),
                 reason, java.time.Instant.now(), userId, movementId, null), true);
         }
+    }
+
+    /** Reverse a single payment's actual debit, including inactive accounts, without inventing cash. */
+    @Transactional
+    public void reverseExpensePayment(long companyId, long expenseId, long paymentId, String eventKey,
+            Long accountId, BigDecimal paymentAmount, String currency, long userId, String reason) {
+        var rows = jdbcTemplate.queryForList("""
+            SELECT movement.* FROM finance_payment_account_movements movement
+            WHERE movement.company_id = ? AND movement.source_module = 'EXPENSES'
+              AND movement.source_type = 'EXPENSE_PAYMENT' AND movement.source_id = ?
+              AND movement.event_key = ? FOR UPDATE
+            """, companyId, String.valueOf(expenseId), eventKey);
+        if (rows.isEmpty()) {
+            if (accountId != null && Boolean.TRUE.equals(jdbcTemplate.queryForObject("""
+                SELECT EXISTS(SELECT 1 FROM finance_payment_account_movements movement
+                  WHERE movement.company_id = ? AND movement.source_type = 'EXPENSE_PAYMENT' AND movement.source_id = ?
+                    AND NOT EXISTS(SELECT 1 FROM finance_payment_account_movements reversal
+                      WHERE reversal.company_id = movement.company_id AND reversal.reversal_of_movement_id = movement.id))
+                """, Boolean.class, companyId, String.valueOf(expenseId))))
+                throw FinanceApiException.conflict("The original bank movement could not be identified. Reconcile the payment first.");
+            return;
+        }
+        var row = rows.getFirst();
+        if (accountId == null || ((Number) row.get("payment_account_id")).longValue() != accountId
+                || !currency.equalsIgnoreCase((String) row.get("currency_code"))
+                || ((BigDecimal) row.get("available_delta")).compareTo(paymentAmount.negate()) != 0
+                || ((BigDecimal) row.get("pending_delta")).signum() != 0)
+            throw FinanceApiException.conflict("The original bank movement does not match the payment.");
+        long movementId = ((Number) row.get("id")).longValue();
+        post(new TreasuryMovementCommand(companyId, accountId, (Long) row.get("unit_id"), (Long) row.get("business_id"), currency,
+            "EXPENSES", "EXPENSE_PAYMENT_REVERSAL", String.valueOf(expenseId), "EXPENSE_PAYMENT_UNDO:" + paymentId,
+            paymentAmount, BigDecimal.ZERO, reason, java.time.Instant.now(), userId, movementId, null), true);
     }
 
     private TreasuryMovementResult post(TreasuryMovementCommand command, boolean restoreOriginalMovement) {

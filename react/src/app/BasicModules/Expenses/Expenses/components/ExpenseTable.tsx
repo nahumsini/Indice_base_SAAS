@@ -40,6 +40,7 @@ import { ExpenseFundGroupRow } from './ExpenseFundGroupRow';
 import { getExpenseFundGroupCopy } from './expenseFundGroup.copy';
 import { groupExpenseRows, sortExpenseRows, type ExpenseFundGroup } from '../../utils/expenseFundGroups';
 import { useExpenseFundTotals } from '../../hooks/useExpenseFundTotals';
+import type { ExpensePrintSnapshot } from '../../utils/expenseTablePrint';
 
 type MoneySummary = {
   key: string;
@@ -69,6 +70,7 @@ const expenseTableWorkspaceUrlFields: Partial<Record<keyof ExpenseTableWorkspace
 };
 
 type ExpenseTableProps = {
+  onPrintSnapshotChange?: (snapshot: ExpensePrintSnapshot) => void;
   dataReady?: boolean;
   actionVisibility?: ExpenseRowActionVisibility;
   accountingAccountOptions?: FinanceReferenceOption[];
@@ -102,6 +104,7 @@ type ExpenseTableProps = {
 };
 
 export function ExpenseTable({
+  onPrintSnapshotChange,
   dataReady = true,
   actionVisibility,
   accountingAccountOptions = [],
@@ -218,6 +221,11 @@ export function ExpenseTable({
     [rowSelection.selectedIds, selectableExpenses],
   );
   const selectedMoneySummaries = useMemo(() => getMoneySummaries(selectedExpenses, columns), [columns, selectedExpenses]);
+  const printSnapshot = useMemo<ExpensePrintSnapshot>(() => {
+    const all = sortedRows.flatMap(row => row.kind === 'expense' ? [row.expense] : row.expenses);
+    return { all, selected: all.filter(expense => rowSelection.selectedIds.has(expense.id)) };
+  }, [sortedRows, rowSelection.selectedIds]);
+  useEffect(() => { onPrintSnapshotChange?.(printSnapshot); }, [onPrintSnapshotChange, printSnapshot]);
   const bulkProtected = !onBulkAction || selectedExpenses.some(row => !/^\d+$/.test(row.id) || row.version === undefined
     || row.originFund || row.accountingPosted || row.purchaseOrderId || row.budgetLineId || row.type === 'budget'
     || ['CLOSED', 'CANCELLED', 'REJECTED'].includes(row.backendStatus ?? '')) ? bulkCopy.protected : undefined;

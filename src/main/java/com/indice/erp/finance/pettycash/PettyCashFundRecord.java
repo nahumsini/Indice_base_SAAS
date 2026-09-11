@@ -43,6 +43,10 @@ record PettyCashFundRecord(
     Instant deletedAt,
     Long version,
     String customFieldsJson,
-    String metadataJson
+    String metadataJson,
+    String managedAssetsJson,
+    Long pendingTypeChangeId,
+    PettyCashFundType pendingFundType,
+    java.time.LocalDate pendingTypeEffectiveDate
 ) {
 }

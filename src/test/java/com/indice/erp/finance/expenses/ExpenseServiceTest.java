@@ -396,11 +396,11 @@ class ExpenseServiceTest {
             "MXN",
             LocalDate.of(2026, 6, 15),
             ExpensePaymentRepository.SOURCE_RECORDED,
-            null
+            "unit-payment"
         )).thenReturn(true);
 
         var response = service.recordPayment(context, 21L,
-            new RecordExpensePaymentRequest(new BigDecimal("50.00"), 81L, LocalDate.of(2026, 6, 15), null));
+            new RecordExpensePaymentRequest(new BigDecimal("50.00"), 81L, LocalDate.of(2026, 6, 15), "unit-payment"));
 
         assertEquals(ExpenseStatus.PARTIALLY_PAID, response.status());
         assertEquals(new BigDecimal("50.00"), response.paidAmount());
@@ -415,7 +415,7 @@ class ExpenseServiceTest {
             "MXN",
             LocalDate.of(2026, 6, 15),
             ExpensePaymentRepository.SOURCE_RECORDED,
-            null
+            "unit-payment"
         );
         verify(budgetLineRollupService).refreshExpenseImpact(context, 44L);
     }
@@ -447,11 +447,11 @@ class ExpenseServiceTest {
             "MXN",
             LocalDate.of(2026, 6, 16),
             ExpensePaymentRepository.SOURCE_RECORDED,
-            null
+            "unit-payment"
         )).thenReturn(true);
 
         var response = service.recordPayment(context, 22L,
-            new RecordExpensePaymentRequest(new BigDecimal("116.00"), 81L, LocalDate.of(2026, 6, 16), null));
+            new RecordExpensePaymentRequest(new BigDecimal("116.00"), 81L, LocalDate.of(2026, 6, 16), "unit-payment"));
 
         assertEquals(ExpenseStatus.PAID, response.status());
         assertEquals(PaymentStatus.PAID, response.paymentStatus());
@@ -466,7 +466,7 @@ class ExpenseServiceTest {
             "MXN",
             LocalDate.of(2026, 6, 16),
             ExpensePaymentRepository.SOURCE_RECORDED,
-            null
+            "unit-payment"
         );
     }
 
@@ -482,7 +482,7 @@ class ExpenseServiceTest {
         when(repository.findByIdForUpdate(context, 22L)).thenReturn(Optional.of(paid));
         when(paymentRepository.findByIdempotencyKey(context, "expense-payment-retry-22"))
             .thenReturn(Optional.of(new ExpensePaymentRepository.ExpensePaymentIdempotencyRecord(
-                22L, 81L, new BigDecimal("116.00"), "MXN", paymentDate)));
+                22L, 81L, new BigDecimal("116.00"), "MXN", paymentDate, false)));
 
         var response = service.recordPayment(context, 22L, request);
 
@@ -503,7 +503,7 @@ class ExpenseServiceTest {
         when(repository.findByIdForUpdate(context, 22L)).thenReturn(Optional.of(existing));
         when(paymentRepository.findByIdempotencyKey(context, "expense-payment-retry-22"))
             .thenReturn(Optional.of(new ExpensePaymentRepository.ExpensePaymentIdempotencyRecord(
-                21L, 81L, new BigDecimal("50.00"), "MXN", paymentDate)));
+                21L, 81L, new BigDecimal("50.00"), "MXN", paymentDate, false)));
 
         var error = assertThrows(FinanceApiException.class, () -> service.recordPayment(context, 22L, request));
 
@@ -587,7 +587,7 @@ class ExpenseServiceTest {
             ExpensePaymentRepository.SOURCE_RECORDED,
             1L,
             "Finance User",
-            Instant.parse("2026-06-18T14:00:00Z")
+            Instant.parse("2026-06-18T14:00:00Z"), null, null, null
         );
         when(repository.findById(context, 25L)).thenReturn(Optional.of(record(25L, ExpenseStatus.PARTIALLY_PAID, "Paid expense")));
         when(paymentRepository.findAll(context, 25L)).thenReturn(java.util.List.of(payment));

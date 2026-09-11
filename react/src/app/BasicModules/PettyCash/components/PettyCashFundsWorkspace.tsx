@@ -1,6 +1,8 @@
+import { ManagedAssetsEditor } from './ManagedAssetsEditor';
+import { getFundManagedAssets, getManagedAssetTypeLabel, getManagedAssetsCopy, managedAssetTypes, MAX_MANAGED_ASSETS, type ManagedAssetDraft } from '../utils/managedAssets';
 import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import { Archive, Banknote, Coins, Copy, ExternalLink, Eye, Info, KeyRound, Landmark, Link2, MoreHorizontal, Pencil, QrCode, ReceiptText, RotateCw, Search, Share2, ShieldCheck, Trash2, UserRound, WalletCards, X } from 'lucide-react';
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { getCategoryById } from '../../Expenses/data/categories.data';
 import { useFinanceReferenceData } from '../../Expenses/hooks/useFinanceReferenceData';
 import { mockPaymentAccounts } from '../../Expenses/PaymentAccounts/paymentAccounts.mock';
@@ -13,7 +15,8 @@ import { hasPettyCashBackendId, pettyCashService } from '../services';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { ColumnasConfigModal, type ColumnConfig } from '../../../components/rh/ColumnasConfigModal';
-import { IndiceModalFrame, IndiceModalSummary, IndiceModalValidation } from '../../../components/indice-modal';
+import { IndiceModalFrame, IndiceModalSummary, IndiceModalValidation, IndiceModalWizardStepper } from '../../../components/indice-modal';
+import { getFundWizardCopy, type FundWizardStep } from '../utils/fundWizard.copy';
 import { KioskAdminActionButton, KioskAdminPanelAction } from '../../../components/kiosk-engine/KioskAdminPrimitives';
 import { KioskModalFrame } from '../../../components/kiosk-engine/KioskModalFrame';
 import { useKioskQrCode } from '../../../components/kiosk-engine/useKioskQrCode';
@@ -25,13 +28,6 @@ import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyConte
 import { OperationalKpiArea, getOperationalKpiCurrencyCopy } from '../../shared/operational';
 import { useKpiMonetaryAggregate } from '../../shared/kpiMonetaryApi';
 import { useLanguage } from '../../../shared/context';
-import {
-  getPettyCashMethodLabel,
-  normalizePettyCashMethods,
-  PETTY_CASH_METHOD_KEYS,
-  pettyCashFundingMethodOptions,
-  pettyCashSpendingMethodOptions,
-} from '../utils/pettyCash.methods';
 import { usePettyCashTranslations } from '../hooks/usePettyCashTranslations';
 import {
   PettyCashEmptyState,
@@ -73,15 +69,33 @@ type FundDraft = {
   externalOwnerRelationship: string;
   externalOwnerReference: string;
   statementRecipientEmail: string;
-  managedAssetType: string;
-  managedAssetName: string;
-  managedAssetReference: string;
+  managedAssets: ManagedAssetDraft[];
   limitAmount: string;
   name: string;
   paymentAccountId: string;
   responsibleUserId: string;
   spendingMethods: string[];
+  typeChangeEffectiveDate: string;
+  typeChangeReason: string;
   unitId: string;
+};
+
+const tomorrowDate = () => {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
+const getDraftManagedAssetFields = (draft: FundDraft) => {
+  const managedAssets = draft.fundType === 'EXTERNAL_MANAGED'
+    ? draft.managedAssets.map(({ type, name, reference }) => ({ type, name: name.trim(), reference: reference?.trim() || undefined }))
+    : [];
+  return {
+    managedAssets,
+    managedAssetType: managedAssets[0]?.type,
+    managedAssetName: managedAssets[0]?.name,
+    managedAssetReference: managedAssets[0]?.reference,
+  };
 };
 
 type KioskDraft = {
@@ -110,12 +124,6 @@ const getFundPaymentAccount = (accounts: PaymentAccount[]) => (
   ?? accounts[0]
 );
 
-const getFundingSourceAccount = (accounts: PaymentAccount[], excludedAccountId = '') => (
-  accounts.find(account => account.type === 'bank' && account.id !== excludedAccountId)
-  ?? accounts.find(account => account.id !== excludedAccountId)
-  ?? accounts[0]
-);
-
 const accountMatchesCurrency = (account: PaymentAccount | undefined, currency: PettyCashCurrency) => (
   !account || toPettyCashCurrency(account.currency) === currency
 );
@@ -127,12 +135,6 @@ const budgetLineMatchesCurrency = (line: FinanceBudgetLine | undefined, currency
 const getBudgetLineForCurrency = (lines: FinanceBudgetLine[], currency: PettyCashCurrency) => (
   lines.find(line => budgetLineMatchesCurrency(line, currency))
 );
-
-const getFundingSourceOptions = (
-  accounts: PaymentAccount[],
-  excludedAccountId: string,
-  currency: PettyCashCurrency,
-) => accounts.filter(account => account.id !== excludedAccountId && accountMatchesCurrency(account, currency));
 
 const getBudgetLineLimit = (line?: FinanceBudgetLine) => {
   if (!line) return 0;
@@ -184,7 +186,6 @@ const createEmptyFundDraft = ({
   userOptions: FinanceReferenceOption[];
 }): FundDraft => {
   const paymentAccount = getFundPaymentAccount(paymentAccounts);
-  const fundingSource = getFundingSourceAccount(paymentAccounts, paymentAccount?.id);
   const unitId = firstOptionValue(unitOptions);
   const availableBusinesses = filterBusinessesByUnit(businessOptions, unitId);
   const businessId = firstOptionValue(availableBusinesses);
@@ -196,23 +197,23 @@ const createEmptyFundDraft = ({
     createdByUserId: currentUserId || firstOptionValue(userOptions),
     currencyCode: toPettyCashCurrency(paymentAccount?.currency ?? budgetLine?.currencyCode),
     cutOffDay: '30',
-    fundingMethods: [PETTY_CASH_METHOD_KEYS.INTERNAL_TRANSFER],
-    fundingSourceName: fundingSource?.name ?? financialAccountFallback,
-    fundingSourcePaymentAccountId: fundingSource?.id ?? '',
+    fundingMethods: [],
+    fundingSourceName: '',
+    fundingSourcePaymentAccountId: '',
     fundType: 'INTERNAL_COMPANY',
     externalOwnerType: 'COMPANY',
     externalOwnerName: '',
     externalOwnerRelationship: 'CLIENT',
     externalOwnerReference: '',
     statementRecipientEmail: '',
-    managedAssetType: '',
-    managedAssetName: '',
-    managedAssetReference: '',
+    managedAssets: [],
     limitAmount: budgetLine ? String(getBudgetLineLimit(budgetLine)) : '',
     name: '',
     paymentAccountId: paymentAccount?.id ?? '',
     responsibleUserId: firstOptionValue(userOptions) || currentUserId || '',
-    spendingMethods: [PETTY_CASH_METHOD_KEYS.CASH],
+    spendingMethods: [],
+    typeChangeEffectiveDate: tomorrowDate(),
+    typeChangeReason: '',
     unitId,
   };
 };
@@ -223,23 +224,23 @@ const createFallbackFundDraft = (financialAccountFallback: string): FundDraft =>
   createdByUserId: '',
   currencyCode: 'MXN',
   cutOffDay: '30',
-  fundingMethods: [PETTY_CASH_METHOD_KEYS.INTERNAL_TRANSFER],
-  fundingSourcePaymentAccountId: fallbackPaymentAccounts[0]?.id ?? '',
-  fundingSourceName: fallbackPaymentAccounts[0]?.name ?? financialAccountFallback,
+  fundingMethods: [],
+  fundingSourcePaymentAccountId: '',
+  fundingSourceName: '',
   fundType: 'INTERNAL_COMPANY',
   externalOwnerType: 'COMPANY',
   externalOwnerName: '',
   externalOwnerRelationship: 'CLIENT',
   externalOwnerReference: '',
   statementRecipientEmail: '',
-  managedAssetType: '',
-  managedAssetName: '',
-  managedAssetReference: '',
+  managedAssets: [],
   limitAmount: '',
   name: '',
   paymentAccountId: fallbackPaymentAccounts[0]?.id ?? '',
   responsibleUserId: '',
-  spendingMethods: [PETTY_CASH_METHOD_KEYS.CASH],
+  spendingMethods: [],
+  typeChangeEffectiveDate: tomorrowDate(),
+  typeChangeReason: '',
   unitId: '',
 });
 
@@ -251,21 +252,21 @@ const createFundDraftFromFund = (fund: PettyCashFund): FundDraft => ({
   cutOffDay: String(fund.cutOffDay),
   fundingMethods: [...fund.fundingMethods],
   fundingSourceName: fund.fundingSourceName,
-  fundingSourcePaymentAccountId: fund.fundingSourcePaymentAccountId ?? '',
+  fundingSourcePaymentAccountId: '',
   fundType: fund.fundType,
   externalOwnerType: fund.externalOwnerType ?? 'COMPANY',
   externalOwnerName: fund.externalOwnerName ?? '',
   externalOwnerRelationship: fund.externalOwnerRelationship ?? 'CLIENT',
   externalOwnerReference: fund.externalOwnerReference ?? '',
   statementRecipientEmail: fund.statementRecipientEmail ?? '',
-  managedAssetType: fund.managedAssetType ?? '',
-  managedAssetName: fund.managedAssetName ?? '',
-  managedAssetReference: fund.managedAssetReference ?? '',
+  managedAssets: getFundManagedAssets(fund).map(asset => ({ ...asset, draftId: crypto.randomUUID() })),
   limitAmount: String(fund.limitAmount),
   name: fund.name,
   paymentAccountId: fund.paymentAccountId,
   responsibleUserId: fund.responsibleUserId,
   spendingMethods: [...fund.spendingMethods],
+  typeChangeEffectiveDate: fund.pendingTypeEffectiveDate ?? tomorrowDate(),
+  typeChangeReason: '',
   unitId: fund.unitId,
 });
 
@@ -321,7 +322,6 @@ export function PettyCashFundsWorkspace({ dataReady = true, funds, onFundsChange
     { id: 'status', label: copy.funds.table.status, visible: true },
     { id: 'unit', label: copy.funds.table.unit, visible: false },
     { id: 'business', label: copy.funds.table.business, visible: false },
-    { id: 'source', label: copy.funds.table.source, visible: false },
     { id: 'budget', label: copy.funds.table.budget, visible: false },
     { id: 'kiosk', label: copy.funds.table.kiosk, visible: false },
   ], [copy.funds.table]);
@@ -331,6 +331,7 @@ export function PettyCashFundsWorkspace({ dataReady = true, funds, onFundsChange
   const { columns, setColumns, visibleColumns } = usePettyCashColumns(pettyCashFundsColumnsStorageKey, defaultColumns);
   const { preferredCurrency } = usePreferredBusinessCurrency();
   const { currentLanguage } = useLanguage();
+  const fundWizard = useMemo(() => getFundWizardCopy(currentLanguage.code), [currentLanguage.code]);
   const currencyCopy = getOperationalKpiCurrencyCopy(currentLanguage.code);
   const [searchTerm, setSearchTerm] = useState('');
   const [unitFilter, setUnitFilter] = useState('all');
@@ -379,7 +380,6 @@ export function PettyCashFundsWorkspace({ dataReady = true, funds, onFundsChange
         || fund.name.toLowerCase().includes(search)
         || fund.responsibleName.toLowerCase().includes(search)
         || fund.createdByName.toLowerCase().includes(search)
-        || fund.fundingSourceName.toLowerCase().includes(search)
         || fund.unitName.toLowerCase().includes(search)
         || fund.businessName.toLowerCase().includes(search);
       const matchesUnit = unitFilter === 'all' || fund.unitId === unitFilter;
@@ -414,7 +414,6 @@ export function PettyCashFundsWorkspace({ dataReady = true, funds, onFundsChange
       .filter(statement => statement.pettyCashFundId === fund.id)
       .reduce((sum, statement) => sum + getStatementSettlementBalance(statement), 0),
     responsible: (fund: PettyCashFund) => fund.responsibleName,
-    source: (fund: PettyCashFund) => fund.fundingSourceName,
     status: (fund: PettyCashFund) => fund.status,
     unit: (fund: PettyCashFund) => fund.unitName,
   }), [statements]);
@@ -453,9 +452,6 @@ export function PettyCashFundsWorkspace({ dataReady = true, funds, onFundsChange
     const unitName = getOptionLabel(unitOptions, draft.unitId, copy.funds.defaults.unit);
     const businessName = getOptionLabel(businessChoices, draft.businessId, copy.funds.defaults.business);
     const isExternalFund = draft.fundType === 'EXTERNAL_MANAGED';
-    const fundingAccountName = isExternalFund
-      ? draft.fundingSourceName.trim()
-      : getPaymentAccountName(activePaymentAccounts, draft.fundingSourcePaymentAccountId, copy.funds.defaults.financialAccount);
     const localFund: PettyCashFund = {
       id,
       budgetId: isExternalFund ? undefined : selectedBudgetLine?.budgetId,
@@ -469,18 +465,16 @@ export function PettyCashFundsWorkspace({ dataReady = true, funds, onFundsChange
       currencyCode: draft.currencyCode,
       currentBalanceAmount: 0,
       cutOffDay: Number(draft.cutOffDay) || 30,
-      fundingMethods: normalizePettyCashMethods(draft.fundingMethods),
+      fundingMethods: [],
       fundType: draft.fundType,
-      fundingSourceName: fundingAccountName,
-      fundingSourcePaymentAccountId: isExternalFund ? undefined : draft.fundingSourcePaymentAccountId,
+      fundingSourceName: '',
+      fundingSourcePaymentAccountId: undefined,
       externalOwnerType: isExternalFund ? draft.externalOwnerType : undefined,
       externalOwnerName: isExternalFund ? draft.externalOwnerName.trim() : undefined,
       externalOwnerRelationship: isExternalFund ? draft.externalOwnerRelationship : undefined,
       externalOwnerReference: isExternalFund ? draft.externalOwnerReference.trim() || undefined : undefined,
       statementRecipientEmail: isExternalFund ? draft.statementRecipientEmail.trim() : undefined,
-      managedAssetType: isExternalFund ? draft.managedAssetType || undefined : undefined,
-      managedAssetName: isExternalFund ? draft.managedAssetName.trim() || undefined : undefined,
-      managedAssetReference: isExternalFund ? draft.managedAssetReference.trim() || undefined : undefined,
+      ...getDraftManagedAssetFields(draft),
       externalIdentityPending: false,
       budgetLinkPending: false,
       kioskAccessUrl: undefined,
@@ -492,7 +486,7 @@ export function PettyCashFundsWorkspace({ dataReady = true, funds, onFundsChange
       paymentAccountId: draft.paymentAccountId,
       responsibleName,
       responsibleUserId: draft.responsibleUserId,
-      spendingMethods: normalizePettyCashMethods(draft.spendingMethods),
+      spendingMethods: [],
       status: 'OPEN',
       unitId: draft.unitId,
       unitName,
@@ -505,7 +499,7 @@ export function PettyCashFundsWorkspace({ dataReady = true, funds, onFundsChange
         budgetLineName: selectedBudgetLine?.name ?? savedFund.budgetLineName,
         businessName,
         createdByName,
-        fundingSourceName: fundingAccountName,
+        fundingSourceName: '',
         paymentAccountId: savedFund.paymentAccountId || draft.paymentAccountId,
         responsibleName,
         unitName,
@@ -521,6 +515,7 @@ export function PettyCashFundsWorkspace({ dataReady = true, funds, onFundsChange
   const handleUpdateFund = async (draft: FundDraft) => {
     if (!editingFund) return;
     const isExternalFund = draft.fundType === 'EXTERNAL_MANAGED';
+    const changesType = draft.fundType !== editingFund.fundType;
     const selectedBudgetLine = activeBudgetLines.find(line => line.id === draft.budgetLineId);
     const businessChoices = filterBusinessesByUnit(businessOptions, draft.unitId);
     const updatedFund: PettyCashFund = {
@@ -534,20 +529,16 @@ export function PettyCashFundsWorkspace({ dataReady = true, funds, onFundsChange
       createdByUserId: draft.createdByUserId,
       currencyCode: draft.currencyCode,
       cutOffDay: Number(draft.cutOffDay) || editingFund.cutOffDay,
-      fundingMethods: normalizePettyCashMethods(draft.fundingMethods),
+      fundingMethods: changesType ? [] : editingFund.fundingMethods,
       fundType: draft.fundType,
-      fundingSourceName: isExternalFund
-        ? draft.fundingSourceName.trim()
-        : getPaymentAccountName(activePaymentAccounts, draft.fundingSourcePaymentAccountId, draft.fundingSourceName),
-      fundingSourcePaymentAccountId: isExternalFund ? undefined : draft.fundingSourcePaymentAccountId,
+      fundingSourceName: changesType ? '' : editingFund.fundingSourceName,
+      fundingSourcePaymentAccountId: changesType ? undefined : editingFund.fundingSourcePaymentAccountId,
       externalOwnerType: isExternalFund ? draft.externalOwnerType : undefined,
       externalOwnerName: isExternalFund ? draft.externalOwnerName.trim() || undefined : undefined,
       externalOwnerRelationship: isExternalFund ? draft.externalOwnerRelationship : undefined,
       externalOwnerReference: isExternalFund ? draft.externalOwnerReference.trim() || undefined : undefined,
       statementRecipientEmail: isExternalFund ? draft.statementRecipientEmail.trim() || undefined : undefined,
-      managedAssetType: isExternalFund ? draft.managedAssetType || undefined : undefined,
-      managedAssetName: isExternalFund ? draft.managedAssetName.trim() || undefined : undefined,
-      managedAssetReference: isExternalFund ? draft.managedAssetReference.trim() || undefined : undefined,
+      ...getDraftManagedAssetFields(draft),
       externalIdentityPending: isExternalFund && (
         !draft.externalOwnerName.trim() || !draft.statementRecipientEmail.trim()
       ),
@@ -557,28 +548,42 @@ export function PettyCashFundsWorkspace({ dataReady = true, funds, onFundsChange
       paymentAccountId: draft.paymentAccountId,
       responsibleName: getOptionLabel(userOptions, draft.responsibleUserId, editingFund.responsibleName),
       responsibleUserId: draft.responsibleUserId,
-      spendingMethods: normalizePettyCashMethods(draft.spendingMethods),
+      spendingMethods: changesType ? [] : editingFund.spendingMethods,
       unitId: draft.unitId,
       unitName: getOptionLabel(unitOptions, draft.unitId, editingFund.unitName),
     };
     try {
-      const saved = hasPettyCashBackendId(editingFund.id) ? await pettyCashService.updateFund(updatedFund) : updatedFund;
-      onFundsChange(current => current.map(fund => fund.id === editingFund.id ? {
-        ...updatedFund,
-        ...saved,
-        budgetLineName: updatedFund.budgetLineName,
-        businessName: updatedFund.businessName,
-        createdByName: updatedFund.createdByName,
-        fundingSourceName: updatedFund.fundingSourceName,
-        responsibleName: updatedFund.responsibleName,
-        unitName: updatedFund.unitName,
-      } : fund));
+      const saved = hasPettyCashBackendId(editingFund.id)
+        ? changesType
+          ? await pettyCashService.changeFundType(updatedFund, draft.typeChangeEffectiveDate, draft.typeChangeReason.trim())
+          : await pettyCashService.updateFund(updatedFund)
+        : updatedFund;
+      onFundsChange(current => current.map(fund => {
+        if (fund.id !== editingFund.id) return fund;
+        if (changesType) return { ...fund, ...saved };
+        return {
+          ...updatedFund,
+          ...saved,
+          budgetLineName: updatedFund.budgetLineName,
+          businessName: updatedFund.businessName,
+          createdByName: updatedFund.createdByName,
+          responsibleName: updatedFund.responsibleName,
+          unitName: updatedFund.unitName,
+        };
+      }));
       setEditingFund(null);
       setServiceNotice('');
     } catch (error) {
       setServiceNotice(toFinanceApiErrorMessage(error, copy.funds.notices.updateFailed));
       throw error;
     }
+  };
+
+  const handleCancelTypeChange = async () => {
+    if (!editingFund?.pendingTypeChangeId) return;
+    const saved = await pettyCashService.cancelFundTypeChange(editingFund);
+    onFundsChange(current => current.map(fund => fund.id === saved.id ? { ...fund, ...saved } : fund));
+    setEditingFund(saved);
   };
 
   const handleToggleFundStatus = async (fund: PettyCashFund) => {
@@ -990,11 +995,10 @@ export function PettyCashFundsWorkspace({ dataReady = true, funds, onFundsChange
               return (
                 <tr key={fund.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/70">
                   {visibleColumns.map(column => {
-                    if (column.id === 'fund') return <td key={column.id} className="px-5 py-4"><p className="font-medium text-slate-900 dark:text-white">{fund.name}</p><p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{fundAccountName}</p></td>;
+                    if (column.id === 'fund') return <td key={column.id} className="px-5 py-4"><p className="font-medium text-slate-900 dark:text-white">{fund.name}</p><p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{fundAccountName}</p>{fund.pendingFundType && fund.pendingTypeEffectiveDate ? <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">{fundWizard.scheduled(fund.pendingFundType === 'INTERNAL_COMPANY' ? copy.funds.modal.internalFund : copy.funds.modal.externalFund, fund.pendingTypeEffectiveDate)}</p> : null}</td>;
                     if (column.id === 'unit') return <td key={column.id} className="px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{fund.unitName}</td>;
                     if (column.id === 'business') return <td key={column.id} className="px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{fund.businessName}</td>;
                     if (column.id === 'responsible') return <td key={column.id} className="px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{fund.responsibleName}</td>;
-                    if (column.id === 'source') return <td key={column.id} className="px-5 py-4"><p className="text-sm font-medium text-slate-700 dark:text-slate-300">{fund.fundingSourceName}</p><p className="mt-1 truncate text-xs font-medium text-slate-500 dark:text-slate-400">{fund.fundingMethods.map(method => getPettyCashMethodLabel(copy.funds.methodLabels, method)).join(', ')}</p></td>;
                     if (column.id === 'budget') return <td key={column.id} className="px-5 py-4"><p className="text-sm font-medium text-slate-900 dark:text-white">{formatPettyCashCurrency(fund.limitAmount, fund.currencyCode)}</p><p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{budgetLineName}</p></td>;
                     if (column.id === 'balance') return <td key={column.id} className={`px-5 py-4 text-sm font-medium tabular-nums ${fund.currentBalanceAmount < 0 ? 'text-red-600 dark:text-red-300' : 'text-[#147514] dark:text-emerald-300'}`}>{formatPettyCashCurrency(fund.currentBalanceAmount, fund.currencyCode)}</td>;
                     if (column.id === 'pending') return <td key={column.id} className="px-5 py-4 text-sm font-medium tabular-nums text-amber-600 dark:text-amber-300">{formatPettyCashCurrency(pendingSettlement, fund.currencyCode)}</td>;
@@ -1082,6 +1086,7 @@ export function PettyCashFundsWorkspace({ dataReady = true, funds, onFundsChange
           initialFund={editingFund}
           isLoadingReferenceData={isLoadingReferenceData}
           onClose={() => setEditingFund(null)}
+          onCancelTypeChange={handleCancelTypeChange}
           onSave={handleUpdateFund}
           unitOptions={unitOptions}
           userOptions={userOptions}
@@ -1167,6 +1172,7 @@ function CreateFundModal({
   currentUserId,
   isLoadingReferenceData,
   onClose,
+  onCancelTypeChange,
   initialFund,
   onSave,
   paymentAccounts,
@@ -1179,12 +1185,33 @@ function CreateFundModal({
   isLoadingReferenceData: boolean;
   initialFund?: PettyCashFund;
   onClose: () => void;
+  onCancelTypeChange?: () => void | Promise<void>;
   onSave: (draft: FundDraft) => void | Promise<void>;
   paymentAccounts: PaymentAccount[];
   unitOptions: FinanceReferenceOption[];
   userOptions: FinanceReferenceOption[];
 }) {
   const copy = usePettyCashTranslations();
+  const { currentLanguage } = useLanguage();
+  const wizard = getFundWizardCopy(currentLanguage.code);
+  const assetCopy = getManagedAssetsCopy(copy.locale);
+  const isWizard = !initialFund;
+  const [activeStep, setActiveStep] = useState<FundWizardStep>('type');
+  const [validationAttempt, setValidationAttempt] = useState(0);
+  const [discardPrompt, setDiscardPrompt] = useState(false);
+  const busyRef = useRef(false);
+  const dirtyRef = useRef(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  const validationRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!isWizard) return;
+    if (bodyRef.current) bodyRef.current.scrollTop = 0;
+    stepHeadingRef.current?.focus({ preventScroll: true });
+  }, [activeStep, isWizard]);
+  useEffect(() => {
+    if (validationAttempt || discardPrompt) validationRef.current?.focus();
+  }, [validationAttempt, discardPrompt]);
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [draft, setDraft] = useState<FundDraft>(() => {
@@ -1224,14 +1251,11 @@ function CreateFundModal({
 
       return {
         ...current,
-        budgetLineId: nextBudgetLineId,
+        budgetLineId: current.fundType === 'EXTERNAL_MANAGED' ? '' : nextBudgetLineId,
         businessId: nextBusinessId,
         createdByUserId: current.createdByUserId || nextDefaults.createdByUserId,
         currencyCode: current.currencyCode || nextDefaults.currencyCode,
-        fundingSourcePaymentAccountId: current.fundType === 'EXTERNAL_MANAGED'
-          ? ''
-          : current.fundingSourcePaymentAccountId || nextDefaults.fundingSourcePaymentAccountId,
-        limitAmount: current.limitAmount || (nextBudgetLine ? String(getBudgetLineLimit(nextBudgetLine)) : nextDefaults.limitAmount),
+        limitAmount: current.limitAmount || (current.fundType === 'EXTERNAL_MANAGED' ? '' : nextBudgetLine ? String(getBudgetLineLimit(nextBudgetLine)) : nextDefaults.limitAmount),
         paymentAccountId: current.paymentAccountId || nextDefaults.paymentAccountId,
         responsibleUserId: current.responsibleUserId || nextDefaults.responsibleUserId,
         unitId: nextUnitId,
@@ -1242,14 +1266,9 @@ function CreateFundModal({
   const selectedBudgetLimit = getBudgetLineLimit(selectedBudgetLine);
   const filteredBusinessOptions = filterBusinessesByUnit(businessOptions, draft.unitId);
   const selectedFundAccount = paymentAccounts.find(account => account.id === draft.paymentAccountId);
-  const selectedFundingSourceAccount = paymentAccounts.find(account => account.id === draft.fundingSourcePaymentAccountId);
-  const fundingSourceOptions = getFundingSourceOptions(paymentAccounts, draft.paymentAccountId, draft.currencyCode);
-  const hasDistinctFundingAccounts = draft.paymentAccountId.length > 0
-    && draft.fundingSourcePaymentAccountId.length > 0
-    && draft.paymentAccountId !== draft.fundingSourcePaymentAccountId;
   const fundAccountCurrencyMatches = accountMatchesCurrency(selectedFundAccount, draft.currencyCode);
-  const fundingSourceCurrencyMatches = accountMatchesCurrency(selectedFundingSourceAccount, draft.currencyCode);
   const isExternalFund = draft.fundType === 'EXTERNAL_MANAGED';
+  const changesType = Boolean(initialFund && initialFund.fundType !== draft.fundType);
   const preservesLegacyPendingIdentity = Boolean(
     initialFund?.externalIdentityPending && initialFund.fundType === draft.fundType,
   );
@@ -1259,19 +1278,6 @@ function CreateFundModal({
     && initialFund.fundType === draft.fundType
     && !draft.budgetLineId,
   );
-  const preservesLegacyMissingSourceAccount = Boolean(
-    initialFund?.fundType === 'INTERNAL_COMPANY'
-    && !initialFund.fundingSourcePaymentAccountId
-    && initialFund.fundType === draft.fundType
-    && !draft.fundingSourcePaymentAccountId,
-  );
-  const hasExternalFundingSource = isExternalFund && draft.fundingSourceName.trim().length > 0;
-  const hasValidFundingSource = hasExternalFundingSource || (isExternalFund && preservesLegacyPendingIdentity) || (
-    !isExternalFund && (
-      (hasDistinctFundingAccounts && fundingSourceCurrencyMatches)
-      || preservesLegacyMissingSourceAccount
-    )
-  );
   const budgetLineCurrencyMatches = isExternalFund || budgetLineMatchesCurrency(selectedBudgetLine, draft.currencyCode);
   const isLimitAboveBudget = Boolean(
     selectedBudgetLine
@@ -1280,19 +1286,17 @@ function CreateFundModal({
   );
   const canCreate = draft.name.trim().length > 0
     && Number(draft.limitAmount) > 0
-    && draft.paymentAccountId.length > 0
-    && hasValidFundingSource
+    && Boolean(selectedFundAccount?.isActive)
     && fundAccountCurrencyMatches
     && budgetLineCurrencyMatches
     && draft.responsibleUserId.length > 0
     && draft.unitId.length > 0
-    && draft.businessId.length > 0
-    && draft.fundingMethods.length > 0
-    && draft.spendingMethods.length > 0;
+    && draft.businessId.length > 0;
   const hasRequiredAccountingLink = isExternalFund || Boolean(selectedBudgetLine) || preservesLegacyMissingBudget;
-  const hasValidManagedAsset = !draft.managedAssetType || draft.managedAssetName.trim().length > 0;
+  const hasValidManagedAsset = draft.managedAssets.length <= MAX_MANAGED_ASSETS && draft.managedAssets.every(asset =>
+    managedAssetTypes.some(type => type === asset.type) && asset.name.trim().length > 0);
   const recipientEmail = draft.statementRecipientEmail.trim();
-  const hasValidRecipientEmail = !recipientEmail || /\S+@\S+\.\S+/.test(recipientEmail);
+  const hasValidRecipientEmail = !recipientEmail || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail);
   const hasExternalIdentity = !isExternalFund || (
     hasValidManagedAsset
     && hasValidRecipientEmail
@@ -1303,10 +1307,78 @@ function CreateFundModal({
       && recipientEmail.length > 0
     ))
   );
-  const canSave = canCreate && hasRequiredAccountingLink && hasExternalIdentity;
+  const canSave = !initialFund?.pendingTypeChangeId && canCreate && hasRequiredAccountingLink && hasExternalIdentity
+    && (!changesType || (draft.typeChangeEffectiveDate.length > 0 && draft.typeChangeReason.trim().length >= 8));
+
+  const stepIds: FundWizardStep[] = isExternalFund
+    ? ['type', 'details', 'identity', 'review']
+    : ['type', 'details', 'review'];
+  const activeStepIndex = stepIds.indexOf(activeStep);
+  const steps = stepIds.map(id => ({ id, label: wizard.steps[id].label }));
+  const compatibleFundAccounts = paymentAccounts.filter(account => account.isActive && accountMatchesCurrency(account, draft.currencyCode));
+  const getStepErrors = (step: FundWizardStep): string[] => {
+    const messages: string[] = [];
+    const required = (valid: boolean, label: string) => { if (!valid) messages.push(wizard.required(label)); };
+    if (step === 'details') {
+      required(Boolean(draft.name.trim()), copy.funds.modal.name);
+      if (!Number.isFinite(Number(draft.limitAmount)) || Number(draft.limitAmount) <= 0) messages.push(wizard.invalidAmount);
+      const day = Number(draft.cutOffDay);
+      if (!Number.isInteger(day) || day < 1 || day > 31) messages.push(wizard.invalidDay);
+      if (!hasRequiredAccountingLink) messages.push(copy.funds.modal.budgetMissingHint);
+      if (!budgetLineCurrencyMatches) messages.push(wizard.required(copy.funds.modal.budgetLine + ' (' + draft.currencyCode + ')'));
+      required(userOptions.some(user => user.value === draft.responsibleUserId), copy.funds.modal.responsible);
+      required(unitOptions.some(unit => unit.value === draft.unitId), copy.funds.modal.unit);
+      required(filteredBusinessOptions.some(business => business.value === draft.businessId), copy.funds.modal.business);
+      required(Boolean(selectedFundAccount), copy.funds.modal.fundAccount);
+      if (!fundAccountCurrencyMatches) messages.push(copy.funds.modal.fundAccountCurrencyWarning);
+    }
+    if (step === 'identity' && isExternalFund) {
+      required(Boolean(draft.externalOwnerType), copy.funds.modal.ownerType);
+      required(Boolean(draft.externalOwnerRelationship), copy.funds.modal.ownerRelationship);
+      required(Boolean(draft.externalOwnerName.trim()), copy.funds.modal.ownerName);
+      if (!recipientEmail || !hasValidRecipientEmail) messages.push(wizard.invalidEmail);
+      if (draft.managedAssets.length > MAX_MANAGED_ASSETS) messages.push(assetCopy.limit);
+      draft.managedAssets.forEach((asset, index) => {
+        required(managedAssetTypes.some(type => type === asset.type), `${assetCopy.item(index + 1)}: ${copy.funds.modal.assetType}`);
+        required(Boolean(asset.name.trim()), `${assetCopy.item(index + 1)}: ${copy.funds.modal.assetName}`);
+      });
+    }
+    return messages;
+  };
+  const allStepErrors = stepIds.flatMap(getStepErrors);
+  const validationMessages = isWizard && (validationAttempt > 0 || activeStep === 'review')
+    ? activeStep === 'review' ? allStepErrors : getStepErrors(activeStep)
+    : [];
+  const goToStep = (step: FundWizardStep) => {
+    if (busyRef.current) return;
+    setError('');
+    setValidationAttempt(0);
+    setDiscardPrompt(false);
+    setActiveStep(step);
+  };
+  const handleContinue = () => {
+    if (busyRef.current || isLoadingReferenceData) return;
+    if (getStepErrors(activeStep).length) {
+      setValidationAttempt(attempt => attempt + 1);
+      return;
+    }
+    const next = stepIds[activeStepIndex + 1];
+    if (next) goToStep(next);
+  };
+  const handleClose = () => {
+    if (busyRef.current) return;
+    if (isWizard && dirtyRef.current) setDiscardPrompt(true);
+    else onClose();
+  };
+  const money = (amount: number) => new Intl.NumberFormat(currentLanguage.code, {
+    style: 'currency', currency: draft.currencyCode, currencyDisplay: 'code',
+  }).format(amount);
+  const summaryValue = (value: string) => <span className="block whitespace-normal break-words">{value || wizard.pending}</span>;
+  const summaryItem = (label: string, value: string) => ({ label: label.replace(/\s*\*$/, ''), value: summaryValue(value) });
 
   const handleSubmit = async () => {
-    if (!canSave || isSaving) return;
+    if (!canSave || busyRef.current || (isWizard && (activeStep !== 'review' || allStepErrors.length || isLoadingReferenceData))) return;
+    busyRef.current = true;
     setError('');
     setIsSaving(true);
     try {
@@ -1314,39 +1386,71 @@ function CreateFundModal({
     } catch (saveError) {
       setError(toFinanceApiErrorMessage(saveError, initialFund ? copy.funds.notices.updateFailed : copy.funds.notices.saveFailed));
     } finally {
+      busyRef.current = false;
       setIsSaving(false);
     }
+  };
+  const handleCancelScheduled = async () => {
+    if (!onCancelTypeChange || busyRef.current) return;
+    busyRef.current = true; setError(''); setIsSaving(true);
+    try { await onCancelTypeChange(); }
+    catch (cancelError) { setError(toFinanceApiErrorMessage(cancelError, copy.funds.notices.updateFailed)); }
+    finally { busyRef.current = false; setIsSaving(false); }
   };
 
   return (
     <IndiceModalFrame
       busy={isSaving}
-      contentClassName="sm:max-w-4xl"
-      description={initialFund ? copy.funds.modal.editSubtitle : copy.funds.modal.subtitle}
-      footer={(
-        <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
-          <button type="button" disabled={isSaving} onClick={onClose} className="min-h-11 rounded-xl border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50">
-            {copy.common.cancel}
-          </button>
-          <button
-            type="button"
-            disabled={!canSave || isSaving}
-            onClick={handleSubmit}
-            className="min-h-11 rounded-xl bg-white px-5 py-2.5 text-sm font-medium text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {initialFund ? copy.funds.modal.update : copy.funds.modal.submit}
-          </button>
-        </div>
+      bodyRef={bodyRef}
+      contentClassName={initialFund ? 'sm:max-w-4xl' : undefined}
+      description={isWizard ? wizard.steps[activeStep].description : copy.funds.modal.editSubtitle}
+      eyebrow={isWizard ? wizard.progress(activeStepIndex + 1, steps.length) : undefined}
+      footerLeading={(
+        <button type="button" disabled={isSaving} onClick={handleClose} className="min-h-11 rounded-xl border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50">
+          {copy.common.cancel}
+        </button>
       )}
-      footerSummary={draft.name || (initialFund ? copy.funds.modal.editTitle : copy.funds.modal.title)}
+      footer={(
+        <>
+          {isWizard && activeStepIndex > 0 ? (
+            <button type="button" disabled={isSaving} onClick={() => goToStep(stepIds[activeStepIndex - 1])}>
+              {wizard.back}
+            </button>
+          ) : null}
+          {isWizard && activeStep !== 'review' ? (
+            <button type="button" disabled={isSaving || isLoadingReferenceData} onClick={handleContinue}>
+              {wizard.next}
+            </button>
+          ) : (
+            <button type="button" disabled={!canSave || isSaving || (isWizard && (allStepErrors.length > 0 || isLoadingReferenceData))} onClick={handleSubmit}>
+              {isSaving ? wizard.saving : initialFund ? copy.funds.modal.update : copy.funds.modal.submit}
+            </button>
+          )}
+        </>
+      )}
+      footerSummary={draft.name ? `${draft.name}${Number(draft.limitAmount) > 0 && Number.isFinite(Number(draft.limitAmount)) ? ` · ${copy.funds.modal.limit.replace(/\s*\*$/, '')} ${money(Number(draft.limitAmount))}` : ''}` : initialFund ? copy.funds.modal.editTitle : copy.funds.modal.title}
       icon={<Banknote className="h-5 w-5" />}
-      modalType="standard-form"
-      onOpenChange={(open) => !open && onClose()}
+      modalType={isWizard ? 'wizard' : 'standard-form'}
+      onOpenChange={(open) => !open && handleClose()}
       open
       title={initialFund ? copy.funds.modal.editTitle : copy.funds.modal.title}
       tone="green"
     >
-      <div className="space-y-4">
+      <form onChangeCapture={() => { dirtyRef.current = true; }} onSubmit={(event) => { event.preventDefault(); if (isWizard && activeStep !== 'review') handleContinue(); else void handleSubmit(); }}>
+        {isWizard ? <IndiceModalWizardStepper accent="green" activeStepId={activeStep} progressLabel={wizard.progress(activeStepIndex + 1, steps.length)} steps={steps} /> : null}
+        {isWizard ? <h3 ref={stepHeadingRef} tabIndex={-1} className="mb-4 mt-5 text-lg font-medium text-slate-950 outline-none dark:text-white">{activeStep === 'type' ? copy.funds.modal.typeTitle : wizard.steps[activeStep].label}</h3> : null}
+        <div ref={validationRef} tabIndex={-1} className="space-y-3 outline-none">
+          {isLoadingReferenceData ? <IndiceModalValidation messages={[wizard.loading]} tone="info" /> : null}
+          {validationMessages.length ? <IndiceModalValidation messages={validationMessages} /> : null}
+          {discardPrompt ? (
+            <div className="space-y-3">
+              <IndiceModalValidation messages={[wizard.discardWarning]} tone="warning" />
+              <div className="flex flex-wrap gap-2">
+                <button type="button" disabled={isSaving} className="min-h-11 rounded-xl border border-slate-200 px-4 text-sm dark:border-slate-700" onClick={() => { setDiscardPrompt(false); stepHeadingRef.current?.focus(); }}>{wizard.keepEditing}</button>
+                <button type="button" disabled={isSaving} className="min-h-11 rounded-xl border border-red-200 px-4 text-sm text-red-700 dark:border-red-900 dark:text-red-300" onClick={() => { if (!busyRef.current) onClose(); }}>{wizard.discard}</button>
+              </div>
+            </div>
+          ) : null}
         {error ? <IndiceModalValidation messages={[error]} tone="error" /> : null}
         {preservesLegacyPendingIdentity ? (
           <IndiceModalValidation messages={[copy.funds.modal.legacyIdentityPending]} tone="warning" />
@@ -1354,13 +1458,24 @@ function CreateFundModal({
         {preservesLegacyMissingBudget ? (
           <IndiceModalValidation messages={[copy.funds.modal.legacyBudgetPending]} tone="warning" />
         ) : null}
-        {preservesLegacyMissingSourceAccount ? (
-          <IndiceModalValidation messages={[copy.funds.modal.legacySourcePending]} tone="warning" />
+        {initialFund?.pendingTypeChangeId && initialFund.pendingFundType && initialFund.pendingTypeEffectiveDate ? (
+          <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+            <IndiceModalValidation messages={[wizard.scheduled(
+              initialFund.pendingFundType === 'INTERNAL_COMPANY' ? copy.funds.modal.internalFund : copy.funds.modal.externalFund,
+              initialFund.pendingTypeEffectiveDate,
+            )]} tone="warning" />
+            <button type="button" disabled={isSaving} className="min-h-11 rounded-xl border border-amber-300 bg-white px-4 text-sm font-medium text-amber-800 dark:bg-slate-900 dark:text-amber-200" onClick={() => void handleCancelScheduled()}>{wizard.cancelChange}</button>
+          </div>
         ) : null}
+        </div>
+        <fieldset disabled={isSaving || Boolean(initialFund?.pendingTypeChangeId)} className="mt-4 min-w-0 space-y-4 disabled:opacity-70">
+        {(!isWizard || activeStep === 'type') ? (
         <section className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-5 dark:border-emerald-900 dark:bg-emerald-950/30">
-          <h4 className="text-lg font-medium text-slate-900 dark:text-white">{copy.funds.modal.typeTitle}</h4>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{copy.funds.modal.typeDescription}</p>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {!isWizard ? <>
+            <h4 className="text-lg font-medium text-slate-900 dark:text-white">{copy.funds.modal.typeTitle}</h4>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{copy.funds.modal.typeDescription}</p>
+          </> : null}
+          <div className={`${isWizard ? '' : 'mt-4'} grid gap-3 md:grid-cols-2`}>
             {([
               ['INTERNAL_COMPANY', copy.funds.modal.internalFund, copy.funds.modal.internalFundDescription, Landmark],
               ['EXTERNAL_MANAGED', copy.funds.modal.externalFund, copy.funds.modal.externalFundDescription, ShieldCheck],
@@ -1370,23 +1485,18 @@ function CreateFundModal({
                 <button
                   aria-pressed={selected}
                   className={`rounded-lg border p-4 text-left transition ${selected ? 'border-[#147514] bg-white ring-2 ring-[#147514]/15 dark:bg-slate-900' : 'border-slate-200 bg-white/70 hover:border-emerald-300 dark:border-slate-700 dark:bg-slate-900/70'}`}
-                  disabled={Boolean(initialFund)}
+                  disabled={Boolean(initialFund?.pendingTypeChangeId)}
                   key={value}
-                  onClick={() => setDraft(current => ({
+                  onClick={() => {
+                    if (draft.fundType !== value) dirtyRef.current = true;
+                    setDraft(current => ({
                     ...current,
                     budgetLineId: value === 'EXTERNAL_MANAGED' ? '' : current.budgetLineId || budgetLines[0]?.id || '',
                     fundType: value,
-                    fundingMethods: value === 'EXTERNAL_MANAGED'
-                      ? current.fundingMethods.filter(method => method !== PETTY_CASH_METHOD_KEYS.INTERNAL_TRANSFER).length > 0
-                        ? current.fundingMethods.filter(method => method !== PETTY_CASH_METHOD_KEYS.INTERNAL_TRANSFER)
-                        : [PETTY_CASH_METHOD_KEYS.TRANSFER]
-                      : current.fundingMethods.includes(PETTY_CASH_METHOD_KEYS.INTERNAL_TRANSFER)
-                        ? current.fundingMethods
-                        : [PETTY_CASH_METHOD_KEYS.INTERNAL_TRANSFER, ...current.fundingMethods],
-                    fundingSourcePaymentAccountId: value === 'EXTERNAL_MANAGED'
-                      ? ''
-                      : current.fundingSourcePaymentAccountId || fundingSourceOptions[0]?.id || '',
-                  }))}
+                    fundingSourceName: '',
+                    fundingSourcePaymentAccountId: '',
+                  }));
+                  }}
                   type="button"
                 >
                   <span className="flex items-center gap-3"><span className={`flex h-10 w-10 items-center justify-center rounded-lg ${selected ? 'bg-[#147514] text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}><Icon className="h-5 w-5" /></span><span className="font-medium text-slate-900 dark:text-white">{label}</span></span>
@@ -1395,14 +1505,24 @@ function CreateFundModal({
               );
             })}
           </div>
-          {initialFund ? <p className="mt-3 text-xs font-medium text-slate-500 dark:text-slate-400">{copy.funds.modal.typeLocked}</p> : null}
+          {initialFund ? <p className="mt-3 text-xs font-medium text-slate-500 dark:text-slate-400">{wizard.typeChangeNote}</p> : null}
+          {changesType ? (
+            <div className="mt-4 grid gap-4 rounded-xl border border-amber-200 bg-amber-50 p-4 md:grid-cols-2 dark:border-amber-900 dark:bg-amber-950/30">
+              <div className="md:col-span-2"><h5 className="font-medium text-slate-900 dark:text-white">{wizard.typeChangeTitle}</h5><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{wizard.typeChangeNote}</p></div>
+              <PettyCashField label={`${wizard.effectiveDate} *`}><input className={pettyCashInputClass} min={tomorrowDate()} type="date" value={draft.typeChangeEffectiveDate} onChange={event => setDraft(current => ({ ...current, typeChangeEffectiveDate: event.target.value }))} /></PettyCashField>
+              <PettyCashField label={`${wizard.reason} *`}><textarea className={pettyCashInputClass} maxLength={500} rows={3} placeholder={wizard.reasonPlaceholder} value={draft.typeChangeReason} onChange={event => setDraft(current => ({ ...current, typeChangeReason: event.target.value }))} />{draft.typeChangeReason.length > 0 && draft.typeChangeReason.trim().length < 8 ? <p className="mt-2 text-xs font-medium text-red-600">{wizard.reasonError}</p> : null}</PettyCashField>
+            </div>
+          ) : null}
         </section>
+        ) : null}
+        {(!isWizard || activeStep === 'details') ? (<>
           <section className="rounded-lg border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60">
             <h4 className="text-lg font-medium text-slate-900 dark:text-white">{copy.funds.modal.dataTitle}</h4>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <PettyCashField label={copy.funds.modal.name}>
                 <input
                   className={pettyCashInputClass}
+                  maxLength={180}
                   onChange={(event) => setDraft(current => ({ ...current, name: event.target.value }))}
                   placeholder={copy.funds.modal.namePlaceholder}
                   value={draft.name}
@@ -1446,6 +1566,7 @@ function CreateFundModal({
                 <input
                   className={pettyCashInputClass}
                   min="0"
+                  step="0.01"
                   onChange={(event) => setDraft(current => ({ ...current, limitAmount: event.target.value }))}
                   placeholder="0.00"
                   type="number"
@@ -1461,15 +1582,18 @@ function CreateFundModal({
                   </p>
                 ) : <p className="mt-2 text-xs font-medium text-[#147514] dark:text-emerald-300">{copy.funds.modal.externalAccountingNote}</p>}
               </PettyCashField>
-              <PettyCashField label={copy.funds.modal.cutOffDay}>
-                <input
-                  className={pettyCashInputClass}
-                  max="31"
-                  min="1"
-                  onChange={(event) => setDraft(current => ({ ...current, cutOffDay: event.target.value }))}
-                  type="number"
-                  value={draft.cutOffDay}
-                />
+              <PettyCashField label={`${copy.funds.modal.fundAccount} *`}>
+                <select className={pettyCashInputClass} disabled={Boolean(initialFund)}
+                  onChange={(event) => {
+                    const account = paymentAccounts.find(item => item.id === event.target.value);
+                    const nextCurrency = toPettyCashCurrency(account?.currency ?? draft.currencyCode);
+                    setDraft(current => ({ ...current, currencyCode: nextCurrency, paymentAccountId: event.target.value }));
+                  }}
+                  value={compatibleFundAccounts.some(account => account.id === draft.paymentAccountId) ? draft.paymentAccountId : ''}>
+                  <option value="">{wizard.pending}</option>
+                  {compatibleFundAccounts.map(account => <option key={account.id} value={account.id}>{getPaymentAccountLabel(account)}</option>)}
+                </select>
+                {!fundAccountCurrencyMatches ? <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">{copy.funds.modal.fundAccountCurrencyWarning}</p> : null}
               </PettyCashField>
             </div>
           </section>
@@ -1477,7 +1601,7 @@ function CreateFundModal({
           <section className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60">
             <h4 className="text-lg font-medium text-slate-900 dark:text-white">{copy.funds.modal.responsibilityTitle}</h4>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <PettyCashField label={copy.funds.modal.responsible}>
+              <PettyCashField label={isWizard ? `${copy.funds.modal.responsible} *` : copy.funds.modal.responsible}>
                 <select
                   className={pettyCashInputClass}
                   disabled={isLoadingReferenceData && userOptions.length === 0}
@@ -1490,7 +1614,7 @@ function CreateFundModal({
                   ))}
                 </select>
               </PettyCashField>
-              <PettyCashField label={copy.funds.modal.unit}>
+              <PettyCashField label={isWizard ? `${copy.funds.modal.unit} *` : copy.funds.modal.unit}>
                 <select
                   className={pettyCashInputClass}
                   disabled={isLoadingReferenceData && unitOptions.length === 0}
@@ -1513,7 +1637,7 @@ function CreateFundModal({
                   ))}
                 </select>
               </PettyCashField>
-              <PettyCashField label={copy.funds.modal.business}>
+              <PettyCashField label={isWizard ? `${copy.funds.modal.business} *` : copy.funds.modal.business}>
                 <select
                   className={pettyCashInputClass}
                   disabled={isLoadingReferenceData && filteredBusinessOptions.length === 0}
@@ -1529,109 +1653,8 @@ function CreateFundModal({
             </div>
           </section>
 
-          <section className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60">
-            <h4 className="text-lg font-medium text-slate-900 dark:text-white">{copy.funds.modal.fundingTitle}</h4>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <PettyCashField label={copy.funds.modal.fundAccount}>
-                <select
-                  className={pettyCashInputClass}
-                  onChange={(event) => {
-                    const account = paymentAccounts.find(item => item.id === event.target.value);
-                    const nextCurrency = toPettyCashCurrency(account?.currency ?? draft.currencyCode);
-                    const nextBudgetLine = budgetLineMatchesCurrency(selectedBudgetLine, nextCurrency)
-                      ? selectedBudgetLine
-                      : getBudgetLineForCurrency(budgetLines, nextCurrency);
-                    const nextFundingSource = getFundingSourceOptions(paymentAccounts, event.target.value, nextCurrency)[0];
-                    setDraft(current => ({
-                      ...current,
-                      budgetLineId: current.fundType === 'EXTERNAL_MANAGED' ? '' : nextBudgetLine?.id ?? '',
-                      currencyCode: nextCurrency,
-                      fundingSourcePaymentAccountId: current.fundType === 'EXTERNAL_MANAGED'
-                        ? ''
-                        : nextFundingSource?.id ?? '',
-                      limitAmount: nextBudgetLine ? String(getBudgetLineLimit(nextBudgetLine)) : current.limitAmount,
-                      paymentAccountId: event.target.value,
-                    }));
-                  }}
-                  value={draft.paymentAccountId}
-                >
-                  {paymentAccounts.length === 0 ? <option value="">{copy.funds.modal.noAccounts}</option> : null}
-                  {paymentAccounts.map(account => (
-                    <option key={account.id} value={account.id}>{getPaymentAccountLabel(account)}</option>
-                  ))}
-                </select>
-                {!fundAccountCurrencyMatches ? (
-                  <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">{copy.funds.modal.fundAccountCurrencyWarning}</p>
-                ) : null}
-              </PettyCashField>
-              {!isExternalFund ? (
-                <PettyCashField label={copy.funds.modal.sourceAccount}>
-                  <select
-                    className={pettyCashInputClass}
-                    onChange={(event) => {
-                      const account = paymentAccounts.find(item => item.id === event.target.value);
-                      setDraft(current => ({
-                        ...current,
-                        fundingSourceName: account?.name ?? current.fundingSourceName,
-                        fundingSourcePaymentAccountId: event.target.value,
-                      }));
-                    }}
-                    value={draft.fundingSourcePaymentAccountId}
-                  >
-                    {fundingSourceOptions.length === 0 ? <option value="">{copy.funds.modal.noCompatibleAccounts}</option> : null}
-                    {fundingSourceOptions.map(account => (
-                      <option key={account.id} value={account.id}>{getPaymentAccountLabel(account)}</option>
-                    ))}
-                  </select>
-                  {!hasDistinctFundingAccounts || !fundingSourceCurrencyMatches ? (
-                    <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">{copy.funds.modal.sourceAccountWarning}</p>
-                  ) : null}
-                </PettyCashField>
-              ) : (
-                <PettyCashField label={copy.funds.modal.externalSourceName}>
-                  <input
-                    className={pettyCashInputClass}
-                    maxLength={180}
-                    onChange={(event) => setDraft(current => ({ ...current, fundingSourceName: event.target.value }))}
-                    placeholder={copy.funds.modal.externalSourcePlaceholder}
-                    value={draft.fundingSourceName}
-                  />
-                </PettyCashField>
-              )}
-              <div>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.funds.modal.fundingMethods}</p>
-                <div className="mt-2 grid gap-2">
-                  {pettyCashFundingMethodOptions.map(method => (
-                    <label key={method} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
-                      <input
-                        checked={draft.fundingMethods.includes(method)}
-                        onChange={() => setDraft(current => ({ ...current, fundingMethods: toggleValue(current.fundingMethods, method) }))}
-                        type="checkbox"
-                      />
-                      {getPettyCashMethodLabel(copy.funds.methodLabels, method)}
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.funds.modal.spendingMethods}</p>
-                <div className="mt-2 grid gap-2">
-                  {pettyCashSpendingMethodOptions.map(method => (
-                    <label key={method} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
-                      <input
-                        checked={draft.spendingMethods.includes(method)}
-                        onChange={() => setDraft(current => ({ ...current, spendingMethods: toggleValue(current.spendingMethods, method) }))}
-                        type="checkbox"
-                      />
-                      {getPettyCashMethodLabel(copy.funds.methodLabels, method)}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-            {!isExternalFund ? <p className="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">{copy.funds.modal.internalAccountingNote}</p> : null}
-          </section>
-          {isExternalFund ? (
+        </>) : null}
+          {isExternalFund && (!isWizard || activeStep === 'identity') ? (
             <section className="rounded-lg border border-blue-200 bg-blue-50/60 p-5 dark:border-blue-900 dark:bg-blue-950/25">
               <h4 className="text-lg font-medium text-slate-900 dark:text-white">{copy.funds.modal.externalIdentityTitle}</h4>
               <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{copy.funds.modal.externalIdentityDescription}</p>
@@ -1655,22 +1678,59 @@ function CreateFundModal({
                 <PettyCashField label={copy.funds.modal.ownerReference}>
                   <input className={pettyCashInputClass} maxLength={120} onChange={(event) => setDraft(current => ({ ...current, externalOwnerReference: event.target.value }))} placeholder={copy.funds.modal.ownerReferencePlaceholder} value={draft.externalOwnerReference} />
                 </PettyCashField>
-                <div className="md:col-span-2"><p className="text-sm font-medium text-slate-800 dark:text-slate-100">{copy.funds.modal.managedAssetTitle}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{copy.funds.modal.managedAssetDescription}</p></div>
-                <PettyCashField label={copy.funds.modal.assetType}>
-                  <select className={pettyCashInputClass} onChange={(event) => setDraft(current => ({ ...current, managedAssetType: event.target.value, managedAssetName: event.target.value ? current.managedAssetName : '', managedAssetReference: event.target.value ? current.managedAssetReference : '' }))} value={draft.managedAssetType}>
-                    <option value="">{copy.common.notAvailable}</option><option value="REAL_ESTATE">{copy.funds.modal.assetRealEstate}</option><option value="VEHICLE">{copy.funds.modal.assetVehicle}</option><option value="VESSEL">{copy.funds.modal.assetVessel}</option><option value="MACHINERY">{copy.funds.modal.assetMachinery}</option><option value="INVESTMENT_ACCOUNT">{copy.funds.modal.assetInvestment}</option><option value="CURRENCY">{copy.funds.modal.assetCurrency}</option><option value="SECURITIES">{copy.funds.modal.assetSecurities}</option><option value="OTHER">{copy.funds.modal.assetOther}</option>
-                  </select>
-                </PettyCashField>
-                <PettyCashField label={copy.funds.modal.assetName}>
-                  <input className={pettyCashInputClass} disabled={!draft.managedAssetType} maxLength={180} onChange={(event) => setDraft(current => ({ ...current, managedAssetName: event.target.value }))} placeholder={copy.funds.modal.assetNamePlaceholder} value={draft.managedAssetName} />
-                </PettyCashField>
-                <PettyCashField label={copy.funds.modal.assetReference}>
-                  <input className={pettyCashInputClass} disabled={!draft.managedAssetType} maxLength={120} onChange={(event) => setDraft(current => ({ ...current, managedAssetReference: event.target.value }))} placeholder={copy.funds.modal.assetReferencePlaceholder} value={draft.managedAssetReference} />
-                </PettyCashField>
+                <details className="md:col-span-2" open={!isWizard || draft.managedAssets.length > 0 || undefined}>
+                  <summary className="cursor-pointer rounded-lg py-3 text-sm font-medium text-slate-800 dark:text-slate-100">{assetCopy.title}</summary>
+                  <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">{assetCopy.description}</p>
+                  <ManagedAssetsEditor assets={draft.managedAssets} copy={copy} disabled={isSaving} onChange={managedAssets => {
+                    dirtyRef.current = true;
+                    setDraft(current => ({ ...current, managedAssets }));
+                  }} />
+                </details>
               </div>
             </section>
           ) : null}
-      </div>
+          {isWizard && activeStep === 'review' ? (
+            <div className="space-y-4">
+              <IndiceModalValidation messages={[wizard.creationNote]} tone="info" />
+              <IndiceModalSummary title={copy.funds.modal.dataTitle} columns={2} variant="success" items={[
+                summaryItem(wizard.steps.type.label, isExternalFund ? copy.funds.modal.externalFund : copy.funds.modal.internalFund),
+                summaryItem(copy.funds.modal.name, draft.name),
+                summaryItem(copy.funds.modal.currency, draft.currencyCode),
+                summaryItem(copy.funds.modal.limit, money(Number(draft.limitAmount))),
+                summaryItem(wizard.initialBalance, money(0)),
+                ...(!isExternalFund ? [summaryItem(copy.funds.modal.budgetLine, selectedBudgetLine
+                  ? getBudgetLineDisplayName(selectedBudgetLine, copy.funds.defaults.budgetLine) : wizard.pending)] : []),
+              ]} />
+              {!isExternalFund && isLimitAboveBudget ? <IndiceModalValidation messages={[copy.funds.modal.budgetExceededHint]} tone="warning" /> : null}
+              <IndiceModalSummary title={copy.funds.modal.responsibilityTitle} columns={2} items={[
+                summaryItem(copy.funds.modal.responsible, getOptionLabel(userOptions, draft.responsibleUserId, wizard.pending)),
+                summaryItem(copy.funds.modal.unit, getOptionLabel(unitOptions, draft.unitId, wizard.pending)),
+                summaryItem(copy.funds.modal.business, getOptionLabel(filteredBusinessOptions, draft.businessId, wizard.pending)),
+              ]} />
+              {isExternalFund ? <IndiceModalSummary title={copy.funds.modal.externalIdentityTitle} columns={2} items={[
+                summaryItem(copy.funds.modal.ownerName, draft.externalOwnerName),
+                summaryItem(copy.funds.modal.ownerType, ({ COMPANY: copy.funds.modal.ownerCompany, PERSON: copy.funds.modal.ownerPerson,
+                  TRUST: copy.funds.modal.ownerTrust, OTHER: copy.funds.modal.ownerOther } as Record<string, string>)[draft.externalOwnerType]),
+                summaryItem(copy.funds.modal.ownerRelationship, ({ CLIENT: copy.funds.modal.relationshipClient, OWNER: copy.funds.modal.relationshipOwner,
+                  PARTNER: copy.funds.modal.relationshipPartner, BENEFICIARY: copy.funds.modal.relationshipBeneficiary, OTHER: copy.funds.modal.relationshipOther } as Record<string, string>)[draft.externalOwnerRelationship]),
+                summaryItem(copy.funds.modal.recipientEmail, recipientEmail),
+                ...(draft.externalOwnerReference ? [summaryItem(copy.funds.modal.ownerReference, draft.externalOwnerReference)] : []),
+              ]} /> : null}
+              {isExternalFund ? draft.managedAssets.map((asset, index) => (
+                <IndiceModalSummary key={asset.draftId} title={assetCopy.item(index + 1)} columns={2} items={[
+                  summaryItem(copy.funds.modal.assetType, getManagedAssetTypeLabel(asset.type, copy)),
+                  summaryItem(copy.funds.modal.assetName, asset.name),
+                  ...(asset.reference ? [summaryItem(copy.funds.modal.assetReference, asset.reference)] : []),
+                ]} />
+              )) : null}
+              <IndiceModalSummary title={copy.funds.modal.fundingTitle} columns={2} items={[
+                summaryItem(copy.funds.modal.fundAccount, selectedFundAccount ? getPaymentAccountLabel(selectedFundAccount) : wizard.pending),
+              ]} />
+              {isExternalFund ? <IndiceModalValidation messages={[copy.funds.modal.externalAccountingNote]} tone="info" /> : null}
+            </div>
+          ) : null}
+        </fieldset>
+      </form>
     </IndiceModalFrame>
   );
 }

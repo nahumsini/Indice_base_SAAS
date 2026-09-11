@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Building2, ClipboardCheck, Columns3, MoreHorizontal, Plus } from 'lucide-react';
+import { ClipboardCheck, Columns3, MoreHorizontal, Plus } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { IndiceTitleBar } from '../../../../components/frontend-os';
 import {
@@ -45,7 +45,7 @@ export function ProvidersHeaderBanner({
 }) {
   const t = useProvidersTranslations();
   const styles = headerVariantStyles[variant];
-  const headerIcon = icon ?? <Building2 className="h-5 w-5" />;
+  const headerIcon = icon ?? '🏢';
   const eligibleActionCount = 2 + Number(Boolean(onReviewProviderCenter));
   const hasOverflow = eligibleActionCount > 3;
   const actionLayout = (

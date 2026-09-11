@@ -62,7 +62,10 @@ public class ExpenseCorrectionService {
         if (!Objects.equals(request.budgetLineId(), existing.budgetLineId())
                 || !Objects.equals(request.purchaseOrderId(), existing.purchaseOrderId()))
             throw FinanceApiException.conflict("A correction cannot replace the source budget or purchase order.");
-        if ((existing.paidAmount().signum() > 0 || existing.budgetLineId() != null)
+        boolean hasPaymentHistory = Boolean.TRUE.equals(jdbc.queryForObject(
+            "SELECT EXISTS(SELECT 1 FROM finance_expense_payments WHERE company_id = ? AND expense_id = ?)",
+            Boolean.class, context.companyId(), id));
+        if ((hasPaymentHistory || existing.paidAmount().signum() > 0 || existing.budgetLineId() != null)
                 && !existing.currencyCode().equalsIgnoreCase(request.currencyCode()))
             throw FinanceApiException.conflict("An expense with payments or a budget must retain its original currency.");
         if (existing.paidAmount().compareTo(request.totalAmount()) > 0)

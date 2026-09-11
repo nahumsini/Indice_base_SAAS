@@ -1,6 +1,7 @@
 import { ApiClientError } from '../../../lib/apiClient';
 
 const statusMessages: Record<number, string> = {
+  400: 'Revisa los datos marcados en el formulario y vuelve a intentar.',
   401: 'Tu sesion expiro. Inicia sesion de nuevo para guardar cambios.',
   403: 'No tienes permisos para completar esta accion en Finance.',
   404: 'No encontramos el registro solicitado en Finance.',
@@ -9,6 +10,20 @@ const statusMessages: Record<number, string> = {
 };
 
 const backendMessageTranslations: Record<string, string> = {
+  'A fund supports up to 50 managed assets.': 'Puedes agregar hasta 50 activos al fondo.',
+  'Every managed asset requires a valid type and name.': 'Completa el tipo y el nombre de cada activo, o quita las partidas vacías.',
+  'Managed asset name or reference is too long.': 'El nombre del activo admite hasta 180 caracteres y la referencia hasta 120.',
+  'A reversal reason is required (maximum 500 characters).': 'Escribe un motivo de hasta 500 caracteres para deshacer el pago.',
+  'Expense payment not found.': 'No se encontró el pago en este gasto.',
+  'The expense changed. Reload it before reversing a payment.': 'El gasto cambió. Cierra y vuelve a abrir Editar gasto para revisar el saldo actualizado.',
+  'This expense requires its source correction workflow.': 'Este gasto está cerrado o pertenece a otra operación. Corrígelo desde su módulo de origen.',
+  'This expense has posted accounting entries. Use an accounting adjustment.': 'Este gasto ya tiene asientos contabilizados. Necesita un ajuste contable.',
+  'Only the last recorded active payment can be reversed.': 'Solo se puede deshacer el último pago activo. Actualiza el gasto para revisarlo.',
+  'Payment history must be reconciled before this expense can be reopened.': 'El historial y el saldo del gasto no coinciden. Es necesario conciliarlos antes de deshacer el pago.',
+  'This payment must be corrected by its source module.': 'Este pago se debe corregir desde su módulo de origen.',
+  'The original bank movement could not be identified. Reconcile the payment first.': 'No se pudo identificar la salida bancaria original. Concilia el pago antes de corregirlo.',
+  'The original bank movement does not match the payment.': 'La salida bancaria original no coincide con el pago. No se guardó la corrección.',
+  'This payment was reversed. Use a new payment request.': 'Este pago ya fue revertido. Inicia un nuevo pago si deseas volver a liquidar el gasto.',
   'Select between 1 and 200 budget lines.': 'Selecciona entre 1 y 200 líneas presupuestales.',
   'Invalid or duplicate budget line selection.': 'La selección contiene líneas inválidas o repetidas. Actualiza la tabla.',
   'Budget line not found.': 'No se encontró la línea presupuestal en tu ámbito de acceso.',

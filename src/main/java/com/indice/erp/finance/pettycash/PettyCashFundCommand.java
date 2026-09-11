@@ -36,6 +36,7 @@ record PettyCashFundCommand(
     Long createdByUserId,
     Long updatedByUserId,
     String customFieldsJson,
-    String metadataJson
+    String metadataJson,
+    String managedAssetsJson
 ) {
 }

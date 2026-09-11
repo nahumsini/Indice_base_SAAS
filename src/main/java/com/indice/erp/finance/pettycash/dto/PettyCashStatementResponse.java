@@ -46,6 +46,7 @@ public record PettyCashStatementResponse(
     Instant deletedAt,
     Long version,
     JsonNode customFields,
-    JsonNode metadata
+    JsonNode metadata,
+    java.util.List<PettyCashManagedAsset> managedAssetsSnapshot
 ) {
 }

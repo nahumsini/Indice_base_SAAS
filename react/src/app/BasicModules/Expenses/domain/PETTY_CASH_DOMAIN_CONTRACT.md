@@ -61,10 +61,34 @@ already authorized fund catalog; it does not grant access to that fund or bypass
 
 Every fund has one explicit and persistent type:
 
-- `INTERNAL_COMPANY`: administers company money. It requires a company source Payment Account, a Budget and a Budget Line. Authorized receipts become company Expenses and update the linked budget.
-- `EXTERNAL_MANAGED`: administers client or third-party money. It requires an explicit external origin, owner/client identity and statement recipient. A managed asset is optional. It must not reference company budgets or a company funding-source account.
+- `INTERNAL_COMPANY`: administers company money. It requires a Budget and a Budget Line. Authorized receipts become company Expenses and update the linked budget.
+- `EXTERNAL_MANAGED`: administers client or third-party money. It requires owner/client identity and a statement recipient. Managed assets are optional. It must not reference company budgets.
 
-Type and currency are immutable after the first financial activity. The backend, not the frontend, enforces this rule.
+Both types require one active, same-currency Payment Account as the custody account. That account
+answers where the fund balance is held. It does not answer who owns the money or where a later
+deposit originates.
+
+Product decision, 2026-09-10: fund forms do not configure funding or spending method checklists and
+do not choose a permanent funding origin. Every deposit chooses its actual origin. Internal funds
+accept an active company Payment Account. External funds accept the same company accounts and add
+**Medios externos**, which requires a named origin. A company source account must belong to the
+authenticated company, match the fund currency and differ from its custody account. New deposits
+derive `fundingMethod` as `INTERNAL_TRANSFER` or `EXTERNAL_MEDIA` from that choice. Legacy
+`fundingMethods`, `spendingMethods` and default-source fields remain readable for API compatibility.
+New funds and new classification stages store them empty. Ordinary edits preserve hidden legacy
+values so a harmless edit never erases historical configuration; historical movements remain
+unchanged.
+
+Returning a positive balance at statement close also chooses its destination in that closing
+operation. Both fund types may return to an active same-currency company Payment Account other
+than custody. External funds may instead choose **Medios externos** and record the named recipient.
+The backend validates the destination against the authenticated company before changing either
+balance. Saved default-source fields are used only as a compatibility fallback for older clients.
+
+Currency and the custody account are immutable after the first financial activity. Fund type can
+change only through the prospective, audited type-stage operation defined in
+`docs/petty-cash-fund-classification-stages-v1.md`. A change preserves the fund ID, currency,
+custody account and exact balance; it never rewrites earlier statements, receipts or Expenses.
 
 The application does not connect Sales directly to Funds. External fund entries are captured as fund movements with the origin and statement description needed for accountability.
 
@@ -77,9 +101,10 @@ Petty Cash must not create duplicate catalogs.
 It consumes the same Finance references used by Expenses:
 
 - Providers come from Finance Providers.
-- Internal funding sources come from Finance Payment Accounts. External custody or third-party
-  money records an explicit source name and does not invent a company account.
-- Spending/payment methods are constrained by the fund configuration and payment account capabilities.
+- Deposit sources come from Finance Payment Accounts. External funds additionally support
+  Medios externos, recording an explicit source name without inventing a company account.
+- The actual receipt or movement records its route. Fund configuration does not maintain an
+  allowed-method checklist.
 - Receipt accounting classification comes from active Finance Accounting Accounts.
 - The budget relationship is required only for internal funds and represents planned company cost. It is never interpreted as money already deposited in the fund.
 
@@ -141,6 +166,7 @@ The statement owns:
 - settlement status
 - traceable prior statement as the source of the opening balance
 - immutable fund-type, owner/client, recipient and managed-asset snapshots used to reproduce historical statements
+- immutable financial-configuration snapshot and type-stage identity used when a fund changes type
 
 ### PettyCashMovement
 
@@ -204,8 +230,8 @@ Fields:
 - budgetLineId
 - paymentAccountId
 - responsibleUserId
-- fundingSourcePaymentAccountId
-- fundingSourceName
+- fundingSourcePaymentAccountId (legacy compatibility default; not configured by current forms)
+- fundingSourceName (legacy compatibility default; not configured by current forms)
 - fundType
 - externalOwnerType
 - externalOwnerName
@@ -221,8 +247,8 @@ Fields:
 - limitAmount
 - currentBalanceAmount
 - cutOffDay
-- fundingMethods
-- spendingMethods
+- fundingMethods (legacy compatibility only)
+- spendingMethods (legacy compatibility only)
 - kioskEnabled
 - kioskUsesUniversalPin
 - kioskAccessToken
@@ -367,8 +393,13 @@ Carry-forward is not a primary status. It is a closing result stored in `carryFo
 
 For `INITIAL_FUNDING`, `ADDITIONAL_DEPOSIT`, and `RETURN_TO_SOURCE`, the origin/destination follows
 the fund classification. Internal company funds use the selected company Payment Account and create
-a two-sided Treasury transfer. External managed funds use an explicit external source and create the
-corresponding one-sided Treasury entry on the fund account while retaining the source in the audit context.
+a two-sided Treasury transfer. External managed funds can also use a selected company account,
+which creates the same two-sided transfer. Medios externos creates a one-sided entry on the fund
+account and retains the external source name. Each movement chooses exactly one route; supplying
+both an account and an external source is rejected. A return on closing uses the fund's configured
+source account, or the named external origin when no source account is configured. Opening balances
+use the same route. All money changes occur within the existing transactional fund/Treasury use case;
+external classification continues to exclude company Expenses and budget consumption.
 
 ### PettyCashSettlementLineStatus
 
@@ -421,9 +452,8 @@ It owns:
 - creating user
 - unit and business scope
 - payment account with type `PETTY_CASH`
-- funding source: a company payment account for internal funds or an explicit external source name for external funds
-- owner/client, statement recipient and optional managed asset for external funds
-- allowed funding methods
+- funding source: a created company Payment Account; external funds can instead select Medios externos and name the origin
+- owner/client, statement recipient and optional managed assets for external funds
 - allowed spending methods
 - operational limit
 - cut-off day

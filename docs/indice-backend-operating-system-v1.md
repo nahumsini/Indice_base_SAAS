@@ -20,6 +20,12 @@ This document governs general backend engineering. More specific approved contra
 - `docs/kiosk-standard-engine-v2.md` for kiosks and public operational channels;
 - module domain contracts, such as the Finance contracts under
   `react/src/app/BasicModules/Expenses/domain/`, for approved business meaning;
+- `docs/petty-cash-managed-assets-contract-v1.md` for fund asset collections and immutable
+  statement identity snapshots;
+- `react/src/app/BasicModules/Expenses/domain/PETTY_CASH_DOMAIN_CONTRACT.md` for account-based
+  funding and external means, including the approved 2026-09-10 funding-source extension;
+- `docs/petty-cash-fund-classification-stages-v1.md` for prospective internal/external changes,
+  historical statement snapshots and owned-cash treatment;
 - `deployment/README.md` for deployment, production configuration, and rollback.
 
 The folder `saas-multitenant/` is a superseded proposal, not a description of the current backend.
@@ -335,6 +341,17 @@ Approved Finance domain contracts remain authoritative. General rules include:
 - Available and pending balances remain distinct. A pending collection becomes available only
   through an auditable settlement movement.
 - A petty-cash issuance or bank-to-fund transfer is a fund movement, not an expense.
+- Every petty-cash entry increases the fund exactly once and every captured exit decreases it
+  exactly once. Receipt approval classifies evidence and must not move cash a second time.
+- Both internal and external funds may receive from an authenticated company Payment Account.
+  Only external funds may instead name Medios externos. The former moves company Treasury; the
+  latter changes custody and external-fund balance together, leaving company-owned cash unchanged.
+- A positive balance return selects its destination per closing operation. Validate a company
+  account against tenant, active status and native currency before mutation; an external fund may
+  instead record a named external destination. Legacy defaults are compatibility fallback only.
+- Fund-type changes are prospective stages with reason, effective date, optimistic version and
+  immutable statement snapshots. Earlier Expenses and external validations retain their original
+  treatment. The transition preserves the fund balance and creates no Treasury movement.
 - An expense represents actual business consumption.
 - Expense payment state is derived only from approval, idempotent payment, close, and reversal
   workflows. A generic status endpoint may preserve an already-current legacy value for
@@ -351,6 +368,22 @@ Approved Finance domain contracts remain authoritative. General rules include:
   consumption. Paid/budget-linked currency, source links, fund custody and posted journals remain
   protected. A total below recorded payments requires a payment correction/reversal first. Bulk
   edits invoke this same owner atomically. Closed/cancelled/rejected and PO sources remain protected.
+- Per the 2026-09-10 payment-correction decision,
+  `POST /api/v1/finance/expenses/{expenseId}/payments/{paymentId}/reversal` is an authenticated,
+  capability/tab/CSRF protected write with `expectedVersion` and a nonempty reason (max 500).
+  It locks company, scoped expense and history, and reverses only the last registered active
+  installment. Payment ID makes retries idempotent without undoing a subsequent payment. Original
+  amount/date/actor/evidence remain; V273 adds reversal timestamp, actor and reason. Effective paid
+  amount, balance and latest effective payment context are recomputed. With no effective payments,
+  the expense is approved/unpaid (overdue when due); otherwise it retains its earlier partial balance.
+  Consumption, expense date and native currency are preserved, including currency after reversal.
+  Treasury restores only the matching actual original debit, including inactive source accounts;
+  an unassigned payment or legacy history without a bank movement never creates cash. Inconsistent
+  history or an ambiguous bank movement fails atomically. Fund, PO, audited/closed/terminal records
+  and any posted expense/payment journal require their source/accounting adjustment workflow.
+  Reversed history is excluded from payment KPIs, payable-kiosk projections, accounting discovery
+  and subledger totals. A new payment requires a fresh key; keyless legacy clients receive an internal
+  UUID to prevent reuse of a cumulative-amount Treasury event after reversal.
 - The explicit payment use case resolves draft/submitted approval and records the payment in one
   transaction, serialized with corrections; failure rolls back approval too. Retrying the same key
   returns the recorded result without another debit.

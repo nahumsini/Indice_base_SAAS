@@ -29,6 +29,32 @@ Consolidate presentation into `IndiceModalFrame` plus four classified modes: con
 
 ## Migration order
 
+### Expenses additions — 2026-09-10
+
+- `ExpenseFormModal`: **standard-form**. Payment correction is a reasoned inline confirmation
+  inside its state-control section, with a shared busy boundary. No nested confirmation modal.
+- `ExpenseTablePrintModal`: **operational-workspace**. The work area previews the selected or
+  filtered table and supports PDF/download/print, following the quote preview flow. It directly
+  uses `IndiceModalFrame` with Finance tone and shared footer/validation primitives.
+
+### Petty Cash fund creation — 2026-09-10
+
+- `CreateFundModal` in `PettyCashFundsWorkspace`: **wizard** for creation, with three dependent
+  stages and a conditional Owner stage for external managed funds. Reuses the shared frame,
+  stepper, footer, validation and final-review summaries. No nested discard confirmation.
+- The existing-fund variant remains **standard-form** with immutable currency/custody after activity
+  and an audited, prospective type-change section. A pending type change is shown and cancelled in
+  the same modal. Both variants edit managed assets as repeatable
+  rows inside the Owner section; creation reviews every row before submission. The existing fund
+  API carries an additive `managedAssets` list; Funds remains the accounting owner.
+- Fund configuration has no Operation step, permanent source or method checklists. The deposit
+  modal chooses one source per entry: created accounts for both fund types, plus Medios externos
+  for external funds. Receipt capture records the actual exit and applies accounting fields only
+  when the active statement stage is internal.
+- Statement closing keeps balance disposal in its existing modal. Returning a positive balance
+  reveals a required destination there: an eligible company account for either type, or named
+  Medios externos for an external fund.
+
 1. Stabilize the shared engine: add `ModalActionToolbar`, selector rules, unsaved-change guard, and attachment presentation contract.
 2. Migrate Point of Sale because it has the largest duplicated frame and most transaction variants.
 3. Migrate Expenses, Inventory, and Receivables as a commercial and financial group.

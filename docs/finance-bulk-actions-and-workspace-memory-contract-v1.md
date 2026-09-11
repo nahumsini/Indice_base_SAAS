@@ -77,6 +77,9 @@ posted and terminal records remain protected. The entire batch is validated befo
   expenses remain partially paid when no longer overdue. Previous values and actor are audited.
 - Paid expenses require reversal to reopen. A status action never silently removes a payment,
   rebooks its account, manufactures a balance, or modifies a fund's monthly cut.
+  The 2026-09-10 explicit single-payment reversal now lives inside Edit Expense and follows the
+  Backend Operating System payment-correction contract. It undoes the last active installment
+  with a reason/version, preserves earlier payments, and does not enable bulk state rewrites.
 
 Bulk entry initially selects paid and lets the user choose pending before importing. The user
 decision of 2026-09-09 permits paid imports without a payment account or accounting account.

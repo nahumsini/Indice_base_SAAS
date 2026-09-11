@@ -6,6 +6,7 @@ import type { ExpensePayment } from '../../types/expenses.types';
 import { formatCurrency } from '../../utils/expenses.utils';
 import type { ExpenseDetailCopy } from './expenseDetail.copy';
 import { ExpenseAttachmentLink } from './ExpenseAttachmentLink';
+import { getExpenseReversalCopy } from '../../utils/expenseReversal.copy';
 
 type ExpensePaymentHistoryProps = {
   attachments: ExpenseAttachment[];
@@ -61,12 +62,13 @@ export function ExpensePaymentHistory({
           <article key={payment.id} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-900/40">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-slate-950 dark:text-white">{copy.payment} #{sequence}</p>
+                <p className="text-sm font-medium text-slate-950 dark:text-white">{copy.payment} #{sequence}{payment.reversedAt ? ` · ${getExpenseReversalCopy(locale).reversed}` : ''}</p>
                 <span className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-medium ${payment.source === 'LEGACY_AGGREGATE' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200'}`}>{sourceLabel}</span>
               </div>
               <p className="shrink-0 text-base font-medium text-[#147514]">{formatCurrency(payment.amount, payment.currency || currency)}</p>
             </div>
 
+            {payment.reversedAt && <p className="mt-3 text-sm text-amber-800 dark:text-amber-200">{formatDateTime(payment.reversedAt, locale)} · {payment.reversalReason}</p>}
             {payment.source === 'LEGACY_AGGREGATE'
               ? <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">{copy.legacyPaymentHint}</p>
               : null}
@@ -104,13 +106,13 @@ function PaymentFact({ detail, icon, label, value }: { detail?: string; icon: Re
   );
 }
 
-function buildPaymentRows(
+export function buildPaymentRows(
   payments: ExpensePayment[],
   attachments: ExpenseAttachment[],
   fallback: ExpensePaymentHistoryProps['fallback'],
   currency: string,
 ): PaymentRow[] {
-  const detailedTotal = payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const detailedTotal = payments.filter(payment => !payment.reversedAt).reduce((sum, payment) => sum + payment.amount, 0);
   const unexplainedAmount = Math.max(0, fallback.amount - detailedTotal);
   const completePayments = [...payments];
 
@@ -127,18 +129,21 @@ function buildPaymentRows(
     });
   }
 
-  const evidenceByContext = new Map<string, ExpenseAttachment[]>();
+  const evidenceByPayment = new Map<string, ExpenseAttachment[]>();
   attachments.filter(file => file.paymentAmount != null && file.paymentDate).forEach(file => {
     const key = contextKey(file.paymentAmount ?? 0, file.paymentDate ?? '', file.paymentAccountId);
-    evidenceByContext.set(key, [...(evidenceByContext.get(key) ?? []), file]);
+    const candidates = completePayments.filter(payment => contextKey(payment.amount, payment.paymentDate, payment.paymentAccountId) === key);
+    const uploaded = file.createdAt ? new Date(file.createdAt).getTime() : NaN;
+    // A new payment with the same amount/date must not acquire the reversed payment's earlier evidence.
+    const payment = candidates.length > 1 && Number.isFinite(uploaded)
+      ? candidates.filter(candidate => candidate.createdAt.getTime() <= uploaded
+          && (!candidate.reversedAt || uploaded <= candidate.reversedAt.getTime()))
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0]
+      : candidates[0];
+    if (payment) evidenceByPayment.set(payment.id, [...(evidenceByPayment.get(payment.id) ?? []), file]);
   });
 
-  return completePayments.map(payment => {
-    const key = contextKey(payment.amount, payment.paymentDate, payment.paymentAccountId);
-    const files = evidenceByContext.get(key) ?? [];
-    evidenceByContext.delete(key);
-    return { ...payment, files };
-  });
+  return completePayments.map(payment => ({ ...payment, files: evidenceByPayment.get(payment.id) ?? [] }));
 }
 
 function contextKey(amount: number, date: string, accountId?: string) {

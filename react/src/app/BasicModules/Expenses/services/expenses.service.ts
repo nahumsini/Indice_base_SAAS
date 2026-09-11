@@ -65,10 +65,20 @@ export const expensesService = {
       currency: payment.currencyCode,
       paymentDate: payment.paymentDate,
       source: payment.source,
+      reversedAt: payment.reversedAt ? new Date(payment.reversedAt) : undefined,
+      reversalReason: payment.reversalReason ?? undefined,
+      reversedByUserId: payment.reversedByUserId == null ? undefined : String(payment.reversedByUserId),
       registeredByUserId: payment.registeredByUserId == null ? undefined : String(payment.registeredByUserId),
       registeredByName: payment.registeredByName ?? undefined,
       createdAt: new Date(payment.createdAt),
     }));
+  },
+
+  async reverseExpensePayment(expense: Expense, paymentId: string, reason: string, providers: Array<{ id: string; name: string }> = []): Promise<Expense> {
+    const response = await apiClient<ExpenseApiDto>(`${expensesPath}/${expense.id}/payments/${paymentId}/reversal`, jsonMutation('POST', {
+      expectedVersion: expense.version, reason,
+    }));
+    return toExpense(response, providers);
   },
 
   async importExpenses(expenses: Expense[], requestKey: string, providers: Array<{ id: string; name: string }> = []): Promise<Expense[]> {

@@ -114,7 +114,7 @@ public class BasicModuleKpiCurrencyRepository {
                 "finance_expense_payments payment JOIN finance_expenses expense"
                     + " ON expense.id = payment.expense_id AND expense.company_id = payment.company_id",
                 "payment.amount", "payment.currency_code", "payment.payment_date",
-                " AND expense.deleted_at IS NULL", "expense.id", "payment.company_id"
+                " AND expense.deleted_at IS NULL AND payment.reversed_at IS NULL", "expense.id", "payment.company_id"
             );
             case EXPENSE_SUBTOTAL -> new MetricDefinition("finance_expenses", "subtotal_amount", "currency_code", "expense_date", " AND deleted_at IS NULL AND status NOT IN ('CANCELLED', 'REJECTED')");
             case EXPENSE_TAX -> new MetricDefinition("finance_expenses", "tax_amount", "currency_code", "expense_date", " AND deleted_at IS NULL AND status NOT IN ('CANCELLED', 'REJECTED')");
@@ -167,10 +167,12 @@ public class BasicModuleKpiCurrencyRepository {
                     + " AND statement_record.fund_type_snapshot = 'INTERNAL_COMPANY'",
                 "settlement_line.id", "settlement_line.company_id"
             );
-            case PAYMENT_ACCOUNT_BALANCE -> new MetricDefinition("finance_payment_accounts", "current_balance", "currency_code", null,
-                " AND deleted_at IS NULL AND status = 'ACTIVE' AND NOT EXISTS (SELECT 1 FROM finance_petty_cash_funds external_fund"
-                    + " WHERE external_fund.company_id = finance_payment_accounts.company_id AND external_fund.payment_account_id = finance_payment_accounts.id"
-                    + " AND external_fund.fund_type = 'EXTERNAL_MANAGED' AND external_fund.deleted_at IS NULL)");
+            case PAYMENT_ACCOUNT_BALANCE -> new MetricDefinition("finance_payment_accounts",
+                "current_balance - COALESCE((SELECT SUM(external_fund.current_balance_amount) FROM finance_petty_cash_funds external_fund"
+                    + " WHERE external_fund.company_id = finance_payment_accounts.company_id"
+                    + " AND external_fund.payment_account_id = finance_payment_accounts.id"
+                    + " AND external_fund.fund_type = 'EXTERNAL_MANAGED' AND external_fund.deleted_at IS NULL), 0)",
+                "currency_code", null, " AND deleted_at IS NULL AND status = 'ACTIVE'");
             case HR_ASSET_VALUE -> new MetricDefinition("user_assets", "value_amount", "value_currency", "created_at", " AND status <> 'inactive'");
             case HR_EMPLOYEE_MONTHLY_PAYROLL -> new MetricDefinition(
                 "hr_users",

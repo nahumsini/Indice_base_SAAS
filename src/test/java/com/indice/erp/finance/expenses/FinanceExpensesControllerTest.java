@@ -88,7 +88,7 @@ class FinanceExpensesControllerTest {
             "RECORDED",
             1L,
             "Finance User",
-            Instant.parse("2026-06-15T12:00:00Z")
+            Instant.parse("2026-06-15T12:00:00Z"), null, null, null
         );
         var body = new ExpensePaymentListResponse(List.of(payment), 1);
         when(guard.requireReadAccess(session)).thenReturn(allowed(context));

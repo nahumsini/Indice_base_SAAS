@@ -3,6 +3,7 @@ package com.indice.erp.finance.pettycash.dto;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.indice.erp.finance.pettycash.PettyCashFundStatus;
 import com.indice.erp.finance.pettycash.PettyCashFundType;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
@@ -43,6 +44,7 @@ public record UpdatePettyCashFundRequest(
     @Size(max = 96) String kioskPublicToken,
     PettyCashFundStatus status,
     JsonNode customFields,
-    JsonNode metadata
+    JsonNode metadata,
+    @Valid @Size(max = 50) List<@NotNull PettyCashManagedAsset> managedAssets
 ) {
 }

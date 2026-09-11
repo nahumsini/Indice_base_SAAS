@@ -180,6 +180,38 @@ Selected-row Finance actions and Petty Cash filter memory follow
 operations are available independently of generic draft editing; protected actions explain their
 restriction instead of hiding the entire selection toolbar.
 
+Petty Cash fund creation uses **Modal Wizard Índice**: Fund type, Configuration and Review.
+External managed funds add an Owner stage before Review for recipient identity and optional
+managed assets. Fund type determines the accounting links and currency determines the eligible
+custody accounts; these are dependent stages. Funding origins and method lists do not belong to
+fund configuration. Continue validates the current stage, Back retains the draft, and only final
+review submits. Selecting an account must not silently rewrite the previously configured currency,
+budget or limit. Final review states that creation starts at zero balance and does not transfer
+funds. Use the shared frame, stepper, footer, validation and summary primitives. Editing existing
+funds remains a standard form. Creation confirms discarded changes inline and blocks duplicate
+submission, editing and dismissal while saving.
+The existing-fund form exposes prospective internal/external reclassification in the same modal.
+It requires the target type's fields, effective date and reason, displays any pending change, locks
+competing configuration edits while it is pending and allows cancellation there. The fund list also
+shows the pending target and date. Deposit capture chooses the origin for that one entry: company
+accounts for both types and an additional Medios externos option only for external funds.
+The Owner stage and existing-fund form support an optional ordered list of up to 50 managed
+assets. Add/remove stay inside the modal; each added row requires a type and name, with an
+optional reference. Back preserves all rows, and final review shows each asset. Send the full
+`managedAssets` list, including `[]` when cleared. Account statements and PDFs use their own
+`managedAssetsSnapshot`; never fill a historical empty list from today's fund. See
+`docs/petty-cash-managed-assets-contract-v1.md`.
+Fund forms do not show or require funding or spending method checklists. The deposit modal selects
+created active accounts in the same currency for both fund types, excluding custody. External
+managed funds additionally offer **Medios externos**, which reveals the named-origin field. It
+preserves the chosen route across reference refreshes and derives the movement method from that
+route. Funds keeps its explicit accounting classification when an external fund uses a company
+source account. This follows the approved 2026-09-10 contract in
+`react/src/app/BasicModules/Expenses/domain/PETTY_CASH_DOMAIN_CONTRACT.md`.
+Closing a statement with a positive balance selects the return destination in that closing modal.
+Both types may return to an eligible company account; external funds also offer a named **Medios
+externos** destination. The action stays disabled until the selected route is complete.
+
 Budget Control follows that contract's Budget Control extension: This month filters scheduled
 budget lines; selection exposes budget-owned classification and soft deletion. Totals for filtered
 and selected rows sit above pagination and retain native currency separation. These are budget
@@ -201,6 +233,25 @@ The single-row action opens a reasoned confirmation; batch removal validates the
 Row actions omit duplicate and print. Print is available inside the expense dossier and reuses the
 standard purchase-order PDF layout (folio/status, metadata, financial summary, item table, signatures),
 retaining the expense's native currency and resolving account/user names from scoped catalogs.
+
+Per the 2026-09-10 payment-correction and selection-print decision, Edit Expense remains a
+standard-form modal and includes **Undo last payment** in its state-control section. It loads
+real payment history, previews the reopened balance, and requires a reason and inline confirmation;
+no nested dialog or free paid/pending status selector is introduced. Earlier installments and
+evidence survive, unsaved form fields remain, and saving/closing cannot race a reversal. The
+payment owner rejects stale versions, closed/audited/source-owned expenses and posted journals.
+After success the same modal and table receive the saved balance/version. Reversed payments remain
+visible and identified in the dossier, including reason and timestamp.
+
+The Expenses header Actions menu also exposes **Print selection**. It opens the
+`ExpenseTablePrintModal` operational workspace, following the quote preview interaction: inspect,
+download PDF or print. Selected rows are the initial scope when available; otherwise use all filtered
+results. The user can change between these scopes. Both preserve table order across pages and
+visible data columns, exclude action controls, resolve scoped reference names, and keep native
+currencies separate. Fund groups expand into their original expenses once. The company identity
+must finish loading before output; an unavailable logo/name must not fabricate an issuer. This
+Tab Print uses shared PDF primitives, repeatable table headers and footers, and splits exceptionally
+wide column selections into readable sections. The individual expense voucher remains available.
 
 Expense capture, payable capture and payment use searchable selectors for large reference catalogs.
 Optional notes/evidence are collapsible; submitting and error states preserve captured values.

@@ -29,7 +29,7 @@ class FinancialSubledgerReconciliation {
         var payable = sums("""
             SELECT expense.currency_code currency, SUM(expense.total_amount - COALESCE((
               SELECT SUM(payment.amount) FROM finance_expense_payments payment
-              WHERE payment.company_id = expense.company_id AND payment.expense_id = expense.id AND payment.payment_date <= ?
+              WHERE payment.company_id = expense.company_id AND payment.expense_id = expense.id AND payment.reversed_at IS NULL AND payment.payment_date <= ?
             ), 0)) amount FROM finance_expenses expense
             WHERE expense.company_id = ? AND expense.deleted_at IS NULL AND expense.expense_date <= ?
               AND expense.status IN ('APPROVED', 'PARTIALLY_PAID', 'PAID', 'CLOSED')

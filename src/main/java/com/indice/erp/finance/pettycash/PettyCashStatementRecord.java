@@ -43,6 +43,7 @@ record PettyCashStatementRecord(
     Instant deletedAt,
     Long version,
     String customFieldsJson,
-    String metadataJson
+    String metadataJson,
+    String managedAssetsSnapshotJson
 ) {
 }

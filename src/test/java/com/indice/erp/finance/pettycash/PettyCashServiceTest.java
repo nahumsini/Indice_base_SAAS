@@ -68,6 +68,9 @@ class PettyCashServiceTest {
     @Mock
     private ExpenseService expenseService;
 
+    @Mock
+    private PettyCashTypeChanges typeChanges;
+
     @Test
     void createFundGeneratesPublicKioskTokenWhenKioskIsEnabled() {
         var service = service();
@@ -127,7 +130,7 @@ class PettyCashServiceTest {
         );
 
         assertEquals(
-            "Fund type and currency cannot change after the fund has financial activity.",
+            "The custody account and currency cannot change after the fund has financial activity.",
             error.getMessage()
         );
         verify(repository, never()).updateFund(any(), anyLong(), any());
@@ -590,7 +593,7 @@ class PettyCashServiceTest {
     }
 
     @Test
-    void closeStatementReturningBalanceCreatesReturnMovementAndReleasesBudget() {
+    void closeStatementReturningBalanceUsesTheSelectedDestinationAndReleasesBudget() {
         var service = service();
         var context = context();
         var fund = record(99L, createCommand("fund-token-123"));
@@ -600,7 +603,10 @@ class PettyCashServiceTest {
             PettyCashStatementCloseAction.RETURN_TO_SOURCE,
             BigDecimal.ZERO,
             LocalDate.of(2026, 6, 30),
-            "Return remaining cash"
+            "Return remaining cash",
+            null,
+            81L,
+            null
         );
 
         when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund), Optional.of(fund));
@@ -617,9 +623,10 @@ class PettyCashServiceTest {
         verify(repository).insertMovement(eq(context), eq(fund.id()), any(PettyCashMovementCommand.class));
         verify(repository).adjustFundBalance(context, fund.id(), new BigDecimal("-250.00"));
         verify(treasuryService).transferAvailable(
-            eq(7L), eq(70L), eq(80L), any(), any(), eq("MXN"), eq(new BigDecimal("250.00")),
+            eq(7L), eq(70L), eq(81L), any(), any(), eq("MXN"), eq(new BigDecimal("250.00")),
             eq("FUNDS"), eq(PettyCashMovementType.RETURN_TO_SOURCE.name()), eq("402"),
             eq("FUND_TRANSFER:402"), any(), any(), eq(1L), any());
+        verify(validator).validateMovementAccounts(context, 70L, 81L, "MXN");
         verify(repository).applyMovementToBudgetLine(context, fund.budgetLineId(), PettyCashMovementType.RETURN_TO_SOURCE, new BigDecimal("250.00"));
         verify(repository).closeStatement(
             context, statement.id(), PettyCashStatementStatus.CLOSED,
@@ -883,9 +890,12 @@ class PettyCashServiceTest {
 
     private PettyCashService service() {
         lenient().when(timeZoneResolver.resolve(anyLong())).thenReturn(ZoneId.of("America/Toronto"));
+        lenient().when(repository.stageStart(any(), anyLong())).thenReturn(LocalDate.of(1000, 1, 1));
+        lenient().when(repository.fundForStatement(any(), any(PettyCashFundRecord.class), any(PettyCashStatementRecord.class)))
+            .thenAnswer(invocation -> invocation.getArgument(1, PettyCashFundRecord.class));
         return new PettyCashService(
             repository, new PettyCashMapper(), validator, kioskRegistry, treasuryService, timeZoneResolver,
-            payrollExternalDeductionService, expenseService);
+            payrollExternalDeductionService, expenseService, typeChanges);
     }
 
     private void assertExpenseCreationRejectedForStatus(PettyCashSettlementLineStatus status) {
@@ -924,7 +934,8 @@ class PettyCashServiceTest {
             new BigDecimal("10000.00"), BigDecimal.ZERO, 30, "Bank account",
             null, null, null, null, null, null, null, null,
             java.util.List.of("Transferencia interna"), java.util.List.of("Efectivo"),
-            kioskEnabled, true, null, kioskPublicToken, PettyCashFundStatus.OPEN, null, null
+            kioskEnabled, true, null, kioskPublicToken, PettyCashFundStatus.OPEN, null, null,
+            null
         );
     }
 
@@ -942,7 +953,8 @@ class PettyCashServiceTest {
             new BigDecimal("10000.00"), 30, "Bank account",
             null, null, null, null, null, null, null, null,
             java.util.List.of("Transferencia interna"), java.util.List.of("Efectivo"),
-            kioskEnabled, true, null, kioskPublicToken, PettyCashFundStatus.OPEN, null, null
+            kioskEnabled, true, null, kioskPublicToken, PettyCashFundStatus.OPEN, null, null,
+            null
         );
     }
 
@@ -966,7 +978,8 @@ class PettyCashServiceTest {
             external ? "CLIENT" : null, null, external ? "client@example.com" : null,
             null, null, null, false,
             "[]", "[]", true, true, "/petty-cash/kiosk/" + kioskPublicToken,
-            kioskPublicToken, PettyCashFundStatus.OPEN, 1L, null, null, null
+            kioskPublicToken, PettyCashFundStatus.OPEN, 1L, null, null, null,
+            null
         );
     }
 
@@ -982,7 +995,8 @@ class PettyCashServiceTest {
             command.externalIdentityPending(), command.fundingMethodsJson(), command.spendingMethodsJson(),
             command.kioskEnabled(), command.kioskUsesUniversalPin(), command.kioskAccessUrl(),
             command.kioskPublicToken(), command.status(), command.createdByUserId(), command.updatedByUserId(),
-            Instant.parse("2026-06-13T00:00:00Z"), null, null, 0L, command.customFieldsJson(), command.metadataJson()
+            Instant.parse("2026-06-13T00:00:00Z"), null, null, 0L, command.customFieldsJson(), command.metadataJson(),
+            null, null, null, null
         );
     }
 
@@ -1010,7 +1024,8 @@ class PettyCashServiceTest {
             BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, declaredClosingBalanceAmount, BigDecimal.ZERO, BigDecimal.ZERO,
             BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, "MXN", status,
             1L, null, null, null, null, null, null, null, null,
-            null, 0, 1L, null, Instant.parse("2026-06-13T00:00:00Z"), null, null, 0L, null, null
+            null, 0, 1L, null, Instant.parse("2026-06-13T00:00:00Z"), null, null, 0L, null, null,
+            null
         );
     }
 

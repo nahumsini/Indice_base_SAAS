@@ -185,7 +185,7 @@ class PayableKioskPublicRepository {
                 """
                     SELECT id, amount, currency_code, payment_date
                     FROM finance_expense_payments
-                    WHERE company_id = ? AND expense_id = ?
+                    WHERE company_id = ? AND expense_id = ? AND reversed_at IS NULL
                     ORDER BY payment_date DESC, id DESC
                     """,
                 (rs, rowNum) -> Map.of(

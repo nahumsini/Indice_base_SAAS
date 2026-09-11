@@ -1,3 +1,4 @@
+import { getManagedAssetTypeLabel, getStatementManagedAssets } from './managedAssets';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type {
@@ -89,7 +90,7 @@ const labelsFor = (locale: string) => {
       legalNote: 'Documento operativo para control interno. No sustituye comprobantes fiscales ni politicas de aprobacion.',
       externalLegalNote: 'Este estado de cuenta informa dinero de terceros administrado por la empresa. No registra ingresos ni gastos propios de la empresa.',
       managedAsset: 'Activo administrado',
-      movementSource: 'Origen',
+      movementSource: 'Origen / destino',
       period: 'Periodo',
       owner: 'Propietario o cliente',
       ownerReference: 'Referencia del cliente',
@@ -121,7 +122,7 @@ const labelsFor = (locale: string) => {
     legalNote: 'Operational document for internal control. It does not replace tax receipts or approval policies.',
     externalLegalNote: 'This statement reports third-party money administered by the company. It does not record company income or expenses.',
     managedAsset: 'Managed asset',
-    movementSource: 'Source',
+    movementSource: 'Source / destination',
     period: 'Period',
     owner: 'Owner or client',
     ownerReference: 'Client reference',
@@ -244,16 +245,20 @@ const addHeader = (
   setText(doc, brand.text);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(22);
-  doc.text(labels.documentTitle, layout.left, y, { maxWidth: contentWidth * 0.72 });
+  const titleLines = doc.splitTextToSize(labels.documentTitle, contentWidth * 0.72);
+  doc.text(titleLines, layout.left, y);
+  const titleBottom = y + (titleLines.length - 1) * 22 * 1.15 / doc.internal.scaleFactor;
   setText(doc, brand.slate);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.text(fund.name, layout.left, y + 9, { maxWidth: contentWidth * 0.7 });
-  doc.text(`${labels.period}: ${statement.periodKey} | ${formatPettyCashIsoDate(statement.periodStart)} - ${formatPettyCashIsoDate(statement.periodEnd)}`, layout.left, y + 16);
-  doc.text(`${labels.generated}: ${formatGeneratedAt(locale)}`, layout.left, y + 23);
-  drawAccentBar(doc, layout.left, y + 30, 74);
+  const nameLines = doc.splitTextToSize(fund.name, contentWidth * 0.7);
+  doc.text(nameLines, layout.left, titleBottom + 9);
+  const nameBottom = titleBottom + (nameLines.length - 1) * 9 * 1.15 / doc.internal.scaleFactor;
+  doc.text(`${labels.period}: ${statement.periodKey} | ${formatPettyCashIsoDate(statement.periodStart)} - ${formatPettyCashIsoDate(statement.periodEnd)}`, layout.left, nameBottom + 16);
+  doc.text(`${labels.generated}: ${formatGeneratedAt(locale)}`, layout.left, nameBottom + 23);
+  drawAccentBar(doc, layout.left, nameBottom + 30, 74);
 
-  return y + 43;
+  return nameBottom + 43;
 };
 
 const addMetricStrip = (
@@ -320,14 +325,12 @@ const addIdentityBlocks = (
   const ownerName = statement.externalOwnerNameSnapshot ?? fund.externalOwnerName ?? copy.common.notAvailable;
   const relationship = statement.externalOwnerRelationshipSnapshot ?? fund.externalOwnerRelationship ?? copy.common.notAvailable;
   const statementRecipient = statement.statementRecipientEmailSnapshot ?? fund.statementRecipientEmail ?? copy.common.notAvailable;
-  const managedAsset = statement.managedAssetNameSnapshot ?? fund.managedAssetName;
   const ownerReference = statement.externalOwnerReferenceSnapshot ?? fund.externalOwnerReference;
   const fundRows = isExternalFund
     ? [
       [labels.owner, ownerName],
       [labels.relationship, relationship.split('_').join(' ')],
       [labels.statementRecipient, statementRecipient],
-      ...(managedAsset ? [[labels.managedAsset, managedAsset]] : []),
       ...(ownerReference ? [[labels.ownerReference, ownerReference]] : []),
     ]
     : [
@@ -401,6 +404,14 @@ export function buildPettyCashStatementPdf({
   let y = addHeader(doc, labels, fund, statement, locale);
   y = addMetricStrip(doc, copy, labels, fund, statement, settlementLines.length, y);
   y = addIdentityBlocks(doc, copy, labels, fund, statement, y);
+  const managedAssets = getStatementManagedAssets(statement);
+  if (isExternalFund && managedAssets.length > 0) {
+    y = addTable(doc, labels.managedAsset, [
+      '#', copy.funds.modal.assetType, copy.funds.modal.assetName.replace(/\s*\*$/, ''), copy.funds.modal.assetReference,
+    ], managedAssets.map((asset, index) => [
+      String(index + 1), getManagedAssetTypeLabel(asset.type, copy), asset.name, asset.reference || '-',
+    ]), y);
+  }
 
   y = addTable(doc, labels.statementSummary, [labels.type, labels.amount], [
     [copy.reconciliation.statements.columns.assigned, formatPettyCashCurrency(statement.assignedAmount + statement.additionalDepositAmount, statement.currencyCode)],
@@ -420,7 +431,9 @@ export function buildPettyCashStatementPdf({
   ], statementMovements.map(movement => [
     formatPettyCashIsoDate(movement.movementDate),
     copy.status.movement[movement.type],
-    movement.fromPaymentAccountName ?? movement.externalSourceName ?? copy.common.notAvailable,
+    movement.type === 'RETURN_TO_SOURCE'
+      ? movement.toPaymentAccountName ?? movement.externalSourceName ?? copy.common.notAvailable
+      : movement.fromPaymentAccountName ?? movement.externalSourceName ?? copy.common.notAvailable,
     formatPettyCashCurrency(movement.amount, movement.currencyCode),
     movement.statementDescription || movement.reference || copy.common.notAvailable,
   ]), y);

@@ -15,6 +15,7 @@ let requests = [];
 let respond;
 let mountEffects;
 let sessionRole = 'admin';
+let paymentAccountCatalog = [];
 class ApiClientError extends Error {
   constructor(status, payload) { super('API error'); this.status = status; this.payload = payload; }
 }
@@ -63,7 +64,7 @@ function load(file) {
   if (path.endsWith('/Expenses/services/index.ts')) return {
     ...load(resolve(dirname(path), 'finance-api.errors.ts')),
     providersService: { getProviderRecords: async () => [] },
-    paymentAccountsService: { getPaymentAccounts: async () => [] },
+    paymentAccountsService: { getPaymentAccounts: async () => paymentAccountCatalog },
     accountingAccountsService: { getAccountingAccounts: async () => [] },
   };
   if (path.endsWith('/AccountingAccounts/accountingAccounts.mock.ts')) return { mockAccounts: [] };
@@ -325,7 +326,7 @@ test('zero closes cleanly, while balance disposal and shortage choices validate 
 
   const withBalance = workspace({ statements: [statement({ declaredClosingBalanceAmount: 250 })] }).open();
   field(withBalance.render(), 'Accion de cierre').props.onChange({ target: { value: 'RETURN_TO_SOURCE' } });
-  assert.equal(withBalance.render().props.canSave, true);
+  assert.equal(withBalance.render().props.canSave, false, 'a return requires an explicit valid destination');
   field(withBalance.render(), 'Accion de cierre').props.onChange({ target: { value: 'FORGIVE_SURPLUS' } });
   assert.equal(withBalance.render().props.canSave, true);
   assert.equal(field(withBalance.render(), 'Diferencia a resolver').props.value, '250');
@@ -338,6 +339,51 @@ test('zero closes cleanly, while balance disposal and shortage choices validate 
   field(noResponsible.render(), 'Accion de cierre').props.onChange({ target: { value: 'CHARGE_EMPLOYEE' } });
   assert.equal(noResponsible.render().props.canSave, false);
 
+});
+
+test('returning a balance selects its destination per closing operation', async () => {
+  paymentAccountCatalog = [
+    { id: '70', name: 'Custodia', currency: 'MXN', isActive: true, type: 'cash' },
+    { id: '80', name: 'Banco MXN', currency: 'MXN', isActive: true, type: 'bank' },
+    { id: '90', name: 'Banco USD', currency: 'USD', isActive: true, type: 'bank' },
+  ];
+  try {
+    const internalWorkspace = workspace({
+      funds: [fund({ paymentAccountId: '70', fundingSourcePaymentAccountId: undefined })],
+      statements: [statement({ declaredClosingBalanceAmount: 250 })],
+    });
+    await internalWorkspace.mount();
+    const internal = internalWorkspace.open();
+    field(internal.render(), 'Accion de cierre').props.onChange({ target: { value: 'RETURN_TO_SOURCE' } });
+    const internalDestination = field(internal.render(), 'Destino de la devolución *');
+    assert.deepEqual(nodes(internalDestination).filter(node => node.type === 'option').map(node => node.props.value), ['80']);
+    assert.equal(internalDestination.props.value, '80');
+    assert.equal(internal.render().props.canSave, true);
+    respond = () => ({ fund: internalWorkspace.props.funds[0], statement: statement({ status: 'CLOSED' }) });
+    await internal.render().props.onSave();
+    assert.equal(requests[0].body.destinationPaymentAccountId, 80);
+    assert.equal(requests[0].body.externalDestinationName, undefined);
+
+    const externalWorkspace = workspace({
+      funds: [fund({ fundType: 'EXTERNAL_MANAGED', paymentAccountId: '70', externalOwnerName: '' })],
+      statements: [statement({ declaredClosingBalanceAmount: 125 })],
+    });
+    await externalWorkspace.mount();
+    const external = externalWorkspace.open();
+    field(external.render(), 'Accion de cierre').props.onChange({ target: { value: 'RETURN_TO_SOURCE' } });
+    const externalDestination = field(external.render(), 'Destino de la devolución *');
+    assert.ok(nodes(externalDestination).some(node => node.type === 'option' && node.props.value === 'EXTERNAL_MEDIA'));
+    externalDestination.props.onChange({ target: { value: 'EXTERNAL_MEDIA' } });
+    assert.equal(external.render().props.canSave, false);
+    field(external.render(), 'Destino externo *').props.onChange({ target: { value: 'Cliente custodio' } });
+    assert.equal(external.render().props.canSave, true);
+    respond = () => ({ fund: externalWorkspace.props.funds[0], statement: statement({ status: 'CLOSED' }) });
+    await external.render().props.onSave();
+    assert.equal(requests[0].body.destinationPaymentAccountId, undefined);
+    assert.equal(requests[0].body.externalDestinationName, 'Cliente custodio');
+  } finally {
+    paymentAccountCatalog = [];
+  }
 });
 
 test('failed close keeps the modal and its fields, exposes the error inside it, and permits retry', async () => {
@@ -427,4 +473,103 @@ test('Saldos memory restores the selected cut, filters and view; stale fund IDs 
   memoryOptions.onRestore({ ...restored, selectedFundId: '9999', selectedStatementId: '9999', receiptStatusFilter: 'INVALID', evidenceFilter: 'INVALID' });
   ws.render(); assert.equal(memoryOptions.state.selectedFundId, '5'); assert.equal(memoryOptions.state.selectedStatementId, '52');
   assert.equal(memoryOptions.state.receiptStatusFilter, 'all'); assert.equal(memoryOptions.state.evidenceFilter, 'all');
+});
+
+test('fund API round-trips all assets, excludes draft keys and sends an explicit empty list to clear them', async () => {
+  const { pettyCashService } = load(resolve(root, 'services/petty-cash.service.ts'));
+  const assets = [
+    { type: 'REAL_ESTATE', name: 'Casa', reference: 'REF-1', draftId: 'local-1' },
+    { type: 'VEHICLE', name: 'Auto', reference: null, draftId: 'local-2' },
+  ];
+  requests = []; respond = request => ({ ...request.body, id: 5, companyId: 1 });
+  const created = await pettyCashService.createFund(fund({ managedAssets: assets }));
+  const expected = assets.map(({ draftId, ...asset }) => asset);
+  assert.deepEqual(created.managedAssets, expected);
+  assert.deepEqual(requests[0].body.managedAssets, expected);
+  assert.equal(requests[0].body.managedAssetName, 'Casa');
+  const cleared = await pettyCashService.updateFund({ ...created, managedAssets: [] });
+  assert.deepEqual(cleared.managedAssets, []);
+  assert.equal(requests[1].body.managedAssetName, null);
+  assert.deepEqual(requests[1].body.managedAssets, []);
+});
+
+test('statement PDF prints every historical asset across pages without inheriting current assets', () => {
+  const { buildPettyCashStatementPdf } = load(resolve(root, 'utils/pettyCashStatementPdf.ts'));
+  const copy = load(resolve(root, 'translations/index.ts')).getPettyCashTranslations('es-MX');
+  const assets = Array.from({ length: 50 }, (_, index) => ({ type: 'REAL_ESTATE', name: `HistoricalAsset${index + 1}`, reference: `REF-${index + 1}` }));
+  const context = { copy, locale: copy.locale, movements: [], settlementLines: [],
+    fund: fund({ managedAssetName: 'CurrentAssetNeverPrinted' }),
+    statement: statement({ openingBalanceAmount: 0, assignedAmount: 0, additionalDepositAmount: 0,
+      attachmentCount: 0, responsibleName: 'Responsable', fundTypeSnapshot: 'EXTERNAL_MANAGED', managedAssetsSnapshot: assets }),
+  };
+  const pdf = buildPettyCashStatementPdf(context);
+  assert.ok(pdf.getNumberOfPages() > 1);
+  const output = pdf.output();
+  for (const asset of assets) assert.ok(output.includes(asset.name), `Missing historical asset ${asset.name}`);
+  assert.ok(!output.includes('CurrentAssetNeverPrinted'));
+  const empty = buildPettyCashStatementPdf({ ...context, statement: { ...context.statement, managedAssetsSnapshot: [] } }).output();
+  assert.ok(!empty.includes('HistoricalAsset') && !empty.includes('CurrentAssetNeverPrinted'));
+});
+
+test('statement PDF identifies the selected external destination of a returned balance', () => {
+  const { buildPettyCashStatementPdf } = load(resolve(root, 'utils/pettyCashStatementPdf.ts'));
+  const copy = load(resolve(root, 'translations/index.ts')).getPettyCashTranslations('es-MX');
+  const returned = {
+    id: '901', pettyCashFundId: '5', pettyCashStatementId: '51', type: 'RETURN_TO_SOURCE',
+    amount: 125, currencyCode: 'MXN', movementDate: '2026-09-10', externalSourceName: 'Cliente custodio',
+    statementDescription: 'Devolución del saldo', reference: 'Cierre',
+  };
+  const output = buildPettyCashStatementPdf({
+    copy, locale: copy.locale, movements: [returned], settlementLines: [],
+    fund: fund({ fundType: 'EXTERNAL_MANAGED', externalOwnerName: 'Cliente' }),
+    statement: statement({ openingBalanceAmount: 125, assignedAmount: 0, additionalDepositAmount: 0,
+      attachmentCount: 0, responsibleName: 'Responsable', fundTypeSnapshot: 'EXTERNAL_MANAGED' }),
+  }).output();
+  assert.ok(output.includes('Cliente custodio'));
+});
+
+test('deposit modal and its real submit handler use account transfers or explicit external means without a method selector', async () => {
+  const copy = load(resolve(root, 'translations/index.ts')).getPettyCashTranslations('es-MX');
+  paymentAccountCatalog = [
+    { id: '70', name: 'Custodia', currency: 'MXN', isActive: true, type: 'cash' },
+    { id: '80', name: 'Banco', currency: 'MXN', isActive: true, type: 'bank' },
+    { id: '90', name: 'Inactiva', currency: 'MXN', isActive: false, type: 'bank' },
+    { id: '100', name: 'USD', currency: 'USD', isActive: true, type: 'bank' },
+  ];
+  try {
+    for (const [fundType, source] of [['INTERNAL_COMPANY', '80'], ['EXTERNAL_MANAGED', '80'], ['EXTERNAL_MANAGED', undefined]]) {
+      const current = fund({ fundType, paymentAccountId: '70', fundingSourcePaymentAccountId: source,
+        fundingSourceName: source ? 'Banco' : 'Aportación externa', externalOwnerName: 'Cliente', fundingMethods: [] });
+      const ws = workspace({ funds: [current] }); await ws.mount();
+      nodes(ws.render()).find(node => node.type === 'PettyCashHeaderBanner').props.onSecondaryAction();
+      const element = () => nodes(ws.render()).find(node => node.type?.name === 'DepositModal');
+      const renderer = component(element().type); const render = () => renderer.render(element().props);
+      const origin = () => field(render(), copy.reconciliation.depositModal.sourceAccount);
+      const choices = nodes(origin()).filter(node => node.type === 'option').map(node => node.props.value);
+      assert.ok(choices.includes('80') && !choices.includes('70') && !choices.includes('90') && !choices.includes('100'));
+      assert.equal(choices.includes('EXTERNAL_MEDIA'), fundType === 'EXTERNAL_MANAGED');
+      assert.equal(origin().props.value, source ?? '80');
+      assert.ok(!nodes(render()).some(node => node.type === 'PettyCashField' && node.props.label === copy.reconciliation.depositModal.method));
+      field(render(), copy.reconciliation.depositModal.amount).props.onChange({ target: { value: '125' } });
+      field(render(), copy.reconciliation.depositModal.statementDescription).props.onChange({ target: { value: 'Aportación de prueba' } });
+      assert.equal(render().props.canSave, true);
+      if (fundType === 'EXTERNAL_MANAGED' && source) {
+        origin().props.onChange({ target: { value: 'EXTERNAL_MEDIA' } });
+        field(render(), copy.reconciliation.depositModal.externalSourceName).props.onChange({ target: { value: 'Externo guardado en borrador' } });
+        origin().props.onChange({ target: { value: '80' } });
+        assert.equal(render().props.canSave, true);
+      }
+      if (fundType === 'EXTERNAL_MANAGED' && !source) {
+        origin().props.onChange({ target: { value: 'EXTERNAL_MEDIA' } });
+        assert.equal(render().props.canSave, true);
+      }
+      respond = request => ({ fund: current, statement: statement(), movement: { ...request.body, id: 900, pettyCashFundId: 5 } });
+      await render().props.onSave();
+      assert.equal(requests.length, 1);
+      assert.equal(requests[0].body.fromPaymentAccountId, source ? 80 : null);
+      assert.equal(requests[0].body.toPaymentAccountId, 70);
+      assert.equal(requests[0].body.externalSourceName, source ? null : 'Aportación externa');
+      assert.equal(requests[0].body.fundingMethod, source ? 'INTERNAL_TRANSFER' : 'EXTERNAL_MEDIA');
+    }
+  } finally { paymentAccountCatalog = []; }
 });

@@ -161,7 +161,8 @@ class PettyCashMonetaryValidationTest {
             fundingSourceName, externalOwnerType, externalOwnerName, externalOwnerRelationship, null,
             statementRecipientEmail, null, null, null,
             List.of("TRANSFER"), List.of("CASH"), false, true, null, null,
-            PettyCashFundStatus.OPEN, null, null);
+            PettyCashFundStatus.OPEN, null, null,
+            null);
     }
 
     private BigDecimal decimal(String value) {

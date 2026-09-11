@@ -16,6 +16,9 @@ public record ExpensePaymentResponse(
     String source,
     Long registeredByUserId,
     String registeredByName,
-    Instant createdAt
+    Instant createdAt,
+    Instant reversedAt,
+    Long reversedByUserId,
+    String reversalReason
 ) {
 }

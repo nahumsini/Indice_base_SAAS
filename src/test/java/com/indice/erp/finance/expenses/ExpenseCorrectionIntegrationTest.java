@@ -32,6 +32,7 @@ class ExpenseCorrectionIntegrationTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired ExpenseImportService imports;
     @Autowired ExpenseCorrectionService corrections;
+    @Autowired ExpensePaymentReversalService reversals;
     @Autowired FinanceBusinessTimeZoneResolver timeZones;
     @Autowired ExpenseService expenses;
     @Autowired ExpenseBulkStatusService bulkStatus;
@@ -312,6 +313,137 @@ class ExpenseCorrectionIntegrationTest {
         jdbc.update("UPDATE finance_expenses SET payment_account_id = ?, audit_status = 'PETTY_CASH' WHERE id = ?", custody, expense.id());
         assertThatThrownBy(() -> corrections.correct(context, expense.id(), correction(expense, "Blocked", "200", "MXN", custody)))
             .hasMessageContaining("source fund");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"MXN", "USD", "CAD", "COP", "BRL"})
+    void undoPaidCaptureRestoresOnlyTheActualDebitAndRetainsEvidence(String currency) {
+        var currencyBank = paymentAccount(context.companyId(), "Reversal bank", currency, "BANK");
+        var saved = imports.importExpenses(context, new ImportExpensesRequest(UUID.randomUUID().toString(),
+            List.of(importRow("Incorrectly paid", currencyBank, currency, true, false, "0")))).expenses().getFirst();
+        var payment = payments.findAll(context, saved.id()).getFirst();
+        jdbc.update("UPDATE finance_payment_accounts SET status = 'INACTIVE' WHERE id = ?", currencyBank);
+        var reopened = reversals.reverse(context, saved.id(), payment.id(), new ReverseExpensePaymentRequest(saved.version(), "Payment did not occur"));
+        assertThat(reopened.status()).isEqualTo(ExpenseStatus.APPROVED);
+        assertThat(reopened.paidAmount()).isZero();
+        assertThat(reopened.balanceAmount()).isEqualByComparingTo("116");
+        assertThat(reopened.paymentDate()).isNull();
+        assertThat(reopened.expenseDate()).isEqualTo(saved.expenseDate());
+        assertThat(reopened.currencyCode()).isEqualTo(currency);
+        assertThat(jdbc.queryForObject("SELECT current_balance FROM finance_payment_accounts WHERE id = ?", BigDecimal.class, currencyBank)).isEqualByComparingTo("5000");
+        assertThat(payments.findAll(context, saved.id())).hasSize(1);
+        var evidence = payments.findAll(context, saved.id()).getFirst();
+        assertThat(evidence.reversedAt()).isNotNull();
+        assertThat(evidence.reversedByUserId()).isEqualTo(user);
+        assertThat(evidence.reversalReason()).isEqualTo("Payment did not occur");
+        assertThat(evidence.amount()).isEqualByComparingTo(payment.amount());
+        assertThat(count("finance_payment_account_movements")).isEqualTo(2);
+        reversals.reverse(context, saved.id(), payment.id(), new ReverseExpensePaymentRequest(saved.version(), "Payment did not occur"));
+        assertThat(count("finance_payment_account_movements")).isEqualTo(2);
+        assertThatThrownBy(() -> corrections.correct(context, saved.id(), correction(reopened, "Currency", "116", "EUR", null)))
+            .hasMessageContaining("original currency");
+    }
+
+    @Test
+    void undoUnassignedPaymentReopensAnOverdueBalanceWithoutCreatingCash() {
+        var saved = imports.importExpenses(context, new ImportExpensesRequest(UUID.randomUUID().toString(),
+            List.of(importRow("No bank", null, "MXN", true, false, "0")))).expenses().getFirst();
+        jdbc.update("UPDATE finance_expenses SET due_date = ? WHERE id = ?", businessToday().minusDays(1), saved.id());
+        var payment = payments.findAll(context, saved.id()).getFirst();
+        var reopened = reversals.reverse(context, saved.id(), payment.id(), new ReverseExpensePaymentRequest(saved.version(), "Not paid"));
+        assertThat(reopened.paymentStatus()).isEqualTo(com.indice.erp.finance.status.PaymentStatus.OVERDUE);
+        assertThat(reopened.customFields().path("amountPaid").decimalValue()).isZero();
+        assertThat(count("finance_payment_account_movements")).isZero();
+    }
+
+    @Test
+    void undoLastSettlementPreservesEarlierInstallmentAndAllowsAFreshPayment() {
+        var draft = expenses.createDraft(context, row("Partial", bank, account, "MXN"));
+        var partial = expenses.recordPayment(context, draft.id(), new RecordExpensePaymentRequest(new BigDecimal("30.15"), bank, businessToday().minusDays(1), null));
+        var saved = expenses.settlePayment(context, partial.id(), new SettleExpensePaymentRequest(bank, null, "last-payment"));
+        var history = payments.findAll(context, saved.id());
+        var last = history.stream().max(java.util.Comparator.comparing(ExpensePaymentResponse::id)).orElseThrow();
+        var first = history.stream().min(java.util.Comparator.comparing(ExpensePaymentResponse::id)).orElseThrow();
+        assertThatThrownBy(() -> reversals.reverse(context, saved.id(), first.id(), new ReverseExpensePaymentRequest(saved.version(), "Wrong order")))
+            .hasMessageContaining("last recorded");
+        var reopened = reversals.reverse(context, saved.id(), last.id(), new ReverseExpensePaymentRequest(saved.version(), "Final payment was a mistake"));
+        assertThat(reopened.status()).isEqualTo(ExpenseStatus.PARTIALLY_PAID);
+        assertThat(reopened.paidAmount()).isEqualByComparingTo("30.15");
+        assertThat(reopened.balanceAmount()).isEqualByComparingTo("70.10");
+        assertThat(reopened.paymentDate()).isEqualTo(first.paymentDate());
+        assertThat(reopened.paymentAccountId()).isEqualTo(first.paymentAccountId());
+        assertThatThrownBy(() -> expenses.settlePayment(context, saved.id(), new SettleExpensePaymentRequest(bank, null, "last-payment")))
+            .hasMessageContaining("reversed");
+        var repaid = expenses.recordPayment(context, saved.id(), new RecordExpensePaymentRequest(new BigDecimal("70.10"), bank, businessToday(), null));
+        assertThat(repaid.status()).isEqualTo(ExpenseStatus.PAID);
+        assertThat(jdbc.queryForObject("SELECT current_balance FROM finance_payment_accounts WHERE id = ?", BigDecimal.class, bank)).isEqualByComparingTo("4899.75");
+        assertThat(count("finance_payment_account_movements")).isEqualTo(4);
+    }
+
+    @Test
+    void undoValidatesVersionTenantPaymentOwnershipAndAtomicTreasuryMatch() {
+        var saved = imports.importExpenses(context, new ImportExpensesRequest(UUID.randomUUID().toString(),
+            List.of(importRow("Protected", bank, "MXN", true, false, "0")))).expenses().getFirst();
+        var payment = payments.findAll(context, saved.id()).getFirst();
+        assertThatThrownBy(() -> reversals.reverse(context, saved.id(), payment.id(), new ReverseExpensePaymentRequest(saved.version() - 1, "Stale"))).hasMessageContaining("changed");
+        long other = company("other-undo-" + UUID.randomUUID());
+        var foreign = new FinanceContext(user, other, "Other", "admin", true, FinanceScope.corporateOffice());
+        assertThatThrownBy(() -> reversals.reverse(foreign, saved.id(), payment.id(), new ReverseExpensePaymentRequest(saved.version(), "Foreign"))).hasMessageContaining("not found");
+        var outsideUnit = new FinanceContext(user, context.companyId(), "Test", "manager", false, FinanceScope.unitHeadquarters(999999L));
+        assertThatThrownBy(() -> reversals.reverse(outsideUnit, saved.id(), payment.id(), new ReverseExpensePaymentRequest(saved.version(), "Outside unit"))).hasMessageContaining("not found");
+        assertThatThrownBy(() -> reversals.reverse(context, saved.id(), payment.id() + 999999, new ReverseExpensePaymentRequest(saved.version(), "Unknown"))).hasMessageContaining("not found");
+        jdbc.update("UPDATE finance_payment_account_movements SET available_delta = -1 WHERE company_id = ?", context.companyId());
+        assertThatThrownBy(() -> reversals.reverse(context, saved.id(), payment.id(), new ReverseExpensePaymentRequest(saved.version(), "Mismatch"))).hasMessageContaining("does not match");
+        assertThat(expenses.get(context, saved.id()).paidAmount()).isEqualByComparingTo("116");
+        assertThat(payments.findAll(context, saved.id()).getFirst().reversedAt()).isNull();
+        assertThat(count("finance_payment_account_movements")).isEqualTo(1);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"CLOSED", "CANCELLED", "REJECTED", "AUDITED", "PETTY_CASH"})
+    void undoCannotBypassClosedOrSourceOwnedExpenses(String protection) {
+        var saved = imports.importExpenses(context, new ImportExpensesRequest(UUID.randomUUID().toString(),
+            List.of(importRow("Protected", bank, "MXN", true, false, "0")))).expenses().getFirst();
+        var payment = payments.findAll(context, saved.id()).getFirst();
+        var column = List.of("AUDITED", "PETTY_CASH").contains(protection) ? "audit_status" : "status";
+        jdbc.update("UPDATE finance_expenses SET " + column + " = ? WHERE id = ?", protection, saved.id());
+        assertThatThrownBy(() -> reversals.reverse(context, saved.id(), payment.id(), new ReverseExpensePaymentRequest(saved.version(), "Protected")))
+            .hasMessageContaining("source correction");
+        assertThat(count("finance_payment_account_movements")).isEqualTo(1);
+    }
+
+    @Test
+    void undoCannotChangeAnIndependentlyPostedPayment() {
+        var saved = imports.importExpenses(context, new ImportExpensesRequest(UUID.randomUUID().toString(),
+            List.of(importRow("Posted payment", bank, "MXN", true, false, "0")))).expenses().getFirst();
+        var payment = payments.findAll(context, saved.id()).getFirst();
+        jdbc.update("""
+            INSERT INTO finance_accounting_periods (company_id, period_key, period_start, period_end, framework_snapshot, functional_currency_snapshot)
+            VALUES (?, '2026-09', '2026-09-01', '2026-09-30', 'IFRS_SMES_2015', 'MXN')
+            """, context.companyId());
+        long period = jdbc.queryForObject("SELECT id FROM finance_accounting_periods WHERE company_id = ?", Long.class, context.companyId());
+        jdbc.update("""
+            INSERT INTO finance_journal_entries (company_id, period_id, entry_number, entry_date, journal_type, status, description,
+                source_module, source_type, source_id, source_event_key, source_fingerprint, currency_code)
+            VALUES (?, ?, 'UNDO-POSTED', '2026-09-08', 'CASH', 'POSTED', 'Test', 'expenses', 'EXPENSE_PAYMENT', ?, ?, ?, 'MXN')
+            """, context.companyId(), period, String.valueOf(payment.id()), "EXPENSE_PAYMENT:" + payment.id(), "0".repeat(64));
+        assertThatThrownBy(() -> reversals.reverse(context, saved.id(), payment.id(), new ReverseExpensePaymentRequest(saved.version(), "Posted")))
+            .hasMessageContaining("posted accounting");
+        assertThat(payments.findAll(context, saved.id()).getFirst().reversedAt()).isNull();
+        assertThat(count("finance_payment_account_movements")).isEqualTo(1);
+    }
+
+    @Test
+    void concurrentUndoIsExactlyOnce() throws Exception {
+        var saved = imports.importExpenses(context, new ImportExpensesRequest(UUID.randomUUID().toString(),
+            List.of(importRow("Concurrent", bank, "MXN", true, false, "0")))).expenses().getFirst();
+        var payment = payments.findAll(context, saved.id()).getFirst();
+        try (var executor = Executors.newFixedThreadPool(4)) {
+            var tasks = IntStream.range(0, 8).mapToObj(index -> executor.submit(() -> reversals.reverse(context, saved.id(), payment.id(),
+                new ReverseExpensePaymentRequest(saved.version(), "Duplicate undo")))).toList();
+            for (var task : tasks) assertThat(task.get(30, TimeUnit.SECONDS).paidAmount()).isZero();
+        }
+        assertThat(count("finance_payment_account_movements")).isEqualTo(2);
     }
 
     private CorrectExpenseRequest correction(ExpenseResponse row, String concept, String amount, String currency, Long paymentAccount) {

@@ -3,6 +3,7 @@ package com.indice.erp.finance.pettycash;
 import com.indice.erp.entitlement.RequiresCapability;
 import com.indice.erp.finance.FinanceRequestGuard;
 import com.indice.erp.finance.pettycash.dto.ClosePettyCashStatementRequest;
+import com.indice.erp.finance.pettycash.dto.ChangePettyCashFundTypeRequest;
 import com.indice.erp.finance.pettycash.dto.CreatePettyCashFundRequest;
 import com.indice.erp.finance.pettycash.dto.CreatePettyCashMovementRequest;
 import com.indice.erp.finance.pettycash.dto.CreatePettyCashSettlementLineRequest;
@@ -35,15 +36,18 @@ public class FinancePettyCashController {
     private final PettyCashService service;
     private final PettyCashAttachmentService attachmentService;
     private final PettyCashBulkActionService bulk;
+    private final PettyCashTypeChanges typeChanges;
 
     public FinancePettyCashController(
             FinanceRequestGuard guard,
             PettyCashService service,
-            PettyCashAttachmentService attachmentService, PettyCashBulkActionService bulk) {
+            PettyCashAttachmentService attachmentService, PettyCashBulkActionService bulk,
+            PettyCashTypeChanges typeChanges) {
         this.guard = guard;
         this.service = service;
         this.attachmentService = attachmentService;
         this.bulk = bulk;
+        this.typeChanges = typeChanges;
     }
 
     @PostMapping("/funds/{fundId}/settlement-lines/bulk-actions")
@@ -97,6 +101,31 @@ public class FinancePettyCashController {
             return access.error();
         }
         return ResponseEntity.ok(service.updateFund(access.context(), fundId, request));
+    }
+
+    @GetMapping("/funds/{fundId}/type-changes")
+    public ResponseEntity<?> fundTypeChanges(HttpSession session, @PathVariable long fundId) {
+        var access = guard.requireReadAccess(session);
+        if (access.denied()) return access.error();
+        return ResponseEntity.ok(typeChanges.history(access.context(), fundId));
+    }
+
+    @PostMapping("/funds/{fundId}/type-changes")
+    public ResponseEntity<?> changeFundType(HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long fundId, @Valid @RequestBody ChangePettyCashFundTypeRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        if (access.denied()) return access.error();
+        return ResponseEntity.status(HttpStatus.CREATED).body(typeChanges.schedule(access.context(), fundId, request));
+    }
+
+    @DeleteMapping("/funds/{fundId}/type-changes/{changeId}")
+    public ResponseEntity<?> cancelFundTypeChange(HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long fundId, @PathVariable long changeId) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        if (access.denied()) return access.error();
+        return ResponseEntity.ok(typeChanges.cancel(access.context(), fundId, changeId));
     }
 
     @DeleteMapping("/funds/{fundId}")

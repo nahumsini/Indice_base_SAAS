@@ -27,6 +27,7 @@ final class PettyCashSql {
             fund.managed_asset_type,
             fund.managed_asset_name,
             fund.managed_asset_reference,
+            fund.managed_assets_json,
             fund.external_identity_pending,
             fund.funding_methods_json,
             fund.spending_methods_json,
@@ -42,7 +43,16 @@ final class PettyCashSql {
             fund.deleted_at,
             fund.version,
             fund.custom_fields_json,
-            fund.metadata_json
+            fund.metadata_json,
+            (SELECT change_record.id FROM finance_petty_cash_type_changes change_record
+              WHERE change_record.company_id = fund.company_id AND change_record.petty_cash_fund_id = fund.id
+                AND change_record.status = 'SCHEDULED' ORDER BY change_record.id DESC LIMIT 1) AS pending_type_change_id,
+            (SELECT change_record.next_type FROM finance_petty_cash_type_changes change_record
+              WHERE change_record.company_id = fund.company_id AND change_record.petty_cash_fund_id = fund.id
+                AND change_record.status = 'SCHEDULED' ORDER BY change_record.id DESC LIMIT 1) AS pending_fund_type,
+            (SELECT change_record.effective_date FROM finance_petty_cash_type_changes change_record
+              WHERE change_record.company_id = fund.company_id AND change_record.petty_cash_fund_id = fund.id
+                AND change_record.status = 'SCHEDULED' ORDER BY change_record.id DESC LIMIT 1) AS pending_type_effective_date
             """;
 
     static final String STATEMENT_COLUMNS = """
@@ -75,6 +85,7 @@ final class PettyCashSql {
             statement.managed_asset_type_snapshot,
             statement.managed_asset_name_snapshot,
             statement.managed_asset_reference_snapshot,
+            statement.managed_assets_snapshot_json,
             statement.reviewed_by_user_id,
             statement.attachment_count,
             statement.created_by_user_id,
@@ -153,8 +164,8 @@ final class PettyCashSql {
              external_owner_relationship, external_owner_reference, statement_recipient_email, managed_asset_type,
              managed_asset_name, managed_asset_reference, external_identity_pending, funding_methods_json, spending_methods_json,
              kiosk_enabled, kiosk_uses_universal_pin, kiosk_access_url, kiosk_public_token, status, created_by_user_id,
-             custom_fields_json, metadata_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             custom_fields_json, metadata_json, managed_assets_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
 
     static final String UPDATE_FUND = """
@@ -180,6 +191,7 @@ final class PettyCashSql {
                 managed_asset_type = ?,
                 managed_asset_name = ?,
                 managed_asset_reference = ?,
+                managed_assets_json = ?,
                 external_identity_pending = ?,
                 funding_methods_json = ?,
                 spending_methods_json = ?,
@@ -206,8 +218,8 @@ final class PettyCashSql {
              external_owner_relationship_snapshot, external_owner_reference_snapshot, statement_recipient_email_snapshot,
              managed_asset_type_snapshot, managed_asset_name_snapshot, managed_asset_reference_snapshot,
              attachment_count, created_by_user_id,
-             custom_fields_json, metadata_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             custom_fields_json, metadata_json, managed_assets_snapshot_json, type_stage_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
 
     static final String INSERT_MOVEMENT = """

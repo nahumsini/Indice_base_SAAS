@@ -22,6 +22,27 @@ fiscal, accessibility, or physical-printer approval has been granted.
 
 ## Explicit exclusions for this migration
 
+### Expenses table print addition — 2026-09-10
+
+`app/BasicModules/Expenses/utils/expenseTablePrint.ts`, presented by
+`app/BasicModules/Expenses/components/modals/ExpenseTablePrintModal.tsx`, adds a **Tab Print**
+with internal, confidential and multi-currency modifiers. Entry: Expenses header Actions → Print
+selection. It follows quote preview interaction and uses `standardDocumentPdf` (jsPDF/AutoTable),
+A4 portrait or landscape according to selected columns, 16 mm side margins and 24 mm footer reserve.
+The eight default data columns fit one landscape table; wider selections use successive sections
+with repeated folios when visible. Amounts align right; native-currency totals remain separate.
+It retains active filters, current sort, selected IDs across pagination and visible data columns.
+Original fund expenses appear once without doubling their group total. Output waits for company
+identity; a missing identity remains blank. Company text is shown in the preview and PDF.
+Shared optional table/header presentation props leave other document defaults unchanged.
+
+Validation includes component interactions, three-row and 125-row generated PDF fixtures,
+long concepts, native currency separation and rendered-page inspection. The accessible HTML preview
+uses semantic tables. Generated PDFs inherit the shared engine's untagged output and Helvetica
+glyph limits (CJK PDF font coverage is not certified). Browser and physical-printer checks remain
+pending because no browser is connected in this session. This new inventory entry does not promote
+the draft print standard or change protected quotation/BMI/PPI documents.
+
 ### Panel Inicial and protected editorial reports
 
 | Module | Artifact | Generator source | Reason | Status |

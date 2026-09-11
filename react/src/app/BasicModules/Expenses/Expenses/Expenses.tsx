@@ -51,6 +51,9 @@ import { getExpenseDetailCopy } from './components/expenseDetail.copy';
 import { ExpenseTable } from './components/ExpenseTable';
 import { expenseGroupPeriodLabel } from '../utils/expenseFundGroups';
 import { getExpenseFundGroupCopy } from './components/expenseFundGroup.copy';
+import { getExpenseReversalCopy } from '../utils/expenseReversal.copy';
+import { ExpenseTablePrintModal } from '../components/modals/ExpenseTablePrintModal';
+import type { ExpensePrintSnapshot } from '../utils/expenseTablePrint';
 import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 
 interface ExpensesProps {
@@ -136,6 +139,8 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
   const [isQuickExpenseModalOpen, setIsQuickExpenseModalOpen] = useState(false);
   const [isQuickExpenseSubmitting, setIsQuickExpenseSubmitting] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [tablePrintSnapshot, setTablePrintSnapshot] = useState<ExpensePrintSnapshot>({ all: [], selected: [] });
+  const [printSnapshot, setPrintSnapshot] = useState<ExpensePrintSnapshot | null>(null);
   const [initialExpense, setInitialExpense] = useState<Expense | null>(null);
   const [detailExpense, setDetailExpense] = useState<Expense | null>(null);
   const [detailPaymentExpense, setDetailPaymentExpense] = useState<Expense | null>(null);
@@ -878,6 +883,8 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
   return (
     <div className="space-y-6">
       <ExpensesHeader
+        onPrintSelection={() => setPrintSnapshot(tablePrintSnapshot)}
+        printDisabled={!dataReady || !filtersRestored || !tablePrintSnapshot.all.length}
         createExpenseDisabled={createExpenseDisabled}
         createExpenseDisabledReason={createExpenseDisabledReason}
         onBulkIntegration={() => setIsBulkIntegrationOpen(true)}
@@ -907,6 +914,7 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
       />
 
       <ExpenseTable
+        onPrintSnapshotChange={setTablePrintSnapshot}
         dataReady={dataReady && filtersRestored}
         fundPeriodLabel={expenseGroupPeriodLabel(filters.periodFilter, referenceDate, locale, getExpenseFundGroupCopy(locale).period)}
         hasFundDetailFilters={Boolean(filters.searchTerm || filters.providerFilter !== 'all' || filters.businessUnitFilter !== 'all' || filters.businessFilter !== 'all' || filters.statusFilter !== 'all')}
@@ -1055,8 +1063,29 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
           providers={providers}
           unitOptions={unitOptions}
           onSubmitExpense={handleExpenseSubmit}
+          onReverseExpensePayment={editingExpense && isBackendId(editingExpense.id) && canEditExpense(editingExpense)
+            ? async (paymentId, reason) => {
+              const saved = await expensesService.reverseExpensePayment(editingExpense, paymentId, reason, providers);
+              setExpenses(current => current.map(expense => expense.id === saved.id ? saved : expense));
+              setEditingExpense(saved);
+              setSuccessToastMessage(getExpenseReversalCopy(locale).success);
+              onFinanceDataChanged?.();
+              void paymentAccountsService.getPaymentAccounts().then(accounts => setPaymentAccounts(accounts.filter(account => account.isActive))).catch(() => {});
+              return saved;
+            } : undefined}
         />
       )}
+
+      {printSnapshot && <ExpenseTablePrintModal snapshot={printSnapshot} columns={translatedColumns}
+        references={{ units: unitOptions, businesses: businessOptions, accounts: accountingAccountOptions, users: userOptions }}
+        filters={[
+          `${t.filters.period}: ${expenseGroupPeriodLabel(filters.periodFilter, referenceDate, locale, getExpenseFundGroupCopy(locale).period)}`,
+          filters.searchTerm,
+          filters.businessUnitFilter !== 'all' && `${t.filters.unit}: ${unitOptions.find(option => option.value === filters.businessUnitFilter)?.label ?? t.common.unassigned}`,
+          filters.businessFilter !== 'all' && `${t.filters.business}: ${businessOptions.find(option => option.value === filters.businessFilter)?.label ?? t.common.unassigned}`,
+          filters.providerFilter !== 'all' && `${t.filters.provider}: ${providers.find(provider => provider.id === filters.providerFilter)?.name ?? t.common.unassigned}`,
+          filters.statusFilter !== 'all' && `${t.filters.status}: ${filters.statusFilter === 'pending_and_overdue' ? `${t.expenses.table.statuses.pending} / ${t.expenses.table.statuses.overdue}` : t.expenses.table.statuses[filters.statusFilter]}`,
+        ].filter(Boolean).join(' · ')} onClose={() => setPrintSnapshot(null)} />}
 
       <PayableAccountDialog
         accountingAccountOptions={accountingAccountOptions}

@@ -152,6 +152,7 @@ class AccountingSourceRepository {
             JOIN finance_expenses expense
               ON expense.id = payment.expense_id AND expense.company_id = payment.company_id
             WHERE payment.company_id = ?
+              AND payment.reversed_at IS NULL
               AND expense.deleted_at IS NULL
               AND expense.status <> 'CANCELLED'
               AND payment.payment_date BETWEEN ? AND ?

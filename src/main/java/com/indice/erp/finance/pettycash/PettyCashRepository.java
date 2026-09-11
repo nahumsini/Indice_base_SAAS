@@ -24,10 +24,12 @@ class PettyCashRepository {
 
     private final JdbcTemplate jdbcTemplate;
     private final PettyCashMapper mapper;
+    private final PettyCashFundSnapshots snapshots;
 
-    PettyCashRepository(JdbcTemplate jdbcTemplate, PettyCashMapper mapper) {
+    PettyCashRepository(JdbcTemplate jdbcTemplate, PettyCashMapper mapper, PettyCashFundSnapshots snapshots) {
         this.jdbcTemplate = jdbcTemplate;
         this.mapper = mapper;
+        this.snapshots = snapshots;
     }
 
     List<PettyCashFundRecord> findFunds(FinanceContext context) {
@@ -137,10 +139,10 @@ class PettyCashRepository {
               AND settlement_line.deleted_at IS NULL
               AND fund.deleted_at IS NULL
               AND (
-                (fund.fund_type = 'INTERNAL_COMPANY'
+                ((SELECT s.fund_type_snapshot FROM finance_petty_cash_statements s WHERE s.company_id = settlement_line.company_id AND s.id = settlement_line.petty_cash_statement_id) = 'INTERNAL_COMPANY'
                  AND settlement_line.status NOT IN ('EXPENSE_CREATED', 'REJECTED', 'REVERSED'))
                 OR
-                (fund.fund_type = 'EXTERNAL_MANAGED'
+                ((SELECT s.fund_type_snapshot FROM finance_petty_cash_statements s WHERE s.company_id = settlement_line.company_id AND s.id = settlement_line.petty_cash_statement_id) = 'EXTERNAL_MANAGED'
                  AND settlement_line.status NOT IN ('VALIDATED', 'REJECTED', 'REVERSED'))
               )
               AND """ + FinanceSqlSupport.scopePredicate("fund", context.scope()) + """
@@ -164,6 +166,7 @@ class PettyCashRepository {
             WHERE statement.company_id = ?
               AND statement.petty_cash_fund_id = ?
               AND statement.period_key = ?
+              AND statement.type_stage_id = fund.type_stage_id
               AND statement.deleted_at IS NULL
               AND fund.deleted_at IS NULL
               AND """ + FinanceSqlSupport.scopePredicate("fund", context.scope()) + """
@@ -270,7 +273,8 @@ class PettyCashRepository {
             statement.setString(index++, command.status().name());
             statement.setObject(index++, command.createdByUserId());
             statement.setString(index++, command.customFieldsJson());
-            statement.setString(index, command.metadataJson());
+            statement.setString(index++, command.metadataJson());
+            statement.setString(index, command.managedAssetsJson());
             return statement;
         }, keyHolder);
         var fundId = keyHolder.getKey() == null ? 0L : keyHolder.getKey().longValue();
@@ -302,6 +306,7 @@ class PettyCashRepository {
             statement.setString(index++, command.managedAssetType());
             statement.setString(index++, command.managedAssetName());
             statement.setString(index++, command.managedAssetReference());
+            statement.setString(index++, command.managedAssetsJson());
             statement.setBoolean(index++, command.externalIdentityPending());
             statement.setString(index++, command.fundingMethodsJson());
             statement.setString(index++, command.spendingMethodsJson());
@@ -433,10 +438,18 @@ class PettyCashRepository {
             statement.setInt(index++, 0);
             statement.setObject(index++, context.userId());
             statement.setString(index++, null);
-            statement.setString(index, null);
+            statement.setString(index++, null);
+            statement.setString(index++, com.indice.erp.finance.shared.FinanceJsonSupport.toJson(PettyCashManagedAssets.read(fund.managedAssetsJson(), fund.managedAssetType(), fund.managedAssetName(), fund.managedAssetReference())));
+            statement.setLong(index, typeStageId(context, fund.id()));
             return statement;
         }, keyHolder);
         var statementId = keyHolder.getKey() == null ? 0L : keyHolder.getKey().longValue();
+        jdbcTemplate.update("""
+            UPDATE finance_petty_cash_statements s JOIN finance_petty_cash_funds f
+              ON f.company_id = s.company_id AND f.id = s.petty_cash_fund_id
+            SET s.fund_snapshot_json = ?, s.type_stage_id = f.type_stage_id
+            WHERE s.company_id = ? AND s.id = ?
+            """, snapshots.write(fund), context.companyId(), statementId);
         return findStatementById(context, statementId).orElseThrow();
     }
 
@@ -1066,17 +1079,41 @@ class PettyCashRepository {
               +
               (SELECT COUNT(*) FROM finance_petty_cash_settlement_lines settlement_line
                WHERE settlement_line.company_id = ? AND settlement_line.petty_cash_fund_id = ? AND settlement_line.deleted_at IS NULL)
-              +
-              (SELECT COUNT(*) FROM finance_petty_cash_statements statement_record
-               WHERE statement_record.company_id = ? AND statement_record.petty_cash_fund_id = ? AND statement_record.deleted_at IS NULL)
             )
             """,
             Long.class,
             context.companyId(), fundId,
-            context.companyId(), fundId,
             context.companyId(), fundId
         );
         return count != null && count > 0;
+    }
+
+    PettyCashFundRecord fundForStatement(FinanceContext context, PettyCashFundRecord fund, PettyCashStatementRecord statement) {
+        var snapshot = jdbcTemplate.queryForObject("SELECT fund_snapshot_json FROM finance_petty_cash_statements WHERE company_id = ? AND petty_cash_fund_id = ? AND id = ?",
+            String.class, context.companyId(), fund.id(), statement.id());
+        return snapshots.restore(fund, snapshot);
+    }
+
+    Optional<PettyCashStatementRecord> findStatementForDate(FinanceContext context, long fundId, LocalDate date) {
+        var ids = jdbcTemplate.queryForList("""
+            SELECT id FROM finance_petty_cash_statements
+            WHERE company_id = ? AND petty_cash_fund_id = ? AND period_start <= ? AND period_end >= ? AND deleted_at IS NULL
+            ORDER BY type_stage_id DESC, id DESC LIMIT 1
+            """, Long.class, context.companyId(), fundId, date, date);
+        return ids.isEmpty() ? Optional.empty() : findStatementById(context, ids.getFirst());
+    }
+
+    long typeStageId(FinanceContext context, long fundId) {
+        return jdbcTemplate.queryForObject("SELECT type_stage_id FROM finance_petty_cash_funds WHERE company_id = ? AND id = ?",
+            Long.class, context.companyId(), fundId);
+    }
+
+    LocalDate stageStart(FinanceContext context, long fundId) {
+        return jdbcTemplate.query("""
+            SELECT c.effective_date FROM finance_petty_cash_type_changes c JOIN finance_petty_cash_funds f
+              ON f.type_stage_id = c.id AND f.company_id = c.company_id
+            WHERE f.company_id = ? AND f.id = ?
+            """, (rs, row) -> rs.getObject(1, LocalDate.class), context.companyId(), fundId).stream().findFirst().orElse(LocalDate.of(1000, 1, 1));
     }
 
     boolean validateExternalSettlementLine(FinanceContext context, long lineId) {
