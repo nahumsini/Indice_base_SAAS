@@ -22,6 +22,13 @@ public class FinanceAccessService {
         "finance",
         "receivables"
     );
+    private static final Set<String> PAYMENT_ACCOUNT_READ_MODULE_SLUGS = Set.of(
+        "cartera",
+        "crm",
+        "expenses",
+        "finance",
+        "receivables"
+    );
     private static final Set<String> FULL_ACCESS_ROLES = Set.of("root", "superadmin");
     private static final Set<String> LEGACY_ADMIN_ROLES = Set.of("admin", "owner");
 
@@ -32,6 +39,14 @@ public class FinanceAccessService {
     }
 
     public Optional<FinanceContext> resolveContext(AuthSessionUser currentUser) {
+        return resolveContext(currentUser, FINANCE_MODULE_SLUGS);
+    }
+
+    public Optional<FinanceContext> resolvePaymentAccountContext(AuthSessionUser currentUser) {
+        return resolveContext(currentUser, PAYMENT_ACCOUNT_READ_MODULE_SLUGS);
+    }
+
+    private Optional<FinanceContext> resolveContext(AuthSessionUser currentUser, Set<String> allowedModuleSlugs) {
         var role = normalizeRole(currentUser.role());
         if (FULL_ACCESS_ROLES.contains(role)) {
             return Optional.of(toContext(currentUser, role, true, FinanceScope.corporateOffice()));
@@ -43,7 +58,7 @@ public class FinanceAccessService {
         }
 
         var moduleSlugs = listModuleSlugs(userCompanyId);
-        if (!hasModuleAccess(role, moduleSlugs)) {
+        if (!hasModuleAccess(role, moduleSlugs, allowedModuleSlugs)) {
             return Optional.empty();
         }
 
@@ -113,11 +128,11 @@ public class FinanceAccessService {
         return moduleSlugs;
     }
 
-    private boolean hasModuleAccess(String role, Set<String> moduleSlugs) {
+    private boolean hasModuleAccess(String role, Set<String> moduleSlugs, Set<String> allowedModuleSlugs) {
         if (moduleSlugs.isEmpty()) {
             return LEGACY_ADMIN_ROLES.contains(role);
         }
-        return moduleSlugs.stream().anyMatch(FINANCE_MODULE_SLUGS::contains);
+        return moduleSlugs.stream().anyMatch(allowedModuleSlugs::contains);
     }
 
     private FinanceScope resolveScope(long companyId, long userCompanyId) {

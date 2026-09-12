@@ -8,6 +8,9 @@ Entregar un asistente confiable para dueños de PYMEs: consulta el negocio y eje
 
 | Prioridad | Herramienta | Preguntas que resuelve | Fuente existente | Estado |
 | --- | --- | --- | --- | --- |
+| P0 | `get_my_business_context`, `list_units_and_businesses` | Identifica la empresa, unidad, negocio y alcance actual. | Organizacion y alcance vigente | Implementada |
+| P0 | `list_payment_accounts` | Identifica la cuenta autorizada para origen o destino. | Cuentas de pago y Tesoreria | Implementada |
+| P0 | `list_funds` | Identifica el fondo exacto que puede seleccionarse. | Caja chica, sin credenciales de kiosco | Implementada |
 | P0 | `get_sales_today` | ¿Cuánto vendí hoy? ¿Cuántas ventas hice? | `SalesKpiTodayService` | Funcional |
 | P0 | `get_business_snapshot` | ¿Cómo va el negocio? ¿Cuánto gasté? ¿Cuánto me deben? ¿Qué está vencido? | `ExecutiveKpiService` | Implementada |
 | P0 | `get_attention_items` | ¿Qué requiere mi atención? ¿Qué debo resolver primero? | `ExecutiveKpiService` | Implementada |

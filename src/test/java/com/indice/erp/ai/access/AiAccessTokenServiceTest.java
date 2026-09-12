@@ -61,7 +61,9 @@ class AiAccessTokenServiceTest {
             AiAccessTokenService.INVENTORY_READ,
             AiAccessTokenService.EXPENSES_READ,
             AiAccessTokenService.PETTY_CASH_READ,
-            AiAccessTokenService.RECEIVABLES_READ
+            AiAccessTokenService.RECEIVABLES_READ,
+            AiAccessTokenService.BUSINESS_CONTEXT_READ,
+            AiAccessTokenService.FINANCE_REFERENCES_READ
         );
         assertEquals(expectedScopes, issued.scopes());
         assertEquals(NOW.plusSeconds(7L * 24 * 60 * 60), issued.expiresAt());

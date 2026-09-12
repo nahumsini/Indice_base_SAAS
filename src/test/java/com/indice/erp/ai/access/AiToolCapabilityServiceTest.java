@@ -61,7 +61,7 @@ class AiToolCapabilityServiceTest {
     }
 
     @Test
-    void completeAuthorizedCatalogContainsAllTwentyEightTools() {
+    void completeAuthorizedCatalogContainsAllThirtyTwoTools() {
         var token = token(Set.of(
             AiAccessTokenService.SALES_TODAY_READ,
             AiAccessTokenService.BUSINESS_SNAPSHOT_READ,
@@ -74,6 +74,8 @@ class AiToolCapabilityServiceTest {
             AiAccessTokenService.EXPENSES_READ,
             AiAccessTokenService.PETTY_CASH_READ,
             AiAccessTokenService.RECEIVABLES_READ,
+            AiAccessTokenService.BUSINESS_CONTEXT_READ,
+            AiAccessTokenService.FINANCE_REFERENCES_READ,
             AiAccessTokenService.TASKS_CREATE,
             AiAccessTokenService.EXPENSES_CREATE,
             AiAccessTokenService.PETTY_CASH_EXPENSE_CREATE,
@@ -90,6 +92,8 @@ class AiToolCapabilityServiceTest {
         when(authorizationService.canReadExpenses(USER)).thenReturn(true);
         when(authorizationService.canReadPettyCash(USER)).thenReturn(true);
         when(authorizationService.canReadReceivables(USER)).thenReturn(true);
+        when(authorizationService.canReadOrganizationStructure(USER)).thenReturn(true);
+        when(authorizationService.canReadPaymentAccounts(USER)).thenReturn(true);
         when(authorizationService.canCreateTask(USER)).thenReturn(true);
         when(authorizationService.canCreateExpenseDraft(USER)).thenReturn(true);
         when(authorizationService.canRegisterFundExpense(USER)).thenReturn(true);
@@ -116,6 +120,10 @@ class AiToolCapabilityServiceTest {
             "get_expense_detail",
             "get_funds_status",
             "get_receivables_status",
+            "get_my_business_context",
+            "list_units_and_businesses",
+            "list_payment_accounts",
+            "list_funds",
             "preview_create_task",
             "create_task",
             "preview_create_expense_draft",

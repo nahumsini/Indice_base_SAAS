@@ -56,6 +56,10 @@ public class AiToolAuthorizationService {
             "receivables.payments",
             "receivables.credit-customers"
         );
+    private static final TabPermissionRequirement ORGANIZATION_STRUCTURE_PERMISSION =
+        TabPermissionRequirement.one("config_center.business-structure");
+    private static final TabPermissionRequirement PAYMENT_ACCOUNT_PERMISSION =
+        TabPermissionRequirement.one("expenses.payment-accounts");
 
     private final CompanySubscriptionStatusProvider subscriptionStatusProvider;
     private final CompanyModuleEntitlementService moduleEntitlementService;
@@ -141,6 +145,15 @@ public class AiToolAuthorizationService {
 
     public boolean canReadReceivables(AuthSessionUser user) {
         return canUseModuleCapability(user, "receivables", "receivables", RECEIVABLES_READ_PERMISSION);
+    }
+
+    public boolean canReadOrganizationStructure(AuthSessionUser user) {
+        return canUseModule(user, "config_center", ORGANIZATION_STRUCTURE_PERMISSION);
+    }
+
+    public boolean canReadPaymentAccounts(AuthSessionUser user) {
+        return canUseModuleCapability(user, "expenses", "expenses", PAYMENT_ACCOUNT_PERMISSION)
+            || canReadCommercialSales(user);
     }
 
     private boolean canUseModule(

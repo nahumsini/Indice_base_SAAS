@@ -63,6 +63,15 @@ public class AiToolCapabilityService {
         add(tools, token, AiAccessTokenService.RECEIVABLES_READ,
             () -> authorizationService.canReadReceivables(user),
             "get_receivables_status");
+        add(tools, token, AiAccessTokenService.BUSINESS_CONTEXT_READ,
+            () -> authorizationService.canReadOrganizationStructure(user),
+            "get_my_business_context", "list_units_and_businesses");
+        add(tools, token, AiAccessTokenService.FINANCE_REFERENCES_READ,
+            () -> authorizationService.canReadPaymentAccounts(user),
+            "list_payment_accounts");
+        add(tools, token, AiAccessTokenService.PETTY_CASH_READ,
+            () -> authorizationService.canReadPettyCash(user),
+            "list_funds");
 
         add(tools, token, AiAccessTokenService.TASKS_CREATE,
             () -> authorizationService.canCreateTask(user),

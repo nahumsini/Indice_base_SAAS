@@ -47,7 +47,7 @@ deployments never add new scopes to them.
 
 ## 3. Current tool authorization matrix
 
-The table describes all 28 MCP tools. `Any(...)` means at least one current tab grant is required.
+The table describes all 32 MCP tools. `Any(...)` means at least one current tab grant is required.
 Every row also inherits the common invariant above.
 
 | Tool | OAuth scope | Owner module and tab permission | Risk and additional rule |
@@ -72,6 +72,10 @@ Every row also inherits the common invariant above.
 | `get_expense_detail` | `expenses.read` | `expenses`; Any(`expenses`, `kpis`) | Read; company and scope-owned expense only |
 | `get_funds_status` | `petty_cash.read` | `petty_cash`; Any(`cash`, `control`, `statements`, `kpis`) | Read; kiosk credentials and tokens are excluded |
 | `get_receivables_status` | `receivables.read` | `receivables`; Any(`credit-sales`, `accounts-receivable`, `payments`, `credit-customers`) | Read; FinanceContext organizational scope |
+| `get_my_business_context` | `business.context:read` | `config_center`; `config_center.business-structure` | Read; active membership plus server-resolved company, assignment and organizational scope |
+| `list_units_and_businesses` | `business.context:read` | `config_center`; `config_center.business-structure` | Read; active references only, restricted to the actor's current organizational scope and cursor paged |
+| `list_payment_accounts` | `finance.references:read` | Expenses: `expenses.payment-accounts`; or CRM: `crm.sales`; FinanceContext required | Read; whitelisted account fields only, restricted to FinanceContext and cursor paged |
+| `list_funds` | `petty_cash.read` | `petty_cash`; Any(`cash`, `control`, `statements`, `kpis`) | Read-only fund owner contract; cursor paged and excludes kiosk credentials, external-owner data and metadata |
 | `preview_create_task` | `tasks.create` | `processes`; Any(`calendar`, `projects`, `processes`) | Preparation; persists only confirmation and audit |
 | `create_task` | `tasks.create` | `processes`; Any(`calendar`, `projects`, `processes`) | Confirmed action; assignment limited to connected user |
 | `preview_create_expense_draft` | `expenses.create` | `expenses`; `expenses.expenses` | Preparation; no payment or approval |
@@ -124,14 +128,17 @@ business concepts. When an owner action ultimately needs an identifier, a read-o
 let the model identify the exact authorized entity first and must return enough label/context for
 human confirmation.
 
-The next read-only resolver package is:
+The first read-only resolver slice is delivered with typed contracts and opaque cursor pagination:
 
 - `get_my_business_context`;
-- `search_customers`;
-- `search_providers`;
 - `list_payment_accounts`;
 - `list_funds`;
 - `list_units_and_businesses`;
+
+The remaining resolver package is:
+
+- `search_customers`;
+- `search_providers`;
 - `list_warehouses`;
 - `search_budget_lines`;
 - `search_accounting_accounts`.
@@ -184,7 +191,8 @@ separate approved domain decision and recovery tests.
 ## 9. Known bounded V1 debt
 
 - generic business and finance result schemas remain dynamic;
-- list tools have limits but no cursor contract and several queries filter in memory;
+- legacy list tools have limits but no cursor contract and several queries filter in memory; the
+  four reference resolvers delivered in this slice do expose opaque cursor pagination;
 - the public MCP route has no repository-defined dedicated rate-limit policy;
 - Docker health proves anonymous protection/liveness but not backend readiness;
 - the full ChatGPT APPTEST and reviewer checklist remains incomplete;

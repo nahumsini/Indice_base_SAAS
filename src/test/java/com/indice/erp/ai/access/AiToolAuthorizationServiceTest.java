@@ -205,6 +205,35 @@ class AiToolAuthorizationServiceTest {
         assertFalse(service.canAddMoneyToFund(USER));
     }
 
+    @Test
+    void organizationResolversRequireTheBusinessStructureTab() {
+        when(subscriptionStatusProvider.currentStatus(23L)).thenReturn(CompanySubscriptionStatus.activeLegacy());
+        when(moduleEntitlementService.hasActiveEntitlement(23L, "config_center")).thenReturn(true);
+        when(moduleAccessService.canAccess(USER, "config_center")).thenReturn(true);
+        when(tabPermissionAccessService.canAccess(
+            USER,
+            TabPermissionRequirement.one("config_center.business-structure")
+        )).thenReturn(true);
+
+        assertTrue(service.canReadOrganizationStructure(USER));
+    }
+
+    @Test
+    void paymentAccountResolverAcceptsTheExactExpensesAccountTab() {
+        when(subscriptionStatusProvider.currentStatus(23L)).thenReturn(CompanySubscriptionStatus.activeLegacy());
+        when(moduleEntitlementService.hasActiveEntitlement(23L, "expenses")).thenReturn(true);
+        when(moduleAccessService.canAccess(USER, "expenses")).thenReturn(true);
+        when(tabPermissionAccessService.canAccess(
+            USER,
+            TabPermissionRequirement.one("expenses.payment-accounts")
+        )).thenReturn(true);
+        when(companyEntitlementService.resolve(23L, "expenses")).thenReturn(
+            new CompanyEntitlementResolution(23L, "expenses", true, EntitlementPolicyMode.ENFORCE, List.of())
+        );
+
+        assertTrue(service.canReadPaymentAccounts(USER));
+    }
+
     private void allowLegacyAccess() {
         when(subscriptionStatusProvider.currentStatus(23L)).thenReturn(CompanySubscriptionStatus.activeLegacy());
         when(moduleEntitlementService.hasActiveEntitlement(23L, "crm")).thenReturn(true);

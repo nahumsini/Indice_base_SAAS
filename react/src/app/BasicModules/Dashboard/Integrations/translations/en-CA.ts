@@ -147,6 +147,8 @@ export const enCA: IntegrationsTranslations = {
     finance: { label: 'Expenses and cash flow', description: 'Expenses, fund balances, and money to collect.' },
   },
   scopes: {
+    'business.context:read': { label: 'Business context', description: 'Identifies your company, unit, business, and authorized scope.' },
+    'finance.references:read': { label: 'Payment accounts', description: 'Identifies authorized accounts for choosing where money comes from or goes.' },
     'sales.today:read': { label: 'Sales today', description: 'Answers how much you have sold today.' },
     'business.snapshot:read': { label: 'Business summary', description: 'Brings together the most important signals.' },
     'sales.read': { label: 'Sales', description: 'Reviews summaries, lists, and sale details.' },

@@ -112,6 +112,8 @@ export const esMX: IntegrationsTranslations = {
     finance: { label: 'Gastos y flujo de dinero', description: 'Gastos, saldos de fondos y dinero por cobrar.' },
   },
   scopes: {
+    'business.context:read': { label: 'Contexto de la empresa', description: 'Identifica tu empresa, unidad, negocio y alcance autorizado.' },
+    'finance.references:read': { label: 'Cuentas de pago', description: 'Identifica cuentas autorizadas para elegir correctamente el origen o destino del dinero.' },
     'sales.today:read': { label: 'Ventas de hoy', description: 'Responde cuánto has vendido hoy.' },
     'business.snapshot:read': { label: 'Resumen del negocio', description: 'Reúne las señales más importantes de la empresa.' },
     'sales.read': { label: 'Ventas', description: 'Revisa resúmenes, listados y detalle de ventas.' },

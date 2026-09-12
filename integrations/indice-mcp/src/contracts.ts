@@ -208,6 +208,88 @@ export type FinanceActionPreviewResponse = z.infer<typeof financeActionPreviewRe
 export type FinanceActionCommitRequest = z.infer<typeof financeActionCommitRequestSchema>;
 export type FinanceActionCommitResponse = z.infer<typeof financeActionCommitResponseSchema>;
 
+export const referencePageRequestSchema = z.object({
+  query: z.string().trim().max(120).optional(),
+  limit: z.number().int().min(1).max(50).optional(),
+  cursor: z.string().max(256).optional()
+});
+
+export const businessContextResponseSchema = z.object({
+  generatedAt: z.iso.datetime(),
+  companyId: z.number().int().positive(),
+  companyName: z.string().min(1),
+  userId: z.number().int().positive(),
+  userCompanyId: z.number().int().positive(),
+  userName: z.string().min(1),
+  role: z.string().min(1),
+  scopeType: z.string().min(1),
+  assignedUnitId: z.number().int().positive().nullable(),
+  assignedUnitName: z.string().nullable(),
+  assignedBusinessId: z.number().int().positive().nullable(),
+  assignedBusinessName: z.string().nullable()
+});
+
+const referencePageMetadataShape = {
+  generatedAt: z.iso.datetime(),
+  scopeType: z.string().min(1),
+  returnedCount: z.number().int().nonnegative(),
+  totalCount: z.number().int().nonnegative(),
+  hasMore: z.boolean(),
+  nextCursor: z.string().nullable()
+};
+
+export const organizationReferencePageSchema = z.object({
+  ...referencePageMetadataShape,
+  items: z.array(z.object({
+    referenceType: z.enum(["UNIT", "BUSINESS"]),
+    id: z.number().int().positive(),
+    name: z.string().min(1),
+    unitId: z.number().int().positive().nullable(),
+    unitName: z.string().nullable(),
+    status: z.string().min(1)
+  })).max(50)
+});
+
+export const paymentAccountReferencePageSchema = z.object({
+  ...referencePageMetadataShape,
+  items: z.array(z.object({
+    id: z.number().int().positive(),
+    name: z.string().min(1),
+    type: z.string().min(1),
+    currencyCode: z.string().regex(/^[A-Z]{3}$/),
+    currentBalance: z.number(),
+    pendingBalance: z.number(),
+    totalBalance: z.number(),
+    unitId: z.number().int().positive().nullable(),
+    businessId: z.number().int().positive().nullable(),
+    status: z.string().min(1),
+    systemManaged: z.boolean()
+  })).max(50)
+});
+
+export const fundReferencePageSchema = z.object({
+  ...referencePageMetadataShape,
+  items: z.array(z.object({
+    id: z.number().int().positive(),
+    name: z.string().min(1),
+    fundType: z.string().min(1),
+    currencyCode: z.string().regex(/^[A-Z]{3}$/),
+    limitAmount: z.number(),
+    currentBalanceAmount: z.number(),
+    paymentAccountId: z.number().int().positive().nullable(),
+    fundingSourcePaymentAccountId: z.number().int().positive().nullable(),
+    unitId: z.number().int().positive().nullable(),
+    businessId: z.number().int().positive().nullable(),
+    status: z.string().min(1)
+  })).max(50)
+});
+
+export type ReferencePageRequest = z.infer<typeof referencePageRequestSchema>;
+export type BusinessContextResponse = z.infer<typeof businessContextResponseSchema>;
+export type OrganizationReferencePage = z.infer<typeof organizationReferencePageSchema>;
+export type PaymentAccountReferencePage = z.infer<typeof paymentAccountReferencePageSchema>;
+export type FundReferencePage = z.infer<typeof fundReferencePageSchema>;
+
 export const indiceToolNameSchema = z.enum([
   "get_sales_today",
   "get_business_snapshot",
@@ -229,6 +311,10 @@ export const indiceToolNameSchema = z.enum([
   "get_expense_detail",
   "get_funds_status",
   "get_receivables_status",
+  "get_my_business_context",
+  "list_units_and_businesses",
+  "list_payment_accounts",
+  "list_funds",
   "preview_create_task",
   "create_task",
   "preview_create_expense_draft",
@@ -241,7 +327,7 @@ export const indiceToolNameSchema = z.enum([
 
 export const toolCapabilitiesSchema = z.object({
   version: z.literal("v1"),
-  tools: z.array(indiceToolNameSchema).max(28)
+  tools: z.array(indiceToolNameSchema).max(32)
 });
 
 export type IndiceToolName = z.infer<typeof indiceToolNameSchema>;

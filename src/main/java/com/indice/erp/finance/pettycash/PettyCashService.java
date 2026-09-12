@@ -84,6 +84,11 @@ public class PettyCashService {
     }
 
     @Transactional(readOnly = true)
+    public java.util.List<PettyCashFundResponse> listFunds(FinanceContext context) {
+        return repository.findFunds(context).stream().map(mapper::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
     public PettyCashFundResponse getFund(FinanceContext context, long fundId) {
         return mapper.toResponse(requireFund(context, fundId));
     }

@@ -25,7 +25,8 @@ async function main(): Promise<void> {
   const supportedScopes = [
     "sales.today:read", "business.snapshot:read", "hr.people:read", "hr.attendance:read",
     "tasks.read", "sales.read", "pos.read", "inventory.read", "expenses.read",
-    "petty_cash.read", "receivables.read", "tasks.create", "expenses.create",
+    "petty_cash.read", "receivables.read", "business.context:read", "finance.references:read",
+    "tasks.create", "expenses.create",
     "petty_cash.expense:create", "petty_cash.deposit:create"
   ];
   const bearerChallenge = (error?: string) => `Bearer ${[

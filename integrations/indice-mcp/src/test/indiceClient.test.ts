@@ -242,6 +242,42 @@ test("loads a delegated business snapshot without accepting tenant identifiers",
   );
 });
 
+test("loads paged payment account references without tenant identifiers", async () => {
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  const fakeFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    requests.push({ url: input.toString(), ...(init ? { init } : {}) });
+    return jsonResponse({
+      generatedAt: "2026-09-12T04:00:00Z",
+      scopeType: "BUSINESS_OFFICE",
+      items: [{
+        id: 77, name: "Main bank", type: "BANK", currencyCode: "MXN",
+        currentBalance: 1500, pendingBalance: 0, totalBalance: 1500,
+        unitId: 10, businessId: 101, status: "ACTIVE", systemManaged: false
+      }],
+      returnedCount: 1, totalCount: 1, hasMore: false, nextCursor: null
+    }, 200);
+  }) as typeof fetch;
+  const delegatedConfig: IndiceMcpConfig = {
+    ...oauthConfig,
+    backendUrl: new URL("http://127.0.0.1:8082"), authMode: "delegated", preferredCurrency: "MXN",
+    timeoutMs: 5000, transport: "http", host: "127.0.0.1", port: 3010
+  };
+  const client = new IndiceClient(delegatedConfig, fakeFetch, "idx_ai_delegated-token-value-1234567890");
+
+  const result = await client.listPaymentAccounts({ query: "bank", limit: 10, cursor: "djE6MA" });
+
+  assert.equal(result.items[0]?.id, 77);
+  assert.equal(requests[0]?.url, "http://127.0.0.1:8082/api/v1/ai/tools/references/payment-accounts");
+  assert.deepEqual(JSON.parse(String(requests[0]?.init?.body)), {
+    query: "bank", limit: 10, cursor: "djE6MA"
+  });
+  assert.equal("companyId" in JSON.parse(String(requests[0]?.init?.body)), false);
+  assert.equal(
+    new Headers(requests[0]?.init?.headers).get("Authorization"),
+    "Bearer idx_ai_delegated-token-value-1234567890"
+  );
+});
+
 test("rejects custom snapshot filters without both dates before calling Indice", async () => {
   let called = false;
   const fakeFetch = (async () => {

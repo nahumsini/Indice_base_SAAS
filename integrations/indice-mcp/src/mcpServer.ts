@@ -1,8 +1,15 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { RegisteredTool } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod/v4";
+import {
+  businessContextResponseSchema,
+  fundReferencePageSchema,
+  organizationReferencePageSchema,
+  paymentAccountReferencePageSchema
+} from "./contracts.js";
 import type {
   AttentionItems,
+  BusinessContextResponse,
   BusinessQueryResult,
   BusinessSnapshot,
   BusinessSnapshotQuery,
@@ -10,6 +17,10 @@ import type {
   FinanceActionCommitResponse,
   FinanceActionName,
   FinanceActionPreviewResponse,
+  FundReferencePage,
+  OrganizationReferencePage,
+  PaymentAccountReferencePage,
+  ReferencePageRequest,
   SalesTodaySummary,
   TaskCommitRequest,
   TaskCommitResponse,
@@ -21,6 +32,10 @@ export interface IndiceBusinessReader {
   getSalesToday(preferredCurrency?: string): Promise<SalesTodaySummary>;
   getBusinessSnapshot(query?: BusinessSnapshotQuery): Promise<BusinessSnapshot>;
   queryBusiness?(tool: string, args?: Record<string, unknown>): Promise<BusinessQueryResult>;
+  getMyBusinessContext?(): Promise<BusinessContextResponse>;
+  listUnitsAndBusinesses?(request?: ReferencePageRequest): Promise<OrganizationReferencePage>;
+  listPaymentAccounts?(request?: ReferencePageRequest): Promise<PaymentAccountReferencePage>;
+  listFunds?(request?: ReferencePageRequest): Promise<FundReferencePage>;
   previewCreateTask(request: TaskPreviewRequest): Promise<TaskPreviewResponse>;
   createTask(request: TaskCommitRequest): Promise<TaskCommitResponse>;
   previewFinanceAction?(action: FinanceActionName, request: Record<string, unknown>): Promise<FinanceActionPreviewResponse>;
@@ -329,9 +344,132 @@ export function createIndiceMcpServer(
   applyToolVisibility(taskCommitTool, "create_task", allowedTools);
 
   registerBusinessReadTools(server, reader, allowedTools);
+  registerReferenceResolverTools(server, reader, allowedTools);
   registerFinanceActionTools(server, reader, allowedTools);
 
   return server;
+}
+
+function registerReferenceResolverTools(
+  server: McpServer,
+  reader: IndiceBusinessReader,
+  allowedTools?: ReadonlySet<string>
+): void {
+  const contextTool = server.registerTool("get_my_business_context", {
+    title: "Consultar mi contexto de negocio",
+    description: "Devuelve la empresa, membresia, rol, alcance operativo y asignacion de unidad o negocio del usuario conectado. Usala antes de interpretar nombres o identificadores organizacionales.",
+    inputSchema: {},
+    outputSchema: businessContextResponseSchema.shape,
+    annotations: readOnlyAnnotations()
+  }, async () => {
+    try {
+      if (!reader.getMyBusinessContext) throw new Error("Business context resolver is not configured.");
+      const result = await reader.getMyBusinessContext();
+      return {
+        content: [{ type: "text", text: humanBusinessContext(result) }],
+        structuredContent: result
+      };
+    } catch (error) {
+      return toolError(error);
+    }
+  });
+  applyToolVisibility(contextTool, "get_my_business_context", allowedTools);
+
+  const pageInputSchema = {
+    query: z.string().trim().max(120).optional()
+      .describe("Texto opcional para filtrar por nombre, tipo, estado o moneda."),
+    limit: z.number().int().min(1).max(50).optional()
+      .describe("Maximo de referencias; predeterminado 25 y maximo 50."),
+    cursor: z.string().max(256).optional()
+      .describe("Cursor opaco devuelto por la pagina anterior.")
+  };
+
+  const organizationTool = server.registerTool("list_units_and_businesses", {
+    title: "Listar unidades y negocios",
+    description: "Lista solo las unidades y negocios visibles dentro del alcance actual del usuario. Usala para resolver el lugar correcto antes de preparar una accion.",
+    inputSchema: pageInputSchema,
+    outputSchema: organizationReferencePageSchema.shape,
+    annotations: readOnlyAnnotations()
+  }, async ({ query, limit, cursor }) => {
+    try {
+      if (!reader.listUnitsAndBusinesses) throw new Error("Organization resolver is not configured.");
+      const result = await reader.listUnitsAndBusinesses({ query, limit, cursor });
+      return {
+        content: [{ type: "text", text: humanReferencePage("ubicaciones", result) }],
+        structuredContent: result
+      };
+    } catch (error) {
+      return toolError(error);
+    }
+  });
+  applyToolVisibility(organizationTool, "list_units_and_businesses", allowedTools);
+
+  const paymentAccountTool = server.registerTool("list_payment_accounts", {
+    title: "Listar cuentas de pago",
+    description: "Lista cuentas bancarias y de pago autorizadas con moneda, saldo y alcance. Usala para identificar el destino u origen exacto del dinero antes de una vista previa.",
+    inputSchema: pageInputSchema,
+    outputSchema: paymentAccountReferencePageSchema.shape,
+    annotations: readOnlyAnnotations()
+  }, async ({ query, limit, cursor }) => {
+    try {
+      if (!reader.listPaymentAccounts) throw new Error("Payment account resolver is not configured.");
+      const result = await reader.listPaymentAccounts({ query, limit, cursor });
+      return {
+        content: [{ type: "text", text: humanReferencePage("cuentas de pago", result) }],
+        structuredContent: result
+      };
+    } catch (error) {
+      return toolError(error);
+    }
+  });
+  applyToolVisibility(paymentAccountTool, "list_payment_accounts", allowedTools);
+
+  const fundTool = server.registerTool("list_funds", {
+    title: "Listar fondos",
+    description: "Lista los fondos de caja chica autorizados con moneda, saldo y cuentas vinculadas. Nunca expone PIN, token ni URL de kiosco.",
+    inputSchema: pageInputSchema,
+    outputSchema: fundReferencePageSchema.shape,
+    annotations: readOnlyAnnotations()
+  }, async ({ query, limit, cursor }) => {
+    try {
+      if (!reader.listFunds) throw new Error("Fund resolver is not configured.");
+      const result = await reader.listFunds({ query, limit, cursor });
+      return {
+        content: [{ type: "text", text: humanReferencePage("fondos", result) }],
+        structuredContent: result
+      };
+    } catch (error) {
+      return toolError(error);
+    }
+  });
+  applyToolVisibility(fundTool, "list_funds", allowedTools);
+}
+
+function readOnlyAnnotations() {
+  return {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false
+  } as const;
+}
+
+function toolError(error: unknown) {
+  const message = error instanceof Error ? error.message : "Indice is unavailable.";
+  return { isError: true as const, content: [{ type: "text" as const, text: message }] };
+}
+
+function humanBusinessContext(result: BusinessContextResponse): string {
+  const assignment = result.assignedBusinessName ?? result.assignedUnitName ?? "sin asignacion operativa";
+  return `${result.userName} esta conectado a ${result.companyName} con alcance ${result.scopeType} y asignacion ${assignment}.`;
+}
+
+function humanReferencePage(
+  label: string,
+  result: { returnedCount: number; totalCount: number; hasMore: boolean }
+): string {
+  const continuation = result.hasMore ? " Hay mas resultados; continua con nextCursor." : "";
+  return `${result.returnedCount} de ${result.totalCount} ${label} autorizadas.${continuation}`;
 }
 
 const queryOutputSchema = {

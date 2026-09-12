@@ -16,6 +16,7 @@ Herramientas disponibles:
 - Productos e inventario: `search_products`, `get_product_detail`, `get_inventory_summary`.
 - Gastos: `get_expense_summary`, `list_expenses`, `get_expense_detail`.
 - Finanzas: `get_funds_status`, `get_receivables_status`.
+- Resolutores: `get_my_business_context`, `list_units_and_businesses`, `list_payment_accounts`, `list_funds`.
 - `preview_create_task`: prepara la tarea exacta, asignada al usuario conectado, sin crearla.
 - `create_task`: crea únicamente la vista previa confirmada y vigente.
 - `preview_create_expense_draft` / `create_expense_draft`: crea un gasto general únicamente en `DRAFT`.
@@ -100,6 +101,7 @@ El endpoint local será `http://127.0.0.1:3010/mcp`. Esta versión rechaza backe
 - Cada consulta vuelve a validar suscripción, módulo, acceso del usuario y permiso vigente. Ventas también valida el entitlement comercial `sales`.
 - Recursos Humanos omite nómina, documentos, identificadores nacionales, coordenadas, fotos y biometría.
 - Fondos nunca exponen tokens ni URLs de kiosco.
+- Los resolutores paginados devuelven `returnedCount`, `totalCount`, `hasMore` y un cursor opaco; nunca aceptan empresa, usuario ni alcance desde el cliente.
 - Cada acción exige una vista previa de máximo 5 minutos. El commit solo recibe token de confirmación y clave de idempotencia; no puede cambiar datos ya confirmados.
 - Las confirmaciones están ligadas a conexión, usuario, empresa, membresía y nombre exacto de herramienta.
 - Cada vista previa, ejecución, repetición y fallo queda auditado. Una repetición con la misma clave devuelve el mismo resultado sin duplicar la acción.
