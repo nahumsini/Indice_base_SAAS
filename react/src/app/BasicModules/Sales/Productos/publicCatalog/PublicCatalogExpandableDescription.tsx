@@ -32,7 +32,7 @@ export function PublicCatalogExpandableDescription({
       {canExpand ? (
         <button
           type="button"
-          className="mt-1.5 inline-flex items-center gap-1 rounded-md text-xs font-medium text-[#C9372C] transition hover:text-[#A62B23] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/50"
+          className="mt-1.5 inline-flex items-center gap-1 rounded-md text-xs font-medium text-[var(--catalog-accent-ink)] transition hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--catalog-accent-border)]"
           onClick={() => setExpanded((current) => !current)}
           aria-expanded={expanded}
         >

@@ -6,6 +6,7 @@ import { Button } from '../../../../components/ui/button';
 import { useIsMobile } from '../../../../components/ui/use-mobile';
 import type { SalesCatalogItem } from '../../types';
 import { resolveSalesStorageUrl } from '../../utils/salesStorageUrls';
+import { publicCatalogExperienceFromWire } from './utils/publicCatalogExperience';
 import { useProductsTranslations } from '../translations';
 import { publicCatalogApi, type PublicCatalogBootstrap } from './publicCatalogApi';
 import type { PublicCatalogConfig, PublicCatalogItem } from './types/publicCatalogTypes';
@@ -25,6 +26,7 @@ const configFromBootstrap = (bootstrap: PublicCatalogBootstrap): PublicCatalogCo
   title: bootstrap.title,
   description: bootstrap.description ?? '',
   coverImageUrl: resolveSalesStorageUrl(bootstrap.coverImageUrl),
+  ...publicCatalogExperienceFromWire(bootstrap),
   contactCtaLabel: bootstrap.contactCtaLabel,
   contactMethod: bootstrap.contactMethod,
   contactValue: bootstrap.contactValue ?? '',

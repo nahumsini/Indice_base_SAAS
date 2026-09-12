@@ -46,7 +46,8 @@ class SalesPublicCatalogAvailabilityServiceTest {
         var now = Instant.parse("2026-08-26T12:00:00Z");
         return new SalesPublicCatalogRepository.CatalogRecord(
             17L, 7L, "Company", null, 11L, "Unit", 12L, "Business", "CAT-1", "Catalog",
-            "Public catalog", null, null, "Contact", "email", "sales@example.com",
+            "Public catalog", null, null, "GENERAL", "#FF6B5E", "SOFT", "GRID", "ELEVATED", "LANDSCAPE",
+            "Contact", "email", "sales@example.com",
             "ACTIVE", null, "tokenhint", null, true, true, true, true, true, true, true,
             false, 1L, now, now);
     }

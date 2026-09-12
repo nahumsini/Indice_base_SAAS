@@ -70,8 +70,10 @@ class SalesPublicCatalogServiceTest {
             base.id(), base.companyId(), base.companyName(), base.companyLogoUrl(),
             base.unitId(), base.unitName(),
             base.businessId(), base.businessName(), base.code(), base.name(), base.title(),
-            base.description(), base.coverImageUrl(), base.contactCtaLabel(), base.contactMethod(),
-            base.contactValue(), base.status(), base.expiresAt(), token.substring(token.length() - 8),
+            base.description(), base.coverImageUrl(), base.experienceProfile(), base.accentColor(),
+            base.heroStyle(), base.layoutStyle(), base.cardStyle(), base.imageRatio(),
+            base.contactCtaLabel(), base.contactMethod(), base.contactValue(), base.status(),
+            base.expiresAt(), token.substring(token.length() - 8),
             linkCodec.protect(token), base.showPrices(), base.showWholesalePrices(),
             base.showStockStatus(), base.showItemTypeBadges(), base.showCategories(),
             base.allowCart(), base.allowPurchaseRequest(), base.allowImageDownloads(),
@@ -232,6 +234,7 @@ class SalesPublicCatalogServiceTest {
         assertThat(payload).containsOnlyKeys(
             "code", "companyName", "companyLogoUrl", "unitName", "businessName", "title", "description",
             "coverImageUrl", "contactCtaLabel", "contactMethod", "contactValue", "showPrices",
+            "experienceProfile", "accentColor", "heroStyle", "layoutStyle", "cardStyle", "imageRatio",
             "showWholesalePrices", "showStockStatus", "showItemTypeBadges", "showCategories",
             "allowCart", "allowPurchaseRequest", "allowImageDownloads", "submissionPolicy", "items", "discountRules");
         assertThat(payload).doesNotContainKeys("catalogId", "companyId", "unitId", "businessId");
@@ -239,7 +242,27 @@ class SalesPublicCatalogServiceTest {
             .containsEntry("companyLogoUrl", catalog.companyLogoUrl())
             .containsEntry("unitName", catalog.unitName())
             .containsEntry("businessName", catalog.businessName())
+            .containsEntry("experienceProfile", "GENERAL")
+            .containsEntry("accentColor", "#FF6B5E")
+            .containsEntry("layoutStyle", "GRID")
             .containsEntry("allowImageDownloads", false);
+    }
+
+    @Test
+    void rejectsUnsupportedVisualExperienceValuesBeforePersistence() {
+        var access = SalesPublicCatalogAdminAccess.AdminContext.corporate(5L, 7L);
+        var request = new SaveRequest(
+            "Catálogo", 11L, 12L, "Catálogo público", null, null,
+            "CASINO", "#FF6B5E", "SOFT", "GRID", "ELEVATED", "LANDSCAPE",
+            "Contactar", "email", "ventas@example.com", null, true, false, true, true, true,
+            true, true, false, List.of(), null);
+
+        assertThatThrownBy(() -> service.create(access, request))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("Unsupported experienceProfile.");
+
+        then(repository).shouldHaveNoInteractions();
+        then(registry).shouldHaveNoInteractions();
     }
 
     @Test
@@ -311,8 +334,9 @@ class SalesPublicCatalogServiceTest {
         var catalog = new SalesPublicCatalogRepository.CatalogRecord(
             17L, 7L, "Empresa", "https://cdn.example.test/logo.png",
             11L, "Unidad", 12L, "Negocio", "CATALOGO-2026", "Catálogo 2026",
-            "Catálogo público", "Descripción", null, "Solicitar", "email",
-            "ventas@example.com", "ACTIVE", null, "tokenhint", null, true, true, false,
+            "Catálogo público", "Descripción", null,
+            "GENERAL", "#FF6B5E", "SOFT", "GRID", "ELEVATED", "LANDSCAPE",
+            "Solicitar", "email", "ventas@example.com", "ACTIVE", null, "tokenhint", null, true, true, false,
             false, false, true, true, false, 1L, NOW.minusSeconds(60), NOW.minusSeconds(60));
         given(repository.findById(catalog.id())).willReturn(Optional.of(catalog));
         given(repository.publicItems(catalog)).willReturn(List.of(product()));
@@ -341,8 +365,9 @@ class SalesPublicCatalogServiceTest {
     void rejectsCreationOutsideTheAdministratorsFrozenScope() {
         var access = SalesPublicCatalogAdminAccess.AdminContext.unit(5L, 7L, 11L);
         var request = new SaveRequest(
-            "Catálogo", 99L, 100L, "Catálogo público", null, null, "Contactar", "email",
-            "ventas@example.com", null, true, false, true, true, true, true, true,
+            "Catálogo", 99L, 100L, "Catálogo público", null, null,
+            "GENERAL", "#FF6B5E", "SOFT", "GRID", "ELEVATED", "LANDSCAPE",
+            "Contactar", "email", "ventas@example.com", null, true, false, true, true, true, true, true,
             false, List.of(), null);
 
         assertThatThrownBy(() -> service.create(access, request))
@@ -387,7 +412,8 @@ class SalesPublicCatalogServiceTest {
         return new SalesPublicCatalogRepository.CatalogRecord(
             17L, 7L, "Empresa", "https://cdn.example.test/logo.png",
             11L, "Unidad", 12L, "Negocio", "CATALOGO-2026", "Catálogo 2026", "Catálogo público",
-            "Descripción", null, "Solicitar", "email", "ventas@example.com", "ACTIVE", null,
+            "Descripción", null, "GENERAL", "#FF6B5E", "SOFT", "GRID", "ELEVATED", "LANDSCAPE",
+            "Solicitar", "email", "ventas@example.com", "ACTIVE", null,
             "tokenhint", null, showPrices, showWholesalePrices, true, true, true, true, true, false,
             1L,
             NOW.minusSeconds(60), NOW.minusSeconds(60));

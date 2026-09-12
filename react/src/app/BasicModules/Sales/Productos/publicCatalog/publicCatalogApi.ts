@@ -3,6 +3,7 @@ import type { PublicCatalogAvailability, PublicCatalogConfig, PublicCatalogItem,
 import type { DiscountRuleWire } from '../../../PointOfSale/shared/commercial/discounts/services/discountRulesApi';
 import { resolveSalesStorageUrl } from '../../utils/salesStorageUrls';
 import type { SalesCatalogItem } from '../../types';
+import { publicCatalogExperienceFromWire } from './utils/publicCatalogExperience';
 import { getProductSalesReadiness } from '../../utils/productSalesReadiness';
 
 type AdminCatalog = {
@@ -17,6 +18,12 @@ type AdminCatalog = {
   title: string;
   description?: string | null;
   coverImageUrl?: string | null;
+  experienceProfile?: string | null;
+  accentColor?: string | null;
+  heroStyle?: string | null;
+  layoutStyle?: string | null;
+  cardStyle?: string | null;
+  imageRatio?: string | null;
   contactCtaLabel: string;
   contactMethod: PublicCatalogContactMethod;
   contactValue?: string | null;
@@ -47,6 +54,12 @@ export type PublicCatalogBootstrap = {
   title: string;
   description?: string | null;
   coverImageUrl?: string | null;
+  experienceProfile?: string | null;
+  accentColor?: string | null;
+  heroStyle?: string | null;
+  layoutStyle?: string | null;
+  cardStyle?: string | null;
+  imageRatio?: string | null;
   contactCtaLabel: string;
   contactMethod: PublicCatalogContactMethod;
   contactValue?: string | null;
@@ -137,6 +150,8 @@ type PublicCatalogLinkResponse = {
 type EngineEnvelope<T> = { data: T; meta?: { requestId?: string } };
 const adminPath = '/api/v1/sales/public-catalogs';
 
+const toWireOption = (value: string) => value.replace(/[A-Z]/g, (letter) => `_${letter}`).toUpperCase();
+
 const toLocalDateTimeInput = (value?: string | null) => {
   if (!value) return undefined;
   const date = new Date(value);
@@ -155,6 +170,7 @@ export const toPublicCatalogConfig = (catalog: AdminCatalog): PublicCatalogConfi
   title: catalog.title,
   description: catalog.description ?? '',
   coverImageUrl: catalog.coverImageUrl ?? '',
+  ...publicCatalogExperienceFromWire(catalog),
   contactCtaLabel: catalog.contactCtaLabel,
   contactMethod: catalog.contactMethod,
   contactValue: catalog.contactValue ?? '',
@@ -192,6 +208,12 @@ const payload = (config: PublicCatalogConfig, products: SalesCatalogItem[]) => (
   title: config.title,
   description: config.description,
   coverImageUrl: config.coverImageUrl || null,
+  experienceProfile: toWireOption(config.experienceProfile),
+  accentColor: config.accentColor.toUpperCase(),
+  heroStyle: toWireOption(config.heroStyle),
+  layoutStyle: toWireOption(config.layoutStyle),
+  cardStyle: toWireOption(config.cardStyle),
+  imageRatio: toWireOption(config.imageRatio),
   contactCtaLabel: config.contactCtaLabel,
   contactMethod: config.contactMethod,
   contactValue: config.contactValue || null,

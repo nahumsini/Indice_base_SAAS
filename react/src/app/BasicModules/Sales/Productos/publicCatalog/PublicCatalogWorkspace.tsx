@@ -22,6 +22,7 @@ import { calculateAutomaticDiscounts } from '../../../PointOfSale/shared/commerc
 import { mapDiscountRule, type DiscountRuleWire } from '../../../PointOfSale/shared/commercial/discounts/services/discountRulesApi';
 import { downloadReferenceProductImages } from './utils/publicCatalogImageDownloads';
 import { buildPublicCatalogProductUrl, buildWhatsAppShareUrl, publicCatalogProductAnchorId } from './utils/publicCatalogSharing';
+import { getPublicCatalogExperienceStyle } from './utils/publicCatalogExperience';
 
 type PublicCatalogWorkspaceProps = {
   config: PublicCatalogConfig;
@@ -93,6 +94,7 @@ export function PublicCatalogWorkspace({
     'publicCatalog',
   );
   const estimatedTotal = automaticDiscount.total;
+  const experienceStyle = getPublicCatalogExperienceStyle(config);
 
   useEffect(() => {
     if (!actionFeedback) return undefined;
@@ -211,7 +213,7 @@ export function PublicCatalogWorkspace({
   };
 
   const workspace = isMobile ? (
-    <div className={`min-h-full w-full min-w-0 overflow-x-hidden bg-slate-50 dark:bg-slate-950 ${cartItems.length > 0 ? 'pb-28' : 'pb-5'}`}>
+    <div style={experienceStyle} className={`min-h-full w-full min-w-0 overflow-x-hidden bg-slate-50 dark:bg-slate-950 ${cartItems.length > 0 ? 'pb-28' : 'pb-5'}`}>
       <PublicCatalogMobileFilters
         search={search}
         category={category}
@@ -261,7 +263,7 @@ export function PublicCatalogWorkspace({
       ) : null}
     </div>
   ) : (
-    <div className="bg-slate-50/80 py-5 dark:bg-slate-950">
+    <div style={experienceStyle} className="bg-slate-50/80 py-5 dark:bg-slate-950">
       <PublicCatalogFilters
         search={search}
         category={category}
@@ -306,7 +308,7 @@ export function PublicCatalogWorkspace({
   return (
     <>
       {embedded ? (
-        <main className="min-h-0 bg-slate-50 dark:bg-slate-950">
+        <main style={experienceStyle} className="min-h-0 bg-slate-50 dark:bg-slate-950">
           <PublicCatalogHeader config={config} itemCount={experienceItems.length} t={t} />
           {workspace}
         </main>

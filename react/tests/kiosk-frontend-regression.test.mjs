@@ -21,6 +21,10 @@ import {
 } from '../src/app/BasicModules/Sales/Productos/publicCatalog/utils/publicCatalogPresentation.ts';
 import { deriveProductSalesReadiness } from '../src/app/BasicModules/Sales/utils/productSalesReadiness.ts';
 import {
+  PUBLIC_CATALOG_EXPERIENCE_PRESETS,
+  getPublicCatalogExperienceStyle,
+} from '../src/app/BasicModules/Sales/Productos/publicCatalog/utils/publicCatalogExperience.ts';
+import {
   getProductImageTargetDimensions,
 } from '../src/app/BasicModules/Sales/Productos/utils/productImageOptimization.ts';
 import {
@@ -369,6 +373,35 @@ test('public catalog removes every forbidden price field before rendering', () =
   assert.equal(retailOnly.publicPrice, 125);
   assert.equal(retailOnly.wholesalePrice, undefined);
   assert.equal(retailOnly.wholesaleMinQuantity, undefined);
+});
+
+test('public catalog visual profiles remain editable, accessible and persisted end to end', async () => {
+  assert.deepEqual(Object.keys(PUBLIC_CATALOG_EXPERIENCE_PRESETS), [
+    'general', 'retail', 'hospitality', 'services', 'foodBeverage', 'wholesale',
+  ]);
+  const style = getPublicCatalogExperienceStyle({ accentColor: '#F8C842' });
+  assert.equal(style['--catalog-accent'], '#F8C842');
+  assert.equal(style['--catalog-accent-contrast'], '#0F172A');
+
+  const root = new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/', import.meta.url);
+  const [api, editor, modal, header, grid, card] = await Promise.all([
+    readFile(new URL('publicCatalogApi.ts', root), 'utf8'),
+    readFile(new URL('PublicCatalogExperienceSettings.tsx', root), 'utf8'),
+    readFile(new URL('PublicCatalogEditorModal.tsx', root), 'utf8'),
+    readFile(new URL('PublicCatalogHeader.tsx', root), 'utf8'),
+    readFile(new URL('PublicCatalogGrid.tsx', root), 'utf8'),
+    readFile(new URL('PublicCatalogCard.tsx', root), 'utf8'),
+  ]);
+  for (const field of ['experienceProfile', 'accentColor', 'heroStyle', 'layoutStyle', 'cardStyle', 'imageRatio']) {
+    assert.match(api, new RegExp(`${field}:`));
+  }
+  assert.match(editor, /type="color"/);
+  assert.match(editor, /aria-pressed=/);
+  assert.match(modal, /modalType="wizard"/);
+  assert.match(modal, /IndiceModalWizardStepper/);
+  assert.match(header, /publicCatalogHeroStyle\(config\.heroStyle/);
+  assert.match(grid, /publicCatalogLayoutClass\[config\.layoutStyle\]/);
+  assert.match(card, /publicCatalogImageRatioClass\[config\.imageRatio\]/);
 });
 
 test('explicit commercial visibility publishes legacy operational items without exposing internal ones', () => {

@@ -27,7 +27,7 @@ export function PublicCatalogFilters({
   onCategoryChange: (value: string) => void;
   onTypeChange: (value: string) => void;
 }) {
-  const selectClassName = 'h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E] dark:border-slate-700 dark:bg-slate-950 dark:text-white';
+  const selectClassName = 'h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-[var(--catalog-accent)] dark:border-slate-700 dark:bg-slate-950 dark:text-white';
 
   return (
     <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -61,7 +61,7 @@ export function PublicCatalogFilters({
             </select>
           </label>
         ) : null}
-        <div className="flex h-11 shrink-0 items-center gap-2 rounded-xl bg-[#FF6B5E]/10 px-3 text-xs font-medium text-[#9F3028] dark:text-[#FF9B91]">
+        <div className="flex h-11 shrink-0 items-center gap-2 rounded-xl bg-[var(--catalog-accent-soft)] px-3 text-xs font-medium text-[var(--catalog-accent-ink)]">
           <SlidersHorizontal className="h-4 w-4" />
           {t.publicCatalog.productsFound(resultCount)}
         </div>

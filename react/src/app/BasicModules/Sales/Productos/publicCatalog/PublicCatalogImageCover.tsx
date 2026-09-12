@@ -37,7 +37,7 @@ export function PublicCatalogImageCover({
   return (
     <button
       type="button"
-      className="group/image relative block h-full w-full overflow-hidden text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#FF6B5E]"
+      className="group/image relative block h-full w-full overflow-hidden text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--catalog-accent)]"
       disabled={!hasGallery}
       onClick={() => onOpenGallery(item)}
       aria-label={t.gallery.open(item.name)}

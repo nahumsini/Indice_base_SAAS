@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,6 +54,12 @@ public class SalesPublicCatalogService {
     public static final String KIOSK_TYPE = "public_catalog";
     private static final BigDecimal MAX_QUANTITY = new BigDecimal("999999.0000");
     private static final BigDecimal MAX_STORED_AMOUNT = new BigDecimal("99999999999.9999");
+    private static final Set<String> EXPERIENCE_PROFILES = Set.of(
+        "GENERAL", "RETAIL", "HOSPITALITY", "SERVICES", "FOOD_BEVERAGE", "WHOLESALE");
+    private static final Set<String> HERO_STYLES = Set.of("SOFT", "SOLID", "COVER");
+    private static final Set<String> LAYOUT_STYLES = Set.of("GRID", "SHOWCASE", "COMPACT");
+    private static final Set<String> CARD_STYLES = Set.of("ELEVATED", "OUTLINED", "MINIMAL");
+    private static final Set<String> IMAGE_RATIOS = Set.of("LANDSCAPE", "SQUARE", "PORTRAIT");
 
     private final SalesPublicCatalogRepository repository;
     private final KioskRegistryService registry;
@@ -291,6 +298,8 @@ public class SalesPublicCatalogService {
             catalog.code(), catalog.companyName(), catalog.companyLogoUrl(),
             catalog.unitName(), catalog.businessName(),
             catalog.title(), catalog.description(), catalog.coverImageUrl(),
+            catalog.experienceProfile(), catalog.accentColor(), catalog.heroStyle(),
+            catalog.layoutStyle(), catalog.cardStyle(), catalog.imageRatio(),
             catalog.contactCtaLabel(), catalog.contactMethod(), catalog.contactValue(),
             catalog.showPrices(), catalog.showWholesalePrices(), catalog.showStockStatus(),
             catalog.showItemTypeBadges(), catalog.showCategories(), catalog.allowCart(),
@@ -440,6 +449,11 @@ public class SalesPublicCatalogService {
         var companyId = access.companyId();
         requireFuture(request.expiresAt());
         validateContactMethod(request.contactMethod());
+        validateOption(request.experienceProfile(), EXPERIENCE_PROFILES, "experienceProfile");
+        validateOption(request.heroStyle(), HERO_STYLES, "heroStyle");
+        validateOption(request.layoutStyle(), LAYOUT_STYLES, "layoutStyle");
+        validateOption(request.cardStyle(), CARD_STYLES, "cardStyle");
+        validateOption(request.imageRatio(), IMAGE_RATIOS, "imageRatio");
         if (request.unitId() == null || request.businessId() == null) {
             throw new IllegalArgumentException("Business Unit and Business are required.");
         }
@@ -503,7 +517,9 @@ public class SalesPublicCatalogService {
             row.unitId(), row.unitName(),
             row.businessId(), row.businessName(),
             row.code(), row.name(), row.title(), row.description(),
-            row.coverImageUrl(), row.contactCtaLabel(), row.contactMethod(), row.contactValue(),
+            row.coverImageUrl(), row.experienceProfile(), row.accentColor(), row.heroStyle(),
+            row.layoutStyle(), row.cardStyle(), row.imageRatio(),
+            row.contactCtaLabel(), row.contactMethod(), row.contactValue(),
             effectiveStatus(row), row.expiresAt(), row.tokenHint(), token,
             token == null ? null : "/public-catalog/" + token,
             row.showPrices(), row.showWholesalePrices(), row.showStockStatus(),
@@ -621,6 +637,14 @@ public class SalesPublicCatalogService {
             throw new IllegalArgumentException("Unsupported catalog status.");
         }
         return status;
+    }
+
+    private void validateOption(String value, Set<String> supported, String field) {
+        if (value == null || value.isBlank()) return;
+        var normalized = value.trim().toUpperCase(Locale.ROOT);
+        if (!supported.contains(normalized)) {
+            throw new IllegalArgumentException("Unsupported " + field + ".");
+        }
     }
 
     private void validateContactMethod(String value) {

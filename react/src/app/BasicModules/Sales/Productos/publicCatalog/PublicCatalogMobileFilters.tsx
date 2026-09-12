@@ -29,8 +29,8 @@ export function PublicCatalogMobileFilters({
 }) {
   const chipClassName = (active: boolean) => (
     `h-9 shrink-0 rounded-full border px-3 text-xs font-medium transition ${active
-      ? 'border-[#FF6B5E] bg-[#FF6B5E] text-[#222831] shadow-sm'
-      : 'border-slate-200 bg-white text-slate-600 hover:border-[#FF6B5E]/40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300'}`
+      ? 'border-[var(--catalog-accent)] bg-[var(--catalog-accent)] text-[var(--catalog-accent-contrast)] shadow-sm'
+      : 'border-slate-200 bg-white text-slate-600 hover:border-[var(--catalog-accent-border)] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300'}`
   );
 
   return (

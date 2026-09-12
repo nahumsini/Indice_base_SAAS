@@ -1,6 +1,7 @@
 import type { ProductsTranslations } from '../translations';
 import type { PublicCatalogConfig, PublicCatalogItem } from './types/publicCatalogTypes';
 import { PublicCatalogCard } from './PublicCatalogCard';
+import { publicCatalogLayoutClass } from './utils/publicCatalogExperience';
 
 export function PublicCatalogGrid({
   items,
@@ -35,7 +36,7 @@ export function PublicCatalogGrid({
 
   return (
     <section className="min-w-0">
-      <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+      <div className={`grid gap-4 ${publicCatalogLayoutClass[config.layoutStyle]}`}>
         {items.map((item) => (
           <PublicCatalogCard
             key={item.id}

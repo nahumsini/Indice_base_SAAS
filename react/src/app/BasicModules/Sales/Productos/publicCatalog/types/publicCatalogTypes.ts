@@ -4,6 +4,11 @@ export type PublicCatalogContactMethod = 'whatsapp' | 'email' | 'phone' | 'websi
 export type PublicCatalogAppliedPriceType = 'public' | 'wholesale';
 export type PublicInventoryStatus = 'inStock' | 'lowStock' | 'madeToOrder' | 'noInventoryTracking' | 'serviceAvailability' | 'askAvailability';
 export type PublicCatalogStatus = 'draft' | 'active' | 'disabled' | 'revoked' | 'expired';
+export type PublicCatalogExperienceProfile = 'general' | 'retail' | 'hospitality' | 'services' | 'foodBeverage' | 'wholesale';
+export type PublicCatalogHeroStyle = 'soft' | 'solid' | 'cover';
+export type PublicCatalogLayoutStyle = 'grid' | 'showcase' | 'compact';
+export type PublicCatalogCardStyle = 'elevated' | 'outlined' | 'minimal';
+export type PublicCatalogImageRatio = 'landscape' | 'square' | 'portrait';
 
 export type PublicCatalogImage = {
   url: string;
@@ -23,6 +28,12 @@ export type PublicCatalogConfig = {
   title: string;
   description: string;
   coverImageUrl: string;
+  experienceProfile: PublicCatalogExperienceProfile;
+  accentColor: string;
+  heroStyle: PublicCatalogHeroStyle;
+  layoutStyle: PublicCatalogLayoutStyle;
+  cardStyle: PublicCatalogCardStyle;
+  imageRatio: PublicCatalogImageRatio;
   contactCtaLabel: string;
   contactMethod: PublicCatalogContactMethod;
   contactValue: string;

@@ -2211,7 +2211,29 @@ El Engine v2 se considera establecido cuando:
 
 ---
 
-## 32. Decisiones cerradas
+## 32. Decisión de producto: experiencia visual del Catálogo Público
+
+- El Catálogo Público continúa siendo propiedad funcional de Ventas y usa una sola implementación
+  sobre Kiosk Engine. Los perfiles de negocio no crean rutas, permisos, motores ni modelos de compra
+  paralelos.
+- Cada catálogo persiste un perfil de experiencia y controles visuales explícitos: color de marca,
+  tratamiento de portada, distribución, acabado de tarjeta y proporción de imagen.
+- Los perfiles iniciales son general, tienda, hospedaje, servicios, alimentos y bebidas, y mayoreo.
+  Un perfil aplica valores sugeridos que el administrador puede ajustar después; no altera precios,
+  inventario, disponibilidad, productos seleccionados, solicitudes ni políticas de publicación.
+- La configuración visual forma parte del bootstrap público porque es necesaria para renderizar el
+  kiosco. No contiene IDs internos, secretos, reglas de autorización ni datos de alcance adicionales.
+- El color personalizado se valida como hexadecimal de seis dígitos. El frontend deriva contraste,
+  superficies y estados de enfoque accesibles a partir de ese valor; no acepta CSS arbitrario.
+- Los catálogos existentes conservan la presentación general coral, cuadrícula equilibrada, tarjetas
+  elevadas e imágenes horizontales mediante valores predeterminados en la migración.
+- El editor se clasifica como **Modal Wizard Índice** con cuatro etapas dependientes: identidad,
+  apariencia, funciones y productos con revisión final. Guardar conserva concurrencia optimista y
+  todas las validaciones y límites de alcance del contrato administrativo existente.
+
+---
+
+## 33. Decisiones cerradas
 
 - El kiosko pertenece inicialmente a un módulo.
 - Se prepara extensión futura controlada entre módulos.
@@ -2281,7 +2303,7 @@ El Engine v2 se considera establecido cuando:
 
 ---
 
-## 33. Regla de implementación
+## 34. Regla de implementación
 
 Ninguna fase debe comenzar eliminando infraestructura legacy. Primero se agregan contratos, pruebas y adaptadores; después se enruta tráfico bajo feature flag; finalmente se retira duplicación solo cuando exista evidencia de paridad.
 

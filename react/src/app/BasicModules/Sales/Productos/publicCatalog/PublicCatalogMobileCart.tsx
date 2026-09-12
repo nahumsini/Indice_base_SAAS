@@ -46,7 +46,7 @@ export function PublicCatalogMobileCart({
     <>
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 pb-[calc(.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_30px_rgba(15,23,42,.12)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 md:hidden">
         <div className="mx-auto flex max-w-md items-center gap-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#FF6B5E]/10 text-[#B63B32]">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--catalog-accent-soft)] text-[var(--catalog-accent-ink)]">
             <ShoppingBag className="h-5 w-5" />
           </span>
           <div className="min-w-0 flex-1">
@@ -55,7 +55,7 @@ export function PublicCatalogMobileCart({
               {config.showPrices ? formatProductCurrency(total, currency) : t.publicCatalog.pricePending}
             </p>
           </div>
-          <Button type="button" className="h-11 shrink-0 rounded-xl bg-[#FF6B5E] px-4 font-medium text-[#222831] hover:bg-[#E85C50]" onClick={() => onOpenChange(true)}>
+          <Button type="button" className="h-11 shrink-0 rounded-xl bg-[var(--catalog-accent)] px-4 font-medium text-[var(--catalog-accent-contrast)] hover:bg-[var(--catalog-accent-hover)]" onClick={() => onOpenChange(true)}>
             {t.publicCatalog.viewCart}
           </Button>
         </div>

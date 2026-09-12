@@ -118,7 +118,8 @@ class SalesPublicCatalogRepositoryTest {
         var now = Instant.parse("2026-07-18T12:00:00Z");
         return new SalesPublicCatalogRepository.CatalogRecord(
             17L, 7L, "Empresa", null, 11L, "Unidad", 12L, "Negocio", "CATALOGO-2026",
-            "Catálogo 2026", "Catálogo público", null, null, "Contactar", "email",
+            "Catálogo 2026", "Catálogo público", null, null,
+            "GENERAL", "#FF6B5E", "SOFT", "GRID", "ELEVATED", "LANDSCAPE", "Contactar", "email",
             "ventas@example.com", "ACTIVE", null, "tokenhint", null, true, false, true,
             true, true, true, true, false, 1L, now, now);
     }

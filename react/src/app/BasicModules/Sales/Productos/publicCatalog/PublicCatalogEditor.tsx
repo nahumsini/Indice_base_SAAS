@@ -6,6 +6,9 @@ import type { ProductsTranslations } from '../translations';
 import type { PublicCatalogConfig, PublicCatalogContactMethod } from './types/publicCatalogTypes';
 import { PublicCatalogProductSelector } from './PublicCatalogProductSelector';
 import { PublicCatalogVisibilitySettings } from './PublicCatalogVisibilitySettings';
+import { PublicCatalogExperienceSettings } from './PublicCatalogExperienceSettings';
+
+export type PublicCatalogEditorStep = 'identity' | 'appearance' | 'features' | 'products';
 
 export function PublicCatalogEditor({
   catalog,
@@ -13,6 +16,7 @@ export function PublicCatalogEditor({
   units,
   businesses,
   t,
+  step,
   onChange,
 }: {
   catalog: PublicCatalogConfig | null;
@@ -20,6 +24,7 @@ export function PublicCatalogEditor({
   units: Array<{ id: number; name: string }>;
   businesses: Array<{ id: number; unitId: number; name: string }>;
   t: ProductsTranslations;
+  step: PublicCatalogEditorStep;
   onChange: (patch: Partial<PublicCatalogConfig>) => void;
 }) {
   const availableBusinesses = catalog?.unitId
@@ -44,82 +49,25 @@ export function PublicCatalogEditor({
       ? 'url'
       : 'tel';
 
-  return (
-    <section className="bg-white">
-      <div className="space-y-4 p-4 sm:p-5">
-        <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-          <div>
-            <h3 className="text-lg font-medium text-slate-950">{t.publicCatalog.identity}</h3>
-            <p className="mt-1 text-sm text-slate-500">{t.publicCatalog.configDescription}</p>
-          </div>
-          <div className="mt-4 grid min-w-0 gap-3 md:grid-cols-2">
-            <label className="grid gap-1.5">
-              <span className="text-xs font-medium text-slate-500">{t.publicCatalog.unitLabel}</span>
-              <Select
-                value={catalog.unitId ? String(catalog.unitId) : undefined}
-                onValueChange={(value) => onChange({ unitId: Number(value), businessId: undefined })}
-              >
-                <SelectTrigger className="h-10 bg-slate-50 shadow-none"><SelectValue placeholder={t.publicCatalog.selectUnit} /></SelectTrigger>
-                <SelectContent>
-                  {units.map((unit) => <SelectItem key={unit.id} value={String(unit.id)}>{unit.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </label>
-            <label className="grid gap-1.5">
-              <span className="text-xs font-medium text-slate-500">{t.publicCatalog.businessLabel}</span>
-              <Select
-                disabled={!catalog.unitId}
-                value={catalog.businessId ? String(catalog.businessId) : undefined}
-                onValueChange={(value) => onChange({ businessId: Number(value) })}
-              >
-                <SelectTrigger className="h-10 bg-slate-50 shadow-none"><SelectValue placeholder={t.publicCatalog.selectBusiness} /></SelectTrigger>
-                <SelectContent>
-                  {availableBusinesses.map((business) => <SelectItem key={business.id} value={String(business.id)}>{business.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </label>
-            <label className="grid gap-1.5">
-              <span className="text-xs font-medium text-slate-500">{t.publicCatalog.catalogTitle}</span>
-              <Input className="h-10 bg-slate-50 shadow-none" value={catalog.title} onChange={(event) => onChange({ title: event.target.value })} placeholder={t.publicCatalog.catalogTitle} />
-            </label>
-            <label className="grid gap-1.5">
-              <span className="text-xs font-medium text-slate-500">{t.publicCatalog.contactMethod}</span>
-              <Select
-                value={catalog.contactMethod}
-                onValueChange={(value) => onChange({
-                  contactMethod: value as PublicCatalogContactMethod,
-                  contactValue: '',
-                })}
-              >
-                <SelectTrigger className="h-10 bg-slate-50 shadow-none"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="whatsapp">{t.publicCatalog.contactMethods.whatsapp}</SelectItem>
-                  <SelectItem value="email">{t.publicCatalog.contactMethods.email}</SelectItem>
-                  <SelectItem value="phone">{t.publicCatalog.contactMethods.phone}</SelectItem>
-                  <SelectItem value="website">{t.publicCatalog.contactMethods.website}</SelectItem>
-                </SelectContent>
-              </Select>
-            </label>
-            <label className="grid gap-1.5">
-              <span className="text-xs font-medium text-slate-500">{contactField.label}</span>
-              <Input
-                className="h-10 bg-slate-50 shadow-none"
-                type={contactInputType}
-                inputMode={contactInputType === 'email' ? 'email' : contactInputType === 'url' ? 'url' : 'tel'}
-                autoComplete={contactInputType === 'email' ? 'email' : contactInputType === 'url' ? 'url' : 'tel'}
-                value={catalog.contactValue}
-                onChange={(event) => onChange({ contactValue: event.target.value })}
-                placeholder={contactField.placeholder}
-              />
-            </label>
-            <label className="grid gap-1.5 md:col-span-2">
-              <span className="text-xs font-medium text-slate-500">{t.publicCatalog.catalogDescription}</span>
-              <Textarea className="min-h-20 resize-none bg-slate-50 shadow-none" value={catalog.description} onChange={(event) => onChange({ description: event.target.value })} placeholder={t.publicCatalog.catalogDescription} />
-            </label>
-          </div>
-        </section>
+  if (step === 'appearance') {
+    return <PublicCatalogExperienceSettings catalog={catalog} t={t} onChange={onChange} />;
+  }
 
-        <PublicCatalogVisibilitySettings catalog={catalog} t={t} onChange={onChange} />
+  if (step === 'features') {
+    return <PublicCatalogVisibilitySettings catalog={catalog} t={t} onChange={onChange} />;
+  }
+
+  if (step === 'products') {
+    return (
+      <div className="space-y-4">
+        <section className="rounded-2xl border border-[var(--catalog-accent-border)] bg-[var(--catalog-accent-soft)] p-4">
+          <h3 className="text-sm font-medium text-slate-950">{t.publicCatalog.review.title}</h3>
+          <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+            <div><dt className="text-xs text-slate-500">{t.publicCatalog.catalogTitle}</dt><dd className="mt-1 truncate font-medium text-slate-950">{catalog.title}</dd></div>
+            <div><dt className="text-xs text-slate-500">{t.publicCatalog.experience.profileTitle}</dt><dd className="mt-1 font-medium text-slate-950">{t.publicCatalog.experience.profiles[catalog.experienceProfile].label}</dd></div>
+            <div><dt className="text-xs text-slate-500">{t.publicCatalog.selectedProductsLabel}</dt><dd className="mt-1 font-medium text-slate-950">{catalog.selectedProductIds.length}</dd></div>
+          </dl>
+        </section>
         <PublicCatalogProductSelector
           products={products}
           selectedProductIds={catalog.selectedProductIds}
@@ -128,6 +76,63 @@ export function PublicCatalogEditor({
           onSelectedProductIdsChange={(selectedProductIds) => onChange({ selectedProductIds })}
           onSelectedCategoryIdsChange={(selectedCategoryIds) => onChange({ selectedCategoryIds })}
         />
+      </div>
+    );
+  }
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+      <div>
+        <h3 className="text-lg font-medium text-slate-950">{t.publicCatalog.identity}</h3>
+        <p className="mt-1 text-sm text-slate-500">{t.publicCatalog.wizard.descriptions.identity}</p>
+      </div>
+      <div className="mt-4 grid min-w-0 gap-3 md:grid-cols-2">
+        <label className="grid gap-1.5">
+          <span className="text-xs font-medium text-slate-500">{t.publicCatalog.unitLabel} *</span>
+          <Select value={catalog.unitId ? String(catalog.unitId) : undefined} onValueChange={(value) => onChange({ unitId: Number(value), businessId: undefined })}>
+            <SelectTrigger className="h-10 bg-slate-50 shadow-none"><SelectValue placeholder={t.publicCatalog.selectUnit} /></SelectTrigger>
+            <SelectContent>{units.map((unit) => <SelectItem key={unit.id} value={String(unit.id)}>{unit.name}</SelectItem>)}</SelectContent>
+          </Select>
+        </label>
+        <label className="grid gap-1.5">
+          <span className="text-xs font-medium text-slate-500">{t.publicCatalog.businessLabel} *</span>
+          <Select disabled={!catalog.unitId} value={catalog.businessId ? String(catalog.businessId) : undefined} onValueChange={(value) => onChange({ businessId: Number(value) })}>
+            <SelectTrigger className="h-10 bg-slate-50 shadow-none"><SelectValue placeholder={t.publicCatalog.selectBusiness} /></SelectTrigger>
+            <SelectContent>{availableBusinesses.map((business) => <SelectItem key={business.id} value={String(business.id)}>{business.name}</SelectItem>)}</SelectContent>
+          </Select>
+        </label>
+        <label className="grid gap-1.5">
+          <span className="text-xs font-medium text-slate-500">{t.publicCatalog.catalogTitle} *</span>
+          <Input className="h-10 bg-slate-50 shadow-none" value={catalog.title} onChange={(event) => onChange({ title: event.target.value })} placeholder={t.publicCatalog.catalogTitle} />
+        </label>
+        <label className="grid gap-1.5">
+          <span className="text-xs font-medium text-slate-500">{t.publicCatalog.ctaLabelField} *</span>
+          <Input className="h-10 bg-slate-50 shadow-none" value={catalog.contactCtaLabel} onChange={(event) => onChange({ contactCtaLabel: event.target.value })} placeholder={t.publicCatalog.contactCta} />
+        </label>
+        <label className="grid gap-1.5">
+          <span className="text-xs font-medium text-slate-500">{t.publicCatalog.contactMethod}</span>
+          <Select value={catalog.contactMethod} onValueChange={(value) => onChange({ contactMethod: value as PublicCatalogContactMethod, contactValue: '' })}>
+            <SelectTrigger className="h-10 bg-slate-50 shadow-none"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="whatsapp">{t.publicCatalog.contactMethods.whatsapp}</SelectItem>
+              <SelectItem value="email">{t.publicCatalog.contactMethods.email}</SelectItem>
+              <SelectItem value="phone">{t.publicCatalog.contactMethods.phone}</SelectItem>
+              <SelectItem value="website">{t.publicCatalog.contactMethods.website}</SelectItem>
+            </SelectContent>
+          </Select>
+        </label>
+        <label className="grid gap-1.5">
+          <span className="text-xs font-medium text-slate-500">{contactField.label} *</span>
+          <Input className="h-10 bg-slate-50 shadow-none" type={contactInputType} inputMode={contactInputType === 'email' ? 'email' : contactInputType === 'url' ? 'url' : 'tel'} autoComplete={contactInputType === 'email' ? 'email' : contactInputType === 'url' ? 'url' : 'tel'} value={catalog.contactValue} onChange={(event) => onChange({ contactValue: event.target.value })} placeholder={contactField.placeholder} />
+        </label>
+        <label className="grid gap-1.5 md:col-span-2">
+          <span className="text-xs font-medium text-slate-500">{t.publicCatalog.coverImagePlaceholder}</span>
+          <Input className="h-10 bg-slate-50 shadow-none" type="url" value={catalog.coverImageUrl} onChange={(event) => onChange({ coverImageUrl: event.target.value })} placeholder="https://" />
+        </label>
+        <label className="grid gap-1.5 md:col-span-2">
+          <span className="text-xs font-medium text-slate-500">{t.publicCatalog.catalogDescription}</span>
+          <Textarea className="min-h-24 resize-none bg-slate-50 shadow-none" value={catalog.description} onChange={(event) => onChange({ description: event.target.value })} placeholder={t.publicCatalog.catalogDescription} />
+        </label>
       </div>
     </section>
   );

@@ -36,7 +36,7 @@ export function PublicCatalogMobileCard({
   return (
     <article
       id={publicCatalogProductAnchorId(item.id)}
-      className="w-full min-w-0 scroll-mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition active:scale-[.995] target:border-[#FF6B5E] target:ring-2 target:ring-[#FF6B5E]/30 dark:border-slate-800 dark:bg-slate-900"
+      className="w-full min-w-0 scroll-mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition active:scale-[.995] target:border-[var(--catalog-accent)] target:ring-2 target:ring-[var(--catalog-accent-border)] dark:border-slate-800 dark:bg-slate-900"
     >
       <div className="flex min-w-0 gap-3 p-3">
         <div className="h-28 w-[6.5rem] shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-950">
@@ -74,7 +74,7 @@ export function PublicCatalogMobileCard({
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-11 w-full min-w-0 rounded-xl px-3 text-xs font-medium text-[#9f332b]"
+                  className="h-11 w-full min-w-0 rounded-xl px-3 text-xs font-medium text-[var(--catalog-accent-ink)]"
                   onClick={() => onCheckAvailability(item)}
                 >
                   <CalendarDays className="h-4 w-4" /> {t.publicCatalog.availability.check}
@@ -110,7 +110,7 @@ export function PublicCatalogMobileCard({
                   <Button
                     type="button"
                     size="icon"
-                    className="h-11 w-11 shrink-0 rounded-xl bg-[#FF6B5E] text-[#222831] shadow-sm hover:bg-[#E85C50]"
+                    className="h-11 w-11 shrink-0 rounded-xl bg-[var(--catalog-accent)] text-[var(--catalog-accent-contrast)] shadow-sm hover:bg-[var(--catalog-accent-hover)]"
                     aria-label={config.allowCart ? t.publicCatalog.addToCart : t.publicCatalog.requestQuote}
                     onClick={() => onAddToCart(item)}
                   >

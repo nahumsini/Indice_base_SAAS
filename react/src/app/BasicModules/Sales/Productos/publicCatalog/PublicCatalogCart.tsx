@@ -37,7 +37,7 @@ export function PublicCatalogCart({
       ? 'bg-white px-4 pb-5 pt-2 dark:bg-slate-950'
       : 'rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:sticky lg:top-5'}>
       <h2 className="flex items-center gap-2 text-lg font-medium text-slate-950 dark:text-white">
-        <ShoppingBag className="h-5 w-5 text-[#FF6B5E]" />
+        <ShoppingBag className="h-5 w-5 text-[var(--catalog-accent)]" />
         {t.publicCatalog.cart}
       </h2>
       <p className="mt-1 text-sm font-medium leading-5 text-slate-500 dark:text-slate-400">{t.publicCatalog.cartHelper}</p>
@@ -65,7 +65,7 @@ export function PublicCatalogCart({
                     {pricedItem.appliedPriceType === 'wholesale' ? t.publicCatalog.wholesalePrice : t.publicCatalog.publicPrice}
                   </p>
                 </div>
-                <Button variant="ghost" size="sm" className="h-11 w-11 p-0 text-[#B63B32]" aria-label={t.publicCatalog.removeCartItem(item.name)} onClick={() => onRemoveItem(item.id)}>
+                <Button variant="ghost" size="sm" className="h-11 w-11 p-0 text-[var(--catalog-accent-ink)]" aria-label={t.publicCatalog.removeCartItem(item.name)} onClick={() => onRemoveItem(item.id)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -95,7 +95,7 @@ export function PublicCatalogCart({
         })}
       </div>
 
-      <div className="mt-4 rounded-xl border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-3">
+      <div className="mt-4 rounded-xl border border-[var(--catalog-accent-border)] bg-[var(--catalog-accent-soft)] p-3">
         {discountAmount > 0 ? (
           <div className="mb-2 flex items-center justify-between text-sm font-medium text-emerald-700">
             <span>{t.publicCatalog.discount}</span>
@@ -104,18 +104,18 @@ export function PublicCatalogCart({
         ) : null}
         <div className="flex items-center justify-between text-lg">
           <span className="font-medium text-slate-950 dark:text-white">{t.publicCatalog.estimatedTotal}</span>
-          <span className="font-medium text-[#B63B32] dark:text-[#FF9B91]">
+          <span className="font-medium text-[var(--catalog-accent-ink)]">
             {config.showPrices ? formatProductCurrency(total, totalCurrency) : t.publicCatalog.pricePending}
           </span>
         </div>
         <p className="mt-2 text-xs font-medium leading-5 text-slate-600 dark:text-slate-300">{t.publicCatalog.taxAvailabilityNote}</p>
         {config.showOnlinePaymentComingSoon ? (
-          <p className="mt-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-[#B63B32] dark:bg-slate-950 dark:text-[#FF9B91]">{t.publicCatalog.onlinePaymentComingSoon}</p>
+          <p className="mt-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-[var(--catalog-accent-ink)] dark:bg-slate-950">{t.publicCatalog.onlinePaymentComingSoon}</p>
         ) : null}
       </div>
 
       {config.allowPurchaseRequest ? (
-        <Button className="mt-4 h-11 w-full rounded-lg bg-[#FF6B5E] font-medium text-[#222831] hover:bg-[#E85C50]" onClick={onRequestPurchase} disabled={cartItems.length === 0}>
+        <Button className="mt-4 h-11 w-full rounded-lg bg-[var(--catalog-accent)] font-medium text-[var(--catalog-accent-contrast)] hover:bg-[var(--catalog-accent-hover)]" onClick={onRequestPurchase} disabled={cartItems.length === 0}>
           {t.publicCatalog.requestPurchase}
         </Button>
       ) : null}

@@ -60,11 +60,12 @@ public class SalesPublicCatalogRepository {
             var statement = connection.prepareStatement("""
                 INSERT INTO sales_public_catalogs (
                     company_id, unit_id, business_id, code, name, title, description, cover_image_url,
+                    experience_profile, accent_color, hero_style, layout_style, card_style, image_ratio,
                     contact_cta_label, contact_method, contact_value, status, expires_at,
                     public_token_hint, protected_public_token, show_prices, show_wholesale_prices, show_stock_status,
                     show_item_type_badges, show_categories, allow_cart, allow_purchase_request, allow_image_downloads,
                     created_by_user_id, updated_by_user_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, Statement.RETURN_GENERATED_KEYS);
             var index = 1;
             statement.setLong(index++, companyId);
@@ -75,6 +76,12 @@ public class SalesPublicCatalogRepository {
             statement.setString(index++, request.title().trim());
             statement.setString(index++, trim(request.description()));
             statement.setString(index++, trim(request.coverImageUrl()));
+            statement.setString(index++, normalize(request.experienceProfile(), "GENERAL"));
+            statement.setString(index++, normalizeColor(request.accentColor()));
+            statement.setString(index++, normalize(request.heroStyle(), "SOFT"));
+            statement.setString(index++, normalize(request.layoutStyle(), "GRID"));
+            statement.setString(index++, normalize(request.cardStyle(), "ELEVATED"));
+            statement.setString(index++, normalize(request.imageRatio(), "LANDSCAPE"));
             statement.setString(index++, request.contactCtaLabel().trim());
             statement.setString(index++, request.contactMethod().trim().toLowerCase());
             statement.setString(index++, trim(request.contactValue()));
@@ -105,6 +112,9 @@ public class SalesPublicCatalogRepository {
         return jdbcTemplate.update("""
             UPDATE sales_public_catalogs
             SET unit_id = ?, business_id = ?, name = ?, title = ?, description = ?, cover_image_url = ?,
+                experience_profile = COALESCE(?, experience_profile), accent_color = COALESCE(?, accent_color),
+                hero_style = COALESCE(?, hero_style), layout_style = COALESCE(?, layout_style),
+                card_style = COALESCE(?, card_style), image_ratio = COALESCE(?, image_ratio),
                 contact_cta_label = ?, contact_method = ?, contact_value = ?, expires_at = ?,
                 show_prices = ?, show_wholesale_prices = ?, show_stock_status = ?,
                 show_item_type_badges = ?, show_categories = ?, allow_cart = ?,
@@ -114,7 +124,10 @@ public class SalesPublicCatalogRepository {
               AND status <> 'REVOKED'
             """,
             request.unitId(), request.businessId(), request.name().trim(), request.title().trim(), trim(request.description()),
-            trim(request.coverImageUrl()), request.contactCtaLabel().trim(),
+            trim(request.coverImageUrl()), normalizeNullable(request.experienceProfile()),
+            normalizeColorNullable(request.accentColor()), normalizeNullable(request.heroStyle()),
+            normalizeNullable(request.layoutStyle()), normalizeNullable(request.cardStyle()),
+            normalizeNullable(request.imageRatio()), request.contactCtaLabel().trim(),
             request.contactMethod().trim().toLowerCase(), trim(request.contactValue()),
             timestamp(request.expiresAt()), defaultTrue(request.showPrices()),
             Boolean.TRUE.equals(request.showWholesalePrices()), defaultTrue(request.showStockStatus()),
@@ -621,6 +634,9 @@ public class SalesPublicCatalogRepository {
             rs.getString("unit_name"), rs.getObject("business_id", Long.class),
             rs.getString("business_name"), rs.getString("code"), rs.getString("name"),
             rs.getString("title"), rs.getString("description"), rs.getString("cover_image_url"),
+            rs.getString("experience_profile"), rs.getString("accent_color"),
+            rs.getString("hero_style"), rs.getString("layout_style"),
+            rs.getString("card_style"), rs.getString("image_ratio"),
             rs.getString("contact_cta_label"), rs.getString("contact_method"),
             rs.getString("contact_value"), rs.getString("status"), instant(rs, "expires_at"),
             rs.getString("public_token_hint"), rs.getString("protected_public_token"),
@@ -676,6 +692,24 @@ public class SalesPublicCatalogRepository {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
+    private static String normalize(String value, String fallback) {
+        var normalized = normalizeNullable(value);
+        return normalized == null ? fallback : normalized;
+    }
+
+    private static String normalizeNullable(String value) {
+        return value == null || value.isBlank() ? null : value.trim().toUpperCase(java.util.Locale.ROOT);
+    }
+
+    private static String normalizeColor(String value) {
+        var normalized = normalizeColorNullable(value);
+        return normalized == null ? "#FF6B5E" : normalized;
+    }
+
+    private static String normalizeColorNullable(String value) {
+        return value == null || value.isBlank() ? null : value.trim().toUpperCase(java.util.Locale.ROOT);
+    }
+
     static String publicCategory(String value) {
         return value == null || value.isBlank() ? "Other" : value.trim();
     }
@@ -706,6 +740,12 @@ public class SalesPublicCatalogRepository {
         String title,
         String description,
         String coverImageUrl,
+        String experienceProfile,
+        String accentColor,
+        String heroStyle,
+        String layoutStyle,
+        String cardStyle,
+        String imageRatio,
         String contactCtaLabel,
         String contactMethod,
         String contactValue,

@@ -9,6 +9,7 @@ import { PublicCatalogExpandableDescription } from './PublicCatalogExpandableDes
 import { PublicCatalogImageCover } from './PublicCatalogImageCover';
 import { publicCatalogImages } from './utils/publicCatalogPresentation';
 import { publicCatalogProductAnchorId } from './utils/publicCatalogSharing';
+import { publicCatalogCardClass, publicCatalogImageRatioClass } from './utils/publicCatalogExperience';
 
 export function PublicCatalogCard({
   item,
@@ -36,9 +37,9 @@ export function PublicCatalogCard({
   return (
     <article
       id={publicCatalogProductAnchorId(item.id)}
-      className="group flex h-full min-w-0 scroll-mt-6 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#FF6B5E]/35 hover:shadow-lg hover:shadow-slate-200/60 target:border-[#FF6B5E] target:ring-2 target:ring-[#FF6B5E]/30 dark:border-slate-800 dark:bg-slate-900 dark:hover:shadow-none"
+      className={`group flex h-full min-w-0 scroll-mt-6 flex-col overflow-hidden border bg-white transition duration-200 target:border-[var(--catalog-accent)] target:ring-2 target:ring-[var(--catalog-accent-border)] dark:border-slate-800 dark:bg-slate-900 dark:hover:shadow-none ${publicCatalogCardClass[config.cardStyle]}`}
     >
-      <div className="relative aspect-[16/10] overflow-hidden bg-slate-100 dark:bg-slate-950">
+      <div className={`relative overflow-hidden bg-slate-100 dark:bg-slate-950 ${publicCatalogImageRatioClass[config.imageRatio]}`}>
         <PublicCatalogImageCover item={item} t={t} onOpenGallery={onOpenGallery} />
         <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
           {config.showStockStatus ? (
@@ -78,7 +79,7 @@ export function PublicCatalogCard({
               <Button
                 type="button"
                 variant="outline"
-                className="h-10 rounded-xl px-3 text-xs font-medium text-[#9f332b] hover:bg-[#FF6B5E]/10"
+                className="h-10 rounded-xl px-3 text-xs font-medium text-[var(--catalog-accent-ink)] hover:bg-[var(--catalog-accent-soft)]"
                 onClick={() => onCheckAvailability(item)}
               >
                 <CalendarDays className="h-4 w-4" /> {t.publicCatalog.availability.check}
@@ -90,7 +91,7 @@ export function PublicCatalogCard({
                   type="button"
                   size="icon"
                   variant="outline"
-                  className="h-11 w-11 shrink-0 rounded-xl text-slate-600 hover:border-[#FF6B5E]/50 hover:bg-[#FF6B5E]/10 hover:text-[#9f332b]"
+                  className="h-11 w-11 shrink-0 rounded-xl text-slate-600 hover:border-[var(--catalog-accent-border)] hover:bg-[var(--catalog-accent-soft)] hover:text-[var(--catalog-accent-ink)]"
                   aria-label={downloadingImages ? t.publicCatalog.imageDownloads.downloading : t.publicCatalog.imageDownloads.action}
                   title={t.publicCatalog.imageDownloads.action}
                   disabled={downloadingImages}
@@ -114,7 +115,7 @@ export function PublicCatalogCard({
                 <Button
                   type="button"
                   size="icon"
-                  className="h-11 w-11 shrink-0 rounded-xl bg-[#FF6B5E] text-[#222831] shadow-sm hover:bg-[#E85C50]"
+                  className="h-11 w-11 shrink-0 rounded-xl bg-[var(--catalog-accent)] text-[var(--catalog-accent-contrast)] shadow-sm hover:bg-[var(--catalog-accent-hover)]"
                   aria-label={config.allowCart ? t.publicCatalog.addToCart : t.publicCatalog.requestQuote}
                   onClick={() => onAddToCart(item)}
                 >
