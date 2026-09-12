@@ -4,7 +4,7 @@ set -euo pipefail
 image="${1:-indice-erp-backend:ci}"
 backend_container="${CI_SMOKE_BACKEND_CONTAINER:-indice-erp-backend-ci-smoke}"
 minio_container="${CI_SMOKE_MINIO_CONTAINER:-indice-erp-minio-ci-smoke}"
-minio_image="${CI_SMOKE_MINIO_IMAGE:-minio/minio:latest}"
+minio_image="${CI_SMOKE_MINIO_IMAGE:-quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z}"
 minio_root_user="${CI_SMOKE_MINIO_ROOT_USER:-minioadmin}"
 minio_root_password="${CI_SMOKE_MINIO_ROOT_PASSWORD:-minioadmin}"
 server_address="${CI_SMOKE_SERVER_ADDRESS:-127.0.0.1}"
