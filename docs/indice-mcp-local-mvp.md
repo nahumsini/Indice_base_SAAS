@@ -1,5 +1,9 @@
 # Índice MCP: V1 operativa local
 
+> Documento histórico del MVP. El contrato y la matriz de autorización canónicos vigentes están en
+> [`indice-mcp-operating-system-v1.md`](./indice-mcp-operating-system-v1.md). Los conteos de
+> migraciones y pruebas incluidos aquí describen aquella validación y no acreditan una versión actual.
+
 ## Objetivo
 
 Validar el recorrido completo `ChatGPT -> Secure MCP Tunnel -> herramienta de negocio -> API Índice -> base de datos` sin crear un chat propio ni exponer tablas.

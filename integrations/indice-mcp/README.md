@@ -2,6 +2,9 @@
 
 Adaptador MCP para herramientas de negocio de Índice. El servidor llama a la API Spring Boot autenticada; nunca se conecta directamente a MySQL. Las consultas reutilizan los servicios reales y las acciones usan vista previa, confirmación explícita, idempotencia y auditoría.
 
+El contrato canónico, la matriz de autorización y las reglas para ampliar herramientas están en
+[`docs/indice-mcp-operating-system-v1.md`](../../docs/indice-mcp-operating-system-v1.md).
+
 Herramientas disponibles:
 
 - `get_sales_today`: cantidad y total monetario vendido hoy.
@@ -90,6 +93,7 @@ El endpoint local será `http://127.0.0.1:3010/mcp`. Esta versión rechaza backe
 - El MCP no acepta campos de autoridad.
 - Los tokens se guardan en la base solo como SHA-256 y se muestran una vez al crearlos.
 - Los alcances están separados por dominio y por lectura/escritura; expiración máxima de 90 días y revocación inmediata.
+- Si un cliente interno omite la selección de alcances, la conexión nace sólo con lecturas; toda acción debe solicitarse explícitamente.
 - Cada consulta vuelve a validar suscripción, módulo, acceso del usuario y permiso vigente. Ventas también valida el entitlement comercial `sales`.
 - Recursos Humanos omite nómina, documentos, identificadores nacionales, coordenadas, fotos y biometría.
 - Fondos nunca exponen tokens ni URLs de kiosco.

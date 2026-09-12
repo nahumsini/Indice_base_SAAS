@@ -48,12 +48,15 @@ public class AiAccessTokenService {
         INVENTORY_READ,
         EXPENSES_READ,
         PETTY_CASH_READ,
-        RECEIVABLES_READ,
+        RECEIVABLES_READ
+    );
+    private static final Set<String> ACTION_SCOPES = Set.of(
         TASKS_CREATE,
         EXPENSES_CREATE,
         PETTY_CASH_EXPENSE_CREATE,
         PETTY_CASH_DEPOSIT_CREATE
     );
+    private static final Set<String> SUPPORTED_SCOPES = supportedScopes(DEFAULT_SCOPES, ACTION_SCOPES);
     private static final Set<String> OAUTH_IDENTITY_SCOPES = Set.of(OPENID, EMAIL);
 
     private static final String PROVIDER = "generic_mcp";
@@ -133,11 +136,11 @@ public class AiAccessTokenService {
     }
 
     public Set<String> supportedScopes() {
-        return DEFAULT_SCOPES;
+        return SUPPORTED_SCOPES;
     }
 
     public Set<String> supportedOAuthScopes() {
-        var scopes = new java.util.HashSet<>(DEFAULT_SCOPES);
+        var scopes = new java.util.HashSet<>(SUPPORTED_SCOPES);
         scopes.addAll(OAUTH_IDENTITY_SCOPES);
         return Set.copyOf(scopes);
     }
@@ -280,7 +283,7 @@ public class AiAccessTokenService {
             && normalized.contains(OPENID) != normalized.contains(EMAIL)) {
             throw new IllegalArgumentException("OAuth identity permissions openid and email must be granted together.");
         }
-        var supported = allowIdentityScopes ? supportedOAuthScopes() : DEFAULT_SCOPES;
+        var supported = allowIdentityScopes ? supportedOAuthScopes() : SUPPORTED_SCOPES;
         if (!supported.containsAll(normalized)) {
             throw new IllegalArgumentException("One or more AI permissions are not supported.");
         }
@@ -306,6 +309,12 @@ public class AiAccessTokenService {
         var bytes = new byte[TOKEN_BYTES];
         secureRandom.nextBytes(bytes);
         return TOKEN_PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private static Set<String> supportedScopes(Set<String> reads, Set<String> actions) {
+        var scopes = new java.util.HashSet<>(reads);
+        scopes.addAll(actions);
+        return Set.copyOf(scopes);
     }
 
     private String sha256Hex(String value) {

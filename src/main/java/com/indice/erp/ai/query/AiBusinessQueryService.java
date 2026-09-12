@@ -233,7 +233,6 @@ public class AiBusinessQueryService {
     }
 
     private Map<String, Object> salesSummary(AuthSessionUser user, Map<String, Object> args) {
-        requireSales(user);
         var items = unifiedSales(user, args);
         var totals = totals(items, "currency", "total");
         var summary = new LinkedHashMap<String, Object>();
@@ -245,27 +244,26 @@ public class AiBusinessQueryService {
     }
 
     private Map<String, Object> listSales(AuthSessionUser user, Map<String, Object> args) {
-        requireSales(user);
         var items = unifiedSales(user, args).stream().limit(limit(args)).toList();
         return result("list_sales", "Ventas autorizadas", Map.of("matches", items.size()), items, null);
     }
 
     private Map<String, Object> saleDetail(AuthSessionUser user, Map<String, Object> args) {
-        requireSales(user);
         var source = normalized(text(args, "source"));
         var saleId = requiredLong(args, "saleId");
         Object detail;
         if ("pos".equals(source)) {
-            var context = requirePos(user);
+            var context = requirePosSales(user);
             detail = redact(ticketService.get(context, saleId));
         } else {
+            requireCommercialSales(user);
             detail = safeCommercialSale(salesService.get(user.companyId(), "sales", saleId));
         }
         return result("get_sale_detail", "Venta autorizada", Map.of("source", source.isBlank() ? "commercial" : source), List.of(), detail);
     }
 
     private Map<String, Object> cashStatus(AuthSessionUser user, Map<String, Object> args) {
-        var context = requirePos(user);
+        var context = requirePosCash(user);
         var detail = new LinkedHashMap<String, Object>();
         detail.put("registers", redact(cashRegisterService.list(context)));
         detail.put("shifts", redact(shiftService.list(context)));
@@ -278,7 +276,7 @@ public class AiBusinessQueryService {
     }
 
     private Map<String, Object> searchProducts(AuthSessionUser user, Map<String, Object> args) {
-        requireInventory(user);
+        requireProductCatalog(user);
         var filters = stringFilters(args, Map.of(
             "query", "search", "status", "status", "category", "category", "sku", "sku"
         ));
@@ -292,14 +290,16 @@ public class AiBusinessQueryService {
     }
 
     private Map<String, Object> productDetail(AuthSessionUser user, Map<String, Object> args) {
-        requireInventory(user);
+        requireProductCatalog(user);
         var productId = requiredLong(args, "productId");
         var product = safeProduct(salesService.get(user.companyId(), "products", productId));
-        var balances = rows(salesService.list(user.companyId(), "inventory-balances", Map.of()), "items").stream()
-            .filter(row -> longValue(first(row, "productId", "product_id")) == productId)
-            .map(this::safeInventoryBalance)
-            .peek(row -> row.put("currency", Objects.toString(product.get("currency"), "MXN")))
-            .toList();
+        var balances = authorizationService.canReadInventory(user)
+            ? rows(salesService.list(user.companyId(), "inventory-balances", Map.of()), "items").stream()
+                .filter(row -> longValue(first(row, "productId", "product_id")) == productId)
+                .map(this::safeInventoryBalance)
+                .peek(row -> row.put("currency", Objects.toString(product.get("currency"), "MXN")))
+                .toList()
+            : List.<Map<String, Object>>of();
         return result("get_product_detail", "Producto e inventario autorizados", Map.of("warehouseCount", balances.size()),
             List.of(), Map.of("product", product, "inventoryBalances", balances));
     }
@@ -394,7 +394,7 @@ public class AiBusinessQueryService {
         var status = text(args, "status");
         var overdueOnly = bool(args, "overdueOnly", false);
         var today = LocalDate.now(clock);
-        var accounts = workspace.receivables().stream()
+        var matchingAccounts = workspace.receivables().stream()
             .filter(item -> contains(item.customerName(), query))
             .filter(item -> equalsFilter(item.status(), status))
             .filter(item -> !overdueOnly || (item.balance().signum() > 0 && item.dueDate() != null && item.dueDate().isBefore(today)))
@@ -406,11 +406,13 @@ public class AiBusinessQueryService {
                 row.put("dueDate", item.dueDate()); row.put("nextPaymentDate", item.nextPaymentDate());
                 row.put("status", item.status()); row.put("unit", item.unit()); row.put("business", item.business());
                 return row;
-            }).limit(limit(args)).toList();
+            }).toList();
+        var accounts = matchingAccounts.stream().limit(limit(args)).toList();
         var summary = new LinkedHashMap<String, Object>();
-        summary.put("accountCount", accounts.size());
-        summary.put("balanceByCurrency", totals(accounts, "currency", "balance"));
-        summary.put("overdueCount", accounts.stream().filter(row -> {
+        summary.put("accountCount", matchingAccounts.size());
+        summary.put("returnedCount", accounts.size());
+        summary.put("balanceByCurrency", totals(matchingAccounts, "currency", "balance"));
+        summary.put("overdueCount", matchingAccounts.stream().filter(row -> {
             var due = localDate(row.get("dueDate"));
             return due != null && due.isBefore(today) && decimal(row.get("balance")).signum() > 0;
         }).count());
@@ -423,23 +425,33 @@ public class AiBusinessQueryService {
         var from = optionalDate(args, "from");
         var to = optionalDate(args, "to");
         var result = new ArrayList<Map<String, Object>>();
-        if (!"pos".equals(source)) {
+        var commercialAllowed = authorizationService.canReadCommercialSales(user);
+        var posAllowed = authorizationService.canReadPosSales(user);
+        if (!commercialAllowed && !posAllowed) {
+            throw new SecurityException("The current Indice permissions do not allow sales queries.");
+        }
+        if ("commercial".equals(source) && !commercialAllowed) {
+            throw new SecurityException("The current Indice permissions do not allow commercial sales queries.");
+        }
+        if ("pos".equals(source) && !posAllowed) {
+            throw new SecurityException("The current Indice permissions do not allow POS sales queries.");
+        }
+        if (!"pos".equals(source) && commercialAllowed) {
             for (var sale : rows(salesService.list(user.companyId(), "sales", Map.of()), "items")) {
                 var item = safeCommercialSale(sale);
                 if (matchesSale(item, customer, from, to)) result.add(item);
             }
         }
-        if (!"commercial".equals(source)) {
-            var context = posAccessService.resolveContext(user).orElse(null);
-            if (context != null) {
-                for (var ticket : rows(ticketService.list(context), "items")) {
-                    var linkedSaleId = longValue(first(ticket, "salesRecordId", "sales_record_id"));
-                    if (linkedSaleId > 0 && result.stream().anyMatch(item -> longValue(item.get("id")) == linkedSaleId)) {
-                        continue;
-                    }
-                    var item = safePosSale(ticket);
-                    if (matchesSale(item, customer, from, to)) result.add(item);
+        if (!"commercial".equals(source) && posAllowed) {
+            var context = posAccessService.resolveContext(user)
+                .orElseThrow(() -> new SecurityException("The current Indice permissions do not allow POS sales queries."));
+            for (var ticket : rows(ticketService.list(context), "items")) {
+                var linkedSaleId = longValue(first(ticket, "salesRecordId", "sales_record_id"));
+                if (linkedSaleId > 0 && result.stream().anyMatch(item -> longValue(item.get("id")) == linkedSaleId)) {
+                    continue;
                 }
+                var item = safePosSale(ticket);
+                if (matchesSale(item, customer, from, to)) result.add(item);
             }
         }
         result.sort(Comparator.comparing((Map<String, Object> item) -> Objects.toString(item.get("date"), "")).reversed());
@@ -559,26 +571,48 @@ public class AiBusinessQueryService {
         }
     }
 
-    private void requireSales(AuthSessionUser user) {
-        if (!authorizationService.canUseCapability(user, "sales")) {
-            throw new SecurityException("The current Indice permissions do not allow sales queries.");
+    private void requireCommercialSales(AuthSessionUser user) {
+        if (!authorizationService.canReadCommercialSales(user)) {
+            throw new SecurityException("The current Indice permissions do not allow commercial sales queries.");
+        }
+    }
+
+    private void requireProductCatalog(AuthSessionUser user) {
+        if (!authorizationService.canReadProductCatalog(user)) {
+            throw new SecurityException("The current Indice permissions do not allow product queries.");
         }
     }
 
     private void requireInventory(AuthSessionUser user) {
-        requireSales(user);
+        if (!authorizationService.canReadInventory(user)) {
+            throw new SecurityException("The current Indice permissions do not allow inventory queries.");
+        }
     }
 
-    private com.indice.erp.pos.PosContext requirePos(AuthSessionUser user) {
-        if (!authorizationService.canUseCapability(user, "pos")) {
-            throw new SecurityException("The current Indice permissions do not allow POS queries.");
+    private com.indice.erp.pos.PosContext requirePosSales(AuthSessionUser user) {
+        if (!authorizationService.canReadPosSales(user)) {
+            throw new SecurityException("The current Indice permissions do not allow POS sales queries.");
+        }
+        return posAccessService.resolveContext(user)
+            .orElseThrow(() -> new SecurityException("The current Indice permissions do not allow POS sales queries."));
+    }
+
+    private com.indice.erp.pos.PosContext requirePosCash(AuthSessionUser user) {
+        if (!authorizationService.canReadPosCash(user)) {
+            throw new SecurityException("The current Indice permissions do not allow POS cash queries.");
         }
         return posAccessService.resolveContext(user)
             .orElseThrow(() -> new SecurityException("The current Indice permissions do not allow POS queries."));
     }
 
     private com.indice.erp.finance.shared.FinanceContext requireFinance(AuthSessionUser user, String capability) {
-        if (!authorizationService.canUseCapability(user, capability)) {
+        var allowed = switch (capability) {
+            case "expenses" -> authorizationService.canReadExpenses(user);
+            case "petty_cash" -> authorizationService.canReadPettyCash(user);
+            case "receivables" -> authorizationService.canReadReceivables(user);
+            default -> false;
+        };
+        if (!allowed) {
             throw new SecurityException("The current Indice permissions do not allow this finance query.");
         }
         return financeAccessService.resolveContext(user)

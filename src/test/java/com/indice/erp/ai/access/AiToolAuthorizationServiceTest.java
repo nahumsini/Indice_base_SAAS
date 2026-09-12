@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import com.indice.erp.access.module.ModuleAccessService;
 import com.indice.erp.access.tab.TabPermissionAccessService;
+import com.indice.erp.access.tab.TabPermissionRequirement;
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.billing.subscription.CompanyModuleEntitlementService;
 import com.indice.erp.billing.subscription.CompanySubscriptionStatus;
@@ -100,6 +101,11 @@ class AiToolAuthorizationServiceTest {
     void allowsTaskCreationOnlyWithCurrentProcessesAccess() {
         when(subscriptionStatusProvider.currentStatus(23L)).thenReturn(CompanySubscriptionStatus.activeLegacy());
         when(moduleEntitlementService.hasActiveEntitlement(23L, "processes")).thenReturn(true);
+        when(moduleAccessService.canAccess(USER, "processes")).thenReturn(true);
+        when(tabPermissionAccessService.canAccess(
+            USER,
+            TabPermissionRequirement.any("processes.calendar", "processes.projects", "processes.processes")
+        )).thenReturn(true);
         when(processTasksAccessService.canAccess(USER)).thenReturn(true);
 
         assertTrue(service.canCreateTask(USER));
@@ -109,9 +115,94 @@ class AiToolAuthorizationServiceTest {
     void revokingProcessesAccessImmediatelyBlocksTaskCreation() {
         when(subscriptionStatusProvider.currentStatus(23L)).thenReturn(CompanySubscriptionStatus.activeLegacy());
         when(moduleEntitlementService.hasActiveEntitlement(23L, "processes")).thenReturn(true);
+        when(moduleAccessService.canAccess(USER, "processes")).thenReturn(true);
+        when(tabPermissionAccessService.canAccess(
+            USER,
+            TabPermissionRequirement.any("processes.calendar", "processes.projects", "processes.processes")
+        )).thenReturn(true);
         when(processTasksAccessService.canAccess(USER)).thenReturn(false);
 
         assertFalse(service.canCreateTask(USER));
+    }
+
+    @Test
+    void kpiOnlyProcessPermissionAllowsReadButNotTaskCreation() {
+        when(subscriptionStatusProvider.currentStatus(23L)).thenReturn(CompanySubscriptionStatus.activeLegacy());
+        when(moduleEntitlementService.hasActiveEntitlement(23L, "processes")).thenReturn(true);
+        when(moduleAccessService.canAccess(USER, "processes")).thenReturn(true);
+        when(tabPermissionAccessService.canAccess(
+            USER,
+            TabPermissionRequirement.any(
+                "processes.calendar", "processes.projects", "processes.processes", "processes.kpis"
+            )
+        )).thenReturn(true);
+        when(processTasksAccessService.canAccess(USER)).thenReturn(true);
+
+        assertTrue(service.canReadTasks(USER));
+        assertFalse(service.canCreateTask(USER));
+    }
+
+    @Test
+    void commercialSalesRequireTheSalesTabInAdditionToTheOAuthScope() {
+        when(subscriptionStatusProvider.currentStatus(23L)).thenReturn(CompanySubscriptionStatus.activeLegacy());
+        when(moduleEntitlementService.hasActiveEntitlement(23L, "crm")).thenReturn(true);
+        when(moduleAccessService.canAccess(USER, "crm")).thenReturn(true);
+        when(tabPermissionAccessService.canAccess(USER, TabPermissionRequirement.one("crm.sales")))
+            .thenReturn(false);
+
+        assertFalse(service.canReadCommercialSales(USER));
+    }
+
+    @Test
+    void inventoryRequiresItsOwnModuleAndInventoryTab() {
+        when(subscriptionStatusProvider.currentStatus(23L)).thenReturn(CompanySubscriptionStatus.activeLegacy());
+        when(moduleEntitlementService.hasActiveEntitlement(23L, "inventory")).thenReturn(true);
+        when(moduleAccessService.canAccess(USER, "inventory")).thenReturn(true);
+        when(tabPermissionAccessService.canAccess(USER, TabPermissionRequirement.one("inventory.inventory")))
+            .thenReturn(true);
+        when(companyEntitlementService.resolve(23L, "inventory")).thenReturn(
+            new CompanyEntitlementResolution(23L, "inventory", true, EntitlementPolicyMode.ENFORCE, List.of())
+        );
+
+        assertTrue(service.canReadInventory(USER));
+        assertFalse(service.canReadCommercialSales(USER));
+    }
+
+    @Test
+    void expenseAccessDoesNotGrantPettyCashAccess() {
+        when(subscriptionStatusProvider.currentStatus(23L)).thenReturn(CompanySubscriptionStatus.activeLegacy());
+        when(moduleEntitlementService.hasActiveEntitlement(23L, "expenses")).thenReturn(true);
+        when(moduleAccessService.canAccess(USER, "expenses")).thenReturn(true);
+        when(tabPermissionAccessService.canAccess(
+            USER,
+            TabPermissionRequirement.any("expenses.expenses", "expenses.kpis")
+        )).thenReturn(true);
+        when(companyEntitlementService.resolve(23L, "expenses")).thenReturn(
+            new CompanyEntitlementResolution(23L, "expenses", true, EntitlementPolicyMode.ENFORCE, List.of())
+        );
+
+        assertTrue(service.canReadExpenses(USER));
+        assertFalse(service.canReadPettyCash(USER));
+    }
+
+    @Test
+    void pettyCashReadPermissionDoesNotGrantMoneyMovements() {
+        when(subscriptionStatusProvider.currentStatus(23L)).thenReturn(CompanySubscriptionStatus.activeLegacy());
+        when(moduleEntitlementService.hasActiveEntitlement(23L, "petty_cash")).thenReturn(true);
+        when(moduleAccessService.canAccess(USER, "petty_cash")).thenReturn(true);
+        when(tabPermissionAccessService.canAccess(
+            USER,
+            TabPermissionRequirement.any(
+                "petty_cash.cash", "petty_cash.control", "petty_cash.statements", "petty_cash.kpis"
+            )
+        )).thenReturn(true);
+        when(companyEntitlementService.resolve(23L, "petty_cash")).thenReturn(
+            new CompanyEntitlementResolution(23L, "petty_cash", true, EntitlementPolicyMode.ENFORCE, List.of())
+        );
+
+        assertTrue(service.canReadPettyCash(USER));
+        assertFalse(service.canRegisterFundExpense(USER));
+        assertFalse(service.canAddMoneyToFund(USER));
     }
 
     private void allowLegacyAccess() {
