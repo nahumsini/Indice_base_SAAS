@@ -399,6 +399,8 @@ test('public catalog visual profiles remain editable, accessible and persisted e
   assert.match(editor, /aria-pressed=/);
   assert.match(modal, /modalType="wizard"/);
   assert.match(modal, /IndiceModalWizardStepper/);
+  assert.match(modal, /onStepSelect=\{handleStepSelect\}/);
+  assert.match(modal, /activeStep === 'identity' && nextIndex > activeIndex/);
   assert.match(header, /publicCatalogHeroStyle\(config\.heroStyle/);
   assert.match(grid, /publicCatalogLayoutClass\[config\.layoutStyle\]/);
   assert.match(card, /publicCatalogImageRatioClass\[config\.imageRatio\]/);

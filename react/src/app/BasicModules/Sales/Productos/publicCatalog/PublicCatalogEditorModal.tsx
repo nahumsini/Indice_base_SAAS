@@ -94,6 +94,20 @@ export function PublicCatalogEditorModal({
     setActiveStep(steps[Math.max(activeIndex - 1, 0)].id);
   };
 
+  const handleStepSelect = (stepId: PublicCatalogEditorStep) => {
+    const nextIndex = steps.findIndex((step) => step.id === stepId);
+    if (nextIndex < 0 || nextIndex === activeIndex) return;
+    if (activeStep === 'identity' && nextIndex > activeIndex) {
+      const messages = identityErrors();
+      if (messages.length) {
+        setValidationMessages(messages);
+        return;
+      }
+    }
+    setValidationMessages([]);
+    setActiveStep(stepId);
+  };
+
   return (
     <SalesModalFrame
       open={Boolean(catalog)}
@@ -132,7 +146,13 @@ export function PublicCatalogEditorModal({
       )}
     >
         <div className="min-h-full space-y-4" style={catalog ? getPublicCatalogExperienceStyle(catalog) : undefined}>
-          <IndiceModalWizardStepper accent="coral" activeStepId={activeStep} progressLabel={t.publicCatalog.wizard.progressLabel} steps={steps} />
+          <IndiceModalWizardStepper
+            accent="coral"
+            activeStepId={activeStep}
+            onStepSelect={handleStepSelect}
+            progressLabel={t.publicCatalog.wizard.progressLabel}
+            steps={steps}
+          />
           <IndiceModalValidation messages={[...validationMessages, ...(error ? [error] : [])]} />
           <PublicCatalogEditor
             catalog={catalog}

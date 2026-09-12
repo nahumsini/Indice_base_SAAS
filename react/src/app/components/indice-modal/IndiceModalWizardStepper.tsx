@@ -98,7 +98,11 @@ export function IndiceModalWizardStepper<StepId extends string>({
           return (
             <li key={step.id} aria-current={isActive ? 'step' : undefined} className="relative min-w-0">
               {onStepSelect ? (
-                <button type="button" className="w-full text-left" onClick={() => onStepSelect(step.id)}>
+                <button
+                  type="button"
+                  className="w-full cursor-pointer rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+                  onClick={() => onStepSelect(step.id)}
+                >
                   {content}
                 </button>
               ) : content}
