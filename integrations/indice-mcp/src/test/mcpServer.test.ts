@@ -68,6 +68,30 @@ test("lists and executes get_sales_today through MCP", async () => {
   }
 });
 
+test("lists only tools allowed by the delegated capability manifest", async () => {
+  const server = createIndiceMcpServer({
+    async getSalesToday() { return summary(); },
+    async getBusinessSnapshot() { return businessSnapshot(); },
+    async previewCreateTask() { return taskPreview(); },
+    async createTask() { return createdTask(); }
+  }, new Set(["get_sales_today", "list_tasks"]));
+  const client = new Client({ name: "indice-mcp-test", version: "0.1.0" });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+  try {
+    const tools = await client.listTools();
+
+    assert.deepEqual(tools.tools.map(tool => tool.name), ["get_sales_today", "list_tasks"]);
+    const hiddenToolResult = await client.callTool({ name: "create_task", arguments: {} });
+    assert.equal(hiddenToolResult.isError, true);
+    assert.match(firstText(hiddenToolResult.content), /Tool create_task disabled/);
+  } finally {
+    await client.close();
+    await server.close();
+  }
+});
+
 test("returns prioritized attention items without exposing healthy noise", async () => {
   const server = createIndiceMcpServer({
     async getSalesToday() {

@@ -136,9 +136,16 @@ The next read-only resolver package is:
 - `search_budget_lines`;
 - `search_accounting_accounts`.
 
-The current V1 registers all tools after token verification. Before adding the resolver package,
-the MCP must gain capability-aware discovery so a connection sees only tools compatible with its
-stored scopes and current Indice permissions. This is an approved next step, not current behavior.
+Delegated HTTP discovery is capability-aware. On every MCP request, the server obtains the `v1`
+manifest from `GET /api/v1/ai/access/capabilities`, validates it against its closed tool catalog and
+enables only tools compatible with both the stored OAuth scopes and current Indice permissions.
+The manifest is returned with `Cache-Control: no-store`; permission revocation therefore affects the
+next request. Tool execution still repeats its owner authorization and never trusts discovery as an
+enforcement boundary.
+
+The local stdio development transport may register the complete catalog because it has no delegated
+HTTP request context. It does not weaken backend authorization and is not the production ChatGPT
+connection path.
 
 ## 7. Operations and public release
 
@@ -178,7 +185,6 @@ separate approved domain decision and recovery tests.
 
 - generic business and finance result schemas remain dynamic;
 - list tools have limits but no cursor contract and several queries filter in memory;
-- capability-aware tool discovery is not yet implemented;
 - the public MCP route has no repository-defined dedicated rate-limit policy;
 - Docker health proves anonymous protection/liveness but not backend readiness;
 - the full ChatGPT APPTEST and reviewer checklist remains incomplete;

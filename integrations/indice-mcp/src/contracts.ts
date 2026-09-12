@@ -207,3 +207,42 @@ export type FinanceActionName = z.infer<typeof financeActionNameSchema>;
 export type FinanceActionPreviewResponse = z.infer<typeof financeActionPreviewResponseSchema>;
 export type FinanceActionCommitRequest = z.infer<typeof financeActionCommitRequestSchema>;
 export type FinanceActionCommitResponse = z.infer<typeof financeActionCommitResponseSchema>;
+
+export const indiceToolNameSchema = z.enum([
+  "get_sales_today",
+  "get_business_snapshot",
+  "get_attention_items",
+  "search_employees",
+  "get_employee_overview",
+  "get_attendance_exceptions",
+  "list_tasks",
+  "get_task_detail",
+  "get_sales_summary",
+  "list_sales",
+  "get_sale_detail",
+  "get_cash_status",
+  "search_products",
+  "get_product_detail",
+  "get_inventory_summary",
+  "get_expense_summary",
+  "list_expenses",
+  "get_expense_detail",
+  "get_funds_status",
+  "get_receivables_status",
+  "preview_create_task",
+  "create_task",
+  "preview_create_expense_draft",
+  "create_expense_draft",
+  "preview_register_fund_expense",
+  "register_fund_expense",
+  "preview_add_money_to_fund",
+  "add_money_to_fund"
+]);
+
+export const toolCapabilitiesSchema = z.object({
+  version: z.literal("v1"),
+  tools: z.array(indiceToolNameSchema).max(28)
+});
+
+export type IndiceToolName = z.infer<typeof indiceToolNameSchema>;
+export type ToolCapabilities = z.infer<typeof toolCapabilitiesSchema>;

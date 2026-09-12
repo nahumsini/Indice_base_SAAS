@@ -11,6 +11,7 @@ import {
   taskCommitResponseSchema,
   taskPreviewRequestSchema,
   taskPreviewResponseSchema,
+  toolCapabilitiesSchema,
   type BusinessSnapshot,
   type BusinessSnapshotQuery,
   type BusinessQueryResult,
@@ -22,7 +23,8 @@ import {
   type TaskCommitRequest,
   type TaskCommitResponse,
   type TaskPreviewRequest,
-  type TaskPreviewResponse
+  type TaskPreviewResponse,
+  type ToolCapabilities
 } from "./contracts.js";
 
 export class IndiceApiError extends Error {
@@ -256,6 +258,28 @@ export class IndiceClient {
       throw await this.apiError(response, "Indice could not verify delegated authorization.");
     }
     return true;
+  }
+
+  async getDelegatedToolCapabilities(): Promise<ToolCapabilities | undefined> {
+    if (this.config.authMode !== "delegated" || !this.delegatedAccessToken) {
+      return undefined;
+    }
+    const response = await this.request("/api/v1/ai/access/capabilities", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${this.delegatedAccessToken}` }
+    });
+    if (response.status === 401) {
+      return undefined;
+    }
+    if (!response.ok) {
+      throw await this.apiError(response, "Indice could not resolve delegated tool capabilities.");
+    }
+    const payload: unknown = await response.json();
+    const parsed = toolCapabilitiesSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new IndiceApiError("Indice returned an invalid tool capability contract.");
+    }
+    return parsed.data;
   }
 
   private async getDelegatedSalesToday(preferredCurrency?: string): Promise<SalesTodaySummary> {

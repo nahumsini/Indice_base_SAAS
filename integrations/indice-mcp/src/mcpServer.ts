@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { RegisteredTool } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod/v4";
 import type {
   AttentionItems,
@@ -26,13 +27,16 @@ export interface IndiceBusinessReader {
   commitFinanceAction?(action: FinanceActionName, request: FinanceActionCommitRequest): Promise<FinanceActionCommitResponse>;
 }
 
-export function createIndiceMcpServer(reader: IndiceBusinessReader): McpServer {
+export function createIndiceMcpServer(
+  reader: IndiceBusinessReader,
+  allowedTools?: ReadonlySet<string>
+): McpServer {
   const server = new McpServer({
     name: "indice-business-tools",
     version: "0.1.0"
   });
 
-  server.registerTool("get_sales_today", {
+  const salesTodayTool = server.registerTool("get_sales_today", {
     title: "Get today's sales",
     description: "Obtiene el número y el total monetario de las ventas de hoy para la empresa autorizada en Índice. Úsala cuando el usuario pregunte cuánto vendió hoy.",
     inputSchema: {
@@ -82,7 +86,9 @@ export function createIndiceMcpServer(reader: IndiceBusinessReader): McpServer {
     }
   });
 
-  server.registerTool("get_business_snapshot", {
+  applyToolVisibility(salesTodayTool, "get_sales_today", allowedTools);
+
+  const businessSnapshotTool = server.registerTool("get_business_snapshot", {
     title: "Get business snapshot",
     description: "Resume la salud del negocio autorizado en Índice para un periodo: ventas, cobros, gastos, utilidad, cuentas por cobrar y pagar, caja chica, tareas, asistencia y alertas. Úsala para preguntas ejecutivas como cómo va el negocio, cuánto se gastó, cuánto se debe cobrar o qué requiere atención.",
     inputSchema: {
@@ -157,7 +163,9 @@ export function createIndiceMcpServer(reader: IndiceBusinessReader): McpServer {
     }
   });
 
-  server.registerTool("get_attention_items", {
+  applyToolVisibility(businessSnapshotTool, "get_business_snapshot", allowedTools);
+
+  const attentionItemsTool = server.registerTool("get_attention_items", {
     title: "Get attention items",
     description: "Obtiene únicamente las excepciones críticas y de seguimiento que requieren atención en la empresa autorizada en Índice. Úsala para preguntas como qué requiere mi atención, qué está mal o qué debo resolver primero. Para consultar solo hoy usa period=custom con la misma fecha en from y to.",
     inputSchema: {
@@ -223,7 +231,9 @@ export function createIndiceMcpServer(reader: IndiceBusinessReader): McpServer {
     }
   });
 
-  server.registerTool("preview_create_task", {
+  applyToolVisibility(attentionItemsTool, "get_attention_items", allowedTools);
+
+  const taskPreviewTool = server.registerTool("preview_create_task", {
     title: "Prepare task creation",
     description: "Prepara una vista previa exacta para crear una tarea en Índice asignada al usuario conectado. No crea la tarea. Muestra la vista previa al usuario y espera su confirmación explícita antes de usar create_task.",
     inputSchema: {
@@ -272,7 +282,9 @@ export function createIndiceMcpServer(reader: IndiceBusinessReader): McpServer {
     }
   });
 
-  server.registerTool("create_task", {
+  applyToolVisibility(taskPreviewTool, "preview_create_task", allowedTools);
+
+  const taskCommitTool = server.registerTool("create_task", {
     title: "Create confirmed task",
     description: "Crea en Índice únicamente la tarea contenida en una vista previa vigente. Úsala solo después de que el usuario confirme explícitamente los datos exactos mostrados por preview_create_task. No acepta título, descripción, prioridad ni fecha para impedir cambios posteriores a la confirmación.",
     inputSchema: {
@@ -314,8 +326,10 @@ export function createIndiceMcpServer(reader: IndiceBusinessReader): McpServer {
     }
   });
 
-  registerBusinessReadTools(server, reader);
-  registerFinanceActionTools(server, reader);
+  applyToolVisibility(taskCommitTool, "create_task", allowedTools);
+
+  registerBusinessReadTools(server, reader, allowedTools);
+  registerFinanceActionTools(server, reader, allowedTools);
 
   return server;
 }
@@ -339,9 +353,10 @@ function registerBusinessReadTool(
   title: string,
   description: string,
   inputSchema: InputShape,
-  toArgs: (input: Record<string, unknown>) => Record<string, unknown>
+  toArgs: (input: Record<string, unknown>) => Record<string, unknown>,
+  allowedTools?: ReadonlySet<string>
 ): void {
-  server.registerTool(name, {
+  const tool = server.registerTool(name, {
     title,
     description,
     inputSchema,
@@ -365,32 +380,44 @@ function registerBusinessReadTool(
       return { isError: true, content: [{ type: "text", text: message }] };
     }
   });
+  applyToolVisibility(tool, name, allowedTools);
 }
 
-function registerBusinessReadTools(server: McpServer, reader: IndiceBusinessReader): void {
+function registerBusinessReadTools(
+  server: McpServer,
+  reader: IndiceBusinessReader,
+  allowedTools?: ReadonlySet<string>
+): void {
+  const register = (
+    name: string,
+    title: string,
+    description: string,
+    inputSchema: InputShape,
+    toArgs: (input: Record<string, unknown>) => Record<string, unknown>
+  ) => registerBusinessReadTool(server, reader, name, title, description, inputSchema, toArgs, allowedTools);
   const limit = z.number().int().min(1).max(100).optional().describe("Máximo de registros; predeterminado 25.");
   const from = z.iso.date().optional().describe("Fecha inicial inclusiva YYYY-MM-DD.");
   const to = z.iso.date().optional().describe("Fecha final inclusiva YYYY-MM-DD.");
 
-  registerBusinessReadTool(server, reader, "search_employees", "Buscar empleados",
+  register("search_employees", "Buscar empleados",
     "Busca colaboradores visibles para el usuario conectado sin revelar nómina, documentos ni identificadores sensibles.", {
       query: z.string().trim().min(1).max(120).optional(),
       status: z.string().trim().max(40).optional(),
       department: z.string().trim().max(120).optional(), limit
     }, input => input);
 
-  registerBusinessReadTool(server, reader, "get_employee_overview", "Consultar empleado",
+  register("get_employee_overview", "Consultar empleado",
     "Obtiene el perfil operativo, tareas visibles y asistencia mensual de un colaborador autorizado. No devuelve salario, documentos ni datos personales sensibles.", {
       employee_id: z.number().int().positive(),
       month: z.string().regex(/^\d{4}-\d{2}$/).optional(), limit
     }, input => camelArgs(input, { employee_id: "employeeId" }));
 
-  registerBusinessReadTool(server, reader, "get_attendance_exceptions", "Consultar incidencias de asistencia",
+  register("get_attendance_exceptions", "Consultar incidencias de asistencia",
     "Lista ausencias, retardos y otras excepciones de asistencia visibles para una fecha; omite fotos, coordenadas y datos biométricos.", {
       date: z.iso.date().optional(), limit
     }, input => input);
 
-  registerBusinessReadTool(server, reader, "list_tasks", "Listar tareas",
+  register("list_tasks", "Listar tareas",
     "Lista tareas visibles con filtros operativos. Úsala para tareas propias, delegadas, de equipo o de un empleado dentro del alcance autorizado.", {
       query: z.string().trim().max(160).optional(),
       status: z.string().trim().max(40).optional(),
@@ -399,7 +426,7 @@ function registerBusinessReadTools(server: McpServer, reader: IndiceBusinessRead
       overdue_only: z.boolean().optional(), limit
     }, input => camelArgs(input, { employee_id: "employeeId", overdue_only: "overdueOnly" }));
 
-  registerBusinessReadTool(server, reader, "get_task_detail", "Consultar detalle de tarea",
+  register("get_task_detail", "Consultar detalle de tarea",
     "Obtiene una tarea visible con seguimiento y dependencias, respetando el mismo alcance de Índice.", {
       task_id: z.number().int().positive()
     }, input => camelArgs(input, { task_id: "taskId" }));
@@ -409,36 +436,36 @@ function registerBusinessReadTools(server: McpServer, reader: IndiceBusinessRead
     source: z.enum(["all", "commercial", "pos"]).optional(),
     customer: z.string().trim().max(160).optional()
   };
-  registerBusinessReadTool(server, reader, "get_sales_summary", "Resumir ventas",
+  register("get_sales_summary", "Resumir ventas",
     "Resume ventas por periodo y moneda, unificando ventas comerciales y tickets POS sin duplicar ventas vinculadas.", salesFilters,
     input => input);
-  registerBusinessReadTool(server, reader, "list_sales", "Listar ventas",
+  register("list_sales", "Listar ventas",
     "Lista ventas por fecha, cliente y origen con importes, estado, caja o vendedor cuando estén disponibles.", {
       ...salesFilters, limit
     }, input => input);
-  registerBusinessReadTool(server, reader, "get_sale_detail", "Consultar detalle de venta",
+  register("get_sale_detail", "Consultar detalle de venta",
     "Obtiene el detalle autorizado de una venta comercial o ticket POS, incluyendo partidas y pagos disponibles.", {
       sale_id: z.number().int().positive(),
       source: z.enum(["commercial", "pos"]).optional()
     }, input => camelArgs(input, { sale_id: "saleId" }));
 
-  registerBusinessReadTool(server, reader, "get_cash_status", "Consultar estado de cajas",
+  register("get_cash_status", "Consultar estado de cajas",
     "Consulta cajas, turnos y, si se indica, el resumen de cierre de un turno POS autorizado.", {
       shift_id: z.number().int().positive().optional()
     }, input => camelArgs(input, { shift_id: "shiftId" }));
 
-  registerBusinessReadTool(server, reader, "search_products", "Buscar productos",
-    "Busca productos por nombre, código o SKU y devuelve precio, costo e indicadores de disponibilidad solo dentro del inventario autorizado.", {
+  register("search_products", "Buscar productos",
+    "Busca productos por nombre, código o SKU y devuelve datos comerciales dentro del catálogo autorizado.", {
       query: z.string().trim().max(160).optional(),
       sku: z.string().trim().max(120).optional(),
       category: z.string().trim().max(120).optional(),
       status: z.string().trim().max(40).optional(), limit
     }, input => input);
-  registerBusinessReadTool(server, reader, "get_product_detail", "Consultar producto",
-    "Obtiene detalle, precio, costo y saldos por almacén de un producto autorizado.", {
+  register("get_product_detail", "Consultar producto",
+    "Obtiene detalle, precio y costo de un producto autorizado; incluye saldos por almacén únicamente cuando el usuario también puede consultar inventario.", {
       product_id: z.number().int().positive()
     }, input => camelArgs(input, { product_id: "productId" }));
-  registerBusinessReadTool(server, reader, "get_inventory_summary", "Resumir inventario",
+  register("get_inventory_summary", "Resumir inventario",
     "Resume valor del inventario por moneda y productos con existencia baja o agotada dentro del alcance autorizado.", { limit },
     input => input);
 
@@ -449,23 +476,23 @@ function registerBusinessReadTools(server: McpServer, reader: IndiceBusinessRead
     overdue_only: z.boolean().optional(),
     query: z.string().trim().max(160).optional()
   };
-  registerBusinessReadTool(server, reader, "get_expense_summary", "Resumir gastos",
+  register("get_expense_summary", "Resumir gastos",
     "Resume gastos, pagado, por pagar y vencidos por moneda usando los mismos estados de Finanzas.", expenseFilters,
     input => camelArgs(input, { payment_status: "paymentStatus", overdue_only: "overdueOnly" }));
-  registerBusinessReadTool(server, reader, "list_expenses", "Listar gastos",
+  register("list_expenses", "Listar gastos",
     "Lista gastos autorizados con filtros de fecha, estado, vencimiento y búsqueda.", { ...expenseFilters, limit },
     input => camelArgs(input, { payment_status: "paymentStatus", overdue_only: "overdueOnly" }));
-  registerBusinessReadTool(server, reader, "get_expense_detail", "Consultar gasto",
+  register("get_expense_detail", "Consultar gasto",
     "Obtiene el detalle y pagos registrados de un gasto autorizado.", {
       expense_id: z.number().int().positive()
     }, input => camelArgs(input, { expense_id: "expenseId" }));
 
-  registerBusinessReadTool(server, reader, "get_funds_status", "Consultar fondos",
+  register("get_funds_status", "Consultar fondos",
     "Consulta saldos, estados de cuenta, movimientos y gastos recientes de caja chica sin revelar accesos de kiosco.", {
       fund_id: z.number().int().positive().optional(), limit
     }, input => camelArgs(input, { fund_id: "fundId" }));
 
-  registerBusinessReadTool(server, reader, "get_receivables_status", "Consultar cuentas por cobrar",
+  register("get_receivables_status", "Consultar cuentas por cobrar",
     "Resume cuentas por cobrar, saldos, vencimientos y clientes dentro del alcance autorizado.", {
       customer: z.string().trim().max(160).optional(),
       status: z.string().trim().max(40).optional(),
@@ -473,7 +500,11 @@ function registerBusinessReadTools(server: McpServer, reader: IndiceBusinessRead
     }, input => camelArgs(input, { overdue_only: "overdueOnly" }));
 }
 
-function registerFinanceActionTools(server: McpServer, reader: IndiceBusinessReader): void {
+function registerFinanceActionTools(
+  server: McpServer,
+  reader: IndiceBusinessReader,
+  allowedTools?: ReadonlySet<string>
+): void {
   registerFinancePreview(server, reader, "preview_create_expense_draft", "Preparar gasto en borrador",
     "Prepara un gasto general en estado DRAFT. No paga ni aprueba el gasto. Muestra la vista previa y espera confirmación explícita antes de usar create_expense_draft.",
     "create_expense_draft", {
@@ -493,9 +524,9 @@ function registerFinanceActionTools(server: McpServer, reader: IndiceBusinessRea
       total_amount: "totalAmount", currency_code: "currencyCode", expense_date: "expenseDate",
       due_date: "dueDate", unit_id: "unitId", business_id: "businessId", provider_id: "providerId",
       budget_line_id: "budgetLineId", accounting_account_id: "accountingAccountId", payment_account_id: "paymentAccountId"
-    }));
+    }), allowedTools);
   registerFinanceCommit(server, reader, "create_expense_draft", "Crear gasto confirmado en borrador", "create_expense_draft",
-    "Crea únicamente el gasto DRAFT de una vista previa vigente; nunca lo paga ni lo aprueba.", false);
+    "Crea únicamente el gasto DRAFT de una vista previa vigente; nunca lo paga ni lo aprueba.", false, allowedTools);
 
   registerFinancePreview(server, reader, "preview_register_fund_expense", "Preparar gasto de fondo",
     "Prepara una salida de caja chica como línea del fondo. Reduce el saldo al confirmar, pero no crea ni autoriza un gasto global.",
@@ -511,9 +542,9 @@ function registerFinanceActionTools(server: McpServer, reader: IndiceBusinessRea
       subtotal_amount: "subtotalAmount", tax_amount: "taxAmount", total_amount: "totalAmount",
       currency_code: "currencyCode", expense_date: "expenseDate", provider_id: "providerId",
       accounting_account_id: "accountingAccountId"
-    }));
+    }), allowedTools);
   registerFinanceCommit(server, reader, "register_fund_expense", "Registrar gasto confirmado en fondo", "register_fund_expense",
-    "Registra únicamente la salida exacta confirmada en el fondo seleccionado.", true);
+    "Registra únicamente la salida exacta confirmada en el fondo seleccionado.", true, allowedTools);
 
   registerFinancePreview(server, reader, "preview_add_money_to_fund", "Preparar ingreso a fondo",
     "Prepara un depósito adicional a caja chica desde una cuenta fuente exacta. Muestra origen, fondo, monto y fecha antes de confirmar.",
@@ -525,9 +556,9 @@ function registerFinanceActionTools(server: McpServer, reader: IndiceBusinessRea
     }, input => camelArgs(input, {
       fund_id: "fundId", statement_id: "statementId", source_payment_account_id: "sourcePaymentAccountId",
       currency_code: "currencyCode", movement_date: "movementDate"
-    }));
+    }), allowedTools);
   registerFinanceCommit(server, reader, "add_money_to_fund", "Ingresar dinero confirmado al fondo", "add_money_to_fund",
-    "Registra únicamente el depósito adicional exacto confirmado y afecta la cuenta fuente indicada.", true);
+    "Registra únicamente el depósito adicional exacto confirmado y afecta la cuenta fuente indicada.", true, allowedTools);
 }
 
 function registerFinancePreview(
@@ -538,9 +569,10 @@ function registerFinancePreview(
   description: string,
   action: FinanceActionName,
   inputSchema: InputShape,
-  toArgs: (input: Record<string, unknown>) => Record<string, unknown>
+  toArgs: (input: Record<string, unknown>) => Record<string, unknown>,
+  allowedTools?: ReadonlySet<string>
 ): void {
-  server.registerTool(toolName, {
+  const tool = server.registerTool(toolName, {
     title, description, inputSchema,
     outputSchema: {
       confirmationToken: z.string().startsWith("idx_confirm_"),
@@ -559,6 +591,7 @@ function registerFinancePreview(
       return { isError: true, content: [{ type: "text", text: message }] };
     }
   });
+  applyToolVisibility(tool, toolName, allowedTools);
 }
 
 function registerFinanceCommit(
@@ -568,9 +601,10 @@ function registerFinanceCommit(
   title: string,
   action: FinanceActionName,
   description: string,
-  destructiveHint: boolean
+  destructiveHint: boolean,
+  allowedTools?: ReadonlySet<string>
 ): void {
-  server.registerTool(toolName, {
+  const tool = server.registerTool(toolName, {
     title,
     description: `${description} Úsala solo después de confirmación explícita de la vista previa.`,
     inputSchema: {
@@ -596,6 +630,17 @@ function registerFinanceCommit(
       return { isError: true, content: [{ type: "text", text: message }] };
     }
   });
+  applyToolVisibility(tool, toolName, allowedTools);
+}
+
+function applyToolVisibility(
+  tool: RegisteredTool,
+  name: string,
+  allowedTools?: ReadonlySet<string>
+): void {
+  if (allowedTools && !allowedTools.has(name)) {
+    tool.disable();
+  }
 }
 
 function camelArgs(

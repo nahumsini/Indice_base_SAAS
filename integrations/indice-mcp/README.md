@@ -94,6 +94,9 @@ El endpoint local será `http://127.0.0.1:3010/mcp`. Esta versión rechaza backe
 - Los tokens se guardan en la base solo como SHA-256 y se muestran una vez al crearlos.
 - Los alcances están separados por dominio y por lectura/escritura; expiración máxima de 90 días y revocación inmediata.
 - Si un cliente interno omite la selección de alcances, la conexión nace sólo con lecturas; toda acción debe solicitarse explícitamente.
+- En HTTP delegado, cada solicitud consulta `GET /api/v1/ai/access/capabilities`; `tools/list`
+  muestra sólo herramientas respaldadas por los alcances del token y los permisos vigentes del
+  usuario. La ejecución vuelve a validar esos permisos.
 - Cada consulta vuelve a validar suscripción, módulo, acceso del usuario y permiso vigente. Ventas también valida el entitlement comercial `sales`.
 - Recursos Humanos omite nómina, documentos, identificadores nacionales, coordenadas, fotos y biometría.
 - Fondos nunca exponen tokens ni URLs de kiosco.

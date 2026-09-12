@@ -142,6 +142,74 @@ test("verifies delegated access without exposing token details", async () => {
   );
 });
 
+test("loads the current delegated tool capability manifest", async () => {
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  const fakeFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    requests.push({ url: input.toString(), ...(init ? { init } : {}) });
+    return jsonResponse({ version: "v1", tools: ["get_sales_today", "list_tasks"] }, 200);
+  }) as typeof fetch;
+  const delegatedConfig: IndiceMcpConfig = {
+    ...oauthConfig,
+    backendUrl: new URL("http://127.0.0.1:8082"),
+    authMode: "delegated",
+    preferredCurrency: "MXN",
+    timeoutMs: 5000,
+    transport: "http",
+    host: "127.0.0.1",
+    port: 3010
+  };
+  const client = new IndiceClient(delegatedConfig, fakeFetch, "idx_ai_delegated-token-value-1234567890");
+
+  const capabilities = await client.getDelegatedToolCapabilities();
+
+  assert.deepEqual(capabilities, { version: "v1", tools: ["get_sales_today", "list_tasks"] });
+  assert.equal(requests[0]?.url, "http://127.0.0.1:8082/api/v1/ai/access/capabilities");
+  assert.equal(
+    new Headers(requests[0]?.init?.headers).get("Authorization"),
+    "Bearer idx_ai_delegated-token-value-1234567890"
+  );
+});
+
+test("rejects an unknown tool in the delegated capability manifest", async () => {
+  const fakeFetch = (async () => jsonResponse({
+    version: "v1",
+    tools: ["unknown_database_tool"]
+  }, 200)) as typeof fetch;
+  const delegatedConfig: IndiceMcpConfig = {
+    ...oauthConfig,
+    backendUrl: new URL("http://127.0.0.1:8082"),
+    authMode: "delegated",
+    preferredCurrency: "MXN",
+    timeoutMs: 5000,
+    transport: "http",
+    host: "127.0.0.1",
+    port: 3010
+  };
+  const client = new IndiceClient(delegatedConfig, fakeFetch, "idx_ai_delegated-token-value-1234567890");
+
+  await assert.rejects(
+    () => client.getDelegatedToolCapabilities(),
+    /invalid tool capability contract/
+  );
+});
+
+test("treats a rejected delegated capability manifest as invalid authorization", async () => {
+  const fakeFetch = (async () => new Response(null, { status: 401 })) as typeof fetch;
+  const delegatedConfig: IndiceMcpConfig = {
+    ...oauthConfig,
+    backendUrl: new URL("http://127.0.0.1:8082"),
+    authMode: "delegated",
+    preferredCurrency: "MXN",
+    timeoutMs: 5000,
+    transport: "http",
+    host: "127.0.0.1",
+    port: 3010
+  };
+  const client = new IndiceClient(delegatedConfig, fakeFetch, "idx_ai_delegated-token-value-1234567890");
+
+  assert.equal(await client.getDelegatedToolCapabilities(), undefined);
+});
+
 test("loads a delegated business snapshot without accepting tenant identifiers", async () => {
   const requests: Array<{ url: string; init?: RequestInit }> = [];
   const fakeFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
