@@ -220,12 +220,19 @@ public class SalesPublicCatalogRepository {
     }
 
     public void replaceProducts(long companyId, long catalogId, List<Long> productIds) {
-        jdbcTemplate.update("DELETE FROM sales_public_catalog_products WHERE catalog_id = ?", catalogId);
+        jdbcTemplate.update("""
+            DELETE FROM sales_public_catalog_products
+            WHERE catalog_id = ? AND company_id = ?
+            """, catalogId, companyId);
+        var batch = new java.util.ArrayList<Object[]>(productIds.size());
         for (int index = 0; index < productIds.size(); index++) {
-            jdbcTemplate.update("""
-                INSERT INTO sales_public_catalog_products (catalog_id, company_id, product_id, sort_order)
-                VALUES (?, ?, ?, ?)
-                """, catalogId, companyId, productIds.get(index), index);
+            batch.add(new Object[] {catalogId, companyId, productIds.get(index), index});
+        }
+        if (!batch.isEmpty()) {
+            jdbcTemplate.batchUpdate("""
+                    INSERT INTO sales_public_catalog_products (catalog_id, company_id, product_id, sort_order)
+                    VALUES (?, ?, ?, ?)
+                    """, batch);
         }
     }
 

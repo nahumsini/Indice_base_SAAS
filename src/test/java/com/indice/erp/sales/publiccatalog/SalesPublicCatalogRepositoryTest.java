@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.RowMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -74,6 +75,27 @@ class SalesPublicCatalogRepositoryTest {
             .contains("IN ('commercial', 'pos_ready', 'quote_only')")
             .doesNotContain("<> 'operational_item'")
             .contains("price IS NOT NULL AND price > 0");
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    void replacesLargeCatalogSelectionsWithOneTenantScopedBatch() {
+        var jdbcTemplate = mock(JdbcTemplate.class);
+        var repository = new SalesPublicCatalogRepository(jdbcTemplate);
+        var productIds = List.of(91L, 92L, 93L);
+
+        repository.replaceProducts(7L, 17L, productIds);
+
+        var deleteSql = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).update(deleteSql.capture(), eq(17L), eq(7L));
+        assertThat(deleteSql.getValue()).contains("catalog_id = ? AND company_id = ?");
+
+        var insertSql = ArgumentCaptor.forClass(String.class);
+        var batch = ArgumentCaptor.forClass(List.class);
+        verify(jdbcTemplate).batchUpdate(insertSql.capture(), batch.capture());
+        assertThat(insertSql.getValue()).contains("INSERT INTO sales_public_catalog_products");
+        assertThat(batch.getValue()).hasSize(3);
+        assertThat((Object[]) batch.getValue().get(2)).containsExactly(17L, 7L, 93L, 2);
     }
 
     @Test

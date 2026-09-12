@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -16,9 +17,19 @@ public class SalesPublicCatalogExceptionHandler {
         return response(HttpStatus.NOT_FOUND, failure.getMessage());
     }
 
-    @ExceptionHandler({IllegalArgumentException.class, MethodArgumentNotValidException.class})
-    public ResponseEntity<?> badRequest(Exception failure) {
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<?> badRequest(IllegalArgumentException failure) {
         return response(HttpStatus.BAD_REQUEST, failure.getMessage());
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<?> validation(MethodArgumentNotValidException failure) {
+        var message = failure.getBindingResult().getAllErrors().stream()
+            .map(DefaultMessageSourceResolvable::getDefaultMessage)
+            .filter(candidate -> candidate != null && !candidate.isBlank())
+            .findFirst()
+            .orElse("Review the catalog data and try again.");
+        return response(HttpStatus.BAD_REQUEST, message);
     }
 
     @ExceptionHandler(IllegalStateException.class)

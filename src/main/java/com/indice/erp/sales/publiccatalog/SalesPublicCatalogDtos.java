@@ -14,6 +14,8 @@ import com.indice.erp.pos.discount.DiscountDtos.RuleResponse;
 
 public final class SalesPublicCatalogDtos {
 
+    public static final int MAX_PRODUCTS_PER_CATALOG = 5_000;
+
     private SalesPublicCatalogDtos() {
     }
 
@@ -42,7 +44,10 @@ public final class SalesPublicCatalogDtos {
         Boolean allowCart,
         Boolean allowPurchaseRequest,
         Boolean allowImageDownloads,
-        @NotNull @Size(max = 500) List<@NotNull Long> productIds,
+        @NotNull @Size(
+            max = MAX_PRODUCTS_PER_CATALOG,
+            message = "A public catalog can include up to 5,000 products."
+        ) List<@NotNull Long> productIds,
         Long version
     ) {
     }
