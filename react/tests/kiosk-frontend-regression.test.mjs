@@ -397,6 +397,8 @@ test('public catalog visual profiles remain editable, accessible and persisted e
   }
   assert.match(editor, /type="color"/);
   assert.match(editor, /aria-pressed=/);
+  assert.match(editor, /getProductsForPublicCatalog/);
+  assert.match(editor, /<PublicCatalogCard/);
   assert.match(modal, /modalType="wizard"/);
   assert.match(modal, /IndiceModalWizardStepper/);
   assert.match(modal, /onStepSelect=\{handleStepSelect\}/);

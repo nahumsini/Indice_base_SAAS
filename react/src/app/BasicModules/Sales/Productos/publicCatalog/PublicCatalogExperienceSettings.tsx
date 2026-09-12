@@ -1,18 +1,21 @@
 import { BriefcaseBusiness, Building2, Hotel, PackageOpen, ShoppingBag, UtensilsCrossed } from 'lucide-react';
+import type { SalesCatalogItem } from '../../types';
 import type { ProductsTranslations } from '../translations';
+import { PublicCatalogCard } from './PublicCatalogCard';
 import type {
   PublicCatalogCardStyle,
   PublicCatalogConfig,
   PublicCatalogExperienceProfile,
   PublicCatalogHeroStyle,
   PublicCatalogImageRatio,
+  PublicCatalogItem,
   PublicCatalogLayoutStyle,
 } from './types/publicCatalogTypes';
+import { getProductsForPublicCatalog } from './utils/publicCatalogAdapters';
 import {
   PUBLIC_CATALOG_BRAND_COLORS,
   PUBLIC_CATALOG_EXPERIENCE_PRESETS,
   getPublicCatalogExperienceStyle,
-  publicCatalogImageRatioClass,
 } from './utils/publicCatalogExperience';
 
 const profileIcons = {
@@ -25,6 +28,17 @@ const profileIcons = {
 };
 
 const profileKeys = Object.keys(PUBLIC_CATALOG_EXPERIENCE_PRESETS) as PublicCatalogExperienceProfile[];
+
+const previewFallback = (catalog: PublicCatalogConfig, copy: ProductsTranslations['publicCatalog']['experience']): PublicCatalogItem => ({
+  id: 'public-catalog-preview',
+  name: catalog.title || copy.previewTitle,
+  type: 'Product',
+  description: copy.previewDescription,
+  publicPrice: 0,
+  currency: 'MXN',
+  publicInventoryStatus: 'noInventoryTracking',
+  readyForSales: true,
+});
 
 function ChoiceGroup<T extends string>({
   label,
@@ -60,15 +74,21 @@ function ChoiceGroup<T extends string>({
 
 export function PublicCatalogExperienceSettings({
   catalog,
+  products,
   t,
   onChange,
 }: {
   catalog: PublicCatalogConfig;
+  products: SalesCatalogItem[];
   t: ProductsTranslations;
   onChange: (patch: Partial<PublicCatalogConfig>) => void;
 }) {
   const copy = t.publicCatalog.experience;
   const style = getPublicCatalogExperienceStyle(catalog);
+  const selectedPreviewItems = getProductsForPublicCatalog(products, catalog);
+  const previewItem = selectedPreviewItems.find((item) => Boolean(item.thumbnailUrl))
+    ?? selectedPreviewItems[0]
+    ?? previewFallback(catalog, copy);
 
   return (
     <div className="space-y-4" style={style}>
@@ -156,14 +176,27 @@ export function PublicCatalogExperienceSettings({
 
           <aside className="lg:sticky lg:top-0 lg:self-start">
             <p className="mb-2 text-sm font-medium text-slate-800">{copy.livePreview}</p>
-            <div className={`overflow-hidden border bg-white ${catalog.cardStyle === 'minimal' ? 'rounded-lg border-transparent' : 'rounded-2xl'} ${catalog.cardStyle === 'elevated' ? 'shadow-lg' : ''}`}>
-              <div className={`${publicCatalogImageRatioClass[catalog.imageRatio]} bg-gradient-to-br from-[var(--catalog-accent-soft)] to-slate-100 p-4`}>
-                <div className="flex h-full items-end"><span className="rounded-full bg-white/90 px-2 py-1 text-[10px] font-medium text-[var(--catalog-accent-ink)]">{copy.previewBadge}</span></div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-100/70 p-3">
+              <p className="sr-only" aria-live="polite">
+                {copy.livePreview}: {previewItem.name}. {copy.layoutStyles[catalog.layoutStyle].label}. {copy.cardStyles[catalog.cardStyle].label}. {copy.imageRatios[catalog.imageRatio].label}.
+              </p>
+              <div className="pointer-events-none select-none" inert aria-hidden="true">
+                <PublicCatalogCard
+                  item={previewItem}
+                  config={catalog}
+                  t={t}
+                  onAddToCart={() => undefined}
+                  onCheckAvailability={() => undefined}
+                  onOpenGallery={() => undefined}
+                  onDownloadImages={() => undefined}
+                  onShareWhatsApp={() => undefined}
+                  downloadingImages={false}
+                />
               </div>
-              <div className="p-4">
-                <p className="text-base font-medium text-slate-950">{catalog.title || copy.previewTitle}</p>
-                <p className="mt-1 text-xs text-slate-500">{copy.previewDescription}</p>
-                <button type="button" tabIndex={-1} className="mt-4 h-9 w-full rounded-lg bg-[var(--catalog-accent)] text-xs font-medium text-[var(--catalog-accent-contrast)]">{catalog.contactCtaLabel || copy.previewAction}</button>
+              <div className="mt-3 flex flex-wrap gap-1.5" aria-hidden="true">
+                <span className="rounded-full border border-[var(--catalog-accent-border)] bg-[var(--catalog-accent-soft)] px-2 py-1 text-[10px] font-medium text-[var(--catalog-accent-ink)]">{copy.layoutStyles[catalog.layoutStyle].label}</span>
+                <span className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-medium text-slate-600">{copy.cardStyles[catalog.cardStyle].label}</span>
+                <span className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-medium text-slate-600">{copy.imageRatios[catalog.imageRatio].label}</span>
               </div>
             </div>
           </aside>

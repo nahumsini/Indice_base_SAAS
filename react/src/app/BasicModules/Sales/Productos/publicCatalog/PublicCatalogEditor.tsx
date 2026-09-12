@@ -50,7 +50,7 @@ export function PublicCatalogEditor({
       : 'tel';
 
   if (step === 'appearance') {
-    return <PublicCatalogExperienceSettings catalog={catalog} t={t} onChange={onChange} />;
+    return <PublicCatalogExperienceSettings catalog={catalog} products={products} t={t} onChange={onChange} />;
   }
 
   if (step === 'features') {
