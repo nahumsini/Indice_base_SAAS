@@ -14,26 +14,33 @@ export function PublicCatalogGalleryModal({
   open,
   initialIndex = 0,
   t,
+  onRefreshItem,
   onOpenChange,
 }: {
   item: PublicCatalogItem | null;
   open: boolean;
   initialIndex?: number;
   t: ProductsTranslations;
+  onRefreshItem?: (itemId: string) => Promise<PublicCatalogItem | null>;
   onOpenChange: (open: boolean) => void;
 }) {
-  const images = useMemo(() => (item ? publicCatalogImages(item) : []), [item]);
+  const [refreshedItem, setRefreshedItem] = useState<PublicCatalogItem | null>(null);
+  const effectiveItem = refreshedItem?.id === item?.id ? refreshedItem : item;
+  const images = useMemo(() => (effectiveItem ? publicCatalogImages(effectiveItem) : []), [effectiveItem]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [loadedUrl, setLoadedUrl] = useState('');
   const [failedUrl, setFailedUrl] = useState('');
+  const refreshAttempts = useRef(new Set<number>());
   const touchStartX = useRef<number | null>(null);
   const activeImage = images[activeIndex] ?? null;
   const hasNavigation = images.length > 1;
 
   useEffect(() => {
     if (!open) return;
+    setRefreshedItem(null);
+    refreshAttempts.current.clear();
     setActiveIndex(Math.min(Math.max(initialIndex, 0), Math.max(images.length - 1, 0)));
-  }, [images.length, initialIndex, open]);
+  }, [initialIndex, item?.id, open]);
 
   useEffect(() => {
     setLoadedUrl('');
@@ -43,6 +50,28 @@ export function PublicCatalogGalleryModal({
   const move = (direction: -1 | 1) => {
     if (!hasNavigation) return;
     setActiveIndex((current) => (current + direction + images.length) % images.length);
+  };
+
+  const handleImageError = () => {
+    if (!activeImage) return;
+    const failedImageUrl = activeImage.url;
+    const failedImageIndex = activeIndex;
+    if (!item || !onRefreshItem || refreshAttempts.current.has(failedImageIndex)) {
+      setFailedUrl(failedImageUrl);
+      return;
+    }
+
+    refreshAttempts.current.add(failedImageIndex);
+    void onRefreshItem(item.id)
+      .then((nextItem) => {
+        const replacement = nextItem ? publicCatalogImages(nextItem)[failedImageIndex] : null;
+        if (!nextItem || !replacement || replacement.url === failedImageUrl) {
+          setFailedUrl(failedImageUrl);
+          return;
+        }
+        setRefreshedItem(nextItem);
+      })
+      .catch(() => setFailedUrl(failedImageUrl));
   };
 
   useEffect(() => {
@@ -68,7 +97,7 @@ export function PublicCatalogGalleryModal({
       open={open}
       onOpenChange={onOpenChange}
       modalType="large-workspace"
-      title={item?.name || t.gallery.title}
+      title={effectiveItem?.name || t.gallery.title}
       description={images.length > 0 ? t.gallery.counter(activeIndex + 1, images.length) : t.gallery.empty}
       icon={<Images className="h-6 w-6" />}
       contentClassName="flex h-[min(94vh,980px)] w-[min(96vw,1480px)] max-w-[min(96vw,1480px)] flex-col"
@@ -106,13 +135,16 @@ export function PublicCatalogGalleryModal({
             <img
               key={activeImage.url}
               src={activeImage.url}
-              alt={activeImage.alt || item?.name || t.gallery.title}
+              alt={activeImage.alt || effectiveItem?.name || t.gallery.title}
               className={`h-full max-h-[calc(94vh-160px)] w-full select-none rounded-lg object-contain transition-opacity duration-200 ${loadedUrl === activeImage.url ? 'opacity-100' : 'opacity-0'}`}
               loading="eager"
               decoding="async"
               draggable={false}
-              onLoad={() => setLoadedUrl(activeImage.url)}
-              onError={() => setFailedUrl(activeImage.url)}
+              onLoad={() => {
+                refreshAttempts.current.delete(activeIndex);
+                setLoadedUrl(activeImage.url);
+              }}
+              onError={handleImageError}
             />
           </>
         ) : (

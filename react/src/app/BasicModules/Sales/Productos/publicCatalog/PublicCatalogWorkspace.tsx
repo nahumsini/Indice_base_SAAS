@@ -31,6 +31,7 @@ type PublicCatalogWorkspaceProps = {
   token?: string;
   csrfToken?: string;
   discountRules?: DiscountRuleWire[];
+  onRefreshCatalogItem?: (itemId: string) => Promise<PublicCatalogItem | null>;
 };
 
 type CatalogActionFeedback = {
@@ -46,6 +47,7 @@ export function PublicCatalogWorkspace({
   token,
   csrfToken,
   discountRules = [],
+  onRefreshCatalogItem,
 }: PublicCatalogWorkspaceProps) {
   const t = useProductsTranslations();
   const isMobile = useIsMobile();
@@ -97,6 +99,13 @@ export function PublicCatalogWorkspace({
     const timeoutId = window.setTimeout(() => setActionFeedback(null), 5_000);
     return () => window.clearTimeout(timeoutId);
   }, [actionFeedback]);
+
+  useEffect(() => {
+    setGalleryItem((current) => {
+      if (!current) return null;
+      return experienceItems.find((item) => item.id === current.id) ?? current;
+    });
+  }, [experienceItems]);
 
   useEffect(() => {
     if (embedded) return undefined;
@@ -153,7 +162,11 @@ export function PublicCatalogWorkspace({
     setActionFeedback(null);
 
     try {
-      const result = await downloadReferenceProductImages(item);
+      let currentItem = item;
+      if (!embedded && onRefreshCatalogItem) {
+        currentItem = await onRefreshCatalogItem(item.id) ?? item;
+      }
+      const result = await downloadReferenceProductImages(currentItem);
       setActionFeedback({
         kind: result.skipped > 0 ? 'warning' : 'success',
         message: result.skipped > 0
@@ -319,6 +332,7 @@ export function PublicCatalogWorkspace({
         item={galleryItem}
         open={Boolean(galleryItem)}
         t={t}
+        onRefreshItem={onRefreshCatalogItem}
         onOpenChange={(nextOpen) => {
           if (!nextOpen) setGalleryItem(null);
         }}

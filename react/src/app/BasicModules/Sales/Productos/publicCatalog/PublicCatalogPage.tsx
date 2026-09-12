@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Globe2, RefreshCw, WifiOff } from 'lucide-react';
 import { useParams } from 'react-router';
 import { KioskPublicShell } from '../../../../components/kiosk-engine/KioskPublicShell';
@@ -14,6 +14,7 @@ import { PublicCatalogHeader } from './PublicCatalogHeader';
 import { PublicCatalogWorkspace } from './PublicCatalogWorkspace';
 
 const numberValue = (value: number | string | null | undefined) => Number(value ?? 0);
+const PUBLIC_CATALOG_MEDIA_REFRESH_MS = 10 * 60 * 1_000;
 
 const configFromBootstrap = (bootstrap: PublicCatalogBootstrap): PublicCatalogConfig => ({
   id: bootstrap.code,
@@ -82,9 +83,44 @@ export function PublicCatalogPage({
   const [error, setError] = useState('');
   const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine);
   const [reloadKey, setReloadKey] = useState(0);
+  const bootstrapRequestRef = useRef<{
+    token: string;
+    request: Promise<PublicCatalogBootstrap>;
+  } | null>(null);
+  const publicAccessTokenRef = useRef(publicAccessToken);
+  publicAccessTokenRef.current = publicAccessToken;
   const bootstrap = bootstrapToken === publicAccessToken ? loadedBootstrap : null;
   const viewLoading = bootstrapToken === publicAccessToken ? loading : true;
   const viewError = bootstrapToken === publicAccessToken ? error : '';
+
+  const fetchLatestBootstrap = useCallback(() => {
+    const token = publicAccessToken;
+    if (!token) return Promise.reject(new Error('Public catalog token is required.'));
+    const inFlight = bootstrapRequestRef.current;
+    if (inFlight?.token === token) return inFlight.request;
+
+    const request = publicCatalogApi.bootstrap(token).finally(() => {
+      if (bootstrapRequestRef.current?.request === request) {
+        bootstrapRequestRef.current = null;
+      }
+    });
+    bootstrapRequestRef.current = { token, request };
+    return request;
+  }, [publicAccessToken]);
+
+  const applyLatestBootstrap = useCallback((token: string, response: PublicCatalogBootstrap) => {
+    if (publicAccessTokenRef.current !== token) return;
+    setBootstrapToken(token);
+    setLoadedBootstrap(response);
+    setError('');
+  }, []);
+
+  const refreshCatalogItem = useCallback(async (itemId: string) => {
+    const token = publicAccessToken;
+    const response = await fetchLatestBootstrap();
+    applyLatestBootstrap(token, response);
+    return itemsFromBootstrap(response).find((item) => item.id === itemId) ?? null;
+  }, [applyLatestBootstrap, fetchLatestBootstrap, publicAccessToken]);
 
   useEffect(() => {
     if (embedded) return undefined;
@@ -109,9 +145,9 @@ export function PublicCatalogPage({
     }
     setLoading(true);
     setError('');
-    publicCatalogApi.bootstrap(publicAccessToken)
+    fetchLatestBootstrap()
       .then((response) => {
-        if (!cancelled) setLoadedBootstrap(response);
+        if (!cancelled) applyLatestBootstrap(publicAccessToken, response);
       })
       .catch(() => {
         if (!cancelled) {
@@ -122,7 +158,29 @@ export function PublicCatalogPage({
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [embedded, publicAccessToken, reloadKey]);
+  }, [applyLatestBootstrap, embedded, fetchLatestBootstrap, publicAccessToken, reloadKey, t.publicCatalog.incompleteLinkError, t.publicCatalog.publicUnavailable]);
+
+  useEffect(() => {
+    if (embedded || !publicAccessToken) return undefined;
+    const refreshMedia = () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+      const token = publicAccessToken;
+      void fetchLatestBootstrap()
+        .then((response) => applyLatestBootstrap(token, response))
+        .catch(() => undefined);
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') refreshMedia();
+    };
+    const intervalId = window.setInterval(refreshMedia, PUBLIC_CATALOG_MEDIA_REFRESH_MS);
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('online', refreshMedia);
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('online', refreshMedia);
+    };
+  }, [applyLatestBootstrap, embedded, fetchLatestBootstrap, publicAccessToken]);
 
   if (embedded) {
     const activeConfig = config ?? createDefaultPublicCatalogConfig(products, {
@@ -191,6 +249,7 @@ export function PublicCatalogPage({
           token={publicAccessToken}
           csrfToken={bootstrap.csrfToken}
           discountRules={bootstrap.discountRules}
+          onRefreshCatalogItem={refreshCatalogItem}
         />
       ) : null}
     </KioskPublicShell>

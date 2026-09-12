@@ -474,7 +474,8 @@ test('product image preparation preserves small media and caps oversized dimensi
 });
 
 test('public catalog opens a lazy, resilient cover in an accessible large gallery', async () => {
-  const [workspace, cover, gallery, media, optimization] = await Promise.all([
+  const [page, workspace, cover, gallery, media, optimization] = await Promise.all([
+    readFile(new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/PublicCatalogPage.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/PublicCatalogWorkspace.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/PublicCatalogImageCover.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/PublicCatalogGalleryModal.tsx', import.meta.url), 'utf8'),
@@ -491,6 +492,12 @@ test('public catalog opens a lazy, resilient cover in an accessible large galler
   assert.match(gallery, /event\.key === 'ArrowLeft'/);
   assert.match(gallery, /onTouchEnd/);
   assert.match(gallery, /object-contain/);
+  assert.match(page, /PUBLIC_CATALOG_MEDIA_REFRESH_MS/);
+  assert.match(page, /visibilitychange/);
+  assert.match(page, /onRefreshCatalogItem=\{refreshCatalogItem\}/);
+  assert.match(workspace, /onRefreshItem=\{onRefreshCatalogItem\}/);
+  assert.match(gallery, /onRefreshItem\(item\.id\)/);
+  assert.match(gallery, /replacement\.url === failedImageUrl/);
   assert.match(media, /isPreparingImages/);
   assert.match(media, /accept=\{productImageFileAccept\}/);
   assert.match(optimization, /canvas\.toBlob\(resolve, 'image\/webp'/);
@@ -508,7 +515,8 @@ test('public catalog prepares reference images only on demand and shares a direc
     readFile(new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/PublicCatalogVisibilitySettings.tsx', import.meta.url), 'utf8'),
   ]);
 
-  assert.match(workspace, /downloadReferenceProductImages\(item\)/);
+  assert.match(workspace, /onRefreshCatalogItem\(item\.id\)/);
+  assert.match(workspace, /downloadReferenceProductImages\(currentItem\)/);
   assert.match(workspace, /config\.showPrices[\s\S]*formatProductCurrency/);
   assert.match(workspace, /window\.open\(shareUrl, '_blank'\)/);
   assert.match(card, /config\.allowImageDownloads && hasImages/);
