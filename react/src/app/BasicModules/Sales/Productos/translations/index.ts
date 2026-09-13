@@ -23,6 +23,10 @@ export const productsTranslations: Record<ProductsLocale, ProductsTranslations> 
   'zh-CA': zhCA,
 };
 
+export const publicCatalogContactCtaDefaults = Array.from(new Set(
+  Object.values(productsTranslations).map((copy) => copy.publicCatalog.contactCta.trim()),
+));
+
 export function resolveProductsLocale(locale?: string | null): ProductsLocale {
   if (locale && Object.prototype.hasOwnProperty.call(productsTranslations, locale)) {
     return locale as ProductsLocale;

@@ -562,6 +562,7 @@ export const esMX: ProductsTranslations = {
     action: 'Catálogo público',
     publicCatalog: 'Catálogo público',
     moduleEyebrow: 'Ventas · Catálogo público',
+    documentTitle: (companyName: string) => companyName ? `${companyName} - Catálogo de productos` : 'Catálogo de productos',
     managerTitle: 'Administrador de catálogos públicos',
     managerDescription: 'Crea y comparte catálogos de productos y servicios con tus clientes.',
     createPublicCatalog: 'Crear catálogo público',

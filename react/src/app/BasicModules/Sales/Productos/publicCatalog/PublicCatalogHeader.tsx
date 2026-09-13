@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { ArrowUpRight, Globe2, Mail, MessageCircle, Phone, Store } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import type { ProductsTranslations } from '../translations';
+import { publicCatalogContactCtaDefaults, type ProductsTranslations } from '../translations';
 import type { PublicCatalogConfig } from './types/publicCatalogTypes';
 import { getPublicCatalogExperienceStyle, publicCatalogHeroStyle } from './utils/publicCatalogExperience';
+import { resolvePublicCatalogContactLabel } from './utils/publicCatalogLocalization';
 
 const contactIcons = {
   whatsapp: MessageCircle,
@@ -75,6 +76,11 @@ export function PublicCatalogHeader({
   const titleClass = strongHero ? 'text-current' : 'text-slate-950 dark:text-white';
   const detailClass = strongHero ? 'text-current opacity-80' : 'text-slate-500 dark:text-slate-400';
   const descriptionClass = strongHero ? 'text-current opacity-90' : 'text-slate-600 dark:text-slate-300';
+  const contactLabel = resolvePublicCatalogContactLabel(
+    config.contactCtaLabel,
+    t.publicCatalog.contactCta,
+    publicCatalogContactCtaDefaults,
+  );
 
   if (compact) {
     return (
@@ -102,7 +108,7 @@ export function PublicCatalogHeader({
             <Button asChild className="mt-4 h-12 w-full gap-2 rounded-xl bg-[var(--catalog-accent)] font-medium text-[var(--catalog-accent-contrast)] shadow-sm hover:bg-[var(--catalog-accent-hover)]">
               <a href={href} target={externalContact ? '_blank' : undefined} rel="noreferrer">
                 <ContactIcon className="h-4 w-4" />
-                {config.contactCtaLabel || t.publicCatalog.contactCta}
+                {contactLabel}
                 <ArrowUpRight className="ml-auto h-4 w-4" />
               </a>
             </Button>
@@ -140,7 +146,7 @@ export function PublicCatalogHeader({
           <Button asChild className="h-12 shrink-0 gap-2 rounded-xl bg-[var(--catalog-accent)] px-5 text-sm font-medium text-[var(--catalog-accent-contrast)] shadow-md shadow-[var(--catalog-accent-shadow)] hover:bg-[var(--catalog-accent-hover)]">
             <a href={href} target={externalContact ? '_blank' : undefined} rel="noreferrer">
               <ContactIcon className="h-4 w-4" />
-              {config.contactCtaLabel || t.publicCatalog.contactCta}
+              {contactLabel}
               <ArrowUpRight className="h-4 w-4" />
             </a>
           </Button>

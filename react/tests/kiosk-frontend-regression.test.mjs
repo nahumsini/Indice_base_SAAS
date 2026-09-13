@@ -24,6 +24,7 @@ import {
   PUBLIC_CATALOG_EXPERIENCE_PRESETS,
   getPublicCatalogExperienceStyle,
 } from '../src/app/BasicModules/Sales/Productos/publicCatalog/utils/publicCatalogExperience.ts';
+import { resolvePublicCatalogContactLabel } from '../src/app/BasicModules/Sales/Productos/publicCatalog/utils/publicCatalogLocalization.ts';
 import {
   getProductImageTargetDimensions,
 } from '../src/app/BasicModules/Sales/Productos/utils/productImageOptimization.ts';
@@ -470,6 +471,52 @@ test('public catalog visual profiles remain editable, accessible and persisted e
   assert.match(header, /publicCatalogHeroStyle\(config\.heroStyle/);
   assert.match(grid, /publicCatalogLayoutClass\[config\.layoutStyle\]/);
   assert.match(card, /publicCatalogImageRatioClass\[config\.imageRatio\]/);
+});
+
+test('public catalog localizes redesigned controls and defaults without rewriting business content', async () => {
+  const defaults = [
+    'Contact business',
+    'Contactar negocio',
+    'Contacter l entreprise',
+    'Contatar empresa',
+  ];
+  assert.equal(
+    resolvePublicCatalogContactLabel('Contactar negocio', 'Contact business', defaults),
+    'Contact business',
+  );
+  assert.equal(
+    resolvePublicCatalogContactLabel('  Ask the concierge  ', 'Contact business', defaults),
+    'Ask the concierge',
+  );
+  assert.equal(
+    resolvePublicCatalogContactLabel('', 'Contatar empresa', defaults),
+    'Contatar empresa',
+  );
+
+  const translationsRoot = new URL('../src/app/BasicModules/Sales/Productos/translations/', import.meta.url);
+  const localeSources = await Promise.all(
+    ['en-CA.ts', 'es-MX.ts', 'fr-CA.ts', 'pt-BR.ts', 'ko-CA.ts', 'zh-CA.ts']
+      .map((locale) => readFile(new URL(locale, translationsRoot), 'utf8')),
+  );
+  for (const source of localeSources) {
+    assert.match(source, /moduleEyebrow:/);
+    assert.match(source, /documentTitle:/);
+    assert.match(source, /wizard:/);
+    assert.match(source, /experience:/);
+    assert.match(source, /review:/);
+    assert.match(source, /requiredCtaError:/);
+  }
+
+  const [page, header, manager, shell] = await Promise.all([
+    readFile(new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/PublicCatalogPage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/PublicCatalogHeader.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/PublicCatalogConfigModal.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/components/kiosk-engine/KioskPublicShell.tsx', import.meta.url), 'utf8'),
+  ]);
+  assert.match(page, /t\.publicCatalog\.documentTitle/);
+  assert.match(header, /resolvePublicCatalogContactLabel/);
+  assert.match(manager, /contactCtaLabel: resolvePublicCatalogContactLabel/);
+  assert.match(shell, /key=\{`accessibility-\$\{currentLanguage\.code\}`\}/);
 });
 
 test('explicit commercial visibility publishes legacy operational items without exposing internal ones', () => {

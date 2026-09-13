@@ -5,7 +5,7 @@ import { SalesModalFrame } from '../../components/SalesModalFrame';
 import { getSalesModalActionClassNames } from '../../salesModalStyles';
 import { salesApi } from '../../salesApi';
 import type { SalesCatalogItem } from '../../types';
-import type { ProductsTranslations } from '../translations';
+import { publicCatalogContactCtaDefaults, type ProductsTranslations } from '../translations';
 import { publicCatalogApi } from './publicCatalogApi';
 import { PublicCatalogCardsPanel } from './PublicCatalogCardsPanel';
 import { PublicCatalogEditorModal } from './PublicCatalogEditorModal';
@@ -19,6 +19,7 @@ import {
   downloadQrImage,
   getPublicCatalogTimestamp,
 } from './utils/publicCatalogManagerUtils';
+import { resolvePublicCatalogContactLabel } from './utils/publicCatalogLocalization';
 
 type PublicCatalogEditorMode = 'create' | 'edit';
 type DestructiveAction = { catalog: PublicCatalogConfig; kind: 'revoke' | 'delete' };
@@ -217,6 +218,11 @@ export function PublicCatalogConfigModal({
     setEditorError('');
     setEditingCatalog({
       ...catalog,
+      contactCtaLabel: resolvePublicCatalogContactLabel(
+        catalog.contactCtaLabel,
+        t.publicCatalog.contactCta,
+        publicCatalogContactCtaDefaults,
+      ),
       selectedCategoryIds: [...catalog.selectedCategoryIds],
       selectedProductIds: [...catalog.selectedProductIds],
     });

@@ -256,6 +256,7 @@ export function KioskPublicShell({
         </select>
       </label>
       <button
+        key={`embedded-accessibility-${currentLanguage.code}`}
         ref={accessibilityButtonRef}
         type="button"
         aria-label={copy.accessibility}
@@ -305,6 +306,7 @@ export function KioskPublicShell({
               </select>
             </label>
             <button
+              key={`accessibility-${currentLanguage.code}`}
               ref={accessibilityButtonRef}
               type="button"
               aria-label={copy.accessibility}

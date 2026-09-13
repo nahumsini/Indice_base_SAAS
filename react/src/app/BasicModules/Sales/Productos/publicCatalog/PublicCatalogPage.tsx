@@ -187,14 +187,11 @@ export function PublicCatalogPage({
   useEffect(() => {
     if (embedded || !bootstrap) return undefined;
     const previousTitle = document.title;
-    const companyName = bootstrap.companyName?.trim();
-    document.title = companyName
-      ? `${companyName} - Catálogo de productos`
-      : 'Catálogo de productos';
+    document.title = t.publicCatalog.documentTitle(bootstrap.companyName?.trim() ?? '');
     return () => {
       document.title = previousTitle;
     };
-  }, [bootstrap?.companyName, embedded]);
+  }, [bootstrap?.companyName, embedded, t.publicCatalog.documentTitle]);
 
   if (embedded) {
     const activeConfig = config ?? createDefaultPublicCatalogConfig(products, {

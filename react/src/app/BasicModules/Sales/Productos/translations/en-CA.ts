@@ -560,6 +560,7 @@ export const enCA = {
     action: 'Public catalog',
     publicCatalog: 'Public catalog',
     moduleEyebrow: 'Sales · Public catalog',
+    documentTitle: (companyName: string) => companyName ? `${companyName} - Product catalog` : 'Product catalog',
     managerTitle: 'Public Catalog Manager',
     managerDescription: 'Create and share product and service catalogs with your customers.',
     createPublicCatalog: 'Create public catalog',
