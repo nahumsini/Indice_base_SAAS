@@ -404,7 +404,7 @@ export function toFrontendProduct(row: ApiRow): SalesCatalogItem {
 }
 
 export function toBackendProduct(product: Partial<SalesCatalogItem>) {
-  const gallery = product.gallery?.map((image) => {
+  const gallery = (product.gallery ?? []).map((image) => {
     if (!image.objectKey) {
       return image;
     }
@@ -442,6 +442,7 @@ export function toBackendProduct(product: Partial<SalesCatalogItem>) {
     metadata: {
       imageUrl: primaryImageUsesObjectStorage ? undefined : product.imageUrl,
       imageAlt: product.imageAlt,
+      // An explicit empty list means the user removed every image in the editor.
       gallery,
       packaging: product.packaging,
     },

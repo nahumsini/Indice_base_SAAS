@@ -5,6 +5,7 @@ import {
   isSupportedProductImageType,
   optimizeProductImageFile,
 } from './productImageOptimization';
+import { deduplicateProductImages, mergeProductImageCandidates } from './productImageIdentity';
 
 export { productImageFileAccept } from './productImageOptimization';
 
@@ -23,26 +24,21 @@ export function getProductGalleryImages(
     & Partial<Pick<SalesCatalogItem, 'id' | 'gallery'>>,
   options: { includeTransient?: boolean } = {},
 ): SalesProductImage[] {
-  const images: SalesProductImage[] = [];
   const productId = product.id ?? 'product';
 
   const isUsableUrl = (value?: string | null) => isPersistableProductImageUrl(value)
     || (Boolean(options.includeTransient) && isTransientProductImageUrl(value));
 
-  if (isUsableUrl(product.imageUrl)) {
-    images.push({
+  const primaryImage = isUsableUrl(product.imageUrl)
+    ? {
       id: `${productId}-primary`,
-      url: product.imageUrl,
+      url: product.imageUrl!,
       alt: product.imageAlt || product.name,
-    });
-  }
-
-  product.gallery?.forEach((image, index) => {
-    if (!isUsableUrl(image.url) || images.some((item) => item.url === image.url)) {
-      return;
     }
-
-    images.push({
+    : undefined;
+  const galleryImages = (product.gallery ?? []).flatMap((image, index) => {
+    if (!isUsableUrl(image.url)) return [];
+    return [{
       id: image.id || `${productId}-gallery-${index + 1}`,
       url: image.url,
       alt: image.alt || product.imageAlt || product.name,
@@ -50,10 +46,12 @@ export function getProductGalleryImages(
       fileName: image.fileName,
       contentType: image.contentType,
       sizeBytes: image.sizeBytes,
-    });
+    }];
   });
 
-  return images;
+  // Gallery entries carry the durable object key. Treat the top-level image URL as
+  // a presentation fallback so expiring signed URLs cannot replace that identity.
+  return mergeProductImageCandidates(primaryImage, galleryImages);
 }
 
 export function parseProductGalleryUrls(value: string, productName: string): SalesProductImage[] | undefined {
@@ -86,7 +84,7 @@ export function createProductImageGallery({
   uploadedImages: ProductMediaDraft[];
   productName: string;
   includeTransientUploads?: boolean;
-}): { imageUrl?: string; imageAlt?: string; gallery?: SalesProductImage[] } {
+}): { imageUrl?: string; imageAlt?: string; gallery: SalesProductImage[] } {
   const urlImages = parseProductGalleryUrls(galleryUrls ?? '', productName) ?? [];
   const uploadedGallery = uploadedImages
     .filter((image) => image.objectKey
@@ -101,11 +99,10 @@ export function createProductImageGallery({
       contentType: image.contentType,
       sizeBytes: image.sizeBytes,
     }));
-  const orderedImages = [
+  const orderedImages = deduplicateProductImages([
     ...uploadedGallery,
     ...urlImages,
-  ];
-  const firstImage = orderedImages[0];
+  ]);
   const fallbackPrimary = isPersistableProductImageUrl(primaryImageUrl)
     ? {
         id: `${productId}-primary`,
@@ -113,17 +110,16 @@ export function createProductImageGallery({
         alt: primaryImageAlt || productName,
       }
     : undefined;
-  const imageUrl = firstImage?.url || fallbackPrimary?.url;
-  const imageAlt = firstImage?.alt || fallbackPrimary?.alt;
-  const gallery = [
+  const gallery = deduplicateProductImages([
     ...orderedImages,
-    ...(fallbackPrimary && fallbackPrimary.url !== imageUrl ? [fallbackPrimary] : []),
-  ].filter((image, index, images) => images.findIndex((item) => item.url === image.url) === index);
+    ...(fallbackPrimary ? [fallbackPrimary] : []),
+  ]);
+  const firstImage = gallery[0];
 
   return {
-    imageUrl,
-    imageAlt,
-    gallery: gallery.length > 0 ? gallery : undefined,
+    imageUrl: firstImage?.url,
+    imageAlt: firstImage?.alt,
+    gallery,
   };
 }
 

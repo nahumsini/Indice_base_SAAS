@@ -3,6 +3,7 @@ package com.indice.erp.sales;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -132,5 +133,95 @@ class SalesServiceProductImageTest {
         assertThat(metadata.get("imageUrl")).isEqualTo("https://catalog.example/storage/fresh-product.webp");
         assertThat(gallery).hasSize(1);
         assertThat(gallery.get(0).get("url")).isEqualTo("https://catalog.example/storage/fresh-product.webp");
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void productReadReplacesAStoredSignedUrlWithItsRegisteredFileIdentity() {
+        var objectKey = "sales/products/7/images/product.webp";
+        var staleUrl = "https://catalog.example/storage/indice-sales-documents/"
+                + objectKey + "?X-Amz-Signature=expired";
+        var item = new LinkedHashMap<String, Object>();
+        item.put("id", 44L);
+        item.put("metadata", Map.of(
+                "imageUrl", staleUrl,
+                "gallery", List.of(Map.of("id", "legacy", "url", staleUrl))));
+        var registeredFile = new LinkedHashMap<String, Object>();
+        registeredFile.put("id", 61L);
+        registeredFile.put("entityType", "product");
+        registeredFile.put("entityId", 44L);
+        registeredFile.put("fileKind", "product_image");
+        registeredFile.put("objectKey", objectKey);
+        registeredFile.put("fileName", "product.webp");
+        registeredFile.put("metadata", Map.of("alt", "Producto"));
+
+        when(repository.get(eq(7L), any(SalesEntityDefinition.class), eq(44L))).thenReturn(item);
+        when(repository.listFiles(7L, "product", 44L)).thenReturn(List.of(registeredFile));
+        when(objectStorageService.isEnabled()).thenReturn(true);
+        when(objectStorageService.presignDownload("indice-sales-documents", objectKey, 900))
+                .thenReturn("https://catalog.example/storage/fresh-product.webp");
+
+        var result = service.get(7L, "products", 44L);
+
+        var metadata = (Map<String, Object>) result.get("metadata");
+        var gallery = (List<Map<String, Object>>) metadata.get("gallery");
+        assertThat(gallery).hasSize(1);
+        assertThat(gallery.get(0))
+                .containsEntry("id", "legacy")
+                .containsEntry("objectKey", objectKey)
+                .containsEntry("url", "https://catalog.example/storage/fresh-product.webp");
+        assertThat(metadata.get("imageUrl")).isEqualTo("https://catalog.example/storage/fresh-product.webp");
+    }
+
+    @Test
+    void productUpdateDeletesOnlyRegisteredImagesRemovedFromTheExplicitGallery() {
+        var retainedObjectKey = "sales/products/7/images/retained.webp";
+        var removedObjectKey = "sales/products/7/images/removed.webp";
+        var retainedFile = productImageFile(61L, 44L, retainedObjectKey);
+        var removedFile = productImageFile(62L, 44L, removedObjectKey);
+        var storedProduct = new LinkedHashMap<String, Object>();
+        storedProduct.put("id", 44L);
+        storedProduct.put("name", "Producto");
+        storedProduct.put("sku", "PHOTO-001");
+        storedProduct.put("metadata", Map.of());
+
+        when(repository.get(eq(7L), any(SalesEntityDefinition.class), eq(44L))).thenReturn(storedProduct);
+        when(repository.listFiles(7L, "product", 44L)).thenReturn(List.of(retainedFile, removedFile));
+
+        service.update(7L, 9L, "products", 44L, Map.of(
+                "description", "Descripción corregida",
+                "metadata", Map.of("gallery", List.of(Map.of("objectKey", retainedObjectKey)))));
+
+        verify(objectStorageService).deleteObject("indice-sales-documents", removedObjectKey);
+        verify(storageMeter).release(7L, removedObjectKey, "sales_file_deleted");
+        verify(repository).deleteFile(7L, 62L);
+        verify(repository, never()).deleteFile(7L, 61L);
+    }
+
+    @Test
+    void productUpdatePreservesRegisteredImagesWhenGalleryIsNotPartOfTheRequest() {
+        var storedProduct = new LinkedHashMap<String, Object>();
+        storedProduct.put("id", 44L);
+        storedProduct.put("name", "Producto");
+        storedProduct.put("sku", "PHOTO-001");
+        storedProduct.put("metadata", Map.of());
+
+        when(repository.get(eq(7L), any(SalesEntityDefinition.class), eq(44L))).thenReturn(storedProduct);
+
+        service.update(7L, 9L, "products", 44L, Map.of("description", "Descripción corregida"));
+
+        verify(repository, never()).deleteFile(eq(7L), anyLong());
+        verify(objectStorageService, never()).deleteObject(anyString(), anyString());
+    }
+
+    private Map<String, Object> productImageFile(long id, long productId, String objectKey) {
+        var file = new LinkedHashMap<String, Object>();
+        file.put("id", id);
+        file.put("entityType", "product");
+        file.put("entityId", productId);
+        file.put("fileKind", "product_image");
+        file.put("objectKey", objectKey);
+        file.put("fileName", objectKey.substring(objectKey.lastIndexOf('/') + 1));
+        return file;
     }
 }

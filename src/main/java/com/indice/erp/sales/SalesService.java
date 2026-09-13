@@ -7,6 +7,8 @@ import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
 import java.math.BigDecimal;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -187,6 +189,7 @@ public class SalesService {
     @Transactional
     public Map<String, Object> update(long companyId, long userId, String collection, long id, Map<String, Object> payload) {
         var definition = definition(collection);
+        var reconcileProductImages = "products".equals(collection) && includesExplicitProductGallery(payload);
         if ("products".equals(collection)) salesRepository.lockProductForMaintenance(companyId, id);
         Map<String, Object> saleBefore = null;
         if ("sales".equals(collection)) {
@@ -202,6 +205,9 @@ public class SalesService {
             }
         }
         var normalizedPayload = normalizeBeforeSave(companyId, collection, updatePayload);
+        var retainedProductImageObjectKeys = reconcileProductImages
+                ? productImageObjectKeys(companyId, normalizedPayload)
+                : Set.<String>of();
         if (("sales".equals(collection) || "quotes".equals(collection)) && payload != null) {
             var dateKey = "sales".equals(collection) ? "saleDate" : "createdDate";
             if (!SalesPayloadSupport.contains(payload, dateKey)) normalizedPayload.remove(dateKey);
@@ -261,6 +267,9 @@ public class SalesService {
         }
         referenceService.validateEntityPayload(companyId, collection, normalizedPayload);
         salesRepository.update(companyId, userId, definition, id, normalizedPayload);
+        if (reconcileProductImages) {
+            removeProductImageFilesNotRetained(companyId, id, retainedProductImageObjectKeys);
+        }
         if ("quotes".equals(collection)) {
             if (SalesPayloadSupport.value(normalizedPayload, "items") instanceof List<?>) {
                 salesRepository.deleteQuoteItems(companyId, id);
@@ -681,13 +690,17 @@ public class SalesService {
     @Transactional
     public void deleteFile(long companyId, long fileId) {
         var file = salesRepository.findFile(companyId, fileId);
+        deleteStoredFile(companyId, file);
+        salesRepository.deleteFile(companyId, fileId);
+    }
+
+    private void deleteStoredFile(long companyId, Map<String, Object> file) {
         var objectKey = file == null ? null : SalesPayloadSupport.stringValue(file, "objectKey");
         if (objectKey != null && (objectKey.startsWith(productImagePrefix(companyId))
                 || objectKey.startsWith(paymentEvidencePrefix(companyId)))) {
             objectStorageService.deleteObject(productImagesBucket(), objectKey);
             storageMeter.release(companyId, objectKey, "sales_file_deleted");
         }
-        salesRepository.deleteFile(companyId, fileId);
     }
 
     @Transactional
@@ -921,7 +934,8 @@ public class SalesService {
     }
 
     private void removeEmbeddedImageFields(long companyId, Map<String, Object> fields) {
-        if (isEmbeddedImageUrl(fields.get("imageUrl"))) {
+        if (isEmbeddedImageUrl(fields.get("imageUrl"))
+                || isInternalProductImageUrl(companyId, fields.get("imageUrl"))) {
             fields.remove("imageUrl");
         }
 
@@ -934,6 +948,12 @@ public class SalesService {
                     var safeImage = new LinkedHashMap<String, Object>();
                     imageMap.forEach((key, value) -> safeImage.put(String.valueOf(key), value));
                     var objectKey = imageObjectKey(safeImage);
+                    if (objectKey == null) {
+                        objectKey = internalProductImageObjectKey(companyId, safeImage.get("url"));
+                        if (objectKey != null) {
+                            safeImage.put("objectKey", objectKey);
+                        }
+                    }
                     if (objectKey != null && !objectKey.startsWith(productImagePrefix(companyId))) {
                         if (safeGallery.isEmpty()) {
                             fields.remove("imageUrl");
@@ -945,7 +965,8 @@ public class SalesService {
                     } else if (isEmbeddedImageUrl(safeImage.get("url"))) {
                         safeImage.remove("url");
                     }
-                    if (objectKey != null || isPersistableImageUrl(safeImage.get("url"))) {
+                    if (objectKey != null || (isPersistableImageUrl(safeImage.get("url"))
+                            && !isInternalProductImageUrl(companyId, safeImage.get("url")))) {
                         if (safeGallery.isEmpty() && objectKey != null) {
                             primaryImageUsesObjectStorage = true;
                         }
@@ -988,7 +1009,8 @@ public class SalesService {
             metadataMap.forEach((key, value) -> metadata.put(String.valueOf(key), value));
         }
 
-        if (isEmbeddedImageUrl(metadata.get("imageUrl"))) {
+        if (isEmbeddedImageUrl(metadata.get("imageUrl"))
+                || isInternalProductImageUrl(companyId, metadata.get("imageUrl"))) {
             metadata.remove("imageUrl");
         }
 
@@ -1003,6 +1025,12 @@ public class SalesService {
                 var image = new LinkedHashMap<String, Object>();
                 imageMap.forEach((key, value) -> image.put(String.valueOf(key), value));
                 var objectKey = imageObjectKey(image);
+                if (objectKey == null) {
+                    objectKey = internalProductImageObjectKey(companyId, image.get("url"));
+                    if (objectKey != null) {
+                        image.put("objectKey", objectKey);
+                    }
+                }
                 if (objectKey != null && !objectKey.startsWith(productImagePrefix(companyId))) {
                     continue;
                 }
@@ -1014,10 +1042,12 @@ public class SalesService {
                     } else if (isEmbeddedImageUrl(image.get("url"))) {
                         image.remove("url");
                     }
-                } else if (isEmbeddedImageUrl(image.get("url"))) {
+                } else if (isEmbeddedImageUrl(image.get("url"))
+                        || isInternalProductImageUrl(companyId, image.get("url"))) {
                     image.remove("url");
                 }
-                if (objectKey != null || isPersistableImageUrl(image.get("url"))) {
+                if (objectKey != null || (isPersistableImageUrl(image.get("url"))
+                        && !isInternalProductImageUrl(companyId, image.get("url")))) {
                     enrichedGallery.add(image);
                 }
             }
@@ -1077,6 +1107,70 @@ public class SalesService {
             gallery.add(image);
             seenObjectKeys.add(objectKey);
         }
+    }
+
+    private boolean includesExplicitProductGallery(Map<String, Object> payload) {
+        if (payload == null || !(SalesPayloadSupport.value(payload, "metadata") instanceof Map<?, ?> metadata)) {
+            return false;
+        }
+        return metadata.containsKey("gallery");
+    }
+
+    private Set<String> productImageObjectKeys(long companyId, Map<String, Object> payload) {
+        var objectKeys = new java.util.LinkedHashSet<String>();
+        if (!(SalesPayloadSupport.value(payload, "metadata") instanceof Map<?, ?> metadata)
+                || !(metadata.get("gallery") instanceof List<?> gallery)) {
+            return objectKeys;
+        }
+        for (var value : gallery) {
+            if (!(value instanceof Map<?, ?> rawImage)) continue;
+            var image = new LinkedHashMap<String, Object>();
+            rawImage.forEach((key, item) -> image.put(String.valueOf(key), item));
+            var objectKey = imageObjectKey(image);
+            if (objectKey != null && objectKey.startsWith(productImagePrefix(companyId))) {
+                objectKeys.add(objectKey);
+            }
+        }
+        return objectKeys;
+    }
+
+    private void removeProductImageFilesNotRetained(
+            long companyId,
+            long productId,
+            Set<String> retainedObjectKeys) {
+        for (var file : salesRepository.listFiles(companyId, "product", productId)) {
+            if (!"product_image".equals(SalesPayloadSupport.stringValue(file, "fileKind"))) continue;
+            var objectKey = SalesPayloadSupport.stringValue(file, "objectKey");
+            if (objectKey != null && retainedObjectKeys.contains(objectKey)) continue;
+            var fileId = SalesPayloadSupport.longValue(file, "id");
+            if (fileId == null) continue;
+            deleteStoredFile(companyId, file);
+            salesRepository.deleteFile(companyId, fileId);
+        }
+    }
+
+    private boolean isInternalProductImageUrl(long companyId, Object value) {
+        return internalProductImageObjectKey(companyId, value) != null;
+    }
+
+    private String internalProductImageObjectKey(long companyId, Object value) {
+        if (!(value instanceof String raw) || raw.isBlank()) return null;
+        var candidate = raw.trim();
+        try {
+            candidate = URLDecoder.decode(candidate, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException ignored) {
+            // A malformed external URL is handled by the normal URL validation path.
+        }
+        var prefix = productImagePrefix(companyId);
+        var start = candidate.indexOf(prefix);
+        if (start < 0) return null;
+        var end = candidate.length();
+        for (var separator : List.of('?', '#')) {
+            var position = candidate.indexOf(separator, start);
+            if (position >= 0) end = Math.min(end, position);
+        }
+        var objectKey = candidate.substring(start, end).trim();
+        return objectKey.length() > prefix.length() ? objectKey : null;
     }
 
     private void enrichFileUrl(Map<String, Object> file) {

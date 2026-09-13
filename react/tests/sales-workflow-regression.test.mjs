@@ -2,9 +2,29 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
+import {
+  deduplicateProductImages,
+  mergeProductImageCandidates,
+} from '../src/app/BasicModules/Sales/Productos/utils/productImageIdentity.ts';
 
 const root = resolve(import.meta.dirname, '..');
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
+
+test('editar un producto conserva la identidad de sus fotos y elimina duplicados de URLs firmadas', () => {
+  const objectKey = 'sales/products/7/images/producto.webp';
+  const staleSignedImage = {
+    id: 'legacy-primary',
+    url: 'https://app.indiceapp.com/storage/indice-sales-documents/sales/products/7/images/producto.webp?signature=old',
+  };
+  const persistedImage = {
+    id: '91',
+    objectKey,
+    url: 'https://app.indiceapp.com/storage/indice-sales-documents/sales/products/7/images/producto.webp?signature=fresh',
+  };
+
+  assert.deepEqual(deduplicateProductImages([staleSignedImage, persistedImage]), [persistedImage]);
+  assert.deepEqual(mergeProductImageCandidates(staleSignedImage, [persistedImage]), [persistedImage]);
+});
 
 test('Kanban normaliza todas las etapas operativas entregadas por la API', () => {
   const source = read('src/app/BasicModules/Sales/adapters/salesApiAdapters.ts');
