@@ -89,6 +89,23 @@ class FinanceAccessServiceTest {
         assertTrue(context.isEmpty());
     }
 
+    @Test
+    void paymentAccountReadContextAllowsCrmWithoutGrantingGeneralFinanceContext() {
+        var service = new FinanceAccessService(jdbcTemplate);
+
+        stubUserCompanyId(33L);
+        stubModuleSlugs(List.of("crm"));
+        stubScope(FinanceScope.businessOffice(5L, 9L));
+
+        var context = service.resolvePaymentAccountContext(
+            new AuthSessionUser(1L, 7L, "Sales User", "user")
+        );
+
+        assertTrue(context.isPresent());
+        assertEquals(FinanceScope.Type.BUSINESS_OFFICE, context.get().scope().type());
+        assertEquals(9L, context.get().scope().businessId());
+    }
+
     private void stubUserCompanyId(long userCompanyId) {
         when(jdbcTemplate.query(
             contains("FROM user_companies"),

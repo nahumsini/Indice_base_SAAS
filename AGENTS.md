@@ -24,6 +24,7 @@ Canonical documents:
 - Deployment and rollback: `deployment/README.md`
 - Premium multitenancy and billing: `docs/INDICE_PREMIUM_MULTITENANT_BILLING_ARCHITECTURE.md`
 - Kiosks: `docs/kiosk-standard-engine-v2.md`
+- MCP and AI tools: `docs/indice-mcp-operating-system-v1.md`
 
 `saas-multitenant/`, dated change reports, closeout reports, pasted prompts, and
 `react/figmaDoc/` are historical or supporting material unless a canonical document explicitly

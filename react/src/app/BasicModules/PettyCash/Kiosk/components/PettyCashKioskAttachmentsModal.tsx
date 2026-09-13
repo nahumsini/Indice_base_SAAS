@@ -1,5 +1,9 @@
 import { ExternalLink, FileText, Loader2, Paperclip } from 'lucide-react';
-import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
+import { KioskModalFrame } from '../../../../components/kiosk-engine/KioskModalFrame';
+import {
+  KioskWorkspaceEmptyState,
+  KioskWorkspaceNotice,
+} from '../../../../components/kiosk-engine/KioskToolWorkspace';
 import type { PublicPettyCashAttachment, PublicPettyCashReceipt } from '../pettyCashKioskApi';
 
 interface PettyCashKioskAttachmentsModalProps {
@@ -46,9 +50,9 @@ export function PettyCashKioskAttachmentsModal({
   uploadedByLabel,
 }: PettyCashKioskAttachmentsModalProps) {
   return (
-    <IndiceModalFrame
+    <KioskModalFrame
+      busy={isLoading}
       closeLabel={closeLabel}
-      contentClassName="sm:max-w-lg"
       description={receipt?.description ?? description}
       footer={(
         <button className="h-10 rounded-xl bg-white px-4 text-sm font-medium text-[#147514] transition hover:bg-emerald-50" onClick={onClose} type="button">
@@ -57,9 +61,10 @@ export function PettyCashKioskAttachmentsModal({
       )}
       footerSummary={`${attachments.length} ${title.toLocaleLowerCase(locale)}`}
       icon={<Paperclip className="h-5 w-5" />}
-      modalType="standard-form"
       onOpenChange={(open) => !open && onClose()}
       open={Boolean(receipt)}
+      size="form"
+      surface="public"
       title={title}
       tone="green"
     >
@@ -67,12 +72,9 @@ export function PettyCashKioskAttachmentsModal({
           {isLoading ? (
             <div className="flex min-h-32 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-[#147514]" /></div>
           ) : errorMessage ? (
-            <IndiceModalValidation messages={[errorMessage]} tone="error" />
+            <KioskWorkspaceNotice kind="error">{errorMessage}</KioskWorkspaceNotice>
           ) : attachments.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center dark:border-slate-700 dark:bg-slate-900">
-              <Paperclip className="mx-auto h-6 w-6 text-slate-400" />
-              <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">{emptyLabel}</p>
-            </div>
+            <KioskWorkspaceEmptyState description={emptyLabel} icon={<Paperclip className="h-6 w-6" />} tone="green" />
           ) : (
             <div className="grid gap-2">
               {attachments.map(attachment => (
@@ -94,6 +96,6 @@ export function PettyCashKioskAttachmentsModal({
             </div>
           )}
       </div>
-    </IndiceModalFrame>
+    </KioskModalFrame>
   );
 }

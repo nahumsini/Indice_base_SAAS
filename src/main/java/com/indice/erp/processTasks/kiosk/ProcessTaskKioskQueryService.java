@@ -139,6 +139,18 @@ class ProcessTaskKioskQueryService {
                    task.unit_id, unit.name AS unit_name,
                    task.business_id, business.name AS business_name,
                    task.process_id, process.title AS process_title,
+                   task.process_run_id, process_run.folio AS process_run_folio,
+                   process_run.reference AS process_reference,
+                   process_run.status AS process_run_status,
+                   process_template.position_number AS process_step,
+                   process_template.stage_number AS process_stage,
+                   CASE WHEN task.process_run_id IS NULL THEN NULL ELSE (
+                       SELECT COUNT(*) FROM process_tasks run_task
+                       WHERE run_task.company_id = task.company_id
+                         AND run_task.process_run_id = task.process_run_id
+                         AND run_task.deleted_at IS NULL
+                   ) END AS process_total_steps,
+                   task.evidence_required,
                    task.project_id, project.name AS project_name,
                    task.created_by,
                    COALESCE(NULLIF(TRIM(created_user.full_name), ''),
@@ -165,6 +177,11 @@ class ProcessTaskKioskQueryService {
              AND (business.company_id = task.company_id OR business.company_id IS NULL)
             LEFT JOIN processes process ON process.id = task.process_id
              AND process.company_id = task.company_id
+            LEFT JOIN process_runs process_run ON process_run.id = task.process_run_id
+             AND process_run.company_id = task.company_id
+            LEFT JOIN process_task_templates process_template
+              ON process_template.id = task.process_task_template_id
+             AND process_template.company_id = task.company_id
             LEFT JOIN projects project ON project.id = task.project_id
              AND project.company_id = task.company_id
             LEFT JOIN process_task_assignees current_assignment
@@ -236,6 +253,9 @@ class ProcessTaskKioskQueryService {
         var contributionReady = contributionAction
             && "ready".equalsIgnoreCase(currentContributionStatus);
         var taskStatus = rs.getString("status");
+        var attachmentCount = rs.getInt("attachments");
+        var evidenceRequired = rs.getBoolean("evidence_required");
+        var open = List.of("pending", "in_progress", "paused").contains(taskStatus);
         var row = new LinkedHashMap<String, Object>();
         row.put("id", rs.getLong("id"));
         row.put("task_id", rs.getLong("id"));
@@ -262,13 +282,22 @@ class ProcessTaskKioskQueryService {
         row.put("business_name", rs.getString("business_name"));
         row.put("process_id", rs.getObject("process_id", Long.class));
         row.put("process_title", rs.getString("process_title"));
+        row.put("process_run_id", rs.getObject("process_run_id", Long.class));
+        row.put("process_run_folio", rs.getString("process_run_folio"));
+        row.put("process_reference", rs.getString("process_reference"));
+        row.put("process_run_status", rs.getString("process_run_status"));
+        row.put("process_step", rs.getObject("process_step", Integer.class));
+        row.put("process_stage", rs.getObject("process_stage", Integer.class));
+        row.put("process_total_steps", rs.getObject("process_total_steps", Integer.class));
+        row.put("evidence_required", evidenceRequired);
         row.put("project_id", rs.getObject("project_id", Long.class));
         row.put("project_name", rs.getString("project_name"));
         row.put("created_by", createdBy);
         row.put("created_by_name", rs.getString("created_by_name"));
         row.put("completed_by_user_company_id", completedBy);
         row.put("created_at", dateTime(rs, "created_at"));
-        row.put("attachments", rs.getInt("attachments"));
+        row.put("attachments", attachmentCount);
+        row.put("evidence_satisfied", !evidenceRequired || attachmentCount > 0);
         row.put("is_overdue", dueDate != null && dueDate.isBefore(LocalDate.now()));
         row.put("current_assignment_role", currentAssignmentRole);
         row.put("current_contribution_status", currentContributionStatus);
@@ -276,7 +305,9 @@ class ProcessTaskKioskQueryService {
             ? currentTeamSize > 1 ? "team" : "individual" : null);
         row.put("team_size", currentTeamSize);
         row.put("completion_action", contributionAction ? "CONTRIBUTION_READY" : "TASK_COMPLETE");
-        row.put("can_complete", assignedToCurrent && !"completed".equals(taskStatus) && !contributionReady);
+        row.put("can_complete", assignedToCurrent && open && !contributionReady);
+        row.put("can_add_evidence", assignedToCurrent && open && attachmentCount < 5);
+        row.put("can_reschedule", assignedToCurrent && open);
         row.put("is_assigned_to_current_user", assignedToCurrent);
         row.put("is_created_by_current_user", Objects.equals(createdBy, employee.userId()));
         row.put("is_completed_by_current_user", Objects.equals(completedBy, employee.userCompanyId()));

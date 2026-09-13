@@ -42,7 +42,7 @@ class AiAccessTokenServiceTest {
     }
 
     @Test
-    void issuesOneTimeHashedTenantBoundToken() {
+    void issuesOneTimeHashedTenantBoundReadOnlyTokenByDefault() {
         when(repository.countActive(3L, 23L, NOW)).thenReturn(0);
         when(repository.insert(any(), anyString(), anyString(), anyString(), anyString(), any(), any()))
             .thenReturn(91L);
@@ -62,10 +62,8 @@ class AiAccessTokenServiceTest {
             AiAccessTokenService.EXPENSES_READ,
             AiAccessTokenService.PETTY_CASH_READ,
             AiAccessTokenService.RECEIVABLES_READ,
-            AiAccessTokenService.TASKS_CREATE,
-            AiAccessTokenService.EXPENSES_CREATE,
-            AiAccessTokenService.PETTY_CASH_EXPENSE_CREATE,
-            AiAccessTokenService.PETTY_CASH_DEPOSIT_CREATE
+            AiAccessTokenService.BUSINESS_CONTEXT_READ,
+            AiAccessTokenService.FINANCE_REFERENCES_READ
         );
         assertEquals(expectedScopes, issued.scopes());
         assertEquals(NOW.plusSeconds(7L * 24 * 60 * 60), issued.expiresAt());
@@ -83,6 +81,8 @@ class AiAccessTokenServiceTest {
         );
         assertEquals(64, hash.getValue().length());
         assertFalse(hash.getValue().contains(issued.accessToken()));
+        assertTrue(service.supportedScopes().contains(AiAccessTokenService.TASKS_CREATE));
+        assertFalse(issued.scopes().contains(AiAccessTokenService.TASKS_CREATE));
     }
 
     @Test

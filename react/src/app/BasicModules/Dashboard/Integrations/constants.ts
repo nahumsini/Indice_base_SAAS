@@ -5,6 +5,7 @@ export const INDICE_MCP_SERVER_URL = 'https://app.indiceapp.com/api/v1/ai/mcp';
 export const AI_SCOPE_DEFINITIONS = [
   { code: 'sales.today:read', group: 'overview', kind: 'read' },
   { code: 'business.snapshot:read', group: 'overview', kind: 'read' },
+  { code: 'business.context:read', group: 'overview', kind: 'read' },
   { code: 'sales.read', group: 'sales', kind: 'read' },
   { code: 'pos.read', group: 'sales', kind: 'read' },
   { code: 'inventory.read', group: 'inventory', kind: 'read' },
@@ -14,6 +15,7 @@ export const AI_SCOPE_DEFINITIONS = [
   { code: 'expenses.read', group: 'finance', kind: 'read' },
   { code: 'petty_cash.read', group: 'finance', kind: 'read' },
   { code: 'receivables.read', group: 'finance', kind: 'read' },
+  { code: 'finance.references:read', group: 'finance', kind: 'read' },
   { code: 'tasks.create', group: 'actions', kind: 'action' },
   { code: 'expenses.create', group: 'actions', kind: 'action' },
   { code: 'petty_cash.expense:create', group: 'actions', kind: 'action' },
@@ -37,12 +39,12 @@ export const READ_SCOPE_GROUPS: ReadonlyArray<{
   id: ReadScopeGroup;
   scopeCodes: AiScopeCode[];
 }> = [
-  { id: 'overview', scopeCodes: ['sales.today:read', 'business.snapshot:read'] },
+  { id: 'overview', scopeCodes: ['sales.today:read', 'business.snapshot:read', 'business.context:read'] },
   { id: 'sales', scopeCodes: ['sales.read', 'pos.read'] },
   { id: 'inventory', scopeCodes: ['inventory.read'] },
   { id: 'people', scopeCodes: ['hr.people:read', 'hr.attendance:read'] },
   { id: 'work', scopeCodes: ['tasks.read'] },
-  { id: 'finance', scopeCodes: ['expenses.read', 'petty_cash.read', 'receivables.read'] },
+  { id: 'finance', scopeCodes: ['expenses.read', 'petty_cash.read', 'receivables.read', 'finance.references:read'] },
 ];
 
 export const READ_SCOPE_CODES = AI_SCOPE_DEFINITIONS

@@ -137,6 +137,38 @@ class ProcessTaskKioskQueryServiceTest {
 
     @Test
     @SuppressWarnings({"rawtypes", "unchecked"})
+    void exposesProcessContextAndTheAuthoritativeEvidenceRequirement() throws Exception {
+        givenTaskRow(taskResultSet, 41L, "pending", "lead", "pending", 1);
+        given(taskResultSet.getObject("process_run_id", Long.class)).willReturn(81L);
+        given(taskResultSet.getObject("process_step", Integer.class)).willReturn(2);
+        given(taskResultSet.getObject("process_stage", Integer.class)).willReturn(1);
+        given(taskResultSet.getObject("process_total_steps", Integer.class)).willReturn(5);
+        given(taskResultSet.getString("process_run_folio")).willReturn("EJ-00081");
+        given(taskResultSet.getString("process_reference")).willReturn("Opening · North");
+        given(taskResultSet.getBoolean("evidence_required")).willReturn(true);
+        given(taskResultSet.getInt("attachments")).willReturn(0);
+        given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+            .willAnswer(invocation -> {
+                var mapper = (RowMapper) invocation.getArgument(1);
+                return List.of(mapper.mapRow(taskResultSet, 0));
+            });
+
+        assertThat(service.listTasks(kiosk(), employee())).singleElement().satisfies(row ->
+            assertThat(row)
+                .containsEntry("process_run_id", 81L)
+                .containsEntry("process_run_folio", "EJ-00081")
+                .containsEntry("process_reference", "Opening · North")
+                .containsEntry("process_step", 2)
+                .containsEntry("process_stage", 1)
+                .containsEntry("process_total_steps", 5)
+                .containsEntry("evidence_required", true)
+                .containsEntry("evidence_satisfied", false)
+                .containsEntry("can_add_evidence", true)
+                .containsEntry("can_reschedule", true));
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
     void listTasksUsesOneJdbcQueryRegardlessOfTaskCount() throws Exception {
         var oneTask = givenTaskRow(
             mock(ResultSet.class), 41L, "in_progress", "collaborator", "pending", 3);

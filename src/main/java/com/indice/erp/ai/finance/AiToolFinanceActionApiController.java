@@ -80,7 +80,7 @@ public class AiToolFinanceActionApiController {
                 .header(HttpHeaders.WWW_AUTHENTICATE, BEARER_CHALLENGE)
                 .body(error("invalid_token", "Invalid, expired, or insufficiently scoped access token.")));
         }
-        if (!authorizationService.canUseCapability(token.get().user(), capability(action))) {
+        if (!canExecute(token.get().user(), action)) {
             return new Access(null, ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(error("ai_tool_permission_required", "The current Indice permissions do not allow this action.")));
         }
@@ -96,8 +96,13 @@ public class AiToolFinanceActionApiController {
         };
     }
 
-    private String capability(String action) {
-        return AiFinanceActionService.CREATE_EXPENSE_DRAFT.equals(action) ? "expenses" : "petty_cash";
+    private boolean canExecute(com.indice.erp.auth.AuthSessionUser user, String action) {
+        return switch (action) {
+            case AiFinanceActionService.CREATE_EXPENSE_DRAFT -> authorizationService.canCreateExpenseDraft(user);
+            case AiFinanceActionService.REGISTER_FUND_EXPENSE -> authorizationService.canRegisterFundExpense(user);
+            case AiFinanceActionService.ADD_MONEY_TO_FUND -> authorizationService.canAddMoneyToFund(user);
+            default -> false;
+        };
     }
 
     private Map<String, String> error(String code, String message) {

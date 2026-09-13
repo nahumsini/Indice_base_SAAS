@@ -19,6 +19,8 @@ import {
 } from '../components/frontend-os';
 import { IndiceTableActionGroup } from '../components/table/IndiceTableEngine';
 import { useLanguage } from '../shared/context';
+import { getCachedAuthSession } from '../api/authSessionStore';
+import { canManageMultiKiosks } from '../access/tabScopeCatalog';
 import {
   multiKioskAdminApi,
   type MultiKioskStatus,
@@ -66,14 +68,17 @@ function StatusBadge({ label, status }: { label: string; status: MultiKioskStatu
 
 export default function MultiKioskCenterPage() {
   const navigate = useNavigate();
+  const canManageGlobal = canManageMultiKiosks(getCachedAuthSession());
   const { currentLanguage } = useLanguage();
   const workspaceCopy = useMemo(() => getKioskCenterWorkspaceCopy(currentLanguage.code), [currentLanguage.code]);
   const adminCopy = useMemo(() => getMultiKioskAdminCopy(currentLanguage.code), [currentLanguage.code]);
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedView = searchParams.get('view') as KioskCenterWorkspaceView | null;
-  const activeView: KioskCenterWorkspaceView = requestedView && ['multi-kiosks', 'inventory', 'people', 'activity'].includes(requestedView)
-    ? requestedView
-    : 'multi-kiosks';
+  const activeView: KioskCenterWorkspaceView = canManageGlobal
+    ? (requestedView && ['multi-kiosks', 'inventory', 'people', 'activity'].includes(requestedView)
+      ? requestedView
+      : 'multi-kiosks')
+    : 'inventory';
   const [items, setItems] = useState<MultiKioskSummary[]>([]);
   const [catalog, setCatalog] = useState<MultiKioskCatalog>({ tools: [], providerTools: [], kiosks: [], employees: [] });
   const [editor, setEditor] = useState<MultiKioskEditorState | null>(null);
@@ -102,15 +107,20 @@ export default function MultiKioskCenterPage() {
       .includes(query);
   });
   const load = async () => {
+    if (!canManageGlobal) {
+      setLoading(false);
+      return;
+    }
     setLoading(true); setError('');
     try { const [nextItems, nextCatalog] = await Promise.all([multiKioskAdminApi.list(), multiKioskAdminApi.catalog()]); setItems(nextItems); setCatalog(nextCatalog); }
     catch { setError(workspaceCopy.multi.loadError); }
     finally { setLoading(false); }
   };
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [canManageGlobal]);
   const edit = async (id: number) => { setBusyId(id); try { setEditor(mapMultiKioskDetailToEditor(await multiKioskAdminApi.detail(id))); } catch { setError(workspaceCopy.multi.openError); } finally { setBusyId(null); } };
   const copyLink = async (item: MultiKioskSummary) => { const url = absoluteAccessUrl(item); if (!url) return; await navigator.clipboard.writeText(url); setCopiedId(item.id); window.setTimeout(() => setCopiedId(current => current === item.id ? null : current), 1800); };
   const changeView = (view: KioskCenterWorkspaceView) => {
+    if (!canManageGlobal && view !== 'inventory') return;
     const next = new URLSearchParams(searchParams);
     if (view === 'multi-kiosks') next.delete('view'); else next.set('view', view);
     setSearchParams(next, { replace: true });
@@ -150,11 +160,13 @@ export default function MultiKioskCenterPage() {
           value={activeView}
           onValueChange={changeView}
           tone="aqua"
-          items={[
+          items={canManageGlobal ? [
             { id: 'multi-kiosks', label: workspaceCopy.navigation['multi-kiosks'].label, icon: <Grid2X2 />, description: workspaceCopy.navigation['multi-kiosks'].description },
             { id: 'inventory', label: workspaceCopy.navigation.inventory.label, icon: <Layers3 />, description: workspaceCopy.navigation.inventory.description },
             { id: 'people', label: workspaceCopy.navigation.people.label, icon: <UsersRound />, description: workspaceCopy.navigation.people.description },
             { id: 'activity', label: workspaceCopy.navigation.activity.label, icon: <History />, description: workspaceCopy.navigation.activity.description },
+          ] : [
+            { id: 'inventory', label: workspaceCopy.navigation.inventory.label, icon: <Layers3 />, description: workspaceCopy.navigation.inventory.description },
           ]}
         />
       </div>

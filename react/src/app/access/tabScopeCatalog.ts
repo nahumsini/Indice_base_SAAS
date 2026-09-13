@@ -109,6 +109,7 @@ export const MODULE_TAB_SCOPE_CATALOG: Partial<Record<PageId, TabScopeDefinition
 const UNRESTRICTED_ROLES = new Set(['root', 'superadmin']);
 const ADMIN_ROLES = new Set(['root', 'superadmin', 'admin', 'owner', 'dueno']);
 const HR_MANAGEMENT_ROLES = new Set(['root', 'superadmin', 'admin', 'owner', 'dueno', 'manager', 'approver']);
+const POS_KIOSK_ADMIN_ROLES = new Set(['root', 'superadmin', 'admin', 'owner']);
 const PERSONAL_HOME_TABS = new Set(['profile']);
 const PERSONAL_HR_TABS = new Set(['attendance', 'control', 'announcements', 'assets', 'permissions']);
 const USER_SELF_SERVICE_SCOPES = new Set([
@@ -163,12 +164,24 @@ export function allowedModuleTabIds(
   return tabIds.filter((tabId) => canAccessModuleTab(page, tabId, session));
 }
 
-/** Mirrors the backend KioskInternalRequestGuard and KIOSK_ADMIN_ANY rule. */
+/** Access to the tenant inventory follows the owner-module administration contracts. */
 export function canAccessKioskCenter(
   session: AuthSessionResponse | null | undefined,
 ) {
   const role = normalizeTabScopeRole(session?.user.role);
-  return UNRESTRICTED_ROLES.has(role);
+  return canManageMultiKiosks(session)
+    || (HR_MANAGEMENT_ROLES.has(role) && canAccessModuleTab('human-resources', 'control', session))
+    || canAccessModuleTab('processes-tasks', 'calendar', session)
+    || canAccessModuleTab('expenses', 'expenses', session)
+    || canAccessModuleTab('petty-cash', 'cash', session)
+    || (POS_KIOSK_ADMIN_ROLES.has(role) && canAccessModuleTab('point-of-sale', 'kiosks', session));
+}
+
+/** Global composition, audit and lifecycle operations remain platform privileges. */
+export function canManageMultiKiosks(
+  session: AuthSessionResponse | null | undefined,
+) {
+  return UNRESTRICTED_ROLES.has(normalizeTabScopeRole(session?.user.role));
 }
 
 export function isTabScopeAssignableToRole(permissionKey: string, role: string | null | undefined) {

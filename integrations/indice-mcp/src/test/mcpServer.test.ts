@@ -32,7 +32,8 @@ test("lists and executes get_sales_today through MCP", async () => {
       "get_sales_today", "get_business_snapshot", "get_attention_items",
       "search_employees", "list_tasks", "get_sales_summary", "search_products",
       "get_inventory_summary", "get_expense_summary", "get_funds_status",
-      "get_receivables_status", "preview_create_task", "create_task",
+      "get_receivables_status", "get_my_business_context", "list_units_and_businesses",
+      "list_payment_accounts", "list_funds", "preview_create_task", "create_task",
       "preview_create_expense_draft", "create_expense_draft",
       "preview_register_fund_expense", "register_fund_expense",
       "preview_add_money_to_fund", "add_money_to_fund"
@@ -62,6 +63,84 @@ test("lists and executes get_sales_today through MCP", async () => {
     assert.equal(result.isError, undefined);
     assert.deepEqual(result.structuredContent, summary());
     assert.match(firstText(result.content), /2 ventas/);
+  } finally {
+    await client.close();
+    await server.close();
+  }
+});
+
+test("resolves paged payment accounts without accepting tenant authority", async () => {
+  let received: unknown;
+  const page = {
+    generatedAt: "2026-09-12T04:00:00Z",
+    scopeType: "BUSINESS_OFFICE",
+    items: [{
+      id: 77,
+      name: "Main bank",
+      type: "BANK",
+      currencyCode: "MXN",
+      currentBalance: 1500,
+      pendingBalance: 0,
+      totalBalance: 1500,
+      unitId: 10,
+      businessId: 101,
+      status: "ACTIVE",
+      systemManaged: false
+    }],
+    returnedCount: 1,
+    totalCount: 2,
+    hasMore: true,
+    nextCursor: "djE6MQ"
+  };
+  const server = createIndiceMcpServer({
+    async getSalesToday() { return summary(); },
+    async getBusinessSnapshot() { return businessSnapshot(); },
+    async previewCreateTask() { return taskPreview(); },
+    async createTask() { return createdTask(); },
+    async listPaymentAccounts(request) {
+      received = request;
+      return page;
+    }
+  });
+  const client = new Client({ name: "indice-mcp-test", version: "0.1.0" });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+  try {
+    const result = await client.callTool({
+      name: "list_payment_accounts",
+      arguments: { query: "bank", limit: 1, cursor: "djE6MA" }
+    });
+
+    assert.equal(result.isError, undefined);
+    assert.deepEqual(received, { query: "bank", limit: 1, cursor: "djE6MA" });
+    assert.deepEqual(result.structuredContent, page);
+    assert.match(firstText(result.content), /1 de 2 cuentas de pago/);
+    assert.match(firstText(result.content), /nextCursor/);
+  } finally {
+    await client.close();
+    await server.close();
+  }
+});
+
+test("lists only tools allowed by the delegated capability manifest", async () => {
+  const server = createIndiceMcpServer({
+    async getSalesToday() { return summary(); },
+    async getBusinessSnapshot() { return businessSnapshot(); },
+    async previewCreateTask() { return taskPreview(); },
+    async createTask() { return createdTask(); }
+  }, new Set(["get_sales_today", "list_tasks"]));
+  const client = new Client({ name: "indice-mcp-test", version: "0.1.0" });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+  try {
+    const tools = await client.listTools();
+
+    assert.deepEqual(tools.tools.map(tool => tool.name), ["get_sales_today", "list_tasks"]);
+    const hiddenToolResult = await client.callTool({ name: "create_task", arguments: {} });
+    assert.equal(hiddenToolResult.isError, true);
+    assert.match(firstText(hiddenToolResult.content), /Tool create_task disabled/);
   } finally {
     await client.close();
     await server.close();

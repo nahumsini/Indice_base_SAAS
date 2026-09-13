@@ -71,12 +71,17 @@ test('native task quick capture is capability-bound, guarded and updates from re
   assert.doesNotMatch(dialog, /responsibleLabel|evidence|attachment/i);
 });
 
-test('native task workspace exposes an operational agenda and a read-only compact board', async () => {
-  const [hook, workspace, agenda, api] = await Promise.all([
+test('native task workspace exposes agenda, explicit schedule management and a compact board', async () => {
+  const [hook, workspace, agenda, schedule, enhancements, detail, processDialog, api, fileDropzone] = await Promise.all([
     readFile(new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/hooks/useEmployeeTaskMultiKioskWorkspace.ts', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/EmployeeTaskMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/components/EmployeeTaskAgendaWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/components/EmployeeTaskScheduleView.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/hooks/useEmployeeTaskKioskEnhancements.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/components/EmployeeTaskMultiKioskTaskDialog.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/components/EmployeeTaskOccasionalProcessDialog.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/processTaskKioskApi.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/components/kiosk-engine/KioskToolWorkspace.tsx', import.meta.url), 'utf8'),
   ]);
 
   assert.match(hook, /useState<AgendaFocusFilter>\('mine'\)/);
@@ -84,13 +89,32 @@ test('native task workspace exposes an operational agenda and a read-only compac
   assert.match(hook, /useState<EmployeeTaskStatusFilter>\('pending_overdue'\)/);
   assert.match(hook, /useState<EmployeeTaskAgendaView>\('agenda'\)/);
   assert.match(workspace, /<EmployeeTaskAgendaToolbar/);
+  assert.match(workspace, /<EmployeeTaskScheduleView/);
+  assert.match(workspace, /<EmployeeTaskOccasionalProcessDialog/);
   assert.match(agenda, /role="tablist"/);
   assert.match(agenda, /data-task-kiosk-agenda/);
   assert.match(agenda, /data-task-kiosk-board/);
   assert.match(agenda, /overflow-x-auto pb-2 snap-x snap-mandatory/);
   assert.doesNotMatch(agenda, /draggable=|onDrop=|onDragStart=/);
+  assert.match(schedule, /data-task-kiosk-schedule/);
+  assert.doesNotMatch(schedule, /draggable=|onDrop=|onDragStart=/);
+  assert.match(enhancements, /agendaUpdate:|employeeTaskCapabilities\.agendaUpdate/);
+  assert.match(enhancements, /employeeTaskCapabilities\.attachmentPresign/);
+  assert.match(enhancements, /employeeTaskCapabilities\.attachmentRegister/);
+  assert.match(detail, /requiredEvidenceMissing/);
+  assert.match(detail, /disabled=\{interactionBusy \|\| requiredEvidenceMissing\}/);
+  assert.match(detail, /task\.can_add_evidence \?\? task\.is_assigned_to_current_user/);
+  assert.doesNotMatch(detail, /canUploadEvidence &&/);
+  assert.match(detail, /KioskFileDropzone/);
+  assert.match(fileDropzone, /type="file"/);
+  assert.match(workspace, /evidenceSessionRenewalAttempted/);
+  assert.match(workspace, /multiKioskMobileSession\.childClear\(token, kioskId\)/);
+  assert.match(processDialog, /employeeTaskCapabilities\.occasionalPreview/);
+  assert.match(processDialog, /employeeTaskCapabilities\.occasionalCreate/);
   assert.match(api, /agenda_date\?: string \| null/);
   assert.match(api, /agenda_start_time\?: string \| null/);
   assert.match(api, /agenda_end_time\?: string \| null/);
   assert.match(api, /agenda_time_zone\?: string \| null/);
+  assert.match(api, /evidence_required: boolean/);
+  assert.match(api, /process_run_id: number \| null/);
 });

@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Optional;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -42,6 +43,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -70,6 +72,20 @@ class PettyCashServiceTest {
 
     @Mock
     private PettyCashTypeChanges typeChanges;
+
+    @Test
+    void listFundsIsReadOnlyAndDoesNotOpenOrChangeStatements() {
+        var service = service();
+        var context = context();
+        when(repository.findFunds(context)).thenReturn(List.of(record(99L, "fund-token-123")));
+
+        var funds = service.listFunds(context);
+
+        assertEquals(1, funds.size());
+        assertEquals(99L, funds.getFirst().id());
+        verify(repository).findFunds(context);
+        verifyNoMoreInteractions(repository);
+    }
 
     @Test
     void createFundGeneratesPublicKioskTokenWhenKioskIsEnabled() {

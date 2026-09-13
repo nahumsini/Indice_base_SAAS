@@ -58,6 +58,7 @@ Todas las herramientas declaran `readOnlyHint`, `openWorldHint`,
 
 Consultas principales:
 
+- contexto organizacional, unidades, negocios, cuentas de pago y fondos seleccionables;
 - ventas de hoy, resumen y detalle de ventas;
 - cajas y turnos de punto de venta;
 - búsqueda, detalle y valoración de productos e inventario;

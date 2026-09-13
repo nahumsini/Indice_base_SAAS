@@ -90,6 +90,11 @@ public class PettyCashService {
         return new PettyCashWorkspaceResponse(funds, statements, movements, settlementLines, funds.size());
     }
 
+    @Transactional(readOnly = true)
+    public java.util.List<PettyCashFundResponse> listFunds(FinanceContext context) {
+        return repository.findFunds(context).stream().map(mapper::toResponse).toList();
+    }
+
     @Transactional
     public PettyCashFundResponse getFund(FinanceContext context, long fundId) {
         repository.lockFund(context, fundId);

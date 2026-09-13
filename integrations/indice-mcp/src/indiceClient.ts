@@ -2,27 +2,39 @@ import type { IndiceMcpConfig } from "./config.js";
 import {
   businessSnapshotQuerySchema,
   businessSnapshotSchema,
+  businessContextResponseSchema,
   businessQueryResultSchema,
   financeActionCommitRequestSchema,
   financeActionCommitResponseSchema,
   financeActionPreviewResponseSchema,
+  fundReferencePageSchema,
+  organizationReferencePageSchema,
+  paymentAccountReferencePageSchema,
+  referencePageRequestSchema,
   salesTodaySummarySchema,
   taskCommitRequestSchema,
   taskCommitResponseSchema,
   taskPreviewRequestSchema,
   taskPreviewResponseSchema,
+  toolCapabilitiesSchema,
   type BusinessSnapshot,
   type BusinessSnapshotQuery,
+  type BusinessContextResponse,
   type BusinessQueryResult,
   type FinanceActionCommitRequest,
   type FinanceActionCommitResponse,
   type FinanceActionName,
   type FinanceActionPreviewResponse,
+  type FundReferencePage,
+  type OrganizationReferencePage,
+  type PaymentAccountReferencePage,
+  type ReferencePageRequest,
   type SalesTodaySummary,
   type TaskCommitRequest,
   type TaskCommitResponse,
   type TaskPreviewRequest,
-  type TaskPreviewResponse
+  type TaskPreviewResponse,
+  type ToolCapabilities
 } from "./contracts.js";
 
 export class IndiceApiError extends Error {
@@ -177,6 +189,50 @@ export class IndiceClient {
     return parsed.data;
   }
 
+  async getMyBusinessContext(): Promise<BusinessContextResponse> {
+    const response = await this.delegatedReferenceRequest("/api/v1/ai/tools/references/business-context", "GET");
+    const payload: unknown = await response.json();
+    const parsed = businessContextResponseSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new IndiceApiError("Indice returned an invalid business context contract.");
+    }
+    return parsed.data;
+  }
+
+  async listUnitsAndBusinesses(request: ReferencePageRequest = {}): Promise<OrganizationReferencePage> {
+    const response = await this.delegatedReferenceRequest(
+      "/api/v1/ai/tools/references/organization", "POST", request
+    );
+    const payload: unknown = await response.json();
+    const parsed = organizationReferencePageSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new IndiceApiError("Indice returned an invalid organization reference contract.");
+    }
+    return parsed.data;
+  }
+
+  async listPaymentAccounts(request: ReferencePageRequest = {}): Promise<PaymentAccountReferencePage> {
+    const response = await this.delegatedReferenceRequest(
+      "/api/v1/ai/tools/references/payment-accounts", "POST", request
+    );
+    const payload: unknown = await response.json();
+    const parsed = paymentAccountReferencePageSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new IndiceApiError("Indice returned an invalid payment account reference contract.");
+    }
+    return parsed.data;
+  }
+
+  async listFunds(request: ReferencePageRequest = {}): Promise<FundReferencePage> {
+    const response = await this.delegatedReferenceRequest("/api/v1/ai/tools/references/funds", "POST", request);
+    const payload: unknown = await response.json();
+    const parsed = fundReferencePageSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new IndiceApiError("Indice returned an invalid fund reference contract.");
+    }
+    return parsed.data;
+  }
+
   async previewFinanceAction(
     action: FinanceActionName,
     request: Record<string, unknown>
@@ -258,6 +314,28 @@ export class IndiceClient {
     return true;
   }
 
+  async getDelegatedToolCapabilities(): Promise<ToolCapabilities | undefined> {
+    if (this.config.authMode !== "delegated" || !this.delegatedAccessToken) {
+      return undefined;
+    }
+    const response = await this.request("/api/v1/ai/access/capabilities", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${this.delegatedAccessToken}` }
+    });
+    if (response.status === 401) {
+      return undefined;
+    }
+    if (!response.ok) {
+      throw await this.apiError(response, "Indice could not resolve delegated tool capabilities.");
+    }
+    const payload: unknown = await response.json();
+    const parsed = toolCapabilitiesSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new IndiceApiError("Indice returned an invalid tool capability contract.");
+    }
+    return parsed.data;
+  }
+
   private async getDelegatedSalesToday(preferredCurrency?: string): Promise<SalesTodaySummary> {
     if (!this.delegatedAccessToken) {
       throw new IndiceApiError("Indice delegated authorization is required.", 401);
@@ -289,6 +367,32 @@ export class IndiceClient {
       throw new IndiceApiError("Indice delegated authorization is required for actions.", 401);
     }
     return this.delegatedAccessToken;
+  }
+
+  private async delegatedReferenceRequest(
+    path: string,
+    method: "GET" | "POST",
+    request?: ReferencePageRequest
+  ): Promise<Response> {
+    const delegatedToken = this.requireDelegatedToken();
+    const normalized = request === undefined ? undefined : referencePageRequestSchema.safeParse(request);
+    if (normalized && !normalized.success) {
+      throw new IndiceApiError(normalized.error.issues[0]?.message ?? "Invalid reference filters.");
+    }
+    const response = await this.request(path, {
+      method,
+      headers: {
+        Authorization: `Bearer ${delegatedToken}`,
+        ...(method === "POST" ? { "Content-Type": "application/json" } : {})
+      },
+      ...(method === "POST" ? { body: JSON.stringify(normalized?.data ?? {}) } : {})
+    });
+    if (!response.ok) {
+      throw await this.apiError(response, response.status === 403
+        ? "Your current Indice permissions do not allow this reference tool."
+        : "Indice could not load the requested references.");
+    }
+    return response;
   }
 
   private async getDelegatedBusinessSnapshot(query: BusinessSnapshotQuery): Promise<BusinessSnapshot> {

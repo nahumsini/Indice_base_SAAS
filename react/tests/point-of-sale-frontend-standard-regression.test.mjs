@@ -422,6 +422,9 @@ test('KPIs y Kioscos conservan la jerarquia operativa y la identidad coral del P
   assert.doesNotMatch(kioskCenter, /icon="🖥️"\s*eyebrow=/);
   assert.match(kioskCenter, /pointOfSaleTitleBarPrimaryActionClassName/);
   assert.match(kioskCenter, /pointOfSaleTitleBarSecondaryActionClassName/);
+  assert.match(kiosks, /readKioskAdminNavigationTarget/);
+  assert.match(kiosks, /initialKioskId=\{initialKioskId\}/);
+  assert.match(kioskCenter, /rows\.find\(row => row\.id === initialKioskId\)/);
   assert.doesNotMatch(kioskCenter, /<section className="rounded-xl border border-\[#FF6B5E\]/);
   assert.doesNotMatch(kioskCenter, /bg-teal-600/);
   assert.match(kioskCenter, /rounded-\[24px\][\s\S]*shadow-sm/);

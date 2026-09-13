@@ -63,6 +63,10 @@ test('la conexión es un wizard guiado y las acciones inician apagadas', () => {
   assert.match(wizardSource, /<IndiceModalWizardStepper/);
   assert.match(wizardSource, /useState<AiScopeCode\[]>\(\[\.\.\.READ_SCOPE_CODES\]\)/);
   assert.doesNotMatch(constantsSource, /DEFAULT_SCOPES[\s\S]*tasks\.create/);
+  assert.match(constantsSource, /business\.context:read/);
+  assert.match(constantsSource, /finance\.references:read/);
+  assert.match(spanishSource, /Contexto de la empresa/);
+  assert.match(spanishSource, /Cuentas de pago/);
 });
 
 test('cerrar acceso usa confirmación Índice y no avisos del navegador', () => {

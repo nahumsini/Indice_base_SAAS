@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router";
 import {
   humanResourcesApi,
   type AttendanceCorrectionStatus,
@@ -22,6 +23,7 @@ import { useControlToasts } from "./useControlToasts";
 import { useControlTranslations } from "./useControlTranslations";
 import { useWorkspaceNavigationMemory } from "../../../../hooks/useWorkspaceNavigationMemory";
 import { todayIsoDate } from "../utils/control.utils";
+import { readKioskAdminNavigationTarget } from "../../../../components/kiosk-engine/kioskAdminNavigation";
 
 type ControlWorkspaceState = {
   searchQuery: string;
@@ -34,6 +36,12 @@ type ControlWorkspaceState = {
 };
 
 export function useControlController(): ControlControllerResult {
+  const location = useLocation();
+  const kioskAdminTarget = useMemo(
+    () => readKioskAdminNavigationTarget(location.search),
+    [location.search],
+  );
+  const handledKioskAdminTargetRef = useRef<string | null>(null);
   const { currentLanguage } = useLanguage();
   const copy = useControlTranslations();
   const controlKpiLabels = useMemo(
@@ -245,6 +253,21 @@ export function useControlController(): ControlControllerResult {
     templateForm,
     workSiteForm,
   } = dialogs;
+  useEffect(() => {
+    if (!kioskAdminTarget || isLoading) return;
+    const targetKey = `${kioskAdminTarget.engineId}:${kioskAdminTarget.referenceId ?? "catalog"}`;
+    if (handledKioskAdminTargetRef.current === targetKey) return;
+
+    handledKioskAdminTargetRef.current = targetKey;
+    const targetDevice = kioskAdminTarget.referenceId
+      ? kioskDevices.find((device) => device.id === kioskAdminTarget.referenceId)
+      : null;
+    if (targetDevice) {
+      dialogs.openEditKioskDialog(targetDevice);
+      return;
+    }
+    dialogs.setIsKioskManagerOpen(true);
+  }, [dialogs, isLoading, kioskAdminTarget, kioskDevices]);
   const calendarActions = useControlCalendarActions({
     attendanceCalendarDays,
     bulkCalendarStatus,

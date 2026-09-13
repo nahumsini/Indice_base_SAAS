@@ -25,7 +25,8 @@ async function main(): Promise<void> {
   const supportedScopes = [
     "sales.today:read", "business.snapshot:read", "hr.people:read", "hr.attendance:read",
     "tasks.read", "sales.read", "pos.read", "inventory.read", "expenses.read",
-    "petty_cash.read", "receivables.read", "tasks.create", "expenses.create",
+    "petty_cash.read", "receivables.read", "business.context:read", "finance.references:read",
+    "tasks.create", "expenses.create",
     "petty_cash.expense:create", "petty_cash.deposit:create"
   ];
   const bearerChallenge = (error?: string) => `Bearer ${[
@@ -63,8 +64,10 @@ async function main(): Promise<void> {
     }
     const accessToken = authorization.slice("bearer ".length).trim();
     const indiceClient = new IndiceClient(config, fetch, accessToken);
+    let allowedTools: ReadonlySet<string>;
     try {
-      if (!await indiceClient.hasValidDelegatedAccess()) {
+      const capabilities = await indiceClient.getDelegatedToolCapabilities();
+      if (!capabilities) {
         response
           .status(401)
           .header("WWW-Authenticate", bearerChallenge("invalid_token"))
@@ -75,6 +78,7 @@ async function main(): Promise<void> {
           });
         return;
       }
+      allowedTools = new Set(capabilities.tools);
     } catch {
       response.status(502).json({
         jsonrpc: "2.0",
@@ -83,7 +87,7 @@ async function main(): Promise<void> {
       });
       return;
     }
-    const server = createIndiceMcpServer(indiceClient);
+    const server = createIndiceMcpServer(indiceClient, allowedTools);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
     response.on("close", () => {
       void transport.close();

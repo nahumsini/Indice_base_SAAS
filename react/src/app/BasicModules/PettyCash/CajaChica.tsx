@@ -9,6 +9,7 @@ import { PettyCashReconciliationWorkspace } from './components/PettyCashReconcil
 import { PettyCashStatementsWorkspace } from './components/PettyCashStatementsWorkspace';
 import { usePettyCash } from './context/PettyCashContext';
 import { usePettyCashTranslations } from './hooks/usePettyCashTranslations';
+import { readKioskAdminNavigationTarget } from '../../components/kiosk-engine/kioskAdminNavigation';
 import {
   LearningModeHeaderActionsProvider,
   learningModeGuideThemes,
@@ -57,6 +58,10 @@ export default function CajaChica({ learningModeActive = false, onNavigate }: Ca
   const mainContentRef = useRef<HTMLDivElement>(null);
   const [searchParams] = useSearchParams();
   const [focusedFundId, setFocusedFundId] = useState('');
+  const kioskAdminTarget = readKioskAdminNavigationTarget(searchParams.toString());
+  const initialKioskFundId = kioskAdminTarget?.kioskType === 'receipt_capture'
+    ? String(kioskAdminTarget.referenceId ?? '')
+    : '';
   const linkedFundId = searchParams.get('fundId') ?? '';
   const requestedFundId = /^\d+$/.test(linkedFundId) ? linkedFundId : '';
   const {
@@ -131,6 +136,7 @@ export default function CajaChica({ learningModeActive = false, onNavigate }: Ca
           <PettyCashFundsWorkspace
             dataReady={workspaceLoaded}
             funds={pettyCashFunds}
+            initialKioskFundId={initialKioskFundId}
             onFundsChange={setPettyCashFunds}
             onViewReceipts={(fundId) => {
               setFocusedFundId(fundId);

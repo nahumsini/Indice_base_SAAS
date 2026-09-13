@@ -105,6 +105,14 @@ export interface PublicTaskKioskTask {
   business_name: string | null;
   process_id: number | null;
   process_title: string | null;
+  process_run_id: number | null;
+  process_run_folio: string | null;
+  process_reference: string | null;
+  process_run_status: string | null;
+  process_step: number | null;
+  process_stage: number | null;
+  process_total_steps: number | null;
+  evidence_required: boolean;
   project_id: number | null;
   project_name: string | null;
   created_by: number | null;
@@ -112,8 +120,11 @@ export interface PublicTaskKioskTask {
   completed_by_user_company_id: number | null;
   created_at: string | null;
   attachments: number;
+  evidence_satisfied: boolean;
   is_overdue: boolean;
   can_complete: boolean;
+  can_add_evidence: boolean;
+  can_reschedule: boolean;
   current_assignment_role?: 'lead' | 'collaborator' | null;
   current_contribution_status?: 'pending' | 'working' | 'ready' | null;
   assignment_mode?: 'individual' | 'team' | null;

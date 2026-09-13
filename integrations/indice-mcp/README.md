@@ -2,6 +2,9 @@
 
 Adaptador MCP para herramientas de negocio de Índice. El servidor llama a la API Spring Boot autenticada; nunca se conecta directamente a MySQL. Las consultas reutilizan los servicios reales y las acciones usan vista previa, confirmación explícita, idempotencia y auditoría.
 
+El contrato canónico, la matriz de autorización y las reglas para ampliar herramientas están en
+[`docs/indice-mcp-operating-system-v1.md`](../../docs/indice-mcp-operating-system-v1.md).
+
 Herramientas disponibles:
 
 - `get_sales_today`: cantidad y total monetario vendido hoy.
@@ -13,6 +16,7 @@ Herramientas disponibles:
 - Productos e inventario: `search_products`, `get_product_detail`, `get_inventory_summary`.
 - Gastos: `get_expense_summary`, `list_expenses`, `get_expense_detail`.
 - Finanzas: `get_funds_status`, `get_receivables_status`.
+- Resolutores: `get_my_business_context`, `list_units_and_businesses`, `list_payment_accounts`, `list_funds`.
 - `preview_create_task`: prepara la tarea exacta, asignada al usuario conectado, sin crearla.
 - `create_task`: crea únicamente la vista previa confirmada y vigente.
 - `preview_create_expense_draft` / `create_expense_draft`: crea un gasto general únicamente en `DRAFT`.
@@ -90,9 +94,14 @@ El endpoint local será `http://127.0.0.1:3010/mcp`. Esta versión rechaza backe
 - El MCP no acepta campos de autoridad.
 - Los tokens se guardan en la base solo como SHA-256 y se muestran una vez al crearlos.
 - Los alcances están separados por dominio y por lectura/escritura; expiración máxima de 90 días y revocación inmediata.
+- Si un cliente interno omite la selección de alcances, la conexión nace sólo con lecturas; toda acción debe solicitarse explícitamente.
+- En HTTP delegado, cada solicitud consulta `GET /api/v1/ai/access/capabilities`; `tools/list`
+  muestra sólo herramientas respaldadas por los alcances del token y los permisos vigentes del
+  usuario. La ejecución vuelve a validar esos permisos.
 - Cada consulta vuelve a validar suscripción, módulo, acceso del usuario y permiso vigente. Ventas también valida el entitlement comercial `sales`.
 - Recursos Humanos omite nómina, documentos, identificadores nacionales, coordenadas, fotos y biometría.
 - Fondos nunca exponen tokens ni URLs de kiosco.
+- Los resolutores paginados devuelven `returnedCount`, `totalCount`, `hasMore` y un cursor opaco; nunca aceptan empresa, usuario ni alcance desde el cliente.
 - Cada acción exige una vista previa de máximo 5 minutos. El commit solo recibe token de confirmación y clave de idempotencia; no puede cambiar datos ya confirmados.
 - Las confirmaciones están ligadas a conexión, usuario, empresa, membresía y nombre exacto de herramienta.
 - Cada vista previa, ejecución, repetición y fallo queda auditado. Una repetición con la misma clave devuelve el mismo resultado sin duplicar la acción.

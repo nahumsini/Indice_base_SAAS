@@ -11,6 +11,7 @@ const expectedTools = [
   "get_sale_detail", "get_cash_status", "search_products", "get_product_detail",
   "get_inventory_summary", "get_expense_summary", "list_expenses",
   "get_expense_detail", "get_funds_status", "get_receivables_status",
+  "get_my_business_context", "list_units_and_businesses", "list_payment_accounts", "list_funds",
   "preview_create_expense_draft", "create_expense_draft",
   "preview_register_fund_expense", "register_fund_expense",
   "preview_add_money_to_fund", "add_money_to_fund"
@@ -85,6 +86,10 @@ try {
   const funds = await call("get_funds_status", { limit: 3 });
   results.get_funds_status = compact(funds);
   results.get_receivables_status = compact(await call("get_receivables_status", { limit: 3 }));
+  results.get_my_business_context = compact(await call("get_my_business_context", {}));
+  results.list_units_and_businesses = compact(await call("list_units_and_businesses", { limit: 3 }));
+  results.list_payment_accounts = compact(await call("list_payment_accounts", { limit: 3 }));
+  results.list_funds = compact(await call("list_funds", { limit: 3 }));
 
   if (process.env.INDICE_E2E_COMMIT_ACTIONS === "true") results.actions = await runConfirmedActions(funds);
 
@@ -194,6 +199,8 @@ function compact(result: JsonRecord): JsonRecord {
     ...(typeof result.tool === "string" ? { tool: result.tool } : {}),
     ...(typeof result.action === "string" ? { action: result.action } : {}),
     ...(typeof result.count === "number" ? { count: result.count } : {}),
+    ...(typeof result.returnedCount === "number" ? { returnedCount: result.returnedCount } : {}),
+    ...(typeof result.totalCount === "number" ? { totalCount: result.totalCount } : {}),
     ...(typeof result.replayed === "boolean" ? { replayed: result.replayed } : {}),
     ...(result.summary && typeof result.summary === "object" ? { summary: result.summary } : {}),
     ...(result.result && typeof result.result === "object" ? { result: result.result } : {})

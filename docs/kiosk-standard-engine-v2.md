@@ -992,6 +992,51 @@ No se autoriza un reemplazo global sin revisión. Antes de cerrar una migración
 compartida deben verificarse todos los consumidores representativos en móvil,
 desktop, light mode, dark mode, texto grande y locales soportados.
 
+### 20.7 Familia operativa homologada
+
+La familia visual posterior a la identificación se compone con
+`react/src/app/components/kiosk-engine/KioskToolWorkspace.tsx`. Su anatomía canónica es:
+
+```text
+KioskToolWorkspaceFrame
+├── KioskWorkspaceContextBar
+├── KioskWorkspaceTabs                 cuando existen secciones pares
+├── KioskWorkspaceSurface
+│   ├── KioskWorkspaceSectionHeader
+│   ├── KioskWorkspaceFieldStatus      cuando existe ayuda o validación local
+│   └── KioskFileDropzone              cuando el owner permite archivos
+├── KioskWorkspaceEmptyState
+├── KioskStickyActionBar               cuando existe una acción dominante
+└── KioskModalFrame                    solo para una tarea temporal acotada
+```
+
+El frame `compact` es el predeterminado para formularios, agendas e historiales controlados. El
+frame `catalog` se reserva para catálogos de producto, estaciones de restaurante y superficies
+aprobadas que necesitan un canvas adaptativo más ancho. Cambiar la densidad no autoriza a cambiar
+radios, superficies neutrales, jerarquía tipográfica, semántica de estados, safe areas u orden de
+acciones.
+
+El color del owner es la única variación visual primaria: RH usa aqua; Procesos y Tareas, amarillo;
+Ventas y Punto de Venta, coral; Gastos/Cuentas por Pagar y Caja Chica, verde. El color identifica
+foco, selección, iconografía y acción primaria. Éxito, advertencia y error conservan su semántica.
+Herramientas que comparten color se distinguen mediante título, icono, copy localizada, contexto,
+capabilities y resultado funcional, nunca mediante otro sistema visual.
+
+Estado de adopción operativa al 10 de septiembre de 2026:
+
+| Workspace nativo | Frame | Tono | Estado |
+|---|---|---|---|
+| Recursos Humanos | compact | aqua | Adoptado |
+| Mis tareas | compact | yellow | Adoptado |
+| Venta en ruta | catalog | coral | Adoptado |
+| Cuentas por pagar | compact | green | Adoptado |
+| Caja Chica | compact | green | Adoptado |
+| Punto de Venta autoservicio y estación de mesero | catalog | coral | Adoptado |
+
+La adopción es exclusivamente presentacional. El owner conserva APIs, payloads, autorización,
+scope, dinero, inventario, impuestos, archivos, idempotencia, transiciones y auditoría. Cada
+workspace debe probar su flujo funcional además del contrato visual compartido.
+
 ---
 
 ## 21. Relación con Modal Engine
@@ -1304,6 +1349,40 @@ Columnas conceptuales:
 - señales de riesgo.
 
 Las acciones profundas redirigen a la administración del módulo.
+
+El handoff administrativo desde el Centro transporta por separado el identificador de la definición
+del Engine y, cuando existe, `legacy_reference_id` como referencia propietaria. El módulo nunca debe
+interpretar el ID del Engine como ID de su registro: abre su administrador con datos ya autorizados,
+selecciona la referencia propietaria y conserva la validación tenant/permiso del backend. Recursos
+Humanos y Procesos y Tareas forman la primera adopción; Cuentas por Pagar, Caja Chica y Punto de
+Venta forman la segunda. Cuentas por Pagar y Caja Chica resuelven `legacy_reference_id`; Punto de
+Venta resuelve el ID del Engine. En todos los casos el registro debe existir en los datos ya
+autorizados del gestor antes de abrirse. Hasta certificar paridad, sus gestores, rutas públicas y
+contratos permanecen disponibles; retirar un acceso duplicado significa primero ocultar solo el
+punto de entrada visual, no eliminar la capacidad propietaria.
+
+El inventario del Centro tiene dos alcances de lectura. `root` y `superadmin` conservan la vista
+transversal de la compañía. Un administrador de módulo sólo recibe definiciones cuyo
+`owner_module` corresponda a un contrato propietario que ya puede administrar; la primera cohorte
+es `HUMAN_RESOURCES` mediante Control y `PROCESS_TASKS` mediante su acceso administrativo. La
+segunda cohorte agrega `EXPENSES` con `expenses.expenses`, `PETTY_CASH` con `petty_cash.cash` y
+`POINT_OF_SALE` solamente cuando coinciden la capacidad administrativa del propietario y
+`pos.kiosks`. El filtro se aplica en el backend además de la navegación y no se limita al nombre del
+módulo: para Gastos, Caja Chica y Punto de Venta, la consulta del Centro también conserva el alcance
+corporativo, de unidad o de negocio resuelto por el owner. Este acceso acotado no concede composición
+de Multikioscos, auditoría transversal ni transiciones globales de deshabilitado o revocación: esas
+capacidades permanecen en `root` y `superadmin`, y la operación cotidiana vuelve al gestor propietario.
+
+Tras esa paridad, la bandera de presentación compartida
+`legacyOwnerKioskEntryPointsEnabled` puede ocultar los botones duplicados de Recursos Humanos,
+Procesos y Tareas y Caja Chica. Cuentas por Pagar no conserva un botón duplicado y su gestor se monta
+para el handoff central; la pestaña Kioscos de Punto de Venta permanece porque también es la ruta
+propietaria de destino y ocultarla impediría el handoff. El desarrollo local desactiva la bandera
+para certificar el recorrido central; una build
+desplegada conserva los accesos por defecto y sólo puede desactivarlos cuando
+`KIOSK_GLOBAL_CENTER_ENABLED` ya fue certificado en ese ambiente. El handoff exacto desde el Centro
+continúa montando los mismos gestores propietarios y no cambia endpoints, autorizaciones ni enlaces
+públicos.
 
 ---
 
@@ -1720,11 +1799,28 @@ mí` y `Todas visibles`), búsqueda directa, navegación por fecha y filtros sec
 periodo, proyecto/proceso y alcance. `Todas visibles` significa exclusivamente la colección ya
 autorizada por el backend; no amplía la visibilidad de la sesión.
 
-La vista Agenda agrupa vencidas, trabajo programado y trabajo sin horario. La consulta puede exponer
-`agenda_date`, `agenda_start_time`, `agenda_end_time` y `agenda_time_zone` como datos de sólo lectura
-para respetar la programación de la Agenda principal. El Tablero compacto conserva columnas de
-estado y scroll horizontal en móvil, pero no permite drag-and-drop ni mutaciones implícitas: abrir,
-completar y aportar evidencia siguen usando los comandos y modales existentes.
+La vista Agenda agrupa vencidas, trabajo programado y trabajo sin horario. La vista Horario ordena
+el día por hora para uso móvil y permite que el colaborador asignado ajuste de forma explícita
+`agenda_date`, `agenda_start_time`, `agenda_end_time` y `agenda_time_zone`; este cambio no modifica el
+vencimiento y no usa drag-and-drop. El backend vuelve a comprobar compañía, asignación vigente,
+estado abierto y la capacidad `process-tasks.task.agenda.update@1`. El Tablero compacto conserva
+columnas de estado y scroll horizontal en móvil, pero tampoco permite drag-and-drop ni mutaciones
+implícitas.
+
+El detalle de la tarea es el espacio de ejecución: presenta instrucciones, contexto del proceso y de
+su ejecución, posición dentro del flujo, planificación, participación y cierre. Adjuntar imagen o
+archivo debe estar disponible para toda tarea abierta asignada al colaborador mediante las
+capacidades de presign y registro, hasta el límite declarado por el owner. La evidencia es opcional
+por defecto. Solo `evidence_required=true` bloquea completar la tarea hasta que exista al menos un
+adjunto adoptado; la interfaz anticipa la regla, pero el backend sigue siendo autoritativo en todos
+los canales de cierre.
+
+La herramienta puede iniciar procesos ocasionales sin convertirse en administración de procesos.
+El botón se publica únicamente cuando la sesión concede lectura, vista previa y creación ocasional y
+el colaborador conserva `processes.processes`. El flujo exige referencia y fecha, muestra las tareas
+y sus requisitos de evidencia antes de confirmar, advierte referencias duplicadas y crea la
+ejecución con idempotencia. El resultado devuelve la ejecución y la colección `items` autoritativa;
+reasignar responsables continúa fuera del contrato nativo.
 
 ### 25.3 Caja Chica
 
@@ -2287,9 +2383,21 @@ El Engine v2 se considera establecido cuando:
   selección se revalida en backend al confirmar y la venta hereda los identificadores organizacionales
   canónicos del almacén cuando existen. Los campos textuales legacy de almacén no se comparan contra
   IDs de RH porque pertenecen a contratos históricos distintos y pueden ocultar almacenes válidos.
-- La captura del medio de pago no declara por sí sola un depósito contable. Efectivo en custodia,
-  referencias de tarjeta/transferencia y ventas a crédito quedan pendientes de conciliación por el
-  módulo financiero propietario; el kiosco lo comunica de forma explícita.
+- El catálogo de ruta evita un segundo scroll interno y prioriza la operación táctil: muestra primero
+  productos con existencia, conserva los seleccionados al frente, permite alternar disponibles,
+  elegidos y catálogo completo, y filtra por búsqueda o categoría. Cada tarjeta puede mostrar imagen,
+  descripción breve, SKU, categoría, precio, impuesto, existencia, importe de línea y un control de
+  cantidad editable sin convertir la experiencia en una tabla administrativa.
+- La liquidación es consciente del medio de pago. Tarjeta y transferencia exigen referencia y una
+  cuenta `BANK` activa publicada por Tesorería, compatible con compañía, moneda y alcance de la venta;
+  el backend revalida la selección. Al confirmar, Sales aprueba el cobro y usa su contrato de
+  recaudación para agregar el movimiento idempotente de Tesorería en la misma transacción que la venta
+  y el inventario. El kiosco no modifica saldos directamente y conserva en la venta el ID y nombre de
+  la cuenta elegida para trazabilidad.
+- El efectivo permanece en custodia de ruta y pendiente de entrega; una venta a crédito permanece como
+  cuenta por cobrar. Ninguno de esos dos medios incrementa una cuenta bancaria al terminar el flujo.
+  El resumen y el historial deben distinguir dinero ya registrado en Tesorería, efectivo en custodia y
+  saldo pendiente de cobranza.
 - El paso **Cobro** permite seleccionar un comprobante o capturar una foto desde el dispositivo.
   Sales conserva la autoridad del archivo: el Engine exige capacidades controladas separadas para
   presign y registro, el backend valida que la venta sea del vendedor autenticado y el object key

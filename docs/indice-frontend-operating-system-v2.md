@@ -2408,6 +2408,12 @@ The identity gate is mobile first and must also remain composed on tablet and de
 
 Controlled transaction kiosks for Caja Chica, Procesos y Tareas, Asistencia, and Cuentas por Pagar continue as compact, mobile-first workspaces after identity. Mobile-first is not mobile-only: opening the public route on tablet or desktop preserves the same PIN, session, launcher, and operational workspace without a mandatory QR interstitial. Authorization must not switch the experience into an administrative desktop dashboard.
 
+Venta en ruta follows the same branch. Its mobile product picker uses the workspace scroll instead of
+a nested catalog scroll, prioritizes in-stock and already-selected items, and exposes search, category,
+availability, image, SKU, description, tax, stock, quantity, and line amount with touch-safe controls.
+For card or transfer, the payment step must require an eligible Treasury bank destination and explain
+that confirmation records the income there; cash custody and credit remain visibly pending workflows.
+
 Use the following composition:
 
 ```text
@@ -2437,6 +2443,67 @@ Rules:
 - identity, navigation, filters, content, and actions must not create horizontal overflow at 320, 360, 390, 430, or 480 CSS pixels.
 
 The approved implementation order is: Caja Chica navigation baseline, Procesos y Tareas mobile workspace, Asistencia verification journey, and Cuentas por Pagar capture forms. Routes, services, permissions, validations, payloads, and business results remain owned by their modules and are not modified by this layout pattern.
+
+#### Canonical employee workspace family
+
+The approved post-identification family is implemented by
+`react/src/app/components/kiosk-engine/KioskToolWorkspace.tsx`. A native employee tool composes
+these presentation primitives instead of creating its own card, status, evidence, empty-state, or
+sticky-action language:
+
+```text
+KioskToolWorkspaceFrame
+KioskWorkspaceContextBar
+KioskWorkspaceTabs                  when the tool has peer sections
+KioskWorkspaceSurface
+  KioskWorkspaceSectionHeader
+  KioskWorkspaceFieldStatus         when field-level guidance is needed
+  KioskFileDropzone                 when the owner permits files
+KioskWorkspaceEmptyState            when no authorized records exist
+KioskStickyActionBar                when the state has a dominant action
+KioskModalFrame                     only for a bounded temporary task
+```
+
+`compact` is the default frame for controlled forms, agendas, and histories. `catalog` is reserved
+for product grids, restaurant stations, and other approved workspaces that benefit from a wider
+adaptive canvas. Density can change by component, but anatomy, radii, neutral surfaces, spacing,
+type hierarchy, state semantics, safe areas, and action order do not change by module.
+
+The owner tone is the only primary visual variation: Human Resources uses aqua, Processes and Tasks
+uses yellow, Sales and Point of Sale use coral, and Expenses/Payables and Petty Cash use green. The
+tone identifies focus, selection, icon surfaces, and the primary action; success, warning, and error
+retain their semantic colors. Two tools that share green remain distinct through title, icon,
+localized copy, context, capability set, and business result—not through a separate design system.
+
+The initial adopted workspaces are Human Resources, My Tasks, Route Sales, Payables, Petty Cash, and
+Point of Sale. Adoption is presentational only: the owning module continues to control API payloads,
+authorization, money, inventory, taxes, files, idempotency, state transitions, and audit.
+
+Administrative deep links from the Kiosk Center use the shared kiosk navigation contract. They keep
+the Engine definition ID distinct from the optional owner reference, and an owner workspace may
+auto-open only a record found in its already authorized data. Human Resources and Processes and
+Tasks are the first adopters. Payables and Petty Cash then resolve the owner reference, while Point
+of Sale resolves the Engine definition ID; all three open only a record returned by the owning
+workspace. During consolidation the owner manager remains mounted and functional;
+removing a duplicated module entry is a later, feature-flagged presentation change after parity, not
+permission to remove public routes, APIs, adapters, stored definitions, or compatibility behavior.
+
+The Kiosk Center shell distinguishes inventory access from global platform administration. Root and
+superadmin users retain MultiKiosk composition, people, activity, transversal audit, and global
+lifecycle controls. An authorized Human Resources Control, Processes/Tasks, Expenses, Petty Cash,
+or Point of Sale administrator enters
+directly into Inventory, sees only owner modules allowed by the backend, and receives no global
+navigation or lifecycle affordances. Frontend filtering is presentation only; the server remains the
+authority for tenant and owner-module scope. Finance also requires the exact `expenses.expenses` or
+`petty_cash.cash` owner tab; POS requires both its owner administration role and `pos.kiosks`.
+
+The consolidation cohorts use the shared `legacyOwnerKioskEntryPointsEnabled` presentation flag.
+Local development disables it so Human Resources, Processes/Tasks, and the Petty Cash kiosk button
+are exercised through the Center. Payables has no second visible entry; the POS Kiosks tab remains
+visible because it is itself the owner destination. Deployed builds default to the
+compatibility-safe visible state and may disable it only after
+the target environment has certified its global Center. The existing manager components remain
+mounted for an exact Kiosk Center handoff and rollback.
 
 #### Accessibility behavior
 

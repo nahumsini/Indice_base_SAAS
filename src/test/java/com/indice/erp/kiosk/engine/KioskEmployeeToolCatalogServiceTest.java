@@ -76,6 +76,12 @@ class KioskEmployeeToolCatalogServiceTest {
             .findFirst()
             .orElseThrow();
         assertThat(taskTool.get("capabilities")).isEqualTo(List.of(
+            ProcessTaskKioskCapabilities.OCCASIONAL_PROCESS_CREATE + "@1",
+            ProcessTaskKioskCapabilities.OCCASIONAL_PROCESS_PREVIEW + "@1",
+            ProcessTaskKioskCapabilities.OCCASIONAL_PROCESSES_READ + "@1",
+            ProcessTaskKioskCapabilities.TASK_AGENDA_UPDATE + "@1",
+            ProcessTaskKioskCapabilities.TASK_ATTACHMENT_PRESIGN + "@1",
+            ProcessTaskKioskCapabilities.TASK_ATTACHMENT_REGISTER + "@1",
             ProcessTaskKioskCapabilities.TASK_COMPLETE + "@1",
             ProcessTaskKioskCapabilities.TASK_CREATE + "@1",
             ProcessTaskKioskCapabilities.TASKS_READ + "@1"));
