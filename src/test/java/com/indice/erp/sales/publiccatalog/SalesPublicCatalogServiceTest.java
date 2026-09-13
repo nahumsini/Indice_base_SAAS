@@ -305,6 +305,40 @@ class SalesPublicCatalogServiceTest {
     }
 
     @Test
+    void publicBootstrapRefreshesLegacySignedUrlsAndDeduplicatesTheirRegisteredFile() {
+        var catalog = catalog(true);
+        var storage = new ObjectStorageProperties();
+        storage.getMinio().setBucketSalesDocuments("sales-images");
+        storage.getMinio().setPresignExpirySeconds(321);
+        var storageAwareService = new SalesPublicCatalogService(
+            repository, registry, new ObjectMapper(), linkCodec,
+            objectStorageService, storage, Clock.fixed(NOW, ZoneOffset.UTC));
+        var objectKey = "sales/products/7/images/legacy-image.webp";
+        var expiredUrl = "https://app.example.test/storage/sales-images/" + objectKey
+            + "?X-Amz-Date=20260101T000000Z&X-Amz-Expires=321&X-Amz-Signature=expired";
+        var currentUrl = "https://app.example.test/storage/sales-images/" + objectKey
+            + "?X-Amz-Date=20260718T120000Z&X-Amz-Expires=321&X-Amz-Signature=current";
+        given(repository.findById(catalog.id())).willReturn(Optional.of(catalog));
+        given(repository.publicItems(catalog)).willReturn(List.of(product()));
+        given(repository.publicImages(catalog.companyId(), List.of(91L))).willReturn(Map.of(
+            91L, List.of(
+                new SalesPublicCatalogRepository.PublicImageSource(expiredUrl, "Legado", null),
+                new SalesPublicCatalogRepository.PublicImageSource(null, "Archivo", objectKey))));
+        given(objectStorageService.isEnabled()).willReturn(true);
+        given(objectStorageService.presignDownload("sales-images", objectKey, 321))
+            .willReturn(currentUrl);
+
+        var item = storageAwareService.bootstrap(catalog.id()).items().getFirst();
+
+        assertThat(item.thumbnailUrl()).isEqualTo(currentUrl);
+        assertThat(item.images()).containsExactly(
+            new SalesPublicCatalogDtos.PublicImage(currentUrl, "Legado"));
+        assertThat(item.images()).extracting(SalesPublicCatalogDtos.PublicImage::url)
+            .doesNotContain(expiredUrl);
+        then(objectStorageService).should().presignDownload("sales-images", objectKey, 321);
+    }
+
+    @Test
     void rejectsCrossTenantAndCrossScopeEngineDefinitionsBeforeServingOrAcceptingData() {
         var catalog = catalog(true);
         given(repository.findById(catalog.id())).willReturn(Optional.of(catalog));

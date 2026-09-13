@@ -29,6 +29,8 @@ import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.time.Clock;
 import java.time.Instant;
@@ -568,36 +570,90 @@ public class SalesPublicCatalogService {
         var seen = new java.util.LinkedHashSet<String>();
         if (imageSources != null) {
             for (var source : imageSources) {
-                var url = publicImageUrl(companyId, source);
-                if (url == null || !seen.add(url)) continue;
+                var objectKey = productImageObjectKey(companyId, source);
+                var identity = publicImageIdentity(source, objectKey);
+                if (identity == null || !seen.add(identity)) continue;
+                var url = publicImageUrl(companyId, source, objectKey);
+                if (url == null) continue;
                 images.add(new PublicImage(url,
                     firstNonBlank(source.alt(), item.thumbnailAlt(), item.name())));
             }
         }
-        var fallback = safePublicUrl(item.thumbnailUrl());
-        if (fallback != null && seen.add(fallback)) {
-            images.add(new PublicImage(fallback,
-                firstNonBlank(item.thumbnailAlt(), item.name())));
+        var fallbackSource = new SalesPublicCatalogRepository.PublicImageSource(
+            item.thumbnailUrl(), item.thumbnailAlt(), null);
+        var fallbackObjectKey = productImageObjectKey(companyId, fallbackSource);
+        var fallbackIdentity = publicImageIdentity(fallbackSource, fallbackObjectKey);
+        if (fallbackIdentity != null && seen.add(fallbackIdentity)) {
+            var fallback = publicImageUrl(companyId, fallbackSource, fallbackObjectKey);
+            if (fallback != null) {
+                images.add(new PublicImage(fallback,
+                    firstNonBlank(item.thumbnailAlt(), item.name())));
+            }
         }
         return List.copyOf(images);
     }
 
-    private String publicImageUrl(long companyId, SalesPublicCatalogRepository.PublicImageSource source) {
+    private String publicImageUrl(
+            long companyId,
+            SalesPublicCatalogRepository.PublicImageSource source,
+            String objectKey) {
         if (source == null) return null;
-        if (source.objectKey() != null && objectStorageService != null && storageProperties != null
-                && objectStorageService.isEnabled()) {
-            if (!source.objectKey().startsWith("sales/products/" + companyId + "/images/")) {
+        if (objectKey != null) {
+            if (!objectKey.startsWith(productImagePrefix(companyId))) {
                 return null;
             }
-            try {
-                return safePublicUrl(objectStorageService.presignDownload(
-                    storageProperties.getMinio().getBucketSalesDocuments(),
-                    source.objectKey(), storageProperties.getMinio().getPresignExpirySeconds()));
-            } catch (RuntimeException ignored) {
-                // A stale file must not hide other valid product images.
+            if (objectStorageService != null && storageProperties != null
+                    && objectStorageService.isEnabled()) {
+                try {
+                    return safePublicUrl(objectStorageService.presignDownload(
+                        storageProperties.getMinio().getBucketSalesDocuments(),
+                        objectKey, storageProperties.getMinio().getPresignExpirySeconds()));
+                } catch (RuntimeException ignored) {
+                    // A stale file must not hide other valid product images.
+                }
             }
+            return null;
         }
         return safePublicUrl(source.url());
+    }
+
+    private String productImageObjectKey(
+            long companyId,
+            SalesPublicCatalogRepository.PublicImageSource source) {
+        if (source == null) return null;
+        if (source.objectKey() != null && !source.objectKey().isBlank()) {
+            return source.objectKey().trim();
+        }
+        var value = source.url();
+        if (value == null || value.isBlank()) return null;
+        var candidate = value.trim();
+        try {
+            candidate = URLDecoder.decode(candidate, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+        var prefix = productImagePrefix(companyId);
+        var start = candidate.indexOf(prefix);
+        if (start < 0) return null;
+        var end = candidate.length();
+        for (var separator : List.of('?', '#')) {
+            var position = candidate.indexOf(separator, start);
+            if (position >= 0) end = Math.min(end, position);
+        }
+        var objectKey = candidate.substring(start, end).trim();
+        return objectKey.length() > prefix.length() ? objectKey : null;
+    }
+
+    private String publicImageIdentity(
+            SalesPublicCatalogRepository.PublicImageSource source,
+            String objectKey) {
+        if (objectKey != null) return "object:" + objectKey;
+        var url = source == null ? null : safePublicUrl(source.url());
+        return url == null ? null : "url:" + url;
+    }
+
+    private String productImagePrefix(long companyId) {
+        return "sales/products/" + companyId + "/images/";
     }
 
     private String safePublicUrl(String value) {
