@@ -101,6 +101,14 @@ public final class SalesPublicCatalogDtos {
     public record LinkResponse(String publicUrl, String publicTokenHint, long version) {
     }
 
+    public record SharePreview(
+        String companyName,
+        String companyLogoUrl,
+        String catalogTitle,
+        String description
+    ) {
+    }
+
     public record PublicImage(String url, String alt) {
     }
 

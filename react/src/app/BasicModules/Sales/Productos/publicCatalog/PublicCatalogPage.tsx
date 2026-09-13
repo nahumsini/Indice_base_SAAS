@@ -184,6 +184,18 @@ export function PublicCatalogPage({
     };
   }, [applyLatestBootstrap, embedded, fetchLatestBootstrap, publicAccessToken]);
 
+  useEffect(() => {
+    if (embedded || !bootstrap) return undefined;
+    const previousTitle = document.title;
+    const companyName = bootstrap.companyName?.trim();
+    document.title = companyName
+      ? `${companyName} - Catálogo de productos`
+      : 'Catálogo de productos';
+    return () => {
+      document.title = previousTitle;
+    };
+  }, [bootstrap?.companyName, embedded]);
+
   if (embedded) {
     const activeConfig = config ?? createDefaultPublicCatalogConfig(products, {
       title: t.publicCatalog.defaultTitle,

@@ -22,6 +22,7 @@ import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.RequestListResp
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.RequestResponse;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.ReviewRequest;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.SaveRequest;
+import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.SharePreview;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.StatusRequest;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.SubmissionResponse;
 import com.indice.erp.storage.ObjectStorageProperties;
@@ -276,6 +277,13 @@ public class SalesPublicCatalogService {
     @Transactional(readOnly = true)
     public BootstrapResponse bootstrap(KioskResolvedDefinition definition) {
         return bootstrap(requirePublic(definition));
+    }
+
+    @Transactional(readOnly = true)
+    public SharePreview sharePreview(KioskResolvedDefinition definition) {
+        var catalog = requirePublic(definition);
+        return new SharePreview(
+            catalog.companyName(), catalog.companyLogoUrl(), catalog.title(), catalog.description());
     }
 
     public AvailabilityResponse availability(

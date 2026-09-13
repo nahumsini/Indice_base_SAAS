@@ -362,6 +362,20 @@ class SalesPublicCatalogServiceTest {
     }
 
     @Test
+    void sharePreviewUsesOnlyTheCatalogCompanyIdentity() {
+        var catalog = catalog(true);
+        given(repository.findById(catalog.id())).willReturn(Optional.of(catalog));
+
+        var preview = service.sharePreview(definition(catalog));
+
+        assertThat(preview.companyName()).isEqualTo(catalog.companyName());
+        assertThat(preview.companyLogoUrl()).isEqualTo(catalog.companyLogoUrl());
+        assertThat(preview.catalogTitle()).isEqualTo(catalog.title());
+        assertThat(preview.description()).isEqualTo(catalog.description());
+        then(repository).should(never()).publicItems(any());
+    }
+
+    @Test
     void rejectsCreationOutsideTheAdministratorsFrozenScope() {
         var access = SalesPublicCatalogAdminAccess.AdminContext.unit(5L, 7L, 11L);
         var request = new SaveRequest(

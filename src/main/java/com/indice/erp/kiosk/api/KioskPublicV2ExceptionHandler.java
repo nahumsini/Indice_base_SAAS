@@ -7,6 +7,7 @@ import com.indice.erp.kiosk.engine.KioskUnavailableException;
 import com.indice.erp.billing.lifecycle.CommercialAccessRestrictedException;
 import com.indice.erp.hr.attendance.kiosk.api.PublicKioskAttendanceApiController;
 import com.indice.erp.pos.PosApiException;
+import com.indice.erp.sales.publiccatalog.SalesPublicCatalogSharePreviewController;
 import java.util.NoSuchElementException;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -33,7 +34,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
     KioskCenterV2Controller.class,
     KioskMultiDashboardV2Controller.class,
     MultiKioskAdminV2Controller.class,
-    MultiKioskPublicV2Controller.class
+    MultiKioskPublicV2Controller.class,
+    SalesPublicCatalogSharePreviewController.class
 })
 public class KioskPublicV2ExceptionHandler {
 

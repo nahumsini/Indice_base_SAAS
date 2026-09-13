@@ -2326,6 +2326,13 @@ El Engine v2 se considera establecido cuando:
 - El editor se clasifica como **Modal Wizard Índice** con cuatro etapas dependientes: identidad,
   apariencia, funciones y productos con revisión final. Guardar conserva concurrencia optimista y
   todas las validaciones y límites de alcance del contrato administrativo existente.
+- El enlace compartido identifica a la empresa propietaria. Su título social es
+  `<nombre de la empresa> - Catálogo de productos` y su imagen social es el logo configurado por
+  esa empresa. No se publica la marca de Índice como identidad del catálogo del cliente.
+- Los metadatos sociales se resuelven en servidor para clientes que no ejecutan JavaScript. La
+  resolución reutiliza el token, lifecycle, alcance comercial, rate limiting y redacción de logs de
+  Kiosk Engine; el logo se expone solamente dentro del enlace público válido y sin persistir el
+  token ni la imagen en cachés compartidos.
 
 ---
 
