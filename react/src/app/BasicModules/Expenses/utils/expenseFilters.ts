@@ -51,7 +51,6 @@ export const isExpenseEffectivelyOverdue = (expense: Expense, referenceDate = ne
 export const getEffectiveExpenseStatus = (expense: Expense, referenceDate = new Date()): Expense['status'] => {
   if (expense.status === 'audited') return 'audited';
   if (getExpenseBalance(expense) <= 0) return 'paid';
-  if (expense.budgetLineId && isExpenseEffectivelyOverdue(expense, referenceDate)) return 'overdue';
   if (getExpensePaidAmount(expense) > 0 || expense.status === 'partial') return 'partial';
   if (isExpenseEffectivelyOverdue(expense, referenceDate)) return 'overdue';
   return 'pending';
