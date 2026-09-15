@@ -10,6 +10,7 @@ import { PanelInicialHeader } from './components/PanelInicialHeader';
 import { PanelInicialState } from './components/PanelInicialState';
 import { usePanelInicialTranslations } from './hooks/usePanelInicialTranslations';
 import { useAuthorizationRevision } from '../../hooks/useAuthorizationRevision';
+import { useWorkbarLayout } from '../../components/workbar/WorkbarLayoutContext';
 
 const Profile = lazy(() => import('./Profile'));
 const BusinessStructure = lazy(() => import('./BusinessStructure'));
@@ -45,6 +46,7 @@ const legacySubTabAliases: Partial<Record<string, PanelInicialTabId>> = {
 
 export default function PanelInicial({ onNavigate }: PanelInicialProps) {
   const { t } = useLanguage();
+  const { isDualScreenActive, position: workbarPosition } = useWorkbarLayout();
   const shellCopy = usePanelInicialTranslations();
   const authorizationRevision = useAuthorizationRevision();
   const [sessionAccess, setSessionAccess] = useState<{
@@ -148,7 +150,7 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--indice-background)] dark:bg-slate-950">
+    <div className={`flex h-full min-h-0 flex-col overflow-hidden bg-[var(--indice-background)] dark:bg-slate-950 ${workbarPosition === 'left' && !isDualScreenActive ? 'lg:flex-row' : ''}`}>
       <LoadingBarOverlay
         isVisible={isTabLoading || !sessionAccess.loaded}
         title={shellCopy.loadingTabTitle}

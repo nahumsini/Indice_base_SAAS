@@ -7,6 +7,7 @@ import { subscribeToAuthenticationExpired } from './api/authSessionStore';
 import { ApiClientError } from './lib/apiClient';
 import { BusinessCurrencyProvider } from './BasicModules/shared/BusinessCurrencyContext';
 import { LocalizedLoadingBarOverlay } from './components/LocalizedLoadingBarOverlay';
+import { WorkbarLayoutProvider } from './components/workbar/WorkbarLayoutContext';
 
 const App = lazy(() => import('./App'));
 const HumanResourcesKiosk = lazy(() => import('./BasicModules/HumanResources/Kiosk/Kiosk'));
@@ -325,16 +326,18 @@ function PrivateAppRoute() {
   return (
     <WorkspaceRenderErrorBoundary>
       <BusinessCurrencyProvider>
-        <Suspense
-          fallback={(
-            <LocalizedLoadingBarOverlay
-              isVisible
-              variant="workspace"
-            />
-          )}
-        >
-          <App />
-        </Suspense>
+        <WorkbarLayoutProvider>
+          <Suspense
+            fallback={(
+              <LocalizedLoadingBarOverlay
+                isVisible
+                variant="workspace"
+              />
+            )}
+          >
+            <App />
+          </Suspense>
+        </WorkbarLayoutProvider>
       </BusinessCurrencyProvider>
     </WorkspaceRenderErrorBoundary>
   );

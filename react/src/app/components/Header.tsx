@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, Building2, Bot, Check, CreditCard, Globe, GraduationCap, LoaderCircle, User, Sun, Moon, Sunrise, Settings, ShieldCheck, MonitorSmartphone, Search } from 'lucide-react';
+import { BriefcaseBusiness, Building2, Bot, Check, CreditCard, Globe, GraduationCap, LayoutPanelTop, LoaderCircle, User, Sun, Moon, Sunrise, Settings, ShieldCheck, MonitorSmartphone, Search } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import {
@@ -25,16 +25,21 @@ import { managedCompanyApi, type ManagedCompanyContext } from '../api/managedCom
 import { getCachedAuthSession } from '../api/authSessionStore';
 import { useAuthorizationRevision } from '../hooks/useAuthorizationRevision';
 import { canAccessKioskCenter, canAccessModuleTab } from '../access/tabScopeCatalog';
+import { WorkbarLayoutModal } from './workbar/WorkbarLayoutModal';
+import { LearningModeSettingsModal } from '../learningMode/components/LearningModeSettingsModal';
+import type { LearningModeSettings } from '../learningMode/preferences';
 
 interface HeaderProps {
   learningModeActive: boolean;
-  onToggleLearningMode: () => void;
+  learningModeVisible: boolean;
+  learningStep: number;
+  onSaveLearningModeSettings: (settings: LearningModeSettings) => void;
   darkMode: boolean;
   onToggleDarkMode: () => void;
 }
 
 const USER_PROFILE_UPDATED_EVENT = 'indice:user-profile-updated';
-const HEADER_ACTION_BUTTON_CLASSES = 'h-10 w-10 rounded-full border border-transparent text-[#4B5563] transition-all hover:border-[#59C3A5]/35 hover:bg-white/70 hover:text-[#222831] dark:text-gray-300 dark:hover:border-[#59C3A5]/45 dark:hover:bg-white/10 dark:hover:text-white';
+const HEADER_ACTION_BUTTON_CLASSES = 'h-10 w-10 rounded-full border border-transparent text-slate-50/85 transition-all hover:border-white/35 hover:bg-white/15 hover:text-slate-50 dark:text-slate-50/85 dark:hover:border-white/35 dark:hover:bg-white/15 dark:hover:text-slate-50';
 
 const getProfileDisplayName = (user: ConfigCenterCurrentUser) => {
   return [
@@ -46,13 +51,22 @@ const getProfileDisplayName = (user: ConfigCenterCurrentUser) => {
     .trim() || user.email || 'User';
 };
 
-export function Header({ learningModeActive, onToggleLearningMode, darkMode, onToggleDarkMode }: HeaderProps) {
+export function Header({
+  learningModeActive,
+  learningModeVisible,
+  learningStep,
+  onSaveLearningModeSettings,
+  darkMode,
+  onToggleDarkMode,
+}: HeaderProps) {
   const navigate = useNavigate();
   const { currentLanguage, setCurrentLanguage } = useLanguage();
   const { copy } = useHeaderTranslations();
   const currentHour = new Date().getHours();
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
+  const [isWorkbarLayoutOpen, setIsWorkbarLayoutOpen] = useState(false);
+  const [isLearningModeSettingsOpen, setIsLearningModeSettingsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [currentUserName, setCurrentUserName] = useState('User');
   const [currentUserEmail, setCurrentUserEmail] = useState('');
@@ -177,20 +191,20 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
   const getGreetingIcon = () => {
     if (currentHour >= 6 && currentHour < 12) {
       return (
-        <div className="bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg p-1.5">
-          <Sunrise className="h-5 w-5 text-orange-600" />
+        <div className="rounded-lg border border-white/20 bg-white/15 p-1.5">
+          <Sunrise className="h-5 w-5 text-orange-300" />
         </div>
       );
     } else if (currentHour >= 12 && currentHour < 19) {
       return (
-        <div className="bg-gradient-to-br from-yellow-100 to-yellow-200 rounded-lg p-1.5">
-          <Sun className="h-5 w-5 text-yellow-600" />
+        <div className="rounded-lg border border-white/20 bg-white/15 p-1.5">
+          <Sun className="h-5 w-5 text-amber-300" />
         </div>
       );
     } else {
       return (
-        <div className="bg-gradient-to-br from-indigo-100 to-purple-200 rounded-lg p-1.5">
-          <Moon className="h-5 w-5 text-indigo-600" />
+        <div className="rounded-lg border border-white/20 bg-white/15 p-1.5">
+          <Moon className="h-5 w-5 text-violet-200" />
         </div>
       );
     }
@@ -339,14 +353,14 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
   };
 
   return (
-    <header className="border-b border-[#D8DCE3] bg-[#E7F3F2] px-4 py-3 shadow-sm transition-colors dark:border-[#3A424E] dark:bg-[#222831] sm:px-8">
+    <header className="border-b border-[var(--indice-brand-shell-hover)] bg-[var(--indice-brand-shell)] px-4 py-3 text-[var(--indice-brand-shell-foreground)] shadow-sm transition-colors dark:border-[var(--indice-brand-shell-dark)] dark:bg-[var(--indice-brand-shell-dark)] sm:px-8">
       <div className="max-w-[1600px] mx-auto">
         {/* Layout móvil y desktop */}
         <div className="flex items-center justify-between gap-3">
           {/* Sección izquierda - Saludo */}
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className="min-w-0 flex-1">
-              <h1 className="text-lg sm:text-2xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <h1 className="flex items-center gap-2 text-lg font-semibold text-[var(--indice-brand-shell-foreground)] sm:text-2xl">
                 <span className="hidden sm:inline">{getGreetingIcon()}</span>
                 <span className="truncate">{getGreeting()}, {currentUserPrimaryName}</span>
               </h1>
@@ -371,7 +385,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="h-10 max-w-48 gap-2 rounded-full border border-[#59C3A5]/30 bg-white/65 px-3 text-[#334155] hover:bg-white dark:bg-white/10 dark:text-gray-100"
+                    className="h-10 max-w-48 gap-2 rounded-full border border-white/25 bg-white/10 px-3 text-[var(--indice-brand-shell-foreground)] shadow-none hover:bg-white/20 hover:text-[var(--indice-brand-shell-foreground)] dark:border-white/25 dark:bg-white/10 dark:text-[var(--indice-brand-shell-foreground)] dark:hover:bg-white/20"
                     aria-label={`${copy.actions.company}: ${visibleCompanyName}`}
                     title={copy.actions.switchCompany}
                     disabled={switchingCompanyId !== null}
@@ -379,7 +393,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                     {switchingCompanyId !== null ? (
                       <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
                     ) : (
-                      <Building2 className="h-4 w-4 shrink-0 text-[#3AAE90]" />
+                      <Building2 className="h-4 w-4 shrink-0 text-white" />
                     )}
                     <span className="hidden max-w-32 truncate text-sm font-medium xl:inline">
                       {switchingCompanyId !== null ? copy.actions.switchingCompany : visibleCompanyName}
@@ -397,12 +411,12 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                       disabled={switchingCompanyId !== null}
                       onClick={() => void handleCompanySwitch(company.id)}
                     >
-                      <Building2 className="h-4 w-4 shrink-0 text-[#3AAE90]" />
+                      <Building2 className="h-4 w-4 shrink-0 text-[var(--indice-brand-primary)]" />
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-semibold">{company.name}</div>
                         <div className="truncate text-xs text-gray-500">{company.role}</div>
                       </div>
-                      {company.active ? <Check className="h-4 w-4 shrink-0 text-[#3AAE90]" /> : null}
+                      {company.active ? <Check className="h-4 w-4 shrink-0 text-[var(--indice-brand-primary)]" /> : null}
                     </DropdownMenuItem>
                   ))}
                   {(managedContext?.companies?.length ?? 0) > 0 ? (
@@ -427,7 +441,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                           onKeyDown={(event) => event.stopPropagation()}
                           placeholder={currentLanguage.code.startsWith('es') ? 'Buscar cliente' : 'Search client'}
                           aria-label={currentLanguage.code.startsWith('es') ? 'Buscar cliente' : 'Search client'}
-                          className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-900"
+                          className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-[var(--indice-brand-primary)] dark:border-slate-700 dark:bg-slate-900"
                         />
                       </div>
                       {managedCompanies.map((company) => (
@@ -477,7 +491,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                             onKeyDown={(event) => event.stopPropagation()}
                             placeholder={currentLanguage.code.startsWith('es') ? 'Buscar demostración' : 'Search demo'}
                             aria-label={currentLanguage.code.startsWith('es') ? 'Buscar demostración' : 'Search demo'}
-                            className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-900"
+                            className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-[var(--indice-brand-primary)] dark:border-slate-700 dark:bg-slate-900"
                           />
                         </div>
                       ) : null}
@@ -530,7 +544,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="h-10 min-w-14 gap-1.5 rounded-full border border-transparent px-2 text-[#4B5563] transition-all hover:border-[#59C3A5]/35 hover:bg-white/70 hover:text-[#222831] dark:text-gray-300 dark:hover:border-[#59C3A5]/45 dark:hover:bg-white/10 dark:hover:text-white"
+                  className="h-10 min-w-14 gap-1.5 rounded-full border border-transparent px-2 text-white/85 transition-all hover:border-white/35 hover:bg-white/15 hover:text-white dark:text-white/85 dark:hover:border-white/35 dark:hover:bg-white/15 dark:hover:text-white"
                   aria-label={`${copy.actions.language}: ${currentLanguage.name}`}
                   title={currentLanguage.name}
                 >
@@ -543,12 +557,12 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                   <DropdownMenuItem
                     key={language.code}
                     onClick={() => setCurrentLanguage(language)}
-                    className={`flex cursor-pointer items-center gap-2 ${currentLanguage.code === language.code ? 'bg-[#E7F3F2] focus:bg-[#E7F3F2] dark:bg-[#59C3A5]/15 dark:focus:bg-[#59C3A5]/20' : ''}`}
+                    className={`flex cursor-pointer items-center gap-2 ${currentLanguage.code === language.code ? 'bg-[var(--indice-brand-soft)] focus:bg-[var(--indice-brand-soft)] dark:bg-[var(--indice-brand-primary)]/15 dark:focus:bg-[var(--indice-brand-primary)]/20' : ''}`}
                   >
                     <span className="text-xl" aria-hidden="true">{language.flag}</span>
                     <span className="min-w-0 flex-1">{language.name}</span>
                     {currentLanguage.code === language.code ? (
-                      <Check className="h-4 w-4 shrink-0 text-[#3AAE90]" aria-hidden="true" />
+                      <Check className="h-4 w-4 shrink-0 text-[var(--indice-brand-primary)]" aria-hidden="true" />
                     ) : null}
                   </DropdownMenuItem>
                 ))}
@@ -559,7 +573,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
             <Button 
               variant="ghost" 
               size="icon" 
-              className={`${HEADER_ACTION_BUTTON_CLASSES} ${darkMode ? 'border-[#59C3A5]/50 bg-white/75 dark:bg-white/10' : ''}`}
+              className={`${HEADER_ACTION_BUTTON_CLASSES} ${darkMode ? 'border-white/50 bg-white/20 dark:bg-white/20' : ''}`}
               onClick={onToggleDarkMode}
               aria-pressed={darkMode}
               aria-label={darkMode ? copy.actions.lightMode : copy.actions.darkMode}
@@ -572,14 +586,14 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
               )}
             </Button>
 
-            {/* Operational journey - desktop only */}
+            {/* Learning mode settings - desktop only */}
             <Button 
               variant="ghost" 
               size="icon" 
-              className={`hidden sm:flex ${HEADER_ACTION_BUTTON_CLASSES} ${learningModeActive ? 'border-[#59C3A5]/50 bg-white/75 dark:bg-white/10' : ''}`}
-              onClick={onToggleLearningMode}
+              className={`hidden sm:flex ${HEADER_ACTION_BUTTON_CLASSES} ${learningModeActive ? 'border-white/50 bg-white/20 dark:bg-white/20' : ''}`}
+              onClick={() => setIsLearningModeSettingsOpen(true)}
               aria-label={copy.actions.learningMode}
-              aria-pressed={learningModeActive}
+              aria-haspopup="dialog"
               title={copy.actions.learningMode}
             >
               <GraduationCap className="h-5 w-5" />
@@ -591,7 +605,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={`${HEADER_ACTION_BUTTON_CLASSES} overflow-hidden bg-white/70`}
+                  className={`${HEADER_ACTION_BUTTON_CLASSES} overflow-hidden border-white/25 bg-white/15`}
                   aria-label={copy.actions.profile}
                   title={copy.actions.profile}
                 >
@@ -603,7 +617,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <span className="text-xs font-semibold text-[var(--indice-brand-action)] dark:text-emerald-300">
+                    <span className="text-xs font-semibold text-[var(--indice-brand-shell-foreground)]">
                       {currentUserInitials}
                     </span>
                   )}
@@ -611,7 +625,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="w-64 overflow-hidden rounded-2xl border border-[#59C3A5]/35 bg-white p-0 shadow-[0_24px_60px_rgba(34,40,49,0.18)] dark:border-[#59C3A5]/30 dark:bg-[#222831]"
+                className="w-64 overflow-hidden rounded-2xl border border-[var(--indice-brand-primary)]/35 bg-white p-0 shadow-[0_24px_60px_rgba(34,40,49,0.18)] dark:border-[var(--indice-brand-primary)]/30 dark:bg-[#222831]"
               >
                 {/* Profile header */}
                 <div className="border-b border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] p-4">
@@ -649,74 +663,83 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                     </div>
                   ) : (
                     <>
-                      <DropdownMenuItem onClick={() => navigate('/home-panel/profile')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
+                      <DropdownMenuItem onClick={() => navigate('/home-panel/profile')} className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10">
                         <User className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
                         <span className="text-sm font-medium text-gray-900 dark:text-white">{copy.actions.profile}</span>
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator className="my-0 bg-[#59C3A5]/15 dark:bg-[#59C3A5]/20" />
+                      <DropdownMenuSeparator className="my-0 bg-[var(--indice-brand-primary)]/15 dark:bg-[var(--indice-brand-primary)]/20" />
                     </>
                   )}
                   {isAdminAccessRole(effectiveAuthSession?.user.role) && !isPublicDemoSession ? (
                     <>
                       {canAccessModuleTab('home-panel', 'integrations', effectiveAuthSession) ? (
-                        <DropdownMenuItem onClick={() => navigate('/home-panel/integrations')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
-                          <Bot className="h-4 w-4 mr-3 text-[#177D66]" />
+                        <DropdownMenuItem onClick={() => navigate('/home-panel/integrations')} className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10">
+                          <Bot className="h-4 w-4 mr-3 text-[var(--indice-brand-primary)]" />
                           <span className="text-sm font-medium text-gray-900 dark:text-white">
                             {copy.actions.connectAi}
                           </span>
                         </DropdownMenuItem>
                       ) : null}
                       {canAccessKioskCenter(effectiveAuthSession) ? (
-                        <DropdownMenuItem onClick={() => navigate('/kiosk-center')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
+                        <DropdownMenuItem onClick={() => navigate('/kiosk-center')} className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10">
                           <MonitorSmartphone className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
                           <span className="text-sm font-medium text-gray-900 dark:text-white">
                             {currentLanguage.code.startsWith('es') ? 'Centro de kioscos' : 'Kiosk Center'}
                           </span>
                         </DropdownMenuItem>
                       ) : null}
-                      <DropdownMenuItem onClick={() => navigate('/billing')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
+                      <DropdownMenuItem onClick={() => navigate('/billing')} className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10">
                         <CreditCard className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
                         <span className="text-sm font-medium text-gray-900 dark:text-white">
                           {copy.actions.subscription}
                         </span>
                       </DropdownMenuItem>
                       {isDistributorAccount ? (
-                        <DropdownMenuItem onClick={() => navigate('/distributor-portal')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
-                          <BriefcaseBusiness className="h-4 w-4 mr-3 text-[#177D66]" />
+                        <DropdownMenuItem onClick={() => navigate('/distributor-portal')} className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10">
+                          <BriefcaseBusiness className="h-4 w-4 mr-3 text-[var(--indice-brand-primary)]" />
                           <span className="text-sm font-medium text-gray-900 dark:text-white">
                             {copy.actions.distributorPortal}
                           </span>
                         </DropdownMenuItem>
                       ) : null}
                       {isRootAccount ? (
-                        <DropdownMenuItem onClick={() => navigate('/platform-admin')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
+                        <DropdownMenuItem onClick={() => navigate('/platform-admin')} className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10">
                           <ShieldCheck className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
                           <span className="text-sm font-medium text-gray-900 dark:text-white">
                             {copy.actions.platformAdmin}
                           </span>
                         </DropdownMenuItem>
                       ) : null}
-                      <DropdownMenuSeparator className="my-0 bg-[#59C3A5]/15 dark:bg-[#59C3A5]/20" />
+                      <DropdownMenuSeparator className="my-0 bg-[var(--indice-brand-primary)]/15 dark:bg-[var(--indice-brand-primary)]/20" />
                     </>
                   ) : null}
                   {!isPublicDemoSession ? (
-                    <DropdownMenuItem onClick={() => navigate('/home-panel/business-structure')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
-                      <Settings className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{copy.actions.settings}</span>
-                    </DropdownMenuItem>
+                    <>
+                      <DropdownMenuItem onClick={() => navigate('/home-panel/business-structure')} className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10">
+                        <Settings className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">{copy.actions.settings}</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => setIsWorkbarLayoutOpen(true)}
+                        className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10"
+                      >
+                        <LayoutPanelTop className="h-4 w-4 mr-3 text-[var(--indice-brand-primary)]" />
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">{copy.actions.workbarLayout}</span>
+                      </DropdownMenuItem>
+                    </>
                   ) : null}
-                  <DropdownMenuSeparator className="my-0 bg-[#59C3A5]/15 dark:bg-[#59C3A5]/20 sm:hidden" />
-                  {/* Operational journey on mobile - menu only */}
+                  <DropdownMenuSeparator className="my-0 bg-[var(--indice-brand-primary)]/15 dark:bg-[var(--indice-brand-primary)]/20 sm:hidden" />
+                  {/* Learning mode settings on mobile - menu only */}
                   <DropdownMenuItem 
-                    className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10 sm:hidden"
-                    onClick={onToggleLearningMode}
+                    className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10 sm:hidden"
+                    onSelect={() => setIsLearningModeSettingsOpen(true)}
                   >
                     <GraduationCap className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
                     <span className="text-sm font-medium text-gray-900 dark:text-white">{copy.actions.learningMode}</span>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator className="my-0 bg-[#59C3A5]/15 dark:bg-[#59C3A5]/20 sm:hidden" />
+                  <DropdownMenuSeparator className="my-0 bg-[var(--indice-brand-primary)]/15 dark:bg-[var(--indice-brand-primary)]/20 sm:hidden" />
                 </div>
-                <div className="border-t border-[#59C3A5]/25 bg-[#E7F3F2] p-3 dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/10">
+                <div className="border-t border-[var(--indice-brand-primary)]/25 bg-[var(--indice-brand-soft)] p-3 dark:border-[var(--indice-brand-primary)]/25 dark:bg-[var(--indice-brand-primary)]/10">
                   <DropdownMenuItem
                     className="cursor-pointer justify-center rounded-xl px-3 py-2 text-center hover:bg-white/70 focus:bg-white/70 dark:hover:bg-white/10 dark:focus:bg-white/10"
                     onClick={handleLogout}
@@ -779,6 +802,20 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
         onMarkRead={markNotificationRead}
         onMarkAllRead={markAllNotificationsRead}
         onDismiss={dismissNotification}
+      />
+      <WorkbarLayoutModal
+        open={isWorkbarLayoutOpen}
+        onOpenChange={setIsWorkbarLayoutOpen}
+      />
+      <LearningModeSettingsModal
+        open={isLearningModeSettingsOpen}
+        onOpenChange={setIsLearningModeSettingsOpen}
+        currentSettings={{
+          active: learningModeActive,
+          visible: learningModeVisible,
+          step: learningStep,
+        }}
+        onSave={onSaveLearningModeSettings}
       />
     </header>
   );

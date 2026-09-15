@@ -106,7 +106,7 @@ export function IndiceHorizontalScrollControls({
   };
 
   const sharedButtonClassName = cn(
-    'pointer-events-auto absolute z-20 hidden h-9 w-9 items-center justify-center rounded-full border border-slate-300/70 bg-white/75 text-slate-700 shadow-lg backdrop-blur-sm transition hover:scale-105 hover:bg-white/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 dark:border-slate-600/70 dark:bg-slate-900/75 dark:text-slate-200 dark:hover:bg-slate-900/95 md:inline-flex',
+    'pointer-events-auto absolute z-20 hidden h-9 w-9 items-center justify-center rounded-full border border-slate-300/70 bg-white/75 text-slate-700 shadow-lg backdrop-blur-sm transition hover:scale-105 hover:bg-white/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] focus-visible:ring-offset-2 dark:border-slate-600/70 dark:bg-slate-900/75 dark:text-slate-200 dark:hover:bg-slate-900/95 md:inline-flex',
     verticalPositionClassName,
     buttonClassName,
   );

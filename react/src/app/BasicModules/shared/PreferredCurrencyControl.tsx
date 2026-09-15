@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { BadgeDollarSign, Coins } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { BadgeDollarSign, Check, Coins, ExternalLink, LoaderCircle, RefreshCw, RotateCcw } from 'lucide-react';
+import { IndiceModalFrame } from '../../components/indice-modal';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import {
@@ -16,64 +17,80 @@ import {
   createBusinessManualExchangeRateSettings,
   getBusinessExchangeRatePerUsd,
   type BusinessCurrencyCode,
+  type BusinessExchangeRateSettings,
   type BusinessExchangeRatesPerUsd,
 } from './businessCurrency';
 import { usePreferredBusinessCurrency } from './BusinessCurrencyContext';
 import { useLanguage } from '../../shared/context';
 import { getPreferredCurrencyCopy } from './preferredCurrencyCopy';
 
+const toRateDraft = (settings: BusinessExchangeRateSettings) => Object.fromEntries(
+  businessCurrencyOptions
+    .filter((option) => option.code !== businessExchangeBaseCurrency)
+    .map((option) => [option.code, String(getBusinessExchangeRatePerUsd(option.code, settings.ratesPerUsd))]),
+);
+
 export function PreferredCurrencyControl() {
   const { currentLanguage } = useLanguage();
   const copy = useMemo(() => getPreferredCurrencyCopy(currentLanguage.code), [currentLanguage.code]);
   const {
     exchangeRateMetadata,
+    exchangeRateSettings,
     exchangeRatesPerUsd,
     isLoadingDailyExchangeRates,
-    loadDailyExchangeRateSettings,
     preferredCurrency,
+    refreshDailyExchangeRateSettings,
     setExchangeRateSettings,
     setPreferredCurrency,
   } = usePreferredBusinessCurrency();
-  const [isExchangeRatePanelOpen, setIsExchangeRatePanelOpen] = useState(false);
-  const [draftExchangeRates, setDraftExchangeRates] = useState<Record<string, string>>({});
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [draftPreferredCurrency, setDraftPreferredCurrency] = useState<BusinessCurrencyCode>(
+    preferredCurrency as BusinessCurrencyCode,
+  );
+  const [draftSettings, setDraftSettings] = useState(exchangeRateSettings);
+  const [draftExchangeRates, setDraftExchangeRates] = useState<Record<string, string>>(
+    () => toRateDraft(exchangeRateSettings),
+  );
+  const [ratesEdited, setRatesEdited] = useState(false);
   const [exchangeRateError, setExchangeRateError] = useState('');
   const editableCurrencyOptions = useMemo(
     () => businessCurrencyOptions.filter((option) => option.code !== businessExchangeBaseCurrency),
     [],
   );
-  const exchangeRateModeLabel = exchangeRateMetadata.mode === 'manual'
-    ? copy.manualRate
-    : copy.dailyRate;
-  const exchangeRateSourceLabel = exchangeRateMetadata.mode === 'manual'
+  const sourceDetails = draftSettings.metadata.sourceDetails ?? [];
+  const sourceWarnings = draftSettings.metadata.warnings ?? [];
+  const exchangeRateModeLabel = draftSettings.metadata.mode === 'manual' ? copy.manualRate : copy.dailyRate;
+  const exchangeRateSourceLabel = draftSettings.metadata.mode === 'manual'
     ? copy.manual
-    : exchangeRateMetadata.source === businessExchangeOfficialDailySource
+    : draftSettings.metadata.source === businessExchangeOfficialDailySource
       ? copy.officialSources
       : copy.internalReference;
-  const sourceDetails = exchangeRateMetadata.sourceDetails ?? [];
-  const sourceWarnings = exchangeRateMetadata.warnings ?? [];
   const preferredExchangeRate = getBusinessExchangeRatePerUsd(preferredCurrency, exchangeRatesPerUsd);
   const formattedPreferredExchangeRate = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: preferredCurrency === 'COP' ? 2 : 4,
   }).format(preferredExchangeRate);
-  const preferredSource = sourceDetails.find((source) => source.currencyCode === preferredCurrency);
+  const preferredSource = exchangeRateMetadata.sourceDetails?.find(
+    (source) => source.currencyCode === preferredCurrency,
+  );
   const isPreferredRateOfficial = preferredCurrency === businessExchangeBaseCurrency
     || preferredSource?.status === 'official';
 
-  useEffect(() => {
-    setDraftExchangeRates(
-      Object.fromEntries(
-        editableCurrencyOptions.map((option) => [
-          option.code,
-          String(getBusinessExchangeRatePerUsd(option.code, exchangeRatesPerUsd)),
-        ]),
-      ),
-    );
+  const openModal = () => {
+    setDraftPreferredCurrency(preferredCurrency as BusinessCurrencyCode);
+    setDraftSettings(exchangeRateSettings);
+    setDraftExchangeRates(toRateDraft(exchangeRateSettings));
+    setRatesEdited(false);
     setExchangeRateError('');
-  }, [editableCurrencyOptions, exchangeRatesPerUsd]);
+    setIsModalOpen(true);
+  };
 
-  const handleApplyExchangeRates = () => {
+  const closeModal = () => {
+    if (!isLoadingDailyExchangeRates) setIsModalOpen(false);
+  };
+
+  const handleApplyConfiguration = () => {
     const nextExchangeRates: BusinessExchangeRatesPerUsd = {
-      ...exchangeRatesPerUsd,
+      ...draftSettings.ratesPerUsd,
       USD: 1,
     };
 
@@ -86,186 +103,221 @@ export function PreferredCurrencyControl() {
       nextExchangeRates[option.code as BusinessCurrencyCode] = parsedRate;
     }
 
-    setExchangeRateSettings(createBusinessManualExchangeRateSettings(nextExchangeRates));
+    setPreferredCurrency(draftPreferredCurrency);
+    setExchangeRateSettings(ratesEdited
+      ? createBusinessManualExchangeRateSettings(nextExchangeRates)
+      : draftSettings);
     setExchangeRateError('');
-    setIsExchangeRatePanelOpen(false);
+    setIsModalOpen(false);
   };
 
-  const handleLoadDailyExchangeRates = async () => {
-    const dailyExchangeRateSettings = await loadDailyExchangeRateSettings();
-    setDraftExchangeRates(
-      Object.fromEntries(
-        editableCurrencyOptions.map((option) => [
-          option.code,
-          String(getBusinessExchangeRatePerUsd(option.code, dailyExchangeRateSettings.ratesPerUsd)),
-        ]),
-      ),
-    );
+  const handleRefreshDailyExchangeRates = async () => {
     setExchangeRateError('');
-    setIsExchangeRatePanelOpen(false);
+    try {
+      const refreshedSettings = await refreshDailyExchangeRateSettings();
+      setDraftSettings(refreshedSettings);
+      setDraftExchangeRates(toRateDraft(refreshedSettings));
+      setRatesEdited(false);
+    } catch {
+      setExchangeRateError(copy.refreshError);
+    }
   };
 
   const handleResetDraftExchangeRates = () => {
-    setDraftExchangeRates(
-      Object.fromEntries(
-        editableCurrencyOptions.map((option) => [
-          option.code,
-          String(getBusinessExchangeRatePerUsd(option.code, exchangeRatesPerUsd)),
-        ]),
-      ),
-    );
+    setDraftExchangeRates(toRateDraft(draftSettings));
+    setRatesEdited(false);
     setExchangeRateError('');
   };
 
   return (
-    <div className="relative">
+    <>
       <Button
         type="button"
         variant="outline"
-        aria-expanded={isExchangeRatePanelOpen}
+        aria-haspopup="dialog"
+        aria-expanded={isModalOpen}
         aria-label={`${copy.currency} ${preferredCurrency}, ${copy.equals} ${formattedPreferredExchangeRate} ${preferredCurrency}`}
-        onClick={() => setIsExchangeRatePanelOpen((current) => !current)}
-        className="h-10 min-w-10 gap-1.5 rounded-full border-transparent bg-white/65 px-2.5 text-xs font-semibold text-[#257B68] shadow-none transition-all hover:border-[#59C3A5]/35 hover:bg-white hover:text-[#1E6557] dark:bg-white/5 dark:text-[#8FE0CA] dark:hover:border-[#59C3A5]/40 dark:hover:bg-white/10 sm:px-3"
+        onClick={openModal}
+        className="h-10 min-w-10 gap-1.5 rounded-full border border-white/20 bg-white/10 px-2.5 text-xs font-medium text-[var(--indice-brand-shell-foreground)] shadow-none transition-all hover:border-white/35 hover:bg-white/20 hover:text-[var(--indice-brand-shell-foreground)] dark:border-white/20 dark:bg-white/10 dark:text-[var(--indice-brand-shell-foreground)] dark:hover:border-white/35 dark:hover:bg-white/20 sm:px-3"
       >
         <Coins className="h-[18px] w-[18px] shrink-0" />
         <span className="hidden sm:inline">{preferredCurrency}</span>
-        <span className="hidden text-[#59C3A5]/70 sm:inline" aria-hidden="true">·</span>
+        <span className="hidden text-white/45 sm:inline" aria-hidden="true">·</span>
         <span className="hidden max-w-[72px] truncate md:inline">{formattedPreferredExchangeRate}</span>
         <span
-          className={`h-1.5 w-1.5 shrink-0 rounded-full ${isPreferredRateOfficial ? 'bg-[#3AAE90]' : 'bg-amber-500'}`}
+          className={`h-1.5 w-1.5 shrink-0 rounded-full ${isPreferredRateOfficial ? 'bg-emerald-400' : 'bg-amber-400'}`}
           title={isPreferredRateOfficial ? copy.officialRate : copy.lastRate}
         />
       </Button>
-      {isExchangeRatePanelOpen ? (
-        <div className="absolute right-0 top-12 z-[180] w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[#59C3A5]/35 bg-white text-left shadow-[0_24px_60px_rgba(34,40,49,0.18)] dark:border-[#59C3A5]/30 dark:bg-[#222831]">
-          <div className="mb-4 flex items-center gap-3 border-b border-[#3AAE90] bg-[#59C3A5] px-4 py-3 text-white">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
-              <BadgeDollarSign className="h-5 w-5" />
-            </span>
-            <div>
-              <p className="font-semibold">{copy.exchangeRate}</p>
-              <p className="text-xs font-medium text-white/80">{copy.operationalReference}</p>
-            </div>
-          </div>
-          <div className="px-4 pb-4">
-          <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-[#59C3A5]/20 bg-[#E7F3F2]/65 p-2.5 dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/10">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-300">{copy.preferredCurrency}</p>
-              <p className="text-[11px] text-slate-400 dark:text-slate-400">{copy.appliesTo}</p>
-            </div>
-            <Select value={preferredCurrency} onValueChange={setPreferredCurrency}>
+
+      <IndiceModalFrame
+        open={isModalOpen}
+        busy={isLoadingDailyExchangeRates}
+        onOpenChange={(open) => {
+          if (!open) closeModal();
+        }}
+        modalType="standard-form"
+        contentClassName="sm:max-w-3xl"
+        tone="blue"
+        icon={<BadgeDollarSign className="h-5 w-5" />}
+        eyebrow={copy.currencySettings}
+        title={copy.exchangeRate}
+        description={copy.operationalReference}
+        footerSummary={`${copy.preferredCurrency}: ${draftPreferredCurrency} · ${copy.source}: ${ratesEdited ? copy.manual : exchangeRateSourceLabel}`}
+        footer={(
+          <>
+            <Button type="button" variant="outline" disabled={isLoadingDailyExchangeRates} onClick={closeModal}>
+              {copy.cancel}
+            </Button>
+            <Button type="button" disabled={isLoadingDailyExchangeRates} onClick={handleApplyConfiguration}>
+              <Check className="h-4 w-4" aria-hidden="true" />
+              {copy.save}
+            </Button>
+          </>
+        )}
+      >
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
+          <section className="rounded-2xl border border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] p-4 dark:border-blue-800 dark:bg-blue-950/30">
+            <p className="text-sm font-medium text-slate-950 dark:text-white">{copy.preferredCurrency}</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">{copy.appliesTo}</p>
+            <Select
+              value={draftPreferredCurrency}
+              onValueChange={(value) => setDraftPreferredCurrency(value as BusinessCurrencyCode)}
+            >
               <SelectTrigger
                 aria-label={copy.preferredCurrency}
-                className="h-9 w-[92px] rounded-xl border-[#59C3A5]/30 bg-white px-2 font-bold text-[#222831] shadow-none focus:ring-[#59C3A5]/40 dark:bg-[#222831] dark:text-white"
+                className="mt-4 h-11 w-full rounded-xl border-[var(--indice-brand-border)] bg-white px-3 text-sm font-medium text-slate-950 shadow-sm focus:ring-[var(--indice-brand-action)] dark:border-blue-800 dark:bg-slate-900 dark:text-white"
               >
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="z-[220] border-[#59C3A5]/25 bg-white dark:border-[#59C3A5]/30 dark:bg-[#222831]">
+              <SelectContent className="z-[220] border-[var(--indice-brand-border)] bg-white dark:border-blue-800 dark:bg-slate-900">
                 {businessCurrencyOptions.map((option) => (
-                  <SelectItem key={option.code} value={option.code}>
-                    {option.code}
-                  </SelectItem>
+                  <SelectItem key={option.code} value={option.code}>{option.code}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="mb-3 rounded-lg border border-[#59C3A5]/20 bg-[#59C3A5]/10 px-3 py-2 text-xs font-bold text-slate-600 dark:border-[#59C3A5]/30 dark:bg-[#59C3A5]/15 dark:text-slate-200">
-            <p>
-              {copy.base}: {businessExchangeBaseCurrency} · {copy.source}: {exchangeRateSourceLabel} · {copy.date}: {exchangeRateMetadata.sourceDate} · {exchangeRateModeLabel}
-            </p>
-            <p className="mt-1 font-semibold text-slate-500 dark:text-slate-300">
-              {copy.loadExplanation} {copy.manualExplanation}
-            </p>
-            {exchangeRateMetadata.sourceSummary ? (
-              <p className="mt-1 font-semibold text-slate-500 dark:text-slate-300">
-                {exchangeRateMetadata.sourceSummary}
-              </p>
-            ) : null}
-          </div>
-          {sourceDetails.length > 0 ? (
-            <div className="mb-3 max-h-28 overflow-auto rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-              <p className="mb-1 font-black text-slate-700 dark:text-slate-100">{copy.appliedSources}</p>
-              <div className="space-y-1.5">
-                {sourceDetails.map((source) => (
-                  <div key={`${source.currencyCode}-${source.institution}`} className="flex items-start justify-between gap-3">
-                    <span className="font-bold text-slate-700 dark:text-slate-100">
-                      {source.currencyCode}
-                    </span>
-                    <span className="flex-1">
-                      {source.institution}
-                      {source.status === 'fallback' ? ` · ${copy.internalFallback}` : ''}
-                      {source.observedDate ? ` · ${source.observedDate}` : ''}
-                    </span>
-                  </div>
-                ))}
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-slate-950 dark:text-white">{copy.currentReference}</p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  {copy.base}: {businessExchangeBaseCurrency} · {copy.date}: {draftSettings.metadata.sourceDate}
+                </p>
               </div>
+              <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-[var(--indice-brand-text)] dark:bg-blue-950/50 dark:text-blue-200">
+                {ratesEdited ? copy.manualRate : exchangeRateModeLabel}
+              </span>
             </div>
-          ) : null}
-          {sourceWarnings.length > 0 ? (
-            <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100">
-              {sourceWarnings.slice(0, 2).map((warning) => (
-                <p key={warning}>{warning}</p>
-              ))}
-            </div>
-          ) : null}
-          <div className="space-y-3">
-            {editableCurrencyOptions.map((option) => (
-              <label key={option.code} className="grid gap-1.5">
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                  {copy.oneUsdIn} {option.code}
-                </span>
-                <Input
-                  type="number"
-                  min="0.000001"
-                  step="0.000001"
-                  value={draftExchangeRates[option.code] ?? ''}
-                  onChange={(event) => {
-                    setDraftExchangeRates((current) => ({
-                      ...current,
-                      [option.code]: event.target.value,
-                    }));
-                    setExchangeRateError('');
-                  }}
-                  className="h-9 rounded-lg border-slate-200 bg-slate-50 text-sm font-bold text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                />
-              </label>
-            ))}
-          </div>
-          {exchangeRateError ? (
-            <p className="mt-3 text-xs font-bold text-rose-600 dark:text-rose-300">{exchangeRateError}</p>
-          ) : null}
-          <div className="mt-4 flex flex-wrap justify-end gap-2">
+            <p className="mt-3 text-xs leading-5 text-slate-600 dark:text-slate-300">
+              {draftSettings.metadata.sourceSummary ?? `${copy.source}: ${exchangeRateSourceLabel}`}
+            </p>
             <Button
               type="button"
               variant="outline"
               disabled={isLoadingDailyExchangeRates}
-              onClick={handleLoadDailyExchangeRates}
-              className="h-9 rounded-lg border-slate-200 px-3 text-sm font-bold text-slate-700 shadow-none dark:border-slate-700 dark:text-slate-200"
+              onClick={() => void handleRefreshDailyExchangeRates()}
+              className="mt-4 h-10 w-full justify-center rounded-xl border-[var(--indice-brand-border)] text-sm font-medium text-[var(--indice-brand-text)] shadow-none hover:bg-[var(--indice-brand-soft)] dark:border-blue-800 dark:text-blue-200"
             >
+              {isLoadingDailyExchangeRates
+                ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                : <RefreshCw className="h-4 w-4" aria-hidden="true" />}
               {isLoadingDailyExchangeRates ? copy.loading : copy.loadDaily}
             </Button>
+          </section>
+        </div>
+
+        {sourceWarnings.length > 0 ? (
+          <section className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100" role="status">
+            {sourceWarnings.slice(0, 3).map((warning) => <p key={warning}>{warning}</p>)}
+          </section>
+        ) : null}
+
+        {sourceDetails.length > 0 ? (
+          <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <h3 className="text-sm font-medium text-slate-950 dark:text-white">{copy.appliedSources}</h3>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {sourceDetails.map((source) => (
+                <article key={`${source.currencyCode}-${source.institution}`} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-900 dark:text-white">{source.currencyCode} · {source.institution}</p>
+                      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                        {source.dataset}{source.observedDate ? ` · ${source.observedDate}` : ''}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${source.status === 'official' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200'}`}>
+                      {source.status === 'official' ? copy.officialRate : copy.lastRate}
+                    </span>
+                  </div>
+                  {source.sourceUrl ? (
+                    <a
+                      href={source.sourceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-[var(--indice-brand-action)] hover:underline"
+                    >
+                      {copy.source}
+                      <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                    </a>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        <details className="group mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] dark:text-white">
+            <span>
+              {copy.manualRate}
+              <span className="mt-1 block text-xs font-normal leading-5 text-slate-500 dark:text-slate-400">{copy.manualExplanation}</span>
+            </span>
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600 group-open:bg-[var(--indice-brand-soft)] group-open:text-[var(--indice-brand-text)] dark:bg-slate-800 dark:text-slate-300">
+              {ratesEdited ? copy.pendingChanges : copy.optional}
+            </span>
+          </summary>
+          <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {editableCurrencyOptions.map((option) => (
+                <label key={option.code} className="grid gap-1.5">
+                  <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{copy.oneUsdIn} {option.code}</span>
+                  <Input
+                    type="number"
+                    min="0.000001"
+                    step="0.000001"
+                    value={draftExchangeRates[option.code] ?? ''}
+                    onChange={(event) => {
+                      setDraftExchangeRates((current) => ({ ...current, [option.code]: event.target.value }));
+                      setRatesEdited(true);
+                      setExchangeRateError('');
+                    }}
+                    className="h-10 rounded-xl border-slate-200 bg-slate-50 text-sm font-medium text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  />
+                </label>
+              ))}
+            </div>
             <Button
               type="button"
               variant="outline"
               onClick={handleResetDraftExchangeRates}
-              className="h-9 rounded-lg border-slate-200 px-3 text-sm font-bold text-slate-700 shadow-none dark:border-slate-700 dark:text-slate-200"
+              className="mt-3 h-9 rounded-xl border-slate-200 px-3 text-sm font-medium text-slate-700 shadow-none dark:border-slate-700 dark:text-slate-200"
             >
+              <RotateCcw className="h-4 w-4" aria-hidden="true" />
               {copy.reset}
             </Button>
-            <Button
-              type="button"
-              onClick={handleApplyExchangeRates}
-              className="h-9 rounded-lg bg-[#59C3A5] px-3 text-sm font-bold text-white shadow-none hover:bg-[#3AAE90]"
-            >
-              {copy.apply}
-            </Button>
           </div>
-          <p className="mt-3 text-[11px] font-semibold leading-relaxed text-slate-500 dark:text-slate-400">
-            {copy.disclaimer}
+        </details>
+
+        {exchangeRateError ? (
+          <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-200" role="alert">
+            {exchangeRateError}
           </p>
-          </div>
-        </div>
-      ) : null}
-    </div>
+        ) : null}
+
+        <p className="mt-4 text-xs leading-5 text-slate-500 dark:text-slate-400">{copy.disclaimer}</p>
+      </IndiceModalFrame>
+    </>
   );
 }

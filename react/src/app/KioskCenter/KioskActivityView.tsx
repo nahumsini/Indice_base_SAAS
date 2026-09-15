@@ -113,7 +113,7 @@ export function KioskActivityView({ copy }: { copy: KioskCenterWorkspaceCopy }) 
   return (
     <div className="space-y-5">
       <IndiceTitleBar
-        tone="aqua"
+        tone="blue"
         icon={<History className="h-5 w-5" />}
         title={copy.activity.title}
         subtitle={copy.activity.subtitle}
@@ -125,8 +125,8 @@ export function KioskActivityView({ copy }: { copy: KioskCenterWorkspaceCopy }) 
         )}
       />
 
-      <aside className="rounded-2xl border border-[#59C3A5]/40 bg-[#59C3A5]/10 p-4 text-sm text-slate-700 dark:border-emerald-800 dark:bg-emerald-950/25 dark:text-slate-200">
-        <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#177D66] dark:text-emerald-300" /><div><h3 className="font-medium text-slate-900 dark:text-white">{copy.activity.guidanceTitle}</h3><p className="mt-1 leading-6">{copy.activity.guidance}</p></div></div>
+      <aside className="rounded-2xl border border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] p-4 text-sm text-slate-700 dark:border-blue-800 dark:bg-blue-950/25 dark:text-slate-200">
+        <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[var(--indice-brand-action)] dark:text-blue-300" /><div><h3 className="font-medium text-slate-900 dark:text-white">{copy.activity.guidanceTitle}</h3><p className="mt-1 leading-6">{copy.activity.guidance}</p></div></div>
       </aside>
 
       <IndiceFilterBar
@@ -137,7 +137,7 @@ export function KioskActivityView({ copy }: { copy: KioskCenterWorkspaceCopy }) 
       >
         <IndiceFilterSelect
           label={copy.activity.kioskLabel}
-          tone="aqua"
+          tone="blue"
           value={selectedId}
           onValueChange={setSelectedId}
           options={kiosks.map(kiosk => ({
@@ -147,7 +147,7 @@ export function KioskActivityView({ copy }: { copy: KioskCenterWorkspaceCopy }) 
         />
         <IndiceFilterSelect
           label={copy.activity.searchLabel}
-          tone="aqua"
+          tone="blue"
           value={outcomeFilter}
           onValueChange={value => setOutcomeFilter(value as OutcomeFilter)}
           options={[
@@ -163,7 +163,7 @@ export function KioskActivityView({ copy }: { copy: KioskCenterWorkspaceCopy }) 
           <p>{inventoryError}</p><Button type="button" variant="outline" onClick={() => void loadInventory()} className="mt-4">{copy.activity.retry}</Button>
         </div>
       ) : loadingInventory && kiosks.length === 0 ? (
-        <div className="grid min-h-52 place-items-center rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900" aria-busy="true"><RefreshCw className="h-6 w-6 animate-spin text-[#177D66]" /></div>
+        <div className="grid min-h-52 place-items-center rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900" aria-busy="true"><RefreshCw className="h-6 w-6 animate-spin text-[var(--indice-brand-action)]" /></div>
       ) : auditError ? (
         <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200">
           <p>{auditError}</p>{selectedId ? <Button type="button" variant="outline" onClick={() => void loadAudit(Number(selectedId))} className="mt-4">{copy.activity.retry}</Button> : null}
@@ -195,7 +195,7 @@ export function KioskActivityView({ copy }: { copy: KioskCenterWorkspaceCopy }) 
                       {event.actor_type ? <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{copy.activity.actor}: {inventoryCopy.auditLabels.actors[event.actor_type] ?? humanize(event.actor_type)}</p> : null}
                       {event.capability ? (
                         <details className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                          <summary className="cursor-pointer font-medium text-[#177D66] dark:text-emerald-300">{copy.activity.technicalDetails}</summary>
+                          <summary className="cursor-pointer font-medium text-[var(--indice-brand-action)] dark:text-blue-300">{copy.activity.technicalDetails}</summary>
                           <p className="mt-2 break-all rounded-lg bg-slate-50 p-2 font-mono dark:bg-slate-950">{copy.activity.capability}: {event.capability}</p>
                         </details>
                       ) : null}

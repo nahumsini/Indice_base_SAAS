@@ -26,9 +26,9 @@ export function BillingUserControl(props: Props) {
   };
 
   return (
-    <section className="border-t border-slate-200 p-4 dark:border-slate-800">
+    <section id="billing-people" tabIndex={-1} className="scroll-mt-40 border-t border-slate-200 p-4 outline-none focus-visible:bg-[var(--indice-brand-soft)] dark:border-slate-800 dark:focus-visible:bg-blue-950/20">
       <div className="flex items-start gap-3">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#59C3A5]/12 text-[#177D66] dark:bg-[#59C3A5]/15 dark:text-[#8FE0CA]">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--indice-brand-soft)] text-[var(--indice-brand-action)] dark:bg-blue-950/50 dark:text-blue-300">
           <Users className="h-5 w-5" />
         </span>
         <div>
@@ -70,7 +70,7 @@ export function BillingUserControl(props: Props) {
         <span><strong className="font-medium text-slate-900 dark:text-white">{props.visible.included_seats}</strong> {props.copy.includedUsers.toLowerCase()}</span>
         <span><strong className="font-medium text-slate-900 dark:text-white">{props.extraSeats}</strong> {props.copy.additionalUsers.toLowerCase()}</span>
         <span><strong className="font-medium text-slate-900 dark:text-white">{activeUsers}</strong> {props.copy.activeUsers.toLowerCase()}</span>
-        <span><strong className="font-medium text-[#177D66] dark:text-[#8FE0CA]">{availableUsers}</strong> {props.copy.availableUsers.toLowerCase()}</span>
+        <span><strong className="font-medium text-[var(--indice-brand-action)] dark:text-blue-300">{availableUsers}</strong> {props.copy.availableUsers.toLowerCase()}</span>
       </div>
       {pendingInvitations > 0 ? <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{props.copy.pendingInvitations}: {pendingInvitations}</p> : null}
       {minimumExtra > 0 ? <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">{props.copy.minimumCapacity}: {minimumCapacity}</p> : null}

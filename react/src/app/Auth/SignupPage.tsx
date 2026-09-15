@@ -1869,10 +1869,10 @@ export default function SignupPage() {
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-4 pl-10 text-sm font-medium sm:pl-0">
-                        <button type="button" onClick={selectAllProducts} disabled={!availableProductCodes.length || selectedCount === availableProductCodes.length} className="text-blue-600 transition hover:text-blue-700 disabled:cursor-default disabled:text-slate-300">
+                        <button type="button" onClick={selectAllProducts} disabled={!availableProductCodes.length || selectedCount === availableProductCodes.length} className="text-[var(--indice-brand-action)] transition hover:text-[var(--indice-brand-action-hover)] disabled:cursor-default disabled:text-slate-300">
                           {experienceCopy.selectAll}
                         </button>
-                        <button type="button" onClick={clearProducts} disabled={selectedCount === 0} className="text-blue-600 transition hover:text-blue-700 disabled:cursor-default disabled:text-slate-300">
+                        <button type="button" onClick={clearProducts} disabled={selectedCount === 0} className="text-[var(--indice-brand-action)] transition hover:text-[var(--indice-brand-action-hover)] disabled:cursor-default disabled:text-slate-300">
                           {experienceCopy.clearSelection}
                         </button>
                       </div>

@@ -83,7 +83,7 @@ export default function SignupCompletePage() {
   }, [ready]);
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(89,195,165,0.14),_transparent_32%),radial-gradient(circle_at_top_right,_rgba(37,99,235,0.08),_transparent_30%),linear-gradient(135deg,_#F8FAFC,_#EEF3F8)] px-4 py-5 font-sans text-[#222831] sm:px-6 lg:px-8 lg:py-7">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_var(--indice-brand-glow),_transparent_32%),radial-gradient(circle_at_top_right,_var(--indice-brand-shadow-soft),_transparent_30%),linear-gradient(135deg,_#F8FAFC,_#EEF3F8)] px-4 py-5 font-sans text-[#222831] sm:px-6 lg:px-8 lg:py-7">
       <div className="mx-auto max-w-[1280px]">
         <Link to="/login" aria-label="Índice" className="inline-block">
           <IndiceBrandLogo alt="Índice" className="h-11 w-44" imageClassName="w-[202px]" />
@@ -118,7 +118,7 @@ export default function SignupCompletePage() {
             {!ready && !review ? (
               <div className="mt-7 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left">
                 <div className="flex gap-3">
-                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5]" />
+                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[var(--indice-brand-action)]" />
                   <div>
                     <p className="text-sm font-medium">No cierres esta página todavía</p>
                     <p className="mt-1 text-xs leading-5 text-slate-500">La verificación es automática e idempotente. Recargar no duplicará tu cuenta ni tu suscripción.</p>

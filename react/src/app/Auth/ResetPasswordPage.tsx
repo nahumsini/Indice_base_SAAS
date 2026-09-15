@@ -109,7 +109,7 @@ export default function ResetPasswordPage() {
     <main className="min-h-screen bg-[#f6f8fb] px-4 py-8 text-slate-900">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl items-center justify-center">
         <section className="grid w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_80px_-48px_rgba(20,54,117,0.45)] lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="bg-[#143675] p-8 text-white sm:p-10">
+          <div className="bg-[var(--indice-brand-shell)] p-8 text-[var(--indice-brand-shell-foreground)] sm:p-10">
             <div className="flex h-full min-h-72 flex-col justify-between gap-10">
               <div className="space-y-5">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/12">
@@ -117,13 +117,13 @@ export default function ResetPasswordPage() {
                 </div>
                 <div className="space-y-3">
                   <h1 className="text-3xl font-semibold tracking-tight">Indice</h1>
-                  <p className="max-w-sm text-sm leading-6 text-blue-100">
+                  <p className="max-w-sm text-sm leading-6 text-[var(--indice-brand-shell-muted)]">
                     Secure account access for your company workspace.
                   </p>
                 </div>
               </div>
 
-              <div className="rounded-xl border border-white/15 bg-white/8 p-4 text-sm leading-6 text-blue-50">
+              <div className="rounded-xl border border-white/15 bg-white/8 p-4 text-sm leading-6 text-[var(--indice-brand-shell-foreground)]/90">
                 Reset links are single-use and expire after 10 minutes. Your password is changed only after this form is submitted.
               </div>
             </div>
@@ -131,7 +131,7 @@ export default function ResetPasswordPage() {
 
           <div className="p-8 sm:p-10">
             <div className="mb-8 space-y-3">
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#143675]/8 px-3 py-1 text-sm font-medium text-[#143675]">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[var(--indice-brand-soft)] px-3 py-1 text-sm font-medium text-[var(--indice-brand-text)]">
                 <KeyRound className="h-4 w-4" />
                 Password reset
               </div>
@@ -169,7 +169,7 @@ export default function ResetPasswordPage() {
                 <Button
                   type="submit"
                   disabled={!canSubmit}
-                  className="h-12 w-full rounded-xl bg-[#143675] text-white hover:bg-[#0f2855]"
+                  className="h-12 w-full rounded-xl bg-[var(--indice-brand-action)] text-[var(--indice-brand-shell-foreground)] hover:bg-[var(--indice-brand-action-hover)]"
                 >
                   {isSubmitting ? 'Resetting password...' : (
                     <>
@@ -190,7 +190,7 @@ export default function ResetPasswordPage() {
                 <Button
                   type="button"
                   onClick={() => navigate('/login')}
-                  className="h-12 w-full rounded-xl bg-[#143675] text-white hover:bg-[#0f2855]"
+                  className="h-12 w-full rounded-xl bg-[var(--indice-brand-action)] text-[var(--indice-brand-shell-foreground)] hover:bg-[var(--indice-brand-action-hover)]"
                 >
                   Go to login
                   <ArrowRight className="h-4 w-4" />

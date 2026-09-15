@@ -868,7 +868,7 @@ test('kiosk center uses the Indice operating system for navigation, filters, tab
 
   for (const source of [center, multi, access, activity]) {
     assert.match(source, /IndiceTitleBar/);
-    assert.match(source, /tone="aqua"/);
+    assert.match(source, /tone="blue"/);
   }
   assert.match(center, /IndiceFilterDisclosureActions/);
   assert.match(center, /IndiceOperationalTable/);
@@ -885,8 +885,8 @@ test('kiosk center uses the Indice operating system for navigation, filters, tab
   assert.match(editor, /open=\{!discardPromptOpen\}/);
   assert.match(editor, /copy\.editor\.discardTitle/);
   assert.match(editor, /copy\.editor\.presentationOptions/);
-  assert.match(editor, /accent="aqua"/);
-  assert.doesNotMatch(`${editor}\n${lifecycle}`, /tone="blue"/);
+  assert.match(editor, /accent="blue"/);
+  assert.match(`${editor}\n${lifecycle}`, /tone="blue"/);
   assert.match(navigator, /aria-pressed=\{active\}/);
   assert.match(multi, /navigate\('\/dashboard'\)/);
   assert.match(multi, /workspaceCopy\.backToDashboard/);

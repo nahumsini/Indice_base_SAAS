@@ -10,6 +10,7 @@ interface FavoritesBarProps {
   onNavigate: (page: string) => void;
   currentModule?: string;
   compact?: boolean;
+  orientation?: 'horizontal' | 'desktop-vertical';
 }
 
 type FavoriteBarModule = {
@@ -20,7 +21,12 @@ type FavoriteBarModule = {
   color: string;
 };
 
-export function FavoritesBar({ onNavigate, currentModule, compact = false }: FavoritesBarProps) {
+export function FavoritesBar({
+  onNavigate,
+  currentModule,
+  compact = false,
+  orientation = 'horizontal',
+}: FavoritesBarProps) {
   const { t } = useLanguage();
   const { getFavoriteModules } = useFavorites();
 
@@ -28,6 +34,7 @@ export function FavoritesBar({ onNavigate, currentModule, compact = false }: Fav
   const visibleModules: FavoriteBarModule[] = getFavoriteModules(allModules);
   const activeModule = resolvePageId(currentModule) ?? currentModule;
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isDesktopVertical = orientation === 'desktop-vertical';
 
   const handleModuleClick = (module: FavoriteBarModule) => {
     onNavigate(module.route);
@@ -76,22 +83,26 @@ export function FavoritesBar({ onNavigate, currentModule, compact = false }: Fav
   return (
     <div className={compact ? 'min-w-0' : 'mb-6'}>
       <div className="relative">
-        <div ref={scrollRef} className={compact ? 'overflow-x-auto py-1 [scrollbar-width:none]' : '-mx-4 overflow-x-auto px-4 py-2 sm:mx-0 sm:px-0'}>
-          <div className={`flex min-w-max items-center ${compact ? 'gap-1.5' : 'gap-2 sm:min-w-0 sm:flex-wrap'}`}>
+        <div
+          ref={scrollRef}
+          className={`${compact ? 'overflow-x-auto py-1 [scrollbar-width:none]' : '-mx-4 overflow-x-auto px-4 py-2 sm:mx-0 sm:px-0'} ${isDesktopVertical ? 'lg:overflow-visible lg:py-0' : ''}`}
+        >
+          <div className={`flex min-w-max items-center ${compact ? 'gap-1.5' : 'gap-2 sm:min-w-0 sm:flex-wrap'} ${isDesktopVertical ? 'lg:min-w-0 lg:flex-col lg:items-stretch lg:gap-2' : ''}`}>
             {/* Botón Dashboard - Siempre fijo */}
             <button
               onClick={() => onNavigate('dashboard')}
-              className={`inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 ${compact ? 'min-h-9 px-2.5 py-1 text-xs sm:text-sm' : 'px-3 py-1.5 text-sm'}`}
+              type="button"
+              className={`inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:focus-visible:ring-offset-slate-900 ${compact ? 'min-h-9 px-2.5 py-1 text-xs sm:text-sm' : 'px-3 py-1.5 text-sm'} ${isDesktopVertical ? 'lg:min-h-11 lg:w-full lg:justify-start lg:px-3' : ''}`}
             >
               <span>🏠</span>
               <span>Dashboard</span>
             </button>
 
             {compact ? (
-              <div className="ml-0.5 inline-flex min-h-9 items-center gap-1.5 border-l border-slate-200 pl-2.5 text-xs font-medium text-slate-600 dark:border-slate-700 dark:text-slate-300">
+              <div className={`ml-0.5 inline-flex min-h-9 items-center gap-1.5 border-l border-slate-200 pl-2.5 text-xs font-medium text-slate-600 dark:border-slate-700 dark:text-slate-300 ${isDesktopVertical ? 'lg:ml-0 lg:w-full lg:border-l-0 lg:border-t lg:pt-2 lg:pl-0' : ''}`}>
                 <Star className="h-4 w-4 fill-amber-400 text-amber-500" aria-hidden="true" />
-                <span className="hidden xl:inline">{t.sections.favorites}</span>
-                <span className="sr-only xl:hidden">{t.sections.favorites}</span>
+                <span className={isDesktopVertical ? 'hidden lg:inline' : 'hidden xl:inline'}>{t.sections.favorites}</span>
+                <span className={isDesktopVertical ? 'sr-only lg:hidden' : 'sr-only xl:hidden'}>{t.sections.favorites}</span>
               </div>
             ) : null}
 
@@ -106,8 +117,10 @@ export function FavoritesBar({ onNavigate, currentModule, compact = false }: Fav
               return (
                 <button
                   key={module.id}
+                  type="button"
                   onClick={() => handleModuleClick(module)}
-                  className={`inline-flex items-center gap-1.5 border font-medium rounded-lg transition-all ${compact ? 'min-h-9 px-2.5 py-1 text-xs sm:text-sm' : 'px-3 py-1.5 text-sm'} ${baseClasses} ${activeClasses}`}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${compact ? 'min-h-9 px-2.5 py-1 text-xs sm:text-sm' : 'px-3 py-1.5 text-sm'} ${isDesktopVertical ? 'lg:min-h-11 lg:w-full lg:justify-start lg:px-3' : ''} ${baseClasses} ${activeClasses}`}
                 >
                   <span>{module.emoji}</span>
                   <span>{module.title}</span>
@@ -116,7 +129,7 @@ export function FavoritesBar({ onNavigate, currentModule, compact = false }: Fav
             })}
           </div>
         </div>
-        <IndiceHorizontalScrollControls scrollRef={scrollRef} />
+        <IndiceHorizontalScrollControls scrollRef={scrollRef} className={isDesktopVertical ? 'lg:hidden' : undefined} />
       </div>
     </div>
   );

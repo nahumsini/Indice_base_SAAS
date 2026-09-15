@@ -104,7 +104,7 @@ export default function PublicDemoPage() {
   return (
     <main className="min-h-dvh bg-[#f5f8fc] text-slate-900">
       <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
-        <div className="absolute -left-32 -top-40 h-[32rem] w-[32rem] rounded-full bg-blue-200/40 blur-3xl" />
+        <div className="absolute -left-32 -top-40 h-[32rem] w-[32rem] rounded-full bg-[var(--indice-brand-soft-strong)] opacity-40 blur-3xl" />
         <div className="absolute -bottom-48 -right-32 h-[36rem] w-[36rem] rounded-full bg-emerald-200/35 blur-3xl" />
       </div>
 
@@ -113,7 +113,7 @@ export default function PublicDemoPage() {
           <IndiceBrandLogo alt="Índice" className="h-11 w-40" imageClassName="w-[185px]" />
           <Link
             to={isDistributorHandoff ? '/dashboard' : '/login'}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-300 hover:text-blue-700"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-[var(--indice-brand-border)] hover:text-[var(--indice-brand-text)]"
           >
             <LockKeyhole className="h-4 w-4" />
             {isDistributorHandoff ? 'Volver al ERP' : 'Acceso de clientes'}
@@ -123,7 +123,7 @@ export default function PublicDemoPage() {
 
       <div className="relative mx-auto grid min-h-[calc(100dvh-77px)] max-w-7xl gap-8 px-5 py-8 sm:px-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:py-12">
         <section className="max-w-xl">
-          <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-semibold text-blue-700">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] px-3 py-1.5 text-sm font-semibold text-[var(--indice-brand-text)]">
             <Sparkles className="h-4 w-4" />
             Centro público de demostraciones
           </span>
@@ -150,15 +150,15 @@ export default function PublicDemoPage() {
         </section>
 
         <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_28px_80px_-32px_rgba(15,23,42,0.38)]">
-          <div className="bg-gradient-to-br from-[#174799] via-[#2563eb] to-[#2d76e8] px-6 py-6 text-white sm:px-8">
+          <div className="bg-[var(--indice-brand-shell)] px-6 py-6 text-[var(--indice-brand-shell-foreground)] sm:px-8">
             <div className="flex items-start gap-4">
               <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/20">
                 <Building2 className="h-6 w-6" />
               </span>
               <div>
-                <p className="text-sm font-semibold text-blue-100">Acceso a escenarios demo</p>
+                <p className="text-sm font-semibold text-[var(--indice-brand-shell-muted)]">Acceso a escenarios demo</p>
                 <h2 className="mt-1 text-2xl font-bold">Elige una empresa e ingresa</h2>
-                <p className="mt-2 text-sm leading-6 text-blue-100">El inicio de sesión normal y su verificación permanecen separados.</p>
+                <p className="mt-2 text-sm leading-6 text-[var(--indice-brand-shell-muted)]">El inicio de sesión normal y su verificación permanecen separados.</p>
               </div>
             </div>
           </div>
@@ -177,7 +177,7 @@ export default function PublicDemoPage() {
                   type="button"
                   onClick={() => void loadCompanies()}
                   disabled={loadingCompanies}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:text-blue-900 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--indice-brand-text)] hover:text-[var(--indice-brand-action-hover)] disabled:opacity-50"
                 >
                   <RefreshCw className={`h-3.5 w-3.5 ${loadingCompanies ? 'animate-spin' : ''}`} />
                   Actualizar
@@ -201,8 +201,8 @@ export default function PublicDemoPage() {
                         }}
                         className={`min-h-16 rounded-xl border px-4 py-3 text-left transition ${
                           selected
-                            ? 'border-blue-500 bg-blue-50 text-blue-950 ring-2 ring-blue-500/15'
-                            : 'border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50/50'
+                            ? 'border-[var(--indice-brand-action)] bg-[var(--indice-brand-soft)] text-[var(--indice-brand-text)] ring-2 ring-[var(--indice-brand-action)]/15'
+                            : 'border-slate-200 bg-white text-slate-700 hover:border-[var(--indice-brand-border)] hover:bg-[var(--indice-brand-soft)]'
                         }`}
                       >
                         <span className="block truncate text-sm font-semibold">{company.name}</span>
@@ -268,7 +268,7 @@ export default function PublicDemoPage() {
             <Button
               type="submit"
               disabled={!canSubmit || companies.length === 0}
-              className="h-12 w-full rounded-xl bg-[#2563eb] text-base font-semibold text-white hover:bg-[#1d4ed8]"
+              className="h-12 w-full rounded-xl bg-[var(--indice-brand-action)] text-base font-semibold text-[var(--indice-brand-shell-foreground)] hover:bg-[var(--indice-brand-action-hover)]"
             >
               {submitting ? (
                 <><LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> Validando acceso…</>

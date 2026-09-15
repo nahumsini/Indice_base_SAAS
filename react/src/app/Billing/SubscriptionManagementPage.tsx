@@ -2,6 +2,7 @@ import { AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { useLanguage } from '../shared/context';
 import { BillingConfigurationPanel } from './components/BillingConfigurationPanel';
+import { BillingDecisionGuide } from './components/BillingDecisionGuide';
 import { BillingHero } from './components/BillingHero';
 import { BillingInvoiceHistory } from './components/BillingInvoiceHistory';
 import { BillingOverviewBar } from './components/BillingOverviewBar';
@@ -17,17 +18,30 @@ export default function SubscriptionManagementPage() {
   const paymentMethod = useBillingPaymentMethod(!billing.loading && Boolean(billing.selection), billing.readOnly);
 
   return (
-    <main className="min-h-[calc(100vh-4rem)] bg-slate-50 px-4 py-4 text-slate-900 dark:bg-slate-950 dark:text-white sm:px-6 sm:py-5 lg:px-8">
+    <main className="min-h-[calc(100vh-4rem)] bg-[radial-gradient(circle_at_8%_0%,rgba(37,99,235,0.09),transparent_28rem),radial-gradient(circle_at_92%_12%,rgba(96,165,250,0.08),transparent_30rem)] px-4 pb-10 text-slate-900 dark:bg-slate-950 dark:text-white sm:px-6 lg:px-8">
       <div className="mx-auto max-w-[1600px]">
-        <BillingHero
-          copy={copy}
-          selection={billing.selection}
-          subscription={billing.subscription}
-          loading={billing.loading}
-          leaving={billing.action === 'back'}
-          onBack={() => void billing.goBack()}
-          onRefresh={() => void billing.load()}
-        />
+        <div data-billing-sticky-header className="sticky top-0 z-30 -mx-4 border-b border-slate-200/80 bg-slate-50/90 px-4 py-3 shadow-[0_16px_32px_-28px_rgba(15,23,42,0.75)] backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/90 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+          <BillingHero
+            copy={copy}
+            selection={billing.selection}
+            subscription={billing.subscription}
+            loading={billing.loading}
+            leaving={billing.action === 'back'}
+            onBack={() => void billing.goBack()}
+            onRefresh={() => void billing.load()}
+          />
+          {!billing.loading && billing.selection ? (
+            <div className="mt-3 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <BillingDecisionGuide
+                copy={copy}
+                languageCode={currentLanguage.code}
+                licensedUsers={(billing.preview ?? billing.selection).included_seats + billing.draft.extraSeats}
+                paymentMethod={paymentMethod}
+                selectedCount={billing.draft.productCodes.length}
+              />
+            </div>
+          ) : null}
+        </div>
 
         {billing.managedContext?.active_company ? (
           <section className="mt-4 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-blue-950 dark:border-blue-800/70 dark:bg-blue-950/40 dark:text-blue-100">

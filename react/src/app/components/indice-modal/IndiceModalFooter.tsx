@@ -21,7 +21,7 @@ const actionToneStyles: Record<IndiceModalFooterTone, string> = {
   blue: [
     '[&>button]:!border-white [&>button]:!bg-white [&>button]:!text-slate-600 [&>button]:shadow-sm',
     '[&>button:hover]:!bg-white/90',
-    '[&>button:last-child]:!border-white [&>button:last-child]:!bg-white [&>button:last-child]:!text-[#1D4ED8]',
+    '[&>button:last-child]:!border-white [&>button:last-child]:!bg-white [&>button:last-child]:!text-[var(--indice-brand-action-hover)]',
     '[&>button:last-child:hover]:!bg-white/90',
   ].join(' '),
   coral: [
