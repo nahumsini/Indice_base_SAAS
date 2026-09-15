@@ -431,6 +431,22 @@ reglas:
    seleccionable ni se mezcla con códigos históricos; el backend filtra la respuesta y el frontend
    repite la selección activa como defensa de presentación.
 
+### 5.5 Transparencia de la administración de cuenta
+
+La pantalla autenticada `Plan, personas y pagos` usa azul Índice para navegación, selección y
+acciones. Verde, amarillo y rojo quedan reservados a estados semánticos confirmados, de atención o
+de error. Su header contextual permanece visible durante el desplazamiento y la configuración se
+presenta como tres decisiones navegables: plan, personas y pago. El header usa
+`IndiceAdminWorkspaceHeader` y la guía usa `IndiceWorkspaceNavigation`, compartiendo la misma
+anatomía compacta y accesible del Centro de kioscos.
+
+Esta guía visual no introduce estados comerciales. La pantalla sigue separando el acceso vigente de
+la selección objetivo y debe mostrar el momento del cambio, la capacidad, el importe estimado y la
+fuente segura de pago usando exclusivamente la proyección del backend. Las tarjetas de módulos no
+codifican precios ni conceden acceso por sí mismas. Checkout y Customer Portal continúan siendo las
+únicas superficies para capturar o administrar tarjetas y facturas; el rediseño no amplía permisos ni
+modifica las reglas del corte.
+
 ## 6. Ciclo de vida y cobranza
 
 Estados internos propuestos:

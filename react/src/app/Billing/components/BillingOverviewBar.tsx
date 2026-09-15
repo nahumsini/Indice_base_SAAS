@@ -40,10 +40,10 @@ export function BillingOverviewBar({ copy, selection, subscription, languageCode
       : 'bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-200';
 
   return (
-    <section aria-label={copy.accountSummary} className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-      <header className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+    <section aria-label={copy.accountSummary} className="mt-4 overflow-hidden rounded-2xl border border-[var(--indice-brand-border)] bg-white shadow-[0_18px_46px_-38px_rgba(37,99,235,0.55)] dark:border-blue-900/60 dark:bg-slate-900">
+      <header className="flex flex-col gap-3 border-b border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)]/70 px-4 py-3 dark:border-blue-900/60 dark:bg-blue-950/25 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#59C3A5]/10 text-[#177D66] dark:bg-[#59C3A5]/15 dark:text-[#8FE0CA]">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-[var(--indice-brand-action)] shadow-sm ring-1 ring-[var(--indice-brand-border)] dark:bg-slate-900 dark:text-blue-300">
             <CalendarClock className="h-5 w-5" />
           </span>
           <div>
@@ -62,7 +62,7 @@ export function BillingOverviewBar({ copy, selection, subscription, languageCode
           <p className="text-xs text-slate-500 dark:text-slate-400">{copy.currentToNext}</p>
           <div className="mt-2 flex items-center gap-2">
             <span className="text-xl font-medium text-slate-500 dark:text-slate-400">{presentation.currentModuleCount}</span>
-            <ArrowRight className="h-4 w-4 text-[#177D66] dark:text-[#8FE0CA]" />
+            <ArrowRight className="h-4 w-4 text-[var(--indice-brand-action)] dark:text-blue-300" />
             <span className="text-xl font-medium text-slate-950 dark:text-white">{presentation.targetModuleCount}</span>
             <span className="text-xs text-slate-500 dark:text-slate-400">{copy.modulesShort}</span>
           </div>
@@ -87,7 +87,7 @@ export function BillingOverviewBar({ copy, selection, subscription, languageCode
         </article>
 
         <article className="flex items-center gap-3 border-t border-slate-200 p-4 dark:border-slate-800 xl:border-t-0">
-          <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${card.tone === 'saved' ? 'bg-emerald-50 text-[#177D66] dark:bg-emerald-950/50 dark:text-emerald-300' : card.tone === 'attention' ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
+          <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${card.tone === 'saved' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300' : card.tone === 'attention' ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
             <CreditCard className="h-5 w-5" />
           </span>
           <div className="min-w-0">

@@ -23,13 +23,13 @@ export function useIndiceFilterDisclosureCopy() {
 
 const activeCountClassNames: Record<IndiceModuleTone, string> = {
   aqua: 'bg-[#177D66] text-white',
-  blue: 'bg-[#2563EB] text-white',
+  blue: 'bg-[var(--indice-brand-action)] text-[var(--indice-brand-shell-foreground)]',
   coral: 'bg-[#FF6B5E] text-[#222831]',
   gold: 'bg-[#C38A00] text-white',
   gray: 'bg-slate-700 text-white',
   green: 'bg-[#147514] text-white',
   orange: 'bg-[#FF6B5E] text-[#222831]',
-  purple: 'bg-[#2563EB] text-white',
+  purple: 'bg-[var(--indice-brand-action)] text-[var(--indice-brand-shell-foreground)]',
   red: 'bg-[#EF4444] text-white',
   yellow: 'bg-[#C38A00] text-white',
 };

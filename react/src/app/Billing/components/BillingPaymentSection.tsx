@@ -36,7 +36,7 @@ export function BillingPaymentSection(props: Props) {
       : cardCopy.stripeCatalogPending;
 
   return (
-    <section className="border-t border-slate-200 p-4 dark:border-slate-800">
+    <section id="billing-payment" tabIndex={-1} className="scroll-mt-40 border-t border-slate-200 p-4 outline-none focus-visible:bg-[var(--indice-brand-soft)] dark:border-slate-800 dark:focus-visible:bg-blue-950/20">
       <div className="flex items-start gap-3">
         <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${statusClass}`}>
           <CreditCard className="h-5 w-5" />
@@ -57,7 +57,7 @@ export function BillingPaymentSection(props: Props) {
       </div>
 
       <div className="mt-3 flex gap-2 rounded-lg bg-slate-50 px-3 py-2.5 text-xs leading-5 text-slate-600 dark:bg-slate-800/70 dark:text-slate-300">
-        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#177D66] dark:text-[#8FE0CA]" />
+        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[var(--indice-brand-action)] dark:text-blue-300" />
         {cardCopy.stripeSecurity}
       </div>
 

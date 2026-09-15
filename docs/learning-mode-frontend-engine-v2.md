@@ -107,10 +107,8 @@ Módulo > pestaña activa
 
 | Propósito | Clave local | Tipo | Comportamiento |
 | --- | --- | --- | --- |
-| Modo encendido | `indice.app.learningModeActive` | `boolean` | Controla la presencia de la capa en toda la aplicación. |
-| Recorrido visible | `indice.app.learningModeVisible` | `boolean` | Permite ocultar el recorrido del Dashboard sin apagar el modo global. |
-| Etapa actual | `indice.app.learningStep` | `number` | Índice de la etapa activa del Dashboard, limitado a las seis etapas. |
-| Caso seleccionado | `indice.learningMode.character` | `emily \| juanito \| camila` | Se comparte entre Dashboard y módulos. |
+| Preferencias del modo | `indice.app.learningMode.user-{userId}.company-{companyId}` | `{ version, active, visible, step }` | Conserva de forma conjunta el estado global, la visibilidad del recorrido y la etapa actual para el usuario y empresa autenticados. |
+| Caso seleccionado | `indice.learningMode.character` | `emily \| juanito \| camila` | Se comparte entre Dashboard y módulos y no se borra al apagar o reiniciar el recorrido. |
 
 Cada módulo compatible recibe:
 
@@ -138,11 +136,27 @@ Reglas:
 - si no hay personaje válido, la tarjeta derecha invita a elegir un caso en el Panel Inicial;
 - el índice del carrusel de la pestaña es estado de interfaz local; no se debe inventar persistencia sin una decisión de producto.
 
+### 4.1 Modal global de configuración
+
+El birrete del encabezado abre un modal `standard-form` del sistema compartido con identidad azul de Índice. La interacción usa un borrador local: cerrar, cancelar o presionar Escape descarta los cambios; `Guardar cambios` actualiza en una sola operación las preferencias de la sesión.
+
+El modal permite:
+
+- encender o apagar el acompañamiento global;
+- mostrar u ocultar el recorrido de seis etapas en el Panel Inicial cuando el modo está activo;
+- consultar la etapa actual y reiniciarla a la primera;
+- comprender el efecto de la combinación elegida antes de guardarla.
+
+No permite cambiar permisos, simular operaciones ni borrar el caso empresarial. Apagar el modo conserva `visible`, `step` y el caso seleccionado para que el usuario pueda retomar su recorrido después.
+
 Archivos globales actuales:
 
 - `react/src/app/App.tsx`
 - `react/src/app/components/Header.tsx`
 - `react/src/app/hooks/useLocalStorageState.ts`
+- `react/src/app/hooks/useLearningModePreferences.ts`
+- `react/src/app/learningMode/components/LearningModeSettingsModal.tsx`
+- `react/src/app/learningMode/preferences.ts`
 - `react/src/app/learningMode/characters.ts`
 
 ---

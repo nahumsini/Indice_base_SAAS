@@ -33,7 +33,7 @@ export function BillingActionDock(props: Props) {
           : props.copy.scheduleChanges;
 
   return (
-    <footer className="border-t border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+    <footer className="border-t border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)]/60 p-4 dark:border-blue-900/60 dark:bg-blue-950/20">
       {isActivation && props.hasChanges ? (
         <Button
           type="button"
@@ -66,7 +66,7 @@ export function BillingActionDock(props: Props) {
             onClick={isActivation ? props.onActivate : props.onSave}
             disabled={!props.hasProducts || busy || (isActivation && !props.activationAvailable)}
             title={isActivation && !props.activationAvailable ? props.activationHelp : undefined}
-            className="h-11 min-w-0 justify-between rounded-xl bg-[#177D66] px-4 font-medium hover:bg-[#126653]"
+            className="h-11 min-w-0 justify-between rounded-xl bg-[var(--indice-brand-action)] px-4 font-medium text-white shadow-sm hover:bg-[var(--indice-brand-action-hover)]"
           >
             <span className="truncate">{primaryLabel}</span>
             {isActivation ? <ArrowRight className="h-4 w-4 shrink-0" /> : <CalendarClock className="h-4 w-4 shrink-0" />}

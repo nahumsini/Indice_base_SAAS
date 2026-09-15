@@ -280,7 +280,7 @@ export function PublicPlansBuilder(props: PublicPlansBuilderProps) {
             <span className="flex items-center gap-2"><CalendarClock className="h-4 w-4 text-emerald-700" />{copy.consultingTrust(config.includedConsultationsPerMonth ?? 1, config.consultationMinutes ?? 60)}</span>
             <span className="flex items-center gap-2"><HardDrive className="h-4 w-4 text-violet-700" />{copy.storageTrust(config.includedStorageGiB ?? 5, config.storageBlockGiB ?? 5, money(config.storageBlockMonthlyAmountCents ?? 1_500))}</span>
             <span className="flex items-center gap-2"><BadgePercent className="h-4 w-4 text-[#C18A00]" />{copy.annualTrust(config.annualDiscountPercent ?? 20)}</span>
-            <span className="flex items-center gap-2"><CreditCard className="h-4 w-4 text-[#2563EB]" />{copy.cardTrust}</span>
+            <span className="flex items-center gap-2"><CreditCard className="h-4 w-4 text-[var(--indice-brand-action)]" />{copy.cardTrust}</span>
             <span className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-700" />{copy.securityTrust}</span>
           </div>
         </aside>

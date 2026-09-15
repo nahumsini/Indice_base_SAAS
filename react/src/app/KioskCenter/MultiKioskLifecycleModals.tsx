@@ -40,7 +40,7 @@ export function MultiKioskOptionsModal({
       onOpenChange={open => { if (!open) onClose(); }}
       size="form"
       surface="administration"
-      tone="aqua"
+      tone="blue"
       icon={<MoreHorizontal className="h-5 w-5" />}
       title={copy.options.title}
       description={copy.options.description}
@@ -54,10 +54,10 @@ export function MultiKioskOptionsModal({
             type="button"
             onClick={() => onCommand({ item, action: action.action })}
             className={cn(
-              'flex min-h-14 w-full items-center gap-3 rounded-2xl border bg-white px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5] dark:bg-slate-900',
+              'flex min-h-14 w-full items-center gap-3 rounded-2xl border bg-white px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] dark:bg-slate-900',
               action.danger
                 ? 'border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/30'
-                : 'border-slate-200 text-slate-800 hover:border-[#59C3A5]/60 hover:bg-[#59C3A5]/10 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-emerald-950/25',
+                : 'border-slate-200 text-slate-800 hover:border-[var(--indice-brand-action)]/45 hover:bg-[var(--indice-brand-soft)] dark:border-slate-700 dark:text-slate-100 dark:hover:bg-blue-950/25',
             )}
           >
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 dark:bg-slate-800">{action.icon}</span>
@@ -83,9 +83,9 @@ export function MultiKioskCommandConfirmationModal({
   onConfirm: () => void;
 }) {
   const content = command.action === 'rotate'
-    ? { title: copy.confirmation.rotateTitle, description: copy.confirmation.rotateDescription, action: copy.confirmation.rotateAction, tone: 'aqua' as const, icon: <RefreshCw className="h-5 w-5" /> }
+    ? { title: copy.confirmation.rotateTitle, description: copy.confirmation.rotateDescription, action: copy.confirmation.rotateAction, tone: 'blue' as const, icon: <RefreshCw className="h-5 w-5" /> }
     : command.action === 'enable'
-      ? { title: copy.confirmation.enableTitle, description: copy.confirmation.enableDescription, action: copy.confirmation.enableAction, tone: 'aqua' as const, icon: <Power className="h-5 w-5" /> }
+      ? { title: copy.confirmation.enableTitle, description: copy.confirmation.enableDescription, action: copy.confirmation.enableAction, tone: 'blue' as const, icon: <Power className="h-5 w-5" /> }
       : command.action === 'disable'
         ? { title: copy.confirmation.disableTitle, description: copy.confirmation.disableDescription, action: copy.confirmation.disableAction, tone: 'yellow' as const, icon: <Power className="h-5 w-5" /> }
         : { title: copy.confirmation.revokeTitle, description: copy.confirmation.revokeDescription, action: copy.confirmation.revokeAction, tone: 'coral' as const, icon: <Ban className="h-5 w-5" /> };

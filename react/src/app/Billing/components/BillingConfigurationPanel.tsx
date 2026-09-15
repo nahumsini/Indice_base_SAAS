@@ -41,10 +41,10 @@ export function BillingConfigurationPanel(props: Props) {
       : cardCopy.stripeCatalogPending;
 
   return (
-    <aside className="lg:sticky lg:top-4 lg:self-start">
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+    <aside className="lg:sticky lg:top-32 lg:self-start">
+      <section className="overflow-hidden rounded-2xl border border-[var(--indice-brand-border)] bg-white shadow-[0_20px_52px_-38px_rgba(37,99,235,0.65)] dark:border-blue-900/60 dark:bg-slate-900">
         <header className="flex items-start gap-3 border-b border-slate-200 p-4 dark:border-slate-800">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-[#2563EB] dark:bg-blue-950/50 dark:text-blue-200">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--indice-brand-soft)] text-[var(--indice-brand-action)] dark:bg-blue-950/50 dark:text-blue-200">
             <CalendarClock className="h-5 w-5" />
           </span>
           <div className="min-w-0 flex-1">

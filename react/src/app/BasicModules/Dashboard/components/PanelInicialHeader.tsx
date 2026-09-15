@@ -1,6 +1,7 @@
-import { useRef } from 'react';
+import { useRef, type CSSProperties } from 'react';
 import { FavoritesBar } from '../../../components/FavoritesBar';
 import { IndiceHorizontalScrollControls } from '../../../components/ui/horizontal-scroll-controls';
+import { useWorkbarLayout } from '../../../components/workbar/WorkbarLayoutContext';
 
 export interface PanelInicialHeaderTab {
   emoji: string;
@@ -28,22 +29,28 @@ export function PanelInicialHeader({
   tabs,
   title,
 }: PanelInicialHeaderProps) {
+  const { isDualScreenActive, position: workbarPosition } = useWorkbarLayout();
+  const isSideLayout = workbarPosition === 'left' && !isDualScreenActive;
   const activeTab = tabs.find((tab) => tab.id === activeTabId);
   const tabsScrollRef = useRef<HTMLElement>(null);
 
   return (
-    <header className="relative z-30 shrink-0 border-b border-[var(--indice-border)] bg-white px-3 py-2 shadow-sm dark:bg-slate-800 sm:px-8">
-      <div className="mx-auto max-w-[1600px]">
-        <div className="flex items-center gap-3">
-          <div className="flex min-w-0 flex-1 items-center justify-between gap-3 md:max-w-[420px] md:flex-none">
+    <header
+      className={`indice-workbar relative z-30 shrink-0 border-b border-[var(--indice-border)] bg-white px-3 py-2 shadow-sm dark:bg-slate-800 sm:px-8 ${isSideLayout ? 'indice-workbar--left lg:h-full lg:w-72 lg:overflow-y-auto lg:border-r lg:border-b-0 lg:px-4 lg:py-5' : ''}`}
+      data-workbar-position={isSideLayout ? 'left' : 'top'}
+      style={{ '--indice-workbar-tone': 'var(--indice-brand-action)' } as CSSProperties}
+    >
+      <div className={`mx-auto max-w-[1600px] ${isSideLayout ? 'lg:w-full' : ''}`}>
+        <div className={`flex items-center gap-3 ${isSideLayout ? 'lg:flex-col lg:items-stretch' : ''}`}>
+          <div className={`flex min-w-0 flex-1 items-center justify-between gap-3 md:max-w-[420px] md:flex-none ${isSideLayout ? 'lg:max-w-none lg:items-start' : ''}`}>
             <div className="flex min-w-0 items-center gap-2.5">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-lg ring-1 ring-blue-100 dark:bg-blue-900/30 dark:ring-blue-800" aria-hidden="true">
                 🏠
               </span>
               <div className="min-w-0">
-                <div className="flex min-w-0 items-center gap-1.5 text-lg font-medium leading-tight text-[var(--indice-graphite)] dark:text-white sm:text-xl">
+                <div className={`flex min-w-0 items-center gap-1.5 text-lg font-medium leading-tight text-[var(--indice-graphite)] dark:text-white sm:text-xl ${isSideLayout ? 'lg:flex-col lg:items-start lg:gap-1' : ''}`}>
                   <span className="shrink-0">{title}</span>
-                  {activeTab ? <span className="text-slate-300 dark:text-slate-600">/</span> : null}
+                  {activeTab ? <span className={`text-slate-300 dark:text-slate-600 ${isSideLayout ? 'lg:hidden' : ''}`}>/</span> : null}
                   {activeTab ? (
                     <span className="flex min-w-0 items-center gap-1 text-[var(--indice-blue)]">
                       <span className="shrink-0 text-base" aria-hidden="true">{activeTab.emoji}</span>
@@ -58,9 +65,10 @@ export function PanelInicialHeader({
             </div>
           </div>
 
-          <div className="hidden min-w-0 flex-1 border-l border-slate-200 pl-3 dark:border-slate-700 md:block">
+          <div className={`hidden min-w-0 flex-1 border-l border-slate-200 pl-3 dark:border-slate-700 md:block ${isSideLayout ? 'lg:w-full lg:border-l-0 lg:pl-0' : ''}`}>
           <FavoritesBar
             compact
+            orientation={isSideLayout ? 'desktop-vertical' : 'horizontal'}
             onNavigate={(page) => {
               if (page !== 'home-panel') onNavigate(page);
             }}
@@ -80,9 +88,9 @@ export function PanelInicialHeader({
           />
         </div>
 
-        <div className="relative">
-          <nav className="mt-1.5 overflow-x-auto" ref={tabsScrollRef} aria-label={navigationLabel}>
-            <div className="flex min-w-max items-center gap-1.5 pb-0.5">
+        <div className={`relative ${isSideLayout ? 'lg:mt-4 lg:border-t lg:border-slate-200 lg:pt-3 dark:lg:border-slate-700' : ''}`}>
+          <nav className={`mt-1.5 overflow-x-auto ${isSideLayout ? 'lg:overflow-visible' : ''}`} ref={tabsScrollRef} aria-label={navigationLabel}>
+            <div className={`flex min-w-max items-center gap-1.5 pb-0.5 ${isSideLayout ? 'lg:min-w-0 lg:flex-col lg:items-stretch lg:gap-1' : ''}`}>
               {tabs.map((tab) => {
                 const isActive = activeTabId === tab.id;
                 return (
@@ -90,7 +98,7 @@ export function PanelInicialHeader({
                     key={tab.id}
                     type="button"
                     aria-current={isActive ? 'page' : undefined}
-                    className={`flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-blue)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800 sm:text-sm ${
+                    className={`indice-workbar-tab flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-blue)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800 sm:text-sm ${isSideLayout ? 'lg:min-h-11 lg:w-full lg:justify-start lg:rounded-xl lg:border-l-[3px] lg:px-3 lg:py-2' : ''} ${
                       isActive
                         ? 'border-[var(--indice-blue)] bg-[var(--indice-blue)] text-white shadow-sm'
                         : 'border-transparent bg-slate-100 text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-800 dark:hover:bg-blue-900/20 dark:hover:text-blue-200'
@@ -104,7 +112,7 @@ export function PanelInicialHeader({
               })}
             </div>
           </nav>
-          <IndiceHorizontalScrollControls scrollRef={tabsScrollRef} />
+          <IndiceHorizontalScrollControls scrollRef={tabsScrollRef} className={isSideLayout ? 'lg:hidden' : undefined} />
         </div>
       </div>
     </header>

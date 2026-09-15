@@ -74,7 +74,7 @@ export function PaymentRequestRecovery({ snapshot, loading, error, blocked, engl
     <main className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-3xl items-center px-4 py-8 sm:px-6">
       <section className="w-full rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-8">
         <div className="mb-5 flex items-start gap-3">
-          <span className="rounded-xl bg-[#e8f5f2] p-3 text-[#177D66]">{request?.status === 'PAID' ? <CheckCircle2 className="h-6 w-6" /> : <CreditCard className="h-6 w-6" />}</span>
+          <span className={`rounded-xl p-3 ${request?.status === 'PAID' ? 'bg-emerald-50 text-emerald-700' : 'bg-[var(--indice-brand-soft)] text-[var(--indice-brand-action)]'}`}>{request?.status === 'PAID' ? <CheckCircle2 className="h-6 w-6" /> : <CreditCard className="h-6 w-6" />}</span>
           <div><h1 className="text-xl font-medium text-slate-900 dark:text-white">{request?.status === 'PAID' ? t("verified") : protectedIndefinitely ? t("paused") : blocked ? t("required") : t("reviewRequest")}</h1>
             <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{protectedIndefinitely ? paymentRequestProtectionMessage(locale) : blocked
               ? t("pausedAccess")
@@ -94,7 +94,7 @@ export function PaymentRequestRecovery({ snapshot, loading, error, blocked, engl
           {t('onlyOwner', { name: snapshot.owner_name || '' })}
         </p> : null}
         <div className="mt-5 flex flex-wrap gap-3">
-          {canPay ? <button type="button" disabled={Boolean(action) || loading} onClick={() => void run('pay')} className="inline-flex items-center gap-2 rounded-xl bg-[#177D66] px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50">
+          {canPay ? <button type="button" disabled={Boolean(action) || loading} onClick={() => void run('pay')} className="inline-flex items-center gap-2 rounded-xl bg-[var(--indice-brand-action)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--indice-brand-action-hover)] disabled:opacity-50">
             {action === 'pay' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}{t("securePayment")}
           </button> : null}
           <button type="button" disabled={Boolean(action) || loading} onClick={() => void run('refresh')} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium disabled:opacity-50 dark:border-slate-600">

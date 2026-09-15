@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -25,12 +26,15 @@ public class BusinessExchangeRatesController {
     }
 
     @GetMapping("/daily")
-    public ResponseEntity<?> dailyExchangeRates(HttpSession session) {
+    public ResponseEntity<?> dailyExchangeRates(
+        @RequestParam(defaultValue = "false") boolean refresh,
+        HttpSession session
+    ) {
         if (sessionAuthService.currentUser(session).isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of("message", "User is not authenticated"));
         }
 
-        return ResponseEntity.ok(businessExchangeRateService.loadDailyRates());
+        return ResponseEntity.ok(businessExchangeRateService.loadDailyRates(refresh));
     }
 }

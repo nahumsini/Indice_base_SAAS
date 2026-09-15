@@ -226,12 +226,13 @@ test('el header muestra una sola foto de perfil en el acceso de cuenta', () => {
 
 test('el shell conserva header y navegación contextual mientras el contenido se desplaza', () => {
   assert.match(appSource, /flex h-dvh min-h-0 flex-col overflow-hidden/);
-  assert.match(appSource, /<main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">/);
+  assert.match(appSource, /<main className="flex min-h-0 flex-1 overflow-hidden">/);
+  assert.match(appSource, /<section className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">/);
   assert.match(panelInicialHeaderSource, /relative z-30 shrink-0/);
   assert.match(panelInicialSource, /flex h-full min-h-0 flex-col overflow-hidden/);
   assert.match(panelInicialSource, /min-h-0 flex-1 overflow-y-auto overscroll-contain/);
   assert.match(panelInicialHeaderSource, /<FavoritesBar[\s\S]*compact/);
-  assert.match(panelInicialHeaderSource, /nav className="mt-1\.5 overflow-x-auto"/);
+  assert.match(panelInicialHeaderSource, /nav className=\{`mt-1\.5 overflow-x-auto/);
   assert.match(panelInicialHeaderSource, />\s*🏠\s*</);
   assert.match(panelInicialHeaderSource, /activeTab\.emoji/);
   assert.doesNotMatch(panelInicialHeaderSource, /sm:py-6/);

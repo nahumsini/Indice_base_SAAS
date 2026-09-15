@@ -6,6 +6,7 @@ import {
   readLearningModePreferences,
   writeLearningModePreferences,
   type LearningModePreferences,
+  type LearningModeSettings,
 } from '../learningMode/preferences';
 
 type LearningModePreferenceField = 'active' | 'visible' | 'step';
@@ -61,6 +62,21 @@ export function useLearningModePreferences(session: AuthSessionResponse | null |
     (value) => updatePreference('step', value),
     [updatePreference],
   );
+  const saveLearningModeSettings = useCallback((settings: LearningModeSettings) => {
+    setPreferences((current) => {
+      const nextPreferences: LearningModePreferences = {
+        ...current,
+        ...settings,
+      };
+      const storageKey = activeStorageKeyRef.current;
+
+      if (storageKey && typeof window !== 'undefined') {
+        writeLearningModePreferences(window.localStorage, storageKey, nextPreferences);
+      }
+
+      return nextPreferences;
+    });
+  }, []);
 
   return {
     learningModeActive: preferences.active,
@@ -69,5 +85,6 @@ export function useLearningModePreferences(session: AuthSessionResponse | null |
     setLearningModeActive,
     setLearningModeVisible,
     setLearningStep,
+    saveLearningModeSettings,
   };
 }

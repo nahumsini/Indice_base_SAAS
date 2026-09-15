@@ -35,6 +35,8 @@ import { usePaymentRequest } from './Billing/hooks/usePaymentRequest';
 import { PaymentRequestBanner } from './Billing/components/PaymentRequestBanner';
 import { PaymentRequestRecovery } from './Billing/components/PaymentRequestRecovery';
 import { isCollectionBlocked, PAYMENT_REQUEST_OVERDUE } from './Billing/paymentRequestPresentation';
+import { DualWorkspacePane } from './components/workbar/DualWorkspacePane';
+import { useWorkbarLayout } from './components/workbar/WorkbarLayoutContext';
 
 const getNavigationSuccessToast = (state: unknown) => {
   if (!state || typeof state !== 'object' || !('successToast' in state)) {
@@ -422,6 +424,7 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const { t, currentLanguage } = useLanguage();
+  const { isDualScreenActive } = useWorkbarLayout();
   const english = currentLanguage.code.startsWith('en');
   const { pathname, state } = location;
   const { pageId, '*': wildcardPath } = useParams();
@@ -431,9 +434,9 @@ export default function App() {
     learningModeActive,
     learningModeVisible,
     learningStep,
-    setLearningModeActive,
     setLearningModeVisible,
     setLearningStep,
+    saveLearningModeSettings,
   } = useLearningModePreferences(sessionTabAccess);
   const [darkMode, setDarkMode] = useLocalStorageState('indice.app.darkMode', false);
   const [successToastMessage, setSuccessToastMessage] = useState('');
@@ -444,6 +447,7 @@ export default function App() {
   const [loggingOut, setLoggingOut] = useState(false);
   const paymentRequest = usePaymentRequest(sessionTabAccess?.company.id, authorizationRevision);
   const collectionBlocked = isCollectionBlocked(paymentRequest.snapshot, subscriptionInfo?.lock_reason);
+  const isEmbeddedWorkspacePane = typeof window !== 'undefined' && window.self !== window.top;
   const moduleNavigationTimeoutRef = useRef<number | null>(null);
   const moduleNavigationAnimationFrameCleanupRef = useRef<(() => void) | null>(null);
   const moduleNavigationStartedAtRef = useRef(0);
@@ -710,18 +714,6 @@ export default function App() {
     navigate(fallbackTab ? getPagePath(currentPage, fallbackTab) : '/dashboard', { replace: true });
   }, [allowedCurrentTabIds, currentPage, isDeniedTabPage, navigate]);
 
-  const toggleLearningMode = () => {
-    setLearningModeActive((current) => {
-      const next = !current;
-
-      if (next) {
-        setLearningModeVisible(true);
-      }
-
-      return next;
-    });
-  };
-
   const toggleDarkMode = () => {
     setDarkMode((current) => !current);
   };
@@ -796,17 +788,11 @@ export default function App() {
     ) : currentPage === 'kiosk-management' ? (
       <KioskCenter />
     ) : currentPage === 'inventory' ? (
-      <StandaloneModuleShell currentModule={currentPage} onNavigate={handleModuleNavigation}>
-        <Inventarios learningModeActive={learningModeActive} />
-      </StandaloneModuleShell>
+      <Inventarios learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'material-warehouse' ? (
-      <StandaloneModuleShell currentModule={currentPage} onNavigate={handleModuleNavigation}>
-        <MaterialWarehouse />
-      </StandaloneModuleShell>
+      <MaterialWarehouse onNavigate={handleModuleNavigation} />
     ) : currentPage === 'production' ? (
-      <StandaloneModuleShell currentModule={currentPage} onNavigate={handleModuleNavigation}>
-        <Production />
-      </StandaloneModuleShell>
+      <Production onNavigate={handleModuleNavigation} />
     ) : currentPage === 'work-climate' ? (
       <StandaloneModuleShell currentModule={currentPage} onNavigate={handleModuleNavigation}>
         <ClimaLaboral learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
@@ -840,19 +826,23 @@ export default function App() {
       onManageBilling={() => navigate('/billing')}
     />
   ) : pageContent;
+  const showDualWorkspace = isDualScreenActive
+    && !isEmbeddedWorkspacePane
+    && !collectionBlocked
+    && !isBillingPage;
 
   return (
     <div
       translate="no"
       className={`notranslate flex h-dvh min-h-0 flex-col overflow-hidden ${darkMode ? 'dark bg-gray-900' : 'bg-gray-50'}`}
     >
-      {!collectionBlocked ? <ProductAnalyticsTracker
+      {!isEmbeddedWorkspacePane && !collectionBlocked ? <ProductAnalyticsTracker
         userId={sessionTabAccess?.user.id}
         routeKey={currentPage}
         sectionKey={requestedTabId}
         locale={sessionTabAccess ? document.documentElement.lang : undefined}
       /> : null}
-      <div className="shrink-0">
+      {!isEmbeddedWorkspacePane ? <div className="shrink-0">
         {collectionBlocked ? (
           <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-900">
             <span className="truncate text-sm font-medium">Índice · {sessionTabAccess?.company.name}</span>
@@ -864,29 +854,34 @@ export default function App() {
           </div>
         ) : <Header
           learningModeActive={learningModeActive}
-          onToggleLearningMode={toggleLearningMode}
+          learningModeVisible={learningModeVisible}
+          learningStep={learningStep}
+          onSaveLearningModeSettings={saveLearningModeSettings}
           darkMode={darkMode}
           onToggleDarkMode={toggleDarkMode}
         />}
-      </div>
-      {!collectionBlocked && !isBillingPage ? <PaymentRequestBanner snapshot={paymentRequest.snapshot} english={english} onPay={() => navigate('/billing')} /> : null}
+      </div> : null}
+      {!isEmbeddedWorkspacePane && !collectionBlocked && !isBillingPage ? <PaymentRequestBanner snapshot={paymentRequest.snapshot} english={english} onPay={() => navigate('/billing')} /> : null}
       <LocalizedLoadingBarOverlay
         isVisible={isModuleNavigationLoading}
         variant="moduleNavigation"
         className="z-[160]"
       />
-      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <Suspense
-          fallback={(
-            <LocalizedLoadingBarOverlay
-              isVisible
-              variant="moduleDownload"
-              className="z-[150]"
-            />
-          )}
-        >
-          {renderedPageContent}
-        </Suspense>
+      <main className="flex min-h-0 flex-1 overflow-hidden">
+        <section className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
+          <Suspense
+            fallback={(
+              <LocalizedLoadingBarOverlay
+                isVisible
+                variant="moduleDownload"
+                className="z-[150]"
+              />
+            )}
+          >
+            {renderedPageContent}
+          </Suspense>
+        </section>
+        {showDualWorkspace ? <DualWorkspacePane /> : null}
       </main>
       <SuccessToast
         isVisible={Boolean(successToastMessage)}

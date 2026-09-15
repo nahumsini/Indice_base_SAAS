@@ -707,42 +707,28 @@ Do not invent random shades per screen.
 
 The product-wide brand hierarchy is distinct from the module color system.
 
-Indice uses aqua as its primary distinctive brand color and blue as its
-structural, analytical, and institutional color. They are not interchangeable
-defaults.
+Indice uses blue as its primary product signature. Aqua remains an approved
+supporting accent and the stable identity color of Human Resources. Global
+product chrome must not take ownership of a module color.
 
-#### Primary brand signature
+#### Primary product signature
 
-- Indice aqua: `#59C3A5`
-- Indice aqua hover for dark text contexts: `#3AAE90`
-- Accessible dark aqua action: `#177D66`
-- Accessible dark aqua action hover: `#126553`
-
-Use aqua to create product recognition in:
-
-- global brand surfaces
-- welcoming and educational experiences
-- brand-level navigation cues
-- selected brand states that are not owned by a module
-- illustrations and identity details
-- soft backgrounds, borders, and low-emphasis highlights
-
-Aqua should make Indice recognizable without filling every surface. Prefer
-white, graphite, and neutral backgrounds for the majority of the interface.
-
-Do not place white text on `#59C3A5` or `#3AAE90`. These combinations do not
-provide sufficient contrast for normal text. Use graphite `#222831` on the
-light aqua tones, or use dark aqua `#177D66` with white text for primary
-actions.
-
-#### Structural and analytical color
-
-- Indice blue: `#2563EB`
-- Indice blue hover: `#1D4ED8`
+- Indice product blue: `#2563EB`
+- Indice product blue hover: `#1D4ED8`
+- Indice product blue pressed: `#1E40AF`
 - Indice deep blue: `#143675`
+- Dashboard module blue: `#2563EB`, sharing the canonical blue while retaining
+  ownership through module context and composition
+- Indice soft blue: `#EFF6FF`
+- Indice soft blue strong: `#DBEAFE`
+- Indice blue border: `#BFDBFE`
 
 Use blue for:
 
+- global authenticated top bar and account navigation, using Indice blue
+  `#2563EB` with soft-white `#F8FAFC` foreground content
+- product-level notifications, preferences, configuration, and currency tools
+- authentication and other institutional product surfaces
 - Dashboard module identity
 - analytical and data-oriented interfaces
 - charts and executive reporting
@@ -750,8 +736,20 @@ Use blue for:
 - institutional authority and high-trust communication
 - deep-blue editorial covers and formal brand surfaces
 
-Blue supports the Indice brand but must not replace aqua as the product's
-distinctive signature.
+Prefer white, graphite, and neutral backgrounds for the majority of the
+interface. Use solid blue selectively for decisive product headers and actions;
+soft-white text on `#2563EB` meets normal-text contrast requirements.
+
+#### Supporting aqua accent
+
+- Indice aqua: `#59C3A5`
+- Indice aqua hover: `#3AAE90`
+
+Use aqua for the Human Resources module identity and for deliberately approved
+supporting illustrations or details. Do not use aqua as the default for global
+navigation, account menus, system configuration, or product-level selection.
+Do not place white text on `#59C3A5` or `#3AAE90`; use graphite `#222831` when
+an approved light-aqua surface requires text.
 
 #### Supporting brand accents
 
@@ -766,14 +764,28 @@ When selecting a color, apply this order:
 
 1. Use the client identity for customer-facing or white-label content.
 2. Use the approved module color when the element belongs to a module.
-3. Use aqua when the element represents Indice at the product or brand level.
-4. Use blue when the element represents analytics, technology, functional
-   navigation, or institutional authority.
+3. Use Indice blue when the element represents the product, global navigation,
+   system configuration, analytics, technology, or institutional authority.
+4. Use aqua only for Human Resources or an explicitly approved supporting
+   brand detail.
 5. Use semantic colors only for real status, risk, warning, success, or error.
 
-Do not change the global `primary` token from blue to aqua without auditing
-buttons, focus states, selected states, dark mode, and text contrast. Brand
-migration must be intentional and component-specific.
+Do not replace aqua globally: module identity, semantic meaning, dark mode, and
+text contrast must be audited component by component. The generic `primary`
+token is not a substitute for the explicit Indice brand tokens because shared
+theme behavior may redefine it by color mode.
+
+Shared UI compatibility aliases such as `--primary`, `--ring`, and
+`--sidebar-primary` must resolve to the explicit Indice blue tokens in both
+light and dark mode. They provide the product-level fallback only; a
+module-owned control still applies its approved module tone through its typed
+presentation contract or local composition.
+
+Authentication, invitation, authorization, and other institutional entry
+surfaces use the explicit Indice blue tokens for their primary panels, actions,
+focus, and selected states. A deliberate multicolor ecosystem band or product
+illustration may retain the approved module accents when it represents the
+catalog rather than a global action.
 
 ### 8.2 Indice Product Typography System
 
@@ -962,6 +974,82 @@ Receivables
 Manage credit sales, accounts receivable, payments, and customer credit policies.
 ```
 
+### 9.1 Configurable Workbar Position
+
+The authenticated Indice shell supports a personal presentation preference for
+the white module workbar. The approved positions are:
+
+- `top`: the default horizontal composition
+- `left`: a desktop sidebar containing module identity, favorites, and module tabs
+
+The blue global product header always remains at the top. Currency,
+notifications, language, learning mode, and account controls must not move into
+the module sidebar. Moving the workbar must not change routes, permissions,
+module behavior, tab availability, or business state.
+
+`IndiceModuleShell` and the Dashboard header are the canonical consumers.
+Modules that have not adopted a canonical shell keep the top composition until
+they are migrated deliberately; kiosk, terminal, billing-recovery, public, and
+fullscreen workspaces retain their specialized layout contracts.
+
+Responsive and visual rules:
+
+- `left` becomes active at the `lg` breakpoint; smaller screens render `top`
+  automatically without changing the saved preference
+- the sidebar uses a neutral surface, compact spacing, an independent vertical
+  scroll area, and a stable width of `18rem`
+- favorites retain the owning color of every destination
+- the active module tab retains the owning module tone through a soft surface
+  and a visible leading accent
+- dark mode, long localized labels, keyboard focus, and 44px touch targets must
+  remain operable
+
+The entry point is `Configure workbar` in the authenticated account menu. It
+opens a blue product-level Standard Form Modal with preview cards for `top` and
+`left`; Cancel has no effect and Apply updates the current shell without a page
+reload.
+
+This preference is scoped to the authenticated company and user. Persist it
+through the existing workspace-state contract with `moduleKey=system` and
+`tabKey=workbar-layout`, and keep the same scoped local envelope as the offline
+cache. Validate restored values against the closed `top | left` enum. This is a
+presentation preference only and never grants authority.
+
+### 9.2 Dual Workspace Mode
+
+The authenticated desktop shell may present two independent Indice workspaces
+inside the same browser window. Users enable this mode from the Configure
+workbar modal. It is available from `1280px` upward and opens the secondary
+workspace on Dashboard so the user explicitly chooses its module and tab.
+
+Runtime and security rules:
+
+- keep one blue global product header owned by the primary shell
+- render the two workspaces at equal width, with independent scrolling and
+  navigation histories
+- isolate the secondary route context in a fixed same-origin frame; never
+  accept an arbitrary or externally supplied frame URL
+- reuse the authenticated browser session without copying credentials; every
+  API call remains subject to the normal backend authentication, tenant,
+  entitlement, and permission checks
+- the deployment frame policy must remain same-origin (`SAMEORIGIN` and
+  `frame-ancestors 'self'`)
+- an embedded workspace must not render another global header, payment banner,
+  product analytics tracker, or recursive dual workspace; it also must not
+  compete with the primary shell for persistence of the workbar preference
+- collection-blocked and billing-recovery flows remain single-workspace
+
+While dual workspace is active, canonical module shells use their horizontal
+workbar even if the user's saved workbar position is `left`. This temporary
+adaptation does not overwrite the preference, and closing dual workspace
+restores the selected workbar position.
+
+The modal may enable dual workspace but must not disable it. Once active, the
+only product control that closes the mode is the visible `Close dual screen`
+button in the secondary workspace toolbar. Closing updates the same scoped
+workspace-state preference used by the workbar. The toolbar and frame require
+localized accessible names, visible keyboard focus, and a loading state.
+
 ---
 
 ## 10. Tab Standard
@@ -1025,7 +1113,19 @@ If the views are peers, use `sections`. A workflow navigator is not a modal
 wizard and must not introduce Next/Back requirements unless the business flow
 itself requires validation before advancing.
 
-### 10.2 Tab And Workspace Memory Standard
+### 10.2 Administrative Workspace Header
+
+Authenticated global workspaces use `IndiceAdminWorkspaceHeader` when they need a persistent local
+identity above sibling sections. It standardizes the back action, blue Índice identity, title,
+subtitle, optional status/actions and the slot for `IndiceWorkspaceNavigation`.
+
+The component owns presentation only. Each consumer continues deciding its destination, permission,
+status and available navigation items. The containing page owns sticky positioning so embedded or
+dual-workspace contexts can disable persistence without creating another header engine. Kiosk Center
+and `Plan, people and payments` are the reference implementations: both use the same compact anatomy,
+while their domain content, actions and authorization remain independent.
+
+### 10.3 Tab And Workspace Memory Standard
 
 Moving between module tabs must not erase a user's safe operating context. Use one shared memory
 contract instead of adding unrelated `localStorage` or `sessionStorage` effects inside each view.
@@ -1290,7 +1390,7 @@ Use the shared `IndiceFilterDisclosureActions` and `IndiceFilterAdvancedSection`
 primitives for this pattern. The owning module retains filter values, defaults, option derivation,
 and business behavior.
 
-Recoverable list and analytics filters follow the tab-memory contract in Section 10.2. Do not add
+Recoverable list and analytics filters follow the tab-memory contract in Section 10.3. Do not add
 ad hoc browser-storage effects for new views. Remember filter values, not the open state of `More
 filters`; restored active secondary values reveal that section automatically.
 
@@ -1376,7 +1476,7 @@ active view has no monetary fields and do not duplicate it inside module title b
 
 Rules:
 
-- changing the preferred currency immediately updates monetary KPIs, financial summaries,
+- saving a preferred-currency change immediately updates monetary KPIs, financial summaries,
   selected-row totals and table footers across modules
 - convert every native amount to the preferred currency before summing
 - never sum raw values from different currencies
@@ -1388,11 +1488,19 @@ Rules:
   payment methods on one converted basis, and then show a separately labeled total in the
   preferred currency; follow Section 6.2 of `KPI_TAB_STANDARD.md`
 - missing or stale exchange-rate information must produce a visible warning state
-- the control and its exchange-rate popover use USD as the exchange-rate base
+- the compact header control opens the shared blue Standard Form Modal; the modal uses USD as
+  the exchange-rate base
+- preferred-currency and rate edits remain in modal draft state until the user saves; closing or
+  cancelling the modal does not alter the active configuration
+- the daily-refresh action refreshes the modal draft and may replace the current-day server cache,
+  but does not change the user's active preference until save
+- manual rate editing uses progressive disclosure and stays secondary to the daily reference
+- every applied source shows its institution, dataset, observation date, verification status and
+  a link to its published source; missing or stale data keeps a visible warning
 - the user preference persists across navigation and sessions
 
 The global control may be visually compact on non-financial views, but it remains visible
-and opens the same currency and exchange-rate experience everywhere.
+and opens the same currency and exchange-rate modal everywhere.
 
 ---
 
@@ -1891,6 +1999,27 @@ Required fields must be clear.
 Use clear section titles.
 
 Avoid visual noise.
+
+### Notification Center Workspace
+
+The global notification center is an Operational Workspace Modal with the blue Indice product
+identity. It preserves notification ownership and actions while presenting them as a compact,
+prioritized inbox.
+
+Rules:
+
+- use the shared `IndiceModalFrame`; do not maintain a separate overlay, header or footer shell
+- keep Inbox and Settings as one sticky segmented switch inside the workspace
+- show total, unread, urgent and actionable counts in one compact summary rail; only urgent work
+  receives a prominent shortcut
+- keep search and status visible while module and priority filters use progressive disclosure
+- group visible notifications by Today, Yesterday and Earlier without changing their source order
+- distinguish unread items with the Indice blue indicator and a restrained soft surface
+- keep the whole notification row openable; expose Open and Mark read directly, while Dismiss stays
+  in an overflow menu
+- secondary row actions may appear on hover for pointer devices but must remain visible on touch,
+  keyboard focus and narrow screens
+- use skeleton rows during refresh and retain explicit error and empty states
 
 ---
 
@@ -2951,6 +3080,16 @@ Point of Sale does not render the companion inside its transactional `Sale` tab.
 `Panel Inicial` remains part of the Dashboard learning journey but does not render an internal learning guide. The Dashboard keeps its approved six-section structure while its learning presentation follows the same compact, colorful, instructional language.
 
 The detailed state, content, exception, responsive, and migration rules live in `docs/learning-mode-frontend-engine-v2.md`, section 29. That specialized contract controls module learning within the repository-wide accessibility, localization, permission, and behavior-preservation rules in this document.
+
+### 28.2 Global learning settings
+
+The graduation-cap action in the global header opens the shared blue standard-form modal for `Modo aprendiz`; it is not a direct toggle. The modal provides one explicit save boundary for the existing global state:
+
+- enable or disable contextual guidance across compatible modules;
+- show or hide the six-stage journey on `Panel Inicial` independently from the global mode;
+- review the current journey stage and reset it to the first stage without deleting the selected business case.
+
+Opening or cancelling the modal must not change stored preferences. Saving updates the user-and-company-scoped browser preference atomically. Turning the mode off restores the normal operational UI without deleting journey progress or the selected business case. The header keeps a visible active treatment when guidance is enabled, while the action retains dialog semantics instead of toggle-button semantics.
 
 ---
 

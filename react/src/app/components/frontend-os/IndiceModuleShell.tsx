@@ -1,4 +1,4 @@
-import { useRef, type ReactNode, type Ref } from 'react';
+import { useRef, type CSSProperties, type ReactNode, type Ref } from 'react';
 import { ChevronDown, MoreHorizontal } from 'lucide-react';
 import { FavoritesBar } from '../FavoritesBar';
 import {
@@ -13,6 +13,7 @@ import { canAccessModuleTab } from '../../access/tabScopeCatalog';
 import { resolvePageId, type PageId } from '../../config/navigation';
 import { useAuthorizationRevision } from '../../hooks/useAuthorizationRevision';
 import { IndiceHorizontalScrollControls } from '../ui/horizontal-scroll-controls';
+import { useWorkbarLayout } from '../workbar/WorkbarLayoutContext';
 
 const MODULE_EMOJI_BY_ROUTE: Record<string, string> = {
   'human-resources': '👥',
@@ -78,6 +79,8 @@ export function IndiceModuleShell<TabId extends string>({
   tone,
 }: IndiceModuleShellProps<TabId>) {
   useAuthorizationRevision();
+  const { isDualScreenActive, position: workbarPosition } = useWorkbarLayout();
+  const isSideLayout = workbarPosition === 'left' && !isDualScreenActive;
   const theme = MODULE_COLORS[tone];
   const activeTextColor = getModulePrimaryForeground(tone);
   const resolvedPage = resolvePageId(currentModule);
@@ -97,21 +100,23 @@ export function IndiceModuleShell<TabId extends string>({
 
   return (
     <div
-      className="flex h-full min-h-0 flex-col overflow-hidden bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-white"
+      className={`flex h-full min-h-0 flex-col overflow-hidden bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-white ${isSideLayout ? 'lg:flex-row' : ''}`}
       data-module={currentModule}
+      data-workbar-position={isSideLayout ? 'left' : 'top'}
+      style={{ '--indice-workbar-tone': theme.primary } as CSSProperties}
     >
       {loadingOverlay}
-      <header className="relative z-30 shrink-0 border-b border-slate-200 bg-white px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:px-8">
-        <div className="mx-auto max-w-[1600px]">
-          <div className="flex items-center gap-3">
-            <div className="flex min-w-0 flex-1 items-center gap-2.5 md:max-w-[420px] md:flex-none">
+      <header className={`indice-workbar relative z-30 shrink-0 border-b border-slate-200 bg-white px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:px-8 ${isSideLayout ? 'indice-workbar--left lg:h-full lg:w-72 lg:overflow-y-auto lg:border-r lg:border-b-0 lg:px-4 lg:py-5' : ''}`}>
+        <div className={`mx-auto max-w-[1600px] ${isSideLayout ? 'lg:w-full' : ''}`}>
+          <div className={`flex items-center gap-3 ${isSideLayout ? 'lg:flex-col lg:items-stretch' : ''}`}>
+            <div className={`flex min-w-0 flex-1 items-center gap-2.5 md:max-w-[420px] md:flex-none ${isSideLayout ? 'lg:max-w-none lg:items-start' : ''}`}>
               <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-lg ring-1 ${theme.lightBg} ${theme.darkBg} ${theme.border} ${theme.darkBorder}`} aria-hidden="true">
                 {moduleEmoji}
               </span>
               <div className="min-w-0">
-                <div className="flex min-w-0 items-center gap-1.5 text-lg font-medium leading-tight text-slate-950 dark:text-white sm:text-xl">
+                <div className={`flex min-w-0 items-center gap-1.5 text-lg font-medium leading-tight text-slate-950 dark:text-white sm:text-xl ${isSideLayout ? 'lg:flex-col lg:items-start lg:gap-1' : ''}`}>
                   <span className="shrink-0">{title}</span>
-                  {activeTabData ? <span className="text-slate-300 dark:text-slate-600">/</span> : null}
+                  {activeTabData ? <span className={`text-slate-300 dark:text-slate-600 ${isSideLayout ? 'lg:hidden' : ''}`}>/</span> : null}
                   {activeTabData ? (
                     <span className={`flex min-w-0 items-center gap-1 ${theme.text} ${theme.darkText}`}>
                       <span className="shrink-0 text-base" aria-hidden="true">{activeTabData.icon}</span>
@@ -124,9 +129,10 @@ export function IndiceModuleShell<TabId extends string>({
             </div>
 
             {onNavigate ? (
-              <div className="hidden min-w-0 flex-1 border-l border-slate-200 pl-3 dark:border-slate-700 md:block">
+              <div className={`hidden min-w-0 flex-1 border-l border-slate-200 pl-3 dark:border-slate-700 md:block ${isSideLayout ? 'lg:w-full lg:border-l-0 lg:pl-0' : ''}`}>
             <FavoritesBar
               compact
+              orientation={isSideLayout ? 'desktop-vertical' : 'horizontal'}
               currentModule={currentModule}
               onNavigate={(page) => {
                 if (page !== currentModule) onNavigate(page);
@@ -144,9 +150,9 @@ export function IndiceModuleShell<TabId extends string>({
             </div>
           ) : null}
 
-          <div className="relative">
-            <nav ref={tabsScrollRef} aria-label={title} className="mt-1.5 overflow-x-auto [scrollbar-width:none]">
-              <div className="flex min-w-max items-center gap-1.5 pb-0.5">
+          <div className={`relative ${isSideLayout ? 'lg:mt-4 lg:border-t lg:border-slate-200 lg:pt-3 dark:lg:border-slate-700' : ''}`}>
+            <nav ref={tabsScrollRef} aria-label={title} className={`mt-1.5 overflow-x-auto [scrollbar-width:none] ${isSideLayout ? 'lg:overflow-visible' : ''}`}>
+              <div className={`flex min-w-max items-center gap-1.5 pb-0.5 ${isSideLayout ? 'lg:min-w-0 lg:flex-col lg:items-stretch lg:gap-1' : ''}`}>
                 {visibleTabs.map(tab => {
                   const isActive = activeTab === tab.id;
                   return (
@@ -155,7 +161,7 @@ export function IndiceModuleShell<TabId extends string>({
                       type="button"
                       aria-current={isActive ? 'page' : undefined}
                       onClick={() => onTabChange(tab.id)}
-                      className={`flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 sm:text-sm ${
+                      className={`indice-workbar-tab flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 sm:text-sm ${isSideLayout ? 'lg:min-h-11 lg:w-full lg:justify-start lg:rounded-xl lg:border-l-[3px] lg:px-3 lg:py-2' : ''} ${
                         isActive
                           ? 'border-transparent shadow-md'
                           : `border-transparent bg-slate-100 text-slate-600 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white ${theme.iconHover}`
@@ -177,7 +183,7 @@ export function IndiceModuleShell<TabId extends string>({
                       <button
                         type="button"
                         aria-current={isMoreActive ? 'page' : undefined}
-                        className={`flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 sm:text-sm ${
+                        className={`indice-workbar-tab flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 sm:text-sm ${isSideLayout ? 'lg:min-h-11 lg:w-full lg:justify-start lg:rounded-xl lg:border-l-[3px] lg:px-3 lg:py-2' : ''} ${
                           isMoreActive
                             ? 'border-transparent shadow-md'
                             : `border-transparent bg-slate-100 text-slate-600 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white ${theme.iconHover}`
@@ -219,7 +225,7 @@ export function IndiceModuleShell<TabId extends string>({
                 ) : null}
               </div>
             </nav>
-            <IndiceHorizontalScrollControls scrollRef={tabsScrollRef} />
+            <IndiceHorizontalScrollControls scrollRef={tabsScrollRef} className={isSideLayout ? 'lg:hidden' : undefined} />
           </div>
 
         </div>

@@ -1,5 +1,6 @@
 package com.indice.erp.processTasks.processes;
 
+import java.sql.Date;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,6 +12,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -32,7 +34,13 @@ class ProcessMaterializationJobTest {
     @Test
     @SuppressWarnings({"rawtypes", "unchecked"})
     void oneInvalidProcessDoesNotBlockTheRemainingCandidates() {
-        given(jdbcTemplate.query(anyString(), any(RowMapper.class), any())).willReturn(List.of(
+        given(jdbcTemplate.query(
+                anyString(),
+                any(RowMapper.class),
+                any(Date.class),
+                any(Date.class),
+                any(Date.class),
+                anyInt())).willReturn(List.of(
             new ProcessMaterializationJob.ProcessMaterializationCandidate(20L, 142L),
             new ProcessMaterializationJob.ProcessMaterializationCandidate(21L, 143L)
         ));
@@ -48,7 +56,13 @@ class ProcessMaterializationJobTest {
     @Test
     @SuppressWarnings({"rawtypes", "unchecked"})
     void unexpectedFailureAlsoLeavesLaterCandidatesRunnable() {
-        given(jdbcTemplate.query(anyString(), any(RowMapper.class), any())).willReturn(List.of(
+        given(jdbcTemplate.query(
+                anyString(),
+                any(RowMapper.class),
+                any(Date.class),
+                any(Date.class),
+                any(Date.class),
+                anyInt())).willReturn(List.of(
             new ProcessMaterializationJob.ProcessMaterializationCandidate(20L, 142L),
             new ProcessMaterializationJob.ProcessMaterializationCandidate(21L, 143L)
         ));

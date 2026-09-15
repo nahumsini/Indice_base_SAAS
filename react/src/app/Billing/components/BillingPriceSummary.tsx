@@ -21,11 +21,12 @@ export function BillingPriceSummary({ copy, visible, draft, languageCode }: Prop
   return (
     <section className="border-t border-slate-200 p-4 dark:border-slate-800">
       <div className="flex items-center gap-3">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-[#2563EB] dark:bg-blue-950/50 dark:text-blue-200">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--indice-brand-soft)] text-[var(--indice-brand-action)] dark:bg-blue-950/50 dark:text-blue-200">
           <ReceiptText className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-slate-500 dark:text-slate-400">{copy.estimate}</p>
+          <p className="text-xs font-medium text-[var(--indice-brand-action)] dark:text-blue-300">{copy.priceDetail}</p>
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{copy.estimate}</p>
           <div className="mt-0.5 flex items-baseline justify-between gap-2">
             <p className="text-2xl font-semibold text-slate-950 dark:text-white">{formatBillingMoney(visible.estimated_amount_cents, visible.currency, languageCode)}</p>
             <p className="text-xs text-slate-500 dark:text-slate-400">/{draft.billingInterval === 'YEAR' ? copy.annual.toLowerCase() : copy.monthly.toLowerCase()}</p>
@@ -38,7 +39,7 @@ export function BillingPriceSummary({ copy, visible, draft, languageCode }: Prop
         <div className="flex justify-between gap-3"><dt>{copy.usersSubtotal}</dt><dd className="font-medium text-slate-900 dark:text-white">{formatBillingMoney(visible.extra_seat_unit_amount_cents * visible.extra_seats, visible.currency, languageCode)}</dd></div>
       </dl>
       <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">{copy.taxes}</p>
-      <div className="mt-3 flex gap-2 rounded-lg bg-blue-50 px-3 py-2.5 text-xs leading-5 text-[#143675] dark:bg-blue-950/40 dark:text-blue-200">
+      <div className="mt-3 flex gap-2 rounded-xl border border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] px-3 py-2.5 text-xs leading-5 text-[var(--indice-brand-text)] dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
         <CalendarClock className="mt-0.5 h-4 w-4 shrink-0" />
         <span>
           {timing}

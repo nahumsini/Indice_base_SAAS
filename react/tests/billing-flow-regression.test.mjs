@@ -11,6 +11,9 @@ const panel = read("src/app/Billing/components/BillingConfigurationPanel.tsx");
 const userControl = read("src/app/Billing/components/BillingUserControl.tsx");
 const priceSummary = read("src/app/Billing/components/BillingPriceSummary.tsx");
 const overview = read("src/app/Billing/components/BillingOverviewBar.tsx");
+const decisionGuide = read("src/app/Billing/components/BillingDecisionGuide.tsx");
+const hero = read("src/app/Billing/components/BillingHero.tsx");
+const adminWorkspaceHeader = read("src/app/components/frontend-os/IndiceAdminWorkspaceHeader.tsx");
 const modules = read("src/app/Billing/components/ModuleSelectionPanel.tsx");
 const productCard = read("src/app/Billing/components/BillingProductCard.tsx");
 const actionDock = read("src/app/Billing/components/BillingActionDock.tsx");
@@ -29,6 +32,21 @@ test("billing es una pantalla real del ERP y no una ruta paralela", () => {
   assert.match(app, /<SubscriptionManagementPage/);
   assert.match(header, /navigate\(['"]\/billing['"]\)/);
   assert.match(page, /BillingHero/);
+});
+
+test("el administrador de cuenta conserva contexto y hace navegables sus tres decisiones", () => {
+  assert.match(page, /data-billing-sticky-header/);
+  assert.match(page, /sticky top-0 z-30/);
+  assert.match(page, /BillingDecisionGuide/);
+  assert.match(hero, /IndiceAdminWorkspaceHeader/);
+  assert.match(adminWorkspaceHeader, /data-indice-admin-workspace-header/);
+  assert.match(decisionGuide, /copy\.configurationGuide/);
+  assert.match(decisionGuide, /IndiceWorkspaceNavigation/);
+  assert.match(decisionGuide, /tone="blue"/);
+  assert.match(decisionGuide, /scrollIntoView/);
+  assert.match(modules, /id="billing-plan"/);
+  assert.match(userControl, /id="billing-people"/);
+  assert.match(payment, /id="billing-payment"/);
 });
 
 test("la consulta delegada limpia el contexto y vuelve al portal de origen", () => {

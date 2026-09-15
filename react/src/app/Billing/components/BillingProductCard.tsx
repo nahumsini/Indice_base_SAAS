@@ -45,19 +45,19 @@ export function BillingProductCard(props: Props) {
       title={props.overlaps ? props.copy.includedElsewhere : undefined}
       onClick={props.onToggle}
       className={`group relative min-h-32 overflow-hidden rounded-xl border p-3.5 text-left outline-none transition duration-200 focus-visible:ring-2 focus-visible:ring-[#2563EB]/40 ${props.selected
-        ? 'border-[#59C3A5] bg-[#59C3A5]/[0.07] shadow-[0_8px_24px_rgba(23,125,102,0.08)] dark:border-[#59C3A5]/60 dark:bg-[#59C3A5]/10'
-        : 'border-slate-200 bg-white hover:-translate-y-0.5 hover:border-[#59C3A5]/60 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:hover:border-[#59C3A5]/40'} disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0`}
+        ? 'border-[var(--indice-brand-action)] bg-[var(--indice-brand-soft)] shadow-[0_10px_28px_rgba(37,99,235,0.12)] ring-1 ring-[var(--indice-brand-action)]/15 dark:border-blue-600 dark:bg-blue-950/30'
+        : 'border-slate-200 bg-white hover:-translate-y-0.5 hover:border-[var(--indice-brand-action)]/45 hover:shadow-[0_10px_26px_rgba(37,99,235,0.09)] dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-700'} disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0`}
     >
-      <span className={`absolute inset-y-0 left-0 w-1 transition-colors ${props.selected ? 'bg-[#59C3A5]' : 'bg-transparent'}`} />
+      <span className={`absolute inset-y-0 left-0 w-1 transition-colors ${props.selected ? 'bg-[var(--indice-brand-action)]' : 'bg-transparent'}`} />
       <div className="flex items-start justify-between gap-3">
         <span className={`grid h-10 w-10 place-items-center rounded-xl transition-colors ${props.selected
-          ? 'bg-white text-[#177D66] ring-1 ring-[#59C3A5]/20 dark:bg-slate-900 dark:text-[#8FE0CA]'
+          ? 'bg-white text-[var(--indice-brand-action)] ring-1 ring-[var(--indice-brand-action)]/20 dark:bg-slate-900 dark:text-blue-300'
           : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'}`}
         >
           <Icon className="h-5 w-5" />
         </span>
         <span className={`grid h-6 w-6 place-items-center rounded-full border transition-colors ${props.selected
-          ? 'border-[#177D66] bg-[#177D66] text-white'
+          ? 'border-[var(--indice-brand-action)] bg-[var(--indice-brand-action)] text-white'
           : 'border-slate-300 text-transparent dark:border-slate-600'}`}
         >
           <Check className="h-3.5 w-3.5" />

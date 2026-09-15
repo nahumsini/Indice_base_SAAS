@@ -31,7 +31,7 @@ const moduleIdentities = {
   maintenance: { emoji: '🔧', iconClasses: 'border-slate-300 bg-slate-100 dark:border-slate-600 dark:bg-slate-800' },
   invoicing: { emoji: '🧾', iconClasses: 'border-slate-300 bg-slate-100 dark:border-slate-600 dark:bg-slate-800' },
   workClimate: { emoji: '🌡️', iconClasses: 'border-slate-300 bg-slate-100 dark:border-slate-600 dark:bg-slate-800' },
-  system: { emoji: '💱', iconClasses: 'border-[#59C3A5]/35 bg-[#E7F3F2] dark:border-[#59C3A5]/35 dark:bg-[#59C3A5]/15' },
+  system: { emoji: '💱', iconClasses: 'border-[var(--indice-brand-primary)]/30 bg-[var(--indice-brand-soft)] dark:border-[var(--indice-brand-primary)]/35 dark:bg-[var(--indice-brand-primary)]/15' },
 } satisfies Record<string, KpiModuleIdentity>;
 
 const kpiModuleIdentity: Record<string, KpiModuleIdentity> = {
@@ -57,7 +57,7 @@ const kpiModuleIdentity: Record<string, KpiModuleIdentity> = {
 export function KPICard({ kpiId, title, value, change, isPositive, tone, trend }: KPICardProps) {
   const resolvedTone = tone ?? (isPositive ? 'positive' : 'negative');
   const badgeClasses = resolvedTone === 'neutral'
-    ? 'border-[#59C3A5]/35 bg-[#E7F3F2] text-[#257B68] dark:border-[#59C3A5]/35 dark:bg-[#59C3A5]/10 dark:text-[#8FE0CA]'
+    ? 'border-[var(--indice-brand-primary)]/30 bg-[var(--indice-brand-soft)] text-[var(--indice-brand-text)] dark:border-[var(--indice-brand-primary)]/35 dark:bg-[var(--indice-brand-primary)]/10 dark:text-[var(--indice-brand-text-dark)]'
     : resolvedTone === 'positive'
       ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
       : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300';
