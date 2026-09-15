@@ -228,6 +228,9 @@ Budget Control) completes the protected synchronization request before loading e
 Unresolved legacy data or generation failures remain visible; existing expenses still load on a
 failure. Payables use the existing Abonar/Pagar actions, while the budget line stays a planning row.
 An unpaid budget payable becomes overdue only after its due date, including a partially paid balance.
+When a payment already exists, the visible row status remains **Pago parcial**; **Vencido** is a
+secondary risk signal for the outstanding balance and continues to participate in overdue filters,
+alerts and totals. This presentation rule applies equally to budget-generated and ordinary payables.
 Calendar dates preserve their selected month across timezones; monthly recurrences clamp dates such
 as January 31 to February's last day and restore the original day in March.
 

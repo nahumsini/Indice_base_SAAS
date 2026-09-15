@@ -164,9 +164,7 @@ export const toExpense = (
   const customFields = asObject(expense.customFields);
   const providerId = expense.providerId ? String(expense.providerId) : asString(customFields.providerId, undefined);
   const attachments = asStringArray(customFields.attachments);
-  const status = expense.budgetLineId && expense.paymentStatus === 'OVERDUE'
-    && !['PAID', 'CLOSED', 'CANCELLED', 'REJECTED'].includes(expense.status)
-    ? 'overdue' : canonicalToLegacyStatus(expense.status, expense.paymentStatus, customFields);
+  const status = canonicalToLegacyStatus(expense.status, expense.paymentStatus, customFields);
   const amountPaid = asNumber(expense.paidAmount, asNumber(customFields.amountPaid));
   const paymentDate = expense.paymentDate ?? asString(customFields.paymentDate, undefined);
   const expenseDate = parseExpenseDate(expense.expenseDate);
