@@ -51,7 +51,7 @@ export function IndiceAdminWorkspaceHeader({
           </span>
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-2">
-              <h1 className="truncate text-base font-semibold text-slate-950 dark:text-white sm:text-lg">{title}</h1>
+              <h1 className="truncate text-base font-medium text-slate-950 dark:text-white sm:text-lg">{title}</h1>
               <span className="hidden items-center gap-1.5 sm:inline-flex" aria-hidden="true">
                 <span className="h-1.5 w-1.5 rounded-full bg-blue-200" />
                 <span className="h-1.5 w-1.5 rounded-full bg-blue-300" />
