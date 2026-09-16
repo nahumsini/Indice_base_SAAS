@@ -15,8 +15,10 @@ design system.
 Presentation decision, 2026-09-15: the approved Human Resources internal-view
 layout is the required reference for new or reorganized KPI / Indicators tabs
 in basic modules. It is implemented in Human Resources; adoption and verification
-in other modules remain pending. This approval covers information organization,
-not validation or replacement of a module's existing calculations.
+in other modules remain pending. The RH calculation closeout approved on
+2026-09-16 is governed separately by the
+[Human Resources KPI Measurement Contract](hr-kpi-measurement-contract.md); its
+formulas must not be copied into another domain.
 
 ---
 
@@ -162,8 +164,9 @@ to reduce simultaneous information density:
 - `overview` (Resumen): the eight existing KPI cards, executive signal and
   supporting totals.
 - `charts` (Gráficas): attendance, permission and record distributions.
-- `units` (Por unidad): unit performance chart, unit/department rankings and
-  the operational unit summary table.
+- `units` (Por unidad): unit attention-signal chart, unit/department rankings and
+  the operational unit summary table. Unit comparison uses explicit signal
+  counts, not a readiness score.
 - `employees` (Colaboradores): employee operations table and a collapsible
   attention queue. The queue replaces the duplicate short attention ranking;
   it retains each case's signals and focus action, showing five cases initially
@@ -177,9 +180,10 @@ back to `overview` for unsupported values. Retain employee table pagination when
 switching views. Source warnings remain visible above the selected content.
 
 Refresh and print stay global. Printing continues to generate the complete
-filtered report, independently of the selected view. This presentation change
-does not change the current KPI formulas, thresholds, data sources, totals or
-permission contracts, and does not add the indicators from earlier proposals.
+filtered report, independently of the selected view, including source-quality
+warnings. The 2026-09-16 RH measurement closeout replaced the earlier composite
+health/readiness scores and unreliable denominators with the domain contract
+linked above. It does not add the unsupported indicators from earlier proposals.
 
 ### 3.4 Adoption boundaries
 

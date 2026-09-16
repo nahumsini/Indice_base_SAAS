@@ -4,7 +4,7 @@ import type { KPIsTranslations } from './types';
 export const esCO = {
   ...esMX,
   title: 'KPIs de Gestión Humana',
-  subtitle: 'Indicadores clave para controlar personal, asistencia, pago y operación.',
+  subtitle: 'Indicadores operativos de personal, asistencia, activos, permisos y actas.',
   loading: {
     title: 'Cargando KPIs',
     description: 'Preparando gráficas e indicadores de Gestión Humana.',
@@ -22,23 +22,23 @@ export const esCO = {
     },
     sections: {
       ...esMX.dashboard.sections,
-      unitSummaryHint: 'Personal activo, asistencia, permisos, actas, activos y preparación.',
+      unitSummaryHint: 'Personal activo, asistencia confirmada, permisos pendientes, actas abiertas, activos asignados y señales de atención.',
       attentionQueueHint: 'Personas con señales que requieren seguimiento antes de cerrar el día.',
     },
     cards: {
       ...esMX.dashboard.cards,
       workforce: {
         title: 'Personal activo',
-        target: (activeRate: string) => `${activeRate} personal activo`,
+        target: (scopedTotal: string) => `${scopedTotal} personas en el alcance`,
         description: 'Personal activo dentro del alcance seleccionado.',
       },
       attendance: {
         ...esMX.dashboard.cards.attendance,
-        target: (registered: number, total: number) => `${registered} de ${total} personas con asistencia`,
+        target: (registered: number, total: number) => `${registered} de ${total} turnos programados concluidos`,
       },
       assets: {
         ...esMX.dashboard.cards.assets,
-        description: 'Activos asignados comparados contra el personal activo.',
+        description: 'Personas únicas con activos asignados o en custodia; no se presume que cada puesto requiera equipo.',
       },
     },
     insights: {

@@ -1,7 +1,8 @@
 # Análisis de indicadores de Recursos Humanos
 
-Fecha: 2026-09-15. Estado: diagnóstico con propuestas históricas y registro de la
-reorganización visual implementada en cuatro vistas. No aprueba cambios de fórmulas.
+Fecha: 2026-09-15. Estado actualizado 2026-09-16: diagnóstico histórico, registro de
+la reorganización visual y cierre implementado de los hallazgos de confiabilidad.
+Las fórmulas vigentes están en [Human Resources KPI Measurement Contract](hr-kpi-measurement-contract.md).
 El formato vigente para módulos básicos está en [KPI Tab Standard](KPI_TAB_STANDARD.md);
 la implementación de RH se detalla en «Implementación aprobada» más abajo.
 
@@ -16,6 +17,58 @@ Documentos rectores: [Frontend Operating System](indice-frontend-operating-syste
 La pestaña tiene fuentes operativas útiles, filtros compartidos, desglose por unidad, seguimiento de colaboradores e impresión. Necesita corregir la confiabilidad de varios resultados y reorganizar su lectura. Una consulta fallida puede parecer un cero medido; algunos porcentajes usan poblaciones inadecuadas; las fechas y los puntajes mezclan conceptos distintos.
 
 La recomendación es un solo tablero con un resumen breve, categorías de medición y acceso al detalle operativo. Gerencia necesita saber cómo cambia la plantilla, la cobertura y el costo; RH necesita identificar casos, fechas y acciones. Ambos deben compartir definiciones y cifras.
+
+## Estado de cierre de confiabilidad — 2026-09-16
+
+Los hallazgos P0 y P1 de este diagnóstico fueron corregidos en el runtime de RH:
+
+- carga completa por contrato real, con tamaño 100 para activos, detección de
+  fuentes no paginadas, deduplicación y fallo cerrado si el total queda incompleto;
+- disponibilidad explícita por fuente, valores `N/D`, advertencias completas en
+  pantalla e impresión, y sin fallback silencioso de permisos administrativos a
+  permisos personales;
+- secuencia de solicitudes para impedir que una respuesta anterior sobrescriba
+  una fecha operativa más reciente;
+- asistencia sobre turnos programados concluidos, separando pendientes,
+  descansos, permisos, faltas confirmadas y configuración incompleta;
+- actas abiertas únicas con críticas abiertas como subconjunto, sin doble conteo
+  ni inclusión de críticas ya resueltas;
+- alcance de activos por responsable y tratamiento conservador de activos sin
+  asignar cuando hay filtros de negocio o departamento;
+- conteo separado de equipos asignados y personas responsables, sin inventar un
+  porcentaje de cobertura de puestos;
+- retiro de los puntajes compuestos de salud, preparación y desempeño. Las
+  unidades y personas muestran señales concretas y trazables.
+
+Las propuestas de rotación, costo laboral, contratos por vencer y otros
+indicadores sin fuente suficiente permanecen diferidas. No se inventaron para
+completar el tablero. La definición vigente y sus límites están en el contrato
+de medición enlazado arriba; el resto de este documento conserva la evidencia y
+las propuestas históricas que originaron el cierre.
+
+### Verificación final del cierre — 2026-09-16
+
+- 34/34 pruebas de interfaz y medición de RH aprobadas, incluidas carga completa,
+  cero válido frente a muestra inconclusa, actas críticas, alcance de activos,
+  vistas, impresión, filtros y respuestas fuera de orden.
+- `npm run typecheck` y la compilación de producción con Vite aprobaron. Permanece
+  el aviso global ya existente de paquetes mayores a 600 kB.
+- Se realizó una revisión autenticada contra frontend y backend locales en
+  escritorio (1440 × 1100) y móvil (390 × 844): ocho tarjetas, advertencias
+  parciales, valores `N/D`, navegación y filtros renderizaron sin excepciones de
+  JavaScript ni desbordamiento horizontal.
+- Las tasas sin denominador válido muestran `N/D` y estado no disponible; no se
+  presentan como mediciones saludables. Los errores técnicos se sustituyen por
+  mensajes localizados de la fuente afectada.
+- La base local de demostración conserva una deriva previa: Flyway registra V100
+  como aplicada, pero la tabla de activos no contiene `value_currency`. Por ello
+  la fuente local de activos responde 500. El tablero falla cerrado y la muestra
+  como no disponible. No se editó una migración aplicada ni se alteró la base.
+
+Backend, migraciones y datos de negocio no cambiaron en este cierre. La deriva
+local debe repararse por el flujo de base de datos correspondiente antes de usar
+ese entorno para certificar cifras de activos; no invalida la semántica de
+indisponibilidad verificada en la interfaz.
 
 ## Hallazgos verificables
 
@@ -228,7 +281,10 @@ Los archivos de ejecución modificados se reflejaron en el checkout que ya serv�
 el puerto 5174 (`/private/tmp/indice-production-5ec906284af6`); la copia fuente y
 las pruebas permanecen en el repositorio principal. No se desplegó a producción.
 Backend, migraciones y datos: N/A. Los problemas de carga y cálculo identificados
-en el análisis anterior no se corrigen dentro de este cambio de presentación.
+en el análisis anterior no se corrigieron dentro de ese cambio de presentación.
+Esta nota describe la entrega visual del 2026-09-15 y quedó supersedida, para
+carga y medición, por el cierre de confiabilidad del 2026-09-16 documentado al
+inicio y en el contrato vigente.
 
 ### Ajuste de espaciado entre barras
 

@@ -17,7 +17,7 @@
     "test:petty-cash-ui": "node --test tests/petty-cash-kpi-workspace.test.mjs tests/petty-cash-frontend-standard-regression.test.mjs tests/petty-cash-close-statement-regression.test.mjs tests/petty-cash-fund-wizard-regression.test.mjs",
     "test:receivables-ui": "node --test tests/receivables-frontend-standard-regression.test.mjs tests/receivables-kpi-workspace.test.mjs",
     "test:processes-tasks-ui": "node --test tests/processes-tasks-frontend-standard-regression.test.mjs tests/process-task-kpi-views.test.mjs",
-    "test:human-resources-ui": "node --test tests/human-resources-frontend-standard-regression.test.mjs tests/hr-kpi-views-regression.test.mjs",
+    "test:human-resources-ui": "node --test tests/human-resources-frontend-standard-regression.test.mjs tests/hr-kpi-measurements.test.mjs tests/hr-kpi-views-regression.test.mjs",
     "test:dashboard-ui": "node --test tests/dashboard-frontend-standard-regression.test.mjs",
     "test:brand-ui": "node --test tests/global-product-identity-regression.test.mjs",
     "test:notification-center": "node --test tests/notification-center-ui-regression.test.mjs",

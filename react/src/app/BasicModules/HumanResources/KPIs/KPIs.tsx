@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -29,11 +29,10 @@ import {
   YAxis,
 } from 'recharts';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
-import { hrAssetsApi, type HrAsset, type HrAssetsSummary } from '../../../api/HumanResources/assets';
+import { hrAssetsApi, type HrAsset } from '../../../api/HumanResources/assets';
 import {
   permissionsApi,
   type BackendPermissionItem,
-  type PermissionsSummary,
 } from '../../../api/HumanResources/permissions';
 import {
   humanResourcesApi,
@@ -41,7 +40,6 @@ import {
   type AttendanceControlOverviewResponse,
   type BackendHrUser,
   type BackendRecordItem,
-  type RecordsListResponse,
 } from '../../../api/humanResources';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { cn } from '../../../components/ui/utils';
@@ -69,9 +67,20 @@ import { printKpisReport } from './utils/kpisPrintReport';
 import { HrEmployeeOperationsTable, type HrEmployeeOperationsRow } from './components/HrEmployeeOperationsTable';
 import { getHrKpiStandardCopy } from './translations/standardUiCopy';
 import { getHrKpiWorkspaceCopy, resolveHrKpiView, type HrKpiView } from './translations/workspaceCopy';
+import {
+  assetMatchesHrScope,
+  isCriticalOpenHrRecord,
+  isOpenHrRecord,
+  measureHrAssets,
+  measureHrAttendance,
+  measureHrRecords,
+  type HrKpiSignalStatus,
+} from './hrKpiMeasurements';
+import { loadCompleteHrCollection } from './hrKpiSourceLoader';
 
 type PeriodFilter = 'thisMonth' | 'lastMonth' | 'thisQuarter' | 'annualized' | 'specificDate';
-type HealthStatus = 'healthy' | 'watch' | 'critical';
+type HrKpiSourceKey = 'employees' | 'attendance' | 'assets' | 'permissions' | 'records';
+type HrKpiSourceAvailability = Record<HrKpiSourceKey, boolean>;
 
 type HrKpiWorkspaceState = {
   activeView: HrKpiView;
@@ -90,9 +99,8 @@ interface KpiCardModel {
   value: string;
   target: string;
   description: string;
-  status: HealthStatus;
+  status: HrKpiSignalStatus;
   icon: ReactNode;
-  score?: number | null;
 }
 
 interface UnitSummaryRow {
@@ -102,9 +110,10 @@ interface UnitSummaryRow {
   attendanceRate: number | null;
   pendingPermissions: number;
   unresolvedRecords: number;
+  criticalRecords: number;
   assignedAssets: number;
-  readinessScore: number;
-  status: HealthStatus;
+  attentionSignals: number;
+  criticalSignals: number;
 }
 
 interface AttentionSignalRow {
@@ -113,14 +122,7 @@ interface AttentionSignalRow {
   position: string;
   unit: string;
   signals: string[];
-  status: HealthStatus;
-}
-
-interface PaginatedResponse<TItem> {
-  items: TItem[];
-  count?: number;
-  total_count?: number;
-  total_pages?: number;
+  status: HrKpiSignalStatus;
 }
 
 const allValue = 'all';
@@ -194,76 +196,20 @@ const periodRangeFor = (period: PeriodFilter, selectedDate: string) => {
   };
 };
 
-const previousPeriodRangeFor = (period: PeriodFilter, selectedDate: string) => {
-  if (period === 'specificDate') {
-    const date = addDays(selectedDate, -1);
-    return { start: date, end: date };
-  }
-  if (period === 'thisQuarter') {
-    const effectiveDate = parseIsoDate(selectedDate);
-    effectiveDate.setMonth(effectiveDate.getMonth() - 3);
-    return periodRangeFor('thisQuarter', toIsoDate(effectiveDate));
-  }
-  if (period === 'annualized') {
-    return periodRangeFor('annualized', addMonthsClamped(selectedDate, -12));
-  }
-  return periodRangeFor('thisMonth', addMonthsClamped(effectiveControlDateForPeriod(period, selectedDate), -1));
-};
-
-const emptyHrSummary = {
-  total_count: 0,
-  active_count: 0,
-  inactive_count: 0,
-  terminated_count: 0,
-};
-
-const emptyAssetSummary: HrAssetsSummary = {
-  total_count: 0,
-  available_count: 0,
-  assigned_count: 0,
-  maintenance_count: 0,
-  custody_count: 0,
-  inactive_count: 0,
-  total_value_amount: null,
-};
-
-const emptyPermissionSummary: PermissionsSummary = {
-  total: 0,
-  pending: 0,
-  approved: 0,
-  rejected: 0,
-};
-
-const emptyRecordsSummary: RecordsListResponse['summary'] = {
-  total_count: 0,
-  pending_count: 0,
-  reviewed_count: 0,
-  resolved_count: 0,
-  high_severity_count: 0,
-};
-
-const statusClasses: Record<HealthStatus, string> = {
+const statusClasses: Record<HrKpiSignalStatus, string> = {
   healthy:
     'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300',
   watch:
     'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300',
   critical:
     'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300',
-};
-
-const scoreBarClasses: Record<HealthStatus, string> = {
-  healthy: 'bg-emerald-500',
-  watch: 'bg-amber-500',
-  critical: 'bg-rose-500',
+  unavailable:
+    'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300',
 };
 
 const pieColors = ['#10b981', '#f59e0b', '#0ea5e9', '#64748b', '#e11d48', '#94a3b8'];
 
-function getErrorMessage(error: unknown, fallback: string) {
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-
+function sourceWarning(fallback: string) {
   return fallback;
 }
 
@@ -289,39 +235,6 @@ function formatComparison(current: number | null, previous: number | null) {
   }
   const change = ((current - previous) / Math.abs(previous)) * 100;
   return `${change >= 0 ? '↑' : '↓'} ${Math.abs(Math.round(change))}%`;
-}
-
-function getHealthStatus(score: number): HealthStatus {
-  if (score >= 85) {
-    return 'healthy';
-  }
-
-  if (score >= 70) {
-    return 'watch';
-  }
-
-  return 'critical';
-}
-
-function clampScore(value: number) {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-
-  return Math.max(0, Math.min(100, Math.round(value)));
-}
-
-function weightedAverage(parts: Array<{ value: number | null; weight: number }>) {
-  const availableParts = parts.filter((part) => part.value !== null && Number.isFinite(part.value));
-  const totalWeight = availableParts.reduce((sum, part) => sum + part.weight, 0);
-
-  if (totalWeight === 0) {
-    return 0;
-  }
-
-  return clampScore(
-    availableParts.reduce((sum, part) => sum + (part.value ?? 0) * part.weight, 0) / totalWeight,
-  );
 }
 
 function isActiveEmployee(employee: BackendHrUser) {
@@ -365,33 +278,6 @@ function isPermissionInPeriod(permission: BackendPermissionItem, period: PeriodF
   }
 
   return permissionStart <= end && permissionEnd >= start;
-}
-
-async function fetchAllPages<TItem, TResponse extends PaginatedResponse<TItem>>(
-  fetchPage: (page: number, size: number) => Promise<TResponse>,
-  pageSize = 200,
-): Promise<TResponse> {
-  const firstPage = await fetchPage(1, pageSize);
-  const items = [...firstPage.items];
-  const totalCount = firstPage.total_count ?? firstPage.count ?? items.length;
-  const totalPages = firstPage.total_pages ?? (Math.ceil(totalCount / pageSize) || 1);
-  const maxPages = Math.min(totalPages, 50);
-
-  for (let page = 2; page <= maxPages; page += 1) {
-    const nextPage = await fetchPage(page, pageSize);
-    items.push(...nextPage.items);
-
-    if (items.length >= totalCount) {
-      break;
-    }
-  }
-
-  return {
-    ...firstPage,
-    items,
-    count: items.length,
-    total_count: Math.max(totalCount, items.length),
-  };
 }
 
 function employeeMatchesFilters(
@@ -474,7 +360,7 @@ function buildUniqueOptions<T extends { id: number; name: string }>(
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
-function KpiStatusBadge({ copy, status }: { copy: KPIsTranslations; status: HealthStatus }) {
+function KpiStatusBadge({ copy, status }: { copy: KPIsTranslations; status: HrKpiSignalStatus }) {
   return (
     <span className={cn('inline-flex rounded-full border px-2.5 py-1 text-xs font-medium', statusClasses[status])}>
       {copy.dashboard.statuses[status]}
@@ -482,20 +368,7 @@ function KpiStatusBadge({ copy, status }: { copy: KPIsTranslations; status: Heal
   );
 }
 
-function KpiScoreBar({ score, status }: { score: number; status: HealthStatus }) {
-  return (
-    <div className="flex min-w-[132px] items-center gap-3">
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
-        <div className={cn('h-full rounded-full', scoreBarClasses[status])} style={{ width: `${clampScore(score)}%` }} />
-      </div>
-      <span className="w-10 text-right text-sm font-medium text-slate-900 dark:text-white">{clampScore(score)}%</span>
-    </div>
-  );
-}
-
 function KpiCard({ card, copy }: { card: KpiCardModel; copy: KPIsTranslations }) {
-  const displayedScore = card.score ?? 0;
-
   return (
     <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="mb-4 flex items-start justify-between gap-3">
@@ -510,7 +383,6 @@ function KpiCard({ card, copy }: { card: KpiCardModel; copy: KPIsTranslations })
         </div>
         <KpiStatusBadge copy={copy} status={card.status} />
       </div>
-      <KpiScoreBar score={displayedScore} status={card.status} />
       <p className="mt-4 text-xs font-medium text-slate-500 dark:text-slate-400">{card.target}</p>
       <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{card.description}</p>
     </article>
@@ -526,15 +398,11 @@ export default function KPIs() {
   const { preferredCurrency } = usePreferredBusinessCurrency();
   const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
   const [employees, setEmployees] = useState<BackendHrUser[]>([]);
-  const [employeeSummary, setEmployeeSummary] = useState(emptyHrSummary);
   const [attendanceOverview, setAttendanceOverview] = useState<AttendanceControlOverviewResponse | null>(null);
   const [previousAttendanceOverview, setPreviousAttendanceOverview] = useState<AttendanceControlOverviewResponse | null>(null);
   const [assets, setAssets] = useState<HrAsset[]>([]);
-  const [assetSummary, setAssetSummary] = useState<HrAssetsSummary>(emptyAssetSummary);
   const [permissions, setPermissions] = useState<BackendPermissionItem[]>([]);
-  const [permissionSummary, setPermissionSummary] = useState<PermissionsSummary>(emptyPermissionSummary);
   const [records, setRecords] = useState<BackendRecordItem[]>([]);
-  const [recordSummary, setRecordSummary] = useState<RecordsListResponse['summary']>(emptyRecordsSummary);
   const [units, setUnits] = useState<BackendUnit[]>([]);
   const [businesses, setBusinesses] = useState<BackendBusiness[]>([]);
   const [selectedDate, setSelectedDate] = useState(todayIsoDate());
@@ -549,7 +417,16 @@ export default function KPIs() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [sourceWarnings, setSourceWarnings] = useState<string[]>([]);
+  const [sourceAvailability, setSourceAvailability] = useState<HrKpiSourceAvailability>({
+    employees: false,
+    attendance: false,
+    assets: false,
+    permissions: false,
+    records: false,
+  });
   const [lastUpdatedAt, setLastUpdatedAt] = useState('');
+  const loadRequestRef = useRef(0);
+  const mountedRef = useRef(true);
   const workspaceDefaults = useMemo<HrKpiWorkspaceState>(() => ({
     activeView: 'overview',
     searchQuery: '',
@@ -606,36 +483,44 @@ export default function KPIs() {
   const controlDate = selectedDate;
   const previousControlDate = useMemo(() => addDays(selectedDate, -7), [selectedDate]);
 
-  const loadDashboard = async () => {
-    setIsLoading(true);
-
-    const fetchPermissions = async () => {
-      try {
-        return await fetchAllPages<BackendPermissionItem, Awaited<ReturnType<typeof permissionsApi.listPermissions>>>(
-          (page, size) => permissionsApi.listPermissions({ page, size }),
-        );
-      } catch {
-        return fetchAllPages<BackendPermissionItem, Awaited<ReturnType<typeof permissionsApi.listMyPermissions>>>(
-          (page, size) => permissionsApi.listMyPermissions({ page, size }),
-        );
-      }
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
     };
+  }, []);
+
+  const loadDashboard = async () => {
+    const requestId = loadRequestRef.current + 1;
+    loadRequestRef.current = requestId;
+    setIsLoading(true);
 
     const results = await runWithMinimumDuration(Promise.allSettled([
       humanResourcesApi.listHrUsers(),
       humanResourcesApi.getAttendanceControlOverview(controlDate),
       humanResourcesApi.getAttendanceControlOverview(previousControlDate),
-      fetchAllPages<HrAsset, Awaited<ReturnType<typeof hrAssetsApi.listAssets>>>(
-        (page, size) => hrAssetsApi.listAssets({ page, size }),
-        500,
-      ),
-      fetchPermissions(),
-      fetchAllPages<BackendRecordItem, Awaited<ReturnType<typeof humanResourcesApi.listRecords>>>(
-        (page, size) => humanResourcesApi.listRecords({ page, size }),
-      ),
+      loadCompleteHrCollection<HrAsset, Awaited<ReturnType<typeof hrAssetsApi.listAssets>>>({
+        fetchPage: (page, size) => hrAssetsApi.listAssets({ page, size }),
+        itemKey: (asset) => asset.id,
+        pageSize: 100,
+      }),
+      loadCompleteHrCollection<BackendPermissionItem, Awaited<ReturnType<typeof permissionsApi.listPermissions>>>({
+        fetchPage: (page, size) => permissionsApi.listPermissions({ page, size }),
+        itemKey: (permission) => permission.id,
+        pageSize: 200,
+      }),
+      loadCompleteHrCollection<BackendRecordItem, Awaited<ReturnType<typeof humanResourcesApi.listRecords>>>({
+        fetchPage: (page, size) => humanResourcesApi.listRecords({ page, size }),
+        itemKey: (record) => record.id,
+        pageSize: 200,
+      }),
       dashboardApi.listUnits(),
       dashboardApi.listBusinesses(),
     ]));
+
+    if (!mountedRef.current || requestId !== loadRequestRef.current) {
+      return;
+    }
 
     const warnings: string[] = [];
     const [
@@ -650,58 +535,56 @@ export default function KPIs() {
     ] = results;
 
     if (employeesResult.status === 'fulfilled') {
-      const summary = employeesResult.value.summary ?? emptyHrSummary;
       setEmployees(employeesResult.value.items);
-      setEmployeeSummary({
-        total_count: summary.total_count,
-        active_count: summary.active_count,
-        inactive_count: summary.inactive_count,
-        terminated_count: summary.terminated_count,
-      });
     } else {
-      warnings.push(getErrorMessage(employeesResult.reason, copy.dashboard.errors.employees));
+      warnings.push(sourceWarning(copy.dashboard.errors.employees));
       setEmployees([]);
-      setEmployeeSummary(emptyHrSummary);
     }
 
     if (attendanceResult.status === 'fulfilled') {
       setAttendanceOverview(attendanceResult.value);
     } else {
-      warnings.push(getErrorMessage(attendanceResult.reason, copy.dashboard.errors.attendance));
+      warnings.push(sourceWarning(copy.dashboard.errors.attendance));
       setAttendanceOverview(null);
     }
 
-    setPreviousAttendanceOverview(previousAttendanceResult.status === 'fulfilled' ? previousAttendanceResult.value : null);
+    if (previousAttendanceResult.status === 'fulfilled') {
+      setPreviousAttendanceOverview(previousAttendanceResult.value);
+    } else {
+      warnings.push(`${sourceWarning(copy.dashboard.errors.attendance)} (${previousControlDate})`);
+      setPreviousAttendanceOverview(null);
+    }
 
     if (assetsResult.status === 'fulfilled') {
       setAssets(assetsResult.value.items);
-      setAssetSummary(assetsResult.value.summary ?? emptyAssetSummary);
     } else {
-      warnings.push(getErrorMessage(assetsResult.reason, copy.dashboard.errors.assets));
+      warnings.push(sourceWarning(copy.dashboard.errors.assets));
       setAssets([]);
-      setAssetSummary(emptyAssetSummary);
     }
 
     if (permissionsResult.status === 'fulfilled') {
       setPermissions(permissionsResult.value.items);
-      setPermissionSummary(permissionsResult.value.summary ?? emptyPermissionSummary);
     } else {
-      warnings.push(getErrorMessage(permissionsResult.reason, copy.dashboard.errors.permissions));
+      warnings.push(sourceWarning(copy.dashboard.errors.permissions));
       setPermissions([]);
-      setPermissionSummary(emptyPermissionSummary);
     }
 
     if (recordsResult.status === 'fulfilled') {
       setRecords(recordsResult.value.items);
-      setRecordSummary(recordsResult.value.summary ?? emptyRecordsSummary);
     } else {
-      warnings.push(getErrorMessage(recordsResult.reason, copy.dashboard.errors.records));
+      warnings.push(sourceWarning(copy.dashboard.errors.records));
       setRecords([]);
-      setRecordSummary(emptyRecordsSummary);
     }
 
     setUnits(unitsResult.status === 'fulfilled' ? unitsResult.value : []);
     setBusinesses(businessesResult.status === 'fulfilled' ? businessesResult.value : []);
+    setSourceAvailability({
+      employees: employeesResult.status === 'fulfilled',
+      attendance: attendanceResult.status === 'fulfilled',
+      assets: assetsResult.status === 'fulfilled',
+      permissions: permissionsResult.status === 'fulfilled',
+      records: recordsResult.status === 'fulfilled',
+    });
     setSourceWarnings(warnings);
     setLastUpdatedAt(new Date().toISOString());
     setIsLoading(false);
@@ -820,86 +703,35 @@ export default function KPIs() {
         return (
           matchesEmployee &&
           includesText(haystack, searchQuery) &&
-          (unitFilter === allValue || String(record.unit?.id ?? '') === unitFilter || matchesEmployee) &&
-          (businessFilter === allValue || String(record.business?.id ?? '') === businessFilter || matchesEmployee) &&
           isDateInPeriod(getDateFromRecord(record), periodFilter, selectedDate)
         );
       }),
-    [businessFilter, filteredEmployeeIds, periodFilter, records, searchQuery, selectedDate, unitFilter],
+    [filteredEmployeeIds, periodFilter, records, searchQuery, selectedDate],
   );
 
   const filteredAssets = useMemo(
     () =>
       assets.filter((asset) => {
-        const matchesResponsible =
-          (asset.responsible_user_company_id ? filteredEmployeeIds.has(asset.responsible_user_company_id) : false);
-        const matchesUnit = unitFilter === allValue || String(asset.unit_id ?? '') === unitFilter;
         const haystack = [asset.asset_code, asset.asset_type, asset.name, asset.model, asset.serial_number, asset.responsible_name, asset.unit_name]
           .join(' ');
 
         return (
           includesText(haystack, searchQuery) &&
-          (matchesResponsible || matchesUnit) &&
-          (departmentFilter === allValue || matchesResponsible)
+          assetMatchesHrScope({ asset, businessFilter, departmentFilter, employeeIds: filteredEmployeeIds, unitFilter })
         );
       }),
-    [assets, departmentFilter, filteredEmployeeIds, searchQuery, unitFilter],
+    [assets, businessFilter, departmentFilter, filteredEmployeeIds, searchQuery, unitFilter],
   );
 
-  const previousPeriodRange = useMemo(
-    () => previousPeriodRangeFor(periodFilter, selectedDate),
-    [periodFilter, selectedDate],
+  const attendanceSummary = useMemo(
+    () => measureHrAttendance(filteredAssignments),
+    [filteredAssignments],
   );
 
-  const previousFilteredPermissions = useMemo(() => permissions.filter((permission) => {
-    const employeeId = permission.employee.id;
-    const employeeName = permission.employee.name.toLowerCase();
-    const matchesEmployee = employeeId ? filteredEmployeeIds.has(employeeId) : filteredEmployeeNames.has(employeeName);
-    const permissionStart = (permission.startDate || getDateFromPermission(permission)).slice(0, 10);
-    const permissionEnd = (permission.endDate || permissionStart).slice(0, 10);
-    return matchesEmployee && Boolean(permissionStart) && permissionStart <= previousPeriodRange.end && permissionEnd >= previousPeriodRange.start;
-  }), [filteredEmployeeIds, filteredEmployeeNames, permissions, previousPeriodRange]);
-
-  const previousFilteredRecords = useMemo(() => records.filter((record) => {
-    const date = getDateFromRecord(record).slice(0, 10);
-    return filteredEmployeeIds.has(record.user.id) && date >= previousPeriodRange.start && date <= previousPeriodRange.end;
-  }), [filteredEmployeeIds, previousPeriodRange, records]);
-
-  const attendanceSummary = useMemo(() => {
-    const onTime = filteredAssignments.filter((assignment) => assignment.today_status === 'on_time').length;
-    const late = filteredAssignments.filter((assignment) => assignment.today_status === 'late').length;
-    const leave = filteredAssignments.filter((assignment) => assignment.today_status === 'leave').length;
-    const rest = filteredAssignments.filter((assignment) => assignment.today_status === 'rest').length;
-    const absence = filteredAssignments.filter((assignment) => assignment.today_status === 'absence').length;
-    const noRecord = filteredAssignments.filter((assignment) =>
-      ['pending', 'not_scheduled'].includes(assignment.today_status),
-    ).length;
-    const denominator = Math.max(filteredAssignments.length, filteredEmployees.length);
-    const attendanceRate = denominator > 0 ? ((onTime + late) / denominator) * 100 : null;
-    const punctualityRate = denominator > 0 ? (onTime / denominator) * 100 : null;
-
-    return {
-      onTime,
-      late,
-      leave,
-      rest,
-      absence,
-      noRecord,
-      denominator,
-      attendanceRate: attendanceRate === null ? null : clampScore(attendanceRate),
-      punctualityRate: punctualityRate === null ? null : clampScore(punctualityRate),
-    };
-  }, [filteredAssignments, filteredEmployees.length]);
-
-  const previousAttendanceSummary = useMemo(() => {
-    const onTime = previousFilteredAssignments.filter(assignment => assignment.today_status === 'on_time').length;
-    const late = previousFilteredAssignments.filter(assignment => assignment.today_status === 'late').length;
-    const denominator = Math.max(previousFilteredAssignments.length, filteredEmployees.length);
-    return {
-      attendanceRate: denominator > 0 ? clampScore(((onTime + late) / denominator) * 100) : null,
-      punctualityRate: denominator > 0 ? clampScore((onTime / denominator) * 100) : null,
-    };
-  }, [filteredEmployees.length, previousFilteredAssignments]);
+  const previousAttendanceSummary = useMemo(
+    () => measureHrAttendance(previousFilteredAssignments),
+    [previousFilteredAssignments],
+  );
 
   const permissionCounts = useMemo(
     () => ({
@@ -910,35 +742,11 @@ export default function KPIs() {
     }),
     [filteredPermissions],
   );
-  const previousPermissionCounts = useMemo(() => ({
-    pending: previousFilteredPermissions.filter(permission => permission.status === 'pending').length,
-    total: previousFilteredPermissions.length,
-  }), [previousFilteredPermissions]);
-
-  const recordCounts = useMemo(
-    () => ({
-      total: filteredRecords.length,
-      pending: filteredRecords.filter((record) => record.status === 'pending').length,
-      reviewed: filteredRecords.filter((record) => record.status === 'reviewed').length,
-      resolved: filteredRecords.filter((record) => record.status === 'resolved').length,
-      highSeverity: filteredRecords.filter((record) => record.severity === 'high').length,
-    }),
-    [filteredRecords],
-  );
-  const previousRecordCounts = useMemo(() => ({
-    risk: previousFilteredRecords.filter(record => record.status !== 'resolved' || record.severity === 'high').length,
-    total: previousFilteredRecords.length,
-  }), [previousFilteredRecords]);
+  const recordCounts = useMemo(() => measureHrRecords(filteredRecords), [filteredRecords]);
 
   const assetCounts = useMemo(
-    () => ({
-      total: filteredAssets.length,
-      assigned: filteredAssets.filter((asset) => asset.status === 'assigned' || asset.status === 'custody').length,
-      available: filteredAssets.filter((asset) => asset.status === 'available').length,
-      maintenance: filteredAssets.filter((asset) => asset.status === 'maintenance').length,
-      inactive: filteredAssets.filter((asset) => asset.status === 'inactive').length,
-    }),
-    [filteredAssets],
+    () => measureHrAssets(filteredAssets, filteredEmployeeIds),
+    [filteredAssets, filteredEmployeeIds],
   );
 
   const assetValueAggregate = useKpiMonetaryAggregate({
@@ -947,168 +755,180 @@ export default function KPIs() {
     ids: filteredAssets.map((asset) => asset.id),
   });
   const assetValueSummary = useMemo(() => {
-    const assetsWithValue = filteredAssets.filter((asset) => asset.value_amount !== null && asset.value_amount !== undefined);
-    const valueCoverageRate = filteredAssets.length > 0
-      ? clampScore((assetsWithValue.length / filteredAssets.length) * 100)
-      : null;
-
     return {
-      assetCountWithValue: assetsWithValue.length,
       nativeBreakdownLabel: assetValueAggregate.data?.nativeTotals
-        .map(({ amount, currency }) => formatBusinessCurrencyAmount(amount, currency, { maximumFractionDigits: 0 })).join(' / ') || preferredCurrency,
+        .map(({ amount, currency }) => formatBusinessCurrencyAmount(amount, currency, { maximumFractionDigits: 0 })).join(' / ')
+        || copy.dashboard.common.notAvailable,
       preferredTotalLabel: assetValueAggregate.data && !assetValueAggregate.loading
         ? formatBusinessCurrencyAmount(assetValueAggregate.data.preferredTotal, preferredCurrency, {
         maximumFractionDigits: 0,
-      }) : '—',
-      valueCoverageRate,
+      }) : copy.dashboard.common.notAvailable,
     };
-  }, [assetValueAggregate.data, assetValueAggregate.loading, filteredAssets, preferredCurrency]);
+  }, [assetValueAggregate.data, assetValueAggregate.loading, copy.dashboard.common.notAvailable, preferredCurrency]);
 
-  const activeRate = scopedEmployees.length > 0
-    ? clampScore((filteredEmployees.length / scopedEmployees.length) * 100)
-    : 0;
-  const permissionResolutionRate = permissionCounts.total > 0
-    ? clampScore(((permissionCounts.approved + permissionCounts.rejected) / permissionCounts.total) * 100)
-    : null;
-  const recordResolutionRate = recordCounts.total > 0
-    ? clampScore((recordCounts.resolved / recordCounts.total) * 100)
-    : null;
-  const assetCoverageRate = filteredEmployees.length > 0
-    ? clampScore((assetCounts.assigned / filteredEmployees.length) * 100)
-    : null;
-  const healthScore = weightedAverage([
-    { value: activeRate, weight: 0.15 },
-    { value: attendanceSummary.attendanceRate, weight: 0.2 },
-    { value: attendanceSummary.punctualityRate, weight: 0.15 },
-    { value: permissionResolutionRate, weight: 0.15 },
-    {
-      value: recordResolutionRate === null
-        ? null
-        : clampScore(recordResolutionRate - Math.min(40, recordCounts.highSeverity * 10)),
-      weight: 0.2,
-    },
-    { value: assetCoverageRate, weight: 0.15 },
-  ]);
-  const healthStatus = getHealthStatus(healthScore);
+  const displaySourceWarnings = useMemo(
+    () => assetValueAggregate.error && sourceAvailability.assets
+      ? [...sourceWarnings, sourceWarning(copy.dashboard.errors.assetValue)]
+      : sourceWarnings,
+    [assetValueAggregate.error, copy.dashboard.errors.assetValue, sourceAvailability.assets, sourceWarnings],
+  );
+
+  const employeeScopeAvailable = sourceAvailability.employees
+    && (attendanceStatusFilter === allValue || sourceAvailability.attendance);
+  const attendanceAvailable = employeeScopeAvailable && sourceAvailability.attendance;
+  const permissionsAvailable = employeeScopeAvailable && sourceAvailability.permissions;
+  const recordsAvailable = employeeScopeAvailable && sourceAvailability.records;
+  const assetsAvailable = employeeScopeAvailable && sourceAvailability.assets;
+  const unitSourcesAvailable = attendanceAvailable && permissionsAvailable && recordsAvailable && assetsAvailable;
+  const unavailableValue = copy.dashboard.common.notAvailable;
+  const statusFor = (
+    available: boolean,
+    availableStatus: HrKpiSignalStatus = 'healthy',
+  ): HrKpiSignalStatus => (available ? availableStatus : 'unavailable');
 
   const kpiCards = useMemo<KpiCardModel[]>(
     () => [
       {
         id: 'workforce',
         title: copy.dashboard.cards.workforce.title,
-        value: formatNumber(filteredEmployees.length, currentLanguage.code),
-        target: copy.dashboard.cards.workforce.target(formatPercent(activeRate, copy)),
+        value: employeeScopeAvailable
+          ? formatNumber(filteredEmployees.length, currentLanguage.code)
+          : unavailableValue,
+        target: copy.dashboard.cards.workforce.target(
+          employeeScopeAvailable
+            ? formatNumber(scopedEmployees.length, currentLanguage.code)
+            : unavailableValue,
+        ),
         description: copy.dashboard.cards.workforce.description,
-        status: getHealthStatus(activeRate),
+        status: statusFor(employeeScopeAvailable),
         icon: <Users className="h-5 w-5" />,
-        score: activeRate,
       },
       {
         id: 'attendance',
         title: copy.dashboard.cards.attendance.title,
-        value: formatPercent(attendanceSummary.attendanceRate, copy),
-        target: `${copy.dashboard.cards.attendance.target(attendanceSummary.onTime + attendanceSummary.late, attendanceSummary.denominator)} · ${formatComparison(attendanceSummary.attendanceRate, previousAttendanceSummary.attendanceRate)}`,
+        value: attendanceAvailable ? formatPercent(attendanceSummary.attendanceRate, copy) : unavailableValue,
+        target: attendanceAvailable
+          ? `${copy.dashboard.cards.attendance.target(attendanceSummary.present, attendanceSummary.completedSample)} · ${formatComparison(attendanceSummary.attendanceRate, previousAttendanceSummary.attendanceRate)}`
+          : unavailableValue,
         description: copy.dashboard.cards.attendance.description,
-        status: getHealthStatus(attendanceSummary.attendanceRate ?? 0),
+        status: statusFor(attendanceAvailable && attendanceSummary.attendanceRate !== null),
         icon: <CalendarCheck2 className="h-5 w-5" />,
-        score: attendanceSummary.attendanceRate,
       },
       {
         id: 'punctuality',
         title: copy.cards.punctuality,
-        value: formatPercent(attendanceSummary.punctualityRate, copy),
-        target: formatComparison(attendanceSummary.punctualityRate, previousAttendanceSummary.punctualityRate),
+        value: attendanceAvailable ? formatPercent(attendanceSummary.punctualityRate, copy) : unavailableValue,
+        target: attendanceAvailable
+          ? `${attendanceSummary.onTime}/${attendanceSummary.present} · ${formatComparison(attendanceSummary.punctualityRate, previousAttendanceSummary.punctualityRate)}`
+          : unavailableValue,
         description: copy.dashboard.cards.attendance.description,
-        status: getHealthStatus(attendanceSummary.punctualityRate ?? 0),
+        status: statusFor(attendanceAvailable && attendanceSummary.punctualityRate !== null),
         icon: <CalendarCheck2 className="h-5 w-5" />,
-        score: attendanceSummary.punctualityRate,
       },
       {
         id: 'late',
         title: copy.dashboard.cards.late.title,
-        value: formatNumber(attendanceSummary.late + attendanceSummary.absence + attendanceSummary.noRecord, currentLanguage.code),
-        target: copy.dashboard.cards.late.target(attendanceSummary.absence, attendanceSummary.noRecord),
+        value: attendanceAvailable
+          ? formatNumber(attendanceSummary.late + attendanceSummary.absence, currentLanguage.code)
+          : unavailableValue,
+        target: attendanceAvailable
+          ? copy.dashboard.cards.late.target(attendanceSummary.absence, attendanceSummary.pending)
+          : unavailableValue,
         description: copy.dashboard.cards.late.description,
-        status: attendanceSummary.late + attendanceSummary.absence + attendanceSummary.noRecord === 0 ? 'healthy' : attendanceSummary.absence > 0 ? 'critical' : 'watch',
+        status: statusFor(
+          attendanceAvailable,
+          attendanceSummary.absence > 0
+            ? 'critical'
+            : attendanceSummary.late > 0
+              ? 'watch'
+              : 'healthy',
+        ),
         icon: <Activity className="h-5 w-5" />,
-        score: attendanceSummary.denominator > 0
-          ? clampScore(
-            100
-            - ((attendanceSummary.late + attendanceSummary.absence + attendanceSummary.noRecord)
-              / attendanceSummary.denominator)
-              * 100,
-          )
-          : null,
       },
       {
         id: 'permissions',
         title: copy.dashboard.cards.permissions.title,
-        value: formatNumber(permissionCounts.pending, currentLanguage.code),
-        target: `${copy.dashboard.cards.permissions.target(permissionCounts.total)} · ${formatComparison(permissionCounts.pending, previousPermissionCounts.pending)}`,
+        value: permissionsAvailable
+          ? formatNumber(permissionCounts.pending, currentLanguage.code)
+          : unavailableValue,
+        target: permissionsAvailable
+          ? copy.dashboard.cards.permissions.target(permissionCounts.total)
+          : unavailableValue,
         description: copy.dashboard.cards.permissions.description,
-        status: permissionCounts.pending === 0 ? 'healthy' : permissionCounts.pending <= 3 ? 'watch' : 'critical',
+        status: statusFor(permissionsAvailable, permissionCounts.pending > 0 ? 'watch' : 'healthy'),
         icon: <ClipboardList className="h-5 w-5" />,
-        score: permissionResolutionRate,
       },
       {
         id: 'assets',
         title: copy.dashboard.cards.assets.title,
-        value: formatPercent(assetCoverageRate, copy),
-        target: copy.dashboard.cards.assets.target(assetCounts.assigned, assetCounts.maintenance),
+        value: assetsAvailable
+          ? formatNumber(assetCounts.assignedPeople, currentLanguage.code)
+          : unavailableValue,
+        target: assetsAvailable
+          ? copy.dashboard.cards.assets.target(assetCounts.assignedItems, assetCounts.maintenance)
+          : unavailableValue,
         description: copy.dashboard.cards.assets.description,
-        status: getHealthStatus(assetCoverageRate ?? 0),
+        status: statusFor(assetsAvailable, assetCounts.maintenance > 0 ? 'watch' : 'healthy'),
         icon: <Laptop className="h-5 w-5" />,
-        score: assetCoverageRate,
       },
       {
         id: 'records',
         title: copy.dashboard.cards.records.title,
-        value: formatNumber(recordCounts.pending + recordCounts.highSeverity, currentLanguage.code),
-        target: `${copy.dashboard.cards.records.target(recordCounts.total)} · ${formatComparison(recordCounts.pending + recordCounts.highSeverity, previousRecordCounts.risk)}`,
+        value: recordsAvailable ? formatNumber(recordCounts.open, currentLanguage.code) : unavailableValue,
+        target: recordsAvailable
+          ? `${copy.dashboard.cards.records.target(recordCounts.total)} · ${recordCounts.criticalOpen} ${copy.dashboard.statuses.critical}`
+          : unavailableValue,
         description: copy.dashboard.cards.records.description,
-        status: recordCounts.pending + recordCounts.highSeverity === 0 ? 'healthy' : recordCounts.highSeverity > 0 ? 'critical' : 'watch',
+        status: statusFor(
+          recordsAvailable,
+          recordCounts.criticalOpen > 0 ? 'critical' : recordCounts.open > 0 ? 'watch' : 'healthy',
+        ),
         icon: <FileWarning className="h-5 w-5" />,
-        score: recordResolutionRate,
       },
       {
         id: 'health',
         title: copy.dashboard.cards.health.title,
-        value: `${healthScore}/100`,
-        target: copy.dashboard.cards.health.target,
+        value: attendanceAvailable
+          ? formatNumber(attendanceSummary.unconfigured, currentLanguage.code)
+          : unavailableValue,
+        target: attendanceAvailable
+          ? `${copy.dashboard.cards.health.target} · ${attendanceSummary.pending} ${copy.dashboard.labels.pending}`
+          : unavailableValue,
         description: copy.dashboard.cards.health.description,
-        status: healthStatus,
+        status: statusFor(attendanceAvailable, attendanceSummary.unconfigured > 0 ? 'watch' : 'healthy'),
         icon: <ShieldCheck className="h-5 w-5" />,
-        score: healthScore,
       },
     ],
     [
-      activeRate,
-      assetCounts.assigned,
+      assetCounts.assignedItems,
+      assetCounts.assignedPeople,
       assetCounts.maintenance,
-      assetValueSummary.assetCountWithValue,
-      assetValueSummary.nativeBreakdownLabel,
-      assetValueSummary.preferredTotalLabel,
-      assetValueSummary.valueCoverageRate,
-      assetCoverageRate,
+      assetsAvailable,
       attendanceSummary.absence,
       attendanceSummary.attendanceRate,
-      attendanceSummary.denominator,
+      attendanceSummary.completedSample,
       attendanceSummary.late,
-      attendanceSummary.noRecord,
       attendanceSummary.onTime,
+      attendanceSummary.pending,
+      attendanceSummary.present,
+      attendanceSummary.punctualityRate,
+      attendanceSummary.unconfigured,
+      attendanceAvailable,
       copy,
       currentLanguage.code,
+      employeeScopeAvailable,
       filteredEmployees.length,
-      healthScore,
-      healthStatus,
       permissionCounts.pending,
       permissionCounts.total,
-      permissionResolutionRate,
-      preferredCurrency,
-      recordCounts.highSeverity,
-      recordCounts.pending,
+      permissionsAvailable,
+      previousAttendanceSummary.attendanceRate,
+      previousAttendanceSummary.punctualityRate,
+      recordCounts.criticalOpen,
+      recordCounts.open,
       recordCounts.total,
-      recordResolutionRate,
+      recordsAvailable,
+      scopedEmployees.length,
+      unavailableValue,
     ],
   );
 
@@ -1119,7 +939,8 @@ export default function KPIs() {
       { name: copy.dashboard.labels.leave, value: attendanceSummary.leave },
       { name: copy.dashboard.labels.rest, value: attendanceSummary.rest },
       { name: copy.dashboard.labels.absence, value: attendanceSummary.absence },
-      { name: copy.dashboard.labels.noRecord, value: attendanceSummary.noRecord },
+      { name: copy.dashboard.labels.pending, value: attendanceSummary.pending },
+      { name: copy.dashboard.signals.noAttendanceSetup, value: attendanceSummary.unconfigured },
     ].filter((item) => item.value > 0),
     [attendanceSummary, copy.dashboard.labels],
   );
@@ -1139,12 +960,7 @@ export default function KPIs() {
         const unitName = unitEmployees[0]?.unit_name || copy.dashboard.labels.noUnit;
         const unitEmployeeIds = new Set(unitEmployees.map((employee) => employee.id));
         const unitAssignments = filteredAssignments.filter((assignment) => unitEmployeeIds.has(assignment.user_company_id));
-        const unitAttendanceCount = unitAssignments.filter((assignment) =>
-          assignment.today_status === 'on_time' || assignment.today_status === 'late',
-        ).length;
-        const unitAttendanceRate = unitAssignments.length > 0
-          ? clampScore((unitAttendanceCount / Math.max(unitAssignments.length, unitEmployees.length)) * 100)
-          : null;
+        const unitAttendance = measureHrAttendance(unitAssignments);
         const unitPermissions = filteredPermissions.filter((permission) =>
           permission.employee.id ? unitEmployeeIds.has(permission.employee.id) : false,
         );
@@ -1153,33 +969,36 @@ export default function KPIs() {
           asset.responsible_user_company_id ? unitEmployeeIds.has(asset.responsible_user_company_id) : String(asset.unit_id ?? '') === unitId,
         );
         const pendingPermissions = unitPermissions.filter((permission) => permission.status === 'pending').length;
-        const unresolvedRecords = unitRecords.filter((record) => record.status !== 'resolved' || record.severity === 'high').length;
+        const unitRecordMeasurements = measureHrRecords(unitRecords);
         const assignedAssets = unitAssets.filter((asset) => asset.status === 'assigned' || asset.status === 'custody').length;
-        const readinessScore = weightedAverage([
-          { value: unitAttendanceRate, weight: 0.35 },
-          { value: pendingPermissions === 0 ? 100 : Math.max(45, 100 - pendingPermissions * 12), weight: 0.2 },
-          { value: unresolvedRecords === 0 ? 100 : Math.max(40, 100 - unresolvedRecords * 12), weight: 0.25 },
-          { value: unitEmployees.length > 0 ? clampScore((assignedAssets / unitEmployees.length) * 100) : null, weight: 0.2 },
-        ]);
+        const maintenanceAssets = unitAssets.filter((asset) => asset.status === 'maintenance').length;
+        const attentionSignals = unitAttendance.late
+          + unitAttendance.absence
+          + unitAttendance.unconfigured
+          + pendingPermissions
+          + unitRecordMeasurements.open
+          + maintenanceAssets;
 
         return {
           id: unitId,
           name: unitName,
           employees: unitEmployees.length,
-          attendanceRate: unitAttendanceRate,
+          attendanceRate: unitAttendance.attendanceRate,
           pendingPermissions,
-          unresolvedRecords,
+          unresolvedRecords: unitRecordMeasurements.open,
+          criticalRecords: unitRecordMeasurements.criticalOpen,
           assignedAssets,
-          readinessScore,
-          status: getHealthStatus(readinessScore),
+          attentionSignals,
+          criticalSignals: unitAttendance.absence + unitRecordMeasurements.criticalOpen,
         };
       })
-      .sort((left, right) => left.readinessScore - right.readinessScore || left.name.localeCompare(right.name));
+      .sort((left, right) => right.attentionSignals - left.attentionSignals || left.name.localeCompare(right.name));
   }, [copy.dashboard.labels.noUnit, filteredAssignments, filteredAssets, filteredEmployees, filteredPermissions, filteredRecords]);
 
   const attentionRows = useMemo<AttentionSignalRow[]>(() => {
     const permissionByEmployee = new Map<number, number>();
     const recordsByEmployee = new Map<number, number>();
+    const criticalRecordsByEmployee = new Map<number, number>();
     const assignmentByEmployee = new Map<number, AttendanceControlAssignment>();
 
     filteredPermissions.forEach((permission) => {
@@ -1189,8 +1008,11 @@ export default function KPIs() {
     });
 
     filteredRecords.forEach((record) => {
-      if (record.status !== 'resolved' || record.severity === 'high') {
+      if (isOpenHrRecord(record)) {
         recordsByEmployee.set(record.user.id, (recordsByEmployee.get(record.user.id) ?? 0) + 1);
+      }
+      if (isCriticalOpenHrRecord(record)) {
+        criticalRecordsByEmployee.set(record.user.id, (criticalRecordsByEmployee.get(record.user.id) ?? 0) + 1);
       }
     });
 
@@ -1203,27 +1025,32 @@ export default function KPIs() {
         const assignment = assignmentByEmployee.get(employee.id);
         const signals: string[] = [];
 
-        if (!assignment) {
-          signals.push(copy.dashboard.signals.noAttendanceSetup);
-        } else if (assignment.today_status === 'late') {
-          signals.push(copy.dashboard.signals.lateToday);
-        } else if (assignment.today_status === 'absence') {
-          signals.push(copy.dashboard.signals.absentToday);
-        } else if (assignment.today_status === 'pending' || assignment.today_status === 'not_scheduled') {
-          signals.push(copy.dashboard.signals.noRecordToday);
+        if (attendanceAvailable) {
+          if (!assignment) {
+            signals.push(copy.dashboard.signals.noAttendanceSetup);
+          } else if (assignment.today_status === 'late') {
+            signals.push(copy.dashboard.signals.lateToday);
+          } else if (assignment.today_status === 'absence') {
+            signals.push(copy.dashboard.signals.absentToday);
+          } else if (assignment.today_status === 'not_scheduled' || assignment.today_rule == null) {
+            signals.push(copy.dashboard.signals.noAttendanceSetup);
+          }
         }
 
         const pendingPermissions = permissionByEmployee.get(employee.id) ?? 0;
         const openRecords = recordsByEmployee.get(employee.id) ?? 0;
+        const criticalRecords = criticalRecordsByEmployee.get(employee.id) ?? 0;
 
-        if (pendingPermissions > 0) {
+        if (permissionsAvailable && pendingPermissions > 0) {
           signals.push(copy.dashboard.signals.pendingPermissions(pendingPermissions));
         }
-        if (openRecords > 0) {
+        if (recordsAvailable && openRecords > 0) {
           signals.push(copy.dashboard.signals.openRecords(openRecords));
         }
 
-        const score = 100 - signals.length * 18 - (assignment?.today_status === 'absence' ? 20 : 0);
+        const status: HrKpiSignalStatus = assignment?.today_status === 'absence' || criticalRecords > 0
+          ? 'critical'
+          : 'watch';
 
         return {
           id: String(employee.id),
@@ -1231,12 +1058,17 @@ export default function KPIs() {
           position: employee.position_title || employee.position || copy.dashboard.labels.noDepartment,
           unit: employee.unit_name || copy.dashboard.labels.noUnit,
           signals,
-          status: getHealthStatus(score),
+          status,
         };
       })
       .filter((row) => row.signals.length > 0)
       .sort((left, right) => {
-        const statusPriority: Record<HealthStatus, number> = { critical: 0, watch: 1, healthy: 2 };
+        const statusPriority: Record<HrKpiSignalStatus, number> = {
+          critical: 0,
+          watch: 1,
+          healthy: 2,
+          unavailable: 3,
+        };
         return statusPriority[left.status] - statusPriority[right.status] || right.signals.length - left.signals.length;
       })
       .slice(0, 8);
@@ -1244,15 +1076,20 @@ export default function KPIs() {
     copy.dashboard.labels.noDepartment,
     copy.dashboard.labels.noUnit,
     copy.dashboard.signals,
+    attendanceAvailable,
     filteredAssignments,
     filteredEmployees,
     filteredPermissions,
     filteredRecords,
+    permissionsAvailable,
+    recordsAvailable,
   ]);
 
   const unitChartData = useMemo(
-    () => unitRows.slice(0, 6).map((row) => ({ name: row.name, score: row.readinessScore })),
-    [unitRows],
+    () => unitSourcesAvailable
+      ? unitRows.slice(0, 6).map((row) => ({ name: row.name, signals: row.attentionSignals }))
+      : [],
+    [unitRows, unitSourcesAvailable],
   );
 
   const permissionChartData = useMemo(() => [
@@ -1265,75 +1102,142 @@ export default function KPIs() {
     { name: copy.dashboard.labels.pending, value: recordCounts.pending },
     { name: standardCopy.reviewed, value: recordCounts.reviewed },
     { name: standardCopy.resolved, value: recordCounts.resolved },
-    { name: copy.dashboard.statuses.critical, value: recordCounts.highSeverity },
-  ].filter(item => item.value > 0), [copy.dashboard.labels.pending, copy.dashboard.statuses.critical, recordCounts, standardCopy]);
+  ].filter(item => item.value > 0), [copy.dashboard.labels.pending, recordCounts, standardCopy]);
 
   const departmentRiskRows = useMemo(() => {
+    if (!attendanceAvailable) return [];
     const assignmentByEmployee = new Map(filteredAssignments.map(assignment => [assignment.user_company_id, assignment]));
     const groups = new Map<string, { employees: number; exceptions: number }>();
     filteredEmployees.forEach((employee) => {
       const department = employee.department || copy.dashboard.labels.noDepartment;
       const group = groups.get(department) ?? { employees: 0, exceptions: 0 };
-      const status = assignmentByEmployee.get(employee.id)?.today_status;
+      const assignment = assignmentByEmployee.get(employee.id);
+      const status = assignment?.today_status;
       group.employees += 1;
-      if (!status || ['late', 'absence', 'pending', 'not_scheduled'].includes(status)) group.exceptions += 1;
+      if (!assignment || assignment.today_rule == null || ['late', 'absence', 'not_scheduled'].includes(status ?? '')) {
+        group.exceptions += 1;
+      }
       groups.set(department, group);
     });
     return Array.from(groups.entries()).map(([name, values]) => ({ name, ...values, percentage: values.employees > 0 ? (values.exceptions / values.employees) * 100 : 0 })).sort((left, right) => right.exceptions - left.exceptions).slice(0, 5);
-  }, [copy.dashboard.labels.noDepartment, filteredAssignments, filteredEmployees]);
+  }, [attendanceAvailable, copy.dashboard.labels.noDepartment, filteredAssignments, filteredEmployees]);
 
   const employeeOperationsRows = useMemo<HrEmployeeOperationsRow[]>(() => {
     const assignmentByEmployee = new Map(filteredAssignments.map(assignment => [assignment.user_company_id, assignment]));
     const permissionsByEmployee = new Map<number, number>();
     const recordsByEmployee = new Map<number, number>();
+    const criticalRecordsByEmployee = new Map<number, number>();
     const assetsByEmployee = new Map<number, number>();
     filteredPermissions.forEach(permission => { if (permission.status === 'pending' && permission.employee.id) permissionsByEmployee.set(permission.employee.id, (permissionsByEmployee.get(permission.employee.id) ?? 0) + 1); });
-    filteredRecords.forEach(record => { if (record.status !== 'resolved' || record.severity === 'high') recordsByEmployee.set(record.user.id, (recordsByEmployee.get(record.user.id) ?? 0) + 1); });
+    filteredRecords.forEach(record => {
+      if (isOpenHrRecord(record)) recordsByEmployee.set(record.user.id, (recordsByEmployee.get(record.user.id) ?? 0) + 1);
+      if (isCriticalOpenHrRecord(record)) criticalRecordsByEmployee.set(record.user.id, (criticalRecordsByEmployee.get(record.user.id) ?? 0) + 1);
+    });
     filteredAssets.forEach(asset => { if (asset.responsible_user_company_id && ['assigned', 'custody'].includes(asset.status)) assetsByEmployee.set(asset.responsible_user_company_id, (assetsByEmployee.get(asset.responsible_user_company_id) ?? 0) + 1); });
-    const attendanceScores: Record<string, number> = { on_time: 100, rest: 100, leave: 90, late: 72, pending: 40, not_scheduled: 40, absence: 10 };
-    const attendanceLabels: Record<string, string> = { on_time: copy.dashboard.labels.onTime, rest: copy.dashboard.labels.rest, leave: copy.dashboard.labels.leave, late: copy.dashboard.labels.late, pending: copy.dashboard.labels.noRecord, not_scheduled: copy.dashboard.labels.noRecord, absence: copy.dashboard.labels.absence };
+    const attendanceLabels: Record<string, string> = {
+      on_time: copy.dashboard.labels.onTime,
+      rest: copy.dashboard.labels.rest,
+      leave: copy.dashboard.labels.leave,
+      late: copy.dashboard.labels.late,
+      pending: copy.dashboard.labels.pending,
+      not_scheduled: copy.dashboard.signals.noAttendanceSetup,
+      absence: copy.dashboard.labels.absence,
+      unconfigured: copy.dashboard.signals.noAttendanceSetup,
+      unavailable: copy.dashboard.common.notAvailable,
+    };
+    const allRowSourcesAvailable = attendanceAvailable && permissionsAvailable && recordsAvailable && assetsAvailable;
     return filteredEmployees.map(employee => {
       const assignment = assignmentByEmployee.get(employee.id);
-      const statusKey = assignment?.today_status ?? 'pending';
+      const statusKey = !attendanceAvailable
+        ? 'unavailable'
+        : assignment?.today_rule == null
+          ? 'unconfigured'
+          : assignment.today_status;
       const pendingPermissions = permissionsByEmployee.get(employee.id) ?? 0;
       const openRecords = recordsByEmployee.get(employee.id) ?? 0;
+      const criticalRecords = criticalRecordsByEmployee.get(employee.id) ?? 0;
       const assignedAssets = assetsByEmployee.get(employee.id) ?? 0;
-      const score = weightedAverage([
-        { value: attendanceScores[statusKey] ?? 40, weight: 0.45 },
-        { value: Math.max(0, 100 - pendingPermissions * 20), weight: 0.2 },
-        { value: Math.max(0, 100 - openRecords * 25), weight: 0.25 },
-        { value: assignedAssets > 0 ? 100 : 40, weight: 0.1 },
-      ]);
+      const attendanceSignal = attendanceAvailable
+        && ['late', 'absence', 'not_scheduled', 'unconfigured'].includes(statusKey)
+        ? 1
+        : 0;
+      const signalCount = attendanceSignal + pendingPermissions + openRecords;
+      const status: HrKpiSignalStatus = !allRowSourcesAvailable
+        ? 'unavailable'
+        : statusKey === 'absence' || criticalRecords > 0
+          ? 'critical'
+          : signalCount > 0
+            ? 'watch'
+            : 'healthy';
       return {
         id: employee.id,
         position: 0,
         name: getEmployeeDisplayName(employee),
         meta: `${employee.position_title || employee.position || copy.dashboard.labels.noDepartment} · ${employee.unit_name || copy.dashboard.labels.noUnit}`,
         attendance: attendanceLabels[statusKey] ?? copy.dashboard.labels.noRecord,
-        permissions: pendingPermissions,
-        records: openRecords,
-        assets: assignedAssets,
-        score,
-        status: getHealthStatus(score),
+        permissions: permissionsAvailable ? pendingPermissions : unavailableValue,
+        records: recordsAvailable ? openRecords : unavailableValue,
+        assets: assetsAvailable ? assignedAssets : unavailableValue,
+        signalCount: allRowSourcesAvailable ? signalCount : unavailableValue,
+        signalValue: signalCount,
+        status,
       };
-    }).sort((left, right) => left.score - right.score || left.name.localeCompare(right.name)).map((row, index) => ({ ...row, position: index + 1 }));
-  }, [copy.dashboard.labels, filteredAssignments, filteredAssets, filteredEmployees, filteredPermissions, filteredRecords]);
+    }).sort((left, right) => {
+      const statusPriority: Record<HrKpiSignalStatus, number> = {
+        critical: 0,
+        watch: 1,
+        unavailable: 2,
+        healthy: 3,
+      };
+      return statusPriority[left.status] - statusPriority[right.status]
+        || right.signalValue - left.signalValue
+        || left.name.localeCompare(right.name);
+    }).map(({ signalValue: _signalValue, ...row }, index) => ({ ...row, position: index + 1 }));
+  }, [
+    assetsAvailable,
+    attendanceAvailable,
+    copy.dashboard.common.notAvailable,
+    copy.dashboard.labels,
+    copy.dashboard.signals.noAttendanceSetup,
+    filteredAssignments,
+    filteredAssets,
+    filteredEmployees,
+    filteredPermissions,
+    filteredRecords,
+    permissionsAvailable,
+    recordsAvailable,
+    unavailableValue,
+  ]);
+
+  const executiveStatus = useMemo<HrKpiSignalStatus>(() => {
+    if (displaySourceWarnings.length > 0) return 'unavailable';
+    if (attendanceSummary.absence > 0 || recordCounts.criticalOpen > 0) return 'critical';
+    if (
+      attendanceSummary.late > 0
+      || attendanceSummary.unconfigured > 0
+      || permissionCounts.pending > 0
+      || recordCounts.open > 0
+      || assetCounts.maintenance > 0
+    ) return 'watch';
+    return 'healthy';
+  }, [
+    assetCounts.maintenance,
+    attendanceSummary.absence,
+    attendanceSummary.late,
+    attendanceSummary.unconfigured,
+    displaySourceWarnings.length,
+    permissionCounts.pending,
+    recordCounts.criticalOpen,
+    recordCounts.open,
+  ]);
 
   const healthInsight = useMemo(() => {
-    if (filteredEmployees.length === 0) {
-      return copy.dashboard.insights.empty;
-    }
-
-    if (healthStatus === 'critical') {
-      return copy.dashboard.insights.critical;
-    }
-
-    if (healthStatus === 'watch') {
-      return copy.dashboard.insights.watch;
-    }
-
+    if (executiveStatus === 'unavailable') return copy.dashboard.common.partialData;
+    if (filteredEmployees.length === 0) return copy.dashboard.insights.empty;
+    if (executiveStatus === 'critical') return copy.dashboard.insights.critical;
+    if (executiveStatus === 'watch') return copy.dashboard.insights.watch;
     return copy.dashboard.insights.healthy;
-  }, [copy.dashboard.insights, filteredEmployees.length, healthStatus]);
+  }, [copy.dashboard.common.partialData, copy.dashboard.insights, executiveStatus, filteredEmployees.length]);
 
   const periodOptions = useMemo(
     () => [
@@ -1384,7 +1288,7 @@ export default function KPIs() {
   const selectedDepartmentLabel = departmentFilter === allValue ? copy.dashboard.filters.allDepartments : departmentFilter;
   const selectedAttendanceStatusLabel = attendanceStatusFilter === allValue
     ? standardCopy.allStatuses
-    : ({ on_time: copy.dashboard.labels.onTime, late: copy.dashboard.labels.late, leave: copy.dashboard.labels.leave, rest: copy.dashboard.labels.rest, absence: copy.dashboard.labels.absence, pending: copy.dashboard.labels.noRecord } as Record<string, string>)[attendanceStatusFilter] ?? standardCopy.allStatuses;
+    : ({ on_time: copy.dashboard.labels.onTime, late: copy.dashboard.labels.late, leave: copy.dashboard.labels.leave, rest: copy.dashboard.labels.rest, absence: copy.dashboard.labels.absence, pending: copy.dashboard.labels.pending, not_scheduled: copy.dashboard.signals.noAttendanceSetup } as Record<string, string>)[attendanceStatusFilter] ?? standardCopy.allStatuses;
 
   const lastUpdatedLabel = lastUpdatedAt
     ? new Intl.DateTimeFormat(currentLanguage.code, {
@@ -1430,15 +1334,16 @@ export default function KPIs() {
       lastUpdatedLabel,
       locale: currentLanguage.code,
       periodLabel,
+      sourceWarnings: displaySourceWarnings,
       unitRows: unitRows.map((row) => ({
-        assignedAssets: formatNumber(row.assignedAssets, currentLanguage.code),
-        attendanceRate: formatPercent(row.attendanceRate, copy),
+        assignedAssets: assetsAvailable ? formatNumber(row.assignedAssets, currentLanguage.code) : unavailableValue,
+        attentionSignals: unitSourcesAvailable ? formatNumber(row.attentionSignals, currentLanguage.code) : unavailableValue,
+        attentionValue: unitSourcesAvailable ? row.attentionSignals : 0,
+        attendanceRate: attendanceAvailable ? formatPercent(row.attendanceRate, copy) : unavailableValue,
         employees: formatNumber(row.employees, currentLanguage.code),
         name: row.name,
-        pendingPermissions: formatNumber(row.pendingPermissions, currentLanguage.code),
-        readinessScore: `${row.readinessScore}%`,
-        readinessValue: row.readinessScore,
-        unresolvedRecords: formatNumber(row.unresolvedRecords, currentLanguage.code),
+        pendingPermissions: permissionsAvailable ? formatNumber(row.pendingPermissions, currentLanguage.code) : unavailableValue,
+        unresolvedRecords: recordsAvailable ? formatNumber(row.unresolvedRecords, currentLanguage.code) : unavailableValue,
       })),
     });
   };
@@ -1539,7 +1444,8 @@ export default function KPIs() {
             { value: 'leave', label: copy.dashboard.labels.leave },
             { value: 'rest', label: copy.dashboard.labels.rest },
             { value: 'absence', label: copy.dashboard.labels.absence },
-            { value: 'pending', label: copy.dashboard.labels.noRecord },
+            { value: 'pending', label: copy.dashboard.labels.pending },
+            { value: 'not_scheduled', label: copy.dashboard.signals.noAttendanceSetup },
           ]}
           tone="aqua"
         />
@@ -1580,13 +1486,15 @@ export default function KPIs() {
         ) : null}
       </IndiceFilterBar>
 
-      {sourceWarnings.length > 0 ? (
+      {displaySourceWarnings.length > 0 ? (
         <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
           <div className="flex items-start gap-2">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
               <p className="font-medium">{copy.dashboard.common.partialData}</p>
-              <p className="mt-1">{sourceWarnings.slice(0, 2).join(' ')}</p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                {displaySourceWarnings.map((warning) => <li key={warning}>{warning}</li>)}
+              </ul>
             </div>
           </div>
         </div>
@@ -1600,22 +1508,22 @@ export default function KPIs() {
             ))}
           </section>
 
-          <section className="rounded-[24px] border border-emerald-200 bg-emerald-50/70 p-5 text-sm text-emerald-800 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200">
+          <section className={cn('rounded-[24px] border p-5 text-sm shadow-sm', statusClasses[executiveStatus])}>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-start gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-600 shadow-sm ring-1 ring-emerald-100 dark:bg-slate-900 dark:text-emerald-300 dark:ring-emerald-900/40">
-                  <CheckCircle2 className="h-4 w-4" />
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/80 shadow-sm ring-1 ring-current/10 dark:bg-slate-900/80">
+                  {executiveStatus === 'healthy' ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
                 </span>
                 <div>
                   <p className="font-medium text-slate-900 dark:text-white">{copy.dashboard.sections.executiveSignal}</p>
                   <p className="mt-1 leading-6">{healthInsight}</p>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2 text-xs font-medium text-emerald-700 dark:text-emerald-300 lg:justify-end">
+              <div className="flex flex-wrap gap-2 text-xs font-medium lg:justify-end">
                 <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{periodLabel}: {periodScopeLabel}</span>
                 <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{standardCopy.operationalDate}: {attendanceScopeLabel}</span>
                 <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{copy.dashboard.labels.preferredCurrency}: {preferredCurrency}</span>
-                <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{copy.dashboard.labels.totalAssetValue}: {assetValueSummary.nativeBreakdownLabel}</span>
+                <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{copy.dashboard.labels.totalAssetValue}: {assetsAvailable ? assetValueSummary.nativeBreakdownLabel : unavailableValue}</span>
                 <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{standardCopy.comparison}</span>
                 <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{copy.dashboard.labels.lastUpdated}: {lastUpdatedLabel}</span>
               </div>
@@ -1623,14 +1531,14 @@ export default function KPIs() {
           </section>
 
           <section className="grid grid-cols-2 gap-3 rounded-[24px] border border-slate-200 bg-white p-4 text-xs font-medium text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 md:grid-cols-4 xl:grid-cols-8">
-            <span>{copy.dashboard.labels.totalEmployees}: {employeeSummary.total_count}</span>
-            <span>{copy.dashboard.labels.active}: {employeeSummary.active_count}</span>
-            <span>{copy.dashboard.labels.inactive}: {employeeSummary.inactive_count}</span>
-            <span>{copy.dashboard.labels.terminated}: {employeeSummary.terminated_count}</span>
-            <span>{copy.dashboard.labels.totalAssets}: {assetSummary.total_count}</span>
-            <span>{copy.dashboard.labels.totalAssetValue}: {assetValueSummary.preferredTotalLabel}</span>
-            <span>{copy.dashboard.labels.totalPermissions}: {permissionSummary.total}</span>
-            <span>{copy.dashboard.labels.totalRecords}: {recordSummary.total_count}</span>
+            <span>{copy.dashboard.labels.totalEmployees}: {sourceAvailability.employees ? scopedEmployees.length : unavailableValue}</span>
+            <span>{copy.dashboard.labels.active}: {employeeScopeAvailable ? filteredEmployees.length : unavailableValue}</span>
+            <span>{copy.dashboard.labels.inactive}: {sourceAvailability.employees ? scopedEmployees.filter((employee) => String(employee.status).toLowerCase() === 'inactive').length : unavailableValue}</span>
+            <span>{copy.dashboard.labels.terminated}: {sourceAvailability.employees ? scopedEmployees.filter((employee) => String(employee.status).toLowerCase() === 'terminated').length : unavailableValue}</span>
+            <span>{copy.dashboard.labels.totalAssets}: {assetsAvailable ? filteredAssets.length : unavailableValue}</span>
+            <span>{copy.dashboard.labels.totalAssetValue}: {assetsAvailable ? assetValueSummary.preferredTotalLabel : unavailableValue}</span>
+            <span>{copy.dashboard.labels.totalPermissions}: {permissionsAvailable ? filteredPermissions.length : unavailableValue}</span>
+            <span>{copy.dashboard.labels.totalRecords}: {recordsAvailable ? filteredRecords.length : unavailableValue}</span>
           </section>
         </section>
       ):null}
@@ -1649,7 +1557,19 @@ export default function KPIs() {
                 <IdCard className="h-5 w-5 text-emerald-500" />
               </div>
               <div className="h-72">
-                {attendanceChartData.length>0? (
+                {attendanceChartData.length === 1 ? (
+                  <div className="flex h-full items-center justify-center">
+                    <div
+                      aria-label={`${attendanceChartData[0].name}: ${attendanceChartData[0].value}`}
+                      className="relative h-44 w-44 rounded-full shadow-inner"
+                      data-hr-kpi-single-segment="attendance"
+                      role="img"
+                      style={{ backgroundColor: pieColors[0] }}
+                    >
+                      <span className="absolute inset-[34px] rounded-full bg-white shadow-sm dark:bg-slate-800" />
+                    </div>
+                  </div>
+                ) : attendanceChartData.length>0? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -1716,9 +1636,9 @@ export default function KPIs() {
                   <BarChart data={unitChartData} margin={{ top: 10,right: 18,left: -20,bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} height={54} />
-                    <YAxis domain={[0,100]} tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                     <Tooltip />
-                    <Bar dataKey="score" name={copy.dashboard.labels.readiness} radius={[8,8,0,0]} fill={moduleAccent} />
+                    <Bar dataKey="signals" name={copy.dashboard.labels.readiness} radius={[8,8,0,0]} fill={moduleAccent} />
                   </BarChart>
                 </ResponsiveContainer>
               ):(
@@ -1730,7 +1650,7 @@ export default function KPIs() {
           </article>
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-            <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800"><h3 className="font-medium text-slate-900 dark:text-white">{standardCopy.topUnits}</h3><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.dashboard.sections.unitPerformanceHint}</p><div className="mt-5 space-y-3">{unitRows.slice(0,5).map((row,index) => <button key={row.id} type="button" disabled={row.id==='none'} onClick={() => { setUnitFilter(row.id); setBusinessFilter(allValue); }} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-emerald-50 disabled:cursor-default dark:hover:bg-emerald-950/20"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-xs font-medium dark:bg-slate-700">{index+1}</span><span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-700 dark:text-slate-200">{row.name}</span><span className={`rounded-full border px-2 py-1 text-xs font-medium ${statusClasses[row.status]}`}>{row.readinessScore}%</span></button>)}{unitRows.length===0? <p className="py-8 text-center text-sm text-slate-500">{copy.dashboard.common.noData}</p>:null}</div></article>
+            <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800"><h3 className="font-medium text-slate-900 dark:text-white">{standardCopy.topUnits}</h3><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.dashboard.sections.unitPerformanceHint}</p><div className="mt-5 space-y-3">{unitRows.slice(0,5).map((row,index) => { const rowStatus: HrKpiSignalStatus = !unitSourcesAvailable ? 'unavailable' : row.criticalSignals > 0 ? 'critical' : row.attentionSignals > 0 ? 'watch' : 'healthy'; return <button key={row.id} type="button" disabled={row.id==='none'} onClick={() => { setUnitFilter(row.id); setBusinessFilter(allValue); }} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-emerald-50 disabled:cursor-default dark:hover:bg-emerald-950/20"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-xs font-medium dark:bg-slate-700">{index+1}</span><span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-700 dark:text-slate-200">{row.name}</span><span className={`rounded-full border px-2 py-1 text-xs font-medium ${statusClasses[rowStatus]}`}>{unitSourcesAvailable ? row.attentionSignals : unavailableValue}</span></button>; })}{unitRows.length===0? <p className="py-8 text-center text-sm text-slate-500">{copy.dashboard.common.noData}</p>:null}</div></article>
 
             <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800"><h3 className="font-medium text-slate-900 dark:text-white">{standardCopy.topDepartments}</h3><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.dashboard.cards.late.description}</p><div className="mt-5 space-y-3">{departmentRiskRows.map((row,index) => <button key={row.name} type="button" onClick={() => setDepartmentFilter(row.name)} className="block w-full rounded-xl p-2 text-left transition hover:bg-emerald-50 dark:hover:bg-emerald-950/20"><div className="flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-xs font-medium dark:bg-slate-700">{index+1}</span><span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-700 dark:text-slate-200">{row.name}</span><span className="text-sm font-medium text-slate-900 dark:text-white">{row.exceptions}</span></div><div className="ml-11 mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700"><div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.min(100,row.percentage)}%` }} /></div></button>)}{departmentRiskRows.length===0? <p className="py-8 text-center text-sm text-slate-500">{copy.dashboard.common.noData}</p>:null}</div></article>
           </div>
@@ -1751,17 +1671,20 @@ export default function KPIs() {
                           {copy.dashboard.table.employees}: {row.employees}
                         </p>
                       </div>
-                      <KpiStatusBadge copy={copy} status={row.status} />
+                      <KpiStatusBadge
+                        copy={copy}
+                        status={!unitSourcesAvailable ? 'unavailable' : row.criticalSignals > 0 ? 'critical' : row.attentionSignals > 0 ? 'watch' : 'healthy'}
+                      />
                     </div>
                     <dl className="mt-4 grid grid-cols-2 gap-3 border-y border-slate-100 py-4 text-sm dark:border-slate-700">
-                      <div><dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.table.attendance}</dt><dd className="mt-1 font-medium text-slate-900 dark:text-white">{formatPercent(row.attendanceRate,copy)}</dd></div>
-                      <div><dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.table.permissions}</dt><dd className="mt-1 font-medium text-slate-900 dark:text-white">{row.pendingPermissions}</dd></div>
-                      <div><dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.table.records}</dt><dd className="mt-1 font-medium text-slate-900 dark:text-white">{row.unresolvedRecords}</dd></div>
-                      <div><dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.table.assets}</dt><dd className="mt-1 font-medium text-slate-900 dark:text-white">{row.assignedAssets}</dd></div>
+                      <div><dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.table.attendance}</dt><dd className="mt-1 font-medium text-slate-900 dark:text-white">{attendanceAvailable ? formatPercent(row.attendanceRate,copy) : unavailableValue}</dd></div>
+                      <div><dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.table.permissions}</dt><dd className="mt-1 font-medium text-slate-900 dark:text-white">{permissionsAvailable ? row.pendingPermissions : unavailableValue}</dd></div>
+                      <div><dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.table.records}</dt><dd className="mt-1 font-medium text-slate-900 dark:text-white">{recordsAvailable ? row.unresolvedRecords : unavailableValue}</dd></div>
+                      <div><dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.table.assets}</dt><dd className="mt-1 font-medium text-slate-900 dark:text-white">{assetsAvailable ? row.assignedAssets : unavailableValue}</dd></div>
                     </dl>
                     <div className="mt-4">
                       <p className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.table.readiness}</p>
-                      <KpiScoreBar score={row.readinessScore} status={row.status} />
+                      <p className="text-lg font-medium text-slate-900 dark:text-white">{unitSourcesAvailable ? row.attentionSignals : unavailableValue}</p>
                     </div>
                   </article>
                 ))
@@ -1790,13 +1713,17 @@ export default function KPIs() {
                       <tr key={row.id} className="hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10">
                         <td className="px-5 py-4 text-sm font-medium text-slate-900 dark:text-white">{row.name}</td>
                         <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{row.employees}</td>
-                        <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{formatPercent(row.attendanceRate,copy)}</td>
-                        <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{row.pendingPermissions}</td>
-                        <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{row.unresolvedRecords}</td>
-                        <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{row.assignedAssets}</td>
+                        <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{attendanceAvailable ? formatPercent(row.attendanceRate,copy) : unavailableValue}</td>
+                        <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{permissionsAvailable ? row.pendingPermissions : unavailableValue}</td>
+                        <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{recordsAvailable ? row.unresolvedRecords : unavailableValue}</td>
+                        <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{assetsAvailable ? row.assignedAssets : unavailableValue}</td>
                         <td className="px-5 py-4">
                           <div className="flex min-w-[180px] items-center gap-3">
-                            <KpiScoreBar score={row.readinessScore} status={row.status} />
+                            <span className="font-medium text-slate-900 dark:text-white">{unitSourcesAvailable ? row.attentionSignals : unavailableValue}</span>
+                            <KpiStatusBadge
+                              copy={copy}
+                              status={!unitSourcesAvailable ? 'unavailable' : row.criticalSignals > 0 ? 'critical' : row.attentionSignals > 0 ? 'watch' : 'healthy'}
+                            />
                           </div>
                         </td>
                       </tr>
