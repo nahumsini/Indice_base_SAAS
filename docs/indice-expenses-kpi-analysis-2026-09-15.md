@@ -1,6 +1,7 @@
 # Análisis e implementación de indicadores de Gastos
 
-Fecha: 2026-09-15. Estado: implementado y servido en local; sin despliegue de producción.
+Fecha de cierre: 2026-09-16. Estado: cerrado en rama aislada y validado en local;
+sin despliegue de producción.
 Contrato: [Expenses KPI workspace](./expenses-kpi-workspace-contract.md).
 
 ## Qué información permite aprovechar el módulo
@@ -49,6 +50,15 @@ importe, avance de pago, evidencia y saldo vencido.
 - Actualizar ahora renueva también importes cuando permanecen los mismos IDs.
 - Excepciones documentales permiten filtrar el detalle y acceder al gasto mediante
   el listado operativo existente, sujeto al permiso de su pestaña.
+- Un fallo de la fuente propietaria podía dejar importes o porcentajes aparentando
+  un cero válido. Las tarjetas afectadas ahora quedan explícitamente no disponibles.
+- El uso presupuestal se recalculaba solo con ejecutado. Ahora deriva del disponible
+  del propietario (`planeado - disponible`) e incluye comprometido, y conserva el
+  estado de salud calculado por Presupuestos.
+- Una mezcla de pagos con un solo estado podía producir una dona vacía. La vista usa
+  un segmento determinista y accesible para ese caso.
+- Un alcance vacío o una fuente no disponible podía producir un mensaje de salud
+  positiva. El estado saludable ahora exige observaciones válidas.
 
 ## Organización
 
@@ -66,17 +76,20 @@ visible. Los detalles monetarios de cada gasto conservan su divisa ISO original.
 
 ## Validación
 
-- 45 pruebas de UI de Gastos, incluidos 9 casos nuevos del workspace.
-- 4 regresiones de flujos financieros existentes.
-- 44 pruebas unitarias de servicio/controlador de Gastos y motor monetario.
+- 47 pruebas de UI de Gastos, incluidos los cierres de fuente, presupuesto y dona
+  de un solo segmento: aprobadas.
+- 5 regresiones de flujos financieros existentes: aprobadas.
+- 44 pruebas unitarias de servicio/controlador de Gastos y motor monetario, más
+  2 pruebas de unicidad de migraciones: 46/46 aprobadas.
 - TypeScript y build de producción: aprobados. Advertencia preexistente de chunks grandes.
 - Compilación del checkout de backend local: aprobada.
-- Frontend 5174, backend 8082 y proxy de salud: HTTP 200.
-- Listado de Gastos sin autenticar: HTTP 401.
-- Vite entrega el código nuevo; fuentes propias sincronizadas con los checkouts locales.
-- Revisión visual autenticada y comprobación del PDF renderizado: pendientes;
-  el navegador conectado no está disponible. Se verificó por prueba el alcance
-  de la impresión y la conservación de registros más allá de los límites antiguos.
+- Revisión visual autenticada de las cuatro vistas en escritorio y del resumen a
+  390 px: aprobada, sin desbordamiento horizontal ni errores del módulo.
+- PDF completo de cuatro páginas: generado y revisado visualmente; incluye alcance,
+  ocho tarjetas, análisis, unidades, responsables y detalle.
+- Backend aislado sobre `indice_test_db`, Flyway 276 y frontend por proxy: aprobados.
+- La base funcional local `indice_db` permanece en Flyway 265. No se modificó: el
+  código actual requiere al menos V273 para las columnas de reversión de pagos.
 - Migraciones, escrituras de operaciones financieras y despliegue de producción: N/A.
 
 ## Límites que permanecen explícitos

@@ -213,6 +213,8 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
   const { sources } = overview;
   const validPeriod = periodFilter !== 'custom' || Boolean(customStartDate && customEndDate && customStartDate <= customEndDate);
   const monetaryEnabled = !overview.isLoading && validPeriod;
+  const expenseSourceReady = !overview.fallbackWarnings.some(source => source === 'expenses' || source === 'overview');
+  const budgetSourceReady = !overview.fallbackWarnings.some(source => source === 'budget lines' || source === 'budgets' || source === 'overview');
   const scopeKey = JSON.stringify([accountingAccountId, businessId, customEndDate, customStartDate, paymentStatus, periodFilter, providerId, search, unitId]);
   useEffect(() => { setRankingCurrentPage(1); }, [scopeKey, rankingRole]);
   useEffect(() => { if (providerId !== 'all' || accountingAccountId !== 'all' || paymentStatus !== 'all' || periodFilter === 'custom') setIsAdvancedFiltersOpen(true); }, [providerId, accountingAccountId, paymentStatus, periodFilter]);
@@ -438,24 +440,20 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
     const committed = budgetLineAggregates.data[`budget-committed-${row.id}`]?.preferredTotal ?? 0;
     const actual = budgetLineAggregates.data[`budget-actual-${row.id}`]?.preferredTotal ?? 0;
     const available = budgetLineAggregates.data[`budget-available-${row.id}`]?.preferredTotal ?? 0;
-    const healthStatus = available < 0
-      ? BudgetHealthStatus.EXCEEDED
-      : planned > 0 && available / planned <= 0.2
-        ? BudgetHealthStatus.WARNING
-        : BudgetHealthStatus.ON_TRACK;
+    const consumed = planned - available;
     return {
       actual,
       available,
       budgetId: row.budgetId,
       committed,
       currency: preferredCurrency,
-      healthStatus,
+      healthStatus: row.healthStatus,
       id: row.id,
       name: row.name,
       planned,
-      usagePercent: planned > 0 ? (actual / planned) * 100 : 0,
+      usagePercent: planned > 0 ? Math.max(0, (consumed / planned) * 100) : 0,
     };
-  }).sort((left, right) => right.actual - left.actual), [budgetLineAggregates.data, preferredCurrency, visibleBudgetLines]);
+  }).sort((left, right) => right.usagePercent - left.usagePercent), [budgetLineAggregates.data, preferredCurrency, visibleBudgetLines]);
   const agingData = useMemo(() => {
     return [
       { color: 'bg-emerald-500', key: 'future', label: 'Por vencer' },
@@ -554,8 +552,8 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
     || Boolean(budgetLineAggregates.error);
   const monetaryDataPartial = aggregateRequests.some(request => Boolean(request.data?.partial))
     || [groupAggregates, driverAggregates, budgetLineAggregates].some(request => Object.values(request.data).some(item => item.partial));
-  const displayAggregateMoney = (aggregate: { data: KpiMonetaryAggregate | null; error: Error | null; loading: boolean }) => (
-    aggregate.loading || aggregate.error || completeAmount(aggregate.data) === null ? '—' : displayMoney(aggregate.data!.preferredTotal)
+  const displayAggregateMoney = (aggregate: { data: KpiMonetaryAggregate | null; error: Error | null; loading: boolean }, sourceReady = true) => (
+    !sourceReady || aggregate.loading || aggregate.error || completeAmount(aggregate.data) === null ? '—' : displayMoney(aggregate.data!.preferredTotal)
   );
   const openExpenseCount = overview.filteredExpenses.filter(isOpenExpense).length;
   const overdueExpenseCount = overview.filteredExpenses.filter(expense => isOverdueExpense(expense, overview.asOfDate)).length;
@@ -588,18 +586,18 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
     const change = (value - base) / Math.abs(base) * 100;
     return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1, signDisplay: 'always' }).format(change)}% ${copy.previous}`;
   };
-  const groupReady = monetaryEnabled && !groupAggregates.loading && !groupAggregates.error && !Object.values(groupAggregates.data).some(row => row.partial);
-  const budgetReady = monetaryEnabled && !budgetLineAggregates.loading && !budgetLineAggregates.error && !Object.values(budgetLineAggregates.data).some(row => row.partial);
-  const driversReady = monetaryEnabled && !driverAggregates.loading && !driverAggregates.error && !Object.values(driverAggregates.data).some(row => row.partial);
+  const groupReady = monetaryEnabled && expenseSourceReady && !groupAggregates.loading && !groupAggregates.error && !Object.values(groupAggregates.data).some(row => row.partial);
+  const budgetReady = monetaryEnabled && budgetSourceReady && !budgetLineAggregates.loading && !budgetLineAggregates.error && !Object.values(budgetLineAggregates.data).some(row => row.partial);
+  const driversReady = monetaryEnabled && expenseSourceReady && !driverAggregates.loading && !driverAggregates.error && !Object.values(driverAggregates.data).some(row => row.partial);
   const showControl = () => setActiveView('control');
   const metricCards = [
-    { title: copy.captured, description: copy.capturedHelp, helper: `${expenseCount} ${copy.records} · ${comparison(totalAggregate.data, previousTotalAggregate.data)}`, value: displayAggregateMoney(totalAggregate), icon: <CircleDollarSign />, onAction: showControl },
-    { title: copy.recognized, description: copy.recognizedHelp, helper: `${overview.filteredExpenses.filter(isRecognizedExpense).length} ${copy.records} · ${comparison(recognizedAggregate.data, previousRecognizedAggregate.data)}`, value: displayAggregateMoney(recognizedAggregate), icon: <ReceiptText />, onAction: showControl },
-    { title: copy.paid, description: copy.paidHelp, helper: comparison(paidAggregate.data, previousPaidAggregate.data), value: displayAggregateMoney(paidAggregate), icon: <CheckCircle2 />, onAction: () => setActiveView('analysis') },
-    { title: copy.outstanding, description: copy.outstandingHelp, helper: `${openExpenseCount} ${copy.records} · ${copy.current}`, value: displayAggregateMoney(balanceAggregate), icon: <WalletCards />, onAction: () => { setPaymentStatus('OPEN'); showControl(); } },
-    { title: copy.overdue, description: copy.overdueHelp, helper: `${overview.asOfDate ? overdueExpenseCount : '—'} ${copy.records} · ${copy.current}`, value: displayAggregateMoney(overdueAggregate), icon: <AlertTriangle />, onAction: () => { setPaymentStatus('OVERDUE'); showControl(); } },
-    { title: copy.punctuality, description: copy.punctualityHelp, helper: `${punctuality.onTime} / ${punctuality.count} ${copy.comparable}`, value: punctuality.percent === null ? copy.noSample : `${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(punctuality.percent)}%`, progress: punctuality.percent ?? undefined, icon: <ClipboardCheck /> },
-    { title: copy.available, description: copy.availableHelp, helper: `${budgetLineCount} ${copy.records} · ${t.kpis.planned}: ${displayAggregateMoney(plannedBudgetAggregate)}`, value: budgetLineCount ? displayAggregateMoney(availableBudgetAggregate) : copy.noData, icon: <Banknote />, onAction: () => setActiveView('analysis') },
+    { title: copy.captured, description: copy.capturedHelp, helper: `${expenseSourceReady ? expenseCount : '—'} ${copy.records} · ${expenseSourceReady ? comparison(totalAggregate.data, previousTotalAggregate.data) : copy.unavailable}`, value: displayAggregateMoney(totalAggregate, expenseSourceReady), icon: <CircleDollarSign />, onAction: showControl },
+    { title: copy.recognized, description: copy.recognizedHelp, helper: `${expenseSourceReady ? overview.filteredExpenses.filter(isRecognizedExpense).length : '—'} ${copy.records} · ${expenseSourceReady ? comparison(recognizedAggregate.data, previousRecognizedAggregate.data) : copy.unavailable}`, value: displayAggregateMoney(recognizedAggregate, expenseSourceReady), icon: <ReceiptText />, onAction: showControl },
+    { title: copy.paid, description: copy.paidHelp, helper: expenseSourceReady ? comparison(paidAggregate.data, previousPaidAggregate.data) : copy.unavailable, value: displayAggregateMoney(paidAggregate, expenseSourceReady), icon: <CheckCircle2 />, onAction: () => setActiveView('analysis') },
+    { title: copy.outstanding, description: copy.outstandingHelp, helper: `${expenseSourceReady ? openExpenseCount : '—'} ${copy.records} · ${copy.current}`, value: displayAggregateMoney(balanceAggregate, expenseSourceReady), icon: <WalletCards />, onAction: () => { setPaymentStatus('OPEN'); showControl(); } },
+    { title: copy.overdue, description: copy.overdueHelp, helper: `${expenseSourceReady && overview.asOfDate ? overdueExpenseCount : '—'} ${copy.records} · ${copy.current}`, value: displayAggregateMoney(overdueAggregate, expenseSourceReady && Boolean(overview.asOfDate)), icon: <AlertTriangle />, onAction: () => { setPaymentStatus('OVERDUE'); showControl(); } },
+    { title: copy.punctuality, description: copy.punctualityHelp, helper: expenseSourceReady ? `${punctuality.onTime} / ${punctuality.count} ${copy.comparable}` : copy.unavailable, value: !expenseSourceReady ? '—' : punctuality.percent === null ? copy.noSample : `${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(punctuality.percent)}%`, progress: expenseSourceReady ? punctuality.percent ?? undefined : undefined, icon: <ClipboardCheck /> },
+    { title: copy.available, description: copy.availableHelp, helper: `${budgetSourceReady ? budgetLineCount : '—'} ${copy.records} · ${t.kpis.planned}: ${displayAggregateMoney(plannedBudgetAggregate, budgetSourceReady)}`, value: !budgetSourceReady ? '—' : budgetLineCount ? displayAggregateMoney(availableBudgetAggregate) : copy.noData, icon: <Banknote />, onAction: () => setActiveView('analysis') },
     { title: copy.due30, description: copy.dueHelp, helper: `7 ${copy.days}: ${groupReady && overview.asOfDate ? displayMoney(cashForecast[0]?.total ?? 0) : '—'}`, value: groupReady && overview.asOfDate ? displayMoney(cashForecast[2]?.total ?? 0) : '—', icon: <CalendarClock />, onAction: () => setActiveView('analysis') },
   ];
 
@@ -618,9 +616,12 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
     if (totalAggregate.data?.partial && totalAggregate.data.excludedCurrencies.length > 0) {
       alerts.push({ id: 'currency-partial', tone: 'warning', ...t.kpis.alertCopy.multiCurrency(totalAggregate.data.excludedCurrencies.join(', '), preferredCurrency) });
     }
-    if (alerts.length === 0) alerts.push({ id: 'healthy', tone: 'success', ...t.kpis.alertCopy.healthy });
+    if (budgetLineCount === 0 && (completeAmount(recognizedAggregate.data) ?? 0) > 0) {
+      alerts.push({ id: 'no-budget', tone: 'warning', ...t.kpis.alertCopy.noBudget });
+    }
+    if (alerts.length === 0 && expenseSourceReady && expenseCount > 0) alerts.push({ id: 'healthy', tone: 'success', ...t.kpis.alertCopy.healthy });
     return alerts;
-  }, [budgetHealthRows, displayMoney, openExpenseCount, overdueAmount, overdueExpenseCount, preferredCurrency, t.kpis.alertCopy, totalAggregate.data]);
+  }, [budgetHealthRows, budgetLineCount, displayMoney, expenseCount, expenseSourceReady, openExpenseCount, overdueAmount, overdueExpenseCount, preferredCurrency, recognizedAggregate.data, t.kpis.alertCopy, totalAggregate.data]);
   const concentrationRisks = useMemo<FinancialOverviewDataSet['concentrationRisks']>(() => (
     (['PROVIDER', 'ACCOUNTING_ACCOUNT', 'UNIT'] as const).flatMap(type => driverRows[type].slice(0, 1).map(row => ({
       driverType: type,
@@ -730,7 +731,7 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
     {overview.isLoading ? <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4" aria-busy="true">{Array.from({ length: activeView === 'overview' ? 8 : 4 }, (_, index) => <div key={index} className="h-64 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />)}</div> : null}
     {activeView === 'overview' && !overview.isLoading ? <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">{metricCards.map(card => <MetricCard key={card.title} {...card} actionLabel={copy.details} />)}</section> : null}
     <div hidden={activeView !== 'analysis' || overview.isLoading}>
-      <ExpenseKpiAnalysis active={activeView === 'analysis' && !overview.isLoading} copy={copy} money={displayMoney} groupReady={groupReady} budgetReady={budgetReady} taxReady={monetaryEnabled && !coreAggregates.loading && !coreAggregates.error && completeAmount(taxAggregate.data) !== null && completeAmount(subtotalAggregate.data) !== null} driverReady={driversReady} hasCutoff={Boolean(overview.asOfDate)} paymentMix={paymentMix} trend={trendData} budgetRows={budgetHealthRows} budgetLabels={{ planned: t.kpis.planned, committed: t.kpis.committed, actual: t.kpis.actual, available: t.kpis.available }} aging={agingData} forecast={cashForecast} tax={taxSummary} drivers={[
+      <ExpenseKpiAnalysis active={activeView === 'analysis' && !overview.isLoading} copy={copy} money={displayMoney} groupReady={groupReady} budgetReady={budgetReady} taxReady={expenseSourceReady && monetaryEnabled && !coreAggregates.loading && !coreAggregates.error && completeAmount(taxAggregate.data) !== null && completeAmount(subtotalAggregate.data) !== null} driverReady={driversReady} hasCutoff={Boolean(overview.asOfDate)} paymentMix={paymentMix} trend={trendData} budgetRows={budgetHealthRows} budgetLabels={{ planned: t.kpis.planned, committed: t.kpis.committed, actual: t.kpis.actual, available: t.kpis.available }} aging={agingData} forecast={cashForecast} tax={taxSummary} drivers={[
         { key: 'provider', title: t.kpis.topCostDrivers.providers, rows: driverRows.PROVIDER },
         { key: 'account', title: t.kpis.topCostDrivers.accountingAccounts, rows: driverRows.ACCOUNTING_ACCOUNT },
         { key: 'business', title: t.kpis.topCostDrivers.businesses, rows: driverRows.BUSINESS },
