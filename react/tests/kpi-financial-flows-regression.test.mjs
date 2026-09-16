@@ -47,6 +47,10 @@ test('recognized expense includes approved, partial and unbudgeted expenses whil
   assert.equal(data.metrics.expenseCount, 5);
 });
 
+test('an empty financial scope does not manufacture a stable-health signal', () => {
+  assert.equal(overview([]).alerts.length, 0);
+});
+
 test('conversion changes analytical results and preserves every native operation', () => {
   const rows = [expense('APPROVED', 100, 'USD'), expense('PAID', 100, 'MXN')];
   const original = structuredClone(rows);

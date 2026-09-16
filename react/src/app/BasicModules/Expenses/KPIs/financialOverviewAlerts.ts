@@ -147,7 +147,7 @@ export const buildFinancialOverviewAlerts = (
     });
   }
 
-  if (alerts.length === 0) {
+  if (alerts.length === 0 && overview.metrics.expenseCount > 0) {
     const copy = alertCopy.healthy;
     alerts.push({
       id: 'healthy',
