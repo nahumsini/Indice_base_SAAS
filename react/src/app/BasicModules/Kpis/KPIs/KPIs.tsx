@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
+  Database,
   Download,
   Gauge,
   LayoutDashboard,
@@ -33,6 +34,7 @@ import {
   DiagnosisMapView,
   DiagnosisSectorView,
   DiagnosisSummaryView,
+  ExecutiveSourcesView,
   formatFindingValue,
   getFindingCopy,
 } from './DiagnosisWorkspaceViews';
@@ -61,10 +63,10 @@ import type {
 } from './types';
 
 const initialFilters: ExecutivePanelFilters = {
-  search: '', unitId: '', businessId: '', period: 'monthly', from: '', to: '', risk: 'all',
+  unitId: '', businessId: '', period: 'monthly', from: '', to: '',
 };
 
-const diagnosisViews: DiagnosisViewId[] = ['overview', 'sectors', 'map', 'health', 'portfolio', 'profitability', 'inventory', 'patterns'];
+const diagnosisViews: DiagnosisViewId[] = ['overview', 'sectors', 'map', 'health', 'portfolio', 'profitability', 'inventory', 'patterns', 'sources'];
 const diagnosisSectors: ExecutiveDiagnosisSectorId[] = ['people', 'processes', 'products', 'finance'];
 const periods: ExecutivePanelPeriod[] = ['monthly', 'bimonthly', 'quarterly', 'semester', 'annual', 'custom'];
 
@@ -103,6 +105,18 @@ export default function KPIs({ onNavigate }: KPIsProps) {
   const [error, setError] = useState('');
   const [documentMode, setDocumentMode] = useState<AnalyticsDocumentMode | null>(null);
   const requestSequence = useRef(0);
+
+  useEffect(() => {
+    let active = true;
+    executivePanelApi.organizationOptions()
+      .then((response) => {
+        if (active && response.contractVersion === 'organization-options/1.0' && Array.isArray(response.items)) {
+          setOrganizationRows(response.items);
+        }
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   const workspaceState = useMemo<DiagnosisWorkspaceState>(() => ({
     activeView,
@@ -144,15 +158,11 @@ export default function KPIs({ onNavigate }: KPIsProps) {
     try {
       const response = await executivePanelApi.get(filters, preferredCurrency);
       if (!hasExecutiveDecisionContracts(response)) {
-        throw new Error('The executive KPI response does not include diagnosis/1.0, portfolio-bcg/1.0, and decision-matrices/1.0.');
+        throw new Error('The executive KPI response does not include domains/2.2, diagnosis/1.1, portfolio-bcg/1.0, and decision-matrices/1.0.');
       }
       if (requestSequence.current !== requestId) return;
       setData(response);
-      setOrganizationRows((current) => (
-        !filters.unitId && !filters.businessId
-          ? response.unitRows
-          : current.length > 0 ? current : response.unitRows
-      ));
+      setOrganizationRows((current) => current.length > 0 ? current : response.unitRows);
       setSelectedSectorId((current) => (
         response.diagnosis.sectors.some((sector) => sector.id === current)
           ? current
@@ -226,6 +236,7 @@ export default function KPIs({ onNavigate }: KPIsProps) {
     { id: 'profitability' as const, label: workspaceCopy.navigation.items.profitability, icon: <TrendingUp className="h-4 w-4" /> },
     { id: 'inventory' as const, label: workspaceCopy.navigation.items.inventory, icon: <Warehouse className="h-4 w-4" /> },
     { id: 'patterns' as const, label: workspaceCopy.navigation.items.patterns, icon: <Network className="h-4 w-4" /> },
+    { id: 'sources' as const, label: workspaceCopy.navigation.items.sources, icon: <Database className="h-4 w-4" /> },
   ], [workspaceCopy.navigation.items]);
 
   const activeReport = data
@@ -403,6 +414,8 @@ function ActiveDiagnosisView({ activeView, copy, data, loading, locale, matrixCo
       return <InventoryIntelligenceMatrixView copy={matrixCopy} currency={data?.decisionMatrices.preferredCurrency ?? 'MXN'} data={data?.decisionMatrices.inventoryIntelligence ?? null} loading={loading} locale={locale} onOpen={onNavigate ? () => onNavigate('inventory') : undefined} stockLabels={portfolioCopy.stock} />;
     case 'patterns':
       return <CrossSectorPatternsView copy={copy} data={data} loading={loading} onNavigate={onNavigate} workspaceCopy={workspaceCopy} />;
+    case 'sources':
+      return <ExecutiveSourcesView copy={copy} data={data} loading={loading} onNavigate={onNavigate} workspaceCopy={workspaceCopy} />;
     default:
       return (
         <div role="tabpanel" aria-label={workspaceCopy.navigation.items.overview} className="space-y-5">
@@ -420,18 +433,29 @@ function uniqueOptions(rows: ExecutiveUnitRow[], idKey: 'unitId' | 'businessId',
 }
 
 function hasExecutiveDecisionContracts(response: ExecutiveKpiResponse) {
+  const domains = (response as Partial<ExecutiveKpiResponse>).domains;
   const diagnosis = (response as Partial<ExecutiveKpiResponse>).diagnosis;
   const productPortfolio = (response as Partial<ExecutiveKpiResponse>).productPortfolio;
   const decisionMatrices = (response as Partial<ExecutiveKpiResponse>).decisionMatrices;
   return Boolean(
-    diagnosis
-    && typeof diagnosis.contractVersion === 'string'
+    domains
+    && domains.contractVersion === '2.2'
+    && Array.isArray(domains.items)
+    && domains.items.every((domain) => domain
+      && typeof domain.ownerModule === 'string'
+      && typeof domain.sourceContract === 'string'
+      && typeof domain.actionRoute === 'string'
+      && Array.isArray(domain.metrics))
+    && ['processTasks', 'expenses', 'pettyCash', 'receivables', 'inventory', 'sales', 'pointOfSale']
+      .every((domainId) => domains.items.some((domain) => domain.id === domainId))
+    && diagnosis
+    && diagnosis.contractVersion === '1.1'
     && typeof diagnosis.coveragePercent === 'number'
     && Array.isArray(diagnosis.sectors)
     && Array.isArray(diagnosis.crossSectorFindings)
     && diagnosis.sectors.every((sector) => sector && typeof sector.id === 'string' && (typeof sector.score === 'number' || sector.score === null) && Array.isArray(sector.findings))
     && productPortfolio
-    && typeof productPortfolio.contractVersion === 'string'
+    && productPortfolio.contractVersion === '1.0'
     && productPortfolio.methodology
     && productPortfolio.methodology.externalMarketDataIncluded === false
     && Array.isArray(productPortfolio.quadrants)
@@ -440,7 +464,7 @@ function hasExecutiveDecisionContracts(response: ExecutiveKpiResponse) {
     && typeof productPortfolio.dataQuality.decisionReady === 'boolean'
     && productPortfolio.items.every((item) => item && typeof item.productId === 'number' && typeof item.productName === 'string' && typeof item.quadrant === 'string' && typeof item.currentRevenue === 'number' && (typeof item.growthPercent === 'number' || item.growthPercent === null))
     && decisionMatrices
-    && typeof decisionMatrices.contractVersion === 'string'
+    && decisionMatrices.contractVersion === '1.0'
     && Array.isArray(decisionMatrices.businessHealth?.items)
     && Array.isArray(decisionMatrices.productProfitability?.items)
     && Array.isArray(decisionMatrices.inventoryIntelligence?.items)
@@ -461,6 +485,28 @@ function buildActivePrintReport(
   locale: string,
 ) {
   const title = workspaceCopy.navigation.items[activeView];
+  if (activeView === 'sources') {
+    return {
+      title,
+      subtitle: data.domains.dataQuality.note,
+      metrics: [
+        { label: copy.source, value: String(data.domains.items.length) },
+        { label: workspaceCopy.context.ready, value: String(data.domains.items.filter((domain) => domain.dataQuality.decisionReady).length) },
+        { label: workspaceCopy.context.dataQuality, value: data.domains.dataQuality.decisionReady ? workspaceCopy.context.ready : workspaceCopy.context.review },
+      ],
+      tables: [{
+        title,
+        emptyLabel: copy.unavailable,
+        headers: [copy.source, copy.context.contract, workspaceCopy.context.ready, workspaceCopy.context.dataQuality],
+        rows: data.domains.items.map((domain) => [
+          workspaceCopy.modules[domain.ownerModule] ?? domain.label,
+          domain.sourceContract,
+          `${domain.metrics.filter((metric) => metric.available).length} / ${domain.metrics.length}`,
+          domain.dataQuality.issues.join(' | ') || workspaceCopy.context.ready,
+        ]),
+      }],
+    };
+  }
   if (activeView === 'health') {
     const matrix = data.decisionMatrices.businessHealth;
     return {
@@ -623,7 +669,16 @@ function findingTable(findings: ExecutiveKpiResponse['diagnosis']['sectors'][num
 
 function exportDiagnosisViewCsv(data: ExecutiveKpiResponse, activeView: DiagnosisViewId, selectedSectorId: ExecutiveDiagnosisSectorId, copy: DiagnosisCopy, workspaceCopy: DiagnosisWorkspaceCopy, portfolioCopy: ProductPortfolioCopy, matrixCopy: DecisionMatrixCopy, locale: string) {
   let rows: string[][];
-  if (activeView === 'health') {
+  if (activeView === 'sources') {
+    rows = [
+      ['domain_id', 'owner_module', 'source_contract', 'action_route', 'status', 'available_metrics', 'total_metrics', 'invalid_records', 'issues'],
+      ...data.domains.items.map((domain) => [
+        domain.id, domain.ownerModule, domain.sourceContract, domain.actionRoute, domain.status,
+        String(domain.metrics.filter((metric) => metric.available).length), String(domain.metrics.length),
+        String(domain.dataQuality.invalidRecords), domain.dataQuality.issues.join(' | '),
+      ]),
+    ];
+  } else if (activeView === 'health') {
     rows = [
       ['unit', 'business', 'revenue', 'operating_profit', 'operating_margin_percent', 'execution_score', 'task_completion_rate', 'attendance_rate', 'overdue_tasks', 'overdue_receivables', 'quadrant', 'decision_ready', 'recommended_action'],
       ...data.decisionMatrices.businessHealth.items.map((item) => [

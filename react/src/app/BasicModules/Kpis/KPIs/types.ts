@@ -38,8 +38,11 @@ export type ExecutiveDomainSignal = {
 };
 
 export type ExecutiveKpiDomain = {
-  id: 'processTasks' | 'expenses' | 'pettyCash' | 'inventory' | 'sales' | string;
+  id: 'processTasks' | 'expenses' | 'pettyCash' | 'receivables' | 'inventory' | 'sales' | 'pointOfSale' | string;
   label: string;
+  ownerModule: string;
+  sourceContract: string;
+  actionRoute: string;
   status: ExecutiveKpiStatus;
   metrics: ExecutiveDomainMetric[];
   signals: ExecutiveDomainSignal[];
@@ -385,11 +388,14 @@ export type ExecutiveKpiResponse = {
 export type ExecutivePanelPeriod = 'monthly' | 'bimonthly' | 'quarterly' | 'semester' | 'annual' | 'custom';
 
 export type ExecutivePanelFilters = {
-  search: string;
   unitId: string;
   businessId: string;
   period: ExecutivePanelPeriod;
   from: string;
   to: string;
-  risk: string;
+};
+
+export type ExecutiveOrganizationOptions = {
+  contractVersion: 'organization-options/1.0';
+  items: ExecutiveUnitRow[];
 };

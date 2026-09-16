@@ -22,6 +22,9 @@ public final class ExecutiveKpiDomainContracts {
     public record Domain(
             String id,
             String label,
+            String ownerModule,
+            String sourceContract,
+            String actionRoute,
             String status,
             List<Metric> metrics,
             List<Signal> signals,

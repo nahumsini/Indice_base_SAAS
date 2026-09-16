@@ -44,6 +44,21 @@ public class ExecutiveKpiController {
         }
     }
 
+    @GetMapping("/executive-panel/organization-options")
+    public ResponseEntity<?> organizationOptions(HttpSession session) {
+        var user = currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        try {
+            var selection = access.central(user.get(), "kpis", null, null);
+            return ResponseEntity.ok(executiveKpiService.getOrganizationOptions(
+                    user.get().companyId(), selection.unitId(), selection.businessId()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
     private Optional<AuthSessionUser> currentUser(HttpSession session) {
         return sessionAuthService.currentUser(session);
     }

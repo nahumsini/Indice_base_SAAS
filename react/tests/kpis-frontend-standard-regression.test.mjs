@@ -45,6 +45,8 @@ test('KPIs conserva rutas, reportes y Modo aprendiz', () => {
   assert.match(automationSource, /<IndiceTitleBar/);
   assert.match(automationSource, /icon="⚙️"/);
   assert.doesNotMatch(automationSource, /<LearningModeTitleBarBridge/);
+  assert.doesNotMatch(automationSource, /kpisExecutiveData|financialStatements|compositeKpis|reportPackages/);
+  assert.match(automationSource, /instantánea inmutable/);
   const matricesSource = readFileSync(resolve(moduleRoot, 'KPIs/KPIs.tsx'), 'utf8');
   const accountingSource = readFileSync(resolve(moduleRoot, 'InformesContables/InformesContables.tsx'), 'utf8');
   assert.match(matricesSource, /icon="🧩"/);
@@ -101,7 +103,7 @@ test('Estados financieros usa el motor contable real y las vistas canónicas de 
   }
 });
 
-test('el diagnóstico Índice usa diagnosis/1.0, cuatro sectores y calidad fail-closed', () => {
+test('el diagnóstico Índice usa los contratos ejecutivos vigentes, cuatro sectores y calidad fail-closed', () => {
   const panelSource = readFileSync(resolve(moduleRoot, 'KPIs/KPIs.tsx'), 'utf8');
   const portfolioSource = readFileSync(resolve(moduleRoot, 'KPIs/ProductPortfolioMatrix.tsx'), 'utf8');
   const decisionMatrixSource = readFileSync(resolve(moduleRoot, 'KPIs/DecisionMatrixViews.tsx'), 'utf8');
@@ -128,6 +130,11 @@ test('el diagnóstico Índice usa diagnosis/1.0, cuatro sectores y calidad fail-
   assert.match(panelSource, /InventoryIntelligenceMatrixView/);
   assert.match(panelSource, /DiagnosisMapView/);
   assert.match(panelSource, /CrossSectorPatternsView/);
+  assert.match(panelSource, /ExecutiveSourcesView/);
+  assert.match(panelSource, /domains\.contractVersion === '2\.2'/);
+  assert.match(panelSource, /diagnosis\.contractVersion === '1\.1'/);
+  assert.match(panelSource, /'receivables'/);
+  assert.match(panelSource, /'pointOfSale'/);
   assert.match(panelSource, /workspaceCopy\.actions\.exportView/);
   assert.match(panelSource, /workspaceCopy\.actions\.printView/);
   assert.match(panelSource, /setDocumentMode\('export'\)/);
@@ -140,6 +147,9 @@ test('el diagnóstico Índice usa diagnosis/1.0, cuatro sectores y calidad fail-
   assert.match(panelSource, /setData\(null\)/);
   assert.match(workspaceViewsSource, /data-testid="diagnosis-summary-view"/);
   assert.match(workspaceViewsSource, /data-testid="diagnosis-sector-view"/);
+  assert.match(workspaceViewsSource, /data-testid="executive-sources-view"/);
+  assert.match(workspaceViewsSource, /domain\.sourceContract/);
+  assert.match(workspaceViewsSource, /onNavigate\(domain\.actionRoute\)/);
   assert.match(workspaceViewsSource, /function MaturityJourney/);
   assert.match(workspaceViewsSource, /role="progressbar"/);
   assert.match(workspaceViewsSource, /getMaturityReading/);
@@ -148,8 +158,12 @@ test('el diagnóstico Índice usa diagnosis/1.0, cuatro sectores y calidad fail-
   assert.match(workspaceViewsSource, /ownerModule/);
   assert.match(workspaceViewsSource, /onNavigate\(ownerModule\)/);
   assert.match(apiSource, /preferredCurrency/);
+  assert.match(apiSource, /organizationOptions/);
   assert.match(typesSource, /ExecutiveKpiDomains/);
   assert.match(typesSource, /ExecutiveKpiDiagnosis/);
+  assert.match(typesSource, /ownerModule/);
+  assert.match(typesSource, /sourceContract/);
+  assert.match(typesSource, /actionRoute/);
   assert.match(typesSource, /ExecutiveDiagnosisSectorId/);
   assert.match(typesSource, /decisionReady/);
   assert.match(typesSource, /coveragePercent/);

@@ -2,13 +2,13 @@
 
 Estado: vigente
 
-Versión del contrato API: `domains/2.1`
+Versión del contrato API: `domains/2.2`
 
-Zona de corte empresarial: `America/Toronto`
+Zona de corte empresarial: configuración IANA de la empresa; `America/Toronto` es el fallback operativo.
 
 ## Objetivo
 
-El bloque `domains` de `GET /api/kpis/executive-panel` es la fuente autoritativa para la revisión operativa de cada mañana. Los bloques históricos del endpoint se conservan por compatibilidad, pero no deben usarse para decisiones financieras ni operativas nuevas.
+El bloque `domains` de `GET /api/v1/kpis/executive-panel` es la fuente autoritativa para la revisión operativa de cada mañana. Los bloques históricos del endpoint se conservan por compatibilidad, pero no deben usarse para decisiones financieras ni operativas nuevas.
 
 El cálculo usa una lectura `REPEATABLE_READ` de sólo lectura. Todas las consultas de una respuesta observan el mismo estado confirmado de la base de datos. La fecha de corte se fija al iniciar la solicitud y no depende de la zona horaria de MySQL.
 
@@ -23,6 +23,22 @@ El cálculo usa una lectura `REPEATABLE_READ` de sólo lectura. Todas las consul
 - `available=false` significa que no existe población comparable o que una anomalía puede alterar la cifra. La interfaz debe mostrar `Sin datos` y no presentar el valor como confiable.
 - Los registros eliminados lógicamente no participan.
 - Los filtros de Unidad y Negocio se validan contra la empresa autenticada. Un identificador inválido genera error y nunca amplía silenciosamente el alcance.
+
+## Propiedad e integración
+
+El módulo central selecciona señales ejecutivas; no sustituye ni duplica las pestañas KPI propietarias.
+Cada dominio publica `ownerModule`, `sourceContract` y `actionRoute` para que una cifra pueda rastrearse
+y abrirse en su módulo de origen.
+
+| Dominio central | Módulo propietario | Contrato fuente |
+|---|---|---|
+| `processTasks` | Procesos y tareas | `processes-tasks-kpi-measurements` |
+| `expenses` | Gastos | `expenses-kpi-workspace` |
+| `pettyCash` | Caja chica | `petty-cash-kpi-workspace` |
+| `receivables` | Cartera | `receivables-kpi-workspace` |
+| `inventory` | Inventario | `executive-inventory-evidence` |
+| `sales` | Ventas | `sales-kpi-workspace` |
+| `pointOfSale` | Punto de venta | `pos-kpi-operational` |
 
 ## Tareas y procesos
 
@@ -57,6 +73,20 @@ Se verifican importes negativos, la igualdad `balance = max(total - paid, 0)` co
 
 Se controlan límites negativos, comprobaciones pendientes con importe negativo, moneda inválida y falta de evidencia.
 
+## Cartera
+
+| KPI | Fórmula y población |
+|---|---|
+| Saldo pendiente | Suma actual de `total_amount - paid_amount` para cuentas no canceladas con saldo positivo. |
+| Saldo vencido | Suma de cuotas abiertas cuya fecha de vencimiento es anterior a la fecha empresarial de corte. |
+| Porcentaje vencido | `saldo vencido / saldo pendiente * 100`; sin saldo pendiente queda no disponible. |
+| Vence en 30 días | Suma de cuotas abiertas que vencen desde la fecha de corte hasta los siguientes 30 días. |
+| Cobrado en el periodo | Suma de pagos aplicados dentro del intervalo seleccionado. |
+
+Se validan importes negativos, saldos inconsistentes, cuotas sin vencimiento, estados no reconocidos,
+moneda ISO y cobertura documental de los cobros. Los saldos son una instantánea actual; los cobros son
+actividad del periodo.
+
 ## Inventarios
 
 | KPI | Fórmula y población |
@@ -80,6 +110,20 @@ Los alcances heredados guardados como texto se resuelven contra los nombres can�
 
 Se controlan ventas sin fecha, importes negativos, monedas inválidas, oportunidades cerradas sin fecha de creación y valores, monedas o probabilidades inválidas en el pipeline. Los pendientes financieros y de inventario son rezagos completos, no sólo actividad del periodo.
 
+## Punto de venta
+
+| KPI | Fórmula y población |
+|---|---|
+| Venta POS | Suma de cierres de caja cerrados dentro del periodo. |
+| Tickets | Cantidad de tickets declarados en esos cierres. |
+| Ticket promedio | `venta POS / tickets` para la población monetaria consolidada. |
+| Exactitud de caja | `100 - abs(diferencia de caja) / venta en efectivo * 100`, limitada a 0-100. |
+| Diferencia de caja | Suma absoluta de faltantes y sobrantes declarados al cierre. |
+| Devoluciones | Suma de devoluciones declaradas en los cierres del periodo. |
+
+Los turnos abiertos se publican como señal operativa actual. Se validan importes, conteos, moneda y
+consistencia de los cierres; las operaciones excluidas por moneda tampoco participan en denominadores.
+
 ## Moneda y tasas de cambio
 
 1. Los importes se agrupan primero en su moneda nativa.
@@ -92,7 +136,7 @@ Se controlan ventas sin fecha, importes negativos, monedas inválidas, oportunid
 
 `dataQuality.decisionReady=true` sólo cuando se cumplen simultáneamente estas condiciones:
 
-- los cinco dominios no contienen anomalías estructurales;
+- los siete dominios no contienen anomalías estructurales;
 - todos los importes necesarios pudieron consolidarse;
 - la evidencia cambiaria relevante es oficial y vigente;
 - la lectura completa terminó en una instantánea consistente.
@@ -105,15 +149,17 @@ Si alguna condición falla, la cabecera muestra revisión requerida, los dominio
 - Tareas y procesos: `process_tasks`.
 - Gastos y presupuesto: `finance_expenses`, `finance_budgets`, `finance_budget_lines`.
 - Caja chica: `finance_petty_cash_funds`, `finance_petty_cash_settlement_lines`.
+- Cartera: `sales_receivable_accounts`, `sales_receivable_installments`, `sales_receivable_payments`.
 - Inventarios: `sales_inventory_balances`, `sales_products`, `sales_inventory_movements`.
 - Ventas: `sales_records`, `sales_opportunities`.
+- Punto de venta: `sales_pos_cash_shifts`, `sales_pos_cash_closings`.
 - Alcance organizacional: `units`, `businesses`.
 - Tasas: instantánea diaria producida por `BusinessExchangeRateService`.
 
-## Autoevaluador Índice `diagnosis/1.0`
+## Autoevaluador Índice `diagnosis/1.1`
 
-La primera pestaña conserva `domains/2.1` como evidencia compatible y agrega un contrato hermano
-`diagnosis/1.0`. Ambos se calculan dentro de la misma lectura `REPEATABLE READ`. El diagnóstico no
+La primera pestaña conserva `domains/2.2` como evidencia compatible y agrega un contrato hermano
+`diagnosis/1.1`. Ambos se calculan dentro de la misma lectura `REPEATABLE READ`. El diagnóstico no
 reemplaza las cifras de dominio ni convierte el score ejecutivo histórico en una metodología nueva.
 
 Los cuatro sectores son `people`, `processes`, `products` y `finance`:
@@ -122,10 +168,11 @@ Los cuatro sectores son `people`, `processes`, `products` y `finance`:
   la puntualidad usa únicamente jornadas con presencia (`on_time` o `late`). Permisos, descansos,
   pendientes y días no programados no entran al denominador. No se presumen días esperados que el
   sistema no pueda demostrar.
-- Procesos usa cumplimiento, rezago vencido y tareas sin responsable de `domains/2.1`.
-- Productos usa agotados, stock bajo, venta del periodo y conversión comercial de `domains/2.1`.
+- Procesos usa cumplimiento, rezago vencido y tareas sin responsable de `domains/2.2`.
+- Productos usa agotados, stock bajo, venta y conversión comercial, además de venta y exactitud de caja
+  POS de `domains/2.2`.
 - Finanzas usa control presupuestal, pagos vencidos, utilización de caja chica y fondos en atención de
-  `domains/2.1`.
+  `domains/2.2`, y agrega cartera vencida como señal de recuperación de efectivo.
 
 Cada regla publica un código estable, fuente, métrica, valor, base temporal, peso, disponibilidad y
 módulo responsable. La interfaz localiza su explicación y acción; no inventa reglas de negocio.
@@ -145,7 +192,7 @@ El score usa 100 puntos para `healthy`, 60 para `watch` y 25 para `critical`, po
 reglas disponibles. Un sector requiere al menos 50% de su peso cubierto para publicar score. El score
 general requiere score publicable en los cuatro sectores. Un dato ausente reduce cobertura y nunca
 recibe cero. `decisionReady=true` exige cobertura mínima de todos los sectores, ausencia de parciales,
-calidad íntegra de `domains/2.1` y registros de Personas estructuralmente válidos.
+calidad íntegra de `domains/2.2` y registros de Personas estructuralmente válidos.
 
 ## Matriz de portafolio de productos `portfolio-bcg/1.0`
 

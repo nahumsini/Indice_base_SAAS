@@ -71,6 +71,10 @@ class ExecutiveKpiDomainServiceTest {
         when(repository.loadInventory(previous)).thenReturn(new ExecutiveKpiDomainRepository.InventorySnapshot(20, 20, 1, 2, 75, 25, 8, 0, 1, 0, 0));
         when(repository.loadSales(scope)).thenReturn(new ExecutiveKpiDomainRepository.SalesSnapshot(3, 1, 1, 4, 3, 0, 0, 0, 0, 0, 0, 0));
         when(repository.loadSales(previous)).thenReturn(new ExecutiveKpiDomainRepository.SalesSnapshot(2, 0, 0, 4, 2, 0, 0, 0, 0, 0, 0, 0));
+        when(repository.loadReceivables(org.mockito.ArgumentMatchers.any())).thenReturn(
+                new ExecutiveKpiDomainRepository.ReceivablesSnapshot(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+        when(repository.loadPointOfSale(org.mockito.ArgumentMatchers.any())).thenReturn(
+                new ExecutiveKpiDomainRepository.PointOfSaleSnapshot(0, 0, 0, 0, 0, 0, 0));
         when(repository.loadSalesCountByCurrency(scope)).thenReturn(List.of(
                 new ExecutiveKpiDomainRepository.CurrencyCount("USD", 1),
                 new ExecutiveKpiDomainRepository.CurrencyCount("MXN", 2)));
@@ -84,6 +88,11 @@ class ExecutiveKpiDomainServiceTest {
         when(repository.loadPettyCashSettlements(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
         when(repository.loadInventoryValue(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
         when(repository.loadPipelineValue(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
+        when(repository.loadReceivableAccountValue(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
+        when(repository.loadReceivableInstallmentValue(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString())).thenReturn(List.of());
+        when(repository.loadReceivablePaymentValue(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
+        when(repository.loadPointOfSaleValue(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString())).thenReturn(List.of());
+        when(repository.loadPointOfSaleTicketCountByCurrency(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
         lenient().when(repository.loadProductPortfolioSales(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
         lenient().when(repository.loadProductPortfolioInventory(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
         lenient().when(repository.loadProductPortfolioSalesQuality(org.mockito.ArgumentMatchers.any()))
@@ -103,9 +112,14 @@ class ExecutiveKpiDomainServiceTest {
         var snapshot = service.buildSnapshot(scope);
         var result = snapshot.domains();
 
-        assertThat(result.contractVersion()).isEqualTo("2.1");
+        assertThat(result.contractVersion()).isEqualTo("2.2");
         assertThat(result.items()).extracting(ExecutiveKpiDomainContracts.Domain::id)
-                .containsExactly("processTasks", "expenses", "pettyCash", "inventory", "sales");
+                .containsExactly("processTasks", "expenses", "pettyCash", "receivables", "inventory", "sales", "pointOfSale");
+        assertThat(result.items()).allSatisfy(domain -> {
+            assertThat(domain.ownerModule()).isNotBlank();
+            assertThat(domain.sourceContract()).isNotBlank();
+            assertThat(domain.actionRoute()).isNotBlank();
+        });
         assertThat(metric(result, "processTasks", "completionRate").value()).isEqualByComparingTo("80.00");
         assertThat(metric(result, "processTasks", "completionRate").previousValue()).isEqualByComparingTo("50.00");
         assertThat(metric(result, "sales", "netSales").value()).isEqualByComparingTo("3400.00");
@@ -113,7 +127,7 @@ class ExecutiveKpiDomainServiceTest {
         assertThat(metric(result, "inventory", "reservedRate").value()).isEqualByComparingTo("30.00");
         assertThat(result.dataQuality().partial()).isFalse();
         assertThat(result.dataQuality().decisionReady()).isTrue();
-        assertThat(snapshot.diagnosis().contractVersion()).isEqualTo("1.0");
+        assertThat(snapshot.diagnosis().contractVersion()).isEqualTo("1.1");
         assertThat(snapshot.diagnosis().methodology().id()).isEqualTo("indice-four-sectors");
         assertThat(snapshot.diagnosis().sectors())
                 .extracting(ExecutiveKpiDiagnosisContracts.Sector::id)
@@ -128,6 +142,63 @@ class ExecutiveKpiDomainServiceTest {
                 .allMatch(finding -> finding.sectorIds().stream().distinct().count() >= 2);
         assertThat(snapshot.productPortfolio().contractVersion()).isEqualTo("1.0");
         assertThat(snapshot.productPortfolio().methodology().externalMarketDataIncluded()).isFalse();
+    }
+
+    @Test
+    void curatesReceivablesAndPointOfSaleUsingTheOwnerFormulas() {
+        when(repository.loadPeople(scope)).thenReturn(
+                new ExecutiveKpiDomainRepository.PeopleSnapshot(0, 0, 0, 0, 0, 0, 0));
+        when(repository.loadReceivables(scope)).thenReturn(
+                new ExecutiveKpiDomainRepository.ReceivablesSnapshot(2, 2, 1, 2, 1, 0, 0, 0, 0, 0, 0));
+        when(repository.loadReceivableAccountValue(scope)).thenReturn(List.of(
+                new KpiMoneyAmount(new BigDecimal("1000.00"), "MXN")));
+        when(repository.loadReceivableInstallmentValue(scope, "overdue")).thenReturn(List.of(
+                new KpiMoneyAmount(new BigDecimal("200.00"), "MXN")));
+        when(repository.loadReceivableInstallmentValue(scope, "dueSoon")).thenReturn(List.of(
+                new KpiMoneyAmount(new BigDecimal("300.00"), "MXN")));
+        when(repository.loadReceivablePaymentValue(scope)).thenReturn(List.of(
+                new KpiMoneyAmount(new BigDecimal("400.00"), "MXN")));
+        when(repository.loadReceivablePaymentValue(previous)).thenReturn(List.of(
+                new KpiMoneyAmount(new BigDecimal("200.00"), "MXN")));
+
+        when(repository.loadPointOfSale(scope)).thenReturn(
+                new ExecutiveKpiDomainRepository.PointOfSaleSnapshot(2, 10, 1, 1, 0, 0, 0));
+        when(repository.loadPointOfSale(previous)).thenReturn(
+                new ExecutiveKpiDomainRepository.PointOfSaleSnapshot(1, 4, 0, 0, 0, 0, 0));
+        when(repository.loadPointOfSaleValue(scope, "totalSales")).thenReturn(List.of(
+                new KpiMoneyAmount(new BigDecimal("500.00"), "MXN")));
+        when(repository.loadPointOfSaleValue(previous, "totalSales")).thenReturn(List.of(
+                new KpiMoneyAmount(new BigDecimal("300.00"), "MXN")));
+        when(repository.loadPointOfSaleValue(scope, "cashSales")).thenReturn(List.of(
+                new KpiMoneyAmount(new BigDecimal("250.00"), "MXN")));
+        when(repository.loadPointOfSaleValue(previous, "cashSales")).thenReturn(List.of(
+                new KpiMoneyAmount(new BigDecimal("150.00"), "MXN")));
+        when(repository.loadPointOfSaleValue(scope, "absoluteDifference")).thenReturn(List.of(
+                new KpiMoneyAmount(new BigDecimal("5.00"), "MXN")));
+        when(repository.loadPointOfSaleValue(previous, "absoluteDifference")).thenReturn(List.of(
+                new KpiMoneyAmount(BigDecimal.ZERO, "MXN")));
+        when(repository.loadPointOfSaleValue(scope, "refunds")).thenReturn(List.of(
+                new KpiMoneyAmount(new BigDecimal("20.00"), "MXN")));
+        when(repository.loadPointOfSaleTicketCountByCurrency(scope)).thenReturn(List.of(
+                new ExecutiveKpiDomainRepository.CurrencyCount("MXN", 10)));
+        when(repository.loadPointOfSaleTicketCountByCurrency(previous)).thenReturn(List.of(
+                new ExecutiveKpiDomainRepository.CurrencyCount("MXN", 4)));
+
+        var snapshot = service.buildSnapshot(scope);
+        var dashboard = snapshot.domains();
+
+        assertThat(metric(dashboard, "receivables", "outstandingBalance").value()).isEqualByComparingTo("1000.00");
+        assertThat(metric(dashboard, "receivables", "overdueBalance").value()).isEqualByComparingTo("200.00");
+        assertThat(metric(dashboard, "receivables", "overdueShare").value()).isEqualByComparingTo("20.00");
+        assertThat(metric(dashboard, "receivables", "collectedInPeriod").previousValue()).isEqualByComparingTo("200.00");
+        assertThat(metric(dashboard, "pointOfSale", "posSales").value()).isEqualByComparingTo("500.00");
+        assertThat(metric(dashboard, "pointOfSale", "averageTicket").value()).isEqualByComparingTo("50.00");
+        assertThat(metric(dashboard, "pointOfSale", "cashAccuracy").value()).isEqualByComparingTo("98.00");
+        assertThat(metric(dashboard, "pointOfSale", "cashDifference").value()).isEqualByComparingTo("5.00");
+        assertThat(diagnosisFinding(snapshot.diagnosis(), "finance_overdue_receivables").value())
+                .isEqualByComparingTo("200.00");
+        assertThat(diagnosisFinding(snapshot.diagnosis(), "product_pos_cash_accuracy").value())
+                .isEqualByComparingTo("98.00");
     }
 
     @Test

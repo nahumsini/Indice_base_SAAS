@@ -4,6 +4,7 @@ import {
   BadgeDollarSign,
   CheckCircle2,
   Compass,
+  Database,
   FileQuestion,
   Flag,
   Lightbulb,
@@ -415,6 +416,63 @@ export function CrossSectorPatternsView({ copy, data, loading, onNavigate, works
           })}
         </div>
       )}
+    </section>
+  );
+}
+
+export function ExecutiveSourcesView({ copy, data, loading, onNavigate, workspaceCopy }: {
+  copy: DiagnosisCopy;
+  data: ExecutiveKpiResponse | null;
+  loading: boolean;
+  onNavigate?: NavigateHandler;
+  workspaceCopy: DiagnosisWorkspaceCopy;
+}) {
+  if (loading || !data) return <LoadingPanel label={copy.loading} />;
+  return (
+    <section role="tabpanel" data-testid="executive-sources-view" aria-labelledby="executive-sources-title">
+      <ViewHeader
+        id="executive-sources-title"
+        title={workspaceCopy.navigation.items.sources}
+        subtitle={`${copy.context.contract}: ${data.domains.contractVersion} · ${data.domains.dataQuality.note}`}
+      />
+      <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
+        {data.domains.items.map((domain) => {
+          const availableMetrics = domain.metrics.filter((metric) => metric.available).length;
+          const ownerLabel = workspaceCopy.modules[domain.ownerModule] ?? humanize(domain.ownerModule);
+          return (
+            <article key={domain.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+              <div className="flex items-start justify-between gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
+                  <Database className="h-4 w-4" />
+                </span>
+                <StatusBadge copy={copy} status={domain.status} />
+              </div>
+              <h3 className="mt-3 text-base font-medium text-slate-950 dark:text-white">{ownerLabel}</h3>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{copy.source}: {domain.sourceContract}</p>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-950">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{workspaceCopy.context.ready}</p>
+                  <p className="mt-1 font-medium text-slate-950 dark:text-white">{availableMetrics} / {domain.metrics.length}</p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-950">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{workspaceCopy.context.dataQuality}</p>
+                  <p className="mt-1 font-medium text-slate-950 dark:text-white">{domain.dataQuality.issues.length}</p>
+                </div>
+              </div>
+              {domain.dataQuality.issues.length > 0 ? (
+                <ul className="mt-3 space-y-1 text-xs leading-5 text-amber-800 dark:text-amber-200">
+                  {domain.dataQuality.issues.slice(0, 2).map((issue) => <li key={issue}>• {issue}</li>)}
+                </ul>
+              ) : null}
+              {onNavigate ? (
+                <Button type="button" variant="ghost" onClick={() => onNavigate(domain.actionRoute)} className="mt-3 h-9 rounded-xl px-2 text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/40">
+                  {workspaceCopy.actions.openModule} {ownerLabel}<ArrowUpRight className="h-4 w-4" />
+                </Button>
+              ) : null}
+            </article>
+          );
+        })}
+      </div>
     </section>
   );
 }

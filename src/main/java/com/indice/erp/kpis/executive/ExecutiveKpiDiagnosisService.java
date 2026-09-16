@@ -36,21 +36,27 @@ public class ExecutiveKpiDiagnosisService {
         findings.add(metricFinding(dashboard, "process_ownership", "processTasks",
                 "unassignedTasks", 25, "processes-tasks"));
         findings.add(metricFinding(dashboard, "product_stockouts", "inventory",
-                "outOfStock", 30, "inventory"));
+                "outOfStock", 25, "inventory"));
         findings.add(metricFinding(dashboard, "product_low_stock", "inventory",
-                "lowStock", 20, "inventory"));
+                "lowStock", 15, "inventory"));
         findings.add(metricFinding(dashboard, "product_sales_momentum", "sales",
-                "netSales", 30, "sales"));
+                "netSales", 25, "sales"));
         findings.add(metricFinding(dashboard, "product_conversion", "sales",
-                "conversion", 20, "sales"));
+                "conversion", 15, "sales"));
+        findings.add(metricFinding(dashboard, "product_pos_sales", "pointOfSale",
+                "posSales", 10, "point-of-sale"));
+        findings.add(metricFinding(dashboard, "product_pos_cash_accuracy", "pointOfSale",
+                "cashAccuracy", 10, "point-of-sale"));
         findings.add(metricFinding(dashboard, "finance_budget_control", "expenses",
-                "budgetUsage", 30, "expenses"));
+                "budgetUsage", 25, "expenses"));
         findings.add(metricFinding(dashboard, "finance_overdue_payables", "expenses",
-                "overduePayables", 30, "expenses"));
+                "overduePayables", 20, "expenses"));
         findings.add(metricFinding(dashboard, "finance_petty_cash_usage", "pettyCash",
-                "utilization", 20, "petty-cash"));
+                "utilization", 15, "petty-cash"));
         findings.add(metricFinding(dashboard, "finance_fund_attention", "pettyCash",
-                "attentionFunds", 20, "petty-cash"));
+                "attentionFunds", 10, "petty-cash"));
+        findings.add(metricFinding(dashboard, "finance_overdue_receivables", "receivables",
+                "overdueBalance", 30, "receivables"));
 
         var sectorIds = List.of("people", "processes", "products", "finance");
         var sectors = sectorIds.stream()
@@ -83,10 +89,10 @@ public class ExecutiveKpiDiagnosisService {
         var crossSector = crossSectorFindings(findings);
 
         return new Diagnosis(
-                "1.0",
+                "1.1",
                 new Methodology(
                         "indice-four-sectors",
-                        "1.0",
+                        "1.1",
                         MINIMUM_SECTOR_COVERAGE,
                         HEALTHY_POINTS,
                         WATCH_POINTS,
@@ -103,7 +109,7 @@ public class ExecutiveKpiDiagnosisService {
                         decisionReady,
                         List.copyOf(issues),
                         unavailableCodes,
-                        "domains/2.1+attendance/repeatable-read",
+                        "domains/2.2+attendance/repeatable-read",
                         scope.snapshotDate().toString(),
                         decisionReady
                                 ? "Cobertura suficiente y fuentes consistentes para orientar la revisión ejecutiva."
@@ -207,6 +213,20 @@ public class ExecutiveKpiDiagnosisService {
                     byCode.get("product_conversion"), byCode.get("process_completion")),
                     List.of("products", "processes"),
                     List.of("product_conversion", "product_low_stock", "process_completion"), "sales"));
+        }
+        if (healthy(byCode.get("product_sales_momentum"))
+                && atRisk(byCode.get("finance_overdue_receivables"))) {
+            result.add(new CrossSectorFinding("revenue_collection_gap", highestSeverity(
+                    byCode.get("product_sales_momentum"), byCode.get("finance_overdue_receivables")),
+                    List.of("products", "finance"),
+                    List.of("product_sales_momentum", "finance_overdue_receivables"), "receivables"));
+        }
+        if (atRisk(byCode.get("product_pos_cash_accuracy"))
+                && atRisk(byCode.get("finance_fund_attention"))) {
+            result.add(new CrossSectorFinding("cash_reconciliation_risk", highestSeverity(
+                    byCode.get("product_pos_cash_accuracy"), byCode.get("finance_fund_attention")),
+                    List.of("products", "finance"),
+                    List.of("product_pos_cash_accuracy", "finance_fund_attention"), "point-of-sale"));
         }
         return List.copyOf(result);
     }

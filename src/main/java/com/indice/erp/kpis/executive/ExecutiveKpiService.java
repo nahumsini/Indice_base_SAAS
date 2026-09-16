@@ -67,6 +67,18 @@ public class ExecutiveKpiService {
         return readTransaction.execute(status -> buildPanel(scope, rates));
     }
 
+    public Map<String, Object> getOrganizationOptions(long companyId, Long unitId, Long businessId) {
+        var today = LocalDate.now(timeZoneResolver.resolve(companyId));
+        var scope = new ExecutiveKpiScope(
+                companyId, today, today, "custom", unitId, businessId, "", "all", "MXN", today);
+        if (!repository.scopeExists(scope)) {
+            throw new IllegalArgumentException("The permitted organization scope is no longer active for this company.");
+        }
+        return Map.of(
+                "contractVersion", "organization-options/1.0",
+                "items", repository.loadOrganizationRows(scope));
+    }
+
     private Map<String, Object> buildPanel(ExecutiveKpiScope scope, BusinessExchangeRatesResponse rates) {
         var currency = new ExecutiveCurrencyProjection(scope, currencyAggregation, rates);
         var orgRows = repository.loadOrganizationRows(scope);
@@ -110,8 +122,8 @@ public class ExecutiveKpiService {
                 "nativeCurrencies", nativeCurrencies,
                 "generatedAt", Instant.now().toString(),
                 "scopeLabel", scopeLabel(scope),
-                "authoritativeContract", "domains/2.1",
-                "diagnosisContract", "diagnosis/1.0",
+                "authoritativeContract", "domains/2.2",
+                "diagnosisContract", "diagnosis/1.1",
                 "productPortfolioContract", "portfolio-bcg/1.0",
                 "decisionMatrixContract", "decision-matrices/1.0"));
         body.put("summary", summary);

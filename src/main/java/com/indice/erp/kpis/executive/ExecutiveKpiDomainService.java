@@ -62,7 +62,7 @@ public class ExecutiveKpiDomainService {
     }
 
     public Dashboard build(ExecutiveKpiScope scope) {
-        // Preserve the domains/2.1-only entry point for existing callers.
+        // Preserve the versioned domain entry point for existing callers.
         var rates = exchangeRateService.loadDailyRates();
         var dashboard = readTransaction.execute(status -> buildConsistent(scope, rates));
         if (dashboard == null) {
@@ -126,7 +126,9 @@ public class ExecutiveKpiDomainService {
         var pettyCash = pettyCashDomain(scope, aggregate);
         var inventory = inventoryDomain(scope, previous, aggregate);
         var sales = salesDomain(scope, previous, aggregate);
-        var domains = List.of(process, expenses, pettyCash, inventory, sales);
+        var receivables = receivablesDomain(scope, previous, aggregate);
+        var pointOfSale = pointOfSaleDomain(scope, previous, aggregate);
+        var domains = List.of(process, expenses, pettyCash, receivables, inventory, sales, pointOfSale);
 
         var globalIssues = new ArrayList<String>();
         domains.forEach(domain -> domain.dataQuality().issues().forEach(issue ->
@@ -141,7 +143,7 @@ public class ExecutiveKpiDomainService {
                 && domains.stream().allMatch(domain -> domain.dataQuality().decisionReady())
                 && exchangeIssues.isEmpty();
         return new Dashboard(
-                "2.1",
+                "2.2",
                 new ComparisonRange(previous.from().toString(), previous.to().toString()),
                 scope.preferredCurrency(),
                 domains,
@@ -461,6 +463,148 @@ public class ExecutiveKpiDomainService {
         return domain("sales", "Ventas", metrics, signals, quality);
     }
 
+    private Domain receivablesDomain(
+            ExecutiveKpiScope scope,
+            ExecutiveKpiScope previous,
+            Function<List<KpiMoneyAmount>, KpiMonetaryAggregate> aggregate) {
+        var current = repository.loadReceivables(scope);
+        var previousSnapshot = repository.loadReceivables(previous);
+        var outstanding = aggregate.apply(repository.loadReceivableAccountValue(scope));
+        var overdue = aggregate.apply(repository.loadReceivableInstallmentValue(scope, "overdue"));
+        var dueSoon = aggregate.apply(repository.loadReceivableInstallmentValue(scope, "dueSoon"));
+        var collected = aggregate.apply(repository.loadReceivablePaymentValue(scope));
+        var previousCollected = aggregate.apply(repository.loadReceivablePaymentValue(previous));
+        var overdueShare = value(outstanding).signum() > 0
+                ? percent(value(overdue), value(outstanding))
+                : 0.0;
+
+        var issues = new ArrayList<String>();
+        addIssue(issues, current.invalidAccountAmountRows(), "cuentas por cobrar con importes o saldos inconsistentes");
+        addIssue(issues, current.invalidAccountCurrencyRows(), "cuentas por cobrar con código de moneda inválido");
+        addIssue(issues, current.accountsWithoutOpenSchedule(), "cuentas abiertas sin calendario de parcialidades vigente");
+        addIssue(issues, current.invalidInstallmentRows(), "parcialidades con importe, saldo o fecha inválidos");
+        addIssue(issues, current.invalidInstallmentCurrencyRows(), "parcialidades con código de moneda inválido");
+        addIssue(issues, current.invalidPaymentRows(), "cobros con importe, fecha o moneda inválidos");
+        var invalidRecords = current.invalidAccountAmountRows() + current.invalidAccountCurrencyRows()
+                + current.accountsWithoutOpenSchedule() + current.invalidInstallmentRows()
+                + current.invalidInstallmentCurrencyRows() + current.invalidPaymentRows();
+        var quality = quality(invalidRecords, issues);
+        var accountReliable = current.invalidAccountAmountRows() == 0 && current.invalidAccountCurrencyRows() == 0;
+        var scheduleReliable = accountReliable && current.accountsWithoutOpenSchedule() == 0
+                && current.invalidInstallmentRows() == 0 && current.invalidInstallmentCurrencyRows() == 0;
+        var paymentsReliable = current.invalidPaymentRows() == 0;
+        var previousPaymentsReliable = previousSnapshot.invalidPaymentRows() == 0;
+        var overdueStatus = value(overdue).signum() > 0 ? "critical" : "healthy";
+
+        var metrics = List.of(
+                currentMoney("outstandingBalance", "Cartera pendiente", outstanding, "context", overdueStatus,
+                        accountReliable, BASIS_CURRENT_SNAPSHOT,
+                        "Saldo actual positivo de cuentas no canceladas; incluye interés contractual."),
+                currentMoney("overdueBalance", "Cartera vencida", overdue, "down", overdueStatus,
+                        scheduleReliable, BASIS_CURRENT_SNAPSHOT,
+                        "Saldo de parcialidades abiertas con vencimiento anterior a la fecha empresarial de corte."),
+                current("overdueShare", "Proporción vencida", overdueShare, "percent", "down", overdueStatus,
+                        scheduleReliable && value(outstanding).signum() > 0, overdue.partial() || outstanding.partial(),
+                        excluded(overdue, outstanding), BASIS_CURRENT_SNAPSHOT,
+                        "Cartera vencida sobre saldo pendiente consolidado en la misma moneda."),
+                currentMoney("dueWithin30Days", "Por vencer en 30 días", dueSoon, "context",
+                        value(dueSoon).signum() > 0 ? "watch" : "healthy", scheduleReliable,
+                        BASIS_CURRENT_SNAPSHOT,
+                        "Parcialidades abiertas con vencimiento entre la fecha de corte y los siguientes 30 días."),
+                comparedMoney("collectedInPeriod", "Cobrado en el periodo", collected, previousCollected, "up",
+                        trendStatus(value(collected), value(previousCollected), "up"), paymentsReliable,
+                        previousPaymentsReliable, BASIS_PERIOD,
+                        "Cobros registrados por fecha de pago, incluso cuando la cuenta quedó liquidada."));
+        var signals = new ArrayList<Signal>();
+        addSignal(signals, "overdue", value(overdue).signum() > 0 ? "critical" : "healthy",
+                current.overdueInstallments() + " parcialidades vencidas requieren cobranza.",
+                current.overdueInstallments());
+        var missingReceipts = Math.max(0, current.periodPayments() - current.periodPaymentsWithReceipt());
+        addSignal(signals, "receiptCoverage", missingReceipts > 0 ? "watch" : "healthy",
+                missingReceipts + " cobros del periodo no tienen comprobante adjunto.", missingReceipts);
+        return domain("receivables", "Cartera", metrics, signals, quality);
+    }
+
+    private Domain pointOfSaleDomain(
+            ExecutiveKpiScope scope,
+            ExecutiveKpiScope previous,
+            Function<List<KpiMoneyAmount>, KpiMonetaryAggregate> aggregate) {
+        var current = repository.loadPointOfSale(scope);
+        var previousSnapshot = repository.loadPointOfSale(previous);
+        var sales = aggregate.apply(repository.loadPointOfSaleValue(scope, "totalSales"));
+        var previousSales = aggregate.apply(repository.loadPointOfSaleValue(previous, "totalSales"));
+        var cashSales = aggregate.apply(repository.loadPointOfSaleValue(scope, "cashSales"));
+        var previousCashSales = aggregate.apply(repository.loadPointOfSaleValue(previous, "cashSales"));
+        var difference = aggregate.apply(repository.loadPointOfSaleValue(scope, "absoluteDifference"));
+        var previousDifference = aggregate.apply(repository.loadPointOfSaleValue(previous, "absoluteDifference"));
+        var refunds = aggregate.apply(repository.loadPointOfSaleValue(scope, "refunds"));
+        var currentCounts = repository.loadPointOfSaleTicketCountByCurrency(scope);
+        var previousCounts = repository.loadPointOfSaleTicketCountByCurrency(previous);
+        var comparableTickets = coveredCount(currentCounts, sales.excludedCurrencies());
+        var previousComparableTickets = coveredCount(previousCounts, previousSales.excludedCurrencies());
+        var averageTicket = average(value(sales), comparableTickets);
+        var previousAverageTicket = average(value(previousSales), previousComparableTickets);
+        var cashAccuracy = value(cashSales).signum() > 0
+                ? BigDecimal.valueOf(100).subtract(decimal(percent(value(difference), value(cashSales)))).max(BigDecimal.ZERO)
+                : BigDecimal.ZERO;
+        var previousCashAccuracy = value(previousCashSales).signum() > 0
+                ? BigDecimal.valueOf(100).subtract(decimal(percent(value(previousDifference), value(previousCashSales)))).max(BigDecimal.ZERO)
+                : BigDecimal.ZERO;
+
+        var issues = new ArrayList<String>();
+        addIssue(issues, current.invalidAmountRows(), "cortes de caja con importes estructuralmente inválidos");
+        addIssue(issues, current.invalidCurrencyRows(), "cortes de caja con código de moneda inválido");
+        addIssue(issues, current.invalidTicketCountRows(), "cortes de caja con conteo de tickets inválido");
+        var invalidRecords = current.invalidAmountRows() + current.invalidCurrencyRows()
+                + current.invalidTicketCountRows();
+        var quality = quality(invalidRecords, issues);
+        var reliable = invalidRecords == 0;
+        var previousReliable = previousSnapshot.invalidAmountRows() == 0
+                && previousSnapshot.invalidCurrencyRows() == 0
+                && previousSnapshot.invalidTicketCountRows() == 0;
+        var accuracyAvailable = value(cashSales).signum() > 0 && reliable && !cashSales.partial() && !difference.partial();
+        var previousAccuracyAvailable = value(previousCashSales).signum() > 0 && previousReliable
+                && !previousCashSales.partial() && !previousDifference.partial();
+        var accuracyStatus = !accuracyAvailable ? "watch"
+                : cashAccuracy.compareTo(new BigDecimal("99.5")) >= 0 ? "healthy"
+                : cashAccuracy.compareTo(new BigDecimal("98")) >= 0 ? "watch" : "critical";
+
+        var metrics = List.of(
+                comparedMoney("posSales", "Venta en punto de venta", sales, previousSales, "up",
+                        trendStatus(value(sales), value(previousSales), "up"), reliable, previousReliable,
+                        BASIS_PERIOD,
+                        "Venta de cortes cerrados en el periodo, consolidada por la moneda de cada turno."),
+                compared("ticketCount", "Tickets cerrados", current.ticketCount(), previousSnapshot.ticketCount(),
+                        "count", "up", trendStatus(decimal(current.ticketCount()), decimal(previousSnapshot.ticketCount()), "up"),
+                        current.closingCount() > 0 && reliable, previousSnapshot.closingCount() > 0 && previousReliable,
+                        false, List.of(), BASIS_PERIOD,
+                        "Tickets incluidos en los cortes de caja cerrados del periodo."),
+                compared("averageTicket", "Ticket promedio POS", averageTicket, previousAverageTicket,
+                        "money", "up", trendStatus(averageTicket, previousAverageTicket, "up"),
+                        comparableTickets > 0 && reliable && !sales.partial(),
+                        previousComparableTickets > 0 && previousReliable && !previousSales.partial(),
+                        sales.partial() || previousSales.partial(), excluded(sales, previousSales), BASIS_PERIOD,
+                        "Venta POS sobre tickets de cortes cuya moneda pudo consolidarse."),
+                compared("cashAccuracy", "Exactitud de efectivo", cashAccuracy, previousCashAccuracy,
+                        "percent", "up", accuracyStatus, accuracyAvailable, previousAccuracyAvailable,
+                        cashSales.partial() || difference.partial() || previousCashSales.partial() || previousDifference.partial(),
+                        excluded(cashSales, difference, previousCashSales, previousDifference), BASIS_PERIOD,
+                        "100 menos la diferencia absoluta de caja sobre venta en efectivo; usa cortes cerrados."),
+                currentMoney("cashDifference", "Diferencia absoluta de caja", difference, "down",
+                        value(difference).signum() > 0 ? "critical" : "healthy", reliable, BASIS_PERIOD,
+                        "Suma absoluta de faltantes y sobrantes observados en cortes cerrados."),
+                currentMoney("refunds", "Devoluciones POS", refunds, "down",
+                        value(refunds).signum() > 0 ? "watch" : "healthy", reliable, BASIS_PERIOD,
+                        "Importe de devoluciones registrado por los cortes cerrados del periodo."));
+        var signals = new ArrayList<Signal>();
+        addSignal(signals, "cashDifference", current.closingsWithDifference() > 0 ? "critical" : "healthy",
+                current.closingsWithDifference() + " cortes presentan diferencia de efectivo.",
+                current.closingsWithDifference());
+        addSignal(signals, "openShifts", current.openShifts() > 0 ? "watch" : "healthy",
+                current.openShifts() + " turnos permanecen abiertos o en cierre.", current.openShifts());
+        return domain("pointOfSale", "Punto de venta", metrics, signals, quality);
+    }
+
     private List<String> exchangeIssues(
             ExecutiveKpiScope scope,
             BusinessExchangeRatesResponse rates,
@@ -510,7 +654,25 @@ public class ExecutiveKpiDomainService {
                 .max(Comparator.comparingInt(this::severity)).orElse("healthy");
         if (severity(signalStatus) > severity(status)) status = signalStatus;
         if (!quality.decisionReady() && severity(status) < severity("watch")) status = "watch";
-        return new Domain(id, label, status, metrics, List.copyOf(signals), quality);
+        var ownership = ownership(id);
+        return new Domain(id, label, ownership.ownerModule(), ownership.sourceContract(),
+                ownership.actionRoute(), status, metrics, List.copyOf(signals), quality);
+    }
+
+    private Ownership ownership(String domainId) {
+        return switch (domainId) {
+            case "processTasks" -> new Ownership("processes-tasks", "processes-tasks-kpi-measurements", "processes-tasks");
+            case "expenses" -> new Ownership("expenses", "expenses-kpi-workspace", "expenses");
+            case "pettyCash" -> new Ownership("petty-cash", "petty-cash-kpi-workspace", "petty-cash");
+            case "receivables" -> new Ownership("receivables", "receivables-kpi-workspace", "receivables");
+            case "inventory" -> new Ownership("inventory", "executive-inventory-evidence", "inventory");
+            case "sales" -> new Ownership("sales", "sales-kpi-workspace", "sales");
+            case "pointOfSale" -> new Ownership("point-of-sale", "pos-kpi-operational", "point-of-sale");
+            default -> new Ownership(domainId, "executive-domain", domainId);
+        };
+    }
+
+    private record Ownership(String ownerModule, String sourceContract, String actionRoute) {
     }
 
     private DomainQuality quality(int invalidRecords, List<String> issues) {

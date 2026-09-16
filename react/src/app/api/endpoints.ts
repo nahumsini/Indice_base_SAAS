@@ -82,6 +82,7 @@ export const endpoints = {
   },
   kpis: {
     executivePanel: '/api/v1/kpis/executive-panel',
+    executiveOrganizationOptions: '/api/v1/kpis/executive-panel/organization-options',
   },
   invitations: {
     base: '/api/v1/invitations',
