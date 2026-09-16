@@ -85,12 +85,22 @@ test('organizational IDs distinguish identical labels; customers without contact
   const all = s.selectReceivablesKpis(data, s.defaultKpiScope); assert.equal(all.identifiedCustomers.size, 0); assert.equal(all.unlinkedCustomers.length, 3);
   assert.equal(s.groupAccounts(all.open, s.customerKey).length, 3);
 });
+test('unit comparison excludes dormant history but retains settled accounts collected in the selected period', () => {
+  const app = setup(), s = selectors(), data = dataset(3);
+  data.receivables[1].balance = 0;
+  data.receivables[2].balance = 0;
+  data.payments[2].paymentDate = '2026-08-15';
+  const selection = s.selectReceivablesKpis(data, s.defaultKpiScope);
+  const groups = app.load(resolve(dir, 'receivablesKpiQueries.ts')).buildReceivablesKpiQueries(selection, 'USD');
+  assert.deepEqual(plain(groups.units.map(group => group.key)), ['1', '2']);
+});
 test('aging boundaries and missing schedules remain explicit; missing money is not zero', () => {
   const s = selectors();
   for (const [days, key] of [[0,'current'],[1,'days1to30'],[30,'days1to30'],[31,'days31to60'],[60,'days31to60'],[61,'days61to90'],[90,'days61to90'],[91,'days91plus']]) assert.equal(s.agingKey(installment(1, { dueDate: s.shiftDays('2026-09-15', -days) }), '2026-09-15'), key);
   const app = setup(); app.source.data.installments = [];
   const tree = app.render(); const cards = named(tree, 'ReceivablesKpiCards')[0].props.cards;
   assert.equal(cards.find(c => c.key === 'overdue').value, 'No disponible'); assert.equal(cards.find(c => c.key === 'upcoming').value, 'No disponible');
+  assert.match(cards.find(c => c.key === 'balance').context, /USD/);
   assert.ok(walk(tree).some(n => n.props.role === 'alert'));
   app.moneyState.partial = true; assert.equal(named(app.render(), 'ReceivablesKpiCards')[0].props.cards[0].value, 'No disponible');
 });
@@ -119,7 +129,7 @@ test('full report includes every filtered row regardless of view, follow-up focu
     app.state.activeView = activeView; app.state.focus = 'missing'; app.state.preferences = { accounts: { currentPage: 3, pageSize: 10, sortKey: '0', sortDirection: 'asc' } };
     const tree = app.render(); walk(tree).find(n => n.type === 'button' && n.props.children?.includes('Imprimir reporte')).props.onClick();
   }
-  for (const report of app.prints) { assert.equal(report.metrics.length, 8); assert.equal(report.tables.find(t => t.title === 'Cuentas y cobros').rows.length, 27); assert.equal(report.tables.find(t => t.title === 'Por unidad').rows.length, 27); }
+  for (const report of app.prints) { assert.equal(report.metrics.length, 8); assert.equal(report.sections[0].fields, undefined); assert.match(report.sections[0].paragraphs[0], /USD/); assert.equal(report.tables.find(t => t.title === 'Cuentas y cobros').rows.length, 27); assert.equal(report.tables.find(t => t.title === 'Por unidad').rows.length, 27); }
 });
 test('source failure hides results, refresh retries, and empty samples do not become misleading percentages', () => {
   const app = setup(); app.source.data = dataset(0);

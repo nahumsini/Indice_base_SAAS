@@ -6,20 +6,31 @@ import { completeAmount } from './useReceivablesKpiAggregates';
 import type { ReceivablesKpiCopy } from './workspaceCopy';
 
 export const kpiMoney = (value: number | null, currency: string, locale: string, unavailable: string) => value === null || !Number.isFinite(value) ? unavailable : new Intl.NumberFormat(locale, { style: 'currency', currency, currencyDisplay: 'code' }).format(value);
-export type KpiCard = { key: string; title: string; value: string; description: string; helper: string };
+export type KpiCard = { key: string; title: string; value: string; description: string; helper: string; context?: string };
 export function buildReceivablesKpiPresentation(selection: ReceivablesKpiSelection, groups: ReturnType<typeof buildReceivablesKpiQueries>, data: Record<string, KpiMonetaryAggregate>, copy: ReceivablesKpiCopy, currency: string, locale: string) {
   const value = (key: string) => completeAmount(data[key]);
   const money = (key: string) => kpiMoney(value(key), currency, locale, copy.unavailable);
+  const nativeContext = (key: string) => {
+    const aggregate = data[key];
+    if (!aggregate) return '';
+    const nativeTotals = aggregate.nativeTotals
+      .map(row => kpiMoney(row.amount, row.currency, locale, copy.unavailable))
+      .join(' / ');
+    const exclusions = aggregate.excludedRecords > 0
+      ? `${copy.excluded}: ${aggregate.excludedRecords}${aggregate.excludedCurrencies.length ? ` (${aggregate.excludedCurrencies.join(', ')})` : ''}`
+      : '';
+    return [nativeTotals, exclusions].filter(Boolean).join(' · ');
+  };
   const percent = (amount: number | null, total: number | null) => amount === null || total === null ? copy.unavailable : total > 0 ? new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 }).format(amount / total) : copy.noSample;
   const count = (value: number) => value.toLocaleString(locale);
   const incomplete = selection.missingSchedule.length > 0;
   const statuses = { on_time: copy.statusOnTime, due_soon: copy.statusDueSoon, overdue: copy.statusOverdue, partial: copy.statusPartial, paid: copy.statusPaid, restructured: copy.statusRestructured, cancelled: copy.statusCancelled };
   const cards: KpiCard[] = [
-    { key: 'balance', title: copy.balance, value: money('balance'), description: copy.balanceHelp, helper: copy.asOf + ': ' + selection.asOfDate },
-    { key: 'overdue', title: copy.overdue, value: incomplete ? copy.unavailable : money('overdue'), description: copy.overdueHelp, helper: `${count(new Set(selection.overdue.map(row => row.receivableId)).size)} · ${copy.overdueAccounts}` },
+    { key: 'balance', title: copy.balance, value: money('balance'), description: copy.balanceHelp, helper: copy.asOf + ': ' + selection.asOfDate, context: nativeContext('balance') },
+    { key: 'overdue', title: copy.overdue, value: incomplete ? copy.unavailable : money('overdue'), description: copy.overdueHelp, helper: `${count(new Set(selection.overdue.map(row => row.receivableId)).size)} · ${copy.overdueAccounts}`, context: nativeContext('overdue') },
     { key: 'delinquency', title: copy.delinquency, value: incomplete ? copy.unavailable : percent(value('overdue'), value('balance')), description: copy.delinquencyHelp, helper: currency },
-    { key: 'upcoming', title: copy.upcoming, value: incomplete ? copy.unavailable : money('upcoming'), description: copy.upcomingHelp, helper: copy.asOf + ': ' + selection.asOfDate },
-    { key: 'collected', title: copy.collected, value: money('collected'), description: copy.collectedHelp, helper: `${selection.range.from || copy.all} — ${selection.range.to}` },
+    { key: 'upcoming', title: copy.upcoming, value: incomplete ? copy.unavailable : money('upcoming'), description: copy.upcomingHelp, helper: copy.asOf + ': ' + selection.asOfDate, context: nativeContext('upcoming') },
+    { key: 'collected', title: copy.collected, value: money('collected'), description: copy.collectedHelp, helper: `${selection.range.from || copy.all} — ${selection.range.to}`, context: nativeContext('collected') },
     { key: 'accounts', title: copy.accounts, value: count(selection.open.length), description: copy.accountsHelp, helper: copy.asOf + ': ' + selection.asOfDate },
     { key: 'customers', title: copy.customers, value: count(selection.identifiedCustomers.size), description: copy.customersHelp, helper: `${copy.unlinked}: ${count(selection.unlinkedCustomers.length)}` },
     { key: 'evidence', title: copy.evidence, value: percent(selection.withReceipt.length, selection.payments.length), description: copy.evidenceHelp, helper: `${count(selection.withReceipt.length)} / ${count(selection.payments.length)}` },
