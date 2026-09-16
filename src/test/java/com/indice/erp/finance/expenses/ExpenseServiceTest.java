@@ -68,6 +68,33 @@ class ExpenseServiceTest {
     private FinanceBusinessTimeZoneResolver timeZoneResolver;
 
     @Test
+    void listExposesTheSameCompanyBusinessDateUsedForOverdueClassification() {
+        var service = service();
+        var context = context();
+        var zone = java.time.ZoneId.of("Pacific/Kiritimati");
+        when(timeZoneResolver.resolve(7L)).thenReturn(zone);
+        when(repository.findAll(context)).thenReturn(java.util.List.of(record(99L, ExpenseStatus.DRAFT, "Rent")));
+        var before = LocalDate.now(zone);
+
+        var response = service.list(context);
+
+        assertTrue(response.asOfDate().equals(before) || response.asOfDate().equals(LocalDate.now(zone)));
+        assertEquals(zone.getId(), response.timeZone());
+        assertEquals(1, response.count());
+        assertEquals(7L, response.expenses().get(0).companyId());
+        verify(workflowRepository).markOverduePayments(context, response.asOfDate());
+        verify(repository).findAll(context);
+    }
+
+    @Test
+    void mutationListResponseRetainsCompatibleConstructorWithoutInventingCutoff() {
+        var response = new com.indice.erp.finance.expenses.dto.ExpenseListResponse(java.util.List.of(), 0);
+        assertEquals(0, response.count());
+        assertEquals(null, response.asOfDate());
+        assertEquals(null, response.timeZone());
+    }
+
+    @Test
     void getReturnsCompanyScopedExpenseFromRepository() {
         var service = service();
         var context = context();

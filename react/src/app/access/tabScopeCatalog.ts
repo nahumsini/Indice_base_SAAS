@@ -94,6 +94,7 @@ export const MODULE_TAB_SCOPE_CATALOG: Partial<Record<PageId, TabScopeDefinition
       'accounts-receivable': 'accounts-receivable',
       payments: 'payments',
       'credit-customers': 'credit-customers',
+      kpis: 'kpis',
     },
   },
   kpis: {

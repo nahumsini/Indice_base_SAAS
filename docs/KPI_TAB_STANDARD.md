@@ -12,6 +12,12 @@ If the documents appear to conflict, the Frontend Operating System is authoritat
 This document adds analytics-specific rules and must not be treated as a separate
 design system.
 
+Presentation decision, 2026-09-15: the approved Human Resources internal-view
+layout is the required reference for new or reorganized KPI / Indicators tabs
+in basic modules. It is implemented in Human Resources; adoption and verification
+in other modules remain pending. This approval covers information organization,
+not validation or replacement of a module's existing calculations.
+
 ---
 
 ## 1. Purpose
@@ -48,8 +54,8 @@ Before creating or changing a KPI tab:
 2. Identify the module's business decisions.
 3. Define the eight KPI contracts before building the cards.
 4. Define the global filter scope.
-5. Select charts that answer different questions.
-6. Define the contextual ranking entity.
+5. Map the existing content to the internal views in Section 3 before adding panels.
+6. Select charts that answer different questions and define the contextual ranking entity.
 7. Document formulas and thresholds.
 8. Implement loading, empty, error, permission, and responsive states.
 9. Validate TypeScript and the production build.
@@ -63,26 +69,133 @@ module merely to preserve visual similarity.
 
 ## 3. Required Information Architecture
 
-Use this order unless a documented module requirement justifies a variation:
+### 3.1 Shared shell and internal views
 
-1. Tab title bar.
-2. Global filter bar.
-3. Data context strip.
-4. Eight decision-oriented KPI cards.
-5. Primary analytics section.
-6. Unit or organizational comparison.
-7. Module-specific operational analysis.
-8. Tops or concentration rankings.
-9. Contextual performance table with pagination.
-10. Supporting explanations and data-state messages.
+For basic-module KPI / Indicators tabs, use this shared shell:
 
-The page must read from summary to cause:
+1. Compact title bar with the global refresh and print/export actions.
+2. Internal view selector.
+3. One shared filter bar.
+4. Compact data context and source warnings when relevant.
+5. The selected view's content.
+
+Distribute the existing analytical content across the following view roles.
+Do not stack every role below the cards on the initial screen.
+
+| View role | Default label | Content | Decision supported |
+|---|---|---|---|
+| `overview` | Resumen | Primary KPI cards, executive insight and supporting totals | What is the current state? |
+| `charts` | Gráficas | Composition, distribution, trends and module-specific analysis | What explains the result? |
+| `units` | Por unidad | Organizational comparison chart, relevant rankings and summary table | Where is attention needed? |
+| Domain-specific detail | Colaboradores in RH; use the owning module's entity elsewhere | Paginated record/entity table, supporting detail and attention cases | Which records require action? |
+
+Use these four roles as the default mapping. Localize labels and adapt the detail
+entity to the module; do not copy `employees` into financial or inventory views.
+If the module has no meaningful organizational comparison, document a useful
+substitute or omit that view. Do not invent data, rankings or empty tabs to fill
+the layout. Add another view only for a distinct decision that cannot fit clearly
+within this mapping, and document the reason in the module contract.
+
+The user journey must read from summary to cause across views:
 
 ```txt
 Scope -> Current state -> Comparison -> Cause -> Responsible entity -> Action
 ```
 
-Do not place detailed tables before the user understands the current state.
+Open on `overview` for a new workspace. A valid explicit URL or remembered view
+may restore a deeper context. The shared filters and relevant data-state messages
+remain available in every view. Primary cards live in Overview; do not repeat
+the eight-card grid above each view.
+
+Each chart, ranking and table has one primary location. Consolidate duplicated
+attention summaries and detailed lists with disclosure, preserving their reasons,
+record access and filter actions. Keep full tables in the appropriate detail or
+comparison view, rather than on the initial summary.
+
+### 3.2 Visual and navigation parameters
+
+Required presentation parameters:
+
+| Parameter | Standard |
+|---|---|
+| Navigation engine | `IndiceWorkspaceNavigation`, `variant="views"` |
+| Visual reference | Grouped Table / Kanban / Agenda selector from Processes and Tasks |
+| Module identity | Pass the owning module's `tone`; RH uses aqua, other modules use their approved color |
+| Selector | Neutral bordered surface, rounded rectangular buttons, icon plus localized label, active module color |
+| Outer layout | `grid min-w-0 grid-cols-1 gap-6` |
+| Vertical spacing | 24 px between title and selector, and the same 24 px between selector and filters |
+| Alignment | Title, selector and filters share the same left edge; the selector can fit its content |
+| View state | Existing `useWorkspaceNavigationMemory`, with a declared URL field; `view` is the default query key |
+| Initial/fallback view | `overview`; unsupported or unavailable restored values resolve to an allowed view |
+
+Let the parent gap control spacing. Neutralize title-bar bottom margins with
+`className="mb-0"` when the title wrapper supplies one. Do not combine sibling
+margin utilities with overrides that remove the title-to-selector gap or double
+the selector-to-filter gap. Keep the two gaps equal on mobile as well.
+
+Use the shared engine's keyboard navigation, selected-state semantics and focus
+treatment. On narrow screens, the buttons wrap without clipping labels or forcing
+horizontal page scrolling. Keep dark mode and the module's accessible active text
+color. Analytics identity alone is not a reason to replace the module tone with blue.
+
+Changing the view changes presentation, not the data scope. Preserve filters,
+dependent organizational selections and each table's page while moving between
+views; a filter change still resets pagination according to the table contract.
+Keep the active view in the existing company/user-scoped workspace memory. Do not
+create a separate local-storage or navigation engine per module.
+
+Render only the active view visibly. Do not mount responsive charts into hidden,
+zero-width containers. Tables may retain their mounted state while hidden, or
+keep their state in the owning workspace, to preserve pagination. Changing view
+must not itself refetch the same dashboard data or generate a loading overlay.
+
+Refresh acts on the shared data. Print/export retains the module's existing
+scope; a complete report must not silently shrink to the visible tab or table
+page. If a module already supports a view-specific report, retain its explicit
+label and scope. Source failures remain visible when switching views.
+
+### 3.3 Human Resources reference mapping (approved 2026-09-15)
+
+Human Resources distributes its existing analytics across four internal views
+to reduce simultaneous information density:
+
+- `overview` (Resumen): the eight existing KPI cards, executive signal and
+  supporting totals.
+- `charts` (Gráficas): attendance, permission and record distributions.
+- `units` (Por unidad): unit performance chart, unit/department rankings and
+  the operational unit summary table.
+- `employees` (Colaboradores): employee operations table and a collapsible
+  attention queue. The queue replaces the duplicate short attention ranking;
+  it retains each case's signals and focus action, showing five cases initially
+  and allowing expansion to all cases supplied by the existing calculation.
+
+Place `IndiceWorkspaceNavigation` with `variant="views"` and `tone="aqua"`
+between the title bar and the single shared filter bar. Only the active view's
+content is visible. Preserve filters across view changes; remember the active
+view through the existing workspace memory and `view` URL parameter, falling
+back to `overview` for unsupported values. Retain employee table pagination when
+switching views. Source warnings remain visible above the selected content.
+
+Refresh and print stay global. Printing continues to generate the complete
+filtered report, independently of the selected view. This presentation change
+does not change the current KPI formulas, thresholds, data sources, totals or
+permission contracts, and does not add the indicators from earlier proposals.
+
+### 3.4 Adoption boundaries
+
+This is a presentation standard for analytical tabs inside basic modules. It does
+not replace the parent module navigation, ordinary operational-list KPI strips,
+or specialized executive-analysis workflows with their own approved contracts.
+
+Adopt it module by module. Inventory the current panels and interactions, map
+each to one view, preserve business calculations and permission boundaries, then
+verify the result. This document does not authorize adding missing business
+metrics, changing APIs, modifying schemas or rewriting score formulas as part of
+a visual migration. Existing data-quality defects remain separate tracked work;
+visual approval must not be described as certification of those values.
+
+The implementation reference is Human Resources. Other modules are candidates
+for migration, not already standardized or verified by this documentation change.
 
 ---
 
@@ -341,6 +454,9 @@ the native breakdown leads and the converted preferred total follows the composi
 
 An analytics tab should use exactly eight primary KPI cards when the module has eight
 meaningful decisions to support.
+
+For the internal-view format, this count applies to `overview` only. The other
+views contain their own analysis or detail; they do not each require eight cards.
 
 Do not invent weak metrics merely to reach eight. If a module genuinely cannot support
 eight decision-oriented metrics, document the exception before implementation.
@@ -721,6 +837,7 @@ The entire KPI tab and every independent panel must define:
 
 Desktop `>=1280px`:
 
+- grouped view selector between the title and filters, with equal 24 px gaps
 - four KPI cards per row
 - charts commonly use two columns
 - ranking panels may use two to four columns
@@ -734,6 +851,8 @@ Tablet `768-1279px`:
 
 Mobile `<768px`:
 
+- internal view buttons wrap without clipped labels or page overflow
+- title, selector and filters retain equal 24 px vertical gaps
 - one KPI card per row
 - charts use one column
 - legends wrap or move below charts
@@ -847,6 +966,23 @@ Use this template before coding a KPI:
 - Status:
 - Contextual filters:
 
+### Internal Views And Presentation Parameters
+
+- Module key and approved tone:
+- Navigation: `IndiceWorkspaceNavigation`, `variant="views"`.
+- Layout: `grid min-w-0 grid-cols-1 gap-6`; equal 24 px gaps between bars.
+- Overview: primary cards, insight and totals assigned here.
+- Charts: existing distributions, trends and operational analyses assigned here.
+- By unit: comparison dimension, rankings and summary table, or documented substitute.
+- Detail: English view identifier, localized entity label, table and attention cases.
+- Initial/fallback view: `overview`.
+- View URL key: `view`, or the module's existing documented mapping.
+- Filter, view and table-state retention:
+- Duplicated panels consolidated and interactions preserved:
+- Refresh scope and print/export scope:
+- Data warnings visible across views:
+- Approved exceptions, if any:
+
 ### Eight KPI
 
 1. ...
@@ -896,10 +1032,33 @@ Use this template before coding a KPI:
 
 ---
 
-## 23. Expenses Reference Implementation
+## 23. Reference Implementations
 
-The Expenses `Indicators` tab is the first information-architecture reference for this
-standard.
+### 23.1 Human Resources: information organization and visual layout
+
+Human Resources is the approved reference for the basic-module internal-view
+format, module-colored selector, shared filters and equal spacing between bars.
+
+Reference files:
+
+- `react/src/app/BasicModules/HumanResources/KPIs/KPIs.tsx`
+- `react/src/app/BasicModules/HumanResources/KPIs/translations/workspaceCopy.ts`
+- `react/src/app/components/frontend-os/IndiceWorkspaceNavigation.tsx`
+- `react/src/app/hooks/useWorkspaceNavigationMemory.ts`
+- `react/tests/hr-kpi-views-regression.test.mjs`
+
+Reuse the shared navigation and layout contract, not RH's business formulas or
+its employee-specific content. The analysis in
+[`indice-hr-kpi-analysis-2026-09-15.md`](./indice-hr-kpi-analysis-2026-09-15.md)
+records the visual implementation and separately tracks known data/calculation
+issues; earlier seven-view mockups in that analysis are not this standard.
+
+### 23.2 Expenses: financial analysis concepts
+
+The Expenses `Indicators` tab remains a reference for financial analysis concepts.
+For the distribution into internal views, Section 3 and the Human Resources
+presentation reference control; an existing single-page Expenses layout does not
+override the approved view organization.
 
 Reference files:
 
@@ -942,10 +1101,19 @@ A KPI tab is complete only when:
 - [ ] It follows the Frontend Operating System.
 - [ ] It has a compact localized title bar.
 - [ ] Its title-bar actions follow the three-direct-actions and fourth-overflow-control rule.
+- [ ] A basic-module KPI tab uses the internal-view mapping, or records a domain-specific exception.
+- [ ] The selector uses `IndiceWorkspaceNavigation` with `variant="views"` and the module tone.
+- [ ] Title-to-selector and selector-to-filter gaps are both 24 px, with aligned left edges.
+- [ ] Only the selected view's content is visible; primary cards appear in Overview only.
+- [ ] Each existing chart, ranking, table and drill-down has a clear location; duplicates are consolidated.
 - [ ] It has one global filter scope.
 - [ ] More than four useful filters use the shared progressive-disclosure pattern.
 - [ ] Its safe filter scope survives tab navigation and reload without crossing user or company scope.
 - [ ] Direct URL fields override remembered filter values.
+- [ ] Switching views preserves filters and table state; unsupported view identifiers fall back safely.
+- [ ] View switching does not repeat the dashboard fetch or render charts inside hidden containers.
+- [ ] Refresh remains global and print/export retains its declared scope, regardless of visible view.
+- [ ] Partial-data warnings remain visible across views.
 - [ ] Search appears first when the analytics view supports record search.
 - [ ] Unit and Business dependency works correctly.
 - [ ] Filter changes update cards, charts, rankings, tables, and exports.
@@ -971,6 +1139,7 @@ A KPI tab is complete only when:
 - [ ] Visible copy is localized.
 - [ ] Keyboard and contrast requirements are met.
 - [ ] Existing APIs and business contracts remain intact unless separately authorized.
+- [ ] Focused flow regression covers view switching, retained filters, detail actions and report scope.
 - [ ] TypeScript passes.
 - [ ] Production build passes.
 
@@ -991,8 +1160,53 @@ When this standard evolves:
 2. Explain whether the change is required or recommended.
 3. Update the Frontend Operating System link only if the document path changes.
 4. Apply the change to the reference implementation.
-5. Validate one additional module before declaring the pattern universal.
+5. Validate at least one additional module before describing the pattern as verified
+   beyond the reference implementation. Record adoption and verification per module;
+   approval of this standard alone does not mean all modules have migrated.
 6. Avoid retroactive mass changes without module-by-module verification.
 
 The goal is one coherent analytics language across Indice, adapted to each module's
 actual decisions and data.
+
+
+### Processes and Tasks adoption (2026-09-15)
+
+Processes and Tasks implements Overview / Analysis / By unit / Performance with
+the shared yellow view selector and 24 px shell spacing. Its authorized additive
+measurement contract, compatibility boundaries and complete-report scope are
+defined in [`processes-tasks-kpi-measurement-contract.md`](./processes-tasks-kpi-measurement-contract.md).
+This adoption does not change another module’s formulas or views.
+
+### Expenses adoption (2026-09-15)
+
+Expenses implements Overview / Analysis / By unit / Control and detail using the
+shared green view selector, global filters and equal 24 px gaps. Its measurement
+review and explicit financial boundaries are defined in
+[`expenses-kpi-workspace-contract.md`](./expenses-kpi-workspace-contract.md), with
+local validation in [`indice-expenses-kpi-analysis-2026-09-15.md`](./indice-expenses-kpi-analysis-2026-09-15.md).
+The eight-card mapping replaces the synthetic financial-health card with separate
+captured/recognized expense and owner budget availability. Volume cards do not
+receive invented health thresholds. Monetary ownership remains with the existing
+backend engine; neither layout reuse nor this adoption certifies historical closing
+balances, tax recoverability or company liquidity.
+
+### Petty Cash adoption (2026-09-15)
+
+Petty Cash implements Overview / Analysis / By unit / Statements and receipts with
+green shared navigation, retained filters/table state, and equal 24 px gaps.
+[`petty-cash-kpi-workspace-contract.md`](./petty-cash-kpi-workspace-contract.md)
+defines eight operational measurements, company-versus-third-party custody scope,
+historical classification, signed current balances, receipt authorization and complete
+filtered reports. Company financial metrics remain company-only; additive custody
+aggregates require the Petty Cash KPI permission. There is no synthetic health score.
+Validation is recorded in
+[`indice-petty-cash-kpi-analysis-2026-09-15.md`](./indice-petty-cash-kpi-analysis-2026-09-15.md).
+
+### Receivables adoption (2026-09-15)
+
+Cartera adds its own Indicators tab with Overview / Analysis / By unit / Accounts and
+collections, green shared navigation and equal 24 px gaps. Operational tabs remain
+available. [`receivables-kpi-workspace-contract.md`](./receivables-kpi-workspace-contract.md)
+defines the eight measurements, current versus period scope, instalment-based ageing,
+customer identity, read-only permissions and full filtered reports. Validation is in
+[`indice-receivables-kpi-analysis-2026-09-15.md`](./indice-receivables-kpi-analysis-2026-09-15.md).

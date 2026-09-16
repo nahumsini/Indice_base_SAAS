@@ -89,7 +89,7 @@ export default function AccountTypeEditModal({
             </div>
           </div>
           <label className="mt-5 block space-y-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
-            <span>{t("userType")}</span>
+            <span>{t("workspaceAccountType")}</span>
             <select
               autoFocus
               value={accountType}
@@ -98,7 +98,7 @@ export default function AccountTypeEditModal({
               }
               className={controlClass}
             >
-              <option value="SUPER_ADMIN">{t("superAdmin")} · {t("customer")}</option>
+              <option value="SUPER_ADMIN">{t("workspaceClient")}</option>
               <option value="DISTRIBUTOR">{t("distributor")}</option>
             </select>
           </label>

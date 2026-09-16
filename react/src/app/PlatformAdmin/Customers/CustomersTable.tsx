@@ -66,6 +66,7 @@ export function CustomersTable({
   compact?: boolean;
 }) {
   const { locale, t } = useCustomerAccountCopy();
+  const displayColumns: CustomerTableColumnId[] = ["customer", ...columns.filter((column) => column !== "customer")];
   const copy = getCustomerTableCopy(locale);
   const headerLabels = getCustomerTableColumnLabels(copy);
   const { columnWidths, resizeColumn } = usePersistentColumnWidths<CustomerTableColumnId>({
@@ -76,7 +77,7 @@ export function CustomersTable({
     sortableColumnIds: columns,
     storageKey: "indice-platform-admin-customer-column-widths-v2",
   });
-  const tableColumns: Array<IndiceTableColumnDefinition<CustomerTableColumnId>> = columns.map((columnId) => ({
+  const tableColumns: Array<IndiceTableColumnDefinition<CustomerTableColumnId>> = displayColumns.map((columnId) => ({
     id: columnId,
     label: headerLabels[columnId],
     width: columnWidths[columnId],
@@ -93,7 +94,7 @@ export function CustomersTable({
 
   return (
     <IndiceTableShell pagination={pagination}>
-      <IndiceOperationalTable minimumWidth={minimumWidth}>
+      <IndiceOperationalTable minimumWidth={minimumWidth} className="[&_thead_th:first-child]:sticky [&_thead_th:first-child]:left-0 [&_thead_th:first-child]:z-20 [&_thead_th:first-child]:bg-slate-50 dark:[&_thead_th:first-child]:bg-slate-900">
         <IndiceTableColGroup columns={tableColumns} actionsWidth={customerTableActionsWidth} />
         <IndiceTableHeaderRow
           actions={{ label: copy.actions, width: customerTableActionsWidth }}
@@ -110,7 +111,7 @@ export function CustomersTable({
               company={company}
               english={english}
               copy={copy}
-              columns={columns}
+              columns={displayColumns}
               columnWidths={columnWidths}
               compact={compact}
               canEditTypes={canEditTypes}

@@ -174,6 +174,8 @@ export interface ExpenseApiDto {
 export interface ExpenseListApiResponse {
   expenses: ExpenseApiDto[];
   count: number;
+  asOfDate?: string;
+  timeZone?: string;
 }
 
 export type ExpensePaymentSource = 'RECORDED' | 'SETTLED_ON_CREATE' | 'LEGACY_AGGREGATE';

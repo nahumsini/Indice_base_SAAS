@@ -380,7 +380,33 @@ const creditPolicyPayload = (policy: Omit<CreditPolicy, 'id' | 'availableCredit'
         notes: policy.notes,
       });
 
+export type ReceivablesKpiSource = {
+  receivables: ReceivableAccount[]; installments: ReceivableInstallment[]; payments: ReceivablePayment[];
+  asOfDate: string; timeZone: string;
+};
+
+type BackendKpiWorkspace = Pick<BackendWorkspace, 'receivables' | 'installments' | 'payments'> & { asOfDate?: string; timeZone?: string };
+const sourceDate = (value?: string | null) => value?.slice(0, 10) ?? '';
+export function toReceivablesKpiSource(dto: BackendKpiWorkspace): ReceivablesKpiSource {
+  if (!Array.isArray(dto.receivables) || !Array.isArray(dto.installments) || !Array.isArray(dto.payments)
+    || !/^\d{4}-\d{2}-\d{2}$/.test(dto.asOfDate ?? '') || !dto.timeZone) throw new Error('Incomplete receivables KPI source');
+  const validNumber = (value: unknown) => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
+  const validRow = (row: { id?: number | null; currency?: string | null }, amount: unknown) => Number.isSafeInteger(row.id) && Number(row.id) > 0 && /^[A-Z]{3}$/.test(row.currency ?? '') && validNumber(amount);
+  if (dto.receivables.some(row => !validRow(row, row.balance))
+    || dto.installments.some(row => !validRow(row, row.balance) || !Number.isSafeInteger(row.receivableId))
+    || dto.payments.some(row => !validRow(row, row.amount) || !Number.isSafeInteger(row.receivableId))) throw new Error('Invalid receivables KPI data');
+  return {
+    asOfDate: dto.asOfDate!, timeZone: dto.timeZone,
+    receivables: dto.receivables.map(row => ({ ...toReceivableAccount(row), dueDate: sourceDate(row.dueDate), nextPaymentDate: sourceDate(row.nextPaymentDate) })),
+    installments: dto.installments.map(row => ({ ...toReceivableInstallment(row), dueDate: sourceDate(row.dueDate) })),
+    payments: dto.payments.map(row => ({ ...toReceivablePayment(row), paymentDate: sourceDate(row.paymentDate) })),
+  };
+}
+
 export const receivablesApi = {
+  async kpiWorkspace(): Promise<ReceivablesKpiSource> {
+    return toReceivablesKpiSource(await apiClient<BackendKpiWorkspace>(`${basePath}/kpis/workspace`));
+  },
   async workspace(): Promise<ReceivablesWorkspace> {
     return toWorkspace(await apiClient<BackendWorkspace>(`${basePath}/workspace`));
   },

@@ -29,6 +29,21 @@ Consolidate presentation into `IndiceModalFrame` plus four classified modes: con
 
 ## Migration order
 
+### Platform customer service — 2026-09-14
+
+- `CompanyAccountDrawer`: **operational-workspace** using `IndiceModalFrame` and peer navigation.
+  One product row owns the module's access actions and read-only grant details. Seat/storage
+  capacity lives with Users in platform administration. Commercial previews survive navigation.
+- `BenefitAdjustmentModal`: **standard-form** with product or capacity scope, explicit validity,
+  quantity units, reason, disabled fields while saving, and one submit action. No dependent stages
+  require a wizard. It replaces the parent surface and returns to the same customer section.
+- Platform `ConfirmModal` and discard prompts: **confirmation** using
+  `IndiceConfirmationDialog`. Withdrawals explain the actual grant type and existing backend
+  scope; discard prompts retain the pending input when canceled. No stacked active overlays.
+- Shared frame references are the Frontend Operating System's HR Schedule workspace and HR
+  Records standard-form density. No new shell, route, modal engine, or backend contract.
+- Verification and limitations: `indice-platform-admin-modal-clarity-2026-09-14.md`.
+
 ### Expenses additions — 2026-09-10
 
 - `ExpenseFormModal`: **standard-form**. Payment correction is a reasoned inline confirmation

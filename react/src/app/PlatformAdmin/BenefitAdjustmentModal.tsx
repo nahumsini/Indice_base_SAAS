@@ -1,12 +1,13 @@
 import { catalogProductLabel } from "./CatalogWorkspace/catalogLabels";
 import { useCustomerAccountCopy } from "./Customers/useCustomerAccountCopy";
-import type { FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Gift, Plus } from "lucide-react";
 import type {
   BenefitPayload,
   PlatformCatalogProduct,
 } from "../api/platformAdmin";
-import { IndiceModalFrame } from "../components/indice-modal";
+import { IndiceModalFrame, IndiceModalValidation } from "../components/indice-modal";
+import { IndiceConfirmationDialog } from "../components/indice-modal/IndiceConfirmationDialog";
 import { accessReasonOptions, extraSeatOptions, flowOptionLabel } from "./flowOptions";
 
 const controlClass =
@@ -19,7 +20,13 @@ export function BenefitAdjustmentModal({
   onBenefit,
   onClose,
   onSubmit,
+  companyName,
+  error,
+  allowedTypes = ["PRODUCT", "SEAT", "STORAGE"],
 }: {
+  allowedTypes?: BenefitPayload["benefit_type"][];
+  companyName?: string;
+  error?: string;
   benefit: BenefitPayload;
   products: PlatformCatalogProduct[];
   saving: boolean;
@@ -28,6 +35,27 @@ export function BenefitAdjustmentModal({
   onSubmit: (event: FormEvent) => void;
 }) {
   const { t, locale, number } = useCustomerAccountCopy();
+  const initialValue = useRef(JSON.stringify(benefit));
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [temporary, setTemporary] = useState(Boolean(benefit.ends_at));
+  const [validationError, setValidationError] = useState("");
+  const eligibleProducts = products.filter(product => product.active && product.commercially_available !== false && product.commercial_kind !== "SEAT")
+    .sort((a, b) => catalogProductLabel(a, locale).localeCompare(catalogProductLabel(b, locale), locale));
+  const selectedProduct = eligibleProducts.find(product => product.product_code === benefit.product_code);
+  const close = () => {
+    if (saving) return;
+    if (JSON.stringify(benefit) !== initialValue.current || temporary !== Boolean(benefit.ends_at)) setDiscardOpen(true);
+    else onClose();
+  };
+  const submit = (event: FormEvent) => {
+    if (saving) { event.preventDefault(); return; }
+    if (benefit.benefit_type === "PRODUCT" && !selectedProduct) { event.preventDefault(); setValidationError(t("selectModule")); return; }
+    if (temporary && (!benefit.ends_at || Date.parse(benefit.ends_at) <= Date.now() || !Number.isFinite(Date.parse(benefit.ends_at)))) {
+      event.preventDefault(); setValidationError(t("accessInvalidEnd")); return;
+    }
+    setValidationError("");
+    onSubmit(event);
+  };
   const presetReason = accessReasonOptions.includes(
     benefit.reason as (typeof accessReasonOptions)[number],
   );
@@ -36,29 +64,33 @@ export function BenefitAdjustmentModal({
     : benefit.reason
       ? "OTHER"
       : "";
+  if (discardOpen) return <IndiceConfirmationDialog open title={t("accessDiscardTitle")} description={t("accessDiscardHelp")}
+    cancelLabel={t("accessKeepEditing")} confirmLabel={t("accessDiscard")} destructive tone="aqua"
+    onCancel={() => setDiscardOpen(false)} onConfirm={onClose} />;
   return (
     <IndiceModalFrame
       open
       busy={saving}
-      onOpenChange={(open) => !open && onClose()}
+      onOpenChange={(open) => !open && close()}
       modalType="standard-form"
       tone="aqua"
       icon={<Gift className="h-5 w-5" />}
       eyebrow={t("customerAccount")}
-      title={t("applyAccessAdjustment")}
-      description={t("adjustmentHelp")}
+      title={t(benefit.benefit_type === "PRODUCT" ? "accessGrant" : "accessManageCapacity")}
+      description={companyName ? `${companyName} · ${t("accessFormHelp")}` : t("accessFormHelp")}
+      footerSummary={selectedProduct ? catalogProductLabel(selectedProduct, locale) : undefined}
       footer={
         <>
-          <button type="button" onClick={onClose} disabled={saving}>
+          <button type="button" onClick={close} disabled={saving}>
             {t("cancel")}</button>
           <button
             type="submit"
             form="benefit-adjustment-form"
-            disabled={saving}
+            disabled={saving || (benefit.benefit_type === "PRODUCT" && !selectedProduct)}
           >
             <span className="inline-flex items-center gap-2">
               <Plus className="h-4 w-4" />
-              {saving ? t("applying") : t("applyAdjustment")}
+              {saving ? t("applying") : t(benefit.benefit_type === "PRODUCT" ? "accessGrant" : "accessManageCapacity")}
             </span>
           </button>
         </>
@@ -66,10 +98,11 @@ export function BenefitAdjustmentModal({
     >
       <form
         id="benefit-adjustment-form"
-        onSubmit={onSubmit}
-        className="grid gap-4 sm:grid-cols-2"
+        onSubmit={submit}
       >
-        <Field label={t("adjustmentType")}>
+        <fieldset disabled={saving} className="grid gap-4 sm:grid-cols-2">
+        <div className="sm:col-span-2"><IndiceModalValidation messages={[error, validationError].filter((message): message is string => Boolean(message))} /></div>
+        {allowedTypes.length > 1 ? <Field label={t("adjustmentType")}>
           <select
             value={benefit.benefit_type}
             onChange={(event) =>
@@ -83,11 +116,11 @@ export function BenefitAdjustmentModal({
             }
             className={controlClass}
           >
-            <option value="PRODUCT">{t("module")}</option>
-            <option value="SEAT">{t("extraUsers")}</option>
-            <option value="STORAGE">{t("storage")}</option>
+            {allowedTypes.includes("PRODUCT") ? <option value="PRODUCT">{t("module")}</option> : null}
+            {allowedTypes.includes("SEAT") ? <option value="SEAT">{t("extraUsers")}</option> : null}
+            {allowedTypes.includes("STORAGE") ? <option value="STORAGE">{t("storage")}</option> : null}
           </select>
-        </Field>
+        </Field> : null}
         <Field label={t("origin")}>
           <select
             value={benefit.source_type}
@@ -117,7 +150,7 @@ export function BenefitAdjustmentModal({
               className={controlClass}
             >
               <option value="">{t("selectModule")}</option>
-              {products.map((product) => (
+              {eligibleProducts.map((product) => (
                 <option key={product.id} value={product.product_code}>
                   {catalogProductLabel(product, locale)}
                 </option>
@@ -125,7 +158,7 @@ export function BenefitAdjustmentModal({
             </select>
           </Field>
         ) : (
-          <Field label={t("quantity")}>
+          <Field label={t(benefit.benefit_type === "SEAT" ? "accessSeatQuantity" : "accessStorageQuantity")}>
             <select
               required
               value={benefit.quantity || 1}
@@ -144,16 +177,21 @@ export function BenefitAdjustmentModal({
             </select>
           </Field>
         )}
-        <Field label={t("validUntilOptional")}>
-          <input
-            type="datetime-local"
-            value={benefit.ends_at || ""}
-            onChange={(event) =>
-              onBenefit({ ...benefit, ends_at: event.target.value })
-            }
-            className={controlClass}
-          />
+        <Field label={t("accessValidity")}>
+          <select className={controlClass} value={temporary ? "temporary" : "permanent"} onChange={event => {
+            const next = event.target.value === "temporary";
+            setTemporary(next);
+            if (!next) onBenefit({ ...benefit, ends_at: "" });
+          }}>
+            <option value="temporary">{t("accessTemporary")}</option>
+            <option value="permanent">{t("accessPermanent")}</option>
+          </select>
         </Field>
+        {temporary ? <Field label={t("accessTemporary")}>
+          <input required type="datetime-local" value={benefit.ends_at || ""}
+            onChange={event => onBenefit({ ...benefit, ends_at: event.target.value })} className={controlClass} />
+        </Field> : <p className="self-center text-sm text-slate-500">{t("accessPermanentHelp")}</p>}
+        {benefit.benefit_type === "PRODUCT" && !eligibleProducts.length ? <p className="text-sm text-slate-500 sm:col-span-2">{t("accessNoEligibleProducts")}</p> : null}
         <div className="sm:col-span-2">
           <Field label={t("auditReason")}>
             <select
@@ -192,6 +230,7 @@ export function BenefitAdjustmentModal({
             </Field>
           </div>
         ) : null}
+        </fieldset>
       </form>
     </IndiceModalFrame>
   );

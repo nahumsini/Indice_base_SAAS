@@ -41,7 +41,7 @@ test('Petty Cash conserva índices móviles y detalle operativo de cortes', () =
   const fundsSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashFundsWorkspace.tsx'), 'utf8');
   const reconciliationSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashReconciliationWorkspace.tsx'), 'utf8');
   const statementsSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashStatementsWorkspace.tsx'), 'utf8');
-  const financialSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashFinancialViewWorkspace.tsx'), 'utf8');
+  const financialSource = readFileSync(resolve(pettyCashRoot, 'KPIs/components/PettyCashKpiTable.tsx'), 'utf8');
   const detailSource = readFileSync(resolve(pettyCashRoot, 'components/statements/PettyCashStatementDetailModal.tsx'), 'utf8');
   const statementDocumentSource = readFileSync(resolve(pettyCashRoot, 'utils/pettyCashStatementPdf.ts'), 'utf8');
 
@@ -99,9 +99,10 @@ test('Petty Cash consolida moneda y evita avances KPI artificiales', () => {
   const statementsSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashStatementsWorkspace.tsx'), 'utf8');
 
   assert.match(financialSource, /<OperationalKpiCurrencyStrip/);
-  assert.match(financialSource, /const summaryAggregates = useKpiMonetaryAggregates/);
+  assert.match(financialSource, /const aggregates = usePettyCashKpiAggregates/);
   assert.doesNotMatch(financialSource, /progress:\s*100/);
-  assert.match(financialSource, /budgetAvailable = Math\.max\(0, summary\.currentBalanceAmount\)/);
+  assert.doesNotMatch(financialSource, /budgetAvailable|healthScore/);
+  assert.match(financialSource, /PettyCashKpiOverview/);
   assert.match(statementsSource, /const aggregates = useKpiMonetaryAggregates/);
   assert.match(statementsSource, /currencyContext=/);
 });

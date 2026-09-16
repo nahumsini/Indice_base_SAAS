@@ -59,6 +59,25 @@ class KpiRequestAccessIntegrationTest {
         jdbc.update("UPDATE user_company_tab_permissions SET can_view = 0 WHERE user_company_id = ?", user.userCompanyId());
         assertThatThrownBy(() -> access.central(user, "accounting-reports", null, null)).isInstanceOf(ResponseStatusException.class);
     }
+    @Test void custodyAnalyticsRequiresThePettyCashKpiTabEvenForCentralAnalysts() {
+        grant("kpis", "kpis");
+        assertThatThrownBy(() -> access.monetary(user, "PETTY_CASH_CUSTODY_BALANCE")).isInstanceOf(ResponseStatusException.class);
+        grant("petty_cash", "kpis");
+        assertThat(access.monetary(user, "PETTY_CASH_CUSTODY_BALANCE")).isEqualTo(HrOperationalScope.unitHeadquarters(unit));
+        assertThat(access.monetary(user, "PETTY_CASH_CUSTODY_SETTLEMENT_AUTHORIZED")).isEqualTo(HrOperationalScope.unitHeadquarters(unit));
+        jdbc.update("UPDATE user_company_tab_permissions SET can_view = 0 WHERE user_company_id = ? AND module_slug = 'petty_cash'", user.userCompanyId());
+        assertThatThrownBy(() -> access.monetary(user, "PETTY_CASH_CUSTODY_SETTLEMENT_AUTHORIZED")).isInstanceOf(ResponseStatusException.class);
+    }
+    @Test void receivablesAnalyticsHasScopedAmountsWithoutGrantingOtherFinancialMetrics() {
+        grant("receivables", "kpis");
+        for (String metric : new String[]{"RECEIVABLE_BALANCE", "RECEIVABLE_INSTALLMENT_BALANCE", "RECEIVABLE_PAYMENT_AMOUNT"}) {
+            assertThat(access.monetary(user, metric)).isEqualTo(HrOperationalScope.unitHeadquarters(unit));
+        }
+        assertThatThrownBy(() -> access.monetary(user, "CREDIT_POLICY_AVAILABLE")).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(() -> access.monetary(user, "EXPENSE_TOTAL")).isInstanceOf(ResponseStatusException.class);
+        jdbc.update("UPDATE user_company_tab_permissions SET can_view = 0 WHERE user_company_id = ?", user.userCompanyId());
+        assertThatThrownBy(() -> access.monetary(user, "RECEIVABLE_BALANCE")).isInstanceOf(ResponseStatusException.class);
+    }
     @Test void everyMonetaryPermissionMatchesTheActualPermissionCatalog() {
         for (var permission : KpiRequestAccessService.monetaryPermissions()) assertThat(ConfigCenterTabPermissionCatalog.isValidPermissionKey(permission)).as(permission).isTrue();
     }

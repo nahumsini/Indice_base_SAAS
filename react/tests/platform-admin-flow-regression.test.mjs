@@ -30,9 +30,6 @@ const customerTableColumns = read(
 const customerTableUtils = read(
   "src/app/PlatformAdmin/Customers/customerTableUtils.ts",
 );
-const customerControlCenter = read(
-  "src/app/PlatformAdmin/Customers/CustomerControlCenter.tsx",
-);
 const account = read("src/app/PlatformAdmin/AccountCreationModal.tsx");
 const activeCatalogSelection = read(
   "src/app/PlatformAdmin/selectActiveCatalogProducts.ts",
@@ -207,7 +204,7 @@ const { getCustomerTableCopy } = loadTypeScript(resolve(root, 'src/app/PlatformA
 const dictionary = (path, exported = 'copy') => loadTypeScript(resolve(root, path))[exported];
 const translatedSources = new Map([
   [page, { translate: getPlatformAdminTranslator('es-MX') }],
-  ...[customerRow, customerControlCenter, companyModules, companyActivity, companyOverview, accountTypeEdit, distributorAssignment, company, companyAccess, adjustment, trialExtension, customerTableCopy]
+  ...[customerRow, companyModules, companyActivity, companyOverview, accountTypeEdit, distributorAssignment, company, companyAccess, adjustment, trialExtension, customerTableCopy]
     .map(source => [source, { translate: getCustomerAccountCopy('es-MX').t }]),
   ...[commercialOfferWorkspace, commercialOfferDetail, moduleAvailabilityWorkspace, stripeSetupPanel]
     .map(source => [source, { messages: [getCatalogCopy('es-MX'), getCatalogCopy('en-CA')] }]),
@@ -417,7 +414,7 @@ test("la navegación interna comparte motor accesible y memoria de contexto", ()
   assert.match(page, /variant="sections"/);
   assert.match(page, /primary-navigation/);
   assert.match(page, /useWorkspaceNavigationMemory/);
-  assert.match(workspaceNavigation, /variant\?: 'sections' \| 'workflow'/);
+  assert.match(workspaceNavigation, /variant\?: 'sections' \| 'views' \| 'workflow'/);
   assert.match(workspaceNavigation, /role="tablist"/);
   assert.match(workspaceNavigation, /role="tab"/);
   assert.match(workspaceNavigation, /aria-selected/);
@@ -525,7 +522,7 @@ test("clientes conserva contratos históricos y confirma el nuevo total antes de
   assert.match(companyModules, /pendingChange\.preview\.catalog_version/);
   assert.match(platformApi, /expected_catalog_version: expectedCatalogVersion/);
   assertLocalizedLabel(companyModules, /sin prorrateo ni cobro inmediato/);
-  assertLocalizedLabel(companyModules, /Acceso de cortesía/);
+  assertLocalizedLabel(companyModules, /Retirar cortesía/);
   assert.doesNotMatch(companyModules, /se factura o acredita el prorrateo/);
   assert.match(company, /onPreviewProducts/);
   assert.match(page, /previewCompanyProducts/);
@@ -540,20 +537,13 @@ test("las tarjetas de clientes funcionan como filtros operativos", () => {
   assert.match(customerTableUtils, /statusFilter === "expiring"/);
   assert.match(customerTableUtils, /statusFilter === "no_offer"/);
   assert.match(customerTableUtils, /statusFilter === "no_adoption"/);
-  assert.match(customerControlCenter, /aria-pressed=\{active\}/);
-  assert.match(customerControlCenter, /onFilter\(active \? "all" : filter\)/);
-  assert.match(page, /<CustomerControlCenter/);
+  assert.doesNotMatch(page, /CustomerControlCenter/);
   assert.match(page, /onStatus\(statusFilter === "active" \? "all" : "active"\)/);
   assert.match(page, /onStatus\(statusFilter === "temporary" \? "all" : "temporary"\)/);
 });
 
-test("clientes prioriza riesgos responsables y siguiente accion", () => {
+test("clientes conserva el encabezado y los criterios de prioridad", () => {
   assertLocalizedLabel(page, /Centro de control de clientes/);
-  assertLocalizedLabel(customerControlCenter, /Siguientes acciones recomendadas/);
-  assertLocalizedLabel(customerControlCenter, /Responsable/);
-  assertLocalizedLabel(customerControlCenter, /Equipo Índice/);
-  assertLocalizedLabel(customerControlCenter, /Gestionar cobro y confirmar continuidad/);
-  assert.match(customerControlCenter, /onOpenCompany\(company\)/);
   assert.match(customerTableUtils, /customerPriorityScore/);
   assert.match(customerTableUtils, /company\.user_type === "SUPER_ADMIN"/);
 });
@@ -725,12 +715,12 @@ test("la entrega de la cuenta permite copiar todos los datos de acceso", () => {
 
 test("la cuenta separa módulos activos de los disponibles para agregar", () => {
   assertLocalizedLabel(companyModules, /Contrato y accesos vigentes/);
-  assertLocalizedLabel(companyModules, /Oferta disponible/);
+  assertLocalizedLabel(companyModules, /Módulos disponibles/);
   assert.match(companyModules, /availableCatalogProducts/);
-  assertLocalizedLabel(companyModules, /Productos publicados de la versión activa/);
+  assert.match(companyModules, /<details/);
   assert.match(companyModules, /requestPreview/);
   assert.match(companyModules, /onGrant\(product\.code\)/);
-  assertLocalizedLabel(companyModules, /Esta cuenta ya tiene toda la oferta disponible/);
+  assert.doesNotMatch(companyModules, /t\("allOfferIncluded"\)/);
 });
 
 test("usuarios incluidos ocupan y liberan lugares con invitaciones controladas", () => {
@@ -738,7 +728,8 @@ test("usuarios incluidos ocupan y liberan lugares con invitaciones controladas",
   assert.match(customerRow, /onOpenUsers\(company\)/);
   assert.match(customerRow, /copy\.manageUsers/);
   assert.match(page, /openCompanyUsers/);
-  assert.match(page, /CustomerUsersModal/);
+  assert.match(page, /openCompany\(company, "activity"\)/);
+  assert.doesNotMatch(page, /<CustomerUsersModal/);
   assert.match(customerUsersModal, /CompanyActivityTab/);
   assert.match(customerUsersModal, /showBilling=\{false\}/);
   assertLocalizedLabel(companyActivity, /Capacidad de usuarios/);
@@ -751,7 +742,7 @@ test("usuarios incluidos ocupan y liberan lugares con invitaciones controladas",
   assertLocalizedLabel(companyActivity, /Desactivar y liberar lugar/);
   assertLocalizedLabel(companyActivity, /Reactivar/);
   assert.match(companyActivity, /available < 1/);
-  assertLocalizedLabel(companyActivity, /Ajustar lugares/);
+  assertLocalizedLabel(companyActivity, /Ajustar capacidad/);
   assert.match(platformApi, /inviteCompanyUser/);
   assert.match(platformApi, /cancelCompanyUserInvitation/);
   assert.match(platformApi, /resendCompanyUserInvitation/);
@@ -909,9 +900,9 @@ test("la cuenta se administra en un workspace compacto con pestañas directas", 
   assert.match(company, /tone="aqua"/);
   assert.match(company, /onOpenChange=\{\(nextOpen\)/);
   assert.match(company, /footerSummary=/);
-  assert.match(company, /onClick=\{\(\) => onClose\(\)\}[\s\S]*t\("close"\)/);
+  assert.match(company, /onClick=\{close\}[\s\S]*t\("close"\)/);
   assertLocalizedLabel(company, /Cerrar/);
-  assert.match(company, /className="cursor-pointer"/);
+  assert.match(company, /disabled=\{saving \|\| usersBusy \|\| modulesBusy\} className="cursor-pointer/);
   assert.match(company, /Number\.isFinite/);
   assert.doesNotMatch(company, /h-\[92dvh\]/);
   assert.doesNotMatch(company, /Siguiente|Anterior|Paso \d/);

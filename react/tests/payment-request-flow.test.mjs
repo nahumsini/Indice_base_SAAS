@@ -269,15 +269,15 @@ test('root action, existing subscription gate, restricted header and 402 revalid
   assert.doesNotMatch(read('Billing/hooks/usePaymentRequest.ts'), /paymentRequestsApi\.(pay|refresh)\(/);
 });
 
-test('the localized payment icon is directly visible with its menu closed and opens the selected company', () => {
+test('the localized billing icon opens the selected customer workspace without requesting payment', () => {
   for (const locale of customerAccountLocales) {
     const { element, company, calls, copy, tableCopy } = customerRowHarness({ locale });
     const buttons = [];
     find(element, (node) => { if (node.type === 'button') buttons.push(node); return false; });
-    const payments = buttons.filter((button) => button.props['aria-label'] === copy.t('requestPayment'));
-    assert.equal(payments.length, 1, `${locale}: payment must be visible without opening the menu`);
+    const payments = buttons.filter((button) => button.props['aria-label'] === copy.t('workspaceViewBilling'));
+    assert.equal(payments.length, 1, `${locale}: billing must be visible without opening the menu`);
     const payment = payments[0];
-    assert.equal(payment.props.title, copy.t('requestPayment'));
+    assert.equal(payment.props.title, copy.t('workspaceViewBilling'));
     assert.equal(payment.props.children.type, require('lucide-react').CreditCard);
     assert.equal(buttons[buttons.indexOf(payment) - 1].props['aria-label'], tableCopy.manageUsers);
     assert.equal(buttons[buttons.indexOf(payment) + 1].props['aria-label'], tableCopy.more);
@@ -287,7 +287,7 @@ test('the localized payment icon is directly visible with its menu closed and op
     assert.equal(calls[0], company, 'the modal callback receives the exact selected company');
   }
   const paymentOnly = customerRowHarness({ props: { canEditTypes: false } });
-  assert.ok(find(paymentOnly.element, (node) => node.type === 'button' && node.props['aria-label'] === paymentOnly.copy.t('requestPayment')));
+  assert.ok(find(paymentOnly.element, (node) => node.type === 'button' && node.props['aria-label'] === paymentOnly.copy.t('workspaceViewBilling')));
   assert.equal(find(paymentOnly.element, (node) => node.type === 'dropdown-menu'), null, 'payment alone must not create an empty overflow menu');
 });
 
@@ -300,7 +300,7 @@ test('the direct payment action preserves permission, callback, deleted-account 
     { company: { user_type: 'ROOT' } },
   ]) {
     const { element, calls, copy } = customerRowHarness(options);
-    assert.equal(find(element, (node) => node.type === 'button' && node.props['aria-label'] === copy.t('requestPayment')), null);
+    assert.equal(find(element, (node) => node.type === 'button' && node.props['aria-label'] === copy.t('workspaceViewBilling')), null);
     assert.equal(calls.length, 0);
   }
 });

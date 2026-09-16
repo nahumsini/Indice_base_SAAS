@@ -122,7 +122,7 @@ export function CustomerTableRow({
               {initials(company.name)}
             </span>
             <div className="min-w-0">
-              <p className="truncate font-medium text-slate-900">{company.name}</p>
+              <button type="button" onClick={() => onOpenCompany(company)} className="block max-w-full truncate text-left font-medium text-slate-900 hover:text-[#177D66] dark:text-slate-100">{company.name}</button>
               <p className="mt-0.5 truncate text-xs text-slate-500">
                 {company.owner_email || t("companyId", { id: String(company.id) })}
               </p>
@@ -237,7 +237,7 @@ export function CustomerTableRow({
       {columns.map((columnId) => (
         <TableCell
           key={columnId}
-          className={cellClass}
+          className={`${cellClass} ${columnId === "customer" ? "sticky left-0 z-10 bg-white shadow-[2px_0_4px_-2px_rgba(0,0,0,0.15)] dark:bg-slate-900" : ""}`}
           style={{
             width: columnWidths[columnId],
             minWidth: columnWidths[columnId],
@@ -262,7 +262,7 @@ export function CustomerTableRow({
           /> : null}
           {!deleted && canRequestPayment && onRequestPayment && accountType !== "ROOT" ? (
             <CustomerActionButton
-              label={t("requestPayment")}
+              label={t("workspaceViewBilling")}
               icon={<CreditCard className="h-4 w-4 text-[#177D66] dark:text-[#8FE0CA]" />}
               onClick={() => onRequestPayment(company)}
             />
@@ -380,7 +380,7 @@ function UserTypeBadge({
   const presentation = {
     ROOT: [t("root"), "border-blue-200 bg-blue-50 text-[#174799]"],
     SUPER_ADMIN: [
-      t("superAdmin"),
+      t("workspaceClient"),
       "border-emerald-200 bg-emerald-50 text-emerald-700",
     ],
     DISTRIBUTOR: [

@@ -14,6 +14,7 @@ import {
   type ReceivablesTabId,
 } from './constants/receivables.constants';
 import { initialReceivablesState } from './data';
+import { ReceivablesKpiWorkspace } from './KPIs/ReceivablesKpiWorkspace';
 import { useCandidateCustomers } from './hooks/useCandidateCustomers';
 import { useCandidateSales } from './hooks/useCandidateSales';
 import { useReceivablesTranslations } from './hooks/useReceivablesTranslations';
@@ -52,9 +53,11 @@ const receivablesLearningJourneyOrder: readonly ReceivablesTabId[] = [
   'credit-sales',
   'accounts-receivable',
   'payments',
+  'kpis',
 ];
 
 const receivablesLearningJourneyEmoji: Record<ReceivablesTabId, string> = {
+  kpis: '📊',
   'credit-customers': '👥',
   'credit-sales': '💳',
   'accounts-receivable': '🧾',
@@ -62,6 +65,7 @@ const receivablesLearningJourneyEmoji: Record<ReceivablesTabId, string> = {
 };
 
 const receivablesLearningSignals: Record<ReceivablesTabId, string> = {
+  kpis: 'Distingue saldos actuales, cuotas vencidas y cobros del periodo antes de priorizar el seguimiento.',
   'credit-customers': 'Define quién puede comprar a crédito, cuánto y bajo qué condiciones antes de comprometer dinero.',
   'credit-sales': 'Convierte una venta aprobada en un plan de cobro con fechas, saldo y responsable claros.',
   'accounts-receivable': 'Vigila lo pendiente por cliente y vencimiento para priorizar la cobranza correcta.',
@@ -188,9 +192,11 @@ function ReceivablesWorkspace({
     }
   }, [applyWorkspace]);
 
+  const isKpiTab = activeTab === 'kpis';
   useEffect(() => {
+    if (isKpiTab) return;
     void loadWorkspace();
-  }, [loadWorkspace]);
+  }, [loadWorkspace, isKpiTab]);
 
   const candidateSales = useCandidateSales(state.creditSales, apiCandidateSales, isBackendReady);
   const candidateCustomers = useCandidateCustomers(state.creditPolicies, candidateSales);
@@ -303,7 +309,7 @@ function ReceivablesWorkspace({
             theme={learningModeGuideThemes.finance}
           />
         ) : undefined}
-        loadingOverlay={<LoadingBarOverlay isVisible={isTabLoading || isWorkspaceLoading} title={copy.module.loadingTitle} description={copy.module.loadingDescription} />}
+        loadingOverlay={<LoadingBarOverlay isVisible={isTabLoading || (!isKpiTab && isWorkspaceLoading)} title={copy.module.loadingTitle} description={copy.module.loadingDescription} />}
         onNavigate={onNavigate}
         onTabChange={setActiveTab}
         subtitle={copy.module.subtitle}
@@ -311,6 +317,7 @@ function ReceivablesWorkspace({
         title={copy.module.title}
         tone="green"
       >
+        {activeTab === 'kpis' ? <ReceivablesKpiWorkspace /> : null}
         {activeTab === 'credit-sales' ? (
           <CreditSalesView
             candidateSales={candidateSales}

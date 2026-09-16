@@ -64,6 +64,22 @@ public class ProcessTaskKpisService {
         var projects = loadProjects(scope);
         var units = loadUnits(scope);
         var trend = loadTrend(scope);
+        var observations = loadMeasurements(scope);
+        var measurements = new ProcessTaskKpiMeasurements(1, scope.referenceDate(),
+                scope.referenceDate().plusDays(7).isAfter(scope.to()) ? scope.to() : scope.referenceDate().plusDays(7),
+                ProcessTaskKpiMeasurements.summarize(observations, scope.from(), scope.to(), scope.referenceDate()),
+                ProcessTaskKpiMeasurements.activity(observations, scope.from(), scope.to()));
+        attachMeasurements(collaborators, "collaboratorId", observations, ProcessTaskKpiMeasurements.Observation::collaboratorId, scope);
+        attachMeasurements(processes, "processId", observations, ProcessTaskKpiMeasurements.Observation::processId, scope);
+        attachMeasurements(projects, "projectId", observations, ProcessTaskKpiMeasurements.Observation::projectId, scope);
+        attachMeasurements(units, "unitId", observations, ProcessTaskKpiMeasurements.Observation::unitId, scope);
+        for (var project : projects) {
+            var deadline = project.get("dueDate");
+            var projectStatus = String.valueOf(project.get("projectStatus"));
+            project.put("deadlineExceeded", deadline != null
+                    && LocalDate.parse(deadline.toString()).isBefore(scope.referenceDate())
+                    && !"completed".equals(projectStatus) && !"cancelled".equals(projectStatus));
+        }
 
         var body = new LinkedHashMap<String, Object>();
         body.put("range", Map.of(
@@ -87,8 +103,56 @@ public class ProcessTaskKpisService {
         body.put("projects", projects);
         body.put("units", units);
         body.put("trend", trend);
+        body.put("measurements", measurements);
         body.put("generatedAt", LocalDateTime.now().toString());
         return body;
+    }
+
+    private void attachMeasurements(List<Map<String, Object>> rows, String idField,
+            List<ProcessTaskKpiMeasurements.Observation> observations,
+            java.util.function.Function<ProcessTaskKpiMeasurements.Observation, Long> key, KpiScope scope) {
+        var groups = ProcessTaskKpiMeasurements.group(observations, key, scope.from(), scope.to(), scope.referenceDate());
+        var empty = ProcessTaskKpiMeasurements.summarize(List.of(), scope.from(), scope.to(), scope.referenceDate());
+        for (var row : rows) {
+            long id = row.get(idField) instanceof Number number ? number.longValue() : 0L;
+            row.put("measurements", groups.getOrDefault(id, empty));
+        }
+    }
+
+    private List<ProcessTaskKpiMeasurements.Observation> loadMeasurements(KpiScope scope) {
+        // Reuse the exact tenant, visibility, organizational, search and Agenda scope.
+        // A team task joins once per active member; the calculator deduplicates each measurement by task ID.
+        var filter = taskFilter(scope, "pt");
+        var sql = """
+                SELECT pt.id, pt.unit_id, assignment.user_company_id AS collaborator_id,
+                       pt.process_id, pt.project_id, pt.process_run_id, run.start_date AS run_start_date,
+                       COALESCE(pt.agenda_date, pt.start_date, pt.due_date) AS scheduled_date,
+                       pt.due_date, pt.created_at, pt.completed_at, pt.audited_at, pt.cancelled_at,
+                       pt.status, pt.priority, pt.audited, pt.weighting, pt.evidence_required,
+                       EXISTS (SELECT 1 FROM process_task_attachments attachment
+                               WHERE attachment.company_id = pt.company_id AND attachment.task_id = pt.id
+                                 AND attachment.deleted_at IS NULL) AS has_evidence,
+                       (SELECT COUNT(*) FROM process_tasks sibling
+                        WHERE sibling.company_id = pt.company_id AND sibling.process_run_id = pt.process_run_id
+                          AND sibling.deleted_at IS NULL) AS run_task_count
+                FROM process_tasks pt
+                LEFT JOIN businesses business ON business.id = pt.business_id
+                    AND (business.company_id = pt.company_id OR business.company_id IS NULL)
+                LEFT JOIN process_runs run ON run.company_id = pt.company_id AND run.id = pt.process_run_id
+                LEFT JOIN process_task_assignees assignment ON assignment.company_id = pt.company_id
+                    AND assignment.task_id = pt.id AND assignment.removed_at IS NULL
+                WHERE
+                """ + filter.sql();
+        return jdbcTemplate.query(sql, (rs, index) -> new ProcessTaskKpiMeasurements.Observation(
+                rs.getLong("id"), rs.getObject("unit_id", Long.class), rs.getObject("collaborator_id", Long.class),
+                rs.getObject("process_id", Long.class), rs.getObject("project_id", Long.class),
+                rs.getObject("process_run_id", Long.class), rs.getInt("run_task_count"), rs.getObject("run_start_date", LocalDate.class),
+                rs.getObject("scheduled_date", LocalDate.class), rs.getObject("due_date", LocalDate.class),
+                rs.getObject("created_at", LocalDateTime.class), rs.getObject("completed_at", LocalDateTime.class),
+                rs.getObject("audited_at", LocalDateTime.class), rs.getObject("cancelled_at", LocalDateTime.class),
+                rs.getString("status"), rs.getString("priority"), rs.getBoolean("audited"),
+                rs.getObject("weighting", Integer.class), rs.getBoolean("evidence_required"), rs.getBoolean("has_evidence")),
+                filter.params().toArray());
     }
 
     private KpiScope parseScope(

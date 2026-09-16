@@ -86,6 +86,7 @@ public final class ConfigCenterTabPermissionCatalog {
         tab("receivables", "accounts-receivable", "Accounts Receivable", "Cuentas por cobrar"),
         tab("receivables", "payments", "Payments", "Pagos"),
         tab("receivables", "credit-customers", "Credit Customers", "Clientes de crédito"),
+        tab("receivables", "kpis", "Indicators", "Indicadores"),
 
         tab("kpis", "kpis", "KPIs", "KPIs"),
         tab("kpis", "accounting-reports", "Financial Statements", "Estados financieros"),
@@ -341,6 +342,7 @@ public final class ConfigCenterTabPermissionCatalog {
             case "receivables.credit-sales" -> description("Register and monitor sales granted on credit.", "Registrar y monitorear ventas otorgadas a crédito.");
             case "receivables.accounts-receivable" -> description("Review open balances, due dates and collection status.", "Consultar saldos abiertos, vencimientos y estado de cobranza.");
             case "receivables.payments" -> description("Register and reconcile customer payments against receivables.", "Registrar y conciliar pagos de clientes contra cuentas por cobrar.");
+            case "receivables.kpis" -> description("Review balances, due dates and collections without payment entry permission.", "Consultar saldos, vencimientos y cobros; no autoriza registrar pagos.");
             case "receivables.credit-customers" -> description("Manage customers, limits and conditions for credit sales.", "Administrar clientes, límites y condiciones para ventas a crédito.");
             case "kpis.kpis" -> description("Build and review operational indicators for the assigned scope.", "Crear y consultar indicadores operativos del alcance asignado.");
             case "kpis.accounting-reports" -> description("Review auditable financial statements generated from the accounting ledger.", "Revisar estados financieros auditables generados desde el mayor contable.");

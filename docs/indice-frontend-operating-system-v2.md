@@ -1088,10 +1088,16 @@ Do not create underlined tabs, boxed tabs, or unrelated tab systems unless the a
 All new internal navigation must use `IndiceWorkspaceNavigation`. Do not build
 local `tablist` markup for each page.
 
-The engine has two approved variants:
+The engine has three approved variants:
 
 - `sections`: compact pills for sibling views inside the same workspace. It is
   the default for module and administration sections.
+- `views`: a compact grouped selector inspired by the Agenda Table / Kanban /
+  Agenda controls. It uses a neutral bordered container, rounded rectangular
+  buttons, and the owning module's active color. Use it for alternate analytical
+  views; it is the required reference for new or reorganized basic-module KPI /
+  Indicators tabs. It has the same keyboard behavior and safe mobile wrapping
+  as `sections`.
 - `workflow`: numbered steps with icon, label and short description when the
   order teaches a real operating sequence. Completed steps show their progress,
   while available steps remain directly accessible.
@@ -1112,9 +1118,63 @@ Shared behavior:
   shareable or recoverable work context.
 
 Use `workflow` only for a sequence with a clear dependency or learning value.
-If the views are peers, use `sections`. A workflow navigator is not a modal
-wizard and must not introduce Next/Back requirements unless the business flow
-itself requires validation before advancing.
+For ordinary peer sections, use `sections`; for the basic-module analytical
+format described below, use `views`. A workflow navigator is not a modal wizard
+and must not introduce Next/Back requirements unless the business flow itself
+requires validation before advancing.
+
+The approved KPI presentation (2026-09-15) generalizes the Human Resources layout
+as the reference for basic modules: Overview, Charts, By unit and the owning
+module's detail entity (Employees in RH). Reuse `IndiceWorkspaceNavigation` with
+`variant="views"` and the owning module tone. The selector sits between the title
+and one shared filter bar. A `grid min-w-0 grid-cols-1 gap-6` shell gives equal
+24 px spacing between those bars; neutralize inherited title-bar bottom margins.
+Keep filters and table state when switching views, and retain the existing print
+scope and business calculations. The mapping, adaptation parameters, exceptions
+and acceptance checklist live in [`KPI_TAB_STANDARD.md`](./KPI_TAB_STANDARD.md).
+The format is implemented in RH; this decision does not imply that other modules
+have already been migrated or verified.
+
+### Platform administration: customer workspace
+
+The approved customer-service organization (2026-09-13) uses the existing Operational Workspace
+Modal as the common entry point from `/platform-admin`. Its peer sections are Summary, Users and
+roles, Modules and courtesy access, Billing and collections, and Customer history. Use
+`IndiceWorkspaceNavigation` for these sections. Customer and billing shortcuts open the relevant
+section of this same company workspace. Preserve the customer identity and return section when a
+Standard Form Modal handles a courtesy adjustment, commercial account change, distributor
+assignment, trial extension, or payment request. The customer identity column remains visible
+while the portfolio scrolls horizontally.
+
+User invitations and company-role editing can be completed within the customer workspace. Keep
+platform authority distinct from company roles and retain the existing backend permission gates.
+The legacy commercial code `SUPER_ADMIN` is presented as Client when describing the company;
+this does not rename a user's role or grant platform privileges. Public demo access, commercial
+trial/courtesy validity, and billing state remain separate concepts.
+
+Show only effective benefits as current access, with explicit dates for scheduled or expired
+grants. List and detail must share the backend's operational summary. Billing and history reads
+are scoped and paginated by company in the backend; the shared distributor presentation must not
+implicitly gain platform-only read APIs. Invoice amounts due and paid have separate labels.
+Credential recovery and identity mutations require their own approved authentication-domain
+flows; a navigation change must not imply that those actions already exist.
+
+The customer-modal clarity decision (2026-09-14) keeps one row per product in Modules, including
+its effective source and validity. Administrative grant records are read-only disclosures within
+that row; do not repeat the same product withdrawal in a second administrative list. Subscription
+changes and administrative courtesy changes remain distinct actions when both sources exist.
+Keep contract versions/prices available in the contract disclosure and retain backend previews
+before confirming commercial changes. Hide an empty available-offer section.
+
+For platform administration, Users owns the entry point for adjusting courtesy seat/storage
+capacity and the list of those grants, with explicit quantities. Use a focused Standard Form
+Modal for product access or capacity, an explicit expiration choice, a reason, and one submit
+action. Preserve input on failure and ask before discarding edits. The Operational Workspace
+retains a pending commercial review across peer sections and guards closing before confirmation.
+Use the existing Confirmation Modal for withdrawals; its explanation follows the actual grant
+type and backend revocation scope, including multiple stored-active product grants and future
+dates. Successful mutations remain successful if a subsequent read fails. These presentation
+rules do not change entitlements, subscription pricing, API contracts, or distributor authority.
 
 ### 10.2 Administrative Workspace Header
 
@@ -1443,6 +1503,15 @@ rankings, responsive rules, and the implementation checklist, also follow:
 
 The specialized KPI standard extends this operating system. It does not replace or
 override the rules in this document.
+
+For basic-module KPI / Indicators pages, its Section 3 defines the approved
+internal-view format: title, grouped view selector, shared filters, data context
+and selected content. Keep primary cards in Overview and distribute graphs,
+organizational comparisons and record detail into their own views. The owning
+module color remains predominant. Section 22 provides the per-module adaptation
+template; Section 23 identifies RH as the visual reference and Expenses as a
+financial-analysis reference. Operational KPI strips below keep their own
+contract and are not converted into four-view dashboards.
 
 KPI strip:
 

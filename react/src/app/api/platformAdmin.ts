@@ -169,6 +169,7 @@ export interface PlatformCompanySummary {
   name: string;
   public_demo_enabled?: boolean;
   platform_status?: 'ACTIVE' | 'DELETED';
+  commercial_account_type?: 'SUPER_ADMIN' | 'DISTRIBUTOR';
   user_type: PlatformAccountType;
   distributor_company_id?: number | null;
   distributor_company_name?: string | null;
@@ -473,6 +474,26 @@ export interface PlatformCompanyDetail extends PlatformCompanySummary {
     purchased_blocks: number;
     benefit_blocks: number;
   };
+}
+
+export interface PlatformCompanyInvoicePage {
+  company_id: number;
+  invoices: PlatformInvoice[];
+  pagination: PlatformPagination;
+}
+
+export interface PlatformCompanyHistoryPage {
+  company_id: number;
+  events: Array<{
+    id: string;
+    source: 'PLATFORM' | 'BILLING' | 'AUTH';
+    action: string;
+    outcome: string;
+    actor_name: string | null;
+    reason: string | null;
+    occurred_at: string;
+  }>;
+  pagination: PlatformPagination;
 }
 
 export interface PlatformOverview {
@@ -1072,6 +1093,12 @@ export const platformAdminApi = {
     const parameters = new URLSearchParams({ q: query, page: String(page), pageSize: String(pageSize) });
     return apiClient<PlatformCompanyOptions>(`${endpoints.platformAdmin.companies}/options?${parameters}`);
   },
+  getCompanyInvoices: (companyId: number, page = 1, pageSize = 25) => apiClient<PlatformCompanyInvoicePage>(
+    `${endpoints.platformAdmin.companies}/${companyId}/invoices?page=${page}&pageSize=${pageSize}`,
+  ),
+  getCompanyHistory: (companyId: number, page = 1, pageSize = 25) => apiClient<PlatformCompanyHistoryPage>(
+    `${endpoints.platformAdmin.companies}/${companyId}/history?page=${page}&pageSize=${pageSize}`,
+  ),
   getCompanyUserActivity: (companyId: number) => apiClient<PlatformCompanyUserActivity>(
     `${companyPath(companyId)}/users/activity`,
   ),

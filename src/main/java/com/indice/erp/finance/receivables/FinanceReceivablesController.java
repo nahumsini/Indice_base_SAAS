@@ -42,6 +42,13 @@ public class FinanceReceivablesController {
         return ResponseEntity.ok(service.workspace(access.context()));
     }
 
+    @GetMapping("/kpis/workspace")
+    public ResponseEntity<?> kpiWorkspace(HttpSession session) {
+        var access = guard.requireReadAccess(session);
+        if (access.denied()) return access.error();
+        return ResponseEntity.ok(service.kpiWorkspace(access.context()));
+    }
+
     @GetMapping("/candidate-sales")
     public ResponseEntity<?> candidateSales(HttpSession session) {
         var access = guard.requireReadAccess(session);

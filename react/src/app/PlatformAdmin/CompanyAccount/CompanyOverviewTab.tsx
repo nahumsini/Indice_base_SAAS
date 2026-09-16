@@ -4,6 +4,7 @@ import { Building2, ExternalLink, ShieldCheck } from "lucide-react";
 import type { PlatformCompanyDetail } from "../../api/platformAdmin";
 import { IndiceConfirmationDialog } from "../../components/indice-modal";
 import { WorkspaceSection, SummaryDatum, StatusPill } from "./CompanyAccountPrimitives";
+import { basicCommercialStatus } from "../Customers/customerTableUtils";
 import { commercialOrigin, formatDate, formatMoney, humanize } from "./companyAccountUtils";
 
 export function CompanyOverviewTab({
@@ -32,9 +33,10 @@ export function CompanyOverviewTab({
   const [demoReason, setDemoReason] = useState("");
   const [demoError, setDemoError] = useState("");
   const origin = commercialOrigin(company, locale);
-  const plan = company.offer_code ? humanize(company.offer_code, locale) : t("noPlan");
-  const nextEvent = company.current_period_ends_at || company.trial_ends_at;
-  const paymentStatus = company.stripe_subscription_id
+  const planCode = company.offer_code || company.projected_offer_code;
+  const plan = planCode ? humanize(planCode, locale) : t("noPlan");
+  const nextEvent = company.trial_source ? company.trial_ends_at : company.current_period_ends_at;
+  const paymentStatus = company.billing_managed_by_stripe
     ? (company.last_payment_status ? humanize(company.last_payment_status, locale) : t("stripeManaged"))
     : company.stripe_customer_id
       ? t("stripeNoContract")
@@ -47,28 +49,29 @@ export function CompanyOverviewTab({
       icon={Building2}
     >
       <div className="grid divide-y divide-slate-100 sm:grid-cols-2 sm:[&>*:nth-child(2n)]:border-l lg:grid-cols-4 lg:[&>*]:border-l lg:[&>*:nth-child(4n+1)]:border-l-0">
-        <SummaryDatum label={t("status")} value={<StatusPill status={company.billing_status || company.lifecycle_state || t("noStatus")} />} />
-        <SummaryDatum label={t("userType")} value={humanize(company.user_type, locale)} hint={t("ownerRole")} />
+        <SummaryDatum label={t("status")} value={<StatusPill status={basicCommercialStatus(company)} />} />
+        <SummaryDatum label={t("workspaceAccountType")} value={(company.commercial_account_type || company.user_type) === "DISTRIBUTOR" ? t("distributor") : t("workspaceClient")} />
+        <SummaryDatum label={t("workspaceRootUsers")} value={number(company.members.filter((member) => member.platform_role === "PLATFORM_ROOT" && member.platform_status === "ACTIVE" && (!member.status || member.status.toLowerCase() === "active")).length)} />
         <SummaryDatum label={t("traceability")} value={origin.value} hint={origin.hint} />
-        <SummaryDatum label={t("access")} value={accessLabel} hint={t("modulesSummary", { count: activeProductCount })} />
+        <SummaryDatum label={t("workspaceEffectiveAccess")} value={accessLabel} hint={t("modulesSummary", { count: activeProductCount })} />
         <SummaryDatum
           label={t("plan")}
           value={plan}
-          hint={company.stripe_subscription_id
+          hint={company.billing_managed_by_stripe
             ? `${company.catalog_version_historical ? t("historicalContract") : t("currentCatalog")}${company.catalog_version ? ` · ${company.catalog_version}` : ""}`
             : t("noCommercialContract")}
         />
         <SummaryDatum
           label={t("rate")}
-          value={formatMoney(company.recurring_amount_cents, company.currency, locale)}
-          hint={company.billing_interval ? `${humanize(company.billing_interval, locale)} · ${t("beforeTax")}` : t("noInterval")}
+          value={formatMoney(company.billing_amount_cents, company.billing_currency, locale)}
+          hint={company.billing_amount_kind === "ESTIMATE" ? t("workspacePriceEstimate") : company.billing_amount_interval ? humanize(company.billing_amount_interval, locale) : t("noInterval")}
         />
         <SummaryDatum
           label={t("users")}
-          value={t("usageOfCapacity", { used: activeUserCount, capacity })}
-          hint={t("availableSeats", { count: availableSeats })}
+          value={company.seat_usage?.enforced === false ? t("activeCount", { count: activeUserCount }) : t("usageOfCapacity", { used: activeUserCount, capacity })}
+          hint={company.seat_usage?.enforced === false ? t("workspaceNoLimit") : t("availableSeats", { count: availableSeats })}
         />
-        <SummaryDatum label={t("nextBillingDate")} value={formatDate(nextEvent, locale)} hint={nextEvent ? t("billingDateHelp") : t("noScheduledDate")} />
+        <SummaryDatum label={t("workspaceNextEvent")} value={formatDate(nextEvent, locale)} hint={nextEvent ? t("billingDateHelp") : t("noScheduledDate")} />
         <SummaryDatum
           label={t("paymentMethod")}
           value={paymentStatus}

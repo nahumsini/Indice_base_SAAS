@@ -24,7 +24,9 @@ control how it is used.
 
 These extend the general standards only in their named domain:
 
-- [KPI Tab Standard](KPI_TAB_STANDARD.md)
+- [KPI Tab Standard](KPI_TAB_STANDARD.md) — basic-module KPI internal views based
+  on Human Resources: shared filters, owning module color, equal 24 px bar spacing,
+  per-module adaptation template and verification checklist.
 - [KPI Executive Decision Contract](KPI_EXECUTIVE_DECISION_CONTRACT.md)
 - [Module Access Registry](complementary-module-access-registry-standard-2026-08-02.md)
 - [User Module/Tab Scope Standard](users-module-tab-scope-standard-2026-08-02.md)
@@ -68,3 +70,11 @@ When the product owner changes an approved rule:
 3. record compatibility, migration, rollout, and verification impact;
 4. mark the replaced proposal or section as superseded instead of leaving two active rules;
 5. keep private contributor context out of repository documentation.
+
+- [Expenses KPI workspace contract](./expenses-kpi-workspace-contract.md) — green internal views, measurement scope and source integrity.
+- [Gastos KPI analysis and local validation](./indice-expenses-kpi-analysis-2026-09-15.md).
+- [Petty Cash KPI workspace contract](./petty-cash-kpi-workspace-contract.md) — internal views, custody ownership and operational measurements.
+- [Petty Cash KPI analysis and local validation](./indice-petty-cash-kpi-analysis-2026-09-15.md).
+- [Receivables KPI workspace contract](./receivables-kpi-workspace-contract.md) — current debt, instalment ageing, collections and read-only analytics.
+- [Receivables KPI analysis and local validation](./indice-receivables-kpi-analysis-2026-09-15.md).
+- [Main integration and validation (2026-09-15)](./indice-main-integration-2026-09-15.md).

@@ -133,6 +133,15 @@ public class BasicModuleKpiCurrencyRepository {
             case CREDIT_SALES_TOTAL_PAYABLE -> new MetricDefinition("finance_credit_sales", "total_payable_amount", "currency_code", "sale_date", " AND deleted_at IS NULL AND status NOT IN ('CANCELLED', 'REJECTED')");
             case CREDIT_SALES_MONTHLY_PAYMENT -> new MetricDefinition("finance_credit_sales", "monthly_payment_amount", "currency_code", "sale_date", " AND deleted_at IS NULL AND status NOT IN ('CANCELLED', 'REJECTED')");
             case CREDIT_SALES_INTEREST -> new MetricDefinition("finance_credit_sales", "total_interest_amount", "currency_code", "sale_date", " AND deleted_at IS NULL AND status NOT IN ('CANCELLED', 'REJECTED')");
+            // Custody analytics is explicitly separate from the company-only financial metrics.
+            case PETTY_CASH_CUSTODY_BALANCE -> new MetricDefinition(
+                "finance_petty_cash_funds", "current_balance_amount", "currency_code", null,
+                " AND deleted_at IS NULL AND status <> 'CLOSED' AND fund_type IN ('INTERNAL_COMPANY', 'EXTERNAL_MANAGED')");
+            case PETTY_CASH_CUSTODY_STATEMENT_FUNDED -> custodyStatementDefinition("assigned_amount + additional_deposit_amount");
+            case PETTY_CASH_CUSTODY_STATEMENT_SHORTAGE -> custodyStatementDefinition("shortage_amount");
+            case PETTY_CASH_CUSTODY_SETTLEMENT_AMOUNT -> custodySettlementDefinition("");
+            case PETTY_CASH_CUSTODY_SETTLEMENT_AUTHORIZED -> custodySettlementDefinition(" AND " + CUSTODY_AUTHORIZED);
+            case PETTY_CASH_CUSTODY_SETTLEMENT_PENDING -> custodySettlementDefinition(" AND NOT " + CUSTODY_AUTHORIZED);
             case PETTY_CASH_BALANCE -> new MetricDefinition(
                 "finance_petty_cash_funds", "current_balance_amount", "currency_code", null,
                 " AND deleted_at IS NULL AND status <> 'CLOSED' AND fund_type = 'INTERNAL_COMPANY'"
@@ -247,6 +256,28 @@ public class BasicModuleKpiCurrencyRepository {
             "o.id",
             "o.company_id"
         );
+    }
+
+    private static final String CUSTODY_AUTHORIZED =
+        "((statement_record.fund_type_snapshot = 'INTERNAL_COMPANY' AND settlement_line.status = 'EXPENSE_CREATED')"
+        + " OR (statement_record.fund_type_snapshot = 'EXTERNAL_MANAGED' AND settlement_line.status = 'VALIDATED'))";
+
+    private MetricDefinition custodyStatementDefinition(String amountColumn) {
+        return new MetricDefinition("finance_petty_cash_statements", amountColumn, "currency_code", "period_end",
+            " AND deleted_at IS NULL AND fund_type_snapshot IN ('INTERNAL_COMPANY', 'EXTERNAL_MANAGED')");
+    }
+
+    private MetricDefinition custodySettlementDefinition(String statusFilter) {
+        return new MetricDefinition(
+            "finance_petty_cash_settlement_lines settlement_line JOIN finance_petty_cash_statements statement_record"
+                + " ON statement_record.id = settlement_line.petty_cash_statement_id"
+                + " AND statement_record.company_id = settlement_line.company_id"
+                + " AND statement_record.petty_cash_fund_id = settlement_line.petty_cash_fund_id",
+            "settlement_line.total_amount", "settlement_line.currency_code", "settlement_line.expense_date",
+            " AND settlement_line.deleted_at IS NULL AND statement_record.deleted_at IS NULL"
+                + " AND settlement_line.status NOT IN ('REJECTED', 'REVERSED')"
+                + " AND statement_record.fund_type_snapshot IN ('INTERNAL_COMPANY', 'EXTERNAL_MANAGED')" + statusFilter,
+            "settlement_line.id", "settlement_line.company_id");
     }
 
     private MetricDefinition pettyStatementDefinition(String amountColumn) {

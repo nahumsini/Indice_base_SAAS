@@ -4,6 +4,7 @@ import type { ReceivablesTabId } from '../constants/receivables.constants';
 const control = createLearningModeControl;
 
 export const receivablesLearningLabels: Record<ReceivablesTabId, string> = {
+  kpis: 'Indicadores de cartera',
   'credit-sales': 'Ventas a crédito',
   'accounts-receivable': 'Cuentas por cobrar',
   payments: 'Pagos recibidos',
@@ -11,6 +12,7 @@ export const receivablesLearningLabels: Record<ReceivablesTabId, string> = {
 };
 
 export const receivablesLearningControls: Record<ReceivablesTabId, readonly LearningModeControl[]> = {
+  kpis: [],
   'credit-sales': [
     control({
       id: 'credit-sale-create', emoji: '➕', kind: 'Botón de acción', title: 'Nueva venta a crédito',

@@ -10,6 +10,7 @@ export const esMX: ReceivablesTranslations = {
     openBalanceLabel: 'Saldo abierto',
   },
   tabs: {
+    kpis: 'Indicadores',
     'accounts-receivable': 'Cuentas por Cobrar',
     'credit-customers': 'Clientes a Credito',
     'credit-sales': 'Ventas a Credito',

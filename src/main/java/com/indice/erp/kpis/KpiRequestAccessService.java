@@ -80,10 +80,11 @@ public class KpiRequestAccessService {
             case EXPENSE_TOTAL, EXPENSE_PAID, EXPENSE_PAID_TO_DATE, EXPENSE_ACTUAL, EXPENSE_SUBTOTAL, EXPENSE_TAX,
                 EXPENSE_BALANCE, EXPENSE_OVERDUE_BALANCE, EXPENSE_DUE_SOON_BALANCE -> List.of("expenses.expenses", "expenses.kpis");
             case BUDGET_PLANNED, BUDGET_COMMITTED, BUDGET_ACTUAL, BUDGET_AVAILABLE -> List.of("expenses.budgets", "expenses.kpis");
-            case RECEIVABLE_BALANCE, RECEIVABLE_INSTALLMENT_BALANCE -> List.of("receivables.accounts-receivable");
-            case RECEIVABLE_PAYMENT_AMOUNT -> List.of("receivables.payments");
+            case RECEIVABLE_BALANCE, RECEIVABLE_INSTALLMENT_BALANCE -> List.of("receivables.accounts-receivable", "receivables.kpis");
+            case RECEIVABLE_PAYMENT_AMOUNT -> List.of("receivables.payments", "receivables.kpis");
             case CREDIT_POLICY_LINE, CREDIT_POLICY_AVAILABLE -> List.of("receivables.credit-customers");
             case CREDIT_SALES_TOTAL_PAYABLE, CREDIT_SALES_MONTHLY_PAYMENT, CREDIT_SALES_INTEREST -> List.of("receivables.credit-sales");
+            case PETTY_CASH_CUSTODY_BALANCE, PETTY_CASH_CUSTODY_STATEMENT_FUNDED, PETTY_CASH_CUSTODY_STATEMENT_SHORTAGE, PETTY_CASH_CUSTODY_SETTLEMENT_AMOUNT, PETTY_CASH_CUSTODY_SETTLEMENT_AUTHORIZED, PETTY_CASH_CUSTODY_SETTLEMENT_PENDING -> List.of("petty_cash.kpis");
             case PETTY_CASH_BALANCE, PETTY_CASH_LIMIT -> List.of("petty_cash.cash", "petty_cash.kpis");
             case PETTY_CASH_STATEMENT_OPENING, PETTY_CASH_STATEMENT_FUNDED, PETTY_CASH_STATEMENT_ESTIMATED,
                 PETTY_CASH_STATEMENT_VERIFIED, PETTY_CASH_STATEMENT_CLOSING, PETTY_CASH_STATEMENT_PENDING,
@@ -98,6 +99,7 @@ public class KpiRequestAccessService {
                 POS_CLOSING_ABSOLUTE_DIFFERENCE, POS_CLOSING_SHORTAGE, POS_CLOSING_OVERAGE, POS_CLOSING_REFUNDS -> List.of("pos.cortes", "pos.kpis");
             case PURCHASE_ORDER_TOTAL, SUPPLIER_SUBMISSION_TOTAL -> List.of("inventory.purchase-orders", "inventory.providers");
         };
+        if (metric.name().startsWith("PETTY_CASH_CUSTODY_")) return owners;
         var all = new java.util.ArrayList<>(owners); all.add("kpis.kpis"); return all;
     }
     public record Selection(Long unitId, Long businessId) {

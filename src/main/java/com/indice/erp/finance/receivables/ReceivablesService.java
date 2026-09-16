@@ -68,6 +68,17 @@ public class ReceivablesService {
     }
 
     @Transactional(readOnly = true)
+    public ReceivablesDtos.ReceivablesKpiWorkspaceResponse kpiWorkspace(FinanceContext context) {
+        var zone = timeZones.resolve(context.companyId());
+        var today = LocalDate.now(zone);
+        return new ReceivablesDtos.ReceivablesKpiWorkspaceResponse(
+            repository.listReceivableAccounts(context, today),
+            repository.listInstallments(context, today),
+            repository.listPayments(context), today, zone.getId()
+        );
+    }
+
+    @Transactional(readOnly = true)
     public List<CandidateSaleResponse> candidateSales(FinanceContext context) {
         return repository.listCandidateSales(context);
     }
