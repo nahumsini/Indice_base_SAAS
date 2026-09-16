@@ -79,6 +79,27 @@ class ProcessTaskKpiMeasurementsTest {
         assertThat(result.openTasks()).isEqualTo(1);
         assertThat(result.lateOpenTasks()).isEqualTo(1);
     }
+    @Test void cancellationAfterCutoffDoesNotRewriteHistoricalOpenStateOrRunCompletion() {
+        var openAtCutoff = new Task(); openAtCutoff.status = "cancelled";
+        openAtCutoff.cancelledAt = CUT.plusDays(1).atStartOfDay();
+        var runTask = new Task(); runTask.id = 2; runTask.run = 50L; runTask.process = 5L;
+        runTask.closed = CUT.minusDays(1).atStartOfDay(); runTask.status = "cancelled";
+        runTask.cancelledAt = CUT.plusDays(1).atStartOfDay();
+        var result = summarize(openAtCutoff, runTask);
+        assertThat(result.openTasks()).isEqualTo(1);
+        assertThat(result.lateOpenTasks()).isEqualTo(1);
+        assertThat(result.closedInPeriod()).isEqualTo(1);
+        assertThat(result.fullyObservedCompletedRuns()).isEqualTo(1);
+    }
+    @Test void manualProcessLinkedTaskContributesToElapsedTimeButGeneratedTaskDoesNot() {
+        var manual = new Task(); manual.process = 5L; manual.status = "completed";
+        manual.closed = FROM.plusDays(2).atStartOfDay(); manual.due = FROM.plusDays(3);
+        var generated = new Task(); generated.id = 2; generated.run = 50L; generated.process = 5L;
+        generated.status = "completed"; generated.closed = FROM.plusDays(4).atStartOfDay();
+        var result = summarize(manual, generated);
+        assertThat(result.elapsedSamples()).isEqualTo(1);
+        assertThat(result.medianElapsedDays()).isEqualTo(2.0);
+    }
     @Test void partialAndFutureRunsNeverBecomeCompletedRunsAndGeneratedLeadTimeIsExcluded() {
         var task = new Task(); task.run = 50L; task.process = 5L; task.runCount = 2;
         task.closed = CUT.atStartOfDay(); task.status = "completed";
