@@ -44,7 +44,7 @@ function setup(initial = {}, locale = 'es-MX') {
       if (name === 'lucide-react' || name === 'recharts') return markers;
       if (name.endsWith('/useAgendaFilters')) return { agendaFocusFilterValues: ['mine', 'delegated', 'team'], agendaStatusFilterValues: ['pending', 'in_progress', 'paused', 'completed', 'audited', 'overdue'] };
       if (name.endsWith('/context')) return { useLanguage: () => ({ currentLanguage: { code: locale } }) };
-      if (name.endsWith('/translations') || name.includes('/translations/') || file.includes('/translations/')) {
+      if (name.endsWith('/translations') || name.includes('/translations/') || /[\\/]translations[\\/]/.test(file)) {
         const base = resolve(dirname(file), name); return load(existsSync(base + '.ts') ? base + '.ts' : resolve(base, 'index.ts'));
       }
       if (name.endsWith('/useWorkspaceNavigationMemory')) return { useWorkspaceNavigationMemory: options => { workspace = options; } };
@@ -149,13 +149,41 @@ test('entity tables stay mounted with one visible instance and receive the globa
   const app = setup();
   const { KpiPerformanceWorkspace } = app.load(resolve(directory, 'components/KpiPerformanceWorkspace.tsx'));
   const copy = app.load(resolve(directory, 'translations/index.ts')).getKpisTranslations('es-MX');
+  const agendaCopy = app.load(resolve(root, 'src/app/BasicModules/ProcessesTasks/Agenda/translations/index.ts')).getAgendaTranslations('es-MX');
   for (const [activeTab, visibleName] of [['collaborators', 'CollaboratorsTable'], ['processes', 'ProcessesTable'], ['projects', 'ProjectsTable']]) {
-    const tree = KpiPerformanceWorkspace({ activeTab, scopeKey: 'company:1:month', agendaCopy: {}, collaborators: [], processes: [], projects: [], copy, onOpenAgenda: () => {} });
+    const tree = KpiPerformanceWorkspace({ activeTab, scopeKey: 'company:1:month', agendaCopy, collaborators: [], processes: [], projects: [], copy, onOpenAgenda: () => {} });
     const tables = walk(tree, true).filter(n => ['CollaboratorsTable', 'ProcessesTable', 'ProjectsTable'].includes(n.type.name));
     assert.equal(tables.length, 3);
     assert.equal(walk(tree).filter(n => n.type.name === visibleName).length, 1);
     for (const table of tables) assert.equal(table.props.scopeKey, 'company:1:month');
   }
+});
+
+test('single status composition uses a deterministic visible donut', () => {
+  const oneStatus = {
+    ...dashboard,
+    summary: {
+      ...dashboard.summary,
+      pendingTasks: 3,
+      inProgressTasks: 0,
+      pausedTasks: 0,
+      completedTasks: 0,
+      auditedTasks: 0,
+      overdueTasks: 0,
+    },
+  };
+  const tree = setup({ activeView: 'analysis', dashboard: oneStatus }).render();
+  const donut = walk(tree).find(node => node.props['data-process-task-kpi-single-segment'] === 'composition');
+  assert.ok(donut);
+  assert.equal(donut.props.role, 'img');
+  assert.match(donut.props['aria-label'], /3/);
+});
+
+test('source failures use localized safe copy and highlighted rankings avoid legacy composite scores', () => {
+  assert.doesNotMatch(source, /error\.message/);
+  assert.doesNotMatch(source, /progress:\s*100\s*-\s*row\.(?:productivityScore|healthScore)/);
+  assert.doesNotMatch(source, /lateOpenTasks[^\n]+(?:productivityScore|healthScore)/);
+  assert.match(source, /row\.openTasks > 0/);
 });
 
 test('generated report includes measured cards and all units beyond the visible page, escaping names', () => {
