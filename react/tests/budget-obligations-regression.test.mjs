@@ -43,13 +43,20 @@ test('budget dates retain the chosen calendar day when saving from positive and 
   } finally { if (original === undefined) delete process.env.TZ; else process.env.TZ = original; }
 });
 
-test('generated payables are actionable and overdue partial balances retain payment history and leave carryover after settlement', () => {
+test('generated payables show partial payment while retaining overdue balance and payment history', () => {
   const dto = {id:42,companyId:1,budgetLineId:10,folio:'CXP-2026-001',concept:'Rent',totalAmount:116,subtotalAmount:100,taxAmount:16,paidAmount:40,balanceAmount:76,currencyCode:'MXN',expenseDate:'2026-08-20',dueDate:'2026-08-20',paymentDate:'2026-08-21',status:'PARTIALLY_PAID',paymentStatus:'OVERDUE',customFields:{entryType:'payable',legacyStatus:'pending'}};
   const expense = expenseAdapter.toExpense(dto);
   assert.equal(expense.type, 'payable');
-  assert.equal(expense.status, 'overdue');
+  assert.equal(expense.status, 'partial');
   assert.equal(filters.canPayExpense(expense), true);
-  assert.equal(filters.getEffectiveExpenseStatus(expense, new Date(2026,8,10)), 'overdue');
+  assert.equal(filters.getEffectiveExpenseStatus(expense, new Date(2026,8,10)), 'partial');
+  assert.equal(filters.isExpenseEffectivelyOverdue(expense, new Date(2026,8,10)), true);
+  for (const statusFilter of ['partial', 'overdue', 'pending_and_overdue']) {
+    assert.deepEqual(filters.filterExpenses([expense], {
+      searchTerm:'', periodFilter:'this_month', businessUnitFilter:'all', businessFilter:'all',
+      providerFilter:'all', statusFilter,
+    }, new Date(2026,8,10)).map(row => row.id), ['42']);
+  }
   assert.equal(filters.getExpenseBalance(expense), 76);
   assert.equal(dates.formatExpenseDate(expense.date), '2026-08-20');
   const paid = expenseAdapter.toExpense({...dto,status:'PAID',paymentStatus:'PAID',paidAmount:116,balanceAmount:0,paymentDate:'2026-09-10'});
