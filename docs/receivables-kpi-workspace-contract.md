@@ -1,6 +1,7 @@
 # Receivables KPI workspace contract
 
-Status: approved by the module-by-module KPI adoption request, 2026-09-15.
+Status: approved by the module-by-module KPI adoption request, 2026-09-15; closure
+verified in authenticated desktop/mobile runtime and generated PDF on 2026-09-16.
 Owner: Cartera / Receivables. Extends `KPI_TAB_STANDARD.md` under the Frontend and
 Backend Operating Systems. This is a new analytical tab, not a replacement for the
 four operational tabs or their compact indicators.
@@ -23,6 +24,8 @@ does not reload sources or monetary queries. Filters, active view, follow-up foc
 sorting and pagination are scoped by company/user using workspace navigation memory.
 `view` in the URL takes precedence. Charts mount only while Analysis is active.
 PDF includes every filtered row, independent of the active view, follow-up focus or page.
+KPI evidence uses full-width wrapping and short analytical tables stay with their
+headings so explanatory text and table headers cannot overlap or become orphaned.
 
 ## Measurement definitions
 
@@ -43,14 +46,18 @@ selecting last month does not reconstruct a historical receivables balance.
 
 Ageing partitions outstanding instalments into current, 1–30, 31–60, 61–90,
 91+ days and invalid/missing date. Customer concentration uses contact IDs; accounts
-without a contact are separate rows. Unit comparison includes units with collections
-on settled accounts. Higher volume is not labelled worse performance.
+without a contact are separate rows. Unit comparison includes units with current open
+debt or collections in the selected period, including collections on settled accounts;
+dormant historical units with neither are excluded. Higher volume is not labelled worse
+performance.
 
 Missing schedules on an open account (no open instalments or an invalid instalment
 date) make overall arrears/share/upcoming amounts unavailable. Known instalments remain
 visible in the explicitly labelled ageing chart. Invalid or future payment dates are
 excluded from period collection metrics with a visible count. Unavailable conversions
 remain unavailable, not zero. Empty samples are distinct from a valid zero amount.
+Every monetary KPI exposes its own ISO-coded native totals and applicable exclusions.
+A partial aggregate never publishes its preferred-currency total as authoritative.
 
 ## Ownership, access and compatibility
 
@@ -87,4 +94,4 @@ payment-allocation timing, commitments, bank matching or approved models.
 Verify date boundaries, partial instalments, settled-account collections, cancelled
 accounts, missing schedules, original currency, complete report scope, view switching,
 source failure/retry/authorization races, and company/unit/business isolation.
-This contract does not imply a production deployment or authenticated visual approval.
+Closure verification does not imply a production deployment.

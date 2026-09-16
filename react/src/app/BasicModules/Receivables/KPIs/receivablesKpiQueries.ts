@@ -9,7 +9,14 @@ export function buildReceivablesKpiQueries(selection: ReceivablesKpiSelection, p
   add('upcoming', 'RECEIVABLE_INSTALLMENT_BALANCE', selection.dueSoon.map(row => row.id));
   add('collected', 'RECEIVABLE_PAYMENT_AMOUNT', selection.payments.map(row => row.id));
   for (const key of agingKeys) add(`aging:${key}`, 'RECEIVABLE_INSTALLMENT_BALANCE', selection.installments.filter(row => agingKey(row, selection.asOfDate) === key).map(row => row.id));
-  const units = groupAccounts(selection.accounts, row => organizationKey(row.unitId));
+  const relevantUnitAccountIds = new Set([
+    ...selection.open.map(row => row.id),
+    ...selection.payments.map(row => row.receivableId),
+  ]);
+  const units = groupAccounts(
+    selection.accounts.filter(row => relevantUnitAccountIds.has(row.id)),
+    row => organizationKey(row.unitId),
+  );
   const customers = groupAccounts(selection.open, customerKey);
   for (const [kind, groups] of Object.entries({ unit: units, customer: customers })) for (const group of groups) {
     const ids = new Set(group.rows.map(row => row.id));

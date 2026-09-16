@@ -27,6 +27,7 @@ import type { CreditPolicy, PaymentMethod, ReceivableInstallment, ReceivablePaym
 import { formatPercent } from '../utils';
 
 const moneyFormatOptions: Intl.NumberFormatOptions = {
+  currencyDisplay: 'code',
   maximumFractionDigits: 2,
   minimumFractionDigits: 2,
 };
@@ -61,8 +62,11 @@ export function AccountsReceivableKpiArea({
   const paidCount = installments.filter((installment) => installment.status === 'paid').length;
   const currencyCount = new Set(installments.map((installment) => normalizeBusinessCurrencyCode(installment.currency, preferredCurrency))).size;
   const aggregate = useKpiMonetaryAggregate({ metric: 'RECEIVABLE_INSTALLMENT_BALANCE', preferredCurrency, ids: installments.map((installment) => installment.id) });
-  const openBalanceLabel = aggregate.data && !aggregate.loading ? formatBusinessCurrencyAmount(aggregate.data.preferredTotal, preferredCurrency, moneyFormatOptions) : '—';
-  const nativeTotalLabel = aggregate.data?.nativeTotals.map(({ amount, currency }) => formatBusinessCurrencyAmount(amount, currency, moneyFormatOptions)).join(' / ') || preferredCurrency;
+  const currentAggregate = aggregate.loading ? null : aggregate.data;
+  const openBalanceLabel = currentAggregate && !currentAggregate.partial
+    ? formatBusinessCurrencyAmount(currentAggregate.preferredTotal, preferredCurrency, moneyFormatOptions)
+    : '—';
+  const nativeTotalLabel = currentAggregate?.nativeTotals.map(({ amount, currency }) => formatBusinessCurrencyAmount(amount, currency, moneyFormatOptions)).join(' / ') || copy.kpiEngine.currency.unavailable;
   const metrics: OperationalKpiMetric[] = [
     {
       id: 'openBalance',
@@ -123,7 +127,7 @@ export function AccountsReceivableKpiArea({
     });
   }
 
-  if (installments.length > 0) {
+  if (installments.length > 0 && currentAggregate) {
     alertChips.push({
       id: 'nativeTotal',
       icon: <CircleDollarSign className="h-3.5 w-3.5" />,
@@ -165,9 +169,9 @@ export function AccountsReceivableKpiArea({
       })}
       insightIcon={<AlertTriangle className="h-4 w-4" />}
       metrics={metrics}
-      currencyContext={{ preferredCurrency, nativeBreakdown: nativeTotalLabel, rateLabel: copy.kpiEngine.currency.dailyRate,
-        effectiveDate: aggregate.data?.exchangeRate.effectiveDate, source: aggregate.data?.exchangeRate.source,
-        isPartial: Boolean(aggregate.error || aggregate.data?.partial), excludedCount: aggregate.data?.excludedRecords ?? (aggregate.error ? installments.length : 0), labels: copy.kpiEngine.currency }}
+      currencyContext={{ preferredCurrency, nativeBreakdown: nativeTotalLabel, rateLabel: currentAggregate?.exchangeRate.mode === 'daily' || currentAggregate?.exchangeRate.mode === 'configured' ? copy.kpiEngine.currency.dailyRate : copy.kpiEngine.currency.unavailable,
+        effectiveDate: currentAggregate?.exchangeRate.effectiveDate, source: currentAggregate?.exchangeRate.source,
+        isPartial: Boolean(aggregate.error || currentAggregate?.partial), excludedCount: currentAggregate?.excludedRecords ?? (aggregate.error ? installments.length : 0), labels: copy.kpiEngine.currency }}
     />
   );
 }
@@ -196,8 +200,11 @@ export function PaymentsKpiArea({
   const receiptCount = payments.filter(hasReceipt).length;
   const missingReceipts = Math.max(0, payments.length - receiptCount);
   const aggregate = useKpiMonetaryAggregate({ metric: 'RECEIVABLE_PAYMENT_AMOUNT', preferredCurrency, ids: payments.map((payment) => payment.id) });
-  const totalPaidLabel = aggregate.data && !aggregate.loading ? formatBusinessCurrencyAmount(aggregate.data.preferredTotal, preferredCurrency, moneyFormatOptions) : '—';
-  const nativeTotalLabel = aggregate.data?.nativeTotals.map(({ amount, currency }) => formatBusinessCurrencyAmount(amount, currency, moneyFormatOptions)).join(' / ') || preferredCurrency;
+  const currentAggregate = aggregate.loading ? null : aggregate.data;
+  const totalPaidLabel = currentAggregate && !currentAggregate.partial
+    ? formatBusinessCurrencyAmount(currentAggregate.preferredTotal, preferredCurrency, moneyFormatOptions)
+    : '—';
+  const nativeTotalLabel = currentAggregate?.nativeTotals.map(({ amount, currency }) => formatBusinessCurrencyAmount(amount, currency, moneyFormatOptions)).join(' / ') || copy.kpiEngine.currency.unavailable;
   const metrics: OperationalKpiMetric[] = [
     {
       id: 'totalPaid',
@@ -256,7 +263,7 @@ export function PaymentsKpiArea({
     });
   }
 
-  if (payments.length > 0) {
+  if (payments.length > 0 && currentAggregate) {
     alertChips.push({
       id: 'nativeTotal',
       icon: <CircleDollarSign className="h-3.5 w-3.5" />,
@@ -287,9 +294,9 @@ export function PaymentsKpiArea({
       })}
       insightIcon={<FileWarning className="h-4 w-4" />}
       metrics={metrics}
-      currencyContext={{ preferredCurrency, nativeBreakdown: nativeTotalLabel, rateLabel: copy.kpiEngine.currency.dailyRate,
-        effectiveDate: aggregate.data?.exchangeRate.effectiveDate, source: aggregate.data?.exchangeRate.source,
-        isPartial: Boolean(aggregate.error || aggregate.data?.partial), excludedCount: aggregate.data?.excludedRecords ?? (aggregate.error ? payments.length : 0), labels: copy.kpiEngine.currency }}
+      currencyContext={{ preferredCurrency, nativeBreakdown: nativeTotalLabel, rateLabel: currentAggregate?.exchangeRate.mode === 'daily' || currentAggregate?.exchangeRate.mode === 'configured' ? copy.kpiEngine.currency.dailyRate : copy.kpiEngine.currency.unavailable,
+        effectiveDate: currentAggregate?.exchangeRate.effectiveDate, source: currentAggregate?.exchangeRate.source,
+        isPartial: Boolean(aggregate.error || currentAggregate?.partial), excludedCount: currentAggregate?.excludedRecords ?? (aggregate.error ? payments.length : 0), labels: copy.kpiEngine.currency }}
     />
   );
 }
@@ -315,20 +322,22 @@ export function CreditCustomersKpiArea({
     { key: 'line', metric: 'CREDIT_POLICY_LINE', preferredCurrency, ids: policyIds },
     { key: 'available', metric: 'CREDIT_POLICY_AVAILABLE', preferredCurrency, ids: policyIds },
   ]);
-  const lineAggregate = policyMoney.data.line;
-  const availableAggregate = policyMoney.data.available;
-  const totalLine = lineAggregate?.preferredTotal ?? 0;
-  const totalAvailable = availableAggregate?.preferredTotal ?? 0;
-  const utilization = totalLine > 0 ? ((totalLine - totalAvailable) / totalLine) * 100 : 0;
-  const totalLineLabel = !policyMoney.loading && lineAggregate
+  const lineAggregate = policyMoney.loading ? null : policyMoney.data.line;
+  const availableAggregate = policyMoney.loading ? null : policyMoney.data.available;
+  const totalLine = lineAggregate && !lineAggregate.partial ? lineAggregate.preferredTotal : null;
+  const totalAvailable = availableAggregate && !availableAggregate.partial ? availableAggregate.preferredTotal : null;
+  const utilization = totalLine !== null && totalAvailable !== null && totalLine > 0
+    ? ((totalLine - totalAvailable) / totalLine) * 100
+    : null;
+  const totalLineLabel = totalLine !== null
     ? formatBusinessCurrencyAmount(totalLine, preferredCurrency, moneyFormatOptions)
     : '—';
-  const totalAvailableLabel = !policyMoney.loading && availableAggregate
+  const totalAvailableLabel = totalAvailable !== null
     ? formatBusinessCurrencyAmount(totalAvailable, preferredCurrency, moneyFormatOptions)
     : '—';
   const nativeTotalLabel = lineAggregate?.nativeTotals
     .map(({ amount, currency }) => formatBusinessCurrencyAmount(amount, currency, moneyFormatOptions))
-    .join(' / ') || preferredCurrency;
+    .join(' / ') || copy.kpiEngine.currency.unavailable;
   const metrics: OperationalKpiMetric[] = [
     {
       id: 'creditLine',
@@ -350,7 +359,7 @@ export function CreditCustomersKpiArea({
       id: 'utilization',
       icon: <UsersRound className="h-4 w-4" />,
       label: labels.labels.utilization,
-      value: formatPercent(utilization),
+      value: utilization === null ? '—' : formatPercent(utilization),
     },
     {
       id: 'blocked',
@@ -423,7 +432,7 @@ export function CreditCustomersKpiArea({
       currencyContext={{
         preferredCurrency,
         nativeBreakdown: nativeTotalLabel,
-        rateLabel: lineAggregate?.exchangeRate.mode === 'daily'
+        rateLabel: lineAggregate?.exchangeRate.mode === 'daily' || lineAggregate?.exchangeRate.mode === 'configured'
           ? copy.kpiEngine.currency.dailyRate
           : copy.kpiEngine.currency.unavailable,
         effectiveDate: lineAggregate?.exchangeRate.effectiveDate,

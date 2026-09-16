@@ -14,6 +14,7 @@ export function ReceivablesKpiCards({ cards }: { cards: KpiCard[] }) {
     return <article key={card.key} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#147514]/10 text-[#147514] dark:text-emerald-300"><Icon className="h-5 w-5" /></span><h3 className="pt-1 text-sm font-medium text-slate-600 dark:text-slate-200">{card.title}</h3></div>
       <p className="mt-4 break-words text-2xl font-medium text-slate-950 dark:text-white">{card.value}</p>
+      {card.context ? <p className="mt-2 text-xs leading-5 text-slate-600 dark:text-slate-300">{card.context}</p> : null}
       <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">{card.helper}</p>
       <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{card.description}</p>
     </article>;

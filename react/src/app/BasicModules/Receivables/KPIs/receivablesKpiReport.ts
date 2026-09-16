@@ -11,7 +11,16 @@ export function buildReceivablesKpiReport(copy: ReceivablesKpiCopy, locale: stri
     fileName: { documentType: 'receivables-kpis' }, generatedAt: new Date(),
     notice: [copy.context, ...scopeLabels, ...notices].filter(Boolean).join('\n'),
     metrics: cards.map(card => ({ label: card.title, value: card.value })),
-    tables: tables.map(table => ({ title: table.title, columns: table.columns, rows: table.rows.map(row => row.cells), emptyMessage: copy.empty, fontSize: 8 })),
-    sections: [{ title: copy.fullReport, fields: cards.map(card => ({ label: card.title, value: `${card.description} ${card.helper}` })) }],
+    tables: tables.map(table => ({
+      title: table.title,
+      columns: table.columns,
+      rows: table.rows.map(row => row.cells),
+      emptyMessage: copy.empty,
+      fontSize: 8,
+      avoidRowSplit: true,
+      keepTogether: table.id === 'aging' || table.id === 'trend',
+    })),
+    // KPI evidence can wrap over several lines, so it uses the full-width paragraph layout.
+    sections: [{ title: copy.fullReport, paragraphs: cards.map(card => `${card.title}: ${[card.context, card.description, card.helper].filter(Boolean).join(' · ')}`) }],
   };
 }
