@@ -142,7 +142,7 @@ export const frCA = {
       label: 'ICP',
       ctaLabel: 'Reviser les ICP',
       title: 'Transformer l activite commerciale en decisions',
-      summary: 'Utilisez les ICP pour lire pipeline, devis, ventes, marge, transfert inventaire et discipline de suivi.',
+      summary: 'Utilisez les ICP pour lire pipeline, devis, ventes enregistrées, encaissements, créances, transfert et suivi.',
       value: 'Les metriques indiquent ou agir avant que les problemes touchent la tresorerie ou l execution.',
       steps: [
         { title: 'Lire conversion et marge ensemble', description: 'Beaucoup de volume sans marge peut creer une pression operationnelle malsaine.' },

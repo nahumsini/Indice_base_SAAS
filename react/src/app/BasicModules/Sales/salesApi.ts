@@ -40,6 +40,62 @@ export type SalesApiListResponse<TItem = Record<string, unknown>> = {
 
 export type SalesApiKpisResponse = Record<string, unknown>;
 
+export type SalesKpiContactRow = {
+  id: number; unitId: number | null; businessId: number | null; companyName: string;
+  contactPerson: string | null; source: string | null; status: string;
+  ownerUserCompanyId: number | null; ownerName: string | null;
+};
+
+export type SalesKpiOpportunityRow = {
+  id: number; contactId: number | null; unitId: number | null; businessId: number | null;
+  opportunityCode: string; opportunityName: string; companyName: string | null; source: string | null;
+  stage: string; lifecycleStatus: string | null; status: string; ownerUserCompanyId: number | null;
+  ownerName: string | null; probabilityPercent: number | null; expectedCloseDate: string | null;
+  nextAction: string | null; nextActionAt: string | null; lastContactAt: string | null;
+  createdAt: string; updatedAt: string;
+};
+
+export type SalesKpiQuoteRow = {
+  id: number; contactId: number | null; opportunityId: number | null; quoteNumber: string;
+  clientName: string; status: string; createdDate: string | null; expirationDate: string | null;
+  sellerUserCompanyId: number | null; sellerName: string | null;
+};
+
+export type SalesKpiSaleRow = {
+  id: number; contactId: number | null; opportunityId: number | null; quoteId: number | null;
+  unitId: number | null; businessId: number | null; saleNumber: string; customerName: string;
+  sellerUserCompanyId: number | null; sellerName: string | null; saleDate: string | null;
+  commercialStatus: string; financeStatus: string; inventoryStatus: string; deliveryStatus: string;
+  commissionStatus: string; inventoryMovementStatus: string;
+};
+
+export type SalesKpiWorkspaceSource = {
+  contacts: SalesKpiContactRow[];
+  opportunities: SalesKpiOpportunityRow[];
+  quotes: SalesKpiQuoteRow[];
+  sales: SalesKpiSaleRow[];
+  units: Array<{ id: number; name: string }>;
+  businesses: Array<{ id: number; unitId: number; name: string }>;
+  asOfDate: string;
+  timeZone: string;
+  definitionVersion: string;
+};
+
+export function toSalesKpiWorkspaceSource(value: unknown): SalesKpiWorkspaceSource {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid sales KPI workspace response.');
+  const source = value as Partial<SalesKpiWorkspaceSource>;
+  if (!Array.isArray(source.contacts) || !Array.isArray(source.opportunities) || !Array.isArray(source.quotes)
+      || !Array.isArray(source.sales) || !Array.isArray(source.units) || !Array.isArray(source.businesses)) {
+    throw new Error('Incomplete sales KPI workspace response.');
+  }
+  if (typeof source.asOfDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(source.asOfDate)
+      || typeof source.timeZone !== 'string' || !source.timeZone.trim()
+      || source.definitionVersion !== 'sales-kpi-v1') {
+    throw new Error('Invalid sales KPI workspace metadata.');
+  }
+  return source as SalesKpiWorkspaceSource;
+}
+
 export type OpportunityFlowApiStage = {
   key: string;
   label: string;
@@ -138,6 +194,9 @@ export const salesApi = {
   },
   kpis(preferredCurrency?: string) {
     return apiClient<SalesApiKpisResponse>(`${endpoints.sales.kpis}${buildQuery({ preferredCurrency })}`);
+  },
+  kpiWorkspace() {
+    return apiClient<unknown>(`${endpoints.sales.base}/kpis/workspace`).then(toSalesKpiWorkspaceSource);
   },
   getOpportunityFlows() {
     return apiClient<OpportunityFlowApiCatalogResponse>(`${endpoints.sales.base}/opportunity-flow`);

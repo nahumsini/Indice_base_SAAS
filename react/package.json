@@ -30,7 +30,7 @@
     "test:users": "node --test tests/users-access-regression.test.mjs",
     "test:kpis-ui": "node --test tests/kpis-frontend-standard-regression.test.mjs",
     "test:inventory-ui": "node --test tests/inventory-frontend-standard-regression.test.mjs",
-    "test:sales-ui": "node --test tests/sales-frontend-standard-regression.test.mjs",
+    "test:sales-ui": "node --test tests/sales-frontend-standard-regression.test.mjs tests/sales-kpi-workspace.test.mjs",
     "test:sales-workflow": "node --experimental-strip-types --test tests/sales-workflow-regression.test.mjs",
     "test:pos-ui": "node --experimental-strip-types --test tests/point-of-sale-frontend-standard-regression.test.mjs tests/point-of-sale-catalog-warehouse-regression.test.mjs",
     "test:pos-catalog": "node --experimental-strip-types --test tests/point-of-sale-catalog-warehouse-regression.test.mjs",

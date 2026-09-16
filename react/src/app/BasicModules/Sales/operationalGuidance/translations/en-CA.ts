@@ -221,7 +221,7 @@ export const enCA = {
       label: 'KPIs',
       ctaLabel: 'Review KPIs',
       title: 'Turn commercial activity into decisions',
-      summary: 'Use KPIs to read pipeline health, quotes, sales, margin, inventory handoff, and follow-up discipline.',
+      summary: 'Use KPIs to read pipeline, quotes, registered sales, collections, receivables, handoff, and follow-up discipline.',
       value: 'Metrics help leaders decide where attention is needed before sales problems become cash or delivery problems.',
       steps: [
         {

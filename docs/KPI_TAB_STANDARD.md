@@ -1210,3 +1210,16 @@ available. [`receivables-kpi-workspace-contract.md`](./receivables-kpi-workspace
 defines the eight measurements, current versus period scope, instalment-based ageing,
 customer identity, read-only permissions and full filtered reports. Validation is in
 [`indice-receivables-kpi-analysis-2026-09-15.md`](./indice-receivables-kpi-analysis-2026-09-15.md).
+
+### Sales adoption (2026-09-16)
+
+Sales implements Overview / Analysis / By unit / Opportunities with coral shared
+navigation, dependent organization filters, retained view/table state and equal 24 px
+gaps. [`sales-kpi-workspace-contract.md`](./sales-kpi-workspace-contract.md) defines the
+eight measurements, event-period versus current-stock semantics, opportunity-linked
+funnel, stable seller identity, server-owned operational scope and complete filtered
+report. Validation and the defects replaced from the previous page are recorded in
+[`indice-sales-kpi-analysis-2026-09-16.md`](./indice-sales-kpi-analysis-2026-09-16.md).
+Registered sales are not relabelled as accounting revenue; partial monetary conversion
+does not produce a complete headline or average, and unavailable historical metrics are
+not inferred from current CRM snapshots.
