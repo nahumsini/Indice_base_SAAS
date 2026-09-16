@@ -142,7 +142,7 @@ export const ptBR = {
       label: 'KPIs',
       ctaLabel: 'Revisar KPIs',
       title: 'Transforme atividade comercial em decisoes',
-      summary: 'Use KPIs para ler pipeline, cotacoes, vendas, margem, repasse ao estoque e disciplina de follow-up.',
+      summary: 'Use KPIs para ler pipeline, cotações, vendas registradas, recebimentos, contas a receber, repasse e acompanhamento.',
       value: 'Metricas mostram onde agir antes de problemas virarem caixa ou entrega ruim.',
       steps: [
         { title: 'Leia conversao e margem juntas', description: 'Muito volume sem margem cria pressao operacional sem crescimento saudavel.' },

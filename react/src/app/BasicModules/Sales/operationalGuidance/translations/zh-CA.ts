@@ -142,7 +142,7 @@ export const zhCA = {
       label: 'KPI',
       ctaLabel: '查看 KPI',
       title: '把销售活动变成决策',
-      summary: 'KPI 用于阅读管道、报价、销售、利润、库存交接和跟进纪律。',
+      summary: 'KPI 用于查看管道、报价、已登记销售、收款、应收余额、运营交接和跟进。',
       value: '指标帮助管理者在问题变成现金或交付风险前决定关注点。',
       steps: [
         { title: '一起看转化和利润', description: '没有利润的高销量可能只会带来运营压力。' },

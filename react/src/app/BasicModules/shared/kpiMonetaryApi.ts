@@ -164,6 +164,8 @@ export function useKpiMonetaryAggregates(queries: KpiMonetaryBatchQuery[]) {
   const [data, setData] = useState<Record<string, KpiMonetaryAggregate>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const requestKey = `${queryKey}\n${revision}`;
+  const [resolvedRequestKey, setResolvedRequestKey] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -172,21 +174,28 @@ export function useKpiMonetaryAggregates(queries: KpiMonetaryBatchQuery[]) {
       setData({});
       setLoading(false);
       setError(null);
+      setResolvedRequestKey(requestKey);
       return () => { active = false; };
     }
     setLoading(true);
     setError(null);
     getKpiMonetaryAggregates(parsed)
-      .then((result) => { if (active) setData(result); })
+      .then((result) => {
+        if (active) {
+          setData(result);
+          setResolvedRequestKey(requestKey);
+        }
+      })
       .catch((reason: unknown) => {
         if (active) {
           setData({});
           setError(reason instanceof Error ? reason : new Error('KPI monetary batch failed'));
+          setResolvedRequestKey(requestKey);
         }
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [queryKey, revision]);
+  }, [requestKey]);
 
-  return { data, error, loading, refresh };
+  return { data, error, loading, current: resolvedRequestKey === requestKey, refresh };
 }

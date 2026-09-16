@@ -1081,6 +1081,127 @@ class SalesRepository {
         return body;
     }
 
+    List<SalesKpiWorkspaceDtos.ContactRow> kpiContacts(long companyId, com.indice.erp.hr.HrOperationalScope scope) {
+        var args = new java.util.ArrayList<Object>();
+        args.add(companyId);
+        var scopeSql = kpiScope("sales_contacts", scope, args);
+        return jdbcTemplate.query("""
+                SELECT id, unit_id, business_id, company_name, contact_person, source, status,
+                       owner_user_company_id, owner_name
+                FROM sales_contacts
+                WHERE company_id = ? AND deleted_at IS NULL
+                """ + scopeSql + " ORDER BY updated_at DESC, id DESC",
+            (rs, row) -> new SalesKpiWorkspaceDtos.ContactRow(
+                rs.getLong("id"), nullableLong(rs, "unit_id"), nullableLong(rs, "business_id"),
+                rs.getString("company_name"), rs.getString("contact_person"), rs.getString("source"),
+                rs.getString("status"), nullableLong(rs, "owner_user_company_id"), rs.getString("owner_name")),
+            args.toArray());
+    }
+
+    List<SalesKpiWorkspaceDtos.OpportunityRow> kpiOpportunities(long companyId, com.indice.erp.hr.HrOperationalScope scope) {
+        var args = new java.util.ArrayList<Object>();
+        args.add(companyId);
+        var scopeSql = kpiScope("sales_opportunities", scope, args);
+        return jdbcTemplate.query("""
+                SELECT id, contact_id, unit_id, business_id, opportunity_code, opportunity_name,
+                       company_name, source, stage, lifecycle_status, status, owner_user_company_id,
+                       owner_name, probability_percent, expected_close_date, next_action, next_action_at,
+                       last_contact_at, created_at, updated_at
+                FROM sales_opportunities
+                WHERE company_id = ? AND deleted_at IS NULL
+                """ + scopeSql + " ORDER BY updated_at DESC, id DESC",
+            (rs, row) -> new SalesKpiWorkspaceDtos.OpportunityRow(
+                rs.getLong("id"), nullableLong(rs, "contact_id"), nullableLong(rs, "unit_id"),
+                nullableLong(rs, "business_id"), rs.getString("opportunity_code"),
+                rs.getString("opportunity_name"), rs.getString("company_name"), rs.getString("source"),
+                rs.getString("stage"), rs.getString("lifecycle_status"), rs.getString("status"),
+                nullableLong(rs, "owner_user_company_id"), rs.getString("owner_name"),
+                nullableInteger(rs, "probability_percent"), rs.getObject("expected_close_date", java.time.LocalDate.class),
+                rs.getString("next_action"), nullableDateTime(rs, "next_action_at"),
+                nullableDateTime(rs, "last_contact_at"), nullableDateTime(rs, "created_at"),
+                nullableDateTime(rs, "updated_at")),
+            args.toArray());
+    }
+
+    List<SalesKpiWorkspaceDtos.QuoteRow> kpiQuotes(long companyId, com.indice.erp.hr.HrOperationalScope scope) {
+        var args = new java.util.ArrayList<Object>();
+        args.add(companyId);
+        var scopeSql = kpiScope("sales_quotes", scope, args);
+        return jdbcTemplate.query("""
+                SELECT id, contact_id, opportunity_id, quote_number, client_name, status, created_date,
+                       expiration_date, assigned_seller_user_company_id, assigned_seller_name
+                FROM sales_quotes
+                WHERE company_id = ? AND deleted_at IS NULL
+                """ + scopeSql + " ORDER BY created_date DESC, id DESC",
+            (rs, row) -> new SalesKpiWorkspaceDtos.QuoteRow(
+                rs.getLong("id"), nullableLong(rs, "contact_id"), nullableLong(rs, "opportunity_id"),
+                rs.getString("quote_number"), rs.getString("client_name"), rs.getString("status"),
+                rs.getObject("created_date", java.time.LocalDate.class),
+                rs.getObject("expiration_date", java.time.LocalDate.class),
+                nullableLong(rs, "assigned_seller_user_company_id"), rs.getString("assigned_seller_name")),
+            args.toArray());
+    }
+
+    List<SalesKpiWorkspaceDtos.SaleRow> kpiSales(long companyId, com.indice.erp.hr.HrOperationalScope scope) {
+        var args = new java.util.ArrayList<Object>();
+        args.add(companyId);
+        var scopeSql = kpiScope("sales_records", scope, args);
+        return jdbcTemplate.query("""
+                SELECT id, contact_id, opportunity_id, quote_id, unit_id, business_id, sale_number,
+                       customer_name, seller_user_company_id, seller_name, sale_date, commercial_status,
+                       finance_status, inventory_status, delivery_status, commission_status,
+                       inventory_movement_status
+                FROM sales_records
+                WHERE company_id = ? AND deleted_at IS NULL
+                """ + scopeSql + " ORDER BY sale_date DESC, id DESC",
+            (rs, row) -> new SalesKpiWorkspaceDtos.SaleRow(
+                rs.getLong("id"), nullableLong(rs, "contact_id"), nullableLong(rs, "opportunity_id"),
+                nullableLong(rs, "quote_id"), nullableLong(rs, "unit_id"), nullableLong(rs, "business_id"),
+                rs.getString("sale_number"), rs.getString("customer_name"),
+                nullableLong(rs, "seller_user_company_id"), rs.getString("seller_name"),
+                rs.getObject("sale_date", java.time.LocalDate.class), rs.getString("commercial_status"),
+                rs.getString("finance_status"), rs.getString("inventory_status"),
+                rs.getString("delivery_status"), rs.getString("commission_status"),
+                rs.getString("inventory_movement_status")),
+            args.toArray());
+    }
+
+    List<SalesKpiWorkspaceDtos.UnitOption> kpiUnits(long companyId, com.indice.erp.hr.HrOperationalScope scope) {
+        if (scope == null || scope.type() == com.indice.erp.hr.HrOperationalScope.Type.UNASSIGNED) return List.of();
+        var args = new java.util.ArrayList<Object>();
+        args.add(companyId);
+        var filter = "";
+        if (scope.type() == com.indice.erp.hr.HrOperationalScope.Type.UNIT_HEADQUARTERS) {
+            filter = " AND id = ?";
+            args.add(scope.unitId());
+        } else if (scope.type() == com.indice.erp.hr.HrOperationalScope.Type.BUSINESS_OFFICE) {
+            filter = " AND id = (SELECT unit_id FROM businesses WHERE id = ? AND (company_id = ? OR company_id IS NULL))";
+            args.add(scope.businessId());
+            args.add(companyId);
+        }
+        return jdbcTemplate.query("SELECT id, name FROM units WHERE (company_id = ? OR company_id IS NULL)"
+                + " AND (status = 'active' OR status IS NULL OR status = '')" + filter + " ORDER BY name, id",
+            (rs, row) -> new SalesKpiWorkspaceDtos.UnitOption(rs.getLong("id"), rs.getString("name")), args.toArray());
+    }
+
+    List<SalesKpiWorkspaceDtos.BusinessOption> kpiBusinesses(long companyId, com.indice.erp.hr.HrOperationalScope scope) {
+        if (scope == null || scope.type() == com.indice.erp.hr.HrOperationalScope.Type.UNASSIGNED) return List.of();
+        var args = new java.util.ArrayList<Object>();
+        args.add(companyId);
+        var filter = "";
+        if (scope.type() == com.indice.erp.hr.HrOperationalScope.Type.UNIT_HEADQUARTERS) {
+            filter = " AND unit_id = ?";
+            args.add(scope.unitId());
+        } else if (scope.type() == com.indice.erp.hr.HrOperationalScope.Type.BUSINESS_OFFICE) {
+            filter = " AND id = ?";
+            args.add(scope.businessId());
+        }
+        return jdbcTemplate.query("SELECT id, unit_id, name FROM businesses WHERE (company_id = ? OR company_id IS NULL)"
+                + " AND (status = 'active' OR status IS NULL OR status = '')" + filter + " ORDER BY name, id",
+            (rs, row) -> new SalesKpiWorkspaceDtos.BusinessOption(rs.getLong("id"), rs.getLong("unit_id"), rs.getString("name")),
+            args.toArray());
+    }
+
     private long scopedKpiCount(String table, long company, String filter, List<?> filters, com.indice.erp.hr.HrOperationalScope scope) {
         var args = new java.util.ArrayList<Object>(); args.add(company); args.addAll(filters);
         return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + table + " WHERE company_id = ? AND deleted_at IS NULL" + filter + kpiScope(table, scope, args), Long.class, args.toArray());
@@ -1136,6 +1257,16 @@ class SalesRepository {
             + scope.assignmentPredicate("owner.unit_id", "owner.business_id", "owner.company_id") + ") OR (" + table + ".opportunity_id IS NULL AND EXISTS"
             + " (SELECT 1 FROM sales_contacts owner WHERE owner.company_id = " + table + ".company_id AND owner.id = " + table + ".contact_id"
             + scope.assignmentPredicate("owner.unit_id", "owner.business_id", "owner.company_id") + ")))";
+    }
+
+    private static Integer nullableInteger(java.sql.ResultSet rs, String column) throws java.sql.SQLException {
+        var value = rs.getObject(column);
+        return value == null ? null : ((Number) value).intValue();
+    }
+
+    private static java.time.LocalDateTime nullableDateTime(java.sql.ResultSet rs, String column) throws java.sql.SQLException {
+        var value = rs.getTimestamp(column);
+        return value == null ? null : value.toLocalDateTime();
     }
 
     void updateQuoteAmount(long companyId, long quoteId, BigDecimal amount) {
