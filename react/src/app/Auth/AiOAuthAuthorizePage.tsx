@@ -86,23 +86,23 @@ export default function AiOAuthAuthorizePage() {
   const requestedActions = context?.scopes.filter((scope) => actionScopes.has(scope)) ?? [];
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(135deg,_#EFF6FF_0%,_#F8FAFC_55%,_#EEF4FA_100%)] px-4 py-6 text-slate-950 sm:px-6 lg:py-10">
+    <main className="min-h-screen bg-[var(--indice-background)] px-4 py-6 text-slate-950 sm:px-6 lg:py-10">
       <div className="mx-auto w-full max-w-3xl">
         <header className="mb-6 flex items-center justify-between">
           <IndiceBrandLogo alt="Índice" className="h-12 w-40" imageClassName="w-[188px]" />
-          <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-700 shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--indice-brand-border)] bg-white px-3 py-2 text-xs font-semibold text-[var(--indice-brand-text)] shadow-sm">
             <LockKeyhole className="h-4 w-4" /> Conexión protegida
           </span>
         </header>
 
-        <section className="overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-xl shadow-blue-950/5">
-          <div className="border-b border-blue-100 bg-blue-600 px-6 py-7 text-white sm:px-8">
+        <section className="overflow-hidden rounded-3xl border border-[var(--indice-brand-border)] bg-white shadow-xl">
+          <div className="border-b border-[var(--indice-brand-border)] bg-[var(--indice-brand-action)] px-6 py-7 text-[var(--indice-brand-shell-foreground)] sm:px-8">
             <div className="flex items-start gap-4">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15"><Bot className="h-6 w-6" /></span>
               <div>
-                <p className="text-sm font-semibold text-blue-100">Conectar un asistente con Índice</p>
+                <p className="text-sm font-semibold text-[var(--indice-brand-shell-muted)]">Conectar un asistente con Índice</p>
                 <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Tú decides qué información puede utilizar</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-50">Índice conservará el control de tu empresa y validará tus permisos en cada consulta.</p>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--indice-brand-shell-muted)]">Índice conservará el control de tu empresa y validará tus permisos en cada consulta.</p>
               </div>
             </div>
           </div>
@@ -110,7 +110,7 @@ export default function AiOAuthAuthorizePage() {
           <div className="p-6 sm:p-8">
             {!context && !error ? (
               <div className="flex min-h-64 flex-col items-center justify-center text-center">
-                <LoaderCircle className="h-8 w-8 animate-spin text-blue-600" />
+                <LoaderCircle className="h-8 w-8 animate-spin text-[var(--indice-brand-action)]" />
                 <p className="mt-4 font-medium">Preparando la conexión segura…</p>
               </div>
             ) : null}
@@ -121,7 +121,7 @@ export default function AiOAuthAuthorizePage() {
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Asistente que solicita acceso</p>
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
                     <div><p className="text-lg font-semibold">{context.clientName}</p><p className="text-sm text-slate-600">Empresa: {session?.company.name}</p></div>
-                    <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700">{context.expiresInDays} días</span>
+                    <span className="rounded-full bg-[var(--indice-brand-soft)] px-3 py-1 text-sm font-medium text-[var(--indice-brand-text)]">{context.expiresInDays} días</span>
                   </div>
                 </div>
 
@@ -140,7 +140,7 @@ export default function AiOAuthAuthorizePage() {
 
                 <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
                   <Button type="button" variant="outline" className="h-11 rounded-xl" disabled={submitting} onClick={() => void decide(false)}>Cancelar</Button>
-                  <Button type="button" className="h-11 rounded-xl bg-blue-600 px-6 text-white hover:bg-blue-700" disabled={submitting} onClick={() => void decide(true)}>
+                  <Button type="button" className="h-11 rounded-xl bg-[var(--indice-brand-action)] px-6 text-[var(--indice-brand-shell-foreground)] hover:bg-[var(--indice-brand-action-hover)]" disabled={submitting} onClick={() => void decide(true)}>
                     {submitting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
                     {submitting ? 'Conectando…' : 'Autorizar conexión'}
                   </Button>
@@ -162,7 +162,7 @@ export default function AiOAuthAuthorizePage() {
 
 function PermissionBlock({ icon, scopes, title, tone }: { icon: ReactNode; scopes: string[]; title: string; tone: 'blue' | 'amber' }) {
   const colors = tone === 'blue'
-    ? 'border-blue-100 bg-blue-50/60 text-blue-700'
+    ? 'border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] text-[var(--indice-brand-text)]'
     : 'border-amber-200 bg-amber-50/70 text-amber-800';
   return (
     <section className={`rounded-2xl border p-5 ${colors}`}>

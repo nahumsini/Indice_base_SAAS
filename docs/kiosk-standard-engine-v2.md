@@ -1400,6 +1400,39 @@ desplegada conserva los accesos por defecto y sólo puede desactivarlos cuando
 continúa montando los mismos gestores propietarios y no cambia endpoints, autorizaciones ni enlaces
 públicos.
 
+### 23.4 Shell administrativo persistente
+
+La aplicación autenticada conserva el header azul global fuera del área desplazable. Dentro de
+`/kiosk-center`, un segundo header compacto permanece fijo en la parte superior de su propio canvas
+y mantiene disponibles:
+
+- regreso al Dashboard;
+- identidad del Centro de kioscos y contexto de la vista activa;
+- navegación entre Multikioscos, inventario, accesos y actividad.
+
+Este header local usa una superficie translúcida neutra y el azul Índice para navegación, selección
+y acciones administrativas. No crea una tercera identidad de producto. El verde queda reservado a
+estados semánticos reales como activo o correcto; amarillo y coral conservan atención y riesgo. En
+pantallas angostas, la navegación se desplaza horizontalmente y las acciones conservan nombre
+accesible aunque su texto visual se compacte.
+
+Su anatomía se renderiza mediante `IndiceAdminWorkspaceHeader`, la misma primitive usada por la
+administración de cuenta. El componente compartido homologa geometría y accesibilidad, pero no
+absorbe autorización ni reglas del Kiosk Engine.
+
+En la vista de Multikioscos, la creación pertenece a su barra de título y sólo aparece para el rol
+autorizado. El orden de lectura es título, filtros, indicadores operativos y listado; así la persona
+define primero el universo consultado y después interpreta sus KPIs.
+
+Las tarjetas de Multikiosco pueden reflejar `theme_key` mediante una franja y un contenedor de icono.
+El color es sólo presentación: estado, audiencia, enlace y acciones conservan etiquetas explícitas y
+la autorización continúa resolviéndose en el backend. El refresco visual no modifica rutas, PIN,
+composición, lifecycle, auditoría ni contratos del módulo propietario.
+
+El tema configurable de una tarjeta o de la experiencia pública no cambia el color del administrador:
+el Centro, sus filtros, modales y acciones siguen el azul Índice aunque el Multikiosco publicado use
+verde, amarillo o coral.
+
 ---
 
 ## 24. Multikiosco responsive de compañía para colaboradores

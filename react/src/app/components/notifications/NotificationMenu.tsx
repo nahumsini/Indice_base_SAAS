@@ -52,7 +52,7 @@ export function NotificationMenu({
         <Button
           variant="ghost"
           size="icon"
-          className={`relative h-10 w-10 rounded-full border text-[#4B5563] transition-all hover:border-[#59C3A5]/35 hover:bg-white/70 hover:text-[#222831] dark:text-gray-300 dark:hover:border-[#59C3A5]/45 dark:hover:bg-white/10 dark:hover:text-white ${open ? 'border-[#59C3A5]/50 bg-white/75 dark:bg-white/10' : 'border-transparent'}`}
+          className={`relative h-10 w-10 rounded-full border text-slate-50/85 transition-all hover:border-white/35 hover:bg-white/15 hover:text-slate-50 dark:text-slate-50/85 dark:hover:border-white/35 dark:hover:bg-white/15 dark:hover:text-slate-50 ${open ? 'border-white/50 bg-white/20 dark:bg-white/20' : 'border-transparent'}`}
           aria-label={copy.previewTitle}
           aria-expanded={open}
           title={copy.previewTitle}
@@ -67,9 +67,9 @@ export function NotificationMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-[#59C3A5]/35 bg-white p-0 shadow-[0_24px_60px_rgba(34,40,49,0.18)] dark:border-[#59C3A5]/30 dark:bg-[#222831] sm:w-[26rem]"
+        className="w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-[var(--indice-brand-primary)]/35 bg-white p-0 shadow-[0_24px_60px_rgba(34,40,49,0.18)] dark:border-[var(--indice-brand-primary)]/30 dark:bg-[#222831] sm:w-[26rem]"
       >
-        <div className="border-b border-[#3AAE90] bg-[#59C3A5] p-4">
+        <div className="border-b border-[var(--indice-brand-primary-hover)] bg-[var(--indice-brand-primary)] p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h3 className="text-base font-bold text-white">{copy.previewTitle}</h3>
@@ -98,10 +98,10 @@ export function NotificationMenu({
             </NotificationPreviewItem>
           ))}
         </div>
-        <div className="border-t border-[#59C3A5]/25 bg-[#E7F3F2] p-3 dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/10">
+        <div className="border-t border-[var(--indice-brand-primary)]/25 bg-[var(--indice-brand-soft)] p-3 dark:border-[var(--indice-brand-primary)]/25 dark:bg-[var(--indice-brand-primary)]/10">
           <button
             onClick={onOpenAll}
-            className="w-full rounded-xl px-3 py-2 text-center text-sm font-semibold text-[#147514] transition-colors hover:bg-white/70 hover:text-[#0F5E1A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5] dark:text-[#8DE0C8] dark:hover:bg-white/10 dark:hover:text-white"
+            className="w-full rounded-xl px-3 py-2 text-center text-sm font-semibold text-[var(--indice-brand-text)] transition-colors hover:bg-white/70 hover:text-[var(--indice-brand-primary-deep)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-primary)] dark:text-[var(--indice-brand-text-dark)] dark:hover:bg-white/10 dark:hover:text-white"
           >
             {copy.previewAll}
           </button>
@@ -129,7 +129,7 @@ function NotificationPreviewItem({
   return (
     <div>
       <DropdownMenuItem
-        className="cursor-pointer p-4 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10"
+        className="cursor-pointer p-4 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10"
         onSelect={() => onOpenItem(notification)}
       >
         <div className="flex w-full min-w-0 gap-3">
@@ -141,7 +141,7 @@ function NotificationPreviewItem({
               <p className={`min-w-0 break-words text-sm font-bold ${notification.is_unread ? 'text-gray-950 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
                 {displayTitle}
               </p>
-              {notification.is_unread && <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#3AAE90]" />}
+              {notification.is_unread && <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[var(--indice-brand-primary)]" />}
             </div>
             <p className="line-clamp-2 text-xs text-gray-600 dark:text-gray-400">{notification.description}</p>
             <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">

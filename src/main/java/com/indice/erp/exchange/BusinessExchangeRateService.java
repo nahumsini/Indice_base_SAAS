@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,50 +55,77 @@ public class BusinessExchangeRateService {
     private final String banxicoToken;
     private final BusinessExchangeRateSnapshotRepository snapshotRepository;
 
+    @Autowired
     public BusinessExchangeRateService(
         ObjectMapper objectMapper,
         BusinessExchangeRateSnapshotRepository snapshotRepository,
         @Value("${app.exchange.banxico-token:}") String banxicoToken,
         @Value("${app.exchange.request-timeout-ms:7000}") long requestTimeoutMs
     ) {
+        this(
+            objectMapper,
+            snapshotRepository,
+            banxicoToken,
+            requestTimeoutMs,
+            HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(Math.max(1000, requestTimeoutMs)))
+                .build()
+        );
+    }
+
+    BusinessExchangeRateService(
+        ObjectMapper objectMapper,
+        BusinessExchangeRateSnapshotRepository snapshotRepository,
+        String banxicoToken,
+        long requestTimeoutMs,
+        HttpClient httpClient
+    ) {
         this.objectMapper = objectMapper;
         this.snapshotRepository = snapshotRepository;
         this.banxicoToken = banxicoToken == null ? "" : banxicoToken.trim();
         this.requestTimeout = Duration.ofMillis(Math.max(1000, requestTimeoutMs));
-        this.httpClient = HttpClient.newBuilder()
-            .connectTimeout(this.requestTimeout)
-            .build();
+        this.httpClient = httpClient;
     }
 
     @Transactional
     public BusinessExchangeRatesResponse loadDailyRates() {
+        return loadDailyRates(false);
+    }
+
+    @Transactional
+    public BusinessExchangeRatesResponse loadDailyRates(boolean forceRefresh) {
         var rateDate = LocalDate.now(BUSINESS_ZONE);
         var cachedResponse = snapshotRepository.find(rateDate);
-        if (cachedResponse.isPresent()) {
+        if (!forceRefresh && cachedResponse.isPresent()) {
             return cachedResponse.get();
         }
 
         snapshotRepository.acquireDailyRefreshLock(rateDate);
         try {
-            return snapshotRepository.find(rateDate).orElseGet(() -> {
-                var response = fetchDailyRates(snapshotRepository.findLatestBefore(rateDate));
-                snapshotRepository.save(rateDate, response);
-                return response;
-            });
+            var lockedResponse = snapshotRepository.find(rateDate);
+            if (!forceRefresh && lockedResponse.isPresent()) {
+                return lockedResponse.get();
+            }
+            var previousSnapshots = new ArrayList<BusinessExchangeRatesResponse>(2);
+            lockedResponse.ifPresent(previousSnapshots::add);
+            snapshotRepository.findLatestBefore(rateDate).ifPresent(previousSnapshots::add);
+            var response = fetchDailyRates(previousSnapshots);
+            snapshotRepository.save(rateDate, response);
+            return response;
         } finally {
             snapshotRepository.releaseDailyRefreshLock(rateDate);
         }
     }
 
-    private BusinessExchangeRatesResponse fetchDailyRates(Optional<BusinessExchangeRatesResponse> previousSnapshot) {
+    private BusinessExchangeRatesResponse fetchDailyRates(List<BusinessExchangeRatesResponse> previousSnapshots) {
         var rates = new LinkedHashMap<>(DEFAULT_RATES_PER_USD);
         var sources = new ArrayList<BusinessExchangeRateSourceResponse>();
         var warnings = new ArrayList<String>();
 
-        applyObservation("MXN", rates, sources, warnings, previousSnapshot, this::fetchMxnFromBanxico);
-        applyObservation("CAD", rates, sources, warnings, previousSnapshot, this::fetchCadFromBankOfCanada);
-        applyObservation("COP", rates, sources, warnings, previousSnapshot, this::fetchCopFromDatosAbiertos);
-        applyObservation("BRL", rates, sources, warnings, previousSnapshot, this::fetchBrlFromBancoCentralDoBrasil);
+        applyObservation("MXN", rates, sources, warnings, previousSnapshots, this::fetchMxnReference);
+        applyObservation("CAD", rates, sources, warnings, previousSnapshots, this::fetchCadFromBankOfCanada);
+        applyObservation("COP", rates, sources, warnings, previousSnapshots, this::fetchCopFromDatosAbiertos);
+        applyObservation("BRL", rates, sources, warnings, previousSnapshots, this::fetchBrlFromBancoCentralDoBrasil);
         rates.put(BASE_CURRENCY, BigDecimal.ONE);
 
         var sourceDate = sources.stream()
@@ -112,9 +140,9 @@ public class BusinessExchangeRateService {
             sourceDate,
             Instant.now().toString(),
             "Fuentes oficiales",
-            "https://www.bankofcanada.ca/valet-api-how-to/",
-            "https://www.bankofcanada.ca/terms/",
-            "Tasas informativas consultadas desde fuentes oficiales disponibles para estimaciones operativas."
+            "https://frankfurter.dev/",
+            "https://frankfurter.dev/providers/ecb/",
+            "Tasas informativas de fuentes oficiales; MXN consulta Banxico y usa la referencia del BCE via Frankfurter cuando Banxico no esta disponible."
         );
 
         return new BusinessExchangeRatesResponse(
@@ -131,7 +159,7 @@ public class BusinessExchangeRateService {
         Map<String, BigDecimal> rates,
         List<BusinessExchangeRateSourceResponse> sources,
         List<String> warnings,
-        Optional<BusinessExchangeRatesResponse> previousSnapshot,
+        List<BusinessExchangeRatesResponse> previousSnapshots,
         RateFetcher fetcher
     ) {
         try {
@@ -139,7 +167,7 @@ public class BusinessExchangeRateService {
             rates.put(currencyCode, observation.ratePerUsd());
             sources.add(observation.toResponse(OFFICIAL_STATUS, ""));
         } catch (Exception ex) {
-            var previousSource = previousSnapshot.stream()
+            var previousSource = previousSnapshots.stream()
                 .flatMap(snapshot -> snapshot.sources().stream())
                 .filter(source -> currencyCode.equals(source.currencyCode()) && !FALLBACK_STATUS.equals(source.status()))
                 .findFirst();
@@ -186,6 +214,54 @@ public class BusinessExchangeRateService {
             "https://www.banxico.org.mx/SieAPIRest/service/v1/series/SF43718/datos/oportuno",
             "https://www.banxico.org.mx/SieAPIRest/",
             "Requiere token de Banxico para consulta automatizada."
+        );
+    }
+
+    RateObservation fetchMxnReference() throws IOException, InterruptedException {
+        try {
+            return fetchMxnFromBanxico();
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw ex;
+        } catch (Exception banxicoFailure) {
+            try {
+                var observation = fetchMxnFromFrankfurterEcb();
+                log.info(
+                    "Banxico exchange rate unavailable; using ECB reference through Frankfurter: {}",
+                    safeMessage(banxicoFailure)
+                );
+                return observation;
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                throw ex;
+            } catch (Exception frankfurterFailure) {
+                var combined = new IOException("Banxico y Frankfurter no estuvieron disponibles");
+                combined.addSuppressed(banxicoFailure);
+                combined.addSuppressed(frankfurterFailure);
+                throw combined;
+            }
+        }
+    }
+
+    private RateObservation fetchMxnFromFrankfurterEcb() throws IOException, InterruptedException {
+        var url = "https://api.frankfurter.dev/v2/providers/ecb/rate/usd/mxn";
+        var root = getJson(url, Map.of());
+        if (!"USD".equalsIgnoreCase(root.path("base").asText())
+            || !"MXN".equalsIgnoreCase(root.path("quote").asText())) {
+            throw new IOException("Frankfurter devolvio una paridad distinta de USD/MXN");
+        }
+        var rate = parseDecimal(root.path("rate").asText());
+        var date = normalizeIsoDate(root.path("date").asText());
+
+        return new RateObservation(
+            "MXN",
+            rate,
+            date,
+            "Banco Central Europeo via Frankfurter",
+            "ECB reference rate USD/MXN",
+            url,
+            "https://frankfurter.dev/providers/ecb/",
+            "Referencia diaria del BCE convertida de USD a MXN y distribuida por Frankfurter."
         );
     }
 
@@ -396,7 +472,7 @@ public class BusinessExchangeRateService {
         RateObservation fetch() throws IOException, InterruptedException;
     }
 
-    private record RateObservation(
+    record RateObservation(
         String currencyCode,
         BigDecimal ratePerUsd,
         String observedDate,

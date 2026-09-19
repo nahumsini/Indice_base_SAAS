@@ -7,6 +7,11 @@ export type LearningModePreferences = {
   step: number;
 };
 
+export type LearningModeSettings = Pick<
+  LearningModePreferences,
+  'active' | 'visible' | 'step'
+>;
+
 type LearningModeSessionScope = Pick<AuthSessionResponse, 'user' | 'company'>;
 type LearningModeStorage = Pick<Storage, 'getItem' | 'setItem'>;
 

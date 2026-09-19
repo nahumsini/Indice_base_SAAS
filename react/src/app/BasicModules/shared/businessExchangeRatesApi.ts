@@ -55,8 +55,11 @@ function normalizeSourceDetail(source: ApiExchangeRateSource): BusinessExchangeR
   };
 }
 
-export async function fetchBusinessDailyExchangeRateSettings(): Promise<BusinessExchangeRateSettings> {
-  const response = await apiClient<ApiExchangeRatesResponse>('/api/v1/exchange-rates/daily');
+export async function fetchBusinessDailyExchangeRateSettings(
+  options: { forceRefresh?: boolean } = {},
+): Promise<BusinessExchangeRateSettings> {
+  const query = options.forceRefresh ? '?refresh=true' : '';
+  const response = await apiClient<ApiExchangeRatesResponse>(`/api/v1/exchange-rates/daily${query}`);
   const sourceDetails = (response.sources ?? [])
     .map(normalizeSourceDetail)
     .filter((source): source is BusinessExchangeRateSourceDetail => Boolean(source));

@@ -19,26 +19,26 @@ export type IndiceFilterOption = {
 
 const focusClasses: Record<IndiceModuleTone, string> = {
   aqua: 'focus-visible:border-[#59C3A5] focus-visible:ring-[#59C3A5]/20',
-  blue: 'focus-visible:border-[#2563EB] focus-visible:ring-[#2563EB]/20',
+  blue: 'focus-visible:border-[var(--indice-brand-action)] focus-visible:ring-[var(--indice-brand-action)]/20',
   coral: 'focus-visible:border-[#FF6B5E] focus-visible:ring-[#FF6B5E]/20',
   gold: 'focus-visible:border-[#F4C84A] focus-visible:ring-[#F4C84A]/20',
   gray: 'focus-visible:border-slate-500 focus-visible:ring-slate-500/20',
   green: 'focus-visible:border-[#147514] focus-visible:ring-[#147514]/20',
   orange: 'focus-visible:border-[#FF6B5E] focus-visible:ring-[#FF6B5E]/20',
-  purple: 'focus-visible:border-[#2563EB] focus-visible:ring-[#2563EB]/20',
+  purple: 'focus-visible:border-[var(--indice-brand-action)] focus-visible:ring-[var(--indice-brand-action)]/20',
   red: 'focus-visible:border-[#EF4444] focus-visible:ring-[#EF4444]/20',
   yellow: 'focus-visible:border-[#F4C84A] focus-visible:ring-[#F4C84A]/20',
 };
 
 const segmentedActiveClasses: Record<IndiceModuleTone, string> = {
   aqua: 'border-[#59C3A5] bg-[#59C3A5]/15 text-[#176B5B]',
-  blue: 'border-[#2563EB] bg-[#2563EB]/10 text-[#1D4ED8]',
+  blue: 'border-[var(--indice-brand-action)] bg-[var(--indice-brand-soft)] text-[var(--indice-brand-text)]',
   coral: 'border-[#FF6B5E] bg-[#FF6B5E] text-[#222831]',
   gold: 'border-[#F4C84A] bg-[#F4C84A]/20 text-[#8A6500]',
   gray: 'border-slate-500 bg-slate-200 text-slate-800',
   green: 'border-[#147514] bg-[#147514]/10 text-[#147514]',
   orange: 'border-[#FF6B5E] bg-[#FF6B5E]/15 text-[#B63B32]',
-  purple: 'border-[#2563EB] bg-[#2563EB]/10 text-[#1D4ED8]',
+  purple: 'border-[var(--indice-brand-action)] bg-[var(--indice-brand-soft)] text-[var(--indice-brand-text)]',
   red: 'border-[#EF4444] bg-[#EF4444]/10 text-[#B91C1C]',
   yellow: 'border-[#F4C84A] bg-[#F4C84A]/20 text-[#8A6500]',
 };

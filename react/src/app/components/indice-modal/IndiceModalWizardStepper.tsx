@@ -24,8 +24,8 @@ const accentStyles: Record<IndiceModalAccent, { active: string; progress: string
     progress: 'bg-[#59C3A5]',
   },
   blue: {
-    active: 'border-[#2563EB] bg-[#2563EB] text-white',
-    progress: 'bg-[#2563EB]',
+    active: 'border-[var(--indice-brand-action)] bg-[var(--indice-brand-action)] text-[var(--indice-brand-shell-foreground)]',
+    progress: 'bg-[var(--indice-brand-action)]',
   },
   coral: {
     active: 'border-[#FF6B5E] bg-[#FF6B5E] text-[#222831]',

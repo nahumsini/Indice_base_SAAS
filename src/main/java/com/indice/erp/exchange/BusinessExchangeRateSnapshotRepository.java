@@ -52,7 +52,8 @@ public class BusinessExchangeRateSnapshotRepository {
 
     public void save(LocalDate rateDate, BusinessExchangeRatesResponse response) {
         jdbcTemplate.update(
-            "INSERT INTO business_exchange_rate_daily_snapshots (rate_date, base_currency, response_payload) VALUES (?, ?, ?)",
+            "INSERT INTO business_exchange_rate_daily_snapshots (rate_date, base_currency, response_payload) VALUES (?, ?, ?) "
+                + "ON DUPLICATE KEY UPDATE response_payload = VALUES(response_payload)",
             rateDate,
             BASE_CURRENCY,
             serialize(response)

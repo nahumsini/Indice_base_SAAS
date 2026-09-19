@@ -11,7 +11,7 @@ const tabs = [
   { id: 'materials', label: 'Material inventory', icon: '📦' }, { id: 'receipts', label: 'Receipts', icon: '📥' }, { id: 'providers', label: 'Providers', icon: '🏢' }, { id: 'requests', label: 'Production requests', icon: '📋' }, { id: 'fulfillments', label: 'Production fulfillments', icon: '🚚' }, { id: 'movements', label: 'Movements', icon: '↔️' }, { id: 'kpis', label: 'KPIs', icon: '📈' },
 ] as const;
 
-export default function MaterialWarehouse({ onNavigate: _onNavigate }: { onNavigate?: (page?: string) => void }) {
+export default function MaterialWarehouse({ onNavigate }: { onNavigate?: (page?: string) => void }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const { activeTab, setActiveTab } = useRoutedModuleTab<MaterialTabId>('materials', tabIds, {});
   const content = useMemo(() => {
@@ -21,5 +21,5 @@ export default function MaterialWarehouse({ onNavigate: _onNavigate }: { onNavig
     const [title, description, actionLabel] = configuration[activeTab];
     return <MaterialWarehouseTableView kind="activity" records={materialActivities} title={title} description={description} actionLabel={actionLabel} />;
   }, [activeTab]);
-  return <IndiceModuleShell activeTab={activeTab} contentRef={contentRef} currentModule="material-warehouse" onTabChange={setActiveTab} subtitle="Manage raw materials, supplier evidence, production reservations, and traceability." tabs={tabs.map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon }))} title="Material warehouse" tone="coral"><div ref={contentRef}>{content}</div></IndiceModuleShell>;
+  return <IndiceModuleShell activeTab={activeTab} contentRef={contentRef} currentModule="material-warehouse" onNavigate={onNavigate} onTabChange={setActiveTab} subtitle="Manage raw materials, supplier evidence, production reservations, and traceability." tabs={tabs.map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon }))} title="Material warehouse" tone="coral"><div ref={contentRef}>{content}</div></IndiceModuleShell>;
 }

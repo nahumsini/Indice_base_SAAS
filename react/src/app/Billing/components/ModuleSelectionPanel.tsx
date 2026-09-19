@@ -38,16 +38,16 @@ export function ModuleSelectionPanel({
     (product) => product.product_type === 'BASIC' && selectedCodes.includes(product.product_code),
   ).length;
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+    <section id="billing-plan" tabIndex={-1} className="scroll-mt-40 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_46px_-38px_rgba(37,99,235,0.5)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)]/30 dark:border-slate-800 dark:bg-slate-900">
       <header className="flex flex-col gap-2 border-b border-slate-200 p-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#59C3A5]/10 text-[#177D66] dark:bg-[#59C3A5]/15 dark:text-[#8FE0CA]"><Boxes className="h-5 w-5" /></span>
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--indice-brand-soft)] text-[var(--indice-brand-action)] dark:bg-blue-950/50 dark:text-blue-300"><Boxes className="h-5 w-5" /></span>
             <h2 className="text-lg font-medium text-slate-950 dark:text-white">{copy.catalog}</h2>
           </div>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.catalogDescription}</p>
         </div>
-        <span className="w-fit rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+        <span className="w-fit rounded-full border border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] px-3 py-1.5 text-xs font-medium text-[var(--indice-brand-text)] dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
           {copy.selected(selectedCodes.length)}
         </span>
       </header>

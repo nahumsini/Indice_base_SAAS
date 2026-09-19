@@ -329,6 +329,31 @@ two-step workflow can protect consistency.
 - Effective-dated fiscal/payroll rules retain the exact version or snapshot used for an approved
   calculation.
 
+### 11.1 Exchange-Rate Reference Contract
+
+The `exchange` package owns the authenticated operational-reference endpoint
+`GET /api/v1/exchange-rates/daily`. Its response remains based on USD and includes the rate,
+observation date, institution, dataset, source URL, verification status and any fallback warning
+for every supported currency.
+
+Rules:
+
+- the server owns an allow-listed provider chain and fixed URLs; the browser cannot supply an
+  arbitrary provider or target URL
+- MXN uses Banxico SIE when its server-side token is configured, then the European Central Bank
+  reference distributed by Frankfurter; undocumented Yahoo Finance or Google Finance endpoints
+  are not production dependencies
+- if current providers fail, use the last verified persisted observation before the documented
+  internal reference, and expose that degraded status and warning in the response
+- normal reads reuse the current-day snapshot; an explicit `refresh=true` may refetch and replace
+  that day's cache without changing user preferences or financial source records
+- the daily lock and same-day upsert prevent competing refreshes and duplicate snapshots
+- provider calls use bounded timeouts, validate the expected currency pair and never log tokens or
+  raw credentials
+
+These are informational rates for operational estimates. Native currencies, transaction records
+and legally relevant values remain unchanged.
+
 ## 12. Canonical Status And Workflow Rules
 
 Persist canonical English values, normally uppercase constants such as `DRAFT`,

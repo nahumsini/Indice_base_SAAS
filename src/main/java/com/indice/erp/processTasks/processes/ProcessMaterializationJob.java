@@ -1,5 +1,7 @@
 package com.indice.erp.processTasks.processes;
 
+import java.sql.Date;
+import java.time.LocalDate;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import org.slf4j.Logger;
@@ -30,6 +32,7 @@ public class ProcessMaterializationJob {
 
     @Scheduled(fixedDelayString = "${app.process-tasks.processes.materialization-delay-ms:900000}")
     public void materializeDueProcesses() {
+        var today = Date.valueOf(LocalDate.now());
         var candidates = jdbcTemplate.query(
             """
                 SELECT id, company_id
@@ -37,15 +40,15 @@ public class ProcessMaterializationJob {
                 WHERE deleted_at IS NULL
                   AND is_active = TRUE
                   AND activation_mode = 'recurring'
-                  AND (end_date IS NULL OR end_date >= CURRENT_DATE)
+                  AND (end_date IS NULL OR end_date >= ?)
                   AND (materialization_retry_at IS NULL OR materialization_retry_at <= CURRENT_TIMESTAMP)
                   AND (
                       generated_until_date IS NULL
                       OR generated_until_date < CASE
                           WHEN end_date IS NOT NULL
-                               AND end_date < DATE_ADD(CURRENT_DATE, INTERVAL generation_window_days DAY)
+                               AND end_date < DATE_ADD(?, INTERVAL generation_window_days DAY)
                               THEN end_date
-                          ELSE DATE_ADD(CURRENT_DATE, INTERVAL generation_window_days DAY)
+                          ELSE DATE_ADD(?, INTERVAL generation_window_days DAY)
                       END
                   )
                 ORDER BY COALESCE(generated_until_date, '1000-01-01'), company_id, id
@@ -53,6 +56,9 @@ public class ProcessMaterializationJob {
                 """,
             (rs, rowNum) -> new ProcessMaterializationCandidate(
                 rs.getLong("company_id"), rs.getLong("id")),
+            today,
+            today,
+            today,
             batchSize
         );
 

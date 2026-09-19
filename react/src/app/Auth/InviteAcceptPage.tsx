@@ -171,10 +171,10 @@ export default function InviteAcceptPage() {
         <section className="relative grid w-full overflow-hidden rounded-[28px] border border-slate-200/90 bg-white shadow-[0_28px_90px_-54px_rgba(15,58,91,0.45)] lg:grid-cols-[0.92fr_1.08fr]">
           <div className="absolute inset-x-0 top-0 z-10 h-1 bg-[linear-gradient(90deg,#59C3A5_0_25%,#F7C948_25%_50%,#FF6B63_50%_75%,#2F6BFF_75%_100%)]" />
 
-          <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(89,195,165,0.20),_transparent_52%),linear-gradient(145deg,#F8FCFB_0%,#F3F8FC_100%)] p-7 sm:p-9 lg:border-b-0 lg:border-r lg:p-11">
+          <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_var(--indice-brand-glow),_transparent_52%),linear-gradient(145deg,#F8FCFB_0%,#F3F8FC_100%)] p-7 sm:p-9 lg:border-b-0 lg:border-r lg:p-11">
             <div className="flex h-full min-h-64 flex-col justify-between gap-10">
               <div className="space-y-6">
-                <div className="inline-flex items-center gap-2 rounded-full border border-[#59C3A5]/40 bg-[#59C3A5]/10 px-3 py-1.5 text-sm font-medium text-[#157760]">
+                <div className="inline-flex items-center gap-2 rounded-full border border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] px-3 py-1.5 text-sm font-medium text-[var(--indice-brand-text)]">
                   <ShieldCheck className="h-4 w-4" />
                   {copy.secureAccess}
                 </div>
@@ -197,7 +197,7 @@ export default function InviteAcceptPage() {
 
           <div className="p-7 sm:p-9 lg:p-11">
             <div className="mb-7 space-y-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#59C3A5]/35 bg-[#59C3A5]/10 px-3 py-1.5 text-sm font-medium text-[#157760]">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] px-3 py-1.5 text-sm font-medium text-[var(--indice-brand-text)]">
                 <KeyRound className="h-4 w-4" />
                 {copy.userInvitation}
               </div>
@@ -298,7 +298,7 @@ export default function InviteAcceptPage() {
 function InvitationPromise({ icon: Icon, text }: { icon: typeof KeyRound; text: string }) {
   return (
     <div className="flex items-start gap-3 rounded-2xl border border-white/80 bg-white/75 p-4 text-sm leading-6 text-slate-700 shadow-sm">
-      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#59C3A5]/12 text-[#157760]">
+      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--indice-brand-soft)] text-[var(--indice-brand-text)]">
         <Icon className="h-4 w-4" />
       </span>
       <span>{text}</span>
@@ -346,7 +346,7 @@ function PasswordField({
           type={show ? 'text' : 'password'}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="h-12 rounded-xl border-slate-200 bg-white pl-10 pr-12 text-sm shadow-sm focus-visible:ring-[#59C3A5]"
+          className="h-12 rounded-xl border-slate-200 bg-white pl-10 pr-12 text-sm shadow-sm focus-visible:border-[var(--indice-brand-action)] focus-visible:ring-[var(--indice-brand-action)]/25"
           autoComplete={autoComplete}
         />
         <button

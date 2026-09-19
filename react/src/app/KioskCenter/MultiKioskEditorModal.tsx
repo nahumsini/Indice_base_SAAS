@@ -307,13 +307,13 @@ function ProviderCenterAccessManager({ multiKioskId, tools }: {
           autoComplete="new-password"
           value={value}
           onChange={event => onChange(event.target.value.replace(/\D/g, '').slice(0, 6))}
-          className="mt-1 h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-center font-mono text-xl font-semibold tracking-[0.3em] outline-none focus:border-[#177D66] focus:ring-4 focus:ring-[#59C3A5]/15"
+          className="mt-1 h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-center font-mono text-xl font-semibold tracking-[0.3em] outline-none focus:border-[var(--indice-brand-action)] focus:ring-4 focus:ring-[var(--indice-brand-action)]/15"
           placeholder="••••••"
           maxLength={6}
         />
       </label>
     );
-    return <div className="grid min-h-[420px] place-items-center p-4"><section className="w-full max-w-lg rounded-3xl border border-emerald-200 bg-emerald-50/70 p-6 text-slate-950 shadow-sm"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-[#177D66] shadow-sm"><Eye className="h-6 w-6" /></span><h3 className="mt-4 text-xl font-semibold">Ver opciones o cambiar NIP</h3><p className="mt-1 text-sm font-medium text-slate-700">{pinEditor.name}</p><div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900"><strong>El NIP actual no puede mostrarse.</strong> Está protegido como hash. Si el proveedor lo olvidó, asigna uno nuevo; el anterior y sus sesiones quedarán invalidados.</div><div className="mt-4 grid gap-3 sm:grid-cols-2">{pinInput(manualPin, setManualPin, 'Nuevo NIP')}{pinInput(manualPinConfirmation, setManualPinConfirmation, 'Confirmar NIP')}</div><button type="button" onClick={() => setShowManualPin(value => !value)} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 text-xs font-semibold text-[#177D66]">{showManualPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}{showManualPin ? 'Ocultar nuevo NIP' : 'Ver nuevo NIP'}</button>{error ? <p role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-5 text-red-700">{error}</p> : null}<div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" disabled={editing} onClick={closePinEditor} className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700">Cancelar</button><button type="button" disabled={editing || !validPin} onClick={() => void updatePin()} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-semibold text-white disabled:opacity-40">{editing ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}Guardar nuevo NIP</button></div></section></div>;
+    return <div className="grid min-h-[420px] place-items-center p-4"><section className="w-full max-w-lg rounded-3xl border border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] p-6 text-slate-950 shadow-sm"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-[var(--indice-brand-action)] shadow-sm"><Eye className="h-6 w-6" /></span><h3 className="mt-4 text-xl font-semibold">Ver opciones o cambiar NIP</h3><p className="mt-1 text-sm font-medium text-slate-700">{pinEditor.name}</p><div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900"><strong>El NIP actual no puede mostrarse.</strong> Está protegido como hash. Si el proveedor lo olvidó, asigna uno nuevo; el anterior y sus sesiones quedarán invalidados.</div><div className="mt-4 grid gap-3 sm:grid-cols-2">{pinInput(manualPin, setManualPin, 'Nuevo NIP')}{pinInput(manualPinConfirmation, setManualPinConfirmation, 'Confirmar NIP')}</div><button type="button" onClick={() => setShowManualPin(value => !value)} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--indice-brand-border)] bg-white px-3 text-xs font-semibold text-[var(--indice-brand-action)]">{showManualPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}{showManualPin ? 'Ocultar nuevo NIP' : 'Ver nuevo NIP'}</button>{error ? <p role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-5 text-red-700">{error}</p> : null}<div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" disabled={editing} onClick={closePinEditor} className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700">Cancelar</button><button type="button" disabled={editing || !validPin} onClick={() => void updatePin()} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--indice-brand-action)] px-4 text-sm font-semibold text-white hover:bg-[var(--indice-brand-action-hover)] disabled:opacity-40">{editing ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}Guardar nuevo NIP</button></div></section></div>;
   }
 
   return <div className="space-y-4">
@@ -336,16 +336,16 @@ function ProviderCenterAccessManager({ multiKioskId, tools }: {
     </section> : null}
 
     {error ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-5 text-red-700">{error}</p> : null}
-    <div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input aria-label="Buscar proveedor" value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar proveedor, correo, unidad o negocio" className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-[#59C3A5] focus:ring-4 focus:ring-[#59C3A5]/15" /></div>
+    <div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input aria-label="Buscar proveedor" value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar proveedor, correo, unidad o negocio" className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-[var(--indice-brand-action)] focus:ring-4 focus:ring-[var(--indice-brand-action)]/15" /></div>
 
-    {loading ? <div className="grid min-h-32 place-items-center"><LoaderCircle className="h-6 w-6 animate-spin text-[#177D66]" /></div> : visible.length ? <div className="space-y-2">
+    {loading ? <div className="grid min-h-32 place-items-center"><LoaderCircle className="h-6 w-6 animate-spin text-[var(--indice-brand-action)]" /></div> : visible.length ? <div className="space-y-2">
       {visible.map(provider => {
         const busy = busyProviderId === provider.provider_id;
         const active = provider.provider_status === 'ACTIVE';
         return <article key={provider.provider_id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center">
           <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-xl', provider.pin_ready ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500')}><KeyRound className="h-5 w-5" /></span>
           <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h4 className="truncate text-sm font-semibold text-slate-900">{provider.name}</h4><span className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium', provider.pin_ready ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600')}>{provider.pin_ready ? 'NIP activo' : 'Sin acceso'}</span>{!active ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">Proveedor inactivo</span> : null}</div><p className="mt-1 truncate text-xs text-slate-500">{provider.email || 'Sin correo'} · {[provider.unit_name, provider.business_name].filter(Boolean).join(' · ') || 'Falta asignar alcance'}</p>{active && !provider.scope_ready ? <p className="mt-1 text-[11px] text-amber-700">Asigna unidad y negocio en Proveedores antes de generar el NIP.</p> : null}</div>
-          <div className="flex flex-wrap gap-2 sm:justify-end">{provider.pin_ready ? <button type="button" disabled={busy || !active || !provider.scope_ready} onClick={() => openPinEditor(provider)} className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 text-xs font-medium text-[#177D66] disabled:opacity-40 sm:flex-none"><Eye className="h-4 w-4" />Ver / cambiar</button> : null}<button type="button" disabled={busy || !active || !provider.scope_ready} onClick={() => void issue(provider.provider_id)} className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-3 text-xs font-medium text-white disabled:opacity-40 sm:flex-none">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : provider.pin_ready ? <RefreshCcw className="h-4 w-4" /> : <KeyRound className="h-4 w-4" />}{provider.pin_ready ? 'Regenerar NIP' : 'Generar NIP'}</button>{provider.pin_ready ? <button type="button" disabled={busy} aria-label={`Revocar acceso de ${provider.name}`} onClick={() => setPendingRevoke(provider)} className="grid h-10 w-10 place-items-center rounded-xl border border-red-200 text-red-600 disabled:opacity-40"><ShieldOff className="h-4 w-4" /></button> : null}</div>
+          <div className="flex flex-wrap gap-2 sm:justify-end">{provider.pin_ready ? <button type="button" disabled={busy || !active || !provider.scope_ready} onClick={() => openPinEditor(provider)} className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--indice-brand-border)] bg-white px-3 text-xs font-medium text-[var(--indice-brand-action)] disabled:opacity-40 sm:flex-none"><Eye className="h-4 w-4" />Ver / cambiar</button> : null}<button type="button" disabled={busy || !active || !provider.scope_ready} onClick={() => void issue(provider.provider_id)} className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--indice-brand-action)] px-3 text-xs font-medium text-white hover:bg-[var(--indice-brand-action-hover)] disabled:opacity-40 sm:flex-none">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : provider.pin_ready ? <RefreshCcw className="h-4 w-4" /> : <KeyRound className="h-4 w-4" />}{provider.pin_ready ? 'Regenerar NIP' : 'Generar NIP'}</button>{provider.pin_ready ? <button type="button" disabled={busy} aria-label={`Revocar acceso de ${provider.name}`} onClick={() => setPendingRevoke(provider)} className="grid h-10 w-10 place-items-center rounded-xl border border-red-200 text-red-600 disabled:opacity-40"><ShieldOff className="h-4 w-4" /></button> : null}</div>
         </article>;
       })}
     </div> : <div className="rounded-2xl border border-dashed border-slate-300 px-5 py-10 text-center text-sm text-slate-500">No hay proveedores que coincidan con la búsqueda.</div>}
@@ -482,7 +482,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
         onOpenChange={open => { if (!open) requestClose(); }}
         busy={busy}
         size="wizard"
-        tone="aqua"
+        tone="blue"
         icon={<Grid2X2 className="h-5 w-5" />}
         eyebrow={form.id ? copy.editor.editEyebrow(form.name) : copy.editor.newEyebrow}
         title={form.id ? copy.editor.editTitle : copy.editor.createTitle}
@@ -516,7 +516,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
         </>}
       >
         <IndiceModalWizardStepper
-          accent="aqua"
+          accent="blue"
           activeStepId={step === 1 ? 'details' : 'tools'}
           className="mb-5"
           progressLabel={copy.editor.footerSummary(
@@ -533,7 +533,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
       {error ? <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
       {step === 1 ? (
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2 rounded-2xl border border-[#59C3A5]/40 bg-[#59C3A5]/10 p-4 text-sm text-slate-800 dark:border-emerald-800 dark:bg-emerald-950/25 dark:text-slate-100">
+          <div className="sm:col-span-2 rounded-2xl border border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] p-4 text-sm text-slate-800 dark:border-blue-800 dark:bg-blue-950/25 dark:text-slate-100">
             <p className="font-medium">{copy.editor.companyAccessTitle}</p>
             <p className="mt-1 leading-5 text-slate-600 dark:text-slate-300">{copy.editor.companyAccessDescription}</p>
           </div>
@@ -561,11 +561,11 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
                       legacyKioskDefinitionIds: [],
                     }))}
                     className={cn(
-                      'flex min-h-24 items-start gap-3 rounded-2xl border p-4 text-left outline-none transition focus-visible:ring-4 focus-visible:ring-[#59C3A5]/20 disabled:cursor-not-allowed',
-                      selected ? 'border-[#59C3A5] bg-[#59C3A5]/10' : 'border-slate-200 bg-white hover:border-[#59C3A5]/60',
+                      'flex min-h-24 items-start gap-3 rounded-2xl border p-4 text-left outline-none transition focus-visible:ring-4 focus-visible:ring-[var(--indice-brand-action)]/20 disabled:cursor-not-allowed',
+                      selected ? 'border-[var(--indice-brand-action)] bg-[var(--indice-brand-soft)]' : 'border-slate-200 bg-white hover:border-[var(--indice-brand-action)]/45',
                     )}
                   >
-                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-[#177D66] shadow-sm"><Icon className="h-5 w-5" /></span>
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-[var(--indice-brand-action)] shadow-sm"><Icon className="h-5 w-5" /></span>
                     <span><span className="block text-sm font-medium text-slate-900">{title}</span><span className="mt-1 block text-xs leading-5 text-slate-500">{description}</span></span>
                   </button>
                 );
@@ -583,15 +583,15 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
               <span><span className="block font-medium">Permitir solicitudes de alta</span><span className="mt-1 block text-xs leading-5 text-blue-800">El proveedor envía sus datos sin elegir unidad, negocio ni almacén. La empresa revisa y asigna el alcance antes de activar su acceso.</span></span>
             </label>
           ) : null}
-          <label className="sm:col-span-2"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.editor.name}</span><input autoFocus value={form.name} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} maxLength={140} placeholder={copy.editor.namePlaceholder} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#59C3A5] focus:ring-4 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950" /></label>
-          <label className="sm:col-span-2"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.editor.descriptionLabel}</span><textarea value={form.description} onChange={event => setForm(current => ({ ...current, description: event.target.value }))} maxLength={500} rows={3} placeholder={copy.editor.descriptionPlaceholder} className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-[#59C3A5] focus:ring-4 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950" /></label>
+          <label className="sm:col-span-2"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.editor.name}</span><input autoFocus value={form.name} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} maxLength={140} placeholder={copy.editor.namePlaceholder} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[var(--indice-brand-action)] focus:ring-4 focus:ring-[var(--indice-brand-action)]/15 dark:border-slate-700 dark:bg-slate-950" /></label>
+          <label className="sm:col-span-2"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.editor.descriptionLabel}</span><textarea value={form.description} onChange={event => setForm(current => ({ ...current, description: event.target.value }))} maxLength={500} rows={3} placeholder={copy.editor.descriptionPlaceholder} className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-[var(--indice-brand-action)] focus:ring-4 focus:ring-[var(--indice-brand-action)]/15 dark:border-slate-700 dark:bg-slate-950" /></label>
           <details className="sm:col-span-2 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-            <summary className="cursor-pointer text-sm font-medium text-[#177D66] dark:text-emerald-300">{copy.editor.presentationOptions}</summary>
+            <summary className="cursor-pointer text-sm font-medium text-[var(--indice-brand-action)] dark:text-blue-300">{copy.editor.presentationOptions}</summary>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{copy.editor.presentationOptionsHelp}</p>
             <div className="mt-4 grid gap-4 border-t border-slate-200 pt-4 dark:border-slate-700 sm:grid-cols-2">
-              <label><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.editor.colour}</span><select value={form.theme_key} onChange={event => setForm(current => ({ ...current, theme_key: event.target.value }))} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#59C3A5] focus:ring-4 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950"><option value="indice-blue">{copy.editor.colourBlue}</option><option value="indice-green">{copy.editor.colourGreen}</option><option value="indice-yellow">{copy.editor.colourYellow}</option><option value="indice-coral">{copy.editor.colourCoral}</option></select></label>
-              <label><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.editor.initialLanguage}</span><select value={form.default_locale} onChange={event => setForm(current => ({ ...current, default_locale: event.target.value }))} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#59C3A5] focus:ring-4 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950">{languages.map(language => <option key={language.code} value={language.code}>{language.flag} {language.name}</option>)}</select><span className="mt-1 block text-xs leading-5 text-slate-500">{copy.editor.initialLanguageHelp}</span></label>
-              <label className="sm:col-span-2"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.editor.expiry}</span><input type="datetime-local" value={form.expires_at} onChange={event => setForm(current => ({ ...current, expires_at: event.target.value }))} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#59C3A5] focus:ring-4 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950" /></label>
+              <label><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.editor.colour}</span><select value={form.theme_key} onChange={event => setForm(current => ({ ...current, theme_key: event.target.value }))} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[var(--indice-brand-action)] focus:ring-4 focus:ring-[var(--indice-brand-action)]/15 dark:border-slate-700 dark:bg-slate-950"><option value="indice-blue">{copy.editor.colourBlue}</option><option value="indice-green">{copy.editor.colourGreen}</option><option value="indice-yellow">{copy.editor.colourYellow}</option><option value="indice-coral">{copy.editor.colourCoral}</option></select></label>
+              <label><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.editor.initialLanguage}</span><select value={form.default_locale} onChange={event => setForm(current => ({ ...current, default_locale: event.target.value }))} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[var(--indice-brand-action)] focus:ring-4 focus:ring-[var(--indice-brand-action)]/15 dark:border-slate-700 dark:bg-slate-950">{languages.map(language => <option key={language.code} value={language.code}>{language.flag} {language.name}</option>)}</select><span className="mt-1 block text-xs leading-5 text-slate-500">{copy.editor.initialLanguageHelp}</span></label>
+              <label className="sm:col-span-2"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.editor.expiry}</span><input type="datetime-local" value={form.expires_at} onChange={event => setForm(current => ({ ...current, expires_at: event.target.value }))} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[var(--indice-brand-action)] focus:ring-4 focus:ring-[var(--indice-brand-action)]/15 dark:border-slate-700 dark:bg-slate-950" /></label>
             </div>
           </details>
         </div>
@@ -610,7 +610,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
           ) : null}
           <section aria-labelledby="multi-kiosk-preview-title" className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/80">
             <div className="flex items-start gap-3 border-b border-slate-200 bg-white px-4 py-3">
-              <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#59C3A5]/15 text-[#177D66]">
+              <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--indice-brand-soft)] text-[var(--indice-brand-action)]">
                 <Grid2X2 className="h-4 w-4" />
               </span>
               <div className="min-w-0">
@@ -646,7 +646,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
               )}
             </div>
           </section>
-          <div className="sticky top-0 z-20 -mx-1 mb-4 bg-[#F7F8FA]/95 px-1 py-1 backdrop-blur dark:bg-slate-900/95"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input aria-label={copy.editor.searchPlaceholder} value={search} onChange={event => setSearch(event.target.value)} placeholder={copy.editor.searchPlaceholder} className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-[#59C3A5] focus:ring-4 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950" /></div>
+          <div className="sticky top-0 z-20 -mx-1 mb-4 bg-[#F7F8FA]/95 px-1 py-1 backdrop-blur dark:bg-slate-900/95"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input aria-label={copy.editor.searchPlaceholder} value={search} onChange={event => setSearch(event.target.value)} placeholder={copy.editor.searchPlaceholder} className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-[var(--indice-brand-action)] focus:ring-4 focus:ring-[var(--indice-brand-action)]/15 dark:border-slate-700 dark:bg-slate-950" /></div>
           <div className="grid gap-3 sm:grid-cols-2">
             {visibleTools.map(tool => {
               const displayName = toolName(tool, copy);
@@ -667,7 +667,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
                     aria-pressed={selected}
                     disabled={!selectable}
                     onClick={() => toggleTool(tool.key)}
-                    className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-1 text-left outline-none focus-visible:ring-4 focus-visible:ring-[#59C3A5]/25"
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-1 text-left outline-none focus-visible:ring-4 focus-visible:ring-[var(--indice-brand-action)]/25"
                   >
                     <MultiKioskToolGlyph source={tool} selected={selected} className="h-11 w-11 rounded-xl [&_svg]:h-5 [&_svg]:w-5" />
                     <span className="min-w-0 flex-1">
@@ -682,7 +682,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
                       </span>
                     </span>
                   </button>
-                  {selected ? <span className="flex flex-col gap-1"><button type="button" aria-label={copy.editor.moveUp(displayName)} disabled={order === 0} onClick={() => moveTool(tool.key, -1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-[#59C3A5]/25 disabled:opacity-30"><ArrowUp className="h-4 w-4" /></button><button type="button" aria-label={copy.editor.moveDown(displayName)} disabled={order === form.toolKeys.length - 1} onClick={() => moveTool(tool.key, 1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-[#59C3A5]/25 disabled:opacity-30"><ArrowDown className="h-4 w-4" /></button></span> : null}
+                  {selected ? <span className="flex flex-col gap-1"><button type="button" aria-label={copy.editor.moveUp(displayName)} disabled={order === 0} onClick={() => moveTool(tool.key, -1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-[var(--indice-brand-action)]/25 disabled:opacity-30"><ArrowUp className="h-4 w-4" /></button><button type="button" aria-label={copy.editor.moveDown(displayName)} disabled={order === form.toolKeys.length - 1} onClick={() => moveTool(tool.key, 1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-[var(--indice-brand-action)]/25 disabled:opacity-30"><ArrowDown className="h-4 w-4" /></button></span> : null}
                 </div>
               );
             })}
@@ -725,7 +725,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
                       aria-pressed={selected}
                       disabled={!selectable}
                       onClick={() => toggleKiosk(kiosk.id)}
-                      className="flex min-h-20 min-w-0 flex-1 items-center gap-3 rounded-xl p-1 text-left outline-none focus-visible:ring-4 focus-visible:ring-[#59C3A5]/25"
+                      className="flex min-h-20 min-w-0 flex-1 items-center gap-3 rounded-xl p-1 text-left outline-none focus-visible:ring-4 focus-visible:ring-[var(--indice-brand-action)]/25"
                     >
                       <MultiKioskToolGlyph source={source} selected={selected} className="h-11 w-11 rounded-xl [&_svg]:h-5 [&_svg]:w-5" />
                       <span className="min-w-0 flex-1">
@@ -743,7 +743,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
                         </span>
                       </span>
                     </button>
-                    {selected ? <span className="flex flex-col gap-1"><button type="button" aria-label={copy.editor.moveUp(kiosk.name)} disabled={order === 0} onClick={() => moveKiosk(kiosk.id, -1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-[#59C3A5]/25 disabled:opacity-30"><ArrowUp className="h-4 w-4" /></button><button type="button" aria-label={copy.editor.moveDown(kiosk.name)} disabled={order === form.legacyKioskDefinitionIds.length - 1} onClick={() => moveKiosk(kiosk.id, 1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-[#59C3A5]/25 disabled:opacity-30"><ArrowDown className="h-4 w-4" /></button></span> : null}
+                    {selected ? <span className="flex flex-col gap-1"><button type="button" aria-label={copy.editor.moveUp(kiosk.name)} disabled={order === 0} onClick={() => moveKiosk(kiosk.id, -1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-[var(--indice-brand-action)]/25 disabled:opacity-30"><ArrowUp className="h-4 w-4" /></button><button type="button" aria-label={copy.editor.moveDown(kiosk.name)} disabled={order === form.legacyKioskDefinitionIds.length - 1} onClick={() => moveKiosk(kiosk.id, 1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-[var(--indice-brand-action)]/25 disabled:opacity-30"><ArrowDown className="h-4 w-4" /></button></span> : null}
                   </div>
                 );
               })}

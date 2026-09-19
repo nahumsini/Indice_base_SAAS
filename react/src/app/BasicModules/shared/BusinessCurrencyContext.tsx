@@ -34,6 +34,7 @@ type BusinessCurrencyContextValue = {
   exchangeRatesPerUsd: BusinessExchangeRatesPerUsd;
   isLoadingDailyExchangeRates: boolean;
   loadDailyExchangeRateSettings: () => Promise<BusinessExchangeRateSettings>;
+  refreshDailyExchangeRateSettings: () => Promise<BusinessExchangeRateSettings>;
   preferredCurrency: string;
   setExchangeRateSettings: Dispatch<SetStateAction<unknown>>;
   setPreferredCurrency: Dispatch<SetStateAction<string>>;
@@ -106,6 +107,14 @@ export function BusinessCurrencyProvider({ children }: { children: ReactNode }) 
       setIsLoadingDailyExchangeRates(false);
     }
   }, [setExchangeRateSettings]);
+  const refreshDailyExchangeRateSettings = useCallback(async () => {
+    setIsLoadingDailyExchangeRates(true);
+    try {
+      return await fetchBusinessDailyExchangeRateSettings({ forceRefresh: true });
+    } finally {
+      setIsLoadingDailyExchangeRates(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (exchangeRateSettings.metadata.mode !== 'daily_reference') {
@@ -140,6 +149,7 @@ export function BusinessCurrencyProvider({ children }: { children: ReactNode }) 
     isLoadingDailyExchangeRates,
     loadDailyExchangeRateSettings,
     preferredCurrency,
+    refreshDailyExchangeRateSettings,
     setExchangeRateSettings,
     setPreferredCurrency,
   }), [
@@ -147,6 +157,7 @@ export function BusinessCurrencyProvider({ children }: { children: ReactNode }) 
     isLoadingDailyExchangeRates,
     loadDailyExchangeRateSettings,
     preferredCurrency,
+    refreshDailyExchangeRateSettings,
     setExchangeRateSettings,
     setPreferredCurrency,
   ]);

@@ -53,8 +53,8 @@ const toneStyles: Record<IndiceModalTone, {
   blue: {
     close: 'border-white/30 bg-white/10 text-white hover:bg-white/20',
     description: 'text-white/85',
-    footer: 'bg-[#1D4ED8] dark:bg-[#1E3A8A]',
-    header: 'bg-[#2563EB] text-white dark:bg-[#1D4ED8]',
+    footer: 'bg-[var(--indice-brand-action-hover)] dark:bg-[var(--indice-brand-primary-pressed)]',
+    header: 'bg-[var(--indice-brand-action)] text-[var(--indice-brand-shell-foreground)] dark:bg-[var(--indice-brand-action-hover)]',
     title: 'text-white',
   },
   coral: {

@@ -1,9 +1,14 @@
 import type { ReactNode } from 'react';
 import { Button } from '../ui/button';
 
-export type KioskAdminAccent = 'aqua' | 'green' | 'yellow';
+export type KioskAdminAccent = 'aqua' | 'blue' | 'green' | 'yellow';
 
 const accentStyles: Record<KioskAdminAccent, { action: string; panel: string; primary: string }> = {
+  blue: {
+    action: 'hover:border-[var(--indice-brand-action)]/45 hover:bg-[var(--indice-brand-soft)] hover:text-[var(--indice-brand-action)]',
+    panel: 'hover:border-[var(--indice-brand-action)]/45 hover:bg-[var(--indice-brand-soft)] hover:text-[var(--indice-brand-action)]',
+    primary: 'bg-[var(--indice-brand-action)] text-white hover:bg-[var(--indice-brand-action-hover)]',
+  },
   aqua: {
     action: 'hover:border-[#59C3A5]/60 hover:bg-[#59C3A5]/10 hover:text-[#18715D]',
     panel: 'hover:border-[#59C3A5]/60 hover:bg-[#59C3A5]/10 hover:text-[#18715D]',

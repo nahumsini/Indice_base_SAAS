@@ -38,12 +38,12 @@ export function NotificationSettingsView({ copy, locale }: NotificationSettingsV
 
   return (
     <div className="space-y-5">
-      <div className="rounded-lg border border-[#59C3A5]/30 bg-[#E7F3F2] px-4 py-3 text-sm text-[#147514]">
+      <div className="rounded-lg border border-[var(--indice-brand-primary)]/30 bg-[var(--indice-brand-soft)] px-4 py-3 text-sm text-[var(--indice-brand-text)]">
         <div className="flex gap-3">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
             <p className="font-semibold">{copy.settingsSummary}</p>
-            <p className="mt-1 text-[#147514]">{copy.settingsSummaryDescription} {copy.noPersistence}</p>
+            <p className="mt-1 text-[var(--indice-brand-text)]">{copy.settingsSummaryDescription} {copy.noPersistence}</p>
           </div>
         </div>
       </div>
@@ -59,7 +59,7 @@ export function NotificationSettingsView({ copy, locale }: NotificationSettingsV
               <p className="text-sm text-gray-600">{copy.quietModeDescription}</p>
             </div>
           </div>
-          <Switch checked={quietMode} onCheckedChange={setQuietMode} aria-label={copy.quietMode} className="data-[state=checked]:bg-[#59C3A5] focus-visible:ring-[#59C3A5]/30" />
+          <Switch checked={quietMode} onCheckedChange={setQuietMode} aria-label={copy.quietMode} className="data-[state=checked]:bg-[var(--indice-brand-primary)] focus-visible:ring-[var(--indice-brand-primary)]/30" />
         </div>
       </div>
 
@@ -77,8 +77,8 @@ export function NotificationSettingsView({ copy, locale }: NotificationSettingsV
         {preferenceGroups.map((group) => {
           const moduleColorClasses = getModuleColorClasses(group.module.color);
           return (
-          <section key={group.module.slug} className="overflow-hidden rounded-xl border border-[#59C3A5]/20 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-[#59C3A5]/15 px-4 py-3">
+          <section key={group.module.slug} className="overflow-hidden rounded-xl border border-[var(--indice-brand-primary)]/20 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-[var(--indice-brand-primary)]/15 px-4 py-3">
               <div className="flex items-center gap-3">
                 <div className={`flex h-10 w-10 items-center justify-center rounded-lg border text-xl ${moduleColorClasses.bg} ${moduleColorClasses.border}`} aria-hidden="true">
                   {group.module.emoji}
@@ -153,7 +153,7 @@ function PreferenceRow({
         <span className={`text-sm font-semibold ${checked ? 'text-emerald-700' : 'text-gray-500'}`}>
           {checked ? copy.enabled : copy.disabled}
         </span>
-        <Switch checked={checked} onCheckedChange={onCheckedChange} aria-label={item.label} className="data-[state=checked]:bg-[#59C3A5] focus-visible:ring-[#59C3A5]/30" />
+        <Switch checked={checked} onCheckedChange={onCheckedChange} aria-label={item.label} className="data-[state=checked]:bg-[var(--indice-brand-primary)] focus-visible:ring-[var(--indice-brand-primary)]/30" />
       </div>
     </div>
   );

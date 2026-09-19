@@ -137,7 +137,7 @@ export function KioskAccessView({
   return (
     <div className="space-y-5">
       <IndiceTitleBar
-        tone="aqua"
+        tone="blue"
         icon={<UsersRound className="h-5 w-5" />}
         title={copy.access.title}
         subtitle={copy.access.subtitle}
@@ -160,9 +160,9 @@ export function KioskAccessView({
         ]}
       />
 
-      <aside className="rounded-2xl border border-[#59C3A5]/40 bg-[#59C3A5]/10 p-4 text-sm text-slate-700 dark:border-emerald-800 dark:bg-emerald-950/25 dark:text-slate-200">
+      <aside className="rounded-2xl border border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] p-4 text-sm text-slate-700 dark:border-blue-800 dark:bg-blue-950/25 dark:text-slate-200">
         <div className="flex items-start gap-3">
-          <ShieldCheck aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-[#177D66] dark:text-emerald-300" />
+          <ShieldCheck aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-[var(--indice-brand-action)] dark:text-blue-300" />
           <div><h3 className="font-medium text-slate-900 dark:text-white">{copy.access.guidanceTitle}</h3><p className="mt-1 leading-6">{copy.access.guidance}</p><p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{copy.access.readinessNote}</p></div>
         </div>
       </aside>
@@ -176,7 +176,7 @@ export function KioskAccessView({
         <IndiceFilterSearch
           label={copy.access.searchLabel}
           placeholder={copy.access.searchPlaceholder}
-          tone="aqua"
+          tone="blue"
           value={search}
           onValueChange={setSearch}
           onClear={() => setSearch('')}
@@ -189,7 +189,7 @@ export function KioskAccessView({
         </div>
       ) : loading && employees.length === 0 ? (
         <div className="grid min-h-52 place-items-center rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900" aria-busy="true">
-          <RefreshCw className="h-6 w-6 animate-spin text-[#177D66]" />
+          <RefreshCw className="h-6 w-6 animate-spin text-[var(--indice-brand-action)]" />
         </div>
       ) : filteredRows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center dark:border-slate-700 dark:bg-slate-900">
@@ -206,12 +206,12 @@ export function KioskAccessView({
               </TableHeader>
               <TableBody className="divide-y divide-slate-200 dark:divide-slate-700">
                 {filteredRows.map(({ employee, readiness }) => (
-                  <TableRow key={employee.user_company_id} className="align-top hover:bg-[#59C3A5]/5 dark:hover:bg-emerald-950/20">
+                  <TableRow key={employee.user_company_id} className="align-top hover:bg-[var(--indice-brand-soft)] dark:hover:bg-blue-950/20">
                     <TableCell className="whitespace-normal px-4 py-4"><p className="text-sm font-medium text-slate-950 dark:text-white">{employee.name}</p><p className="mt-1 text-xs text-slate-500">{employee.email}</p><p className="mt-1 text-xs text-slate-500">{employee.role}</p></TableCell>
                     <TableCell className="px-4 py-4"><ReadinessPill state={readiness.ready ? 'ready' : 'attention'} label={readiness.ready ? copy.access.ready : copy.access.attention} /></TableCell>
                     <TableCell className="max-w-[280px] whitespace-normal px-4 py-4 text-sm text-slate-700 dark:text-slate-200">{reasonFor(employee, readiness)}</TableCell>
                     <TableCell className="px-4 py-4"><div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200"><Building2 className="h-4 w-4 text-slate-400" /><span>{employee.business_name ?? employee.unit_name ?? copy.access.corporate}</span></div></TableCell>
-                    <TableCell className="px-4 py-4 text-right">{readiness.ready ? <span className="text-xs text-slate-400">—</span> : <Button type="button" variant="outline" onClick={() => onReviewAccess(employee)} className="h-10 border-[#59C3A5]/60 text-[#177D66] hover:bg-[#59C3A5]/10"><ArrowUpRight className="mr-2 h-4 w-4" />{copy.access.reviewAccess}</Button>}</TableCell>
+                    <TableCell className="px-4 py-4 text-right">{readiness.ready ? <span className="text-xs text-slate-400">—</span> : <Button type="button" variant="outline" onClick={() => onReviewAccess(employee)} className="h-10 border-[var(--indice-brand-border)] text-[var(--indice-brand-action)] hover:bg-[var(--indice-brand-soft)]"><ArrowUpRight className="mr-2 h-4 w-4" />{copy.access.reviewAccess}</Button>}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -223,7 +223,7 @@ export function KioskAccessView({
                 <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="truncate text-sm font-medium text-slate-950 dark:text-white">{employee.name}</h3><p className="mt-1 truncate text-xs text-slate-500">{employee.email}</p></div><ReadinessPill state={readiness.ready ? 'ready' : 'attention'} label={readiness.ready ? copy.access.ready : copy.access.attention} /></div>
                 <p className="mt-3 text-xs text-slate-500">{employee.role} · {employee.business_name ?? employee.unit_name ?? copy.access.corporate}</p>
                 <p className="mt-3 text-sm text-slate-700 dark:text-slate-200">{reasonFor(employee, readiness)}</p>
-                {!readiness.ready ? <Button type="button" variant="outline" onClick={() => onReviewAccess(employee)} className="mt-4 h-10 w-full border-[#59C3A5]/60 text-[#177D66] hover:bg-[#59C3A5]/10"><ArrowUpRight className="mr-2 h-4 w-4" />{copy.access.reviewAccess}</Button> : null}
+                {!readiness.ready ? <Button type="button" variant="outline" onClick={() => onReviewAccess(employee)} className="mt-4 h-10 w-full border-[var(--indice-brand-border)] text-[var(--indice-brand-action)] hover:bg-[var(--indice-brand-soft)]"><ArrowUpRight className="mr-2 h-4 w-4" />{copy.access.reviewAccess}</Button> : null}
               </article>
             ))}
           </div>

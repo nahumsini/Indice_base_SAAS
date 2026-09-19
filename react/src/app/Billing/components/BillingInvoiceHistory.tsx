@@ -26,7 +26,7 @@ export function BillingInvoiceHistory(props: Props) {
   const canOpenPortal = props.selection.payment_management_available;
 
   return (
-    <section className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+    <section className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_46px_-40px_rgba(37,99,235,0.45)] dark:border-slate-800 dark:bg-slate-900">
       <header className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
         <div className="flex items-start gap-3">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
@@ -80,7 +80,7 @@ export function BillingInvoiceHistory(props: Props) {
       )}
 
       <footer className="flex items-start gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-600 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-300">
-        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#177D66] dark:text-[#8FE0CA]" />
+        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[var(--indice-brand-action)] dark:text-blue-300" />
         {props.copy.invoiceStorageNote}
       </footer>
     </section>

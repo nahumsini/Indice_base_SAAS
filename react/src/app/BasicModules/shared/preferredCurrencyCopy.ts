@@ -1,4 +1,4 @@
-type Copy = {
+type LegacyCopy = {
   manualRate: string; dailyRate: string; manual: string; officialSources: string; internalReference: string;
   positiveRatesError: string; currency: string; equals: string; officialRate: string; lastRate: string;
   exchangeRate: string; operationalReference: string; preferredCurrency: string; appliesTo: string;
@@ -6,6 +6,18 @@ type Copy = {
   loadExplanation: string; manualExplanation: string; oneUsdIn: string; loading: string; loadDaily: string;
   reset: string; apply: string; disclaimer: string;
 };
+
+type ModalCopy = {
+  currencySettings: string;
+  cancel: string;
+  save: string;
+  currentReference: string;
+  refreshError: string;
+  pendingChanges: string;
+  optional: string;
+};
+
+type Copy = LegacyCopy & ModalCopy;
 
 const enCA: Copy = {
   manualRate: 'Manual rate', dailyRate: 'Daily rate', manual: 'Manual', officialSources: 'Official sources', internalReference: 'Internal reference',
@@ -15,9 +27,11 @@ const enCA: Copy = {
   loadExplanation: 'Loading today’s rate replaces the manual rate with the available daily reference.', manualExplanation: 'A manually edited rate remains until you change or reset it.',
   oneUsdIn: '1 USD in', loading: 'Loading rate…', loadDaily: 'Load today’s rate', reset: 'Reset manual rates', apply: 'Apply',
   disclaimer: 'Informational rate for operating estimates. It is not a foreign-exchange buy or sell quote.',
+  currencySettings: 'Currency settings', cancel: 'Cancel', save: 'Save settings', currentReference: 'Current reference',
+  refreshError: 'We could not refresh today’s rates. Your current settings were not changed.', pendingChanges: 'Pending changes', optional: 'Optional',
 };
 
-const copies: Record<string, Copy> = {
+const copies: Record<string, LegacyCopy | Copy> = {
   'en-CA': enCA, 'en-US': enCA,
   'es-MX': { manualRate: 'Tasa manual', dailyRate: 'Tasa diaria', manual: 'Manual', officialSources: 'Fuentes oficiales', internalReference: 'Referencia interna', positiveRatesError: 'Captura tasas positivas para todas las divisas.', currency: 'Divisa', equals: '1 USD equivale a', officialRate: 'Tasa oficial', lastRate: 'Última tasa disponible', exchangeRate: 'Tipo de cambio', operationalReference: 'Referencia operativa del sistema', preferredCurrency: 'Divisa preferida', appliesTo: 'Se aplica a importes y KPIs', base: 'Base', source: 'Fuente', date: 'Fecha', appliedSources: 'Fuentes aplicadas', internalFallback: 'respaldo interno', loadExplanation: 'Cargar la tasa del día reemplaza la tasa manual con la referencia diaria disponible.', manualExplanation: 'Una tasa editada manualmente se conserva hasta que la cambies o restablezcas.', oneUsdIn: '1 USD en', loading: 'Cargando tasa…', loadDaily: 'Cargar tasa del día', reset: 'Restablecer manual', apply: 'Aplicar', disclaimer: 'Tasa informativa para estimaciones operativas. No representa una cotización para compraventa de divisas.' },
   'es-CO': { manualRate: 'Tasa manual', dailyRate: 'Tasa diaria', manual: 'Manual', officialSources: 'Fuentes oficiales', internalReference: 'Referencia interna', positiveRatesError: 'Ingresa tasas positivas para todas las monedas.', currency: 'Moneda', equals: '1 USD equivale a', officialRate: 'Tasa oficial', lastRate: 'Última tasa disponible', exchangeRate: 'Tasa de cambio', operationalReference: 'Referencia operativa del sistema', preferredCurrency: 'Moneda preferida', appliesTo: 'Se aplica a valores y KPIs', base: 'Base', source: 'Fuente', date: 'Fecha', appliedSources: 'Fuentes aplicadas', internalFallback: 'respaldo interno', loadExplanation: 'Cargar la tasa del día reemplaza la tasa manual con la referencia diaria disponible.', manualExplanation: 'Una tasa editada manualmente se conserva hasta que la cambies o restablezcas.', oneUsdIn: '1 USD en', loading: 'Cargando tasa…', loadDaily: 'Cargar tasa del día', reset: 'Restablecer manual', apply: 'Aplicar', disclaimer: 'Tasa informativa para estimaciones operativas. No representa una cotización de compra o venta de divisas.' },
@@ -27,4 +41,46 @@ const copies: Record<string, Copy> = {
   'zh-CA': { manualRate: '手动汇率', dailyRate: '每日汇率', manual: '手动', officialSources: '官方来源', internalReference: '内部参考', positiveRatesError: '请为所有货币输入正数汇率。', currency: '货币', equals: '1 USD 等于', officialRate: '官方汇率', lastRate: '最近可用汇率', exchangeRate: '汇率', operationalReference: '系统运营参考', preferredCurrency: '首选货币', appliesTo: '应用于金额和 KPI', base: '基准', source: '来源', date: '日期', appliedSources: '已应用来源', internalFallback: '内部备用值', loadExplanation: '加载当日汇率会用可用的每日参考替换手动汇率。', manualExplanation: '手动编辑的汇率会保留，直到再次更改或重置。', oneUsdIn: '1 USD 兑换', loading: '正在加载汇率…', loadDaily: '加载当日汇率', reset: '重置手动汇率', apply: '应用', disclaimer: '此汇率仅用于运营估算，不代表外汇买卖报价。' },
 };
 
-export const getPreferredCurrencyCopy = (locale?: string | null) => copies[locale ?? ''] ?? enCA;
+const modalCopies: Record<string, ModalCopy> = {
+  'en-CA': {
+    currencySettings: 'Currency settings', cancel: 'Cancel', save: 'Save settings', currentReference: 'Current reference',
+    refreshError: 'We could not refresh today’s rates. Your current settings were not changed.', pendingChanges: 'Pending changes', optional: 'Optional',
+  },
+  'en-US': {
+    currencySettings: 'Currency settings', cancel: 'Cancel', save: 'Save settings', currentReference: 'Current reference',
+    refreshError: 'We could not refresh today’s rates. Your current settings were not changed.', pendingChanges: 'Pending changes', optional: 'Optional',
+  },
+  'es-MX': {
+    currencySettings: 'Configuración monetaria', cancel: 'Cancelar', save: 'Guardar configuración', currentReference: 'Referencia actual',
+    refreshError: 'No fue posible actualizar las tasas del día. Tu configuración actual no cambió.', pendingChanges: 'Cambios pendientes', optional: 'Opcional',
+  },
+  'es-CO': {
+    currencySettings: 'Configuración monetaria', cancel: 'Cancelar', save: 'Guardar configuración', currentReference: 'Referencia actual',
+    refreshError: 'No fue posible actualizar las tasas del día. Tu configuración actual no cambió.', pendingChanges: 'Cambios pendientes', optional: 'Opcional',
+  },
+  'fr-CA': {
+    currencySettings: 'Paramètres de devise', cancel: 'Annuler', save: 'Enregistrer', currentReference: 'Référence actuelle',
+    refreshError: 'Impossible d’actualiser les taux du jour. Vos paramètres actuels n’ont pas été modifiés.', pendingChanges: 'Modifications en attente', optional: 'Facultatif',
+  },
+  'pt-BR': {
+    currencySettings: 'Configuração monetária', cancel: 'Cancelar', save: 'Salvar configuração', currentReference: 'Referência atual',
+    refreshError: 'Não foi possível atualizar as taxas do dia. Suas configurações atuais não foram alteradas.', pendingChanges: 'Alterações pendentes', optional: 'Opcional',
+  },
+  'ko-CA': {
+    currencySettings: '통화 설정', cancel: '취소', save: '설정 저장', currentReference: '현재 기준',
+    refreshError: '오늘의 환율을 새로 고치지 못했습니다. 현재 설정은 변경되지 않았습니다.', pendingChanges: '저장하지 않은 변경 사항', optional: '선택 사항',
+  },
+  'zh-CA': {
+    currencySettings: '货币设置', cancel: '取消', save: '保存设置', currentReference: '当前参考',
+    refreshError: '无法刷新当日汇率。当前设置未更改。', pendingChanges: '待保存更改', optional: '可选',
+  },
+};
+
+export const getPreferredCurrencyCopy = (locale?: string | null): Copy => {
+  const key = locale ?? '';
+  return {
+    ...enCA,
+    ...(copies[key] ?? {}),
+    ...(modalCopies[key] ?? modalCopies['en-CA']),
+  };
+};
