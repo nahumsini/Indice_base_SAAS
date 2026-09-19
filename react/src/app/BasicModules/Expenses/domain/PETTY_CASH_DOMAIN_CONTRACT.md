@@ -1,6 +1,15 @@
 # Petty Cash Operational Fund Contract
 
-This contract defines the implemented operational model shared by Petty Cash and Expenses.
+This contract defines the operational model shared by Petty Cash and Expenses. It extends the
+[Backend OS](../../../../../../docs/indice-backend-operating-system-v1.md).
+For the surrounding domain, start with the [Domain Map](DOMAIN_MAP.md).
+
+Specific approved extensions govern [statement closing and authorization without attachments](../../../../../../docs/petty-cash-statement-close-resolution-contract-v1.md),
+[managed assets](../../../../../../docs/petty-cash-managed-assets-contract-v1.md), and
+[prospective fund classification](../../../../../../docs/petty-cash-fund-classification-stages-v1.md).
+«Supported» or «backed by evidence» below includes the explicit authorization path in the closing
+contract; it does not impose an unconditional file requirement. Implementation and deployment
+must be verified for the affected flow and version.
 
 ## Decision
 

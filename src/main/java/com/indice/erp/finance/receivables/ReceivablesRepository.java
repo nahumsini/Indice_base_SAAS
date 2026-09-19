@@ -99,6 +99,7 @@ class ReceivablesRepository {
                    unit.name AS unit_name, business.name AS business_name
             FROM finance_receivable_installments installment
             JOIN finance_receivable_accounts account ON account.id = installment.receivable_id
+              AND account.company_id = installment.company_id
             LEFT JOIN units unit ON unit.id = account.unit_id
             LEFT JOIN businesses business ON business.id = account.business_id
             WHERE installment.company_id = ?
@@ -123,6 +124,7 @@ class ReceivablesRepository {
                    unit.name AS unit_name, business.name AS business_name
             FROM finance_receivable_installments installment
             JOIN finance_receivable_accounts account ON account.id = installment.receivable_id
+              AND account.company_id = installment.company_id
             LEFT JOIN units unit ON unit.id = account.unit_id
             LEFT JOIN businesses business ON business.id = account.business_id
             WHERE installment.company_id = ?
@@ -602,6 +604,7 @@ class ReceivablesRepository {
             SELECT installment.due_date
             FROM finance_receivable_installments installment
             JOIN finance_receivable_accounts account ON account.id = installment.receivable_id
+              AND account.company_id = installment.company_id
             WHERE installment.company_id = ?
               AND installment.receivable_id = ?
               AND installment.balance_amount > 0

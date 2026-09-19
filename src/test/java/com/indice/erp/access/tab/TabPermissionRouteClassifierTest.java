@@ -13,6 +13,15 @@ class TabPermissionRouteClassifierTest {
     private final TabPermissionRouteClassifier classifier = new TabPermissionRouteClassifier();
 
     @Test
+    void receivablesAnalyticsIsReadOnlyAndHasItsOwnPermission() {
+        assertRequirement("GET", "/api/v1/finance/receivables/kpis/workspace", "receivables.kpis");
+        assertAnyOf("GET", "/api/v1/finance/receivables/payments/12/receipt", "receivables.payments", "receivables.kpis");
+        assertRequirement("POST", "/api/v1/finance/receivables/payments", "receivables.payments");
+        assertRequirement("POST", "/api/v1/finance/receivables/payment-receipts/uploads", "receivables.payments");
+        assertRequirement("PUT", "/api/v1/finance/receivables/credit-policies/12", "receivables.credit-customers");
+    }
+
+    @Test
     void classifiesRepresentativeRoutesAcrossEveryModule() {
         assertRequirement("GET", "/api/v1/config-center/users", "config_center.users");
         assertRequirement("GET", "/api/v1/ai/connections", "config_center.integrations");

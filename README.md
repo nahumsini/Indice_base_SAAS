@@ -1,191 +1,139 @@
-# Indice_base_SAAS
+# Índice ERP
 
-Full-stack Indice SAAS workspace with:
+Índice es un ERP SaaS modular para pequeñas y medianas empresas. Conecta estructura empresarial,
+personas, procesos, dinero, productos y ventas para ayudar a sus responsables a dirigir una
+operación clara, inteligente y escalable.
 
-- Spring Boot backend in `src/main/java`
-- React frontend in `react/`
-- Flyway migrations in `src/main/resources/db/migration/`
+El producto combina herramientas operativas, indicadores y aprendizaje contextual mediante la
+Metodología Índice.
 
-## Stack
+## La Metodología Índice
 
-- Spring Boot 3.5
-- Java 21
-- Spring Web
-- Spring JDBC
-- Flyway
-- MySQL 8
-- session-based authentication
+| Etapa | Propósito | Módulos |
+|---|---|---|
+| 1. Define tu estructura | Organizar la empresa, sus unidades y sucursales. | Panel Inicial |
+| 2. Organiza a tu equipo | Establecer responsabilidades, horarios y operación del personal. | Recursos Humanos |
+| 3. Transforma el trabajo en procesos | Coordinar tareas, responsables, evidencias y seguimiento. | Procesos y Tareas |
+| 4. Da claridad al dinero | Controlar gastos, fondos, obligaciones y cobranza. | Gastos, Caja Chica y Cartera |
+| 5. Conecta productos y ventas | Relacionar catálogo, existencias, clientes y operación comercial. | Inventarios, Ventas y Punto de Venta |
+| 6. Dirige con inteligencia operacional | Convertir la información en decisiones y acciones. | KPIs |
 
-## Run
+[Modo aprendiz](docs/learning-mode-frontend-engine-v2.md) explica cómo aplicar estas herramientas
+dentro de la operación real, respetando los permisos de cada usuario.
+
+## Cómo se organiza una empresa
+
+**Empresa → Unidades → Negocios o sucursales**
+
+- La empresa es el cliente de facturación y el límite de aislamiento de datos: `company_id`.
+- Las unidades agrupan regiones o divisiones: `unit_id`.
+- Los negocios representan sucursales o ubicaciones dentro de una unidad: `business_id`.
+- La cantidad de unidades y negocios no genera un cobro adicional.
+- Cada empresa tiene un propietario principal.
+- La pertenencia organizacional y los permisos se administran por separado.
+
+Una persona puede tener membresías en distintas empresas. Cada operación debe respetar la empresa
+activa y el alcance autorizado. El [glosario](docs/product-glossary.md) explica estos conceptos y
+las diferencias entre propietario, usuario, colaborador y administrador de plataforma.
+
+Está aprobada la propiedad de varias empresas independientes por una misma persona; adaptar el
+sistema a esa regla sigue [pendiente de implementación](docs/INDICE_PREMIUM_MULTITENANT_BILLING_ARCHITECTURE.md#4-propiedad-identidad-y-acceso-multi-company).
+
+## Cómo se contrata
+
+Índice ofrece seis productos básicos:
+
+- Recursos Humanos.
+- Procesos y Tareas.
+- Gastos + Caja Chica.
+- Ventas + Inventarios.
+- Punto de Venta + Inventarios.
+- Cartera.
+
+Panel Inicial y KPIs forman parte del núcleo incluido. Los productos pueden contratarse
+individualmente o mediante paquetes. Usuarios adicionales y almacenamiento siguen sus propias
+reglas comerciales.
+
+El catálogo es versionado: una publicación nueva no recalcula los contratos históricos. Los
+precios, pruebas, beneficios y condiciones aprobadas se consultan en el
+[modelo comercial y arquitectura de billing](docs/INDICE_PREMIUM_MULTITENANT_BILLING_ARCHITECTURE.md).
+El catálogo publicado en cada ambiente determina su oferta disponible.
+
+La disponibilidad de una función, su contratación por la empresa y su asignación a un usuario son
+decisiones distintas. El backend verifica los permisos y el alcance antes de permitir una operación.
+
+## Principios del producto
+
+- Cada módulo conserva la responsabilidad de sus datos y reglas de negocio.
+- Los cálculos financieros y las autorizaciones se resuelven en el backend.
+- Presupuesto, gasto, pago y movimiento de fondos tienen significados distintos.
+- Los indicadores explican su alcance y calidad; la falta de datos no equivale a cero.
+- La interfaz comparte patrones de navegación, tablas, modales y accesibilidad.
+- Los kioscos y la integración con IA utilizan los servicios de los módulos.
+- Los cambios deben preservar los flujos existentes y su trazabilidad.
+
+## Empieza por aquí
+
+| Para… | Consulta… |
+|---|---|
+| Conocer las reglas de trabajo y la jerarquía documental | [AGENTS.md](AGENTS.md) |
+| Recorrer los contratos por área | [Mapa documental](docs/README.md) |
+| Entender los conceptos del producto | [Glosario](docs/product-glossary.md) |
+| Entender contratación, empresas, suscripciones y beneficios | [Modelo comercial](docs/INDICE_PREMIUM_MULTITENANT_BILLING_ARCHITECTURE.md) |
+| Trabajar en frontend | [Frontend Operating System](docs/indice-frontend-operating-system-v2.md) |
+| Trabajar en backend | [Backend Operating System](docs/indice-backend-operating-system-v1.md) |
+| Trabajar en kioscos y canales operativos | [Kiosk Standard Engine](docs/kiosk-standard-engine-v2.md) |
+| Trabajar en herramientas de IA y MCP | [MCP Operating System](docs/indice-mcp-operating-system-v1.md) |
+| Preparar el entorno local y las pruebas | [Desarrollo local](docs/local-development.md) |
+| Preparar una liberación pública | [Seguridad de liberación](docs/indice-public-release-security-gate.md) |
+| Desplegar o revertir una versión | [Guía de despliegue](deployment/README.md) |
+
+Los documentos canónicos contienen las reglas vigentes. Los reportes fechados documentan trabajo y
+verificaciones de un momento concreto. Una decisión aprobada, una función implementada y una
+capacidad habilitada en producción representan estados distintos; consulta la evidencia de la
+versión y el ambiente correspondientes.
+
+## Estructura técnica
+
+| Ruta | Responsabilidad |
+|---|---|
+| `react/src/app/` | Aplicación React activa, módulos e interfaz compartida. |
+| `src/main/java/com/indice/erp/` | API Spring Boot y dominios de negocio. |
+| `src/main/resources/db/migration/` | Migraciones Flyway. |
+| `src/test/` y `react/tests/` | Pruebas de backend y regresiones de frontend. |
+| `integrations/indice-mcp/` | Adaptador MCP para consultas y acciones confirmadas. |
+| `docs/` | Estándares, contratos y documentación. |
+| `deployment/` | Despliegue, verificaciones y rollback. |
+
+Tecnologías principales: React, TypeScript, Vite, Java 21, Spring Boot, JdbcTemplate, MySQL,
+Flyway y almacenamiento compatible con S3.
+
+El frontend de producción vive en `react/src/app`. `react/src/modules` es una estructura histórica
+inactiva. Las rutas se consultan en los controladores y contratos de cada área; existen APIs
+`/api/v1`, rutas históricas y el canal de kioscos `/api/v2/kiosks`.
+
+## Desarrollo local
+
+Con los [requisitos locales](docs/local-development.md#requisitos) preparados, desde la raíz:
 
 ```bash
-cd ~/Documents/Indice/Indice_base_SAAS
 make dev
 ```
 
-`make dev` starts the safe local development stack without resetting the
-database. During backend initialization, the application restores and verifies
-the isolated local login `demo@example.com` / `demo123` with the same password
-encoder used by authentication. Optional demo datasets remain separate:
+Frontend: `http://127.0.0.1:5174`. Backend: `http://127.0.0.1:8082`.
 
-- local MySQL in `indice-mysql-fresh` on `127.0.0.1:3307`
-- MinIO, minio-init, and face-service
-- Spring Boot backend on `http://127.0.0.1:8082`
-- React/Vite frontend on `http://127.0.0.1:5174`
+`make dev` prepara infraestructura y dependencias, restaura el acceso demo local cuando está
+habilitado e inicia la aplicación. El reinicio destructivo de la base es una operación separada.
+Las pruebas usan `indice_test_db`, nunca la base funcional ni producción. Consulta comandos,
+efectos y configuración en [Desarrollo local](docs/local-development.md).
 
-Useful local commands:
+## Antes de modificar el sistema
 
-```bash
-make infra     # Start MySQL, MinIO, minio-init, and face-service only
-make backend   # Run only Spring Boot on http://127.0.0.1:8082
-make frontend  # Run only React/Vite on http://127.0.0.1:5174
-make restore-local-demo-login # Restore only demo@example.com / demo123
-make seed-local-demo # Refresh demo data and restore the local demo password
-make up        # Alias for make dev
-make db-repair # Repair Flyway metadata without resetting local data
-make ps        # Show local infrastructure status
-make down      # Stop local infrastructure containers
-```
+1. Lee `AGENTS.md`, el estándar del área y el contrato del módulo afectado.
+2. Revisa el código, las pruebas actuales y los cambios locales existentes.
+3. Implementa una modificación acotada y verificable.
+4. Actualiza el contrato si cambia una regla aprobada.
+5. Ejecuta las validaciones correspondientes y reporta sus resultados y límites.
 
-To preserve locally edited demo records for a particular run, use
-`LOCAL_DEMO_SEED_ON_DEV=false make dev`.
-
-`make backend` and `make dev` supply development-only kiosk secrets and disable
-the legacy kiosk-secret sentinel check for the existing local database. They
-also disable Spring Boot DevTools automatic restart so file watchers cannot
-accumulate during long development sessions. Production still requires its own
-secrets through the deployment environment and keeps kiosk-secret protection
-enabled.
-
-## Clean DB Run
-
-Reset the local MySQL database only when you intentionally want a fresh schema:
-
-```bash
-cd ~/Documents/Indice/Indice_base_SAAS
-make db-reset
-make dev
-```
-
-`make db-reset` is destructive. It:
-
-- creates `indice-mysql-fresh` on port `3307` if it does not exist
-- starts the container if it is stopped
-- drops and recreates `indice_db`
-- leaves Flyway to rebuild the schema on the next backend startup from the latest baseline migration, currently `B40`
-
-## Backend tests use an isolated database
-
-`src/test/resources/application.properties` deliberately targets `indice_test_db`, never the functional `indice_db`. The default test connection is:
-
-- host/port: `127.0.0.1:3307`;
-- database: `indice_test_db`;
-- user: `indice_test_user`;
-- password: `indice_test_pass`.
-
-Run the suite against a disposable MySQL 8 instance or an equivalently isolated schema. A local example is:
-
-```bash
-docker run --rm -d --name indice-mysql-tests \
-  -p 127.0.0.1:3307:3306 \
-  -e MYSQL_DATABASE=indice_test_db \
-  -e MYSQL_USER=indice_test_user \
-  -e MYSQL_PASSWORD=indice_test_pass \
-  -e MYSQL_ROOT_PASSWORD=indice_test_root \
-  mysql:8.0
-
-./mvnw test
-docker stop indice-mysql-tests
-```
-
-If port `3307` is already occupied, point the test process to another dedicated instance with `TEST_DATASOURCE_URL`, `TEST_DATASOURCE_USERNAME` and `TEST_DATASOURCE_PASSWORD`. Do not set those variables to `indice_db`; Spring integration tests are allowed to write data.
-
-## Frontend setup
-
-Point the React frontend to this backend:
-
-```env
-VITE_BACKEND_URL=http://127.0.0.1:8082
-VITE_API_BASE_URL=
-```
-
-## Current API base
-
-All frontend-facing routes are under:
-
-- `/api/v1`
-
-## Implemented route groups
-
-### Auth
-
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/logout`
-- `GET /api/v1/auth/me`
-
-### Health
-
-- `GET /`
-- `GET /api/v1/health`
-
-### Dashboard / org shell
-
-- `GET /api/v1/modules`
-- `GET /api/v1/org/units`
-- `GET /api/v1/org/businesses`
-
-### Config Center
-
-- `GET /api/v1/config-center/current-user`
-- `PUT /api/v1/config-center/current-user`
-- `GET /api/v1/config-center/users`
-- `PUT /api/v1/config-center/users/{id}`
-- `POST /api/v1/config-center/users/invite`
-- `POST /api/v1/config-center/users/invitations/{id}/resend`
-- `GET /api/v1/config-center/company`
-- `GET /api/v1/config-center/config`
-- `PUT /api/v1/config-center/business-structure`
-- `PUT /api/v1/config-center/company`
-
-### Human Resources
-
-- `GET /api/v1/hr/users`
-- `POST /api/v1/hr/users`
-- `PUT /api/v1/hr/users/{id}`
-- `POST /api/v1/hr/users/{id}/terminate`
-- `DELETE /api/v1/hr/users/{id}`
-
-## Database
-
-Current database target:
-
-- host: `127.0.0.1`
-- port: `3307`
-- db: `indice_db`
-- user: `indice_user`
-
-This backend currently uses the existing development database directly.
-
-Flyway is now enabled in transitional baseline mode for the existing shared schema:
-
-- first startup against a non-empty legacy schema creates `flyway_schema_history`
-- the current schema is tagged at baseline version `0`
-- `B40` now covers the current Spring-owned subset of the schema through the HR user rewiring
-
-## Docs
-
-See:
-
-- [`integrations/indice-mcp/README.md`](integrations/indice-mcp/README.md) — local read-only MCP business tools
-- [`docs/indice-mcp-local-mvp.md`](docs/indice-mcp-local-mvp.md) — architecture, security boundary, and delegated-auth path
-
-- [`docs/README.md`](docs/README.md)
-- [`AGENTS.md`](AGENTS.md) — repository working rules and authority hierarchy
-- [`docs/indice-frontend-operating-system-v2.md`](docs/indice-frontend-operating-system-v2.md)
-- [`docs/indice-backend-operating-system-v1.md`](docs/indice-backend-operating-system-v1.md)
-- [`docs/indice-public-release-security-gate.md`](docs/indice-public-release-security-gate.md)
-- [`deployment/README.md`](deployment/README.md)
-
-The March 30 setup/API guides remain historical integration references under
-[`docs/March/30th/`](docs/March/30th/). Verify their route and implementation claims against the
-current code before using them.
+Las migraciones son forward-only. Los despliegues deben conservar datos, contratos comerciales y
+una ruta de rollback compatible.

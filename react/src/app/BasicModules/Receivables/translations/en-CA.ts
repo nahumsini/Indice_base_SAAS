@@ -10,6 +10,7 @@ export const enCA: ReceivablesTranslations = {
     openBalanceLabel: 'Open balance',
   },
   tabs: {
+    kpis: 'Indicators',
     'accounts-receivable': 'Accounts Receivable',
     'credit-customers': 'Credit Customers',
     'credit-sales': 'Credit Sales',

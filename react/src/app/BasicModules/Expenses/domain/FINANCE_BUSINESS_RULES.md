@@ -1,21 +1,32 @@
 # Finance Business Rules Contract
 
-Phase 2.0 defines the business language that must be true before Expenses becomes Finance. This document is a contract for frontend code and the future backend; it does not change current UI behavior.
+Status: approved financial vocabulary and recognition rules. Applies to frontend and backend
+within the [Backend OS](../../../../../../docs/indice-backend-operating-system-v1.md) and the
+[financial closeout contract](../../../../../../docs/kpi-financial-closeout-contract-v1.md).
+The original Phase 2 preparation notes do not describe current implementation readiness.
 
 ## Scope
 
-Finance owns Budgets, BudgetLines, PurchaseOrders, Expenses, PettyCash, PaymentAccounts, AccountingAccounts, Providers, Payments, Attachments, and FinancialOverview.
+This contract describes the financial relationship between Budgets, BudgetLines, PurchaseOrders,
+Expenses, PettyCash, PaymentAccounts, AccountingAccounts, Providers, Payments, Attachments, and
+FinancialOverview. It does not transfer ownership between modules: purchase orders, inventory,
+funds, accounting, and expenses keep their explicit owner services and contracts.
 
-Expenses is one workspace inside Finance. Petty Cash is a financial account and settlement workflow, not a subtype of Expense.
+Expenses is one workspace inside Finance. Petty Cash is an operational fund linked to a custody
+account and a settlement workflow; fund identity and account identity are distinct.
 
-The detailed Petty Cash contract lives in `domain/PETTY_CASH_DOMAIN_CONTRACT.md`.
+The detailed fund contract lives in [Petty Cash](PETTY_CASH_DOMAIN_CONTRACT.md).
 
 ## Core Rules
 
 1. PaymentAccount is a financial account used to hold or move funds. Examples: cash, bank, credit card, and petty cash.
-2. Petty Cash issuance does not generate an Expense. It generates a fund movement from one PaymentAccount to a Petty Cash account.
+2. Petty Cash issuance does not generate an Expense. It records a fund movement using the funding
+   source permitted by the fund contract. External means require their explicit named-origin flow.
 3. Expense records represent actual business consumption and can affect budget actuals.
-4. Petty Cash settlement can create or link Expenses only when a valid receipt or proof exists.
+4. An authorized internal-fund settlement line can create or link a company Expense once. Explicit
+   administrator authorization without an attachment follows the
+   [statement close contract](../../../../../../docs/petty-cash-statement-close-resolution-contract-v1.md).
+   External-fund validation never creates company expense or budget consumption.
 5. Budget can be affected by PurchaseOrders, Expenses, and PettyCash, but each affects a different amount bucket.
 6. Transfers between PaymentAccounts, including bank to petty cash, are not Expenses.
 7. FinancialOverview must distinguish committed, actual, issued, and settled amounts.
@@ -46,7 +57,7 @@ availableAmount =
 ```
 
 Funding transfers custody and does not consume budget. The authorized expense is recognized once;
-issued and settled amounts remain separate disclosures. See `docs/kpi-financial-closeout-contract-v1.md`.
+issued and settled amounts remain separate disclosures. See the financial closeout contract linked above.
 
 ## Budget Amount Buckets
 
@@ -56,7 +67,8 @@ Expense with APPROVED, PARTIALLY_PAID, PAID, or CLOSED status increases actualEx
 
 PettyCash with ISSUED status increases pettyCashIssuedAmount.
 
-PettyCash with SETTLED status increases pettyCashSettledAmount and can create or link actual Expenses when receipts exist.
+PettyCash with SETTLED status increases pettyCashSettledAmount. Company expense recognition comes
+from authorized internal-fund settlement lines, not a second charge on statement closure.
 
 PaymentAccount transfers do not create Expenses and must not increase actualExpenseAmount.
 
@@ -70,11 +82,13 @@ WARNING applies when availableAmount is between 0% and 20% of plannedAmount.
 
 EXCEEDED applies when availableAmount is below 0.
 
-## Current UI Migration Note
+## UI Compatibility Mapping
 
-The current Expenses UI still uses legacy lowercase status values. Those values remain untouched until the UI is intentionally migrated.
+Legacy lowercase labels remain an adapter concern. They do not authorize a status mutation,
+create a payment, or replace the backend transition rules. Changes must preserve API compatibility
+and use the owner's payment, correction, or closure flow.
 
-Temporary adapter mapping:
+Expense and payment meanings are separate:
 
 | Current UI status | Canonical ExpenseStatus | Canonical PaymentStatus |
 | --- | --- | --- |

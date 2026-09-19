@@ -1,21 +1,28 @@
 # Índice Premium Multi-Tenant y Billing
 
-Estado: arquitectura aprobada; oferta comercial de lanzamiento 2026.08 confirmada
+Estado: contrato canónico de organización empresarial, catálogo y billing.
+Oferta de referencia aprobada: `2026.08-global-v1`; la publicación efectiva se verifica por ambiente.
+Revisión documental: 16 de septiembre de 2026; no constituye una certificación de producción.
 
-Fecha de corte documental: 30 de agosto de 2026
+## Cómo leer este contrato
 
-Base técnica de Fases 1–8: rama `nahum-mac-20-julio-premium-multitenant-billing`
+- **Producto y reglas vigentes:** secciones 2–8.
+- **Responsabilidades y condiciones de entrega:** secciones 9 y 13–16.
+- **Decisiones y evidencias necesarias para LIVE:** sección 17.
+- **Publicación del catálogo y recuperación:** sección 19 y [Deployment Runbook](../deployment/README.md).
+- **Fases e integración originales:** [historial separado](indice-premium-billing-implementation-history.md).
+  Sus precios, duraciones, flags y resultados describen su fecha, no la oferta actual.
 
-Rama de referencia Stripe: `review/ash-stripe` en `294f488`
-
-Fuente externa temporal: `saas-multitenant/`
+Para conceptos básicos consulta el [glosario](product-glossary.md). Las aclaraciones de esta
+reorganización están en el [registro documental](indice-documentation-review-2026-09-16.md).
+La jerarquía de [AGENTS.md](../AGENTS.md) permanece vigente.
 
 ## 1. Propósito
 
-Este documento define cómo convertir el sistema actual en un SaaS multi-tenant comercial sin
-degradar los módulos que ya funcionan. No plantea un MVP reducido ni una reescritura. La meta es
-una base premium que permita vender los módulos actuales, incorporar módulos futuros y evolucionar
-precios o reglas fiscales sin romper el aislamiento de datos, los permisos ni la operación.
+Este documento define las reglas comerciales y organizacionales del SaaS multi-tenant de Índice.
+Gobierna la venta de módulos, la incorporación de capacidades y la evolución de precios o reglas
+fiscales, preservando aislamiento de datos, permisos, contratos históricos y operación existente.
+La presencia de implementación no sustituye la certificación del ambiente donde se habilita.
 
 Las decisiones aquí descritas sustituyen cualquier propuesta anterior que contradiga el modelo
 real del repositorio o las reglas comerciales aprobadas. La carpeta `saas-multitenant/` se conserva
@@ -38,9 +45,8 @@ temporalmente como referencia hasta cumplir el criterio de retiro de la sección
 - Cada `company_id` tiene un propietario principal. La transferencia de propiedad debe ser
   explícita, auditada y aceptada por el correo receptor.
 
-No se agregará una tabla `accounts` por encima de `companies`. Esa propuesta de la documentación de
-Carlos duplicaría la responsabilidad que `company_id` ya tiene en el producto real y obligaría a
-reestructurar módulos maduros sin beneficio comercial confirmado.
+No se agregará una tabla `accounts` por encima de `companies`: `company_id` ya es la raíz
+organizacional y comercial. La propuesta anterior se conserva únicamente en el historial.
 
 ### 2.2 Corporate Office y Headquarters
 
@@ -64,6 +70,7 @@ Una operación se permite únicamente cuando todas estas condiciones son verdade
 estado de suscripción permite la operación
 AND la company tiene la capability contratada o incluida
 AND el usuario tiene asignado el módulo
+AND tiene el permiso de pestaña requerido por el contrato propietario
 AND su rol permite la acción
 AND su alcance organizacional contiene el recurso
 ```
@@ -85,19 +92,26 @@ capabilities y una capability puede estar compartida por varios productos.
 - Usuarios, permisos y seguridad.
 - Facturación y gestión de la suscripción.
 
-El núcleo no se vende como módulo adicional y debe seguir disponible en los estados de cobranza
-necesarios para recuperar la cuenta, consultar facturas, exportar o corregir el pago.
+El núcleo no se vende como módulo adicional. Su inclusión comercial no evita las restricciones
+del ciclo de vida. En cobranza se conserva la superficie de recuperación permitida por la sección
+6; la solicitud administrativa vencida limita el acceso a autenticación, seguridad y recuperación
+mínima de billing, y no permite exportación. El alcance de exportaciones en suspensión y retención
+ordinarias sigue pendiente en la sección 17.
 
 ### 3.2 Productos básicos vendibles
 
-| Código comercial propuesto | Nombre | Capabilities técnicas mínimas |
-|---|---|---|
-| `basic_hr` | Recursos Humanos | `human_resources` |
-| `basic_process_tasks` | Tareas y Procesos | `processes` |
-| `basic_expenses` | Expenses + Caja Chica | `expenses`, `petty_cash` |
-| `basic_pos_inventory` | POS + Inventarios | `pos`, `inventory` |
-| `basic_sales_inventory` | Sales + Inventarios | `sales`, `inventory` |
-| `basic_receivables` | Cartera | `receivables` |
+| Código de `2026.08-global-v1` | Código histórico | Nombre | Capabilities técnicas mínimas |
+|---|---|---|---|
+| `module_hr` | `basic_hr` | Recursos Humanos | `human_resources` |
+| `module_process_tasks` | `basic_process_tasks` | Tareas y Procesos | `processes` |
+| `module_expenses` | `basic_expenses` | Gastos + Caja Chica | `expenses`, `petty_cash` |
+| `module_pos_inventory` | `basic_pos_inventory` | POS + Inventarios | `pos`, `inventory` |
+| `module_sales_inventory` | `basic_sales_inventory` | Ventas + Inventarios | `sales`, `inventory` |
+| `module_receivables` | `basic_receivables` | Cartera | `receivables` |
+
+Los códigos históricos se conservan para sus contratos. No se renombran filas publicadas ni se
+mezclan versiones al contratar. `sales` es la capability comercial; `crm` sigue siendo el slug
+compatible del módulo.
 
 La selección de varios productos produce la unión de capabilities. Por ejemplo, contratar POS +
 Inventarios y Sales + Inventarios no duplica el entitlement de `inventory` ni el cobro de usuarios.
@@ -116,6 +130,8 @@ La oferta comercial se administra como una versión completa e inmutable una vez
   sumando automáticamente sus componentes.
 - Un módulo no puede seleccionarse a la vez de forma individual y dentro de un paquete de la misma
   compra. El backend rechaza la duplicación por capability, aunque el navegador intente enviarla.
+  La capability compartida `inventory` es la excepción ya prevista por la sección 3.2: POS y
+  Ventas pueden coexistir y habilitan Inventarios una sola vez.
 - `extra_user` es un producto por cantidad. La cantidad cobrable es la capacidad contratada que
   excede los cinco usuarios incluidos.
 - Las promociones pueden ser porcentuales o de importe fijo, aplicar a toda la compra o limitarse a
@@ -232,7 +248,10 @@ impuestos que Stripe calcula y muestra antes de confirmar Checkout:
 - Los módulos complementarios no se publican en el lanzamiento. Su precio aprobado futuro es USD
   29 mensuales antes de impuestos, pero necesitan una decisión de publicación posterior.
 - La suscripción conserva su versión e importe mientras mantenga la misma oferta. Cambiar de paquete,
-  cancelar y volver a contratar adopta la versión vigente; un adicional nuevo usa su precio vigente.
+  cancelar y volver a contratar adopta la versión vigente. Al agregar usuarios o almacenamiento a
+  la misma suscripción, se usa el precio verificado de su catálogo contratado, incluso si está
+  `SUPERSEDED`; no se sustituye por el catálogo público más reciente. Esta regla fue confirmada
+  por el propietario del producto el 2026-09-16 y coincide con la sección 3.3.
 - Las comparaciones públicas usan únicamente la suma real de productos vendibles. No se inventan
   precios tachados ni descuentos sobre precios que Índice no haya ofrecido de buena fe.
 - Los mercados prioritarios de lanzamiento son Canadá, Estados Unidos, México y Colombia. Checkout
@@ -292,13 +311,17 @@ y redondeo comercial. La fórmula aprobada permanece aunque cambie la tarifa del
 
 La identidad humana debe separarse del correo de acceso y de la propiedad empresarial.
 
-Modelo recomendado:
+Referencias implementadas para identidad y propiedad:
 
-- `users`: persona canónica.
-- `user_emails`: uno o más correos verificados por persona, con uno principal.
+- `users`: identidad de acceso.
 - `user_companies`: membresía y rol dentro de cada `company_id`.
-- `company_ownership`: propietario vigente, estado de aceptación y fechas.
+- `company_ownerships`: propietario vigente y referencias de membresía.
+- `company_ownership_transfer_requests`: aceptación de transferencias.
 - `company_ownership_history`: transferencias, actor, origen, destino y motivo.
+
+La propuesta `user_emails` para múltiples correos y consolidación de identidades no describe una
+tabla implementada en las migraciones revisadas. Sigue siendo una evolución pendiente; no es un
+requisito para reconstruir el login actual.
 
 Reglas:
 
@@ -307,17 +330,35 @@ Reglas:
 3. Fusionar correos no fusiona automáticamente empresas, datos ni suscripciones.
 4. Una consolidación de identidades conserva ambos historiales y requiere una operación de soporte
    de alta seguridad.
-5. La regla comercial sobre una persona propietaria de más de una `company_id` tras una fusión debe
-   cerrarse antes de implementar la consolidación. Hasta entonces se bloquea el caso ambiguo.
+5. Una misma persona puede ser propietaria principal de varias empresas independientes. Decisión
+   de producto confirmada el 2026-09-16. Cada empresa conserva su propio `company_id`, suscripción,
+   datos, membresías y permisos; la propiedad común no combina capacidad contratada ni concede
+   acceso cruzado. Cada empresa sigue teniendo exactamente un propietario principal.
 
-El login actual elige una sola membresía por prioridad. Para soportar usuarios multi-company se
-agregará un selector de empresa activa y un cambio de contexto server-side. El cambio debe validar
-la membresía, rotar la sesión/CSRF cuando corresponda y nunca aceptar libremente un `company_id` del
-cliente.
+El cambio de empresa ya tiene contrato en `POST /api/v1/auth/company`: exige CSRF, valida la
+membresía disponible y rota la sesión y el token CSRF. El frontend lo consume mediante
+`authApi.switchCompany`. El identificador enviado por el cliente es una selección que el servidor
+valida, nunca una concesión de autoridad. Participar en varias empresas no equivale a ser
+propietario principal de varias.
+
+**Brecha de implementación:** la regla de propiedad múltiple está aprobada, pero todavía no está
+soportada por el esquema y el flujo de transferencias revisados. La migración `V147` creó el índice
+único `uq_company_ownerships_owner_user`, y `CompanyOwnershipTransferService` rechaza como receptor
+a quien ya posee una empresa activa. Una tarea de implementación debe agregar una migración nueva
+sin editar `V147`, revisar altas y transferencias y probar propiedad múltiple, concurrencia,
+aislamiento y un único propietario vigente por empresa. Esta edición documental no modifica el
+esquema ni certifica que ese flujo esté disponible. Véase el
+[registro de decisiones](indice-documentation-review-2026-09-16.md).
 
 ## 5. Arquitectura de billing objetivo
 
 ### 5.1 Componentes
+
+Esta lista describe responsabilidades lógicas de la arquitectura; los nombres no constituyen un
+inventario de clases. Para navegar la implementación consulta los paquetes
+[`billing`](../src/main/java/com/indice/erp/billing/),
+[`entitlement`](../src/main/java/com/indice/erp/entitlement/) y
+[`platformadmin`](../src/main/java/com/indice/erp/platformadmin/).
 
 - `BillingCatalogService`: productos, precios versionados, intervalos y composición de capabilities.
 - `SignupIntentService`: intención de alta, selección, expiración y transición a Checkout.
@@ -334,9 +375,9 @@ cliente.
 
 ### 5.2 Tablas nuevas o adaptadas
 
-Los nombres definitivos se validan contra el esquema implementado. Las migraciones son
-forward-only y deben usar el siguiente número libre; esta arquitectura está materializada hasta
-`V233`.
+Los nombres y versiones se validan contra el [directorio de migraciones](../src/main/resources/db/migration/).
+Las migraciones son forward-only y deben usar el siguiente número libre. La tabla es un mapa de
+responsabilidades; no fija una última versión ni reemplaza el esquema ejecutado.
 
 | Tabla | Responsabilidad |
 |---|---|
@@ -360,6 +401,8 @@ forward-only y deben usar el siguiente número libre; esta arquitectura está ma
 | `company_storage_states` | Uso, reservas, cuota incluida y bloques adicionales por company |
 | `company_storage_events` | Auditoría inmutable de cambios de almacenamiento |
 | `company_storage_mutations` | Cambios idempotentes de bloques facturables |
+| `company_ownerships` | Propietario principal vigente por empresa |
+| `company_ownership_transfer_requests` | Solicitudes y aceptación de transferencia |
 | `company_ownership_history` | Transferencias de propiedad auditadas |
 
 No se capturan ni guardan PAN o CVV. Checkout y Customer Portal recopilan los datos de la tarjeta.
@@ -386,8 +429,11 @@ La selección concreta de productos básicos se guarda localmente y en metadata 
 productos dentro del mismo escalón se realiza desde Índice mediante una operación idempotente; no
 se deja a un portal genérico que desconozca la composición de capabilities.
 
-Todos los IDs de Stripe se inyectan por configuración/secret manager. No se codifican precios ni
-secretos en Java, TypeScript o migraciones.
+Los secretos de Stripe se suministran mediante configuración protegida o secret manager. Las
+referencias Product/Price verificadas pertenecen al catálogo persistido y a su versión; no deben
+confundirse con secretos ni copiarse a variables globales para sustituir precios contratados.
+El flujo de cobro obtiene los importes del catálogo y nunca confía en un precio enviado por el
+navegador. Ningún secreto se incorpora a Java, TypeScript o migraciones.
 
 ### 5.4 Contrato único de selección, corte y tarjetas
 
@@ -433,33 +479,31 @@ reglas:
 
 ## 6. Ciclo de vida y cobranza
 
-Estados internos propuestos:
+El enum operativo `CommercialLifecycleState` declara `TRIAL`, `ACTIVE`, `GRACE`, `READ_ONLY`,
+`SUSPENDED`, `RETENTION` y `PURGE_PENDING`. Los estados del alta y de Stripe se proyectan a ese
+modelo; no son otro vocabulario intercambiable ni una secuencia obligatoria para todas las cuentas.
+`PURGE_PENDING` no prueba que los datos ya hayan sido eliminados.
 
-```text
-SIGNUP_PENDING
-  -> TRIALING
-  -> ACTIVE
-  -> PAST_DUE_GRACE
-  -> READ_ONLY
-  -> SUSPENDED
-  -> CANCELED_RETENTION
-  -> PURGE_PENDING
-  -> PURGED
-```
+La política de mora automática confirmada el 2026-09-16 conserva 14 días de gracia y, al terminar,
+14 días de solo lectura. La suspensión corresponde al vencimiento de ese segundo plazo. Son los
+valores predeterminados de `CommercialLifecycleProperties`; el scheduler persiste las transiciones
+y la configuración efectiva del ambiente debe verificarse antes de comunicar una fecha exacta.
+El vencimiento de una prueba, la cancelación y la cobranza administrativa conservan sus contratos
+específicos.
 
-Política confirmada y propuesta operativa:
+Política de mora automática:
 
 | Momento | Comportamiento |
 |---|---|
 | Prueba activa | Todos los productos básicos, sujeto a permisos y scope |
 | Pago correcto | Lectura y escritura normales de lo contratado |
-| Falla de pago, días 1–14 | Gracia operativa y avisos visibles |
-| Desde día 15 | Módulos operativos en solo lectura |
-| Suspensión | Fecha exacta pendiente; recomendación inicial: día 30 |
+| Primer plazo de 14 días tras la falla | Gracia operativa y avisos visibles |
+| Segundo plazo de 14 días | Módulos operativos en solo lectura |
+| Vencimiento del segundo plazo | Suspensión; reemplaza la antigua propuesta de día 30 |
 | Retención | 90 días sin destrucción de datos |
-| Durante cobranza | Propietario conserva billing, seguridad, exportación y recuperación |
+| Recuperación durante mora | Propietario conserva billing y seguridad; exportación sujeta al estado y a la definición pendiente de la sección 17 |
 
-`READ_ONLY` no se implementará con una regla ingenua basada solo en métodos HTTP. Cada capability
+`READ_ONLY` no se define con una regla basada únicamente en métodos HTTP. Cada capability
 debe declarar operaciones `READ`, `WRITE`, `EXPORT`, `BILLING` o `SYSTEM_REQUIRED`. Jobs, kioskos,
 imports y acciones masivas deben pasar por la misma política.
 
@@ -578,371 +622,54 @@ Engine. Al iniciar sesión o ejecutar una acción se valida:
 - capability concreta;
 - identidad, grant, rate limit e idempotencia existentes.
 
-No se excluyen globalmente los kioskos del enforcement, como hace el prototipo de Ash. En estado de
+No se excluyen globalmente los kioskos del enforcement. En estado de
 solo lectura, cada adaptador define qué consultas siguen disponibles y qué capturas quedan
 bloqueadas con un mensaje localizado y recuperable.
 
 ## 9. Estado real de los módulos y orden de escalamiento
 
-La auditoría de Carlos afirma que solo existían dos backends reales. Ese diagnóstico ya no describe
-este repositorio. Actualmente existen dominios backend amplios para HR, Finanzas, POS, Tareas y
-Procesos, KPIs, Cartera y Kiosk Engine. Antes de venderlos se requiere una auditoría de contrato, no
-reconstruirlos desde cero.
+El estado se comprueba en el catálogo técnico, la implementación y las evidencias de la versión.
+La antigua tabla de “estado de partida” se conserva en el
+[historial](indice-premium-billing-implementation-history.md); no es un diagnóstico actual.
 
-| Grupo | Estado de partida | Trabajo SaaS previo a habilitar cobro |
-|---|---|---|
-| Núcleo, Panel Inicial y KPIs | Implementados | TenantContext, selector multi-company, estados de billing y catálogo efectivo |
-| Recursos Humanos | Maduro | Barrido de aislamiento, seats, ownership y contrato de capability |
-| Tareas y Procesos | Operativo | Contrato de capability, jobs, kiosko y solo lectura |
-| Expenses + Caja Chica | Operativo | Capability agrupada, archivos, proveedores/kioskos y políticas de cobranza |
-| POS + Inventarios | POS maduro; inventario requiere auditoría integral | Consistencia transaccional y scoping obligatorio por negocio |
-| Sales + Inventarios | Catálogo público y componentes existentes | Cerrar backend comercial completo y alias `sales`/`crm` |
-| Cartera | Backend financiero existente | Cierre end-to-end, documentos, exportación y estados de cobro |
-| Complementarios | Madurez variable, principalmente frontend | Construir uno por uno con el contrato de la sección 8 |
-| IA | Prototipos/experiencias separadas | Política de datos, costo, consentimiento, aislamiento y medición por tenant |
+| Área | Punto de entrada para revisar responsabilidades |
+|---|---|
+| Identidad y organización | `auth`, `tenant`, `configcenter` |
+| Catálogo, suscripción y permisos | `billing`, `entitlement`, `access` |
+| Recursos Humanos | `hr` |
+| Procesos y Tareas | `processTasks` |
+| Gastos, Caja Chica, Cartera y contabilidad | `finance` |
+| Ventas e inventario | `sales` y sus contratos con POS/Finance |
+| Punto de Venta | `pos` |
+| Indicadores | `kpis`, consumiendo datos de sus propietarios |
+| Canales de kiosco | `kiosk` y adaptadores propietarios |
+| Herramientas delegadas de IA | `ai` y `integrations/indice-mcp` |
 
-Los complementarios no se publican en Stripe hasta cumplir su Definition of Done. Que exista una
-tarjeta en el frontend no significa que el producto sea vendible.
+Los paquetes Java están en [com.indice.erp](../src/main/java/com/indice/erp/).
+La presencia de código no prueba que un producto esté habilitado para venderse. Todo producto,
+incluido un complementario, debe cumplir la sección 16 y el registro de acceso del módulo.
 
 ## 10. Patrones de Ash que se conservarán
 
-La rama `review/ash-stripe` se usa como cantera técnica, no como rama para merge completo.
-
-| Pieza de Ash | Decisión | Motivo/ajuste |
-|---|---|---|
-| Suscripción vinculada a `company_id` | Adoptar | Coincide con el tenant y la facturación real |
-| Checkout y Customer Portal hospedados | Adoptar | Reduce alcance PCI y acelera operación segura |
-| Firma e idempotencia de webhooks | Adoptar | Obligatorio para cobro real |
-| Persistencia de eventos no asociados y reconciliación | Adoptar | Evita perder eventos por orden o fallas temporales |
-| Auditoría de pagos y acciones | Adoptar | Necesaria para soporte y disputas |
-| Idempotency keys de acciones de suscripción | Adoptar | Evita cargos o mutaciones duplicadas |
-| Ciclo de signup intent, limpieza y polling de retorno | Adaptar | Mantener robustez con catálogo y trial definitivos |
-| Enforcement de seats en invitación/activación | Adaptar | Cambiar a 5 incluidos y USD 12 por adicional |
-| Auto tax y tax IDs | Adaptar | México/Canadá, USD y Stripe Tax |
-| `BasicModuleCatalog` | Reescribir | Confunde slugs con productos y separa bundles inseparables |
-| `SignupPlanCalculator` hardcodeado | Reescribir | Tarifas deben venir de catálogo versionado/Stripe |
-| Interceptor por prefijos URL | Reescribir | Es incompleto y frágil ante rutas nuevas |
-| Bloqueo binario de suscripción | Reescribir | Falta gracia, solo lectura, suspensión y retención |
-| Exclusión general de kioskos | Descartar | Cada kiosko debe respetar entitlement y estado |
-| Migraciones `V107`–`V119` | No copiar | Chocan con migraciones actuales; se rediseñan después de `V143` |
-| Commit `294f488` completo | No integrar | Mezcla cientos de cambios ajenos y puede revertir el producto actual |
-
-Commits especialmente útiles para portar con revisión línea por línea:
-
-- `db25986`: lifecycle e idempotencia de Checkout.
-- `bb67429`: acciones idempotentes de administración de suscripción.
-- `760c00f`: auditoría, reconciliación de webhooks y límites de seats.
-- `86dbd8d`: flujo de retorno de Checkout en frontend.
+Referencia histórica de integración. La matriz original se conserva en el
+[historial de billing](indice-premium-billing-implementation-history.md).
+No constituye una instrucción de merge ni una lista de trabajo pendiente.
 
 ## 11. Patrones de Carlos que se conservarán
 
-| Propuesta de `saas-multitenant/` | Decisión |
-|---|---|
-| Tenant context por request | Adoptar y fortalecer |
-| Selector explícito de empresa activa | Adoptar |
-| Enforcement server-side de entitlement y seats | Adoptar |
-| Stripe firmado, idempotente y sin tarjetas locales | Adoptar |
-| Storage con helper central por tenant | Adoptar |
-| Rate limit de login/invitaciones y auditoría | Adoptar |
-| Retención y offboarding | Adoptar con 90 días |
-| Receta obligatoria para cada módulo | Adoptar y ampliar con operation policy |
-| Nueva capa `accounts` encima de `companies` | Descartar |
-| Auditoría de módulos de la versión antigua | Sustituir por la sección 9 |
-| Migraciones `V20+` propuestas | Descartar por obsoletas |
-| Roles/ownership definidos a nivel `account` | Reescribir a `company_id` |
+Referencia histórica de propuestas adoptadas y descartadas. Consulta el
+[historial de billing](indice-premium-billing-implementation-history.md).
+El modelo vigente mantiene `company_id` como tenant raíz.
 
 ## 12. Plan de implementación sin romper el sistema
 
-### Fase 0 — Congelar contrato y crear red de seguridad
+Las fases 0–8 y sus evidencias fechadas están en el
+[historial de billing](indice-premium-billing-implementation-history.md).
+La evolución actual se realiza por cambios acotados, con contratos y pruebas vigentes; no se
+repite una fase por aparecer en ese historial.
 
-- Aprobar este documento y cerrar pendientes de la sección 17.
-- Inventariar rutas, tablas, jobs, exports, kioskos y object keys por módulo.
-- Crear prueba automática de aislamiento entre company A y company B.
-- Registrar baseline de backend, frontend, migraciones, smoke test y despliegue.
-- Añadir feature flags globales y por tenant para billing, entitlements y read-only.
-
-Criterio de salida: ninguna integración Stripe todavía; baseline completamente verde.
-
-### Fase 1 — TenantContext y catálogo de capabilities
-
-- Implementar `TenantContext` a partir de sesión autenticada.
-- Implementar selector y cambio de `company_id` activa.
-- Crear catálogo comercial versionado y mapping producto → capability.
-- Agregar annotations/policies sin bloquear aún; modo shadow solo registra decisiones.
-- Eliminar aliases ambiguos y documentar compatibilidad.
-
-Criterio de salida: las decisiones shadow coinciden con permisos actuales sin afectar usuarios.
-
-#### Estado implementado de Fase 1 — 21 de julio de 2026
-
-Los estados de fase fechados son evidencia histórica y describen lo vigente en su fecha. Las
-decisiones comerciales actuales están únicamente en la sección 3 y reemplazan sus importes,
-duraciones o capacidades anteriores.
-
-La Fase 1 quedó incorporada con compatibilidad hacia atrás y sin activar bloqueos comerciales:
-
-- `TenantContext` resuelve `user_id`, `company_id`, `user_company_id`, rol y scope organizacional
-  desde la sesión autenticada. `Corporate Office`, `Unit Headquarters` y `Business Office` se
-  representan como alcance de pertenencia, nunca como roles.
-- `GET /api/v1/auth/me` entrega la empresa activa y todas las membresías activas del usuario.
-- `POST /api/v1/auth/company` cambia la empresa activa únicamente después de validar CSRF y una
-  membresía real del usuario. Al cambiar, rota el identificador de sesión y el token CSRF.
-- El header muestra un selector corporativo solo cuando existen dos o más empresas disponibles.
-  Después del cambio se recarga la aplicación para vaciar estado y cachés del tenant anterior.
-- La migración `V144__premium_commercial_capability_catalog.sql` crea el catálogo
-  `2026.07-premium-v1`: 1 producto core, 6 productos básicos, 14 mappings de capability y 17
-  aliases explícitos de compatibilidad.
-- `GET /api/v1/platform/context` expone el tenant activo, la versión del catálogo, productos,
-  aliases, capabilities core y capabilities efectivas heredadas durante la transición.
-- `@RequiresCapability` y `CapabilityOperation` clasifican una primera cohorte de rutas de RH,
-  Tareas y Procesos, Expenses, Caja Chica, POS, Ventas y Cartera.
-- El interceptor registra eventos estructurados `entitlement_shadow` con empresa, usuario,
-  scope, capability, operación y comparación contra el permiso vigente. Siempre permite la
-  solicitud; en esta fase no existe una variable de enforcement para evitar una falsa sensación
-  de protección.
-- `APP_ENTITLEMENTS_SHADOW_ENABLED=false` funciona como kill switch de la telemetría.
-
-Evidencia de cierre:
-
-- Flyway validó 144 migraciones y dejó `V144` en estado exitoso.
-- El catálogo activo se verifica mediante prueba de integración contra MySQL real.
-- La regresión backend completa pasó con 803 pruebas, incluida la prueba de integración del
-  catálogo comercial sobre MySQL real.
-- Frontend pasó typecheck, pruebas de kioskos, regresión telefónica y build de producción.
-
-El enforcement comercial, los estados de suscripción y Stripe permanecen deliberadamente fuera
-de esta fase. Su implementación inicia en Fase 2 y no debe reutilizar los permisos de frontend
-como autoridad.
-
-### Fase 2 — Esquema de billing y port selectivo de Ash
-
-- Crear migraciones expansivas posteriores al último número real.
-- Portar inbox de webhook, firma, idempotencia, auditoría y reconciliación.
-- Portar signup intents y Checkout usando el nuevo catálogo.
-- Configurar Stripe test mode y secret manager.
-- No activar enforcement.
-
-Criterio de salida: eventos duplicados, fuera de orden o temporalmente no asociados convergen al
-mismo estado sin duplicar empresas, usuarios ni cobros.
-
-#### Estado implementado de Fase 2 — 21 de julio de 2026
-
-La Fase 2 quedó implementada como una capa de cobro durable, deliberadamente apagada y sin
-provisionar tenants ni modificar permisos:
-
-- `V145__premium_billing_event_inbox.sql` agrega precios versionados, intents de alta, productos
-  seleccionados, clientes/suscripciones/facturas proyectadas, inbox Stripe y auditoría append-only.
-- `V146__premium_launch_price_catalog.sql` publica las ofertas mensuales/anuales confirmadas:
-  1, 2 y 3 básicos, seat adicional de USD 12 y descuento anual de 20 %. `basic_all` permanece en
-  `PENDING_PRICE`; no se puede vender hasta decidir su importe exacto.
-- Checkout exige sesión CSRF e `Idempotency-Key`, guarda solamente hash BCrypt de la contraseña,
-  fija la versión del catálogo y usa llaves de idempotencia estables para Customer y Session.
-- El Checkout hospedado exige tarjeta aun durante el trial, activa 30 días de prueba, cobro
-  automático, Stripe Tax y captura de Tax ID. Si falta el método de pago al terminar el trial,
-  Stripe cancela la suscripción.
-- El webhook verifica `Stripe-Signature` sobre el cuerpo crudo antes de persistir. Solo acepta
-  eventos test; un evento repetido con el mismo hash incrementa su contador y uno con contenido
-  distinto se rechaza como violación de integridad.
-- El procesador usa lease, reintentos, backoff y estado terminal. Proyecta Checkout,
-  suscripciones e invoices respetando orden por fecha e ID del evento.
-- La reconciliación asocia suscripciones que llegaron antes que el Checkout y copia su selección
-  comercial sin crear empresas o usuarios. También expira Checkout abandonado y purga el payload
-  crudo después de 90 días sin borrar la trazabilidad mínima.
-- Todos los secretos se reciben por variable o archivo montado; el archivo tiene precedencia. En
-  esa fase el runtime rechazaba configuración live y llaves `sk_live_`; la implementación actual
-  acepta el modo configurado, exige que llave, webhook y objetos coincidan con él y mantiene las
-  escrituras LIVE del catálogo detrás de un gate independiente.
-- La integración se inicia con `APP_BILLING_STRIPE_ENABLED=false` y el procesador con
-  `APP_BILLING_STRIPE_PROCESSOR_ENABLED=false`. Ninguna suscripción concede capabilities ni
-  cambia acceso todavía.
-- La auditoría de seguridad retiró credenciales Stripe históricas de un panel PHP legacy. Dichas
-  credenciales deben rotarse en Stripe porque permanecen comprometidas por el historial Git.
-
-Superficies preparadas:
-
-- `GET /api/v1/billing/signup/config`
-- `POST /api/v1/billing/signup/checkout`
-- `GET /api/v1/billing/signup/status?reference=...`
-- `POST /api/v1/billing/stripe/webhook`
-
-Evidencia de cierre:
-
-- Flyway validó 146 migraciones sobre MySQL 8 real.
-- Backend completo: 809 pruebas, 0 fallas y 0 errores.
-- Pruebas específicas cubren firma válida/inválida, duplicados, conflicto de hash, eventos fuera
-  de orden, asociación tardía, ausencia de altas de empresa/usuario, selección/precio e
-  idempotencia de Checkout.
-- Frontend pasó typecheck y build de producción.
-- El runbook de configuración, activación controlada y rollback está en
-  `INDICE_PREMIUM_MULTITENANT_PHASE_2_RUNBOOK.md`.
-
-El criterio técnico de salida está cumplido. La integración permanece apagada hasta configurar
-Prices test reales, rotar las llaves expuestas y comenzar Fase 3.
-
-### Fase 3 — Trial, alta y facturación de prueba
-
-- Construir signup premium y retorno de Checkout.
-- Crear `company_id`, propietario y suscripción exactamente una vez.
-- Activar 30 días de trial con tarjeta y todos los productos básicos.
-- Probar cancelación, cambio de selección y cobro automático al terminar.
-
-Criterio de salida: pruebas E2E completas en Stripe test clocks.
-
-#### Estado implementado de Fase 3 — 21 de julio de 2026
-
-La Fase 3 incorpora el alta premium y el aprovisionamiento durable sin encender todavía el
-enforcement comercial:
-
-- `V147__premium_signup_provisioning.sql` agrega estados de aprovisionamiento al intent, propiedad
-  corporativa exclusiva y grants temporales de todos los productos básicos. La migración es
-  expansiva y no elimina ni reinterpreta datos existentes.
-- El Checkout conserva una referencia opaca en las URLs de éxito y cancelación. La pantalla
-  pública `/signup` permite seleccionar 1, 2, 3 o todos los productos, mensual/anual y seats
-  adicionales; `basic_all` permanece no comprable mientras su precio esté pendiente.
-- El alta pública acepta países ISO 3166-1 alpha-2 y muestra sus nombres localizados. La capacidad
-  efectiva de cobrar y calcular impuestos permanece sujeta a los países y registros habilitados
-  en Stripe; el backend no reduce artificialmente el registro a una lista regional fija.
-- `/signup/complete` consulta el estado local y solo habilita el login cuando el webhook firmado
-  ya dejó la cuenta lista. Recargar o recibir el mismo evento nuevamente no crea duplicados.
-- Después de `checkout.session.completed`, un servicio transaccional con bloqueo de fila crea una
-  sola `company_id`, usuario propietario, membresía `owner`, perfil `Corporate Office`, ownership,
-  roles de módulos, permisos de pestaña y grants de trial por 30 días.
-- El trial concede todos los productos básicos independientemente del paquete que se cobrará al
-  concluirlo. El núcleo permanece incluido por catálogo.
-- La reconciliación recupera intents completados cuyo webhook no pudo aprovisionar. Una falla de
-  un intent se aísla y no impide procesar los siguientes.
-- Si el correo ya pertenece a un usuario, no se altera su contraseña ni se crea una empresa
-  huérfana: el intent pasa a `REQUIRES_REVIEW` hasta construir el flujo verificado de vinculación.
-- Una restricción única impide que un mismo usuario sea propietario directo de dos compañías. Las
-  futuras transferencias o fusiones deberán pasar por un flujo explícito y auditado.
-- El aprovisionamiento inicia con `APP_BILLING_PROVISIONING_ENABLED=false`; Stripe y su procesador
-  mantienen sus propios kill switches. Ninguno de estos flags activa la Fase 4.
-
-Evidencia automatizada:
-
-- carrera concurrente de dos workers sobre el mismo intent;
-- creación exactamente una vez de compañía, usuario, ownership y membresía;
-- scope corporativo expresado con `unit_id` y `business_id` nulos;
-- trial de todos los productos básicos por 30 días;
-- conflicto de correo existente sin mutación del tenant;
-- compilación backend y typecheck frontend exitosos.
-
-La implementación local está lista para Stripe Test Mode. El cierre operativo del criterio E2E
-requiere configurar Prices y secretos test reales, ejecutar un Checkout con tarjeta de prueba y
-simular fin/cancelación del trial con Stripe Test Clocks según el runbook de Fase 3.
-
-### Fase 4 — Entitlements por cohortes
-
-- Ejecutar primero en shadow mode y comparar contra acceso actual.
-- Corregir cada ruta no clasificada; política fail-closed para rutas nuevas.
-- Habilitar por una `company_id` interna, después beta cerrada y finalmente todas.
-- Mantener kill switch que restaure la política anterior sin revertir migraciones.
-
-Criterio de salida: cero fugas cross-tenant y cero bloqueos inesperados en la cohorte.
-
-#### Estado implementado de Fase 4 — 21 de julio de 2026
-
-La base técnica de Fase 4 quedó implementada con activación reversible por compañía:
-
-- La migración `V148__premium_company_entitlements.sql` agrega la política de cohorte,
-  la proyección explicable de capabilities y el registro de diferencias. No inscribe empresas
-  históricas: una empresa sin política continúa en modo `LEGACY`.
-- Las compañías creadas por el signup premium entran automáticamente en `SHADOW`, reciben una
-  proyección inicial y se actualizan después de cambios de suscripción y mediante un job por lotes.
-- `CompanyEntitlementService` resuelve por `company_id` las fuentes `CORE`, `TRIAL` y
-  `SUBSCRIPTION`. La consulta siempre filtra por empresa y por vigencia; un grant comercial de
-  otra compañía no puede habilitar la capability.
-- La habilitación comercial de la empresa se intersecta con los permisos vigentes del usuario.
-  Comprar un módulo nunca asigna ese módulo automáticamente a todas las personas.
-- La clasificación usa primero `@RequiresCapability` y después un mapa conservador de rutas
-  autenticadas. Un controlador que atienda capabilities distintas puede habilitar explícitamente
-  `allowRouteOverride`; únicamente en ese caso el mapa exacto y sensible al método HTTP sustituye
-  la anotación de clase con una capability o con un conjunto `any-of` acotado. Las lecturas de
-  productos y almacenes bajo Ventas aceptan `inventory` o `sales` porque ambos módulos consumen ese
-  catálogo; sus mutaciones y las rutas de imágenes de producto requieren exclusivamente
-  `inventory`. Cada candidato evaluado conserva log y auditoría. Las anotaciones de método mantienen
-  prioridad absoluta y la capability declarada en la clase permanece como fallback restrictivo.
-  Las superficies públicas de kioskos, catálogos, signup y Stripe quedan fuera del interceptor
-  porque resuelven tenant e identidad mediante sus motores públicos propios.
-- Las diferencias se guardan en `entitlement_decision_events` por 90 días. Las coincidencias no
-  generan filas y permanecen disponibles en el log estructurado para no inflar la base.
-- El enforcement necesita dos condiciones simultáneas: el flag global
-  `APP_ENTITLEMENTS_ENFORCEMENT_ENABLED=true` y la política `ENFORCE` de la compañía. Se entrega
-  apagado; por tanto, instalar `V148` no bloquea solicitudes.
-- El modo `DISABLED` es el kill switch por tenant y restaura inmediatamente la decisión legacy.
-  Una falla del catálogo, proyección o auditoría también conserva el acceso legacy durante esta
-  etapa de adopción.
-
-Evidencia automatizada:
-
-- capabilities core disponibles y productos contratados aislados entre dos compañías;
-- suscripciones canceladas o vencidas sin grants comerciales;
-- trial premium de 30 días resolviendo RH y Cartera desde sus fuentes reales;
-- producto comprado sin elevar permisos de un usuario no asignado;
-- compañía en `DISABLED` restaurando el comportamiento anterior;
-- clasificación de rutas comerciales y exclusión de superficies públicas;
-- carrera de aprovisionamiento manteniendo una sola empresa, política y proyección.
-
-La operación y promoción de cohortes se define en
-`INDICE_PREMIUM_MULTITENANT_PHASE_4_RUNBOOK.md`. La recomendación de salida es mantener el
-enforcement global apagado hasta observar una compañía interna sin diferencias no explicadas.
-Las reglas de read-only por pago vencido y el enforcement dentro de acciones públicas de kiosko
-pertenecen a la Fase 6.
-
-### Fase 5 — Seats, propiedad y multi-company
-
-- Cobro/activación atómica de usuarios adicionales.
-- Selector multi-company y ownership transfer auditado.
-- Concurrencia, downgrade y recuperación de invitaciones.
-
-Estado implementado: `V149` incorpora estados y reservas de seats, mutaciones Stripe idempotentes,
-transferencias de ownership con aceptación, administración exclusiva de plataforma, beneficios
-temporales o vitalicios y auditoría separada del tenant. Los beneficios `PRODUCT`, `SEAT` y
-`STORAGE` permiten cortesías, promociones, soporte y pruebas sin falsear una suscripción. Una
-cortesía local controla acceso real; un cupón Stripe controla el importe de la factura y ambos
-conceptos se mantienen separados aunque puedan correlacionarse.
-
-Criterio de salida: no se puede superar el límite con carreras ni cobrar dos veces por reintentos.
-
-### Fase 6 — Cobranza, read-only y retención
-
-- Implementar los estados de la sección 6.
-- Clasificar operaciones de todos los módulos y kioskos.
-- Dar acceso permanente a billing, recuperación y exportación según política.
-- Implementar retención de 90 días y purga cancelable.
-
-Estado implementado: `V150` proyecta trial, active, grace, read-only, suspended, retention y
-purge-pending, conserva una bitácora de transiciones y agenda retención cancelable. El acceso
-operativo se aplica en backend y en adaptadores públicos de kiosko. Los flags de lifecycle y del
-scheduler se entregan apagados para certificar primero con Stripe Test Clocks.
-
-Criterio de salida: simulación completa de pago fallido a purga, sin pérdida prematura.
-
-### Fase 7 — Almacenamiento y complementarios
-
-- Medición de object storage por `company_id` y categoría.
-- Bloques de 5 GiB, alertas y enforcement de nuevas cargas.
-- Incorporar módulos complementarios uno por uno usando el contrato de la sección 8.
-
-Estado implementado: `V151` agrega ledger transaccional por objeto, reservas concurrentes,
-liberación, expiración segura, bloques Stripe idempotentes y medición en las superficies de carga
-persistente conocidas. La cuota se entrega sin enforcement hasta reconciliar los objetos
-históricos cuyo tamaño no estaba disponible en el esquema anterior.
-
-Criterio de salida por módulo: backend real, aislamiento, permisos, entitlement, read-only,
-observabilidad, traducciones, accesibilidad, carga de archivos y pruebas E2E cuando apliquen.
-
-### Fase 8 — Producción comercial
-
-- Checklist de modo live, rotación de secretos y alertas.
-- Reconciliación Stripe diaria y tablero de eventos fallidos.
-- Runbooks de soporte, reembolso, disputa, recuperación y cancelación.
-- Lanzamiento gradual por cohortes; no un switch global irreversible.
-
-Estado preparado, no activado: el procedimiento, evidencias, consultas de reconciliación,
-kill switches y barreras de lanzamiento están definidos en
-`INDICE_PREMIUM_MULTITENANT_PHASE_8_RUNBOOK.md`. Stripe Live continúa rechazado expresamente por
-el código hasta terminar la certificación y aprobar las decisiones comerciales pendientes.
+Para cada nueva entrega: identificar el comportamiento afectado, comprobar implementación y
+regresiones, actualizar el contrato autorizado y verificar el ambiente según la sección 14.
 
 ## 13. Estrategia de migraciones y rollback
 
@@ -1018,16 +745,19 @@ Un producto puede aparecer en Checkout únicamente cuando:
 - cuenta con UI premium responsive, accesible y traducida;
 - puede activarse y desactivarse con feature flag sin despliegue destructivo.
 
-## 17. Decisiones pendientes antes de activar cobros LIVE
+## 17. Decisiones y verificaciones pendientes
 
-Los importes, prueba, usuarios, consultoría, almacenamiento, cancelación y ventana de reembolso ya
-están aprobados en la sección 3. Antes de LIVE aún se debe:
+Los importes, prueba, usuarios, consultoría, almacenamiento, cancelación y ventana de reembolso
+están aprobados en la sección 3. Esta lista conserva requisitos de liberación y decisiones
+pendientes; no afirma que el ambiente actual los incumpla ni que una verificación antigua siga
+vigente. Antes de habilitar cobros LIVE en una versión y ambiente concretos se debe:
 
 1. Certificar de punta a punta la oferta `2026.08-global-v1` en Stripe TEST, incluidos Test Clocks,
    pago fallido, recuperación, cambio de plan, almacenamiento y cancelación.
 2. Confirmar con finanzas los registros fiscales reales que Stripe Tax debe activar por país.
-3. Precisar si una identidad consolidada puede ser propietaria simultánea de dos `company_id` o si
-   debe transferir o fusionar primero la estructura comercial.
+3. Resolver y verificar la brecha de propiedad múltiple aprobada en la sección 4 antes de ofrecer
+   ese flujo. No requiere fusionar empresas ni suscripciones. La consolidación de correos sigue
+   siendo una evolución separada.
 4. Definir qué exportaciones permanecen disponibles durante suspensión y retención.
 5. Aprobar expresamente una ventana de publicación LIVE y el rollback según `deployment/README.md`.
 
@@ -1044,9 +774,8 @@ No se eliminará todavía. Se puede retirar cuando se cumplan todos estos puntos
   árbol de producción;
 - el propietario del repositorio autorice explícitamente la eliminación.
 
-Como la carpeta llegó sin seguimiento Git, borrarla ahora eliminaría la única copia local visible.
-La acción segura es conservarla fuera de commits de producto hasta aprobar esta especificación y
-después eliminarla en una operación separada y verificable.
+La situación de seguimiento y respaldo se verifica en el momento de una eventual retirada; no
+se presume a partir de la nota histórica de recepción. Esta reorganización conserva la carpeta.
 
 ## 19. Próximo paso recomendado
 
@@ -1077,7 +806,7 @@ los reintentos conservan claves idempotentes y las operaciones abandonadas queda
 Ejecutar el runbook de Fase 8 exclusivamente en Stripe Test Mode: reconciliar una empresa interna,
 certificar cobro, seats, almacenamiento y morosidad con Test Clocks, y producir la evidencia de
 restauración y rollback. Antes de cobros públicos deben certificarse `2026.08-global-v1`,
-almacenamiento, suspensión y exportaciones; rotarse secretos; implementarse MFA real
-para plataforma; y realizarse una revisión explícita que autorice el modo
+almacenamiento, suspensión y exportaciones; verificarse la rotación de secretos y el enforcement
+MFA de plataforma; y realizarse una revisión explícita que autorice el modo
 `sk_live_`/`livemode=true`, aun cuando el runtime ya pueda validarlo técnicamente. No se habilitará
 enforcement global como parte del alta.

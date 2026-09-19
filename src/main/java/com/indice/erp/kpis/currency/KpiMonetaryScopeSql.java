@@ -33,11 +33,11 @@ final class KpiMonetaryScopeSql {
             return " AND EXISTS (SELECT 1 FROM finance_receivable_accounts owner WHERE owner.company_id = " + table + ".company_id"
                 + " AND owner.id = " + table + ".receivable_id" + assigned(scope, "owner", "unit_id", "business_id") + ")";
         }
-        if (name.startsWith("PETTY_CASH_STATEMENT_")) {
+        if ((name.startsWith("PETTY_CASH_STATEMENT_") || name.startsWith("PETTY_CASH_CUSTODY_STATEMENT_"))) {
             return " AND EXISTS (SELECT 1 FROM finance_petty_cash_funds owner WHERE owner.company_id = finance_petty_cash_statements.company_id"
                 + " AND owner.id = finance_petty_cash_statements.petty_cash_fund_id" + assigned(scope, "owner", "unit_id", "business_id") + ")";
         }
-        if (metric == BasicModuleKpiMetric.PETTY_CASH_MOVEMENT_AMOUNT || metric == BasicModuleKpiMetric.PETTY_CASH_SETTLEMENT_AMOUNT) {
+        if (name.startsWith("PETTY_CASH_CUSTODY_SETTLEMENT_") || metric == BasicModuleKpiMetric.PETTY_CASH_MOVEMENT_AMOUNT || metric == BasicModuleKpiMetric.PETTY_CASH_SETTLEMENT_AMOUNT) {
             return " AND EXISTS (SELECT 1 FROM finance_petty_cash_funds owner WHERE owner.company_id = statement_record.company_id"
                 + " AND owner.id = statement_record.petty_cash_fund_id" + assigned(scope, "owner", "unit_id", "business_id") + ")";
         }

@@ -57,6 +57,29 @@ class ReceivableCollectionIntegrationTest {
             """, company, token, currency);
     }
     @Test
+    void analyticsKeepsPaidHistoryAndRespectsCompanyUnitAndBusinessBoundaries() {
+        service.registerPayment(context, payment(bank, "analytics-paid-history", "300"));
+        var result = service.kpiWorkspace(context);
+        assertThat(result.receivables()).hasSize(1);
+        assertThat(result.receivables().get(0).balance()).isEqualByComparingTo("0");
+        assertThat(result.payments()).hasSize(1);
+        assertThat(result.installments()).hasSize(3);
+        assertThat(result.asOfDate()).isEqualTo(LocalDate.now(java.time.ZoneId.of(result.timeZone())));
+        var otherCompany = new FinanceContext(context.userId(), company + 999999, "Other", "admin", true, FinanceScope.corporateOffice());
+        assertThat(service.kpiWorkspace(otherCompany).receivables()).isEmpty();
+        assertThat(service.kpiWorkspace(otherCompany).installments()).isEmpty();
+        assertThat(service.kpiWorkspace(otherCompany).payments()).isEmpty();
+        var otherUnit = new FinanceContext(context.userId(), company, "Unit", "admin", true, FinanceScope.unitHeadquarters(999999L));
+        assertThat(service.kpiWorkspace(otherUnit).receivables()).isEmpty();
+        assertThat(service.kpiWorkspace(otherUnit).installments()).isEmpty();
+        assertThat(service.kpiWorkspace(otherUnit).payments()).isEmpty();
+        var otherBusiness = new FinanceContext(context.userId(), company, "Business", "admin", true, FinanceScope.businessOffice(999999L, 999999L));
+        assertThat(service.kpiWorkspace(otherBusiness).receivables()).isEmpty();
+        assertThat(service.kpiWorkspace(otherBusiness).installments()).isEmpty();
+        assertThat(service.kpiWorkspace(otherBusiness).payments()).isEmpty();
+    }
+
+    @Test
     void partialPaymentUpdatesOneNativeAccountAndRetryCannotDuplicateCashOrCredit() {
         var request = payment(bank, "collection-key-1", "50");
         service.registerPayment(context, request);

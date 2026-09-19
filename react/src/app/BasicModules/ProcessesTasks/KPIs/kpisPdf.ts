@@ -1,3 +1,5 @@
+import { measurementCards } from './measurementPresentation';
+import { getTaskKpiWorkspaceCopy } from './translations/workspaceCopy';
 import {
   escapeKpiPrintHtml as escapePrintHtml,
   printKpiHtmlReport,
@@ -99,9 +101,11 @@ export function printKpisDashboardPdf(params: PrintKpisPdfParams) {
   const { copy, dashboard } = params;
   const standardCopy = getProcessTaskStandardUiCopy(copy.locale);
   const { comparison, summary } = dashboard;
+  const workspaceCopy = getTaskKpiWorkspaceCopy(copy.locale);
+  const measurement = dashboard.measurements;
   const updatedAt = new Date();
 
-  const metricsHtml = dashboard.cards.map((card) => {
+  const metricsHtml = measurement ? measurementCards(measurement.summary, workspaceCopy, copy.locale).map(card => metricHtml(card.label, card.value)).join('') : dashboard.cards.map((card) => {
     const localized = standardCopy.cards[card.id];
     return metricHtml(localized?.title ?? card.title, card.value);
   }).join('');
@@ -200,6 +204,48 @@ export function printKpisDashboardPdf(params: PrintKpisPdfParams) {
     ),
   ));
 
+  const measurementPages: string[] = [];
+  if (measurement) {
+    const m = measurement.summary;
+    const duration = (n: number | null) => n == null ? workspaceCopy.noSample : `${new Intl.NumberFormat(copy.locale, { maximumFractionDigits: 1 }).format(n)} ${workspaceCopy.days}`;
+    measurementPages.push(sectionHtml(workspaceCopy.analysis, tableHtml(
+      [copy.pdf.columns.metric, copy.pdf.columns.value],
+      [
+        [workspaceCopy.cutoff, measurement.cutoffDate],
+        [workspaceCopy.aging, `1–3: ${m.late1To3Days} · 4–7: ${m.late4To7Days} · 8+: ${m.late8PlusDays}`],
+        [workspaceCopy.highPriority, `${m.highPriorityLateTasks} / ${m.highPriorityOpenTasks}`],
+        [workspaceCopy.wait, duration(m.medianAuditWaitDays)],
+        [workspaceCopy.reviewTime, `${duration(m.medianAuditDurationDays)} (${workspaceCopy.sample}: ${m.auditDurationSamples})`],
+        [workspaceCopy.elapsed, `${duration(m.medianElapsedDays)} (${workspaceCopy.sample}: ${m.elapsedSamples})`],
+        [workspaceCopy.distribution, m.ratingDistribution.map((count, rating) => `${rating}/5: ${count}`).join(' · ')],
+        [workspaceCopy.required, String(m.requiredEvidenceTasks)],
+        [workspaceCopy.openMissing, String(m.openMissingEvidence)],
+        [workspaceCopy.closedMissing, String(m.closedMissingEvidence)],
+        [workspaceCopy.upcoming, `${m.upcomingTasks} (${measurement.cutoffDate} – ${measurement.upcomingThrough})`],
+        [workspaceCopy.runs, String(m.observedRuns)],
+        [workspaceCopy.lateRuns, String(m.runsWithLateTasks)],
+        [workspaceCopy.completeRuns, String(m.fullyObservedCompletedRuns)],
+      ].map(row => row.map(textCell)), workspaceCopy.empty,
+    )) + `<p class="muted">${escapePrintHtml(`${workspaceCopy.scopeNote} ${workspaceCopy.elapsedNote} ${workspaceCopy.runsNote}`)}</p>`);
+    const measuredGroups = [
+      { title: workspaceCopy.units, rows: dashboard.units.map(row => ({ name: row.unitName, m: row.measurements })) },
+      { title: workspaceCopy.collaborators, rows: dashboard.collaborators.map(row => ({ name: row.collaboratorName, m: row.measurements })) },
+      { title: workspaceCopy.processes, rows: dashboard.processes.map(row => ({ name: row.processTitle, m: row.measurements })) },
+      { title: workspaceCopy.projects, rows: dashboard.projects.map(row => ({ name: row.projectName + (row.deadlineExceeded ? ` · ${workspaceCopy.projectLate}` : ''), m: row.measurements })) },
+    ];
+    for (const group of measuredGroups) {
+      measurementPages.push(...chunkRows(group.rows, 12).map(rows => sectionHtml(group.title, tableHtml(
+        [group.title, workspaceCopy.open, workspaceCopy.late, workspaceCopy.onTime, workspaceCopy.quality, workspaceCopy.audit],
+        rows.map(({ name, m }) => [
+          strongCell(name), textCell(m?.openTasks), textCell(m?.lateOpenTasks),
+          textCell(m?.onTimeRate == null ? workspaceCopy.noSample : `${m.onTimeRate}% (${m.onTimeDeliveries}/${m.eligibleDeliveries})`),
+          textCell(m?.averageRating == null ? workspaceCopy.noSample : `${m.averageRating}/5 (${m.ratedTasks})`),
+          textCell(m?.pendingAuditTasks),
+        ]), workspaceCopy.empty,
+      ))));
+    }
+  }
+
   printKpiHtmlReport({
     companyIdentity: params.companyIdentity,
     documentName: copy.pdf.title,
@@ -221,8 +267,10 @@ export function printKpisDashboardPdf(params: PrintKpisPdfParams) {
           </div>
         </div>
         <div class="metrics">${metricsHtml}</div>
-        ${sectionHtml(copy.pdf.signals, signalsTable)}
+        <p class="muted">${escapePrintHtml(workspaceCopy.scopeNote)}</p>
+        ${sectionHtml(workspaceCopy.reference, signalsTable)}
       `,
+      ...measurementPages,
       ...collaboratorPages,
       ...processPages,
       ...projectPages,

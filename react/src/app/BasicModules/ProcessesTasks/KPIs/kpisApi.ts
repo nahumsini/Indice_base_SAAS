@@ -1,3 +1,4 @@
+import { normalizeKpiMeasurements, normalizeTaskMeasurements, type KpiMeasurements, type TaskMeasurements } from './measurements';
 import { apiClient } from '../../../lib/apiClient';
 
 export type ProcessTaskKpiStatus = 'healthy' | 'watch' | 'critical';
@@ -60,6 +61,7 @@ export interface ProcessTaskKpiComparison {
 }
 
 export interface CollaboratorPerformanceRow {
+  measurements: TaskMeasurements | null;
   rank: number;
   collaboratorId: number | null;
   collaboratorName: string;
@@ -91,6 +93,7 @@ export interface CollaboratorPerformanceRow {
 }
 
 export interface ProcessPerformanceRow {
+  measurements: TaskMeasurements | null;
   processId: number;
   processFolio: string | null;
   processTitle: string;
@@ -117,6 +120,8 @@ export interface ProcessPerformanceRow {
 }
 
 export interface ProjectPerformanceRow {
+  deadlineExceeded: boolean;
+  measurements: TaskMeasurements | null;
   projectId: number;
   projectFolio: string | null;
   projectName: string;
@@ -142,6 +147,7 @@ export interface ProjectPerformanceRow {
 }
 
 export interface UnitPerformanceRow {
+  measurements: TaskMeasurements | null;
   unitId: number | null;
   unitName: string;
   totalTasks: number;
@@ -166,6 +172,7 @@ export interface ProcessTaskKpiTrendPoint {
 }
 
 export interface ProcessTaskKpiDashboard {
+  measurements: KpiMeasurements | null;
   range: {
     from: string;
     to: string;
@@ -289,6 +296,7 @@ function normalizeCard(record: BackendRecord): ProcessTaskKpiCard {
 
 function normalizeCollaborator(record: BackendRecord): CollaboratorPerformanceRow {
   return {
+    measurements: normalizeTaskMeasurements(record.measurements),
     rank: asNumber(record.rank),
     collaboratorId: asNumberOrNull(record.collaboratorId),
     collaboratorName: String(record.collaboratorName ?? 'Sin responsable'),
@@ -322,6 +330,7 @@ function normalizeCollaborator(record: BackendRecord): CollaboratorPerformanceRo
 
 function normalizeProcess(record: BackendRecord): ProcessPerformanceRow {
   return {
+    measurements: normalizeTaskMeasurements(record.measurements),
     processId: asNumber(record.processId),
     processFolio: asStringOrNull(record.processFolio),
     processTitle: String(record.processTitle ?? 'Proceso sin nombre'),
@@ -350,6 +359,8 @@ function normalizeProcess(record: BackendRecord): ProcessPerformanceRow {
 
 function normalizeProject(record: BackendRecord): ProjectPerformanceRow {
   return {
+    deadlineExceeded: record.deadlineExceeded === true,
+    measurements: normalizeTaskMeasurements(record.measurements),
     projectId: asNumber(record.projectId),
     projectFolio: asStringOrNull(record.projectFolio),
     projectName: String(record.projectName ?? 'Proyecto sin nombre'),
@@ -377,6 +388,7 @@ function normalizeProject(record: BackendRecord): ProjectPerformanceRow {
 
 function normalizeUnit(record: BackendRecord): UnitPerformanceRow {
   return {
+    measurements: normalizeTaskMeasurements(record.measurements),
     unitId: asNumberOrNull(record.unitId),
     unitName: String(record.unitName ?? 'Sin unidad'),
     totalTasks: asNumber(record.totalTasks),
@@ -446,6 +458,7 @@ export async function listProcessTaskKpis(params: ProcessTaskKpiParams) {
       includeOverdueBacklog: Boolean(range.includeOverdueBacklog),
       overdueOnly: Boolean(range.overdueOnly),
     },
+    measurements: normalizeKpiMeasurements(response.measurements),
     summary: normalizeSummary((response.summary ?? {}) as BackendRecord),
     comparison: normalizeComparison((response.comparison ?? {}) as BackendRecord),
     cards: Array.isArray(response.cards) ? response.cards.map((item) => normalizeCard(item as BackendRecord)) : [],

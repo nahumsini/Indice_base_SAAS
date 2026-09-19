@@ -30,7 +30,7 @@ export function ReceivableDetailModal({
   detailCopy: ReceivableDetailCopy;
   installments: ReceivableInstallment[];
   onClose: () => void;
-  onRegisterPayment: () => void;
+  onRegisterPayment?: () => void;
   payments: ReceivablePayment[];
 }) {
   const accountInstallments = installments
@@ -55,7 +55,7 @@ export function ReceivableDetailModal({
           <Button type="button" variant="outline" className={moduleModalOutlineButtonClassName} onClick={onClose}>
             {copy.common.close}
           </Button>
-          {account.balance > 0 ? (
+          {account.balance > 0 && onRegisterPayment ? (
             <Button type="button" className={cn('gap-2', moduleModalPrimaryButtonClassName)} onClick={onRegisterPayment}>
               <Banknote className="h-4 w-4" />
               {detailCopy.registerPayment}

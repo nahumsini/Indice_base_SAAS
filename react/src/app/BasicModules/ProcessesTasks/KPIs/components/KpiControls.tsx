@@ -7,16 +7,16 @@ import {
 } from '../../../../components/ui/select';
 import { Skeleton } from '../../../../components/ui/skeleton';
 
-export function KpiSkeleton() {
+export function KpiSkeleton({ view = 'overview' }: { view?: string }) {
   return (
-    <div className="space-y-6">
-      <Skeleton className="h-28 rounded-lg" />
+    <div className="space-y-6" aria-busy="true">
+      {view === 'overview' ? <>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 8 }).map((_, index) => (
           <Skeleton key={index} className="h-40 rounded-lg" />
         ))}
       </div>
-      <Skeleton className="h-96 rounded-lg" />
+      </> : <Skeleton className="h-96 rounded-2xl" />}
     </div>
   );
 }

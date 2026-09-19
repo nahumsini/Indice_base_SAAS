@@ -21,7 +21,7 @@ type IndiceWorkspaceNavigationProps<TabId extends string> = {
   onValueChange: (value: TabId) => void;
   tone?: IndiceModuleTone;
   value: TabId;
-  variant?: 'sections' | 'workflow';
+  variant?: 'sections' | 'views' | 'workflow';
 };
 
 const navigationKeyByDirection: Record<string, number> = {
@@ -35,7 +35,8 @@ const navigationKeyByDirection: Record<string, number> = {
  * Canonical internal navigation for Indice workspaces.
  *
  * `sections` is the compact pill navigation used to move between sibling
- * views. `workflow` makes sequence and context explicit without becoming a
+ * views. `views` groups alternate views in an Agenda-style selector.
+ * `workflow` makes sequence and context explicit without becoming a
  * wizard: every available step remains directly accessible.
  */
 export function IndiceWorkspaceNavigation<TabId extends string>({
@@ -144,9 +145,11 @@ export function IndiceWorkspaceNavigation<TabId extends string>({
       role="tablist"
       aria-label={ariaLabel}
       aria-orientation="horizontal"
-      data-indice-workspace-navigation="sections"
+      data-indice-workspace-navigation={variant}
       onKeyDown={handleKeyboardNavigation}
-      className={`flex flex-wrap items-center gap-1.5 ${className}`}
+      className={`${variant === 'views'
+        ? 'flex w-fit max-w-full flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800'
+        : 'flex flex-wrap items-center gap-1.5'} ${className}`}
     >
       {items.map((item) => {
         const active = value === item.id;
@@ -161,10 +164,10 @@ export function IndiceWorkspaceNavigation<TabId extends string>({
             disabled={item.disabled}
             data-state={active ? 'active' : 'inactive'}
             onClick={() => onValueChange(item.id)}
-            className={`inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-45 ${
+            className={`inline-flex shrink-0 items-center gap-2 border text-sm font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-45 ${variant === 'views' ? 'min-h-11 rounded-lg px-4 py-2' : 'min-h-9 rounded-full px-3 py-1.5'} ${
               active
                 ? 'border-transparent shadow-md'
-                : `border-transparent bg-slate-100 text-slate-600 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white ${theme.iconHover}`
+                : `border-transparent ${variant === 'views' ? 'bg-transparent' : 'bg-slate-100 dark:bg-slate-800'} text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white ${theme.iconHover}`
             }`}
             style={active ? {
               backgroundColor: theme.primary,

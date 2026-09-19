@@ -1,8 +1,16 @@
 # Finance Domain Contract
 
-Expenses is being prepared to become the Finance module. The current UI model remains in place while backend-ready domain entities, status contracts, table columns, and overview metrics are formalized.
+Status: domain summary for the implemented Finance workspaces. This document explains business
+boundaries; it does not certify deployment or rename the visible Expenses module.
 
-Business rules live in `domain/FINANCE_BUSINESS_RULES.md`. Petty Cash rules live in `domain/PETTY_CASH_DOMAIN_CONTRACT.md`. Type contracts live in `types/finance-domain.types.ts`, `types/finance-status.types.ts`, `types/expense-column-contract.types.ts`, and `types/financial-overview.types.ts`.
+Authority: [Backend OS](../../../../../../docs/indice-backend-operating-system-v1.md) and the
+approved owner contracts linked below. The former backend-preparation plan is retained in
+[UI Domain Alignment](FINANCE_UI_DOMAIN_ALIGNMENT.md) as historical context.
+
+Business rules live in [Finance Business Rules](FINANCE_BUSINESS_RULES.md),
+[Petty Cash](PETTY_CASH_DOMAIN_CONTRACT.md), and the
+[financial closeout contract](../../../../../../docs/kpi-financial-closeout-contract-v1.md).
+Frontend contracts live under [types](../types/); API contracts remain backend-owned.
 
 ## Finance Areas
 
@@ -29,9 +37,15 @@ BudgetLine defines the spendable unit inside a budget and owns planned, committe
 
 PurchaseOrder reserves budget before an invoice or expense exists. APPROVED and ISSUED purchase orders increase committed budget.
 
-Expense represents actual business consumption. PAID and CLOSED expenses increase actual budget consumption.
+Expense represents business consumption. APPROVED, PARTIALLY_PAID, PAID, and CLOSED expenses
+contribute to actual consumption under the financial closeout contract. A captured draft is not
+recognized consumption; receipt evidence and payment are distinct from approval.
 
-PettyCash represents controlled cash issued to a custodian. Issuing petty cash is a fund movement, not an expense. Settlement can create or link expenses only when receipts exist.
+PettyCash represents a controlled operational fund with a responsible user and a custody account.
+Issuing funds is a fund movement, not an expense. Authorized internal-fund settlement lines create
+company expenses once; external managed funds remain outside company expenses and budgets.
+Explicit administrator authorization without an attachment follows the
+[statement close contract](../../../../../../docs/petty-cash-statement-close-resolution-contract-v1.md).
 
 PaymentAccount is a financial account such as cash, bank, credit card, or petty cash. Transfers between payment accounts are fund movements, not expenses.
 
@@ -39,7 +53,9 @@ AccountingAccount classifies expense impact for accounting and reporting.
 
 Provider identifies who supplies goods or services.
 
-Payment records money applied to an expense. Payments affect account balances and cash-flow views.
+Payment records money applied to an expense. An assigned payment account receives the corresponding
+Treasury movement. Explicitly approved unassigned-payment flows retain payment history without
+moving bank money or choosing a default account; see the Backend OS financial rules.
 
 Attachment stores receipts, invoices, proofs, and audit evidence linked to business records.
 
@@ -73,7 +89,7 @@ BudgetHealthStatus is derived from availableAmount and plannedAmount:
 
 PurchaseOrder APPROVED or ISSUED increases committedAmount.
 
-Expense PAID or CLOSED increases actualExpenseAmount.
+Expense APPROVED, PARTIALLY_PAID, PAID, or CLOSED increases actualExpenseAmount.
 
 PettyCash ISSUED increases pettyCashIssuedAmount.
 
@@ -93,6 +109,9 @@ Current UI columns can keep their labels and layout until the UI is intentionall
 
 FinancialOverview is defined in `types/financial-overview.types.ts` and supports fixed expenses, variable expenses, petty cash issued, petty cash settled, pending payments, overdue payments, committed budget, consumed budget, available budget, budget health, upcoming cash requirements, and top cost drivers.
 
-## Backend Preparation Rule
+## Implementation Boundary
 
-Components should depend on services and typed adapters, not directly on transport details. The current service implementation is mock-backed and can later be replaced by real finance API calls without changing table, filters, KPI, or modal components.
+Components depend on services and typed adapters. The current [Expenses service](../services/expenses.service.ts)
+calls Finance APIs; backend owners enforce authorization, transactions, totals, and persistence.
+A type or conceptual flow in this document is not evidence that every operation is implemented.
+Inspect the affected service, owner contract, and regression coverage before extending a flow.

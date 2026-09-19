@@ -474,22 +474,24 @@ test('Indicadores usa alcance monetario unico, filtros progresivos y PDF coheren
   assert.match(pageSource, /const expenseCount = overview\.filteredExpenses\.length/);
   assert.match(pageSource, /costDrivers: driverRows/);
   assert.match(pageSource, /overview: overviewForPdf/);
-  assert.match(pageSource, /disabled=\{!isCompanyPrintIdentityReady \|\| monetaryDataLoading \|\| monetaryDataError\}/);
+  assert.match(pageSource, /disabled=\{printBlocked\}/);
+  assert.match(pageSource, /printBlocked = .*monetaryDataPartial/);
   assert.match(pageSource, /<IndiceFilterBar/);
   assert.match(pageSource, /<IndiceFilterDisclosureActions/);
   assert.match(pageSource, /<IndiceFilterAdvancedSection/);
   assert.match(pageSource, /<OperationalKpiCurrencyStrip/);
   assert.doesNotMatch(pageSource, /metrics\.expenseCount \* 5/);
-  assert.match(overviewSource, /paymentStatus === 'OPEN' && expense\.paymentStatus !== 'PAID'/);
+  assert.match(overviewSource, /paymentStatus === 'OPEN' && isOpenExpense\(expense\)/);
 });
 
-test('Las tarjetas de Indicadores exponen formula, umbral y acciones de seguimiento', () => {
+test('Indicadores distingue reconocimiento, pagos, saldos actuales y presupuesto con fuentes del owner', () => {
   const pageSource = readFileSync(resolve(expensesRoot, 'KPIs/GastosKPIPage.tsx'), 'utf8');
-
-  assert.match(pageSource, /45% pagos · 35% sin vencimiento · 20% evidencia/);
-  assert.match(pageSource, /onAction: \(\) => setPaymentStatus\('PAID'\)/);
-  assert.match(pageSource, /onAction: \(\) => setPaymentStatus\('OPEN'\)/);
-  assert.match(pageSource, /onAction: \(\) => setPaymentStatus\('OVERDUE'\)/);
-  assert.match(pageSource, /typeof progress === 'number'/);
-  assert.match(pageSource, /formatter=\{\(value\) => displayMoney\(Number\(value\)\)\}/);
+  const viewSource = readFileSync(resolve(expensesRoot, 'KPIs/components/ExpenseKpiViews.tsx'), 'utf8');
+  assert.match(pageSource, /metric: 'EXPENSE_ACTUAL'/);
+  assert.match(pageSource, /metric: 'EXPENSE_PAID'.*from: periodFrom/);
+  assert.match(pageSource, /copy\.availableHelp/);
+  assert.match(pageSource, /setPaymentStatus\('OPEN'\)/);
+  assert.match(pageSource, /setPaymentStatus\('OVERDUE'\)/);
+  assert.doesNotMatch(pageSource, /healthScore|rankTone/);
+  assert.match(viewSource, /copy\.responsibilityHelp/);
 });

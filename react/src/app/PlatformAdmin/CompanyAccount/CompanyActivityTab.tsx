@@ -17,10 +17,10 @@ import {
   Users,
   UserX,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { platformAdminApi, type PlatformCompanyDetail } from "../../api/platformAdmin";
 import { IndiceConfirmationDialog } from "../../components/indice-modal/IndiceConfirmationDialog";
-import { IndiceModalFrame } from "../../components/indice-modal/IndiceModalFrame";
+import { IndiceModalFrame, type IndiceModalFrameProps } from "../../components/indice-modal/IndiceModalFrame";
 import { CompactEmptyState, StatusPill, WorkspaceSection } from "./CompanyAccountPrimitives";
 import { formatDate, formatMoney, humanize, initials } from "./companyAccountUtils";
 
@@ -39,22 +39,30 @@ export type CompanyUserManagementApi = Pick<
   | "updateCompanyUserStatus"
   | "resendCompanyUserInvitation"
   | "cancelCompanyUserInvitation"
->;
+> & Partial<Pick<typeof platformAdminApi, "updateCompanyUserRole">>;
 
 export function CompanyActivityTab({
   company,
   canManage,
   onRefresh,
   onManageSeats,
+  canManageCapacity,
   showBilling = true,
   userApi = platformAdminApi,
+  inlineForms = false,
+  onBusyChange,
+  canManageRoles = false,
 }: {
   company: PlatformCompanyDetail;
   canManage: boolean;
   onRefresh: () => Promise<void>;
   onManageSeats: () => void;
+  canManageCapacity?: boolean;
   showBilling?: boolean;
   userApi?: CompanyUserManagementApi;
+  canManageRoles?: boolean;
+  inlineForms?: boolean;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const { t, locale, number } = useCustomerAccountCopy();
   const [view, setView] = useState<UserView>("active");
@@ -79,6 +87,14 @@ export function CompanyActivityTab({
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [inviteLink, setInviteLink] = useState("");
   const [copied, setCopied] = useState(false);
+  const [roleEdit, setRoleEdit] = useState<{ userId: number; label: string; role: "user" | "admin" | "superadmin" | "root" } | null>(null);
+  const [roleReason, setRoleReason] = useState("");
+  const [roleError, setRoleError] = useState("");
+  const InviteFrame = inlineForms ? CompanyInlineAction : IndiceModalFrame;
+  useEffect(() => {
+    onBusyChange?.(Boolean(busyKey));
+    return () => onBusyChange?.(false);
+  }, [busyKey, onBusyChange]);
 
   const invitations = company.invitations || [];
   const activeMembers = useMemo(() => company.members.filter((member) => memberIsActive(member.status)), [company.members]);
@@ -97,7 +113,27 @@ export function CompanyActivityTab({
   const usedPercent = limit > 0 ? Math.min(((active + reserved) / limit) * 100, 100) : 0;
   const isBusy = Boolean(busyKey);
 
+  const refreshSavedChange = async () => {
+    try { await onRefresh(); }
+    catch { setFeedback({ type: "success", message: t("workspaceSavedRefreshFailed") }); }
+  };
+
+  const saveRole = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!canManage || !canManageRoles || !roleEdit || !userApi.updateCompanyUserRole || isBusy || roleReason.trim().length < 5) return;
+    setBusyKey(`role-${roleEdit.userId}`);
+    setRoleError("");
+    try {
+      await userApi.updateCompanyUserRole(company.id, roleEdit.userId, roleEdit.role, roleReason.trim());
+      setRoleEdit(null);
+      setFeedback({ type: "success", message: t("workspaceRoleUpdated") });
+      await refreshSavedChange();
+    } catch (error) { setRoleError(customerAccountError(error, locale, "workspaceRoleFailed")); }
+    finally { setBusyKey(""); }
+  };
+
   const resetInvite = () => {
+    setRoleEdit(null);
     setName("");
     setEmail("");
     setRole("user");
@@ -126,7 +162,7 @@ export function CompanyActivityTab({
           ? t("inviteSent")
           : t("inviteCreated"),
       });
-      await onRefresh();
+      await refreshSavedChange();
     } catch (error) {
       setFeedback({ type: "error", message: customerAccountError(error, locale, "inviteFailed") });
     } finally {
@@ -145,13 +181,13 @@ export function CompanyActivityTab({
     setStatusError("");
     try {
       await userApi.updateCompanyUserStatus(company.id, userId, status, reason);
-      await onRefresh();
       setFeedback({
         type: "success",
         message: status === "active" ? t("userReactivated") : t("userDeactivated"),
       });
       setPendingStatus(null);
       setStatusReason("");
+      await refreshSavedChange();
     } catch (error) {
       const message = customerAccountError(error, locale, "userUpdateFailed");
       setStatusError(message);
@@ -172,7 +208,7 @@ export function CompanyActivityTab({
         type: "success",
         message: result.email_sent ? t("inviteResent") : t("inviteRenewed"),
       });
-      await onRefresh();
+      await refreshSavedChange();
     } catch (error) {
       setFeedback({ type: "error", message: customerAccountError(error, locale, "inviteResendFailed") });
     } finally {
@@ -187,9 +223,9 @@ export function CompanyActivityTab({
     setInvitationCancelError("");
     try {
       await userApi.cancelCompanyUserInvitation(company.id, invitationId);
-      await onRefresh();
       setFeedback({ type: "success", message: t("inviteCanceled") });
       setPendingInvitationCancel(null);
+      await refreshSavedChange();
     } catch (error) {
       const message = customerAccountError(error, locale, "inviteCancelFailed");
       setInvitationCancelError(message);
@@ -252,8 +288,8 @@ export function CompanyActivityTab({
             ) : <p className="mt-2 text-xs text-slate-500">{t("unlimitedSeats")}</p>}
           </div>
           <div className="flex flex-wrap gap-2 sm:justify-end">
-            <button type="button" onClick={onManageSeats} disabled={!canManage} className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-medium text-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
-              <ShieldCheck className="h-4 w-4" /> {t("adjustSeats")}</button>
+            <button type="button" onClick={onManageSeats} disabled={!(canManageCapacity ?? canManage)} className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-medium text-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+              <ShieldCheck className="h-4 w-4" /> {t("accessManageCapacity")}</button>
             <button
               type="button"
               onClick={() => { resetInvite(); setInviteOpen(true); }}
@@ -301,6 +337,13 @@ export function CompanyActivityTab({
                     <p className="text-xs text-slate-600">{humanize(member.role, locale)}</p>
                     <div className="mt-1"><StatusPill status="active" /></div>
                   </div>
+                  {canManage && canManageRoles && inlineForms && userApi.updateCompanyUserRole && !member.is_owner ? (
+                    <button type="button" disabled={isBusy} onClick={() => {
+                      setInviteOpen(false); setRoleReason(""); setRoleError("");
+                      const currentRole = (member.role || "user").toLowerCase().replace("super_admin", "superadmin");
+                      setRoleEdit({ userId: member.user_id, label: member.name || member.email, role: ["admin", "superadmin", "root"].includes(currentRole) ? currentRole as "admin" | "superadmin" | "root" : "user" });
+                    }} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-[#177D66]">{t("workspaceChangeRole")}</button>
+                  ) : null}
                   {canManage ? (
                     <button type="button" disabled={protectedUser || isBusy} onClick={() => { setStatusReason(""); setStatusError(""); setPendingStatus({ userId: member.user_id, status: "inactive", label: member.name || member.email }); }} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-rose-200 px-3 text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400" title={protectedUser ? t("ownerProtected") : t("deactivateRelease")}>
                       <UserX className="h-3.5 w-3.5" /> {protectedUser ? t("protected") : t("deactivate")}
@@ -376,7 +419,19 @@ export function CompanyActivityTab({
         </WorkspaceSection>
       ) : null}
 
-      <IndiceModalFrame
+      {roleEdit ? <WorkspaceSection title={t("workspaceChangeRole")} description={roleEdit.label} icon={ShieldCheck}>
+        <form onSubmit={(event) => void saveRole(event)} className="space-y-3 p-4">
+          <p className="text-xs text-slate-500">{t("workspaceIdentityHelp")}</p>
+          {roleError ? <p role="alert" className="text-sm text-rose-700">{roleError}</p> : null}
+          <label className="block text-sm"><span>{t("initialRole")}</span><select disabled={isBusy} value={roleEdit.role} onChange={(event) => setRoleEdit({ ...roleEdit, role: event.target.value as typeof roleEdit.role })} className="mt-1 block h-11 w-full rounded-lg border border-slate-200 bg-white px-3 dark:bg-slate-900">
+            {(["user", "admin", "superadmin", "root"] as const).map((value) => <option key={value} value={value}>{humanize(value, locale)}</option>)}
+          </select></label>
+          <label className="block text-sm"><span>{t("operationalReason")}</span><textarea required minLength={5} maxLength={500} disabled={isBusy} value={roleReason} onChange={(event) => setRoleReason(event.target.value)} className="mt-1 block w-full rounded-lg border border-slate-200 p-3 dark:bg-slate-900" /></label>
+          <div className="flex justify-end gap-2"><button type="button" disabled={isBusy} onClick={() => setRoleEdit(null)} className="rounded-lg border px-4 py-2 text-sm">{t("cancel")}</button><button type="submit" disabled={isBusy || roleReason.trim().length < 5} className="rounded-lg bg-[#177D66] px-4 py-2 text-sm text-white disabled:opacity-50">{isBusy ? t("saving") : t("save")}</button></div>
+        </form>
+      </WorkspaceSection> : null}
+
+      <InviteFrame
         open={inviteOpen}
         onOpenChange={(open) => { if (!open) setInviteOpen(false); }}
         busy={isBusy}
@@ -431,7 +486,7 @@ export function CompanyActivityTab({
           </label>
           <p className="text-xs leading-5 text-slate-500">{t("initialPermissions")}</p>
         </form>
-      </IndiceModalFrame>
+      </InviteFrame>
 
       <IndiceConfirmationDialog
         open={pendingStatus !== null}
@@ -501,4 +556,16 @@ export function CompanyActivityTab({
       </IndiceConfirmationDialog>
     </div>
   );
+}
+
+// The customer workspace already owns a modal. An invitation is a form within
+// that context; the distributor's existing standalone presentation is preserved.
+function CompanyInlineAction({ open, busy, title, description, children, footer }: IndiceModalFrameProps) {
+  if (!open) return null;
+  return <WorkspaceSection title={String(title ?? "")} description={typeof description === "string" ? description : undefined} icon={UserPlus}>
+    <fieldset disabled={busy}>
+      <div className="p-4">{children}</div>
+      <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 p-4 text-sm">{footer}</div>
+    </fieldset>
+  </WorkspaceSection>;
 }

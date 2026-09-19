@@ -129,9 +129,104 @@ public class PlatformAdminService {
         var direction = "asc".equals(lower(rawDirection)) ? 1 : -1;
         var requestedSafePage = Math.max(1, requestedPage);
         var pageSize = Math.max(1, Math.min(requestedPageSize, 500));
-        var companies = jdbcTemplate.query(
+        var companies = companySummaries(null);
+        addBillingProjection(companies);
+        var activeCustomerAccounts = companies.stream()
+            .filter(PlatformAdminService::isOperationalCustomerAccount)
+            .toList();
+        var totals = new LinkedHashMap<String, Object>();
+        totals.put("companies", scalar("SELECT COUNT(*) FROM companies"));
+        totals.put("premium_companies", scalar("SELECT COUNT(*) FROM company_entitlement_policies"));
+        totals.put("active_subscriptions", scalar("SELECT COUNT(*) FROM company_billing_subscriptions WHERE LOWER(status) IN ('trialing', 'active')"));
+        totals.put("active_benefits", scalar("SELECT COUNT(*) FROM company_benefit_grants WHERE status = 'ACTIVE' AND starts_at <= CURRENT_TIMESTAMP(6) AND (ends_at IS NULL OR ends_at > CURRENT_TIMESTAMP(6))"));
+        totals.put("trialing_subscriptions", scalar("SELECT COUNT(*) FROM company_billing_subscriptions WHERE LOWER(status) = 'trialing'"));
+        totals.put("trials_ending_soon", scalar("SELECT COUNT(*) FROM company_billing_subscriptions WHERE LOWER(status) = 'trialing' AND trial_ends_at BETWEEN CURRENT_TIMESTAMP(6) AND DATE_ADD(CURRENT_TIMESTAMP(6), INTERVAL 7 DAY)"));
+        totals.put("attention_required", scalar("SELECT COUNT(DISTINCT company_id) FROM company_billing_subscriptions WHERE LOWER(status) IN ('past_due', 'unpaid', 'incomplete')"));
+        long mrrCents = companies.stream()
+            .filter(company -> "USD".equals(company.get("currency")))
+            .filter(company -> Set.of("active", "trialing").contains(lower(company.get("billing_status"))))
+            .mapToLong(company -> {
+                var amount = ((Number) company.getOrDefault("recurring_amount_cents", 0L)).longValue();
+                return "YEAR".equals(company.get("billing_interval")) ? Math.round(amount / 12.0) : amount;
+            })
+            .sum();
+        totals.put("monthly_recurring_cents", mrrCents);
+        totals.put("active_customer_companies", activeCustomerAccounts.size());
+        totals.put(
+            "customer_active_users",
+            activeCustomerAccounts.stream()
+                .mapToLong(company -> ((Number) company.getOrDefault("active_members", 0)).longValue())
+                .sum()
+        );
+        totals.put(
+            "projected_monthly_billing_cents",
+            activeCustomerAccounts.stream()
+                .filter(company -> "USD".equalsIgnoreCase(String.valueOf(company.getOrDefault("billing_currency", "USD"))))
+                .mapToLong(PlatformAdminService::monthlyBillingAmount)
+                .sum()
+        );
+        totals.put("paid_last_30_days_cents", scalarLong("SELECT COALESCE(SUM(amount_paid_cents), 0) FROM billing_invoice_snapshots WHERE currency = 'USD' AND LOWER(COALESCE(status, '')) = 'paid' AND updated_at >= DATE_SUB(CURRENT_TIMESTAMP(6), INTERVAL 30 DAY)"));
+        totals.put("demo_and_trial_accounts", companies.stream()
+            .filter(company -> Set.of("demo", "trial").contains(commercialStatus(company)))
+            .count());
+        totals.put("currency", "USD");
+
+        var filteredCompanies = companies.stream()
+            .filter(company -> matchesCompanySearch(company, query))
+            .filter(company -> "ALL".equals(userType) || userType.isBlank()
+                || userType.equalsIgnoreCase(String.valueOf(company.get("user_type"))))
+            .filter(company -> matchesCompanyStatus(company, status))
+            .sorted(companyComparator(sort, direction))
+            .toList();
+        var totalItems = filteredCompanies.size();
+        var totalPages = Math.max(1, (int) Math.ceil(totalItems / (double) pageSize));
+        var page = Math.min(requestedSafePage, totalPages);
+        var fromIndex = Math.min((page - 1) * pageSize, totalItems);
+        var toIndex = Math.min(fromIndex + pageSize, totalItems);
+        var pageCompanies = new ArrayList<>(filteredCompanies.subList(fromIndex, toIndex));
+
+        var managedCustomers = companies.stream()
+            .filter(PlatformAdminService::isManagedCustomer)
+            .toList();
+        var priorities = managedCustomers.stream()
+            .filter(company -> customerPriorityScore(company) > 0)
+            .sorted(Comparator
+                .comparingInt(PlatformAdminService::customerPriorityScore)
+                .reversed()
+                .thenComparing(company -> lower(company.get("name"))))
+            .limit(5)
+            .toList();
+        var control = new LinkedHashMap<String, Object>();
+        control.put("attention", managedCustomers.stream().filter(PlatformAdminService::isCustomerAttentionAccount).count());
+        control.put("expiring", managedCustomers.stream().filter(PlatformAdminService::isCustomerTrialEndingSoon).count());
+        control.put("no_offer", managedCustomers.stream().filter(PlatformAdminService::isCustomerWithoutOffer).count());
+        control.put("no_adoption", managedCustomers.stream().filter(PlatformAdminService::isCustomerWithoutAdoption).count());
+        control.put("priorities", priorities);
+
+        var pagination = new LinkedHashMap<String, Object>();
+        pagination.put("page", page);
+        pagination.put("page_size", pageSize);
+        pagination.put("total_items", totalItems);
+        pagination.put("total_pages", totalPages);
+
+        var result = new LinkedHashMap<String, Object>();
+        result.put("totals", totals);
+        result.put("companies", pageCompanies);
+        result.put("pagination", pagination);
+        result.put("control", control);
+        result.put("distributors", companies.stream()
+            .filter(company -> "DISTRIBUTOR".equalsIgnoreCase(String.valueOf(company.get("user_type"))))
+            .filter(company -> !"deleted".equals(lower(company.get("platform_status"))))
+            .sorted(Comparator.comparing(company -> lower(company.get("name"))))
+            .toList());
+        return result;
+    }
+
+    /** Shared presentation contract; callers authorize platform or portfolio scope first. */
+    private List<Map<String, Object>> companySummaries(Long companyId) {
+        return jdbcTemplate.query(
             """
-                SELECT company.id, company.name, company.public_demo_enabled, company.platform_status,
+                SELECT company.id, company.name, company.public_demo_enabled, company.platform_status, company.commercial_account_type,
                        CASE
                            WHEN EXISTS (
                                SELECT 1
@@ -394,14 +489,14 @@ public class PlatformAdminService {
                       FROM billing_invoice_snapshots candidate_invoice
                       WHERE candidate_invoice.company_id = company.id
                   )
-                ORDER BY company.id DESC
-                """,
+                """ + (companyId == null ? "" : " WHERE company.id = ?") + " ORDER BY company.id DESC",
             (rs, rowNum) -> {
                 var row = new LinkedHashMap<String, Object>();
                 row.put("id", rs.getLong("id"));
                 row.put("name", rs.getString("name"));
                 row.put("public_demo_enabled", rs.getBoolean("public_demo_enabled"));
                 row.put("platform_status", rs.getString("platform_status"));
+                row.put("commercial_account_type", rs.getString("commercial_account_type"));
                 row.put("user_type", rs.getString("user_type"));
                 row.put("distributor_company_id", rs.getObject("distributor_company_id"));
                 row.put("distributor_company_name", nullable(rs.getString("distributor_company_name")));
@@ -470,98 +565,9 @@ public class PlatformAdminService {
                 row.put("active_benefits", rs.getInt("active_benefits"));
                 row.put("temporary_benefits", rs.getInt("temporary_benefits"));
                 return row;
-            }
+            },
+            companyId == null ? new Object[0] : new Object[] { companyId }
         );
-        addBillingProjection(companies);
-        var activeCustomerAccounts = companies.stream()
-            .filter(PlatformAdminService::isOperationalCustomerAccount)
-            .toList();
-        var totals = new LinkedHashMap<String, Object>();
-        totals.put("companies", scalar("SELECT COUNT(*) FROM companies"));
-        totals.put("premium_companies", scalar("SELECT COUNT(*) FROM company_entitlement_policies"));
-        totals.put("active_subscriptions", scalar("SELECT COUNT(*) FROM company_billing_subscriptions WHERE LOWER(status) IN ('trialing', 'active')"));
-        totals.put("active_benefits", scalar("SELECT COUNT(*) FROM company_benefit_grants WHERE status = 'ACTIVE' AND starts_at <= CURRENT_TIMESTAMP(6) AND (ends_at IS NULL OR ends_at > CURRENT_TIMESTAMP(6))"));
-        totals.put("trialing_subscriptions", scalar("SELECT COUNT(*) FROM company_billing_subscriptions WHERE LOWER(status) = 'trialing'"));
-        totals.put("trials_ending_soon", scalar("SELECT COUNT(*) FROM company_billing_subscriptions WHERE LOWER(status) = 'trialing' AND trial_ends_at BETWEEN CURRENT_TIMESTAMP(6) AND DATE_ADD(CURRENT_TIMESTAMP(6), INTERVAL 7 DAY)"));
-        totals.put("attention_required", scalar("SELECT COUNT(DISTINCT company_id) FROM company_billing_subscriptions WHERE LOWER(status) IN ('past_due', 'unpaid', 'incomplete')"));
-        long mrrCents = companies.stream()
-            .filter(company -> "USD".equals(company.get("currency")))
-            .filter(company -> Set.of("active", "trialing").contains(lower(company.get("billing_status"))))
-            .mapToLong(company -> {
-                var amount = ((Number) company.getOrDefault("recurring_amount_cents", 0L)).longValue();
-                return "YEAR".equals(company.get("billing_interval")) ? Math.round(amount / 12.0) : amount;
-            })
-            .sum();
-        totals.put("monthly_recurring_cents", mrrCents);
-        totals.put("active_customer_companies", activeCustomerAccounts.size());
-        totals.put(
-            "customer_active_users",
-            activeCustomerAccounts.stream()
-                .mapToLong(company -> ((Number) company.getOrDefault("active_members", 0)).longValue())
-                .sum()
-        );
-        totals.put(
-            "projected_monthly_billing_cents",
-            activeCustomerAccounts.stream()
-                .filter(company -> "USD".equalsIgnoreCase(String.valueOf(company.getOrDefault("billing_currency", "USD"))))
-                .mapToLong(PlatformAdminService::monthlyBillingAmount)
-                .sum()
-        );
-        totals.put("paid_last_30_days_cents", scalarLong("SELECT COALESCE(SUM(amount_paid_cents), 0) FROM billing_invoice_snapshots WHERE currency = 'USD' AND LOWER(COALESCE(status, '')) = 'paid' AND updated_at >= DATE_SUB(CURRENT_TIMESTAMP(6), INTERVAL 30 DAY)"));
-        totals.put("demo_and_trial_accounts", companies.stream()
-            .filter(company -> Set.of("demo", "trial").contains(commercialStatus(company)))
-            .count());
-        totals.put("currency", "USD");
-
-        var filteredCompanies = companies.stream()
-            .filter(company -> matchesCompanySearch(company, query))
-            .filter(company -> "ALL".equals(userType) || userType.isBlank()
-                || userType.equalsIgnoreCase(String.valueOf(company.get("user_type"))))
-            .filter(company -> matchesCompanyStatus(company, status))
-            .sorted(companyComparator(sort, direction))
-            .toList();
-        var totalItems = filteredCompanies.size();
-        var totalPages = Math.max(1, (int) Math.ceil(totalItems / (double) pageSize));
-        var page = Math.min(requestedSafePage, totalPages);
-        var fromIndex = Math.min((page - 1) * pageSize, totalItems);
-        var toIndex = Math.min(fromIndex + pageSize, totalItems);
-        var pageCompanies = new ArrayList<>(filteredCompanies.subList(fromIndex, toIndex));
-
-        var managedCustomers = companies.stream()
-            .filter(PlatformAdminService::isManagedCustomer)
-            .toList();
-        var priorities = managedCustomers.stream()
-            .filter(company -> customerPriorityScore(company) > 0)
-            .sorted(Comparator
-                .comparingInt(PlatformAdminService::customerPriorityScore)
-                .reversed()
-                .thenComparing(company -> lower(company.get("name"))))
-            .limit(5)
-            .toList();
-        var control = new LinkedHashMap<String, Object>();
-        control.put("attention", managedCustomers.stream().filter(PlatformAdminService::isCustomerAttentionAccount).count());
-        control.put("expiring", managedCustomers.stream().filter(PlatformAdminService::isCustomerTrialEndingSoon).count());
-        control.put("no_offer", managedCustomers.stream().filter(PlatformAdminService::isCustomerWithoutOffer).count());
-        control.put("no_adoption", managedCustomers.stream().filter(PlatformAdminService::isCustomerWithoutAdoption).count());
-        control.put("priorities", priorities);
-
-        var pagination = new LinkedHashMap<String, Object>();
-        pagination.put("page", page);
-        pagination.put("page_size", pageSize);
-        pagination.put("total_items", totalItems);
-        pagination.put("total_pages", totalPages);
-
-        var result = new LinkedHashMap<String, Object>();
-        result.put("totals", totals);
-        result.put("companies", pageCompanies);
-        result.put("pagination", pagination);
-        result.put("control", control);
-        result.put("distributors", companies.stream()
-            .filter(company -> "DISTRIBUTOR".equalsIgnoreCase(String.valueOf(company.get("user_type"))))
-            .filter(company -> !"deleted".equals(lower(company.get("platform_status"))))
-            .sorted(Comparator.comparing(company -> lower(company.get("name"))))
-            .toList());
-        return result;
     }
 
     private void addBillingProjection(List<? extends Map<String, Object>> companies) {
@@ -1126,6 +1132,9 @@ public class PlatformAdminService {
         body.put("seat_usage", seatUsage(companyId));
         body.put("storage_usage", storageSnapshot(companyId));
         body.put("commercial_change", companyCommercialChange(companyId));
+        var summaries = companySummaries(companyId);
+        addBillingProjection(summaries);
+        if (!summaries.isEmpty()) body.putAll(summaries.getFirst());
         return body;
     }
 

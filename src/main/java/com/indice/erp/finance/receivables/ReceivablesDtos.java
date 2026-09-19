@@ -9,6 +9,14 @@ public final class ReceivablesDtos {
     private ReceivablesDtos() {
     }
 
+    public record ReceivablesKpiWorkspaceResponse(
+        List<ReceivableAccountResponse> receivables,
+        List<ReceivableInstallmentResponse> installments,
+        List<ReceivablePaymentResponse> payments,
+        LocalDate asOfDate,
+        String timeZone
+    ) {}
+
     public record ReceivablesWorkspaceResponse(
         List<CreditSaleResponse> creditSales,
         List<ReceivableAccountResponse> receivables,

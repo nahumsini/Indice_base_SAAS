@@ -11,6 +11,9 @@ import {
   Eye,
   FileCheck2,
   Gauge,
+  LayoutGrid,
+  ChartNoAxesCombined,
+  Building2,
   ListChecks,
   Printer,
   RefreshCw,
@@ -42,6 +45,7 @@ import {
   IndiceFilterSearch,
   IndiceFilterSelect,
   IndiceTitleBar,
+  IndiceWorkspaceNavigation,
   useIndiceFilterDisclosureCopy,
 } from '../../../components/frontend-os';
 import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
@@ -52,6 +56,9 @@ import {
   type ProcessTaskKpiDashboard,
   type ProcessTaskKpiStatus,
 } from './kpisApi';
+import { KpiMeasurementCards, KpiMeasurementAnalysis } from './components/KpiMeasurements';
+import { KpiUnitComparison } from './components/KpiUnitComparison';
+import { getTaskKpiWorkspaceCopy, resolveTaskKpiView, resolveTaskKpiEntity, type TaskKpiView, type TaskKpiEntity } from './translations/workspaceCopy';
 import { KpiSkeleton } from './components/KpiControls';
 import { KpiPerformanceWorkspace } from './components/KpiPerformanceWorkspace';
 import { printKpisDashboardPdf } from './kpisPdf';
@@ -88,6 +95,8 @@ const allValue = 'all';
 const kpiPeriodValues: AgendaPeriodFilter[] = ['all', 'today', 'tomorrow', 'yesterday', 'week', 'month', 'custom'];
 
 type ProcessTaskKpiWorkspaceState = {
+  activeView: TaskKpiView;
+  activeEntity: TaskKpiEntity;
   searchQuery: string;
   period: AgendaPeriodFilter;
   focusFilter: AgendaFocusFilter;
@@ -776,6 +785,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
   const { pageId } = useParams();
   const copy = useKpisTranslations();
   const standardCopy = getProcessTaskStandardUiCopy(copy.locale);
+  const workspaceCopy = getTaskKpiWorkspaceCopy(copy.locale);
   const agendaCopy = useAgendaTranslations();
   const disclosureCopy = useIndiceFilterDisclosureCopy();
   const headerCopy = copy.header;
@@ -788,6 +798,8 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [activeView, setActiveView] = useState<TaskKpiView>('overview');
+  const [activeEntity, setActiveEntity] = useState<TaskKpiEntity>('collaborators');
   const [period, setPeriod] = useState<AgendaPeriodFilter>('today');
   const [focusFilter, setFocusFilter] = useState<AgendaFocusFilter>('mine');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -807,6 +819,8 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
   const workspaceDefaults = useMemo<ProcessTaskKpiWorkspaceState>(() => {
     const today = localDateString(new Date());
     return {
+      activeView: 'overview',
+      activeEntity: 'collaborators',
       searchQuery: '',
       period: 'today',
       focusFilter: 'mine',
@@ -821,6 +835,8 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
   }, []);
 
   const workspaceState = useMemo<ProcessTaskKpiWorkspaceState>(() => ({
+    activeView,
+    activeEntity,
     searchQuery,
     period,
     focusFilter,
@@ -832,6 +848,8 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
     projectFilter,
     collaboratorFilter,
   }), [
+    activeView,
+    activeEntity,
     businessFilter,
     collaboratorFilter,
     customFrom,
@@ -850,6 +868,8 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
     state: workspaceState,
     defaults: workspaceDefaults,
     urlFields: {
+      activeView: 'view',
+      activeEntity: 'entity',
       searchQuery: 'q',
       period: 'period',
       focusFilter: 'focus',
@@ -862,6 +882,8 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
       collaboratorFilter: 'collaborator',
     },
     onRestore: (restoredState) => {
+      setActiveView(resolveTaskKpiView(restoredState.activeView));
+      setActiveEntity(resolveTaskKpiEntity(restoredState.activeEntity));
       setSearchQuery(typeof restoredState.searchQuery === 'string' ? restoredState.searchQuery : '');
       setPeriod(kpiPeriodValues.includes(restoredState.period) ? restoredState.period : 'today');
       setFocusFilter(agendaFocusFilterValues.includes(restoredState.focusFilter) ? restoredState.focusFilter : 'mine');
@@ -949,6 +971,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
     (params: Record<string, string>) => {
       const nextParams = agendaPeriodParams(period, range);
       nextParams.set('focus', focusFilter);
+      if (deferredSearchQuery.trim()) nextParams.set('search', deferredSearchQuery.trim());
 
       if (statusFilter !== 'all') {
         nextParams.set('status', statusFilter);
@@ -984,6 +1007,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
       selectedProjectId,
       selectedUnitName,
       statusFilter,
+      deferredSearchQuery,
     ],
   );
 
@@ -1143,19 +1167,19 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
   ].filter((item) => item.value > 0) : [], [agendaCopy.statuses, dashboard]);
 
   const topCompliance = useMemo(
-    () => [...(dashboard?.collaborators ?? [])].filter((row) => row.totalTasks > 0).sort((a, b) => b.productivityScore - a.productivityScore).slice(0, 5),
+    () => [...(dashboard?.collaborators ?? [])].filter((row) => (row.measurements?.eligibleDeliveries ?? 0) > 0).sort((a, b) => (b.measurements?.onTimeRate ?? -1) - (a.measurements?.onTimeRate ?? -1)).slice(0, 5),
     [dashboard],
   );
   const topOverdue = useMemo(
-    () => [...(dashboard?.collaborators ?? [])].filter((row) => row.overdueTasks > 0).sort((a, b) => b.overdueTasks - a.overdueTasks).slice(0, 5),
+    () => [...(dashboard?.collaborators ?? [])].filter((row) => (row.measurements?.lateOpenTasks ?? 0) > 0).sort((a, b) => (b.measurements?.lateOpenTasks ?? 0) - (a.measurements?.lateOpenTasks ?? 0)).slice(0, 5),
     [dashboard],
   );
   const riskyProcesses = useMemo(
-    () => [...(dashboard?.processes ?? [])].filter((row) => row.overdueTasks > 0 || row.pendingAuditTasks > 0).sort((a, b) => b.overdueTasks - a.overdueTasks || a.productivityScore - b.productivityScore).slice(0, 5),
+    () => [...(dashboard?.processes ?? [])].filter((row) => (row.measurements?.lateOpenTasks ?? 0) > 0 || row.pendingAuditTasks > 0).sort((a, b) => (b.measurements?.lateOpenTasks ?? 0) - (a.measurements?.lateOpenTasks ?? 0) || a.productivityScore - b.productivityScore).slice(0, 5),
     [dashboard],
   );
   const riskyProjects = useMemo(
-    () => [...(dashboard?.projects ?? [])].filter((row) => row.overdueTasks > 0 || row.pendingAuditTasks > 0).sort((a, b) => b.overdueTasks - a.overdueTasks || a.healthScore - b.healthScore).slice(0, 5),
+    () => [...(dashboard?.projects ?? [])].filter((row) => (row.measurements?.lateOpenTasks ?? 0) > 0 || row.pendingAuditTasks > 0).sort((a, b) => (b.measurements?.lateOpenTasks ?? 0) - (a.measurements?.lateOpenTasks ?? 0) || a.healthScore - b.healthScore).slice(0, 5),
     [dashboard],
   );
 
@@ -1266,7 +1290,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
       <Button
         type="button"
         variant="outline"
-        disabled={!dashboard || isPrintingPdf || !isCompanyPrintIdentityReady}
+        disabled={isLoading || !dashboard || isPrintingPdf || !isCompanyPrintIdentityReady}
         title={copy.pdf.print}
         onClick={handlePrintPdf}
         className="h-11 gap-2 rounded-xl border-[#F4C84A]/40 bg-white px-4 text-sm font-medium text-[#9A6B05] shadow-none hover:border-[#F4C84A] hover:bg-[#F4C84A] hover:text-slate-950 disabled:opacity-60 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7] dark:hover:bg-[#F4C84A] dark:hover:text-slate-950"
@@ -1277,19 +1301,32 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
     </div>
   );
 
+  const scopeKey = JSON.stringify([range, focusFilter, statusFilter, deferredSearchQuery, selectedUnitId, selectedBusinessId, selectedProjectId, selectedCollaboratorId]);
+
   return (
-    <>
+    <div className="grid min-w-0 grid-cols-1 gap-6">
       <IndiceTitleBar
         actions={headerActions}
-        className="mb-5"
+        className="mb-0"
         icon={headerCopy.emoji}
-        subtitle={standardCopy.subtitle}
+        subtitle={workspaceCopy.subtitle}
         title={standardCopy.title}
         tone="yellow"
       />
 
+      <IndiceWorkspaceNavigation<TaskKpiView>
+        ariaLabel={workspaceCopy.navigation} tone="yellow" variant="views"
+        value={activeView} onValueChange={setActiveView}
+        items={[
+          { id: 'overview', label: workspaceCopy.overview, icon: <LayoutGrid className="h-4 w-4" /> },
+          { id: 'analysis', label: workspaceCopy.analysis, icon: <ChartNoAxesCombined className="h-4 w-4" /> },
+          { id: 'units', label: workspaceCopy.units, icon: <Building2 className="h-4 w-4" /> },
+          { id: 'performance', label: workspaceCopy.performance, icon: <Users className="h-4 w-4" /> },
+        ]}
+      />
+
       <IndiceFilterBar
-        className="mb-6"
+        className="mb-0"
         gridClassName="lg:grid-cols-4"
         title={standardCopy.filterTitle}
         summary={(
@@ -1404,64 +1441,58 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
         </div>
       ) : null}
 
-      {isLoading ? <KpiSkeleton /> : null}
+      {isLoading ? <KpiSkeleton view={activeView} /> : null}
 
-      {!isLoading && dashboard ? (
+      {dashboard ? (
         <>
-          <section className="mb-6 rounded-2xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-5 py-4 dark:border-[#F4C84A]/35 dark:bg-[#F4C84A]/15">
+          <section hidden={isLoading} className="rounded-2xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-5 py-4 dark:border-[#F4C84A]/35 dark:bg-[#F4C84A]/15">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div>
                 <h3 className="text-sm font-medium text-slate-900 dark:text-white">{standardCopy.contextTitle}</h3>
-                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{standardCopy.contextSubtitle}</p>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{workspaceCopy.scopeNote}</p>
               </div>
               <div className="flex flex-wrap gap-2 text-xs font-medium text-slate-700 dark:text-slate-200">
                 <span className="rounded-full border border-[#F4C84A]/30 bg-white/80 px-3 py-1.5 dark:bg-slate-800/80">{standardCopy.selectedRange}: {formatDate(dashboard.range.from, copy.common.noDate, copy.locale)} – {formatDate(dashboard.range.to, copy.common.noDate, copy.locale)}</span>
                 <span className="rounded-full border border-[#F4C84A]/30 bg-white/80 px-3 py-1.5 dark:bg-slate-800/80">{standardCopy.selectedScope}: {agendaCopy.focus[focusFilter]}</span>
+                <span className="rounded-full border border-[#F4C84A]/30 bg-white/80 px-3 py-1.5 dark:bg-slate-800/80">{workspaceCopy.cutoff}: {dashboard.measurements?.cutoffDate ?? range.to}</span>
                 <span className="rounded-full border border-[#F4C84A]/30 bg-white/80 px-3 py-1.5 dark:bg-slate-800/80">{standardCopy.updated}: {dashboard.generatedAt ? new Intl.DateTimeFormat(copy.locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(dashboard.generatedAt)) : '—'}</span>
               </div>
             </div>
           </section>
 
-          <section className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {!isLoading && !dashboard.measurements ? <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">{workspaceCopy.unavailable}</p> : null}
+          {!isLoading && activeView === 'overview' ? (
+            <section role="tabpanel" aria-label={workspaceCopy.overview} className="space-y-6" tabIndex={0}>
+              {dashboard.measurements ? <KpiMeasurementCards measurements={dashboard.measurements} locale={copy.locale} onDetails={() => setActiveView('analysis')} /> : <>
+                <section className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             {dashboard.cards.map((card) => (
               <KpiCard key={card.id} card={localizeKpiCard(card, dashboard, standardCopy)} copy={copy} progress={cardProgress(card.id, dashboard.summary)} />
             ))}
           </section>
-
-          <SummaryStrip agendaCopy={agendaCopy} copy={copy} dashboard={dashboard} />
-
-          <OperationalSignals
-            copy={copy}
-            dashboard={dashboard}
-            onOpenOverdue={() => openAgendaDrilldown({ status: 'overdue' })}
-            onOpenPendingAudit={() => openAgendaDrilldown({ status: 'completed' })}
-            onOpenUnassigned={() =>
-              openAgendaDrilldown({
-                collaborator: agendaUnassignedFilterValue,
-                status: 'all',
-              })
-            }
-          />
-
-          <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800" aria-labelledby="kpis-trend-title">
+              </>}
+            </section>
+          ) : null}
+          {!isLoading && activeView === 'analysis' ? (
+            <section role="tabpanel" aria-label={workspaceCopy.analysis} className="space-y-6" tabIndex={0}>
+              {dashboard.measurements ? <KpiMeasurementAnalysis measurements={dashboard.measurements} locale={copy.locale} /> : null}
+              <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800" aria-labelledby="kpis-trend-title">
             <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
-                <h3 id="kpis-trend-title" className="text-lg font-medium text-slate-900 dark:text-white">{copy.chart.title}</h3>
+                <h3 id="kpis-trend-title" className="text-lg font-medium text-slate-900 dark:text-white">{workspaceCopy.timeline}</h3>
                 <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                  {copy.chart.subtitle}
+                  {workspaceCopy.timelineNote}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-blue-500" /> {copy.chart.series.scheduled}</span>
-                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" /> {copy.chart.series.closed}</span>
-                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-rose-500" /> {copy.chart.series.overdue}</span>
-                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-violet-500" /> {copy.chart.series.audited}</span>
+                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-blue-500" /> {workspaceCopy.scheduled}</span>
+                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" /> {workspaceCopy.closed}</span>
+                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-violet-500" /> {workspaceCopy.audited}</span>
               </div>
             </div>
             <div className="h-72">
-              {dashboard.trend.length > 0 ? (
+              {(dashboard.measurements?.activity.length ?? 0) > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={dashboard.trend}>
+                  <BarChart data={dashboard.measurements?.activity ?? []}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis
                       dataKey="date"
@@ -1470,10 +1501,9 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
                     />
                     <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                     <Tooltip labelFormatter={(value) => formatDate(String(value), copy.common.noDate, copy.locale)} />
-                    <Bar dataKey="totalTasks" name={copy.chart.series.scheduled} fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="completedTasks" name={copy.chart.series.closed} fill="#10b981" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="overdueTasks" name={copy.chart.series.overdue} fill="#f43f5e" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="auditedTasks" name={copy.chart.series.audited} fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="scheduledTasks" name={workspaceCopy.scheduled} fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="closedTasks" name={workspaceCopy.closed} fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="auditedTasks" name={workspaceCopy.audited} fill="#8b5cf6" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -1482,11 +1512,9 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
                 </div>
               )}
             </div>
-            <p className="sr-only">{copy.chart.subtitle}</p>
+            <p className="sr-only">{workspaceCopy.timelineNote}</p>
           </section>
-
-          <section className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+              <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <h3 className="text-lg font-medium text-slate-900 dark:text-white">{standardCopy.compositionTitle}</h3>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{standardCopy.compositionSubtitle}</p>
               <div className="mt-4 h-80">
@@ -1505,41 +1533,55 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
                 {compositionData.map((item) => <span key={item.name} className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />{item.name}: {item.value}</span>)}
               </div>
             </article>
-
-            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-              <h3 className="text-lg font-medium text-slate-900 dark:text-white">{standardCopy.unitsTitle}</h3>
-              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{standardCopy.unitsSubtitle}</p>
-              <div className="mt-4 h-80">
-                {dashboard.units.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={dashboard.units.slice(0, 8)} layout="vertical" margin={{ left: 16, right: 16 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} />
-                      <YAxis type="category" dataKey="unitName" width={110} tick={{ fontSize: 12 }} />
-                      <Tooltip />
-                      <Bar dataKey="productivityScore" name={standardCopy.productivity} fill="#E4AD18" radius={[0, 5, 5, 0]} />
-                      <Bar dataKey="timelinessRate" name={standardCopy.timeliness} fill="#10b981" radius={[0, 5, 5, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : <div className="flex h-full items-center justify-center text-sm text-slate-500">{standardCopy.noData}</div>}
-              </div>
-            </article>
+              <details className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+                <summary className="cursor-pointer text-sm font-medium text-slate-700 dark:text-slate-200">{workspaceCopy.reference}</summary>
+                <div className="mt-5 space-y-6"><SummaryStrip agendaCopy={agendaCopy} copy={copy} dashboard={dashboard} /> <OperationalSignals
+            copy={copy}
+            dashboard={dashboard}
+            onOpenOverdue={() => openAgendaDrilldown({ status: 'overdue' })}
+            onOpenPendingAudit={() => openAgendaDrilldown({ status: 'completed' })}
+            onOpenUnassigned={() =>
+              openAgendaDrilldown({
+                collaborator: agendaUnassignedFilterValue,
+                status: 'all',
+              })
+            }
+          /></div>
+              </details>
+            </section>
+          ) : null}
+          <section role="tabpanel" aria-label={workspaceCopy.units} hidden={isLoading || activeView !== 'units'} tabIndex={0}>
+            <KpiUnitComparison active={!isLoading && activeView === 'units'} rows={dashboard.units} locale={copy.locale} scopeKey={scopeKey} onOpenUnit={(id) => openAgendaDrilldown({ unit: units.find(unit => unit.id === id)?.name ?? allValue })} />
           </section>
+          <section role="tabpanel" aria-label={workspaceCopy.performance} hidden={isLoading || activeView !== 'performance'} className="space-y-6" tabIndex={0}>
+            <div className="max-w-sm"><IndiceFilterSelect label={workspaceCopy.entity} value={activeEntity} onValueChange={value => setActiveEntity(resolveTaskKpiEntity(value))} tone="yellow" options={[
+              { value: 'collaborators', label: `${workspaceCopy.collaborators} (${dashboard.collaborators.length})` },
+              { value: 'processes', label: `${workspaceCopy.processes} (${dashboard.processes.length})` },
+              { value: 'projects', label: `${workspaceCopy.projects} (${dashboard.projects.length})` },
+            ]} /></div>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{activeEntity === 'collaborators' ? workspaceCopy.participation : activeEntity === 'processes' ? workspaceCopy.runsNote : workspaceCopy.projectNote}</p>
+            {activeEntity === 'processes' && dashboard.measurements ? <dl className="grid gap-3 rounded-2xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-5 md:grid-cols-3">
+              <div><dt className="text-sm text-slate-600 dark:text-slate-300">{workspaceCopy.runs}</dt><dd className="mt-1 text-xl font-medium text-slate-900 dark:text-white">{dashboard.measurements.summary.observedRuns}</dd></div>
+              <div><dt className="text-sm text-slate-600 dark:text-slate-300">{workspaceCopy.lateRuns}</dt><dd className="mt-1 text-xl font-medium text-slate-900 dark:text-white">{dashboard.measurements.summary.runsWithLateTasks}</dd></div>
+              <div><dt className="text-sm text-slate-600 dark:text-slate-300">{workspaceCopy.completeRuns}</dt><dd className="mt-1 text-xl font-medium text-slate-900 dark:text-white">{dashboard.measurements.summary.fullyObservedCompletedRuns}</dd></div>
+            </dl> : null}
 
-          <section className="mb-6">
+                      <section className="mb-6">
             <div className="mb-4">
               <h3 className="text-lg font-medium text-slate-900 dark:text-white">{standardCopy.topsTitle}</h3>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{standardCopy.topsSubtitle}</p>
             </div>
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
-              <RankingPanel emptyLabel={standardCopy.noData} title={standardCopy.topCompliance} rows={topCompliance.map((row) => ({ id: `compliance-${row.collaboratorId ?? 'none'}`, label: row.collaboratorName, detail: `${row.closedTasks}/${row.totalTasks} ${standardCopy.tasks}`, value: `${row.productivityScore} ${standardCopy.score}`, progress: row.productivityScore, onClick: row.collaboratorId == null ? undefined : () => openAgendaDrilldown({ collaborator: `user-company:${row.collaboratorId}` }) }))} />
-              <RankingPanel emptyLabel={standardCopy.noData} title={standardCopy.topOverdue} rows={topOverdue.map((row) => ({ id: `overdue-${row.collaboratorId ?? 'none'}`, label: row.collaboratorName, detail: `${row.openTasks} ${copy.summary.labels.open}`, value: `${row.overdueTasks} ${copy.common.overdue}`, progress: row.totalTasks > 0 ? (row.overdueTasks / row.totalTasks) * 100 : 0, onClick: row.collaboratorId == null ? undefined : () => openAgendaDrilldown({ collaborator: `user-company:${row.collaboratorId}`, status: 'overdue' }) }))} />
-              <RankingPanel emptyLabel={standardCopy.noData} title={standardCopy.riskyProcesses} rows={riskyProcesses.map((row) => ({ id: `process-${row.processId}`, label: row.processTitle, detail: `${row.pendingAuditTasks} ${copy.common.pending}`, value: `${row.overdueTasks} ${copy.common.overdue}`, progress: 100 - row.productivityScore, onClick: () => openAgendaDrilldown({ search: row.processFolio ?? row.processTitle }) }))} />
-              <RankingPanel emptyLabel={standardCopy.noData} title={standardCopy.riskyProjects} rows={riskyProjects.map((row) => ({ id: `project-${row.projectId}`, label: row.projectName, detail: `${row.pendingAuditTasks} ${copy.common.pending}`, value: `${row.overdueTasks} ${copy.common.overdue}`, progress: 100 - row.healthScore, onClick: () => openAgendaDrilldown({ project: `project:${row.projectId}` }) }))} />
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {activeEntity === 'collaborators' ? (<RankingPanel emptyLabel={standardCopy.noData} title={workspaceCopy.onTime} rows={topCompliance.map((row) => ({ id: `compliance-${row.collaboratorId ?? 'none'}`, label: row.collaboratorName, detail: `${row.measurements?.onTimeDeliveries ?? 0}/${row.measurements?.eligibleDeliveries ?? 0} ${workspaceCopy.eligible}`, value: `${row.measurements?.onTimeRate ?? 0}%`, progress: row.measurements?.onTimeRate ?? 0, onClick: row.collaboratorId == null ? undefined : () => openAgendaDrilldown({ collaborator: `user-company:${row.collaboratorId}` }) }))} />) : null}
+              {activeEntity === 'collaborators' ? (<RankingPanel emptyLabel={standardCopy.noData} title={workspaceCopy.late} rows={topOverdue.map((row) => ({ id: `overdue-${row.collaboratorId ?? 'none'}`, label: row.collaboratorName, detail: `${row.openTasks} ${copy.summary.labels.open}`, value: `${row.measurements?.lateOpenTasks ?? 0} ${workspaceCopy.late}`, progress: row.totalTasks > 0 ? ((row.measurements?.lateOpenTasks ?? 0) / row.totalTasks) * 100 : 0, onClick: row.collaboratorId == null ? undefined : () => openAgendaDrilldown({ collaborator: `user-company:${row.collaboratorId}` }) }))} />) : null}
+              {activeEntity === 'processes' ? (<RankingPanel emptyLabel={standardCopy.noData} title={standardCopy.riskyProcesses} rows={riskyProcesses.map((row) => ({ id: `process-${row.processId}`, label: row.processTitle, detail: `${row.pendingAuditTasks} ${copy.common.pending}`, value: `${row.measurements?.lateOpenTasks ?? 0} ${workspaceCopy.late}`, progress: 100 - row.productivityScore, onClick: () => openAgendaDrilldown({ search: row.processFolio ?? row.processTitle }) }))} />) : null}
+              {activeEntity === 'projects' ? (<RankingPanel emptyLabel={standardCopy.noData} title={standardCopy.riskyProjects} rows={riskyProjects.map((row) => ({ id: `project-${row.projectId}`, label: row.projectName, detail: `${row.pendingAuditTasks} ${copy.common.pending}`, value: `${row.measurements?.lateOpenTasks ?? 0} ${workspaceCopy.late}`, progress: 100 - row.healthScore, onClick: () => openAgendaDrilldown({ project: `project:${row.projectId}` }) }))} />) : null}
             </div>
           </section>
 
-          <KpiPerformanceWorkspace
+            <KpiPerformanceWorkspace
+            activeTab={activeEntity}
+            scopeKey={scopeKey}
             agendaCopy={agendaCopy}
             collaborators={visibleCollaborators}
             copy={copy}
@@ -1547,6 +1589,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
             processes={dashboard.processes}
             projects={dashboard.projects}
           />
+          </section>
         </>
       ) : null}
 
@@ -1555,6 +1598,6 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
           {copy.messages.empty}
         </div>
       ) : null}
-    </>
+    </div>
   );
 }

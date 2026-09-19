@@ -12,7 +12,9 @@
 
 **Nombre visible oficial:** `Modo aprendiz`
 
-**Última revisión del patrón:** 17 de julio de 2026
+**Patrón inicial:** 17 de julio de 2026.
+
+**Estándar modular vigente:** decisión del 5–6 de septiembre de 2026 (sección 29).
 
 Este documento define cómo incorporar Modo aprendiz a cualquier módulo o pestaña de Índice sin rediseñar la interfaz, alterar sus funciones ni inventar un patrón distinto en cada implementación.
 
@@ -23,6 +25,23 @@ La implementación de Recursos Humanos es la referencia visual y funcional. Si u
 El repositorio contiene otras apariciones de `learningModeActive` y guías creadas antes de cerrar este modelo. Esas implementaciones pueden servir para conocer su módulo, pero **no son referencia visual ni estructural** hasta que sean migradas y validadas contra este estándar. Ante una diferencia, prevalecen este documento y la pestaña Colaboradores de RH.
 
 ---
+
+## Vigencia y ruta de lectura
+
+Comienza por el [estándar modular aprobado](#estandar-modular-vigente). Después consulta propósito,
+contenido y controles de las secciones 1–9, y la verificación de 24–25.
+
+| Tema | Regla vigente |
+|---|---|
+| Geometría de módulos | Acompañante compacto y expansión bajo demanda, según 29.2 y 29.5. |
+| Título y acciones | Permanecen visibles y en su ubicación original, según 9.2–9.3 y 29.5. |
+| Progreso | Privado por usuario y empresa; visitar no significa aplicar, según 29.3–29.4. |
+| Dashboard | Conserva sus seis secciones; no adopta automáticamente la geometría de módulo. |
+| Dos tarjetas y carrusel | Patrón anterior, conservado como referencia de contenido y migración. No se exige en nuevas réplicas. |
+
+Las descripciones de adopción de 20–23 corresponden a sus etapas originales. No certifican el
+estado de todos los módulos. Las secciones de geometría histórica están señaladas; sus ejemplos
+no sustituyen la sección 29 ni las reglas generales de permisos y accesibilidad.
 
 ## 1. Propósito
 
@@ -59,16 +78,16 @@ Modo aprendiz no debe:
 
 Antes de implementar Modo aprendiz en un módulo nuevo:
 
-1. Leer este documento completo.
+1. Leer primero la sección 29 y esta ruta de vigencia; usar el resto según el área afectada.
 2. Leer el Frontend Operating System v2.
 3. Estudiar la pestaña Colaboradores de Recursos Humanos con Modo aprendiz encendido y apagado.
 4. Auditar el código y la interfaz real del módulo objetivo.
 5. Inventariar todos sus controles operativos, incluidos los condicionales y los sujetos a permisos.
 6. Identificar la barra de título de cada pestaña y sus nodos de acción originales.
-7. Identificar las barras resumen/KPI que deberán ocultarse solamente mientras Modo aprendiz esté activo.
+7. Identificar las barras resumen/KPI que pueden compactarse sin ocultar información indispensable.
 8. Escribir primero el contenido neutral de cada función.
 9. Escribir después una aplicación diferente para Emily, Juanito y Camila.
-10. Implementar el mismo patrón de dos tarjetas sincronizadas.
+10. Implementar el acompañante compacto, expansión y progreso privado definidos en la sección 29.
 11. Validar ambos estados: encendido y apagado.
 12. Validar permisos, escritorio, tableta, móvil, modo oscuro, teclado, TypeScript y build.
 
@@ -572,6 +591,10 @@ La implementación debe ser condicional y reversible:
 
 ## 10. Encabezado del bloque Modo aprendiz
 
+> Referencia del patrón inicial: las reglas de contenido, accesibilidad y localización siguen
+> aplicando; la geometría de dos tarjetas, el carrusel y los componentes descritos se contrastan
+> con el [estándar modular vigente](#estandar-modular-vigente). No se copian como nueva estructura.
+
 El bloque exterior ocupa todo el ancho disponible de la zona del módulo.
 
 ### 10.1 Composición
@@ -625,6 +648,10 @@ El color del encabezado y de la tarjeta izquierda hereda la identidad del módul
 
 ## 11. Dos tarjetas sincronizadas
 
+> Referencia del patrón inicial: las reglas de contenido, accesibilidad y localización siguen
+> aplicando; la geometría de dos tarjetas, el carrusel y los componentes descritos se contrastan
+> con el [estándar modular vigente](#estandar-modular-vigente). No se copian como nueva estructura.
+
 El cuerpo utiliza dos tarjetas simétricas:
 
 - izquierda: función real de la pestaña;
@@ -675,6 +702,10 @@ Simetría no significa que ambas tengan exactamente los mismos subpaneles. Signi
 ---
 
 ## 12. Tarjeta izquierda: funciones y consejos
+
+> Referencia del patrón inicial: las reglas de contenido, accesibilidad y localización siguen
+> aplicando; la geometría de dos tarjetas, el carrusel y los componentes descritos se contrastan
+> con el [estándar modular vigente](#estandar-modular-vigente). No se copian como nueva estructura.
 
 La tarjeta izquierda explica el producto sin perder el contexto empresarial.
 
@@ -800,6 +831,10 @@ La cantidad de tarjetas nace de esta auditoría; no se fija artificialmente en t
 
 ## 14. Tarjeta derecha: ejemplo del personaje
 
+> Referencia del patrón inicial: las reglas de contenido, accesibilidad y localización siguen
+> aplicando; la geometría de dos tarjetas, el carrusel y los componentes descritos se contrastan
+> con el [estándar modular vigente](#estandar-modular-vigente). No se copian como nueva estructura.
+
 La tarjeta derecha cuenta cómo la persona seleccionada usa exactamente la función activa.
 
 ### 14.1 Jerarquía obligatoria
@@ -895,6 +930,10 @@ Para otro módulo, sustituir únicamente la familia de identidad donde correspon
 
 ## 16. Responsividad, accesibilidad y modo oscuro
 
+> Referencia del patrón inicial: las reglas de contenido, accesibilidad y localización siguen
+> aplicando; la geometría de dos tarjetas, el carrusel y los componentes descritos se contrastan
+> con el [estándar modular vigente](#estandar-modular-vigente). No se copian como nueva estructura.
+
 ### 16.1 Responsividad
 
 - móvil `<768`: encabezado apilado, acciones en ancho disponible, tarjetas una debajo de otra;
@@ -941,6 +980,10 @@ El patrón debe incluir clases `dark:` desde su creación. Mantener:
 ---
 
 ## 17. Arquitectura de archivos recomendada
+
+> Referencia del patrón inicial: las reglas de contenido, accesibilidad y localización siguen
+> aplicando; la geometría de dos tarjetas, el carrusel y los componentes descritos se contrastan
+> con el [estándar modular vigente](#estandar-modular-vigente). No se copian como nueva estructura.
 
 El motor compartido ya está extraído. Su estructura es:
 
@@ -1010,6 +1053,10 @@ Evitar:
 
 ## 18. Internacionalización
 
+> Referencia del patrón inicial: las reglas de contenido, accesibilidad y localización siguen
+> aplicando; la geometría de dos tarjetas, el carrusel y los componentes descritos se contrastan
+> con el [estándar modular vigente](#estandar-modular-vigente). No se copian como nueva estructura.
+
 Todo texto visible debe ser localizable:
 
 - eyebrow;
@@ -1066,8 +1113,8 @@ type LearningCharacterId = "emily" | "juanito" | "camila";
 3. Envolver el alcance con el proveedor de acciones.
 4. Renderizar la guía inmediatamente debajo de las pestañas.
 5. Hacerla reaccionar a la pestaña activa.
-6. Adaptar la barra de título para portalizar sus acciones originales.
-7. Ocultar condicionalmente la barra KPI local.
+6. Conservar la barra de título y sus acciones originales en su lugar; no portalizarlas.
+7. Compactar u ocultar sólo el resumen local prescindible conforme a 9.4.
 8. Conectar la CTA a un `ref` de contenido mediante scroll suave.
 9. Leer el personaje desde la clave compartida.
 10. Mantener todas las funciones reales operables.
@@ -1090,6 +1137,9 @@ Revisar lado a lado con RH:
 ---
 
 ## 20. Recursos Humanos: implementación canónica
+
+> Registro de adopción del patrón inicial. Para nuevas intervenciones rige la sección 29;
+> este inventario no acredita la geometría ni el estado de despliegue actuales.
 
 Archivos principales:
 
@@ -1168,6 +1218,9 @@ Estas medidas pertenecen a `HrTitleBar`. Modo aprendiz no las redefine; solament
 
 ## 21. Segundo módulo de prueba: Procesos y tareas
 
+> Registro de adopción del patrón inicial. Para nuevas intervenciones rige la sección 29;
+> este inventario no acredita la geometría ni el estado de despliegue actuales.
+
 `Procesos y tareas` valida que el motor no depende de RH ni de botones con una sola forma.
 
 Archivos principales del piloto:
@@ -1198,6 +1251,9 @@ Los catálogos locales continúan siendo responsabilidad editorial del módulo. 
 ---
 
 ## 22. Tercer y cuarto módulos: Panel Inicial y Ventas
+
+> Registro de adopción del patrón inicial. Para nuevas intervenciones rige la sección 29;
+> este inventario no acredita la geometría ni el estado de despliegue actuales.
 
 `Panel Inicial` y `Ventas` confirman que el patrón funciona tanto en formularios de configuración como en una operación comercial con rutas, permisos y acciones complejas.
 
@@ -1236,6 +1292,9 @@ Las guías locales anteriores de Prospectos, Contactos y Cotizaciones no se mont
 ---
 
 ## 23. Cobertura completa de la ruta principal
+
+> Registro de adopción del patrón inicial. Para nuevas intervenciones rige la sección 29;
+> este inventario no acredita la geometría ni el estado de despliegue actuales.
 
 La primera expansión masiva incorpora los seis módulos que completan las etapas principales de la metodología: Gastos, Caja chica, Cartera, Punto de venta, Inventarios y KPIs.
 
@@ -1317,26 +1376,28 @@ La expansión no autoriza catálogos genéricos. Cada pestaña conserva controle
 | Estado | Resultado esperado |
 | --- | --- |
 | Modo apagado | interfaz original completa, sin alteraciones |
-| Modo encendido + personaje | dos tarjetas con ese único personaje |
-| Modo encendido sin personaje | izquierda funcional; derecha invita a seleccionar en Dashboard |
+| Modo encendido + personaje | acompañante compacto; ejemplo de ese personaje bajo demanda |
+| Modo encendido sin personaje | enseñanza funcional disponible; selección de personaje desde Dashboard |
 | Cambio de pestaña | guía cambia al catálogo de la pestaña e inicia en función válida |
-| Primer control + anterior | navega al último control |
-| Último control + siguiente | navega al primero |
-| Acción con permiso | botón original aparece en host y funciona |
+| Recorrido cerrado | flujo lógico completo en una línea navegable |
+| Recorrido expandido | sólo el riel de pasos queda fijo; detalles secundarios contraídos |
+| Acción con permiso | botón original permanece en su barra y funciona |
 | Acción sin permiso | no aparece ni en origen ni como copia |
-| Acción cargando/deshabilitada | conserva exactamente ese estado en el host |
+| Acción cargando/deshabilitada | conserva exactamente su estado y ubicación originales |
 | Selección masiva vacía | controles condicionales no se simulan como disponibles |
 | Modo oscuro | contraste y color de módulo correctos |
-| Móvil | tarjetas apiladas; acciones legibles; sin overflow |
-| Regreso a modo normal | title bar y KPI reaparecen sin recargar la página |
+| Móvil | contenido adaptable y riel desplazable; acciones legibles |
+| Regreso a modo normal | guía desactivada; memoria preservada y operación sin cambios |
+| Reiniciar vista | no degrada Entendido ni Aplicado ni borra excepciones |
+| Cambio de usuario o empresa | progreso privado, sin acceso al de otra combinación |
 
 ### 24.2 Pruebas técnicas
 
 Desde `react/`:
 
 ```bash
-npm.cmd run typecheck
-npm.cmd run build
+npm run typecheck
+npm run build
 ```
 
 También revisar la ruta real en el navegador y la consola. Una compilación correcta no sustituye la comparación visual.
@@ -1364,23 +1425,23 @@ Una pestaña no está terminada hasta que todas las respuestas sean “sí”.
 
 - [ ] La guía está inmediatamente debajo de las pestañas.
 - [ ] El encabezado general del módulo permanece.
-- [ ] La barra de título duplicada se oculta únicamente con el modo activo.
-- [ ] Las acciones originales se trasladan al lado derecho.
+- [ ] La barra de título permanece visible y funcional.
+- [ ] Las acciones originales permanecen en su ubicación, sin copias ni portales.
 - [ ] Ningún botón fue recreado, renombrado o rediseñado.
-- [ ] La barra KPI local se oculta únicamente con el modo activo.
-- [ ] Las tarjetas son 50/50 en escritorio y apiladas en móvil.
-- [ ] Ambas tienen mínimo 360 px y controles alineados al fondo.
-- [ ] Texto, iconos y navegación están centrados.
-- [ ] No se forzó una fotografía dentro de las tarjetas.
+- [ ] Sólo se compacta el resumen prescindible y se conserva la analítica funcional.
+- [ ] La vista cerrada es compacta y muestra el flujo lógico completo en una línea.
+- [ ] La expansión muestra un objetivo principal y detalles bajo demanda.
+- [ ] Sólo el riel de pasos queda fijo; el acompañante completo no se fija.
+- [ ] No se fuerzan fotografías ni alturas mínimas del patrón anterior.
 - [ ] El color corresponde al módulo.
 
 ### Comportamiento
 
-- [ ] Un solo índice controla ambas tarjetas.
-- [ ] Las flechas y puntos cambian las dos tarjetas juntas.
-- [ ] El contador coincide con el inventario.
-- [ ] El carrusel es circular.
-- [ ] Cambiar de pestaña nunca produce un índice fuera de rango.
+- [ ] Los pasos son navegables y omitibles y conservan el orden lógico del módulo.
+- [ ] La etapa activa corresponde a una herramienta disponible para el usuario.
+- [ ] Entendido y Aplicado se guardan por usuario y empresa.
+- [ ] Aplicado requiere un evento real compatible; visitar no cuenta como aplicación.
+- [ ] Reiniciar vista conserva progreso, selección y excepciones.
 - [ ] La CTA solo guía hacia la función real y no ejecuta acciones peligrosas.
 - [ ] Los permisos, callbacks, modales, loading y disabled originales se conservan.
 - [ ] Al apagar el modo, la interfaz normal queda idéntica a la original.
@@ -1404,11 +1465,11 @@ Una pestaña no está terminada hasta que todas las respuestas sean “sí”.
 Rechazar una implementación si ocurre cualquiera de estos casos:
 
 - guía arriba de las pestañas;
-- tarjetas con avances independientes;
+- progreso incoherente entre el riel, la etapa activa y la memoria del usuario;
 - chips para cambiar personaje dentro del módulo;
 - fotografía estirada o recortada para llenar la tarjeta;
 - botones nuevos parecidos a los originales;
-- botón original con color o tamaño diferente al moverlo;
+- botón original trasladado, renombrado o con diseño diferente;
 - título general del módulo eliminado;
 - barra KPI eliminada también en modo normal;
 - solo tres “consejos” que no cubren las funciones reales;
@@ -1430,7 +1491,7 @@ Rechazar una implementación si ocurre cualquiera de estos casos:
 1. mismo lugar en la arquitectura de pantalla;
 2. misma relación entre encabezado, acciones y contenido;
 3. misma geometría y jerarquía tipográfica;
-4. mismo carrusel sincronizado;
+4. mismo flujo lógico navegable y modelo de progreso privado;
 5. mismo origen global del personaje;
 6. mismo comportamiento reversible al apagarlo;
 7. mismo respeto por botones, permisos y lógica existentes;
@@ -1467,6 +1528,8 @@ Cuando se apruebe una evolución:
 No convertir una excepción local en un nuevo estándar sin aprobación. Si un módulo no puede cumplir una regla por su arquitectura, documentar la excepción y preservar todos los demás invariantes.
 
 ---
+
+<a id="estandar-modular-vigente"></a>
 
 ## 29. Estándar modular aprobado, originado en Recursos Humanos (2026-09-05 a 2026-09-06)
 

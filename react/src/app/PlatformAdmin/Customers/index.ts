@@ -1,6 +1,5 @@
 export { CustomersTable } from "./CustomersTable";
 export { CustomerColumnsModal } from "./CustomerColumnsModal";
-export { CustomerControlCenter } from "./CustomerControlCenter";
 export { getCustomerTableCopy } from "./customerTableCopy";
 export {
   defaultCustomerTableColumnIds,

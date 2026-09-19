@@ -9,6 +9,8 @@ import {
   FileWarning,
   IdCard,
   Laptop,
+  LayoutGrid,
+  ChartNoAxesCombined,
   Printer,
   RefreshCw,
   ShieldCheck,
@@ -50,6 +52,7 @@ import {
   IndiceFilterField,
   IndiceFilterSearch,
   IndiceFilterSelect,
+  IndiceWorkspaceNavigation,
   getIndiceFilterControlClassName,
   useIndiceFilterDisclosureCopy,
 } from '../../../components/frontend-os';
@@ -65,11 +68,13 @@ import type { KPIsTranslations } from './translations';
 import { printKpisReport } from './utils/kpisPrintReport';
 import { HrEmployeeOperationsTable, type HrEmployeeOperationsRow } from './components/HrEmployeeOperationsTable';
 import { getHrKpiStandardCopy } from './translations/standardUiCopy';
+import { getHrKpiWorkspaceCopy, resolveHrKpiView, type HrKpiView } from './translations/workspaceCopy';
 
 type PeriodFilter = 'thisMonth' | 'lastMonth' | 'thisQuarter' | 'annualized' | 'specificDate';
 type HealthStatus = 'healthy' | 'watch' | 'critical';
 
 type HrKpiWorkspaceState = {
+  activeView: HrKpiView;
   searchQuery: string;
   selectedDate: string;
   periodFilter: PeriodFilter;
@@ -516,6 +521,7 @@ export default function KPIs() {
   const copy = useKPIsTranslations();
   const { currentLanguage } = useLanguage();
   const standardCopy = getHrKpiStandardCopy(currentLanguage.code);
+  const workspaceCopy = getHrKpiWorkspaceCopy(currentLanguage.code);
   const disclosureCopy = useIndiceFilterDisclosureCopy();
   const { preferredCurrency } = usePreferredBusinessCurrency();
   const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
@@ -538,11 +544,14 @@ export default function KPIs() {
   const [departmentFilter, setDepartmentFilter] = useState(allValue);
   const [attendanceStatusFilter, setAttendanceStatusFilter] = useState(allValue);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeView, setActiveView] = useState<HrKpiView>('overview');
+  const [showAllAttention, setShowAllAttention] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [sourceWarnings, setSourceWarnings] = useState<string[]>([]);
   const [lastUpdatedAt, setLastUpdatedAt] = useState('');
   const workspaceDefaults = useMemo<HrKpiWorkspaceState>(() => ({
+    activeView: 'overview',
     searchQuery: '',
     selectedDate: todayIsoDate(),
     periodFilter: 'thisMonth',
@@ -552,6 +561,7 @@ export default function KPIs() {
     attendanceStatusFilter: allValue,
   }), []);
   const workspaceState = useMemo<HrKpiWorkspaceState>(() => ({
+    activeView,
     searchQuery,
     selectedDate,
     periodFilter,
@@ -559,7 +569,7 @@ export default function KPIs() {
     businessFilter,
     departmentFilter,
     attendanceStatusFilter,
-  }), [attendanceStatusFilter, businessFilter, departmentFilter, periodFilter, searchQuery, selectedDate, unitFilter]);
+  }), [activeView, attendanceStatusFilter, businessFilter, departmentFilter, periodFilter, searchQuery, selectedDate, unitFilter]);
 
   useWorkspaceNavigationMemory({
     moduleKey: 'human-resources',
@@ -567,6 +577,7 @@ export default function KPIs() {
     state: workspaceState,
     defaults: workspaceDefaults,
     urlFields: {
+      activeView: 'view',
       searchQuery: 'q',
       selectedDate: 'date',
       periodFilter: 'period',
@@ -576,6 +587,7 @@ export default function KPIs() {
       attendanceStatusFilter: 'status',
     },
     onRestore: (restoredState) => {
+      setActiveView(resolveHrKpiView(restoredState.activeView));
       setSearchQuery(typeof restoredState.searchQuery === 'string' ? restoredState.searchQuery : '');
       setSelectedDate(/^\d{4}-\d{2}-\d{2}$/.test(restoredState.selectedDate) ? restoredState.selectedDate : workspaceDefaults.selectedDate);
       setPeriodFilter(['thisMonth', 'lastMonth', 'thisQuarter', 'annualized', 'specificDate'].includes(restoredState.periodFilter) ? restoredState.periodFilter : 'thisMonth');
@@ -1432,7 +1444,7 @@ export default function KPIs() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="grid min-w-0 grid-cols-1 gap-6">
       <LoadingBarOverlay
         isVisible={isLoading}
         title={copy.loading.title}
@@ -1459,6 +1471,20 @@ export default function KPIs() {
               {copy.dashboard.actions.printReport}
             </button>
           </>}
+      />
+
+      <IndiceWorkspaceNavigation<HrKpiView>
+        ariaLabel={workspaceCopy.navigation}
+        variant="views"
+        tone="aqua"
+        value={activeView}
+        onValueChange={setActiveView}
+        items={[
+          { id: 'overview', label: workspaceCopy.views.overview, icon: <LayoutGrid /> },
+          { id: 'charts', label: workspaceCopy.views.charts, icon: <ChartNoAxesCombined /> },
+          { id: 'units', label: workspaceCopy.views.units, icon: <BriefcaseBusiness /> },
+          { id: 'employees', label: workspaceCopy.views.employees, icon: <Users /> },
+        ]}
       />
 
       <IndiceFilterBar
@@ -1566,221 +1592,243 @@ export default function KPIs() {
         </div>
       ) : null}
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {kpiCards.map((card) => (
-          <KpiCard key={card.id} card={card} copy={copy} />
-        ))}
-      </section>
+      {activeView==='overview'? (
+        <section role="tabpanel" aria-label={workspaceCopy.views.overview} data-hr-kpi-view="overview" className="space-y-6" tabIndex={0}>
+          <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {kpiCards.map((card) => (
+              <KpiCard key={card.id} card={card} copy={copy} />
+            ))}
+          </section>
 
-      <section className="rounded-[24px] border border-emerald-200 bg-emerald-50/70 p-5 text-sm text-emerald-800 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-600 shadow-sm ring-1 ring-emerald-100 dark:bg-slate-900 dark:text-emerald-300 dark:ring-emerald-900/40">
-              <CheckCircle2 className="h-4 w-4" />
-            </span>
-            <div>
-              <p className="font-medium text-slate-900 dark:text-white">{copy.dashboard.sections.executiveSignal}</p>
-              <p className="mt-1 leading-6">{healthInsight}</p>
+          <section className="rounded-[24px] border border-emerald-200 bg-emerald-50/70 p-5 text-sm text-emerald-800 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-600 shadow-sm ring-1 ring-emerald-100 dark:bg-slate-900 dark:text-emerald-300 dark:ring-emerald-900/40">
+                  <CheckCircle2 className="h-4 w-4" />
+                </span>
+                <div>
+                  <p className="font-medium text-slate-900 dark:text-white">{copy.dashboard.sections.executiveSignal}</p>
+                  <p className="mt-1 leading-6">{healthInsight}</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs font-medium text-emerald-700 dark:text-emerald-300 lg:justify-end">
+                <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{periodLabel}: {periodScopeLabel}</span>
+                <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{standardCopy.operationalDate}: {attendanceScopeLabel}</span>
+                <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{copy.dashboard.labels.preferredCurrency}: {preferredCurrency}</span>
+                <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{copy.dashboard.labels.totalAssetValue}: {assetValueSummary.nativeBreakdownLabel}</span>
+                <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{standardCopy.comparison}</span>
+                <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{copy.dashboard.labels.lastUpdated}: {lastUpdatedLabel}</span>
+              </div>
             </div>
-          </div>
-          <div className="flex flex-wrap gap-2 text-xs font-medium text-emerald-700 dark:text-emerald-300 lg:justify-end">
-            <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{periodLabel}: {periodScopeLabel}</span>
-            <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{standardCopy.operationalDate}: {attendanceScopeLabel}</span>
-            <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{copy.dashboard.labels.preferredCurrency}: {preferredCurrency}</span>
-            <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{copy.dashboard.labels.totalAssetValue}: {assetValueSummary.nativeBreakdownLabel}</span>
-            <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{standardCopy.comparison}</span>
-            <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{copy.dashboard.labels.lastUpdated}: {lastUpdatedLabel}</span>
-          </div>
-        </div>
-      </section>
+          </section>
 
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_1.1fr]">
-        <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <h3 className="text-base font-medium text-slate-900 dark:text-white">{copy.dashboard.sections.attendanceMix}</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                {copy.dashboard.labels.attendanceControlDate}: {attendanceScopeLabel}
-              </p>
-            </div>
-            <IdCard className="h-5 w-5 text-emerald-500" />
-          </div>
-          <div className="h-72">
-            {attendanceChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={attendanceChartData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={58}
-                    outerRadius={92}
-                    paddingAngle={3}
-                  >
-                    {attendanceChartData.map((entry, index) => (
-                      <Cell key={entry.name} fill={pieColors[index % pieColors.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 text-sm font-medium text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                {copy.dashboard.common.noData}
+          <section className="grid grid-cols-2 gap-3 rounded-[24px] border border-slate-200 bg-white p-4 text-xs font-medium text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 md:grid-cols-4 xl:grid-cols-8">
+            <span>{copy.dashboard.labels.totalEmployees}: {employeeSummary.total_count}</span>
+            <span>{copy.dashboard.labels.active}: {employeeSummary.active_count}</span>
+            <span>{copy.dashboard.labels.inactive}: {employeeSummary.inactive_count}</span>
+            <span>{copy.dashboard.labels.terminated}: {employeeSummary.terminated_count}</span>
+            <span>{copy.dashboard.labels.totalAssets}: {assetSummary.total_count}</span>
+            <span>{copy.dashboard.labels.totalAssetValue}: {assetValueSummary.preferredTotalLabel}</span>
+            <span>{copy.dashboard.labels.totalPermissions}: {permissionSummary.total}</span>
+            <span>{copy.dashboard.labels.totalRecords}: {recordSummary.total_count}</span>
+          </section>
+        </section>
+      ):null}
+
+      {activeView==='charts'? (
+        <section role="tabpanel" aria-label={workspaceCopy.views.charts} data-hr-kpi-view="charts" className="space-y-6" tabIndex={0}>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-medium text-slate-900 dark:text-white">{copy.dashboard.sections.attendanceMix}</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    {copy.dashboard.labels.attendanceControlDate}: {attendanceScopeLabel}
+                  </p>
+                </div>
+                <IdCard className="h-5 w-5 text-emerald-500" />
               </div>
-            )}
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
-            {attendanceChartData.map((item, index) => (
-              <div key={item.name} className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-900/50">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: pieColors[index % pieColors.length] }} />
-                <span className="font-medium text-slate-700 dark:text-slate-200">{item.name}</span>
-                <span className="ml-auto text-slate-500 dark:text-slate-400">{item.value}</span>
+              <div className="h-72">
+                {attendanceChartData.length>0? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={attendanceChartData}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={58}
+                        outerRadius={92}
+                        paddingAngle={3}
+                      >
+                        {attendanceChartData.map((entry,index) => (
+                          <Cell key={entry.name} fill={pieColors[index%pieColors.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ):(
+                  <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 text-sm font-medium text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                    {copy.dashboard.common.noData}
+                  </div>
+                )}
               </div>
+              <div className="mt-4 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+                {attendanceChartData.map((item,index) => (
+                  <div key={item.name} className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-900/50">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: pieColors[index%pieColors.length] }} />
+                    <span className="font-medium text-slate-700 dark:text-slate-200">{item.name}</span>
+                    <span className="ml-auto text-slate-500 dark:text-slate-400">{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            {[
+              { title: copy.dashboard.cards.permissions.title,description: copy.dashboard.cards.permissions.description,data: permissionChartData,icon: <ClipboardList className="h-5 w-5" /> },
+              { title: copy.dashboard.cards.records.title,description: copy.dashboard.cards.records.description,data: recordsChartData,icon: <FileWarning className="h-5 w-5" /> },
+            ].map((panel) => (
+              <article key={panel.title} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <div className="mb-4 flex items-start justify-between gap-3"><div><h3 className="text-base font-medium text-slate-900 dark:text-white">{panel.title}</h3><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{panel.description}</p></div><span className="text-emerald-500">{panel.icon}</span></div>
+                <div className="h-64">
+                  {panel.data.length>0? <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={panel.data} dataKey="value" nameKey="name" innerRadius={52} outerRadius={86} paddingAngle={3}>{panel.data.map((item,index) => <Cell key={item.name} fill={pieColors[index%pieColors.length]} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer>:<div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 text-sm font-medium text-slate-500 dark:border-slate-700 dark:text-slate-400">{copy.dashboard.common.noData}</div>}
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">{panel.data.map((item,index) => <span key={item.name} className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 dark:bg-slate-900/60 dark:text-slate-300"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: pieColors[index%pieColors.length] }} />{item.name}: {item.value}</span>)}</div>
+              </article>
             ))}
           </div>
-        </article>
+        </section>
+      ):null}
 
-        <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <h3 className="text-base font-medium text-slate-900 dark:text-white">{copy.dashboard.sections.unitPerformance}</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400">{copy.dashboard.sections.unitPerformanceHint}</p>
-            </div>
-            <BriefcaseBusiness className="h-5 w-5 text-emerald-500" />
-          </div>
-          <div className="h-72">
-            {unitChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={unitChartData} margin={{ top: 10, right: 18, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} height={54} />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="score" name={copy.dashboard.labels.readiness} radius={[8, 8, 0, 0]} fill={moduleAccent} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 text-sm font-medium text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                {copy.dashboard.common.noData}
+      {activeView==='units'? (
+        <section role="tabpanel" aria-label={workspaceCopy.views.units} data-hr-kpi-view="units" className="space-y-6" tabIndex={0}>
+          <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-medium text-slate-900 dark:text-white">{copy.dashboard.sections.unitPerformance}</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{copy.dashboard.sections.unitPerformanceHint}</p>
               </div>
-            )}
-          </div>
-        </article>
-      </section>
-
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        {[
-          { title: copy.dashboard.cards.permissions.title, description: copy.dashboard.cards.permissions.description, data: permissionChartData, icon: <ClipboardList className="h-5 w-5" /> },
-          { title: copy.dashboard.cards.records.title, description: copy.dashboard.cards.records.description, data: recordsChartData, icon: <FileWarning className="h-5 w-5" /> },
-        ].map((panel) => (
-          <article key={panel.title} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <div className="mb-4 flex items-start justify-between gap-3"><div><h3 className="text-base font-medium text-slate-900 dark:text-white">{panel.title}</h3><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{panel.description}</p></div><span className="text-emerald-500">{panel.icon}</span></div>
-            <div className="h-64">
-              {panel.data.length > 0 ? <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={panel.data} dataKey="value" nameKey="name" innerRadius={52} outerRadius={86} paddingAngle={3}>{panel.data.map((item, index) => <Cell key={item.name} fill={pieColors[index % pieColors.length]} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer> : <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 text-sm font-medium text-slate-500 dark:border-slate-700 dark:text-slate-400">{copy.dashboard.common.noData}</div>}
+              <BriefcaseBusiness className="h-5 w-5 text-emerald-500" />
             </div>
-            <div className="mt-3 flex flex-wrap gap-2">{panel.data.map((item, index) => <span key={item.name} className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 dark:bg-slate-900/60 dark:text-slate-300"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: pieColors[index % pieColors.length] }} />{item.name}: {item.value}</span>)}</div>
+            <div className="h-72">
+              {unitChartData.length>0? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={unitChartData} margin={{ top: 10,right: 18,left: -20,bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} height={54} />
+                    <YAxis domain={[0,100]} tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Bar dataKey="score" name={copy.dashboard.labels.readiness} radius={[8,8,0,0]} fill={moduleAccent} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ):(
+                <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 text-sm font-medium text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  {copy.dashboard.common.noData}
+                </div>
+              )}
+            </div>
           </article>
-        ))}
-      </section>
 
-      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800"><h3 className="font-medium text-slate-900 dark:text-white">{standardCopy.topUnits}</h3><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.dashboard.sections.unitPerformanceHint}</p><div className="mt-5 space-y-3">{unitRows.slice(0, 5).map((row, index) => <button key={row.id} type="button" disabled={row.id === 'none'} onClick={() => { setUnitFilter(row.id); setBusinessFilter(allValue); }} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-emerald-50 disabled:cursor-default dark:hover:bg-emerald-950/20"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-xs font-medium dark:bg-slate-700">{index + 1}</span><span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-700 dark:text-slate-200">{row.name}</span><span className={`rounded-full border px-2 py-1 text-xs font-medium ${statusClasses[row.status]}`}>{row.readinessScore}%</span></button>)}{unitRows.length === 0 ? <p className="py-8 text-center text-sm text-slate-500">{copy.dashboard.common.noData}</p> : null}</div></article>
-        <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800"><h3 className="font-medium text-slate-900 dark:text-white">{standardCopy.topDepartments}</h3><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.dashboard.cards.late.description}</p><div className="mt-5 space-y-3">{departmentRiskRows.map((row, index) => <button key={row.name} type="button" onClick={() => setDepartmentFilter(row.name)} className="block w-full rounded-xl p-2 text-left transition hover:bg-emerald-50 dark:hover:bg-emerald-950/20"><div className="flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-xs font-medium dark:bg-slate-700">{index + 1}</span><span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-700 dark:text-slate-200">{row.name}</span><span className="text-sm font-medium text-slate-900 dark:text-white">{row.exceptions}</span></div><div className="ml-11 mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700"><div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.min(100, row.percentage)}%` }} /></div></button>)}{departmentRiskRows.length === 0 ? <p className="py-8 text-center text-sm text-slate-500">{copy.dashboard.common.noData}</p> : null}</div></article>
-        <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800"><h3 className="font-medium text-slate-900 dark:text-white">{standardCopy.topAttention}</h3><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.dashboard.sections.attentionQueueHint}</p><div className="mt-5 space-y-3">{attentionRows.slice(0, 5).map((row, index) => <button key={row.id} type="button" onClick={() => setSearchQuery(row.employee)} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-emerald-50 dark:hover:bg-emerald-950/20"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-xs font-medium dark:bg-slate-700">{index + 1}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-slate-700 dark:text-slate-200">{row.employee}</span><span className="block truncate text-xs text-slate-500">{row.signals[0]}</span></span><KpiStatusBadge copy={copy} status={row.status} /></button>)}{attentionRows.length === 0 ? <p className="py-8 text-center text-sm text-slate-500">{copy.dashboard.sections.noAttentionSignals}</p> : null}</div></article>
-      </section>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800"><h3 className="font-medium text-slate-900 dark:text-white">{standardCopy.topUnits}</h3><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.dashboard.sections.unitPerformanceHint}</p><div className="mt-5 space-y-3">{unitRows.slice(0,5).map((row,index) => <button key={row.id} type="button" disabled={row.id==='none'} onClick={() => { setUnitFilter(row.id); setBusinessFilter(allValue); }} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-emerald-50 disabled:cursor-default dark:hover:bg-emerald-950/20"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-xs font-medium dark:bg-slate-700">{index+1}</span><span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-700 dark:text-slate-200">{row.name}</span><span className={`rounded-full border px-2 py-1 text-xs font-medium ${statusClasses[row.status]}`}>{row.readinessScore}%</span></button>)}{unitRows.length===0? <p className="py-8 text-center text-sm text-slate-500">{copy.dashboard.common.noData}</p>:null}</div></article>
 
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <article className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
-            <h3 className="text-base font-medium text-slate-900 dark:text-white">{copy.dashboard.sections.unitSummary}</h3>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.dashboard.sections.unitSummaryHint}</p>
+            <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800"><h3 className="font-medium text-slate-900 dark:text-white">{standardCopy.topDepartments}</h3><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.dashboard.cards.late.description}</p><div className="mt-5 space-y-3">{departmentRiskRows.map((row,index) => <button key={row.name} type="button" onClick={() => setDepartmentFilter(row.name)} className="block w-full rounded-xl p-2 text-left transition hover:bg-emerald-50 dark:hover:bg-emerald-950/20"><div className="flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-xs font-medium dark:bg-slate-700">{index+1}</span><span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-700 dark:text-slate-200">{row.name}</span><span className="text-sm font-medium text-slate-900 dark:text-white">{row.exceptions}</span></div><div className="ml-11 mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700"><div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.min(100,row.percentage)}%` }} /></div></button>)}{departmentRiskRows.length===0? <p className="py-8 text-center text-sm text-slate-500">{copy.dashboard.common.noData}</p>:null}</div></article>
           </div>
-          <div className="grid gap-3 bg-slate-50/60 p-3 dark:bg-slate-900/30 md:hidden">
-            {unitRows.length > 0 ? (
-              unitRows.map((row) => (
-                <article key={row.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h4 className="break-words font-medium text-slate-950 dark:text-white">{row.name}</h4>
-                      <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-                        {copy.dashboard.table.employees}: {row.employees}
-                      </p>
+
+          <article className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
+              <h3 className="text-base font-medium text-slate-900 dark:text-white">{copy.dashboard.sections.unitSummary}</h3>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.dashboard.sections.unitSummaryHint}</p>
+            </div>
+            <div className="grid gap-3 bg-slate-50/60 p-3 dark:bg-slate-900/30 md:hidden">
+              {unitRows.length>0? (
+                unitRows.map((row) => (
+                  <article key={row.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h4 className="break-words font-medium text-slate-950 dark:text-white">{row.name}</h4>
+                        <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                          {copy.dashboard.table.employees}: {row.employees}
+                        </p>
+                      </div>
+                      <KpiStatusBadge copy={copy} status={row.status} />
                     </div>
-                    <KpiStatusBadge copy={copy} status={row.status} />
-                  </div>
-                  <dl className="mt-4 grid grid-cols-2 gap-3 border-y border-slate-100 py-4 text-sm dark:border-slate-700">
-                    <div><dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.table.attendance}</dt><dd className="mt-1 font-medium text-slate-900 dark:text-white">{formatPercent(row.attendanceRate, copy)}</dd></div>
-                    <div><dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.table.permissions}</dt><dd className="mt-1 font-medium text-slate-900 dark:text-white">{row.pendingPermissions}</dd></div>
-                    <div><dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.table.records}</dt><dd className="mt-1 font-medium text-slate-900 dark:text-white">{row.unresolvedRecords}</dd></div>
-                    <div><dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.table.assets}</dt><dd className="mt-1 font-medium text-slate-900 dark:text-white">{row.assignedAssets}</dd></div>
-                  </dl>
-                  <div className="mt-4">
-                    <p className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.table.readiness}</p>
-                    <KpiScoreBar score={row.readinessScore} status={row.status} />
-                  </div>
-                </article>
-              ))
-            ) : (
-              <div className="rounded-2xl border border-dashed border-slate-200 px-5 py-10 text-center text-sm font-medium text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                {copy.dashboard.table.noRows}
-              </div>
-            )}
-          </div>
-          <div className="hidden overflow-x-auto md:block">
-            <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-              <thead className="bg-slate-50 dark:bg-slate-900/60">
-                <tr>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-slate-500">{copy.dashboard.table.unit}</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-slate-500">{copy.dashboard.table.employees}</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-slate-500">{copy.dashboard.table.attendance}</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-slate-500">{copy.dashboard.table.permissions}</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-slate-500">{copy.dashboard.table.records}</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-slate-500">{copy.dashboard.table.assets}</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-slate-500">{copy.dashboard.table.readiness}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                {unitRows.length > 0 ? (
-                  unitRows.map((row) => (
-                    <tr key={row.id} className="hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10">
-                      <td className="px-5 py-4 text-sm font-medium text-slate-900 dark:text-white">{row.name}</td>
-                      <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{row.employees}</td>
-                      <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{formatPercent(row.attendanceRate, copy)}</td>
-                      <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{row.pendingPermissions}</td>
-                      <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{row.unresolvedRecords}</td>
-                      <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{row.assignedAssets}</td>
-                      <td className="px-5 py-4">
-                        <div className="flex min-w-[180px] items-center gap-3">
-                          <KpiScoreBar score={row.readinessScore} status={row.status} />
-                        </div>
+                    <dl className="mt-4 grid grid-cols-2 gap-3 border-y border-slate-100 py-4 text-sm dark:border-slate-700">
+                      <div><dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.table.attendance}</dt><dd className="mt-1 font-medium text-slate-900 dark:text-white">{formatPercent(row.attendanceRate,copy)}</dd></div>
+                      <div><dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.table.permissions}</dt><dd className="mt-1 font-medium text-slate-900 dark:text-white">{row.pendingPermissions}</dd></div>
+                      <div><dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.table.records}</dt><dd className="mt-1 font-medium text-slate-900 dark:text-white">{row.unresolvedRecords}</dd></div>
+                      <div><dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.table.assets}</dt><dd className="mt-1 font-medium text-slate-900 dark:text-white">{row.assignedAssets}</dd></div>
+                    </dl>
+                    <div className="mt-4">
+                      <p className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">{copy.dashboard.table.readiness}</p>
+                      <KpiScoreBar score={row.readinessScore} status={row.status} />
+                    </div>
+                  </article>
+                ))
+              ):(
+                <div className="rounded-2xl border border-dashed border-slate-200 px-5 py-10 text-center text-sm font-medium text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  {copy.dashboard.table.noRows}
+                </div>
+              )}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                <thead className="bg-slate-50 dark:bg-slate-900/60">
+                  <tr>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-slate-500">{copy.dashboard.table.unit}</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-slate-500">{copy.dashboard.table.employees}</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-slate-500">{copy.dashboard.table.attendance}</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-slate-500">{copy.dashboard.table.permissions}</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-slate-500">{copy.dashboard.table.records}</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-slate-500">{copy.dashboard.table.assets}</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-slate-500">{copy.dashboard.table.readiness}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                  {unitRows.length>0? (
+                    unitRows.map((row) => (
+                      <tr key={row.id} className="hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10">
+                        <td className="px-5 py-4 text-sm font-medium text-slate-900 dark:text-white">{row.name}</td>
+                        <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{row.employees}</td>
+                        <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{formatPercent(row.attendanceRate,copy)}</td>
+                        <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{row.pendingPermissions}</td>
+                        <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{row.unresolvedRecords}</td>
+                        <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{row.assignedAssets}</td>
+                        <td className="px-5 py-4">
+                          <div className="flex min-w-[180px] items-center gap-3">
+                            <KpiScoreBar score={row.readinessScore} status={row.status} />
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ):(
+                    <tr>
+                      <td colSpan={7} className="px-5 py-10 text-center text-sm font-medium text-slate-500 dark:text-slate-400">
+                        {copy.dashboard.table.noRows}
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="px-5 py-10 text-center text-sm font-medium text-slate-500 dark:text-slate-400">
-                      {copy.dashboard.table.noRows}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </article>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+      ):null}
 
-        <article className="rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
-            <h3 className="text-base font-medium text-slate-900 dark:text-white">{copy.dashboard.sections.attentionQueue}</h3>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.dashboard.sections.attentionQueueHint}</p>
-          </div>
+
+      <section role="tabpanel" aria-label={workspaceCopy.views.employees} data-hr-kpi-view="employees" hidden={activeView!=='employees'} className="space-y-6" tabIndex={0}>
+        <details className="rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <summary className="cursor-pointer rounded-[24px] px-5 py-4 text-sm text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5] dark:text-slate-200">
+            <span className="font-medium">{standardCopy.topAttention} · {attentionRows.length}</span>
+            <span className="mt-1 block text-sm text-slate-500 dark:text-slate-400">{copy.dashboard.sections.attentionQueueHint}</span>
+          </summary>
           <div className="divide-y divide-slate-200 dark:divide-slate-700">
-            {attentionRows.length > 0 ? (
-              attentionRows.map((row) => (
+            {attentionRows.length>0? (
+              attentionRows.slice(0,showAllAttention? attentionRows.length:5).map((row) => (
                 <div key={row.id} className="p-5">
                   <div className="mb-3 flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-medium text-slate-900 dark:text-white">{row.employee}</p>
+                      <button type="button" onClick={() => setSearchQuery(row.employee)} aria-label={`${standardCopy.focus}: ${row.employee}`} className="rounded text-left font-medium text-slate-900 underline decoration-transparent underline-offset-4 hover:text-[#177D66] hover:decoration-current focus-visible:outline-2 focus-visible:outline-[#59C3A5] dark:text-white">{row.employee}</button>
                       <p className="text-sm text-slate-500 dark:text-slate-400">{row.position} · {row.unit}</p>
                     </div>
                     <KpiStatusBadge copy={copy} status={row.status} />
@@ -1797,45 +1845,40 @@ export default function KPIs() {
                   </div>
                 </div>
               ))
-            ) : (
+            ):(
               <div className="p-10 text-center text-sm font-medium text-slate-500 dark:text-slate-400">
                 {copy.dashboard.sections.noAttentionSignals}
               </div>
             )}
           </div>
-        </article>
+          {attentionRows.length>5? (
+            <button type="button" onClick={() => setShowAllAttention((current) => !current)} aria-expanded={showAllAttention} className="m-4 min-h-11 rounded-lg border border-slate-200 px-4 text-sm font-medium text-[#177D66] hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-[#59C3A5] dark:border-slate-700 dark:text-emerald-300 dark:hover:bg-slate-900">
+              {showAllAttention? workspaceCopy.showLess:workspaceCopy.showMore}
+            </button>
+          ):null}
+        </details>
+
+        <HrEmployeeOperationsTable
+          labels={{
+            title: standardCopy.performanceTitle,
+            subtitle: standardCopy.performanceSubtitle,
+            employee: copy.dashboard.table.employees,
+            attendance: copy.dashboard.table.attendance,
+            permissions: copy.dashboard.table.permissions,
+            records: copy.dashboard.table.records,
+            assets: copy.dashboard.table.assets,
+            readiness: copy.dashboard.table.readiness,
+            noRows: copy.dashboard.table.noRows,
+            focus: standardCopy.focus,
+            statuses: copy.dashboard.statuses,
+            pagination: standardCopy.pagination,
+          }}
+          onFocus={(row) => setSearchQuery(row.name)}
+          resetKey={[searchQuery,unitFilter,businessFilter,periodFilter,attendanceStatusFilter,departmentFilter,selectedDate].join('|')}
+          rows={employeeOperationsRows}
+        />
       </section>
 
-      <HrEmployeeOperationsTable
-        labels={{
-          title: standardCopy.performanceTitle,
-          subtitle: standardCopy.performanceSubtitle,
-          employee: copy.dashboard.table.employees,
-          attendance: copy.dashboard.table.attendance,
-          permissions: copy.dashboard.table.permissions,
-          records: copy.dashboard.table.records,
-          assets: copy.dashboard.table.assets,
-          readiness: copy.dashboard.table.readiness,
-          noRows: copy.dashboard.table.noRows,
-          focus: standardCopy.focus,
-          statuses: copy.dashboard.statuses,
-          pagination: standardCopy.pagination,
-        }}
-        onFocus={(row) => setSearchQuery(row.name)}
-        resetKey={[searchQuery, unitFilter, businessFilter, periodFilter, attendanceStatusFilter, departmentFilter, selectedDate].join('|')}
-        rows={employeeOperationsRows}
-      />
-
-      <section className="grid grid-cols-2 gap-3 rounded-[24px] border border-slate-200 bg-white p-4 text-xs font-medium text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 md:grid-cols-4 xl:grid-cols-8">
-        <span>{copy.dashboard.labels.totalEmployees}: {employeeSummary.total_count}</span>
-        <span>{copy.dashboard.labels.active}: {employeeSummary.active_count}</span>
-        <span>{copy.dashboard.labels.inactive}: {employeeSummary.inactive_count}</span>
-        <span>{copy.dashboard.labels.terminated}: {employeeSummary.terminated_count}</span>
-        <span>{copy.dashboard.labels.totalAssets}: {assetSummary.total_count}</span>
-        <span>{copy.dashboard.labels.totalAssetValue}: {assetValueSummary.preferredTotalLabel}</span>
-        <span>{copy.dashboard.labels.totalPermissions}: {permissionSummary.total}</span>
-        <span>{copy.dashboard.labels.totalRecords}: {recordSummary.total_count}</span>
-      </section>
     </div>
   );
 }

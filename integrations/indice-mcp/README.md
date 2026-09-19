@@ -85,9 +85,15 @@ Para probar Streamable HTTP exclusivamente en loopback:
 INDICE_MCP_TRANSPORT=http INDICE_MCP_AUTH_MODE=delegated npm start
 ```
 
-El endpoint local será `http://127.0.0.1:3010/mcp`. Esta versión rechaza backends y enlaces MCP que no sean locales. El modo HTTP rechaza peticiones sin token y valida expiración o revocación contra Spring Boot antes de procesar MCP.
+El endpoint local será `http://127.0.0.1:3010/mcp`. La configuración exige loopback para el bind
+HTTP y para `INDICE_BACKEND_URL`. El identificador `INDICE_MCP_RESOURCE`, el issuer y la metadata
+OAuth pueden ser URLs públicas; en APPTEST y producción se configuran con HTTPS y la exposición
+sigue el contrato de proxy del [MCP Operating System](../../docs/indice-mcp-operating-system-v1.md)
+y el [runbook APPTEST](../../deployment/MCP_APPTEST_RUNBOOK.md).
+El modo HTTP rechaza peticiones sin token y valida expiración o revocación contra Spring Boot
+antes de procesar MCP.
 
-## Seguridad del MVP
+## Seguridad y autorización
 
 - Todas las consultas son de solo lectura. Las únicas acciones son crear tarea, crear gasto en borrador, registrar salida de fondo e ingresar dinero a un fondo.
 - `companyId`, usuario y membresía proceden de la sesión o del token delegado emitido por Índice.
@@ -107,7 +113,7 @@ El endpoint local será `http://127.0.0.1:3010/mcp`. Esta versión rechaza backe
 - Cada vista previa, ejecución, repetición y fallo queda auditado. Una repetición con la misma clave devuelve el mismo resultado sin duplicar la acción.
 - Las conexiones creadas antes de esta V1 no reciben permisos nuevos silenciosamente. Deben revocarse y volver a conectarse para aceptar los alcances adicionales.
 - La sesión con contraseña existe solo para `stdio` local y se mantiene únicamente en memoria.
-- URLs locales obligatorias.
+- Backend y proceso MCP en loopback; identificadores públicos y proxy conforme al contrato OAuth.
 - Cookies, contraseñas y tokens no se registran.
 - Timeout obligatorio y validación estricta de la respuesta backend.
 

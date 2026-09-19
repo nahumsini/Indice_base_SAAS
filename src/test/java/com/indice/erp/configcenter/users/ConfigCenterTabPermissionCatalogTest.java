@@ -14,10 +14,11 @@ class ConfigCenterTabPermissionCatalogTest {
         var tabs = ConfigCenterTabPermissionCatalog.catalogTabs();
         var permissionKeys = tabs.stream().map(row -> (String) row.get("permission_key")).toList();
 
-        assertEquals(55, tabs.size());
-        assertEquals(55, new HashSet<>(permissionKeys).size());
+        assertEquals(56, tabs.size());
+        assertEquals(56, new HashSet<>(permissionKeys).size());
         assertEquals(10, ConfigCenterTabPermissionCatalog.moduleSlugsWithTabs().size());
         assertTrue(permissionKeys.contains("inventory.purchase-orders"));
+        assertTrue(permissionKeys.contains("receivables.kpis"));
         assertTrue(permissionKeys.contains("expenses.payment-accounts"));
         assertTrue(permissionKeys.contains("pos.kiosks"));
         assertTrue(permissionKeys.contains("kpis.automated-reports"));

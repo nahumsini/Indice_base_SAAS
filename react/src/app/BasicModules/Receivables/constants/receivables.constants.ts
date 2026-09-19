@@ -21,6 +21,7 @@ export const receivablesTabIds = [
   'accounts-receivable',
   'payments',
   'credit-customers',
+  'kpis',
 ] as const;
 
 export type ReceivablesTabId = (typeof receivablesTabIds)[number];
@@ -54,6 +55,7 @@ export const receivablesTabs: ReceivablesTab[] = [
   { id: 'accounts-receivable', emoji: '🧾' },
   { id: 'payments', emoji: '💸' },
   { id: 'credit-customers', emoji: '👥' },
+  { id: 'kpis', emoji: '📊' },
 ];
 
 export type FilterState = {

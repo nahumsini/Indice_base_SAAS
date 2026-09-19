@@ -2,7 +2,15 @@
 
 ## Estado
 
-Implementación terminada para convertir las pestañas visibles del sistema en permisos reales y persistentes. El catálogo canónico contiene 53 scopes de pestaña distribuidos en 10 módulos con navegación operativa.
+Contrato de autorización por módulo y pestaña, con una línea base documentada el 2026-08-02.
+Los conteos y la tabla de esa fecha son históricos; las ampliaciones aprobadas se reflejan en el
+catálogo servido por backend y en los contratos propietarios.
+
+Fuentes de implementación: [catálogo backend](../src/main/java/com/indice/erp/configcenter/users/ConfigCenterTabPermissionCatalog.java),
+[clasificador de rutas](../src/main/java/com/indice/erp/access/tab/TabPermissionRouteClassifier.java) y
+[catálogo frontend](../react/src/app/access/tabScopeCatalog.ts). Por ejemplo, el
+[contrato de indicadores de Cartera](receivables-kpi-workspace-contract.md) documenta su extensión.
+La autoridad general sigue en [Backend OS](indice-backend-operating-system-v1.md).
 
 El permiso de módulo sigue siendo el primer candado. El scope de pestaña es el segundo. Para entrar o consumir una API protegida deben cumplirse ambos.
 
@@ -22,12 +30,14 @@ empresa activa
 - `can_view = 1` habilita la superficie; `can_view = 0` la conserva explícitamente revocada.
 - Cada entrada del catálogo declara `description_en`, `description_es`, `access_level`, `compatible_roles` y `role_access`; la UI no mantiene una explicación paralela.
 - `role_access` describe únicamente capacidades que el modelo sí controla: consultar, uso personal, operar dentro del alcance, administrar alcance o empresa, delegar acceso propio y acceso protegido.
-- Root y Super Admin tienen acceso irrestricto, pero Plan permanece marcado como scope protegido para impedir su delegación accidental.
+- Root y Super Admin conservan las excepciones de permisos que define el contrato de sus roles
+  dentro de la empresa autenticada. No evitan el aislamiento ni las condiciones comerciales
+  aplicables. Plan permanece como scope protegido para impedir su delegación accidental.
 - Admin puede delegar únicamente módulos, pestañas y alcance organizacional que ya posee.
 - User puede recibir cualquier scope operativo de módulos como Inventarios, Ventas, POS, Gastos, Caja chica, Cartera, Procesos y KPIs.
 - En Panel Inicial y Recursos Humanos, User conserva únicamente superficies personales; las superficies administrativas requieren Admin o Super Admin.
 
-## Catálogo canónico
+## Catálogo de referencia al 2026-08-02
 
 | Módulo | `module_slug` | Pestañas / `tab_key` | Total |
 | --- | --- | --- | ---: |
@@ -74,7 +84,8 @@ Fuera de esos dos módulos puede recibir cualquiera de los scopes operativos del
 
 - Un interceptor clasifica las rutas administrativas y operativas por scope.
 - Una llamada sin módulo asignado o sin `can_view = 1` responde `403` con código `tab_permission_required`.
-- Las superficies públicas de kioscos, autenticación, invitaciones, signup y webhooks quedan excluidas.
+- Las superficies públicas de kioscos, autenticación, invitaciones, signup y webhooks quedan fuera
+  del guard de pestañas y conservan su mecanismo de confianza, límites y auditoría propios.
 - Los endpoints compartidos de lectura usan una regla `anyOf`: basta uno de los scopes consumidores. Las mutaciones conservan el scope propietario más estricto.
 - Las rutas administrativas del Kiosk Engine heredan el scope de la pestaña que administra cada kiosco.
 

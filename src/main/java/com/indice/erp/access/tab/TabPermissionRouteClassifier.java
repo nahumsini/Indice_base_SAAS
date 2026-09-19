@@ -275,6 +275,12 @@ public class TabPermissionRouteClassifier {
                 : one("petty_cash.cash");
         }
         if (path.startsWith("/api/v1/finance/receivables")) {
+            if ("GET".equals(method) && path.equals("/api/v1/finance/receivables/kpis/workspace")) {
+                return one("receivables.kpis");
+            }
+            if ("GET".equals(method) && path.matches("/api/v1/finance/receivables/payments/[0-9]+/receipt")) {
+                return any("receivables.payments", "receivables.kpis");
+            }
             if (path.endsWith("/payment-accounts")) {
                 return any("receivables.payments", "receivables.accounts-receivable");
             }

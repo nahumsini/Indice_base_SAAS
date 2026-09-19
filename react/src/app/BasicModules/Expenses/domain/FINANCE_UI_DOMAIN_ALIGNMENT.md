@@ -1,5 +1,11 @@
 # Finance UI Domain Alignment
 
+> Estado: referencia histórica de preparación del dominio. Las columnas «Readiness» y las
+> menciones a backend futuro describen esa etapa, no el sistema actual. Para reglas vigentes usa
+> [Domain Map](DOMAIN_MAP.md), [Business Rules](FINANCE_BUSINESS_RULES.md) y
+> [Petty Cash](PETTY_CASH_DOMAIN_CONTRACT.md). La autorización sin archivo se rige por el
+> [contrato de cierre](../../../../../../docs/petty-cash-statement-close-resolution-contract-v1.md).
+
 Este contrato alinea los tabs actuales de Expenses con el dominio futuro de Finance.
 No define endpoints ni cambia comportamiento. Su objetivo es evitar mezclar gastos reales,
 presupuestos, movimientos de caja y reportes antes de crear backend.

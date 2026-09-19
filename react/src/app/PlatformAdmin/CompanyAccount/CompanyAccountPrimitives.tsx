@@ -58,6 +58,11 @@ export function StatusPill({ status }: { status?: string | null }) {
       : "bg-slate-100 text-slate-600";
   const labels: Record<string, string> = {
     active: t("active"),
+    success: t("workspaceCompleted"),
+    failure: t("failed"),
+    demo: t("demo"),
+    trial: t("trial"),
+    deleted: t("deleted"),
     canceled: t("canceled"),
     expired: t("expired"),
     inactive: t("inactive"),

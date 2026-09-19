@@ -74,6 +74,9 @@ export default function CajaChica({ learningModeActive = false, onNavigate }: Ca
     setPettyCashSettlementLines,
     setPettyCashStatements,
     workspaceLoaded,
+    workspaceError,
+    workspaceUpdatedAt,
+    refreshWorkspace,
   } = usePettyCash();
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<PettyCashTabId>(
     'cash',
@@ -113,6 +116,9 @@ export default function CajaChica({ learningModeActive = false, onNavigate }: Ca
       case 'kpis':
         return (
           <PettyCashFinancialViewWorkspace
+            sourceError={workspaceError}
+            updatedAt={workspaceUpdatedAt}
+            onRefresh={refreshWorkspace}
             dataReady={workspaceLoaded}
             funds={pettyCashFunds}
             movements={pettyCashMovements}

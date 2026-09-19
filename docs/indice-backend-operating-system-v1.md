@@ -8,6 +8,11 @@ backend-facing integrations
 Stack: Java 21, Spring Boot 3.5+, Maven, JdbcTemplate, MySQL, Flyway, servlet sessions, custom CSRF,
 and MinIO-compatible object storage
 
+Reading guide: start with the [product overview](../README.md) and [documentation map](README.md).
+Use this document for engineering invariants, the affected domain contract for business meaning,
+and the [local development guide](local-development.md) for safe execution and verification.
+Implementation and release status require evidence for the version and environment being changed.
+
 ## 1. Purpose And Authority
 
 Indice is a modular SaaS ERP for SMEs in LATAM and Canada. Backend work must protect tenant
@@ -233,6 +238,21 @@ API requirements:
 Use the established HTTP meaning for `400`, `401`, `403`, `404`, `409`, `422` when adopted by the
 module, `429`, and `5xx`. For object authorization, choose a consistent non-disclosing `403`/`404`
 policy within the module.
+
+### Platform customer workspace read contract
+
+The customer workspace exposes company-scoped invoice and history pages under
+`/api/v1/platform-admin/companies/{companyId}/invoices` and `/history`. Each read resolves the
+actor from the authenticated session, requires `PLATFORM_VIEW` through the platform access
+service, validates the target company, and scopes every source query to that company. These are
+explicit platform cross-tenant operations, not tenant or distributor authorization shortcuts.
+
+Invoice and history responses use explicit DTOs, stable ordering, bounded page sizes and total
+counts. Customer history projects only the operational event, actor name, timestamp, outcome and
+reason; do not expose raw audit JSON, session material or login metadata. Portfolio and company
+detail reuse the operational summary mapping so access validity, lifecycle and billing projection
+have the same meaning in both views. This read contract does not alter billing, entitlement or
+credential mutation authority.
 
 ## 9. Persistence And Flyway
 

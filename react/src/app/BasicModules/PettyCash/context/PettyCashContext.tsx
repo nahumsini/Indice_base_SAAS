@@ -1,5 +1,5 @@
 import { useAuthorizationRevision } from '../../../hooks/useAuthorizationRevision';
-import { createContext, useContext, useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import {
   mockCashFunds,
   mockPettyCashExpenses,
@@ -16,6 +16,9 @@ import type {
 
 interface PettyCashContextValue {
   workspaceLoaded: boolean;
+  workspaceError: boolean;
+  workspaceUpdatedAt: string | null;
+  refreshWorkspace: () => void;
   cashFunds: CashFund[];
   pettyCashExpenses: PettyCashExpense[];
   pettyCashFunds: PettyCashFund[];
@@ -34,6 +37,10 @@ const PettyCashContext = createContext<PettyCashContextValue | null>(null);
 
 export function PettyCashProvider({ children }: { children: ReactNode }) {
   const authorizationRevision = useAuthorizationRevision();
+  const [refreshRevision, setRefreshRevision] = useState(0);
+  const refreshWorkspace = useCallback(() => setRefreshRevision(value => value + 1), []);
+  const [workspaceError, setWorkspaceError] = useState(false);
+  const [workspaceUpdatedAt, setWorkspaceUpdatedAt] = useState<string | null>(null);
   const [workspaceLoaded, setWorkspaceLoaded] = useState(false);
   const [cashFunds, setCashFunds] = useState<CashFund[]>(mockCashFunds);
   const [pettyCashExpenses, setPettyCashExpenses] = useState<PettyCashExpense[]>(mockPettyCashExpenses);
@@ -45,6 +52,8 @@ export function PettyCashProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     setWorkspaceLoaded(false);
+    setWorkspaceError(false);
+    setWorkspaceUpdatedAt(null);
     setPettyCashFunds([]);
     setPettyCashMovements([]);
     setPettyCashSettlementLines([]);
@@ -58,9 +67,11 @@ export function PettyCashProvider({ children }: { children: ReactNode }) {
         setPettyCashSettlementLines(workspace.settlementLines);
         setPettyCashStatements(workspace.statements);
         setWorkspaceLoaded(true);
+        setWorkspaceUpdatedAt(new Date().toISOString());
       })
       .catch(() => {
         if (cancelled) return;
+        setWorkspaceError(true);
         setPettyCashFunds([]);
         setPettyCashMovements([]);
         setPettyCashSettlementLines([]);
@@ -70,10 +81,13 @@ export function PettyCashProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [authorizationRevision]);
+  }, [authorizationRevision, refreshRevision]);
 
   const value = useMemo<PettyCashContextValue>(() => ({
     workspaceLoaded,
+    workspaceError,
+    workspaceUpdatedAt,
+    refreshWorkspace,
     cashFunds,
     pettyCashExpenses,
     pettyCashFunds,
@@ -86,7 +100,7 @@ export function PettyCashProvider({ children }: { children: ReactNode }) {
     setPettyCashMovements,
     setPettyCashSettlementLines,
     setPettyCashStatements,
-  }), [workspaceLoaded, cashFunds, pettyCashExpenses, pettyCashFunds, pettyCashMovements, pettyCashSettlementLines, pettyCashStatements]);
+  }), [workspaceLoaded, workspaceError, workspaceUpdatedAt, refreshWorkspace, cashFunds, pettyCashExpenses, pettyCashFunds, pettyCashMovements, pettyCashSettlementLines, pettyCashStatements]);
 
   return (
     <PettyCashContext.Provider value={value}>

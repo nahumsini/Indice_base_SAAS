@@ -1,3 +1,5 @@
+import { benefitRevocationImpact, type BenefitRevocationImpact } from "./CompanyAccount/companyBenefitPresentation";
+import { getCustomerAccountCopy } from "./Customers/customerAccountTranslations";
 import { catalogProductLabel } from "./CatalogWorkspace/catalogLabels";
 import { catalogValidationMessage } from "./CatalogWorkspace/catalogValidationMessage";
 import { PlatformAdminLanguageSelect } from "./PlatformAdminLanguageSelect";
@@ -95,8 +97,8 @@ import AccountCreationModal from "./AccountCreationModal";
 import AccountTypeEditModal from "./AccountTypeEditModal";
 import DistributorAssignmentModal from "./DistributorAssignmentModal";
 import { QuickTestAccountModal } from "./QuickTestAccount";
+import { nextBenefitEnd } from "./CompanyAccount/companyAccountState";
 import CompanyAccountDrawer, { type CompanyAccountTab } from "./CompanyAccountDrawer";
-import { CustomerUsersModal } from "./Customers/CustomerUsersModal";
 import { PaymentRequestModal } from "./Customers/PaymentRequestModal";
 import ConsultingAdminTab from "./ConsultingAdminTab";
 import { CompaniesDirectoryTab } from "./UsersDirectoryTab";
@@ -111,7 +113,6 @@ import { canUseLocalStripeDemo } from "./BillingWorkspace/localStripeDemo";
 import {
   CustomersTable,
   CustomerColumnsModal,
-  CustomerControlCenter,
   TrialExtensionModal,
   getCustomerTableCopy,
   loadCustomerTableColumnIds,
@@ -179,7 +180,7 @@ type Revocation = {
   kind: "benefit" | "courtesy";
   reference: string;
   label?: string;
-  grantCount?: number;
+  impact?: BenefitRevocationImpact;
 } | null;
 type ModuleAvailabilityChange = {
   module: PlatformModule;
@@ -371,11 +372,10 @@ export default function PlatformAdminPage() {
   const [auditLog, setAuditLog] = useState<PlatformAudit | null>(null);
   const [courtesyCatalog, setCourtesyCatalog] =
     useState<CourtesyCodeCatalog | null>(null);
+  const companyRequestSequence = useRef(0);
   const [selected, setSelected] = useState<PlatformCompanyDetail | null>(null);
   const [selectedInitialTab, setSelectedInitialTab] =
     useState<CompanyAccountTab>("overview");
-  const [usersCompany, setUsersCompany] =
-    useState<PlatformCompanyDetail | null>(null);
   const [query, setQuery] = useState("");
   const [userTypeFilter, setUserTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -507,6 +507,7 @@ export default function PlatformAdminPage() {
         const overviewData = await platformAdminApi.getOverview(overviewOptions);
         if (!cancelled && requestSequence === overviewRequestSequence.current) {
           setOverview(overviewData);
+          if (overviewData.pagination.page !== overviewOptions.page) setPage(overviewData.pagination.page);
           loadedOverviewOptionsKey.current = overviewOptionsKey;
         }
       } catch (loadError) {
@@ -545,54 +546,35 @@ export default function PlatformAdminPage() {
     setPage(1);
   }, [query, userTypeFilter, statusFilter, pageSize, customerSort]);
 
-  useEffect(() => {
-    if (overview?.pagination && overview.pagination.page !== page) {
-      setPage(overview.pagination.page);
-    }
-  }, [overview?.pagination, page]);
-
-  const openCompany = async (company: PlatformCompanySummary | number) => {
+  const openCompany = async (company: PlatformCompanySummary | number, initialTab: CompanyAccountTab = "overview") => {
+    const sequence = ++companyRequestSequence.current;
     setError("");
     setAccountFeedback(null);
-    setSelectedInitialTab("overview");
     try {
-      setSelected(
-        await platformAdminApi.getCompany(
-          typeof company === "number" ? company : company.id,
-        ),
-      );
-    } catch (loadError) {
-      setError(
-        t("The account could not be loaded."),
-      );
+      const detail = await platformAdminApi.getCompany(typeof company === "number" ? company : company.id);
+      if (sequence !== companyRequestSequence.current) return;
+      setSelectedInitialTab(initialTab);
+      setSelected(detail);
+    } catch {
+      if (sequence === companyRequestSequence.current) setError(t("The account could not be loaded."));
     }
   };
 
-  const openCompanyUsers = async (company: PlatformCompanySummary) => {
-    setError("");
-    try {
-      setUsersCompany(await platformAdminApi.getCompany(company.id));
-    } catch (loadError) {
-      setError(
-        t("Account users could not be loaded."),
-      );
-    }
-  };
-
-  const refreshUsersCompany = async () => {
-    if (!usersCompany) return;
-    const [overviewData, companyData] = await Promise.all([
-      platformAdminApi.getOverview(overviewOptions),
-      platformAdminApi.getCompany(usersCompany.id),
-    ]);
-    setOverview(overviewData);
-    setUsersCompany(companyData);
-  };
+  const openCompanyUsers = (company: PlatformCompanySummary) => openCompany(company, "activity");
+  const openCompanyBilling = (company: PlatformCompanySummary) => openCompany(company, "billing");
 
   const refreshOverviewAndCompany = async () => {
-    const overviewData = await platformAdminApi.getOverview(overviewOptions);
-    setOverview(overviewData);
-    if (selected) setSelected(await platformAdminApi.getCompany(selected.id));
+    const companyId = selected?.id;
+    const [overviewResult, companyResult] = await Promise.allSettled([
+      platformAdminApi.getOverview(overviewOptions),
+      companyId ? platformAdminApi.getCompany(companyId) : Promise.resolve(null),
+    ]);
+    if (overviewResult.status === "fulfilled") setOverview(overviewResult.value);
+    else setError(t("The customer portfolio could not be updated."));
+    if (companyResult.status === "fulfilled" && companyResult.value) {
+      const refreshed = companyResult.value;
+      setSelected((current) => current?.id === refreshed.id ? refreshed : current);
+    } else if (companyResult.status === "rejected") throw companyResult.reason;
   };
 
   const confirmCompanyDeletion = async () => {
@@ -623,14 +605,18 @@ export default function PlatformAdminPage() {
     payload: PlatformAccountCreatePayload,
   ): Promise<PlatformAccountCreateResult> => {
     const created = await platformAdminApi.createCompanyAccount(payload);
-    const [overviewData, courtesyData, auditData] = await Promise.all([
-      platformAdminApi.getOverview(overviewOptions),
-      platformAdminApi.getCourtesyCodes(),
-      platformAdminApi.getAudit(),
-    ]);
-    setOverview(overviewData);
-    setCourtesyCatalog(courtesyData);
-    setAuditLog(auditData);
+    try {
+      const [overviewData, courtesyData, auditData] = await Promise.all([
+        platformAdminApi.getOverview(overviewOptions),
+        platformAdminApi.getCourtesyCodes(),
+        platformAdminApi.getAudit(),
+      ]);
+      setOverview(overviewData);
+      setCourtesyCatalog(courtesyData);
+      setAuditLog(auditData);
+    } catch {
+      setError(t("The customer portfolio could not be updated."));
+    }
     return created;
   };
 
@@ -653,6 +639,7 @@ export default function PlatformAdminPage() {
       ]);
       setOverview(overviewData);
       setAuditLog(auditData);
+      if (selected?.id === accountTypeEdit.id) setSelected(await platformAdminApi.getCompany(accountTypeEdit.id));
       setAccountTypeEdit(null);
     } catch (saveError) {
       setAccountTypeEditError(
@@ -682,6 +669,7 @@ export default function PlatformAdminPage() {
       ]);
       setOverview(overviewData);
       setAuditLog(auditData);
+      if (selected?.id === distributorAssignment.id) setSelected(await platformAdminApi.getCompany(distributorAssignment.id));
       setDistributorAssignment(null);
     } catch (saveError) {
       setDistributorAssignmentError(
@@ -724,10 +712,7 @@ export default function PlatformAdminPage() {
     setRevocationError("");
     setAccountFeedback(null);
     try {
-      const accessEndsAt = selected.benefits
-        .filter((item) => item.status.toUpperCase() === "ACTIVE" && item.ends_at)
-        .map((item) => item.ends_at as string)
-        .sort()[0];
+      const accessEndsAt = nextBenefitEnd(selected.benefits);
       await platformAdminApi.grantBenefit(selected.id, {
         benefit_type: "PRODUCT",
         product_code: productCode,
@@ -772,11 +757,15 @@ export default function PlatformAdminPage() {
         productCodes,
         expectedCatalogVersion,
       );
-      await refreshOverviewAndCompany();
-      setAccountFeedback({
-        type: "success",
-        message: t("The change to {p0} module(s) was scheduled without an immediate charge. Access will update after payment on the billing date{p1}.", { p0: result.product_codes.length, p1: result.effective_at ? ` (${new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(result.effective_at))})` : "" }),
-      });
+      try {
+        await refreshOverviewAndCompany();
+        setAccountFeedback({
+          type: "success",
+          message: t("The change to {p0} module(s) was scheduled without an immediate charge. Access will update after payment on the billing date{p1}.", { p0: result.product_codes.length, p1: result.effective_at ? ` (${new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(result.effective_at))})` : "" }),
+        });
+      } catch {
+        setAccountFeedback({ type: "success", message: getCustomerAccountCopy(currentLanguage.code).t("workspaceSavedRefreshFailed") });
+      }
       return true;
     } catch (saveError) {
       const message = t("Account modules could not be updated.");
@@ -837,12 +826,12 @@ export default function PlatformAdminPage() {
           : undefined,
       });
       setBenefit(initialBenefit);
-      await refreshOverviewAndCompany();
-      setAccountFeedback({
-        type: "success",
-        message:
-          t("The adjustment was applied and recorded in the audit log."),
-      });
+      try {
+        await refreshOverviewAndCompany();
+        setAccountFeedback({ type: "success", message: t("The adjustment was applied and recorded in the audit log.") });
+      } catch {
+        setAccountFeedback({ type: "success", message: getCustomerAccountCopy(currentLanguage.code).t("workspaceSavedRefreshFailed") });
+      }
     } catch (saveError) {
       const message =
         t("The benefit could not be granted.");
@@ -903,11 +892,15 @@ export default function PlatformAdminPage() {
           revocation.reference,
           revocationReason.trim(),
         );
-        await refreshOverviewAndCompany();
-        setAccountFeedback({
-          type: "success",
-          message: t("{p0} was removed and the account was synchronized.", { p0: revocation.label || t("Access") }),
-        });
+        try {
+          await refreshOverviewAndCompany();
+          setAccountFeedback({
+            type: "success",
+            message: t("{p0} was removed and the account was synchronized.", { p0: revocation.label || t("Access") }),
+          });
+        } catch {
+          setAccountFeedback({ type: "success", message: getCustomerAccountCopy(currentLanguage.code).t("workspaceSavedRefreshFailed") });
+        }
       } else {
         await platformAdminApi.revokeCourtesyCode(
           revocation.reference,
@@ -1056,8 +1049,6 @@ export default function PlatformAdminPage() {
               <CustomersTab
                 english={english}
                  totals={overview?.totals}
-                 allCompanies={overview?.companies ?? []}
-                 control={overview?.control}
                  paginationData={overview?.pagination}
                  loading={overviewLoading}
                 companies={companies}
@@ -1117,7 +1108,7 @@ export default function PlatformAdminPage() {
                   setTrialExtensionError("");
                   setTrialExtension(company);
                 }}
-                onRequestPayment={setPaymentRequestCompany}
+                onRequestPayment={openCompanyBilling}
                 onDelete={(company) => {
                   setCompanyDeletionName("");
                   setCompanyDeletionReason("");
@@ -1205,43 +1196,40 @@ export default function PlatformAdminPage() {
         ) : null}
       </div>
 
-      {selected && revocation?.kind !== "benefit" ? (
+      {selected && revocation?.kind !== "benefit" && !paymentRequestCompany && !accountTypeEdit && !distributorAssignment && !trialExtension ? (
         <CompanyAccountDrawer
+          key={selected.id}
           company={selected}
+          workspaceApi={platformAdminApi}
+          onTabChange={setSelectedInitialTab}
+          onEditAccountType={context?.can_manage_accounts && selected.platform_status !== "DELETED" && selected.user_type !== "ROOT" ? () => { setAccountTypeEditError(""); setAccountTypeEdit(selected); } : undefined}
+          onAssignDistributor={context?.can_manage_accounts && selected.platform_status !== "DELETED" && selected.user_type === "SUPER_ADMIN" ? () => { setDistributorAssignmentError(""); setDistributorAssignment(selected); } : undefined}
+          onExtendTrial={context?.role === "PLATFORM_ROOT" && selected.platform_status !== "DELETED" && selected.trial_extendable ? () => { setTrialExtensionError(""); setTrialExtension(selected); } : undefined}
+          onRequestPayment={context?.role === "PLATFORM_ROOT" && selected.platform_status !== "DELETED" && selected.user_type !== "ROOT" ? () => setPaymentRequestCompany(selected) : undefined}
           context={context}
           catalogProducts={activeCatalogProducts}
           benefit={benefit}
           saving={saving}
           feedback={accountFeedback}
           onClose={() => {
+            companyRequestSequence.current += 1;
             setSelected(null);
             setAccountFeedback(null);
           }}
           onBenefit={setBenefit}
           onSubmitBenefit={submitBenefit}
-          onGrantProduct={(productCode) => void grantProductAccess(productCode)}
+          onGrantProduct={grantProductAccess}
           onPreviewProducts={previewCompanyProducts}
           onUpdateTrialProducts={updateTrialProducts}
           onRefreshCompany={refreshOverviewAndCompany}
           onUpdatePublicDemo={updatePublicDemoAccess}
-          onRevokeBenefit={(reference, label, grantCount) => {
+          onRevokeBenefit={(reference, label) => {
+            const impact = benefitRevocationImpact(selected, reference, activeCatalogProducts, currentLanguage.code);
+            if (!impact) return;
             setRevocationError("");
-            setRevocation({ kind: "benefit", reference, label, grantCount });
+            setRevocation({ kind: "benefit", reference, label, impact });
           }}
           initialTab={selectedInitialTab}
-        />
-      ) : null}
-      {usersCompany ? (
-        <CustomerUsersModal
-          company={usersCompany}
-          canManage={Boolean(context?.can_manage_accounts)}
-          onClose={() => setUsersCompany(null)}
-          onRefresh={refreshUsersCompany}
-          onManageSeats={() => {
-            setSelectedInitialTab("access");
-            setSelected(usersCompany);
-            setUsersCompany(null);
-          }}
         />
       ) : null}
       {createAccountOpen ? (
@@ -1420,8 +1408,6 @@ export default function PlatformAdminPage() {
 function CustomersTab({
   english,
   totals,
-  allCompanies,
-  control,
   paginationData,
   loading,
   companies,
@@ -1457,8 +1443,6 @@ function CustomersTab({
 }: {
   english: boolean;
   totals: PlatformOverview["totals"] | undefined;
-  allCompanies: PlatformCompanySummary[];
-  control: PlatformOverview["control"] | undefined;
   paginationData: PlatformOverview["pagination"] | undefined;
   loading: boolean;
   companies: PlatformCompanySummary[];
@@ -1580,14 +1564,6 @@ function CustomersTab({
           </div>
         }
       />
-      <CustomerControlCenter
-        english={english}
-        companies={allCompanies}
-        control={control}
-        activeFilter={statusFilter}
-        onFilter={onStatus}
-        onOpenCompany={(company) => onOpenCompany(company)}
-      />
       <IndiceFilterBar
         title={t("Customer portfolio")}
         gridClassName="lg:grid-cols-[minmax(0,1fr)_220px_260px]"
@@ -1610,7 +1586,7 @@ function CustomersTab({
           options={[
             { value: "all", label: t("All types") },
             { value: "ROOT", label: "Root" },
-            { value: "SUPER_ADMIN", label: t("Super Admin") },
+            { value: "SUPER_ADMIN", label: t("Customer") },
             {
               value: "DISTRIBUTOR",
               label: t("Distributor"),
@@ -1780,7 +1756,10 @@ function BillingTab({
           page,
           pageSize,
         });
-        if (!cancelled && sequence === requestSequence.current) onDataChange(response);
+        if (!cancelled && sequence === requestSequence.current) {
+          onDataChange(response);
+          if (response.pagination.page !== page) setPage(response.pagination.page);
+        }
       } catch (loadError) {
         if (!cancelled && sequence === requestSequence.current) {
           setError(
@@ -1796,9 +1775,6 @@ function BillingTab({
       window.clearTimeout(timeoutId);
     };
   }, [t, onDataChange, page, pageSize, query, sort, status]);
-  useEffect(() => {
-    if (data?.pagination && data.pagination.page !== page) setPage(data.pagination.page);
-  }, [data?.pagination, page]);
   const pagination = (
     <DataTablePagination
       currentPage={page}
@@ -4588,40 +4564,28 @@ function ConfirmModal({
   onConfirm: () => void;
 }) {
   const { t, locale } = usePlatformAdminTranslations();
-  const isProduct = revocation.kind === "benefit" && Boolean(revocation.label);
+  const accessCopy = getCustomerAccountCopy(locale).t;
   const presetReason = revocationReasonOptions.includes(
     reason as (typeof revocationReasonOptions)[number],
   );
   const reasonSelection = presetReason ? reason : reason ? "OTHER" : "";
-  const duplicateMessage =
-    isProduct && (revocation.grantCount ?? 0) > 1
-      ? t(" The {p0} active grants found will be consolidated and revoked.", { p0: revocation.grantCount })
-      : "";
   return (
     <IndiceConfirmationDialog
       busy={saving}
       confirmDisabled={reason === "OTHER" || reason.trim().length < 3}
       cancelLabel={t("Cancel")}
       confirmLabel={
-        saving ? t("Applying…") : isProduct ? t("Remove access") : t("Revoke")
+        saving ? t("Applying…") : revocation.impact ? accessCopy("accessRemove") : t("Revoke")
       }
-      description={
-        isProduct
-          ? t("The module will no longer be available for this account.{p0}", { p0: duplicateMessage })
-          : t("The courtesy will no longer be available and the action will be recorded in the audit log.")
-      }
+      description={revocation.impact?.description ?? t("The courtesy will no longer be available and the action will be recorded in the audit log.")}
       destructive
       icon={<CircleAlert className="h-5 w-5" />}
-      itemName={revocation.label || revocation.reference}
+      itemName={revocation.impact?.label || revocation.label || revocation.reference}
       onCancel={onCancel}
       onConfirm={onConfirm}
       open
-      title={
-        isProduct
-          ? t("Remove access to {p0}", { p0: revocation.label })
-          : t("Confirm revocation")
-      }
-      tone="blue"
+      title={revocation.impact ? accessCopy("accessRemove") : t("Confirm revocation")}
+      tone="aqua"
     >
       <IndiceModalValidation messages={error ? [error] : []} />
       <Field label={t("Audit reason")}>

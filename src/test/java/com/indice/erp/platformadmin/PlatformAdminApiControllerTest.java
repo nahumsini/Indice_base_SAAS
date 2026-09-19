@@ -78,10 +78,38 @@ class PlatformAdminApiControllerTest {
     private PlatformCompanyUserService companyUsers;
 
     @MockBean
+    private PlatformCompanyWorkspaceService companyWorkspace;
+
+    @MockBean
     private InvitationEmailService invitationEmailService;
 
     @MockBean
     private AppWebProperties appWebProperties;
+
+    @Test
+    void customerWorkspaceUsesAuthenticatedActorAndExplicitCompanyScope() throws Exception {
+        given(auth.currentUser(any())).willReturn(Optional.of(new AuthSessionUser(99L, 7L, "Root", "root")));
+        var pagination = new PlatformCompanyWorkspaceService.Pagination(3, 25, 76, 4);
+        given(companyWorkspace.invoices(99L, 41L, 3, 25))
+            .willReturn(new PlatformCompanyWorkspaceService.InvoicePage(41L, List.of(), pagination));
+        given(companyWorkspace.history(99L, 41L, 3, 25))
+            .willReturn(new PlatformCompanyWorkspaceService.HistoryPage(41L, List.of(), pagination));
+        mockMvc.perform(get("/api/v1/platform-admin/companies/41/invoices?page=3&pageSize=25"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.company_id").value(41))
+            .andExpect(jsonPath("$.pagination.page").value(3));
+        mockMvc.perform(get("/api/v1/platform-admin/companies/41/history?page=3&pageSize=25"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.company_id").value(41));
+        verify(companyWorkspace).invoices(99L, 41L, 3, 25);
+        verify(companyWorkspace).history(99L, 41L, 3, 25);
+    }
+
+    @Test
+    void customerWorkspaceRejectsAnonymousReads() throws Exception {
+        given(auth.currentUser(any())).willReturn(Optional.empty());
+        mockMvc.perform(get("/api/v1/platform-admin/companies/41/invoices")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/platform-admin/companies/41/history")).andExpect(status().isUnauthorized());
+        org.mockito.Mockito.verifyNoInteractions(companyWorkspace);
+    }
 
     @Test
     void productPriceDraftSaveUsesTheAuthenticatedActorAndExactCents() throws Exception {

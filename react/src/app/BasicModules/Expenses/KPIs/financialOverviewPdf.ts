@@ -19,6 +19,8 @@ interface FinancialOverviewPdfContext {
   locale: FinanceLocale;
   overview: FinancialOverviewDataSet;
   periodLabel: string;
+  scopeNotes?: string;
+  workspaceTables?: Array<{ title: string; columns: string[]; rows: string[][] }>;
 }
 
 const brand = {
@@ -414,6 +416,8 @@ export async function downloadFinancialOverviewPdf({
   locale,
   overview,
   periodLabel,
+  scopeNotes,
+  workspaceTables = [],
 }: FinancialOverviewPdfContext) {
   const updatedAt = new Date();
   const companyLogoDataUrl = await loadLogoDataUrl(companyIdentity.logoUrl);
@@ -428,6 +432,8 @@ export async function downloadFinancialOverviewPdf({
   });
 
   let y = addDocumentHeader(doc, companyIdentity, companyLogoDataUrl, copy, currency, periodLabel, overview.generatedAt, locale);
+  if (scopeNotes) y = addTable(doc, copy.kpis.financialSummary, [labels.source], [[scopeNotes]], y);
+  for (const table of workspaceTables) y = addTable(doc, table.title, table.columns, table.rows, y);
   y = addMetricStrip(doc, copy, locale, currency, metrics, y);
   y = addExecutiveSignals(doc, copy.kpis.executiveSignal, overview.alerts, y);
   y = addTable(doc, copy.kpis.financialSummary, [labels.metric, labels.value], [

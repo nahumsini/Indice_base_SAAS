@@ -1,7 +1,7 @@
+import { KpiMeasurementCells, measurementColumns, measurementSortValue } from './KpiMeasurementCells';
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   ArrowUpDown,
-  Check,
   ChevronRight,
   Columns3,
 } from 'lucide-react';
@@ -34,7 +34,8 @@ import type {
 } from '../kpisApi';
 import type { KpisTranslations } from '../translations';
 
-type WorkspaceTab = 'collaborators' | 'processes' | 'projects';
+import { getTaskKpiWorkspaceCopy, type TaskKpiEntity } from '../translations/workspaceCopy';
+type WorkspaceTab = TaskKpiEntity;
 type SortDirection = 'asc' | 'desc';
 type SortState = { columnId: string; direction: SortDirection };
 
@@ -223,6 +224,7 @@ function CollaboratorsTable({
   locale,
   onOpenAgenda,
   query,
+  scopeKey,
   rows,
 }: {
   agendaCopy: AgendaTranslations;
@@ -230,8 +232,10 @@ function CollaboratorsTable({
   locale: string;
   onOpenAgenda: (params: Record<string, string>) => void;
   query: string;
+  scopeKey: string;
   rows: CollaboratorPerformanceRow[];
 }) {
+  const c = getTaskKpiWorkspaceCopy(locale);
   const columns = [
     { id: 'rank', label: copy.collaboratorsTable.headers.rank },
     { id: 'collaborator', label: copy.collaboratorsTable.headers.collaborator },
@@ -244,9 +248,10 @@ function CollaboratorsTable({
     { id: 'quality', label: copy.collaboratorsTable.headers.quality },
     { id: 'evidence', label: copy.collaboratorsTable.headers.evidence },
     { id: 'status', label: copy.collaboratorsTable.headers.status },
+    ...measurementColumns(c, 'collaborators'),
   ];
-  const [visibleColumns, setVisibleColumns] = useState(() => new Set(['rank', 'collaborator', 'score', 'tasks', 'timeliness', 'audit', 'status']));
-  const [sortState, setSortState] = useState<SortState>({ columnId: 'score', direction: 'desc' });
+  const [visibleColumns, setVisibleColumns] = useState(() => new Set(['collaborator', 'workloadMeasure', 'deliveryMeasure', 'qualityMeasure', 'audit']));
+  const [sortState, setSortState] = useState<SortState>({ columnId: 'workloadMeasure', direction: 'desc' });
   const normalizedQuery = normalizeSearch(query);
   const filteredRows = useMemo(
     () => rows.filter((row) => normalizeSearch([
@@ -259,6 +264,8 @@ function CollaboratorsTable({
   );
   const sortedRows = useMemo(
     () => sortRows(filteredRows, sortState, (row, columnId) => {
+      const measurement = measurementSortValue(row.measurements, columnId);
+      if (measurement !== undefined) return measurement;
       switch (columnId) {
         case 'rank': return row.rank;
         case 'collaborator': return row.collaboratorName;
@@ -276,7 +283,7 @@ function CollaboratorsTable({
     }, locale),
     [filteredRows, locale, sortState],
   );
-  const pagination = useTablePagination({ resetKey: `${query}:${sortState.columnId}:${sortState.direction}`, rows: sortedRows });
+  const pagination = useTablePagination({ resetKey: `${scopeKey}:${query}:${sortState.columnId}:${sortState.direction}`, rows: sortedRows });
 
   const handleSort = (columnId: string) => {
     setSortState((current) => ({
@@ -337,6 +344,7 @@ function CollaboratorsTable({
                 {visibleColumns.has('quality') ? <TableCell className="px-4 py-3 text-sm">{formatWeighting(row.averageWeighting, copy.common.notApplicable)}</TableCell> : null}
                 {visibleColumns.has('evidence') ? <TableCell className="px-4 py-3 text-sm">{row.evidenceRate}%</TableCell> : null}
                 {visibleColumns.has('status') ? <TableCell className="px-4 py-3"><StatusBadge copy={copy} status={row.status} /></TableCell> : null}
+                <KpiMeasurementCells m={row.measurements} visible={visibleColumns} c={c} locale={locale} />
                 <TableCell className="px-4 py-3 text-right">
                   <Button
                     type="button"
@@ -362,14 +370,16 @@ function CollaboratorsTable({
   );
 }
 
-function ProcessesTable({ agendaCopy, copy, locale, onOpenAgenda, query, rows }: {
+function ProcessesTable({ agendaCopy, copy, locale, onOpenAgenda, query, scopeKey, rows }: {
   agendaCopy: AgendaTranslations;
   copy: KpisTranslations;
   locale: string;
   onOpenAgenda: (params: Record<string, string>) => void;
   query: string;
+  scopeKey: string;
   rows: ProcessPerformanceRow[];
 }) {
+  const c = getTaskKpiWorkspaceCopy(locale);
   const columns = [
     { id: 'process', label: copy.processesTable.headers.process },
     { id: 'score', label: copy.processesTable.headers.score },
@@ -377,13 +387,16 @@ function ProcessesTable({ agendaCopy, copy, locale, onOpenAgenda, query, rows }:
     { id: 'audit', label: copy.processesTable.headers.audit },
     { id: 'next', label: copy.processesTable.headers.next },
     { id: 'engine', label: copy.processesTable.headers.engine },
+    ...measurementColumns(c, 'processes'),
   ];
-  const [visibleColumns, setVisibleColumns] = useState(() => new Set(columns.map((column) => column.id)));
-  const [sortState, setSortState] = useState<SortState>({ columnId: 'score', direction: 'desc' });
+  const [visibleColumns, setVisibleColumns] = useState(() => new Set(['process', 'workloadMeasure', 'deliveryMeasure', 'runMeasure', 'audit']));
+  const [sortState, setSortState] = useState<SortState>({ columnId: 'workloadMeasure', direction: 'desc' });
   const normalizedQuery = normalizeSearch(query);
   const filteredRows = useMemo(() => rows.filter((row) => normalizeSearch(`${row.processTitle} ${row.processFolio ?? ''}`).includes(normalizedQuery)), [normalizedQuery, rows]);
   const sortedRows = useMemo(() => sortRows(filteredRows, sortState, (row, columnId) => {
-    switch (columnId) {
+    const measurement = measurementSortValue(row.measurements, columnId);
+      if (measurement !== undefined) return measurement;
+      switch (columnId) {
       case 'process': return row.processTitle;
       case 'score': return row.productivityScore;
       case 'tasks': return row.totalTasks;
@@ -393,7 +406,7 @@ function ProcessesTable({ agendaCopy, copy, locale, onOpenAgenda, query, rows }:
       default: return row.processTitle;
     }
   }, locale), [filteredRows, locale, sortState]);
-  const pagination = useTablePagination({ resetKey: `${query}:${sortState.columnId}:${sortState.direction}`, rows: sortedRows });
+  const pagination = useTablePagination({ resetKey: `${scopeKey}:${query}:${sortState.columnId}:${sortState.direction}`, rows: sortedRows });
   const handleSort = (columnId: string) => setSortState((current) => ({ columnId, direction: current.columnId === columnId && current.direction === 'asc' ? 'desc' : 'asc' }));
   const toggleColumn = (columnId: string) => setVisibleColumns((current) => {
     const next = new Set(current);
@@ -419,6 +432,7 @@ function ProcessesTable({ agendaCopy, copy, locale, onOpenAgenda, query, rows }:
                 {visibleColumns.has('audit') ? <TableCell className="px-4 py-3 text-sm">{copy.processesTable.details.audit(row.auditRate, formatWeighting(row.averageWeighting, copy.common.notApplicable))}</TableCell> : null}
                 {visibleColumns.has('next') ? <TableCell className="px-4 py-3 text-sm">{row.nextOccurrenceDate ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(`${row.nextOccurrenceDate}T00:00:00`)) : copy.common.noDate}</TableCell> : null}
                 {visibleColumns.has('engine') ? <TableCell className="px-4 py-3"><span className={cn('rounded-full border px-2.5 py-1 text-xs font-medium', row.isActive ? statusClasses.healthy : statusClasses.watch)}>{row.isActive ? copy.statuses.active : copy.statuses.paused}</span></TableCell> : null}
+                <KpiMeasurementCells m={row.measurements} visible={visibleColumns} c={c} locale={locale} />
                 <TableCell className="px-4 py-3 text-right"><Button type="button" variant="outline" onClick={() => onOpenAgenda({ search: row.processFolio ?? row.processTitle })} className="h-9 gap-1 rounded-xl border-slate-200 px-3 text-sm font-medium shadow-none hover:border-[#F4C84A]/60 hover:bg-[#F4C84A]/10 dark:border-slate-700">{agendaCopy.header.title}<ChevronRight className="h-4 w-4" /></Button></TableCell>
               </TableRow>
             ))}
@@ -431,14 +445,16 @@ function ProcessesTable({ agendaCopy, copy, locale, onOpenAgenda, query, rows }:
   );
 }
 
-function ProjectsTable({ agendaCopy, copy, locale, onOpenAgenda, query, rows }: {
+function ProjectsTable({ agendaCopy, copy, locale, onOpenAgenda, query, scopeKey, rows }: {
   agendaCopy: AgendaTranslations;
   copy: KpisTranslations;
   locale: string;
   onOpenAgenda: (params: Record<string, string>) => void;
   query: string;
+  scopeKey: string;
   rows: ProjectPerformanceRow[];
 }) {
+  const c = getTaskKpiWorkspaceCopy(locale);
   const columns = [
     { id: 'project', label: copy.projectsTable.headers.project },
     { id: 'health', label: copy.projectsTable.headers.health },
@@ -446,13 +462,16 @@ function ProjectsTable({ agendaCopy, copy, locale, onOpenAgenda, query, rows }: 
     { id: 'tasks', label: copy.projectsTable.headers.tasks },
     { id: 'audit', label: copy.projectsTable.headers.audit },
     { id: 'dueDate', label: copy.projectsTable.headers.dueDate },
+    ...measurementColumns(c, 'projects'),
   ];
-  const [visibleColumns, setVisibleColumns] = useState(() => new Set(columns.map((column) => column.id)));
-  const [sortState, setSortState] = useState<SortState>({ columnId: 'health', direction: 'desc' });
+  const [visibleColumns, setVisibleColumns] = useState(() => new Set(['project', 'workloadMeasure', 'deliveryMeasure', 'projectDeadline', 'dueDate']));
+  const [sortState, setSortState] = useState<SortState>({ columnId: 'projectDeadline', direction: 'desc' });
   const normalizedQuery = normalizeSearch(query);
   const filteredRows = useMemo(() => rows.filter((row) => normalizeSearch(`${row.projectName} ${row.projectFolio ?? ''}`).includes(normalizedQuery)), [normalizedQuery, rows]);
   const sortedRows = useMemo(() => sortRows(filteredRows, sortState, (row, columnId) => {
-    switch (columnId) {
+    const measurement = measurementSortValue(row.measurements, columnId, row.deadlineExceeded);
+      if (measurement !== undefined) return measurement;
+      switch (columnId) {
       case 'project': return row.projectName;
       case 'health': return row.healthScore;
       case 'progress': return row.averageCompletion;
@@ -462,7 +481,7 @@ function ProjectsTable({ agendaCopy, copy, locale, onOpenAgenda, query, rows }: 
       default: return row.projectName;
     }
   }, locale), [filteredRows, locale, sortState]);
-  const pagination = useTablePagination({ resetKey: `${query}:${sortState.columnId}:${sortState.direction}`, rows: sortedRows });
+  const pagination = useTablePagination({ resetKey: `${scopeKey}:${query}:${sortState.columnId}:${sortState.direction}`, rows: sortedRows });
   const handleSort = (columnId: string) => setSortState((current) => ({ columnId, direction: current.columnId === columnId && current.direction === 'asc' ? 'desc' : 'asc' }));
   const toggleColumn = (columnId: string) => setVisibleColumns((current) => {
     const next = new Set(current);
@@ -488,6 +507,7 @@ function ProjectsTable({ agendaCopy, copy, locale, onOpenAgenda, query, rows }: 
                 {visibleColumns.has('tasks') ? <TableCell className="px-4 py-3 text-sm">{copy.projectsTable.details.tasks(row.closedTasks, row.totalTasks, row.overdueTasks)}</TableCell> : null}
                 {visibleColumns.has('audit') ? <TableCell className="px-4 py-3 text-sm">{copy.projectsTable.details.audit(row.auditRate, row.pendingAuditTasks)}</TableCell> : null}
                 {visibleColumns.has('dueDate') ? <TableCell className="px-4 py-3 text-sm">{row.dueDate ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(`${row.dueDate}T00:00:00`)) : copy.common.noDate}</TableCell> : null}
+                <KpiMeasurementCells m={row.measurements} visible={visibleColumns} c={c} locale={locale} deadlineExceeded={row.deadlineExceeded} />
                 <TableCell className="px-4 py-3 text-right"><Button type="button" variant="outline" onClick={() => onOpenAgenda({ search: row.projectFolio ?? row.projectName })} className="h-9 gap-1 rounded-xl border-slate-200 px-3 text-sm font-medium shadow-none hover:border-[#F4C84A]/60 hover:bg-[#F4C84A]/10 dark:border-slate-700">{agendaCopy.header.title}<ChevronRight className="h-4 w-4" /></Button></TableCell>
               </TableRow>
             ))}
@@ -501,6 +521,8 @@ function ProjectsTable({ agendaCopy, copy, locale, onOpenAgenda, query, rows }: 
 }
 
 export function KpiPerformanceWorkspace({
+  activeTab,
+  scopeKey,
   agendaCopy,
   collaborators,
   copy,
@@ -508,6 +530,8 @@ export function KpiPerformanceWorkspace({
   processes,
   projects,
 }: {
+  activeTab: WorkspaceTab;
+  scopeKey: string;
   agendaCopy: AgendaTranslations;
   collaborators: CollaboratorPerformanceRow[];
   copy: KpisTranslations;
@@ -515,7 +539,6 @@ export function KpiPerformanceWorkspace({
   processes: ProcessPerformanceRow[];
   projects: ProjectPerformanceRow[];
 }) {
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>('collaborators');
   const query = '';
   const tabs: Array<{ id: WorkspaceTab; label: string; subtitle: string; count: number }> = [
     { id: 'collaborators', label: copy.collaboratorsTable.title, subtitle: copy.collaboratorsTable.subtitle, count: collaborators.length },
@@ -533,30 +556,12 @@ export function KpiPerformanceWorkspace({
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{activeTabCopy.subtitle}</p>
           </div>
         </div>
-        <div className="mt-4 flex w-full gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 dark:bg-slate-900/70 sm:w-fit">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                'inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-4 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F4C84A]',
-                activeTab === tab.id
-                  ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-700 dark:text-white'
-                  : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white',
-              )}
-            >
-              {activeTab === tab.id ? <Check className="h-4 w-4 text-[#9A6B05] dark:text-[#FEF3C7]" /> : null}
-              {tab.label}
-              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs dark:bg-slate-600">{tab.count}</span>
-            </button>
-          ))}
-        </div>
+
       </div>
 
-      {activeTab === 'collaborators' ? <CollaboratorsTable agendaCopy={agendaCopy} copy={copy} locale={copy.locale} onOpenAgenda={onOpenAgenda} query={query} rows={collaborators} /> : null}
-      {activeTab === 'processes' ? <ProcessesTable agendaCopy={agendaCopy} copy={copy} locale={copy.locale} onOpenAgenda={onOpenAgenda} query={query} rows={processes} /> : null}
-      {activeTab === 'projects' ? <ProjectsTable agendaCopy={agendaCopy} copy={copy} locale={copy.locale} onOpenAgenda={onOpenAgenda} query={query} rows={projects} /> : null}
+      <div hidden={activeTab !== 'collaborators'}><CollaboratorsTable agendaCopy={agendaCopy} copy={copy} locale={copy.locale} onOpenAgenda={onOpenAgenda} query={query} scopeKey={scopeKey} rows={collaborators} /></div>
+      <div hidden={activeTab !== 'processes'}><ProcessesTable agendaCopy={agendaCopy} copy={copy} locale={copy.locale} onOpenAgenda={onOpenAgenda} query={query} scopeKey={scopeKey} rows={processes} /></div>
+      <div hidden={activeTab !== 'projects'}><ProjectsTable agendaCopy={agendaCopy} copy={copy} locale={copy.locale} onOpenAgenda={onOpenAgenda} query={query} scopeKey={scopeKey} rows={projects} /></div>
     </section>
   );
 }

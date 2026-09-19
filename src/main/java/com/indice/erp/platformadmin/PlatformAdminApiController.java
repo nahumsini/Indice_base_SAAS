@@ -49,6 +49,7 @@ public class PlatformAdminApiController {
     private final PlatformCatalogPublicationService catalogPublication;
     private final PlatformModuleWorkOrderService moduleWorkOrders;
     private final PlatformCompanyUserService companyUsers;
+    private final PlatformCompanyWorkspaceService companyWorkspace;
     private final InvitationEmailService invitationEmailService;
     private final AppWebProperties appWebProperties;
 
@@ -66,6 +67,7 @@ public class PlatformAdminApiController {
         PlatformCatalogPublicationService catalogPublication,
         PlatformModuleWorkOrderService moduleWorkOrders,
         PlatformCompanyUserService companyUsers,
+        PlatformCompanyWorkspaceService companyWorkspace,
         InvitationEmailService invitationEmailService,
         AppWebProperties appWebProperties
     ) {
@@ -82,6 +84,7 @@ public class PlatformAdminApiController {
         this.catalogPublication = catalogPublication;
         this.moduleWorkOrders = moduleWorkOrders;
         this.companyUsers = companyUsers;
+        this.companyWorkspace = companyWorkspace;
         this.invitationEmailService = invitationEmailService;
         this.appWebProperties = appWebProperties;
     }
@@ -534,6 +537,18 @@ public class PlatformAdminApiController {
         return withUser(session, userId -> service.company(userId, companyId));
     }
 
+    @GetMapping("/companies/{companyId}/invoices")
+    public ResponseEntity<?> companyInvoices(HttpSession session, @PathVariable long companyId,
+        @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "25") int pageSize) {
+        return withUser(session, userId -> companyWorkspace.invoices(userId, companyId, page, pageSize));
+    }
+
+    @GetMapping("/companies/{companyId}/history")
+    public ResponseEntity<?> companyHistory(HttpSession session, @PathVariable long companyId,
+        @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "25") int pageSize) {
+        return withUser(session, userId -> companyWorkspace.history(userId, companyId, page, pageSize));
+    }
+
     @GetMapping("/companies/options")
     public ResponseEntity<?> companyOptions(
         HttpSession session,
@@ -943,7 +958,7 @@ public class PlatformAdminApiController {
         }
     }
 
-    private ResponseEntity<?> withUser(HttpSession session, UserOperation operation) {
+    private <T> ResponseEntity<?> withUser(HttpSession session, UserOperation<T> operation) {
         var current = auth.currentUser(session).orElse(null);
         if (current == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
@@ -1069,7 +1084,7 @@ public class PlatformAdminApiController {
     }
 
     @FunctionalInterface
-    private interface UserOperation {
-        Map<String, Object> execute(long userId);
+    private interface UserOperation<T> {
+        T execute(long userId);
     }
 }

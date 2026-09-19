@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import type { AccountingAccount } from '../AccountingAccounts/types';
 import type { PaymentAccount } from '../PaymentAccounts/types';
 import type { ProviderRecord } from '../Providers/useProveedoresLogic';
-import { toFinanceExpense } from '../adapters/expense.adapter';
 import {
   accountingAccountsService,
   budgetLinesService,
@@ -16,12 +15,14 @@ import {
 import type { Expense } from '../types/expenses.types';
 import type { FinanceBudget, FinanceBudgetLine, FinanceCurrency, FinanceExpense } from '../types/finance-domain.types';
 import type { FinanceReferenceData } from '../types/finance-reference.types';
-import { BudgetStatus } from '../types/finance-status.types';
+import { dateKey, daysAfter, isIncludedExpense, isOpenExpense, isOverdueExpense } from './expenseKpiSelectors';
 import { getFinanceTranslations, type FinanceLocale, type FinanceTranslations } from '../translations';
 import type { PeriodFilter } from '../types/expenseView.types';
-import { buildFinancialOverviewData, deriveBudgetHealthStatus } from './financialOverviewCalculations';
+import { buildFinancialOverviewData } from './financialOverviewCalculations';
 
 interface FinancialOverviewSources {
+  asOfDate?: string;
+  timeZone?: string;
   accountingAccounts: AccountingAccount[];
   budgetLines: FinanceBudgetLine[];
   budgets: FinanceBudget[];
@@ -45,6 +46,7 @@ interface UseFinancialOverviewParams {
   periodFilter?: PeriodFilter;
   paymentStatus?: string;
   providerId?: string;
+  search?: string;
   refreshKey?: number;
   targetCurrency?: FinanceCurrency;
   unitId?: string;
@@ -59,8 +61,6 @@ const emptyReferenceData: FinanceReferenceData = {
 const fulfilled = <T>(result: PromiseSettledResult<T>): result is PromiseFulfilledResult<T> => (
   result.status === 'fulfilled'
 );
-
-const dateText = (date?: Date) => (date ? date.toISOString().slice(0, 10) : '');
 
 const parseLocalDate = (value?: string) => {
   if (!value) return null;
@@ -102,8 +102,8 @@ const getPeriodRange = (
       };
     case 'custom':
       return {
-        end: customEndDate ? endOfDay(parseLocalDate(customEndDate) ?? currentDate) : endOfDay(new Date(2999, 11, 31)),
-        start: customStartDate ? parseLocalDate(customStartDate) ?? new Date(1900, 0, 1) : new Date(1900, 0, 1),
+        end: customEndDate ? endOfDay(parseLocalDate(customEndDate) ?? currentDate) : endOfDay(new Date(year, month + 1, 0)),
+        start: customStartDate ? parseLocalDate(customStartDate) ?? new Date(year, month, 1) : new Date(year, month, 1),
       };
     case 'this_month':
     default:
@@ -135,34 +135,10 @@ const getPreviousPeriodRange = (
   if (periodFilter === 'two_months_ago') return { end: endOfDay(new Date(year, month - 2, 0)), start: new Date(year, month - 3, 1) };
   if (periodFilter === 'this_year') return { end: endOfDay(new Date(year - 1, 11, 31)), start: new Date(year - 1, 0, 1) };
   if (periodFilter === 'last_year') return { end: endOfDay(new Date(year - 2, 11, 31)), start: new Date(year - 2, 0, 1) };
-  const duration = range.end.getTime() - range.start.getTime();
-  const end = new Date(range.start.getTime() - 1);
-  return { end, start: new Date(end.getTime() - duration) };
-};
-
-const fallbackBudgetLineFromExpense = (expense: Expense): FinanceBudgetLine => {
-  const available = Math.max((expense.total || expense.amount) - (expense.amountPaid ?? 0), 0);
-
-  return {
-    actualExpenseAmount: expense.amountPaid ?? 0,
-    availableAmount: available,
-    budgetId: expense.budgetId ?? 'fallback-budget',
-    businessId: expense.business || undefined,
-    committedAmount: 0,
-    companyId: 'fallback-company',
-    createdAt: dateText(expense.createdAt),
-    currencyCode: expense.currency,
-    id: expense.id,
-    name: expense.concept,
-    period: dateText(expense.startDate ?? expense.date),
-    pettyCashIssuedAmount: 0,
-    pettyCashSettledAmount: 0,
-    plannedAmount: expense.total || expense.amount,
-    status: BudgetStatus.ACTIVE,
-    unitId: expense.businessUnit || undefined,
-    updatedAt: dateText(expense.updatedAt),
-    healthStatus: deriveBudgetHealthStatus(expense.total || expense.amount, available),
-  };
+  const dayCount = daysAfter(dateKey(range.end), dateKey(range.start)) + 1;
+  const end = endOfDay(new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate() - 1));
+  const start = new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate() - dayCount);
+  return { end, start };
 };
 
 const buildFallbackSources = (
@@ -170,15 +146,11 @@ const buildFallbackSources = (
   fallbackProviders: ProviderRecord[],
 ): FinancialOverviewSources => ({
   accountingAccounts: [],
-  budgetLines: fallbackExpenses
-    .filter(expense => expense.type === 'budget')
-    .map(fallbackBudgetLineFromExpense),
+  budgetLines: [],
   budgets: [],
-  expenses: fallbackExpenses
-    .filter(expense => expense.type !== 'budget')
-    .map(expense => toFinanceExpense(expense, 'fallback-company')),
+  expenses: [],
   paymentAccounts: [],
-  providers: fallbackProviders,
+  providers: [],
   referenceData: emptyReferenceData,
 });
 
@@ -197,6 +169,7 @@ export function useFinancialOverview({
   paymentStatus = 'all',
   providerId = 'all',
   refreshKey = 0,
+  search = '',
   targetCurrency,
   unitId = 'all',
 }: UseFinancialOverviewParams) {
@@ -222,7 +195,7 @@ export function useFinancialOverview({
         referenceDataResult,
       ] = await Promise.allSettled([
         providersService.getProviderRecords(),
-        expensesService.getFinanceExpenses(),
+        expensesService.getFinanceExpenseSnapshot(),
         budgetLinesService.getBudgetLines(),
         budgetsService.getBudgets(),
         accountingAccountsService.getAccountingAccounts(),
@@ -256,7 +229,9 @@ export function useFinancialOverview({
         accountingAccounts: fulfilled(accountingAccountsResult) ? accountingAccountsResult.value : [],
         budgetLines: fulfilled(budgetLinesResult) ? budgetLinesResult.value : fallbackSources.budgetLines,
         budgets: fulfilled(budgetsResult) ? budgetsResult.value : fallbackSources.budgets,
-        expenses: fulfilled(expensesResult) ? expensesResult.value : fallbackSources.expenses,
+        expenses: fulfilled(expensesResult) ? expensesResult.value.expenses : fallbackSources.expenses,
+        asOfDate: fulfilled(expensesResult) ? expensesResult.value.asOfDate : undefined,
+        timeZone: fulfilled(expensesResult) ? expensesResult.value.timeZone : undefined,
         paymentAccounts: fulfilled(paymentAccountsResult) ? paymentAccountsResult.value : [],
         providers: fulfilled(providersResult) ? providersResult.value : fallbackSources.providers,
         referenceData: fulfilled(referenceDataResult) ? referenceDataResult.value : emptyReferenceData,
@@ -280,17 +255,18 @@ export function useFinancialOverview({
   }, [fallbackExpenses, fallbackProviders, refreshKey]);
 
   const scopedData = useMemo(() => {
-    const referenceDate = currentDate ?? new Date();
+    const referenceDate = currentDate ?? parseLocalDate(sources.asOfDate) ?? new Date();
     const periodRange = getPeriodRange(periodFilter, referenceDate, customStartDate, customEndDate);
     const comparisonRange = getPreviousPeriodRange(periodFilter, referenceDate, periodRange);
     const budgetsById = new Map(sources.budgets.map(budget => [budget.id, budget]));
     const matchesPaymentStatus = (expense: FinanceExpense) => (
       paymentStatus === 'all'
-      || (paymentStatus === 'OPEN' && expense.paymentStatus !== 'PAID')
-      || expense.paymentStatus === paymentStatus
+      || (paymentStatus === 'OPEN' && isOpenExpense(expense))
+      || (paymentStatus === 'OVERDUE' ? isOverdueExpense(expense, sources.asOfDate) : expense.paymentStatus === paymentStatus)
     );
     const matchesDimensions = (expense: FinanceExpense) => (
-      (unitId === 'all' || expense.unitId === unitId)
+      (!search.trim() || [expense.folio, expense.concept, expense.description, expense.reference].some(value => value?.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())))
+      && (unitId === 'all' || expense.unitId === unitId)
       && (businessId === 'all' || expense.businessId === businessId)
       && (providerId === 'all' || expense.providerId === providerId)
       && (accountingAccountId === 'all' || expense.accountingAccountId === accountingAccountId)
@@ -298,10 +274,10 @@ export function useFinancialOverview({
     );
     const paymentExpenses = sources.expenses.filter(matchesDimensions);
     const filteredExpenses = sources.expenses.filter(expense => (
-      isWithinRange(parseLocalDate(expense.expenseDate), periodRange) && matchesDimensions(expense)
+      isIncludedExpense(expense) && isWithinRange(parseLocalDate(expense.expenseDate), periodRange) && matchesDimensions(expense)
     ));
     const comparisonExpenses = sources.expenses.filter(expense => (
-      isWithinRange(parseLocalDate(expense.expenseDate), comparisonRange) && matchesDimensions(expense)
+      isIncludedExpense(expense) && isWithinRange(parseLocalDate(expense.expenseDate), comparisonRange) && matchesDimensions(expense)
     ));
     const filterBudgetLines = (range: { start: Date; end: Date }) => sources.budgetLines.filter((line) => {
       if (unitId !== 'all' && line.unitId !== unitId) return false;
@@ -320,7 +296,7 @@ export function useFinancialOverview({
     const comparisonBudgetLines = filterBudgetLines(comparisonRange);
 
     return { comparisonBudgetLines, comparisonExpenses, comparisonRange, filteredBudgetLines, filteredExpenses, paymentExpenses, periodRange, referenceDate };
-  }, [accountingAccountId, businessId, currentDate, customEndDate, customStartDate, paymentStatus, periodFilter, providerId, sources, unitId]);
+  }, [accountingAccountId, businessId, currentDate, customEndDate, customStartDate, paymentStatus, periodFilter, providerId, search, sources, unitId]);
 
   const overview = useMemo(() => {
     return buildFinancialOverviewData({
@@ -353,6 +329,8 @@ export function useFinancialOverview({
     periodRange: scopedData.periodRange,
     comparisonRange: scopedData.comparisonRange,
     comparisonOverview,
+    asOfDate: sources.asOfDate,
+    timeZone: sources.timeZone,
     errorMessage,
     fallbackWarnings,
     filteredBudgetLines: scopedData.filteredBudgetLines,

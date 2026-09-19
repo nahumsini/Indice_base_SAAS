@@ -68,11 +68,13 @@ public class ExpenseService {
 
     @Transactional
     public ExpenseListResponse list(FinanceContext context) {
-        workflowRepository.markOverduePayments(context, businessDate(context));
+        var zone = timeZoneResolver.resolve(context.companyId());
+        var asOfDate = LocalDate.now(zone);
+        workflowRepository.markOverduePayments(context, asOfDate);
         var expenses = repository.findAll(context).stream()
             .map(mapper::toResponse)
             .toList();
-        return new ExpenseListResponse(expenses, expenses.size());
+        return new ExpenseListResponse(expenses, expenses.size(), asOfDate, zone.getId());
     }
 
     @Transactional

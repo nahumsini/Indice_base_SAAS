@@ -2,12 +2,28 @@
 
 ## Documento rector de arquitectura, seguridad, experiencia y migración
 
-Fecha: 2026-07-18  
-Estado: Arquitectura aprobada para implementación incremental  
+Fecha de origen: 2026-07-18; las decisiones posteriores conservan su fecha en el texto.
+
+Estado: documento canónico, con adopción incremental que debe verificarse por canal
+
 Producto: Índice SaaS  
 Alcance: Backend Spring Boot, frontend React, aplicación móvil futura e integraciones de módulos
 
 ---
+
+## Ruta de lectura
+
+- Lee las secciones 1–2 para entender el límite entre canal y módulo propietario.
+- Para integrar un canal, consulta identidad, políticas, contratos HTTP y seguridad (13–19).
+- Para experiencia y administración, consulta 20–24; para adaptadores y compatibilidad, 25–28.
+- Las decisiones específicas de 32–34 precisan la arquitectura en sus dominios. La sección 30
+  conserva el plan por etapas y no certifica el estado actual de una entrega.
+- Antes de publicar, aplica el [gate de seguridad](indice-public-release-security-gate.md) y el
+  [runbook de despliegue](../deployment/README.md). Consulta el [mapa documental](README.md) para
+  contratos complementarios.
+
+Los términos «futuro» o «actual» dentro del contexto original describen esa etapa. La disponibilidad
+de cada canal se comprueba en implementación, flags y evidencia del ambiente.
 
 ## 1. Propósito
 

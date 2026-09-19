@@ -48,6 +48,15 @@ export const expensesService = {
     return response.expenses.map(toFinanceExpenseFromApi);
   },
 
+  async getFinanceExpenseSnapshot() {
+    const response = await apiClient<ExpenseListApiResponse>(expensesPath);
+    return {
+      expenses: response.expenses.map(toFinanceExpenseFromApi),
+      asOfDate: response.asOfDate,
+      timeZone: response.timeZone,
+    };
+  },
+
   async getExpenseById(expenseId: string, providers: Array<{ id: string; name: string }> = []): Promise<Expense | null> {
     const response = await apiClient<ExpenseApiDto>(`${expensesPath}/${expenseId}`);
     return toExpense(response, providers);
