@@ -146,6 +146,7 @@ estado actual. Cuando se desconoce el estado del ambiente se declara desconocido
 
 Evidencias recientes para consultar con su alcance original:
 
+- [Integración local del 19 de septiembre](indice-local-integration-2026-09-19.md).
 - [Integración del 15 de septiembre](indice-main-integration-2026-09-15.md).
 - [Administración de plataforma](indice-platform-admin-service-analysis-2026-09-13.md) y
   [claridad de sus modales](indice-platform-admin-modal-clarity-2026-09-14.md).
