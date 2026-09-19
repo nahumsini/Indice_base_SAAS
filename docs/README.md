@@ -149,6 +149,7 @@ estado actual. Cuando se desconoce el estado del ambiente se declara desconocido
 
 Evidencias recientes para consultar con su alcance original:
 
+- [Despliegue productivo del 19 de septiembre](../deployment/releases/2026.09.19.1.md).
 - [Integración local del 19 de septiembre](indice-local-integration-2026-09-19.md).
 - [Integración de KPIs y presentación pública del 19 de septiembre](indice-kpi-main-integration-2026-09-19.md).
 - [Integración del 15 de septiembre](indice-main-integration-2026-09-15.md).

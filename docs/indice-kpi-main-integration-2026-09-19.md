@@ -45,6 +45,11 @@ resultado de Chrome están en `.run/investment-review/` del worktree temporal
 
 ## Límites de entrega
 
+Actualización posterior: `74fcf8b7` se desplegó en producción el 19 de septiembre
+a las 09:51:24 UTC. La evidencia y el procedimiento de reversión están en el
+[registro de liberación](../deployment/releases/2026.09.19.1.md). El párrafo
+siguiente conserva el estado observado durante la preparación local.
+
 El despliegue requiere identificar el ambiente, CI del commit exacto y completar
 el preflight real, revisión de artefactos, respaldo, restauración y verificación
 descritos en el runbook. La consulta del servidor encontró producción todavía en
