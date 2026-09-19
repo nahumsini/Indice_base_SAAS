@@ -489,17 +489,15 @@ test('Cotizaciones elimina de forma confirmada y actualiza el pipeline derivado'
 
 test('los KPI de Ventas consolidan oportunidades con las mismas cotizaciones ligadas', () => {
   const kpiPageSource = readFileSync(resolve(salesRoot, 'KPIs/KPIs.tsx'), 'utf8');
-  const performanceSource = readFileSync(resolve(salesRoot, 'KPIs/components/SalesProspectsPerformanceTable.tsx'), 'utf8');
-  const selectorSource = readFileSync(resolve(salesRoot, 'KPIs/salesKpiSelectors.ts'), 'utf8');
+  const selectorSource = readFileSync(resolve(salesRoot, 'KPIs/salesKpiWorkspaceSelectors.ts'), 'utf8');
 
   assert.match(kpiPageSource, /metric: 'SALES_OPPORTUNITY_PIPELINE'/);
-  assert.match(kpiPageSource, /!\['Won', 'Lost'\]\.includes\(opportunity\.stage\)/);
-  assert.match(kpiPageSource, /getOpportunityNativePipelineTotals\(item, quotes\)\.totalLabel/);
-  assert.match(kpiPageSource, /quotes=\{quotes\}/);
-  assert.match(performanceSource, /getOpportunityNativePipelineTotals\(item, quotes\)/);
-  assert.doesNotMatch(performanceSource, /item\.estimatedValue|parseSalesKpiMoney/);
-  assert.match(selectorSource, /getLinkedQuotesForOpportunity\(opportunity, filteredQuotes\)/);
-  assert.match(selectorSource, /!\['Won', 'Lost'\]\.includes\(opportunity\.stage\)/);
+  assert.match(selectorSource, /quotedOpportunityIds\.has\(row\.id\)/);
+  assert.match(selectorSource, /approvedOpportunityIds\.has\(row\.id\)/);
+  assert.match(selectorSource, /soldOpportunityIds\.has\(row\.id\)/);
+  assert.match(selectorSource, /terminalStages\.has/);
+  assert.doesNotMatch(kpiPageSource, /estimatedValue|parseSalesKpiMoney/);
+  assert.doesNotMatch(kpiPageSource, /useSalesCrm/);
 });
 
 test('la tabla compacta agrupa contacto y seguimiento y conserva secundarios en Columnas', () => {

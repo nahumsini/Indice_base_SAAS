@@ -309,6 +309,107 @@ class ExecutiveKpiDomainRepositoryIntegrationTest {
         });
     }
 
+    @Test
+    void receivablesAndPointOfSaleUseTheirOwnerPopulationsAndOrganizationScope() {
+        jdbc.update("""
+                INSERT INTO finance_credit_sales
+                    (company_id, unit_id, business_id, sale_number, customer_name, source, sale_date,
+                     original_amount, financed_amount, currency_code, status, selected_simulation_key,
+                     selected_simulation_name, term_months, annual_interest_rate, monthly_payment_amount,
+                     total_interest_amount, total_payable_amount, first_due_date, due_date)
+                VALUES (?, ?, ?, ?, 'Executive customer', 'MANUAL', '2026-07-01',
+                        180, 180, 'MXN', 'ACTIVE', 'test', 'Test', 2, 0, 100, 20, 200,
+                        '2026-07-15', '2026-08-20')
+                """, companyId, unitId, businessId, "CREDIT-" + token);
+        var creditSaleId = jdbc.queryForObject(
+                "SELECT id FROM finance_credit_sales WHERE company_id = ? AND sale_number = ?",
+                Long.class, companyId, "CREDIT-" + token);
+        jdbc.update("""
+                INSERT INTO finance_receivable_accounts
+                    (company_id, unit_id, business_id, credit_sale_id, sale_number, customer_name,
+                     original_amount, total_payable_amount, paid_amount, balance_amount, currency_code,
+                     due_date, next_payment_date, installment_amount, term_months, annual_interest_rate, status)
+                VALUES (?, ?, ?, ?, ?, 'Executive customer', 180, 200, 100, 100, 'MXN',
+                        '2026-08-20', '2026-07-15', 100, 2, 0, 'OVERDUE')
+                """, companyId, unitId, businessId, creditSaleId, "CREDIT-" + token);
+        var receivableId = jdbc.queryForObject(
+                "SELECT id FROM finance_receivable_accounts WHERE company_id = ? AND credit_sale_id = ?",
+                Long.class, companyId, creditSaleId);
+        jdbc.update("""
+                INSERT INTO finance_receivable_installments
+                    (company_id, receivable_id, credit_sale_id, installment_number, due_date,
+                     amount, paid_amount, balance_amount, currency_code, status)
+                VALUES (?, ?, ?, 1, '2026-07-15', 100, 40, 60, 'MXN', 'OVERDUE'),
+                       (?, ?, ?, 2, '2026-08-20', 100, 60, 40, 'MXN', 'DUE_SOON')
+                """, companyId, receivableId, creditSaleId, companyId, receivableId, creditSaleId);
+        jdbc.update("""
+                INSERT INTO finance_receivable_payments
+                    (company_id, receivable_id, payment_date, payment_method, amount, currency_code, reference)
+                VALUES (?, ?, '2026-08-10', 'TRANSFER', 25, 'MXN', ?)
+                """, companyId, receivableId, "PAY-" + token);
+
+        var email = "kpi.pos." + token + "@example.com";
+        jdbc.update("INSERT INTO users (email, password_hash, full_name) VALUES (?, '$2a$10$kpitest', ?)",
+                email, "POS User " + token);
+        var userId = jdbc.queryForObject("SELECT id FROM users WHERE email = ?", Long.class, email);
+        jdbc.update("""
+                INSERT INTO sales_inventory_warehouses
+                    (company_id, warehouse_code, name, business_unit_id, business_unit_name,
+                     business_id, business_name)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, companyId, "POS-WH-" + token, "POS warehouse " + token, String.valueOf(unitId),
+                "Monterrey " + token, String.valueOf(businessId), "Linda Vista " + token);
+        var warehouseId = jdbc.queryForObject(
+                "SELECT id FROM sales_inventory_warehouses WHERE company_id = ? AND warehouse_code = ?",
+                Long.class, companyId, "POS-WH-" + token);
+        jdbc.update("""
+                INSERT INTO pos_cash_registers
+                    (company_id, unit_id, business_id, warehouse_id, code, name, status, created_by_user_id)
+                VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', ?)
+                """, companyId, unitId, businessId, warehouseId, "REG-" + token, "Register " + token, userId);
+        var registerId = jdbc.queryForObject(
+                "SELECT id FROM pos_cash_registers WHERE company_id = ? AND code = ?",
+                Long.class, companyId, "REG-" + token);
+        jdbc.update("""
+                INSERT INTO pos_shifts
+                    (company_id, unit_id, business_id, warehouse_id, cash_register_id, opened_by_user_id,
+                     closed_by_user_id, status, opening_amount, expected_cash_amount, counted_cash_amount,
+                     over_short_amount, currency_code, opened_at, closed_at, created_by_user_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'CLOSED', 100, 400, 395, -5, 'MXN',
+                        '2026-08-10 08:00:00', '2026-08-10 18:00:00', ?)
+                """, companyId, unitId, businessId, warehouseId, registerId, userId, userId, userId);
+        var shiftId = jdbc.queryForObject(
+                "SELECT id FROM pos_shifts WHERE company_id = ? AND cash_register_id = ?",
+                Long.class, companyId, registerId);
+        jdbc.update("""
+                INSERT INTO pos_cash_closings
+                    (company_id, unit_id, business_id, warehouse_id, cash_register_id, shift_id,
+                     opening_cash_amount, cash_sales_amount, cash_in_amount, cash_out_amount,
+                     safe_drop_amount, correction_amount, expected_cash_amount, counted_cash_amount,
+                     over_short_amount, total_sales_amount, total_refunds_amount, tickets_count,
+                     closed_by_user_id, closed_at)
+                VALUES (?, ?, ?, ?, ?, ?, 100, 300, 0, 0, 0, 0, 400, 395, -5, 500, 20, 4, ?,
+                        '2026-08-10 18:00:00')
+                """, companyId, unitId, businessId, warehouseId, registerId, shiftId, userId);
+
+        var receivables = repository.loadReceivables(scope());
+        assertThat(receivables.accountsWithDebt()).isEqualTo(1);
+        assertThat(receivables.overdueInstallments()).isEqualTo(1);
+        assertThat(receivables.periodPayments()).isEqualTo(1);
+        assertThat(receivables.periodPaymentsWithReceipt()).isZero();
+        assertThat(total(repository.loadReceivableAccountValue(scope()))).isEqualByComparingTo("100");
+        assertThat(total(repository.loadReceivableInstallmentValue(scope(), "overdue"))).isEqualByComparingTo("60");
+        assertThat(total(repository.loadReceivableInstallmentValue(scope(), "dueSoon"))).isEqualByComparingTo("40");
+        assertThat(total(repository.loadReceivablePaymentValue(scope()))).isEqualByComparingTo("25");
+
+        var pointOfSale = repository.loadPointOfSale(scope());
+        assertThat(pointOfSale.closingCount()).isEqualTo(1);
+        assertThat(pointOfSale.ticketCount()).isEqualTo(4);
+        assertThat(pointOfSale.closingsWithDifference()).isEqualTo(1);
+        assertThat(total(repository.loadPointOfSaleValue(scope(), "totalSales"))).isEqualByComparingTo("500");
+        assertThat(total(repository.loadPointOfSaleValue(scope(), "absoluteDifference"))).isEqualByComparingTo("5");
+    }
+
     private ExecutiveKpiScope scope() {
         return new ExecutiveKpiScope(companyId, LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 16),
                 "custom", unitId, businessId, "", "all", "MXN", LocalDate.of(2026, 8, 16));

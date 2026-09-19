@@ -685,6 +685,217 @@ public class ExecutiveKpiDomainRepository {
                 """ + filter.sql() + " GROUP BY product.currency", filter.params());
     }
 
+    public ReceivablesSnapshot loadReceivables(ExecutiveKpiScope scope) {
+        var accountFilter = numericScope(scope, "account", null);
+        var accounts = jdbcTemplate.queryForObject("""
+                SELECT SUM(CASE WHEN account.balance_amount > 0 THEN 1 ELSE 0 END) AS accounts_with_debt,
+                       COUNT(DISTINCT CASE WHEN account.balance_amount > 0 THEN account.contact_id END) AS customers_with_debt,
+                       SUM(CASE
+                             WHEN account.original_amount < 0 OR account.total_payable_amount < 0
+                               OR account.paid_amount < 0 OR account.balance_amount < 0
+                               OR ABS(account.balance_amount - GREATEST(account.total_payable_amount - account.paid_amount, 0)) > 0.01
+                             THEN 1 ELSE 0
+                           END) AS invalid_amount_rows,
+                       SUM(CASE
+                             WHEN account.currency_code IS NULL
+                               OR UPPER(TRIM(account.currency_code)) NOT REGEXP '^[A-Z]{3}$'
+                             THEN 1 ELSE 0
+                           END) AS invalid_currency_rows,
+                       SUM(CASE
+                             WHEN account.balance_amount > 0 AND NOT EXISTS (
+                               SELECT 1 FROM finance_receivable_installments schedule
+                               WHERE schedule.company_id = account.company_id
+                                 AND schedule.receivable_id = account.id
+                                 AND schedule.status <> 'CANCELLED'
+                                 AND schedule.balance_amount > 0
+                             )
+                             THEN 1 ELSE 0
+                           END) AS accounts_without_schedule
+                FROM finance_receivable_accounts account
+                WHERE account.deleted_at IS NULL AND account.status <> 'CANCELLED'
+                """ + accountFilter.sql(), (rs, rowNum) -> new int[] {
+                integer(rs.getObject("accounts_with_debt")),
+                integer(rs.getObject("customers_with_debt")),
+                integer(rs.getObject("invalid_amount_rows")),
+                integer(rs.getObject("invalid_currency_rows")),
+                integer(rs.getObject("accounts_without_schedule"))
+        }, accountFilter.params().toArray());
+
+        var installmentFilter = numericScope(scope, "account", null);
+        var installmentParams = new ArrayList<Object>();
+        installmentParams.add(scope.snapshotDate().toString());
+        installmentParams.addAll(installmentFilter.params());
+        var installments = jdbcTemplate.queryForObject("""
+                SELECT SUM(CASE
+                             WHEN installment.balance_amount > 0 AND installment.due_date < ? THEN 1 ELSE 0
+                           END) AS overdue_installments,
+                       SUM(CASE
+                             WHEN installment.amount <= 0 OR installment.paid_amount < 0
+                               OR installment.balance_amount < 0 OR installment.balance_amount > installment.amount
+                               OR (installment.balance_amount > 0 AND installment.due_date IS NULL)
+                             THEN 1 ELSE 0
+                           END) AS invalid_rows,
+                       SUM(CASE
+                             WHEN installment.currency_code IS NULL
+                               OR UPPER(TRIM(installment.currency_code)) NOT REGEXP '^[A-Z]{3}$'
+                             THEN 1 ELSE 0
+                           END) AS invalid_currency_rows
+                FROM finance_receivable_installments installment
+                JOIN finance_receivable_accounts account
+                  ON account.company_id = installment.company_id AND account.id = installment.receivable_id
+                WHERE account.deleted_at IS NULL AND account.status <> 'CANCELLED'
+                  AND installment.status <> 'CANCELLED'
+                """ + installmentFilter.sql(), (rs, rowNum) -> new int[] {
+                integer(rs.getObject("overdue_installments")),
+                integer(rs.getObject("invalid_rows")),
+                integer(rs.getObject("invalid_currency_rows"))
+        }, installmentParams.toArray());
+
+        var paymentFilter = numericScope(scope, "account", null);
+        var paymentParams = new ArrayList<Object>();
+        paymentParams.add(scope.from().toString());
+        paymentParams.add(scope.to().toString());
+        paymentParams.add(scope.from().toString());
+        paymentParams.add(scope.to().toString());
+        paymentParams.add(scope.snapshotDate().toString());
+        paymentParams.addAll(paymentFilter.params());
+        var payments = jdbcTemplate.queryForObject("""
+                SELECT SUM(CASE WHEN payment.payment_date BETWEEN ? AND ? THEN 1 ELSE 0 END) AS period_payments,
+                       SUM(CASE
+                             WHEN payment.payment_date BETWEEN ? AND ?
+                               AND payment.receipt_object_key IS NOT NULL
+                             THEN 1 ELSE 0
+                           END) AS period_payments_with_receipt,
+                       SUM(CASE
+                             WHEN payment.amount <= 0 OR payment.payment_date IS NULL OR payment.payment_date > ?
+                               OR payment.currency_code IS NULL
+                               OR UPPER(TRIM(payment.currency_code)) NOT REGEXP '^[A-Z]{3}$'
+                             THEN 1 ELSE 0
+                           END) AS invalid_rows
+                FROM finance_receivable_payments payment
+                JOIN finance_receivable_accounts account
+                  ON account.company_id = payment.company_id AND account.id = payment.receivable_id
+                WHERE account.deleted_at IS NULL
+                """ + paymentFilter.sql(), (rs, rowNum) -> new int[] {
+                integer(rs.getObject("period_payments")),
+                integer(rs.getObject("period_payments_with_receipt")),
+                integer(rs.getObject("invalid_rows"))
+        }, paymentParams.toArray());
+
+        return new ReceivablesSnapshot(accounts[0], accounts[1], installments[0], payments[0], payments[1],
+                accounts[2], accounts[3], accounts[4], installments[1], installments[2], payments[2]);
+    }
+
+    public List<KpiMoneyAmount> loadReceivableAccountValue(ExecutiveKpiScope scope) {
+        var filter = numericScope(scope, "account", null);
+        return money("""
+                SELECT SUM(account.balance_amount) AS amount, account.currency_code AS currency
+                FROM finance_receivable_accounts account
+                WHERE account.deleted_at IS NULL AND account.status <> 'CANCELLED' AND account.balance_amount > 0
+                """ + filter.sql() + " GROUP BY account.currency_code", filter.params());
+    }
+
+    public List<KpiMoneyAmount> loadReceivableInstallmentValue(ExecutiveKpiScope scope, String mode) {
+        if (!List.of("overdue", "dueSoon").contains(mode)) {
+            throw new IllegalArgumentException("Unsupported executive receivable installment mode");
+        }
+        var filter = numericScope(scope, "account", null);
+        var params = new ArrayList<Object>();
+        var temporalFilter = "overdue".equals(mode)
+                ? " AND installment.due_date < ?"
+                : " AND installment.due_date BETWEEN ? AND ?";
+        params.add(scope.snapshotDate().toString());
+        if ("dueSoon".equals(mode)) params.add(scope.snapshotDate().plusDays(30).toString());
+        params.addAll(filter.params());
+        return money("""
+                SELECT SUM(installment.balance_amount) AS amount, installment.currency_code AS currency
+                FROM finance_receivable_installments installment
+                JOIN finance_receivable_accounts account
+                  ON account.company_id = installment.company_id AND account.id = installment.receivable_id
+                WHERE account.deleted_at IS NULL AND account.status <> 'CANCELLED'
+                  AND installment.status <> 'CANCELLED' AND installment.balance_amount > 0
+                """ + temporalFilter + filter.sql() + " GROUP BY installment.currency_code", params);
+    }
+
+    public List<KpiMoneyAmount> loadReceivablePaymentValue(ExecutiveKpiScope scope) {
+        var filter = numericScope(scope, "account", null);
+        var params = new ArrayList<Object>();
+        params.add(scope.from().toString());
+        params.add(scope.to().toString());
+        params.add(scope.snapshotDate().toString());
+        params.addAll(filter.params());
+        return money("""
+                SELECT SUM(payment.amount) AS amount, payment.currency_code AS currency
+                FROM finance_receivable_payments payment
+                JOIN finance_receivable_accounts account
+                  ON account.company_id = payment.company_id AND account.id = payment.receivable_id
+                WHERE account.deleted_at IS NULL
+                  AND payment.payment_date BETWEEN ? AND ? AND payment.payment_date <= ?
+                """ + filter.sql() + " GROUP BY payment.currency_code", params);
+    }
+
+    public PointOfSaleSnapshot loadPointOfSale(ExecutiveKpiScope scope) {
+        var closingFilter = numericScope(scope, "closing", "DATE(closing.closed_at)");
+        var closing = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) AS closing_count,
+                       COALESCE(SUM(closing.tickets_count), 0) AS ticket_count,
+                       SUM(CASE WHEN ABS(closing.over_short_amount) > 0 THEN 1 ELSE 0 END) AS closings_with_difference,
+                       SUM(CASE
+                             WHEN closing.opening_cash_amount < 0 OR closing.cash_sales_amount < 0
+                               OR closing.expected_cash_amount < 0 OR closing.counted_cash_amount < 0
+                               OR closing.total_sales_amount < 0 OR closing.total_refunds_amount < 0
+                             THEN 1 ELSE 0
+                           END) AS invalid_amount_rows,
+                       SUM(CASE
+                             WHEN shift.currency_code IS NULL
+                               OR UPPER(TRIM(shift.currency_code)) NOT REGEXP '^[A-Z]{3}$'
+                             THEN 1 ELSE 0
+                           END) AS invalid_currency_rows,
+                       SUM(CASE WHEN closing.tickets_count < 0 THEN 1 ELSE 0 END) AS invalid_ticket_count_rows
+                FROM pos_cash_closings closing
+                JOIN pos_shifts shift ON shift.company_id = closing.company_id AND shift.id = closing.shift_id
+                WHERE closing.deleted_at IS NULL
+                """ + closingFilter.sql(), (rs, rowNum) -> new int[] {
+                integer(rs.getObject("closing_count")), integer(rs.getObject("ticket_count")),
+                integer(rs.getObject("closings_with_difference")), integer(rs.getObject("invalid_amount_rows")),
+                integer(rs.getObject("invalid_currency_rows")), integer(rs.getObject("invalid_ticket_count_rows"))
+        }, closingFilter.params().toArray());
+        var shiftFilter = numericScope(scope, "shift", null);
+        var openShifts = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM pos_shifts shift
+                WHERE shift.deleted_at IS NULL AND shift.status IN ('OPEN', 'CLOSING')
+                """ + shiftFilter.sql(), Integer.class, shiftFilter.params().toArray());
+        return new PointOfSaleSnapshot(closing[0], closing[1], closing[2], openShifts == null ? 0 : openShifts,
+                closing[3], closing[4], closing[5]);
+    }
+
+    public List<KpiMoneyAmount> loadPointOfSaleValue(ExecutiveKpiScope scope, String metric) {
+        var expression = switch (metric) {
+            case "totalSales" -> "closing.total_sales_amount";
+            case "cashSales" -> "closing.cash_sales_amount";
+            case "absoluteDifference" -> "ABS(closing.over_short_amount)";
+            case "refunds" -> "closing.total_refunds_amount";
+            default -> throw new IllegalArgumentException("Unsupported executive point-of-sale metric");
+        };
+        var filter = numericScope(scope, "closing", "DATE(closing.closed_at)");
+        return money("SELECT SUM(" + expression + ") AS amount, shift.currency_code AS currency "
+                + "FROM pos_cash_closings closing JOIN pos_shifts shift ON shift.company_id = closing.company_id "
+                + "AND shift.id = closing.shift_id WHERE closing.deleted_at IS NULL"
+                + filter.sql() + " GROUP BY shift.currency_code", filter.params());
+    }
+
+    public List<CurrencyCount> loadPointOfSaleTicketCountByCurrency(ExecutiveKpiScope scope) {
+        var filter = numericScope(scope, "closing", "DATE(closing.closed_at)");
+        return jdbcTemplate.query("""
+                SELECT COALESCE(SUM(closing.tickets_count), 0) AS record_count, shift.currency_code AS currency
+                FROM pos_cash_closings closing
+                JOIN pos_shifts shift ON shift.company_id = closing.company_id AND shift.id = closing.shift_id
+                WHERE closing.deleted_at IS NULL
+                """ + filter.sql() + " GROUP BY shift.currency_code",
+                (rs, rowNum) -> new CurrencyCount(rs.getString("currency"), integer(rs.getObject("record_count"))),
+                filter.params().toArray());
+    }
+
     public PeopleSnapshot loadPeople(ExecutiveKpiScope scope) {
         var params = new ArrayList<Object>();
         params.add(scope.from().toString());
@@ -877,6 +1088,30 @@ public class ExecutiveKpiDomainRepository {
             int missingSaleDate, int invalidSaleAmountRows, int invalidSaleCurrencyRows,
             int missingOpportunityDate, int invalidProbabilityRows,
             int invalidOpportunityAmountRows, int invalidOpportunityCurrencyRows) {
+    }
+
+    public record ReceivablesSnapshot(
+            int accountsWithDebt,
+            int customersWithDebt,
+            int overdueInstallments,
+            int periodPayments,
+            int periodPaymentsWithReceipt,
+            int invalidAccountAmountRows,
+            int invalidAccountCurrencyRows,
+            int accountsWithoutOpenSchedule,
+            int invalidInstallmentRows,
+            int invalidInstallmentCurrencyRows,
+            int invalidPaymentRows) {
+    }
+
+    public record PointOfSaleSnapshot(
+            int closingCount,
+            int ticketCount,
+            int closingsWithDifference,
+            int openShifts,
+            int invalidAmountRows,
+            int invalidCurrencyRows,
+            int invalidTicketCountRows) {
     }
 
     public record ProductPortfolioSalesRow(

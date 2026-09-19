@@ -254,8 +254,8 @@ function projectOptionLabel(project: ProjectRecord) {
   return name ? `${folio ? `${folio} - ` : ''}${name}` : `${folio || `Proyecto #${project.id}`}`;
 }
 
-function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
+function getErrorMessage(_error: unknown, fallback: string) {
+  return fallback;
 }
 
 function scoreStatus(score: number): ProcessTaskKpiStatus {
@@ -745,7 +745,7 @@ function RankingPanel({
   title,
 }: {
   emptyLabel: string;
-  rows: Array<{ id: string; label: string; detail: string; value: string; progress: number; onClick?: () => void }>;
+  rows: Array<{ id: string; label: string; detail: string; value: string; progress?: number; onClick?: () => void }>;
   title: string;
 }) {
   return (
@@ -764,9 +764,11 @@ function RankingPanel({
             <span className="min-w-0">
               <span className="block truncate text-sm font-medium text-slate-900 dark:text-white">{row.label}</span>
               <span className="block truncate text-xs text-slate-500 dark:text-slate-400">{row.detail}</span>
-              <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
-                <span className="block h-full rounded-full bg-[#E4AD18]" style={{ width: `${Math.max(4, Math.min(100, row.progress))}%` }} />
-              </span>
+              {row.progress != null ? (
+                <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                  <span className="block h-full rounded-full bg-[#E4AD18]" style={{ width: `${Math.max(4, Math.min(100, row.progress))}%` }} />
+                </span>
+              ) : null}
             </span>
             <span className="text-sm font-medium text-slate-800 dark:text-slate-100">{row.value}</span>
           </button>
@@ -1175,12 +1177,12 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
     [dashboard],
   );
   const riskyProcesses = useMemo(
-    () => [...(dashboard?.processes ?? [])].filter((row) => (row.measurements?.lateOpenTasks ?? 0) > 0 || row.pendingAuditTasks > 0).sort((a, b) => (b.measurements?.lateOpenTasks ?? 0) - (a.measurements?.lateOpenTasks ?? 0) || a.productivityScore - b.productivityScore).slice(0, 5),
-    [dashboard],
+    () => [...(dashboard?.processes ?? [])].filter((row) => (row.measurements?.lateOpenTasks ?? 0) > 0 || row.pendingAuditTasks > 0).sort((a, b) => (b.measurements?.lateOpenTasks ?? 0) - (a.measurements?.lateOpenTasks ?? 0) || b.pendingAuditTasks - a.pendingAuditTasks || a.processTitle.localeCompare(b.processTitle, copy.locale)).slice(0, 5),
+    [copy.locale, dashboard],
   );
   const riskyProjects = useMemo(
-    () => [...(dashboard?.projects ?? [])].filter((row) => (row.measurements?.lateOpenTasks ?? 0) > 0 || row.pendingAuditTasks > 0).sort((a, b) => (b.measurements?.lateOpenTasks ?? 0) - (a.measurements?.lateOpenTasks ?? 0) || a.healthScore - b.healthScore).slice(0, 5),
-    [dashboard],
+    () => [...(dashboard?.projects ?? [])].filter((row) => (row.measurements?.lateOpenTasks ?? 0) > 0 || row.pendingAuditTasks > 0).sort((a, b) => (b.measurements?.lateOpenTasks ?? 0) - (a.measurements?.lateOpenTasks ?? 0) || b.pendingAuditTasks - a.pendingAuditTasks || a.projectName.localeCompare(b.projectName, copy.locale)).slice(0, 5),
+    [copy.locale, dashboard],
   );
 
   const handleUnitChange = (value: string) => {
@@ -1518,7 +1520,19 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
               <h3 className="text-lg font-medium text-slate-900 dark:text-white">{standardCopy.compositionTitle}</h3>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{standardCopy.compositionSubtitle}</p>
               <div className="mt-4 h-80">
-                {compositionData.length > 0 ? (
+                {compositionData.length === 1 ? (
+                  <div className="flex h-full items-center justify-center">
+                    <div
+                      role="img"
+                      aria-label={`${compositionData[0].name}: ${compositionData[0].value}`}
+                      data-process-task-kpi-single-segment="composition"
+                      className="relative h-44 w-44 rounded-full shadow-inner"
+                      style={{ backgroundColor: compositionData[0].color }}
+                    >
+                      <span className="absolute inset-[34px] rounded-full bg-white shadow-sm dark:bg-slate-800" />
+                    </div>
+                  </div>
+                ) : compositionData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie data={compositionData} dataKey="value" nameKey="name" innerRadius={70} outerRadius={110} paddingAngle={2}>
@@ -1573,9 +1587,9 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
             </div>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               {activeEntity === 'collaborators' ? (<RankingPanel emptyLabel={standardCopy.noData} title={workspaceCopy.onTime} rows={topCompliance.map((row) => ({ id: `compliance-${row.collaboratorId ?? 'none'}`, label: row.collaboratorName, detail: `${row.measurements?.onTimeDeliveries ?? 0}/${row.measurements?.eligibleDeliveries ?? 0} ${workspaceCopy.eligible}`, value: `${row.measurements?.onTimeRate ?? 0}%`, progress: row.measurements?.onTimeRate ?? 0, onClick: row.collaboratorId == null ? undefined : () => openAgendaDrilldown({ collaborator: `user-company:${row.collaboratorId}` }) }))} />) : null}
-              {activeEntity === 'collaborators' ? (<RankingPanel emptyLabel={standardCopy.noData} title={workspaceCopy.late} rows={topOverdue.map((row) => ({ id: `overdue-${row.collaboratorId ?? 'none'}`, label: row.collaboratorName, detail: `${row.openTasks} ${copy.summary.labels.open}`, value: `${row.measurements?.lateOpenTasks ?? 0} ${workspaceCopy.late}`, progress: row.totalTasks > 0 ? ((row.measurements?.lateOpenTasks ?? 0) / row.totalTasks) * 100 : 0, onClick: row.collaboratorId == null ? undefined : () => openAgendaDrilldown({ collaborator: `user-company:${row.collaboratorId}` }) }))} />) : null}
-              {activeEntity === 'processes' ? (<RankingPanel emptyLabel={standardCopy.noData} title={standardCopy.riskyProcesses} rows={riskyProcesses.map((row) => ({ id: `process-${row.processId}`, label: row.processTitle, detail: `${row.pendingAuditTasks} ${copy.common.pending}`, value: `${row.measurements?.lateOpenTasks ?? 0} ${workspaceCopy.late}`, progress: 100 - row.productivityScore, onClick: () => openAgendaDrilldown({ search: row.processFolio ?? row.processTitle }) }))} />) : null}
-              {activeEntity === 'projects' ? (<RankingPanel emptyLabel={standardCopy.noData} title={standardCopy.riskyProjects} rows={riskyProjects.map((row) => ({ id: `project-${row.projectId}`, label: row.projectName, detail: `${row.pendingAuditTasks} ${copy.common.pending}`, value: `${row.measurements?.lateOpenTasks ?? 0} ${workspaceCopy.late}`, progress: 100 - row.healthScore, onClick: () => openAgendaDrilldown({ project: `project:${row.projectId}` }) }))} />) : null}
+              {activeEntity === 'collaborators' ? (<RankingPanel emptyLabel={standardCopy.noData} title={workspaceCopy.late} rows={topOverdue.map((row) => ({ id: `overdue-${row.collaboratorId ?? 'none'}`, label: row.collaboratorName, detail: `${row.openTasks} ${copy.summary.labels.open}`, value: `${row.measurements?.lateOpenTasks ?? 0} ${workspaceCopy.late}`, progress: row.openTasks > 0 ? ((row.measurements?.lateOpenTasks ?? 0) / row.openTasks) * 100 : 0, onClick: row.collaboratorId == null ? undefined : () => openAgendaDrilldown({ collaborator: `user-company:${row.collaboratorId}` }) }))} />) : null}
+              {activeEntity === 'processes' ? (<RankingPanel emptyLabel={standardCopy.noData} title={standardCopy.riskyProcesses} rows={riskyProcesses.map((row) => ({ id: `process-${row.processId}`, label: row.processTitle, detail: `${row.pendingAuditTasks} ${copy.common.pending}`, value: `${row.measurements?.lateOpenTasks ?? 0} ${workspaceCopy.late}`, onClick: () => openAgendaDrilldown({ search: row.processFolio ?? row.processTitle }) }))} />) : null}
+              {activeEntity === 'projects' ? (<RankingPanel emptyLabel={standardCopy.noData} title={standardCopy.riskyProjects} rows={riskyProjects.map((row) => ({ id: `project-${row.projectId}`, label: row.projectName, detail: `${row.pendingAuditTasks} ${copy.common.pending}`, value: `${row.measurements?.lateOpenTasks ?? 0} ${workspaceCopy.late}`, onClick: () => openAgendaDrilldown({ project: `project:${row.projectId}` }) }))} />) : null}
             </div>
           </section>
 

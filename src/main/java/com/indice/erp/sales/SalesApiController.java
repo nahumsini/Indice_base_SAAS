@@ -65,6 +65,16 @@ public class SalesApiController {
         return ResponseEntity.ok(salesService.kpis(user.get().companyId(), preferredCurrency, kpiAccess.monetary(user.get(), "SALES_TOTAL")));
     }
 
+    @GetMapping("/kpis/workspace")
+    public ResponseEntity<?> kpiWorkspace(HttpSession session) {
+        var user = currentUser(session);
+        if (user.isEmpty()) {
+            return unauthorized();
+        }
+        var scope = kpiAccess.monetary(user.get(), "SALES_TOTAL");
+        return ResponseEntity.ok(salesService.kpiWorkspace(user.get().companyId(), scope));
+    }
+
     @GetMapping("/files")
     public ResponseEntity<?> listFiles(HttpSession session, @RequestParam Map<String, String> params) {
         var user = currentUser(session);

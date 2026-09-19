@@ -1,6 +1,6 @@
 import type { ExecutiveDiagnosisKind, ExecutiveDiagnosisSectorId } from './types';
 
-export type DiagnosisViewId = 'overview' | 'sectors' | 'map' | 'health' | 'portfolio' | 'profitability' | 'inventory' | 'patterns';
+export type DiagnosisViewId = 'overview' | 'sectors' | 'map' | 'health' | 'portfolio' | 'profitability' | 'inventory' | 'patterns' | 'sources';
 
 export type DiagnosisWorkspaceCopy = {
   navigation: {
@@ -76,6 +76,7 @@ const es: DiagnosisWorkspaceCopy = {
       profitability: 'Rentabilidad–Rotación',
       inventory: 'Inventario inteligente',
       patterns: 'Conexiones',
+      sources: 'Fuentes integradas',
     },
   },
   filters: { clear: 'Limpiar filtros', results: 'Resultados del alcance' },
@@ -98,7 +99,7 @@ const es: DiagnosisWorkspaceCopy = {
   },
   modules: {
     'human-resources': 'Recursos Humanos', 'processes-tasks': 'Procesos y tareas', inventory: 'Inventario',
-    sales: 'Ventas', expenses: 'Gastos', 'petty-cash': 'Caja chica',
+    sales: 'Ventas', expenses: 'Gastos', 'petty-cash': 'Caja chica', receivables: 'Cartera', 'point-of-sale': 'Punto de venta',
   },
   resultUnits: { findings: 'hallazgos', products: 'productos' },
   sectorShortcuts: { people: 'Ver Personas', processes: 'Ver Procesos', products: 'Ver Productos', finance: 'Ver Finanzas' },
@@ -123,7 +124,7 @@ const es: DiagnosisWorkspaceCopy = {
 const en: DiagnosisWorkspaceCopy = {
   navigation: {
     ariaLabel: 'Business matrices',
-    items: { overview: 'Indice IME', sectors: 'IME dimensions', map: 'SWOT matrix', health: 'Business health', portfolio: 'BCG matrix', profitability: 'Profitability–Rotation', inventory: 'Smart inventory', patterns: 'Connections' },
+    items: { overview: 'Indice IME', sectors: 'IME dimensions', map: 'SWOT matrix', health: 'Business health', portfolio: 'BCG matrix', profitability: 'Profitability–Rotation', inventory: 'Smart inventory', patterns: 'Connections', sources: 'Integrated sources' },
   },
   filters: { clear: 'Clear filters', results: 'Scope results' },
   context: {
@@ -143,7 +144,7 @@ const en: DiagnosisWorkspaceCopy = {
   actions: { exportView: 'Export view', printView: 'Print view', openModule: 'Open', reviewSales: 'Review in Sales' },
   modules: {
     'human-resources': 'Human Resources', 'processes-tasks': 'Processes and tasks', inventory: 'Inventory',
-    sales: 'Sales', expenses: 'Expenses', 'petty-cash': 'Petty cash',
+    sales: 'Sales', expenses: 'Expenses', 'petty-cash': 'Petty cash', receivables: 'Receivables', 'point-of-sale': 'Point of sale',
   },
   resultUnits: { findings: 'findings', products: 'products' },
   sectorShortcuts: { people: 'View People', processes: 'View Processes', products: 'View Products', finance: 'View Finance' },
@@ -168,7 +169,7 @@ const en: DiagnosisWorkspaceCopy = {
 const fr: DiagnosisWorkspaceCopy = {
   navigation: {
     ariaLabel: 'Matrices d’entreprise',
-    items: { overview: 'Indice IME', sectors: 'Dimensions IME', map: 'Matrice FFOM', health: 'Santé de l’entreprise', portfolio: 'Matrice BCG', profitability: 'Rentabilité–Rotation', inventory: 'Inventaire intelligent', patterns: 'Connexions' },
+    items: { overview: 'Indice IME', sectors: 'Dimensions IME', map: 'Matrice FFOM', health: 'Santé de l’entreprise', portfolio: 'Matrice BCG', profitability: 'Rentabilité–Rotation', inventory: 'Inventaire intelligent', patterns: 'Connexions', sources: 'Sources intégrées' },
   },
   filters: { clear: 'Effacer les filtres', results: 'Résultats de la portée' },
   context: {
@@ -188,7 +189,7 @@ const fr: DiagnosisWorkspaceCopy = {
   actions: { exportView: 'Exporter la vue', printView: 'Imprimer la vue', openModule: 'Ouvrir', reviewSales: 'Voir dans Ventes' },
   modules: {
     'human-resources': 'Ressources humaines', 'processes-tasks': 'Processus et tâches', inventory: 'Inventaire',
-    sales: 'Ventes', expenses: 'Dépenses', 'petty-cash': 'Petite caisse',
+    sales: 'Ventes', expenses: 'Dépenses', 'petty-cash': 'Petite caisse', receivables: 'Comptes clients', 'point-of-sale': 'Point de vente',
   },
   resultUnits: { findings: 'constats', products: 'produits' },
   sectorShortcuts: { people: 'Voir Personnes', processes: 'Voir Processus', products: 'Voir Produits', finance: 'Voir Finances' },
@@ -213,7 +214,7 @@ const fr: DiagnosisWorkspaceCopy = {
 const pt: DiagnosisWorkspaceCopy = {
   navigation: {
     ariaLabel: 'Matrizes empresariais',
-    items: { overview: 'Índice IME', sectors: 'Dimensões IME', map: 'Matriz FOFA', health: 'Saúde empresarial', portfolio: 'Matriz BCG', profitability: 'Rentabilidade–Rotação', inventory: 'Estoque inteligente', patterns: 'Conexões' },
+    items: { overview: 'Índice IME', sectors: 'Dimensões IME', map: 'Matriz FOFA', health: 'Saúde empresarial', portfolio: 'Matriz BCG', profitability: 'Rentabilidade–Rotação', inventory: 'Estoque inteligente', patterns: 'Conexões', sources: 'Fontes integradas' },
   },
   filters: { clear: 'Limpar filtros', results: 'Resultados do escopo' },
   context: {
@@ -233,7 +234,7 @@ const pt: DiagnosisWorkspaceCopy = {
   actions: { exportView: 'Exportar visão', printView: 'Imprimir visão', openModule: 'Abrir', reviewSales: 'Revisar em Vendas' },
   modules: {
     'human-resources': 'Recursos Humanos', 'processes-tasks': 'Processos e tarefas', inventory: 'Estoque',
-    sales: 'Vendas', expenses: 'Despesas', 'petty-cash': 'Caixa pequeno',
+    sales: 'Vendas', expenses: 'Despesas', 'petty-cash': 'Caixa pequeno', receivables: 'Contas a receber', 'point-of-sale': 'Ponto de venda',
   },
   resultUnits: { findings: 'achados', products: 'produtos' },
   sectorShortcuts: { people: 'Ver Pessoas', processes: 'Ver Processos', products: 'Ver Produtos', finance: 'Ver Finanças' },
@@ -258,7 +259,7 @@ const pt: DiagnosisWorkspaceCopy = {
 const ko: DiagnosisWorkspaceCopy = {
   navigation: {
     ariaLabel: '기업 매트릭스',
-    items: { overview: 'IME 지수', sectors: 'IME 차원', map: 'SWOT 매트릭스', health: '기업 건강', portfolio: 'BCG 매트릭스', profitability: '수익성–회전율', inventory: '스마트 재고', patterns: '연결' },
+    items: { overview: 'IME 지수', sectors: 'IME 차원', map: 'SWOT 매트릭스', health: '기업 건강', portfolio: 'BCG 매트릭스', profitability: '수익성–회전율', inventory: '스마트 재고', patterns: '연결', sources: '통합 데이터 소스' },
   },
   filters: { clear: '필터 지우기', results: '범위 결과' },
   context: {
@@ -276,7 +277,7 @@ const ko: DiagnosisWorkspaceCopy = {
   actions: { exportView: '보기 내보내기', printView: '보기 인쇄', openModule: '열기', reviewSales: '판매에서 검토' },
   modules: {
     'human-resources': '인사', 'processes-tasks': '프로세스 및 작업', inventory: '재고',
-    sales: '판매', expenses: '비용', 'petty-cash': '소액 현금',
+    sales: '판매', expenses: '비용', 'petty-cash': '소액 현금', receivables: '미수금', 'point-of-sale': '판매 시점',
   },
   resultUnits: { findings: '개 발견', products: '개 제품' },
   sectorShortcuts: { people: '인력 보기', processes: '프로세스 보기', products: '제품 보기', finance: '재무 보기' },
@@ -301,7 +302,7 @@ const ko: DiagnosisWorkspaceCopy = {
 const zh: DiagnosisWorkspaceCopy = {
   navigation: {
     ariaLabel: '企业矩阵',
-    items: { overview: 'IME 指数', sectors: 'IME 维度', map: 'SWOT 矩阵', health: '企业健康', portfolio: 'BCG 矩阵', profitability: '盈利–周转', inventory: '智能库存', patterns: '连接' },
+    items: { overview: 'IME 指数', sectors: 'IME 维度', map: 'SWOT 矩阵', health: '企业健康', portfolio: 'BCG 矩阵', profitability: '盈利–周转', inventory: '智能库存', patterns: '连接', sources: '集成数据源' },
   },
   filters: { clear: '清除筛选条件', results: '范围结果' },
   context: {
@@ -319,7 +320,7 @@ const zh: DiagnosisWorkspaceCopy = {
   actions: { exportView: '导出当前视图', printView: '打印当前视图', openModule: '打开', reviewSales: '在销售中查看' },
   modules: {
     'human-resources': '人力资源', 'processes-tasks': '流程与任务', inventory: '库存',
-    sales: '销售', expenses: '费用', 'petty-cash': '备用金',
+    sales: '销售', expenses: '费用', 'petty-cash': '备用金', receivables: '应收账款', 'point-of-sale': '销售点',
   },
   resultUnits: { findings: '项发现', products: '件产品' },
   sectorShortcuts: { people: '查看人员', processes: '查看流程', products: '查看产品', finance: '查看财务' },

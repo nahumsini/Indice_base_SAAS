@@ -427,6 +427,23 @@ public class SalesService {
         return body;
     }
 
+    @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    public SalesKpiWorkspaceDtos.WorkspaceResponse kpiWorkspace(
+            long companyId, com.indice.erp.hr.HrOperationalScope scope) {
+        var zone = businessTimeZoneResolver.resolve(companyId);
+        return new SalesKpiWorkspaceDtos.WorkspaceResponse(
+            salesRepository.kpiContacts(companyId, scope),
+            salesRepository.kpiOpportunities(companyId, scope),
+            salesRepository.kpiQuotes(companyId, scope),
+            salesRepository.kpiSales(companyId, scope),
+            salesRepository.kpiUnits(companyId, scope),
+            salesRepository.kpiBusinesses(companyId, scope),
+            LocalDate.now(zone),
+            zone.getId(),
+            "sales-kpi-v1"
+        );
+    }
+
     private LocalDate parseKpiRateDate(String value) {
         try {
             return value == null || value.isBlank() ? LocalDate.now() : LocalDate.parse(value);

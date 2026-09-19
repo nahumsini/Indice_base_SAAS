@@ -8,11 +8,11 @@ export type HrEmployeeOperationsRow = {
   name: string;
   meta: string;
   attendance: string;
-  permissions: number;
-  records: number;
-  assets: number;
-  score: number;
-  status: 'healthy' | 'watch' | 'critical';
+  permissions: number | string;
+  records: number | string;
+  assets: number | string;
+  signalCount: number | string;
+  status: 'healthy' | 'watch' | 'critical' | 'unavailable';
 };
 
 type Labels = {
@@ -34,12 +34,7 @@ const badgeClasses: Record<HrEmployeeOperationsRow['status'], string> = {
   healthy: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300',
   watch: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300',
   critical: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300',
-};
-
-const barClasses: Record<HrEmployeeOperationsRow['status'], string> = {
-  healthy: 'bg-emerald-500',
-  watch: 'bg-amber-500',
-  critical: 'bg-rose-500',
+  unavailable: 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300',
 };
 
 export function HrEmployeeOperationsTable({
@@ -86,7 +81,7 @@ export function HrEmployeeOperationsTable({
               <tr key={row.id} className="hover:bg-emerald-50/30 dark:hover:bg-emerald-950/10">
                 <td className="px-5 py-4 text-lg font-medium text-slate-800 dark:text-white">#{row.position}</td>
                 <td className="px-5 py-4"><p className="font-medium text-slate-900 dark:text-white">{row.name}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{row.meta}</p></td>
-                <td className="px-5 py-4"><div className="flex items-center gap-3"><div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700"><div className={`h-full rounded-full ${barClasses[row.status]}`} style={{ width: `${row.score}%` }} /></div><span className="font-medium text-slate-900 dark:text-white">{row.score}</span><span className={`rounded-full border px-2 py-1 text-[11px] font-medium ${badgeClasses[row.status]}`}>{labels.statuses[row.status]}</span></div></td>
+                <td className="px-5 py-4"><div className="flex items-center gap-3"><span className="font-medium text-slate-900 dark:text-white">{row.signalCount}</span><span className={`rounded-full border px-2 py-1 text-[11px] font-medium ${badgeClasses[row.status]}`}>{labels.statuses[row.status]}</span></div></td>
                 <td className="px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-200">{row.attendance}</td>
                 <td className="px-5 py-4 text-sm font-medium text-amber-600 dark:text-amber-300">{row.permissions}</td>
                 <td className="px-5 py-4 text-sm font-medium text-rose-600 dark:text-rose-300">{row.records}</td>

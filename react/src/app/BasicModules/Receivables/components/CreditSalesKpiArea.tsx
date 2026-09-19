@@ -21,6 +21,7 @@ import type { ReceivablesTranslations } from '../translations';
 import type { CreditSale, CreditSaleStatus } from '../types';
 
 const moneyFormatOptions: Intl.NumberFormatOptions = {
+  currencyDisplay: 'code',
   maximumFractionDigits: 2,
   minimumFractionDigits: 2,
 };
@@ -32,9 +33,9 @@ function formatCount(value: number) {
   return new Intl.NumberFormat().format(value);
 }
 
-function formatNativeBreakdown(aggregate: KpiMonetaryAggregate | null, fallbackCurrency: string) {
+function formatNativeBreakdown(aggregate: KpiMonetaryAggregate | null, unavailable: string) {
   if (!aggregate || aggregate.nativeTotals.length === 0) {
-    return formatBusinessCurrencyAmount(0, fallbackCurrency, moneyFormatOptions);
+    return unavailable;
   }
   return aggregate.nativeTotals
     .map(({ currency, amount }) => formatBusinessCurrencyAmount(amount, currency, moneyFormatOptions))
@@ -62,23 +63,23 @@ export function CreditSalesKpiArea({
     { key: 'monthly', metric: 'CREDIT_SALES_MONTHLY_PAYMENT', preferredCurrency, ids },
     { key: 'interest', metric: 'CREDIT_SALES_INTEREST', preferredCurrency, ids },
   ]);
-  const receivable = aggregates.data.receivable ?? null;
-  const monthly = aggregates.data.monthly ?? null;
-  const interest = aggregates.data.interest ?? null;
+  const receivable = aggregates.loading ? null : aggregates.data.receivable ?? null;
+  const monthly = aggregates.loading ? null : aggregates.data.monthly ?? null;
+  const interest = aggregates.loading ? null : aggregates.data.interest ?? null;
   const activeCount = creditSales.filter((sale) => sale.status === 'active').length;
   const setupCount = creditSales.filter((sale) => setupStatuses.has(sale.status)).length;
   const completedCount = creditSales.filter((sale) => sale.status === 'completed').length;
   const stoppedCount = creditSales.filter((sale) => stoppedStatuses.has(sale.status)).length;
   const currencyCount = new Set(creditSales.map((sale) => normalizeBusinessCurrencyCode(sale.currency, preferredCurrency))).size;
   const formatAggregate = (aggregate: KpiMonetaryAggregate | null) => (
-    aggregate && !aggregates.loading
+    aggregate && !aggregate.partial
       ? formatBusinessCurrencyAmount(aggregate.preferredTotal, preferredCurrency, moneyFormatOptions)
       : '—'
   );
   const receivableTotalLabel = formatAggregate(receivable);
   const monthlyFlowLabel = formatAggregate(monthly);
   const totalInterestLabel = formatAggregate(interest);
-  const nativeTotalLabel = formatNativeBreakdown(receivable, preferredCurrency);
+  const nativeTotalLabel = formatNativeBreakdown(receivable, copy.kpiEngine.currency.unavailable);
   const metrics: OperationalKpiMetric[] = [
     {
       id: 'receivableTotal',
@@ -150,7 +151,7 @@ export function CreditSalesKpiArea({
     });
   }
 
-  if (creditSales.length > 0) {
+  if (creditSales.length > 0 && receivable) {
     alertChips.push({
       id: 'nativeTotal',
       icon: <CircleDollarSign className="h-3.5 w-3.5" />,
@@ -224,13 +225,18 @@ export function CreditSalesKpiArea({
       currencyContext={{
         preferredCurrency,
         nativeBreakdown: nativeTotalLabel,
-        rateLabel: receivable?.exchangeRate.mode === 'daily'
+        rateLabel: receivable?.exchangeRate.mode === 'daily' || receivable?.exchangeRate.mode === 'configured'
           ? copy.kpiEngine.currency.dailyRate
           : copy.kpiEngine.currency.unavailable,
         effectiveDate: receivable?.exchangeRate.effectiveDate,
         source: receivable?.exchangeRate.source,
-        isPartial: Boolean(aggregates.error || receivable?.partial),
-        excludedCount: receivable?.excludedRecords ?? (aggregates.error ? creditSales.length : 0),
+        isPartial: Boolean(aggregates.error || receivable?.partial || monthly?.partial || interest?.partial),
+        excludedCount: Math.max(
+          receivable?.excludedRecords ?? 0,
+          monthly?.excludedRecords ?? 0,
+          interest?.excludedRecords ?? 0,
+          aggregates.error ? creditSales.length : 0,
+        ),
         labels: copy.kpiEngine.currency,
       }}
     />

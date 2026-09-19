@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Archive,
   CalendarClock,
   CheckCircle2,
   Clock3,
   Download,
-  MailCheck,
   PauseCircle,
   PlayCircle,
   RotateCcw,
@@ -18,27 +18,41 @@ import {
 import { Button } from '../../../components/ui/button';
 import { IndiceTitleBar } from '../../../components/frontend-os';
 import { cn } from '../../../components/ui/utils';
-import {
-  automationStatusClasses,
-  automationStatusLabels,
-  compositeKpis,
-  financialStatements,
-  reportPackages,
-  type AutomationRule,
-} from '../kpisExecutiveData';
-
 import { automatedReportsApi, type ReportRule, type ReportRun } from './automatedReportsApi';
 import { ReportRuleModal } from './ReportRuleModal';
 import { ReportRunModal } from './ReportRunModal';
 import { ApiClientError } from '../../../lib/apiClient';
 
-const statusIcons: Record<AutomationRule['status'], LucideIcon> = {
+type AutomationRuleView = {
+  id: string;
+  title: string;
+  description: string;
+  status: ReportRule['status'];
+  audience: string;
+  cadence: string;
+  trigger: string;
+  nextRun: string;
+};
+
+const automationStatusClasses: Record<ReportRule['status'], string> = {
+  ready: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200',
+  draft: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200',
+  paused: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300',
+};
+
+const automationStatusLabels: Record<ReportRule['status'], string> = {
+  ready: 'Lista',
+  draft: 'Borrador',
+  paused: 'Pausada',
+};
+
+const statusIcons: Record<ReportRule['status'], LucideIcon> = {
   draft: Clock3,
   paused: PauseCircle,
   ready: CheckCircle2,
 };
 
-const statusOptions: Array<{ id: 'all' | AutomationRule['status']; label: string }> = [
+const statusOptions: Array<{ id: 'all' | ReportRule['status']; label: string }> = [
   { id: 'all', label: 'Todos' },
   { id: 'ready', label: 'Listas' },
   { id: 'draft', label: 'Borradores' },
@@ -47,7 +61,7 @@ const statusOptions: Array<{ id: 'all' | AutomationRule['status']; label: string
 
 const cadenceOptions = ['Todas', 'Manual', 'Diaria', 'Semanal', 'Mensual'];
 
-function AutomationStatusBadge({ status }: { status: AutomationRule['status'] }) {
+function AutomationStatusBadge({ status }: { status: ReportRule['status'] }) {
   const Icon = statusIcons[status];
 
   return (
@@ -65,9 +79,9 @@ function inputClassName(extra?: string) {
   );
 }
 
-function exportAutomationCsv(rules: AutomationRule[]) {
+function exportAutomationCsv(rules: AutomationRuleView[]) {
   const rows = [
-    ['Regla', 'Estado', 'Disparador', 'Audiencia', 'Cadencia', 'Proxima ejecucion', 'Descripcion'],
+    ['Regla', 'Estado', 'Disparador', 'Audiencia', 'Cadencia', 'Próxima ejecución', 'Descripción'],
     ...rules.map((rule) => [
       rule.title,
       automationStatusLabels[rule.status],
@@ -93,7 +107,7 @@ function csvCell(value: string) {
 }
 
 export default function InformesAutomatizados() {
-  const [statusFilter, setStatusFilter] = useState<'all' | AutomationRule['status']>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | ReportRule['status']>('all');
   const [cadenceFilter, setCadenceFilter] = useState('Todas');
   const [search, setSearch] = useState('');
 
@@ -154,10 +168,10 @@ export default function InformesAutomatizados() {
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-sm font-medium text-slate-950 dark:text-white">
               <SlidersHorizontal className="h-4 w-4 text-blue-700 dark:text-blue-300" />
-              Filtros de automatizacion
+              Filtros de automatización
             </div>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-              Revisa que reglas estan listas, pausadas o en diseno antes de activar la programación.
+              Revisa qué reglas están listas, pausadas o en diseño antes de activar la programación.
             </p>
           </div>
           <Button
@@ -188,7 +202,7 @@ export default function InformesAutomatizados() {
             Estado
             <select
               value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as 'all' | AutomationRule['status'])}
+              onChange={(event) => setStatusFilter(event.target.value as 'all' | ReportRule['status'])}
               className={inputClassName('mt-1')}
             >
               {statusOptions.map((option) => (
@@ -254,7 +268,7 @@ export default function InformesAutomatizados() {
               <RuleDetail icon={PlayCircle} label="Disparador" value={rule.trigger} />
               <RuleDetail icon={Users} label="Audiencia" value={rule.audience} />
               <RuleDetail icon={CalendarClock} label="Cadencia" value={rule.cadence} />
-              <RuleDetail icon={Clock3} label="Proxima ejecucion" value={rule.nextRun} />
+              <RuleDetail icon={Clock3} label="Próxima ejecución" value={rule.nextRun} />
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 p-4 dark:border-slate-800">
@@ -284,7 +298,7 @@ export default function InformesAutomatizados() {
       {!loading && !error && filteredRules.length === 0 && (
         <section className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <p className="text-sm font-medium text-slate-950 dark:text-white">No hay reglas con estos filtros.</p>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Limpia la busqueda o cambia el estado para ver mas automatizaciones.</p>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Limpia la búsqueda o cambia el estado para ver más automatizaciones.</p>
         </section>
       )}
 
@@ -292,14 +306,14 @@ export default function InformesAutomatizados() {
         <div className="min-w-0 rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="border-b border-slate-100 p-5 dark:border-slate-800">
             <h2 className="text-lg font-medium tracking-normal text-slate-950 dark:text-white">
-              Flujo de automatizacion
+              Flujo de automatización
             </h2>
           </div>
           <div className="grid gap-3 p-5 md:grid-cols-4">
             {[
-              ['Captura', `${financialStatements.length} estados proforma`],
-              ['Calcula', `${compositeKpis.length} KPIs compuestos`],
-              ['Empaqueta', `${reportPackages.length} paquetes ejecutivos`],
+              ['Captura', 'KPIs ejecutivos o estados contables'],
+              ['Calcula', 'Instantánea validada por alcance y moneda'],
+              ['Programa', 'Ejecución manual, diaria, semanal o mensual'],
               ['Conserva', `${readyCount} reglas listas`],
             ].map(([title, description], index) => (
               <div key={title} className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
@@ -315,18 +329,18 @@ export default function InformesAutomatizados() {
 
         <aside className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center gap-2 text-sm font-medium text-slate-800 dark:text-slate-100">
-            <MailCheck className="h-4 w-4 text-blue-700 dark:text-blue-300" />
+            <Archive className="h-4 w-4 text-blue-700 dark:text-blue-300" />
             Salida esperada
           </div>
           <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-            Cada ejecucion entrega score ejecutivo, variaciones relevantes, estados proforma incluidos,
-            responsables y acciones sugeridas para direccion.
+            Cada ejecución conserva una instantánea inmutable del informe ejecutivo o contable con
+            periodo, alcance y moneda autorizados.
           </p>
           <div className="mt-4 space-y-2 text-sm text-slate-700 dark:text-slate-200">
-            <OutputRow label="Formato ejecutivo" value="Pantalla / archivo JSON" />
+            <OutputRow label="Formato ejecutivo" value="Pantalla / instantánea JSON" />
             <OutputRow label="Audiencia" value="Mi usuario" />
             <OutputRow label="Canal" value="Panel de informes" />
-            <OutputRow label="Programacion" value="Reglas activas" />
+            <OutputRow label="Programación" value="Reglas activas" />
           </div>
           <Button
             type="button"

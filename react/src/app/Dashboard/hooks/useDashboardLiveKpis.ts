@@ -168,13 +168,11 @@ export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: st
 
       try {
         const response = await executivePanelApi.get({
-          search: '',
           unitId: '',
           businessId: '',
           period: 'monthly',
           from: '',
           to: '',
-          risk: 'all',
         }, preferredCurrency);
 
         if (!isMounted) return;

@@ -1,7 +1,7 @@
 import type { KPIsTranslations } from '../translations';
 import { buildKpiPrintDocumentTitle } from '../../../shared/print/kpiPrintFileName';
 
-type KpiPrintStatus = 'healthy' | 'watch' | 'critical';
+type KpiPrintStatus = 'healthy' | 'watch' | 'critical' | 'unavailable';
 
 interface KpiPrintCard {
   description: string;
@@ -13,12 +13,12 @@ interface KpiPrintCard {
 
 interface KpiPrintUnitRow {
   assignedAssets: string;
+  attentionSignals: string;
+  attentionValue: number;
   attendanceRate: string;
   employees: string;
   name: string;
   pendingPermissions: string;
-  readinessScore: string;
-  readinessValue: number;
   unresolvedRecords: string;
 }
 
@@ -41,6 +41,7 @@ interface PrintKpisReportParams {
   lastUpdatedLabel: string;
   locale: string;
   periodLabel: string;
+  sourceWarnings: string[];
   unitRows: KpiPrintUnitRow[];
 }
 
@@ -50,6 +51,7 @@ const statusClass: Record<KpiPrintStatus, string> = {
   healthy: 'is-healthy',
   watch: 'is-watch',
   critical: 'is-critical',
+  unavailable: 'is-unavailable',
 };
 
 const clampPercent = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
@@ -130,6 +132,9 @@ const printHtmlDocument = (title: string, bodyHtml: string, locale: string) => {
       .insight-panel { background: #f7faf9; border-color: #d5e2df; border-left: 3px solid #2f7d73; color: #343a40; padding: 14px 16px; }
       .insight-panel h2 { color: #202328; font-size: 18px; font-weight: 500; margin-bottom: 7px; }
       .insight-panel p { font-size: 12px; line-height: 1.45; }
+      .source-warning { background: #fff8e8; border: 1px solid #e3c77d; color: #6f5316; font-size: 10px; line-height: 1.4; margin: 8px 0 12px; padding: 9px 11px; }
+      .source-warning strong { display: block; margin-bottom: 4px; }
+      .source-warning ul { margin: 0; padding-left: 17px; }
       .illustration-panel { background: #fbfbfa; display: block; min-height: 96px; overflow: hidden; padding: 14px; }
       .illustration-copy strong { color: #111827; display: block; font-size: 20px; line-height: 1.1; margin-top: 8px; }
       .illustration-copy span { color: #64748b; display: block; font-size: 11px; font-weight: 400; margin-top: 7px; }
@@ -137,19 +142,23 @@ const printHtmlDocument = (title: string, bodyHtml: string, locale: string) => {
       .kpi-card { background: #fcfcfb; border-color: #cfd4d8; min-height: 110px; padding: 13px 14px; }
       .kpi-card.is-healthy,
       .kpi-card.is-watch,
-      .kpi-card.is-critical { border-top: 1px solid #aeb4ba; }
+      .kpi-card.is-critical,
+      .kpi-card.is-unavailable { border-top: 1px solid #aeb4ba; }
       .card-status { align-items: center; background: transparent; display: inline-flex; font-size: 8px; font-weight: 400; gap: 5px; letter-spacing: 0.02em; margin-bottom: 9px; padding: 0; }
       .card-status::before,
       .status-pill::before { border-radius: 999px; content: ""; display: inline-block; height: 5px; width: 5px; }
       .is-healthy .card-status,
       .is-watch .card-status,
-      .is-critical .card-status { background: transparent; color: #555c65; }
+      .is-critical .card-status,
+      .is-unavailable .card-status { background: transparent; color: #555c65; }
       .is-healthy .card-status::before,
       .status-pill.is-healthy::before { background: #2f7d73; }
       .is-watch .card-status::before,
       .status-pill.is-watch::before { background: #bd9142; }
       .is-critical .card-status::before,
       .status-pill.is-critical::before { background: #a45f68; }
+      .is-unavailable .card-status::before,
+      .status-pill.is-unavailable::before { background: #7a8088; }
       .card-title { color: #3e4650; font-size: 12px; font-weight: 500; line-height: 1.2; min-height: 27px; }
       .card-value { color: #171a1e; font-size: 30px; font-weight: 500; letter-spacing: -0.035em; line-height: 1; margin-top: 8px; }
       .card-note { color: #64748b; font-size: 9px; font-weight: 400; line-height: 1.35; margin-top: 7px; }
@@ -186,7 +195,8 @@ const printHtmlDocument = (title: string, bodyHtml: string, locale: string) => {
       .status-pill { align-items: center; background: transparent; display: inline-flex; font-size: 8px; font-weight: 400; gap: 5px; padding: 0; white-space: nowrap; }
       .status-pill.is-healthy,
       .status-pill.is-watch,
-      .status-pill.is-critical { background: transparent; color: #555c65; }
+      .status-pill.is-critical,
+      .status-pill.is-unavailable { background: transparent; color: #555c65; }
       .section-heading { align-items: end; border-bottom: 2px solid #363b40; display: flex; justify-content: space-between; margin-bottom: 13px; padding-bottom: 8px; }
       .section-heading h2 { color: #202429; font-size: 22px; font-weight: 500; letter-spacing: -0.02em; }
       .section-heading span { color: #2f7d73; font-size: 10px; font-weight: 400; letter-spacing: 0.03em; }
@@ -250,6 +260,7 @@ export const printKpisReport = ({
   lastUpdatedLabel,
   locale,
   periodLabel,
+  sourceWarnings,
   unitRows,
 }: PrintKpisReportParams) => {
   const resolvedCompanyLogoUrl = resolvePrintImageUrl(companyLogoUrl);
@@ -261,7 +272,7 @@ export const printKpisReport = ({
   const chartUnits = unitRows.slice(0, 8);
   const attendanceTotal = attendanceRows.reduce((sum, row) => sum + Math.max(0, row.value), 0);
   const donutBackground = buildDonutBackground(attendanceRows);
-  const healthCard = cards.find((card) => card.value.includes('/100')) ?? cards[cards.length - 1];
+  const maxUnitAttention = Math.max(1, ...chartUnits.map((row) => row.attentionValue));
 
   const filterRows = filters
     .map(({ label, value }) => `
@@ -281,6 +292,12 @@ export const printKpisReport = ({
         ${trimmedCompanyName ? `<span class="company-name">${escapePrintHtml(trimmedCompanyName)}</span>` : ''}
       </div>
     `
+    : '';
+
+  const sourceWarningsHtml = sourceWarnings.length > 0
+    ? `<aside class="source-warning"><strong>${escapePrintHtml(copy.dashboard.common.partialData)}</strong><ul>${sourceWarnings
+      .map((warning) => `<li>${escapePrintHtml(warning)}</li>`)
+      .join('')}</ul></aside>`
     : '';
 
   const buildCardsHtml = (rows: KpiPrintCard[]) => rows.map((card) => `
@@ -307,8 +324,8 @@ export const printKpisReport = ({
     ? chartUnits.map((row) => `
       <div class="bar-row">
         <span class="bar-name">${escapePrintHtml(row.name)}</span>
-        <span class="bar-track"><span class="bar-fill" style="width:${clampPercent(row.readinessValue)}%"></span></span>
-        <span class="bar-value">${escapePrintHtml(row.readinessScore)}</span>
+        <span class="bar-track"><span class="bar-fill" style="width:${clampPercent((row.attentionValue / maxUnitAttention) * 100)}%"></span></span>
+        <span class="bar-value">${escapePrintHtml(row.attentionSignals)}</span>
       </div>
     `).join('')
     : `<p class="legend-value">${escapePrintHtml(copy.dashboard.table.noRows)}</p>`;
@@ -322,7 +339,7 @@ export const printKpisReport = ({
         <td>${escapePrintHtml(row.pendingPermissions)}</td>
         <td>${escapePrintHtml(row.unresolvedRecords)}</td>
         <td>${escapePrintHtml(row.assignedAssets)}</td>
-        <td><strong>${escapePrintHtml(row.readinessScore)}</strong></td>
+        <td><strong>${escapePrintHtml(row.attentionSignals)}</strong></td>
       </tr>
     `).join('')
     : `<tr><td colspan="7">${escapePrintHtml(copy.dashboard.table.noRows)}</td></tr>`;
@@ -381,7 +398,7 @@ export const printKpisReport = ({
       <section class="executive-grid">
         <article class="insight-panel">
           <span class="section-label">${escapePrintHtml(copy.dashboard.sections.executiveSignal)}</span>
-          <h2>${escapePrintHtml(healthCard?.title ?? copy.dashboard.sections.executiveSignal)} · ${escapePrintHtml(healthCard?.value ?? '')}</h2>
+          <h2>${escapePrintHtml(periodLabel)}</h2>
           <p>${escapePrintHtml(healthInsight)}</p>
         </article>
         <article class="illustration-panel">
@@ -392,6 +409,7 @@ export const printKpisReport = ({
           </div>
         </article>
       </section>
+      ${sourceWarningsHtml}
       <section class="card-grid">${buildCardsHtml(headlineCards)}</section>
     `,
     `

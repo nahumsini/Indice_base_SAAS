@@ -10,6 +10,7 @@ import * as jsxRuntime from 'react/jsx-runtime';
 const root = resolve(import.meta.dirname, '..');
 const dir = resolve(root, 'src/app/BasicModules/Expenses/KPIs');
 const page = resolve(dir, 'GastosKPIPage.tsx');
+const viewsSource = readFileSync(resolve(dir, 'components/ExpenseKpiViews.tsx'), 'utf8');
 const ast = ts.createSourceFile(page, readFileSync(page, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 const component = ast.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === 'GastosKPIPage');
 const names = component.body.statements.filter(ts.isVariableStatement).flatMap(s => s.declarationList.declarations)
@@ -24,7 +25,7 @@ function setup(initial = {}) {
   const state = { ...initial }, cache = new Map(), requests = [], sourceArgs = [], prints = [], effects = [];
   let cursor = 0, workspace;
   const rows = Array.from({ length: 27 }, (_, i) => fixture(i + 1));
-  const overview = { filteredExpenses: rows, comparisonExpenses: [], paymentExpenses: rows, filteredBudgetLines: Array.from({ length: 27 }, (_, i) => ({ id: String(i + 1), name: `Budget ${i}`, budgetId: '1' })),
+  const overview = { filteredExpenses: rows, comparisonExpenses: [], paymentExpenses: rows, filteredBudgetLines: Array.from({ length: 27 }, (_, i) => ({ id: String(i + 1), name: `Budget ${i}`, budgetId: '1', healthStatus: 'WARNING' })),
     periodRange: { start: new Date(2026, 8, 1), end: new Date(2026, 8, 30) }, comparisonRange: { start: new Date(2026, 7, 1), end: new Date(2026, 7, 31) }, asOfDate: '2026-09-15', timeZone: 'America/Toronto',
     sources: { referenceData: { users: rows.map(r => ({ id: r.id, name: `Person ${r.id}` })), units: rows.map(r => ({ id: r.id, name: `Unit ${r.id}` })), businesses: [] }, providers: rows.map(r => ({ id: r.id, name: `Provider ${r.id}` })), accountingAccounts: [], paymentAccounts: [] },
     metrics: {}, currencies: ['MXN'], fallbackWarnings: [], isLoading: false, errorMessage: '', ...initial.overview };
@@ -119,14 +120,36 @@ test('report scope is complete and invariant across views; partial conversion an
 });
 
 test('primary cards distinguish recognition, payments, current debt and real budget availability; no empty punctuality zero', () => {
-  const app = setup(); const cards = named(app.render(), 'MetricCard').map(n => n.props);
+  const app = setup(); const tree = app.render(); const cards = named(tree, 'MetricCard').map(n => n.props);
   assert.ok(cards.some(c => c.title === 'Gasto reconocido'));
   assert.ok(cards.some(c => c.title === 'Pagos del periodo'));
   assert.ok(cards.some(c => c.title === 'Presupuesto disponible'));
   assert.equal(cards.find(c => c.title === 'Puntualidad de liquidación').value, 'Sin muestra comparable');
   assert.ok(!cards.some(c => c.title === 'Salud financiera'));
+  const budgetRows = named(tree, 'ExpenseKpiAnalysis', true)[0].props.budgetRows;
+  assert.equal(budgetRows[0].usagePercent, 0);
+  assert.equal(budgetRows[0].healthStatus, 'WARNING');
   cards.find(c => c.title === 'Saldo vencido actual').onAction(); app.render();
   assert.equal(app.state.activeView, 'control'); assert.equal(app.state.paymentStatus, 'OVERDUE');
+});
+
+test('empty or unavailable owner data never becomes a healthy or zero-valued financial result', () => {
+  const empty = setup({ overview: { filteredExpenses: [], comparisonExpenses: [], paymentExpenses: [], filteredBudgetLines: [] } });
+  const print = walk(empty.render()).find(n => n.type === 'button' && n.props.title);
+  print.props.onClick();
+  assert.equal(empty.prints[0].overview.alerts.length, 0);
+
+  const failed = setup({ overview: { fallbackWarnings: ['expenses'] } });
+  const tree = failed.render();
+  const cards = named(tree, 'MetricCard').map(n => n.props);
+  assert.equal(cards.find(c => c.title === 'Gasto capturado').value, '—');
+  assert.equal(cards.find(c => c.title === 'Puntualidad de liquidación').value, '—');
+  assert.equal(named(tree, 'ExpenseKpiAnalysis', true)[0].props.groupReady, false);
+});
+
+test('payment composition keeps a deterministic visible donut for one non-zero status', () => {
+  assert.match(viewsSource, /paymentMix\.length === 1/);
+  assert.match(viewsSource, /data-expense-kpi-single-segment="payment-mix"/);
 });
 
 test('calendar buckets cover all selected days without overlap, including DST, monthly and annual ranges', () => {

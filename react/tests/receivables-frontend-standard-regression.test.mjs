@@ -117,8 +117,15 @@ test('Cartera conecta KPI, filtros avanzados y ancho de tabla compacto', () => {
   assert.match(kpiSource, /onStatusChange/);
   assert.match(kpiSource, /onEvidenceChange/);
   assert.match(kpiSource, /currencyContext=/);
+  assert.match(kpiSource, /currencyDisplay: 'code'/);
+  assert.match(kpiSource, /currentAggregate = aggregate\.loading \? null : aggregate\.data/);
+  assert.match(kpiSource, /currentAggregate && !currentAggregate\.partial/);
+  assert.match(kpiSource, /utilization === null \? '—'/);
   assert.match(creditKpiSource, /useKpiMonetaryAggregates/);
   assert.match(creditKpiSource, /onStatusChange/);
+  assert.match(creditKpiSource, /aggregates\.loading \? null : aggregates\.data\.receivable/);
+  assert.match(creditKpiSource, /aggregate && !aggregate\.partial/);
+  assert.match(creditKpiSource, /monthly\?\.partial \|\| interest\?\.partial/);
   assert.match(tableSource, /emptyColSpan <= 6/);
   assert.match(paymentsSource, /methodFilter/);
   assert.match(paymentsSource, /evidenceFilter/);

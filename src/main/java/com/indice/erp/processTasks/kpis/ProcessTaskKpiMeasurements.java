@@ -57,8 +57,7 @@ public record ProcessTaskKpiMeasurements(
             var auditDate = date(task.auditedAt());
             boolean closedAtCutoff = completeDate != null && !completeDate.isAfter(cutoff);
             boolean legacyClosed = completeDate == null && "completed".equals(task.status());
-            boolean cancelled = "cancelled".equals(task.status())
-                    || (task.cancelledAt() != null && !date(task.cancelledAt()).isAfter(cutoff));
+            boolean cancelled = isCancelledAtCutoff(task, cutoff);
             boolean existed = task.createdAt() == null || !date(task.createdAt()).isAfter(cutoff);
             boolean isOpen = existed && !closedAtCutoff && !legacyClosed && !cancelled;
             boolean isLate = isOpen && task.dueDate() != null && task.dueDate().isBefore(cutoff);
@@ -70,8 +69,8 @@ public record ProcessTaskKpiMeasurements(
                     eligible++;
                     if (!completeDate.isAfter(task.dueDate())) onTime++;
                 }
-                // Creation-to-close elapsed time, never effort. Generated tasks have a separate lifecycle.
-                if (task.runId() == null && task.processId() == null && task.createdAt() != null
+                // Creation-to-close elapsed time, never effort. Tasks materialized by a run have a separate lifecycle.
+                if (task.runId() == null && task.createdAt() != null
                         && !task.completedAt().isBefore(task.createdAt())) {
                     elapsed.add(days(task.createdAt(), task.completedAt()));
                 }
@@ -118,7 +117,7 @@ public record ProcessTaskKpiMeasurements(
         int completedRuns = (int) runs.values().stream().filter(tasks ->
                 tasks.size() == tasks.getFirst().runTaskCount() && tasks.stream().allMatch(task ->
                         task.completedAt() != null && !date(task.completedAt()).isAfter(cutoff)
-                                && !"cancelled".equals(task.status()))).count();
+                                && !isCancelledAtCutoff(task, cutoff))).count();
         return new Metrics(unique.size(), closed, open, late, highOpen, highLate, age1, age4, age8,
                 eligible, onTime, eligible == 0 ? null : round(onTime * 100.0 / eligible), noDeadline,
                 pendingAudit, median(waits), audits.size(), median(audits), audited, ratings.size(),
@@ -152,6 +151,10 @@ public record ProcessTaskKpiMeasurements(
     }
 
     private static LocalDate date(LocalDateTime value) { return value == null ? null : value.toLocalDate(); }
+    private static boolean isCancelledAtCutoff(Observation task, LocalDate cutoff) {
+        var cancelledDate = date(task.cancelledAt());
+        return cancelledDate == null ? "cancelled".equals(task.status()) : !cancelledDate.isAfter(cutoff);
+    }
     private static boolean inRange(LocalDate date, LocalDate from, LocalDate to) {
         return date != null && !date.isBefore(from) && !date.isAfter(to);
     }

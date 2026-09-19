@@ -221,7 +221,7 @@ export const esMX = {
       label: 'KPIs',
       ctaLabel: 'Revisar KPIs',
       title: 'Convierte actividad comercial en decisiones',
-      summary: 'Usa KPIs para leer pipeline, cotizaciones, ventas, margen, traspaso a inventario y disciplina de seguimiento.',
+      summary: 'Usa KPIs para leer pipeline, cotizaciones, ventas registradas, cobros, saldo por cobrar, entrega y seguimiento.',
       value: 'Las metricas ayudan a decidir donde poner atencion antes de que los problemas afecten caja o entrega.',
       steps: [
         {

@@ -26,6 +26,7 @@ function setup(initial = {}, locale = 'es-MX') {
   const markers = new Proxy({}, { get: (target, name) => target[name] ??= marker(String(name)) });
   const hooks = {
     ...React, useMemo: fn => fn(), useEffect: () => {},
+    useRef: initialValue => ({ current: initialValue }),
     useState: initialValue => {
       const name = stateNames[cursor++];
       if (!(name in state)) state[name] = typeof initialValue === 'function' ? initialValue() : initialValue;
@@ -44,7 +45,10 @@ function setup(initial = {}, locale = 'es-MX') {
       if (name === 'react/jsx-runtime') return jsxRuntime;
       if (name === 'lucide-react' || name === 'recharts') return markers;
       if (name.endsWith('/styles/moduleColors')) return load(resolve(dirname(file), name + '.ts'));
-      if (name.endsWith('/translations') || name.includes('/translations/') || file.includes('/translations/')) {
+      if (name.endsWith('/hrKpiMeasurements') || name.endsWith('/hrKpiSourceLoader')) {
+        return load(resolve(dirname(file), name + '.ts'));
+      }
+      if (name.endsWith('/translations') || name.includes('/translations/') || /[\\/]translations[\\/]/.test(file)) {
         const base = resolve(dirname(file), name);
         return load(existsSync(base + '.ts') ? base + '.ts' : resolve(base, 'index.ts'));
       }
@@ -75,6 +79,7 @@ function walk(node, includeHidden = false) {
 const named = (tree, name) => walk(tree).filter(n => (n.type.displayName || n.type.name) === name);
 const text = node => Array.isArray(node) ? node.map(text).join(' ') : typeof node === 'object' && node ? text(node.props?.children) : String(node ?? '');
 const employees = Array.from({ length: 8 }, (_, index) => ({ id: index + 1, name: `Person ${index + 1}`, first_name: 'Person', last_name: String(index + 1), status: 'active', unit_id: 1, unit_name: 'Operations', department: 'Kitchen' }));
+const availableSources = { employees: true, attendance: true, assets: true, permissions: true, records: true };
 
 test('views isolate content and share filters and the aqua navigation', () => {
   const app = setup();
@@ -112,7 +117,7 @@ test('view changes retain filters and URL/memory restoration validates the view'
 });
 
 test('printing retains the complete report across every view', () => {
-  const app = setup({ employees });
+  const app = setup({ employees, sourceAvailability: availableSources });
   for (const activeView of ['overview', 'charts', 'units', 'employees']) {
     app.state.activeView = activeView;
     const print = walk(app.render()).find(n => n.type === 'button' && text(n).includes('Imprimir reporte'));
@@ -125,7 +130,7 @@ test('printing retains the complete report across every view', () => {
 });
 
 test('one attention queue expands and preserves employee focus', () => {
-  const app = setup({ employees, activeView: 'employees' });
+  const app = setup({ employees, activeView: 'employees', sourceAvailability: availableSources });
   let tree = app.render();
   const focusedButtons = value => walk(value).filter(n => n.type === 'button' && n.props['aria-label']?.startsWith('Enfocar:'));
   assert.equal(walk(tree).filter(n => n.type === 'details').length, 1);
@@ -144,6 +149,89 @@ test('partial data warnings remain visible in every view', () => {
     app.state.activeView = activeView;
     assert.match(text(app.render()), /Existing source warning/);
   }
+});
+
+test('unavailable sources are explicit in cards and in the printed report', () => {
+  const app = setup({ sourceWarnings: ['Attendance unavailable'] });
+  const tree = app.render();
+  const cards = named(tree, 'KpiCard').map(node => node.props.card);
+  assert.equal(cards.length, 8);
+  assert.ok(cards.every(card => card.status === 'unavailable'));
+  assert.ok(cards.every(card => card.value === 'N/D'));
+
+  const print = walk(tree).find(node => node.type === 'button' && text(node).includes('Imprimir reporte'));
+  print.props.onClick();
+  assert.deepEqual(app.printed[0].sourceWarnings, ['Attendance unavailable']);
+});
+
+test('unfinished attendance samples stay unavailable instead of looking measured', () => {
+  const app = setup({
+    employees: employees.slice(0, 1),
+    sourceAvailability: availableSources,
+    attendanceOverview: {
+      assignments: [{
+        today_rule: { is_rest_day: false },
+        today_status: 'pending',
+        user_company_id: 1,
+      }],
+    },
+  });
+  const cards = named(app.render(), 'KpiCard').map(node => node.props.card);
+  for (const id of ['attendance', 'punctuality']) {
+    const card = cards.find(candidate => candidate.id === id);
+    assert.equal(card.value, 'N/D');
+    assert.equal(card.status, 'unavailable');
+  }
+  assert.equal(cards.find(card => card.id === 'late').status, 'healthy');
+});
+
+test('employee rows fail closed when any displayed source is unavailable', () => {
+  const app = setup({
+    activeView: 'employees',
+    employees: employees.slice(0, 1),
+    sourceAvailability: { ...availableSources, assets: false },
+  });
+  const table = named(app.render(), 'HrEmployeeOperationsTable')[0];
+  assert.equal(table.props.rows[0].assets, 'N/D');
+  assert.equal(table.props.rows[0].signalCount, 'N/D');
+  assert.equal(table.props.rows[0].status, 'unavailable');
+});
+
+test('a single attendance category renders a deterministic visible ring', () => {
+  const app = setup({
+    activeView: 'charts',
+    employees: employees.slice(0, 1),
+    sourceAvailability: availableSources,
+    attendanceOverview: {
+      assignments: [{
+        today_rule: { is_rest_day: false },
+        today_status: 'pending',
+        user_company_id: 1,
+      }],
+    },
+  });
+  const ring = walk(app.render()).find(node => node.props['data-hr-kpi-single-segment'] === 'attendance');
+  assert.ok(ring);
+  assert.equal(ring.props.role, 'img');
+  assert.equal(ring.props['aria-label'], 'Pendiente: 1');
+  assert.equal(ring.props.style.backgroundColor, '#10b981');
+});
+
+test('the KPI workspace contains no arbitrary composite-score formula', () => {
+  const employeeTableSource = readFileSync(resolve(dirname(kpiPath), 'components/HrEmployeeOperationsTable.tsx'), 'utf8');
+  const standardCopySource = readFileSync(resolve(dirname(kpiPath), 'translations/standardUiCopy.ts'), 'utf8');
+  assert.doesNotMatch(source, /weightedAverage|getHealthStatus|readinessScore|healthScore/);
+  assert.doesNotMatch(employeeTableSource, /row\.score|barClasses/);
+  assert.doesNotMatch(standardCopySource, /45% attendance|45% asistencia|Puntaje: 45%/);
+});
+
+test('source loading preserves scope, server page limits, and latest-response ordering', () => {
+  assert.match(source, /pageSize: 100/);
+  assert.doesNotMatch(source, /listMyPermissions/);
+  assert.match(source, /requestId !== loadRequestRef\.current/);
+  assert.match(source, /mountedRef\.current/);
+  assert.match(source, /setSourceAvailability\(\{/);
+  assert.doesNotMatch(source, /error\.message/);
 });
 
 test('grouped selector retains selection semantics and legacy default', () => {

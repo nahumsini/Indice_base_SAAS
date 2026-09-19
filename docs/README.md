@@ -40,6 +40,7 @@ aislamiento, autorización, integridad ni seguridad de liberación.
 | Registro y disponibilidad de módulos | [Module Access Registry](complementary-module-access-registry-standard-2026-08-02.md) |
 | Permisos de módulos y pestañas | [User Module/Tab Scope Standard](users-module-tab-scope-standard-2026-08-02.md) |
 | Estructura de pestañas analíticas | [KPI Tab Standard](KPI_TAB_STANDARD.md) |
+| Presentación pública de inversión | [Investment Public Page](investment-public-page-contract.md) |
 | Datos sintéticos de demostración | [Production Demo Data Runbook](production-demo-data-runbook.md) |
 | Analítica del producto | [Product Analytics Security Contract](product-analytics-security-contract.md) |
 
@@ -70,6 +71,7 @@ aislamiento, autorización, integridad ni seguridad de liberación.
 | Comandas, meseros y cocina | [Restaurant Order Ecosystem](pos-restaurant-order-ecosystem-v1.md) |
 | Flujos de oportunidades | [Opportunity Multi-Flow Decision](sales-opportunity-multi-flow-decision-2026-08-27.md) |
 | Reportes de comisiones | [Sales Commission Reporting](sales-commission-reporting-contract.md) |
+| Indicadores de Ventas | [Sales KPI Workspace](sales-kpi-workspace-contract.md) |
 
 ### Personas, procesos e indicadores ejecutivos
 
@@ -77,6 +79,7 @@ aislamiento, autorización, integridad ni seguridad de liberación.
 |---|---|
 | Procesos compartidos, versiones y ejecuciones | [Shared Processes](processes-tasks-shared-processes-contract.md) |
 | Mediciones de Procesos y Tareas | [Process KPI Measurements](processes-tasks-kpi-measurement-contract.md) |
+| Mediciones de Recursos Humanos | [HR KPI Measurements](hr-kpi-measurement-contract.md) |
 | Indicadores y diagnóstico ejecutivo | [KPI Executive Decision Contract](KPI_EXECUTIVE_DECISION_CONTRACT.md) |
 | Finalización de nómina | [Payroll Finalization](payroll/payroll-finalization-2026-08-04.md) |
 | Impresión de nómina | [Payroll Print Contract](payroll/payroll-print-contract-2026-08-04.md) |
@@ -147,6 +150,7 @@ estado actual. Cuando se desconoce el estado del ambiente se declara desconocido
 Evidencias recientes para consultar con su alcance original:
 
 - [Integración local del 19 de septiembre](indice-local-integration-2026-09-19.md).
+- [Integración de KPIs y presentación pública del 19 de septiembre](indice-kpi-main-integration-2026-09-19.md).
 - [Integración del 15 de septiembre](indice-main-integration-2026-09-15.md).
 - [Administración de plataforma](indice-platform-admin-service-analysis-2026-09-13.md) y
   [claridad de sus modales](indice-platform-admin-modal-clarity-2026-09-14.md).

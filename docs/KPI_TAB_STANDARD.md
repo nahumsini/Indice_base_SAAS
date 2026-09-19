@@ -18,10 +18,16 @@ in basic modules. This approval covers information organization, not validation 
 of a module's existing calculations. Adoption is tracked per module, rather than inferred from
 this standard's date. Consult the contracts for [Expenses](expenses-kpi-workspace-contract.md),
 [Petty Cash](petty-cash-kpi-workspace-contract.md),
-[Receivables](receivables-kpi-workspace-contract.md), and
+[Receivables](receivables-kpi-workspace-contract.md),
+[Sales](sales-kpi-workspace-contract.md), and
 [Processes and Tasks](processes-tasks-kpi-measurement-contract.md), together with the dated evidence
 in the [documentation map](README.md). A contract or a local implementation does not certify
 production deployment.
+
+The Human Resources calculation closeout approved on
+2026-09-16 is governed separately by the
+[Human Resources KPI Measurement Contract](hr-kpi-measurement-contract.md); its
+formulas must not be copied into another domain.
 
 ---
 
@@ -167,8 +173,9 @@ to reduce simultaneous information density:
 - `overview` (Resumen): the eight existing KPI cards, executive signal and
   supporting totals.
 - `charts` (Gráficas): attendance, permission and record distributions.
-- `units` (Por unidad): unit performance chart, unit/department rankings and
-  the operational unit summary table.
+- `units` (Por unidad): unit attention-signal chart, unit/department rankings and
+  the operational unit summary table. Unit comparison uses explicit signal
+  counts, not a readiness score.
 - `employees` (Colaboradores): employee operations table and a collapsible
   attention queue. The queue replaces the duplicate short attention ranking;
   it retains each case's signals and focus action, showing five cases initially
@@ -182,9 +189,10 @@ back to `overview` for unsupported values. Retain employee table pagination when
 switching views. Source warnings remain visible above the selected content.
 
 Refresh and print stay global. Printing continues to generate the complete
-filtered report, independently of the selected view. This presentation change
-does not change the current KPI formulas, thresholds, data sources, totals or
-permission contracts, and does not add the indicators from earlier proposals.
+filtered report, independently of the selected view, including source-quality
+warnings. The 2026-09-16 RH measurement closeout replaced the earlier composite
+health/readiness scores and unreliable denominators with the domain contract
+linked above. It does not add the unsupported indicators from earlier proposals.
 
 ### 3.4 Adoption boundaries
 
@@ -1215,3 +1223,16 @@ available. [`receivables-kpi-workspace-contract.md`](./receivables-kpi-workspace
 defines the eight measurements, current versus period scope, instalment-based ageing,
 customer identity, read-only permissions and full filtered reports. Validation is in
 [`indice-receivables-kpi-analysis-2026-09-15.md`](./indice-receivables-kpi-analysis-2026-09-15.md).
+
+### Sales adoption (2026-09-16)
+
+Sales implements Overview / Analysis / By unit / Opportunities with coral shared
+navigation, dependent organization filters, retained view/table state and equal 24 px
+gaps. [`sales-kpi-workspace-contract.md`](./sales-kpi-workspace-contract.md) defines the
+eight measurements, event-period versus current-stock semantics, opportunity-linked
+funnel, stable seller identity, server-owned operational scope and complete filtered
+report. Validation and the defects replaced from the previous page are recorded in
+[`indice-sales-kpi-analysis-2026-09-16.md`](./indice-sales-kpi-analysis-2026-09-16.md).
+Registered sales are not relabelled as accounting revenue; partial monetary conversion
+does not produce a complete headline or average, and unavailable historical metrics are
+not inferred from current CRM snapshots.

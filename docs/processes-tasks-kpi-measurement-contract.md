@@ -1,6 +1,6 @@
 # Processes and Tasks KPI measurements and internal views
 
-Status: approved by the product owner and implemented on 2026-09-15.
+Status: approved by the product owner; implementation closed on 2026-09-16.
 Owner: Processes and Tasks. Extends `KPI_TAB_STANDARD.md` and
 `processes-tasks-shared-processes-contract.md`.
 
@@ -35,6 +35,13 @@ an Analysis disclosure. They retain Agenda's classification rules; they are not
 presented as the new deadline measurements. This release does not change task
 states, completion rules, permissions, historical data or schema.
 
+Highlighted attention rankings use visible late-open and pending-audit counts,
+not the legacy productivity/health composites. A progress bar is shown only when
+it represents a real proportion, such as late open tasks divided by open tasks.
+Source failures show localized safe copy rather than raw server messages. A
+single-category composition uses a deterministic accessible donut so the chart
+cannot disappear because of chart-library arc geometry.
+
 ## Scope and temporal meaning
 
 All measurements use the same backend `taskFilter` as the existing dashboard:
@@ -48,7 +55,10 @@ requested range. Date-only deadlines are inclusive calendar dates. Dates and
 DATETIME values use the existing persistence conventions; this release does not
 introduce a tenant time-zone conversion. Historical results are reconstructed
 from the currently retained timestamps, deadlines and assignments, not immutable
-snapshots. Deadline edits/reopenings may change historical results.
+snapshots. Deadline edits/reopenings may change historical results. When a
+retained cancellation timestamp exists it controls historical state: a task
+cancelled after cutoff remains open at cutoff. Current `cancelled` status is only
+the compatibility fallback for records without that timestamp.
 
 The visible task cohort is deliberately retained. In particular, the new metrics
 do not discover tasks outside the selected Agenda scope or include previously
@@ -69,7 +79,7 @@ clipped to the selected period and cohort. No hidden filter expansion occurs.
 | Audit turnaround | Median elapsed days between valid completion and audit timestamps for audits inside the period and by cutoff. Invalid/negative durations are excluded; sample size is returned. |
 | Audited quality | Observed 0–5 ratings for audits dated in the period and by cutoff. Average, six rating buckets, rated and audited counts. No substitution with audit coverage. |
 | Required evidence | Only tasks with `evidence_required`; current active attachments determine presence. Missing evidence is separated into open and closed tasks. This is document presence, not review of file contents. |
-| Elapsed time to close | Median creation-to-latest-completion days for valid deliveries. Generated process tasks are excluded to avoid mixing advance generation with execution time. Not working hours; reopening history is not reconstructed. |
+| Elapsed time to close | Median creation-to-latest-completion days for valid deliveries. Tasks materialized by a process run (`process_run_id`) are excluded to avoid mixing advance generation with execution time; a manually created task may retain `process_id` and remains eligible. Not working hours; reopening history is not reconstructed. |
 | Upcoming deadlines | Open tasks with deadline in the explicit upcoming window and selected cohort. |
 | Runs observed | Distinct runs represented by visible tasks with an existing start date no later than cutoff. Future runs excluded. |
 | Runs with visible delays | Observed runs with at least one visible open task past its deadline. Computed from tasks, not a stale persisted delay flag. |
@@ -113,24 +123,25 @@ Regression coverage:
 - `react/tests/process-task-kpi-views.test.mjs`: isolated views, memory validation,
   unchanged loading dependencies, filter-preserving links, retained table
   instances, complete printing, escaped report names, missing measurements and
-  eight supported locales.
+  eight supported locales, safe errors, evidence-based rankings and the
+  single-category chart fallback.
 - Existing Processes and Tasks UI regression, TypeScript and production build.
 
-Integration tests use a disposable MySQL instance and transactional synthetic
-fixtures. The pre-existing test database has unrelated Flyway checksum/version
-mismatches and was not repaired. No production deployment is part of this task.
+Integration tests use the isolated `indice_test_db` database and transactional
+synthetic fixtures, never the functional or production database. Flyway
+validated 276 migrations and advanced that test schema from 272 to 276. No
+production deployment is part of this task.
 
 ### Delivery evidence
 
-- Backend: 33 focused tests passed (10 measurement, 2 real-MySQL integration,
+- Backend: 35 focused tests passed (12 measurement, 2 real-MySQL integration,
   17 API-controller, 4 visibility tests).
-- Frontend: 27 focused tests passed (19 existing module regressions and 8 KPI
+- Frontend: 29 focused tests passed (19 existing module regressions and 10 KPI
   view/data/export regressions). TypeScript and production build passed.
 - The existing build still reports large chunks; this change introduces no new
   runtime dependencies.
-- Local frontend at `http://localhost:5174/processes-tasks/kpis` synchronized;
-  backend on port 8082 recompiled and restarted with its existing configuration.
-  Frontend, backend health and API proxy returned 200; unauthenticated KPI API
-  returned 401. Vite serves the new view components.
-- Browser automation discovery returned no connected browser. No authenticated
-  visual inspection or live client-data validation is claimed.
+- Isolated frontend at `http://127.0.0.1:5175/processes-tasks/kpis` validated
+  against the backend on port 8082. Authenticated desktop review covered
+  Overview, Analysis, By unit and Performance; mobile review covered Overview.
+  There were no browser exceptions, horizontal page overflow, raw server errors
+  or failed KPI requests. The one-category composition rendered visibly.
