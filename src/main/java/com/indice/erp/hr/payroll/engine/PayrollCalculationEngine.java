@@ -208,6 +208,14 @@ public class PayrollCalculationEngine {
     }
 
     private BigDecimal fixedSalaryDeduction(BigDecimal periodSalary, BigDecimal unpaidDays, BigDecimal prorationDays) {
+        var uncappedDeduction = uncappedFixedSalaryDeduction(periodSalary, unpaidDays, prorationDays);
+        if (periodSalary == null || periodSalary.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return uncappedDeduction.min(periodSalary);
+    }
+
+    private BigDecimal uncappedFixedSalaryDeduction(BigDecimal periodSalary, BigDecimal unpaidDays, BigDecimal prorationDays) {
         if (periodSalary == null
             || unpaidDays == null
             || prorationDays == null
@@ -220,6 +228,22 @@ public class PayrollCalculationEngine {
         return periodSalary
             .divide(prorationDays, 6, RoundingMode.HALF_UP)
             .multiply(unpaidDays);
+    }
+
+    private boolean attendanceDeductionWasCapped(PayrollCalculationContext context) {
+        if ("hourly".equals(context.salary().salaryType())) {
+            return false;
+        }
+        var baseSalary = context.salary().baseSalary();
+        if (baseSalary == null || baseSalary.compareTo(BigDecimal.ZERO) <= 0) {
+            return false;
+        }
+        var unpaidDays = context.attendance().unpaidAbsenceDays();
+        var prorationDays = context.attendance().controlWorkDays().compareTo(BigDecimal.ZERO) > 0
+            ? context.attendance().controlWorkDays()
+            : context.attendance().paidDays().add(unpaidDays);
+        return uncappedFixedSalaryDeduction(baseSalary, unpaidDays, prorationDays)
+            .compareTo(baseSalary) > 0;
     }
 
     private Map<String, Object> calculationInputs(PayrollCalculationContext context, BigDecimal taxableBase) {
@@ -275,6 +299,9 @@ public class PayrollCalculationEngine {
         var warnings = new ArrayList<String>();
         if (context.includeInFiscal() && genericUnsupportedCountry) {
             warnings.add("País no soportado por proveedor fiscal. El cálculo es una estimación operativa y no debe tratarse como cumplimiento fiscal.");
+        }
+        if (attendanceDeductionWasCapped(context)) {
+            warnings.add("El descuento automático por faltas excedía el salario fijo del periodo y se limitó para evitar un neto negativo.");
         }
         warnings.addAll(context.currencySnapshot().warnings());
         if (context.includeInFiscal()) {

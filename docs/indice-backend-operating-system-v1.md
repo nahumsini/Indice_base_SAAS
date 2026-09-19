@@ -302,6 +302,16 @@ two-step workflow can protect consistency.
   domain or presentation boundary.
 - Effective-dated fiscal/payroll rules retain the exact version or snapshot used for an approved
   calculation.
+- Payroll recalculation reuses the snapshotted attendance control-day denominator. Legacy fallback
+  reconstruction includes missing-attendance workdays and does not count paid leave twice. An
+  automatic fixed-salary absence deduction is capped at the salary for that period, so attendance
+  alone cannot produce a negative net amount; any cap intervention remains visible in the
+  calculation warnings and approved historical runs remain immutable.
+- Payroll mutations serialize on the tenant-owned run before checking or changing its lifecycle.
+  Approval enforces separation of duties against the actor who last recalculated the run for both
+  current drafts and legacy processed runs. Before creating payable expenses, approval rejects an
+  empty run, negative employee amounts, an employee net that does not equal gross minus deductions,
+  or run totals that do not exactly reconcile with its employee lines.
 
 ### 11.1 Exchange-Rate Reference Contract
 

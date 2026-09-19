@@ -335,7 +335,7 @@ public class KioskSessionService {
                 );
             },
             definition.id(), sha256(accessToken), persistedChannel,
-            -inactivityTimeout(definition).getSeconds()
+            -sessionInactivityTimeout(definition, persistedChannel).getSeconds()
         );
         if (rows.isEmpty()) {
             throw new SecurityException("Kiosk authentication is required.");
@@ -733,6 +733,17 @@ public class KioskSessionService {
             case "PETTY_CASH" -> pettyCashInactivityTimeout;
             case "PROCESS_TASKS" -> processTasksInactivityTimeout;
             default -> DEFAULT_INACTIVITY_TIMEOUT;
+        };
+    }
+
+    private Duration sessionInactivityTimeout(
+            KioskResolvedDefinition definition,
+            String persistedChannel) {
+        return switch (persistedChannel) {
+            case KioskExecutionChannels.AUTHENTICATED_WEB,
+                 KioskExecutionChannels.MOBILE_MULTI_KIOSK,
+                 KioskExecutionChannels.PROVIDER_MULTI_KIOSK -> employeeCenterInactivityTimeout;
+            default -> inactivityTimeout(definition);
         };
     }
 

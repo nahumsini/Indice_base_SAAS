@@ -48,6 +48,10 @@ class KioskEngineMaintenanceJobTest {
             .map(invocation -> String.valueOf((Object) invocation.getArgument(0)))
             .toList();
         assertThat(sql).hasSize(2).allSatisfy(statement -> {
+            assertThat(statement).contains("session.channel IN (");
+            assertThat(statement).contains(
+                "'AUTHENTICATED_WEB', 'MOBILE_MULTI_KIOSK', 'PROVIDER_MULTI_KIOSK'");
+            assertThat(statement).contains("THEN 28800");
             assertThat(statement).contains("definition.owner_module = 'PROCUREMENT'");
             assertThat(statement).contains("definition.kiosk_type = 'supplier_portal'");
             assertThat(statement).contains("THEN 900");
