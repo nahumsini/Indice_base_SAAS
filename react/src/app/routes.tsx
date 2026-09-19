@@ -10,6 +10,7 @@ import { LocalizedLoadingBarOverlay } from './components/LocalizedLoadingBarOver
 import { WorkbarLayoutProvider } from './components/workbar/WorkbarLayoutContext';
 
 const App = lazy(() => import('./App'));
+const InvestmentPage = lazy(() => import('./Public/Investment/InvestmentPage'));
 const HumanResourcesKiosk = lazy(() => import('./BasicModules/HumanResources/Kiosk/Kiosk'));
 const ExpensesPayablesKiosk = lazy(() => import('./BasicModules/Expenses/Kiosk/PayablesKioskPage'));
 const ProcessTasksKiosk = lazy(() => import('./BasicModules/ProcessesTasks/Kiosk/PublicTaskKioskPage'));
@@ -447,6 +448,20 @@ const allowPublicDemoOrDistributorSession = async () => {
 };
 
 export const router = createBrowserRouter([
+  {
+    // Public editorial page, intentionally absent from product navigation.
+    id: 'investment',
+    path: '/investment',
+    element: <Suspense fallback={<LocalizedLoadingBarOverlay isVisible variant="moduleNavigation" />}><InvestmentPage /></Suspense>,
+    errorElement: <WorkspaceRouteError />,
+  },
+  {
+    // Personalized public copy for a client presentation; it shares the same read-only content.
+    id: 'investment-carlos-munoz',
+    path: '/Mrcarlosmunoz',
+    element: <Suspense fallback={<LocalizedLoadingBarOverlay isVisible variant="moduleNavigation" />}><InvestmentPage welcomeName="Carlos Muñoz" showAcknowledgement footerMessage="Muchos saludos también al señor Ricardo Moreno :P" /></Suspense>,
+    errorElement: <WorkspaceRouteError />,
+  },
   {
     path: '/',
     loader: redirectToLanding,

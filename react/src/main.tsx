@@ -1,4 +1,4 @@
-import { StrictMode } from 'react';
+import { StrictMode, useSyncExternalStore, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router';
 import { router } from './app/routes';
@@ -37,6 +37,16 @@ window.addEventListener('unhandledrejection', (event) => {
 // user explicitly retries.
 
 const rootElement = document.getElementById('root');
+const publicPresentationRouteIds = new Set(['investment', 'investment-carlos-munoz']);
+
+// The static investment presentation must not mount tenant-data providers.
+// All existing routes retain the same providers, including after SPA navigation.
+function WorkspaceProviders({ children }: { children: ReactNode }) {
+  const isInvestment = useSyncExternalStore(router.subscribe, () =>
+    router.state.matches.some(match => publicPresentationRouteIds.has(match.route.id)));
+  if (isInvestment) return children;
+  return <FavoritesProvider><PettyCashProvider>{children}</PettyCashProvider></FavoritesProvider>;
+}
 
 if (!rootElement) {
   throw new Error('Root element not found');
@@ -45,11 +55,9 @@ if (!rootElement) {
 createRoot(rootElement).render(
   <StrictMode>
     <LanguageProvider>
-      <FavoritesProvider>
-        <PettyCashProvider>
-          <RouterProvider router={router} />
-        </PettyCashProvider>
-      </FavoritesProvider>
+      <WorkspaceProviders>
+        <RouterProvider router={router} />
+      </WorkspaceProviders>
     </LanguageProvider>
   </StrictMode>,
 );
