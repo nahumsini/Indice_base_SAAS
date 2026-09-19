@@ -131,6 +131,45 @@ class HrPayrollServiceTest {
     }
 
     @Test
+    void fixedSalaryDeductionCannotExceedTheSalaryForThePeriod() {
+        var deduction = HrPayrollService.computeFixedSalaryDeduction(
+            new BigDecimal("3000.00"),
+            new BigDecimal("6"),
+            new BigDecimal("2")
+        );
+
+        assertEquals(new BigDecimal("3000.00"), deduction);
+    }
+
+    @Test
+    void storedAttendanceReusesItsControlDaysSnapshot() {
+        var controlDays = HrPayrollService.resolveStoredControlWorkDays(
+            Map.of("controlWorkDays", "10.00"),
+            new BigDecimal("4"),
+            BigDecimal.ONE,
+            new BigDecimal("2"),
+            new BigDecimal("2"),
+            new BigDecimal("3")
+        );
+
+        assertEquals(new BigDecimal("10.00"), controlDays);
+    }
+
+    @Test
+    void legacyAttendanceReconstructionIncludesMissingDaysWithoutCountingPaidLeaveTwice() {
+        var controlDays = HrPayrollService.resolveStoredControlWorkDays(
+            Map.of(),
+            new BigDecimal("4"),
+            BigDecimal.ONE,
+            new BigDecimal("2"),
+            new BigDecimal("2"),
+            new BigDecimal("3")
+        );
+
+        assertEquals(new BigDecimal("10"), controlDays);
+    }
+
+    @Test
     void saveColombiaConfigPersistsCompanyCountryConfig() {
         var service = newService();
         var currentUser = new AuthSessionUser(7L, 1L, "Payroll Admin", "admin");
@@ -461,6 +500,80 @@ class HrPayrollServiceTest {
     }
 
     @Test
+    void approveRunRejectsSameUserThatRecalculatedCurrentDraft() throws Exception {
+        var service = newService();
+        var currentUser = new AuthSessionUser(7L, 1L, "Payroll Admin", "admin");
+
+        when(hrPayrollScopeAccess.resolve(currentUser)).thenReturn(HrOperationalScope.corporateOffice());
+        when(jdbcTemplate.query(
+            contains("FOR UPDATE"),
+            ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(1L),
+            eq(30L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            return List.of(rowMapper.mapRow(runResultSet(30L, "draft"), 0));
+        });
+        when(jdbcTemplate.query(
+            contains("SELECT processed_by, approved_by"),
+            ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(30L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            var rs = mock(ResultSet.class);
+            when(rs.getLong("processed_by")).thenReturn(7L);
+            when(rs.wasNull()).thenReturn(false);
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+
+        var error = assertThrows(IllegalArgumentException.class, () -> service.approveRun(currentUser, 30L));
+
+        assertEquals("The user who processed the payroll run cannot approve it.", error.getMessage());
+    }
+
+    @Test
+    void approveRunRejectsNegativeOrUnbalancedFinancialTotals() throws Exception {
+        var service = newService();
+        var currentUser = new AuthSessionUser(7L, 1L, "Payroll Admin", "admin");
+
+        when(hrPayrollScopeAccess.resolve(currentUser)).thenReturn(HrOperationalScope.corporateOffice());
+        when(jdbcTemplate.query(
+            contains("FOR UPDATE"),
+            ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(1L),
+            eq(30L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            return List.of(rowMapper.mapRow(runResultSet(30L, "processed"), 0));
+        });
+        when(jdbcTemplate.query(
+            contains("SELECT processed_by, approved_by"),
+            ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(30L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            var rs = mock(ResultSet.class);
+            when(rs.getLong("processed_by")).thenReturn(8L);
+            when(rs.wasNull()).thenReturn(false);
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+        when(jdbcTemplate.queryForObject(
+            contains("invalid_payroll_run"),
+            eq(Integer.class),
+            eq(1L),
+            eq(30L)
+        )).thenReturn(1);
+
+        var error = assertThrows(IllegalArgumentException.class, () -> service.approveRun(currentUser, 30L));
+
+        assertTrue(error.getMessage().contains("negative net amounts"));
+    }
+
+    @Test
     void cancelRunRejectsApprovedRunWithFinancialObligations() throws Exception {
         var service = newService();
         var currentUser = new AuthSessionUser(7L, 1L, "Payroll Admin", "admin");
@@ -534,6 +647,12 @@ class HrPayrollServiceTest {
             var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
             return List.of(rowMapper.mapRow(runResultSet(30L, "processed"), 0));
         });
+        when(jdbcTemplate.queryForObject(
+            contains("invalid_payroll_run"),
+            eq(Integer.class),
+            eq(1L),
+            eq(30L)
+        )).thenReturn(0);
         when(jdbcTemplate.queryForObject(
             contains("payroll_treatment_snapshot = 'fiscal_payroll'"),
             eq(Integer.class),

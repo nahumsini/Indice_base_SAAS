@@ -182,6 +182,31 @@ class PayrollCalculationEngineProviderTest {
     }
 
     @Test
+    void automaticAbsenceDeductionCannotMakeFixedSalaryNetNegative() {
+        var baseContext = context("MX", "MX", "MXN", "semimonthly", "3000.00");
+        var attendance = new PayrollCalculationContext.PayrollAttendanceInput(
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            new BigDecimal("6"),
+            new BigDecimal("2"),
+            BigDecimal.ZERO,
+            new BigDecimal("4"),
+            new BigDecimal("2"),
+            0,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            List.of(),
+            List.of()
+        );
+        var result = engine(new FakePayrollRuleResolver()).calculateLine(withAttendance(baseContext, attendance));
+
+        assertTotals(result, "3000.00", "3000.00", "0.00", "0.00", "3000.00");
+        assertLineAmount(result, "ABSENCE_DEDUCTION", "3000.00");
+        assertTrue(result.calculationWarnings().stream().anyMatch((warning) -> warning.contains("neto negativo")));
+    }
+
+    @Test
     void manualEmployerContributionIncreasesEmployerCostOnly() {
         var result = engine(new FakePayrollRuleResolver()).calculateLine(
             context(
@@ -870,6 +895,33 @@ class PayrollCalculationEngineProviderTest {
             fiscalAccumulator == null
                 ? PayrollCalculationContext.FiscalAccumulatorSnapshot.empty(country, periodEnd)
                 : fiscalAccumulator
+        );
+    }
+
+    private PayrollCalculationContext withAttendance(
+        PayrollCalculationContext context,
+        PayrollCalculationContext.PayrollAttendanceInput attendance
+    ) {
+        return new PayrollCalculationContext(
+            context.companyId(),
+            context.employeeId(),
+            context.userCompanyId(),
+            context.runId(),
+            context.country(),
+            context.jurisdiction(),
+            context.currency(),
+            context.fxRate(),
+            context.payrollFrequency(),
+            context.periodStartDate(),
+            context.periodEndDate(),
+            context.includeInFiscal(),
+            context.salary(),
+            attendance,
+            context.preferences(),
+            context.manualAdjustments(),
+            context.currencySnapshot(),
+            context.countryProfile(),
+            context.fiscalAccumulator()
         );
     }
 

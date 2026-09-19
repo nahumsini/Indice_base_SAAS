@@ -28,8 +28,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Sales-owned use cases for field sellers operating from the authenticated employee kiosk.
- * Browser input selects records and quantities only; prices, taxes, seller, scope and totals are
- * rebuilt from authoritative company data before the Sales aggregate is created.
+ * Browser input selects records, quantities and whether product taxes apply; prices, tax rates,
+ * seller, scope and totals are rebuilt from authoritative company data before the Sales aggregate
+ * is created.
  */
 @Service
 public class RouteSalesEmployeeKioskService {
@@ -115,6 +116,7 @@ public class RouteSalesEmployeeKioskService {
         var warehouse = requireCompanyWarehouse(definition.companyId(), request.warehouseId());
         var paymentMethod = normalizePaymentMethod(request.paymentMethod());
         var paymentReference = nullableText(request.paymentReference());
+        var applyProductTaxes = request.applyProductTaxes() == null || request.applyProductTaxes();
         if (Set.of("card", "transfer").contains(paymentMethod) && paymentReference == null) {
             throw new IllegalArgumentException("La referencia del cobro es obligatoria para tarjeta o transferencia.");
         }
@@ -164,7 +166,9 @@ public class RouteSalesEmployeeKioskService {
             line.put("quantity", entry.getValue());
             line.put("unitPrice", product.price());
             line.put("discountPercent", BigDecimal.ZERO);
-            line.put("taxPercent", product.taxPercent());
+            line.put("taxPercent", applyProductTaxes
+                ? product.taxPercent()
+                : BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
             line.put("warehouseId", warehouse.id());
             line.put("businessUnitId", warehouse.unitId());
             line.put("businessId", warehouse.businessId());
@@ -180,6 +184,7 @@ public class RouteSalesEmployeeKioskService {
         customFields.put("businessId", warehouse.businessId());
         customFields.put("businessName", warehouse.businessName());
         customFields.put("routeSettlementMode", settlementMode(paymentMethod));
+        customFields.put("routeTaxMode", applyProductTaxes ? "PRODUCT_TAX_ADDED" : "NO_TAX");
         if (paymentAccount != null) {
             customFields.put("paymentAccountId", paymentAccount.id());
             customFields.put("paymentAccountName", paymentAccount.name());
@@ -207,7 +212,8 @@ public class RouteSalesEmployeeKioskService {
         payload.put("metadata", Map.of(
             "source", "EMPLOYEE_ROUTE_SALES",
             "kioskDefinitionId", definition.id(),
-            "settlementPolicy", "METHOD_AWARE_TREASURY"));
+            "settlementPolicy", "METHOD_AWARE_TREASURY",
+            "taxPolicy", applyProductTaxes ? "PRODUCT_TAX_ADDED" : "NO_TAX"));
 
         var saved = sales.create(definition.companyId(), userId, "sales", payload);
         if (hasStockItems && !"completed".equalsIgnoreCase(text(saved.get("inventoryMovementStatus")))) {

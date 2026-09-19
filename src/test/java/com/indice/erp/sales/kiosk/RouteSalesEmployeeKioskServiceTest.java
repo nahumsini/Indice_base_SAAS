@@ -321,7 +321,7 @@ class RouteSalesEmployeeKioskServiceTest {
                 return saved;
             });
         var missingAccountRequest = new CreateSaleRequest(
-            44L, 1L, "transfer", "REF-2026-09-10", null, true, null,
+            44L, 1L, "transfer", "REF-2026-09-10", null, null, true, null,
             List.of(new SaleItemRequest(20L, new BigDecimal("2"))));
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
             service.createSale(routeSalesDefinition(), 91L, missingAccountRequest))
@@ -330,7 +330,7 @@ class RouteSalesEmployeeKioskServiceTest {
         verify(sales, never()).create(anyLong(), anyLong(), anyString(), any(Map.class));
 
         var request = new CreateSaleRequest(
-            44L, 1L, "transfer", "REF-2026-09-10", 88L, true, null,
+            44L, 1L, "transfer", "REF-2026-09-10", 88L, null, true, null,
             List.of(new SaleItemRequest(20L, new BigDecimal("2"))));
 
         var result = service.createSale(routeSalesDefinition(), 91L, request);
@@ -352,11 +352,92 @@ class RouteSalesEmployeeKioskServiceTest {
         assertThat((Map<String, Object>) payload.get("customFields"))
             .containsEntry("paymentAccountId", 88L)
             .containsEntry("paymentAccountName", "Banco operativo")
-            .containsEntry("routeSettlementMode", "DIRECT_TREASURY_BANK");
+            .containsEntry("routeSettlementMode", "DIRECT_TREASURY_BANK")
+            .containsEntry("routeTaxMode", "PRODUCT_TAX_ADDED");
+        assertThat((List<Map<String, Object>>) payload.get("saleLines"))
+            .singleElement()
+            .satisfies(line -> assertThat(line).containsEntry("taxPercent", new BigDecimal("16.00")));
         assertThat((Map<String, Object>) result.get("sale"))
             .containsEntry("payment_account_id", 88L)
             .containsEntry("payment_account_name", "Banco operativo")
             .containsEntry("finance_status", "approved");
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void createsAnExplicitTaxFreeRouteSaleWithoutTrustingClientRates() throws Exception {
+        given(jdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
+            .willAnswer(invocation -> {
+                var sql = invocation.getArgument(0, String.class);
+                var mapper = (RowMapper<Object>) invocation.getArgument(1, RowMapper.class);
+                var row = mock(ResultSet.class);
+                if (sql.contains("FROM user_companies")) {
+                    given(row.getLong("user_company_id")).willReturn(1314L);
+                    given(row.getString("seller_name")).willReturn("Andrea Martínez López");
+                    given(row.getString("email")).willReturn("andrea.martinez@example.com");
+                    given(row.getObject("unit_id", Long.class)).willReturn(24L);
+                    given(row.getObject("business_id", Long.class)).willReturn(29L);
+                    given(row.getString("unit_name")).willReturn("Cancún");
+                    given(row.getString("business_name")).willReturn("Cancún headquarters");
+                    return List.of(mapper.mapRow(row, 0));
+                }
+                if (sql.contains("FROM sales_contacts")) {
+                    given(row.getLong("id")).willReturn(44L);
+                    given(row.getString("company_name")).willReturn("Cliente de ruta");
+                    return List.of(mapper.mapRow(row, 0));
+                }
+                if (sql.contains("FROM sales_inventory_warehouses")) {
+                    given(row.getLong("id")).willReturn(1L);
+                    given(row.getString("name")).willReturn("Cancún");
+                    given(row.getString("business_unit_id")).willReturn("24");
+                    given(row.getString("business_unit_name")).willReturn("Cancún");
+                    given(row.getString("business_id")).willReturn("29");
+                    given(row.getString("business_name")).willReturn("Cancún headquarters");
+                    return List.of(mapper.mapRow(row, 0));
+                }
+                if (sql.contains("FROM sales_products")) {
+                    given(row.getLong("id")).willReturn(20L);
+                    given(row.getString("sku")).willReturn("SERV-20");
+                    given(row.getString("name")).willReturn("Instalación");
+                    given(row.getString("type")).willReturn("SERVICE");
+                    given(row.getBigDecimal("price")).willReturn(new BigDecimal("100.00"));
+                    given(row.getString("currency")).willReturn("MXN");
+                    given(row.getString("tax_category")).willReturn("standard");
+                    return List.of(mapper.mapRow(row, 0));
+                }
+                return List.of();
+            });
+        given(sales.create(anyLong(), anyLong(), anyString(), any(Map.class)))
+            .willAnswer(invocation -> {
+                var saved = new LinkedHashMap<>((Map<String, Object>) invocation.getArgument(3, Map.class));
+                saved.put("id", 78L);
+                saved.put("saleNumber", "SAL-00078");
+                saved.put("saleDate", "2026-09-15");
+                saved.put("subtotal", new BigDecimal("200.00"));
+                saved.put("taxTotal", BigDecimal.ZERO.setScale(2));
+                saved.put("totalAmount", new BigDecimal("200.00"));
+                return saved;
+            });
+        var request = new CreateSaleRequest(
+            44L, 1L, "cash", null, null, false, true, null,
+            List.of(new SaleItemRequest(20L, new BigDecimal("2"))));
+
+        service.createSale(routeSalesDefinition(), 91L, request);
+
+        var payloadCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(sales).create(
+            org.mockito.ArgumentMatchers.eq(2L),
+            org.mockito.ArgumentMatchers.eq(91L),
+            org.mockito.ArgumentMatchers.eq("sales"),
+            payloadCaptor.capture());
+        var payload = (Map<String, Object>) payloadCaptor.getValue();
+        assertThat((List<Map<String, Object>>) payload.get("saleLines"))
+            .singleElement()
+            .satisfies(line -> assertThat(line).containsEntry("taxPercent", new BigDecimal("0.00")));
+        assertThat((Map<String, Object>) payload.get("customFields"))
+            .containsEntry("routeTaxMode", "NO_TAX");
+        assertThat((Map<String, Object>) payload.get("metadata"))
+            .containsEntry("taxPolicy", "NO_TAX");
     }
 
     private KioskResolvedDefinition routeSalesDefinition() {

@@ -219,6 +219,7 @@ class KioskSessionServiceTest {
             .orElseThrow();
         assertThat(List.of(sessionQuery.getArguments()))
             .contains(KioskExecutionChannels.MOBILE_MULTI_KIOSK);
+        assertThat(sessionQuery.getArguments()[5]).isEqualTo(-28800L);
         verify(jdbcTemplate).update(
             contains("last_activity_at = CURRENT_TIMESTAMP"), any(Object[].class));
     }

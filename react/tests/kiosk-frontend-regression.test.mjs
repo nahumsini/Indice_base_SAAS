@@ -1759,6 +1759,9 @@ test('employee route sales is a native mobile tool with a guarded end-to-end che
   assert.match(workspace, /const saleInFlightRef = useRef\(false\)/);
   assert.match(workspace, /if \(saleInFlightRef\.current \|\| !contactId \|\| !warehouseId \|\| !cartLines\.length\) return/);
   assert.match(workspace, /items: cartLines\.map\(line => \(\{ productId: line\.product\.id, quantity: line\.quantity \}\)\)/);
+  assert.match(workspace, /const \[applyProductTaxes, setApplyProductTaxes\] = useState\(true\)/);
+  assert.match(workspace, /applyProductTaxes,[\s\S]*deliveredNow/);
+  assert.match(workspace, /const tax = applyProductTaxes \?/);
   assert.match(productPicker, /No hay almacenes activos disponibles/);
   assert.match(productPicker, /disabled=\{!warehouseId\}/);
   assert.match(productPicker, /Selecciona un almacén para ver existencias/);
@@ -1767,6 +1770,10 @@ test('employee route sales is a native mobile tool with a guarded end-to-end che
   assert.match(productPicker, /product\.image_url/);
   assert.match(productPicker, /product\.description/);
   assert.match(productPicker, /Cantidad de \$\{product\.name\}/);
+  assert.match(productPicker, /data-route-sales-tax-control/);
+  assert.match(productPicker, /aria-label="Agregar impuesto a la venta"/);
+  assert.match(productPicker, /checked=\{applyProductTaxes\}/);
+  assert.match(productPicker, /Venta sin impuesto: el total no sumará IVA/);
   assert.doesNotMatch(productPicker, /max-h-\[52vh\]/);
   assert.match(workspace, /paymentAccountId: electronicPayment \? paymentAccountId : null/);
   assert.match(workspace, /Cuenta bancaria destino \*/);

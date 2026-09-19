@@ -21,10 +21,12 @@ interface RouteSalesProductPickerProps {
   locale: string;
   currency: string;
   total: number;
+  applyProductTaxes: boolean;
   stockFor: (productId: number) => number;
   onQueryChange: (query: string) => void;
   onWarehouseChange: (warehouseId: number | null) => void;
   onQuantityChange: (product: RouteSalesKioskProduct, quantity: number) => void;
+  onApplyProductTaxesChange: (apply: boolean) => void;
 }
 
 function money(value: number, currency: string, locale: string) {
@@ -46,10 +48,12 @@ export function RouteSalesProductPicker({
   locale,
   currency,
   total,
+  applyProductTaxes,
   stockFor,
   onQueryChange,
   onWarehouseChange,
   onQuantityChange,
+  onApplyProductTaxesChange,
 }: RouteSalesProductPickerProps) {
   const [catalogView, setCatalogView] = useState<CatalogView>('available');
   const [category, setCategory] = useState('all');
@@ -113,6 +117,27 @@ export function RouteSalesProductPicker({
         </KioskWorkspaceFieldStatus>
       ) : null}
 
+      <label
+        className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${applyProductTaxes ? 'border-rose-200 bg-rose-50/70 dark:border-rose-900 dark:bg-rose-950/25' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900'}`}
+        data-route-sales-tax-control
+      >
+        <input
+          type="checkbox"
+          aria-label="Agregar impuesto a la venta"
+          checked={applyProductTaxes}
+          className="h-5 w-5 shrink-0 accent-[#E85D52]"
+          onChange={event => onApplyProductTaxesChange(event.target.checked)}
+        />
+        <span className="min-w-0">
+          <span className="block text-sm font-medium text-slate-950 dark:text-white">Agregar impuesto a la venta</span>
+          <span className="block text-xs leading-4 text-slate-500">
+            {applyProductTaxes
+              ? 'Se sumará la tasa fiscal configurada en cada producto.'
+              : 'Venta sin impuesto: el total no sumará IVA.'}
+          </span>
+        </span>
+      </label>
+
       <div className="sticky top-0 z-10 -mx-1 space-y-1.5 rounded-xl border border-slate-100 bg-white/95 p-1 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/95" data-route-sales-catalog-controls>
         <label className="relative block">
           <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
@@ -163,7 +188,8 @@ export function RouteSalesProductPicker({
           const available = stockFor(product.id);
           const incompatibleCurrency = Boolean(selectedCurrency && selectedCurrency !== product.currency && quantity === 0);
           const imageUrl = resolveSalesStorageUrl(product.image_url);
-          const lineTotal = quantity * Number(product.price || 0) * (1 + Number(product.tax_percent || 0) / 100);
+          const lineTotal = quantity * Number(product.price || 0)
+            * (applyProductTaxes ? 1 + Number(product.tax_percent || 0) / 100 : 1);
           return (
             <article key={product.id} className={`rounded-2xl border p-2 transition ${quantity ? 'border-rose-300 bg-rose-50/50 shadow-sm dark:border-rose-900 dark:bg-rose-950/20' : 'border-slate-200 dark:border-slate-700'}`}>
               <div className="grid grid-cols-[3rem_minmax(0,1fr)_auto] gap-2">
@@ -185,7 +211,7 @@ export function RouteSalesProductPicker({
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium text-slate-950 dark:text-white">{money(product.price, product.currency, locale)}</p>
-                  <p className="mt-1 text-[10px] text-slate-400">Imp. {product.tax_percent}%</p>
+                  <p className="mt-1 text-[10px] text-slate-400">{applyProductTaxes ? `Imp. ${product.tax_percent}%` : 'Sin impuesto'}</p>
                 </div>
               </div>
               {product.description ? <p className="mt-1.5 line-clamp-1 text-[11px] leading-4 text-slate-500">{product.description}</p> : null}

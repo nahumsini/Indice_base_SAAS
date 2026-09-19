@@ -15,6 +15,7 @@ public class KioskEngineMaintenanceJob {
     private final int expensesInactivityTimeoutSeconds;
     private final int pettyCashInactivityTimeoutSeconds;
     private final int processTasksInactivityTimeoutSeconds;
+    private final int employeeCenterInactivityTimeoutSeconds;
 
     @Autowired
     public KioskEngineMaintenanceJob(
@@ -22,16 +23,19 @@ public class KioskEngineMaintenanceJob {
             @Value("${app.hr.kiosk.inactivity-timeout-seconds:180}") int hrInactivityTimeoutSeconds,
             @Value("${app.expenses.kiosk.inactivity-timeout-seconds:300}") int expensesInactivityTimeoutSeconds,
             @Value("${app.petty-cash.kiosk.inactivity-timeout-seconds:900}") int pettyCashInactivityTimeoutSeconds,
-            @Value("${app.process-tasks.kiosk.inactivity-timeout-seconds:1800}") int processTasksInactivityTimeoutSeconds) {
+            @Value("${app.process-tasks.kiosk.inactivity-timeout-seconds:1800}") int processTasksInactivityTimeoutSeconds,
+            @Value("${app.kiosk.employee-center.inactivity-timeout-seconds:28800}") int employeeCenterInactivityTimeoutSeconds) {
         this.jdbcTemplate = jdbcTemplate;
         this.hrInactivityTimeoutSeconds = timeoutSeconds(hrInactivityTimeoutSeconds, 180);
         this.expensesInactivityTimeoutSeconds = timeoutSeconds(expensesInactivityTimeoutSeconds, 300);
         this.pettyCashInactivityTimeoutSeconds = timeoutSeconds(pettyCashInactivityTimeoutSeconds, 900);
         this.processTasksInactivityTimeoutSeconds = timeoutSeconds(processTasksInactivityTimeoutSeconds, 1800);
+        this.employeeCenterInactivityTimeoutSeconds = timeoutSeconds(
+            employeeCenterInactivityTimeoutSeconds, 28800);
     }
 
     KioskEngineMaintenanceJob(JdbcTemplate jdbcTemplate) {
-        this(jdbcTemplate, 180, 300, 900, 1800);
+        this(jdbcTemplate, 180, 300, 900, 1800, 28800);
     }
 
     @Scheduled(
@@ -131,6 +135,9 @@ public class KioskEngineMaintenanceJob {
             session.last_activity_at < TIMESTAMPADD(
                 SECOND,
                 -(CASE
+                    WHEN session.channel IN (
+                        'AUTHENTICATED_WEB', 'MOBILE_MULTI_KIOSK', 'PROVIDER_MULTI_KIOSK'
+                    ) THEN %d
                     WHEN definition.owner_module = 'PROCUREMENT'
                          AND definition.kiosk_type = 'supplier_portal' THEN 900
                     WHEN definition.owner_module = 'HUMAN_RESOURCES' THEN %d
@@ -141,6 +148,7 @@ public class KioskEngineMaintenanceJob {
                 END),
                 CURRENT_TIMESTAMP)
             """.formatted(
+                employeeCenterInactivityTimeoutSeconds,
                 hrInactivityTimeoutSeconds,
                 expensesInactivityTimeoutSeconds,
                 pettyCashInactivityTimeoutSeconds,

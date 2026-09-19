@@ -1264,7 +1264,7 @@ public class HrPayrollService {
         Map<String, Object> payload,
         HrOperationalScope scope
     ) {
-        var run = loadRun(companyId, runId);
+        var run = loadRunForUpdate(companyId, runId);
         requireRunStatus(run, "draft");
         hrPayrollScopeAccess.requireRunLineInScope(companyId, scope, runId, lineId);
         var line = loadRunLine(runId, lineId);
@@ -1382,7 +1382,7 @@ public class HrPayrollService {
     ) {
         authorizationService.require(currentUser, HrPayrollAuthorizationService.Action.PREPARE);
         var scope = hrPayrollScopeAccess.resolve(currentUser);
-        var run = loadRun(currentUser.companyId(), runId);
+        var run = loadRunForUpdate(currentUser.companyId(), runId);
         requireRunStatus(run, "draft");
         hrPayrollScopeAccess.requireRunLineInScope(currentUser.companyId(), scope, runId, lineId);
         var line = loadRunLine(runId, lineId);
@@ -1467,7 +1467,7 @@ public class HrPayrollService {
         long runId,
         HrOperationalScope scope
     ) {
-        var run = loadRun(companyId, runId);
+        var run = loadRunForUpdate(companyId, runId);
         requireEditableDraftStatus(run);
         hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, runId);
         recomputeRunLinesWithEngine(runId, ensurePreferences(companyId));
@@ -1500,19 +1500,19 @@ public class HrPayrollService {
         long runId,
         HrOperationalScope scope
     ) {
-        var run = loadRun(companyId, runId);
+        var run = loadRunForUpdate(companyId, runId);
         requireEditableDraftStatus(run);
         hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, runId);
         var legacyProcessedRun = "processed".equals(run.status());
+        ensureDifferentTransitionActor(runId, userId, actorRole, PayrollTransition.APPROVE);
         // Historical processed runs already contain their frozen calculation
         // and compliance snapshots. Validate those records before migrating
         // them through approval so the retired state remains auditable.
-        if (legacyProcessedRun) {
-            ensureDifferentTransitionActor(runId, userId, actorRole, PayrollTransition.APPROVE);
-        } else {
+        if (!legacyProcessedRun) {
             recomputeRunLinesWithEngine(runId, ensurePreferences(companyId));
             recomputeRunTotals(runId);
         }
+        ensureFinancialIntegrityForApproval(companyId, runId);
         ensureStatutoryComplianceForApproval(runId);
         ensureColombiaGovernmentReportingReadyForApproval(companyId, runId);
         updateRunStatus(runId, "approved", userId);
@@ -1544,7 +1544,7 @@ public class HrPayrollService {
         long runId,
         HrOperationalScope scope
     ) {
-        var run = loadRun(companyId, runId);
+        var run = loadRunForUpdate(companyId, runId);
         requireRunStatus(run, "approved");
         hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, runId);
         ensureDifferentTransitionActor(runId, userId, actorRole, PayrollTransition.PAY);
@@ -1570,7 +1570,7 @@ public class HrPayrollService {
     }
 
     private Map<String, Object> cancelRun(long companyId, long userId, long runId, HrOperationalScope scope) {
-        var run = loadRun(companyId, runId);
+        var run = loadRunForUpdate(companyId, runId);
         hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, runId);
         if ("cancelled".equals(run.status())) {
             throw new IllegalArgumentException("Payroll run is already cancelled.");
@@ -1658,6 +1658,55 @@ public class HrPayrollService {
             throw new IllegalArgumentException(
                 "Fiscal payroll cannot be approved while it contains unsupported countries. "
                     + "Change those lines to operational payroll or configure a supported statutory provider."
+            );
+        }
+    }
+
+    void ensureFinancialIntegrityForApproval(long companyId, long runId) {
+        var invalidRunCount = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM (
+                    SELECT payroll_run.id
+                    FROM payroll_runs payroll_run
+                    LEFT JOIN payroll_run_lines line
+                      ON line.run_id = payroll_run.id
+                     AND line.company_id = payroll_run.company_id
+                    WHERE payroll_run.company_id = ?
+                      AND payroll_run.id = ?
+                    GROUP BY payroll_run.id,
+                             payroll_run.users_count,
+                             payroll_run.gross_amount,
+                             payroll_run.deductions_amount,
+                             payroll_run.employer_contributions_amount,
+                             payroll_run.net_amount
+                    HAVING COUNT(line.id) = 0
+                       OR payroll_run.users_count <> COUNT(line.id)
+                       OR payroll_run.gross_amount <> COALESCE(SUM(line.gross_amount), 0)
+                       OR payroll_run.deductions_amount <> COALESCE(SUM(line.deductions_amount), 0)
+                       OR payroll_run.employer_contributions_amount <> COALESCE(SUM(line.employer_contributions_amount), 0)
+                       OR payroll_run.net_amount <> COALESCE(SUM(line.net_amount), 0)
+                       OR SUM(
+                           CASE
+                               WHEN line.gross_amount < 0
+                                 OR line.deductions_amount < 0
+                                 OR line.employer_contributions_amount < 0
+                                 OR line.net_amount < 0
+                                 OR line.gross_amount - line.deductions_amount <> line.net_amount
+                               THEN 1
+                               ELSE 0
+                           END
+                       ) > 0
+                ) invalid_payroll_run
+                """,
+            Integer.class,
+            companyId,
+            runId
+        );
+        if (invalidRunCount != null && invalidRunCount > 0) {
+            throw new IllegalArgumentException(
+                "Payroll run cannot be approved because its employee or run totals are invalid. "
+                    + "Recalculate and correct negative net amounts before approval."
             );
         }
     }
@@ -1932,6 +1981,14 @@ public class HrPayrollService {
     }
 
     private PayrollRunRow loadRun(long companyId, long runId) {
+        return loadRun(companyId, runId, false);
+    }
+
+    private PayrollRunRow loadRunForUpdate(long companyId, long runId) {
+        return loadRun(companyId, runId, true);
+    }
+
+    private PayrollRunRow loadRun(long companyId, long runId, boolean forUpdate) {
         var rows = jdbcTemplate.query(
             """
                 SELECT id,
@@ -1952,7 +2009,7 @@ public class HrPayrollService {
                 FROM payroll_runs
                 WHERE company_id = ? AND id = ?
                 LIMIT 1
-                """,
+                """ + (forUpdate ? " FOR UPDATE" : ""),
             (rs, rowNum) -> mapRunRow(rs),
             companyId,
             runId
@@ -2491,7 +2548,14 @@ public class HrPayrollService {
                 line.absenceDays(),
                 line.restDays(),
                 line.missingAttendanceDays(),
-                line.daysPayable().add(line.absenceDays()).add(line.leaveDays()),
+                resolveStoredControlWorkDays(
+                    line.attendanceSnapshot(),
+                    line.daysPayable(),
+                    line.paidLeaveDays(),
+                    line.leaveDays(),
+                    line.absenceDays(),
+                    line.missingAttendanceDays()
+                ),
                 line.lateCount(),
                 line.regularHours(),
                 line.overtimeHours(),
@@ -4833,7 +4897,35 @@ public class HrPayrollService {
         return periodSalary
             .divide(prorationDays, 6, RoundingMode.HALF_UP)
             .multiply(unpaidDays)
+            .min(periodSalary)
             .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    static BigDecimal resolveStoredControlWorkDays(
+        Map<String, Object> attendanceSnapshot,
+        BigDecimal paidDays,
+        BigDecimal paidLeaveDays,
+        BigDecimal leaveDays,
+        BigDecimal absenceDays,
+        BigDecimal missingAttendanceDays
+    ) {
+        var snapshottedControlDays = parseBigDecimal(attendanceSnapshot, "controlWorkDays", "control_work_days");
+        if (snapshottedControlDays != null && snapshottedControlDays.compareTo(BigDecimal.ZERO) > 0) {
+            return snapshottedControlDays;
+        }
+
+        var normalizedPaidDays = nonNegative(paidDays);
+        var normalizedPaidLeaveDays = nonNegative(paidLeaveDays);
+        var normalizedLeaveDays = nonNegative(leaveDays);
+        var unpaidLeaveDays = normalizedLeaveDays.subtract(normalizedPaidLeaveDays).max(BigDecimal.ZERO);
+        return normalizedPaidDays
+            .add(nonNegative(absenceDays))
+            .add(unpaidLeaveDays)
+            .add(nonNegative(missingAttendanceDays));
+    }
+
+    private static BigDecimal nonNegative(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value.max(BigDecimal.ZERO);
     }
 
     private LocalDate parseOptionalDate(String value) {

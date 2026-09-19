@@ -243,6 +243,7 @@ export function RouteSalesMultiKioskWorkspace({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentAccountId, setPaymentAccountId] = useState<number | null>(null);
+  const [applyProductTaxes, setApplyProductTaxes] = useState(true);
   const [deliveredNow, setDeliveredNow] = useState(true);
   const [notes, setNotes] = useState('');
   const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
@@ -273,9 +274,9 @@ export function RouteSalesMultiKioskWorkspace({
     const quantity = quantities[product.id] ?? 0;
     if (quantity <= 0) return [];
     const subtotal = quantity * Number(product.price || 0);
-    const tax = subtotal * Number(product.tax_percent || 0) / 100;
+    const tax = applyProductTaxes ? subtotal * Number(product.tax_percent || 0) / 100 : 0;
     return [{ product, quantity, subtotal, tax, total: subtotal + tax }];
-  }), [products, quantities]);
+  }), [applyProductTaxes, products, quantities]);
   const subtotal = cartLines.reduce((sum, line) => sum + line.subtotal, 0);
   const taxTotal = cartLines.reduce((sum, line) => sum + line.tax, 0);
   const total = subtotal + taxTotal;
@@ -334,6 +335,7 @@ export function RouteSalesMultiKioskWorkspace({
     setPaymentMethod('cash');
     setPaymentReference('');
     setPaymentAccountId(null);
+    setApplyProductTaxes(true);
     setDeliveredNow(true);
     setNotes('');
     setEvidenceFile(null);
@@ -478,6 +480,7 @@ export function RouteSalesMultiKioskWorkspace({
           paymentMethod,
           paymentReference: paymentReference.trim() || null,
           paymentAccountId: electronicPayment ? paymentAccountId : null,
+          applyProductTaxes,
           deliveredNow,
           notes: notes.trim() || null,
           items: cartLines.map(line => ({ productId: line.product.id, quantity: line.quantity })),
@@ -788,6 +791,7 @@ export function RouteSalesMultiKioskWorkspace({
               locale={locale}
               currency={currency}
               total={total}
+              applyProductTaxes={applyProductTaxes}
               stockFor={stockFor}
               onQueryChange={setQuery}
               onWarehouseChange={nextWarehouseId => {
@@ -796,6 +800,7 @@ export function RouteSalesMultiKioskWorkspace({
                 setPaymentAccountId(null);
               }}
               onQuantityChange={setQuantity}
+              onApplyProductTaxesChange={setApplyProductTaxes}
             />
           ) : null}
 
@@ -905,7 +910,7 @@ export function RouteSalesMultiKioskWorkspace({
                 tone="coral"
               />
               <div className="grid grid-cols-2 gap-2"><div className="min-w-0 rounded-xl bg-slate-50 p-2.5 dark:bg-slate-900"><p className="text-[10px] text-slate-500">Cliente</p><p className="mt-1 truncate text-sm font-medium text-slate-950 dark:text-white">{selectedContact?.name}</p></div><div className="min-w-0 rounded-xl bg-slate-50 p-2.5 dark:bg-slate-900"><p className="text-[10px] text-slate-500">Almacén</p><p className="mt-1 truncate text-sm font-medium text-slate-950 dark:text-white">{selectedWarehouse?.name}</p></div><div className="min-w-0 rounded-xl bg-slate-50 p-2.5 dark:bg-slate-900"><p className="text-[10px] text-slate-500">Cobro</p><p className="mt-1 truncate text-sm font-medium text-slate-950 dark:text-white">{selectedPaymentMethod?.label || paymentMethod}</p>{electronicPayment ? <><p className="mt-1 truncate text-[11px] text-slate-500">{selectedPaymentAccount?.name}</p><p className="truncate text-[10px] text-slate-400">Ref. {paymentReference}</p></> : null}</div><div className="min-w-0 rounded-xl bg-slate-50 p-2.5 dark:bg-slate-900"><p className="text-[10px] text-slate-500">Comprobante</p><p className="mt-1 truncate text-sm font-medium text-slate-950 dark:text-white">{paymentMethod === 'credit' ? 'No aplica' : evidenceFile?.name || 'Sin archivo'}</p></div></div>
-              <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-700">{cartLines.map(line => <div key={line.product.id} className="flex items-center justify-between gap-3 p-3"><div className="min-w-0"><p className="truncate text-sm font-medium text-slate-950 dark:text-white">{line.product.name}</p><p className="text-xs text-slate-500">{line.quantity} × {money(line.product.price, line.product.currency, locale)} · Imp. {line.product.tax_percent}%</p></div><strong className="font-medium text-sm text-slate-950 dark:text-white">{money(line.total, line.product.currency, locale)}</strong></div>)}</div>
+              <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-700">{cartLines.map(line => <div key={line.product.id} className="flex items-center justify-between gap-3 p-3"><div className="min-w-0"><p className="truncate text-sm font-medium text-slate-950 dark:text-white">{line.product.name}</p><p className="text-xs text-slate-500">{line.quantity} × {money(line.product.price, line.product.currency, locale)} · {applyProductTaxes ? `Imp. ${line.product.tax_percent}%` : 'Sin impuesto'}</p></div><strong className="font-medium text-sm text-slate-950 dark:text-white">{money(line.total, line.product.currency, locale)}</strong></div>)}</div>
               <div className="space-y-1 rounded-xl bg-rose-50 p-4 dark:bg-rose-950/25"><div className="flex justify-between text-sm text-slate-600 dark:text-slate-300"><span>Subtotal</span><span>{money(subtotal, currency, locale)}</span></div><div className="flex justify-between text-sm text-slate-600 dark:text-slate-300"><span>Impuestos</span><span>{money(taxTotal, currency, locale)}</span></div><div className="flex justify-between border-t border-rose-200 pt-2 text-lg font-medium text-slate-950 dark:border-rose-900 dark:text-white"><span>Total</span><span>{money(total, currency, locale)}</span></div></div>
               <div className={`rounded-xl border p-3 text-xs ${electronicPayment ? 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200' : 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200'}`}>
                 {electronicPayment

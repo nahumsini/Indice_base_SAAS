@@ -2431,8 +2431,11 @@ El Engine v2 se considera establecido cuando:
   identificador y registro fiscal, régimen, domicilio, código postal, correo de facturación, notas y,
   para México, uso de CFDI. La información se persiste en el contacto autoritativo de Sales; el kiosco
   no mantiene una copia paralela y omite por completo el perfil cuando no se captura ningún dato fiscal.
-- La identidad del vendedor, el alcance organizacional, los precios, impuestos, moneda y totales se
-  resuelven de forma autoritativa en backend. El navegador no puede sobrescribirlos.
+- La identidad del vendedor, el alcance organizacional, los precios, las tasas fiscales, la moneda y
+  los totales se resuelven de forma autoritativa en backend. Al cargar productos, el vendedor puede
+  elegir entre agregar las tasas configuradas o registrar toda la venta sin impuesto; la omisión del
+  campo conserva impuestos agregados por compatibilidad. El navegador nunca suministra la tasa ni
+  sobrescribe importes calculados.
 - Una venta de productos se considera terminada en el kiosco sólo si la salida de inventario completa
   en la misma transacción. Un error de existencia o configuración revierte la venta completa.
 - El selector usa únicamente almacenes activos de la misma compañía publicados por Inventarios. La
