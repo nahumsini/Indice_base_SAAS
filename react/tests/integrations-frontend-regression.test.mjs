@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
+import ts from 'typescript';
 
 const root = resolve(import.meta.dirname, '..');
 const integrationsRoot = resolve(root, 'src/app/BasicModules/Dashboard/Integrations');
@@ -14,6 +15,9 @@ const wizardSource = read('components/CreateAiConnectionWizard.tsx');
 const revokeSource = read('components/RevokeAiConnectionDialog.tsx');
 const constantsSource = read('constants.ts');
 const spanishSource = read('translations/es-MX.ts');
+const constants = await import(`data:text/javascript;base64,${Buffer.from(ts.transpileModule(constantsSource, {
+  compilerOptions: { module: ts.ModuleKind.ESNext },
+}).outputText).toString('base64')}`);
 const visualSource = [
   pageSource,
   read('components/AiQuestionIdeas.tsx'),
@@ -74,6 +78,24 @@ test('cerrar acceso usa confirmación Índice y no avisos del navegador', () => 
   assert.match(revokeSource, /destructive/);
   const moduleSource = [pageSource, wizardSource, revokeSource].join('\n');
   assert.doesNotMatch(moduleSource, /window\.(?:alert|confirm)/);
+});
+
+test('las cinco referencias operativas se ofrecen una sola vez como lecturas, nunca como acciones', () => {
+  const expected = new Map([
+    ['customers.read', 'sales'], ['providers.read', 'finance'], ['warehouses.read', 'inventory'],
+    ['budget_lines.read', 'finance'], ['accounting_accounts.read', 'finance'],
+  ]);
+  for (const [code, group] of expected) {
+    assert.equal(constants.READ_SCOPE_CODES.filter((value) => value === code).length, 1);
+    assert.equal(constants.ACTION_SCOPE_CODES.includes(code), false);
+    assert.equal(constants.scopeKindByCode.get(code), 'read');
+    const groups = constants.READ_SCOPE_GROUPS.filter((entry) => entry.scopeCodes.includes(code));
+    assert.deepEqual(groups.map((entry) => entry.id), [group]);
+  }
+  assert.equal(new Set(constants.AI_SCOPE_DEFINITIONS.map((scope) => scope.code)).size, constants.AI_SCOPE_DEFINITIONS.length);
+  assert.deepEqual([...constants.ACTION_SCOPE_CODES], [
+    'tasks.create', 'expenses.create', 'petty_cash.expense:create', 'petty_cash.deposit:create',
+  ]);
 });
 
 test('el lenguaje explica valor y decisión sin mostrar términos internos', () => {

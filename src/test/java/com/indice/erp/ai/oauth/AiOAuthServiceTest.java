@@ -7,6 +7,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.indice.erp.ai.access.AiAccessTokenService;
 import com.indice.erp.auth.AuthSessionUser;
@@ -295,6 +297,35 @@ class AiOAuthServiceTest {
         )))
             .isInstanceOf(AiOAuthException.class)
             .hasMessageContaining("invalid");
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = { "expired", "used", "client", "resource" })
+    void rejectsInvalidRefreshWithoutRotatingAnAccessToken(String scenario) {
+        var stored = new AiOAuthRepository.StoredRefreshToken(
+            88L, "client-1", 7L, RESOURCE, Set.of("sales.read"),
+            scenario.equals("expired") ? NOW : NOW.plusSeconds(3600),
+            scenario.equals("used") ? NOW.minusSeconds(1) : null, user
+        );
+        when(repository.findRefreshForUpdate(any())).thenReturn(Optional.of(stored));
+        assertThatThrownBy(() -> service.exchange(new AiOAuthService.TokenRequest(
+            "refresh_token", null, null, scenario.equals("client") ? "other-client" : "client-1", null,
+            scenario.equals("resource") ? OPENAI_TUNNEL_RESOURCE : RESOURCE, "idx_oauth_refresh_old", null
+        ))).isInstanceOf(AiOAuthException.class).hasMessageContaining("invalid");
+        verifyNoInteractions(accessTokenService);
+        verify(repository, never()).markRefreshUsed(any(Long.class), any());
+    }
+
+    @Test
+    void rejectsScopeExpansionDuringRefreshWithoutConsumingTheRefreshToken() {
+        when(repository.findRefreshForUpdate(any())).thenReturn(Optional.of(new AiOAuthRepository.StoredRefreshToken(
+            88L, "client-1", 7L, RESOURCE, Set.of("sales.read"), NOW.plusSeconds(3600), null, user
+        )));
+        assertThatThrownBy(() -> service.exchange(new AiOAuthService.TokenRequest(
+            "refresh_token", null, null, "client-1", null, RESOURCE, "idx_oauth_refresh_old", "sales.read tasks.create"
+        ))).isInstanceOf(AiOAuthException.class).hasMessageContaining("cannot add permissions");
+        verifyNoInteractions(accessTokenService);
+        verify(repository, never()).markRefreshUsed(any(Long.class), any());
     }
 
     private AiOAuthService.AuthorizationRequest authorizationRequest(String scopes) {

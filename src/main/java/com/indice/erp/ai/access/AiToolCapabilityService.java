@@ -23,6 +23,10 @@ public class AiToolCapabilityService {
     }
 
     public List<String> allowedTools(AiAccessTokenRepository.StoredToken token) {
+        return authorizationService.withCapabilityEvaluation(() -> resolveAllowedTools(token));
+    }
+
+    private List<String> resolveAllowedTools(AiAccessTokenRepository.StoredToken token) {
         var tools = new TreeSet<String>();
         var user = token.user();
 
@@ -76,6 +80,16 @@ public class AiToolCapabilityService {
         add(tools, token, AiAccessTokenService.TASKS_CREATE,
             () -> authorizationService.canCreateTask(user),
             "preview_create_task", "create_task");
+        add(tools, token, AiAccessTokenService.CUSTOMERS_READ,
+            () -> authorizationService.canReadCustomers(user), "search_customers");
+        add(tools, token, AiAccessTokenService.PROVIDERS_READ,
+            () -> authorizationService.canReadProviders(user), "search_providers");
+        add(tools, token, AiAccessTokenService.WAREHOUSES_READ,
+            () -> authorizationService.canReadWarehouses(user), "list_warehouses");
+        add(tools, token, AiAccessTokenService.BUDGET_LINES_READ,
+            () -> authorizationService.canReadBudgetLines(user), "search_budget_lines");
+        add(tools, token, AiAccessTokenService.ACCOUNTING_ACCOUNTS_READ,
+            () -> authorizationService.canReadAccountingAccounts(user), "search_accounting_accounts");
         add(tools, token, AiAccessTokenService.EXPENSES_CREATE,
             () -> authorizationService.canCreateExpenseDraft(user),
             "preview_create_expense_draft", "create_expense_draft");

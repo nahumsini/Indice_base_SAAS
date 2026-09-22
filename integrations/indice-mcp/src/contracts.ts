@@ -315,6 +315,11 @@ export const indiceToolNameSchema = z.enum([
   "list_units_and_businesses",
   "list_payment_accounts",
   "list_funds",
+  "search_customers",
+  "search_providers",
+  "list_warehouses",
+  "search_budget_lines",
+  "search_accounting_accounts",
   "preview_create_task",
   "create_task",
   "preview_create_expense_draft",
@@ -327,7 +332,7 @@ export const indiceToolNameSchema = z.enum([
 
 export const toolCapabilitiesSchema = z.object({
   version: z.literal("v1"),
-  tools: z.array(indiceToolNameSchema).max(32)
+  tools: z.array(indiceToolNameSchema).max(indiceToolNameSchema.options.length)
 });
 
 export type IndiceToolName = z.infer<typeof indiceToolNameSchema>;

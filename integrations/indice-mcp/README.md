@@ -17,6 +17,9 @@ Herramientas disponibles:
 - Gastos: `get_expense_summary`, `list_expenses`, `get_expense_detail`.
 - Finanzas: `get_funds_status`, `get_receivables_status`.
 - Resolutores: `get_my_business_context`, `list_units_and_businesses`, `list_payment_accounts`, `list_funds`.
+- Referencias operativas: `search_customers`, `search_providers`, `list_warehouses`,
+  `search_budget_lines`, `search_accounting_accounts`. Requieren sus nuevos scopes de lectura;
+  las conexiones anteriores no los adquieren automáticamente.
 - `preview_create_task`: prepara la tarea exacta, asignada al usuario conectado, sin crearla.
 - `create_task`: crea únicamente la vista previa confirmada y vigente.
 - `preview_create_expense_draft` / `create_expense_draft`: crea un gasto general únicamente en `DRAFT`.
@@ -24,6 +27,12 @@ Herramientas disponibles:
 - `preview_add_money_to_fund` / `add_money_to_fund`: registra un depósito adicional desde una cuenta fuente exacta.
 
 ## Requisitos
+
+El catálogo contiene 37 herramientas (29 consultas y 8 pasos de las cuatro acciones existentes).
+La inicialización incorpora la guía de comportamiento de Lupita. El alcance, las perspectivas
+especialistas y las funciones todavía pendientes están en el
+[contrato de evolución](../../docs/indice-lupita-mcp-evolution-contract.md).
+Esta guía no ejecuta agentes independientes ni habilita por sí misma capacidades comerciales.
 
 - Node.js 22 o posterior.
 - Backend local de Índice en `http://127.0.0.1:8082`.
@@ -60,6 +69,7 @@ ChatGPT obtiene el token mediante OAuth 2.1 con PKCE; ningún usuario debe copia
 ```bash
 npm install
 npm test
+npm run test:continuity
 npm run test:contract
 npm run test:http-contract
 npm run test:v1-e2e
@@ -70,6 +80,39 @@ npm run test:v1-e2e
 Con el servidor HTTP ya iniciado, `test:http-contract` repite el contrato atravesando Streamable HTTP con un token delegado temporal.
 
 `test:v1-e2e` añade las tres acciones financieras confirmadas. Debe ejecutarse únicamente contra datos sintéticos locales porque crea un gasto `DRAFT` y movimientos de fondo de prueba.
+
+`test:continuity` dura 20 minutos por defecto. Usa un servidor HTTP/cliente SDK reales y un backend
+simulado, sin credenciales reales, ERP ni base de datos. Alterna caja chica y tareas, dos cuentas,
+fallas temporales, caída persistente, recuperación, reconexión y revocación. Para un smoke rápido,
+configura `INDICE_CONTINUITY_SECONDS=60` (PowerShell: `$env:INDICE_CONTINUITY_SECONDS='60'`).
+No sustituye la prueba de OAuth ni la conversación real de APPTEST.
+
+## Recuperación y diagnóstico
+
+Las lecturas delegadas permiten dos intentos en total (`INDICE_READ_ATTEMPTS`, rango 1–3), con
+150 ms entre intentos (`INDICE_RETRY_DELAY_MS`, rango 0–1000) y 5000 ms por intento
+(`INDICE_HTTP_TIMEOUT_MS`, rango 1–30000). Se recuperan fallos de red/cuerpo, timeout y HTTP
+429/502/503/504. Un `Retry-After` mayor a un segundo evita el reintento inmediato.
+Una llamada de herramienta puede consultar primero capacidades y después el dominio: el límite
+por intento no equivale a un límite total de toda la llamada. No hay reintentos automáticos de
+vistas previas, escrituras, autenticación ni permisos denegados.
+
+Cada petición revalida las capacidades; no existe caché compartida de permisos. Una falla del
+backend devuelve 503 en vez de un catálogo vacío. Los errores de autenticación conservan el
+reto OAuth, incluida su metadata en los resultados de herramientas. Esta recuperación sigue la
+[referencia de OpenAI](https://developers.openai.com/plugins/reference#-meta-fields-on-tool-descriptor)
+y su [guía de autenticación](https://developers.openai.com/plugins/build/auth).
+
+El proceso HTTP escribe eventos JSON seguros a stderr (`mcp_request`, `mcp_backend_request`):
+ID de petición generado por el servidor, método/herramienta conocida, duración, intento, estado
+y huella/cantidad del catálogo. Nunca registra Bearer, cookies, argumentos ni respuestas de negocio.
+Lupita recibe instrucciones para no anunciar consultas o resultados que no ocurrieron y para
+no repetir escrituras inciertas con otra clave.
+
+En loopback, `/healthz` comprueba el proceso y `/readyz` la respuesta de salud del backend.
+Ninguna de estas pruebas acredita acceso de un usuario, base de datos o disponibilidad en voz.
+Consulta el [runbook APPTEST](../../deployment/MCP_APPTEST_RUNBOOK.md) para diagnosticar incidentes
+y completar la aceptación antes de producción.
 
 ## Transportes
 

@@ -10,6 +10,8 @@ export interface IndiceMcpConfig {
   accessToken?: string;
   preferredCurrency: string;
   timeoutMs: number;
+  readAttempts?: number;
+  retryDelayMs?: number;
   transport: McpTransport;
   host: string;
   port: number;
@@ -49,7 +51,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): IndiceMcpConfi
       accessToken: optionalValue(env, "INDICE_ACCESS_TOKEN")
     } : {}),
     preferredCurrency: currency(optional(env, "INDICE_PREFERRED_CURRENCY", "MXN")),
-    timeoutMs: positiveInteger(optional(env, "INDICE_HTTP_TIMEOUT_MS", "5000"), "INDICE_HTTP_TIMEOUT_MS"),
+    timeoutMs: boundedInteger(optional(env, "INDICE_HTTP_TIMEOUT_MS", "5000"), "INDICE_HTTP_TIMEOUT_MS", 1, 30000),
+    readAttempts: boundedInteger(optional(env, "INDICE_READ_ATTEMPTS", "2"), "INDICE_READ_ATTEMPTS", 1, 3),
+    retryDelayMs: boundedInteger(optional(env, "INDICE_RETRY_DELAY_MS", "150"), "INDICE_RETRY_DELAY_MS", 0, 1000),
     transport,
     host,
     port: positiveInteger(optional(env, "INDICE_MCP_PORT", "3010"), "INDICE_MCP_PORT"),
@@ -126,6 +130,14 @@ function positiveInteger(value: string, key: string): number {
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed <= 0) {
     throw new Error(`${key} must be a positive integer.`);
+  }
+  return parsed;
+}
+
+function boundedInteger(value: string, key: string, minimum: number, maximum: number): number {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < minimum || parsed > maximum) {
+    throw new Error(`${key} must be between ${minimum} and ${maximum}.`);
   }
   return parsed;
 }
