@@ -60,6 +60,38 @@ loaders, permissions and persistence. No backend or business-rule changes.
 
 ### Commercial exposition — website alignment, 2026-09-22
 
+The commercial route's visual opening uses the live homepage's navy/blue technology
+direction, with an editorial ERP → Lupita → specialties → human decision diagram.
+The diagram is explicitly a proposal, not a live connection or evidence of autonomous
+multi-agent execution. Its localized availability note qualifies enabled functions.
+A direct link opens the agents section. These changes are limited to `/presentation`;
+investor routes, tenant data and application permissions remain unchanged.
+
+The connected-operation section uses a navy triangular diagram joining three product
+experiences: the kiosk, the Índice workspace and ChatGPT/Claude. Its locally served assets
+under `react/public/images/presentation/` reuse the marketing site's sanitized HR kiosk
+and task-agenda screenshots, existing provider logos and Índice mark. The workspace image
+is an actual task-agenda view, not a live executive dashboard. Screenshots are marked as
+demo data in every locale; the diagram preserves the compatibility/account/permission
+qualification. It stacks into a connected sequence on mobile, with no external asset
+requests or changes to real integrations.
+
+Capabilities, agents and implementation use the same presentation language: a connected
+capability orbit, a question → Lupita → specialists → human-decision flow, and a four-stage
+implementation path. These are responsive, code-native illustrations that retain localized copy
+and the existing scope and permission qualifications. Pricing uses poster-style cards and a
+separate illustrated setup area with the promotional and regular amount for every package. A
+localized fullscreen control uses the browser Fullscreen API for live exposition and returns
+through the same control or the Escape key.
+
+Visual follow-up validation: 24 focused regressions, TypeScript and production build
+passed. The isolated Chrome harness passed the proposal-to-agents link, trusted fullscreen
+entry and exit, all five local operation images, exact published prices, and the existing locale,
+navigation and responsive checks. Desktop and mobile screenshots of the operation, capability,
+agent, pricing and implementation visuals were inspected. No runtime exceptions or business API
+requests occurred. The existing shared-chunk size warning remains.
+These edits are local and have not been deployed.
+
 Scope is editorial `/presentation` only: no changes to billing catalogs, checkout, subscriptions,
 investor financial scenarios or the Carlos Muñoz presentation.
 
@@ -71,8 +103,8 @@ current offer. The presentation reflects the new offer in all eight locales:
 
 - Customized ERP, specialized agents coordinated by Lupita, and human consulting to support
   management without multiplying the management structure; human decisions and approvals remain.
-- Ten people included; each person counts once across ERP, kiosks, HR and agents. Capacity grows
-  in blocks of ten. No unverified per-seat MXN surcharge is shown.
+- Ten people are included in every package; capacity expands in blocks of ten for MXN 899 monthly.
+  Annual billing gives a 20% discount on the subscription and additional blocks.
 - Controla: Home Panel, HR, Tasks and Processes. Escala adds Expenses, Petty Cash and Inventory,
   with a choice of Sales/CRM or POS. Corporativo includes both commercial modules, Receivables
   and the standalone executive KPI module. Each module retains its internal indicators.
@@ -81,18 +113,17 @@ current offer. The presentation reflects the new offer in all eight locales:
 - ChatGPT/Claude connectivity is validated during implementation according to compatibility,
   account and authorized permissions; the copy does not guarantee availability for every account.
 
-Pricing blocker: the live `/planes.php` link returns HTTP 302 to `app.indiceapp.com/planes`.
-The linked public signup catalog still reports USD pricing and five included seats, inconsistent
-with the new ten-person marketing offer. No new Mexico subscription amounts could be verified.
-Previously entered MXN 1,800 / 2,700 / 3,600 monthly rates, their annual equivalents and MXN 220
-per additional user were unsupported and removed. Monthly/annual values stay `null` and are not
-formatted as zero; annual prices are hidden until confirmed. Obtain the new Mexico rate card
-before replacing those placeholders. This is a pending commercial input, not a billing change.
+Pricing uses the public Mexico rate card `commercial-master-2026-09-21`, supplied through the
+marketing site's `content/commercial-offer.json`: Controla MXN 2,999 monthly / MXN 28,790.40
+annually, Escala MXN 5,499 / MXN 52,790.40 and Corporativo MXN 9,499 / MXN 91,190.40. Every package
+includes ten people. An additional block of ten is MXN 899 monthly or MXN 8,630.40 annually. The
+annual figures apply the published 20% discount and all amounts are shown before VAT.
 
-The user's explicit exception is preserved: Master Muñoz community implementation at MXN 4,500,
-one time, for up to ten people as already scoped in the presentation; subscription is separate.
-The presentation states before-VAT amounts and scope confirmation. This rate is user-provided,
-not attributed to the public website. No promotion expiration or invented discount is added.
+The promotional one-time setup amounts through October 2026 are MXN 4,999 for Controla,
+MXN 7,499.50 for Escala and MXN 12,499.50 for Corporativo. Their regular amounts are respectively
+MXN 9,999, MXN 14,999 and MXN 24,999. The annual discount does not apply to setup. This public
+presentation mirrors the marketing rate card; it does not modify the billing catalog, checkout,
+subscriptions or tenant data.
 
 ### Investor exposition
 
@@ -156,7 +187,8 @@ Build/test results are implementation checks, not public-release certification.
   welcome and client-only eighth tab, while `/presentation` rendered its commercial proposal,
   connected operation, capabilities, agent, pricing and implementation story; both retained the public
   presentation boundary. Commercial tabs were additionally checked in all eight locales at 390 px,
-  including the three explicit unverified-price states and the unchanged MXN 4,500 offer.
+  including the MXN 2,999 / 5,499 / 9,499 package rates, annual rates, additional block and the
+  three promotional setup amounts.
 - Evidence: `.run/investment-review/` (local screenshots and results JSON).
 - An initial Chrome run was interrupted and a second run completed normally.
 - The website-alignment build initially encountered a sandbox filesystem denial; the approved
