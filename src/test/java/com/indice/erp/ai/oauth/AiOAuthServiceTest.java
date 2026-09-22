@@ -5,12 +5,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.indice.erp.ai.access.AiAccessTokenService;
+import com.indice.erp.ai.access.AiConnectionLimitException;
 import com.indice.erp.auth.AuthSessionUser;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -330,6 +332,33 @@ class AiOAuthServiceTest {
 
     private AiOAuthService.AuthorizationRequest authorizationRequest(String scopes) {
         return authorizationRequest(scopes, RESOURCE);
+    }
+
+    @Test
+    void checksCapacityBeforeConsentAndBeforeCreatingAnAuthorizationCode() {
+        when(repository.findActiveClient("client-1")).thenReturn(Optional.of(client()));
+        when(accessTokenService.supportedOAuthScopes()).thenReturn(Set.of("tasks.read"));
+        doThrow(new AiConnectionLimitException()).when(accessTokenService).requireAvailableConnection(user);
+
+        assertThatThrownBy(() -> service.consentContext(user, authorizationRequest("tasks.read")))
+            .isInstanceOf(AiConnectionLimitException.class);
+        assertThatThrownBy(() -> service.authorize(user, authorizationRequest("tasks.read"), true))
+            .isInstanceOf(AiConnectionLimitException.class);
+
+        verify(repository, never()).insertAuthorizationCode(any(), any(), any(), any(), any(), any(), any(), any());
+        verify(accessTokenService, never()).issueOAuth(any(), any(), any(), any());
+    }
+
+    @Test
+    void canDeclineConsentEvenWhenConnectionsAreFull() {
+        when(repository.findActiveClient("client-1")).thenReturn(Optional.of(client()));
+        when(accessTokenService.supportedOAuthScopes()).thenReturn(Set.of("tasks.read"));
+
+        var result = service.authorize(user, authorizationRequest("tasks.read"), false);
+
+        assertThat(result.redirectUrl()).contains("error=access_denied");
+        verify(accessTokenService, never()).requireAvailableConnection(any());
+        verify(repository, never()).insertAuthorizationCode(any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     private AiOAuthService.AuthorizationRequest authorizationRequest(String scopes, String resource) {

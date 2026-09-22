@@ -1,6 +1,7 @@
 package com.indice.erp.ai.oauth;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.indice.erp.ai.access.AiConnectionLimitException;
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.auth.SessionCsrfService;
 import jakarta.servlet.http.HttpSession;
@@ -79,6 +80,8 @@ public class AiOAuthApiController {
                 user.get(),
                 authorizationRequest(responseType, clientId, redirectUri, scope, state, codeChallenge, codeChallengeMethod, resource)
             ));
+        } catch (AiConnectionLimitException exception) {
+            return connectionLimit();
         } catch (AiOAuthException exception) {
             return oauthError(HttpStatus.BAD_REQUEST, exception);
         }
@@ -103,6 +106,8 @@ public class AiOAuthApiController {
                 ),
                 request.approved()
             ));
+        } catch (AiConnectionLimitException exception) {
+            return connectionLimit();
         } catch (AiOAuthException exception) {
             return oauthError(HttpStatus.BAD_REQUEST, exception);
         } catch (IllegalArgumentException exception) {
@@ -129,6 +134,11 @@ public class AiOAuthApiController {
                 .cacheControl(CacheControl.noStore())
                 .header(HttpHeaders.PRAGMA, "no-cache")
                 .body(response);
+        } catch (AiConnectionLimitException exception) {
+            // Capacity can change after consent; retrying the exchange cannot free a slot.
+            return oauthError(HttpStatus.BAD_REQUEST, new AiOAuthException(
+                "invalid_grant", "AI connection limit reached. Revoke an unused connection in Indice, then authorize again."
+            ));
         } catch (AiOAuthException exception) {
             return oauthError(HttpStatus.BAD_REQUEST, exception);
         } catch (IllegalStateException exception) {
@@ -139,6 +149,16 @@ public class AiOAuthApiController {
                     "error_description", "Review active AI connections in Indice and try again."
                 ));
         }
+    }
+
+    private ResponseEntity<Map<String, String>> connectionLimit() {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+            .cacheControl(CacheControl.noStore())
+            .body(Map.of(
+                "error", "connection_limit_reached",
+                "error_description", "AI connection limit reached. Revoke an unused connection in Indice, then authorize again.",
+                "message", "Alcanzaste el límite de conexiones de IA activas. Abre Panel Inicial → Conectar IA, revoca una conexión que ya no uses y vuelve a conectar tu asistente."
+            ));
     }
 
     private AiOAuthService.AuthorizationRequest authorizationRequest(
