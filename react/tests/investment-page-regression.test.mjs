@@ -141,16 +141,18 @@ test('the commercial presentation provides a six-stage localized narrative', () 
   assert.match(spanish.proposal.statement, /Tu equipo opera/);
   assert.match(spanish.capabilities.lead, /120 herramientas/);
   assert.match(spanish.agents.coordinatorDescription, /ChatGPT o Claude/);
-  for (const plan of ['controla', 'escala', 'corporate']) {
-    assert.deepEqual(commercial.commercialPlanPrices[plan], { monthlyMxn: null, annualMxn: null }, 'Unverified Mexico rates must not be invented or converted from the older USD catalog');
-  }
-  assert.equal(commercial.commercialPlanPrices.includedSeats, 10);
-  assert.equal(commercial.commercialPlanPrices.additionalSeatMonthlyMxn, undefined);
-  assert.equal(commercial.commercialPlanPrices.communityImplementationMxn, 4500);
-  assert.equal(commercial.commercialPlanPrices.communityImplementationPeople, 10);
-  assert.match(spanish.pricing.offerLabel, /Master Muñoz/);
-  assert.match(spanish.pricing.offerDescription, /Carlos Muñoz/);
-  assert.match(spanish.pricing.offerCondition, /suscripción mensual.*por separado/);
+  assert.deepEqual(commercial.commercialPlanPrices.controla, { monthlyMxn: 2999, annualMxn: 28790.40, setupMxn: 9999, setupPromotionMxn: 4999 });
+  assert.deepEqual(commercial.commercialPlanPrices.escala, { monthlyMxn: 5499, annualMxn: 52790.40, setupMxn: 14999, setupPromotionMxn: 7499.50 });
+  assert.deepEqual(commercial.commercialPlanPrices.corporate, { monthlyMxn: 9499, annualMxn: 91190.40, setupMxn: 24999, setupPromotionMxn: 12499.50 });
+  assert.equal(commercial.commercialPlanPrices.includedPeople, 10);
+  assert.equal(commercial.commercialPlanPrices.additionalBlockSize, 10);
+  assert.equal(commercial.commercialPlanPrices.additionalBlockMonthlyMxn, 899);
+  assert.equal(commercial.commercialPlanPrices.additionalBlockAnnualMxn, 8630.40);
+  assert.equal(commercial.commercialPlanPrices.annualDiscountPercent, 20);
+  assert.equal(commercial.commercialPlanPrices.setupPromotionThrough, '2026-10');
+  assert.match(spanish.pricing.offerLabel, /octubre de 2026/);
+  assert.match(spanish.pricing.offerDescription, /pago único/);
+  assert.match(spanish.pricing.offerCondition, /20%.*no al alta/);
   assert.doesNotMatch(JSON.stringify(spanish.pricing), /USD/);
   assert.match(spanish.implementation.trialLabel, /15 días/);
   assert.match(spanish.implementation.supportDescription, /consultor/);
@@ -159,8 +161,8 @@ test('the commercial presentation provides a six-stage localized narrative', () 
 test('commercial copy reflects the new website offer without mixing the previous catalog', () => {
   const spanish = commercial.commercialPresentationContent['es-MX'];
   assert.match(spanish.proposal.lead, /sin multiplicar tu estructura gerencial/);
+  assert.match(spanish.pricing.lead, /10 personas/);
   assert.match(spanish.pricing.lead, /bloques de diez/);
-  assert.match(spanish.pricing.lead, /una sola vez/);
   assert.match(spanish.capabilities.scopeNote, /Modo Aprendiz/);
   assert.match(spanish.agents.coordinatorDescription, /compatibilidad.*cuenta.*permisos/);
   assert.match(spanish.operation.lanes[2].description, /compatibilidad.*cuenta.*permisos/);
@@ -169,13 +171,11 @@ test('commercial copy reflects the new website offer without mixing the previous
   assert.match(spanish.pricing.plans[2].includes.join(' '), /Ventas y POS.*Cartera.*Módulo ejecutivo de KPIs/);
   assert.match(spanish.implementation.steps[1].description, /alta y la primera mensualidad/);
   assert.match(spanish.implementation.trialDescription, /antes de contratar/);
-  const pendingLabels = ['Por confirmar', 'Por confirmar', 'To be confirmed', 'To be confirmed', 'À confirmer', 'A confirmar', '확인 예정', '待确认'];
-  expectedLocales.forEach((locale, index) => {
+  expectedLocales.forEach(locale => {
     const pricing = commercial.commercialPresentationContent[locale].pricing;
-    assert.equal(pricing.pendingPriceLabel, pendingLabels[index]);
     assert.match(pricing.commonItems[0], /10/);
     assert.match(pricing.beforeTaxLabel, /MXN/);
-    assert.doesNotMatch(JSON.stringify(pricing), /\b220\b|\b1800\b|\b2700\b|\b3600\b|USD/);
+    assert.doesNotMatch(JSON.stringify(pricing), /USD|Master Muñoz/);
   });
 });
 
@@ -856,6 +856,11 @@ test('the demo uses static data without business APIs, persistence, or unsafe HT
   assert.match(pageSource, /useInvestmentMetadata\(`Índice \| \$\{presentationName \?\? copy\.document\}`\)/);
   assert.match(pageSource, /investment-notifications-menu/);
   assert.match(pageSource, /investment-profile-menu/);
+  assert.match(pageSource, /requestFullscreen/);
+  assert.match(pageSource, /document\.exitFullscreen/);
+  assert.match(pageSource, /CommercialCapabilitiesMap/);
+  assert.match(pageSource, /CommercialAgentsMap/);
+  assert.match(pageSource, /CommercialImplementationMap/);
 
   for (const file of ['InvestmentPage.tsx', 'commercialPresentationContent.ts', 'investmentContent.ts', 'investmentModules.ts', 'investmentUiCopy.ts', 'useInvestmentMetadata.ts']) {
     const source = readFileSync(resolve(folder, file), 'utf8');
