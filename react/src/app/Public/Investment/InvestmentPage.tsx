@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router';
 import { IndiceWorkspaceNavigation } from '../../components/frontend-os/IndiceWorkspaceNavigation';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
 import { getHeaderTranslations } from '../../components/header/translations';
+import { commercialPlanPrices, commercialPresentationContent, commercialPresentationTabs, resolveCommercialPresentationTab, type CommercialPresentationTab } from './commercialPresentationContent';
 import { customerJourneyUi, investmentOverviewParagraphs, investmentSections, investmentTabs, marketSignals, marketSource, partnerPortalUi, resolveInvestmentTab, type InvestmentItem, type InvestmentSection, type InvestmentTab } from './investmentContent';
 import { investmentModuleCatalog } from './investmentModules';
 import { investmentProformaAssumptions, investmentProformaCopy, investmentProformaMilestones, investmentProformaNetworks, investmentProformaOperatingBalanceRate, investmentProformaScenarios } from './investmentProforma';
@@ -192,13 +193,104 @@ function CarlosAcknowledgement() {
   </section>;
 }
 
+function CommercialNext({ children }: { children: string }) {
+  return <div className="investment-commercial-next"><ArrowRight size={18} /><p>{children}</p></div>;
+}
+
+function CommercialPresentationPanel({ locale, tab }: { locale: InvestmentLocale; tab: CommercialPresentationTab }) {
+  const commercial = commercialPresentationContent[locale];
+
+  if (tab === 'proposal') {
+    const section = commercial.proposal;
+    return <section className="investment-commercial investment-commercial--proposal">
+      <div className="investment-commercial-hero"><div><p className="investment-eyebrow">{section.eyebrow}</p><h3>{section.lead}</h3></div><aside><span>{commercial.centralLabel}</span><strong>{section.statement}</strong></aside></div>
+      <div className="investment-commercial-contrast">
+        <section><h3>{section.frictionsTitle}</h3><div>{section.frictions.map((item, index) => <article key={item.title}><span>{String(index + 1).padStart(2, '0')}</span><h4>{item.title}</h4><p>{item.description}</p></article>)}</div></section>
+        <section className="is-result"><h3>{section.resultsTitle}</h3><div>{section.results.map(item => <article key={item.title}><Check size={17} /><div><h4>{item.title}</h4><p>{item.description}</p></div></article>)}</div></section>
+      </div>
+      <CommercialNext>{section.next}</CommercialNext>
+    </section>;
+  }
+
+  if (tab === 'operation') {
+    const section = commercial.operation;
+    return <section className="investment-commercial investment-commercial--operation">
+      <header className="investment-commercial-heading"><p className="investment-eyebrow">{section.eyebrow}</p><h3>{section.lead}</h3></header>
+      <section className="investment-commercial-section"><h3>{section.lanesTitle}</h3><div className="investment-commercial-lanes">{section.lanes.map((lane, index) => <article key={lane.title}>
+        <div className="investment-commercial-lane-top"><span>{String(index + 1).padStart(2, '0')}</span><small>{lane.label}</small></div><h4>{lane.title}</h4><p>{lane.description}</p><ul>{lane.tools.map(tool => <li key={tool}>{tool}</li>)}</ul>
+      </article>)}</div></section>
+      <aside className="investment-commercial-foundation"><ShieldCheck size={22} /><div><h3>{section.foundationTitle}</h3><p>{section.foundationDescription}</p></div></aside>
+      <CommercialNext>{section.next}</CommercialNext>
+    </section>;
+  }
+
+  if (tab === 'capabilities') {
+    const section = commercial.capabilities;
+    return <section className="investment-commercial investment-commercial--capabilities">
+      <header className="investment-commercial-heading"><p className="investment-eyebrow">{section.eyebrow}</p><h3>{section.lead}</h3></header>
+      <section className="investment-commercial-section"><h3>{section.pillarsTitle}</h3><div className="investment-commercial-pillars">{section.pillars.map(pillar => <article key={pillar.title}><span aria-hidden="true">{pillar.emoji}</span><h4>{pillar.title}</h4><p>{pillar.description}</p><ul>{pillar.tools.map(tool => <li key={tool}>{tool}</li>)}</ul></article>)}</div></section>
+      <section className="investment-commercial-section investment-commercial-packages"><div className="investment-commercial-section-heading"><h3>{section.packagesTitle}</h3><p>{section.scopeNote}</p></div><div>{section.packages.map((item, index) => <article key={item.title}><span>{String(index + 1).padStart(2, '0')}</span><div><h4>{item.title}</h4><p>{item.description}</p></div></article>)}</div></section>
+      <CommercialNext>{section.next}</CommercialNext>
+    </section>;
+  }
+
+  if (tab === 'agents') {
+    const section = commercial.agents;
+    return <section className="investment-commercial investment-commercial--agents">
+      <header className="investment-commercial-heading"><p className="investment-eyebrow">{section.eyebrow}</p><h3>{section.lead}</h3></header>
+      <section className="investment-commercial-coordinator"><span className="investment-commercial-bot"><Bot size={27} /></span><div><small>{section.coordinatorLabel}</small><h3>{section.coordinatorTitle}</h3><p>{section.coordinatorDescription}</p></div></section>
+      <section className="investment-commercial-section"><h3>{section.agentsTitle}</h3><div className="investment-commercial-agents">{section.agents.map((agent, index) => <article key={agent.title}><span>{String(index + 1).padStart(2, '0')}</span><h4>{agent.title}</h4><p>{agent.description}</p></article>)}</div></section>
+      <section className="investment-commercial-questions"><div><h3>{section.questionsTitle}</h3><ul>{section.questions.map(question => <li key={question}>{question}</li>)}</ul></div><aside><ShieldCheck size={20} /><div><h3>{section.permissionTitle}</h3><p>{section.permissionDescription}</p></div></aside></section>
+      <CommercialNext>{section.next}</CommercialNext>
+    </section>;
+  }
+
+  if (tab === 'pricing') {
+    const section = commercial.pricing;
+    return <section className="investment-commercial investment-commercial--pricing">
+      <header className="investment-commercial-heading"><p className="investment-eyebrow">{section.eyebrow}</p><h3>{section.lead}</h3></header>
+      <section className="investment-commercial-section"><div className="investment-commercial-section-heading"><h3>{section.plansTitle}</h3><p>{section.beforeTaxLabel}</p></div><div className="investment-commercial-pricing-grid">{section.plans.map(plan => {
+        const price = commercialPlanPrices[plan.id];
+        return <article className={plan.id === 'escala' ? 'is-featured' : ''} key={plan.id}>
+          <div className="investment-commercial-plan-heading"><span>{plan.title}</span>{plan.id === 'escala' && <Check size={16} />}</div>
+          <p>{plan.description}</p>
+          <div className={`investment-commercial-plan-price${price.monthlyMxn == null ? ' is-pending' : ''}`}><strong>{price.monthlyMxn == null ? section.pendingPriceLabel : formatMxn(price.monthlyMxn, locale)}</strong><span>MXN {section.monthlyLabel}</span></div>
+          {price.annualMxn != null && <small>{section.annualLabel}: {formatMxn(price.annualMxn, locale)}</small>}
+          <ul>{plan.includes.map(item => <li key={item}><Check size={14} />{item}</li>)}</ul>
+        </article>;
+      })}</div></section>
+      <aside className="investment-commercial-plan-common"><strong>{section.commonTitle}</strong><ul>{section.commonItems.map(item => <li key={item}><Check size={14} />{item}</li>)}</ul></aside>
+      <section className="investment-commercial-community-offer">
+        <div className="investment-commercial-offer-copy"><span>{section.offerLabel}</span><h3>{section.offerTitle}</h3><p>{section.offerDescription}</p></div>
+        <div className="investment-commercial-offer-price"><small>{section.offerPriceLabel}</small><strong>{formatMxn(commercialPlanPrices.communityImplementationMxn, locale)}</strong><span>MXN</span></div>
+        <div className="investment-commercial-offer-includes"><strong>{section.offerIncludesTitle}</strong><ul>{section.offerIncludes.map(item => <li key={item}><Check size={14} />{item}</li>)}</ul></div>
+        <p className="investment-commercial-offer-condition">{section.offerCondition}</p>
+      </section>
+      <CommercialNext>{section.next}</CommercialNext>
+    </section>;
+  }
+
+  const section = commercial.implementation;
+  return <section className="investment-commercial investment-commercial--implementation">
+    <header className="investment-commercial-heading"><p className="investment-eyebrow">{section.eyebrow}</p><h3>{section.lead}</h3></header>
+    <section className="investment-commercial-section"><h3>{section.stepsTitle}</h3><ol className="investment-commercial-steps">{section.steps.map(step => <li key={step.label}><span>{step.label}</span><h4>{step.title}</h4><p>{step.description}</p></li>)}</ol></section>
+    <div className="investment-commercial-support"><article><span>15</span><div><h3>{section.trialLabel}</h3><p>{section.trialDescription}</p></div></article><article><User size={23} /><div><h3>{section.supportTitle}</h3><p>{section.supportDescription}</p></div></article></div>
+    <div className="investment-commercial-cta"><div><small>{section.cta}</small><strong>{section.next}</strong></div><ArrowRight size={24} /></div>
+  </section>;
+}
+
 type InvestmentPageProps = {
   welcomeName?: string;
+  welcomeMessage?: string;
   showAcknowledgement?: boolean;
   footerMessage?: string;
+  hiddenTabs?: readonly InvestmentTab[];
+  presentationName?: string;
+  commercialPresentation?: boolean;
 };
 
-type PresentationTab = InvestmentTab | 'acknowledgement';
+type StandardPresentationTab = InvestmentTab | 'acknowledgement';
+type PresentationTab = StandardPresentationTab | CommercialPresentationTab;
 
 const personalizedWelcome = (locale: InvestmentLocale, name: string) => {
   if (locale.startsWith('es')) return `Bienvenido, ${name}`;
@@ -209,24 +301,29 @@ const personalizedWelcome = (locale: InvestmentLocale, name: string) => {
   return `${name}，欢迎您`;
 };
 
-export default function InvestmentPage({ welcomeName, showAcknowledgement = false, footerMessage }: InvestmentPageProps = {}) {
+export default function InvestmentPage({ welcomeName, welcomeMessage, showAcknowledgement = false, footerMessage, hiddenTabs = [], presentationName, commercialPresentation = false }: InvestmentPageProps = {}) {
   const [params, setParams] = useSearchParams();
   const [locale, setLocale] = useState<InvestmentLocale>('es-MX');
-  const [currency, setCurrency] = useState('USD');
+  const [currency, setCurrency] = useState(commercialPresentation ? 'MXN' : 'USD');
   const [darkMode, setDarkMode] = useState(() => typeof document !== 'undefined' && (document.documentElement.classList.contains('dark') || document.body.classList.contains('dark')));
   const [learningMode, setLearningMode] = useState(false);
   const requestedTab = params.get('tab');
-  const activeTab: PresentationTab = showAcknowledgement && requestedTab === 'acknowledgement'
+  const resolvedTab = resolveInvestmentTab(requestedTab);
+  const standardActiveTab: StandardPresentationTab = showAcknowledgement && requestedTab === 'acknowledgement'
     ? 'acknowledgement'
-    : resolveInvestmentTab(requestedTab);
-  const section = investmentSections[locale][activeTab === 'acknowledgement' ? 'overview' : activeTab];
+    : hiddenTabs.includes(resolvedTab) ? 'overview' : resolvedTab;
+  const commercialActiveTab = resolveCommercialPresentationTab(requestedTab);
+  const activeTab: PresentationTab = commercialPresentation ? commercialActiveTab : standardActiveTab;
+  const section = investmentSections[locale][standardActiveTab === 'acknowledgement' ? 'overview' : standardActiveTab];
+  const commercialCopy = commercialPresentationContent[locale];
+  const commercialSection = commercialCopy[commercialActiveTab];
   const headerCopy = getHeaderTranslations(locale);
   const currentLanguage = investmentLanguages.find(language => language.code === locale) ?? investmentLanguages[0];
   const copy = getInvestmentUiCopy(locale);
-  const welcome = welcomeName ? personalizedWelcome(locale, welcomeName) : copy.welcome;
+  const welcome = welcomeMessage ?? (welcomeName ? personalizedWelcome(locale, welcomeName) : copy.welcome);
   const notificationLanguage = locale.startsWith('es') ? 'es' : locale.startsWith('en') ? 'en' : locale.slice(0, 2) as 'fr' | 'pt' | 'ko' | 'zh';
   const moduleLabels = notificationModuleLabels[notificationLanguage];
-  useInvestmentMetadata(`Índice | ${copy.document}`);
+  useInvestmentMetadata(`Índice | ${presentationName ?? copy.document}`);
   useEffect(() => {
     const previousColorScheme = document.documentElement.style.colorScheme;
     document.documentElement.style.colorScheme = darkMode ? 'dark' : 'light';
@@ -238,8 +335,12 @@ export default function InvestmentPage({ welcomeName, showAcknowledgement = fals
     return () => { document.documentElement.lang = previousLanguage; };
   }, [locale]);
 
-  const navigationItems = [
-    ...investmentTabs.map(tab => ({
+  const navigationItems = commercialPresentation ? commercialPresentationTabs.map(tab => ({
+    id: tab[0] as PresentationTab,
+    label: tab[1][locale],
+    icon: <span className="investment-tab-emoji">{tab[2]}</span>,
+  })) : [
+    ...investmentTabs.filter(tab => !hiddenTabs.includes(tab[0])).map(tab => ({
       id: tab[0] as PresentationTab,
       label: tab[1][locale],
       icon: <span className="investment-tab-emoji">{tabEmojis[tab[0]]}</span>,
@@ -252,7 +353,7 @@ export default function InvestmentPage({ welcomeName, showAcknowledgement = fals
   ];
   const selectTab = (tab: PresentationTab) => setParams(previous => {
     const next = new URLSearchParams(previous);
-    tab === 'overview' ? next.delete('tab') : next.set('tab', tab);
+    tab === (commercialPresentation ? 'proposal' : 'overview') ? next.delete('tab') : next.set('tab', tab);
     return next;
   }, { preventScrollReset: true });
 
@@ -262,7 +363,7 @@ export default function InvestmentPage({ welcomeName, showAcknowledgement = fals
       <div className="investment-greeting"><h1><span aria-hidden="true">👋</span> {welcome}</h1></div>
       <div className="investment-tools" role="group" aria-label={copy.toolsLabel}>
         <span className="investment-demo-badge"><MonitorSmartphone size={16} /> {copy.demo}</span>
-        <span className="investment-company-pill"><Building2 size={16} /><span>{copy.document}</span></span>
+        <span className="investment-company-pill"><Building2 size={16} /><span>{presentationName ?? copy.document}</span></span>
         <label className="investment-select-control" title={copy.currency}><CircleDollarSign size={18} /><select value={currency} onChange={event => setCurrency(event.target.value)} aria-label={copy.currency}><option>USD</option><option>MXN</option><option>CAD</option><option>COP</option></select><ChevronDown size={14} /></label>
         <DropdownMenu><DropdownMenuTrigger asChild><button type="button" title={headerCopy.actions.notifications} aria-label={headerCopy.actions.notifications}><Bell size={19} /><span className="investment-notification-count">6</span></button></DropdownMenuTrigger>
           <DropdownMenuContent lang={locale} align="end" className={`investment-dropdown investment-notifications-menu${darkMode ? ' investment-dropdown-dark' : ''}`}>
@@ -295,29 +396,29 @@ export default function InvestmentPage({ welcomeName, showAcknowledgement = fals
       </div>
     </div></header>
     <section className="investment-workbar"><div className="investment-shell-container">
-      <div className="investment-module-identity"><span className="investment-module-icon">📣</span><div><div><strong>{copy.module}</strong><span>/</span><em>{navigationItems.find(tab => tab.id === activeTab)?.label}</em></div><p>{copy.subtitle}</p></div></div>
+      <div className="investment-module-identity"><span className="investment-module-icon">📣</span><div><div><strong>{presentationName ?? copy.module}</strong><span>/</span><em>{navigationItems.find(tab => tab.id === activeTab)?.label}</em></div><p>{commercialPresentation ? commercialCopy.subtitle : copy.subtitle}</p></div></div>
       <IndiceWorkspaceNavigation ariaLabel={copy.sections} items={navigationItems} value={activeTab} onValueChange={selectTab} tone="blue" variant="sections" className="investment-navigation" />
     </div></section>
     <main className="investment-shell-container investment-main">
       {learningMode && <aside className="investment-learning-banner"><GraduationCap size={20} /><div><strong>{copy.learningOn}</strong><p>{copy.learningHint}</p></div><Check size={18} /></aside>}
-      <section className="investment-module-titlebar"><div><span className="investment-module-title-icon">{navigationItems.find(tab => tab.id === activeTab)?.icon}</span><div><p>{copy.overview}</p><h2>{activeTab === 'acknowledgement' ? 'Gracias por inspirar esta causa.' : section.title}</h2></div></div><span className="investment-module-state"><Check size={14} /> {copy.demo}</span></section>
+      <section className="investment-module-titlebar"><div><span className="investment-module-title-icon">{navigationItems.find(tab => tab.id === activeTab)?.icon}</span><div><p>{commercialPresentation ? commercialCopy.sectionSummary : copy.overview}</p><h2>{commercialPresentation ? commercialSection.title : standardActiveTab === 'acknowledgement' ? 'Gracias por inspirar esta causa.' : section.title}</h2></div></div><span className="investment-module-state"><Check size={14} /> {copy.demo}</span></section>
       <div id="investment-content" role="tabpanel" tabIndex={0} className="investment-panel">
-        {activeTab === 'acknowledgement' ? <CarlosAcknowledgement /> : activeTab === 'overview' ? <section className="investment-overview-copy">
+        {commercialPresentation ? <CommercialPresentationPanel locale={locale} tab={commercialActiveTab} /> : standardActiveTab === 'acknowledgement' ? <CarlosAcknowledgement /> : standardActiveTab === 'overview' ? <section className="investment-overview-copy">
           <span className="investment-eyebrow">{section.eyebrow}</span>
           <div className="investment-overview-paragraphs">
             {investmentOverviewParagraphs[locale].map((paragraph, index) => <p key={paragraph} className={`investment-overview-paragraph${index === 0 ? ' investment-overview-lead' : ''}`}>{paragraph}</p>)}
           </div>
         </section> : <>
           <section className="investment-intro"><div><p className="investment-eyebrow">{section.eyebrow}</p><h3>{section.description}</h3></div><aside className="investment-takeaway"><span className="investment-eyebrow">{copy.central}</span><h3>{section.takeaway}</h3><p>{section.takeawayDetail}</p></aside></section>
-          {activeTab === 'modules' ? <ModuleCatalogTable locale={locale} /> : activeTab === 'proforma' ? <ProformaPanel locale={locale} /> : <>
-            {activeTab === 'market' && <section className="investment-market"><div className="investment-market-signals">{marketSignals.map(signal => <div key={signal.value}><p className="investment-market-value">{signal.value}</p><p>{signal.labels[locale]}</p></div>)}</div><div className="investment-source"><a href={marketSource.url} target="_blank" rel="noopener noreferrer">{copy.source}: {marketSource.titles[locale]} <ExternalLink size={14} /></a></div></section>}
-            {activeTab === 'business' ? <CustomerJourney locale={locale} section={section} /> : <section className={`investment-items${activeTab === 'ai' ? ' investment-items--ai' : ''}`}><h3>{section.itemsTitle}</h3><div className="investment-card-grid">{section.items.map((entry, index) => <article className="investment-card" key={entry.title}><span className="investment-eyebrow">{String(index + 1).padStart(2, '0')}</span><h4>{entry.title}</h4><p>{entry.description}</p></article>)}</div></section>}
-            {activeTab === 'partners' ? <PartnerCertificationPanel locale={locale} section={section} /> : <EvidenceList emphasis={activeTab === 'market'} roadmap={activeTab === 'ai'} title={section.evidenceTitle} items={section.evidence} />}
+          {standardActiveTab === 'modules' ? <ModuleCatalogTable locale={locale} /> : standardActiveTab === 'proforma' ? <ProformaPanel locale={locale} /> : <>
+            {standardActiveTab === 'market' && <section className="investment-market"><div className="investment-market-signals">{marketSignals.map(signal => <div key={signal.value}><p className="investment-market-value">{signal.value}</p><p>{signal.labels[locale]}</p></div>)}</div><div className="investment-source"><a href={marketSource.url} target="_blank" rel="noopener noreferrer">{copy.source}: {marketSource.titles[locale]} <ExternalLink size={14} /></a></div></section>}
+            {standardActiveTab === 'business' ? <CustomerJourney locale={locale} section={section} /> : <section className={`investment-items${standardActiveTab === 'ai' ? ' investment-items--ai' : ''}`}><h3>{section.itemsTitle}</h3><div className="investment-card-grid">{section.items.map((entry, index) => <article className="investment-card" key={entry.title}><span className="investment-eyebrow">{String(index + 1).padStart(2, '0')}</span><h4>{entry.title}</h4><p>{entry.description}</p></article>)}</div></section>}
+            {standardActiveTab === 'partners' ? <PartnerCertificationPanel locale={locale} section={section} /> : <EvidenceList emphasis={standardActiveTab === 'market'} roadmap={standardActiveTab === 'ai'} title={section.evidenceTitle} items={section.evidence} />}
           </>}
-          <div className={`investment-next${activeTab === 'market' ? ' investment-next--market' : ''}${activeTab === 'business' ? ' investment-next--business' : ''}`}><ArrowRight size={18} /><p><span>{activeTab === 'business' ? customerJourneyUi[locale].resultLabel : copy.next}</span>{section.next}</p></div>
+          <div className={`investment-next${standardActiveTab === 'market' ? ' investment-next--market' : ''}${standardActiveTab === 'business' ? ' investment-next--business' : ''}`}><ArrowRight size={18} /><p><span>{standardActiveTab === 'business' ? customerJourneyUi[locale].resultLabel : copy.next}</span>{section.next}</p></div>
         </>}
       </div>
-      <footer className="investment-footer"><p>{footerMessage ?? copy.disclaimer}</p><p>Índice · 2026</p></footer>
+      <footer className="investment-footer"><p>{footerMessage ?? (commercialPresentation ? commercialCopy.footer : copy.disclaimer)}</p><p>Índice · 2026</p></footer>
     </main>
   </div>;
 }

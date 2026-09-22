@@ -37,7 +37,7 @@ window.addEventListener('unhandledrejection', (event) => {
 // user explicitly retries.
 
 const rootElement = document.getElementById('root');
-const publicPresentationRouteIds = new Set(['investment', 'investment-carlos-munoz']);
+const publicPresentationRouteIds = new Set(['investment', 'investment-carlos-munoz', 'presentation']);
 
 // The static investment presentation must not mount tenant-data providers.
 // All existing routes retain the same providers, including after SPA navigation.

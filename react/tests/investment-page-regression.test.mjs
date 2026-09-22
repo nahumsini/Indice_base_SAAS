@@ -10,6 +10,10 @@ const read = path => readFileSync(resolve(root, path), 'utf8');
 const content = loadTypescript(resolve(folder, 'investmentContent.ts'), () => {
   throw new Error('Investment content must remain static');
 });
+const commercial = loadTypescript(resolve(folder, 'commercialPresentationContent.ts'), name => {
+  if (name === './investmentContent') return content;
+  throw new Error(`Commercial presentation must remain static: ${name}`);
+});
 const modules = loadTypescript(resolve(folder, 'investmentModules.ts'), () => {
   throw new Error('Investment module catalogue must remain static');
 });
@@ -33,6 +37,7 @@ const expectedTabs = [
   'proforma',
 ];
 const expectedLocales = ['es-MX', 'es-CO', 'en-US', 'en-CA', 'fr-CA', 'pt-BR', 'ko-CA', 'zh-CA'];
+const expectedCommercialTabs = ['proposal', 'operation', 'capabilities', 'agents', 'pricing', 'implementation'];
 const expectedTabEmojis = ['🧭', '🧩', '🎯', '💼', '🤝', '🤖', '📊'];
 const expectedModuleIds = [
   'home-panel',
@@ -98,6 +103,80 @@ test('all eight real locales have complete structural copy', () => {
     }
     assert.equal(typeof header.getHeaderTranslations(locale).actions.profile, 'string');
   }
+});
+
+test('the commercial presentation provides a six-stage localized narrative', () => {
+  assert.deepEqual(commercial.commercialPresentationTabs.map(tab => tab[0]), expectedCommercialTabs);
+  assert.deepEqual(Object.keys(commercial.commercialPresentationContent), expectedLocales);
+  assert.equal(commercial.resolveCommercialPresentationTab('agents'), 'agents');
+  for (const invalid of [null, '', 'overview', 'market', 'business', 'constructor']) {
+    assert.equal(commercial.resolveCommercialPresentationTab(invalid), 'proposal');
+  }
+
+  for (const locale of expectedLocales) {
+    const copy = commercial.commercialPresentationContent[locale];
+    assert.equal(commercial.commercialPresentationTabs.filter(([, labels]) => labels[locale]?.trim()).length, 6);
+    for (const field of ['subtitle', 'sectionSummary', 'centralLabel', 'footer']) {
+      assert.ok(copy[field].trim().length > 0, `${locale}.${field} must not be empty`);
+    }
+    for (const tab of expectedCommercialTabs) {
+      const section = copy[tab];
+      for (const field of ['eyebrow', 'title', 'lead', 'next']) {
+        assert.ok(section[field].trim().length > 0, `${locale}.${tab}.${field} must not be empty`);
+      }
+    }
+    assert.equal(copy.proposal.frictions.length, 3);
+    assert.equal(copy.proposal.results.length, 3);
+    assert.equal(copy.operation.lanes.length, 3);
+    assert.equal(copy.capabilities.pillars.length, 4);
+    assert.equal(copy.capabilities.packages.length, 3);
+    assert.equal(copy.agents.agents.length, 4);
+    assert.equal(copy.agents.questions.length, 4);
+    assert.equal(copy.pricing.plans.length, 3);
+    assert.equal(copy.pricing.offerIncludes.length, 4);
+    assert.equal(copy.implementation.steps.length, 4);
+  }
+
+  const spanish = commercial.commercialPresentationContent['es-MX'];
+  assert.match(spanish.proposal.statement, /Tu equipo opera/);
+  assert.match(spanish.capabilities.lead, /120 herramientas/);
+  assert.match(spanish.agents.coordinatorDescription, /ChatGPT o Claude/);
+  for (const plan of ['controla', 'escala', 'corporate']) {
+    assert.deepEqual(commercial.commercialPlanPrices[plan], { monthlyMxn: null, annualMxn: null }, 'Unverified Mexico rates must not be invented or converted from the older USD catalog');
+  }
+  assert.equal(commercial.commercialPlanPrices.includedSeats, 10);
+  assert.equal(commercial.commercialPlanPrices.additionalSeatMonthlyMxn, undefined);
+  assert.equal(commercial.commercialPlanPrices.communityImplementationMxn, 4500);
+  assert.equal(commercial.commercialPlanPrices.communityImplementationPeople, 10);
+  assert.match(spanish.pricing.offerLabel, /Master Muñoz/);
+  assert.match(spanish.pricing.offerDescription, /Carlos Muñoz/);
+  assert.match(spanish.pricing.offerCondition, /suscripción mensual.*por separado/);
+  assert.doesNotMatch(JSON.stringify(spanish.pricing), /USD/);
+  assert.match(spanish.implementation.trialLabel, /15 días/);
+  assert.match(spanish.implementation.supportDescription, /consultor/);
+});
+
+test('commercial copy reflects the new website offer without mixing the previous catalog', () => {
+  const spanish = commercial.commercialPresentationContent['es-MX'];
+  assert.match(spanish.proposal.lead, /sin multiplicar tu estructura gerencial/);
+  assert.match(spanish.pricing.lead, /bloques de diez/);
+  assert.match(spanish.pricing.lead, /una sola vez/);
+  assert.match(spanish.capabilities.scopeNote, /Modo Aprendiz/);
+  assert.match(spanish.agents.coordinatorDescription, /compatibilidad.*cuenta.*permisos/);
+  assert.match(spanish.operation.lanes[2].description, /compatibilidad.*cuenta.*permisos/);
+  assert.doesNotMatch(spanish.pricing.plans[0].includes.join(' '), /KPIs/);
+  assert.match(spanish.pricing.plans[1].includes.join(' '), /Ventas o POS/);
+  assert.match(spanish.pricing.plans[2].includes.join(' '), /Ventas y POS.*Cartera.*Módulo ejecutivo de KPIs/);
+  assert.match(spanish.implementation.steps[1].description, /alta y la primera mensualidad/);
+  assert.match(spanish.implementation.trialDescription, /antes de contratar/);
+  const pendingLabels = ['Por confirmar', 'Por confirmar', 'To be confirmed', 'To be confirmed', 'À confirmer', 'A confirmar', '확인 예정', '待确认'];
+  expectedLocales.forEach((locale, index) => {
+    const pricing = commercial.commercialPresentationContent[locale].pricing;
+    assert.equal(pricing.pendingPriceLabel, pendingLabels[index]);
+    assert.match(pricing.commonItems[0], /10/);
+    assert.match(pricing.beforeTaxLabel, /MXN/);
+    assert.doesNotMatch(JSON.stringify(pricing), /\b220\b|\b1800\b|\b2700\b|\b3600\b|USD/);
+  });
 });
 
 test('target profiles prioritize scaling companies with 10 to 30 employees', () => {
@@ -351,6 +430,7 @@ function pageHarness(initialSearch = '', pageProps = {}) {
     if (name.endsWith('IndiceWorkspaceNavigation')) return { IndiceWorkspaceNavigation: navigation };
     if (name.includes('components/ui/dropdown-menu')) return dropdown;
     if (name.includes('components/header/translations')) return header;
+    if (name === './commercialPresentationContent') return commercial;
     if (name === './investmentContent') return content;
     if (name === './investmentModules') return modules;
     if (name === './investmentProforma') return proforma;
@@ -487,6 +567,40 @@ test('the Carlos Muñoz client copy adds its personalized welcome and acknowledg
     assert.equal(generalPage.byClass('investment-acknowledgement').length, 0);
   } finally {
     generalPage.close();
+  }
+});
+
+test('the commercial presentation renders its six-stage client story independently', () => {
+  const page = pageHarness('tab=business', {
+    commercialPresentation: true,
+    presentationName: 'Presentación comercial',
+    welcomeMessage: 'Estimado cliente',
+  });
+  try {
+    assert.deepEqual(page.nav().items.map(item => item.id), expectedCommercialTabs);
+    assert.equal(page.nav().value, 'proposal');
+    assert.match(textOf(page.byClass('investment-greeting')[0]), /Estimado cliente/);
+    assert.doesNotMatch(textOf(page.byClass('investment-greeting')[0]), /inversionista/);
+    assert.match(textOf(page.byClass('investment-module-identity')[0]), /Presentación comercial/);
+    assert.match(textOf(page.byClass('investment-company-pill')[0]), /Presentación comercial/);
+    assert.match(page.metadataTitles.at(-1), /Índice \| Presentación comercial/);
+    assert.match(textOf(page.byClass('investment-module-identity')[0]), /ERP personalizado/);
+    assert.ok(page.all().some(node => node.type === 'select' && node.props.value === 'MXN'));
+
+    for (const tab of expectedCommercialTabs) {
+      page.selectTab(tab);
+      assert.equal(page.params.get('tab'), tab === 'proposal' ? null : tab);
+      assert.equal(page.nav().value, tab);
+      const panel = page.all().find(node => node.type?.name === 'CommercialPresentationPanel');
+      assert.ok(panel, `${tab} must render the commercial panel`);
+      assert.ok(textOf(panel.type(panel.props)).trim().length > 200, `${tab} must contain useful presentation copy`);
+    }
+
+    page.selectLanguage('en-US');
+    assert.deepEqual(page.nav().items.map(item => item.label), ['The proposal', 'Connected operation', 'Capabilities', 'Lupita and her agents', 'Pricing', 'Implementation']);
+    assert.match(textOf(page.byClass('investment-module-identity')[0]), /Customized ERP/);
+  } finally {
+    page.close();
   }
 });
 
@@ -693,6 +807,7 @@ test('the public route has no session loader and existing routes keep their prot
   const routes = read('app/routes.tsx');
   const investmentRoute = routes.match(/\{\s*\/\/ Public editorial page[\s\S]*?\n  \},/)[0];
   const clientRoute = routes.match(/\{\s*\/\/ Personalized public copy[\s\S]*?\n  \},/)[0];
+  const presentationRoute = routes.match(/\{\s*\/\/ Public commercial exposition[\s\S]*?\n  \},/)[0];
   assert.match(investmentRoute, /id: 'investment'/);
   assert.match(investmentRoute, /path: '\/investment'/);
   assert.doesNotMatch(investmentRoute, /loader:/);
@@ -702,11 +817,19 @@ test('the public route has no session loader and existing routes keep their prot
   assert.match(clientRoute, /showAcknowledgement/);
   assert.match(clientRoute, /footerMessage="Muchos saludos también al señor Ricardo Moreno :P"/);
   assert.doesNotMatch(clientRoute, /loader:/);
+  assert.match(presentationRoute, /id: 'presentation'/);
+  assert.match(presentationRoute, /path: '\/presentation'/);
+  assert.match(presentationRoute, /presentationName="Presentación comercial"/);
+  assert.match(presentationRoute, /welcomeMessage="Estimado cliente"/);
+  assert.match(presentationRoute, /commercialPresentation/);
+  assert.doesNotMatch(presentationRoute, /hiddenTabs=/);
+  assert.doesNotMatch(presentationRoute, /loader:/);
   assert.match(routes, /path: '\/:pageId\/\*',[\s\S]*?loader: requireAuthenticatedSession/);
   const main = read('main.tsx');
   assert.match(main, /useSyncExternalStore\(router.subscribe/);
   assert.match(main, /publicPresentationRouteIds\.has\(match\.route\.id\)/);
   assert.match(main, /'investment-carlos-munoz'/);
+  assert.match(main, /'presentation'/);
   assert.match(main, /if \(isInvestment\) return children/);
   assert.match(main, /<FavoritesProvider><PettyCashProvider>\{children\}/);
 });
@@ -730,11 +853,11 @@ test('the demo uses static data without business APIs, persistence, or unsafe HT
   assert.match(pageSource, /DropdownMenu/);
   assert.match(pageSource, /getHeaderTranslations/);
   assert.match(pageSource, /getInvestmentUiCopy/);
-  assert.match(pageSource, /useInvestmentMetadata\(`Índice \| \$\{copy\.document\}`\)/);
+  assert.match(pageSource, /useInvestmentMetadata\(`Índice \| \$\{presentationName \?\? copy\.document\}`\)/);
   assert.match(pageSource, /investment-notifications-menu/);
   assert.match(pageSource, /investment-profile-menu/);
 
-  for (const file of ['InvestmentPage.tsx', 'investmentContent.ts', 'investmentModules.ts', 'investmentUiCopy.ts', 'useInvestmentMetadata.ts']) {
+  for (const file of ['InvestmentPage.tsx', 'commercialPresentationContent.ts', 'investmentContent.ts', 'investmentModules.ts', 'investmentUiCopy.ts', 'useInvestmentMetadata.ts']) {
     const source = readFileSync(resolve(folder, file), 'utf8');
     assert.doesNotMatch(source, /\bfetch\(|apiClient|authApi|useNotifications|dangerouslySetInnerHTML|localStorage|sessionStorage/);
   }

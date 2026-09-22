@@ -413,6 +413,67 @@ try {
   assert.equal(await evaluate('document.querySelector(".investment-acknowledgement")?.textContent.includes("un millón de empresarios en México se hagan chingones")'), true);
   assert.equal(await evaluate('document.querySelector(".investment-acknowledgement blockquote")?.textContent.trim()'), '“¿Dónde está la oportunidad?”');
   await screenshot('desktop-carlos-munoz-acknowledgement');
+  await send('Page.navigate', { url: `${origin}/presentation` });
+  await waitFor('document.querySelectorAll("[role=tab]").length === 6');
+  assert.equal(await evaluate('document.querySelector(".investment-greeting")?.textContent.trim()'), '👋 Estimado cliente');
+  assert.equal(await evaluate('document.querySelector(".investment-module-identity strong")?.textContent.trim()'), 'Presentación comercial');
+  assert.equal(await evaluate('document.querySelector(".investment-company-pill span")?.textContent.trim()'), 'Presentación comercial');
+  assert.equal(await evaluate('document.querySelector(".investment-select-control select")?.value'), 'MXN');
+  assert.equal(await evaluate('document.title'), 'Índice | Presentación comercial');
+  assert.deepEqual(await evaluate('[...document.querySelectorAll("[role=tab]")].map(tab => tab.lastElementChild?.textContent.trim())'), ['La propuesta', 'Operación conectada', 'Capacidades', 'Lupita y sus agentes', 'Precios', 'Implementación']);
+  assert.equal(await selectedIndex(), 0);
+  assert.equal(await evaluate('Boolean(document.querySelector(".investment-commercial--proposal"))'), true);
+  await screenshot('desktop-presentation-proposal');
+  await clickTab(1);
+  assert.equal(await evaluate('Boolean(document.querySelector(".investment-commercial--operation"))'), true);
+  await clickTab(2);
+  assert.equal(await evaluate('Boolean(document.querySelector(".investment-commercial--capabilities"))'), true);
+  await clickTab(3);
+  assert.equal(await evaluate('Boolean(document.querySelector(".investment-commercial--agents"))'), true);
+  await screenshot('desktop-presentation-agents');
+  await clickTab(4);
+  assert.equal(await evaluate('Boolean(document.querySelector(".investment-commercial--pricing"))'), true);
+  assert.deepEqual(await evaluate('[...document.querySelectorAll(".investment-commercial-plan-price strong")].map(item => item.textContent.trim())'), ['Por confirmar', 'Por confirmar', 'Por confirmar']);
+  assert.equal(await evaluate('document.querySelector(".investment-commercial-plan-common")?.textContent.includes("10 personas")'), true);
+  assert.equal(await evaluate('document.querySelectorAll(".investment-commercial-pricing-grid article > small").length'), 0, 'No unverified annual rates');
+  assert.equal(await evaluate('document.querySelector(".investment-commercial-offer-price strong")?.textContent.trim()'), '$4,500');
+  assert.equal(await evaluate('document.querySelector(".investment-commercial-community-offer")?.textContent.includes("Master Muñoz")'), true);
+  assert.equal(await evaluate('document.querySelector(".investment-commercial-community-offer")?.textContent.includes("10 personas")'), true);
+  await screenshot('desktop-presentation-pricing');
+  await clickTab(5);
+  assert.equal(await evaluate('Boolean(document.querySelector(".investment-commercial--implementation"))'), true);
+  await screenshot('desktop-presentation-implementation');
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 1000, deviceScaleFactor: 1, mobile: true });
+  for (let index = 0; index < 6; index++) {
+    await clickTab(index);
+    await assertNoDocumentOverflow(`commercial presentation tab ${index + 1} at 390px`);
+    if (index === 4) await screenshot('mobile-presentation-pricing');
+  }
+  await screenshot('mobile-presentation-implementation');
+  for (const [locale, languageName] of locales) {
+    if (await evaluate('document.querySelector(".investment-page")?.lang') !== locale) {
+      await openMenu('document.querySelector(".investment-language-flag")?.closest("button")', '.investment-language-menu');
+      await evaluate(`(() => {
+        const option = [...document.querySelectorAll('.investment-language-menu [role=menuitem]')]
+          .find(item => item.textContent.includes(${JSON.stringify(languageName)}));
+        if (!option) throw new Error('Missing commercial locale ${locale}');
+        option.click();
+      })()`);
+      await waitFor(`document.querySelector('.investment-page')?.lang === ${JSON.stringify(locale)}`);
+    }
+    for (let index = 0; index < 6; index++) {
+      await clickTab(index);
+      await assertNoDocumentOverflow(`commercial ${locale} tab ${index + 1} at 390px`);
+    }
+    await clickTab(4);
+    assert.equal(await evaluate('document.querySelectorAll(".investment-commercial-plan-price.is-pending").length'), 3, `${locale} must mark all unverified rates`);
+    assert.equal(await evaluate('document.querySelector(".investment-commercial-plan-common")?.textContent.includes("10")'), true);
+    assert.equal(await evaluate('document.querySelectorAll(".investment-commercial-pricing-grid article > small").length'), 0);
+  }
+  await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false });
+  await send('Page.navigate', { url: `${origin}/presentation?tab=business` });
+  await waitFor('document.querySelectorAll("[role=tab]").length === 6');
+  assert.equal(await selectedIndex(), 0);
   assert.deepEqual(exceptions, [], 'No runtime exceptions');
   assert.deepEqual(apiRequests, [], 'No session or tenant API calls');
   assert.deepEqual(failedRequests, [], 'No failed asset requests');
@@ -432,6 +493,7 @@ try {
     invalidTabFallback: true,
     personalizedClientRoute: true,
     personalizedAcknowledgement: true,
+    commercialPresentationRoute: true,
     localDarkMode: true,
     apiRequests: 0,
     runtimeErrors: 0,

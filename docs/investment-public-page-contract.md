@@ -13,6 +13,14 @@ Decision date: 2026-09-19. Owner: public product presentation.
   It remains public, read-only, unlinked from product navigation
   and covered by the same no-index metadata. The shared `/investment` route does not expose
   this personalized closing.
+- Commercial exposition route: `/presentation`. It reuses the read-only presentation shell but has
+  its own six-stage narrative: `proposal`, `operation`, `capabilities`, `agents`, `pricing` and
+  `implementation`. The pricing section is Mexico-facing and uses MXN. Unverified subscription
+  rates remain unset and display a localized confirmation state, never a guessed conversion.
+  It keeps recurring subscriptions separate from implementation and qualifies taxes and scope. Old or
+  invalid query-string tabs safely fall back to `proposal`. Its visible
+  module identity and browser title are `Presentación comercial`, and its header greeting is
+  `Estimado cliente`.
 - Public, read-only editorial presentation. Intentionally no inbound links in
   application navigation, menus, favorites, public headers, or footers.
 - Not a private investor data room: anyone with the URL can read or share it.
@@ -49,6 +57,44 @@ loaders, permissions and persistence. No backend or business-rule changes.
 - No absolute security, return, revenue or certification claims.
 
 ## Content status and provenance
+
+### Commercial exposition — website alignment, 2026-09-22
+
+Scope is editorial `/presentation` only: no changes to billing catalogs, checkout, subscriptions,
+investor financial scenarios or the Carlos Muñoz presentation.
+
+The live marketing homepage (`https://www.indiceapp.com/index.php`), module page
+(`https://www.indiceapp.com/modulos.php`) and its public Spanish copy
+(`https://www.indiceapp.com/i18n/es-MX.json`, current `brand26.*` keys) were consulted directly.
+Search-index versions and older `plans.*` / `plans.v2.*` translation keys were not treated as the
+current offer. The presentation reflects the new offer in all eight locales:
+
+- Customized ERP, specialized agents coordinated by Lupita, and human consulting to support
+  management without multiplying the management structure; human decisions and approvals remain.
+- Ten people included; each person counts once across ERP, kiosks, HR and agents. Capacity grows
+  in blocks of ten. No unverified per-seat MXN surcharge is shown.
+- Controla: Home Panel, HR, Tasks and Processes. Escala adds Expenses, Petty Cash and Inventory,
+  with a choice of Sales/CRM or POS. Corporativo includes both commercial modules, Receivables
+  and the standalone executive KPI module. Each module retains its internal indicators.
+- Learning Mode, monthly 60-minute consulting, up to 15 days of trial before subscribing, and
+  required implementation with scope and training agreed in advance. Bespoke development is extra.
+- ChatGPT/Claude connectivity is validated during implementation according to compatibility,
+  account and authorized permissions; the copy does not guarantee availability for every account.
+
+Pricing blocker: the live `/planes.php` link returns HTTP 302 to `app.indiceapp.com/planes`.
+The linked public signup catalog still reports USD pricing and five included seats, inconsistent
+with the new ten-person marketing offer. No new Mexico subscription amounts could be verified.
+Previously entered MXN 1,800 / 2,700 / 3,600 monthly rates, their annual equivalents and MXN 220
+per additional user were unsupported and removed. Monthly/annual values stay `null` and are not
+formatted as zero; annual prices are hidden until confirmed. Obtain the new Mexico rate card
+before replacing those placeholders. This is a pending commercial input, not a billing change.
+
+The user's explicit exception is preserved: Master Muñoz community implementation at MXN 4,500,
+one time, for up to ten people as already scoped in the presentation; subscription is separate.
+The presentation states before-VAT amounts and scope confirmation. This rate is user-provided,
+not attributed to the public website. No promotion expiration or invented discount is added.
+
+### Investor exposition
 
 The sales and distributor-consultant models are **proposals**, not approved
 commissions or contractual promises. Actual internal revenue, customer counts,
@@ -96,18 +142,23 @@ query-tab refresh, and retain the previous frontend artifact for rollback.
 
 Build/test results are implementation checks, not public-release certification.
 
-### Local result — 2026-09-19
+### Local result — 2026-09-22
 
-- 21 focused investment-page regression tests passed, including Proforma calculations,
+- 24 focused investment-page regression tests passed, including Proforma calculations,
   localized assumptions, the seven-section shared presentation structure and the personalized
-  client welcome and acknowledgement.
+  client welcome, acknowledgement and dedicated six-section `/presentation` route.
 - TypeScript passed. Production build passed with the existing warning for a
   shared application chunk above 600 kB (not the new investment page).
 - Headless Chrome: seven tabs, eight locales, URL history, reload, keyboard, invalid-tab
   fallback and 320/390/768/1440 px layouts passed; no runtime exceptions,
   failed asset requests or business API calls. Both color modes and the Proforma
   desktop/mobile layouts were verified. `/Mrcarlosmunoz` rendered the personalized
-  welcome and client-only eighth tab while retaining the public presentation boundary.
+  welcome and client-only eighth tab, while `/presentation` rendered its commercial proposal,
+  connected operation, capabilities, agent, pricing and implementation story; both retained the public
+  presentation boundary. Commercial tabs were additionally checked in all eight locales at 390 px,
+  including the three explicit unverified-price states and the unchanged MXN 4,500 offer.
 - Evidence: `.run/investment-review/` (local screenshots and results JSON).
 - An initial Chrome run was interrupted and a second run completed normally.
+- The website-alignment build initially encountered a sandbox filesystem denial; the approved
+  retry completed successfully. No TypeScript, focused regression or browser failures remained.
 - Production/apex-domain publication: not performed; routing remains pending.
