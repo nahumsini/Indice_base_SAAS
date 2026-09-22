@@ -2,9 +2,13 @@ package com.indice.erp.ai.access;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 
 import com.indice.erp.access.module.ModuleAccessService;
 import com.indice.erp.access.tab.TabPermissionAccessService;
@@ -234,6 +238,81 @@ class AiToolAuthorizationServiceTest {
         assertTrue(service.canReadPaymentAccounts(USER));
     }
 
+    @Test
+    void reusesChecksOnlyWithinOneCapabilityEvaluationAndRechecksTheNextRequest() {
+        allowLegacyAccess();
+        service.withCapabilityEvaluation(() -> {
+            assertTrue(service.canReadSalesToday(USER));
+            assertTrue(service.canReadSalesToday(USER));
+            assertTrue(service.canReadCommercialSales(USER));
+            return null;
+        });
+        verify(subscriptionStatusProvider).currentStatus(23L);
+        verify(moduleEntitlementService).hasActiveEntitlement(23L, "crm");
+        verify(moduleAccessService).canAccess(USER, "crm");
+        verify(companyEntitlementService).resolve(23L, "sales");
+        verify(tabPermissionAccessService).canAccess(USER, TabPermissionRequirement.one("crm.kpis"));
+        verify(tabPermissionAccessService).canAccess(USER, TabPermissionRequirement.one("crm.sales"));
+
+        when(tabPermissionAccessService.canAccess(eq(USER), any())).thenReturn(false);
+        assertFalse(service.withCapabilityEvaluation(() -> service.canReadSalesToday(USER)));
+        // Calls outside discovery must also consult live authorization, never a leftover memo.
+        assertFalse(service.canReadSalesToday(USER));
+        verify(subscriptionStatusProvider, times(3)).currentStatus(23L);
+        verify(moduleAccessService, times(3)).canAccess(USER, "crm");
+    }
+
+    @Test
+    void evaluationDoesNotSharePermissionsAcrossMembersOrCompanies() {
+        allowLegacyAccess();
+        var otherMember = new AuthSessionUser(4L, 23L, 42L, "Other", "user");
+        var otherCompany = new AuthSessionUser(3L, 24L, 41L, "Reader", "user");
+        when(subscriptionStatusProvider.currentStatus(24L)).thenReturn(CompanySubscriptionStatus.activeLegacy());
+        service.withCapabilityEvaluation(() -> {
+            assertTrue(service.canReadSalesToday(USER));
+            assertFalse(service.canReadSalesToday(otherMember));
+            assertFalse(service.canReadSalesToday(otherCompany));
+            assertTrue(service.canReadSalesToday(USER));
+            return null;
+        });
+        verify(moduleAccessService).canAccess(otherMember, "crm");
+        verify(moduleEntitlementService).hasActiveEntitlement(24L, "crm");
+        verify(companyEntitlementService).resolve(23L, "sales");
+    }
+
+    @Test
+    void exceptionalEvaluationAlwaysClearsTheMemoOnReusedThreads() {
+        allowLegacyAccess();
+        assertThrows(IllegalStateException.class, () -> service.withCapabilityEvaluation(() -> {
+            assertTrue(service.canReadSalesToday(USER));
+            throw new IllegalStateException("synthetic failure");
+        }));
+        when(moduleAccessService.canAccess(USER, "crm")).thenReturn(false);
+        assertFalse(service.canReadSalesToday(USER));
+        assertFalse(service.withCapabilityEvaluation(() -> service.canReadSalesToday(USER)));
+        verify(moduleAccessService, times(3)).canAccess(USER, "crm");
+    }
+
+    @Test
+    void concurrentEvaluationsNeverShareTheSameAuthorizationMemo() throws Exception {
+        allowLegacyAccess();
+        var barrier = new java.util.concurrent.CyclicBarrier(2);
+        try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var operation = (java.util.concurrent.Callable<Boolean>) () -> service.withCapabilityEvaluation(() -> {
+                boolean first = service.canReadSalesToday(USER);
+                try { barrier.await(5, java.util.concurrent.TimeUnit.SECONDS); }
+                catch (Exception error) { throw new IllegalStateException(error); }
+                return first && service.canReadSalesToday(USER);
+            });
+            var first = executor.submit(operation);
+            var second = executor.submit(operation);
+            assertTrue(first.get(10, java.util.concurrent.TimeUnit.SECONDS));
+            assertTrue(second.get(10, java.util.concurrent.TimeUnit.SECONDS));
+        }
+        verify(subscriptionStatusProvider, times(2)).currentStatus(23L);
+        verify(companyEntitlementService, times(2)).resolve(23L, "sales");
+    }
+
     private void allowLegacyAccess() {
         when(subscriptionStatusProvider.currentStatus(23L)).thenReturn(CompanySubscriptionStatus.activeLegacy());
         when(moduleEntitlementService.hasActiveEntitlement(23L, "crm")).thenReturn(true);
@@ -242,5 +321,46 @@ class AiToolAuthorizationServiceTest {
         when(companyEntitlementService.resolve(23L, "sales")).thenReturn(
             new CompanyEntitlementResolution(23L, "sales", false, EntitlementPolicyMode.LEGACY, List.of())
         );
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({
+        "customers,crm,sales,crm.contacts",
+        "customers,pos,pos,pos.clientes",
+        "providers,expenses,expenses,expenses.providers",
+        "providers,inventory,inventory,inventory.providers",
+        "warehouses,inventory,inventory,inventory.inventory",
+        "warehouses,crm,sales,crm.sales",
+        "budgets,expenses,expenses,expenses.budgets",
+        "accounts,expenses,expenses,expenses.accounting"
+    })
+    void operationalReferencesRequireCurrentModuleExactTabAndEntitlement(String tool, String module, String capability, String tab) {
+        when(subscriptionStatusProvider.currentStatus(23L)).thenReturn(CompanySubscriptionStatus.activeLegacy());
+        when(moduleEntitlementService.hasActiveEntitlement(eq(23L), anyString()))
+            .thenAnswer(invocation -> module.equals(invocation.getArgument(1)));
+        when(moduleAccessService.canAccess(USER, module)).thenReturn(true);
+        var requirement = switch (tool) {
+            case "customers" -> module.equals("crm") ? TabPermissionRequirement.any(
+                "crm.leads", "crm.contacts", "crm.quotes", "crm.sales", "crm.contracts") : TabPermissionRequirement.one(tab);
+            case "budgets" -> TabPermissionRequirement.any("expenses.budgets", "expenses.kpis");
+            default -> TabPermissionRequirement.one(tab);
+        };
+        java.util.function.BooleanSupplier check = switch (tool) {
+            case "customers" -> () -> service.canReadCustomers(USER);
+            case "providers" -> () -> service.canReadProviders(USER);
+            case "warehouses" -> () -> service.canReadWarehouses(USER);
+            case "budgets" -> () -> service.canReadBudgetLines(USER);
+            default -> () -> service.canReadAccountingAccounts(USER);
+        };
+        assertFalse(check.getAsBoolean());
+        when(tabPermissionAccessService.canAccess(USER, requirement)).thenReturn(true);
+        when(companyEntitlementService.resolve(23L, capability)).thenReturn(
+            new CompanyEntitlementResolution(23L, capability, true, EntitlementPolicyMode.ENFORCE, List.of()));
+        assertTrue(check.getAsBoolean());
+        when(companyEntitlementService.resolve(23L, capability)).thenReturn(
+            new CompanyEntitlementResolution(23L, capability, false, EntitlementPolicyMode.ENFORCE, List.of()));
+        assertFalse(check.getAsBoolean());
+        when(moduleEntitlementService.hasActiveEntitlement(eq(23L), anyString())).thenReturn(false);
+        assertFalse(check.getAsBoolean());
     }
 }

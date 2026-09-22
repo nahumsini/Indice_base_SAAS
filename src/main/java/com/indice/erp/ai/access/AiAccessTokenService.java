@@ -32,6 +32,11 @@ public class AiAccessTokenService {
     public static final String RECEIVABLES_READ = "receivables.read";
     public static final String BUSINESS_CONTEXT_READ = "business.context:read";
     public static final String FINANCE_REFERENCES_READ = "finance.references:read";
+    public static final String CUSTOMERS_READ = "customers.read";
+    public static final String PROVIDERS_READ = "providers.read";
+    public static final String WAREHOUSES_READ = "warehouses.read";
+    public static final String BUDGET_LINES_READ = "budget_lines.read";
+    public static final String ACCOUNTING_ACCOUNTS_READ = "accounting_accounts.read";
     public static final String TASKS_CREATE = "tasks.create";
     public static final String EXPENSES_CREATE = "expenses.create";
     public static final String PETTY_CASH_EXPENSE_CREATE = "petty_cash.expense:create";
@@ -52,7 +57,8 @@ public class AiAccessTokenService {
         PETTY_CASH_READ,
         RECEIVABLES_READ,
         BUSINESS_CONTEXT_READ,
-        FINANCE_REFERENCES_READ
+        FINANCE_REFERENCES_READ,
+        CUSTOMERS_READ, PROVIDERS_READ, WAREHOUSES_READ, BUDGET_LINES_READ, ACCOUNTING_ACCOUNTS_READ
     );
     private static final Set<String> ACTION_SCOPES = Set.of(
         TASKS_CREATE,

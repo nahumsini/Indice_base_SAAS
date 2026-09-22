@@ -4,6 +4,10 @@ Status: canonical
 
 Applies to: `integrations/indice-mcp`, `/api/v1/ai/**`, OAuth connections and every Indice tool exposed to an AI client.
 
+The user-approved [Lupita evolution contract](indice-lupita-mcp-evolution-contract.md) defines the
+coordinator, four specialist perspectives, target operations and explicitly staged autonomy changes.
+Its delivery table distinguishes implemented tools from approved work that is still pending.
+
 ## 1. Purpose
 
 The Indice MCP is a delegated business interface, not a database gateway and not a second business
@@ -47,7 +51,7 @@ deployments never add new scopes to them.
 
 ## 3. Current tool authorization matrix
 
-The table describes all 32 MCP tools. `Any(...)` means at least one current tab grant is required.
+The table describes all 37 MCP tools. `Any(...)` means at least one current tab grant is required.
 Every row also inherits the common invariant above.
 
 | Tool | OAuth scope | Owner module and tab permission | Risk and additional rule |
@@ -76,6 +80,11 @@ Every row also inherits the common invariant above.
 | `list_units_and_businesses` | `business.context:read` | `config_center`; `config_center.business-structure` | Read; active references only, restricted to the actor's current organizational scope and cursor paged |
 | `list_payment_accounts` | `finance.references:read` | Expenses: `expenses.payment-accounts`; or CRM: `crm.sales`; FinanceContext required | Read; whitelisted account fields only, restricted to FinanceContext and cursor paged |
 | `list_funds` | `petty_cash.read` | `petty_cash`; Any(`cash`, `control`, `statements`, `kpis`) | Read-only fund owner contract; cursor paged and excludes kiosk credentials, external-owner data and metadata |
+| `search_customers` | `customers.read` | CRM: Any(`leads`, `contacts`, `quotes`, `sales`, `contracts`); or `pos.clientes` | Read; shared customer owner, tenant/scope SQL and cursor pagination |
+| `search_providers` | `providers.read` | `expenses.providers` or `inventory.providers` | Read; shared Finance provider owner, server-derived organizational scope; no fiscal IDs, personal contact data or kiosk access |
+| `list_warehouses` | `warehouses.read` | `inventory.inventory` or `crm.sales` | Read; tenant/scope SQL, cursor pagination; no stock movement |
+| `search_budget_lines` | `budget_lines.read` | `expenses`; Any(`budgets`, `kpis`) | Read; FinanceContext, backend amounts, currency and cursor pagination |
+| `search_accounting_accounts` | `accounting_accounts.read` | `expenses.accounting` | Read; FinanceContext, whitelisted account references and cursor pagination |
 | `preview_create_task` | `tasks.create` | `processes`; Any(`calendar`, `projects`, `processes`) | Preparation; persists only confirmation and audit |
 | `create_task` | `tasks.create` | `processes`; Any(`calendar`, `projects`, `processes`) | Confirmed action; assignment limited to connected user |
 | `preview_create_expense_draft` | `expenses.create` | `expenses`; `expenses.expenses` | Preparation; no payment or approval |
@@ -91,7 +100,7 @@ Module and tab names in this matrix refer to canonical keys such as
 
 ## 4. Action protocol
 
-Every action uses an immutable two-step protocol:
+Every currently delivered action uses an immutable two-step protocol:
 
 1. a preview validates and normalizes the complete business request;
 2. the backend stores a hashed, connection-bound confirmation with a maximum five-minute lifetime;
@@ -103,6 +112,11 @@ Every action uses an immutable two-step protocol:
 Commit must never accept replacement business fields. Confirmations are bound to the exact token,
 tool, user, company and membership. Money or balance actions must be audited with a safe correlation
 identifier and use the Finance/Treasury owner contract.
+
+The Lupita target permits clear low-risk instructions without a second confirmation. This delivery
+does not implement that new action protocol. Each future action must adopt and test it explicitly;
+client instructions cannot bypass the previews required by current tools. Financial and bulk
+operations retain explicit confirmation, audit, idempotency and their owner transactions.
 
 ## 5. Data minimization and result contracts
 
@@ -135,7 +149,7 @@ The first read-only resolver slice is delivered with typed contracts and opaque 
 - `list_funds`;
 - `list_units_and_businesses`;
 
-The remaining resolver package is:
+The operational resolver package is also delivered, with new separately consented read scopes:
 
 - `search_customers`;
 - `search_providers`;
@@ -143,12 +157,22 @@ The remaining resolver package is:
 - `search_budget_lines`;
 - `search_accounting_accounts`.
 
+MCP initialization supplies Lupita behavioral instructions: priority, context, consequence,
+recommendation and next action. It describes specialist perspectives without claiming to execute
+independent agents. Neither these instructions nor an agent name confer module or commercial access.
+
 Delegated HTTP discovery is capability-aware. On every MCP request, the server obtains the `v1`
 manifest from `GET /api/v1/ai/access/capabilities`, validates it against its closed tool catalog and
 enables only tools compatible with both the stored OAuth scopes and current Indice permissions.
 The manifest is returned with `Cache-Control: no-store`; permission revocation therefore affects the
 next request. Tool execution still repeats its owner authorization and never trusts discovery as an
 enforcement boundary.
+
+Within a single synchronous capability evaluation, repeated subscription, module, tab and entitlement
+checks may reuse their result for the same authenticated actor. The evaluation memo must be cleared
+in `finally`, isolated by thread and keyed by the full authenticated membership. It must not survive
+into the next request, token verification or tool execution. This optimization does not introduce
+a time-based permission or capability-manifest cache.
 
 The local stdio development transport may register the complete catalog because it has no delegated
 HTTP request context. It does not weaken backend authorization and is not the production ChatGPT
@@ -160,6 +184,45 @@ The MCP remains bound to loopback. A public deployment exposes only the exact HT
 through the reverse proxy and preserves the Authorization header. The public route requires a
 bounded JSON body, rate limiting and no-store responses. Readiness must distinguish MCP process
 liveness from backend authorization-service availability.
+
+### 7.1 Conversation continuity and bounded recovery
+
+HTTP remains stateless: a new SDK server/transport processes each request. Conversation continuity
+does not require keeping a user session in the MCP process. Never preserve availability by accepting
+an expired token, sharing credentials, serving a stale permission manifest or widening consent.
+
+- Explicit delegated reads (including read-only query/reference POST endpoints) may retry
+  network/body failures, timeouts and HTTP `429`, `502`, `503`, `504`. The default is two total
+  attempts with a 150 ms delay and a 5 s deadline per attempt, including body consumption.
+- `INDICE_READ_ATTEMPTS` is bounded to 1–3; `INDICE_RETRY_DELAY_MS` to 0–1000 ms;
+  `INDICE_HTTP_TIMEOUT_MS` to 1–30000 ms. A `Retry-After` beyond 1 s stops immediate recovery;
+  it must not be ignored by retrying early. Caller cancellation stops recovery.
+- Authentication/permission failures and unknown endpoints are not retried. Preview, commit,
+  login and OAuth token exchange are never automatically replayed by the adapter. An uncertain
+  write outcome must not be presented as success or retried with a new idempotency key.
+- Unavailable or invalid capability manifests return HTTP `503`, never a successful empty catalog.
+  A genuinely empty authorized manifest remains valid. Invalid authorization returns `401` with
+  `WWW-Authenticate`; denied access returns `403`. Tool-level `401` also emits the MCP OAuth
+  challenge in `_meta["mcp/www_authenticate"]`. HTTP tool descriptors publish their OAuth scope in
+  `securitySchemes` and the SDK-supported `_meta.securitySchemes` compatibility field.
+- Supported scopes derive from the closed tool-to-scope map and are contract-tested against
+  Spring. New read scopes still require consent; metadata is not authorization.
+- JSON stderr diagnostics contain a timestamp, server-generated request ID, known RPC method/tool,
+  HTTP status, elapsed time, outcome, catalog count/fingerprint and per-backend-attempt status.
+  The request ID is propagated to Spring. Never log tokens (including hashes), caller-supplied IDs,
+  business arguments/results, response bodies, cookies or personal identifiers. A fingerprint
+  describes only the sorted authorized tool names, not a person or token.
+- Private `GET /healthz` proves process liveness. Private `GET /readyz` checks the backend public
+  health contract within 1.5 s; this proves backend reachability, **not** database health, OAuth
+  refresh or user-specific capability availability. Compose uses readiness; the host-network
+  release script also verifies anonymous MCP `401`. Neither endpoint is added to the public proxy.
+- Release acceptance additionally requires authenticated APPTEST continuity for 20–30 minutes,
+  real refresh/revocation, an explicitly confirmed synthetic write and a separate check of the
+  actual ChatGPT client/mode. Synthetic SDK tests cannot certify ChatGPT voice support or force
+  that client to expose tools on every turn.
+
+Operational steps and remaining release gates are in
+[`deployment/MCP_APPTEST_RUNBOOK.md`](../deployment/MCP_APPTEST_RUNBOOK.md).
 
 Production/catalog release requires all of the following:
 
@@ -192,9 +255,11 @@ separate approved domain decision and recovery tests.
 
 - generic business and finance result schemas remain dynamic;
 - legacy list tools have limits but no cursor contract and several queries filter in memory; the
-  four reference resolvers delivered in this slice do expose opaque cursor pagination;
+  eight paged reference lists expose opaque cursors (business context is a separate singleton); customer and warehouse count/row
+  queries paginate in SQL, while the Finance reference lists still paginate after owner filtering;
 - the public MCP route has no repository-defined dedicated rate-limit policy;
-- Docker health proves anonymous protection/liveness but not backend readiness;
+- backend reachability is covered by readiness; an authenticated synthetic monitor and actual
+  ChatGPT text/voice continuity still require APPTEST operational validation;
 - the full ChatGPT APPTEST and reviewer checklist remains incomplete;
 - `docs/indice-mcp-local-mvp.md` is historical and its migration/test counts must not be used as
   current release evidence.

@@ -15,6 +15,11 @@ const actionScopes = new Set([
 ]);
 
 const scopeLabels: Record<string, string> = {
+  'customers.read': 'Clientes autorizados de Ventas y POS',
+  'providers.read': 'Proveedores autorizados',
+  'warehouses.read': 'Almacenes autorizados',
+  'budget_lines.read': 'Partidas presupuestales y sus importes',
+  'accounting_accounts.read': 'Catálogo de cuentas contables',
   openid: 'Confirmar la identidad de tu cuenta',
   email: 'Correo de acceso verificado',
   'sales.today:read': 'Ventas de hoy',

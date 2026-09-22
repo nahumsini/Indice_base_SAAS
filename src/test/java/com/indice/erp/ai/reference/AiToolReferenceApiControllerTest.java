@@ -37,12 +37,13 @@ class AiToolReferenceApiControllerTest {
     @Mock private AiAccessTokenService tokenService;
     @Mock private AiReferenceResolverService resolverService;
     @Mock private AiToolUsageAuditService auditService;
+    @Mock private AiOperationalReferenceService operationalService;
 
     private AiToolReferenceApiController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new AiToolReferenceApiController(tokenService, resolverService, auditService);
+        controller = new AiToolReferenceApiController(tokenService, resolverService, auditService, operationalService);
     }
 
     @Test
@@ -87,5 +88,42 @@ class AiToolReferenceApiControllerTest {
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
         assertTrue(String.valueOf(response.getBody()).contains("ai_tool_permission_required"));
         verify(auditService).recordRead(TOKEN, "list_payment_accounts", "FAILURE", 403);
+    }
+
+    @Test
+    void operationalEndpointsRequireTheirNewScopesAndNeverUseClientAuthority() {
+        var tools = List.of("search_customers", "search_providers", "list_warehouses", "search_budget_lines", "search_accounting_accounts");
+        var scopes = List.of(AiAccessTokenService.CUSTOMERS_READ, AiAccessTokenService.PROVIDERS_READ,
+            AiAccessTokenService.WAREHOUSES_READ, AiAccessTokenService.BUDGET_LINES_READ, AiAccessTokenService.ACCOUNTING_ACCOUNTS_READ);
+        List<java.util.function.Supplier<org.springframework.http.ResponseEntity<?>>> endpoints = List.of(
+            () -> controller.customers(AUTHORIZATION, null), () -> controller.providers(AUTHORIZATION, null),
+            () -> controller.warehouses(AUTHORIZATION, null), () -> controller.budgetLines(AUTHORIZATION, null),
+            () -> controller.accountingAccounts(AUTHORIZATION, null));
+        for (int i = 0; i < scopes.size(); i++) {
+            when(tokenService.authenticate(AUTHORIZATION, scopes.get(i))).thenReturn(Optional.empty());
+            assertEquals(HttpStatus.UNAUTHORIZED, endpoints.get(i).get().getStatusCode());
+        }
+        verifyNoInteractions(operationalService);
+        for (int i = 0; i < scopes.size(); i++) {
+            when(tokenService.authenticate(AUTHORIZATION, scopes.get(i))).thenReturn(Optional.of(TOKEN));
+            var response = endpoints.get(i).get();
+            assertEquals(HttpStatus.OK, response.getStatusCode());
+            assertEquals("no-store", response.getHeaders().getCacheControl());
+            verify(auditService).recordRead(TOKEN, tools.get(i), "SUCCESS", 200);
+        }
+        verify(operationalService).customers(USER, null);
+        verify(operationalService).providers(USER, null);
+        verify(operationalService).warehouses(USER, null);
+        verify(operationalService).budgetLines(USER, null);
+        verify(operationalService).accountingAccounts(USER, null);
+    }
+
+    @Test
+    void internalExceptionMessageIsNeverReturnedToTheModel() {
+        when(tokenService.authenticate(AUTHORIZATION, AiAccessTokenService.CUSTOMERS_READ)).thenReturn(Optional.of(TOKEN));
+        when(operationalService.customers(USER, null)).thenThrow(new IllegalArgumentException("private SQL or secret"));
+        var response = controller.customers(AUTHORIZATION, null);
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(!String.valueOf(response.getBody()).contains("private SQL"));
     }
 }

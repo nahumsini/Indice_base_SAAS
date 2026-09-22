@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.indice.erp.auth.AuthSessionUser;
@@ -27,6 +29,8 @@ class AiToolCapabilityServiceTest {
 
     @BeforeEach
     void setUp() {
+        when(authorizationService.withCapabilityEvaluation(any()))
+            .thenAnswer(invocation -> invocation.<java.util.function.Supplier<?>>getArgument(0).get());
         service = new AiToolCapabilityService(authorizationService, hrAccessService);
     }
 
@@ -57,11 +61,13 @@ class AiToolCapabilityServiceTest {
         var token = token(Set.of(AiAccessTokenService.OPENID, AiAccessTokenService.EMAIL));
 
         assertEquals(Set.of(), Set.copyOf(service.allowedTools(token)));
-        verifyNoInteractions(authorizationService, hrAccessService);
+        verify(authorizationService).withCapabilityEvaluation(any());
+        verifyNoMoreInteractions(authorizationService);
+        verifyNoInteractions(hrAccessService);
     }
 
     @Test
-    void completeAuthorizedCatalogContainsAllThirtyTwoTools() {
+    void existingConnectionKeepsItsThirtyTwoToolsWithoutNewConsent() {
         var token = token(Set.of(
             AiAccessTokenService.SALES_TODAY_READ,
             AiAccessTokenService.BUSINESS_SNAPSHOT_READ,
@@ -137,5 +143,21 @@ class AiToolCapabilityServiceTest {
 
     private AiAccessTokenRepository.StoredToken token(Set<String> scopes) {
         return new AiAccessTokenRepository.StoredToken(91L, USER, scopes);
+    }
+
+    @Test
+    void newReferencesNeedTheirOwnScopeAndLivePermission() {
+        var token = token(Set.of(AiAccessTokenService.CUSTOMERS_READ, AiAccessTokenService.PROVIDERS_READ,
+            AiAccessTokenService.WAREHOUSES_READ, AiAccessTokenService.BUDGET_LINES_READ, AiAccessTokenService.ACCOUNTING_ACCOUNTS_READ));
+        when(authorizationService.canReadCustomers(USER)).thenReturn(true);
+        when(authorizationService.canReadProviders(USER)).thenReturn(true);
+        when(authorizationService.canReadWarehouses(USER)).thenReturn(true);
+        when(authorizationService.canReadBudgetLines(USER)).thenReturn(true);
+        when(authorizationService.canReadAccountingAccounts(USER)).thenReturn(true);
+        assertEquals(Set.of("search_customers", "search_providers", "list_warehouses", "search_budget_lines", "search_accounting_accounts"),
+            Set.copyOf(service.allowedTools(token)));
+        when(authorizationService.canReadProviders(USER)).thenReturn(false);
+        assertEquals(Set.of("search_customers", "list_warehouses", "search_budget_lines", "search_accounting_accounts"),
+            Set.copyOf(service.allowedTools(token)));
     }
 }
