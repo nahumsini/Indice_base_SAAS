@@ -1,5 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { RegisteredTool } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { registerOperationalReferenceTools, type OperationalReferenceReader } from "./operationalReferenceTools.js";
+import { lupitaInstructions } from "./assistantInstructions.js";
+import { configureTool } from "./toolPolicy.js";
+import { toolError } from "./toolErrors.js";
 import * as z from "zod/v4";
 import {
   businessContextResponseSchema,
@@ -28,7 +32,7 @@ import type {
   TaskPreviewResponse
 } from "./contracts.js";
 
-export interface IndiceBusinessReader {
+export interface IndiceBusinessReader extends OperationalReferenceReader {
   getSalesToday(preferredCurrency?: string): Promise<SalesTodaySummary>;
   getBusinessSnapshot(query?: BusinessSnapshotQuery): Promise<BusinessSnapshot>;
   queryBusiness?(tool: string, args?: Record<string, unknown>): Promise<BusinessQueryResult>;
@@ -48,8 +52,8 @@ export function createIndiceMcpServer(
 ): McpServer {
   const server = new McpServer({
     name: "indice-business-tools",
-    version: "0.1.0"
-  });
+    version: "0.2.0"
+  }, { instructions: lupitaInstructions });
 
   const salesTodayTool = server.registerTool("get_sales_today", {
     title: "Get today's sales",
@@ -93,11 +97,7 @@ export function createIndiceMcpServer(
         structuredContent: result
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Indice is unavailable.";
-      return {
-        isError: true,
-        content: [{ type: "text", text: message }]
-      };
+      return toolError(error);
     }
   });
 
@@ -170,11 +170,7 @@ export function createIndiceMcpServer(
         structuredContent: result
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Indice is unavailable.";
-      return {
-        isError: true,
-        content: [{ type: "text", text: message }]
-      };
+      return toolError(error);
     }
   });
 
@@ -238,11 +234,7 @@ export function createIndiceMcpServer(
         structuredContent: result
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Indice is unavailable.";
-      return {
-        isError: true,
-        content: [{ type: "text", text: message }]
-      };
+      return toolError(error);
     }
   });
 
@@ -292,8 +284,7 @@ export function createIndiceMcpServer(
         structuredContent: result
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Indice is unavailable.";
-      return { isError: true, content: [{ type: "text", text: message }] };
+      return toolError(error);
     }
   });
 
@@ -336,8 +327,7 @@ export function createIndiceMcpServer(
         structuredContent: result
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Indice is unavailable.";
-      return { isError: true, content: [{ type: "text", text: message }] };
+      return toolError(error);
     }
   });
 
@@ -345,6 +335,7 @@ export function createIndiceMcpServer(
 
   registerBusinessReadTools(server, reader, allowedTools);
   registerReferenceResolverTools(server, reader, allowedTools);
+  registerOperationalReferenceTools(server, reader, allowedTools);
   registerFinanceActionTools(server, reader, allowedTools);
 
   return server;
@@ -454,11 +445,6 @@ function readOnlyAnnotations() {
   } as const;
 }
 
-function toolError(error: unknown) {
-  const message = error instanceof Error ? error.message : "Indice is unavailable.";
-  return { isError: true as const, content: [{ type: "text" as const, text: message }] };
-}
-
 function humanBusinessContext(result: BusinessContextResponse): string {
   const assignment = result.assignedBusinessName ?? result.assignedUnitName ?? "sin asignacion operativa";
   return `${result.userName} esta conectado a ${result.companyName} con alcance ${result.scopeType} y asignacion ${assignment}.`;
@@ -514,8 +500,7 @@ function registerBusinessReadTool(
         structuredContent: result
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Indice is unavailable.";
-      return { isError: true, content: [{ type: "text", text: message }] };
+      return toolError(error);
     }
   });
   applyToolVisibility(tool, name, allowedTools);
@@ -725,8 +710,7 @@ function registerFinancePreview(
       const result = await reader.previewFinanceAction(action, toArgs(input));
       return { content: [{ type: "text", text: humanFinancePreview(result) }], structuredContent: result };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Indice is unavailable.";
-      return { isError: true, content: [{ type: "text", text: message }] };
+      return toolError(error);
     }
   });
   applyToolVisibility(tool, toolName, allowedTools);
@@ -764,8 +748,7 @@ function registerFinanceCommit(
       });
       return { content: [{ type: "text", text: humanFinanceCommit(result) }], structuredContent: result };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Indice is unavailable.";
-      return { isError: true, content: [{ type: "text", text: message }] };
+      return toolError(error);
     }
   });
   applyToolVisibility(tool, toolName, allowedTools);
@@ -776,9 +759,7 @@ function applyToolVisibility(
   name: string,
   allowedTools?: ReadonlySet<string>
 ): void {
-  if (allowedTools && !allowedTools.has(name)) {
-    tool.disable();
-  }
+  configureTool(tool, name, allowedTools);
 }
 
 function camelArgs(

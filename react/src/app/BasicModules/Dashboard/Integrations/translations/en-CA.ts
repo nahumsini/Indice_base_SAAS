@@ -147,6 +147,11 @@ export const enCA: IntegrationsTranslations = {
     finance: { label: 'Expenses and cash flow', description: 'Expenses, fund balances, and money to collect.' },
   },
   scopes: {
+    'customers.read': { label: 'Customers', description: 'Reads shared Sales and POS customers within your authorized scope.' },
+    'providers.read': { label: 'Suppliers', description: 'Reads authorized Expenses and Inventory suppliers.' },
+    'warehouses.read': { label: 'Warehouses', description: 'Identifies warehouses by name, unit and business.' },
+    'budget_lines.read': { label: 'Budget lines', description: 'Reads planned, committed, actual and available amounts by budget line and currency.' },
+    'accounting_accounts.read': { label: 'Accounting accounts', description: 'Reads codes, names and groups of authorized accounting accounts.' },
     'business.context:read': { label: 'Business context', description: 'Identifies your company, unit, business, and authorized scope.' },
     'finance.references:read': { label: 'Payment accounts', description: 'Identifies authorized accounts for choosing where money comes from or goes.' },
     'sales.today:read': { label: 'Sales today', description: 'Answers how much you have sold today.' },

@@ -26,15 +26,18 @@ public class AiToolReferenceApiController {
     private final AiAccessTokenService tokenService;
     private final AiReferenceResolverService resolverService;
     private final AiToolUsageAuditService auditService;
+    private final AiOperationalReferenceService operationalService;
 
     public AiToolReferenceApiController(
         AiAccessTokenService tokenService,
         AiReferenceResolverService resolverService,
-        AiToolUsageAuditService auditService
+        AiToolUsageAuditService auditService,
+        AiOperationalReferenceService operationalService
     ) {
         this.tokenService = tokenService;
         this.resolverService = resolverService;
         this.auditService = auditService;
+        this.operationalService = operationalService;
     }
 
     @GetMapping("/business-context")
@@ -88,6 +91,41 @@ public class AiToolReferenceApiController {
         );
     }
 
+    @PostMapping("/customers")
+    public ResponseEntity<?> customers(@RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+            @RequestBody(required = false) PageRequest request) {
+        return invoke(authorization, AiAccessTokenService.CUSTOMERS_READ, "search_customers",
+            user -> operationalService.customers(user, request));
+    }
+
+    @PostMapping("/providers")
+    public ResponseEntity<?> providers(@RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+            @RequestBody(required = false) PageRequest request) {
+        return invoke(authorization, AiAccessTokenService.PROVIDERS_READ, "search_providers",
+            user -> operationalService.providers(user, request));
+    }
+
+    @PostMapping("/warehouses")
+    public ResponseEntity<?> warehouses(@RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+            @RequestBody(required = false) PageRequest request) {
+        return invoke(authorization, AiAccessTokenService.WAREHOUSES_READ, "list_warehouses",
+            user -> operationalService.warehouses(user, request));
+    }
+
+    @PostMapping("/budget-lines")
+    public ResponseEntity<?> budgetLines(@RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+            @RequestBody(required = false) PageRequest request) {
+        return invoke(authorization, AiAccessTokenService.BUDGET_LINES_READ, "search_budget_lines",
+            user -> operationalService.budgetLines(user, request));
+    }
+
+    @PostMapping("/accounting-accounts")
+    public ResponseEntity<?> accountingAccounts(@RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+            @RequestBody(required = false) PageRequest request) {
+        return invoke(authorization, AiAccessTokenService.ACCOUNTING_ACCOUNTS_READ, "search_accounting_accounts",
+            user -> operationalService.accountingAccounts(user, request));
+    }
+
     private ResponseEntity<?> invoke(
         String authorization,
         String requiredScope,
@@ -104,7 +142,7 @@ public class AiToolReferenceApiController {
         try {
             var response = operation.apply(storedToken.user());
             auditService.recordRead(storedToken, toolName, "SUCCESS", HttpStatus.OK.value());
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL, "no-store").body(response);
         } catch (SecurityException exception) {
             return failure(storedToken, toolName, HttpStatus.FORBIDDEN, "ai_tool_permission_required", exception);
         } catch (NoSuchElementException exception) {
@@ -123,7 +161,12 @@ public class AiToolReferenceApiController {
     ) {
         auditService.recordRead(token, toolName, "FAILURE", status.value());
         return ResponseEntity.status(status)
-            .body(new ErrorResponse(code, exception.getMessage() == null ? "Request failed." : exception.getMessage()));
+            .header(HttpHeaders.CACHE_CONTROL, "no-store")
+            .body(new ErrorResponse(code, switch (status) {
+                case FORBIDDEN -> "Current Indice permissions do not allow this reference tool.";
+                case NOT_FOUND -> "Reference not found in the authorized scope.";
+                default -> "Invalid reference filters or cursor.";
+            }));
     }
 
     private record ErrorResponse(String code, String message) {

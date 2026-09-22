@@ -43,6 +43,8 @@ INDICE_OAUTH_ISSUER=https://apptest.indiceapp.com
 INDICE_MCP_RESOURCE=https://apptest.indiceapp.com/api/v1/ai/mcp
 INDICE_OAUTH_RESOURCE_METADATA_URL=https://apptest.indiceapp.com/.well-known/oauth-protected-resource
 INDICE_HTTP_TIMEOUT_MS=5000
+INDICE_READ_ATTEMPTS=2
+INDICE_RETRY_DELAY_MS=150
 INDICE_PREFERRED_CURRENCY=MXN
 
 # Sólo cuando el correo de APPTEST está deshabilitado: limita el bypass de MFA
@@ -97,6 +99,9 @@ y anunciar la metadata OAuth de APPTEST. El puerto `3010` sigue cerrado al exter
 Valida, en este orden:
 
 - `GET http://127.0.0.1:3010/mcp` sin `Bearer` devuelve `401`; demuestra que el MCP está vivo y protegido.
+- `GET http://127.0.0.1:3010/healthz` devuelve `200`; es liveness del proceso.
+- `GET http://127.0.0.1:3010/readyz` devuelve `200`; comprueba conectividad con la salud del backend,
+  no la base de datos ni permisos de un usuario. Compose y el script host-network usan esta comprobación.
 - El `401` anuncia la metadata OAuth pública de APPTEST.
 - Los dos documentos `/.well-known/` responden por HTTPS y anuncian APPTEST, no producción.
 - ChatGPT muestra el consentimiento de Índice y vuelve con un token mediante PKCE.
@@ -132,7 +137,51 @@ general pero agrega antes tres `ProxyPass` exactos hacia el frontend de APPTEST:
 `apachectl configtest` antes
 de recargar Apache; los retos ACME deben continuar fuera del proxy.
 
+## Aceptación de continuidad y diagnóstico
+
+No expongas `/healthz` ni `/readyz` en el proxy público. El `401` anónimo, por sí solo, no acredita
+disponibilidad de herramientas. Antes de promover una versión:
+
+1. Ejecuta las pruebas MCP y `npm run test:continuity` en el checkout. La prueba continua usa
+   HTTP real y un backend simulado; no valida producción ni OAuth real.
+2. Despliega backend/MCP/web del mismo commit en APPTEST. Conserva las imágenes anteriores y
+   registra la revisión: los nuevos scopes y el catálogo no deben publicarse con un backend antiguo.
+3. Con una cuenta sintética autorizada, completa OAuth/PKCE y registra durante 20–30 minutos
+   consultas de caja chica → tareas → caja chica, incluyendo pausas y reanudación. Prueba texto y,
+   por separado, el modo exacto de voz/dictado que se pretende ofrecer. Anota cliente y versión,
+   modo, hora y zona horaria, petición/catálogo disponible, respuesta y duración; nunca el token.
+4. Comprueba renovación real del token en un entorno aislado y revocación de la conexión. Un
+   refresh no puede ampliar scopes; el token anterior no se acepta por una supuesta continuidad.
+5. En datos sintéticos, crea una tarea mediante vista previa + confirmación, y repite el mismo
+   commit con la misma clave: debe devolver el resultado original. No existe herramienta para
+   editar una tarea en este catálogo; no uses una función inexistente como prueba de estabilidad.
+6. Simula una caída exclusivamente en APPTEST y verifica 503/recuperación, sin catálogo falso,
+   sin pérdida del aislamiento entre cuentas y sin escrituras duplicadas. No cortes producción.
+
+Los eventos JSON `mcp_request` y `mcp_backend_request` se correlacionan mediante `requestId`:
+
+- `capabilities_unavailable` + timeouts/503: revisar backend, latencia y los dos intentos acotados.
+- `authorization_invalid`/401: revisar expiración, revocación y el flujo OAuth del cliente.
+- `authorization_denied`/403: revisar permisos vigentes; no se resuelve ampliando TTL.
+- `no_authorized_tools`: catálogo legítimamente vacío; revisar consentimiento y permisos.
+- `tool_failed`: consultar estado/duración del intento backend asociado, sin capturar su payload.
+- Si no llega ninguna petición al MCP, revisar cliente/proxy y exposición del catálogo; no
+  atribuir automáticamente la ausencia de herramientas a una caída de Índice.
+
+La cantidad y huella del catálogo detectan cambios sin registrar datos personales. Los nombres
+de herramientas solicitadas están limitados al catálogo conocido. No habilites logging de cuerpos,
+`Authorization`, cookies, argumentos, identificadores de conversación ni respuestas de negocio.
+
+Un 503 no exige volver a conectar la cuenta. Un resultado incierto de escritura exige comprobar
+su resultado o reintentar con la misma clave; nunca generar otra. Las instrucciones de Lupita
+refuerzan este comportamiento, pero no garantizan la conducta o capacidades del cliente ChatGPT.
+
 ## Rollback
+
+Este endurecimiento de continuidad no agrega migraciones. Conserva también el Compose/runbook
+de la revisión anterior: una imagen MCP anterior no implementa `/readyz`; no uses su imagen con
+el healthcheck nuevo. Para reactivar MCP antiguo, restaura imagen **y** configuración compatibles
+solo después de validar OAuth y el catálogo. Mantén el rollback con MCP detenido si no pasa.
 
 Sólo si las migraciones son compatibles con la versión anterior, detén primero
 el MCP y vuelve a levantar backend/web con la etiqueta anterior conservada:
