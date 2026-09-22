@@ -224,4 +224,26 @@ class AiAccessTokenServiceTest {
         verify(repository, never()).countActive(anyLong(), anyLong(), any());
         verify(repository, never()).insert(any(), anyString(), anyString(), anyString(), anyString(), any(), any());
     }
+
+    @Test
+    void refusesAConnectionAtCapacityWithoutIssuingOrRevokingTokens() {
+        when(repository.countActive(3L, 23L, NOW)).thenReturn(5);
+
+        assertThrows(AiConnectionLimitException.class,
+            () -> service.issueOAuth(OWNER, "ChatGPT", 30, Set.of(AiAccessTokenService.TASKS_READ)));
+
+        verify(repository, never()).insert(any(), anyString(), anyString(), anyString(), anyString(), any(), any());
+        verify(repository, never()).revoke(anyLong(), anyLong(), anyLong(), any());
+    }
+
+    @Test
+    void capacityPreflightIsScopedToTheAuthenticatedOwnerAndDoesNotMutate() {
+        when(repository.countActive(3L, 23L, NOW)).thenReturn(4);
+
+        service.requireAvailableConnection(OWNER);
+
+        verify(repository).countActive(3L, 23L, NOW);
+        verify(repository, never()).insert(any(), anyString(), anyString(), anyString(), anyString(), any(), any());
+        verify(repository, never()).revoke(anyLong(), anyLong(), anyLong(), any());
+    }
 }

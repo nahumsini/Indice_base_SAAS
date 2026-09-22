@@ -125,9 +125,7 @@ public class AiAccessTokenService {
         }
 
         var now = clock.instant();
-        if (repository.countActive(owner.userId(), owner.companyId(), now) >= MAX_ACTIVE_CONNECTIONS) {
-            throw new IllegalStateException("Revoke an existing AI connection before creating another one.");
-        }
+        requireAvailableConnection(owner);
 
         var rawToken = generateToken();
         var expiresAt = now.plus(Duration.ofDays(days));
@@ -143,6 +141,14 @@ public class AiAccessTokenService {
             scopes
         );
         return new IssuedConnection(id, PROVIDER, normalizedLabel, visiblePrefix, scopes, expiresAt, now, rawToken);
+    }
+
+    @Transactional(readOnly = true)
+    public void requireAvailableConnection(AuthSessionUser owner) {
+        requireDirectMembership(owner);
+        if (repository.countActive(owner.userId(), owner.companyId(), clock.instant()) >= MAX_ACTIVE_CONNECTIONS) {
+            throw new AiConnectionLimitException();
+        }
     }
 
     public Set<String> supportedScopes() {

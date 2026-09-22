@@ -85,6 +85,7 @@ public class AiOAuthService {
     public ConsentContext consentContext(AuthSessionUser user, AuthorizationRequest request) {
         requireDirectMembership(user);
         var validated = validateAuthorizationRequest(request);
+        accessTokenService.requireAvailableConnection(user);
         return new ConsentContext(
             validated.client().clientName(),
             validated.scopes(),
@@ -108,6 +109,7 @@ public class AiOAuthService {
             ));
         }
 
+        accessTokenService.requireAvailableConnection(user);
         var code = "idx_oauth_code_" + randomToken();
         repository.insertAuthorizationCode(
             sha256Hex(code),

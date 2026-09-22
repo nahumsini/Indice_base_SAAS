@@ -49,6 +49,14 @@ Connection creation without an explicit scope selection grants the read scopes o
 must always be selected explicitly. Existing stored connections keep exactly their stored scopes;
 deployments never add new scopes to them.
 
+The existing limit is five active AI connections per user and company, shared by manual and OAuth
+connections. Reconnecting does not automatically revoke an earlier grant. OAuth checks capacity
+before displaying consent and again before issuing a code, while token issuance retains its final
+capacity check. A full account returns an actionable `connection_limit_reached` consent conflict;
+a capacity race at token exchange returns `invalid_grant`, not a misleading transient `503`.
+The owner chooses which unused connection to revoke. Refresh rotates the existing connection and
+does not consume another slot. Never raise the limit or revoke other connections to hide this error.
+
 ## 3. Current tool authorization matrix
 
 The table describes all 37 MCP tools. `Any(...)` means at least one current tab grant is required.
