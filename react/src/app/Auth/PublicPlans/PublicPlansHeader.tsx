@@ -13,21 +13,22 @@ import type { PublicPlansCopy } from './publicPlansCopy';
 
 type PublicPlansHeaderProps = {
   copy: PublicPlansCopy;
+  activePage?: 'plans' | 'login';
 };
 
 const publicSiteUrl = 'https://indiceapp.com';
 
-const publicLinks = (copy: PublicPlansCopy) => [
+const publicLinks = (copy: PublicPlansCopy, activePage: 'plans' | 'login') => [
   { label: copy.methodology, href: `${publicSiteUrl}/metodologia.php` },
   { label: copy.modules, href: `${publicSiteUrl}/modulos.php` },
   { label: copy.learningMode, href: `${publicSiteUrl}/modo-aprendiz.php` },
-  { label: copy.plans, href: `${publicSiteUrl}/planes.php`, current: true },
+  { label: copy.plans, href: `${publicSiteUrl}/planes.php`, current: activePage === 'plans' },
 ];
 
-export function PublicPlansHeader({ copy }: PublicPlansHeaderProps) {
+export function PublicPlansHeader({ copy, activePage = 'plans' }: PublicPlansHeaderProps) {
   const { currentLanguage, setCurrentLanguage } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const links = publicLinks(copy);
+  const links = publicLinks(copy, activePage);
 
   const languagePicker = (compact = false) => (
     <DropdownMenu>
@@ -35,7 +36,7 @@ export function PublicPlansHeader({ copy }: PublicPlansHeaderProps) {
         <button
           type="button"
           aria-label={copy.language}
-          className={`inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white font-semibold text-slate-700 shadow-sm transition hover:border-emerald-300 hover:text-emerald-800 ${compact ? 'h-11 px-4 text-sm' : 'h-12 min-w-20 px-4'}`}
+          className={`inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white font-semibold text-slate-700 shadow-sm transition hover:border-[var(--indice-brand-border)] hover:text-[var(--indice-brand-text)] ${compact ? 'h-11 px-4 text-sm' : 'h-12 min-w-20 px-4'}`}
         >
           <span className="text-xl" aria-hidden="true">{currentLanguage.flag}</span>
           {compact && <span>{currentLanguage.name}</span>}
@@ -51,7 +52,7 @@ export function PublicPlansHeader({ copy }: PublicPlansHeaderProps) {
           >
             <span className="text-lg" aria-hidden="true">{language.flag}</span>
             <span className="flex-1">{language.name}</span>
-            {language.code === currentLanguage.code && <Check className="h-4 w-4 text-emerald-700" />}
+            {language.code === currentLanguage.code && <Check className="h-4 w-4 text-[var(--indice-brand-text)]" />}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
@@ -71,10 +72,10 @@ export function PublicPlansHeader({ copy }: PublicPlansHeaderProps) {
               key={link.href}
               href={link.href}
               aria-current={link.current ? 'page' : undefined}
-              className={`relative py-2 text-base font-semibold transition ${link.current ? 'text-emerald-700' : 'text-slate-700 hover:text-emerald-700'}`}
+              className={`relative py-2 text-base font-semibold transition ${link.current ? 'text-[var(--indice-brand-text)]' : 'text-slate-700 hover:text-[var(--indice-brand-text)]'}`}
             >
               {link.label}
-              {link.current && <span className="absolute inset-x-0 -bottom-1 h-0.5 rounded-full bg-emerald-600" />}
+              {link.current && <span className="absolute inset-x-0 -bottom-1 h-0.5 rounded-full bg-[var(--indice-brand-primary)]" />}
             </a>
           ))}
         </nav>
@@ -83,7 +84,8 @@ export function PublicPlansHeader({ copy }: PublicPlansHeaderProps) {
           {languagePicker()}
           <Link
             to="/login"
-            className="inline-flex h-12 items-center justify-center rounded-full bg-emerald-700 px-6 text-base font-medium text-white shadow-sm transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-200"
+            aria-current={activePage === 'login' ? 'page' : undefined}
+            className="inline-flex h-12 items-center justify-center rounded-full bg-[var(--indice-brand-primary)] px-6 text-base font-medium text-white shadow-sm transition hover:bg-[var(--indice-brand-primary-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--indice-brand-border)]"
           >
             {copy.login}
           </Link>
@@ -93,6 +95,7 @@ export function PublicPlansHeader({ copy }: PublicPlansHeaderProps) {
           type="button"
           aria-label={copy.menu}
           aria-expanded={mobileOpen}
+          aria-controls="public-navigation-mobile"
           onClick={() => setMobileOpen((open) => !open)}
           className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 lg:hidden"
         >
@@ -101,16 +104,17 @@ export function PublicPlansHeader({ copy }: PublicPlansHeaderProps) {
       </div>
 
       {mobileOpen && (
-        <div className="border-t border-slate-100 bg-white px-5 pb-5 pt-3 lg:hidden">
+        <div id="public-navigation-mobile" className="max-h-[calc(100dvh-84px)] overflow-y-auto border-t border-slate-100 bg-white px-5 pb-5 pt-3 lg:hidden">
           <nav aria-label={copy.navLabel} className="mx-auto grid max-w-[1480px] gap-1">
             {links.map((link) => (
-              <a key={link.href} href={link.href} className="rounded-xl px-3 py-3 font-semibold text-slate-700 hover:bg-emerald-50">
+              <a key={link.href} href={link.href} className="rounded-xl px-3 py-3 font-semibold text-slate-700 hover:bg-[var(--indice-brand-soft)]">
                 {link.label}
               </a>
             ))}
             <div className="mt-3 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row">
               {languagePicker(true)}
-              <Link to="/login" className="inline-flex h-11 flex-1 items-center justify-center rounded-full bg-emerald-700 px-5 font-medium text-white">
+              <Link to="/login"
+            aria-current={activePage === 'login' ? 'page' : undefined} className="inline-flex h-11 flex-1 items-center justify-center rounded-full bg-[var(--indice-brand-primary)] px-5 font-medium text-white">
                 {copy.login}
               </Link>
             </div>

@@ -1,12 +1,15 @@
 # Índice Premium Multi-Tenant y Billing
 
 Estado: contrato canónico de organización empresarial, catálogo y billing.
-Oferta de referencia aprobada: `2026.08-global-v1`; la publicación efectiva se verifica por ambiente.
-Revisión documental: 16 de septiembre de 2026; no constituye una certificación de producción.
+Nuevo modelo comercial: [Maestro comercial y agentes](INDICE_MAESTRO_COMERCIAL_Y_AGENTES.md),
+adoptado documentalmente el 21 de septiembre de 2026; transición técnica y publicación pendientes.
+Catálogo anterior de referencia: `2026.08-global-v1`; su publicación efectiva se verifica por ambiente.
+Revisión documental: 21 de septiembre de 2026; no constituye una certificación de producción.
 
 ## Cómo leer este contrato
 
-- **Producto y reglas vigentes:** secciones 2–8.
+- **Nuevo posicionamiento y condiciones comerciales:** maestro enlazado y sección 0.
+- **Organización, invariantes y contratos de compatibilidad:** secciones 2–8, sujetos a la transición de la sección 0.
 - **Responsabilidades y condiciones de entrega:** secciones 9 y 13–16.
 - **Decisiones y evidencias necesarias para LIVE:** sección 17.
 - **Publicación del catálogo y recuperación:** sección 19 y [Deployment Runbook](../deployment/README.md).
@@ -17,6 +20,40 @@ Para conceptos básicos consulta el [glosario](product-glossary.md). Las aclarac
 reorganización están en el [registro documental](indice-documentation-review-2026-09-16.md).
 La jerarquía de [AGENTS.md](../AGENTS.md) permanece vigente.
 
+## 0. Adopción del modelo comercial con agentes — 2026-09-21
+
+Se adopta el [Maestro comercial y agentes](INDICE_MAESTRO_COMERCIAL_Y_AGENTES.md) como contrato
+propietario de marca, paquetes, tarifas del nuevo modelo y alcance solicitado de agentes.
+La propuesta es un ERP personalizado con Lupita y especialistas que ayudan a profesionalizar
+la gestión sin multiplicar la estructura gerencial. Los módulos siguen siendo los propietarios
+de sus datos, cálculos, operaciones y permisos.
+
+El maestro prevalece sobre las condiciones comerciales anteriores expresamente sustituidas,
+para definir la nueva oferta. No reemplaza las invariantes técnicas de este contrato, el estándar
+MCP ni los contratos históricos. Su adopción documental no activa cambios en ningún ambiente.
+
+| Aspecto | Nueva definición y tratamiento de transición |
+|---|---|
+| Paquetes | Controla, Escala (POS o Ventas/CRM) y Corporativo; composición y agentes en la sección 5 del maestro. Conservar identificadores y contratos anteriores. |
+| Capacidad | Diez personas incluidas y bloques de diez; RH y usuarios con acceso cuentan una vez por persona. Acceso a agentes, kioscos y sistema sujeto a permisos; adaptar el contador actual requiere verificación. |
+| Precios y monedas | Tarifas mensuales propias por mercado en la sección 13 del maestro. Requiere soporte y publicación de un catálogo nuevo, sin modificar versiones anteriores. |
+| Alta | Cuota inicial por tamaño, promoción y pendientes en la sección 14 del maestro. No generar cargos a clientes existentes por esta decisión. |
+| KPIs | El módulo independiente pertenece a Corporativo en la nueva composición. Los indicadores internos permanecen en sus módulos. La restricción técnica y el acceso de Lupita requieren revisión; los derechos existentes se preservan. |
+| Prueba | Hasta 15 días antes de contratar; alta y primera mensualidad al contratar. Tarjeta y extensión pendientes. La sección 3.4 describe el contrato anterior. |
+| Agentes | Especialidades y alcance solicitado, no permisos nuevos ni certificación de funciones disponibles. Confirmaciones MCP vigentes se preservan. |
+| Distribución | Porcentajes y responsabilidades en la sección 15 del maestro; base de liquidación y acuerdos de canal pendientes de formalización. |
+| Condiciones no resueltas | Sólo tres paquetes; anualidad con 20% sobre paquete y bloques; consultoría mensual de 60 minutos e implementación obligatoria confirmadas. Alcance de implementación y demás pendientes en la sección 21 del maestro. |
+
+Las referencias a cinco usuarios, adicionales individuales, USD, KPIs incluidos y beneficios
+anteriores en este documento conservan su alcance de compatibilidad con las ofertas previas;
+no son las condiciones publicables del nuevo modelo. Tampoco deben borrarse o aplicarse
+retroactivamente las nuevas condiciones a contratos existentes.
+
+Hasta una tarea técnica autorizada y verificada, el código y los catálogos publicados conservan
+su funcionamiento. Toda adopción posterior deberá usar versionado, validar consumidores y
+preservar suscripciones, permisos, datos e historial. No se asigna desde este documento un nuevo
+`catalog_version_id` ni se presume que una migración ya ocurrió.
+
 ## 1. Propósito
 
 Este documento define las reglas comerciales y organizacionales del SaaS multi-tenant de Índice.
@@ -24,9 +61,9 @@ Gobierna la venta de módulos, la incorporación de capacidades y la evolución 
 fiscales, preservando aislamiento de datos, permisos, contratos históricos y operación existente.
 La presencia de implementación no sustituye la certificación del ambiente donde se habilita.
 
-Las decisiones aquí descritas sustituyen cualquier propuesta anterior que contradiga el modelo
-real del repositorio o las reglas comerciales aprobadas. La carpeta `saas-multitenant/` se conserva
-temporalmente como referencia hasta cumplir el criterio de retiro de la sección 18.
+La sección 0 delimita qué condiciones comerciales han sido sustituidas y cuáles permanecen
+como compatibilidad. Las invariantes organizacionales y de seguridad siguen vigentes.
+La carpeta `saas-multitenant/` se conserva temporalmente como referencia hasta cumplir el criterio de retiro de la sección 18.
 
 ## 2. Decisiones de negocio confirmadas
 
@@ -80,10 +117,14 @@ La interfaz puede ocultar o bloquear opciones, pero el backend es la autoridad. 
 
 ## 3. Catálogo comercial
 
+Las composiciones, importes y beneficios anteriores de esta sección son contratos de
+compatibilidad. Para la nueva oferta se aplica la sección 0 y el maestro comercial; las reglas
+de versionado, publicación e integridad continúan vigentes.
+
 Un producto comercial no es lo mismo que un slug técnico. Un producto puede habilitar varias
 capabilities y una capability puede estar compartida por varios productos.
 
-### 3.1 Núcleo incluido siempre
+### 3.1 Núcleo incluido en las ofertas anteriores
 
 - Panel Inicial.
 - KPIs y navegación ejecutiva básica.
@@ -119,7 +160,7 @@ Inventarios y Sales + Inventarios no duplica el entitlement de `inventory` ni el
 Los slugs heredados (`crm`, `cartera`, `accounts_receivable`, entre otros) deben resolverse mediante
 aliases canónicos. No deben convertirse en líneas comerciales duplicadas.
 
-### 3.3 Modelo comercial vigente
+### 3.3 Catálogo anterior y reglas de versionado vigentes
 
 La oferta comercial se administra como una versión completa e inmutable una vez publicada:
 
@@ -223,9 +264,9 @@ versiones nuevas.
 - Se usará Stripe Tax. CFDI y motores fiscales adicionales se incorporarán posteriormente mediante
   adaptadores por país, sin cambiar el núcleo de la suscripción.
 
-### 3.3.2 Oferta comercial aprobada `2026.08-global-v1`
+### 3.3.2 Oferta anterior aprobada `2026.08-global-v1`
 
-La versión que reemplazará el tarifario histórico para nuevas altas se cobra en USD antes de los
+Esta versión anterior fue definida para reemplazar el tarifario histórico y se cobra en USD antes de los
 impuestos que Stripe calcula y muestra antes de confirmar Checkout:
 
 | Oferta | Composición | Mensual | Anual |
@@ -258,7 +299,10 @@ impuestos que Stripe calcula y muestra antes de confirmar Checkout:
   recaba país legal, dirección fiscal y Tax ID cuando corresponda; Stripe calcula los impuestos
   aplicables antes de que el cliente confirme.
 
-### 3.4 Prueba
+### 3.4 Prueba del contrato anterior
+
+La secuencia de prueba del nuevo modelo está pendiente; no hereda automáticamente estas
+condiciones. Esta sección conserva la referencia del flujo anterior.
 
 - Duración pública inicial: 15 días.
 - Requiere tarjeta válida para comenzar.
@@ -587,6 +631,10 @@ Los flags, operación, validación y reversión están documentados en
 en Catalog & modules; conexión y diagnóstico Stripe continúan en Billing.
 
 ## 7. Seats
+
+Estas reglas describen capacidad de usuarios con acceso en los contratos anteriores. Los bloques
+de personas del nuevo modelo cuentan una vez a cada persona de RH/usuarios. Requieren una
+adaptación separada y verificación de casos de baja e invitación (Q01 del maestro); no cambiar el contador de acceso ni los cargos con esta actualización documental.
 
 - Uso base: usuarios activos distintos dentro de la `company_id`.
 - El propietario cuenta si su membresía está activa.

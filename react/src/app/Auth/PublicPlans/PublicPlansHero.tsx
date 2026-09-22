@@ -23,9 +23,9 @@ export function PublicPlansHero({ config, copy, interval, pricing }: PublicPlans
   ];
 
   return (
-    <section className="relative overflow-hidden border-b border-blue-100 bg-[radial-gradient(circle_at_12%_18%,rgba(89,195,165,0.20),transparent_30%),radial-gradient(circle_at_88%_12%,rgba(37,99,235,0.14),transparent_32%),linear-gradient(180deg,#f8fffd_0%,#ffffff_100%)] px-5 pb-14 pt-12 sm:px-8 sm:pt-16">
+    <section className="relative overflow-hidden border-b border-blue-100 bg-[radial-gradient(circle_at_12%_18%,var(--indice-brand-glow),transparent_30%),radial-gradient(circle_at_88%_12%,var(--indice-brand-shadow-soft),transparent_32%),linear-gradient(180deg,var(--indice-brand-soft)_0%,#ffffff_100%)] px-5 pb-14 pt-12 sm:px-8 sm:pt-16">
       <div className="mx-auto max-w-6xl text-center">
-        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/80 px-5 py-2 text-sm font-medium text-emerald-800 shadow-sm">
+        <span className="inline-flex items-center gap-2 rounded-full border border-[var(--indice-brand-border)] bg-white/80 px-5 py-2 text-sm font-medium text-[var(--indice-brand-text)] shadow-sm">
           <BadgeCheck className="h-4 w-4" />
           {copy.heroBadge}
         </span>
@@ -51,23 +51,23 @@ export function PublicPlansHero({ config, copy, interval, pricing }: PublicPlans
         <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <a
             href="#configura-tu-plan"
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-emerald-700 px-6 text-base font-medium text-white shadow-lg shadow-emerald-900/10 transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-200"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[var(--indice-brand-primary)] px-6 text-base font-medium text-white shadow-lg shadow-[var(--indice-brand-shadow-soft)] transition hover:bg-[var(--indice-brand-primary-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--indice-brand-border)]"
           >
             {copy.heroAction}
             <ArrowDown className="h-4 w-4" aria-hidden="true" />
           </a>
           <a
             href="https://indiceapp.com/metodologia.php"
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white/80 px-6 text-base font-medium text-slate-700 transition hover:border-emerald-300 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white/80 px-6 text-base font-medium text-slate-700 transition hover:border-[var(--indice-brand-border)] hover:text-[var(--indice-brand-text)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--indice-brand-soft-strong)]"
           >
             <Compass className="h-4 w-4" aria-hidden="true" />
             {copy.heroSecondaryAction}
           </a>
         </div>
 
-        <div className="mx-auto mt-8 max-w-5xl rounded-2xl border border-emerald-200 bg-white/85 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.07)] backdrop-blur">
+        <div className="mx-auto mt-8 max-w-5xl rounded-2xl border border-[var(--indice-brand-border)] bg-white/85 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.07)] backdrop-blur">
           <div className="flex flex-col items-center justify-center gap-2 sm:flex-row">
-            <span className="rounded-full bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800">{copy.publishedOffer}</span>
+            <span className="rounded-full bg-[var(--indice-brand-soft)] px-4 py-2 text-sm font-medium text-[var(--indice-brand-text)]">{copy.publishedOffer}</span>
             <span className="text-sm font-normal text-slate-600">{copy.publishedOfferDescription}</span>
           </div>
         </div>
@@ -95,7 +95,7 @@ export function PublicPlansHero({ config, copy, interval, pricing }: PublicPlans
               return (
                 <div
                   key={tier.count}
-                  className={`relative px-5 py-4 transition-colors ${index > 0 ? 'border-t border-slate-200 sm:border-l sm:border-t-0' : ''} ${active ? 'bg-emerald-50/70' : ''}`}
+                  className={`relative px-5 py-4 transition-colors ${index > 0 ? 'border-t border-slate-200 sm:border-l sm:border-t-0' : ''} ${active ? 'bg-[var(--indice-brand-soft)]/70' : ''}`}
                 >
                   <span className={`absolute inset-x-0 top-0 h-1 ${['bg-[#59C3A5]', 'bg-[#F4C84A]', 'bg-[#FF6B5E]', 'bg-[#2563EB]'][index]}`} />
                   <p className="text-sm font-normal text-slate-500">{tier.label}</p>

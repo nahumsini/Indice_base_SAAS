@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, Globe, KeyRound, RefreshCw, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ArrowRight, KeyRound, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router';
 import { authApi } from '../api/auth';
 import type { MfaRequiredResponse } from '../api/auth.types';
@@ -8,18 +8,13 @@ import {
   runWithMinimumDuration,
 } from '../components/LoadingBarOverlay';
 import { getLoadingBarCopy } from '../components/loadingTranslations';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../components/ui/dropdown-menu';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { languages, useLanguage } from '../shared/context';
+import { useLanguage } from '../shared/context';
 import { isValidEmail, normalizeEmail } from '../shared/validation/email';
 import { LoginBrandPanel } from './components/LoginBrandPanel';
-import { IndiceBrandLogo } from './components/IndiceBrandLogo';
+import { PublicPlansHeader } from './PublicPlans/PublicPlansHeader';
+import { getPublicPlansCopy } from './PublicPlans/publicPlansCopy';
 import { LoginFormPanel } from './components/LoginFormPanel';
 import { PasswordResetModal } from './components/PasswordResetModal';
 
@@ -34,7 +29,7 @@ export default function LoginPage() {
     companyName?: string;
     email?: string;
   } | null;
-  const { currentLanguage, setCurrentLanguage, t } = useLanguage();
+  const { currentLanguage, t } = useLanguage();
   const [companyName, setCompanyName] = useState(
     typeof locationState?.companyName === 'string' ? locationState.companyName : '',
   );
@@ -250,32 +245,8 @@ export default function LoginPage() {
 
   return (
     <>
-      <main className="flex min-h-screen flex-col bg-[linear-gradient(135deg,_#F8FAFC_0%,_#EEF4FA_52%,_#F8FAFC_100%)] px-3 py-3 text-slate-900 sm:px-6 sm:py-5 lg:px-8">
-        <div className="mx-auto mb-3 flex w-full max-w-[1420px] items-center justify-between lg:mb-4 lg:justify-end">
-          <IndiceBrandLogo alt={copy.logoAlt} className="h-12 w-36 lg:hidden" imageClassName="w-44" />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-10 gap-2 rounded-full border-slate-200 bg-white/90 px-3 text-[var(--indice-structural-blue)] shadow-sm hover:text-[var(--indice-structural-blue-hover)] sm:px-4">
-                <Globe className="h-4 w-4" />
-                <span className="text-base">{currentLanguage.flag}</span>
-                <span className="hidden sm:inline">{currentLanguage.name}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-60">
-              {languages.map((language) => (
-                <DropdownMenuItem
-                  key={language.code}
-                  onClick={() => setCurrentLanguage(language)}
-                  className={currentLanguage.code === language.code ? 'bg-gray-100' : ''}
-                >
-                  <span className="mr-2 text-xl">{language.flag}</span>
-                  {language.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
+      <PublicPlansHeader copy={getPublicPlansCopy(currentLanguage.code)} activePage="login" />
+      <main className="flex min-h-[calc(100dvh-84px)] flex-col bg-[linear-gradient(135deg,_#F8FAFC_0%,_#EEF4FA_52%,_#F8FAFC_100%)] px-3 py-6 text-slate-900 sm:px-6 sm:py-8 lg:px-8">
         <div className="mx-auto grid w-full max-w-[1280px] flex-1 gap-4 lg:flex-none lg:grid-cols-[1.06fr_0.94fr] lg:items-center lg:gap-6 lg:pb-6 xl:gap-7">
           <LoginBrandPanel copy={copy} />
           {mfaChallenge ? (

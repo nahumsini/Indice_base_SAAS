@@ -84,7 +84,7 @@ export default function PublicPlansPage() {
       {loading && (
         <main className="flex min-h-[72vh] items-center justify-center bg-slate-50 px-6">
           <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-5 font-medium text-slate-600 shadow-sm">
-            <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
+            <Loader2 className="h-5 w-5 animate-spin text-[var(--indice-brand-primary)]" />
             {copy.loading}
           </div>
         </main>
@@ -94,7 +94,7 @@ export default function PublicPlansPage() {
           <section className="max-w-lg rounded-3xl border border-rose-200 bg-white p-8 text-center shadow-lg">
             <h1 className="text-2xl font-semibold text-slate-900">{copy.loadError}</h1>
             <p className="mt-3 break-words text-sm font-medium text-slate-600">{error}</p>
-            <button type="button" onClick={loadConfig} className="mt-6 inline-flex h-12 items-center gap-2 rounded-full bg-emerald-700 px-6 font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-200">
+            <button type="button" onClick={loadConfig} className="mt-6 inline-flex h-12 items-center gap-2 rounded-full bg-[var(--indice-brand-primary)] px-6 font-medium text-white hover:bg-[var(--indice-brand-primary-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--indice-brand-border)]">
               <RefreshCcw className="h-4 w-4" />
               {copy.retry}
             </button>

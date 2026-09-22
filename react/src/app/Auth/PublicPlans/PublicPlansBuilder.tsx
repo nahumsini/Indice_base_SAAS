@@ -64,10 +64,10 @@ export function PublicPlansBuilder(props: PublicPlansBuilderProps) {
               <li key={step} className={index > 0 ? 'border-t border-slate-200 sm:border-l sm:border-t-0' : ''}>
                 <a
                   href={`#${stepAnchors[index]}`}
-                  className="group flex min-h-16 items-center gap-3 px-5 py-3 text-sm font-medium text-slate-600 transition hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-emerald-200"
+                  className="group flex min-h-16 items-center gap-3 px-5 py-3 text-sm font-medium text-slate-600 transition hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[var(--indice-brand-border)]"
                 >
                   <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${index === 0 && selectedProducts.length > 0
-                    ? 'border-emerald-600 bg-emerald-600 text-white'
+                    ? 'border-[var(--indice-brand-primary)] bg-[var(--indice-brand-primary)] text-white'
                     : 'border-slate-200 bg-white text-slate-600'}`}
                   >
                     {index === 0 && selectedProducts.length > 0 ? <Check className="h-4 w-4" /> : index + 1}
@@ -81,7 +81,7 @@ export function PublicPlansBuilder(props: PublicPlansBuilderProps) {
           <div id="plan-modules" className="scroll-mt-28 p-6 sm:p-9">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <span className="inline-flex rounded-full bg-emerald-50 px-4 py-2 text-xs font-medium text-emerald-800">{copy.builderBadge}</span>
+                <span className="inline-flex rounded-full bg-[var(--indice-brand-soft)] px-4 py-2 text-xs font-medium text-[var(--indice-brand-text)]">{copy.builderBadge}</span>
                 <h2 className="mt-5 text-3xl font-semibold tracking-[-0.035em] text-slate-900 sm:text-4xl">{copy.builderTitle}</h2>
                 <p className="mt-3 max-w-2xl text-base font-normal leading-7 text-slate-600">{copy.builderDescription}</p>
               </div>
@@ -90,7 +90,7 @@ export function PublicPlansBuilder(props: PublicPlansBuilderProps) {
                   type="button"
                   onClick={onSelectAll}
                   disabled={products.length === 0}
-                  className="rounded-full border border-emerald-200 px-4 py-2 text-sm font-medium text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-full border border-[var(--indice-brand-border)] px-4 py-2 text-sm font-medium text-[var(--indice-brand-text)] transition hover:bg-[var(--indice-brand-soft)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {copy.selectAll}
                 </button>
@@ -131,9 +131,9 @@ export function PublicPlansBuilder(props: PublicPlansBuilderProps) {
                     type="button"
                     onClick={() => onToggleProduct(product.code)}
                     aria-label={`${copy.removeModule}: ${copy.productLabels[product.code] ?? product.displayName}`}
-                    className="inline-flex min-h-9 items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-rose-200 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100"
+                    className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[var(--indice-brand-border)] bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-rose-200 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--indice-brand-soft-strong)]"
                   >
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
+                    <span className="h-2 w-2 rounded-full bg-[var(--indice-brand-primary)]" aria-hidden="true" />
                     {copy.productLabels[product.code] ?? product.displayName}
                     <X className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
@@ -165,7 +165,7 @@ export function PublicPlansBuilder(props: PublicPlansBuilderProps) {
 
             <div id="plan-team" className="mt-8 scroll-mt-28 rounded-3xl border border-slate-200 bg-slate-50/80 p-5">
               <div className="mb-5 flex items-start gap-3">
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--indice-brand-soft)] text-[var(--indice-brand-text)]">
                   <Users className="h-5 w-5" aria-hidden="true" />
                 </span>
                 <div>
@@ -179,7 +179,7 @@ export function PublicPlansBuilder(props: PublicPlansBuilderProps) {
                   <select
                     value={interval}
                     onChange={(event) => onIntervalChange(event.target.value as 'MONTH' | 'YEAR')}
-                    className="h-12 rounded-xl border border-slate-200 bg-white px-4 text-base font-normal outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                    className="h-12 rounded-xl border border-slate-200 bg-white px-4 text-base font-normal outline-none focus:border-[var(--indice-brand-primary)] focus:ring-4 focus:ring-[var(--indice-brand-soft-strong)]"
                   >
                     <option value="MONTH">{copy.monthly}</option>
                     <option value="YEAR">{copy.annual}</option>
@@ -206,7 +206,7 @@ export function PublicPlansBuilder(props: PublicPlansBuilderProps) {
                       value={totalPeople}
                       aria-describedby="team-description"
                       onChange={(event) => onTotalPeopleChange(Number(event.target.value) || config.includedSeats)}
-                      className="min-w-0 flex-1 border-x border-slate-200 bg-white px-2 text-center text-lg font-medium text-slate-900 outline-none focus:bg-emerald-50/50"
+                      className="min-w-0 flex-1 border-x border-slate-200 bg-white px-2 text-center text-lg font-medium text-slate-900 outline-none focus:bg-[var(--indice-brand-soft)]/50"
                     />
                     <button
                       type="button"
@@ -225,7 +225,7 @@ export function PublicPlansBuilder(props: PublicPlansBuilderProps) {
                   <select
                     value={countryCode}
                     onChange={(event) => onCountryChange(event.target.value)}
-                    className="h-12 rounded-xl border border-slate-200 bg-white px-4 text-base font-normal outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                    className="h-12 rounded-xl border border-slate-200 bg-white px-4 text-base font-normal outline-none focus:border-[var(--indice-brand-primary)] focus:ring-4 focus:ring-[var(--indice-brand-soft-strong)]"
                   >
                     {config.launchCountries.map((country) => <option key={country} value={country}>{copy.countryLabels[country] ?? country}</option>)}
                   </select>
@@ -235,9 +235,9 @@ export function PublicPlansBuilder(props: PublicPlansBuilderProps) {
           </div>
         </div>
 
-        <aside id="plan-summary" className="scroll-mt-28 overflow-hidden rounded-[32px] border border-emerald-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.10)] xl:sticky xl:top-28">
+        <aside id="plan-summary" className="scroll-mt-28 overflow-hidden rounded-[32px] border border-[var(--indice-brand-border)] bg-white shadow-[0_24px_70px_rgba(15,23,42,0.10)] xl:sticky xl:top-28">
           <div className="border-b border-slate-100 p-7">
-            <span className="inline-flex rounded-full bg-emerald-50 px-4 py-2 text-xs font-medium text-emerald-800">{copy.summaryBadge}</span>
+            <span className="inline-flex rounded-full bg-[var(--indice-brand-soft)] px-4 py-2 text-xs font-medium text-[var(--indice-brand-text)]">{copy.summaryBadge}</span>
             <h2 className="mt-5 text-3xl font-semibold tracking-tight text-slate-900">{copy.summaryTitle}</h2>
             <p className="mt-2 text-sm font-normal text-slate-500" aria-live="polite">{copy.selected(pricing.selectedProductCount)}</p>
           </div>
@@ -269,7 +269,7 @@ export function PublicPlansBuilder(props: PublicPlansBuilderProps) {
               type="button"
               disabled={!canContinue}
               onClick={onContinue}
-              className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-5 text-base font-medium text-white shadow-lg shadow-emerald-900/10 transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-200 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+              className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--indice-brand-primary)] px-5 text-base font-medium text-white shadow-lg shadow-[var(--indice-brand-shadow-soft)] transition hover:bg-[var(--indice-brand-primary-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--indice-brand-border)] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
             >
               {copy.start}
               <ChevronRight className="h-5 w-5" aria-hidden="true" />
@@ -277,11 +277,11 @@ export function PublicPlansBuilder(props: PublicPlansBuilderProps) {
           </div>
           <div className="grid gap-3 border-t border-slate-100 bg-slate-50/70 p-6 text-xs font-medium text-slate-600">
             <span className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-[#C18A00]" />{copy.trialTrust(config.trialDays)}</span>
-            <span className="flex items-center gap-2"><CalendarClock className="h-4 w-4 text-emerald-700" />{copy.consultingTrust(config.includedConsultationsPerMonth ?? 1, config.consultationMinutes ?? 60)}</span>
+            <span className="flex items-center gap-2"><CalendarClock className="h-4 w-4 text-[var(--indice-brand-text)]" />{copy.consultingTrust(config.includedConsultationsPerMonth ?? 1, config.consultationMinutes ?? 60)}</span>
             <span className="flex items-center gap-2"><HardDrive className="h-4 w-4 text-violet-700" />{copy.storageTrust(config.includedStorageGiB ?? 5, config.storageBlockGiB ?? 5, money(config.storageBlockMonthlyAmountCents ?? 1_500))}</span>
             <span className="flex items-center gap-2"><BadgePercent className="h-4 w-4 text-[#C18A00]" />{copy.annualTrust(config.annualDiscountPercent ?? 20)}</span>
             <span className="flex items-center gap-2"><CreditCard className="h-4 w-4 text-[var(--indice-brand-action)]" />{copy.cardTrust}</span>
-            <span className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-700" />{copy.securityTrust}</span>
+            <span className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-[var(--indice-brand-text)]" />{copy.securityTrust}</span>
           </div>
         </aside>
       </div>

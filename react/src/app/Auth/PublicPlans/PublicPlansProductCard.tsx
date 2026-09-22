@@ -73,7 +73,7 @@ export function PublicPlansProductCard({
       aria-pressed={selected}
       onClick={onToggle}
       style={style}
-      className={`group relative flex min-h-56 flex-col overflow-hidden rounded-3xl border p-5 text-left transition-[transform,border-color,box-shadow,background-color] duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-200 motion-safe:hover:-translate-y-1 motion-reduce:transition-none ${selected
+      className={`group relative flex min-h-56 flex-col overflow-hidden rounded-3xl border p-5 text-left transition-[transform,border-color,box-shadow,background-color] duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--indice-brand-border)] motion-safe:hover:-translate-y-1 motion-reduce:transition-none ${selected
         ? 'border-[var(--module-accent)] bg-[var(--module-soft)] shadow-[0_18px_44px_rgba(15,23,42,0.10)]'
         : 'border-slate-200 bg-white hover:border-[var(--module-accent)] hover:shadow-lg'}`}
     >

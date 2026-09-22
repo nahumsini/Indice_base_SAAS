@@ -7,8 +7,9 @@ en [AGENTS.md](../AGENTS.md). Una fecha más reciente no convierte por sí sola 
 
 1. [README principal](../README.md): propósito, metodología, módulos y estructura del proyecto.
 2. [Glosario del producto](product-glossary.md): empresa, permisos, contratación y conceptos financieros.
-3. [Modelo comercial](INDICE_PREMIUM_MULTITENANT_BILLING_ARCHITECTURE.md): qué se contrata,
-   aislamiento, catálogo, pruebas, cobro y ciclo de vida.
+3. [Maestro comercial y agentes](INDICE_MAESTRO_COMERCIAL_Y_AGENTES.md): marca, paquetes,
+   tarifas y alcance solicitado; [contrato de billing](INDICE_PREMIUM_MULTITENANT_BILLING_ARCHITECTURE.md):
+   transición, contratos anteriores, aislamiento, publicación y ciclo de vida.
 4. [AGENTS.md](../AGENTS.md): cómo trabajar sin alterar reglas ni trabajo existente.
 5. El estándar técnico y el contrato del área que se vaya a modificar.
 6. [Desarrollo local](local-development.md) para ejecutar y verificar; [despliegue](../deployment/README.md)
@@ -19,6 +20,7 @@ en [AGENTS.md](../AGENTS.md). Una fecha más reciente no convierte por sí sola 
 | Área | Fuente canónica | Cuándo consultarla |
 |---|---|---|
 | Reglas del repositorio | [AGENTS.md](../AGENTS.md) | Antes de cualquier cambio. |
+| Marca y nueva oferta comercial | [Maestro comercial y agentes](INDICE_MAESTRO_COMERCIAL_Y_AGENTES.md) | Contrato propietario adoptado por billing: posicionamiento, paquetes, tarifas, agentes y pendientes. |
 | Producto comercial y multitenancy | [Premium Multi-Tenant y Billing](INDICE_PREMIUM_MULTITENANT_BILLING_ARCHITECTURE.md) | Contratación, propietarios, catálogo, beneficios, usuarios y almacenamiento. |
 | Frontend | [Frontend Operating System](indice-frontend-operating-system-v2.md) | Arquitectura activa, interacción, diseño, traducciones y accesibilidad. |
 | Backend | [Backend Operating System](indice-backend-operating-system-v1.md) | API, permisos, tenant, transacciones, persistencia y pruebas. |

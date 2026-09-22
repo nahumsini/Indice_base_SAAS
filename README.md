@@ -1,11 +1,14 @@
 # Índice ERP
 
-Índice es un ERP SaaS modular para pequeñas y medianas empresas. Conecta estructura empresarial,
-personas, procesos, dinero, productos y ventas para ayudar a sus responsables a dirigir una
-operación clara, inteligente y escalable.
+Índice propone un ERP personalizado a los flujos de trabajo de la empresa, acompañado por
+Lupita y especialistas digitales para profesionalizar su gestión sin multiplicar la estructura
+gerencial. El ERP organiza la operación; los agentes ayudan con seguimiento, análisis,
+coordinación y acciones autorizadas; el empresario conserva la dirección.
 
-El producto combina herramientas operativas, indicadores y aprendizaje contextual mediante la
-Metodología Índice.
+El [maestro comercial y agentes](docs/INDICE_MAESTRO_COMERCIAL_Y_AGENTES.md) define este
+posicionamiento y el alcance solicitado. Su adopción documental no certifica todas las funciones
+ni modifica el catálogo publicado. La base existente combina módulos operativos, indicadores y
+aprendizaje contextual mediante la Metodología Índice.
 
 ## La Metodología Índice
 
@@ -41,23 +44,26 @@ sistema a esa regla sigue [pendiente de implementación](docs/INDICE_PREMIUM_MUL
 
 ## Cómo se contrata
 
-Índice ofrece seis productos básicos:
+El nuevo modelo combina evaluación inicial sin costo, cuota de alta, implementación y una
+suscripción a Controla, Escala o Corporativo, con diez colaboradores incluidos y ampliaciones
+por bloques de diez. Cada persona registrada en RH o como usuario cuenta una vez, aunque use
+el sistema, agentes y kioscos; cada acceso respeta contratación y permisos. La prueba ocurre
+antes de contratar. El alta y la primera mensualidad se pagan al contratar, y la implementación
+es obligatoria en los tres paquetes para adaptar la herramienta a los flujos empresariales.
+Se ofrecen anualidad con 20% de descuento sobre paquete y bloques, y una sesión mensual de
+consultoría de 60 minutos. Los detalles pendientes están en el maestro.
 
-- Recursos Humanos.
-- Procesos y Tareas.
-- Gastos + Caja Chica.
-- Ventas + Inventarios.
-- Punto de Venta + Inventarios.
-- Cartera.
+Los paquetes agrupan módulos; Lupita y sus especialistas representan responsabilidades de gestión.
+Escala permite elegir POS o Ventas/CRM. Corporativo incluye ambos, Cartera y el módulo independiente
+de KPIs; los indicadores internos de cada módulo permanecen disponibles según contratación y permisos.
+Esta composición es la nueva definición comercial, no una modificación ya aplicada de entitlements.
 
-Panel Inicial y KPIs forman parte del núcleo incluido. Los productos pueden contratarse
-individualmente o mediante paquetes. Usuarios adicionales y almacenamiento siguen sus propias
-reglas comerciales.
-
-El catálogo es versionado: una publicación nueva no recalcula los contratos históricos. Los
-precios, pruebas, beneficios y condiciones aprobadas se consultan en el
-[modelo comercial y arquitectura de billing](docs/INDICE_PREMIUM_MULTITENANT_BILLING_ARCHITECTURE.md).
-El catálogo publicado en cada ambiente determina su oferta disponible.
+Las tarifas, alcance y preguntas abiertas están en el
+[maestro comercial](docs/INDICE_MAESTRO_COMERCIAL_Y_AGENTES.md). La transición técnica y la
+preservación de contratos anteriores se rigen por el
+[contrato de billing](docs/INDICE_PREMIUM_MULTITENANT_BILLING_ARCHITECTURE.md).
+El catálogo publicado en cada ambiente determina su oferta efectiva. Publicar una versión nueva
+no recalcula contratos históricos; esta actualización documental no publica ni migra suscripciones.
 
 La disponibilidad de una función, su contratación por la empresa y su asignación a un usuario son
 decisiones distintas. El backend verifica los permisos y el alcance antes de permitir una operación.
@@ -79,7 +85,8 @@ decisiones distintas. El backend verifica los permisos y el alcance antes de per
 | Conocer las reglas de trabajo y la jerarquía documental | [AGENTS.md](AGENTS.md) |
 | Recorrer los contratos por área | [Mapa documental](docs/README.md) |
 | Entender los conceptos del producto | [Glosario](docs/product-glossary.md) |
-| Entender contratación, empresas, suscripciones y beneficios | [Modelo comercial](docs/INDICE_PREMIUM_MULTITENANT_BILLING_ARCHITECTURE.md) |
+| Entender marca, paquetes, agentes y nuevas tarifas | [Maestro comercial y agentes](docs/INDICE_MAESTRO_COMERCIAL_Y_AGENTES.md) |
+| Entender transición, empresas, suscripciones y beneficios anteriores | [Contrato de billing](docs/INDICE_PREMIUM_MULTITENANT_BILLING_ARCHITECTURE.md) |
 | Trabajar en frontend | [Frontend Operating System](docs/indice-frontend-operating-system-v2.md) |
 | Trabajar en backend | [Backend Operating System](docs/indice-backend-operating-system-v1.md) |
 | Trabajar en kioscos y canales operativos | [Kiosk Standard Engine](docs/kiosk-standard-engine-v2.md) |
