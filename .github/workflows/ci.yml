@@ -135,7 +135,12 @@ jobs:
       - name: Build backend image
         run: docker build --network=host -f deployment/docker/backend/Dockerfile -t indice-erp-backend:ci .
 
+      - name: Build isolated MinIO dependency from official source
+        run: docker build -f deployment/docker/ci-minio/Dockerfile -t indice-minio-ci:07c3a429bfed .
+
       - name: Smoke backend image with server runtime settings
+        env:
+          CI_SMOKE_MINIO_IMAGE: indice-minio-ci:07c3a429bfed
         run: bash scripts/ci-backend-runtime-smoke.sh indice-erp-backend:ci
 
       - name: Build web image
