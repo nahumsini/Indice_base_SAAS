@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { getCachedAuthSession } from '../../../api/authSessionStore';
+import { workspaceStateApi } from '../../../api/workspaceState';
+import { useAuthorizationRevision } from '../../../hooks/useAuthorizationRevision';
 import { DEFAULT_EXPENSE_COLUMNS } from '../constants/expenseColumns';
 import type { ColumnConfig } from '../types/expenseView.types';
 
@@ -45,79 +48,86 @@ const reconcileExpenseColumns = (storedColumns: unknown, hideNewOptionalColumns 
     : defaultExpenseColumns();
 };
 
-const getInitialExpenseColumns = (): ColumnConfig[] => {
-  if (typeof window === 'undefined') return defaultExpenseColumns();
-
-  try {
-    const storedColumns = window.localStorage.getItem(expenseColumnsStorageKey);
-    return storedColumns
-      ? reconcileExpenseColumns(JSON.parse(storedColumns), true)
-      : defaultExpenseColumns();
-  } catch {
-    return defaultExpenseColumns();
-  }
+const currentScope = () => {
+  const session = getCachedAuthSession();
+  return session ? `${session.company.id}:${session.user.id}` : '';
 };
+const storageKey = (scope: string) => `indice:workspace:${scope}:expenses:expenses-columns`;
+const readPendingMigration = (scope: string): boolean => {
+  try { return JSON.parse(window.localStorage.getItem(storageKey(scope)) ?? 'null')?.pendingMigration === true; }
+  catch { return false; }
+};
+const readColumns = (scope: string): ColumnConfig[] => {
+  if (!scope || typeof window === 'undefined') return defaultExpenseColumns();
+  try {
+    const cached = JSON.parse(window.localStorage.getItem(storageKey(scope)) ?? 'null');
+    return reconcileExpenseColumns(cached?.state?.columns, true);
+  } catch { return defaultExpenseColumns(); }
+};
+const cacheColumns = (scope: string, columns: ColumnConfig[], pendingMigration = false) => {
+  try {
+    window.localStorage.setItem(storageKey(scope), JSON.stringify({ state: { columns: preference(columns) }, pendingMigration, savedAt: new Date().toISOString() }));
+  } catch { /* The server remains authoritative when browser storage is unavailable. */ }
+};
+const preference = (columns: ColumnConfig[]) => columns.map(({ key, visible }) => ({ key, visible }));
 
 export function useExpenseColumns() {
-  const [columns, setColumns] = useState<ColumnConfig[]>(getInitialExpenseColumns);
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  useAuthorizationRevision();
+  const scope = currentScope();
+  const [stored, setStored] = useState(() => ({ scope, columns: readColumns(scope) }));
+  const changes = useRef(0);
+  const saveQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const persist = (next: ColumnConfig[]) => {
+    const write = saveQueue.current.catch(() => undefined).then(() => {
+      if (!scope || currentScope() !== scope) throw new Error('Session unavailable');
+      return workspaceStateApi.save('expenses', 'expenses-columns', { columns: preference(next) });
+    });
+    saveQueue.current = write;
+    return write;
+  };
+  const columns = stored.scope === scope ? stored.columns : readColumns(scope);
 
   useEffect(() => {
+    let cancelled = false;
+    const revision = changes.current;
+    setStored({ scope, columns: readColumns(scope) });
+    if (!scope) return;
+    // Claim the old browser-only preference once; never share it with subsequent users.
+    let legacy = readPendingMigration(scope) ? readColumns(scope) : undefined;
     try {
-      window.localStorage.setItem(expenseColumnsStorageKey, JSON.stringify(columns));
-    } catch {
-      // The table remains usable when storage is unavailable or full.
-    }
-  }, [columns]);
+      const storedColumns = window.localStorage.getItem(expenseColumnsStorageKey);
+      if (storedColumns) {
+        legacy = reconcileExpenseColumns(JSON.parse(storedColumns), true);
+        window.localStorage.removeItem(expenseColumnsStorageKey);
+        cacheColumns(scope, legacy, true);
+        setStored({ scope, columns: legacy });
+      }
+    } catch { /* Malformed legacy storage must not prevent server restoration. */ }
+    const active = () => !cancelled && scope === currentScope() && revision === changes.current;
+    void workspaceStateApi.get<{ columns?: unknown }>('expenses', 'expenses-columns').then(async response => {
+      if (!active()) return;
+      const saved = Array.isArray(response.state?.columns);
+      const restored = saved ? reconcileExpenseColumns(response.state.columns, true) : legacy ?? readColumns(scope);
+      if (!saved && legacy) {
+        await persist(legacy);
+        if (!active()) return;
+      }
+      cacheColumns(scope, restored);
+      setStored({ scope, columns: restored });
+    }).catch(() => { /* Keep the scoped cache available; explicit Apply reports save failures. */ });
+    return () => { cancelled = true; };
+  }, [scope]);
 
-  const handleDragStart = (index: number) => {
-    setDraggedIndex(index);
+  const applyColumns = async (nextColumns: ColumnConfig[]) => {
+    if (!scope || currentScope() !== scope) throw new Error('Session unavailable');
+    const revision = ++changes.current;
+    const next = reconcileExpenseColumns(nextColumns);
+    // Confirm persistence before closing the modal, including a tab switch or immediate logout.
+    await persist(next);
+    if (currentScope() !== scope || changes.current !== revision) return;
+    cacheColumns(scope, next);
+    setStored({ scope, columns: next });
   };
 
-  const handleDragOver = (event: React.DragEvent, index: number) => {
-    event.preventDefault();
-    if (draggedIndex === null || draggedIndex === index) return;
-
-    const newColumns = [...columns];
-    const draggedColumn = newColumns[draggedIndex];
-    newColumns.splice(draggedIndex, 1);
-    newColumns.splice(index, 0, draggedColumn);
-    setColumns(newColumns);
-    setDraggedIndex(index);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
-  };
-
-  const showAllColumns = () => {
-    setColumns(current => current.map(column => ({ ...column, visible: true })));
-  };
-
-  const hideOptionalColumns = () => {
-    setColumns(current => current.map(column => (column.fixed ? column : { ...column, visible: false })));
-  };
-
-  const updateColumnVisibility = (index: number, visible: boolean) => {
-    setColumns(current => {
-      const nextColumns = [...current];
-      nextColumns[index] = { ...nextColumns[index], visible };
-      return nextColumns;
-    });
-  };
-
-  const applyColumns = (nextColumns: ColumnConfig[]) => {
-    setColumns(reconcileExpenseColumns(nextColumns));
-  };
-
-  return {
-    applyColumns,
-    columns,
-    handleDragEnd,
-    handleDragOver,
-    handleDragStart,
-    hideOptionalColumns,
-    showAllColumns,
-    updateColumnVisibility,
-  };
+  return { applyColumns, columns };
 }

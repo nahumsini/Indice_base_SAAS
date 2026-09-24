@@ -102,19 +102,21 @@ const normalizeQuery = <T extends Query>(query: T) => {
   };
 };
 
-export async function getKpiMonetaryAggregate(query: Query) {
+export async function getKpiMonetaryAggregate(query: Query, signal?: AbortSignal) {
   return apiClient<KpiMonetaryAggregate>('/api/v1/kpis/monetary-aggregate/query', {
     method: 'POST',
     body: JSON.stringify(normalizeQuery(query)),
+    signal,
   });
 }
 
-export async function getKpiMonetaryAggregates(queries: KpiMonetaryBatchQuery[]) {
+export async function getKpiMonetaryAggregates(queries: KpiMonetaryBatchQuery[], signal?: AbortSignal) {
   const response = await apiClient<{ results: Record<string, KpiMonetaryAggregate> }>('/api/v1/kpis/monetary-aggregate/batch', {
     method: 'POST',
     body: JSON.stringify({
       queries: queries.map(normalizeQuery),
     }),
+    signal,
   });
   return response.results;
 }
@@ -135,7 +137,7 @@ export function useKpiMonetaryAggregate(query: Query) {
     getKpiMonetaryAggregate({
       ...query,
       ids: idsProvided ? (idsKey ? idsKey.split(',') : []) : undefined,
-    })
+    }, controller.signal)
       .then((result) => {
         if (!controller.signal.aborted) setData(result);
       })
@@ -168,6 +170,7 @@ export function useKpiMonetaryAggregates(queries: KpiMonetaryBatchQuery[]) {
   const [resolvedRequestKey, setResolvedRequestKey] = useState('');
 
   useEffect(() => {
+    const controller = new AbortController();
     let active = true;
     const parsed = JSON.parse(queryKey) as KpiMonetaryBatchQuery[];
     if (parsed.length === 0) {
@@ -175,11 +178,11 @@ export function useKpiMonetaryAggregates(queries: KpiMonetaryBatchQuery[]) {
       setLoading(false);
       setError(null);
       setResolvedRequestKey(requestKey);
-      return () => { active = false; };
+      return () => { active = false; controller.abort(); };
     }
     setLoading(true);
     setError(null);
-    getKpiMonetaryAggregates(parsed)
+    getKpiMonetaryAggregates(parsed, controller.signal)
       .then((result) => {
         if (active) {
           setData(result);
@@ -194,7 +197,7 @@ export function useKpiMonetaryAggregates(queries: KpiMonetaryBatchQuery[]) {
         }
       })
       .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+    return () => { active = false; controller.abort(); };
   }, [requestKey]);
 
   return { data, error, loading, current: resolvedRequestKey === requestKey, refresh };

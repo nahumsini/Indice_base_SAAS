@@ -1985,6 +1985,12 @@ memory. Switching tabs or clearing filters must not reset them. `Restore default
 columns modal resets only the column preference to the current factory preset; it does not clear
 filters, navigation memory, or other workspace state.
 
+Expenses persists its applied column visibility and order through the existing authenticated
+workspace-state store, in the separate `expenses` / `expenses-columns` entry scoped to company
+and user. This preference has no expiry; the 90-day retention for navigation entries is unchanged.
+The browser copy is a scoped cache, not the only durable copy. Apply waits for server confirmation;
+a failed save keeps the draft open for retry. Background table refreshes must not discard a draft.
+
 Required:
 
 - module-colored header

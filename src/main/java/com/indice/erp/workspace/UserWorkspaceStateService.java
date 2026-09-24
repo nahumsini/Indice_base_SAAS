@@ -72,6 +72,9 @@ public class UserWorkspaceStateService {
             throw new IllegalArgumentException("Workspace state exceeds the 64 KB limit.");
         }
         var resolvedSchemaVersion = schemaVersion == null ? 1 : Math.max(1, schemaVersion);
+        // Column preferences last until the user changes them; navigation keeps its retention.
+        Integer retentionDays = scope.moduleKey().equals("expenses") && scope.tabKey().equals("expenses-columns")
+            ? null : RETENTION_DAYS;
 
         jdbcTemplate.update(
             """
@@ -92,7 +95,7 @@ public class UserWorkspaceStateService {
             scope.tabKey(),
             serializedState,
             resolvedSchemaVersion,
-            RETENTION_DAYS
+            retentionDays
         );
 
         return get(companyId, userId, scope.moduleKey(), scope.tabKey());

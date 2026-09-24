@@ -1,6 +1,7 @@
+import type { ColumnConfig } from '../../types/expenseView.types';
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import {
-  EXPENSE_TABLE_HEADERS,
+  getOrderedExpenseHeaders,
   type ExpenseSortField,
 } from '../../constants/expenseTableConfig';
 import { Checkbox } from '../../../../components/ui/checkbox';
@@ -8,6 +9,7 @@ import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTransla
 
 type ExpenseTableHeaderRowProps = {
   allVisibleSelected: boolean;
+  columns?: ColumnConfig[];
   columnWidths: Record<string, number>;
   getSortIcon: (field: ExpenseSortField) => ReactNode;
   isColumnVisible: (key: string) => boolean;
@@ -22,6 +24,7 @@ type ExpenseTableHeaderRowProps = {
 export function ExpenseTableHeaderRow({
   allVisibleSelected,
   columnWidths,
+  columns,
   getSortIcon,
   isColumnVisible,
   onResizeStart,
@@ -46,7 +49,7 @@ export function ExpenseTableHeaderRow({
           className="border-slate-300 data-[state=checked]:border-[#147514] data-[state=checked]:bg-[#147514]"
         />
       </th>
-      {EXPENSE_TABLE_HEADERS.map((header) => {
+      {getOrderedExpenseHeaders(columns).map((header) => {
         if (!isColumnVisible(header.visibleWhen ?? header.key)) return null;
         const label = t.expenses.columns[header.key]?.label ?? header.label;
         if (header.sortable) {

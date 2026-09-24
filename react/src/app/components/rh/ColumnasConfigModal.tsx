@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../shared/context';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Button } from '../ui/button';
@@ -26,7 +26,7 @@ interface ColumnasConfigModalProps {
   isOpen: boolean;
   onClose: () => void;
   columns: ColumnConfig[];
-  onSave: (columns: ColumnConfig[]) => void;
+  onSave: (columns: ColumnConfig[]) => void | Promise<void>;
   defaultColumns?: ColumnConfig[];
   fixedColumns?: ColumnConfig[];
   theme?: 'default' | 'processes' | 'humanResources' | 'sales' | 'pointOfSale' | 'receivables' | 'expenses' | 'platformAdmin';
@@ -35,7 +35,7 @@ interface ColumnasConfigModalProps {
 interface DraggableColumnItemProps {
   column: ColumnConfig;
   index: number;
-  moveColumn: (dragIndex: number, hoverIndex: number) => void;
+  moveColumn: (dragId: string, hoverId: string) => void;
   toggleColumn: (id: string) => void;
   fixedLabel: string;
   accentClassName: string;
@@ -56,7 +56,7 @@ function DraggableColumnItem({
   const isFixed = Boolean(column.locked);
   const [{ isDragging }, drag, preview] = useDrag({
     type: 'column',
-    item: { index },
+    item: { id: column.id },
     canDrag: !isFixed,
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
@@ -65,15 +65,9 @@ function DraggableColumnItem({
 
   const [, drop] = useDrop({
     accept: 'column',
-    hover: (item: { index: number }) => {
-      if (index < 0 || item.index < 0) {
-        return;
-      }
-
-      if (item.index !== index) {
-        moveColumn(item.index, index);
-        item.index = index;
-      }
+    hover: (item: { id: string }) => {
+      if (index < 0 || isFixed || item.id === column.id) return;
+      moveColumn(item.id, column.id);
     },
   });
 
@@ -142,6 +136,11 @@ export function ColumnasConfigModal({
   const { currentLanguage } = useLanguage();
   const [localColumns, setLocalColumns] = useState<ColumnConfig[]>(columns);
   const [searchQuery, setSearchQuery] = useState('');
+  const draftChanged = useRef(false);
+  const wasOpen = useRef(false);
+  const saving = useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const modalTheme = (() => {
     if (theme === 'processes') {
       return {
@@ -245,6 +244,7 @@ export function ColumnasConfigModal({
         noColumns: 'No hay columnas con ese criterio.',
         cancel: 'Cancelar',
         apply: 'Aplicar cambios',
+        saveFailed: 'No se pudo guardar la configuración. Tus cambios siguen aquí; vuelve a intentarlo.',
       };
     }
 
@@ -265,6 +265,7 @@ export function ColumnasConfigModal({
         noColumns: 'Aucune colonne ne correspond.',
         cancel: 'Annuler',
         apply: 'Appliquer les changements',
+        saveFailed: 'Impossible d’enregistrer la configuration. Vos modifications sont conservées ; réessayez.',
       };
     }
 
@@ -285,6 +286,7 @@ export function ColumnasConfigModal({
         noColumns: 'Nenhuma coluna encontrada.',
         cancel: 'Cancelar',
         apply: 'Aplicar alterações',
+        saveFailed: 'Não foi possível salvar a configuração. Suas alterações foram mantidas; tente novamente.',
       };
     }
 
@@ -305,6 +307,7 @@ export function ColumnasConfigModal({
         noColumns: '일치하는 열이 없습니다.',
         cancel: '취소',
         apply: '변경 적용',
+        saveFailed: '설정을 저장하지 못했습니다. 변경 사항은 유지됩니다. 다시 시도해 주세요.',
       };
     }
 
@@ -325,6 +328,7 @@ export function ColumnasConfigModal({
         noColumns: '没有匹配的列。',
         cancel: '取消',
         apply: '应用更改',
+        saveFailed: '无法保存配置。您的更改已保留，请重试。',
       };
     }
 
@@ -344,25 +348,38 @@ export function ColumnasConfigModal({
       noColumns: 'No columns match this search.',
       cancel: 'Cancel',
       apply: 'Apply changes',
+      saveFailed: 'Could not save the configuration. Your changes are still here; please retry.',
     };
   })();
 
   useEffect(() => {
-    if (isOpen) {
-      setLocalColumns(columns);
+    if (isOpen && !wasOpen.current) {
+      draftChanged.current = false;
       setSearchQuery('');
+      setSaveError('');
     }
+    if (isOpen && !draftChanged.current) setLocalColumns(columns);
+    wasOpen.current = isOpen;
   }, [columns, isOpen]);
 
-  const moveColumn = (dragIndex: number, hoverIndex: number) => {
-    const dragColumn = localColumns[dragIndex];
-    const newColumns = [...localColumns];
-    newColumns.splice(dragIndex, 1);
-    newColumns.splice(hoverIndex, 0, dragColumn);
-    setLocalColumns(newColumns);
+  const moveColumn = (dragId: string, hoverId: string) => {
+    if (saving.current) return;
+    draftChanged.current = true;
+    setLocalColumns(current => {
+      const dragIndex = current.findIndex(column => column.id === dragId);
+      const hoverIndex = current.findIndex(column => column.id === hoverId);
+      if (dragIndex < 0 || hoverIndex < 0 || dragIndex === hoverIndex
+        || current[dragIndex].locked || current[hoverIndex].locked) return current;
+      const next = [...current];
+      const [dragColumn] = next.splice(dragIndex, 1);
+      next.splice(hoverIndex, 0, dragColumn);
+      return next;
+    });
   };
 
   const toggleColumn = (id: string) => {
+    if (saving.current) return;
+    draftChanged.current = true;
     setLocalColumns(
       localColumns.map((col) =>
         col.id === id ? { ...col, visible: !col.visible } : col
@@ -370,21 +387,37 @@ export function ColumnasConfigModal({
     );
   };
 
-  const handleSave = () => {
-    onSave(localColumns);
-    onClose();
+  const handleSave = async () => {
+    if (saving.current) return;
+    saving.current = true;
+    setIsSaving(true);
+    setSaveError('');
+    try {
+      await onSave(localColumns);
+      onClose();
+    } catch {
+      setSaveError(copy.saveFailed);
+    } finally {
+      saving.current = false;
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
+    if (saving.current) return;
     setLocalColumns(columns);
     onClose();
   };
 
   const handleSelectAll = () => {
+    if (saving.current) return;
+    draftChanged.current = true;
     setLocalColumns(localColumns.map((col) => ({ ...col, visible: true })));
   };
 
   const handleDeselectAll = () => {
+    if (saving.current) return;
+    draftChanged.current = true;
     setLocalColumns(
       localColumns.map((col) => ({
         ...col,
@@ -394,6 +427,8 @@ export function ColumnasConfigModal({
   };
 
   const handleRestoreDefaults = () => {
+    if (saving.current) return;
+    draftChanged.current = true;
     setLocalColumns(defaultColumns ?? columns);
   };
 
@@ -458,6 +493,7 @@ export function ColumnasConfigModal({
               </div>
             </div>
             <button
+              disabled={isSaving}
               onClick={handleCancel}
               className={cn(
                 'flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors',
@@ -474,7 +510,7 @@ export function ColumnasConfigModal({
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50/70 dark:bg-slate-900/60">
+        <div inert={isSaving} className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50/70 dark:bg-slate-900/60">
           <div className="shrink-0 border-b border-slate-200/80 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-800">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
@@ -562,6 +598,7 @@ export function ColumnasConfigModal({
           </div>
         </div>
 
+        {saveError && <p role="alert" className="px-6 py-3 text-sm text-red-600 dark:text-red-400">{saveError}</p>}
         <DialogFooter className={cn('sticky bottom-0 z-10 shrink-0 px-6 py-4', modalTheme.footer)}>
           <Button
             variant="outline"
@@ -570,11 +607,14 @@ export function ColumnasConfigModal({
               : usesPointOfSaleTheme
                 ? 'h-10 rounded-xl border-[#222831]/35 bg-white/10 px-5 text-sm font-medium text-[#222831] shadow-none hover:bg-white/25 hover:text-[#222831]'
                 : moduleModalOutlineButtonClassName}
+            disabled={isSaving}
             onClick={handleCancel}
           >
             {copy.cancel}
           </Button>
           <Button
+            disabled={isSaving}
+            aria-busy={isSaving}
             onClick={handleSave}
             className={modalTheme.primary}
           >
