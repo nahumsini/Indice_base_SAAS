@@ -30,8 +30,8 @@ const tableSelectTriggerClass =
 const tableSelectContentClass =
   'max-h-72 rounded-xl border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900';
 
-export const formatDateInputValue = (date?: Date): string => {
-  if (!date) return '';
+export const formatDateInputValue = (date?: Date | null): string => {
+  if (!date || !Number.isFinite(date.getTime())) return '';
   return new Date(date).toISOString().slice(0, 10);
 };
 

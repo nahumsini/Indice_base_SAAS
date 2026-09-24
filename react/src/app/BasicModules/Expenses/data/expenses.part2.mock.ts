@@ -73,7 +73,7 @@ export const mockExpensePart2: Expense[] = [
     status: 'paid' as ExpenseStatus,
     attachments: ['insurance-policy.pdf'],
     costCenter: 'Finance',
-    createdAt: new Date('2026-04-31'),
+    createdAt: new Date('2026-04-30'),
     updatedAt: new Date('2026-05-02'),
   },
   {
@@ -89,7 +89,7 @@ export const mockExpensePart2: Expense[] = [
     amount: 1850,
     amountPaid: 0,
     currency: 'USD',
-    dueDate: new Date('2026-04-31'),
+    dueDate: new Date('2026-04-30'),
     date: new Date('2026-05-02'),
     paymentMethod: 'transfer' as PaymentMethod,
     accountingAccount: '5800-001',
