@@ -586,6 +586,13 @@ export const router = createBrowserRouter([
     errorElement: <WorkspaceRouteError />,
   },
   {
+    // Public commercial exposition using the presentation shell without tenant data.
+    id: 'presentation',
+    path: '/presentation',
+    element: <Suspense fallback={<LocalizedLoadingBarOverlay isVisible variant="moduleNavigation" />}><InvestmentPage welcomeMessage="Estimado cliente" presentationName="Presentación comercial" commercialPresentation /></Suspense>,
+    errorElement: <WorkspaceRouteError />,
+  },
+  {
     path: '/',
     loader: redirectToLanding,
   },
