@@ -130,6 +130,8 @@ export const esMX: IntegrationsTranslations = {
     'expenses.read': { label: 'Gastos', description: 'Revisa totales, estados, vencimientos y detalle.' },
     'petty_cash.read': { label: 'Fondos', description: 'Revisa saldos y movimientos de caja chica.' },
     'receivables.read': { label: 'Dinero por cobrar', description: 'Revisa saldos, clientes y montos vencidos.' },
+    'tasks.delegate': { label: 'Delegar tareas', description: 'Permite elegir otro responsable autorizado al crear o reasignar una tarea confirmada.' },
+    'tasks.update': { label: 'Editar tareas', description: 'Modifica únicamente los campos aprobados de una tarea visible; conserva los cambios ajenos.' },
     'tasks.create': { label: 'Crear tareas', description: 'Crea una tarea únicamente después de aprobar la vista previa.' },
     'expenses.create': { label: 'Preparar un gasto', description: 'Crea el gasto como borrador para que lo revises.' },
     'petty_cash.expense:create': { label: 'Registrar salida de un fondo', description: 'Reduce el saldo únicamente después de confirmar.' },

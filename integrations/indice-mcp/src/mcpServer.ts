@@ -2,10 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { RegisteredTool } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerOperationalReferenceTools, type OperationalReferenceReader } from "./operationalReferenceTools.js";
 import { lupitaInstructions } from "./assistantInstructions.js";
+import { registerTaskEditingTools } from "./taskEditingTools.js";
 import { configureTool } from "./toolPolicy.js";
 import { toolError } from "./toolErrors.js";
 import * as z from "zod/v4";
 import {
+  taskPreviewResponseSchema, taskCommitResponseSchema,
   businessContextResponseSchema,
   fundReferencePageSchema,
   organizationReferencePageSchema,
@@ -28,6 +30,7 @@ import type {
   SalesTodaySummary,
   TaskCommitRequest,
   TaskCommitResponse,
+  TaskUpdateRequest,
   TaskPreviewRequest,
   TaskPreviewResponse
 } from "./contracts.js";
@@ -40,6 +43,8 @@ export interface IndiceBusinessReader extends OperationalReferenceReader {
   listUnitsAndBusinesses?(request?: ReferencePageRequest): Promise<OrganizationReferencePage>;
   listPaymentAccounts?(request?: ReferencePageRequest): Promise<PaymentAccountReferencePage>;
   listFunds?(request?: ReferencePageRequest): Promise<FundReferencePage>;
+  previewUpdateTask?(request: TaskUpdateRequest): Promise<TaskPreviewResponse>;
+  updateTask?(request: TaskCommitRequest): Promise<TaskCommitResponse>;
   previewCreateTask(request: TaskPreviewRequest): Promise<TaskPreviewResponse>;
   createTask(request: TaskCommitRequest): Promise<TaskCommitResponse>;
   previewFinanceAction?(action: FinanceActionName, request: Record<string, unknown>): Promise<FinanceActionPreviewResponse>;
@@ -52,7 +57,7 @@ export function createIndiceMcpServer(
 ): McpServer {
   const server = new McpServer({
     name: "indice-business-tools",
-    version: "0.2.0"
+    version: "0.3.0"
   }, { instructions: lupitaInstructions });
 
   const salesTodayTool = server.registerTool("get_sales_today", {
@@ -242,8 +247,8 @@ export function createIndiceMcpServer(
 
   const taskPreviewTool = server.registerTool("preview_create_task", {
     title: "Prepare task creation",
-    description: "Prepara una vista previa exacta para crear una tarea en Índice asignada al usuario conectado. No crea la tarea. Muestra la vista previa al usuario y espera su confirmación explícita antes de usar create_task.",
-    inputSchema: {
+    description: "Prepara una vista previa exacta para crear una tarea en Índice para ti o para un responsable autorizado. Para otra persona, primero usa search_task_assignees y selecciona el userCompanyId exacto; si el nombre es ambiguo, pide aclaración. La delegación requiere permiso tasks.delegate. No crea la tarea. Muestra la vista previa al usuario y espera su confirmación explícita antes de usar create_task.",
+    inputSchema: z.object({
       title: z.string().trim().min(1).max(180)
         .describe("Título claro de la tarea."),
       description: z.string().trim().min(1).max(2000).optional()
@@ -251,33 +256,25 @@ export function createIndiceMcpServer(
       priority: z.enum(["low", "medium", "high"]).optional()
         .describe("Prioridad. El valor predeterminado es medium."),
       due_date: z.iso.date().optional()
-        .describe("Fecha de vencimiento exacta en formato YYYY-MM-DD.")
-    },
-    outputSchema: {
-      confirmationToken: z.string().startsWith("idx_confirm_"),
-      expiresAt: z.iso.datetime(),
-      requiresConfirmation: z.literal(true),
-      task: z.object({
-        title: z.string(),
-        description: z.string().nullable(),
-        priority: z.enum(["low", "medium", "high"]),
-        dueDate: z.iso.date().nullable(),
-        assignee: z.literal("Usuario conectado")
-      })
-    },
+        .describe("Fecha de vencimiento exacta en formato YYYY-MM-DD."),
+      assignee_user_company_id: z.number().int().positive().optional()
+        .describe("userCompanyId exacto de search_task_assignees. Si se omite, se asigna a ti.")
+    }).strict(),
+    outputSchema: taskPreviewResponseSchema,
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: false,
       openWorldHint: false
     }
-  }, async ({ title, description, priority, due_date }) => {
+  }, async ({ title, description, priority, due_date, assignee_user_company_id }) => {
     try {
       const result = await reader.previewCreateTask({
         title,
         description,
         priority,
-        dueDate: due_date
+        dueDate: due_date,
+        assigneeUserCompanyId: assignee_user_company_id
       });
       return {
         content: [{ type: "text", text: humanTaskPreview(result) }],
@@ -293,23 +290,13 @@ export function createIndiceMcpServer(
   const taskCommitTool = server.registerTool("create_task", {
     title: "Create confirmed task",
     description: "Crea en Índice únicamente la tarea contenida en una vista previa vigente. Úsala solo después de que el usuario confirme explícitamente los datos exactos mostrados por preview_create_task. No acepta título, descripción, prioridad ni fecha para impedir cambios posteriores a la confirmación.",
-    inputSchema: {
+    inputSchema: z.object({
       confirmation_token: z.string().startsWith("idx_confirm_")
         .describe("Token interno devuelto por preview_create_task."),
       idempotency_key: z.string().min(8).max(128)
         .describe("Clave única generada para este intento, preferentemente un UUID. Reutiliza la misma al reintentar.")
-    },
-    outputSchema: {
-      replayed: z.boolean(),
-      correlationId: z.uuid(),
-      task: z.object({
-        id: z.number().int().positive(),
-        folio: z.string().nullable(),
-        title: z.string(),
-        status: z.string(),
-        dueDate: z.iso.date().nullable()
-      })
-    },
+    }).strict(),
+    outputSchema: taskCommitResponseSchema,
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -336,6 +323,7 @@ export function createIndiceMcpServer(
   registerBusinessReadTools(server, reader, allowedTools);
   registerReferenceResolverTools(server, reader, allowedTools);
   registerOperationalReferenceTools(server, reader, allowedTools);
+  registerTaskEditingTools(server, reader, allowedTools);
   registerFinanceActionTools(server, reader, allowedTools);
 
   return server;
@@ -792,13 +780,13 @@ function humanFinanceCommit(result: FinanceActionCommitResponse): string {
 function humanTaskPreview(result: TaskPreviewResponse): string {
   const due = result.task.dueDate ? ` Vence: ${result.task.dueDate}.` : " Sin fecha de vencimiento.";
   const description = result.task.description ? ` Descripción: ${result.task.description}.` : "";
-  return `Vista previa: ${result.task.title}. Prioridad: ${result.task.priority}.${due}${description} Asignada al usuario conectado. Confirma explícitamente estos datos para crearla; la autorización vence en 5 minutos.`;
+  return `Vista previa: ${result.task.title}. Prioridad: ${result.task.priority}.${due}${description} Responsable: ${result.task.assignee}.${result.task.unitName ? ` Unidad: ${result.task.unitName}.` : ""}${result.task.businessName ? ` Negocio: ${result.task.businessName}.` : ""} Confirma explícitamente estos datos para crearla; la autorización vence en 5 minutos.`;
 }
 
 function humanCreatedTask(result: TaskCommitResponse): string {
   const folio = result.task.folio ? ` (${result.task.folio})` : "";
   const replay = result.replayed ? " La respuesta corresponde al mismo intento ya procesado; no se creó un duplicado." : "";
-  return `Tarea creada en Índice${folio}: ${result.task.title}.${replay}`;
+  return `Tarea creada en Índice${folio}: ${result.task.title}.${result.task.assignee ? ` Responsable: ${result.task.assignee}.` : ""}${replay}`;
 }
 
 function attentionItems(snapshot: BusinessSnapshot): AttentionItems {

@@ -27,17 +27,27 @@ public class AiToolReferenceApiController {
     private final AiReferenceResolverService resolverService;
     private final AiToolUsageAuditService auditService;
     private final AiOperationalReferenceService operationalService;
+    private final AiTaskAssigneeReferenceService taskAssignees;
 
     public AiToolReferenceApiController(
         AiAccessTokenService tokenService,
         AiReferenceResolverService resolverService,
         AiToolUsageAuditService auditService,
-        AiOperationalReferenceService operationalService
+        AiOperationalReferenceService operationalService,
+        AiTaskAssigneeReferenceService taskAssignees
     ) {
         this.tokenService = tokenService;
         this.resolverService = resolverService;
         this.auditService = auditService;
         this.operationalService = operationalService;
+        this.taskAssignees = taskAssignees;
+    }
+
+    @PostMapping("/task-assignees")
+    public ResponseEntity<?> taskAssignees(@RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+            @RequestBody(required = false) PageRequest request) {
+        return invoke(authorization, AiAccessTokenService.TASKS_DELEGATE, "search_task_assignees",
+            user -> taskAssignees.search(user, request));
     }
 
     @GetMapping("/business-context")

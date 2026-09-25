@@ -267,7 +267,8 @@ test("requires preview and passes only the confirmed token to task creation", as
         title: "Revisar alertas MCP",
         description: undefined,
         priority: "high",
-        dueDate: "2026-09-01"
+        dueDate: "2026-09-01",
+        assigneeUserCompanyId: undefined
       });
       return taskPreview();
     },

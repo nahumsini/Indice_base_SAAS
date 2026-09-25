@@ -9,6 +9,8 @@ import { IndiceBrandLogo } from './components/IndiceBrandLogo';
 
 const actionScopes = new Set([
   'tasks.create',
+  'tasks.delegate',
+  'tasks.update',
   'expenses.create',
   'petty_cash.expense:create',
   'petty_cash.deposit:create',
@@ -35,6 +37,8 @@ const scopeLabels: Record<string, string> = {
   'petty_cash.read': 'Fondos',
   'receivables.read': 'Dinero por cobrar',
   'finance.references:read': 'Cuentas bancarias y de pago autorizadas',
+  'tasks.delegate': 'Delegar tareas a responsables autorizados',
+  'tasks.update': 'Editar tareas confirmadas',
   'tasks.create': 'Crear tareas confirmadas',
   'expenses.create': 'Preparar gastos en borrador',
   'petty_cash.expense:create': 'Registrar salidas confirmadas de fondos',

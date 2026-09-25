@@ -3,6 +3,7 @@ import { backendRequest, type RequestContext } from "./backendTransport.js";
 import { bearerChallenge } from "./toolPolicy.js";
 import * as z from "zod/v4";
 import {
+  taskAssigneeReferencePageSchema,
   customerReferencePageSchema, warehouseReferencePageSchema, providerReferencePageSchema,
   budgetLineReferencePageSchema, accountingAccountReferencePageSchema
 } from "./operationalReferenceContracts.js";
@@ -22,6 +23,8 @@ import {
   taskCommitRequestSchema,
   taskCommitResponseSchema,
   taskPreviewRequestSchema,
+  taskUpdateRequestSchema,
+  type TaskUpdateRequest,
   taskPreviewResponseSchema,
   toolCapabilitiesSchema,
   type BusinessSnapshot,
@@ -144,6 +147,26 @@ export class IndiceClient {
       throw new IndiceApiError("Indice returned an invalid task preview contract.");
     }
     return parsed.data;
+  }
+
+  async previewUpdateTask(request: TaskUpdateRequest): Promise<TaskPreviewResponse> {
+    return this.taskUpdate("preview", taskUpdateRequestSchema.parse(request), taskPreviewResponseSchema);
+  }
+
+  async updateTask(request: TaskCommitRequest): Promise<TaskCommitResponse> {
+    return this.taskUpdate("commit", taskCommitRequestSchema.parse(request), taskCommitResponseSchema);
+  }
+
+  private async taskUpdate<S extends z.ZodObject>(step: string, request: unknown, schema: S): Promise<z.infer<S>> {
+    const response = await this.request(`/api/v1/ai/tools/tasks/update/${step}`, {
+      method: "POST", headers: { Authorization: `Bearer ${this.requireDelegatedToken()}`, "Content-Type": "application/json" },
+      body: JSON.stringify(request)
+    });
+    if (!response.ok) throw await this.apiError(response, response.status === 409
+      ? "La tarea cambió o la confirmación dejó de ser válida. Prepara una nueva vista previa."
+      : response.status === 403 ? "La conexión necesita permiso para editar o delegar tareas."
+      : "No se pudo actualizar la tarea en Índice.");
+    return schema.parse(await response.json());
   }
 
   async createTask(request: TaskCommitRequest): Promise<TaskCommitResponse> {
@@ -376,6 +399,10 @@ export class IndiceClient {
       throw new IndiceApiError("Indice delegated authorization is required for actions.", 401);
     }
     return this.delegatedAccessToken;
+  }
+
+  searchTaskAssignees(request: ReferencePageRequest = {}) {
+    return this.operationalReference("task-assignees", taskAssigneeReferencePageSchema, request);
   }
 
   searchCustomers(request: ReferencePageRequest = {}) {

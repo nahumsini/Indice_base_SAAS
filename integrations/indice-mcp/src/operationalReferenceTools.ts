@@ -4,6 +4,7 @@ import { configureTool } from "./toolPolicy.js";
 import { toolError } from "./toolErrors.js";
 import { referencePageRequestSchema, type ReferencePageRequest } from "./contracts.js";
 import {
+  taskAssigneeReferencePageSchema, type TaskAssigneeReferencePage,
   customerReferencePageSchema, warehouseReferencePageSchema, providerReferencePageSchema,
   budgetLineReferencePageSchema, accountingAccountReferencePageSchema,
   type CustomerReferencePage, type WarehouseReferencePage, type ProviderReferencePage,
@@ -11,6 +12,7 @@ import {
 } from "./operationalReferenceContracts.js";
 
 export interface OperationalReferenceReader {
+  searchTaskAssignees?(request?: ReferencePageRequest): Promise<TaskAssigneeReferencePage>;
   searchCustomers?(request?: ReferencePageRequest): Promise<CustomerReferencePage>;
   searchProviders?(request?: ReferencePageRequest): Promise<ProviderReferencePage>;
   listWarehouses?(request?: ReferencePageRequest): Promise<WarehouseReferencePage>;
@@ -41,6 +43,9 @@ export function registerOperationalReferenceTools(server: McpServer, reader: Ope
     });
     configureTool(tool, name, allowedTools);
   }
+  register("search_task_assignees", "Buscar responsables de tareas",
+    "Busca responsables activos por nombre dentro del alcance de Tareas de Índice. Usa userCompanyId para asignar; no confundas este valor con un employee_id o user_id. Si hay varias coincidencias, pide elegir por nombre y unidad/negocio; nunca adivines el responsable. No envía mensajes ni crea tareas.",
+    taskAssigneeReferencePageSchema, reader.searchTaskAssignees?.bind(reader));
   register("search_customers", "Buscar clientes",
     "Busca clientes compartidos por POS y Ventas por nombre o código, dentro del alcance autorizado. Devuelve identificadores y contexto para seleccionar al cliente exacto; no crea ni edita clientes.",
     customerReferencePageSchema, reader.searchCustomers?.bind(reader));

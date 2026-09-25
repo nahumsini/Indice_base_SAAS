@@ -61,7 +61,8 @@ class AiTaskActionExecutionServiceTest {
         var service = new AiTaskActionExecutionService(
             repository,
             processTasksService,
-            Clock.fixed(NOW, ZoneOffset.UTC)
+            Clock.fixed(NOW, ZoneOffset.UTC),
+            org.mockito.Mockito.mock(com.indice.erp.processTasks.tasks.ProcessTaskAssistantService.class)
         );
 
         var response = service.execute(token, confirmation, "idempotency", "correlation");

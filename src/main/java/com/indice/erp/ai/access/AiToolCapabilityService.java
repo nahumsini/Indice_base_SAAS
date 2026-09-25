@@ -80,6 +80,10 @@ public class AiToolCapabilityService {
         add(tools, token, AiAccessTokenService.TASKS_CREATE,
             () -> authorizationService.canCreateTask(user),
             "preview_create_task", "create_task");
+        add(tools, token, AiAccessTokenService.TASKS_DELEGATE,
+            () -> authorizationService.canCreateTask(user), "search_task_assignees");
+        add(tools, token, AiAccessTokenService.TASKS_UPDATE,
+            () -> authorizationService.canCreateTask(user), "preview_update_task", "update_task");
         add(tools, token, AiAccessTokenService.CUSTOMERS_READ,
             () -> authorizationService.canReadCustomers(user), "search_customers");
         add(tools, token, AiAccessTokenService.PROVIDERS_READ,

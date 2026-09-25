@@ -59,7 +59,7 @@ does not consume another slot. Never raise the limit or revoke other connections
 
 ## 3. Current tool authorization matrix
 
-The table describes all 37 MCP tools. `Any(...)` means at least one current tab grant is required.
+The table describes all 40 MCP tools. `Any(...)` means at least one current tab grant is required.
 Every row also inherits the common invariant above.
 
 | Tool | OAuth scope | Owner module and tab permission | Risk and additional rule |
@@ -93,8 +93,11 @@ Every row also inherits the common invariant above.
 | `list_warehouses` | `warehouses.read` | `inventory.inventory` or `crm.sales` | Read; tenant/scope SQL, cursor pagination; no stock movement |
 | `search_budget_lines` | `budget_lines.read` | `expenses`; Any(`budgets`, `kpis`) | Read; FinanceContext, backend amounts, currency and cursor pagination |
 | `search_accounting_accounts` | `accounting_accounts.read` | `expenses.accounting` | Read; FinanceContext, whitelisted account references and cursor pagination |
+| `search_task_assignees` | `tasks.delegate` | `processes`; Any(`calendar`, `projects`, `processes`) write grant | Read; active task memberships in actor company/unit/business scope; no employee/user-ID substitution |
+| `preview_update_task` | `tasks.update` | `processes`; Any(`calendar`, `projects`, `processes`) write grant | Preparation; task-owner visibility, before/after and current version |
+| `update_task` | `tasks.update` | `processes`; Any(`calendar`, `projects`, `processes`) write grant | Confirmed partial update; reassignment also requires `tasks.delegate` |
 | `preview_create_task` | `tasks.create` | `processes`; Any(`calendar`, `projects`, `processes`) | Preparation; persists only confirmation and audit |
-| `create_task` | `tasks.create` | `processes`; Any(`calendar`, `projects`, `processes`) | Confirmed action; assignment limited to connected user |
+| `create_task` | `tasks.create` | `processes`; Any(`calendar`, `projects`, `processes`) | Confirmed action; own task by default; another assignee also requires `tasks.delegate` |
 | `preview_create_expense_draft` | `expenses.create` | `expenses`; `expenses.expenses` | Preparation; no payment or approval |
 | `create_expense_draft` | `expenses.create` | `expenses`; `expenses.expenses` | Confirmed action; creates `DRAFT` only |
 | `preview_register_fund_expense` | `petty_cash.expense:create` | `petty_cash`; `petty_cash.control` | Preparation; no global expense authorization |
@@ -125,6 +128,30 @@ The Lupita target permits clear low-risk instructions without a second confirmat
 does not implement that new action protocol. Each future action must adopt and test it explicitly;
 client instructions cannot bypass the previews required by current tools. Financial and bulk
 operations retain explicit confirmation, audit, idempotency and their owner transactions.
+
+### Task assignment and editing
+
+`tasks.delegate` and `tasks.update` are explicit action consent scopes. Existing connections and
+refresh grants keep their stored scopes; read-only defaults do not gain either permission. The
+assignee resolver returns `userCompanyId`, display name and organizational labels from the Tasks
+owner catalog, without email, HR details or raw user identifiers. Ambiguous names require a user
+choice. A delegated creation requires `tasks.create` plus `tasks.delegate`; self creation still
+requires only `tasks.create`. The preview binds the exact assignee and owner-derived organizational
+scope. Commit revalidates active membership and assignment boundaries.
+
+Editing accepts only title, description, priority, due date, status and principal assignee. Omitted
+fields remain unchanged; explicit clear flags remove description or due date. Reassignment replaces
+the previous principal assignee while preserving other collaborators and the task's existing scope.
+The Tasks owner still enforces completion/evidence rules and sends its normal notifications.
+Sharing, task-list management and changes to project, process or organizational scope are not part
+of this delivery.
+
+Update previews capture the owner task state. Commit locks the tenant-scoped task, compares that
+state and rejects a stale preview before applying the partial patch. The confirmation consumption,
+owner mutation, execution result and successful audit share one transaction. Retries return the
+stored result only after current task visibility is rechecked. Legacy create confirmations and
+execution rows remain readable; new draft/result data uses the existing JSON columns, without a
+schema migration. The MCP/backend/web catalog and consent changes must be deployed together.
 
 ## 5. Data minimization and result contracts
 

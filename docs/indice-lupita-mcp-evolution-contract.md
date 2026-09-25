@@ -54,7 +54,7 @@ Los estados describen el código de esta rama; no certifican disponibilidad en p
 | RH: nómina | Totales e historia de totales | Pendiente de adaptación; detalle completo y operación de nómina excluidos. |
 | RH: comunicados | Consultar, enviar, identificar leído/no leído | Pendiente. |
 | RH: actas, permisos, incentivos, KPIs | Solo consultar/analizar; no aprobar permisos | Pendiente. |
-| Agenda | Consultar agendas permitidas; crear, editar, delegar y compartir tareas; crear/asignar listas | Lectura de tareas y creación propia disponibles. Resto pendiente. |
+| Agenda | Consultar agendas permitidas; crear, editar, delegar y compartir tareas; crear/asignar listas | Lectura, creación propia/delegada y edición parcial implementadas con confirmación. Compartir tareas y crear/asignar listas siguen pendientes. |
 | Proyectos | Consultar responsables/avance; crear, asignar y editar tareas del proyecto | Pendiente de herramientas específicas. No implica crear/editar el proyecto. |
 | Procesos y sus KPIs | Consultar responsables, participantes y cumplimiento | Pendiente; creación y configuración de procesos excluidas. |
 | Productos | Consultar y crear | Lectura existente; creación pendiente. Edición/eliminación libre excluidas. |
@@ -143,8 +143,8 @@ La comprobación de planes/especialistas y nuevas escrituras siguen pendientes.
 - Sin migraciones ni cambios de datos. El test local no certifica APPTEST/producción; probar
   conversación OAuth real y seguir deployment/rollback antes de publicar.
 
-La siguiente entrega puede completar Controla (lecturas de RH/proyectos/procesos y asignación de
-tareas) sobre la misma matriz. Después, clientes/oportunidades/cotizaciones y las acciones de
+La siguiente entrega puede completar Controla (lecturas de RH/proyectos/procesos, compartir tareas y
+listas) sobre la misma matriz. La asignación y edición de tareas se rigen por el contrato canónico MCP. Después, clientes/oportunidades/cotizaciones y las acciones de
 Finance con sus contratos transaccionales y pruebas de reintento. Mantener cada bloque revisable.
 
 ### Resultado local de la entrega 1
@@ -179,3 +179,13 @@ servicios de scopes/autorización/capabilities. En MCP: `operationalReferenceCon
 La interfaz cambia únicamente etiquetas y selección de scopes en Integraciones/consentimiento.
 Se actualizan sus pruebas, la versión del paquete MCP y los documentos de alcance; se preservan
 billing, navegación, estilos, datos, acciones V1 y su protocolo de confirmación.
+
+
+### Entrega incremental: asignación y edición de tareas
+
+Se incorporan `search_task_assignees`, `preview_update_task` y `update_task`; `preview_create_task`
+acepta un responsable autorizado. Los permisos nuevos son `tasks.delegate` y `tasks.update`, ambos
+con consentimiento explícito. Se conserva la vista previa y confirmación vigente, la separación de
+empresas y el alcance del propietario Tareas. Edición parcial, detección de cambios concurrentes y
+reintentos idempotentes; no incluye compartir ni listas. La validación técnica no sustituye la
+aceptación OAuth real en APPTEST ni autoriza por sí sola el paso a producción.

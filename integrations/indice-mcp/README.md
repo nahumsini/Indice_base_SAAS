@@ -20,15 +20,18 @@ Herramientas disponibles:
 - Referencias operativas: `search_customers`, `search_providers`, `list_warehouses`,
   `search_budget_lines`, `search_accounting_accounts`. Requieren sus nuevos scopes de lectura;
   las conexiones anteriores no los adquieren automáticamente.
-- `preview_create_task`: prepara la tarea exacta, asignada al usuario conectado, sin crearla.
+- `preview_create_task`: prepara la tarea exacta para el usuario conectado o un responsable autorizado, sin crearla.
 - `create_task`: crea únicamente la vista previa confirmada y vigente.
+- `search_task_assignees`: busca responsables autorizados por nombre, con unidad y negocio para distinguir coincidencias.
+- `preview_update_task` / `update_task`: vista previa y edición confirmada de título, descripción, prioridad, vencimiento, estado o responsable; conserva campos omitidos y rechaza cambios concurrentes.
+  Delegar requiere `tasks.delegate`; editar requiere `tasks.update`; reasignar requiere ambos. Los permisos nuevos se autorizan explícitamente en una conexión nueva.
 - `preview_create_expense_draft` / `create_expense_draft`: crea un gasto general únicamente en `DRAFT`.
 - `preview_register_fund_expense` / `register_fund_expense`: registra una salida exacta en un fondo; no autoriza un gasto global.
 - `preview_add_money_to_fund` / `add_money_to_fund`: registra un depósito adicional desde una cuenta fuente exacta.
 
 ## Requisitos
 
-El catálogo contiene 37 herramientas (29 consultas y 8 pasos de las cuatro acciones existentes).
+El catálogo contiene 40 herramientas (30 consultas y 10 pasos de las cinco acciones existentes).
 La inicialización incorpora la guía de comportamiento de Lupita. El alcance, las perspectivas
 especialistas y las funciones todavía pendientes están en el
 [contrato de evolución](../../docs/indice-lupita-mcp-evolution-contract.md).

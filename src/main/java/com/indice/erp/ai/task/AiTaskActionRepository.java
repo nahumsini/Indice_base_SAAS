@@ -40,8 +40,8 @@ public class AiTaskActionRepository {
                     (access_token_id, company_id, user_id, user_company_id, tool_name,
                      confirmation_hash, request_fingerprint, normalized_args_json,
                      task_title, task_description, task_priority, task_due_date, expires_at)
-                    VALUES (?, ?, ?, ?, 'create_task', ?, ?, CAST(? AS JSON), ?, ?, ?, ?, ?)
-                    """,
+                    VALUES (?, ?, ?, ?, '%s', ?, ?, CAST(? AS JSON), ?, ?, ?, ?, ?)
+                    """.formatted(draft.tool()),
                 new String[] {"id"}
             );
             statement.setLong(1, token.id());
@@ -72,7 +72,7 @@ public class AiTaskActionRepository {
                        request_fingerprint, normalized_args_json, task_title,
                        task_description, task_priority, task_due_date, expires_at, consumed_at
                 FROM ai_action_confirmations
-                WHERE confirmation_hash = ? AND tool_name = 'create_task'
+                WHERE confirmation_hash = ? AND tool_name IN ('create_task', 'update_task')
                 LIMIT 1
                 """,
             (rs, rowNum) -> new Confirmation(
@@ -83,13 +83,7 @@ public class AiTaskActionRepository {
                 rs.getLong("user_company_id"),
                 rs.getString("request_fingerprint"),
                 rs.getString("normalized_args_json"),
-                new TaskDraft(
-                    rs.getString("task_title"),
-                    rs.getString("task_description"),
-                    rs.getString("task_priority"),
-                    localDate(rs.getDate("task_due_date")),
-                    "Usuario conectado"
-                ),
+                parseDraft(rs.getString("normalized_args_json")),
                 rs.getTimestamp("expires_at").toInstant(),
                 instant(rs.getTimestamp("consumed_at"))
             ),
@@ -124,8 +118,8 @@ public class AiTaskActionRepository {
                     (confirmation_id, access_token_id, company_id, user_id, user_company_id,
                      tool_name, idempotency_key_hash, request_fingerprint, correlation_id,
                      risk_level, status)
-                    VALUES (?, ?, ?, ?, ?, 'create_task', ?, ?, ?, 1, 'PENDING')
-                    """,
+                    VALUES (?, ?, ?, ?, ?, '%s', ?, ?, ?, 1, 'PENDING')
+                    """.formatted(confirmation.draft().tool()),
                 new String[] {"id"}
             );
             statement.setLong(1, confirmation.id());
@@ -146,13 +140,17 @@ public class AiTaskActionRepository {
     }
 
     public Optional<Execution> findExecution(long companyId, long userId, String idempotencyHash) {
+        return findExecution(companyId, userId, "create_task", idempotencyHash);
+    }
+
+    public Optional<Execution> findExecution(long companyId, long userId, String tool, String idempotencyHash) {
         return jdbcTemplate.query(
             """
                 SELECT id, confirmation_id, request_fingerprint, correlation_id, status,
-                       result_task_id, result_folio, result_title, result_status, result_due_date
+                       result_task_id, result_folio, result_title, result_status, result_due_date, result_json
                 FROM ai_action_executions
                 WHERE company_id = ? AND user_id = ?
-                  AND tool_name = 'create_task' AND idempotency_key_hash = ?
+                  AND tool_name = ? AND idempotency_key_hash = ?
                 LIMIT 1
                 """,
             (rs, rowNum) -> new Execution(
@@ -165,10 +163,12 @@ public class AiTaskActionRepository {
                 rs.getString("result_folio"),
                 rs.getString("result_title"),
                 rs.getString("result_status"),
-                localDate(rs.getDate("result_due_date"))
+                localDate(rs.getDate("result_due_date")),
+                parseResult(rs.getString("result_json"))
             ),
             companyId,
             userId,
+            tool,
             idempotencyHash
         ).stream().findFirst();
     }
@@ -178,7 +178,7 @@ public class AiTaskActionRepository {
             """
                 UPDATE ai_action_executions
                 SET status = 'COMPLETED', result_task_id = ?, result_folio = ?,
-                    result_title = ?, result_status = ?, result_due_date = ?, completed_at = ?
+                    result_title = ?, result_status = ?, result_due_date = ?, result_json = CAST(? AS JSON), completed_at = ?
                 WHERE id = ? AND status = 'PENDING'
                 """,
             result.id(),
@@ -186,6 +186,7 @@ public class AiTaskActionRepository {
             result.title(),
             result.status(),
             result.dueDate() == null ? null : Date.valueOf(result.dueDate()),
+            json(result),
             Timestamp.from(now),
             executionId
         );
@@ -210,7 +211,7 @@ public class AiTaskActionRepository {
                  tool_name, event_type, outcome, risk_level, correlation_id,
                  idempotency_key_hash, normalized_args_json, result_json,
                  error_code, error_message_safe)
-                VALUES (?, ?, ?, ?, ?, 'create_task', ?, ?, 1, ?, ?,
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?,
                         CAST(? AS JSON), CAST(? AS JSON), ?, ?)
                 """,
             confirmationId,
@@ -218,6 +219,7 @@ public class AiTaskActionRepository {
             token.user().companyId(),
             token.user().userId(),
             token.user().userCompanyId(),
+            normalizedArgs instanceof TaskDraft draft ? draft.tool() : "create_task",
             eventType,
             outcome,
             correlationId,
@@ -227,6 +229,17 @@ public class AiTaskActionRepository {
             errorCode,
             truncate(errorMessage, 255)
         );
+    }
+
+    private TaskDraft parseDraft(String value) {
+        try { return objectMapper.readValue(value, TaskDraft.class); }
+        catch (JsonProcessingException exception) { throw new IllegalStateException("Stored task confirmation is invalid.", exception); }
+    }
+
+    private TaskResult parseResult(String value) {
+        if (value == null) return null;
+        try { return objectMapper.readValue(value, TaskResult.class); }
+        catch (JsonProcessingException exception) { throw new IllegalStateException("Stored task result is invalid.", exception); }
     }
 
     private String json(Object value) {
@@ -276,10 +289,15 @@ public class AiTaskActionRepository {
         String folio,
         String title,
         String taskStatus,
-        LocalDate dueDate
+        LocalDate dueDate,
+        TaskResult storedResult
     ) {
+        public Execution(long id, long confirmationId, String fingerprint, String correlationId, String status,
+                Long taskId, String folio, String title, String taskStatus, LocalDate dueDate) {
+            this(id, confirmationId, fingerprint, correlationId, status, taskId, folio, title, taskStatus, dueDate, null);
+        }
         public TaskResult result() {
-            return new TaskResult(taskId == null ? 0 : taskId, folio, title, taskStatus, dueDate);
+            return storedResult != null ? storedResult : new TaskResult(taskId == null ? 0 : taskId, folio, title, taskStatus, dueDate);
         }
     }
 }

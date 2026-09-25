@@ -160,4 +160,14 @@ class AiToolCapabilityServiceTest {
         assertEquals(Set.of("search_customers", "list_warehouses", "search_budget_lines", "search_accounting_accounts"),
             Set.copyOf(service.allowedTools(token)));
     }
+    @Test
+    void taskDelegationAndEditingNeedExplicitScopesAndCurrentWritePermission() {
+        var connection = token(Set.of(AiAccessTokenService.TASKS_DELEGATE, AiAccessTokenService.TASKS_UPDATE));
+        when(authorizationService.canCreateTask(USER)).thenReturn(true);
+        assertEquals(Set.of("search_task_assignees", "preview_update_task", "update_task"),
+            Set.copyOf(service.allowedTools(connection)));
+        when(authorizationService.canCreateTask(USER)).thenReturn(false);
+        assertEquals(Set.of(), Set.copyOf(service.allowedTools(connection)));
+    }
+
 }

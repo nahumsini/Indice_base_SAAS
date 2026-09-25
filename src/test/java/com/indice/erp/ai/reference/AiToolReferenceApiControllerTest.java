@@ -43,7 +43,7 @@ class AiToolReferenceApiControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new AiToolReferenceApiController(tokenService, resolverService, auditService, operationalService);
+        controller = new AiToolReferenceApiController(tokenService, resolverService, auditService, operationalService, org.mockito.Mockito.mock(AiTaskAssigneeReferenceService.class));
     }
 
     @Test

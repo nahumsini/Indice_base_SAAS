@@ -42,6 +42,7 @@ class AiTaskActionServiceTest {
     @Mock private AiTaskActionRepository repository;
     @Mock private AiTaskActionExecutionService executionService;
     @Mock private AiTaskActionAuditService auditService;
+    @Mock private AiTaskDraftService drafts;
 
     private AiTaskActionService service;
 
@@ -52,7 +53,8 @@ class AiTaskActionServiceTest {
             executionService,
             auditService,
             new ObjectMapper(),
-            Clock.fixed(NOW, ZoneOffset.UTC)
+            Clock.fixed(NOW, ZoneOffset.UTC),
+            drafts
         );
     }
 
@@ -60,6 +62,7 @@ class AiTaskActionServiceTest {
     void previewNormalizesAndStoresOnlyAHashOfTheConfirmation() {
         when(repository.insertConfirmation(any(), any(), any(), any(), any())).thenReturn(501L);
 
+        when(drafts.create(eq(TOKEN), any())).thenReturn(new TaskDraft("Revisar caja", "Hoy", "medium", null, "Owner"));
         var response = service.preview(TOKEN, new PreviewRequest("  Revisar caja  ", "  Hoy  ", null, null));
 
         assertEquals("Revisar caja", response.task().title());
@@ -85,7 +88,7 @@ class AiTaskActionServiceTest {
     void commitExecutesOnlyTheStoredConfirmedDraft() {
         var confirmation = confirmation(501L, 91L, NOW.plusSeconds(300), null);
         when(repository.findConfirmation(any())).thenReturn(Optional.of(confirmation));
-        when(repository.findExecution(eq(23L), eq(3L), any())).thenReturn(Optional.empty());
+        when(repository.findExecution(eq(23L), eq(3L), eq("create_task"), any())).thenReturn(Optional.empty());
         var result = new CommitResponse(
             false,
             "correlation",
@@ -115,7 +118,7 @@ class AiTaskActionServiceTest {
             null
         );
         when(repository.findConfirmation(any())).thenReturn(Optional.of(confirmation));
-        when(repository.findExecution(eq(23L), eq(3L), any())).thenReturn(Optional.of(execution));
+        when(repository.findExecution(eq(23L), eq(3L), eq("create_task"), any())).thenReturn(Optional.of(execution));
 
         var response = service.commit(TOKEN, new CommitRequest(validConfirmationToken(), "retry-key-123"));
 
@@ -142,7 +145,7 @@ class AiTaskActionServiceTest {
     void expiredConfirmationCannotCreateATask() {
         var confirmation = confirmation(501L, 91L, NOW.minusSeconds(1), null);
         when(repository.findConfirmation(any())).thenReturn(Optional.of(confirmation));
-        when(repository.findExecution(eq(23L), eq(3L), any())).thenReturn(Optional.empty());
+        when(repository.findExecution(eq(23L), eq(3L), eq("create_task"), any())).thenReturn(Optional.empty());
 
         var error = assertThrows(
             AiTaskActionConflictException.class,

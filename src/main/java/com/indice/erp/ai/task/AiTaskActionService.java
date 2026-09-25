@@ -16,8 +16,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.HexFormat;
-import java.util.Locale;
-import java.util.Set;
 import java.util.UUID;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -28,13 +26,13 @@ public class AiTaskActionService {
     private static final String CONFIRMATION_PREFIX = "idx_confirm_";
     private static final int CONFIRMATION_BYTES = 32;
     private static final Duration CONFIRMATION_TTL = Duration.ofMinutes(5);
-    private static final Set<String> PRIORITIES = Set.of("low", "medium", "high");
 
     private final AiTaskActionRepository repository;
     private final AiTaskActionExecutionService executionService;
     private final AiTaskActionAuditService auditService;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final AiTaskDraftService drafts;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public AiTaskActionService(
@@ -42,20 +40,28 @@ public class AiTaskActionService {
         AiTaskActionExecutionService executionService,
         AiTaskActionAuditService auditService,
         ObjectMapper objectMapper,
-        Clock clock
+        Clock clock,
+        AiTaskDraftService drafts
     ) {
         this.repository = repository;
         this.executionService = executionService;
         this.auditService = auditService;
         this.objectMapper = objectMapper;
         this.clock = clock;
+        this.drafts = drafts;
     }
 
     public PreviewResponse preview(AiAccessTokenRepository.StoredToken token, PreviewRequest request) {
-        if (request == null) {
-            throw new IllegalArgumentException("Task details are required.");
-        }
-        var draft = normalize(request);
+        AiTaskDraftService.requireScope(token, "tasks.create");
+        return storePreview(token, drafts.create(token, request), null);
+    }
+
+    public PreviewResponse previewUpdate(AiAccessTokenRepository.StoredToken token, AiTaskActionContracts.UpdateRequest request) {
+        var edit = drafts.edit(token, request);
+        return storePreview(token, edit.after(), edit.before());
+    }
+
+    private PreviewResponse storePreview(AiAccessTokenRepository.StoredToken token, TaskDraft draft, TaskDraft before) {
         var rawConfirmation = generateConfirmationToken();
         var fingerprint = sha256Hex(json(draft));
         var expiresAt = clock.instant().plus(CONFIRMATION_TTL);
@@ -78,10 +84,18 @@ public class AiTaskActionService {
             null,
             null
         );
-        return new PreviewResponse(rawConfirmation, expiresAt, true, draft);
+        return new PreviewResponse(rawConfirmation, expiresAt, true, draft, before);
     }
 
     public CommitResponse commit(AiAccessTokenRepository.StoredToken token, CommitRequest request) {
+        return commit(token, request, "create_task");
+    }
+
+    public CommitResponse commitUpdate(AiAccessTokenRepository.StoredToken token, CommitRequest request) {
+        return commit(token, request, "update_task");
+    }
+
+    private CommitResponse commit(AiAccessTokenRepository.StoredToken token, CommitRequest request, String tool) {
         if (request == null) {
             throw new IllegalArgumentException("Confirmation and idempotency key are required.");
         }
@@ -90,11 +104,14 @@ public class AiTaskActionService {
         var confirmation = repository.findConfirmation(sha256Hex(confirmationToken))
             .orElseThrow(() -> conflict("confirmation_invalid", "The confirmation is invalid. Prepare the task again."));
         requireBoundIdentity(token, confirmation);
+        if (!tool.equals(confirmation.draft().tool())) throw conflict("confirmation_tool_mismatch", "Confirmation belongs to another action.");
+        AiTaskDraftService.requireCommitScopes(token, confirmation.draft());
 
         var idempotencyHash = sha256Hex(idempotencyKey);
         var existing = repository.findExecution(
             token.user().companyId(),
             token.user().userId(),
+            tool,
             idempotencyHash
         );
         if (existing.isPresent()) {
@@ -109,24 +126,12 @@ public class AiTaskActionService {
 
         var correlationId = UUID.randomUUID().toString();
         try {
-            var response = executionService.execute(token, confirmation, idempotencyHash, correlationId);
-            auditService.record(
-                token,
-                confirmation.id(),
-                "COMMIT",
-                "SUCCESS",
-                correlationId,
-                idempotencyHash,
-                confirmation.draft(),
-                response.task(),
-                null,
-                null
-            );
-            return response;
+            return executionService.execute(token, confirmation, idempotencyHash, correlationId);
         } catch (DuplicateKeyException exception) {
             var concurrent = repository.findExecution(
                 token.user().companyId(),
                 token.user().userId(),
+                tool,
                 idempotencyHash
             ).orElseThrow(() -> exception);
             return replay(token, confirmation, idempotencyHash, concurrent);
@@ -163,6 +168,7 @@ public class AiTaskActionService {
         if (!"COMPLETED".equals(execution.status()) || execution.taskId() == null) {
             throw conflict("action_in_progress", "The task creation is still being processed. Try again shortly.");
         }
+        drafts.requireResultAccess(token, execution.taskId());
         var response = new CommitResponse(true, execution.correlationId(), execution.result());
         auditService.record(
             token,
@@ -177,17 +183,6 @@ public class AiTaskActionService {
             null
         );
         return response;
-    }
-
-    private TaskDraft normalize(PreviewRequest request) {
-        var title = requiredText(request.title(), "title", 180);
-        var description = optionalText(request.description(), "description", 2000);
-        var priority = optionalText(request.priority(), "priority", 20);
-        priority = priority == null ? "medium" : priority.toLowerCase(Locale.ROOT);
-        if (!PRIORITIES.contains(priority)) {
-            throw new IllegalArgumentException("priority must be low, medium, or high.");
-        }
-        return new TaskDraft(title, description, priority, request.dueDate(), "Usuario conectado");
     }
 
     private void requireBoundIdentity(
@@ -227,13 +222,6 @@ public class AiTaskActionService {
             throw new IllegalArgumentException(field + " must not exceed " + maxLength + " characters.");
         }
         return normalized;
-    }
-
-    private String optionalText(String value, String field, int maxLength) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        return requiredText(value, field, maxLength);
     }
 
     private String generateConfirmationToken() {

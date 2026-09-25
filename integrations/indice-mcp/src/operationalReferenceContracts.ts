@@ -51,3 +51,13 @@ export type WarehouseReferencePage = z.infer<typeof warehouseReferencePageSchema
 export type ProviderReferencePage = z.infer<typeof providerReferencePageSchema>;
 export type BudgetLineReferencePage = z.infer<typeof budgetLineReferencePageSchema>;
 export type AccountingAccountReferencePage = z.infer<typeof accountingAccountReferencePageSchema>;
+
+export const taskAssigneeReferencePageSchema = z.object({
+  ...page,
+  items: z.array(z.object({
+    userCompanyId: z.number().int().positive(), name: z.string().min(1),
+    unitId: z.number().int().positive().nullable(), unitName: z.string().nullable(),
+    businessId: z.number().int().positive().nullable(), businessName: z.string().nullable()
+  })).max(50)
+});
+export type TaskAssigneeReferencePage = z.infer<typeof taskAssigneeReferencePageSchema>;

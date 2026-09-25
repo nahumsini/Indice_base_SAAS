@@ -123,35 +123,56 @@ export const taskPreviewRequestSchema = z.object({
   title: z.string().trim().min(1).max(180),
   description: z.string().trim().min(1).max(2000).optional(),
   priority: taskPrioritySchema.optional(),
-  dueDate: z.iso.date().optional()
-});
+  dueDate: z.iso.date().optional(),
+  assigneeUserCompanyId: z.number().int().positive().optional()
+}).strict();
+
+export const taskUpdateRequestSchema = taskPreviewRequestSchema.partial().extend({
+  taskId: z.number().int().positive(),
+  status: z.enum(["pending", "in_progress", "paused", "completed", "cancelled"]).optional(),
+  clearDescription: z.boolean().optional(),
+  clearDueDate: z.boolean().optional()
+}).strict();
+export type TaskUpdateRequest = z.infer<typeof taskUpdateRequestSchema>;
 
 export const taskDraftSchema = z.object({
   title: z.string().min(1).max(180),
   description: z.string().nullable(),
   priority: taskPrioritySchema,
   dueDate: z.iso.date().nullable(),
-  assignee: z.literal("Usuario conectado")
+  assignee: z.string().min(1),
+  assigneeUserCompanyId: z.number().int().positive().nullable().optional(),
+  unitId: z.number().int().positive().nullable().optional(),
+  unitName: z.string().nullable().optional(),
+  businessId: z.number().int().positive().nullable().optional(),
+  businessName: z.string().nullable().optional(),
+  taskId: z.number().int().positive().nullable().optional(),
+  status: z.string().optional(),
+  expectedVersion: z.string().nullable().optional(),
+  changedFields: z.array(z.string()).optional()
 });
 
 export const taskPreviewResponseSchema = z.object({
   confirmationToken: z.string().startsWith("idx_confirm_"),
   expiresAt: z.iso.datetime(),
   requiresConfirmation: z.literal(true),
-  task: taskDraftSchema
+  task: taskDraftSchema,
+  before: taskDraftSchema.nullable().optional()
 });
 
 export const taskCommitRequestSchema = z.object({
   confirmationToken: z.string().startsWith("idx_confirm_"),
   idempotencyKey: z.string().min(8).max(128)
-});
+}).strict();
 
 export const taskResultSchema = z.object({
   id: z.number().int().positive(),
   folio: z.string().nullable(),
   title: z.string().min(1),
   status: z.string().min(1),
-  dueDate: z.iso.date().nullable()
+  dueDate: z.iso.date().nullable(),
+  assigneeUserCompanyId: z.number().int().positive().nullable().optional(),
+  assignee: z.string().nullable().optional()
 });
 
 export const taskCommitResponseSchema = z.object({
@@ -320,6 +341,9 @@ export const indiceToolNameSchema = z.enum([
   "list_warehouses",
   "search_budget_lines",
   "search_accounting_accounts",
+  "search_task_assignees",
+  "preview_update_task",
+  "update_task",
   "preview_create_task",
   "create_task",
   "preview_create_expense_draft",

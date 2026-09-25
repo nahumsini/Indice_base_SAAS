@@ -94,7 +94,7 @@ test('las cinco referencias operativas se ofrecen una sola vez como lecturas, nu
   }
   assert.equal(new Set(constants.AI_SCOPE_DEFINITIONS.map((scope) => scope.code)).size, constants.AI_SCOPE_DEFINITIONS.length);
   assert.deepEqual([...constants.ACTION_SCOPE_CODES], [
-    'tasks.create', 'expenses.create', 'petty_cash.expense:create', 'petty_cash.deposit:create',
+    'tasks.delegate', 'tasks.update', 'tasks.create', 'expenses.create', 'petty_cash.expense:create', 'petty_cash.deposit:create',
   ]);
 });
 
@@ -104,4 +104,15 @@ test('el lenguaje explica valor y decisión sin mostrar términos internos', () 
   assert.match(spanishSource, /Tu empresa mantiene el control/);
   assert.match(spanishSource, /¿Cuánto vendí hoy y qué necesita mi atención\?/);
   assert.doesNotMatch(spanishSource, /['"][^'"]*\b(?:payload|DTO|scope|endpoint|MCP)\b[^'"]*['"]/i);
+});
+
+
+test('delegar y editar requieren consentimiento explícito y tienen texto en ambos idiomas', async () => {
+  const english = read('translations/en-CA.ts');
+  const oauth = readFileSync(resolve(root, 'src/app/Auth/AiOAuthAuthorizePage.tsx'), 'utf8');
+  for (const scope of ['tasks.delegate', 'tasks.update']) {
+    assert.equal(constants.READ_SCOPE_CODES.includes(scope), false);
+    assert.equal(constants.ACTION_SCOPE_CODES.filter(code => code === scope).length, 1);
+    for (const source of [spanishSource, english, oauth]) assert.ok(source.includes(scope));
+  }
 });

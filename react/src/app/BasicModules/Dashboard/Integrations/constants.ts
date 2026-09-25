@@ -21,6 +21,8 @@ export const AI_SCOPE_DEFINITIONS = [
   { code: 'warehouses.read', group: 'inventory', kind: 'read' },
   { code: 'budget_lines.read', group: 'finance', kind: 'read' },
   { code: 'accounting_accounts.read', group: 'finance', kind: 'read' },
+  { code: 'tasks.delegate', group: 'actions', kind: 'action' },
+  { code: 'tasks.update', group: 'actions', kind: 'action' },
   { code: 'tasks.create', group: 'actions', kind: 'action' },
   { code: 'expenses.create', group: 'actions', kind: 'action' },
   { code: 'petty_cash.expense:create', group: 'actions', kind: 'action' },

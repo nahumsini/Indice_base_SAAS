@@ -88,6 +88,9 @@ class AiAccessTokenServiceTest {
         assertFalse(hash.getValue().contains(issued.accessToken()));
         assertTrue(service.supportedScopes().contains(AiAccessTokenService.TASKS_CREATE));
         assertFalse(issued.scopes().contains(AiAccessTokenService.TASKS_CREATE));
+        assertFalse(issued.scopes().contains(AiAccessTokenService.TASKS_DELEGATE));
+        assertFalse(issued.scopes().contains(AiAccessTokenService.TASKS_UPDATE));
+        assertTrue(service.supportedScopes().containsAll(Set.of(AiAccessTokenService.TASKS_DELEGATE, AiAccessTokenService.TASKS_UPDATE)));
     }
 
     @Test

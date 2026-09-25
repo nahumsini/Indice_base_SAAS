@@ -165,6 +165,8 @@ export const enCA: IntegrationsTranslations = {
     'expenses.read': { label: 'Expenses', description: 'Reviews totals, status, due dates, and details.' },
     'petty_cash.read': { label: 'Funds', description: 'Reviews balances and petty cash movements.' },
     'receivables.read': { label: 'Money to collect', description: 'Reviews balances, customers, and overdue amounts.' },
+    'tasks.delegate': { label: 'Delegate tasks', description: 'Choose another authorized assignee when creating or reassigning a confirmed task.' },
+    'tasks.update': { label: 'Edit tasks', description: 'Update only the approved fields of a visible task while preserving concurrent changes.' },
     'tasks.create': { label: 'Create tasks', description: 'Creates a task only after you approve the preview.' },
     'expenses.create': { label: 'Prepare an expense', description: 'Creates an expense as a draft for your review.' },
     'petty_cash.expense:create': { label: 'Register money leaving a fund', description: 'Reduces the fund balance only after confirmation.' },

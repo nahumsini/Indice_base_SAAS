@@ -15,6 +15,7 @@ export const toolScopes: Record<IndiceToolName, string> = {
   list_payment_accounts: "finance.references:read", list_funds: "petty_cash.read",
   search_customers: "customers.read", search_providers: "providers.read", list_warehouses: "warehouses.read",
   search_budget_lines: "budget_lines.read", search_accounting_accounts: "accounting_accounts.read",
+  search_task_assignees: "tasks.delegate", preview_update_task: "tasks.update", update_task: "tasks.update",
   preview_create_task: "tasks.create", create_task: "tasks.create",
   preview_create_expense_draft: "expenses.create", create_expense_draft: "expenses.create",
   preview_register_fund_expense: "petty_cash.expense:create", register_fund_expense: "petty_cash.expense:create",
