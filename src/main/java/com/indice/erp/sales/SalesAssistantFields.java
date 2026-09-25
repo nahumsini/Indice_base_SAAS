@@ -96,7 +96,7 @@ final class SalesAssistantFields {
             str(row, apiName(kind, "name")), id(row, "contactId"), id(row, "opportunityId"), str(row, "contactPerson"),
             str(row, "phone"), str(row, "email"), str(row, "source"), str(row, "status"), str(row, "lifecycleStatus"),
             id(row, apiName(kind, "ownerUserCompanyId")), str(row, quote ? "assignedSellerName" : "ownerName"), str(row, "notes"),
-            str(row, "currency"), money(row, quote ? "amount" : "estimatedValue"), str(row, "stage"), date(row, "expectedCloseDate"),
+            str(row, "currency"), money(row, quote ? "amount" : "estimatedValue"), str(row, "stage"), id(row, "flowId"), str(row, "flowName"), row.get("probabilityPercent") == null ? null : new BigDecimal(String.valueOf(row.get("probabilityPercent"))).intValueExact(), date(row, "expectedCloseDate"),
             str(row, "nextAction"), date(row, "expirationDate"), str(row, "terms"), quote ? lines(row) : List.of());
     }
     static List<Line> lines(Map<String, Object> row) {

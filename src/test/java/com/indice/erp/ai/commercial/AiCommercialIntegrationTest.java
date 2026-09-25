@@ -87,7 +87,11 @@ class AiCommercialIntegrationTest {
     @Test void movingToWonUsesOwnerLifecycleAndCannotReopen() {
         var customer = create("customer", Map.of("name", "Synthetic customer"));
         var opportunity = create("opportunity", Map.of("name", "Pipeline test", "customerId", customer.id(), "currency", "CAD"));
-        var won = update("opportunity", Map.of("id", opportunity.id(), "stage", "won"));
+        var closing = actions.preview(token, "update_opportunity", change(Map.of("id", opportunity.id(), "stage", "won")));
+        assertThat(closing.after().flowName()).isEqualTo("Factory flow");
+        assertThat(closing.after().probabilityPercent()).isEqualTo(100);
+        assertThat(closing.effects()).anyMatch(effect -> effect.contains("todos los flujos"));
+        var won = actions.commit(token, "update_opportunity", new CommitRequest(closing.confirmationToken(), "closing-flow-001")).record();
         assertThat(won.lifecycleStatus()).isEqualTo("WON");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM sales_opportunity_flow_position_history WHERE company_id=?", Integer.class, company)).isPositive();
         assertThatThrownBy(() -> actions.preview(token, "update_opportunity", change(Map.of("id", opportunity.id(), "stage", "new"))))

@@ -16,7 +16,7 @@ export const commercialRecordSchema = z.object({
   customerId: id.nullable(), opportunityId: id.nullable(), contactPerson: z.string().nullable(), phone: z.string().nullable(),
   email: z.string().nullable(), source: z.string().nullable(), status: z.string().nullable(), lifecycleStatus: z.string().nullable(),
   ownerUserCompanyId: id.nullable(), ownerName: z.string().nullable(), notes: z.string().nullable(), currency: z.string().nullable(),
-  amount: z.number().nullable(), stage: z.string().nullable(), expectedCloseDate: z.iso.date().nullable(), nextAction: z.string().nullable(),
+  amount: z.number().nullable(), stage: z.string().nullable(), flowId: id.nullable(), flowName: z.string().nullable(), probabilityPercent: z.number().int().nullable(), expectedCloseDate: z.iso.date().nullable(), nextAction: z.string().nullable(),
   expirationDate: z.iso.date().nullable(), terms: z.string().nullable(), items: z.array(lineResult)
 });
 export const commercialPreviewSchema = z.object({ action: z.string(), confirmationToken: z.string().startsWith("idx_confirm_"),
@@ -80,7 +80,14 @@ for (const kind of ["customer", "opportunity", "quote"] as const) {
 export interface CommercialReader { commercial?(tool: string, input: Record<string, unknown>): Promise<unknown> }
 export function registerCommercialTools(server: McpServer, reader: CommercialReader, allowedTools?: ReadonlySet<string>): void {
   for (const [name, definition] of Object.entries(commercialTools)) {
-    const tool = server.registerTool(name, { title: name, description: definition.description, inputSchema: definition.input,
+    const readTitles: Record<string, string> = { get_customer_detail: "Ver cliente", list_opportunities: "Consultar oportunidades",
+      get_opportunity_detail: "Ver oportunidad", get_opportunity_pipeline: "Ver flujo de oportunidades", list_quotes: "Consultar cotizaciones",
+      get_quote_detail: "Ver cotización", search_commercial_assignees: "Buscar responsables comerciales" };
+    const entity = name.endsWith("customer") ? "cliente" : name.endsWith("opportunity") ? "oportunidad" : "cotización";
+    const title = readTitles[name] ?? (definition.mode === "preview"
+      ? `Preparar ${name.includes("create_") ? "creación" : "cambios"} de ${entity}`
+      : `Confirmar ${definition.mode === "create" ? "creación" : "cambios"} de ${entity}`);
+    const tool = server.registerTool(name, { title, description: definition.description, inputSchema: definition.input,
       outputSchema: definition.output, annotations: { readOnlyHint: definition.mode === "read", destructiveHint: definition.mode === "update",
         idempotentHint: definition.mode !== "preview", openWorldHint: false } }, async input => {
       try {

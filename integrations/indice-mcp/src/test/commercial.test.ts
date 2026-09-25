@@ -10,7 +10,7 @@ import type { IndiceMcpConfig } from "../config.js";
 
 const record = { kind: "customer", id: null, code: null, name: "Synthetic customer", customerId: null, opportunityId: null,
   contactPerson: null, phone: null, email: null, source: null, status: "active", lifecycleStatus: null, ownerUserCompanyId: 52,
-  ownerName: "Synthetic seller", notes: null, currency: null, amount: null, stage: null, expectedCloseDate: null,
+  ownerName: "Synthetic seller", notes: null, currency: null, amount: null, stage: null, flowId: null, flowName: null, probabilityPercent: null, expectedCloseDate: null,
   nextAction: null, expirationDate: null, terms: null, items: [] };
 const confirmationToken = "idx_confirm_" + "x".repeat(43);
 const preview = { action: "create_customer", confirmationToken, expiresAt: "2026-09-25T00:05:00Z", requiresConfirmation: true,

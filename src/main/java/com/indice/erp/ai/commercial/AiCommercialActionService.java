@@ -41,8 +41,16 @@ public class AiCommercialActionService {
         long id = repository.insertConfirmation(token, tool, hash(rawToken), hash(json(prepared)), normalized, expires);
         repository.insertAudit(token, tool, id, "PREVIEW", "SUCCESS", UUID.randomUUID().toString(), null,
             Map.of("kind", prepared.kind()), null, null, null);
-        return new Preview(tool, rawToken, expires, true, prepared.before(), prepared.after(),
-            List.of("Save this commercial record in Indice. No sale, payment, stock movement or customer message is generated."));
+        var effects = new ArrayList<String>();
+        effects.add("Guarda los cambios mostrados en Índice después de tu confirmación.");
+        if (prepared.kind().equals("opportunity") && prepared.payload().containsKey("stage")) {
+            effects.add("Flujo: " + prepared.after().flowName() + "; etapa: " + prepared.after().stage() + ".");
+            if (Set.of("WON", "LOST").contains(prepared.after().lifecycleStatus()))
+                effects.add("El cierre se aplica a todos los flujos de esta oportunidad y no se puede reabrir cambiando de etapa.");
+        }
+        if (prepared.kind().equals("quote") && prepared.payload().containsKey("items")) effects.add("Reemplaza la lista completa de partidas por el orden y los importes mostrados.");
+        if (prepared.kind().equals("quote") && "sent".equals(prepared.payload().get("status"))) effects.add("Registra el estado enviada; no envía un correo al cliente.");
+        return new Preview(tool, rawToken, expires, true, prepared.before(), prepared.after(), List.copyOf(effects));
     }
     public Committed commit(StoredToken token, String tool, CommitRequest request) {
         access.require(token, tool);

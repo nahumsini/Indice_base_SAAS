@@ -20,7 +20,7 @@ public final class SalesAssistantContracts {
     public record RecordView(String kind, Long id, String code, String name, Long customerId, Long opportunityId,
         String contactPerson, String phone, String email, String source, String status, String lifecycleStatus,
         Long ownerUserCompanyId, String ownerName, String notes, String currency, BigDecimal amount,
-        String stage, LocalDate expectedCloseDate, String nextAction, LocalDate expirationDate, String terms,
+        String stage, Long flowId, String flowName, Integer probabilityPercent, LocalDate expectedCloseDate, String nextAction, LocalDate expirationDate, String terms,
         List<Line> items) { }
     public record Query(Long id, String query, String status, String stage, Long customerId,
         Long ownerUserCompanyId, Integer limit, String cursor, Long flowId) {

@@ -127,7 +127,7 @@ public class SalesAssistantService {
                 if (update && !"OPEN".equals(str(before, "lifecycleStatus")) && !stage.type().equals(str(before, "lifecycleStatus")))
                     throw new IllegalArgumentException("Won or lost opportunities cannot be reopened by changing their flow.");
                 payload.put("stage", stage.key()); payload.put("flowId", flow.id());
-                after.put("lifecycleStatus", stage.type()); after.put("probabilityPercent", stage.probabilityPercent());
+                after.put("lifecycleStatus", stage.type()); after.put("probabilityPercent", stage.probabilityPercent()); after.put("flowName", flow.name());
                 references.put("flows", hash(catalog));
             }
         }
@@ -197,6 +197,9 @@ public class SalesAssistantService {
         var payload = new LinkedHashMap<>(prepared.payload());
         var saved = prepared.id() == null ? sales.create(user.companyId(), user.userId(), repository.collection(prepared.kind()), payload)
             : sales.update(user.companyId(), user.userId(), repository.collection(prepared.kind()), prepared.id(), payload);
+        if (prepared.kind().equals("opportunity") && payload.containsKey("stage")) {
+            saved.put("flowId", payload.get("flowId")); saved.put("flowName", prepared.after().flowName());
+        }
         return view(prepared.kind(), saved);
     }
 
