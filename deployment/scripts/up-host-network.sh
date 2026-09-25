@@ -393,17 +393,20 @@ if [[ "${MCP_ENABLED}" == "true" ]]; then
     -e INDICE_MCP_RESOURCE="${APP_AI_OAUTH_RESOURCE_URL:-${PUBLIC_URL}/api/v1/ai/mcp}" \
     -e INDICE_OAUTH_RESOURCE_METADATA_URL="${APP_AI_OAUTH_ISSUER_URL:-${PUBLIC_URL}}/.well-known/oauth-protected-resource" \
     -e INDICE_HTTP_TIMEOUT_MS="${INDICE_HTTP_TIMEOUT_MS:-5000}" \
+    -e INDICE_READ_ATTEMPTS="${INDICE_READ_ATTEMPTS:-2}" \
+    -e INDICE_RETRY_DELAY_MS="${INDICE_RETRY_DELAY_MS:-150}" \
     -e INDICE_PREFERRED_CURRENCY="${INDICE_PREFERRED_CURRENCY:-MXN}" \
     "${MCP_IMAGE}" >/dev/null
 
   sleep "${MCP_STARTUP_WAIT_SECONDS:-5}"
   require_stable_container "${MCP_CONTAINER}"
-  MCP_HTTP_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+  MCP_HTTP_STATUS="$(curl --max-time 5 --silent --output /dev/null --write-out '%{http_code}' \
     "http://127.0.0.1:${HOST_MCP_PORT}/mcp")"
   if [[ "${MCP_HTTP_STATUS}" != "401" ]]; then
-    echo "MCP readiness check failed: expected protected HTTP 401 from GET /mcp, received ${MCP_HTTP_STATUS}." >&2
+    echo "MCP protection check failed: expected HTTP 401 from GET /mcp, received ${MCP_HTTP_STATUS}." >&2
     exit 1
   fi
+  curl --fail --max-time 5 --silent --show-error "http://127.0.0.1:${HOST_MCP_PORT}/readyz" >/dev/null
   require_stable_container "${MCP_CONTAINER}"
 fi
 

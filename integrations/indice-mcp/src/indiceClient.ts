@@ -1,4 +1,11 @@
 import type { IndiceMcpConfig } from "./config.js";
+import { backendRequest, type RequestContext } from "./backendTransport.js";
+import { bearerChallenge } from "./toolPolicy.js";
+import * as z from "zod/v4";
+import {
+  customerReferencePageSchema, warehouseReferencePageSchema, providerReferencePageSchema,
+  budgetLineReferencePageSchema, accountingAccountReferencePageSchema
+} from "./operationalReferenceContracts.js";
 import {
   businessSnapshotQuerySchema,
   businessSnapshotSchema,
@@ -40,7 +47,8 @@ import {
 export class IndiceApiError extends Error {
   constructor(
     message: string,
-    readonly status?: number
+    readonly status?: number,
+    readonly authenticate?: string
   ) {
     super(message);
     this.name = "IndiceApiError";
@@ -55,7 +63,8 @@ export class IndiceClient {
   constructor(
     private readonly config: IndiceMcpConfig,
     private readonly fetchImplementation: typeof fetch = fetch,
-    private readonly delegatedAccessToken: string | undefined = config.accessToken
+    private readonly delegatedAccessToken: string | undefined = config.accessToken,
+    private readonly requestContext: RequestContext = {}
   ) {
   }
 
@@ -369,6 +378,34 @@ export class IndiceClient {
     return this.delegatedAccessToken;
   }
 
+  searchCustomers(request: ReferencePageRequest = {}) {
+    return this.operationalReference("customers", customerReferencePageSchema, request);
+  }
+
+  searchProviders(request: ReferencePageRequest = {}) {
+    return this.operationalReference("providers", providerReferencePageSchema, request);
+  }
+
+  listWarehouses(request: ReferencePageRequest = {}) {
+    return this.operationalReference("warehouses", warehouseReferencePageSchema, request);
+  }
+
+  searchBudgetLines(request: ReferencePageRequest = {}) {
+    return this.operationalReference("budget-lines", budgetLineReferencePageSchema, request);
+  }
+
+  searchAccountingAccounts(request: ReferencePageRequest = {}) {
+    return this.operationalReference("accounting-accounts", accountingAccountReferencePageSchema, request);
+  }
+
+  private async operationalReference<S extends z.ZodObject>(path: string, schema: S, request: ReferencePageRequest): Promise<z.infer<S>> {
+    if (!referencePageRequestSchema.strict().safeParse(request).success) throw new IndiceApiError("Invalid reference filters.");
+    const response = await this.delegatedReferenceRequest(`/api/v1/ai/tools/references/${path}`, "POST", request);
+    const result = schema.safeParse(await response.json());
+    if (!result.success) throw new IndiceApiError("Indice returned an invalid reference response.");
+    return result.data;
+  }
+
   private async delegatedReferenceRequest(
     path: string,
     method: "GET" | "POST",
@@ -474,16 +511,11 @@ export class IndiceClient {
 
     let response: Response;
     try {
-      response = await this.fetchImplementation(new URL(path, this.config.backendUrl), {
-        ...init,
-        headers,
-        redirect: "error",
-        signal: AbortSignal.timeout(this.config.timeoutMs)
-      });
+      response = await backendRequest(this.config, this.fetchImplementation, path, { ...init, headers }, this.requestContext);
     } catch (error) {
       const message = error instanceof Error && error.name === "TimeoutError"
         ? "Indice did not respond before the timeout."
-        : "Indice is unavailable.";
+        : "Indice is temporarily unavailable. No operation has been confirmed.";
       throw new IndiceApiError(message);
     }
     this.captureCookies(response.headers);
@@ -509,7 +541,8 @@ export class IndiceClient {
   }
 
   private async apiError(response: Response, fallback: string): Promise<IndiceApiError> {
-    return new IndiceApiError(fallback, response.status);
+    return new IndiceApiError(fallback, response.status, response.status === 401
+      ? bearerChallenge(this.config.oauthResourceMetadataUrl, "invalid_token") : undefined);
   }
 }
 

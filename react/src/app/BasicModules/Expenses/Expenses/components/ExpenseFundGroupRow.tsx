@@ -1,8 +1,9 @@
+import type { ColumnConfig } from '../../types/expenseView.types';
 import { ChevronDown, ChevronRight, ExternalLink, Eye, LockKeyhole, Paperclip } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { Expense } from '../../types/expenses.types';
 import type { ExpenseFundGroup, FundMoney, FundMoneyField } from '../../utils/expenseFundGroups';
-import { EXPENSE_TABLE_HEADERS } from '../../constants/expenseTableConfig';
+import { getOrderedExpenseHeaders } from '../../constants/expenseTableConfig';
 import { formatCurrency } from '../../utils/expenses.utils';
 import { getStatusBadgeColor } from '../../components/table/ExpenseInlineControls';
 import { useExpensesResolvedLocale, useExpensesTranslations } from '../hooks/useExpensesTranslations';
@@ -18,6 +19,7 @@ type Props = {
   expanded: boolean;
   onToggle: () => void;
   isColumnVisible: (key: string) => boolean;
+  columns?: ColumnConfig[];
   columnWidths: Record<string, number>;
   columnCount: number;
   options: EditableExpenseRowOptions;
@@ -30,7 +32,7 @@ type Props = {
 const buttonClass = 'inline-flex min-h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-[#147514] hover:bg-green-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-green-600 dark:border-slate-600 dark:bg-slate-800 dark:text-green-300 dark:hover:bg-slate-700';
 
 export function ExpenseFundGroupRow({ group, money, periodLabel, filtered, expanded, onToggle,
-  isColumnVisible, columnWidths, columnCount, options, onViewExpense, onOpenAttachments, getAttachments, mobile = false }: Props) {
+  isColumnVisible, columns, columnWidths, columnCount, options, onViewExpense, onOpenAttachments, getAttachments, mobile = false }: Props) {
   const t = useExpensesTranslations();
   const locale = useExpensesResolvedLocale();
   const copy = getExpenseFundGroupCopy(locale);
@@ -92,7 +94,7 @@ export function ExpenseFundGroupRow({ group, money, periodLabel, filtered, expan
   return <>
     <tr className="bg-green-50/50 text-sm text-slate-800 dark:bg-green-950/20 dark:text-slate-100" data-fund-group={group.key}>
       <td className="px-5 py-4"><button type="button" onClick={onToggle} aria-expanded={expanded} aria-controls={detailId} aria-label={`${expanded ? copy.hide : copy.details}: ${group.fund.name}`} className="rounded-lg p-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-green-600">{expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</button></td>
-      {EXPENSE_TABLE_HEADERS.filter(column => isColumnVisible(column.visibleWhen ?? column.key)).map(column => <td key={column.key} className="px-6 py-4" style={{ width: columnWidths[column.key], minWidth: columnWidths[column.key] }}>{renderCell(column.key)}</td>)}
+      {getOrderedExpenseHeaders(columns).filter(column => isColumnVisible(column.visibleWhen ?? column.key)).map(column => <td key={column.key} className="px-6 py-4" style={{ width: columnWidths[column.key], minWidth: columnWidths[column.key] }}>{renderCell(column.key)}</td>)}
       <td className="whitespace-nowrap px-6 py-4 text-center">{toggle}</td>
     </tr>
     {expanded && <tr className="bg-slate-50 dark:bg-slate-900/50"><td colSpan={columnCount}>{details}</td></tr>}

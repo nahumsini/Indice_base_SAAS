@@ -112,6 +112,11 @@ export const esMX: IntegrationsTranslations = {
     finance: { label: 'Gastos y flujo de dinero', description: 'Gastos, saldos de fondos y dinero por cobrar.' },
   },
   scopes: {
+    'customers.read': { label: 'Clientes', description: 'Consulta clientes compartidos de Ventas y POS dentro de tu alcance autorizado.' },
+    'providers.read': { label: 'Proveedores', description: 'Consulta proveedores autorizados de Gastos e Inventarios.' },
+    'warehouses.read': { label: 'Almacenes', description: 'Identifica almacenes por nombre, unidad y negocio.' },
+    'budget_lines.read': { label: 'Partidas presupuestales', description: 'Consulta presupuesto, compromiso, gasto real y disponible por partida y moneda.' },
+    'accounting_accounts.read': { label: 'Cuentas contables', description: 'Consulta códigos, nombres y grupos de las cuentas contables autorizadas.' },
     'business.context:read': { label: 'Contexto de la empresa', description: 'Identifica tu empresa, unidad, negocio y alcance autorizado.' },
     'finance.references:read': { label: 'Cuentas de pago', description: 'Identifica cuentas autorizadas para elegir correctamente el origen o destino del dinero.' },
     'sales.today:read': { label: 'Ventas de hoy', description: 'Responde cuánto has vendido hoy.' },

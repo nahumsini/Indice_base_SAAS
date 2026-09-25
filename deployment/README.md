@@ -463,6 +463,11 @@ El MCP se habilita primero sólo en APPTEST. Sigue el procedimiento completo de
 para la publicación de OpenAI sólo se expone `/api/v1/ai/mcp`, protegida por
 OAuth y con los permisos de Índice.
 
+La salud MCP separa `/healthz` (proceso) y `/readyz` (backend alcanzable); ambas rutas son
+privadas. El despliegue verifica readiness además del `401` anónimo, pero todavía exige
+el recorrido autenticado y la prueba de continuidad del runbook. El rollback de imágenes
+MCP anteriores debe restaurar también su healthcheck, porque no implementan `/readyz`.
+
 Después de aprobar todas las puertas de APPTEST, producción conserva el MCP en
 loopback pero usa `3011` para no colisionar con APPTEST en el mismo host:
 

@@ -63,7 +63,12 @@ class AiAccessTokenServiceTest {
             AiAccessTokenService.PETTY_CASH_READ,
             AiAccessTokenService.RECEIVABLES_READ,
             AiAccessTokenService.BUSINESS_CONTEXT_READ,
-            AiAccessTokenService.FINANCE_REFERENCES_READ
+            AiAccessTokenService.FINANCE_REFERENCES_READ,
+            AiAccessTokenService.CUSTOMERS_READ,
+            AiAccessTokenService.PROVIDERS_READ,
+            AiAccessTokenService.WAREHOUSES_READ,
+            AiAccessTokenService.BUDGET_LINES_READ,
+            AiAccessTokenService.ACCOUNTING_ACCOUNTS_READ
         );
         assertEquals(expectedScopes, issued.scopes());
         assertEquals(NOW.plusSeconds(7L * 24 * 60 * 60), issued.expiresAt());
@@ -166,6 +171,20 @@ class AiAccessTokenServiceTest {
     }
 
     @Test
+    void existingReadTokenDoesNotAcquireOperationalReferenceScopes() {
+        var oldScopes = Set.of(AiAccessTokenService.SALES_READ, AiAccessTokenService.INVENTORY_READ,
+            AiAccessTokenService.EXPENSES_READ, AiAccessTokenService.FINANCE_REFERENCES_READ);
+        when(repository.findActiveByHash(anyString(), eq(NOW)))
+            .thenReturn(Optional.of(new AiAccessTokenRepository.StoredToken(91L, OWNER, oldScopes)));
+        for (var scope : Set.of(AiAccessTokenService.CUSTOMERS_READ, AiAccessTokenService.PROVIDERS_READ,
+                AiAccessTokenService.WAREHOUSES_READ, AiAccessTokenService.BUDGET_LINES_READ,
+                AiAccessTokenService.ACCOUNTING_ACCOUNTS_READ)) {
+            assertTrue(service.authenticate("Bearer idx_ai_abcdefghijklmnopqrstuvwxyz1234567890", scope).isEmpty());
+        }
+        verify(repository, never()).markUsed(anyLong(), any());
+    }
+
+    @Test
     void verifiesAnActiveTokenWithoutCouplingVerificationToOneToolScope() {
         var stored = new AiAccessTokenRepository.StoredToken(
             91L,
@@ -204,5 +223,27 @@ class AiAccessTokenServiceTest {
         assertTrue(rotated.accessToken().startsWith("idx_ai_"));
         verify(repository, never()).countActive(anyLong(), anyLong(), any());
         verify(repository, never()).insert(any(), anyString(), anyString(), anyString(), anyString(), any(), any());
+    }
+
+    @Test
+    void refusesAConnectionAtCapacityWithoutIssuingOrRevokingTokens() {
+        when(repository.countActive(3L, 23L, NOW)).thenReturn(5);
+
+        assertThrows(AiConnectionLimitException.class,
+            () -> service.issueOAuth(OWNER, "ChatGPT", 30, Set.of(AiAccessTokenService.TASKS_READ)));
+
+        verify(repository, never()).insert(any(), anyString(), anyString(), anyString(), anyString(), any(), any());
+        verify(repository, never()).revoke(anyLong(), anyLong(), anyLong(), any());
+    }
+
+    @Test
+    void capacityPreflightIsScopedToTheAuthenticatedOwnerAndDoesNotMutate() {
+        when(repository.countActive(3L, 23L, NOW)).thenReturn(4);
+
+        service.requireAvailableConnection(OWNER);
+
+        verify(repository).countActive(3L, 23L, NOW);
+        verify(repository, never()).insert(any(), anyString(), anyString(), anyString(), anyString(), any(), any());
+        verify(repository, never()).revoke(anyLong(), anyLong(), anyLong(), any());
     }
 }

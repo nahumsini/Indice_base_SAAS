@@ -126,6 +126,19 @@ test('summary failure, partial data and unexpected currencies fail visibly inste
   await assert.rejects(loadExpenseFundTotals(groups), /Network/);
 });
 
+test('cancelled annual fund totals do not continue requesting later batches', async () => {
+  const groups = groupExpenseRows(Array.from({ length: 21 }, (_, i) => make(i + 1, { originFund: { ...fund, id: String(i + 1) } })));
+  const controller = new AbortController();
+  let requests = 0;
+  monetaryApi = async queries => {
+    requests++;
+    controller.abort();
+    return Object.fromEntries(queries.map(q => [q.key, aggregate('MXN', 116)]));
+  };
+  await assert.rejects(loadExpenseFundTotals(groups, controller.signal), { name: 'AbortError' });
+  assert.equal(requests, 1);
+});
+
 test('summary row preserves table columns and exposes read-only receipt detail and locked classification', () => {
   const { ExpenseFundGroupRow } = load(resolve(root, 'Expenses/components/ExpenseFundGroupRow.tsx'));
   const group = groupExpenseRows([make(1), make(2, { accountingAccount: '21' })])[0];
@@ -141,4 +154,33 @@ test('summary row preserves table columns and exposes read-only receipt detail a
   assert.match(open, /data-fund-expense-id="1"/); assert.match(open, /data-fund-expense-id="2"/);
   assert.match(open, /petty-cash\/control\?fundId=8/);
   assert.match(open, /Expediente del gasto PCX-1/);
+});
+
+test('custom columns align the header, editable expense and fund group including separated money columns', () => {
+  const { ExpenseTableHeaderRow } = load(resolve(root, 'components/table/ExpenseTableHeaderRow.tsx'));
+  const { EditableExpenseRow } = load(resolve(root, 'Expenses/components/EditableExpenseRow.tsx'));
+  const { ExpenseFundGroupRow } = load(resolve(root, 'Expenses/components/ExpenseFundGroupRow.tsx'));
+  const keys = ['balance', 'concept', 'taxes', 'folio', 'total'];
+  const columns = keys.map(key => ({ key, visible: true, label: key }));
+  const columnWidths = Object.fromEntries(keys.map((key, index) => [key, 100 + index]));
+  const common = { columns, columnWidths, isColumnVisible: key => keys.includes(key) };
+  const options = { accountingAccounts: [], businessUnits: [], businesses: [], users: [], providers: [], statuses: [], paymentMethods: [] };
+  const header = renderToStaticMarkup(React.createElement(ExpenseTableHeaderRow, { ...common, allVisibleSelected: false,
+    getSortIcon: () => null, onResizeStart() {}, onSort() {}, onToggleAllVisible() {}, resizingColumn: null,
+    selectionColumnWidth: 56, someVisibleSelected: false }));
+  const expense = make(1, { originFund: undefined, total: 999, taxes: 17, amountPaid: 0, concept: 'CUSTOM CONCEPT' });
+  const row = renderToStaticMarkup(React.createElement(EditableExpenseRow, { ...common, expense,
+    attachmentsCount: 0, isEditing: false, isSelected: false, options, workflow: { authorizer: '', performer: '', auditNotes: '' } }));
+  const group = groupExpenseRows([make(2, { concept: 'CUSTOM CONCEPT' })])[0];
+  const fundRow = renderToStaticMarkup(React.createElement(ExpenseFundGroupRow, { ...common, group,
+    money: { balance: 999, taxes: 17, total: 999 }, periodLabel: 'septiembre', filtered: false, expanded: false,
+    columnCount: 7, options, getAttachments: () => [], onToggle() {}, onViewExpense() {}, onOpenAttachments() {} }));
+  for (const [name, html] of [['header', header], ['expense', row], ['fund', fundRow]]) {
+    const cells = [...html.matchAll(/<(?:td|th)\b[^>]*>([\s\S]*?)<\/(?:td|th)>/g)].map(match => match[1]);
+    assert.equal(cells.length, 7, name);
+    assert.match(cells[1], name === 'header' ? /Saldo/ : /999/, name);
+    assert.match(cells[2], name === 'header' ? /Concepto/ : /CUSTOM CONCEPT|gasto/, name);
+    assert.match(cells[3], name === 'header' ? /Impuestos/ : /17/, name);
+    assert.match(cells[5], name === 'header' ? /Total/ : /999/, name);
+  }
 });

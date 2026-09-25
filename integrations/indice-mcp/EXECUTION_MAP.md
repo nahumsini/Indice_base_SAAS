@@ -4,6 +4,12 @@
 
 Entregar un asistente confiable para dueños de PYMEs: consulta el negocio y ejecuta acciones pequeñas solo con permisos, confirmación, idempotencia y auditoría.
 
+La evolución aprobada de Lupita y los cuatro especialistas se rige por
+[`indice-lupita-mcp-evolution-contract.md`](../../docs/indice-lupita-mcp-evolution-contract.md).
+La primera entrega añade los cinco resolutores de clientes, proveedores, almacenes, partidas y
+cuentas contables, con permisos explícitos y guía de respuesta en la inicialización MCP.
+Las acciones y la orquestación pendientes no se consideran disponibles por figurar en ese objetivo.
+
 ## V1: paquete vendible de lectura
 
 | Prioridad | Herramienta | Preguntas que resuelve | Fuente existente | Estado |

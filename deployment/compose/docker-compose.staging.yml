@@ -188,13 +188,15 @@ services:
       INDICE_MCP_RESOURCE: ${APP_AI_OAUTH_RESOURCE_URL:-https://apptest.indiceapp.com/api/v1/ai/mcp}
       INDICE_OAUTH_RESOURCE_METADATA_URL: ${APP_AI_OAUTH_ISSUER_URL:-https://apptest.indiceapp.com}/.well-known/oauth-protected-resource
       INDICE_HTTP_TIMEOUT_MS: ${INDICE_HTTP_TIMEOUT_MS:-5000}
+      INDICE_READ_ATTEMPTS: ${INDICE_READ_ATTEMPTS:-2}
+      INDICE_RETRY_DELAY_MS: ${INDICE_RETRY_DELAY_MS:-150}
       INDICE_PREFERRED_CURRENCY: ${INDICE_PREFERRED_CURRENCY:-MXN}
     healthcheck:
       test:
         - CMD
         - node
         - -e
-        - fetch('http://127.0.0.1:3010/mcp').then(response=>process.exit(response.status===401?0:1)).catch(()=>process.exit(1))
+        - fetch('http://127.0.0.1:3010/readyz',{signal:AbortSignal.timeout(2500)}).then(response=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))
       interval: 15s
       timeout: 5s
       retries: 8

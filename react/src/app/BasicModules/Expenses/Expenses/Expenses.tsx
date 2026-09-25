@@ -993,10 +993,7 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
         <ColumnConfigurationModal
           columns={translatedColumns}
           onClose={() => setIsColumnModalOpen(false)}
-          onSaveColumns={(nextColumns) => {
-            applyColumns(nextColumns);
-            setIsColumnModalOpen(false);
-          }}
+          onSaveColumns={applyColumns}
         />
       )}
 

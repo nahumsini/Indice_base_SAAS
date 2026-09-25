@@ -16,6 +16,11 @@ export const AI_SCOPE_DEFINITIONS = [
   { code: 'petty_cash.read', group: 'finance', kind: 'read' },
   { code: 'receivables.read', group: 'finance', kind: 'read' },
   { code: 'finance.references:read', group: 'finance', kind: 'read' },
+  { code: 'customers.read', group: 'sales', kind: 'read' },
+  { code: 'providers.read', group: 'finance', kind: 'read' },
+  { code: 'warehouses.read', group: 'inventory', kind: 'read' },
+  { code: 'budget_lines.read', group: 'finance', kind: 'read' },
+  { code: 'accounting_accounts.read', group: 'finance', kind: 'read' },
   { code: 'tasks.create', group: 'actions', kind: 'action' },
   { code: 'expenses.create', group: 'actions', kind: 'action' },
   { code: 'petty_cash.expense:create', group: 'actions', kind: 'action' },
@@ -40,11 +45,11 @@ export const READ_SCOPE_GROUPS: ReadonlyArray<{
   scopeCodes: AiScopeCode[];
 }> = [
   { id: 'overview', scopeCodes: ['sales.today:read', 'business.snapshot:read', 'business.context:read'] },
-  { id: 'sales', scopeCodes: ['sales.read', 'pos.read'] },
-  { id: 'inventory', scopeCodes: ['inventory.read'] },
+  { id: 'sales', scopeCodes: ['sales.read', 'pos.read', 'customers.read'] },
+  { id: 'inventory', scopeCodes: ['inventory.read', 'warehouses.read'] },
   { id: 'people', scopeCodes: ['hr.people:read', 'hr.attendance:read'] },
   { id: 'work', scopeCodes: ['tasks.read'] },
-  { id: 'finance', scopeCodes: ['expenses.read', 'petty_cash.read', 'receivables.read', 'finance.references:read'] },
+  { id: 'finance', scopeCodes: ['expenses.read', 'petty_cash.read', 'receivables.read', 'finance.references:read', 'providers.read', 'budget_lines.read', 'accounting_accounts.read'] },
 ];
 
 export const READ_SCOPE_CODES = AI_SCOPE_DEFINITIONS

@@ -1,5 +1,7 @@
+import { Fragment, useState, type ReactNode } from 'react';
+import { getOrderedExpenseHeaders } from '../../constants/expenseTableConfig';
+import type { ColumnConfig } from '../../types/expenseView.types';
 import { canPayExpense } from '../../utils/expenseFilters';
-import { useState } from 'react';
 import { ExpenseAccountSelect } from '../../components/table/ExpenseAccountSelect';
 import { Paperclip, LockKeyhole } from 'lucide-react';
 import { Checkbox } from '../../../../components/ui/checkbox';
@@ -18,7 +20,7 @@ import {
   toDateValue,
   type SelectOption,
 } from '../../components/table/ExpenseInlineControls';
-import { ExpenseAmountCells } from '../../components/table/ExpenseAmountCells';
+import { getExpenseAmountCells } from '../../components/table/ExpenseAmountCells';
 import { ExpenseRowActions } from '../../components/table/ExpenseRowActions';
 import {
   canDeleteExpense,
@@ -50,6 +52,7 @@ type EditableExpenseRowProps = {
   expense: Expense;
   isCarryover?: boolean;
   attachmentsCount: number;
+  columns?: ColumnConfig[];
   columnWidths: Record<string, number>;
   isEditing: boolean;
   isColumnVisible: (key: string) => boolean;
@@ -86,6 +89,7 @@ export function EditableExpenseRow({
   isCarryover = false,
   attachmentsCount,
   columnWidths,
+  columns,
   isEditing,
   isColumnVisible,
   isDeletePending = false,
@@ -156,35 +160,15 @@ export function EditableExpenseRow({
     });
   };
 
-  return (
-    <tr
-      className={`
-        transition-colors group relative
-        ${rowHighlightClass}
-        ${!rowIsEditing && effectiveStatus === 'overdue' ? 'bg-red-50/50 dark:bg-red-900/10 hover:bg-red-50 dark:hover:bg-red-900/20' : ''}
-        ${!rowIsEditing && effectiveStatus === 'pending' ? 'bg-yellow-50/30 dark:bg-yellow-900/5 hover:bg-yellow-50/60 dark:hover:bg-yellow-900/10' : ''}
-        ${!rowIsEditing && effectiveStatus === 'paid' ? 'hover:bg-gray-50 dark:hover:bg-gray-700/50' : ''}
-        ${!rowIsEditing && effectiveStatus === 'partial' ? 'bg-blue-50/30 dark:bg-blue-900/5 hover:bg-blue-50/60 dark:hover:bg-blue-900/10' : ''}
-        ${expense.amount > 5000 ? 'border-l-2 border-l-yellow-400' : ''}
-      `}
-    >
-      <td className="px-5 py-4 whitespace-nowrap align-middle">
-        <Checkbox
-          aria-label={t.expenses.table.selectExpense(expense.folio)}
-          checked={isSelected}
-          onCheckedChange={(checked) => onSelectionChange(expense.id, checked === true)}
-          className="border-slate-300 data-[state=checked]:border-[#147514] data-[state=checked]:bg-[#147514]"
-        />
-      </td>
-
-      {isColumnVisible('folio') && (
+  const cells: Record<string, ReactNode> = {
+    folio: isColumnVisible('folio') && (
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
           <span className="font-mono font-medium">{expense.folio}</span>
           {isCarryover && <span className="mt-1 block text-xs font-medium text-rose-600 dark:text-rose-400">{t.expenses.summary.carryoverBadge}</span>}
         </td>
-      )}
+    ),
 
-      {isColumnVisible('date') && (
+    date: isColumnVisible('date') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.date, minWidth: columnWidths.date }}>
           {rowIsEditing ? (
             <EditableDatePicker
@@ -196,9 +180,9 @@ export function EditableExpenseRow({
             <ReadonlyPill onClick={startEditing}>{formatDate(expense.date)}</ReadonlyPill>
           )}
         </td>
-      )}
+    ),
 
-      {isColumnVisible('businessUnit') && (
+    businessUnit: isColumnVisible('businessUnit') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.businessUnit, minWidth: columnWidths.businessUnit }}>
           {rowIsEditing ? (
             <EditableSelect ariaLabel={t.expenses.table.unitFor(expense.folio)} value={expense.businessUnit} options={options.businessUnits} onChange={handleBusinessUnitChange} />
@@ -206,9 +190,9 @@ export function EditableExpenseRow({
             <ReadonlySelectPill onClick={startEditing}>{businessUnitLabel || '-'}</ReadonlySelectPill>
           )}
         </td>
-      )}
+    ),
 
-      {isColumnVisible('business') && (
+    business: isColumnVisible('business') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.business, minWidth: columnWidths.business }}>
           {rowIsEditing ? (
             <EditableSelect ariaLabel={t.expenses.table.businessFor(expense.folio)} value={expense.business} options={businessOptionsForUnit} onChange={(business) => onUpdateExpense(expense.id, { business })} />
@@ -216,9 +200,9 @@ export function EditableExpenseRow({
             <ReadonlySelectPill onClick={startEditing}>{businessLabel || '-'}</ReadonlySelectPill>
           )}
         </td>
-      )}
+    ),
 
-      {isColumnVisible('providerName') && (
+    providerName: isColumnVisible('providerName') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.providerName, minWidth: columnWidths.providerName }}>
           {rowIsEditing ? (
             <EditableSelect
@@ -234,9 +218,9 @@ export function EditableExpenseRow({
             <ReadonlySelectPill onClick={startEditing}>{expense.providerName || '-'}</ReadonlySelectPill>
           )}
         </td>
-      )}
+    ),
 
-      {isColumnVisible('concept') && (
+    concept: isColumnVisible('concept') && (
         <td className="px-6 py-4" style={{ width: columnWidths.concept, minWidth: columnWidths.concept }}>
           {rowIsEditing ? (
             <EditableTextInput
@@ -248,8 +232,8 @@ export function EditableExpenseRow({
             <ReadonlyPill onClick={startEditing}>{expense.concept}</ReadonlyPill>
           )}
         </td>
-      )}
-      {isColumnVisible('description') && (
+    ),
+    description: isColumnVisible('description') && (
         <td className="px-6 py-4" style={{ width: columnWidths.description, minWidth: columnWidths.description }}>
           {rowIsEditing ? (
             <EditableTextarea
@@ -268,9 +252,9 @@ export function EditableExpenseRow({
             </button>
           )}
         </td>
-      )}
-      <ExpenseAmountCells columnWidths={columnWidths} expense={expense} isColumnVisible={isColumnVisible} />
-      {isColumnVisible('dueDate') && (
+    ),
+    ...getExpenseAmountCells({ columnWidths, expense, isColumnVisible }),
+    dueDate: isColumnVisible('dueDate') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.dueDate, minWidth: columnWidths.dueDate }}>
           {rowIsEditing ? (
             <EditableDatePicker
@@ -282,8 +266,8 @@ export function EditableExpenseRow({
             <ReadonlyPill onClick={startEditing}>{formatDate(expense.dueDate)}</ReadonlyPill>
           )}
         </td>
-      )}
-      {isColumnVisible('paymentDate') && (
+    ),
+    paymentDate: isColumnVisible('paymentDate') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.paymentDate, minWidth: columnWidths.paymentDate }}>
           {rowIsEditing ? (
             <EditableDatePicker
@@ -295,8 +279,8 @@ export function EditableExpenseRow({
             <ReadonlyPill onClick={startEditing}>{expense.paymentDate ? formatDate(expense.paymentDate) : '-'}</ReadonlyPill>
           )}
         </td>
-      )}
-      {isColumnVisible('paymentMethod') && (
+    ),
+    paymentMethod: isColumnVisible('paymentMethod') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.paymentMethod, minWidth: columnWidths.paymentMethod }}>
           {rowIsEditing ? (
             <EditableSelect ariaLabel={`${t.expenses.columns.paymentMethod.label} ${expense.folio}`} value={expense.paymentMethod} options={options.paymentMethods} onChange={(paymentMethod) => onUpdateExpense(expense.id, { paymentMethod })} />
@@ -304,8 +288,8 @@ export function EditableExpenseRow({
             <ReadonlySelectPill onClick={startEditing}>{t.expenses.table.paymentMethods[expense.paymentMethod] ?? expense.paymentMethod}</ReadonlySelectPill>
           )}
         </td>
-      )}
-      {isColumnVisible('accountingAccount') && (
+    ),
+    accountingAccount: isColumnVisible('accountingAccount') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.accountingAccount, minWidth: columnWidths.accountingAccount }}>
           {expense.originFund ? (
             <div className="flex items-start gap-2" title="Cuenta vinculada al fondo de origen">
@@ -332,8 +316,8 @@ export function EditableExpenseRow({
             <span title={expense.accountingPosted ? 'Ya contabilizado; requiere un ajuste contable.' : undefined}>{accountingAccountLabel || '-'}</span>
           )}
         </td>
-      )}
-      {isColumnVisible('status') && (
+    ),
+    status: isColumnVisible('status') && (
         <td className="px-6 py-4" style={{ width: columnWidths.status, minWidth: columnWidths.status }}>
           {rowIsEditing && showStatusChange ? (
             <EditableSelect
@@ -365,9 +349,9 @@ export function EditableExpenseRow({
             </div>
           )}
         </td>
-      )}
+    ),
 
-      {isColumnVisible('attachments') && (
+    attachments: isColumnVisible('attachments') && (
         <td className="px-6 py-4 whitespace-nowrap text-center" style={{ width: columnWidths.attachments, minWidth: columnWidths.attachments }}>
           <button
             type="button"
@@ -384,9 +368,9 @@ export function EditableExpenseRow({
             <span>{attachmentsCount}</span>
           </button>
         </td>
-      )}
+    ),
 
-      {isColumnVisible('authorizer') && (
+    authorizer: isColumnVisible('authorizer') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.authorizer, minWidth: columnWidths.authorizer }}>
           {canEdit ? (
             <EditableSelect
@@ -397,9 +381,9 @@ export function EditableExpenseRow({
             />
           ) : <ReadonlySelectPill>{options.users.find(option => option.value === workflow.authorizer)?.label || '-'}</ReadonlySelectPill>}
         </td>
-      )}
+    ),
 
-      {isColumnVisible('performer') && (
+    performer: isColumnVisible('performer') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.performer, minWidth: columnWidths.performer }}>
           {canEdit ? (
             <EditableSelect
@@ -410,9 +394,9 @@ export function EditableExpenseRow({
             />
           ) : <ReadonlySelectPill>{options.users.find(option => option.value === workflow.performer)?.label || '-'}</ReadonlySelectPill>}
         </td>
-      )}
+    ),
 
-      {isColumnVisible('audit') && (
+    audit: isColumnVisible('audit') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.audit, minWidth: columnWidths.audit }}>
           {canEdit ? (
             <EditableTextInput
@@ -423,7 +407,34 @@ export function EditableExpenseRow({
             />
           ) : <ReadonlyPill>{workflow.auditNotes || '-'}</ReadonlyPill>}
         </td>
-      )}
+    ),
+
+  };
+
+  return (
+    <tr
+      className={`
+        transition-colors group relative
+        ${rowHighlightClass}
+        ${!rowIsEditing && effectiveStatus === 'overdue' ? 'bg-red-50/50 dark:bg-red-900/10 hover:bg-red-50 dark:hover:bg-red-900/20' : ''}
+        ${!rowIsEditing && effectiveStatus === 'pending' ? 'bg-yellow-50/30 dark:bg-yellow-900/5 hover:bg-yellow-50/60 dark:hover:bg-yellow-900/10' : ''}
+        ${!rowIsEditing && effectiveStatus === 'paid' ? 'hover:bg-gray-50 dark:hover:bg-gray-700/50' : ''}
+        ${!rowIsEditing && effectiveStatus === 'partial' ? 'bg-blue-50/30 dark:bg-blue-900/5 hover:bg-blue-50/60 dark:hover:bg-blue-900/10' : ''}
+        ${expense.amount > 5000 ? 'border-l-2 border-l-yellow-400' : ''}
+      `}
+    >
+      <td className="px-5 py-4 whitespace-nowrap align-middle">
+        <Checkbox
+          aria-label={t.expenses.table.selectExpense(expense.folio)}
+          checked={isSelected}
+          onCheckedChange={(checked) => onSelectionChange(expense.id, checked === true)}
+          className="border-slate-300 data-[state=checked]:border-[#147514] data-[state=checked]:bg-[#147514]"
+        />
+      </td>
+
+      {getOrderedExpenseHeaders(columns).map(column => (
+        <Fragment key={column.key}>{cells[column.key]}</Fragment>
+      ))}
 
       <td className="px-6 py-4 whitespace-nowrap text-center" style={{ width: columnWidths.actions, minWidth: columnWidths.actions }}>
         <ExpenseRowActions

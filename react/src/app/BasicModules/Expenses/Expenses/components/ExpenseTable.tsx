@@ -208,7 +208,7 @@ export function ExpenseTable({
       if (next.has(group.key)) next.delete(group.key); else next.add(group.key);
       return next;
     }),
-    isColumnVisible, columnWidths, columnCount: visibleColumnCount, options: editableRowOptions,
+    isColumnVisible, columns, columnWidths, columnCount: visibleColumnCount, options: editableRowOptions,
     onViewExpense, onOpenAttachments, getAttachments,
   });
   const visibleSelection = rowSelection.visibleSelectionState(visibleExpenseIds);
@@ -267,7 +267,7 @@ export function ExpenseTable({
 
   useEffect(() => {
     setCurrentPage(current => Math.min(Math.max(current, 1), totalPages));
-  }, [totalPages]);
+  }, [currentPage, totalPages]);
 
   const handleResizeStart = (event: ReactMouseEvent, columnKey: string) => {
     event.preventDefault();
@@ -479,6 +479,7 @@ export function ExpenseTable({
           <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60">
             <ExpenseTableHeaderRow
               allVisibleSelected={visibleSelection.allVisibleSelected}
+              columns={columns}
               columnWidths={columnWidths}
               getSortIcon={getSortIcon}
               isColumnVisible={isColumnVisible}
@@ -504,6 +505,7 @@ export function ExpenseTable({
                   expense={expense}
                   isCarryover={carryoverExpenseIds.has(expense.id)}
                   attachmentsCount={expense.attachmentCount ?? getAttachments(expense).length}
+                  columns={columns}
                   columnWidths={columnWidths}
                   isEditing={editingRowId === expense.id}
                   isColumnVisible={isColumnVisible}

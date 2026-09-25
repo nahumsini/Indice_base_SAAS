@@ -13,7 +13,8 @@ export const formatCurrency = (amount: number, currency: string = defaultBusines
 /**
  * Format date to readable string
  */
-export const formatDate = (date: Date): string => {
+export const formatDate = (date?: Date | null): string => {
+  if (!date || !Number.isFinite(date.getTime())) return '—';
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',
@@ -24,7 +25,8 @@ export const formatDate = (date: Date): string => {
 /**
  * Format date and time
  */
-export const formatDateTime = (date: Date): string => {
+export const formatDateTime = (date?: Date | null): string => {
+  if (!date || !Number.isFinite(date.getTime())) return '—';
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',

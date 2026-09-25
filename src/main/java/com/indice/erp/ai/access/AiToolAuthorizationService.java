@@ -10,11 +10,36 @@ import com.indice.erp.entitlement.CompanyEntitlementService;
 import com.indice.erp.entitlement.EntitlementPolicyMode;
 import com.indice.erp.processTasks.ProcessTasksAccessService;
 import java.util.Locale;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AiToolAuthorizationService {
+
+    // Bounded to one synchronous capability evaluation, never reused by the next HTTP request.
+    private final ThreadLocal<Map<Check, Boolean>> capabilityEvaluation = new ThreadLocal<>();
+
+    <T> T withCapabilityEvaluation(Supplier<T> operation) {
+        var previous = capabilityEvaluation.get();
+        capabilityEvaluation.set(new HashMap<>());
+        try { return operation.get(); }
+        finally {
+            if (previous == null) capabilityEvaluation.remove();
+            else capabilityEvaluation.set(previous);
+        }
+    }
+
+    private boolean check(AuthSessionUser user, String kind, Object detail, BooleanSupplier evaluate) {
+        var memo = capabilityEvaluation.get();
+        if (memo == null) return evaluate.getAsBoolean();
+        return memo.computeIfAbsent(new Check(user, kind, detail), ignored -> evaluate.getAsBoolean());
+    }
+
+    private record Check(AuthSessionUser user, String kind, Object detail) { }
 
     private static final Set<String> PRIVILEGED_ROLES = Set.of("root", "superadmin");
     private static final TabPermissionRequirement SALES_KPI_PERMISSION =
@@ -156,17 +181,41 @@ public class AiToolAuthorizationService {
             || canReadCommercialSales(user);
     }
 
+    public boolean canReadCustomers(AuthSessionUser user) {
+        return canUseModuleCapability(user, "crm", "sales", TabPermissionRequirement.any(
+            "crm.leads", "crm.contacts", "crm.quotes", "crm.sales", "crm.contracts"))
+            || canUseModuleCapability(user, "pos", "pos", TabPermissionRequirement.one("pos.clientes"));
+    }
+
+    public boolean canReadProviders(AuthSessionUser user) {
+        return canUseModuleCapability(user, "expenses", "expenses", TabPermissionRequirement.one("expenses.providers"))
+            || canUseModuleCapability(user, "inventory", "inventory", TabPermissionRequirement.one("inventory.providers"));
+    }
+
+    public boolean canReadWarehouses(AuthSessionUser user) {
+        return canReadInventory(user) || canReadCommercialSales(user);
+    }
+
+    public boolean canReadBudgetLines(AuthSessionUser user) {
+        return canUseModuleCapability(user, "expenses", "expenses",
+            TabPermissionRequirement.any("expenses.budgets", "expenses.kpis"));
+    }
+
+    public boolean canReadAccountingAccounts(AuthSessionUser user) {
+        return canUseModuleCapability(user, "expenses", "expenses", TabPermissionRequirement.one("expenses.accounting"));
+    }
+
     private boolean canUseModule(
         AuthSessionUser user,
         String module,
         TabPermissionRequirement permission
     ) {
-        if (!subscriptionStatusProvider.currentStatus(user.companyId()).accessAllowed()) {
+        if (!check(user, "subscription", "", () -> subscriptionStatusProvider.currentStatus(user.companyId()).accessAllowed())) {
             return false;
         }
-        return moduleEntitlementService.hasActiveEntitlement(user.companyId(), module)
-            && moduleAccessService.canAccess(user, module)
-            && tabPermissionAccessService.canAccess(user, permission);
+        return check(user, "module", module, () -> moduleEntitlementService.hasActiveEntitlement(user.companyId(), module)
+            && moduleAccessService.canAccess(user, module))
+            && check(user, "tab", permission, () -> tabPermissionAccessService.canAccess(user, permission));
     }
 
     private boolean canUseModuleCapability(
@@ -178,10 +227,12 @@ public class AiToolAuthorizationService {
         if (!canUseModule(user, module, permission)) {
             return false;
         }
-        var entitlement = companyEntitlementService.resolve(user.companyId(), capability);
-        return entitlement.policy_mode() != EntitlementPolicyMode.ENFORCE
-            || entitlement.allowed()
-            || PRIVILEGED_ROLES.contains(normalizeRole(user.role()));
+        return check(user, "capability", capability, () -> {
+            var entitlement = companyEntitlementService.resolve(user.companyId(), capability);
+            return entitlement.policy_mode() != EntitlementPolicyMode.ENFORCE
+                || entitlement.allowed()
+                || PRIVILEGED_ROLES.contains(normalizeRole(user.role()));
+        });
     }
 
     private String normalizeRole(String role) {

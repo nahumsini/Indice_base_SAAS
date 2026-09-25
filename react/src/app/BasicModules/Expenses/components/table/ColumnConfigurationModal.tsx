@@ -6,7 +6,7 @@ type ColumnConfigurationModalProps = {
   columns: ColumnConfig[];
   defaultColumns?: ColumnConfig[];
   onClose: () => void;
-  onSaveColumns: (columns: ColumnConfig[]) => void;
+  onSaveColumns: (columns: ColumnConfig[]) => void | Promise<void>;
 };
 
 export function ColumnConfigurationModal({

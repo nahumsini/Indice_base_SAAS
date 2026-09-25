@@ -86,3 +86,13 @@ export const EXPENSE_TABLE_HEADERS: ExpenseHeaderConfig[] = [
   { key: 'performer', label: 'Responsable' },
   { key: 'audit', label: 'Auditoría' },
 ];
+
+// Use the same ordered headers for ordinary rows, fund groups and the table heading.
+export function getOrderedExpenseHeaders(columns?: ReadonlyArray<{ key: string }>): ExpenseHeaderConfig[] {
+  if (!columns) return EXPENSE_TABLE_HEADERS;
+  const byKey = new Map(EXPENSE_TABLE_HEADERS.map(header => [header.key, header]));
+  return columns.flatMap(column => {
+    const header = byKey.get(column.key);
+    return header ? [header] : [];
+  });
+}

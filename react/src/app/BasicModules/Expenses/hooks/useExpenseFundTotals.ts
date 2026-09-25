@@ -8,7 +8,10 @@ const metrics = {
   amountPaid: 'EXPENSE_PAID_TO_DATE', balance: 'EXPENSE_BALANCE',
 } as const;
 
-export async function loadExpenseFundTotals(groups: ExpenseFundGroup[]): Promise<Record<string, FundMoney>> {
+// Keep sorting and parent print-snapshot effects stable while a request is pending.
+const EMPTY_FUND_TOTALS: Record<string, FundMoney> = Object.freeze({});
+
+export async function loadExpenseFundTotals(groups: ExpenseFundGroup[], signal?: AbortSignal): Promise<Record<string, FundMoney>> {
   const queries: KpiMonetaryBatchQuery[] = groups.flatMap(group => {
     if (group.expenses.length > 10000) throw new Error('Fund selection exceeds the monetary query limit');
     return Object.entries(metrics).map(([field, metric]) => ({
@@ -19,7 +22,8 @@ export async function loadExpenseFundTotals(groups: ExpenseFundGroup[]): Promise
   const results: Awaited<ReturnType<typeof getKpiMonetaryAggregates>> = {};
   // Respect the existing owner's 100-query limit, even on annual views with many funds.
   for (let start = 0; start < queries.length; start += 100) {
-    Object.assign(results, await getKpiMonetaryAggregates(queries.slice(start, start + 100)));
+    signal?.throwIfAborted();
+    Object.assign(results, await getKpiMonetaryAggregates(queries.slice(start, start + 100), signal));
   }
   return Object.fromEntries(groups.map(group => [group.key, Object.fromEntries(Object.keys(metrics).map(field => {
     const result = results[`${group.key}:${field}`];
@@ -40,17 +44,17 @@ export function useExpenseFundTotals(groups: ExpenseFundGroup[]) {
   const key = JSON.stringify([authorizationRevision, retry, groups.map(group => [group.key,
     group.expenses.map(expense => [expense.id, expense.version, expense.total, expense.amountPaid, expense.taxes, expense.updatedAt])])]);
   useEffect(() => {
-    let active = true;
-    loadExpenseFundTotals(groups).then(data => {
-      if (active) setState({ key, data, error: false });
+    const controller = new AbortController();
+    loadExpenseFundTotals(groups, controller.signal).then(data => {
+      if (!controller.signal.aborted) setState({ key, data, error: false });
     }).catch(() => {
-      if (active) setState({ key, data: {}, error: true });
+      if (!controller.signal.aborted) setState({ key, data: EMPTY_FUND_TOTALS, error: true });
     });
-    return () => { active = false; };
+    return () => controller.abort();
     // The complete request identity is encoded above; row objects need not trigger redundant requests.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
   const refresh = useCallback(() => setRetry(value => value + 1), []);
   const current = state?.key === key;
-  return { data: current ? state.data : {}, loading: groups.length > 0 && !current, error: current && state.error, refresh };
+  return { data: current ? state.data : EMPTY_FUND_TOTALS, loading: groups.length > 0 && !current, error: current && state.error, refresh };
 }

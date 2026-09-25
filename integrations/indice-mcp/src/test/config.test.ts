@@ -74,3 +74,18 @@ test("rejects binding the local MCP server to all interfaces", () => {
     /local machine/
   );
 });
+
+test("bounds recovery configuration and allows disabling retries", () => {
+  const defaults = loadConfig(baseEnvironment);
+  assert.equal(defaults.readAttempts, 2);
+  assert.equal(defaults.retryDelayMs, 150);
+  assert.equal(defaults.timeoutMs, 5000);
+  assert.equal(loadConfig({ ...baseEnvironment, INDICE_READ_ATTEMPTS: "1" }).readAttempts, 1);
+  for (const [key, values] of Object.entries({
+    INDICE_READ_ATTEMPTS: ["0", "4", "1.5", "invalid"],
+    INDICE_RETRY_DELAY_MS: ["-1", "1001", "Infinity"],
+    INDICE_HTTP_TIMEOUT_MS: ["0", "30001", "1.5"]
+  })) for (const value of values) {
+    assert.throws(() => loadConfig({ ...baseEnvironment, [key]: value }), new RegExp(key));
+  }
+});
