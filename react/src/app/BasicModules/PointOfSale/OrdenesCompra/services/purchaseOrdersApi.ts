@@ -382,20 +382,6 @@ export const purchaseOrdersApi = {
     return response.data.items.map(normalizeSupplierPortalAuditEvent);
   },
 
-  updateSupplierPortalAccessStatus(accessId: number, payload: SupplierPortalAccessStatusPayload) {
-    return apiClient<SupplierPortalAccess>(`${posBasePath}/supplier-portal-access/${accessId}/status`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-
-  changeSupplierPortalAccessPin(accessId: number, payload: SupplierPortalAccessPinPayload) {
-    return apiClient<SupplierPortalAccess>(`${posBasePath}/supplier-portal-access/${accessId}/pin`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-
   action(orderId: number, action: 'request' | 'approve' | 'send' | 'cancel', note?: string) {
     return apiClient<PurchaseOrder>(`${posBasePath}/purchase-orders/${orderId}/${action}`, {
       method: 'POST',

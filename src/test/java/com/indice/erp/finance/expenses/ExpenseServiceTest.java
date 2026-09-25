@@ -681,6 +681,7 @@ class ExpenseServiceTest {
             null,
             null,
             null,
+            settleOnCreate,
             null,
             null
         );
@@ -692,8 +693,6 @@ class ExpenseServiceTest {
             businessId,
             null,
             null,
-            null,
-            settleOnCreate,
             null,
             null,
             null,

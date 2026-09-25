@@ -470,39 +470,6 @@ export default function Cortes() {
     printCortesReportHtml(reportHtml, reportWindow, locale);
   };
 
-  const printSelectedReport = () => {
-    if (selectedRows.length === 0) {
-      setNotice('Selecciona uno o mas cortes para preparar el reporte.');
-      return;
-    }
-
-    const reportWindow = window.open('', '_blank', 'width=1280,height=900,scrollbars=yes,resizable=yes');
-
-    if (!reportWindow) {
-      setNotice('No se pudo abrir la vista de impresion. Revisa permisos de ventanas emergentes del navegador.');
-      return;
-    }
-
-    const reportRows = sortCortesRows(selectedRows, sortKey, sortDirection);
-    const reportHtml = buildCortesPrintReportHtml({
-      analytics: buildCortesAnalytics(reportRows, preferredCurrency),
-      cashRegisterLabel: getSelectedOptionLabel(cashRegisterOptions, filters.cashRegisterId),
-      cashierLabel: getSelectedOptionLabel(cashierOptions, filters.userId),
-      filters,
-      preferredCurrency,
-      rows: reportRows,
-      scopeNote: `Incluye ${reportRows.length} corte(s) seleccionados manualmente para auditoria.`,
-      warehouseLabel: getSelectedOptionLabel(warehouseOptions, filters.warehouseId),
-    });
-
-    reportWindow.document.open();
-    reportWindow.document.write(reportHtml);
-    reportWindow.document.close();
-    reportWindow.focus();
-    reportWindow.setTimeout(() => reportWindow.print(), 350);
-    setNotice(`Reporte imprimible preparado con ${reportRows.length} corte(s) seleccionados.`);
-  };
-
   const handleRowDownload = (row: PosCashClosingSummaryRow) => {
     openDetail(row);
   };

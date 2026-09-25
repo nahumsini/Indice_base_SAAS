@@ -41,7 +41,6 @@ export default function OrdenesCompra() {
   } = usePointOfSaleCatalogProducts();
   const { createProductRecord } = useSalesCrm();
   const {
-    changeSupplierPortalAccessPin,
     createOrder,
     error,
     filteredOrders,
@@ -51,6 +50,7 @@ export default function OrdenesCompra() {
     performOrderAction,
     providers,
     receiveOrder,
+    reload,
     reviewSupplierInvoice,
     reviewSupplierSubmission,
     saving,
@@ -62,7 +62,6 @@ export default function OrdenesCompra() {
     supplierLinks,
     warehouses,
     convertSupplierSubmission,
-    updateSupplierPortalAccessStatus,
   } = usePurchaseOrderWorkspace();
 
   const [workspaceMode, setWorkspaceMode] = useState<PurchaseOrderWorkspaceMode>('orders');
@@ -127,11 +126,6 @@ export default function OrdenesCompra() {
     const receivedOrder = await receiveOrder(orderId, payload);
     await reloadInventoryBalances();
     return receivedOrder;
-  };
-
-  const handleCreatePurchaseProduct = async (product: Partial<(typeof products)[number]>) => {
-    const savedProduct = await createProductRecord(buildSalesProductInputFromPointOfSale(product, saleCurrency));
-    return toPointOfSaleProduct(savedProduct);
   };
 
   const openSubmissionConvert = (submission: SupplierSubmission) => {

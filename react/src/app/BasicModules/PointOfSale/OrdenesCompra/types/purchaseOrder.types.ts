@@ -554,12 +554,6 @@ export type SupplierInvoiceDocumentUploadPayload = {
   sizeBytes: number;
 };
 
-export type SupplierInvoiceDocumentUploadPayload = {
-  fileName: string;
-  contentType?: string | null;
-  sizeBytes: number;
-};
-
 export type SupplierPortalDocumentUploadResponse = {
   objectKey: string;
   object_key?: string;

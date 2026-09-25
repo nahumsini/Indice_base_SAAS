@@ -293,16 +293,6 @@ public final class PurchaseOrderDtos {
     ) {
     }
 
-    public record SupplierPortalAccessStatusRequest(
-        @NotBlank @Size(max = 40) String status
-    ) {
-    }
-
-    public record SupplierPortalAccessPinRequest(
-        @NotBlank @Size(min = 4, max = 20) String pin
-    ) {
-    }
-
     public record SupplierPortalAccessResponse(
         Long id,
         Long providerId,
@@ -384,13 +374,6 @@ public final class PurchaseOrderDtos {
 
     public record SupplierPortalDocumentRegisterRequest(
         @NotBlank @Size(max = 700) String objectKey,
-        @NotBlank @Size(max = 240) String fileName,
-        @Size(max = 120) String contentType,
-        @NotNull @DecimalMin("1") Long sizeBytes
-    ) {
-    }
-
-    public record SupplierInvoiceDocumentUploadRequest(
         @NotBlank @Size(max = 240) String fileName,
         @Size(max = 120) String contentType,
         @NotNull @DecimalMin("1") Long sizeBytes

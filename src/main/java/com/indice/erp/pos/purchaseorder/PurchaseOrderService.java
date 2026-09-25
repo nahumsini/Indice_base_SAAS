@@ -254,7 +254,7 @@ public class PurchaseOrderService {
             portalCode,
             request.pin(),
             status,
-            null
+            request.expiresAt()
         );
         var id = repository.insertSupplierPortalAccess(
             context,
@@ -1312,17 +1312,6 @@ public class PurchaseOrderService {
     private String buildSupplierInvoiceDocumentObjectKey(
             PurchaseOrderRepository.SupplierPortalAccessRecord access, String fileName) {
         return supplierInvoiceDocumentPrefix(access)
-            + UUID.randomUUID()
-            + "-"
-            + sanitizeSupplierDocumentFileName(fileName);
-    }
-
-    private String buildInternalSupplierInvoiceDocumentObjectKey(long companyId, long userId, String fileName) {
-        return "pos/supplier-invoices/"
-            + companyId
-            + "/users/"
-            + userId
-            + "/"
             + UUID.randomUUID()
             + "-"
             + sanitizeSupplierDocumentFileName(fileName);

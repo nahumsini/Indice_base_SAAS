@@ -930,7 +930,6 @@ export function CreatePurchaseOrderModal({
                   onRemove={(lineId) => setLines((current) => current.filter((line) => line.id !== lineId))}
                 />
               </div>
-
             </section>
           </div>
         ) : null}
