@@ -245,6 +245,7 @@ const exactAliases: Record<string, string> = {
   'Registrar pago': 'Register payment',
   'Reintentar': 'Retry',
   'Requiere autorizacion': 'Requires authorization',
+  'Recibir mercancía': 'Receive goods',
   'Resumen de cobro': 'Payment summary',
   'Resumen del corte actual': 'Current closing summary',
   'Retiro a caja fuerte': 'Safe drop',
@@ -490,6 +491,7 @@ const translations: Record<string, LocalizedText> = {
   'Register opened': { es: 'Caja abierta', fr: 'Caisse ouverte', pt: 'Caixa aberta', ko: '계산대 열림', zh: '收银台已打开' },
   Safe: { es: 'Caja fuerte', fr: 'Coffre', pt: 'Cofre', ko: '금고', zh: '保险箱' },
   'Register ready': { es: 'Caja lista', fr: 'Caisse prête', pt: 'Caixa pronta', ko: '계산대 준비됨', zh: '收银台就绪' },
+  'Receive goods': { es: 'Recibir mercancía', fr: 'Réceptionner des marchandises', pt: 'Receber mercadorias', ko: '상품 입고', zh: '收货' },
   'Operating register': { es: 'Caja operativa', fr: 'Caisse opérationnelle', pt: 'Caixa operacional', ko: '운영 계산대', zh: '运营收银台' },
   'Change due': { es: 'Cambio a devolver', fr: 'Monnaie à rendre', pt: 'Troco a devolver', ko: '거스름돈', zh: '应找零' },
   'Change due MXN': { es: 'Cambio a devolver MXN', fr: 'Monnaie à rendre MXN', pt: 'Troco a devolver MXN', ko: '거스름돈 MXN', zh: '应找零 MXN' },
@@ -940,6 +942,19 @@ function translateLegacyText(sourceText: string, locale: PointOfSaleLocale) {
 }
 
 function translateDynamic(text: string, language: LegacyLanguage) {
+  const taxSummary = text.match(/^(.*? · )?(?:IVA|VAT)(?:\s+(.+))?$/i);
+  if (taxSummary) {
+    const taxLabel = select(language, {
+      en: 'VAT',
+      es: 'IVA',
+      fr: 'TVA',
+      pt: 'IVA',
+      ko: '부가세',
+      zh: '增值税',
+    });
+    return `${taxSummary[1] ?? ''}${taxLabel}${taxSummary[2] ? ` ${taxSummary[2]}` : ''}`;
+  }
+
   const shiftOpenFund = text.match(/^(?:Turno abierto\. Fondo inicial|Shift open\. Opening fund): (.+)\.$/i);
   if (shiftOpenFund) return select(language, {
     en: `Shift open. Opening fund: ${shiftOpenFund[1]}.`,
