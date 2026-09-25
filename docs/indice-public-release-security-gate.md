@@ -218,7 +218,9 @@ and target-like MinIO policy inspection.
 - [ ] Stripe LIVE remains disabled until the live catalog, tax configuration, webhook endpoint,
       secrets, and accountant-approved jurisdictions pass the dedicated runbooks.
 - [ ] Webhook signatures are verified against the raw body before parsing or durable business
-      effects. Invalid signatures fail without leaking verification detail.
+      effects. Mercado Pago Point uses the narrowly adopted signed manifest and authenticated-read
+      protocol in [the POS terminal contract](pos-terminal-payments-contract-v1.md); its unsigned
+      body never authorizes a financial mutation. Invalid signatures fail without leaking detail.
 - [ ] Webhook events and client-triggered billing actions are idempotent, auditable, retryable, and
       reconcilable. Duplicate/out-of-order delivery tests pass.
 - [ ] Client input never authoritatively sets price, currency, entitlement, seat allowance, tax,
@@ -237,6 +239,31 @@ and target-like MinIO policy inspection.
 Blocking evidence: Stripe TEST end-to-end certification, webhook replay/signature suite,
 `INDICE_STRIPE_LIVE_GO_LIVE_RUNBOOK.md`, and sanitized output from
 `deployment/scripts/audit-stripe-live-readiness.sh` immediately before LIVE activation.
+
+### POS terminal payment gate
+
+- [ ] Each company authorizes its own eligible provider merchant; credentials and provider objects
+      cannot be reused across companies or environments. A register has one provider assignment.
+      Production charging requires both the deployment-wide live gate and that company's audited
+      `PILOT` or `ACTIVE` state; only Platform Root may change it.
+- [ ] Mercado Pago Point production remains disabled until merchant ownership, Mexico/MXN,
+      OAuth scope/rotation, encrypted secrets, PDV readiness, and an authorized physical-terminal
+      pilot are evidenced under [the terminal runbook](pos-terminal-payments-runbook.md).
+- [ ] Every new Mercado Pago attempt has fresh provider terminal evidence within the configured
+      age. Durable lease behavior, complete-feed disappearance, provider outage, store/POS/PDV
+      changes, reassignment, and version changes fail closed and have concurrency evidence.
+- [ ] Both providers require authoritative payment evidence before a sale is finalized. Lost
+      responses, duplicate/out-of-order events, same-key recovery, wrong shift, tenant/scope/tab
+      access, CSRF, attached browser sessions, and receipt replay have negative/regression evidence.
+- [ ] Mercado Pago signing identifiers, timestamp units, live/test identity, `action_required`
+      recovery fields, cancellation behavior, and full-refund request format are certified from
+      authentic sanitized captures. Documentation ambiguities remain UNKNOWN until certified.
+- [ ] Refunds remain disabled until Finance approves the collection destination, pre-cut net
+      settlement, post-close review/post/retry, fees/payout treatment, and reconciliation. Evidence
+      proves one provider refund, one tenant-scoped adjustment, owner reason, idempotent pending- or
+      available-balance posting, immutable close history, and no duplicate movement on retry/replay.
+      `FAILED` and `RECONCILIATION_REQUIRED` items have named operational owners.
+- [ ] No critical UNKNOWN or failed pilot is interpreted as production readiness.
 
 ## 11. Gate 7 — Secrets And Production Configuration
 

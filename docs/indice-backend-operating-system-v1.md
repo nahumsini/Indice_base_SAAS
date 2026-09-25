@@ -198,6 +198,8 @@ Public endpoints are explicit exceptions, never accidental absences of auth. Eac
 document and test its alternative trust boundary, such as:
 
 - Stripe signature verification over the raw body;
+- Mercado Pago Point's signed query/header manifest, followed by merchant-authenticated provider
+  reads, as narrowly adopted in [the POS terminal contract](pos-terminal-payments-contract-v1.md);
 - short-lived, revocable kiosk session/capability;
 - one-time invitation/reset/verification token;
 - restricted public catalog token.
