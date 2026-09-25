@@ -168,6 +168,17 @@ export function usePurchaseOrderWorkspace() {
     mutate(() => purchaseOrdersApi.submitSupplierInvoice(payload), 'Factura de proveedor registrada para revisión.')
   ), [mutate]);
 
+  const updateSupplierPortalAccessStatus = useCallback((accessId: number, status: SupplierPortalAccessStatus) => (
+    mutate(
+      () => purchaseOrdersApi.updateSupplierPortalAccessStatus(accessId, { status }),
+      status === 'ACTIVE' ? 'Acceso de proveedor activado.' : 'Acceso de proveedor desactivado.',
+    )
+  ), [mutate]);
+
+  const changeSupplierPortalAccessPin = useCallback((accessId: number, pin: string) => (
+    mutate(() => purchaseOrdersApi.changeSupplierPortalAccessPin(accessId, { pin }), 'NIP de proveedor actualizado.')
+  ), [mutate]);
+
   const reviewSupplierInvoice = useCallback((invoiceId: number, status: SupplierInvoiceStatus, reviewNote?: string) => (
     mutate(() => purchaseOrdersApi.reviewSupplierInvoice(invoiceId, status, reviewNote), 'Factura de proveedor actualizada.')
   ), [mutate]);
@@ -204,6 +215,7 @@ export function usePurchaseOrderWorkspace() {
     supplierInvoices,
     supplierLinks,
     supplierSubmissions,
+    updateSupplierPortalAccessStatus,
     warehouses,
   };
 }

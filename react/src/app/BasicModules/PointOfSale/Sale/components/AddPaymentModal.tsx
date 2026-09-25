@@ -500,3 +500,12 @@ function CreditStat({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+function CreditStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-white p-3 dark:bg-gray-900/60">
+      <p className="text-[11px] font-black uppercase tracking-[0.08em] text-gray-500 dark:text-gray-400">{label}</p>
+      <p className="mt-1 text-sm font-black text-gray-950 dark:text-white">{value}</p>
+    </div>
+  );
+}

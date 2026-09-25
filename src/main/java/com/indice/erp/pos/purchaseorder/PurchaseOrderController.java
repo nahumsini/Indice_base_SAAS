@@ -399,6 +399,30 @@ public class PurchaseOrderController {
         return ResponseEntity.ok(supplierPortalPublic.bootstrap(portalCode, request, session));
     }
 
+    @PostMapping("/supplier-portal-access/{accessId}/status")
+    public ResponseEntity<?> updateSupplierPortalAccessStatus(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long accessId,
+            @Valid @RequestBody SupplierPortalAccessStatusRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.updateSupplierPortalAccessStatus(access.context(), accessId, request));
+    }
+
+    @PostMapping("/supplier-portal-access/{accessId}/pin")
+    public ResponseEntity<?> changeSupplierPortalAccessPin(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long accessId,
+            @Valid @RequestBody SupplierPortalAccessPinRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.changeSupplierPortalAccessPin(access.context(), accessId, request));
+    }
+
     @PostMapping("/public/supplier-portal/{portalCode}/authenticate")
     public ResponseEntity<?> authenticateSupplierPortal(
             @PathVariable String portalCode,
