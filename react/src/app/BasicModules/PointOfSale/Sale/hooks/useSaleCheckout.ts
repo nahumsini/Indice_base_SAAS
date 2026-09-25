@@ -6,6 +6,20 @@ import type { Shift } from '../types/shift.types';
 import { posBackendApi, type PosCheckoutResponse, type PosSquareTerminalPaymentResponse } from '../services/posBackendApi';
 import { createSquareTerminalPaymentAndWait } from '../services/squareTerminalPaymentClient';
 import {
+  clearSquareTerminalAttempt,
+  matchesSquareTerminalDraft,
+  type SquareTerminalAttempt,
+  type SquareTerminalAttemptScope,
+} from '../services/squareTerminalAttemptStore';
+import {
+  squareTerminalRecoveryCopyByLocale,
+  type SquareTerminalRecoveryCopy,
+} from '../services/squareTerminalRecoveryCopy';
+import { mercadoPagoTerminalApi } from '../services/mercadoPagoTerminalApi';
+import { cartIdentity, dispatchCardTerminalPayment } from '../services/mercadoPagoTerminalWorkflow';
+import { useMercadoPagoTerminalCheckout } from './useMercadoPagoTerminalCheckout';
+import { useMercadoPagoTerminalCopy } from '../../CashRegisters/useMercadoPagoTerminalCopy';
+import {
   isBackendUnsupportedPayment,
   toPosCheckoutItems,
   toPosCheckoutPayments,
@@ -34,6 +48,8 @@ interface UseSaleCheckoutOptions {
   preticketId?: number;
   restaurantOrderId?: number;
   onCheckoutCompleted?: () => void;
+  squareRecoveryBlocked?: boolean;
+  squareTerminalCopy?: SquareTerminalRecoveryCopy;
 }
 
 const toNumber = (value: number | string | null | undefined) => {
@@ -109,6 +125,8 @@ export function useSaleCheckout({
   preticketId,
   restaurantOrderId,
   onCheckoutCompleted,
+  squareRecoveryBlocked = false,
+  squareTerminalCopy = squareTerminalRecoveryCopyByLocale['en-CA'],
 }: UseSaleCheckoutOptions) {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
@@ -123,7 +141,20 @@ export function useSaleCheckout({
     payments: Payment[];
     totals: SaleTotals;
   } | null>(null);
-  const squareSaleSnapshot = useRef<{ items: SaleItem[]; totals: SaleTotals } | null>(null);
+  const squareSaleSnapshot = useRef<{ items: SaleItem[]; totals: SaleTotals; identity: string } | null>(null);
+  const completedSquareIntents = useRef(new Set<number>());
+  const cardDispatchBusy = useRef(false);
+  const [lookingUpTerminal, setLookingUpTerminal] = useState(false);
+  const { copy: terminalCopy } = useMercadoPagoTerminalCopy();
+  const draftIdentity = JSON.stringify([cartIdentity(cart), customerId ?? null, preticketId ?? null, restaurantOrderId ?? null, currency]);
+  const squareScope: SquareTerminalAttemptScope | null = currentShift ? {
+    companyId: currentShift.companyId,
+    cashRegisterId: currentShift.cashRegisterId,
+    shiftId: currentShift.id,
+  } : null;
+  const squareScopeKey = squareScope ? `${squareScope.companyId}:${squareScope.cashRegisterId}:${squareScope.shiftId}` : '';
+  const latestDraft = useRef({ identity: draftIdentity, shiftId: currentShift?.id, squareScopeKey });
+  latestDraft.current = { identity: draftIdentity, shiftId: currentShift?.id, squareScopeKey };
 
   const totals = useMemo(() => calculateSaleTotals(cart, payments), [cart, payments]);
 
@@ -138,8 +169,10 @@ export function useSaleCheckout({
   };
 
   const handleAddPayment = (method: PaymentMethod) => {
-    if (isCompletingSale) {
-      setCheckoutNotice('La venta se esta guardando. Espera a que termine el proceso.');
+    if (isCompletingSale || lookingUpTerminal || mercadoPago.blocked || squareRecoveryBlocked || cardDispatchBusy.current) {
+      setCheckoutNotice(squareRecoveryBlocked
+        ? squareTerminalCopy.blocked
+        : 'La venta se esta guardando. Espera a que termine el proceso.');
       return;
     }
 
@@ -172,9 +205,10 @@ export function useSaleCheckout({
     if (!selectedPaymentMethod) {
       return;
     }
+    if (isCompletingSale || lookingUpTerminal || mercadoPago.blocked || squareRecoveryBlocked || cardDispatchBusy.current) return;
 
     if (selectedPaymentMethod === 'card') {
-      void startSquareCardPayment(amount);
+      void startCardPayment(amount);
       closeAddPaymentModal();
       return;
     }
@@ -207,8 +241,9 @@ export function useSaleCheckout({
     receivedCash?: number,
     creditDetails?: CreditPaymentDetails,
   ) => {
+    if (isCompletingSale || lookingUpTerminal || mercadoPago.blocked || squareRecoveryBlocked || cardDispatchBusy.current) return;
     if (method === 'card') {
-      void startSquareCardPayment(amount);
+      void startCardPayment(amount);
       return;
     }
 
@@ -240,6 +275,7 @@ export function useSaleCheckout({
     completedPayments: Payment[],
     saleTotals: SaleTotals,
     closesAsCredit: boolean,
+    preserveDraft = false,
   ) => {
     if (!currentShift) return;
     const cashPayment = completedPayments
@@ -255,7 +291,7 @@ export function useSaleCheckout({
     const completedTotals = totalsFromBackend(response, saleTotals);
 
     setLastSale({ saleNumber, items: completedItems, payments: completedPayments, totals: completedTotals });
-    setCurrentShift((existingShift) => {
+    if (!preserveDraft) setCurrentShift((existingShift) => {
       if (!existingShift || existingShift.id !== currentShift.id) return existingShift;
       return {
         ...existingShift,
@@ -270,9 +306,11 @@ export function useSaleCheckout({
       };
     });
 
-    resetCart();
-    clearPayments();
-    onCheckoutCompleted?.();
+    if (!preserveDraft) {
+      resetCart();
+      clearPayments();
+      onCheckoutCompleted?.();
+    }
     setCheckoutNotice(closesAsCredit
       ? `Venta ${saleNumber} guardada como credito. Abriendo Cartera para configurar la venta a credito.`
       : `Venta ${saleNumber} guardada. Los productos con inventario descuentan stock automaticamente; servicios, digitales y lineas custom no afectan inventario.`);
@@ -301,6 +339,91 @@ export function useSaleCheckout({
     }
   };
 
+  const mercadoPago = useMercadoPagoTerminalCheckout({
+    cart, draftIdentity, currentShift, setNotice: setCheckoutNotice,
+    onCompleted: async (terminal, snapshot, matchesCart) => {
+      if (!terminal.checkout) return;
+      const payment: Payment = { id: `mercado-pago-${terminal.intentId}`, method: 'card', amount: toNumber(terminal.amount), reference: `Mercado Pago ${terminal.paymentId ?? terminal.orderId ?? terminal.intentId}` };
+      await handleCheckoutSaved(terminal.checkout, matchesCart && snapshot ? snapshot.items : saleItemsFromBackend(terminal.checkout), [payment], snapshot?.totals ?? totals, false, !matchesCart);
+    },
+  });
+
+  const consumeSquareTerminalResult = async (
+    terminal: PosSquareTerminalPaymentResponse,
+    attempt?: SquareTerminalAttempt,
+    snapshot = squareSaleSnapshot.current,
+  ) => {
+    const linkedStatus = ['approved', 'partially_refunded', 'refunded'].includes(String(terminal.status).toLowerCase());
+    if (!linkedStatus || !terminal.checkout) return false;
+    if (completedSquareIntents.current.has(terminal.intentId)) {
+      if (attempt && squareScope) clearSquareTerminalAttempt(squareScope, attempt.requestKey);
+      return true;
+    }
+    const selected = latestDraft.current;
+    const stillSelected = () => selected.identity === latestDraft.current.identity
+      && selected.shiftId === latestDraft.current.shiftId
+      && selected.squareScopeKey === latestDraft.current.squareScopeKey
+      && selected.squareScopeKey === squareScopeKey;
+    const matchesCurrent = Boolean(attempt && squareScope && selected.squareScopeKey === squareScopeKey
+      && await matchesSquareTerminalDraft(attempt, selected.identity)
+      && stillSelected());
+    const snapshotMatches = Boolean(attempt && snapshot
+      && await matchesSquareTerminalDraft(attempt, snapshot.identity));
+    const payment: Payment = {
+      id: `square-${terminal.intentId}`, method: 'card', amount: toNumber(terminal.amount),
+      reference: `Square ${terminal.squarePaymentId ?? terminal.squareCheckoutId ?? terminal.intentId}`,
+    };
+    const consumeCurrentDraft = matchesCurrent && stillSelected();
+    completedSquareIntents.current.add(terminal.intentId);
+    try {
+      await handleCheckoutSaved(terminal.checkout,
+        snapshotMatches && snapshot ? snapshot.items : saleItemsFromBackend(terminal.checkout),
+        [payment], snapshotMatches && snapshot ? snapshot.totals : totalsFromBackend(terminal.checkout, totals),
+        false, !consumeCurrentDraft);
+    } catch (error) {
+      completedSquareIntents.current.delete(terminal.intentId);
+      throw error;
+    }
+    if (attempt && squareScope) clearSquareTerminalAttempt(squareScope, attempt.requestKey);
+    setCheckoutNotice(squareTerminalCopy.linked);
+    return true;
+  };
+
+  const startCardPayment = async (requestedAmount: number) => {
+    if (cardDispatchBusy.current || isCompletingSale || mercadoPago.blocked || squareRecoveryBlocked || mercadoPago.isCompletedDraft()) {
+      setCheckoutNotice(squareRecoveryBlocked
+        ? squareTerminalCopy.blockedCharge
+        : terminalCopy.recoveryHelp);
+      return;
+    }
+    const registerId = currentShift && toBackendId(currentShift.cashRegisterId);
+    if (!registerId) { setCheckoutNotice(terminalCopy.noProvider); return; }
+    cardDispatchBusy.current = true;
+    setLookingUpTerminal(true);
+    const originalDraft = latestDraft.current;
+    const verifyDraft = () => {
+      if (originalDraft.identity !== latestDraft.current.identity || originalDraft.shiftId !== latestDraft.current.shiftId
+        || originalDraft.squareScopeKey !== latestDraft.current.squareScopeKey) throw new Error('PAYMENT_DRAFT_CHANGED');
+    };
+    try {
+      await dispatchCardTerminalPayment(
+        () => mercadoPagoTerminalApi.binding(registerId),
+        () => { verifyDraft(); return startSquareCardPayment(requestedAmount); },
+        async () => {
+          verifyDraft();
+          if (!currentShift || !cart.length || payments.length || !moneyEquals(requestedAmount, totals.total) || currency.trim().toUpperCase() !== 'MXN' || currentShift.currencyCode.trim().toUpperCase() !== 'MXN') {
+            setCheckoutNotice(terminalCopy.mxnOnly); return;
+          }
+          const hasInventoryItems = cart.some((item) => products.find((product) => product.id === item.productId)?.useInventory === true);
+          if (hasInventoryItems && (inventoryBalancesLoading || inventoryBalancesError)) { setCheckoutNotice(inventoryBalancesError || 'Espera a que terminen de cargar las existencias del almacén antes de cobrar.'); return; }
+          const completedItems = cart.map((item) => ({ ...item }));
+          await mercadoPago.start({ cashRegisterId: registerId, customerId: toBackendId(customerId), preticketId: preticketId ?? null, restaurantOrderId: restaurantOrderId ?? null, currencyCode: 'MXN', items: toPosCheckoutItems(completedItems, products), notes: `POS Mercado Pago Point checkout · caja ${currentShift.cashRegisterCode}` }, { items: completedItems, totals, identity: JSON.stringify([cartIdentity(completedItems), customerId ?? null, preticketId ?? null, restaurantOrderId ?? null, currency]) });
+        },
+      );
+    } catch { setCheckoutNotice(terminalCopy.noProvider); }
+    finally { cardDispatchBusy.current = false; setLookingUpTerminal(false); }
+  };
+
   const startSquareCardPayment = async (requestedAmount: number) => {
     if (isCompletingSale) return;
     if (cart.length === 0) {
@@ -308,7 +431,7 @@ export function useSaleCheckout({
       return;
     }
     if (payments.length > 0 || !moneyEquals(requestedAmount, totals.total)) {
-      setCheckoutNotice('Square Terminal MVP only supports one full card payment for the current ticket.');
+      setCheckoutNotice(squareTerminalCopy.fullCard);
       return;
     }
 
@@ -345,11 +468,14 @@ export function useSaleCheckout({
     }
 
     const completedItems = [...cart];
-    squareSaleSnapshot.current = { items: completedItems, totals };
+    const completedIdentity = JSON.stringify([cartIdentity(completedItems), customerId ?? null,
+      preticketId ?? null, restaurantOrderId ?? null, currency]);
+    squareSaleSnapshot.current = { items: completedItems, totals, identity: completedIdentity };
     setIsCompletingSale(true);
     setCheckoutNotice('');
     try {
-      const terminal = await createSquareTerminalPaymentAndWait({
+      if (!squareScope) return;
+      const result = await createSquareTerminalPaymentAndWait({
         cashRegisterId,
         customerId: toBackendId(customerId),
         preticketId: preticketId ?? null,
@@ -357,72 +483,64 @@ export function useSaleCheckout({
         currencyCode: checkoutCurrency,
         items: toPosCheckoutItems(completedItems, products),
         notes: `POS Square Terminal checkout · caja ${currentShift.cashRegisterCode}`,
-      }, (message) => setCheckoutNotice(message));
-      if (String(terminal.status).toLowerCase() === 'approved' && terminal.checkout) {
-        const payment: Payment = {
-          id: `square-${terminal.intentId}`,
-          method: 'card',
-          amount: toNumber(terminal.amount),
-          reference: `Square ${terminal.squarePaymentId ?? terminal.squareCheckoutId ?? terminal.intentId}`,
-        };
-        await handleCheckoutSaved(
-          terminal.checkout,
-          squareSaleSnapshot.current?.items ?? completedItems,
-          [payment],
-          squareSaleSnapshot.current?.totals ?? totals,
-          false,
-        );
-      } else {
-        setCheckoutNotice(terminal.message || 'Square Terminal payment was not approved.');
+      }, { scope: squareScope, draftIdentity: completedIdentity, copy: squareTerminalCopy },
+      (message) => setCheckoutNotice(message));
+      const terminal = result.response;
+      if (!(await consumeSquareTerminalResult(terminal, result.attempt))) {
+        setCheckoutNotice(String(terminal.status).toLowerCase() === 'refunded' && !terminal.posTicketId
+          ? squareTerminalCopy.refundedReleased : terminal.message || squareTerminalCopy.pending);
       }
     } catch (error) {
-      setCheckoutNotice(getPosRequestErrorMessage(error, 'No se pudo completar el pago con Square Terminal.'));
+      setCheckoutNotice(error instanceof Error && error.message === 'SQUARE_DIFFERENT_DRAFT_PENDING'
+        ? squareTerminalCopy.differentDraft
+        : getPosRequestErrorMessage(error, squareTerminalCopy.chargeError));
     } finally {
       squareSaleSnapshot.current = null;
       setIsCompletingSale(false);
     }
   };
 
-  const recoverSquareTerminalIntent = async (intentId: number | string): Promise<PosSquareTerminalPaymentResponse | null> => {
+  const recoverSquareTerminalIntent = async (intentId: number | string,
+    attempt?: SquareTerminalAttempt): Promise<PosSquareTerminalPaymentResponse | null> => {
     if (isCompletingSale || !currentShift) return null;
     setIsCompletingSale(true);
-    setCheckoutNotice('Recovering Square Terminal payment through the backend...');
+    setCheckoutNotice(squareTerminalCopy.recovering);
     try {
       const terminal = await posBackendApi.recoverSquareTerminalPayment(intentId);
       const status = String(terminal.status).toLowerCase();
-      if (status === 'approved' && terminal.checkout) {
-        const payment: Payment = {
-          id: `square-${terminal.intentId}`,
-          method: 'card',
-          amount: toNumber(terminal.amount),
-          reference: `Square ${terminal.squarePaymentId ?? terminal.squareCheckoutId ?? terminal.intentId}`,
-        };
-        await handleCheckoutSaved(
-          terminal.checkout,
-          saleItemsFromBackend(terminal.checkout),
-          [payment],
-          totalsFromBackend(terminal.checkout, totals),
-          false,
-        );
-      } else if (status === 'approved' && terminal.posTicketId) {
-        setCheckoutNotice('Square payment was already approved and the POS sale is already linked. Refreshing register data...');
+      if (['approved', 'partially_refunded', 'refunded'].includes(status) && terminal.checkout) {
+        await consumeSquareTerminalResult(terminal, attempt, null);
+      } else if (['approved', 'partially_refunded', 'refunded'].includes(status) && terminal.posTicketId) {
+        setCheckoutNotice(squareTerminalCopy.finalizing);
         const syncTasks = [refreshRegisterContext?.(), syncCheckoutData?.()]
           .filter((task): task is Promise<void> => Boolean(task));
         await Promise.allSettled(syncTasks);
       } else {
-        setCheckoutNotice(terminal.message || 'Square Terminal payment is not approved yet.');
+        setCheckoutNotice(terminal.message || squareTerminalCopy.pending);
       }
       return terminal;
     } catch (error) {
-      setCheckoutNotice(getPosRequestErrorMessage(error, 'Square Terminal payment could not be recovered.'));
+      setCheckoutNotice(getPosRequestErrorMessage(error, squareTerminalCopy.recoveryError));
       return null;
     } finally {
       setIsCompletingSale(false);
     }
   };
 
+  const consumeSquareTerminalRequestResult = (
+    response: PosSquareTerminalPaymentResponse,
+    attempt: SquareTerminalAttempt,
+  ) => consumeSquareTerminalResult(response, attempt, null);
+
+  const retrySquareTerminalRequest = async () => {
+    await startSquareCardPayment(totals.total);
+  };
+
   const completeSale = async (salePayments: Payment[] = payments, saleTotals: SaleTotals = totals) => {
-    if (isCompletingSale) {
+    if (isCompletingSale || lookingUpTerminal || mercadoPago.blocked || squareRecoveryBlocked || cardDispatchBusy.current) {
+      if (squareRecoveryBlocked) {
+        setCheckoutNotice(squareTerminalCopy.blockedSale);
+      }
       return;
     }
 
@@ -515,8 +633,10 @@ export function useSaleCheckout({
   };
 
   const handleExactPayment = () => {
-    if (isCompletingSale) {
-      setCheckoutNotice('La venta se esta guardando. Espera a que termine el proceso.');
+    if (isCompletingSale || lookingUpTerminal || mercadoPago.blocked || squareRecoveryBlocked || cardDispatchBusy.current) {
+      setCheckoutNotice(squareRecoveryBlocked
+        ? squareTerminalCopy.blockedCash
+        : 'La venta se esta guardando. Espera a que termine el proceso.');
       return;
     }
 
@@ -549,7 +669,10 @@ export function useSaleCheckout({
     totals,
     checkoutNotice,
     clearCheckoutNotice: () => setCheckoutNotice(''),
-    isCompletingSale,
+    isCompletingSale: isCompletingSale || lookingUpTerminal || mercadoPago.blocked || squareRecoveryBlocked,
+    checkoutBusy: isCompletingSale || lookingUpTerminal,
+    paymentActionsBlocked: isCompletingSale || lookingUpTerminal || mercadoPago.blocked || squareRecoveryBlocked,
+    mercadoPago,
     showAddPaymentModal,
     selectedPaymentMethod,
     showTicketModal,
@@ -564,5 +687,7 @@ export function useSaleCheckout({
     completeSale,
     handleExactPayment,
     recoverSquareTerminalIntent,
+    consumeSquareTerminalRequestResult,
+    retrySquareTerminalRequest,
   };
 }

@@ -433,7 +433,7 @@ export type PosSquarePairTerminalResponse = {
   pairBy?: string | null;
 };
 
-export type PosSquareTerminalPaymentStatus = 'waiting' | 'approved' | 'declined' | 'cancelled' | 'uncertain';
+export type PosSquareTerminalPaymentStatus = 'waiting' | 'approved' | 'partially_refunded' | 'refunded' | 'declined' | 'cancelled' | 'uncertain';
 
 export type PosSquareTerminalPaymentPayload = {
   idempotencyKey: string;
@@ -618,6 +618,11 @@ export const posBackendApi = {
   startSquareOAuth() {
     return apiClient<{ authorizationUrl: string }>(`${posBasePath}/square/oauth/start`, { method: 'POST' });
   },
+  completeSquareOAuth(code: string, state: string) {
+    return apiClient<{ connected: boolean; merchantId: string }>(`${posBasePath}/square/oauth/complete`, {
+      method: 'POST', body: JSON.stringify({ code, state }),
+    });
+  },
   squareLocations() {
     return apiClient<{ items: PosSquareLocationResponse[] }>(`${posBasePath}/square/locations`);
   },
@@ -673,6 +678,10 @@ export const posBackendApi = {
   },
   getSquareTerminalPayment(intentId: number | string) {
     return apiClient<PosSquareTerminalPaymentResponse>(`${posBasePath}/square/terminal-payments/${intentId}`);
+  },
+  getSquareTerminalPaymentByRequestKey(requestKey: string) {
+    const query = new URLSearchParams({ requestKey });
+    return apiClient<PosSquareTerminalPaymentResponse>(`${posBasePath}/square/terminal-payments/by-request-key?${query}`);
   },
   cancelSquareTerminalPayment(intentId: number | string) {
     return apiClient<PosSquareTerminalPaymentResponse>(`${posBasePath}/square/terminal-payments/${intentId}/cancel`, {

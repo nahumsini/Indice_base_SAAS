@@ -1,10 +1,9 @@
 import { useCallback, useState } from 'react';
 import type { OperationalActivity } from '../components/OperationalActivityFeed';
 import { MAX_OPERATIONAL_ACTIVITIES } from '../constants/sale.constants';
-import { buildInitialActivities } from '../data/initialActivities';
 
 export function useSaleActivityFeed() {
-  const [recentActivities, setRecentActivities] = useState<OperationalActivity[]>(buildInitialActivities);
+  const [recentActivities, setRecentActivities] = useState<OperationalActivity[]>([]);
 
   const pushActivity = useCallback((activity: Omit<OperationalActivity, 'id' | 'timestamp'>) => {
     setRecentActivities((currentActivities) => [
@@ -22,4 +21,3 @@ export function useSaleActivityFeed() {
     pushActivity,
   };
 }
-
