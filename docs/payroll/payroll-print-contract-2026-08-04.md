@@ -2,6 +2,13 @@
 
 Fecha: 4 de agosto de 2026
 Estándar aplicado: `INDICE_DOCUMENT_PRINT_STANDARD_DRAFT.md`, versión 0.1
+Corrección de presentación aprobada el 2026-09-17: versión 0.3, escala de grises
+salvo el logo de la empresa, sin marca/atribución de plataforma. Vertical por defecto;
+el motor web cambia a horizontal únicamente cuando lo exige la tabla. Los cortes por
+cantidad de líneas son secciones de contenido, no hojas físicas: se permite flujo
+continuo, conservando párrafos completos y todos los conceptos. Las tablas y referencias
+legales conservan su contrato. Esta decisión reemplaza los colores, atribución,
+orientación fija y numeración de secciones como páginas descritos en la referencia histórica inferior.
 Estado: implementación técnica terminada; revisión legal y QA físico pendientes
 
 ## Decisión documental

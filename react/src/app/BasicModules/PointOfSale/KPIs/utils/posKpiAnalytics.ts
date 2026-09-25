@@ -98,6 +98,12 @@ export const toNumber = (value: number | string | null | undefined) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+/** Closed POS cuts expose net sales; returned sales belong in the original sales population. */
+export function refundPercentage(netSales: number, refunds: number): number {
+  const grossSales = netSales + refunds;
+  return grossSales > 0 ? (refunds / grossSales) * 100 : 0;
+}
+
 export const toDateInputValue = (date: Date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');

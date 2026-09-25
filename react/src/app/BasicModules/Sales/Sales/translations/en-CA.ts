@@ -500,17 +500,20 @@ export const enCA = {
   },
   statuses: {
     commercial: {
+      completed: 'Completed in POS',
       pending_validation: 'Pending validation',
       approved: 'Approved',
       rejected: 'Rejected',
       cancelled: 'Cancelled',
     },
     finance: {
+      captured: 'Recorded in POS',
       pending: 'Pending',
       approved: 'Approved',
       rejected: 'Rejected',
     },
     inventory: {
+      returned: 'Returned to stock',
       pending: 'Pending',
       reserved: 'Reserved',
       approved: 'Approved',
@@ -528,12 +531,14 @@ export const enCA = {
       paid: 'Paid',
     },
     movement: {
+      reversed: 'Reversed',
       not_generated: 'Not Generated',
       pending: 'Pending',
       approved: 'Approved',
       completed: 'Completed',
     },
     paymentEvidence: {
+      captured: 'Recorded in POS',
       missing: 'Missing',
       uploaded: 'Uploaded',
       under_review: 'Under review',

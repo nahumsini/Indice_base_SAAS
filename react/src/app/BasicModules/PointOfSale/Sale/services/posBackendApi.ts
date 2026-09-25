@@ -546,11 +546,15 @@ export const posBackendApi = {
       body: JSON.stringify(payload),
     });
   },
-  checkout(payload: PosCheckoutPayload) {
+  checkout(payload: PosCheckoutPayload, requestKey: string) {
     return apiClient<PosCheckoutResponse>(`${posBasePath}/sales/checkout`, {
       method: 'POST',
+      headers: { 'Idempotency-Key': requestKey },
       body: JSON.stringify(payload),
     });
+  },
+  recoverCheckout(requestKey: string) {
+    return apiClient<PosCheckoutResponse>(`${posBasePath}/sales/checkout/${encodeURIComponent(requestKey)}`);
   },
   createPaidInventoryReceipt(payload: PosPaidInventoryReceiptPayload) {
     return apiClient<PosPaidInventoryReceiptResponse>(`${posBasePath}/inventory-receipts`, {

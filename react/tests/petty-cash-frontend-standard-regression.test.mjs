@@ -114,9 +114,9 @@ test('Saldos ofrece vista previa, descarga e impresión del estado de cuenta', (
 
   assert.match(reconciliationSource, /additionalActionLabel=\{accountStatementCopy\.action\}/);
   assert.match(reconciliationSource, /setPreviewStatement\(selectedStatement\)/);
-  assert.match(detailSource, /downloadPettyCashStatementPdf/);
+  assert.match(detailSource, /getWebPrintCopy\(copy\.locale\)\.action/);
   assert.match(detailSource, /printPettyCashStatementPdf/);
-  assert.match(detailSource, /definition\.tables\?\.map/);
+  assert.match(detailSource, /StandardDocumentPreview definition=\{definition\}/);
   assert.doesNotMatch(detailSource, /bg-\[#FF6B5E\]|bg-\[#F4C84A\]|bg-\[#59C3A5\]|bg-\[#2563EB\]/);
   assert.match(pdfSource, /pageSize: 'a4'/);
   assert.match(pdfSource, /buildStandardDocumentPdf/);

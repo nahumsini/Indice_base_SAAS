@@ -7,6 +7,11 @@ Active runtime root: `react/src/app`
 Related standards: `AGENTS.md`, `docs/indice-backend-operating-system-v1.md`, and
 `docs/indice-public-release-security-gate.md`
 
+Sales/POS operational behavior also follows
+`docs/sales-pos-ownership-and-retry-contract-v1.md`: POS summaries are read-only in Sales,
+uncertain checkout retries preserve their identity, and original-tender POS returns display
+completion only after backend confirmation, never from a local activity or pending provider result.
+
 ## Scope And Reading Guide
 
 This standard governs frontend architecture, UI, and UX across Indice. Its purpose is a consistent
@@ -208,10 +213,10 @@ optional reference. Back preserves all rows, and final review shows each asset. 
 `managedAssets` list, including `[]` when cleared. Account statements and PDFs use their own
 `managedAssetsSnapshot`; never fill a historical empty list from today's fund. See
 `docs/petty-cash-managed-assets-contract-v1.md`.
-Petty Cash account-statement preview, download and print share one transaction-document definition
-and the standard PDF engine used by Finance. The document uses a single green accent, neutral
-metadata and table-first sections; decorative multicolor bands and semantic color without meaning
-do not belong in this report. Preserve the statement folio, status, fund and owner identity,
+Petty Cash account-statement preview and browser print/Save as PDF share one transaction-document
+definition and the quotation web-print theme adopted on 2026-09-17 in section 0 of
+`docs/INDICE_DOCUMENT_PRINT_STANDARD_DRAFT.md`. Use grayscale metadata, compact tables and neutral
+totals; only the company logo retains color, and no platform attribution appears. Preserve folio, status, fund and owner identity,
 historical assets, native-currency balances, entries, expenses and reconciliation in every output.
 Fund forms do not show or require funding or spending method checklists. The deposit modal selects
 created active accounts in the same currency for both fund types, excluding custody. External
@@ -246,7 +251,7 @@ owner contract in `docs/finance-bulk-actions-and-workspace-memory-contract-v1.md
 status except audited/closed is eligible, with received purchase-order and fund-owner protections.
 The single-row action opens a reasoned confirmation; batch removal validates the whole selection.
 Row actions omit duplicate and print. Print is available inside the expense dossier and reuses the
-standard purchase-order PDF layout (folio/status, metadata, financial summary, item table, signatures),
+shared quotation-style web document (folio/status, metadata, financial summary, item table, signatures),
 retaining the expense's native currency and resolving account/user names from scoped catalogs.
 
 Per the 2026-09-10 payment-correction and selection-print decision, Edit Expense remains a
@@ -260,13 +265,23 @@ visible and identified in the dossier, including reason and timestamp.
 
 The Expenses header Actions menu also exposes **Print selection**. It opens the
 `ExpenseTablePrintModal` operational workspace, following the quote preview interaction: inspect,
-download PDF or print. Selected rows are the initial scope when available; otherwise use all filtered
+print or Save as PDF through the browser. Selected rows are the initial scope when available; otherwise use all filtered
 results. The user can change between these scopes. Both preserve table order across pages and
 visible data columns, exclude action controls, resolve scoped reference names, and keep native
 currencies separate. Fund groups expand into their original expenses once. The company identity
 must finish loading before output; an unavailable logo/name must not fabricate an issuer. This
-Tab Print uses shared PDF primitives, repeatable table headers and footers, and splits exceptionally
+Tab Print uses shared web-document primitives, repeatable table headers and a document footer, and splits exceptionally
 wide column selections into readable sections. The individual expense voucher remains available.
+
+The approved 2026-09-17 basic-module document decision is section 0 of
+`docs/INDICE_DOCUMENT_PRINT_STANDARD_DRAFT.md`, tracked in
+`docs/INDICE_DOCUMENT_PRINT_INVENTORY.md`. Quotation styling and browser printing are the normal
+output for active basic documents, with unchanged data rules. The same-day v0.3 correction
+requires company-only branding, grayscale except the company logo, portrait unless table width
+requires landscape, and complete paragraphs flowing naturally across sheets. Prefer one sheet
+when the content fits legibly; never cut content or shrink text to illegibility.
+Binary quotation sharing and external PDFs remain supported. IME/Business Diagnosis and the
+KPI maturity overview/dimensions are explicitly excluded; never apply document CSS globally.
 
 Expense capture, payable capture and payment use searchable selectors for large reference catalogs.
 Optional notes/evidence are collapsible; submitting and error states preserve captured values.

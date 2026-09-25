@@ -1,12 +1,12 @@
 .prpdf-report-shell {
-  background: #eef2f6;
-  color: #222831;
-  font-family: Inter, Aptos, "Segoe UI", Arial, sans-serif;
+  background: #ffffff;
+  color: #272727;
+  font-family: "Avenir Next", "Helvetica Neue", "Segoe UI", Arial, sans-serif;
   font-weight: 400;
 }
 
 .prpdf-landscape-page {
-  background: #eef2f6 !important;
+  background: #ffffff !important;
   box-sizing: border-box;
   min-height: 210mm;
   padding: 10mm;
@@ -15,18 +15,18 @@
 
 .prpdf-page-card {
   background: #ffffff;
-  border: 1px solid #d9e2ea;
+  border: 1px solid #e1e1e1;
   border-radius: 8px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   min-height: 190mm;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .prpdf-document-header {
   align-items: center;
-  border-bottom: 1px solid #d9e2ea;
+  border-bottom: 1px solid #e1e1e1;
   display: grid;
   gap: 18px;
   grid-template-columns: minmax(190px, 0.8fr) minmax(320px, 1.5fr) minmax(150px, 0.55fr);
@@ -60,14 +60,14 @@
 }
 
 .prpdf-company-name {
-  color: #222831;
+  color: #272727;
   font-size: 13px;
   font-weight: 500;
   overflow-wrap: anywhere;
 }
 
 .prpdf-eyebrow {
-  color: #177d66;
+  color: #666666;
   font-size: 9px;
   line-height: 1.4;
   margin-top: 3px;
@@ -78,14 +78,14 @@
 }
 
 .prpdf-document-identity h1 {
-  color: #143675;
+  color: #272727;
   font-size: 19px;
   font-weight: 500;
   line-height: 1.2;
 }
 
 .prpdf-document-identity p {
-  color: #64748b;
+  color: #727272;
   font-size: 10px;
   line-height: 1.45;
   margin-top: 4px;
@@ -99,22 +99,23 @@
 }
 
 .prpdf-document-status span {
-  background: #e8f7f2;
-  border: 1px solid #b9e6d8;
+  background: #f3f3f3;
+  border: 1px solid #dbdbdb;
   border-radius: 999px;
-  color: #177d66;
+  color: #666666;
   font-size: 10px;
   font-weight: 500;
   padding: 4px 9px;
 }
 
 .prpdf-document-status small {
-  color: #64748b;
+  color: #727272;
   font-size: 9px;
 }
 
 .prpdf-metadata-strip {
-  border-bottom: 1px solid #d9e2ea;
+  background: #f8f8f8;
+  border-bottom: 1px solid #e1e1e1;
   display: grid;
   grid-auto-columns: minmax(0, 1fr);
   grid-auto-flow: column;
@@ -122,7 +123,7 @@
 }
 
 .prpdf-metadata-strip > div {
-  border-right: 1px solid #e4e9ef;
+  border-right: 1px solid #e8e8e8;
   min-width: 0;
   padding: 7px 12px;
 }
@@ -132,14 +133,14 @@
 }
 
 .prpdf-metadata-strip dt {
-  color: #64748b;
+  color: #727272;
   font-size: 7.5px;
   font-weight: 400;
   line-height: 1.3;
 }
 
 .prpdf-metadata-strip dd {
-  color: #334155;
+  color: #3f3f3f;
   font-size: 9px;
   font-weight: 500;
   line-height: 1.35;
@@ -148,7 +149,7 @@
 }
 
 .prpdf-kpi-strip {
-  border-bottom: 1px solid #d9e2ea;
+  border-bottom: 1px solid #e1e1e1;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
@@ -158,7 +159,7 @@
 }
 
 .prpdf-kpi-strip > div {
-  border-right: 1px solid #e4e9ef;
+  border-right: 1px solid #e8e8e8;
   min-width: 0;
   padding: 10px 14px;
 }
@@ -173,13 +174,13 @@
 }
 
 .prpdf-kpi-strip span {
-  color: #64748b;
+  color: #727272;
   font-size: 9px;
   font-weight: 400;
 }
 
 .prpdf-kpi-strip strong {
-  color: #222831;
+  color: #272727;
   font-size: 14px;
   font-weight: 500;
   margin-top: 4px;
@@ -187,17 +188,17 @@
 }
 
 .prpdf-kpi-strip .prpdf-kpi-accent {
-  background: #eef9f6;
+  background: #f5f5f5;
 }
 
 .prpdf-kpi-strip .prpdf-kpi-accent strong {
-  color: #177d66;
+  color: #272727;
 }
 
 .prpdf-jurisdiction-context {
   align-items: stretch;
-  background: #f7fbfa;
-  border-bottom: 1px solid #d9e2ea;
+  background: #fafafa;
+  border-bottom: 1px solid #e1e1e1;
   display: grid;
   gap: 0;
   grid-template-columns: minmax(190px, 0.8fr) minmax(250px, 1.2fr) minmax(300px, 1.4fr);
@@ -205,7 +206,7 @@
 
 .prpdf-jurisdiction-context > div,
 .prpdf-jurisdiction-notice {
-  border-right: 1px solid #dfe9e6;
+  border-right: 1px solid #e7e7e7;
   margin: 0;
   min-width: 0;
   padding: 7px 12px;
@@ -216,14 +217,14 @@
 }
 
 .prpdf-jurisdiction-context span {
-  color: #177d66;
+  color: #666666;
   display: block;
   font-size: 7.5px;
   font-weight: 500;
 }
 
 .prpdf-jurisdiction-context p {
-  color: #52637a;
+  color: #616161;
   font-size: 8px;
   font-weight: 400;
   line-height: 1.4;
@@ -232,7 +233,7 @@
 }
 
 .prpdf-jurisdiction-context .prpdf-jurisdiction-notice {
-  color: #52637a;
+  color: #616161;
   margin: 0;
 }
 
@@ -251,14 +252,14 @@
 }
 
 .prpdf-section-heading h2 {
-  color: #222831;
+  color: #272727;
   font-size: 13px;
   font-weight: 500;
 }
 
 .prpdf-section-heading p,
 .prpdf-section-heading > span {
-  color: #64748b;
+  color: #727272;
   font-size: 9px;
   font-weight: 400;
 }
@@ -268,7 +269,7 @@
 }
 
 .prpdf-table-frame {
-  border: 1px solid #d9e2ea;
+  border: 1px solid #e1e1e1;
   border-radius: 6px;
   overflow: hidden;
 }
@@ -280,9 +281,9 @@
 }
 
 .prpdf-financial-table th {
-  background: #f3f6f9;
-  border-bottom: 1px solid #d9e2ea;
-  color: #52637a;
+  background: #f6f6f6;
+  border-bottom: 1px solid #e1e1e1;
+  color: #616161;
   font-size: 8.5px;
   font-weight: 500;
   padding: 7px 8px;
@@ -290,8 +291,8 @@
 }
 
 .prpdf-financial-table td {
-  border-bottom: 1px solid #e9edf2;
-  color: #334155;
+  border-bottom: 1px solid #ededed;
+  color: #3f3f3f;
   font-size: 9px;
   font-weight: 400;
   line-height: 1.35;
@@ -301,7 +302,7 @@
 }
 
 .prpdf-financial-table tbody tr:nth-child(even) td {
-  background: #fbfcfd;
+  background: #fcfcfc;
 }
 
 .prpdf-financial-table tbody tr:last-child td {
@@ -314,12 +315,12 @@
 }
 
 .prpdf-financial-table td span {
-  color: #222831;
+  color: #272727;
   font-weight: 500;
 }
 
 .prpdf-financial-table td small {
-  color: #64748b;
+  color: #727272;
   font-size: 8px;
   margin-top: 2px;
 }
@@ -334,19 +335,19 @@
 }
 
 .prpdf-financial-table .prpdf-net-cell {
-  color: #143675;
+  color: #333333;
   font-weight: 500;
 }
 
 .prpdf-financial-table tfoot td {
-  background: #eef9f6;
-  border-top: 1px solid #b9e6d8;
-  color: #177d66;
+  background: #f6f6f6;
+  border-top: 1px solid #dbdbdb;
+  color: #666666;
   font-weight: 500;
 }
 
 .prpdf-empty-cell {
-  color: #64748b !important;
+  color: #727272 !important;
   padding: 24px !important;
   text-align: center !important;
 }
@@ -366,7 +367,7 @@
 
 .prpdf-attendance-strip {
   align-items: center;
-  border-bottom: 1px solid #d9e2ea;
+  border-bottom: 1px solid #e1e1e1;
   display: grid;
   gap: 12px;
   grid-template-columns: 150px 1fr;
@@ -374,7 +375,7 @@
 }
 
 .prpdf-attendance-strip > span {
-  color: #143675;
+  color: #333333;
   font-size: 10px;
   font-weight: 500;
 }
@@ -387,18 +388,18 @@
 }
 
 .prpdf-attendance-strip dl > div {
-  border-left: 1px solid #e4e9ef;
+  border-left: 1px solid #e8e8e8;
   padding-left: 8px;
 }
 
 .prpdf-attendance-strip dt {
-  color: #64748b;
+  color: #727272;
   font-size: 8px;
   font-weight: 400;
 }
 
 .prpdf-attendance-strip dd {
-  color: #222831;
+  color: #272727;
   font-size: 10px;
   font-weight: 500;
   margin: 3px 0 0;
@@ -412,21 +413,21 @@
 }
 
 .prpdf-notice-grid > div {
-  background: #fffaf0;
-  border: 1px solid #f0d79a;
+  background: #fafafa;
+  border: 1px solid #d8d8d8;
   border-radius: 5px;
   padding: 7px 9px;
 }
 
 .prpdf-notice-grid span {
-  color: #8a5a00;
+  color: #5e5e5e;
   display: block;
   font-size: 8px;
   font-weight: 500;
 }
 
 .prpdf-notice-grid p {
-  color: #694600;
+  color: #484848;
   font-size: 8.5px;
   line-height: 1.4;
   margin-top: 3px;
@@ -434,8 +435,8 @@
 
 .prpdf-document-footer {
   align-items: center;
-  border-top: 1px solid #d9e2ea;
-  color: #6f7780;
+  border-top: 1px solid #e1e1e1;
+  color: #767676;
   display: flex;
   font-size: 7.5px;
   font-weight: 400;
@@ -445,18 +446,13 @@
 }
 
 @media print {
-  @page {
-    size: A4 landscape;
-    margin: 0;
-  }
-
   .prpdf-landscape-page {
     background: #ffffff !important;
-    break-after: page;
-    min-height: 210mm !important;
-    page-break-after: always;
-    padding: 10mm !important;
-    width: 297mm !important;
+    break-after: auto;
+    min-height: 0 !important;
+    page-break-after: auto;
+    padding: 0 !important;
+    width: auto !important;
   }
 
   .prpdf-landscape-page:last-child {
@@ -465,7 +461,7 @@
   }
 
   .prpdf-page-card {
-    min-height: 190mm;
+    min-height: 0;
   }
 
   .prpdf-financial-table tr,

@@ -21,6 +21,27 @@ public class ShiftRepository {
         this.mapper = mapper;
     }
 
+    public void lockCompanyForOperation(PosContext context) {
+        jdbcTemplate.queryForList("SELECT id FROM companies WHERE id = ? FOR UPDATE", context.companyId());
+    }
+
+    public void requireNoPendingReturn(PosContext context, long shiftId) {
+        if (jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM pos_returns WHERE company_id = ? AND shift_id = ?
+              AND status IN ('PREPARED', 'PROCESSING')
+            """, Integer.class, context.companyId(), shiftId) > 0)
+            throw com.indice.erp.pos.PosApiException.conflict("Resuelve la devolución pendiente antes de retirar efectivo del turno.");
+    }
+
+    public void requireNoActivityForCancellation(PosContext context, long shiftId) {
+        if (jdbcTemplate.queryForObject("""
+            SELECT (SELECT COUNT(*) FROM pos_tickets WHERE company_id = ? AND shift_id = ?)
+              + (SELECT COUNT(*) FROM pos_cash_movements WHERE company_id = ? AND shift_id = ?)
+              + (SELECT COUNT(*) FROM pos_inventory_receipts WHERE company_id = ? AND shift_id = ?)
+            """, Integer.class, context.companyId(), shiftId, context.companyId(), shiftId, context.companyId(), shiftId) > 0)
+            throw com.indice.erp.pos.PosApiException.conflict("El turno tiene actividad registrada. Debe cerrarse con un corte, no cancelarse.");
+    }
+
     public List<ShiftRecord> findAll(PosContext context) {
         var params = scopedParams(context);
         return jdbcTemplate.query(baseSelect() + """
@@ -66,7 +87,7 @@ public class ShiftRepository {
             WHERE shift.company_id = ? AND shift.opened_by_user_id = ? AND shift.cash_register_id = ?
               AND shift.deleted_at IS NULL AND shift.status = 'OPEN'
               AND """ + PosSqlSupport.scopePredicate("shift", context.scope()) + """
-            ORDER BY shift.opened_at DESC LIMIT 1
+            ORDER BY shift.opened_at DESC LIMIT 1 FOR UPDATE
             """, mapper::mapRow, params.toArray()).stream().findFirst();
     }
 

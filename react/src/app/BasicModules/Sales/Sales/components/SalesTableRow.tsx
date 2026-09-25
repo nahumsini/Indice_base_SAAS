@@ -164,6 +164,7 @@ export function SalesTableRow({
 }) {
   const isVisible = (column: SalesColumnId) => visibleColumns.includes(column);
   const isCancelled = record.commercialStatus === 'cancelled';
+  const isPosOwned = record.sourceType === 'POS';
   const movementPrepared = record.inventoryMovementStatus !== 'not_generated';
   const financeApproved = record.financeStatus === 'approved';
   const relationship = lifecycle?.relationship ?? 'first_purchase';
@@ -192,7 +193,7 @@ export function SalesTableRow({
         <TableCell className={salesCellClassName}>
           <p className="break-all font-medium text-slate-950 dark:text-white">{record.saleNumber}</p>
           <p className="mt-1 text-xs font-medium text-slate-500">{formatSalesDate(record.saleDate)}</p>
-          <p className="mt-2 break-words text-xs font-medium text-[#B63B32]">{source?.opportunityName || t.table.operational.directSale}</p>
+          <p className="mt-2 break-words text-xs font-medium text-[#B63B32]">{isPosOwned ? 'POS' : source?.opportunityName || t.table.operational.directSale}</p>
           {source?.quoteReference ? <p className="mt-1 break-all text-xs text-slate-500">{source.quoteReference}</p> : null}
         </TableCell>
       ) : null}
@@ -283,13 +284,13 @@ export function SalesTableRow({
               <DropdownMenuContent align="end" className="w-64">
                 <DropdownMenuItem onSelect={() => onPreviewSummary(record)}><FileSearch className="mr-2 h-4 w-4" />{t.table.actions.previewSummary}</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => onManageCommission(record)}><BadgePercent className="mr-2 h-4 w-4" />{t.table.actions.manageCommission}</DropdownMenuItem>
-                <DropdownMenuItem disabled={isCancelled || movementPrepared} onSelect={() => onPrepareMovement(record)}><PackageCheck className="mr-2 h-4 w-4" />{movementPrepared ? t.table.actions.alreadyPrepared : t.table.actions.prepareMovement}</DropdownMenuItem>
-                <DropdownMenuItem disabled={isCancelled || financeApproved} onSelect={() => onSendToFinance(record)}><Send className="mr-2 h-4 w-4" />{financeApproved ? t.table.actions.financeApproved : t.table.actions.sendToFinance}</DropdownMenuItem>
-                <DropdownMenuItem disabled={isCancelled} onSelect={() => onSendToCredit(record)}><CreditCard className="mr-2 h-4 w-4" />{t.table.actions.sendToCredit}</DropdownMenuItem>
+                <DropdownMenuItem disabled={isPosOwned} onSelect={() => onManageCommission(record)}><BadgePercent className="mr-2 h-4 w-4" />{t.table.actions.manageCommission}</DropdownMenuItem>
+                <DropdownMenuItem disabled={isPosOwned || isCancelled || movementPrepared} onSelect={() => onPrepareMovement(record)}><PackageCheck className="mr-2 h-4 w-4" />{movementPrepared ? t.table.actions.alreadyPrepared : t.table.actions.prepareMovement}</DropdownMenuItem>
+                <DropdownMenuItem disabled={isPosOwned || isCancelled || financeApproved} onSelect={() => onSendToFinance(record)}><Send className="mr-2 h-4 w-4" />{financeApproved ? t.table.actions.financeApproved : t.table.actions.sendToFinance}</DropdownMenuItem>
+                <DropdownMenuItem disabled={isCancelled || (isPosOwned && !isCredit)} onSelect={() => onSendToCredit(record)}><CreditCard className="mr-2 h-4 w-4" />{t.table.actions.sendToCredit}</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem disabled={isCancelled} className="text-red-700 focus:text-red-700 dark:text-red-300" onSelect={() => onCancelSale(record)}><XCircle className="mr-2 h-4 w-4" />{isCancelled ? t.table.actions.cancelled : t.table.actions.cancelSale}</DropdownMenuItem>
-                <DropdownMenuItem className="text-red-700 focus:text-red-700 dark:text-red-300" onSelect={() => onDeleteSale(record)}><Trash2 className="mr-2 h-4 w-4" />{t.table.actions.deleteSale}</DropdownMenuItem>
+                <DropdownMenuItem disabled={isPosOwned || isCancelled} className="text-red-700 focus:text-red-700 dark:text-red-300" onSelect={() => onCancelSale(record)}><XCircle className="mr-2 h-4 w-4" />{isCancelled ? t.table.actions.cancelled : t.table.actions.cancelSale}</DropdownMenuItem>
+                <DropdownMenuItem disabled={isPosOwned} className="text-red-700 focus:text-red-700 dark:text-red-300" onSelect={() => onDeleteSale(record)}><Trash2 className="mr-2 h-4 w-4" />{t.table.actions.deleteSale}</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </IndiceTableActionGroup>

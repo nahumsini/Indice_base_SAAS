@@ -1,4 +1,5 @@
-import { useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
+import { applyDocumentGrayscale } from '../../../../shared/print/documentGrayscale';
 import { FileText, Printer } from 'lucide-react';
 import { Button } from '../../../../../components/ui/button';
 import { SalesModalFrame } from '../../../components/SalesModalFrame';
@@ -9,7 +10,6 @@ import { formatInventoryCurrency, formatInventoryNumber } from '../../utils/inve
 import { printDocumentHtml } from '../../../../shared/print/documentHtmlPrintEngine';
 import { InventoryModalActionToolbar } from '../InventoryModalPrimitives';
 import {
-  documentPrintAttribution,
   formatDocumentPrintDateTime,
   getDocumentPrintLabels,
 } from '../../../../shared/print/documentPrintContract';
@@ -30,6 +30,9 @@ export function MovementPrintModal({
   onClose: () => void;
 }) {
   const documentRef = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    if (documentRef.current) applyDocumentGrayscale(documentRef.current);
+  }, [movement, movementLines, t, locale]);
   if (!movement) return null;
 
   const lines = movementLines?.length ? movementLines : [movement];
@@ -159,7 +162,7 @@ export function MovementPrintModal({
                 <div><div className="border-t border-slate-400 pt-2">{t.operational.modals.receivedBy}</div></div>
               </div>
               <p className="mt-8 border-t border-slate-200 pt-3 text-[10px] text-slate-500">
-                {documentPrintAttribution} · {printLabels.updated}: {formatDocumentPrintDateTime(new Date(), locale)}
+                {printLabels.updated}: {formatDocumentPrintDateTime(new Date(), locale)}
               </p>
             </footer>
           </article>

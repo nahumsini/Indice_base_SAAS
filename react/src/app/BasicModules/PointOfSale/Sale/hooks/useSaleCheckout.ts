@@ -5,6 +5,8 @@ import type { CreditPaymentDetails, Payment, PaymentMethod, SaleItem } from '../
 import type { Shift } from '../types/shift.types';
 import { posBackendApi, type PosCheckoutResponse, type PosSquareTerminalPaymentResponse } from '../services/posBackendApi';
 import { createSquareTerminalPaymentAndWait } from '../services/squareTerminalPaymentClient';
+import { CheckoutRetry, CheckoutRetryConflict } from '../utils/checkoutRetry';
+import { ApiClientError } from '../../../../lib/apiClient';
 import {
   isBackendUnsupportedPayment,
   toPosCheckoutItems,
@@ -124,6 +126,8 @@ export function useSaleCheckout({
     totals: SaleTotals;
   } | null>(null);
   const squareSaleSnapshot = useRef<{ items: SaleItem[]; totals: SaleTotals } | null>(null);
+  const checkoutRetry = useRef(new CheckoutRetry());
+  const checkoutInFlight = useRef(false);
 
   const totals = useMemo(() => calculateSaleTotals(cart, payments), [cart, payments]);
 
@@ -422,7 +426,7 @@ export function useSaleCheckout({
   };
 
   const completeSale = async (salePayments: Payment[] = payments, saleTotals: SaleTotals = totals) => {
-    if (isCompletingSale) {
+    if (isCompletingSale || checkoutInFlight.current) {
       return;
     }
 
@@ -492,11 +496,12 @@ export function useSaleCheckout({
       return;
     }
 
+    checkoutInFlight.current = true;
     setIsCompletingSale(true);
     setCheckoutNotice('');
 
     try {
-      const response = await posBackendApi.checkout({
+      const payload = {
         cashRegisterId,
         customerId: toBackendId(creditPayment?.creditDetails?.customerId ?? customerId),
         preticketId: preticketId ?? null,
@@ -505,11 +510,40 @@ export function useSaleCheckout({
         items: toPosCheckoutItems(completedItems, products),
         payments: toPosCheckoutPayments(completedPayments),
         notes: `POS checkout · caja ${currentShift.cashRegisterCode}`,
-      });
+      };
+      const requestKey = await checkoutRetry.current.key(currentShift.id, payload);
+      const response = await posBackendApi.checkout(payload, requestKey);
+      checkoutRetry.current.clear(currentShift.id);
       await handleCheckoutSaved(response, completedItems, completedPayments, saleTotals, closesAsCredit);
     } catch (error) {
+      // A validation rejection did not commit; connection errors and conflicts are ambiguous.
+      if (error instanceof ApiClientError && [400, 422].includes(error.status)) checkoutRetry.current.clear(currentShift.id);
+      if (error instanceof CheckoutRetryConflict) {
+        try {
+          const recovered = await posBackendApi.recoverCheckout(error.requestKey);
+          setLastSale({
+            saleNumber: recovered.ticket.ticketNumber,
+            items: saleItemsFromBackend(recovered),
+            payments: recovered.payments.map((payment) => ({
+              id: String(payment.id),
+              method: payment.paymentMethod.toLowerCase() as PaymentMethod,
+              amount: toNumber(payment.amount),
+              reference: payment.reference ?? undefined,
+            })),
+            totals: totalsFromBackend(recovered, { ...saleTotals, change: 0 }),
+          });
+          setShowTicketModal(true);
+          checkoutRetry.current.clear(currentShift.id);
+          setCheckoutNotice(`Se recuperó la venta ${recovered.ticket.ticketNumber}. El carrito actual no se ha cobrado; revísalo antes de continuar.`);
+          await Promise.allSettled([refreshRegisterContext?.(), syncCheckoutData?.()]);
+          return;
+        } catch {
+          // An unresolved prior attempt must never become a new charge automatically.
+        }
+      }
       setCheckoutNotice(getPosRequestErrorMessage(error, 'No se pudo guardar la venta en POS.'));
     } finally {
+      checkoutInFlight.current = false;
       setIsCompletingSale(false);
     }
   };

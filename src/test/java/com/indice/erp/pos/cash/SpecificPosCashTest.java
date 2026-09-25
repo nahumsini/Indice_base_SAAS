@@ -58,7 +58,7 @@ class SpecificPosCashTest {
     @Test
     void cashInIncreasesExpectedCash() {
         var service = movementService();
-        when(shiftRepository.findById(context(), 40L)).thenReturn(Optional.of(shift(ShiftStatus.OPEN, "100")));
+        when(shiftRepository.findByIdForUpdate(context(), 40L)).thenReturn(Optional.of(shift(ShiftStatus.OPEN, "100")));
         when(movementRepository.insert(eq(context()), any())).thenReturn(movement(CashMovementType.CASH_IN, "50"));
         when(shiftRepository.adjustExpectedCash(eq(context()), eq(40L), any())).thenReturn(true);
 
@@ -72,7 +72,7 @@ class SpecificPosCashTest {
     @Test
     void cashOutDecreasesExpectedCash() {
         var service = movementService();
-        when(shiftRepository.findById(context(), 40L)).thenReturn(Optional.of(shift(ShiftStatus.OPEN, "100")));
+        when(shiftRepository.findByIdForUpdate(context(), 40L)).thenReturn(Optional.of(shift(ShiftStatus.OPEN, "100")));
         when(movementRepository.insert(eq(context()), any())).thenReturn(movement(CashMovementType.CASH_OUT, "30"));
         when(shiftRepository.adjustExpectedCash(eq(context()), eq(40L), any())).thenReturn(true);
 
@@ -86,7 +86,7 @@ class SpecificPosCashTest {
     @Test
     void safeDropDecreasesExpectedCash() {
         var service = movementService();
-        when(shiftRepository.findById(context(), 40L)).thenReturn(Optional.of(shift(ShiftStatus.OPEN, "100")));
+        when(shiftRepository.findByIdForUpdate(context(), 40L)).thenReturn(Optional.of(shift(ShiftStatus.OPEN, "100")));
         when(movementRepository.insert(eq(context()), any())).thenReturn(movement(CashMovementType.SAFE_DROP, "25"));
         when(shiftRepository.adjustExpectedCash(eq(context()), eq(40L), any())).thenReturn(true);
 
@@ -100,7 +100,7 @@ class SpecificPosCashTest {
     @Test
     void closedShiftRejectsCashMovement() {
         var service = movementService();
-        when(shiftRepository.findById(context(), 40L)).thenReturn(Optional.of(shift(ShiftStatus.CLOSED, "100")));
+        when(shiftRepository.findByIdForUpdate(context(), 40L)).thenReturn(Optional.of(shift(ShiftStatus.CLOSED, "100")));
 
         assertThatThrownBy(() -> service.create(context(), movementRequest("CASH_IN", "50")))
             .isInstanceOf(PosApiException.class)

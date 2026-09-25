@@ -83,6 +83,9 @@ class AccountingSourceRepository {
             WHERE sale.company_id = ?
               AND sale.deleted_at IS NULL
               AND sale.sale_date BETWEEN ? AND ?
+              AND NOT EXISTS (SELECT 1 FROM pos_returns pending_return
+                WHERE pending_return.company_id = sale.company_id AND pending_return.sales_record_id = sale.id
+                  AND pending_return.status IN ('PREPARED', 'PROCESSING'))
               AND (
                 (LOWER(sale.commercial_status) = 'approved' AND (
                   LOWER(sale.finance_status) = 'approved' OR EXISTS (
@@ -112,6 +115,18 @@ class AccountingSourceRepository {
                 rs.getString("sale_lines_json"),
                 rs.getBoolean("on_credit"), money(rs.getBigDecimal("credit_amount")), money(rs.getBigDecimal("cash_amount"))
             ), companyId, from, to);
+    }
+
+    List<AccountingPostingModels.DiscoveryIssue> pendingPosReturns(long company, LocalDate from, LocalDate to) {
+        return jdbcTemplate.query("""
+            SELECT sale.id FROM sales_records sale JOIN pos_returns pending_return
+              ON pending_return.company_id = sale.company_id AND pending_return.sales_record_id = sale.id
+            WHERE sale.company_id = ? AND sale.sale_date BETWEEN ? AND ?
+              AND pending_return.status IN ('PREPARED', 'PROCESSING')
+            """, (rs, row) -> new AccountingPostingModels.DiscoveryIssue("PENDING_POS_RETURN", "BLOCKING",
+                    "sales", "SALE", String.valueOf(rs.getLong("id")), "La venta tiene una devolución pendiente en POS.",
+                    "Resuelve el reembolso al medio original o cancela la preparación antes de contabilizar."),
+                    company, from, to);
     }
 
     List<ExpenseSource> findExpenses(long companyId, LocalDate from, LocalDate to) {

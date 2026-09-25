@@ -23,6 +23,8 @@ This document governs general backend engineering. More specific approved contra
 
 - `docs/INDICE_PREMIUM_MULTITENANT_BILLING_ARCHITECTURE.md` for commercial multitenancy and billing;
 - `docs/kiosk-standard-engine-v2.md` for kiosks and public operational channels;
+- `docs/sales-pos-ownership-and-retry-contract-v1.md` for Sales/POS ownership, checkout
+  retries, original-tender POS returns and their explicit accounting/closed-cut boundaries;
 - module domain contracts, such as the Finance contracts under
   `react/src/app/BasicModules/Expenses/domain/`, for approved business meaning;
 - `docs/petty-cash-managed-assets-contract-v1.md` for fund asset collections and immutable

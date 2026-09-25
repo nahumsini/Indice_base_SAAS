@@ -113,7 +113,7 @@ const getDocumentText = (locale: string) => {
     payrollRun: 'Payroll run detail',
     period: 'Period',
     rate: 'Rate',
-    reportSource: 'Source: Indice payroll engine',
+    reportSource: 'Source: Payroll records',
     documentVersion: 'Document version',
     fiscalNotice: 'Calculated from recorded data, configured rules, and available public references. This document supports — and does not replace — review by the accounting or tax professional responsible for the applicable jurisdiction.',
     regularHours: 'Regular hours',
@@ -163,7 +163,7 @@ const getDocumentText = (locale: string) => {
     payrollRun: 'Detalle de corrida de nómina',
     period: 'Periodo',
     rate: 'Tasa',
-    reportSource: 'Fuente: motor de nómina Índice',
+    reportSource: 'Fuente: registros de nómina',
     documentVersion: 'Versión documental',
     fiscalNotice: 'Cálculos elaborados con los datos registrados, reglas configuradas y referencias públicas disponibles. Este documento facilita, pero no sustituye, la revisión del profesional contable o fiscal responsable en la jurisdicción aplicable.',
     regularHours: 'Horas regulares',
@@ -209,7 +209,7 @@ const getDocumentText = (locale: string) => {
     payrollRun: 'Détail du cycle de paie',
     period: 'Période',
     rate: 'Taux',
-    reportSource: 'Source : moteur de paie Indice',
+    reportSource: 'Source : registres de paie',
     documentVersion: 'Version du document',
     fiscalNotice: 'Calculé à partir des données enregistrées, des règles configurées et des références publiques disponibles. Ce document facilite, sans la remplacer, la révision du professionnel comptable ou fiscal responsable dans la juridiction applicable.',
     regularHours: 'Heures régulières',
@@ -260,7 +260,7 @@ const getDocumentText = (locale: string) => {
     payrollRun: 'Detalhe da folha de pagamento',
     period: 'Período',
     rate: 'Alíquota',
-    reportSource: 'Fonte: motor de folha Indice',
+    reportSource: 'Fonte: registros da folha',
     documentVersion: 'Versão do documento',
     fiscalNotice: 'Calculado com os dados registrados, as regras configuradas e as referências públicas disponíveis. Este documento facilita, mas não substitui, a revisão do profissional contábil ou fiscal responsável na jurisdição aplicável.',
     regularHours: 'Horas regulares',
@@ -283,7 +283,7 @@ const getDocumentText = (locale: string) => {
     confidential: '기밀', currency: '기준 통화', continuation: '계속', deductions: '총 공제', description: '상세', detail: '직원 급여 상세',
     earnings: '총 지급액', employee: '직원', employeeCode: '직원 코드', employer: '고용주 부담', empty: '이 기간에 기록이 없습니다.', generated: '업데이트',
     incentive: '승인된 인센티브', itemSource: '출처', jurisdiction: '관할', net: '실수령액', note: '메모', page: '페이지', payrollRun: '급여 실행 상세',
-    period: '기간', rate: '비율', reportSource: '출처: Índice 급여 엔진', documentVersion: '문서 버전',
+    period: '기간', rate: '비율', reportSource: '출처: 급여 기록', documentVersion: '문서 버전',
     fiscalNotice: '등록된 데이터, 설정된 규칙 및 사용 가능한 공개 기준을 바탕으로 계산되었습니다. 이 문서는 해당 관할의 회계 또는 세무 전문가 검토를 지원하지만 대체하지 않습니다.',
     regularHours: '정규 시간', overtimeHours: '초과 근무', lateEvents: '지각', leaveDays: '휴가 일수', daysPayable: '지급 일수', scope: '단위 / 사업',
     status: '상태', treatment: '처리', type: '유형', workSchedule: '근무 일정', warning: '알림',
@@ -295,7 +295,7 @@ const getDocumentText = (locale: string) => {
     category: '类别', calculation: '计算', calculationCut: '计算截止', code: '代码', concept: '项目', confidential: '机密', currency: '本位币', continuation: '续页',
     deductions: '扣款总额', description: '明细', detail: '员工薪资明细', earnings: '收入总额', employee: '员工', employeeCode: '员工代码', employer: '雇主承担',
     empty: '本期没有记录。', generated: '更新时间', incentive: '已批准激励', itemSource: '来源', jurisdiction: '司法辖区', net: '实发工资', note: '备注',
-    page: '页', payrollRun: '薪资批次明细', period: '期间', rate: '费率', reportSource: '来源：Índice 薪资引擎', documentVersion: '文档版本',
+    page: '页', payrollRun: '薪资批次明细', period: '期间', rate: '费率', reportSource: '来源：薪资记录', documentVersion: '文档版本',
     fiscalNotice: '根据已登记数据、已配置规则和可用公开参考进行计算。本文件用于支持适用司法辖区会计或税务专业人员的审核，但不能替代其专业审核。',
     regularHours: '正常工时', overtimeHours: '加班工时', lateEvents: '迟到', leaveDays: '请假天数', daysPayable: '应付天数', scope: '单元 / 业务',
     status: '状态', treatment: '处理方式', type: '类型', workSchedule: '工作安排', warning: '提醒',
@@ -378,8 +378,8 @@ function PrintFooter({ generatedAt, locale, page, reportId, totalPages, version 
   const text = getDocumentText(locale);
   return (
     <footer className="prpdf-document-footer">
-      <span>Powered by www.indiceapp.com · {text.generated}: {formatDateTime(generatedAt, locale)}</span>
-      <span>{text.confidential} · {reportId} · v{version} · {text.page} {page} / {totalPages}</span>
+      <span>{text.generated}: {formatDateTime(generatedAt, locale)}</span>
+      <span>{text.confidential} · {reportId} · v{version}</span>
     </footer>
   );
 }

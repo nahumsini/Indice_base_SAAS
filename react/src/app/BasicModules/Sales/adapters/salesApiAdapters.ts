@@ -199,7 +199,7 @@ const dateOnly = (value: unknown) => toStringValue(value).slice(0, 10);
 const normalizeSaleInventoryStatus = (value: unknown): SaleRecord['inventoryStatus'] => {
   const status = toStringValue(value, 'pending').trim().toLowerCase().replace(/[\s-]+/g, '_');
 
-  if (status === 'reserved' || status === 'approved' || status === 'unavailable') {
+  if (status === 'reserved' || status === 'approved' || status === 'unavailable' || status === 'returned') {
     return status;
   }
 
@@ -213,7 +213,7 @@ const normalizeSaleInventoryStatus = (value: unknown): SaleRecord['inventoryStat
 const normalizeSaleInventoryMovementStatus = (value: unknown): SaleRecord['inventoryMovementStatus'] => {
   const status = toStringValue(value, 'not_generated').trim().toLowerCase().replace(/[\s-]+/g, '_');
 
-  if (status === 'not_generated' || status === 'pending' || status === 'approved' || status === 'completed') {
+  if (status === 'not_generated' || status === 'pending' || status === 'approved' || status === 'completed' || status === 'reversed') {
     return status;
   }
 
@@ -610,6 +610,7 @@ export function toFrontendSaleRecord(row: ApiRow): SaleRecord {
   return {
     id: toStringValue(row.id),
     backendId: toOptionalNumber(row.id),
+    sourceType: row.sourceType === 'POS' ? 'POS' : 'SALES',
     saleNumber: toStringValue(row.saleNumber),
     quoteId: relationId(row.quoteId),
     prospectId: relationId(row.opportunityId) ?? toStringValue(customFields.prospectId),

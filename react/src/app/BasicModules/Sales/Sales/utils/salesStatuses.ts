@@ -47,6 +47,7 @@ export const defaultVisibleSalesColumns = salesColumnConfigs
   .map((column) => column.id);
 
 export const commercialStatusClasses: Record<CommercialStatus, string> = {
+  completed: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   pending_validation: 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05]',
   approved: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   rejected: 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#B63B32]',
@@ -54,6 +55,8 @@ export const commercialStatusClasses: Record<CommercialStatus, string> = {
 };
 
 export const validationStatusClasses = {
+  returned: 'border-slate-300 bg-slate-100 text-slate-600',
+  captured: 'border-blue-200 bg-blue-50 text-blue-700',
   pending: 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05]',
   approved: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   rejected: 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#B63B32]',

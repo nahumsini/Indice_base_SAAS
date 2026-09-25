@@ -32,7 +32,7 @@ class FinancialReportingService {
     private static final BigDecimal ZERO = new BigDecimal("0.0000");
     private static final BigDecimal TOLERANCE = new BigDecimal("0.0100");
     private static final Set<String> SOURCE_EVENT_BLOCKER_CODES = Set.of(
-        "MISSING_EXCHANGE_RATE",
+        "MISSING_EXCHANGE_RATE", "PENDING_POS_RETURN",
         "MISSING_PRODUCT_COST",
         "UNBALANCED_PAYROLL_SOURCE",
         "UNPOSTED_SOURCE_EVENT",
@@ -144,6 +144,8 @@ class FinancialReportingService {
 
     @Transactional
     PeriodActionResponse closePeriod(long companyId, long userId, String periodKey) {
+        // Same order as source posting and POS returns: company, then period/shift.
+        ledgerRepository.lockCompanySources(companyId);
         YearMonth month = parsePeriodKey(periodKey);
         if (!month.atEndOfMonth().isBefore(LocalDate.now(timezones.resolve(companyId)))) {
             throw new IllegalArgumentException("El período debe haber terminado antes de cerrarlo.");
