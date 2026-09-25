@@ -63,6 +63,9 @@ test("editing preserves omitted fields and commits only the immutable confirmati
     }
   });
   try {
+    const tools = (await session.client.listTools()).tools;
+    assert.equal(tools.find(tool => tool.name === "update_task")?.annotations?.destructiveHint, true);
+    assert.equal(tools.find(tool => tool.name === "preview_update_task")?.annotations?.destructiveHint, false);
     const prepared = await session.client.callTool({ name: "preview_update_task", arguments: { task_id: 701, priority: "high", assignee_user_company_id: 52 } });
     assert.equal(prepared.isError, undefined);
     assert.match(JSON.stringify(prepared.content), /Previous assignee.*Synthetic assignee/);

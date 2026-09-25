@@ -59,7 +59,7 @@ export function registerTaskEditingTools(server: McpServer, reader: TaskEditor, 
       idempotency_key: z.string().min(8).max(128)
     }).strict(),
     outputSchema: taskCommitResponseSchema,
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false }
   }, async input => {
     try {
       if (!reader.updateTask) throw new Error("Task editing unavailable");
