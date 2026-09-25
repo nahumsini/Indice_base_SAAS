@@ -3,73 +3,60 @@ set -euo pipefail
 
 image="${1:-indice-erp-backend:ci}"
 backend_container="${CI_SMOKE_BACKEND_CONTAINER:-indice-erp-backend-ci-smoke}"
-minio_container="${CI_SMOKE_MINIO_CONTAINER:-indice-erp-minio-ci-smoke}"
-minio_image="${CI_SMOKE_MINIO_IMAGE:-quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z}"
-minio_root_user="${CI_SMOKE_MINIO_ROOT_USER:-minioadmin}"
-minio_root_password="${CI_SMOKE_MINIO_ROOT_PASSWORD:-minioadmin}"
+storage_stub_port="${CI_SMOKE_STORAGE_STUB_PORT:-19000}"
+storage_stub_url="http://127.0.0.1:${storage_stub_port}"
+storage_stub_container_url="${CI_SMOKE_STORAGE_STUB_CONTAINER_URL:-${storage_stub_url}}"
+storage_stub_bind="${CI_SMOKE_STORAGE_STUB_BIND:-127.0.0.1}"
 server_address="${CI_SMOKE_SERVER_ADDRESS:-127.0.0.1}"
 server_port="${CI_SMOKE_SERVER_PORT:-8083}"
 health_url="http://${server_address}:${server_port}/api/v1/auth/me"
-minio_health_url="http://127.0.0.1:9000/minio/health/live"
 
 : "${TEST_DATASOURCE_URL:?TEST_DATASOURCE_URL is required}"
 : "${TEST_DATASOURCE_USERNAME:?TEST_DATASOURCE_USERNAME is required}"
 : "${TEST_DATASOURCE_PASSWORD:?TEST_DATASOURCE_PASSWORD is required}"
 
-started_minio=0
+storage_stub_pid=""
 
 cleanup() {
   docker rm -f "${backend_container}" >/dev/null 2>&1 || true
-  if [[ "${started_minio}" == "1" ]]; then
-    docker rm -f "${minio_container}" >/dev/null 2>&1 || true
+  if [[ -n "${storage_stub_pid}" ]]; then
+    kill "${storage_stub_pid}" >/dev/null 2>&1 || true
+    wait "${storage_stub_pid}" 2>/dev/null || true
   fi
 }
 trap cleanup EXIT
 
-minio_is_live() {
-  curl -fsS "${minio_health_url}" >/dev/null 2>&1
-}
+start_storage_stub() {
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  python3 "${script_dir}/ci-object-storage-stub.py" "${storage_stub_port}" "${storage_stub_bind}" &
+  storage_stub_pid="$!"
 
-wait_for_minio() {
-  for attempt in $(seq 1 30); do
-    if minio_is_live; then
+  for attempt in $(seq 1 20); do
+    if curl -fsS "${storage_stub_url}/minio/health/live" >/dev/null 2>&1; then
       return 0
     fi
-    if ! docker ps --format '{{.Names}}' | grep -Fxq "${minio_container}"; then
-      echo "MinIO smoke container exited before it became healthy." >&2
-      docker logs --tail 120 "${minio_container}" >&2 || true
+    if ! kill -0 "${storage_stub_pid}" >/dev/null 2>&1; then
+      echo "Object storage stub exited before it became ready." >&2
       return 1
     fi
-    sleep 2
+    sleep 1
   done
 
-  echo "MinIO did not become healthy at ${minio_health_url}." >&2
-  docker logs --tail 120 "${minio_container}" >&2 || true
+  echo "Object storage stub did not become ready at ${storage_stub_url}." >&2
   return 1
-}
-
-ensure_minio() {
-  if minio_is_live; then
-    echo "Using existing MinIO service at ${minio_health_url}."
-    return 0
-  fi
-
-  docker rm -f "${minio_container}" >/dev/null 2>&1 || true
-  docker run -d \
-    --name "${minio_container}" \
-    -p 9000:9000 \
-    -e "MINIO_ROOT_USER=${minio_root_user}" \
-    -e "MINIO_ROOT_PASSWORD=${minio_root_password}" \
-    "${minio_image}" \
-    server /data >/dev/null
-  started_minio=1
-  wait_for_minio
 }
 
 wait_for_backend() {
   for attempt in $(seq 1 36); do
     response="$(curl -sS "${health_url}" 2>/dev/null || true)"
-    if printf '%s' "${response}" | grep -q "User is not authenticated"; then
+    internal_status="$(
+      docker exec "${backend_container}" sh -lc \
+        "wget -S -O /dev/null http://127.0.0.1:${server_port}/api/v1/auth/me 2>&1 || true" \
+        2>/dev/null || true
+    )"
+    if printf '%s' "${response}" | grep -q "User is not authenticated" \
+        || printf '%s' "${internal_status}" | grep -q "HTTP/1.1 401"; then
       echo "Backend smoke check passed with Flyway ${1}."
       return 0
     fi
@@ -111,6 +98,11 @@ run_backend_smoke() {
     -e "APP_SESSION_COOKIE_SAME_SITE=lax" \
     -e "APP_SESSION_TIMEOUT=12h" \
     -e "APP_HR_FACE_ENABLED=false" \
+    -e "APP_STORAGE_PROVIDER=minio" \
+    -e "APP_STORAGE_REQUIRED=true" \
+    -e "APP_STORAGE_MINIO_ENDPOINT=${storage_stub_container_url}" \
+    -e "APP_STORAGE_MINIO_ACCESS_KEY=ci-smoke-access-key" \
+    -e "APP_STORAGE_MINIO_SECRET_KEY=ci-smoke-secret-key" \
     -e "JAVA_OPTS=-Xms256m -Xmx768m" \
     "${image}" >/dev/null
 
@@ -118,6 +110,6 @@ run_backend_smoke() {
   docker rm -f "${backend_container}" >/dev/null 2>&1 || true
 }
 
-ensure_minio
+start_storage_stub
 run_backend_smoke false
 run_backend_smoke true
