@@ -6,7 +6,6 @@ import {
   IndiceFilterSelect,
 } from '../../../../components/frontend-os';
 import {
-  type CortesDifferenceFilter,
   type CortesFilters,
   type CortesPeriodFilter,
   getCortesPeriodRange,
@@ -109,14 +108,6 @@ const periodOptions = (copy: CortesCopy): Array<{ label: string; value: CortesPe
   { label: copy.filters.periods.week, value: 'week' },
   { label: copy.filters.periods.month, value: 'month' },
   { label: copy.filters.periods.custom, value: 'custom' },
-];
-
-const differenceOptions: Array<{ label: string; value: CortesDifferenceFilter }> = [
-  { label: 'Todos', value: 'all' },
-  { label: 'Cuadrados', value: 'balanced' },
-  { label: 'Con diferencia', value: 'withDifference' },
-  { label: 'Faltantes', value: 'short' },
-  { label: 'Sobrantes', value: 'over' },
 ];
 
 const allOption = (label: string): CortesFilterOption => ({ label, value: 'all' });

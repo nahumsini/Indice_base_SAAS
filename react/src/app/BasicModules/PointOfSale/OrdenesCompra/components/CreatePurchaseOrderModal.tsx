@@ -931,41 +931,6 @@ export function CreatePurchaseOrderModal({
                 />
               </div>
 
-              <div className="mt-4 rounded-2xl border border-dashed border-[#FF6B5E]/35 bg-[#FF6B5E]/5 p-4">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-                  <Input label="Producto nuevo" value={newProductName} onChange={setNewProductName} />
-                  <Input label="SKU / codigo" value={newProductSku} onChange={setNewProductSku} />
-                  <button type="button" onClick={() => void createProductAndSelect()} disabled={creatingProduct || !(newProductName.trim() || productSearch.trim())} className="h-11 rounded-xl bg-[#FF6B5E] px-5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
-                    {creatingProduct ? 'Creando...' : 'Agregar producto al catalogo'}
-                  </button>
-                </div>
-              </div>
-
-              <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
-                {lines.length === 0 ? (
-                  <div className="p-8 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
-                    Agrega productos para controlar inventario, costos y precios reales.
-                  </div>
-                ) : lines.map((line) => {
-                  const lineSubtotal = line.quantity * line.unitCost;
-                  const lineTax = lineSubtotal * (line.taxRate / 100);
-                  return (
-                    <div key={line.id} className="grid gap-3 border-b border-slate-100 bg-white p-3 text-sm last:border-b-0 dark:border-slate-800 dark:bg-slate-900 md:grid-cols-[1fr_90px_120px_120px_120px_40px]">
-                      <div>
-                        <p className="font-bold text-slate-950 dark:text-white">{line.productName}</p>
-                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{line.sku || 'Sin SKU'}</p>
-                      </div>
-                      <span className="font-semibold text-slate-600 dark:text-slate-300">{line.quantity}</span>
-                      <span className="font-semibold text-slate-600 dark:text-slate-300">{formatMoney(line.unitCost, currencyCode)}</span>
-                      <span className="font-semibold text-slate-600 dark:text-slate-300">{formatMoney(lineTax, currencyCode)}</span>
-                      <span className="font-bold text-slate-950 dark:text-white">{formatMoney(lineSubtotal + lineTax, currencyCode)}</span>
-                      <button type="button" onClick={() => setLines((current) => current.filter((item) => item.id !== line.id))} className="rounded-lg p-2 text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/10" aria-label="Eliminar partida">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
             </section>
           </div>
         ) : null}
@@ -1089,18 +1054,6 @@ function SectionTitle({ icon, subtitle, title }: { icon: ReactNode; subtitle: st
       <div className="min-w-0">
         <h4 className="text-base font-medium text-slate-950 dark:text-white sm:text-lg">{title}</h4>
         <p className="mt-0.5 text-sm leading-5 text-slate-500 dark:text-slate-400">{subtitle}</p>
-      </div>
-    </div>
-  );
-}
-
-function SectionTitle({ icon, subtitle, title }: { icon: ReactNode; subtitle: string; title: string }) {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#FF6B5E]/10 text-[#B63B32]">{icon}</span>
-      <div>
-        <h4 className="text-lg font-bold text-slate-950 dark:text-white">{title}</h4>
-        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{subtitle}</p>
       </div>
     </div>
   );
