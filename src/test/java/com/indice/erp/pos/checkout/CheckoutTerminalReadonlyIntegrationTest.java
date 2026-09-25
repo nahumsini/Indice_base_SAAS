@@ -16,8 +16,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(properties={
-    "spring.datasource.url=jdbc:mysql://127.0.0.1:${indice.test.mysql-port:3307}/indice_test_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC",
-    "spring.datasource.username=indice_test_user", "spring.datasource.password=indice_test_pass",
     "app.pos.mercado-pago.enabled=false", "app.pos.square.enabled=false"})
 class CheckoutTerminalReadonlyIntegrationTest {
     @Autowired JdbcTemplate jdbc;
