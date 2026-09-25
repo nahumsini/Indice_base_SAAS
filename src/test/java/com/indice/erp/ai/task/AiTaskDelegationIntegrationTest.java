@@ -60,6 +60,9 @@ class AiTaskDelegationIntegrationTest {
         assertThat(preview.task().assignee()).isEqualTo("Synthetic assignee");
         assertThat(preview.task().assigneeUserCompanyId()).isEqualTo(recipient[1]);
         assertThat(count("process_tasks")).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ai_action_confirmations WHERE company_id=? AND tool_name='create_task_v2'", Integer.class, company)).isEqualTo(1);
+        // The previous release's reader cannot reconstruct this confirmation with the wrong assignee.
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ai_action_confirmations WHERE company_id=? AND tool_name='create_task'", Integer.class, company)).isZero();
         var request = new CommitRequest(preview.confirmationToken(), UUID.randomUUID().toString());
         var result = actions.commit(token, request);
         assertThat(result.task().assigneeUserCompanyId()).isEqualTo(recipient[1]);

@@ -41,7 +41,7 @@ public class AiTaskActionRepository {
                      confirmation_hash, request_fingerprint, normalized_args_json,
                      task_title, task_description, task_priority, task_due_date, expires_at)
                     VALUES (?, ?, ?, ?, '%s', ?, ?, CAST(? AS JSON), ?, ?, ?, ?, ?)
-                    """.formatted(draft.tool()),
+                    """.formatted(confirmationTool(draft)),
                 new String[] {"id"}
             );
             statement.setLong(1, token.id());
@@ -73,7 +73,7 @@ public class AiTaskActionRepository {
                        request_fingerprint, normalized_args_json, task_title,
                        task_description, task_priority, task_due_date, expires_at, consumed_at
                 FROM ai_action_confirmations
-                WHERE confirmation_hash = ? AND tool_name IN ('create_task', 'update_task')
+                WHERE confirmation_hash = ? AND tool_name IN ('create_task', 'create_task_v2', 'update_task')
                 LIMIT 1
                 """,
             (rs, rowNum) -> new Confirmation(
@@ -230,6 +230,12 @@ public class AiTaskActionRepository {
             errorCode,
             truncate(errorMessage, 255)
         );
+    }
+
+    private static String confirmationTool(TaskDraft draft) {
+        // Older releases reconstruct create_task confirmations as self-assigned. Keep explicit
+        // assignments invisible to that reader so rollback rejects rather than changes the assignee.
+        return draft.taskId() == null && draft.assigneeUserCompanyId() != null ? "create_task_v2" : draft.tool();
     }
 
     private TaskDraft parseDraft(String value) {

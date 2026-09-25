@@ -151,7 +151,11 @@ state and rejects a stale preview before applying the partial patch. The confirm
 owner mutation, execution result and successful audit share one transaction. Retries return the
 stored result only after current task visibility is rechecked. Legacy create confirmations and
 execution rows remain readable; new draft/result data uses the existing JSON columns, without a
-schema migration. The MCP/backend/web catalog and consent changes must be deployed together.
+schema migration. Explicit creation drafts use the internal confirmation discriminator
+`create_task_v2`; the public tool, execution and audit names remain `create_task`. Earlier releases
+cannot consume those pending confirmations as self-assigned tasks after rollback. Legacy
+`create_task` confirmations remain readable by this release. The MCP/backend/web catalog and
+consent changes must be deployed together.
 
 ## 5. Data minimization and result contracts
 
