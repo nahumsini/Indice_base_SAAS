@@ -59,7 +59,7 @@ does not consume another slot. Never raise the limit or revoke other connections
 
 ## 3. Current tool authorization matrix
 
-The table describes all 40 MCP tools. `Any(...)` means at least one current tab grant is required.
+The table describes all 59 MCP tools. `Any(...)` means at least one current tab grant is required.
 Every row also inherits the common invariant above.
 
 | Tool | OAuth scope | Owner module and tab permission | Risk and additional rule |
@@ -104,6 +104,17 @@ Every row also inherits the common invariant above.
 | `register_fund_expense` | `petty_cash.expense:create` | `petty_cash`; `petty_cash.control` | Confirmed balance-impacting action |
 | `preview_add_money_to_fund` | `petty_cash.deposit:create` | `petty_cash`; `petty_cash.control` | Preparation; exact source account required |
 | `add_money_to_fund` | `petty_cash.deposit:create` | `petty_cash`; `petty_cash.control` | Confirmed Treasury-impacting action |
+
+| `get_customer_detail` | `customers.read` | Same customer read gate as `search_customers` | Commercial contact fields only; no fiscal data |
+| `list_opportunities`, `get_opportunity_detail`, `get_opportunity_pipeline` | `opportunities.read` | `crm.leads`, capability `sales` | Scoped rows/counts; configured flow positions and separate currency totals |
+| `list_quotes`, `get_quote_detail` | `quotes.read` | `crm.quotes`, capability `sales` | Scoped quotes, ordered lines and owner totals |
+| `search_commercial_assignees` | `commercial.references:read` | CRM: Any(`contacts`, `leads`, `quotes`), capability `sales` | Active scoped memberships; no account/employee-ID substitution |
+| `preview_create_customer`, `create_customer` | `customers.create` | `crm.contacts`, capability `sales` | Confirmed shared customer creation |
+| `preview_update_customer`, `update_customer` | `customers.update` | `crm.contacts`, capability `sales` | Confirmed partial edit/reassignment |
+| `preview_create_opportunity`, `create_opportunity` | `opportunities.create` | `crm.leads`, capability `sales` | Confirmed creation linked to an authorized customer |
+| `preview_update_opportunity`, `update_opportunity` | `opportunities.update` | `crm.leads`, capability `sales` | Confirmed partial edit, configured stage transition or reassignment |
+| `preview_create_quote`, `create_quote` | `quotes.create` | `crm.quotes`, capability `sales` | Confirmed quote with backend line/total calculation |
+| `preview_update_quote`, `update_quote` | `quotes.update` | `crm.quotes`, capability `sales` | Confirmed partial edit, commercial status or reassignment; sales conversion excluded |
 
 Module and tab names in this matrix refer to canonical keys such as
 `inventory.inventory` and `expenses.expenses`. Capability checks remain `sales`, `inventory`, `pos`,
@@ -156,6 +167,16 @@ schema migration. Explicit creation drafts use the internal confirmation discrim
 cannot consume those pending confirmations as self-assigned tasks after rollback. Legacy
 `create_task` confirmations remain readable by this release. The MCP/backend/web catalog and
 consent changes must be deployed together.
+
+### Commercial workflow
+
+The [commercial assistant contract](indice-mcp-commercial-contract-v1.md) owns the bounded
+customers → opportunities → quotations delivery. New read and action consent is explicit at
+connection creation; existing grants and refresh tokens retain their stored scopes. All six
+commercial mutations keep the five-minute preview/confirm protocol. Sales owns validation,
+flow transitions and calculations. AI owns connection binding, idempotency and the atomic action
+audit. The existing generic action persistence is shared through `AiActionRepository`; Finance
+keeps its compatibility class and unchanged action protocol. No new action tables or migrations.
 
 ## 5. Data minimization and result contracts
 

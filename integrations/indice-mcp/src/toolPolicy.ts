@@ -3,6 +3,26 @@ import { indiceToolNameSchema, type IndiceToolName } from "./contracts.js";
 
 /** Discovery metadata only. Spring remains the authority for every invocation. */
 export const toolScopes: Record<IndiceToolName, string> = {
+  get_customer_detail: "customers.read",
+  list_opportunities: "opportunities.read",
+  get_opportunity_detail: "opportunities.read",
+  get_opportunity_pipeline: "opportunities.read",
+  list_quotes: "quotes.read",
+  get_quote_detail: "quotes.read",
+  search_commercial_assignees: "commercial.references:read",
+  create_customer: "customers.create",
+  preview_create_customer: "customers.create",
+  update_customer: "customers.update",
+  preview_update_customer: "customers.update",
+  create_opportunity: "opportunities.create",
+  preview_create_opportunity: "opportunities.create",
+  update_opportunity: "opportunities.update",
+  preview_update_opportunity: "opportunities.update",
+  create_quote: "quotes.create",
+  preview_create_quote: "quotes.create",
+  update_quote: "quotes.update",
+  preview_update_quote: "quotes.update",
+
   get_sales_today: "sales.today:read", get_business_snapshot: "business.snapshot:read",
   get_attention_items: "business.snapshot:read", search_employees: "hr.people:read",
   get_employee_overview: "hr.people:read", get_attendance_exceptions: "hr.attendance:read",
@@ -44,6 +64,10 @@ export function isRetryableRead(path: string, method: string): boolean {
     const name = indiceToolNameSchema.safeParse(pathname.slice("/api/v1/ai/tools/query/".length));
     return name.success && /(?:\.read|:read)$/.test(toolScopes[name.data]);
   }
-  return ["organization", "payment-accounts", "funds", "customers", "providers", "warehouses", "budget-lines", "accounting-accounts"]
+  if (pathname?.startsWith("/api/v1/ai/tools/commercial/")) {
+    const name = indiceToolNameSchema.safeParse(pathname.slice("/api/v1/ai/tools/commercial/".length));
+    return name.success && /(?:\.read|:read)$/.test(toolScopes[name.data]);
+  }
+  return ["task-assignees", "organization", "payment-accounts", "funds", "customers", "providers", "warehouses", "budget-lines", "accounting-accounts"]
     .some(reference => pathname === `/api/v1/ai/tools/references/${reference}`);
 }

@@ -68,7 +68,8 @@ class AiAccessTokenServiceTest {
             AiAccessTokenService.PROVIDERS_READ,
             AiAccessTokenService.WAREHOUSES_READ,
             AiAccessTokenService.BUDGET_LINES_READ,
-            AiAccessTokenService.ACCOUNTING_ACCOUNTS_READ
+            AiAccessTokenService.ACCOUNTING_ACCOUNTS_READ,
+            "opportunities.read", "quotes.read", "commercial.references:read"
         );
         assertEquals(expectedScopes, issued.scopes());
         assertEquals(NOW.plusSeconds(7L * 24 * 60 * 60), issued.expiresAt());

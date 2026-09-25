@@ -1479,7 +1479,7 @@ class SalesRepository {
         return total == null ? BigDecimal.ZERO : total;
     }
 
-    private static BigDecimal calculateLineTotal(BigDecimal quantity, BigDecimal unitPrice, BigDecimal discountPercent, BigDecimal taxPercent) {
+    static BigDecimal calculateLineTotal(BigDecimal quantity, BigDecimal unitPrice, BigDecimal discountPercent, BigDecimal taxPercent) {
         var subtotal = quantity.multiply(unitPrice);
         var discount = subtotal.multiply(discountPercent).divide(BigDecimal.valueOf(100));
         var afterDiscount = subtotal.subtract(discount);

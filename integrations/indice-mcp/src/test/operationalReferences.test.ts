@@ -53,9 +53,9 @@ for (const definition of definitions) {
   });
 }
 
-test("new catalog is closed and accepts all 40 implemented tools", () => {
-  assert.equal(indiceToolNameSchema.options.length, 40);
-  assert.equal(toolCapabilitiesSchema.parse({ version: "v1", tools: indiceToolNameSchema.options }).tools.length, 40);
+test("new catalog is closed and accepts all 59 implemented tools", () => {
+  assert.equal(indiceToolNameSchema.options.length, 59);
+  assert.equal(toolCapabilitiesSchema.parse({ version: "v1", tools: indiceToolNameSchema.options }).tools.length, 59);
   assert.equal(toolCapabilitiesSchema.safeParse({ version: "v1", tools: ["pay_anything"] }).success, false);
 });
 

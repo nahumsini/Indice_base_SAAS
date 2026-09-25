@@ -55,6 +55,18 @@ class AiToolAuthorizationServiceTest {
     }
 
     @Test
+    void commercialActionsRequireTheOwningTabAndLiveEntitlement() {
+        allowLegacyAccess();
+        for (String tool : com.indice.erp.ai.commercial.AiCommercialAccess.ACTIONS) {
+            assertTrue(service.canUseCommercialTool(USER, tool));
+            String tab = tool.endsWith("customer") ? "crm.contacts" : tool.endsWith("opportunity") ? "crm.leads" : "crm.quotes";
+            verify(tabPermissionAccessService, org.mockito.Mockito.atLeastOnce()).canAccess(USER, TabPermissionRequirement.one(tab));
+        }
+        when(tabPermissionAccessService.canAccess(eq(USER), any())).thenReturn(false);
+        for (String tool : com.indice.erp.ai.commercial.AiCommercialAccess.ACTIONS) assertFalse(service.canUseCommercialTool(USER, tool));
+    }
+
+    @Test
     void allowsOnlyWhenCurrentIndiceAccessStillAllowsSalesKpis() {
         allowLegacyAccess();
 

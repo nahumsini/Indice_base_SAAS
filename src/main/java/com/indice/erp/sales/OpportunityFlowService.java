@@ -45,6 +45,17 @@ class OpportunityFlowService {
         this.repository = repository;
     }
 
+    /** Read-only configuration for assistants; unlike the UI catalog, never initializes rows. */
+    List<SalesAssistantContracts.Flow> assistantFlows(long companyId) {
+        var flows = repository.listFlows(companyId);
+        if (flows.isEmpty()) return List.of(new SalesAssistantContracts.Flow(null, "Factory flow", true,
+            DEFAULT_STAGES.stream().map(stage -> new SalesAssistantContracts.Stage(stage.key(), stage.label(),
+                stage.type(), stage.defaultProbabilityPercent())).toList()));
+        return flows.stream().map(flow -> new SalesAssistantContracts.Flow(flow.id(), flow.name(), flow.defaultFlow(),
+            repository.listActiveStages(companyId, flow.id()).stream().map(stage -> new SalesAssistantContracts.Stage(
+                stage.key(), stage.label(), stage.type(), stage.defaultProbabilityPercent())).toList())).toList();
+    }
+
     @Transactional
     CatalogResponse catalog(long companyId, boolean canManage) {
         ensureFactory(companyId);

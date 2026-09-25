@@ -1,3 +1,4 @@
+import { registerCommercialTools, type CommercialReader } from "./commercialTools.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { RegisteredTool } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerOperationalReferenceTools, type OperationalReferenceReader } from "./operationalReferenceTools.js";
@@ -35,7 +36,7 @@ import type {
   TaskPreviewResponse
 } from "./contracts.js";
 
-export interface IndiceBusinessReader extends OperationalReferenceReader {
+export interface IndiceBusinessReader extends OperationalReferenceReader, CommercialReader {
   getSalesToday(preferredCurrency?: string): Promise<SalesTodaySummary>;
   getBusinessSnapshot(query?: BusinessSnapshotQuery): Promise<BusinessSnapshot>;
   queryBusiness?(tool: string, args?: Record<string, unknown>): Promise<BusinessQueryResult>;
@@ -57,7 +58,7 @@ export function createIndiceMcpServer(
 ): McpServer {
   const server = new McpServer({
     name: "indice-business-tools",
-    version: "0.3.0"
+    version: "0.4.0"
   }, { instructions: lupitaInstructions });
 
   const salesTodayTool = server.registerTool("get_sales_today", {
@@ -324,6 +325,7 @@ export function createIndiceMcpServer(
   registerReferenceResolverTools(server, reader, allowedTools);
   registerOperationalReferenceTools(server, reader, allowedTools);
   registerTaskEditingTools(server, reader, allowedTools);
+  registerCommercialTools(server, reader, allowedTools);
   registerFinanceActionTools(server, reader, allowedTools);
 
   return server;

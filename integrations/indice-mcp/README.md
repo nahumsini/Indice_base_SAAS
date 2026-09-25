@@ -29,9 +29,18 @@ Herramientas disponibles:
 - `preview_register_fund_expense` / `register_fund_expense`: registra una salida exacta en un fondo; no autoriza un gasto global.
 - `preview_add_money_to_fund` / `add_money_to_fund`: registra un depósito adicional desde una cuenta fuente exacta.
 
+- Comercial: `get_customer_detail`, `list_opportunities`, `get_opportunity_detail`, `get_opportunity_pipeline`,
+  `list_quotes`, `get_quote_detail`, `search_commercial_assignees`.
+- `preview_create_customer` / `create_customer` y `preview_update_customer` / `update_customer`.
+- `preview_create_opportunity` / `create_opportunity` y `preview_update_opportunity` / `update_opportunity`.
+- `preview_create_quote` / `create_quote` y `preview_update_quote` / `update_quote`.
+  Todas requieren confirmar la vista previa y sus nuevos permisos. Omitir campos los conserva;
+  las cotizaciones calculan partidas y total en el servidor. No convierten a venta ni envían mensajes.
+  Ver el [contrato comercial](../../docs/indice-mcp-commercial-contract-v1.md).
+
 ## Requisitos
 
-El catálogo contiene 40 herramientas (30 consultas y 10 pasos de las cinco acciones existentes).
+El catálogo contiene 59 herramientas (37 consultas y 22 pasos de once acciones).
 La inicialización incorpora la guía de comportamiento de Lupita. El alcance, las perspectivas
 especialistas y las funciones todavía pendientes están en el
 [contrato de evolución](../../docs/indice-lupita-mcp-evolution-contract.md).

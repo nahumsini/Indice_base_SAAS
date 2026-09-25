@@ -37,6 +37,15 @@ public class AiAccessTokenService {
     public static final String WAREHOUSES_READ = "warehouses.read";
     public static final String BUDGET_LINES_READ = "budget_lines.read";
     public static final String ACCOUNTING_ACCOUNTS_READ = "accounting_accounts.read";
+    public static final String CUSTOMERS_CREATE = "customers.create";
+    public static final String CUSTOMERS_UPDATE = "customers.update";
+    public static final String OPPORTUNITIES_READ = "opportunities.read";
+    public static final String OPPORTUNITIES_CREATE = "opportunities.create";
+    public static final String OPPORTUNITIES_UPDATE = "opportunities.update";
+    public static final String QUOTES_READ = "quotes.read";
+    public static final String QUOTES_CREATE = "quotes.create";
+    public static final String QUOTES_UPDATE = "quotes.update";
+    public static final String COMMERCIAL_REFERENCES_READ = "commercial.references:read";
     public static final String TASKS_CREATE = "tasks.create";
     public static final String TASKS_DELEGATE = "tasks.delegate";
     public static final String TASKS_UPDATE = "tasks.update";
@@ -60,10 +69,12 @@ public class AiAccessTokenService {
         RECEIVABLES_READ,
         BUSINESS_CONTEXT_READ,
         FINANCE_REFERENCES_READ,
-        CUSTOMERS_READ, PROVIDERS_READ, WAREHOUSES_READ, BUDGET_LINES_READ, ACCOUNTING_ACCOUNTS_READ
+        CUSTOMERS_READ, PROVIDERS_READ, WAREHOUSES_READ, BUDGET_LINES_READ, ACCOUNTING_ACCOUNTS_READ,
+        OPPORTUNITIES_READ, QUOTES_READ, COMMERCIAL_REFERENCES_READ
     );
     private static final Set<String> ACTION_SCOPES = Set.of(
         TASKS_CREATE, TASKS_DELEGATE, TASKS_UPDATE,
+        CUSTOMERS_CREATE, CUSTOMERS_UPDATE, OPPORTUNITIES_CREATE, OPPORTUNITIES_UPDATE, QUOTES_CREATE, QUOTES_UPDATE,
         EXPENSES_CREATE,
         PETTY_CASH_EXPENSE_CREATE,
         PETTY_CASH_DEPOSIT_CREATE

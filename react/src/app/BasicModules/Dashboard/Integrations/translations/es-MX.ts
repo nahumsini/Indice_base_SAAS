@@ -112,6 +112,16 @@ export const esMX: IntegrationsTranslations = {
     finance: { label: 'Gastos y flujo de dinero', description: 'Gastos, saldos de fondos y dinero por cobrar.' },
   },
   scopes: {
+    'opportunities.read': { label: 'Oportunidades y pipeline', description: 'Consulta oportunidades, etapas y totales por moneda.' },
+    'quotes.read': { label: 'Cotizaciones', description: 'Consulta cotizaciones, partidas y totales.' },
+    'commercial.references:read': { label: 'Responsables comerciales', description: 'Identifica responsables activos dentro de tu alcance.' },
+    'customers.create': { label: 'Crear clientes', description: 'Crear clientes sólo después de confirmar la vista previa.' },
+    'customers.update': { label: 'Editar clientes', description: 'Editar clientes sólo después de confirmar la vista previa.' },
+    'opportunities.create': { label: 'Crear oportunidades', description: 'Crear oportunidades sólo después de confirmar la vista previa.' },
+    'opportunities.update': { label: 'Editar oportunidades', description: 'Editar oportunidades sólo después de confirmar la vista previa.' },
+    'quotes.create': { label: 'Crear cotizaciones', description: 'Crear cotizaciones sólo después de confirmar la vista previa.' },
+    'quotes.update': { label: 'Editar cotizaciones', description: 'Editar cotizaciones sólo después de confirmar la vista previa.' },
+
     'customers.read': { label: 'Clientes', description: 'Consulta clientes compartidos de Ventas y POS dentro de tu alcance autorizado.' },
     'providers.read': { label: 'Proveedores', description: 'Consulta proveedores autorizados de Gastos e Inventarios.' },
     'warehouses.read': { label: 'Almacenes', description: 'Identifica almacenes por nombre, unidad y negocio.' },

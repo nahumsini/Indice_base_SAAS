@@ -187,6 +187,15 @@ public class AiToolAuthorizationService {
             || canUseModuleCapability(user, "pos", "pos", TabPermissionRequirement.one("pos.clientes"));
     }
 
+    public boolean canUseCommercialTool(AuthSessionUser user, String tool) {
+        if (tool.equals("get_customer_detail")) return canReadCustomers(user);
+        if (tool.equals("search_commercial_assignees")) return canUseModuleCapability(user, "crm", "sales",
+            TabPermissionRequirement.any("crm.contacts", "crm.leads", "crm.quotes"));
+        String tab = tool.endsWith("customer") ? "crm.contacts"
+            : (tool.contains("opportunit") ? "crm.leads" : "crm.quotes");
+        return canUseModuleCapability(user, "crm", "sales", TabPermissionRequirement.one(tab));
+    }
+
     public boolean canReadProviders(AuthSessionUser user) {
         return canUseModuleCapability(user, "expenses", "expenses", TabPermissionRequirement.one("expenses.providers"))
             || canUseModuleCapability(user, "inventory", "inventory", TabPermissionRequirement.one("inventory.providers"));

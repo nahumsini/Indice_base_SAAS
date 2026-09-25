@@ -1,3 +1,4 @@
+import { commercialTools } from "./commercialTools.js";
 import type { IndiceMcpConfig } from "./config.js";
 import { backendRequest, type RequestContext } from "./backendTransport.js";
 import { bearerChallenge } from "./toolPolicy.js";
@@ -69,6 +70,20 @@ export class IndiceClient {
     private readonly delegatedAccessToken: string | undefined = config.accessToken,
     private readonly requestContext: RequestContext = {}
   ) {
+  }
+
+  async commercial(tool: string, input: Record<string, unknown>): Promise<unknown> {
+    const definition = commercialTools[tool];
+    if (!definition) throw new IndiceApiError("Unsupported commercial tool.");
+    const request = definition.input.parse(input);
+    const response = await this.request(`/api/v1/ai/tools/commercial/${tool}`, {
+      method: "POST", headers: { Authorization: `Bearer ${this.requireDelegatedToken()}`, "Content-Type": "application/json" },
+      body: JSON.stringify(request)
+    });
+    if (!response.ok) throw await this.apiError(response, "Unable to complete the commercial operation.");
+    const parsed = definition.output.safeParse(await response.json());
+    if (!parsed.success) throw new IndiceApiError("Indice returned an invalid commercial contract.");
+    return parsed.data;
   }
 
   async getSalesToday(preferredCurrency?: string): Promise<SalesTodaySummary> {

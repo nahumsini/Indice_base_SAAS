@@ -147,6 +147,16 @@ export const enCA: IntegrationsTranslations = {
     finance: { label: 'Expenses and cash flow', description: 'Expenses, fund balances, and money to collect.' },
   },
   scopes: {
+    'opportunities.read': { label: 'Opportunities and pipeline', description: 'Read opportunities, stages and totals by currency.' },
+    'quotes.read': { label: 'Quotes', description: 'Read quotes, line items and totals.' },
+    'commercial.references:read': { label: 'Commercial assignees', description: 'Identify active assignees within your scope.' },
+    'customers.create': { label: 'Create customers', description: 'Create customers only after confirming the preview.' },
+    'customers.update': { label: 'Edit customers', description: 'Edit customers only after confirming the preview.' },
+    'opportunities.create': { label: 'Create opportunities', description: 'Create opportunities only after confirming the preview.' },
+    'opportunities.update': { label: 'Edit opportunities', description: 'Edit opportunities only after confirming the preview.' },
+    'quotes.create': { label: 'Create quotes', description: 'Create quotes only after confirming the preview.' },
+    'quotes.update': { label: 'Edit quotes', description: 'Edit quotes only after confirming the preview.' },
+
     'customers.read': { label: 'Customers', description: 'Reads shared Sales and POS customers within your authorized scope.' },
     'providers.read': { label: 'Suppliers', description: 'Reads authorized Expenses and Inventory suppliers.' },
     'warehouses.read': { label: 'Warehouses', description: 'Identifies warehouses by name, unit and business.' },

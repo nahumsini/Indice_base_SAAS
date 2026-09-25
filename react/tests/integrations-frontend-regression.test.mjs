@@ -94,6 +94,7 @@ test('las cinco referencias operativas se ofrecen una sola vez como lecturas, nu
   }
   assert.equal(new Set(constants.AI_SCOPE_DEFINITIONS.map((scope) => scope.code)).size, constants.AI_SCOPE_DEFINITIONS.length);
   assert.deepEqual([...constants.ACTION_SCOPE_CODES], [
+    'customers.create', 'customers.update', 'opportunities.create', 'opportunities.update', 'quotes.create', 'quotes.update',
     'tasks.delegate', 'tasks.update', 'tasks.create', 'expenses.create', 'petty_cash.expense:create', 'petty_cash.deposit:create',
   ]);
 });
@@ -111,6 +112,21 @@ test('delegar y editar requieren consentimiento explícito y tienen texto en amb
   const english = read('translations/en-CA.ts');
   const oauth = readFileSync(resolve(root, 'src/app/Auth/AiOAuthAuthorizePage.tsx'), 'utf8');
   for (const scope of ['tasks.delegate', 'tasks.update']) {
+    assert.equal(constants.READ_SCOPE_CODES.includes(scope), false);
+    assert.equal(constants.ACTION_SCOPE_CODES.filter(code => code === scope).length, 1);
+    for (const source of [spanishSource, english, oauth]) assert.ok(source.includes(scope));
+  }
+});
+
+
+test('el recorrido comercial separa consultas de escrituras y mantiene consentimiento explícito', () => {
+  const english = read('translations/en-CA.ts');
+  const oauth = readFileSync(resolve(root, 'src/app/Auth/AiOAuthAuthorizePage.tsx'), 'utf8');
+  for (const scope of ['opportunities.read', 'quotes.read', 'commercial.references:read']) {
+    assert.ok(constants.READ_SCOPE_CODES.includes(scope));
+    assert.equal(constants.ACTION_SCOPE_CODES.includes(scope), false);
+  }
+  for (const scope of ['customers.create', 'customers.update', 'opportunities.create', 'opportunities.update', 'quotes.create', 'quotes.update']) {
     assert.equal(constants.READ_SCOPE_CODES.includes(scope), false);
     assert.equal(constants.ACTION_SCOPE_CODES.filter(code => code === scope).length, 1);
     for (const source of [spanishSource, english, oauth]) assert.ok(source.includes(scope));

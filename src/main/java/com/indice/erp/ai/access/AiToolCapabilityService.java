@@ -104,6 +104,14 @@ public class AiToolCapabilityService {
             () -> authorizationService.canAddMoneyToFund(user),
             "preview_add_money_to_fund", "add_money_to_fund");
 
+        for (String tool : com.indice.erp.ai.commercial.AiCommercialAccess.READS) {
+            add(tools, token, com.indice.erp.ai.commercial.AiCommercialAccess.scope(tool),
+                () -> authorizationService.canUseCommercialTool(user, tool), tool);
+        }
+        for (String tool : com.indice.erp.ai.commercial.AiCommercialAccess.ACTIONS) {
+            add(tools, token, com.indice.erp.ai.commercial.AiCommercialAccess.scope(tool),
+                () -> authorizationService.canUseCommercialTool(user, tool), "preview_" + tool, tool);
+        }
         return List.copyOf(tools);
     }
 

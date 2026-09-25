@@ -3,6 +3,16 @@ export type AiScopeKind = 'read' | 'action';
 export const INDICE_MCP_SERVER_URL = 'https://app.indiceapp.com/api/v1/ai/mcp';
 
 export const AI_SCOPE_DEFINITIONS = [
+  { code: 'opportunities.read', group: 'sales', kind: 'read' },
+  { code: 'quotes.read', group: 'sales', kind: 'read' },
+  { code: 'commercial.references:read', group: 'sales', kind: 'read' },
+  { code: 'customers.create', group: 'actions', kind: 'action' },
+  { code: 'customers.update', group: 'actions', kind: 'action' },
+  { code: 'opportunities.create', group: 'actions', kind: 'action' },
+  { code: 'opportunities.update', group: 'actions', kind: 'action' },
+  { code: 'quotes.create', group: 'actions', kind: 'action' },
+  { code: 'quotes.update', group: 'actions', kind: 'action' },
+
   { code: 'sales.today:read', group: 'overview', kind: 'read' },
   { code: 'business.snapshot:read', group: 'overview', kind: 'read' },
   { code: 'business.context:read', group: 'overview', kind: 'read' },
@@ -47,7 +57,7 @@ export const READ_SCOPE_GROUPS: ReadonlyArray<{
   scopeCodes: AiScopeCode[];
 }> = [
   { id: 'overview', scopeCodes: ['sales.today:read', 'business.snapshot:read', 'business.context:read'] },
-  { id: 'sales', scopeCodes: ['sales.read', 'pos.read', 'customers.read'] },
+  { id: 'sales', scopeCodes: ['sales.read', 'pos.read', 'customers.read', 'opportunities.read', 'quotes.read', 'commercial.references:read'] },
   { id: 'inventory', scopeCodes: ['inventory.read', 'warehouses.read'] },
   { id: 'people', scopeCodes: ['hr.people:read', 'hr.attendance:read'] },
   { id: 'work', scopeCodes: ['tasks.read'] },

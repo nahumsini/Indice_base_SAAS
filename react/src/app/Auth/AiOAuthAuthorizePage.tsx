@@ -9,6 +9,12 @@ import { IndiceBrandLogo } from './components/IndiceBrandLogo';
 
 const actionScopes = new Set([
   'tasks.create',
+  'customers.create',
+  'customers.update',
+  'opportunities.create',
+  'opportunities.update',
+  'quotes.create',
+  'quotes.update',
   'tasks.delegate',
   'tasks.update',
   'expenses.create',
@@ -17,6 +23,16 @@ const actionScopes = new Set([
 ]);
 
 const scopeLabels: Record<string, string> = {
+  'opportunities.read': 'Oportunidades y pipeline',
+  'quotes.read': 'Cotizaciones',
+  'commercial.references:read': 'Responsables comerciales',
+  'customers.create': 'Crear clientes',
+  'customers.update': 'Editar clientes',
+  'opportunities.create': 'Crear oportunidades',
+  'opportunities.update': 'Editar oportunidades',
+  'quotes.create': 'Crear cotizaciones',
+  'quotes.update': 'Editar cotizaciones',
+
   'customers.read': 'Clientes autorizados de Ventas y POS',
   'providers.read': 'Proveedores autorizados',
   'warehouses.read': 'Almacenes autorizados',

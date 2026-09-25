@@ -62,9 +62,9 @@ Los estados describen el código de esta rama; no certifican disponibilidad en p
 | Proveedores | Consulta compartida entre Gastos e Inventarios | Resolver entregado; creación/edición pendientes de decisión. |
 | Compras y descuentos | Consultar órdenes, información relacionada, vigencia y periodos | Pendiente; escritura excluida del alcance aprobado. |
 | POS | Supervisar cajas, turnos actuales/históricos, acumulados y cortes | Consulta base existente; completar filtros y agregados históricos. Sin operación física de venta ni kioscos. |
-| Clientes | Consulta, creación y edición de una misma entidad compartida | Resolver de clientes entregado; creación/edición pendientes. |
-| Oportunidades | Consulta/pipeline, crear/editar, cambiar estado y reasignar responsable | Pendiente. |
-| Cotizaciones | Consultar, crear, editar y asignar | Pendiente; el objetivo no se restringe a borradores. Los estados y efectos siguen al propietario comercial. |
+| Clientes | Consulta, creación y edición de una misma entidad compartida | Consulta, creación y edición parcial confirmadas implementadas; configuración fiscal y campos libres fuera de esta entrega. |
+| Oportunidades | Consulta/pipeline, crear/editar, cambiar estado y reasignar responsable | Implementadas con etapas del propietario, alcance vigente y confirmación. |
+| Cotizaciones | Consultar, crear, editar y asignar | Consulta, creación, edición y asignación implementadas con confirmación; admite estados comerciales además de borrador. Convertir a venta permanece en Ventas y no se simula con closed_won. |
 | Ventas, comisiones y KPIs | Solo consultar/analizar | Ventas disponibles; comisiones y cobertura específica pendientes. |
 | Gastos | Consultar, crear/subir, editar, registrar abonos y liquidar saldo | Lecturas y creación DRAFT existentes; resto pendiente. Usar correcciones/pagos del propietario, nunca falsificar PAID. |
 | Control presupuestal | Consultar, crear y editar partidas | Consulta entregada; escritura pendiente. |
@@ -189,3 +189,13 @@ con consentimiento explícito. Se conserva la vista previa y confirmación vigen
 empresas y el alcance del propietario Tareas. Edición parcial, detección de cambios concurrentes y
 reintentos idempotentes; no incluye compartir ni listas. La validación técnica no sustituye la
 aceptación OAuth real en APPTEST ni autoriza por sí sola el paso a producción.
+
+
+### Entrega comercial: clientes, oportunidades y cotizaciones
+
+El [contrato comercial](indice-mcp-commercial-contract-v1.md) añade 19 herramientas (59 en total),
+con nueve scopes nuevos. Se conserva la entidad compartida de clientes, la configuración de etapas
+y el cálculo monetario del propietario Sales. La interfaz cambia únicamente el consentimiento y
+sus textos. Sin migraciones, cambios de billing ni escrituras de ventas/cobranza/inventario.
+La presencia del código y sus pruebas no certifica activación: APPTEST requiere preflight,
+imágenes inmutables, respaldo restaurado, smoke y conversación real; producción tiene su gate propio.

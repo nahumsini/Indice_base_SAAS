@@ -312,6 +312,26 @@ export type PaymentAccountReferencePage = z.infer<typeof paymentAccountReference
 export type FundReferencePage = z.infer<typeof fundReferencePageSchema>;
 
 export const indiceToolNameSchema = z.enum([
+  "get_customer_detail",
+  "list_opportunities",
+  "get_opportunity_detail",
+  "get_opportunity_pipeline",
+  "list_quotes",
+  "get_quote_detail",
+  "search_commercial_assignees",
+  "preview_create_customer",
+  "create_customer",
+  "preview_update_customer",
+  "update_customer",
+  "preview_create_opportunity",
+  "create_opportunity",
+  "preview_update_opportunity",
+  "update_opportunity",
+  "preview_create_quote",
+  "create_quote",
+  "preview_update_quote",
+  "update_quote",
+
   "get_sales_today",
   "get_business_snapshot",
   "get_attention_items",

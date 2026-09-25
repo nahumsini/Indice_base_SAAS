@@ -40,7 +40,7 @@ public class SalesService {
             "image/jpeg",
             "image/png",
             "image/webp");
-    private static final Set<String> PRODUCT_SALES_VISIBILITIES = Set.of(
+    static final Set<String> PRODUCT_SALES_VISIBILITIES = Set.of(
             "commercial",
             "pos_ready",
             "quote_only");
