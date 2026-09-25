@@ -45,7 +45,7 @@ read_env_value() {
 validate_deployed_auth_configuration() {
   local bypass profiles
   bypass="$(read_env_value APP_AUTH_LOCAL_MFA_BYPASS_ENABLED)"
-  bypass="${bypass,,}"
+  bypass="$(printf '%s' "${bypass}" | tr '[:upper:]' '[:lower:]')"
   bypass="${bypass//\"/}"
   bypass="${bypass//\'/}"
   bypass="${bypass//[[:space:]]/}"
@@ -54,7 +54,7 @@ validate_deployed_auth_configuration() {
     return 1
   fi
   profiles="$(read_env_value SPRING_PROFILES_ACTIVE)"
-  profiles="${profiles,,}"
+  profiles="$(printf '%s' "${profiles}" | tr '[:upper:]' '[:lower:]')"
   profiles="${profiles//\"/}"
   profiles="${profiles//\'/}"
   profiles="${profiles//[[:space:]]/}"
@@ -68,8 +68,8 @@ validate_kiosk_consolidation_configuration() {
   local global_center legacy_entries
   global_center="$(read_env_value KIOSK_GLOBAL_CENTER_ENABLED)"
   legacy_entries="$(read_env_value VITE_LEGACY_OWNER_KIOSK_ENTRY_POINTS_ENABLED)"
-  global_center="${global_center,,}"
-  legacy_entries="${legacy_entries,,}"
+  global_center="$(printf '%s' "${global_center}" | tr '[:upper:]' '[:lower:]')"
+  legacy_entries="$(printf '%s' "${legacy_entries}" | tr '[:upper:]' '[:lower:]')"
   global_center="${global_center//\"/}"
   legacy_entries="${legacy_entries//\"/}"
   global_center="${global_center//\'/}"
@@ -156,9 +156,100 @@ validate_mcp_configuration() {
   fi
 }
 
+require_boolean_value() {
+  local key="$1" value
+  value="$(read_env_value "${key}")"
+  value="${value:-false}"
+  if [[ "${value}" != "true" && "${value}" != "false" ]]; then
+    echo "${key} must be true or false." >&2
+    return 1
+  fi
+}
+
+require_integer_range() {
+  local key="$1" minimum="$2" maximum="$3" value numeric
+  value="$(read_env_value "${key}")"
+  if [[ ! "${value}" =~ ^[0-9]+$ ]]; then
+    echo "${key} must be an integer from ${minimum} through ${maximum}." >&2
+    return 1
+  fi
+  numeric=$((10#${value}))
+  if (( numeric < minimum || numeric > maximum )); then
+    echo "${key} must be an integer from ${minimum} through ${maximum}." >&2
+    return 1
+  fi
+}
+
+validate_mercado_pago_configuration() {
+  local enabled environment application_id application_secret webhook_secret token_secret
+  local public_url redirect_url expected_redirect live_approved refunds_enabled
+  for key in APP_POS_MERCADO_PAGO_ENABLED APP_POS_MERCADO_PAGO_LIVE_ACTIVATION_APPROVED APP_POS_MERCADO_PAGO_REFUNDS_ENABLED; do
+    require_boolean_value "${key}"
+  done
+  enabled="$(read_env_value APP_POS_MERCADO_PAGO_ENABLED)"
+  [[ "${enabled:-false}" == "true" ]] || return 0
+
+  environment="$(read_env_value APP_POS_MERCADO_PAGO_ENVIRONMENT)"
+  [[ "${environment}" == "sandbox" || "${environment}" == "production" ]] || {
+    echo "APP_POS_MERCADO_PAGO_ENVIRONMENT must be sandbox or production." >&2
+    return 1
+  }
+  application_id="$(read_env_value APP_POS_MERCADO_PAGO_APPLICATION_ID)"
+  [[ "${application_id}" =~ ^[0-9]{1,32}$ ]] || {
+    echo "APP_POS_MERCADO_PAGO_APPLICATION_ID must be a numeric Mercado Pago application ID." >&2
+    return 1
+  }
+  application_secret="$(resolve_protected_value APP_POS_MERCADO_PAGO_APPLICATION_SECRET APP_POS_MERCADO_PAGO_APPLICATION_SECRET_FILE)"
+  webhook_secret="$(resolve_protected_value APP_POS_MERCADO_PAGO_WEBHOOK_SECRET APP_POS_MERCADO_PAGO_WEBHOOK_SECRET_FILE)"
+  token_secret="$(resolve_protected_value APP_POS_MERCADO_PAGO_TOKEN_PROTECTION_SECRET APP_POS_MERCADO_PAGO_TOKEN_PROTECTION_SECRET_FILE)"
+  [[ -n "${application_secret}" && -n "${webhook_secret}" ]] || {
+    echo "Mercado Pago application and webhook secrets are required when the integration is enabled." >&2
+    return 1
+  }
+  if (( ${#token_secret} < 32 )); then
+    echo "APP_POS_MERCADO_PAGO_TOKEN_PROTECTION_SECRET must contain at least 32 characters." >&2
+    return 1
+  fi
+  if [[ "${token_secret}" == "${application_secret}" || "${token_secret}" == "${webhook_secret}" ]]; then
+    echo "Mercado Pago token protection must use a dedicated secret." >&2
+    return 1
+  fi
+
+  public_url="$(read_env_value APP_WEB_PUBLIC_URL)"
+  redirect_url="$(read_env_value APP_POS_MERCADO_PAGO_REDIRECT_URL)"
+  expected_redirect="${public_url%/}/api/v1/pos/mercado-pago/oauth/callback"
+  [[ -n "${public_url}" && "${redirect_url}" == "${expected_redirect}" ]] || {
+    echo "APP_POS_MERCADO_PAGO_REDIRECT_URL must exactly match the public Mercado Pago callback URL." >&2
+    return 1
+  }
+  require_integer_range APP_POS_MERCADO_PAGO_PAYMENT_TIMEOUT_SECONDS 30 10800
+  require_integer_range APP_POS_MERCADO_PAGO_OAUTH_STATE_TTL_SECONDS 60 3600
+  require_integer_range APP_POS_MERCADO_PAGO_WEBHOOK_TOLERANCE_SECONDS 1 3600
+  require_integer_range APP_POS_MERCADO_PAGO_REQUEST_TIMEOUT_SECONDS 1 60
+  require_integer_range APP_POS_MERCADO_PAGO_RECONCILIATION_DELAY_MS 1000 3600000
+  require_integer_range APP_POS_MERCADO_PAGO_TERMINAL_VERIFICATION_MAX_AGE_SECONDS 10 3600
+
+  live_approved="$(read_env_value APP_POS_MERCADO_PAGO_LIVE_ACTIVATION_APPROVED)"
+  refunds_enabled="$(read_env_value APP_POS_MERCADO_PAGO_REFUNDS_ENABLED)"
+  if [[ "${environment}" == "production" ]]; then
+    [[ "${public_url}" == https://* ]] || { echo "Production Mercado Pago requires an HTTPS public URL." >&2; return 1; }
+    for key in APP_POS_MERCADO_PAGO_APPLICATION_SECRET_FILE APP_POS_MERCADO_PAGO_WEBHOOK_SECRET_FILE APP_POS_MERCADO_PAGO_TOKEN_PROTECTION_SECRET_FILE; do
+      require_env_value "${key}"
+    done
+    for key in APP_POS_MERCADO_PAGO_APPLICATION_SECRET APP_POS_MERCADO_PAGO_WEBHOOK_SECRET APP_POS_MERCADO_PAGO_TOKEN_PROTECTION_SECRET; do
+      [[ -z "$(read_env_value "${key}")" ]] || { echo "Production Mercado Pago secrets must use protected files." >&2; return 1; }
+    done
+    if [[ "${refunds_enabled}" == "true" && "${live_approved}" != "true" ]]; then
+      echo "Production Mercado Pago refunds require the global live activation gate." >&2
+      return 1
+    fi
+  fi
+}
+
 validate_deployed_auth_configuration
 validate_kiosk_consolidation_configuration
 validate_mcp_configuration
+validate_mercado_pago_configuration
 
 if [[ "${USE_EXAMPLE}" == "false" ]]; then
   required_keys=(
