@@ -1,18 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
   Database,
   Download,
-  Gauge,
   LayoutDashboard,
   Map as MapIcon,
   Network,
   Printer,
   RefreshCw,
   RotateCcw,
-  ScatterChart,
-  TrendingUp,
-  Warehouse,
 } from 'lucide-react';
 import {
   getIndiceFilterControlClassName,
@@ -30,14 +26,18 @@ import { AnalyticsDocumentPreviewModal, type AnalyticsDocumentMode } from '../co
 import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import {
-  CrossSectorPatternsView,
   DiagnosisMapView,
   DiagnosisSectorView,
-  DiagnosisSummaryView,
   ExecutiveSourcesView,
   formatFindingValue,
   getFindingCopy,
 } from './DiagnosisWorkspaceViews';
+import { CompactDiagnosisOverview } from './CompactDiagnosisOverview';
+import { CrossKpiWorkspace } from './CrossKpiWorkspace';
+import {
+  compactDiagnosisTranslations,
+  type CompactDiagnosisCopy,
+} from './compactDiagnosisTranslations';
 import { diagnosisTranslations, type DiagnosisCopy } from './diagnosisTranslations';
 import {
   diagnosisWorkspaceTranslations,
@@ -92,6 +92,7 @@ export default function KPIs({ onNavigate }: KPIsProps) {
   const locale = currentLanguage.code;
   const copy = diagnosisTranslations[locale] ?? diagnosisTranslations['es-MX'];
   const workspaceCopy = diagnosisWorkspaceTranslations[locale] ?? diagnosisWorkspaceTranslations['es-MX'];
+  const compactCopy = compactDiagnosisTranslations[locale] ?? compactDiagnosisTranslations['es-MX'];
   const portfolioCopy = productPortfolioTranslations[locale] ?? productPortfolioTranslations['es-MX'];
   const matrixCopy = decisionMatrixTranslations[locale] ?? decisionMatrixTranslations['es-MX'];
   const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
@@ -229,40 +230,47 @@ export default function KPIs({ onNavigate }: KPIsProps) {
   const resetFilters = () => setFilters(initialFilters);
 
   const navigationItems = useMemo(() => [
-    { id: 'overview' as const, label: workspaceCopy.navigation.items.overview, icon: <LayoutDashboard className="h-4 w-4" /> },
-    { id: 'map' as const, label: workspaceCopy.navigation.items.map, icon: <MapIcon className="h-4 w-4" /> },
-    { id: 'portfolio' as const, label: workspaceCopy.navigation.items.portfolio, icon: <ScatterChart className="h-4 w-4" /> },
-    { id: 'health' as const, label: workspaceCopy.navigation.items.health, icon: <Gauge className="h-4 w-4" /> },
-    { id: 'profitability' as const, label: workspaceCopy.navigation.items.profitability, icon: <TrendingUp className="h-4 w-4" /> },
-    { id: 'inventory' as const, label: workspaceCopy.navigation.items.inventory, icon: <Warehouse className="h-4 w-4" /> },
-    { id: 'patterns' as const, label: workspaceCopy.navigation.items.patterns, icon: <Network className="h-4 w-4" /> },
-    { id: 'sources' as const, label: workspaceCopy.navigation.items.sources, icon: <Database className="h-4 w-4" /> },
-  ], [workspaceCopy.navigation.items]);
+    { id: 'overview' as const, label: compactCopy.navigation.diagnosis, icon: <LayoutDashboard className="h-4 w-4" /> },
+    { id: 'patterns' as const, label: compactCopy.navigation.crossings, icon: <Network className="h-4 w-4" /> },
+    { id: 'map' as const, label: compactCopy.navigation.swot, icon: <MapIcon className="h-4 w-4" /> },
+    { id: 'sources' as const, label: compactCopy.navigation.sources, icon: <Database className="h-4 w-4" /> },
+  ], [compactCopy.navigation]);
+  const primaryNavigationValue: DiagnosisViewId = ['patterns', 'map', 'sources'].includes(activeView) ? activeView : 'overview';
 
   const activeReport = data
     ? buildActivePrintReport(data, activeView, selectedSectorId, copy, workspaceCopy, portfolioCopy, matrixCopy, locale)
     : null;
 
   return (
-    <div className="space-y-5">
+    <div className="grid min-w-0 grid-cols-1 gap-6">
       <IndiceTitleBar
+        className="mb-0"
         tone="blue"
         icon="🧩"
         title={copy.title}
-        subtitle={copy.subtitle}
+        subtitle={compactCopy.subtitle}
         actions={(
           <>
-            <Button type="button" variant="outline" disabled={!data || loading} onClick={() => setDocumentMode('export')} className="h-11 rounded-xl border-blue-200 bg-white text-blue-700 hover:bg-blue-50 dark:bg-slate-900 dark:text-blue-200">
+            <Button type="button" variant="outline" disabled={!data || loading} onClick={() => setDocumentMode('export')} className="h-11 rounded-xl border-blue-200 bg-white text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200 dark:hover:bg-blue-950/30">
               <Download className="h-4 w-4" />{workspaceCopy.actions.exportView}
             </Button>
-            <Button type="button" variant="outline" disabled={!data || loading || !isCompanyPrintIdentityReady} onClick={() => setDocumentMode('print')} className="h-11 rounded-xl border-blue-200 bg-white text-blue-700 hover:bg-blue-50 dark:bg-slate-900 dark:text-blue-200">
+            <Button type="button" variant="outline" disabled={!data || loading || !isCompanyPrintIdentityReady} onClick={() => setDocumentMode('print')} className="h-11 rounded-xl border-blue-200 bg-white text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200 dark:hover:bg-blue-950/30">
               <Printer className="h-4 w-4" />{workspaceCopy.actions.printView}
             </Button>
-            <Button type="button" disabled={loading} onClick={() => void load()} className="h-11 rounded-xl bg-blue-700 text-white hover:bg-blue-800">
+            <Button type="button" disabled={loading} onClick={() => void load()} className="h-11 rounded-xl bg-blue-600 text-white hover:bg-blue-700">
               <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />{copy.actions.refresh}
             </Button>
           </>
         )}
+      />
+
+      <IndiceWorkspaceNavigation<DiagnosisViewId>
+        ariaLabel={compactCopy.navigation.ariaLabel}
+        items={navigationItems}
+        onValueChange={setActiveView}
+        tone="blue"
+        value={primaryNavigationValue}
+        variant="views"
       />
 
       <DiagnosisFilters
@@ -272,9 +280,9 @@ export default function KPIs({ onNavigate }: KPIsProps) {
         hasActiveFilters={hasActiveFilters}
         onChange={changeFilter}
         onReset={resetFilters}
-        resultSummary={resultSummary}
         units={units}
-        workspaceCopy={workspaceCopy}
+        compactCopy={compactCopy}
+        resultSummary={resultSummary}
       />
 
       {error ? (
@@ -284,18 +292,10 @@ export default function KPIs({ onNavigate }: KPIsProps) {
         </section>
       ) : null}
 
-      <IndiceWorkspaceNavigation<DiagnosisViewId>
-        ariaLabel={workspaceCopy.navigation.ariaLabel}
-        items={navigationItems}
-        onValueChange={setActiveView}
-        tone="blue"
-        value={activeView}
-        variant="sections"
-      />
-
       {!error ? (
         <ActiveDiagnosisView
           activeView={activeView}
+          compactCopy={compactCopy}
           copy={copy}
           data={data}
           loading={loading}
@@ -312,6 +312,7 @@ export default function KPIs({ onNavigate }: KPIsProps) {
 
       {data && activeReport ? (
         <AnalyticsDocumentPreviewModal
+          quotationStyle={activeView !== 'overview' && activeView !== 'sectors'}
           company={companyPrintIdentity}
           fileName={`indice-${activeView}-${data.range.from}-${data.range.to}.html`}
           locale={locale}
@@ -328,6 +329,7 @@ export default function KPIs({ onNavigate }: KPIsProps) {
         >
           <ActiveDiagnosisView
             activeView={activeView}
+            compactCopy={compactCopy}
             copy={copy}
             data={data}
             loading={false}
@@ -345,8 +347,9 @@ export default function KPIs({ onNavigate }: KPIsProps) {
   );
 }
 
-function DiagnosisFilters({ businesses, copy, filters, hasActiveFilters, onChange, onReset, resultSummary, units, workspaceCopy }: {
+function DiagnosisFilters({ businesses, compactCopy, copy, filters, hasActiveFilters, onChange, onReset, resultSummary, units }: {
   businesses: Array<{ label: string; value: string }>;
+  compactCopy: CompactDiagnosisCopy;
   copy: DiagnosisCopy;
   filters: ExecutivePanelFilters;
   hasActiveFilters: boolean;
@@ -354,17 +357,16 @@ function DiagnosisFilters({ businesses, copy, filters, hasActiveFilters, onChang
   onReset: () => void;
   resultSummary: string;
   units: Array<{ label: string; value: string }>;
-  workspaceCopy: DiagnosisWorkspaceCopy;
 }) {
   return (
     <IndiceFilterBar
-      title={copy.filters.title}
-      subtitle={copy.filters.subtitle}
+      title={compactCopy.scope}
+      className="p-4"
       gridClassName="lg:grid-cols-3"
       summary={(
         <div className="flex flex-wrap items-center justify-end gap-2">
           <span aria-live="polite">{resultSummary}</span>
-          <Button type="button" variant="outline" disabled={!hasActiveFilters} onClick={onReset} className="h-9 rounded-xl"><RotateCcw className="h-4 w-4" />{workspaceCopy.filters.clear}</Button>
+          <Button type="button" variant="ghost" disabled={!hasActiveFilters} onClick={onReset} className="h-9 rounded-xl px-2 text-slate-600 dark:text-slate-300"><RotateCcw className="h-4 w-4" />{compactCopy.clearFilters}</Button>
         </div>
       )}
     >
@@ -385,8 +387,9 @@ function DateFilter({ label, onChange, value }: { label: string; onChange: (valu
   return <IndiceFilterField label={label}><input type="date" value={value} onChange={(event) => onChange(event.target.value)} className={getIndiceFilterControlClassName('blue')} /></IndiceFilterField>;
 }
 
-function ActiveDiagnosisView({ activeView, copy, data, loading, locale, matrixCopy, onNavigate, onSectorSelect, onViewChange, portfolioCopy, selectedSectorId, workspaceCopy }: {
+function ActiveDiagnosisView({ activeView, compactCopy, copy, data, loading, locale, matrixCopy, onNavigate, onSectorSelect, onViewChange, portfolioCopy, selectedSectorId, workspaceCopy }: {
   activeView: DiagnosisViewId;
+  compactCopy: CompactDiagnosisCopy;
   copy: DiagnosisCopy;
   data: ExecutiveKpiResponse | null;
   loading: boolean;
@@ -405,25 +408,31 @@ function ActiveDiagnosisView({ activeView, copy, data, loading, locale, matrixCo
     case 'map':
       return <DiagnosisMapView copy={copy} data={data} loading={loading} locale={locale} onNavigate={onNavigate} workspaceCopy={workspaceCopy} />;
     case 'health':
-      return <BusinessHealthMatrixView copy={matrixCopy} currency={data?.decisionMatrices.preferredCurrency ?? 'MXN'} data={data?.decisionMatrices.businessHealth ?? null} loading={loading} locale={locale} onOpen={onNavigate ? () => onNavigate('processes-tasks') : undefined} />;
+      return <AdvancedAnalysisShell compactCopy={compactCopy} onBack={() => onViewChange('overview')}><BusinessHealthMatrixView copy={matrixCopy} currency={data?.decisionMatrices.preferredCurrency ?? 'MXN'} data={data?.decisionMatrices.businessHealth ?? null} loading={loading} locale={locale} onOpen={onNavigate ? () => onNavigate('processes-tasks') : undefined} /></AdvancedAnalysisShell>;
     case 'portfolio':
-      return <div role="tabpanel"><ProductPortfolioMatrix copy={portfolioCopy} portfolio={data?.productPortfolio ?? null} loading={loading} locale={locale} onOpenSales={onNavigate ? () => onNavigate('sales') : undefined} openSalesLabel={workspaceCopy.actions.reviewSales} /></div>;
+      return <AdvancedAnalysisShell compactCopy={compactCopy} onBack={() => onViewChange('overview')}><div role="tabpanel"><ProductPortfolioMatrix copy={portfolioCopy} portfolio={data?.productPortfolio ?? null} loading={loading} locale={locale} onOpenSales={onNavigate ? () => onNavigate('sales') : undefined} openSalesLabel={workspaceCopy.actions.reviewSales} /></div></AdvancedAnalysisShell>;
     case 'profitability':
-      return <ProductProfitabilityMatrixView copy={matrixCopy} currency={data?.decisionMatrices.preferredCurrency ?? 'MXN'} data={data?.decisionMatrices.productProfitability ?? null} loading={loading} locale={locale} onOpen={onNavigate ? () => onNavigate('sales') : undefined} stockLabels={portfolioCopy.stock} />;
+      return <AdvancedAnalysisShell compactCopy={compactCopy} onBack={() => onViewChange('overview')}><ProductProfitabilityMatrixView copy={matrixCopy} currency={data?.decisionMatrices.preferredCurrency ?? 'MXN'} data={data?.decisionMatrices.productProfitability ?? null} loading={loading} locale={locale} onOpen={onNavigate ? () => onNavigate('sales') : undefined} stockLabels={portfolioCopy.stock} /></AdvancedAnalysisShell>;
     case 'inventory':
-      return <InventoryIntelligenceMatrixView copy={matrixCopy} currency={data?.decisionMatrices.preferredCurrency ?? 'MXN'} data={data?.decisionMatrices.inventoryIntelligence ?? null} loading={loading} locale={locale} onOpen={onNavigate ? () => onNavigate('inventory') : undefined} stockLabels={portfolioCopy.stock} />;
+      return <AdvancedAnalysisShell compactCopy={compactCopy} onBack={() => onViewChange('overview')}><InventoryIntelligenceMatrixView copy={matrixCopy} currency={data?.decisionMatrices.preferredCurrency ?? 'MXN'} data={data?.decisionMatrices.inventoryIntelligence ?? null} loading={loading} locale={locale} onOpen={onNavigate ? () => onNavigate('inventory') : undefined} stockLabels={portfolioCopy.stock} /></AdvancedAnalysisShell>;
     case 'patterns':
-      return <CrossSectorPatternsView copy={copy} data={data} loading={loading} onNavigate={onNavigate} workspaceCopy={workspaceCopy} />;
+      return <CrossKpiWorkspace compactCopy={compactCopy} copy={copy} data={data} loading={loading} locale={locale} onNavigate={onNavigate} workspaceCopy={workspaceCopy} />;
     case 'sources':
       return <ExecutiveSourcesView copy={copy} data={data} loading={loading} onNavigate={onNavigate} workspaceCopy={workspaceCopy} />;
     default:
-      return (
-        <div role="tabpanel" aria-label={workspaceCopy.navigation.items.overview} className="space-y-5">
-          <DiagnosisSummaryView copy={copy} data={data} embedded loading={loading} onSectorSelect={onSectorSelect} onViewChange={onViewChange} selectedSectorId={selectedSectorId} unified workspaceCopy={workspaceCopy} />
-          <DiagnosisSectorView copy={copy} data={data} embedded loading={loading} locale={locale} onNavigate={onNavigate} onSectorSelect={onSectorSelect} selectedSectorId={selectedSectorId} workspaceCopy={workspaceCopy} />
-        </div>
-      );
+      return <CompactDiagnosisOverview compactCopy={compactCopy} copy={copy} data={data} loading={loading} locale={locale} onNavigate={onNavigate} onSectorSelect={onSectorSelect} onViewChange={onViewChange} workspaceCopy={workspaceCopy} />;
   }
+}
+
+function AdvancedAnalysisShell({ children, compactCopy, onBack }: { children: ReactNode; compactCopy: CompactDiagnosisCopy; onBack: () => void }) {
+  return (
+    <div className="space-y-3">
+      <Button type="button" variant="ghost" onClick={onBack} className="h-9 rounded-xl px-2 text-blue-700 dark:text-blue-300">
+        <RotateCcw className="h-4 w-4" />{compactCopy.tools.back}
+      </Button>
+      {children}
+    </div>
+  );
 }
 
 function uniqueOptions(rows: ExecutiveUnitRow[], idKey: 'unitId' | 'businessId', labelKey: 'unitName' | 'businessName') {

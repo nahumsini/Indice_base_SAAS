@@ -205,17 +205,20 @@ export const ptBR = {
   },
   statuses: {
     commercial: {
+      completed: 'Concluída no PDV',
       pending_validation: 'Validação pendente',
       approved: 'Aprovada',
       rejected: 'Rejeitada',
       cancelled: 'Cancelada',
     },
     finance: {
+      captured: 'Registrado no PDV',
       pending: 'Pendente',
       approved: 'Aprovado',
       rejected: 'Rejeitado',
     },
     inventory: {
+      returned: 'Restituído por devolução',
       pending: 'Pendente',
       reserved: 'Reservado',
       approved: 'Aprovado',
@@ -233,12 +236,14 @@ export const ptBR = {
       paid: 'Paga',
     },
     movement: {
+      reversed: 'Estornado',
       not_generated: 'Não gerado',
       pending: 'Pendente',
       approved: 'Aprovado',
       completed: 'Concluído',
     },
     paymentEvidence: {
+      captured: 'Registrado no PDV',
       missing: 'Ausente',
       uploaded: 'Enviado',
       under_review: 'Em revisão',

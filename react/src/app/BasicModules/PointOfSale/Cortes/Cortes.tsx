@@ -26,7 +26,7 @@ import {
   getCortesPeriodRange,
   sortCortesRows,
 } from './utils/cortesUtils';
-import { buildCortesPrintReportHtml } from './utils/cortesPrintReport';
+import { buildCortesPrintReportHtml, printCortesReportHtml } from './utils/cortesPrintReport';
 import { useLearningModeHeaderActions } from '../../../learningMode';
 import { configCenterApi } from '../../../api/configCenter';
 import { usePointOfSaleResolvedLocale } from '../hooks/usePointOfSaleTranslations';
@@ -439,11 +439,7 @@ export default function Cortes() {
       warehouseLabel: getSelectedOptionLabel(warehouseOptions, filters.warehouseId, copy.common.all),
     });
 
-    reportWindow.document.open();
-    reportWindow.document.write(reportHtml);
-    reportWindow.document.close();
-    reportWindow.focus();
-    reportWindow.setTimeout(() => reportWindow.print(), 350);
+    printCortesReportHtml(reportHtml, reportWindow, locale);
   };
 
   const printSelectedReport = async () => {
@@ -471,11 +467,7 @@ export default function Cortes() {
       warehouseLabel: getSelectedOptionLabel(warehouseOptions, filters.warehouseId, copy.common.all),
     });
 
-    reportWindow.document.open();
-    reportWindow.document.write(reportHtml);
-    reportWindow.document.close();
-    reportWindow.focus();
-    reportWindow.setTimeout(() => reportWindow.print(), 350);
+    printCortesReportHtml(reportHtml, reportWindow, locale);
   };
 
   const handleRowDownload = (row: PosCashClosingSummaryRow) => {

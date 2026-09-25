@@ -37,10 +37,10 @@ const statusStyles: Record<ExecutiveKpiStatus, string> = {
 };
 
 const kindStyles: Record<ExecutiveDiagnosisKind, string> = {
-  strength: 'border-emerald-300 border-t-emerald-500 bg-emerald-50/80 dark:border-emerald-900 dark:border-t-emerald-500 dark:bg-emerald-950/25',
-  opportunity: 'border-blue-300 border-t-blue-500 bg-blue-50/80 dark:border-blue-900 dark:border-t-blue-500 dark:bg-blue-950/25',
-  symptom: 'border-amber-300 border-t-amber-500 bg-amber-50/80 dark:border-amber-900 dark:border-t-amber-500 dark:bg-amber-950/25',
-  data_gap: 'border-rose-300 border-t-rose-500 bg-rose-50/80 dark:border-rose-900 dark:border-t-rose-500 dark:bg-rose-950/25',
+  strength: 'border-slate-200 border-t-emerald-500 bg-white dark:border-slate-700 dark:border-t-emerald-500 dark:bg-slate-900',
+  opportunity: 'border-slate-200 border-t-blue-500 bg-white dark:border-slate-700 dark:border-t-blue-500 dark:bg-slate-900',
+  symptom: 'border-slate-200 border-t-amber-500 bg-white dark:border-slate-700 dark:border-t-amber-500 dark:bg-slate-900',
+  data_gap: 'border-slate-200 border-t-rose-500 bg-white dark:border-slate-700 dark:border-t-rose-500 dark:bg-slate-900',
 };
 
 const kindLetterStyles: Record<ExecutiveDiagnosisKind, string> = {
@@ -354,26 +354,22 @@ export function DiagnosisMapView({ copy, data, loading, locale, onNavigate, work
   return (
     <section role="tabpanel" data-testid="diagnosis-map-view" aria-labelledby="diagnosis-map-title">
       <ViewHeader id="diagnosis-map-title" title={copy.mapTitle} subtitle={copy.mapSubtitle} />
-      <div className="relative grid gap-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900 lg:grid-cols-2 lg:p-4" aria-label={workspaceCopy.swot.acronym}>
-        <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 z-20 hidden h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 border-white bg-slate-950 text-[10px] font-medium text-white shadow-lg dark:border-slate-900 dark:bg-white dark:text-slate-950 lg:flex">
-          {workspaceCopy.swot.acronym}
-        </span>
+      <div className="grid gap-3 lg:grid-cols-2" aria-label={workspaceCopy.swot.acronym}>
         {kinds.map((kind) => {
           const Icon = kindIcons[kind];
           const matches = entries.filter(({ finding }) => finding.kind === kind);
           return (
-            <article key={kind} className={cn('rounded-xl border border-t-4 p-4 shadow-sm sm:p-5', kindStyles[kind])}>
-              <header className="flex items-center gap-3">
-                <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border text-2xl font-medium shadow-sm', kindLetterStyles[kind])}>{workspaceCopy.swot.letters[kind]}</span>
+            <article key={kind} className={cn('overflow-hidden rounded-2xl border border-t-4 shadow-sm', kindStyles[kind])}>
+              <header className="flex items-center gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+                <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-base font-medium', kindLetterStyles[kind])}>{workspaceCopy.swot.letters[kind]}</span>
                 <div className="min-w-0 flex-1">
                   <h3 className="flex items-center gap-2 text-base font-medium text-slate-950 dark:text-white"><Icon className="h-4 w-4 shrink-0" />{copy.kinds[kind]}</h3>
-                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{workspaceCopy.swot.acronym}</p>
                 </div>
-                <span className="rounded-full border border-current/15 bg-white/70 px-2.5 py-1 text-xs font-medium dark:bg-slate-900/70">{matches.length}</span>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">{matches.length}</span>
               </header>
-              <div className="mt-4 space-y-3">
-                {matches.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">{copy.noFindings}</p> : matches.map(({ finding, sector }) => (
-                  <div key={finding.code} className="rounded-xl border border-white/80 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-900/80">
+              <div className="divide-y divide-slate-100 px-4 dark:divide-slate-800">
+                {matches.length === 0 ? <p className="py-5 text-sm text-slate-500 dark:text-slate-400">{copy.noFindings}</p> : matches.map(({ finding, sector }) => (
+                  <div key={finding.code} className="py-3">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div><p className="text-sm font-medium text-slate-950 dark:text-white">{getFindingCopy(copy, finding.code).title}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{copy.sectors[sector.id]} · {formatFindingValue(finding, data.domains.preferredCurrency, locale, copy)}</p></div>
                       <StatusBadge copy={copy} status={finding.severity} />
@@ -386,36 +382,6 @@ export function DiagnosisMapView({ copy, data, loading, locale, onNavigate, work
           );
         })}
       </div>
-    </section>
-  );
-}
-
-export function CrossSectorPatternsView({ copy, data, loading, onNavigate, workspaceCopy }: {
-  copy: DiagnosisCopy;
-  data: ExecutiveKpiResponse | null;
-  loading: boolean;
-  onNavigate?: NavigateHandler;
-  workspaceCopy: DiagnosisWorkspaceCopy;
-}) {
-  if (loading || !data) return <LoadingPanel label={copy.loading} />;
-  return (
-    <section role="tabpanel" data-testid="diagnosis-patterns-view" aria-labelledby="diagnosis-patterns-title">
-      <ViewHeader id="diagnosis-patterns-title" title={copy.crossTitle} subtitle={copy.crossSubtitle} />
-      {data.diagnosis.crossSectorFindings.length === 0 ? <EmptyPanel label={copy.noFindings} /> : (
-        <div className="grid gap-3 lg:grid-cols-2">
-          {data.diagnosis.crossSectorFindings.map((finding) => {
-            const itemCopy = copy.cross[finding.code] ?? { title: humanize(finding.code), action: copy.overview.review };
-            return (
-              <article key={finding.code} className="rounded-xl border border-blue-200 bg-white p-4 shadow-sm dark:border-blue-900 dark:bg-slate-900">
-                <div className="flex items-start justify-between gap-3"><p className="font-medium text-slate-950 dark:text-white">{itemCopy.title}</p><StatusBadge copy={copy} status={finding.severity} /></div>
-                <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{itemCopy.action}</p>
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{finding.sectorIds.map((sector) => copy.sectors[sector]).join(' · ')}</p>
-                <ModuleAction ownerModule={finding.ownerModule} onNavigate={onNavigate} workspaceCopy={workspaceCopy} />
-              </article>
-            );
-          })}
-        </div>
-      )}
     </section>
   );
 }
@@ -435,43 +401,29 @@ export function ExecutiveSourcesView({ copy, data, loading, onNavigate, workspac
         title={workspaceCopy.navigation.items.sources}
         subtitle={`${copy.context.contract}: ${data.domains.contractVersion} · ${data.domains.dataQuality.note}`}
       />
-      <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div className="hidden grid-cols-[minmax(13rem,1fr)_minmax(12rem,1fr)_8rem_8rem_auto] gap-4 border-b border-slate-100 bg-slate-50 px-4 py-3 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-400 lg:grid">
+          <span>{workspaceCopy.navigation.items.sources}</span><span>{copy.source}</span><span>{workspaceCopy.context.ready}</span><span>{workspaceCopy.context.dataQuality}</span><span className="sr-only">{workspaceCopy.actions.openModule}</span>
+        </div>
+        <div className="divide-y divide-slate-100 dark:divide-slate-800">
         {data.domains.items.map((domain) => {
           const availableMetrics = domain.metrics.filter((metric) => metric.available).length;
           const ownerLabel = workspaceCopy.modules[domain.ownerModule] ?? humanize(domain.ownerModule);
           return (
-            <article key={domain.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-              <div className="flex items-start justify-between gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
-                  <Database className="h-4 w-4" />
-                </span>
-                <StatusBadge copy={copy} status={domain.status} />
-              </div>
-              <h3 className="mt-3 text-base font-medium text-slate-950 dark:text-white">{ownerLabel}</h3>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{copy.source}: {domain.sourceContract}</p>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-950">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{workspaceCopy.context.ready}</p>
-                  <p className="mt-1 font-medium text-slate-950 dark:text-white">{availableMetrics} / {domain.metrics.length}</p>
-                </div>
-                <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-950">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{workspaceCopy.context.dataQuality}</p>
-                  <p className="mt-1 font-medium text-slate-950 dark:text-white">{domain.dataQuality.issues.length}</p>
-                </div>
-              </div>
-              {domain.dataQuality.issues.length > 0 ? (
-                <ul className="mt-3 space-y-1 text-xs leading-5 text-amber-800 dark:text-amber-200">
-                  {domain.dataQuality.issues.slice(0, 2).map((issue) => <li key={issue}>• {issue}</li>)}
-                </ul>
-              ) : null}
+            <article key={domain.id} className="grid min-w-0 gap-3 px-4 py-3 lg:grid-cols-[minmax(13rem,1fr)_minmax(12rem,1fr)_8rem_8rem_auto] lg:items-center lg:gap-4">
+              <div className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"><Database className="h-4 w-4" /></span><div className="min-w-0"><h3 className="truncate text-sm font-medium text-slate-950 dark:text-white">{ownerLabel}</h3><div className="mt-1 flex items-center gap-2 lg:hidden"><StatusBadge copy={copy} status={domain.status} /></div></div></div>
+              <div className="min-w-0"><p className="truncate text-sm text-slate-700 dark:text-slate-200">{domain.sourceContract}</p>{domain.dataQuality.issues.length > 0 ? <p className="mt-1 truncate text-xs text-amber-700 dark:text-amber-300">{domain.dataQuality.issues[0]}</p> : null}</div>
+              <div><p className="text-xs text-slate-500 lg:hidden">{workspaceCopy.context.ready}</p><p className="text-sm font-medium text-slate-950 dark:text-white">{availableMetrics} / {domain.metrics.length}</p></div>
+              <div className="flex items-center justify-between gap-3 lg:block"><div><p className="text-xs text-slate-500 lg:hidden">{workspaceCopy.context.dataQuality}</p><p className="text-sm font-medium text-slate-950 dark:text-white">{domain.dataQuality.issues.length}</p></div><span className="hidden lg:inline-flex"><StatusBadge copy={copy} status={domain.status} /></span></div>
               {onNavigate ? (
-                <Button type="button" variant="ghost" onClick={() => onNavigate(domain.actionRoute)} className="mt-3 h-9 rounded-xl px-2 text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/40">
-                  {workspaceCopy.actions.openModule} {ownerLabel}<ArrowUpRight className="h-4 w-4" />
+                <Button type="button" variant="ghost" onClick={() => onNavigate(domain.actionRoute)} className="h-9 justify-self-start rounded-xl px-2 text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/40 lg:justify-self-end">
+                  {workspaceCopy.actions.openModule}<ArrowUpRight className="h-4 w-4" />
                 </Button>
               ) : null}
             </article>
           );
         })}
+        </div>
       </div>
     </section>
   );

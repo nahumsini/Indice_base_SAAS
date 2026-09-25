@@ -4,7 +4,7 @@ import type { DocumentPrintContract } from '../../shared/print/documentPrintCont
 export const payrollRunPrintContract = {
   category: 'operational-report',
   modifiers: ['confidential', 'internal', 'fiscal', 'multi-currency'],
-  orientation: 'landscape',
+  orientation: 'portrait',
   pageSize: 'a4',
   version: '1.0',
 } as const satisfies DocumentPrintContract;
@@ -12,7 +12,7 @@ export const payrollRunPrintContract = {
 export const payrollLinePrintContract = {
   category: 'legal-document',
   modifiers: ['confidential', 'employee-facing', 'fiscal'],
-  orientation: 'landscape',
+  orientation: 'portrait',
   pageSize: 'a4',
   version: '1.0',
 } as const satisfies DocumentPrintContract;

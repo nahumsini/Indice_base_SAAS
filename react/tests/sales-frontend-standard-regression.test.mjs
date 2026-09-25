@@ -588,7 +588,9 @@ test('el detalle de venta usa el modal estándar y conserva el alta como wizard'
   assert.match(spanishCopySource, /documentTitle: 'Nota de venta'/);
   assert.doesNotMatch(spanishCopySource, /Vista previa de (?:invoice|factura)|Folio de (?:invoice|factura)|documentTitle: '(?:Invoice|Factura)'/);
 
-  assert.match(previewSource, /getSaleNotePdfBlob/);
+  assert.match(previewSource, /buildSaleNoteWebDocument/);
+  assert.match(previewSource, /buildStandardDocumentHtml/);
+  assert.match(previewSource, /sandbox=""/);
   assert.match(previewSource, /URL\.createObjectURL/);
   assert.match(previewSource, /URL\.revokeObjectURL/);
   assert.match(previewSource, /<iframe/);

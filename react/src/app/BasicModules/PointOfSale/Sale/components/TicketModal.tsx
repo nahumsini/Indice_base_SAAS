@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Download, Mail, Printer, ShoppingCart } from 'lucide-react';
 import { printDocumentHtml } from '../../../shared/print/documentHtmlPrintEngine';
 import {
-  documentPrintAttribution,
   formatDocumentPrintDateTime,
   getDocumentPrintLabels,
 } from '../../../shared/print/documentPrintContract';
@@ -76,7 +75,7 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
   };
 
   const handleDownload = () => {
-    setNotice('La descarga PDF quedo preparada para usar el motor documental de POS.');
+    handlePrint();
   };
 
   if (!isOpen) {
@@ -213,7 +212,7 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
               <p>GRACIAS POR SU COMPRA</p>
               <p className="mt-1">Conserve este ticket</p>
               <p className="mt-3 border-t border-dashed border-gray-300 pt-2 text-[10px]">
-                {documentPrintAttribution} · {printLabels.updated}: {formatDocumentPrintDateTime(now, locale)}
+                {printLabels.updated}: {formatDocumentPrintDateTime(now, locale)}
               </p>
             </div>
           </div>

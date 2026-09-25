@@ -3,8 +3,8 @@
 ## Working Draft — Not Yet Authoritative
 
 Status: Draft for implementation discovery  
-Version: 0.1  
-Last updated: 2026-07-18
+Version: 0.3 (approved company-only grayscale decision; broader certification remains draft)
+Last updated: 2026-09-17
 
 This document is a working extension of the
 [Indice Frontend Operating System v2.0](./indice-frontend-operating-system-v2.md).
@@ -17,6 +17,94 @@ Operating System remains authoritative. Analytics exports must also comply with
 
 ---
 
+## 0. Approved web-print decision — 2026-09-17
+
+Product decision: standardize **active basic-module documents** on the quotation's
+compact structure and **browser printing** (printer or Save as PDF). The subsequent
+2026-09-17 user correction requires grayscale except the company logo, portrait-first,
+compact pagination and no platform branding on these documents. The Frontend
+Operating System adopts this section for that scope. It supersedes older per-module
+print-color choices, generated-PDF defaults and blanket KPI exclusions in this draft
+and the historical inventory. It does not certify legal/fiscal/physical-printer output
+or promote unrelated draft requirements to an approved standard.
+
+### Presentation and output
+
+- White paper; black/gray text, borders, charts, statuses, metadata and totals. No coral,
+  blue, aqua or other colored accents. **Only the actual company logo keeps its color.**
+- Company-only identity: remove platform logos, name, promotional copy, attribution,
+  footer URL and PDF creator branding. Keep required business information, signatures,
+  legal notices and functional verification/QR destinations; do not redact client data
+  merely because it contains a word resembling the platform's name. This rule concerns
+  document output, not code identifiers, repository filenames or the application shell.
+- Preserve every selected/filtered row, owner-supplied amount, native currency,
+  historical snapshot, signature, fiscal disclaimer, payroll line and scope note.
+  Missing client identity stays missing; never invent a client logo or company name.
+- `Imprimir / Guardar PDF` is the primary combined output action. The user chooses
+  the printer or Save as PDF in the browser. Older compatibility functions named
+  `download*Pdf` may open this print flow; they must not promise an automatic file save.
+- A4/carta documents start in **portrait**. Use landscape only if the table's actual
+  minimum readable width requires it, including payroll and accounting tables. Retain
+  thermal 80 mm and legally required paper sizes; never squeeze a ticket into A4.
+- Prefer **one sheet whenever the complete content fits legibly**. Remove decorative
+  fixed heights, excessive spacing and arbitrary section page breaks. Try compact
+  spacing before adding a second sheet; never shrink type to illegibility or drop data.
+- Keep each paragraph, ordinary row, signature and its label together; move the whole
+  block to the next sheet if necessary. A paragraph/row taller than an entire printable
+  sheet must continue across sheets without clipping. Repeat table headings. Separate
+  legal acts retain their own page boundary. Do not print logical section counts as
+  if they were physical page numbers.
+- The preview and print use the same definition for expense table, petty-cash statement,
+  sale note and accounting statements. Existing specialized canvases retain their
+  data/chart layout; the quotation theme applies only to the exported document.
+- Wait for the print document, fonts and images; handle blocked windows and reuse
+  windows reserved before async QR/access operations. Bulk HR acts use one print job
+  with an explicit page break between acts, preserving each folio/signature.
+- Disable the browser's additional URL/date headers and footers for clean output.
+  The browser and printer driver remain responsible for final pagination and paper setup.
+
+### Runtime ownership
+
+Under `react/src/app/BasicModules/shared/print/`:
+
+- `quotationPrintTheme.ts`: document-only visual tokens; never global application CSS.
+- `documentGrayscale.ts`: neutralize document colors while exempting the company's logo.
+- `documentPrintLayout.ts`: measure tables for portrait/landscape, try compact spacing
+  and allow individually oversized blocks to continue without cutting information.
+- `standardDocumentHtml.ts`: escaped semantic HTML adapter, no business calculations.
+- `StandardDocumentPreview.tsx`: sandboxed preview, isolated from the application/IME.
+- `documentHtmlPrintEngine.ts`: browser output, readiness and popup feedback.
+- `standardDocumentLabels.ts` and `webPrintCopy.ts`: shared localized document/output copy.
+- `standardDocumentPdf.ts`: existing owner definitions and compatibility actions delegate
+  to web printing. The binary builder remains available for explicit integration use.
+
+Quotation binary generation for file sharing remains available. It is not the ordinary
+print/download action and is not deleted. Externally supplied PDFs and uploaded files
+are not restyled. CSV/XLSX data exports remain data exports.
+
+### Hard exclusions
+
+**Do not change IME**: the Dashboard Business Diagnosis PDF and the KPI maturity
+overview/dimensions keep their existing rendering and actions. Specialized KPI views
+opt into the quotation style; the shared analytics modal defaults to the old behavior.
+No theme may be injected into the protected diagnosis CSS or application shell.
+
+Dormant generators are not activated: legacy Postventa print, POS Clientes statement,
+personal-performance reports and old petty-cash vouchers are outside this active-flow
+migration. Complementary modules and external billing invoices remain outside scope.
+
+### Verification and limits
+
+Source-level regression checks cover escaped values, native currencies, long/empty
+tables, localization, popup failure, reserved windows, font readiness, binary quotation
+sharing and explicit IME exclusion. `react/scripts/verify-quotation-web-print.mjs`
+generates synthetic examples through isolated headless Chrome and checks table counts,
+horizontal overflow and PDF page creation; artifacts live in ignored `.run/print-review-2026-09-17/`.
+No business records are created by that check. Real-user end-to-end flows, physical
+printers, tagged-PDF accessibility and legal/fiscal acceptance require separate QA.
+
+---
+
 ## 1. Purpose
 
 Indice must provide a coherent enterprise document language across every
@@ -26,10 +114,8 @@ Standardize the design language, component contracts, metadata, quality checks,
 and implementation boundaries. Preserve the purpose and legal requirements of
 each document.
 
-The user should recognize an Indice document through clarity, hierarchy, and
-editorial quality rather than through oversized platform branding.
-
-The client organization is the protagonist. Indice branding remains discreet.
+Documents communicate through clarity, hierarchy and editorial quality. The client
+organization is the only brand shown in the active basic-module scope. IME remains excluded.
 
 ---
 
@@ -216,21 +302,20 @@ The Human Resources KPI report is the approved pilot for standard KPI reports.
 Until a later governed revision replaces it, KPI reports in Basic Modules must
 follow this baseline:
 
-- A4 portrait with explicit page containers and internal margins
+- A4 portrait by default, with landscape justified by table width and safe margins
 - client company identity in the running header
 - company name and corporate-office logo loaded from the Config Center company profile
 - report title as secondary header information
 - no period label in the running header
 - no Indice logo or promotional block in the header or report body
-- `Powered by www.indiceapp.com` as discreet footer attribution
+- no platform attribution or promotional footer
 - localized dynamic `Updated` timestamp in the footer
-- owned page numbering on every page
+- physical page numbering only when supported; never label content chunks as sheets
 - filename structure `document-type_company_print-date.pdf`
 - regular typography at weight 400 and medium typography at weight 500 only
 - no forced uppercase and no typographic weights of 600 or greater
 - hierarchy created through scale, spacing, alignment, and dividers rather than bold text
-- color used sparingly, primarily in charts and small semantic status indicators
-- desaturated colors suitable for professional printing and grayscale interpretation
+- grayscale charts and statuses with readable labels; company logo remains in color
 - complete data with no silent truncation
 
 If the company logo is unavailable, render the company name without reserving an
@@ -240,7 +325,7 @@ loading has completed or failed safely.
 The approved footer pattern is:
 
 ```text
-Powered by www.indiceapp.com · Updated: <localized date and time>
+Updated: <localized date and time>
 ```
 
 ---
@@ -253,55 +338,27 @@ For customer-facing and white-label documents, use this priority:
 2. Client legal or commercial name
 3. Client contact and fiscal information required by the document
 4. Document identity
-5. Discreet Indice attribution
 
 When the client logo is missing or cannot be loaded, render a stable text fallback.
 Never leave a broken image or an unexplained empty area.
 
-Suggested platform attribution:
-
-```text
-Generated by Indice
-```
-
-The final legal copy and platform URL must come from approved configuration. Do
-not hardcode marketing claims into every generator.
+No platform attribution, logo, website or promotional copy is shown in active basic
+documents. Required legal copy and operational verification links remain intact.
 
 ---
 
 ## 7. Color Rules
 
-Color depends on category:
+Active basic-module documents use black, white and neutral grays only. This overrides
+module accents and the application's brand palette **for document output only**.
 
-- Executive reports use the approved Indice editorial palette.
-- Operational reports and tab prints may use the module accent.
-- Customer-facing transaction documents prioritize client identity.
-- Legal documents use restrained color and must remain clear in grayscale.
-- Thermal documents are monochrome-first.
-- Semantic colors are reserved for real status, risk, warning, and success.
-
-All Indice-owned documents must follow the brand hierarchy defined in
-`Indice Frontend Operating System v2.0`, section 8.1:
-
-- aqua `#59C3A5` is the primary distinctive brand signature
-- dark aqua `#177D66` is the accessible aqua action color for white text
-- blue `#2563EB` is the structural and analytical color
-- deep blue `#143675` is the institutional and executive color
-- coral `#FF6B5E` and yellow `#F4C84A` are supporting accents
-- graphite `#222831` is the primary text color
-
-Use aqua sparingly for brand recognition, soft highlights, small dividers, and
-identity details. Do not use white text on `#59C3A5` or `#3AAE90`. Use graphite
-text on light aqua or white text on dark aqua `#177D66`.
-
-Blue remains an approved Indice editorial accent for analytics, executive
-reporting, functional navigation, and institutional authority. It is not a
-mandatory replacement for aqua, module, client, legal, or thermal requirements.
-
-Customer-facing and white-label documents continue to prioritize the client
-identity over the Indice palette.
-
-Never rely on color alone to communicate meaning.
+- The actual company logo retains its original colors; missing logos are not fabricated.
+- Text, borders, totals, status badges, charts and decorative elements are grayscale.
+- Convert chart colors without deleting data, labels or geometry; retain legends and
+  textual alternatives. Never rely on color alone to communicate meaning.
+- Do not put a grayscale filter on the entire page: that would desaturate the logo too.
+- Do not apply document styling to the application shell or the protected IME.
+- The same rule applies to retained quotation PDF attachments and document previews.
 
 ---
 
@@ -426,7 +483,7 @@ The footer may contain:
 - document folio
 - confidentiality or legal notice
 - generated timestamp
-- discreet Indice attribution
+- no platform attribution
 - verification code or URL
 
 Browser printing may not reliably support total page count. Treat `Page X of Y`
@@ -493,8 +550,8 @@ the selected locale supports the treatment.
 
 When a table is too wide, apply this order:
 
-1. Remove nonessential columns for the document contract.
-2. Wrap approved text columns.
+1. Preserve all columns selected by the document contract.
+2. Wrap text columns without truncation.
 3. Use compact density.
 4. Switch to landscape.
 5. Split into a primary table and appendix.
@@ -539,8 +596,10 @@ Required:
 - repeat table headers when supported
 - reserve footer space
 - prohibit browser-generated headers, timestamps, local URLs, and `blob:` references
-- give browser-printed reports explicit page containers, internal margins, and owned page numbering
-- force page breaks only for major sections or legal boundaries
+- use natural document flow and safe margins instead of fixed-height page containers
+- prefer a single sheet when content fits; do not force a new page merely for a section
+- force page breaks only between independently signed/legal documents
+- keep paragraphs complete; move them to the next sheet, except when one paragraph itself exceeds a sheet
 - use continuation labels when a section spans pages
 - prevent nearly empty final pages when possible
 

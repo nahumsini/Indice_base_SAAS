@@ -89,6 +89,25 @@ class SquareHttpTerminalGateway implements SquareTerminalGateway {
         return checkout(post("/v2/terminals/checkouts/" + checkoutId + "/cancel", token, Map.of()), null);
     }
 
+    public Refund refundPayment(String token, String key, String paymentId, BigDecimal amount, String currency) {
+        return refund(post("/v2/refunds", token, Map.of("idempotency_key", key, "payment_id", paymentId,
+                "amount_money", Map.of("amount", amount.setScale(2, java.math.RoundingMode.UNNECESSARY).movePointRight(2).longValueExact(), "currency", currency),
+                "reason", "Full POS ticket return")));
+    }
+
+    public Refund getRefund(String token, String refundId) {
+        if (!refundId.matches("[A-Za-z0-9_-]+")) throw new IllegalArgumentException("Invalid Square refund identity.");
+        return refund(get("/v2/refunds/" + refundId, token));
+    }
+
+    private Refund refund(JsonNode root) {
+        var node = root.path("refund");
+        var amount = node.path("amount_money");
+        if (!amount.path("amount").isIntegralNumber()) throw new SquareGatewayException("Square refund amount is missing.", true, null);
+        return new Refund(text(node, "id"), text(node, "payment_id"), text(node, "status"),
+                amount.path("amount").decimalValue().movePointLeft(2), text(amount, "currency"));
+    }
+
     private JsonNode get(String uri, String token) {
         try {
             return json(restClient.get().uri(uri).headers(h -> bearer(h, token)).retrieve().body(String.class));

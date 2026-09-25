@@ -134,6 +134,7 @@ test('print preview uses the same scoped definition for PDF and printer, waits f
     if (id.endsWith('useCompanyPrintIdentity')) return { useCompanyPrintIdentity: () => ({ identity: { name: 'Empresa' }, isReady: ready }) };
     if (id.endsWith('expenseTablePrint')) return print;
     if (id.endsWith('expenseTablePrint.copy')) return printCopy;
+    if (id.endsWith('webPrintCopy')) return { getWebPrintCopy: () => ({ action: 'Imprimir / Guardar PDF' }) };
     if (id.endsWith('documentPrintContract')) return { getDocumentPrintLabels: () => ({ updated: 'Actualizado' }), formatDocumentPrintDateTime: () => 'Hoy' };
     if (id.endsWith('standardDocumentPdf')) return { downloadStandardDocumentPdf: doc => { calls.push(['pdf', doc]); return 'gastos.pdf'; }, printStandardDocumentPdf: doc => { calls.push(['print', doc]); return false; } };
     return stub;
@@ -141,10 +142,10 @@ test('print preview uses the same scoped definition for PDF and printer, waits f
   const props = { snapshot: { all: [base, { ...base, id: '2', folio: 'EXP-002' }], selected: [base] }, columns, filters: 'Septiembre', references, onClose() {} };
   const all = () => nodes(runtime.render(() => component(props)));
   const button = label => all().find(node => node.type === 'button' && React.Children.toArray(node.props.children).includes(label));
-  assert.equal(button('Descargar PDF').props.disabled, true);
-  ready = true; button('Descargar PDF').props.onClick(); button('Imprimir').props.onClick();
+  assert.equal(button('Imprimir / Guardar PDF').props.disabled, true);
+  ready = true; button('Imprimir / Guardar PDF').props.onClick(); button('Imprimir / Guardar PDF').props.onClick();
   assert.strictEqual(calls[0][1], calls[1][1]); assert.equal(calls[0][1].tables[0].rows.length, 1);
   assert.ok(all().some(node => node.props?.messages?.includes(printCopy.getExpenseTablePrintCopy('es-MX').failed)));
   all().find(node => node.type === 'select').props.onChange({ target: { value: 'all' } });
-  button('Descargar PDF').props.onClick(); assert.equal(calls[2][1].tables[0].rows.length, 2);
+  button('Imprimir / Guardar PDF').props.onClick(); assert.equal(calls[2][1].tables[0].rows.length, 2);
 });

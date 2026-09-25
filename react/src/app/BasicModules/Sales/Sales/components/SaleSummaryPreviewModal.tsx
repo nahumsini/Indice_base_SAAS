@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Download, FileText, LoaderCircle, Printer, RefreshCw } from 'lucide-react';
+import { buildStandardDocumentHtml } from '../../../shared/print/standardDocumentHtml';
+import { quotationPrintTheme } from '../../../shared/print/quotationPrintTheme';
+import { escapeDocumentPrintHtml } from '../../../shared/print/documentHtmlPrintEngine';
+import { getWebPrintCopy } from '../../../shared/print/webPrintCopy';
+import { AlertCircle, FileText, LoaderCircle, Printer, RefreshCw } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { cn } from '../../../../components/ui/utils';
 import { SalesModalFrame } from '../../components/SalesModalFrame';
@@ -10,8 +14,7 @@ import type { SalesRecordsTranslations } from '../translations';
 import type { SaleRecord, SaleRecordDraft } from '../types/salesTypes';
 import type { CompanyPrintIdentity } from '../../../shared/print/useCompanyPrintIdentity';
 import {
-  downloadSaleNotePdf,
-  getSaleNotePdfBlob,
+  buildSaleNoteWebDocument,
   printSaleNotePdf,
   type SaleNotePdfContext,
 } from '../utils/saleInvoicePdf';
@@ -69,7 +72,10 @@ export function SaleSummaryPreviewModal({
     setPreviewError(false);
     setIsPreparingPreview(true);
 
-    void getSaleNotePdfBlob(pdfContext)
+    void Promise.resolve().then(() => {
+      const definition = buildSaleNoteWebDocument(pdfContext);
+      return new Blob([`<!doctype html><html lang="${escapeDocumentPrintHtml(locale)}"><head><meta charset="utf-8"><style>body{background:white;padding:24px}${quotationPrintTheme}</style></head><body>${buildStandardDocumentHtml(definition)}</body></html>`], { type: 'text/html;charset=utf-8' });
+    })
       .then((blob) => {
         if (cancelled) {
           return;
@@ -107,10 +113,6 @@ export function SaleSummaryPreviewModal({
     || t.common.notAvailable;
   const showPreparingPreview = isPreparingPreview || (!previewUrl && !previewError);
 
-  const handleDownload = () => {
-    void downloadSaleNotePdf(pdfContext);
-  };
-
   const handlePrint = () => {
     void printSaleNotePdf(pdfContext);
   };
@@ -142,19 +144,10 @@ export function SaleSummaryPreviewModal({
             type="button"
             variant="outline"
             className={cn('h-10 gap-2 px-4 text-sm font-medium', actionClassNames.secondary)}
-            onClick={handleDownload}
-          >
-            <Download className="h-4 w-4" />
-            {t.saleNote.download}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className={cn('h-10 gap-2 px-4 text-sm font-medium', actionClassNames.secondary)}
             onClick={handlePrint}
           >
             <Printer className="h-4 w-4" />
-            {t.saleNote.print}
+            {getWebPrintCopy(locale).action}
           </Button>
         </div>
       )}
@@ -188,6 +181,7 @@ export function SaleSummaryPreviewModal({
 
       {!showPreparingPreview && !previewError && previewUrl ? (
         <iframe
+          sandbox=""
           className="h-full min-h-[520px] w-full rounded-xl border border-slate-300 bg-white shadow-inner"
           src={previewUrl}
           title={`${t.summaryPreview.title}: ${salesNoteNumber}`}

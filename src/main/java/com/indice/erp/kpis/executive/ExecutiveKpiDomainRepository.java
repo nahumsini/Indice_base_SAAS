@@ -1,6 +1,7 @@
 package com.indice.erp.kpis.executive;
 
 import com.indice.erp.kpis.currency.KpiMoneyAmount;
+import com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,9 +17,11 @@ public class ExecutiveKpiDomainRepository {
             "LOWER(COALESCE(sale.commercial_status, '')) NOT IN ('cancelled', 'canceled', 'rejected', 'voided')";
 
     private final JdbcTemplate jdbcTemplate;
+    private final FinanceBusinessTimeZoneResolver timeZones;
 
-    public ExecutiveKpiDomainRepository(JdbcTemplate jdbcTemplate) {
+    public ExecutiveKpiDomainRepository(JdbcTemplate jdbcTemplate, FinanceBusinessTimeZoneResolver timeZones) {
         this.jdbcTemplate = jdbcTemplate;
+        this.timeZones = timeZones;
     }
 
     public ProcessSnapshot loadProcesses(ExecutiveKpiScope scope) {
@@ -835,7 +838,7 @@ public class ExecutiveKpiDomainRepository {
     }
 
     public PointOfSaleSnapshot loadPointOfSale(ExecutiveKpiScope scope) {
-        var closingFilter = numericScope(scope, "closing", "DATE(closing.closed_at)");
+        var closingFilter = closingScope(scope);
         var closing = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*) AS closing_count,
                        COALESCE(SUM(closing.tickets_count), 0) AS ticket_count,
@@ -877,7 +880,7 @@ public class ExecutiveKpiDomainRepository {
             case "refunds" -> "closing.total_refunds_amount";
             default -> throw new IllegalArgumentException("Unsupported executive point-of-sale metric");
         };
-        var filter = numericScope(scope, "closing", "DATE(closing.closed_at)");
+        var filter = closingScope(scope);
         return money("SELECT SUM(" + expression + ") AS amount, shift.currency_code AS currency "
                 + "FROM pos_cash_closings closing JOIN pos_shifts shift ON shift.company_id = closing.company_id "
                 + "AND shift.id = closing.shift_id WHERE closing.deleted_at IS NULL"
@@ -885,7 +888,7 @@ public class ExecutiveKpiDomainRepository {
     }
 
     public List<CurrencyCount> loadPointOfSaleTicketCountByCurrency(ExecutiveKpiScope scope) {
-        var filter = numericScope(scope, "closing", "DATE(closing.closed_at)");
+        var filter = closingScope(scope);
         return jdbcTemplate.query("""
                 SELECT COALESCE(SUM(closing.tickets_count), 0) AS record_count, shift.currency_code AS currency
                 FROM pos_cash_closings closing
@@ -972,6 +975,16 @@ public class ExecutiveKpiDomainRepository {
             params.add(scope.businessId());
         }
         return new ScopeFilter(sql.toString(), params);
+    }
+
+    private ScopeFilter closingScope(ExecutiveKpiScope scope) {
+        var organization = numericScope(scope, "closing", null);
+        var zone = timeZones.resolve(scope.companyId());
+        var params = new ArrayList<>(organization.params());
+        params.add(java.sql.Timestamp.from(scope.from().atStartOfDay(zone).toInstant()));
+        params.add(java.sql.Timestamp.from(scope.to().plusDays(1).atStartOfDay(zone).toInstant()));
+        // TIMESTAMP storage is UTC; reporting periods belong to the company's business timezone.
+        return new ScopeFilter(organization.sql() + " AND closing.closed_at >= ? AND closing.closed_at < ?", params);
     }
 
     private ScopeFilter numericScope(ExecutiveKpiScope scope, String alias, String dateColumn) {

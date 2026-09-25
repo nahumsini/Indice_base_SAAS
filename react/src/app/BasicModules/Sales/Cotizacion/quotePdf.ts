@@ -1,23 +1,25 @@
 import jsPDF from 'jspdf';
+import { printStandardDocumentHtml } from '../../shared/print/standardDocumentHtml';
+import type { StandardDocumentDefinition } from '../../shared/print/standardDocumentPdf';
 import autoTable from 'jspdf-autotable';
 import type { SalesContact, SalesOpportunity, SalesQuote } from '../types';
 import { formatSalesCurrencyAmount } from '../utils/salesCurrency';
 import type { QuotesTranslations } from './translations';
 import { getQuoteLineExchangeRateLabel } from './utils/quoteCurrencyConversion';
 import { buildDocumentFileName } from '../../shared/print/documentFileName';
-import { addStandardPdfFooters, applyStandardPdfMetadata, openStandardPdfForPrint } from '../../shared/print/documentPdfEngine';
+import { addStandardPdfFooters, applyStandardPdfMetadata } from '../../shared/print/documentPdfEngine';
 import type { CompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 
 const brand = {
-  coral: [255, 107, 94] as const,
-  yellow: [244, 200, 74] as const,
-  aqua: [89, 195, 165] as const,
-  blue: [37, 99, 235] as const,
-  graphite: [34, 40, 49] as const,
-  slate: [107, 114, 128] as const,
-  light: [247, 248, 250] as const,
-  coralLight: [255, 243, 241] as const,
-  border: [216, 220, 227] as const,
+  coral: [138, 138, 138] as const,
+  yellow: [200, 200, 200] as const,
+  aqua: [170, 170, 170] as const,
+  blue: [96, 96, 96] as const,
+  graphite: [39, 39, 39] as const,
+  slate: [114, 114, 114] as const,
+  light: [248, 248, 248] as const,
+  coralLight: [245, 245, 245] as const,
+  border: [220, 220, 220] as const,
 };
 
 type PdfDocumentWithTable = jsPDF & {
@@ -341,7 +343,7 @@ export async function buildQuotePdf({ quote, contact, opportunity, company, copy
 
   const totalsX = right - 70;
   setFill(doc, brand.coralLight);
-  setDraw(doc, [255, 199, 193]);
+  setDraw(doc, [210, 210, 210]);
   doc.roundedRect(totalsX, y, 70, 30, 3, 3, 'FD');
   const totalRows = [
     [copy.labels.subtotal, quote.subtotal],
@@ -399,16 +401,52 @@ export async function getQuotePdfBlob(context: QuotePdfContext) {
   return (await buildQuotePdf(context)).output('blob');
 }
 
+export function buildQuoteWebDocument({ quote, contact, opportunity, company, copy, locale = 'es-MX' }: QuotePdfContext): StandardDocumentDefinition {
+  const labels = commercialLabelsFor(locale);
+  const currency = quote.currency ?? 'MXN';
+  const fiscalAddress = [contact?.fiscalAddressLine1, contact?.fiscalAddressLine2, contact?.fiscalCity, contact?.fiscalState, contact?.fiscalPostalCode, contact?.fiscalCountry].filter(Boolean).join(', ');
+  return {
+    contract: { category: 'transaction-document', modifiers: ['customer-facing', 'multi-currency'], pageSize: 'a4', orientation: 'portrait', version: '1.0' },
+    fileName: { documentType: 'quotation', identifier: quote.quoteNumber },
+    title: copy.previewModal.documentTitle, folio: quote.quoteNumber, status: copy.statusLabels[quote.status],
+    issuer: company?.name, logoUrl: company?.logoUrl, recipient: quote.clientName, locale,
+    metadata: [
+      { label: copy.labels.contact, value: quote.contactPerson },
+      { label: copy.previewModal.phone, value: contact?.phone },
+      { label: copy.previewModal.email, value: contact?.email },
+      { label: labels.fiscalName, value: contact?.fiscalLegalName || quote.clientName },
+      { label: labels.taxId, value: contact?.fiscalTaxId },
+      { label: labels.fiscalRegime, value: contact?.fiscalRegime },
+      { label: labels.fiscalAddress, value: fiscalAddress },
+      { label: copy.labels.seller, value: quote.assignedSeller },
+      { label: labels.issuer, value: [company?.phone, company?.email, company?.address].filter(Boolean).join('\n') },
+      { label: copy.labels.createdDate, value: quote.createdDate },
+      { label: copy.labels.expirationDate, value: quote.expirationDate },
+      { label: copy.labels.opportunity, value: opportunity?.opportunityName },
+    ].filter(field => field.value),
+    tables: [{
+      title: copy.previewModal.itemsTitle,
+      columns: [copy.labels.product, copy.labels.section, labels.quantity, copy.labels.unitPrice, labels.discountShort, labels.taxShort, copy.previewModal.lineTotal],
+      numericColumnIndices: [2, 3, 4, 5, 6],
+      rows: quote.items.map(item => [getQuoteLinePdfLabel(item, copy, currency), item.section, String(item.quantity), formatCurrency(item.unitPrice, currency), `${item.discountPercent}%`, item.taxLabel ? `${item.taxLabel} ${item.taxPercent}%` : `${item.taxPercent}%`, formatCurrency(getLineTotal(item), currency)]),
+    }],
+    metrics: [
+      { label: copy.labels.subtotal, value: formatCurrency(quote.subtotal, currency) },
+      { label: copy.labels.discountTotal, value: formatCurrency(quote.discountTotal, currency) },
+      { label: copy.labels.taxTotal, value: formatCurrency(quote.taxTotal, currency) },
+      { label: copy.labels.total, value: formatCurrency(quote.total, currency) },
+    ],
+    sections: [
+      ...(quote.notes.trim() ? [{ title: copy.labels.notes, paragraphs: [quote.notes] }] : []),
+      { title: copy.labels.terms, paragraphs: [quote.terms || copy.previewModal.defaultTerms] },
+    ],
+  };
+}
+
 export async function downloadQuotePdf(context: QuotePdfContext) {
-  const blob = await getQuotePdfBlob(context);
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = getQuotePdfFileName(context.quote);
-  link.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return printQuotePdf(context);
 }
 
 export async function printQuotePdf(context: QuotePdfContext) {
-  return openStandardPdfForPrint(await buildQuotePdf(context), { locale: context.locale });
+  return printStandardDocumentHtml(buildQuoteWebDocument(context));
 }

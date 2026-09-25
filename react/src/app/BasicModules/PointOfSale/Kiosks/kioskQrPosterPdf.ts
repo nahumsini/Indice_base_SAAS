@@ -1,3 +1,5 @@
+import { escapeDocumentPrintHtml as escape, printDocumentHtml } from '../../shared/print/documentHtmlPrintEngine';
+import { notifyDocumentPrintFailure } from '../../shared/print/documentPrintFeedback';
 type KioskQrPosterInput = {
   kioskName: string;
   kioskCode: string;
@@ -86,8 +88,8 @@ export async function createKioskQrPosterPdf({
     subject: kioskType === 'self_checkout'
       ? 'QR de acceso público para autocobro móvil'
       : 'QR de acceso público para autoservicio y pre-ticket',
-    author: 'Indice ERP',
-    creator: 'Indice ERP - Kiosk Engine V2',
+    author: kioskName,
+    creator: kioskName,
   });
 
   doc.setFillColor(15, 118, 110);
@@ -155,7 +157,31 @@ export async function createKioskQrPosterPdf({
   };
 }
 
-export async function downloadKioskQrPosterPdf(input: KioskQrPosterInput) {
-  const { doc, fileName } = await createKioskQrPosterPdf(input);
-  doc.save(fileName);
+export async function downloadKioskQrPosterPdf(input: KioskQrPosterInput, reservedWindow?: Window | null) {
+  const targetWindow = reservedWindow === undefined ? window.open('about:blank', '_blank') : reservedWindow;
+  const locale = input.locale ?? 'es-MX';
+  if (!targetWindow) { notifyDocumentPrintFailure(locale, 'popup-blocked'); return false; }
+  try {
+    const { default: QRCode } = await import('qrcode');
+    const languageCopy = locale.toLowerCase().startsWith('es') ? posterCopy.es : posterCopy.en;
+    const copy = { ...languageCopy, ...languageCopy[input.kioskType] };
+    const qr = await QRCode.toDataURL(input.publicUrl, { errorCorrectionLevel: 'H', margin: 3, width: 1600, color: { dark: '#000000', light: '#FFFFFF' } });
+    return printDocumentHtml({
+      targetWindow, locale, documentTitle: `${safeFileName(input.kioskName)}-qr-${input.kioskType}`, pageSize: 'a4',
+      bodyHtml: `<article class="quotation-document">
+        <header class="document-header"><div class="document-identity">${escape(input.kioskName)}</div><h1>${escape(copy.title)}</h1><div class="document-reference">${escape(input.kioskCode)}</div></header>
+        <p class="document-subtitle">${escape(copy.description)}</p>
+        <p>${escape(input.assignmentLabel)}</p>
+        <section class="qr-poster"><img src="${escape(qr)}" alt="${escape(copy.scan)}" /><h2>${escape(copy.scan)}</h2>
+        <p>${copy.steps.map(escape).join(' · ')}</p><p class="qr-url">${escape(input.publicUrl)}</p></section>
+        <p class="document-notice">${escape(copy.footer)}</p>
+        <footer class="document-footer">${escape(copy.generated)}: ${escape(new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date()))}</footer>
+      </article>`,
+      contentStyles: '.qr-poster { text-align:center; break-inside:avoid; } .qr-poster img { width:112mm; height:112mm; margin:8mm auto; display:block; } .qr-url { overflow-wrap:anywhere; font-size:8pt; }',
+    });
+  } catch {
+    targetWindow.close();
+    notifyDocumentPrintFailure(locale, 'generation');
+    return false;
+  }
 }

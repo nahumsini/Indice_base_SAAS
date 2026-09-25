@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { applyDocumentGrayscale } from '../../../shared/print/documentGrayscale';
 import {
-  Download,
   FileText,
   Mail,
   MessageCircle,
@@ -8,6 +8,7 @@ import {
   Send,
 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
+import { getWebPrintCopy } from '../../../shared/print/webPrintCopy';
 import { cn } from '../../../../components/ui/utils';
 import type { SalesContact, SalesOpportunity, SalesQuote } from '../../types';
 import { SalesModalFrame } from '../../components/SalesModalFrame';
@@ -74,17 +75,6 @@ function getTaxSummary(quote: SalesQuote, copy: QuotesTranslations) {
     .join(' / ') || copy.common.unassigned;
 }
 
-function PreviewBrandBar() {
-  return (
-    <div className="flex h-2 overflow-hidden rounded-full" aria-hidden="true">
-      <span className="w-[34%] bg-[#FF6B5E]" />
-      <span className="w-[22%] bg-[#F4C84A]" />
-      <span className="w-[22%] bg-[#59C3A5]" />
-      <span className="w-[22%] bg-[#2563EB]" />
-    </div>
-  );
-}
-
 function PreviewInsightCard({
   accentClassName,
   body,
@@ -137,6 +127,10 @@ export function QuotePreviewModal({
   onClose,
 }: QuotePreviewModalProps) {
   const [isSharing, setIsSharing] = useState(false);
+  const documentRef = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    if (documentRef.current) applyDocumentGrayscale(documentRef.current);
+  }, [quote, company, locale]);
   const pdfContext = useMemo<QuotePdfContext | null>(() => (
     quote ? { quote, contact, opportunity, company, copy, locale } : null
   ), [company, contact, copy, locale, opportunity, quote]);
@@ -293,18 +287,10 @@ export function QuotePreviewModal({
             <Button
               variant="outline"
               className={cn('h-10 gap-2 px-4 text-sm font-medium', previewActionClassNames.secondary)}
-              onClick={handleDownload}
-            >
-              <Download className="h-4 w-4" />
-              {copy.previewModal.download}
-            </Button>
-            <Button
-              variant="outline"
-              className={cn('h-10 gap-2 px-4 text-sm font-medium', previewActionClassNames.secondary)}
               onClick={handlePrint}
             >
               <Printer className="h-4 w-4" />
-              {copy.previewModal.print}
+              {getWebPrintCopy(locale).action}
             </Button>
             <Button
               variant="outline"
@@ -355,7 +341,7 @@ export function QuotePreviewModal({
           </div>
       )}
     >
-          <article className="mx-auto min-h-[980px] w-full max-w-[880px] bg-white px-10 py-9 shadow-xl ring-1 ring-slate-200 sm:px-12">
+          <article ref={documentRef} className="mx-auto min-h-[980px] w-full max-w-[880px] bg-white px-10 py-9 shadow-xl ring-1 ring-slate-200 sm:px-12">
             <header className="border-b border-slate-200 pb-7">
               <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-start">
                 <div>
@@ -375,7 +361,8 @@ export function QuotePreviewModal({
               </div>
 
               <div className="mt-5">
-                <PreviewBrandBar />
+                {company?.logoUrl ? <img data-company-logo src={company.logoUrl} alt="" className="max-h-12 max-w-40 object-contain" /> : null}
+                {company?.name ? <p className="mt-2 text-sm font-medium">{company.name}</p> : null}
               </div>
 
               <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-end">

@@ -42,13 +42,14 @@ test('the maintained inventory links every active non-KPI generator to source', 
   }
 });
 
-test('shared print primitives own attribution, feedback, units, and format version', () => {
+test('shared print primitives omit platform attribution and retain feedback, units, and format version', () => {
   const contract = source('app/BasicModules/shared/print/documentPrintContract.ts');
   const pdfEngine = source('app/BasicModules/shared/print/documentPdfEngine.ts');
   const htmlEngine = source('app/BasicModules/shared/print/documentHtmlPrintEngine.ts');
   const standardDocument = source('app/BasicModules/shared/print/standardDocumentPdf.ts');
 
-  assert.match(contract, /Powered by www\.indiceapp\.com/);
+  assert.match(contract, /documentPrintAttribution = ''/);
+  assert.doesNotMatch(pdfEngine, /creator: 'Indice'|Powered by/);
   assert.match(pdfEngine, /notifyDocumentPrintFailure\(locale, 'popup-blocked'\)/);
   assert.match(htmlEngine, /notifyDocumentPrintFailure\(locale, 'popup-blocked'\)/);
   assert.match(pdfEngine, /doc\.internal\.scaleFactor/);
@@ -74,7 +75,7 @@ test('POS ticket uses live shift identity and does not print invented fiscal/con
 
   assert.match(ticket, /shift\?\.companyName/);
   assert.match(ticket, /shift\?\.currencyCode/);
-  assert.match(ticket, /documentPrintAttribution/);
+  assert.doesNotMatch(ticket, /documentPrintAttribution|Powered by|indiceapp\.com/);
   assert.doesNotMatch(ticket, /currencyCode\s*\|\|\s*'MXN'/);
   assert.doesNotMatch(ticket, /ABC123456789|Calle Principal #123|\(555\) 123-4567|IVA \(16%\)/);
 });

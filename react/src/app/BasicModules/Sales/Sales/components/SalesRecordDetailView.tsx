@@ -31,6 +31,7 @@ import { formatCommissionType } from '../utils/commissionRules';
 import { formatSalesCurrency, formatSalesDate } from '../utils/salesFormatters';
 import { normalizeSalesPaymentMethod } from '../utils/salesPaymentMethods';
 import { SalesStatusSelectors } from './SalesStatusSelectors';
+import { saleSourceOwnershipMessage } from '../translations/sourceOwnership';
 
 const actionClassNames = getSalesModalActionClassNames('coral');
 
@@ -226,9 +227,11 @@ export function SalesRecordDetailView({
         </div>
       </section>
 
-      <CollapsibleDetailSection icon={<Settings2 className="h-4 w-4" />} title={t.modal.sections.statusManagement} description={t.modal.detail.statusManagementHelper}>
+      {record.sourceType === 'POS' ? (
+        <p role="note" className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100">{saleSourceOwnershipMessage(locale)}</p>
+      ) : <CollapsibleDetailSection icon={<Settings2 className="h-4 w-4" />} title={t.modal.sections.statusManagement} description={t.modal.detail.statusManagementHelper}>
         <SalesStatusSelectors record={{ ...record, ...form }} t={t} onChange={onStatusChange} />
-      </CollapsibleDetailSection>
+      </CollapsibleDetailSection>}
 
       <CollapsibleDetailSection icon={<Building2 className="h-4 w-4" />} title={t.modal.sections.operationalContext} description={t.modal.operationalContext.helper}>
         <div className="grid gap-x-8 md:grid-cols-2">

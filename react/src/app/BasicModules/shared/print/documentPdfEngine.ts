@@ -1,6 +1,5 @@
 import type jsPDF from 'jspdf';
 import {
-  documentPrintAttribution,
   formatDocumentPrintDateTime,
   getDocumentPrintLabels,
 } from './documentPrintContract';
@@ -15,7 +14,7 @@ export const applyStandardPdfMetadata = (
 ) => {
   doc.setProperties({
     author,
-    creator: 'Indice',
+    creator: author,
     subject: subject ?? title,
     title,
   });
@@ -51,13 +50,13 @@ export const addStandardPdfFooters = (
     const margin = Math.max(millimeters(12), pageWidth * 0.065);
     const ruleY = pageHeight - millimeters(14);
     const footerY = pageHeight - millimeters(8.5);
-    doc.setDrawColor(207, 212, 216);
+    doc.setDrawColor(212, 212, 212);
     doc.setLineWidth(0.2);
     doc.line(margin, ruleY, pageWidth - margin, ruleY);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
-    doc.setTextColor(108, 114, 122);
-    doc.text(`${documentPrintAttribution} · ${labels.updated}: ${updatedValue}`, margin, footerY, {
+    doc.setTextColor(114, 114, 114);
+    doc.text(`${labels.updated}: ${updatedValue}`, margin, footerY, {
       maxWidth: pageWidth - margin * 2 - millimeters(35),
     });
     if (folio || confidentiality || version) {

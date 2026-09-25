@@ -30,7 +30,8 @@ export interface DocumentPrintContract {
   version: string;
 }
 
-export const documentPrintAttribution = 'Powered by www.indiceapp.com';
+/** Kept for legacy consumers; active documents are company-only, without platform attribution. */
+export const documentPrintAttribution = '';
 
 export const getDocumentPrintLabels = (locale: string) => {
   const language = locale.toLowerCase().split('-')[0];

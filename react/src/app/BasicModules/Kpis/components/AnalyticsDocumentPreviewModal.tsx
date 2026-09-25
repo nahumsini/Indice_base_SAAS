@@ -1,4 +1,9 @@
-import { useRef, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { applyDocumentGrayscale } from '../../shared/print/documentGrayscale';
+import type { StandardDocumentDefinition } from '../../shared/print/standardDocumentPdf';
+import { printStandardDocumentHtml } from '../../shared/print/standardDocumentHtml';
+import { StandardDocumentPreview } from '../../shared/print/StandardDocumentPreview';
+import { getWebPrintCopy } from '../../shared/print/webPrintCopy';
 import { Download, FileDown, FileText, Printer, SlidersHorizontal } from 'lucide-react';
 import { IndiceModalFrame } from '../../../components/indice-modal';
 import { Button } from '../../../components/ui/button';
@@ -18,6 +23,8 @@ export function AnalyticsDocumentPreviewModal({
   onExportData,
   scopeItems,
   title,
+  documentDefinition,
+  quotationStyle = false,
 }: {
   children: ReactNode;
   company: CompanyPrintIdentity;
@@ -28,17 +35,27 @@ export function AnalyticsDocumentPreviewModal({
   onExportData: () => void;
   scopeItems: Array<{ label: string; value: string }>;
   title: string;
+  documentDefinition?: StandardDocumentDefinition;
+  quotationStyle?: boolean;
 }) {
-  const copy = getDocumentPreviewCopy(locale);
+  const baselineCopy = getDocumentPreviewCopy(locale);
+  const copy = documentDefinition || quotationStyle
+    ? { ...baselineCopy, visualDownload: getWebPrintCopy(locale).action, visualDownloadHelp: getWebPrintCopy(locale).help }
+    : baselineCopy;
   const documentRef = useRef<HTMLDivElement>(null);
   const isExport = mode === 'export';
+  useLayoutEffect(() => {
+    if (quotationStyle && documentRef.current) applyDocumentGrayscale(documentRef.current);
+  }, [quotationStyle, children, company, mode]);
 
   const handlePrint = () => {
-    if (documentRef.current) printVisualDocument(documentRef.current, title);
+    if (documentDefinition) printStandardDocumentHtml(documentDefinition);
+    else if (documentRef.current) printVisualDocument(documentRef.current, title, quotationStyle, locale);
   };
 
   const handleVisualDownload = () => {
-    if (documentRef.current) downloadVisualDocument(documentRef.current, title, fileName);
+    if (documentDefinition || quotationStyle) handlePrint();
+    else if (documentRef.current) downloadVisualDocument(documentRef.current, title, fileName);
   };
 
   return (
@@ -60,8 +77,10 @@ export function AnalyticsDocumentPreviewModal({
         <div className="flex flex-wrap justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose} className="h-11 border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white">{copy.close}</Button>
           <Button type="button" variant="outline" onClick={onExportData} className="h-11 border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white"><Download className="h-4 w-4" />{copy.dataExport}</Button>
-          <Button type="button" variant="outline" onClick={isExport ? handlePrint : handleVisualDownload} className="h-11 border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white">{isExport ? <Printer className="h-4 w-4" /> : <FileText className="h-4 w-4" />}{isExport ? copy.print : copy.visualDownload}</Button>
-          <Button type="button" onClick={isExport ? handleVisualDownload : handlePrint} className="h-11 bg-white text-blue-800 hover:bg-blue-50">{isExport ? <FileText className="h-4 w-4" /> : <Printer className="h-4 w-4" />}{isExport ? copy.visualDownload : copy.print}</Button>
+          {documentDefinition || quotationStyle ? <Button type="button" onClick={handlePrint} className="h-11 bg-white text-blue-800 hover:bg-blue-50"><Printer className="h-4 w-4" />{getWebPrintCopy(locale).action}</Button> : <>
+            <Button type="button" variant="outline" onClick={isExport ? handlePrint : handleVisualDownload} className="h-11 border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white">{isExport ? <Printer className="h-4 w-4" /> : <FileText className="h-4 w-4" />}{isExport ? copy.print : copy.visualDownload}</Button>
+            <Button type="button" onClick={isExport ? handleVisualDownload : handlePrint} className="h-11 bg-white text-blue-800 hover:bg-blue-50">{isExport ? <FileText className="h-4 w-4" /> : <Printer className="h-4 w-4" />}{isExport ? copy.visualDownload : copy.print}</Button>
+          </>}
         </div>
       )}
     >
@@ -82,20 +101,20 @@ export function AnalyticsDocumentPreviewModal({
           </div>
         </aside>
         <section aria-label={copy.documentPreview} className="min-h-0 overflow-auto bg-slate-200/70 p-4 dark:bg-slate-950 sm:p-6">
-          <div ref={documentRef} className="indice-visual-document mx-auto min-w-[760px] max-w-[1180px] overflow-hidden rounded-xl bg-white shadow-[0_20px_55px_rgba(15,23,42,0.18)]">
+          {documentDefinition ? <StandardDocumentPreview definition={documentDefinition} /> : <div ref={documentRef} className="indice-visual-document mx-auto min-w-[760px] max-w-[1180px] overflow-hidden rounded-xl bg-white shadow-[0_20px_55px_rgba(15,23,42,0.18)]">
             <header className="border-b border-slate-200 px-8 py-6 text-slate-950">
               <div className="flex items-start justify-between gap-6">
                 <div className="flex min-w-0 items-center gap-4">
-                  {company.logoUrl ? <img src={company.logoUrl} alt="" className="h-12 w-12 rounded-xl border border-slate-200 object-contain" /> : <span className="grid h-12 w-12 place-items-center rounded-xl bg-blue-700 text-lg font-medium text-white">I</span>}
-                  <div><p className="text-lg font-medium">{company.name || 'Indice'}</p><p className="mt-0.5 text-xs text-slate-500">{company.address || company.email}</p></div>
+                  {company.logoUrl ? <img data-company-logo src={company.logoUrl} alt="" className="h-12 w-12 rounded-xl border border-slate-200 object-contain" /> : quotationStyle ? null : <span className="grid h-12 w-12 place-items-center rounded-xl bg-blue-700 text-lg font-medium text-white">I</span>}
+                  <div><p className="text-lg font-medium">{company.name || (quotationStyle ? '' : 'Indice')}</p><p className="mt-0.5 text-xs text-slate-500">{company.address || company.email}</p></div>
                 </div>
                 <div className="text-right"><p className="text-xs text-slate-500">{copy.currentView}</p><p className="mt-1 text-base font-medium text-slate-950">{title}</p></div>
               </div>
               <div className="mt-5 flex h-1.5 overflow-hidden rounded-full" aria-hidden="true"><span className="w-[34%] bg-[#2563EB]" /><span className="w-[22%] bg-[#59C3A5]" /><span className="w-[22%] bg-[#F4C84A]" /><span className="w-[22%] bg-[#FF6B5E]" /></div>
             </header>
             <div className="bg-white p-7 text-slate-950">{children}</div>
-            <footer className="flex items-center justify-between border-t border-slate-200 px-8 py-4 text-[11px] text-slate-500"><span>{company.name || 'Indice'}</span><span>{scopeItems.map((item) => item.value).join(' · ')}</span></footer>
-          </div>
+            <footer className="flex items-center justify-between border-t border-slate-200 px-8 py-4 text-[11px] text-slate-500"><span>{company.name || (quotationStyle ? '' : 'Indice')}</span><span>{scopeItems.map((item) => item.value).join(' · ')}</span></footer>
+          </div>}
         </section>
       </div>
     </IndiceModalFrame>

@@ -1,3 +1,5 @@
+import { printDocumentHtml } from '../../shared/print/documentHtmlPrintEngine';
+import { quotationPrintTheme } from '../../shared/print/quotationPrintTheme';
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, '&amp;')
@@ -37,7 +39,18 @@ function getDocumentHtml(element: HTMLElement, title: string) {
 </html>`;
 }
 
-export function printVisualDocument(element: HTMLElement, title: string) {
+export function printVisualDocument(element: HTMLElement, title: string, quotationStyle = false, locale = 'es-MX') {
+  if (quotationStyle) return printDocumentHtml({
+    bodyHtml: element.outerHTML, documentTitle: title, locale, includeApplicationStyles: true,
+    contentStyles: `${quotationPrintTheme}
+      .indice-visual-document { min-width:0 !important; max-width:none !important; width:100% !important; overflow:visible !important; box-shadow:none !important; border-radius:0 !important; }
+      .indice-visual-document [class*="overflow-"] { overflow:visible !important; }
+      .indice-visual-document table { min-width:0 !important; }
+      .indice-visual-document > header { padding:0 0 5mm !important; }
+      .indice-visual-document > header > div:last-child { display:none; }
+      .indice-visual-document > div { padding:5mm 0 !important; }
+      [data-document-screen-only="true"] { display:none !important; }`,
+  });
   const printWindow = window.open('', '_blank', 'width=1280,height=900');
   if (!printWindow) return false;
   printWindow.document.open();

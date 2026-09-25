@@ -1,158 +1,49 @@
 import type { RecordsTranslations } from '../translations';
 import type { EmployeeRecord } from '../types/records.types';
-import { buildDocumentFileName } from '../../../shared/print/documentFileName';
-import { addStandardPdfFooters, applyStandardPdfMetadata } from '../../../shared/print/documentPdfEngine';
+import { buildStandardDocumentHtml, printStandardDocumentHtml } from '../../../shared/print/standardDocumentHtml';
+import { printDocumentHtml } from '../../../shared/print/documentHtmlPrintEngine';
+import type { StandardDocumentDefinition } from '../../../shared/print/standardDocumentPdf';
 
-const addSection = (
-  doc: import('jspdf').jsPDF,
-  title: string,
-  rows: Array<[string, string]>,
-  startY: number,
-) => {
-  const left = 18;
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const maxValueWidth = pageWidth - 84;
-  let y = startY;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.setTextColor(15, 23, 42);
-  doc.text(title, left, y);
-  y += 8;
-
-  rows.forEach(([label, value]) => {
-    if (!value.trim()) {
-      return;
-    }
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(100, 116, 139);
-    doc.text(label, left, y);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(15, 23, 42);
-    const lines = doc.splitTextToSize(value, maxValueWidth);
-    doc.text(lines, 74, y);
-    y += Math.max(7, lines.length * 5 + 2);
-  });
-
-  return y + 3;
-};
-
-export async function downloadRecordPdf(
-  record: EmployeeRecord,
-  copy: RecordsTranslations,
-  locale: string,
-) {
-  const { default: jsPDF } = await import('jspdf');
-  const doc = new jsPDF({ unit: 'mm', format: 'letter' });
-  const pdfCopy = copy.pdfDocument;
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const left = 18;
-  const contentWidth = pageWidth - left * 2;
-  const issuedAt = new Intl.DateTimeFormat(locale, {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date());
-  const recordNumber = record.recordNumber || copy.pdf.recordNumber(record.id);
-  applyStandardPdfMetadata(doc, {
-    subject: pdfCopy.title,
-    title: `${pdfCopy.title} ${recordNumber}`,
-  });
-
-  doc.setDrawColor(89, 143, 127);
-  doc.setLineWidth(1.2);
-  doc.line(left, 14, pageWidth - left, 14);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.setTextColor(32, 36, 41);
-  doc.text(pdfCopy.title, left, 27);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(100, 107, 115);
-  doc.text(pdfCopy.brand, pageWidth - left, 27, { align: 'right' });
-
-  let y = 43;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(15);
-  doc.setTextColor(15, 23, 42);
-  doc.text(record.title, left, y);
-  y += 7;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(71, 85, 105);
-  doc.text(`${recordNumber} · ${pdfCopy.generatedAt}: ${issuedAt}`, left, y);
-  y += 11;
-
-  y = addSection(
-    doc,
-    pdfCopy.overview,
-    [
-      [copy.pdf.employee, `${record.user.name}${record.user.position ? ` - ${record.user.position}` : ''}`],
-      [copy.pdf.reportedBy, record.reportedBy.name],
-      [copy.pdf.eventDate, new Date(record.eventDate).toLocaleString(locale)],
-      [copy.pdf.type, copy.types[record.type]],
-      [copy.pdf.severity, record.severity ? copy.severity[record.severity] : copy.pdf.notAvailable],
-      [copy.pdf.status, copy.status[record.status]],
+export function buildRecordWebDocument(record: EmployeeRecord, copy: RecordsTranslations, locale: string): StandardDocumentDefinition {
+  const text = copy.pdfDocument;
+  const folio = record.recordNumber || copy.pdf.recordNumber(record.id);
+  return {
+    contract: { category: 'legal-document', modifiers: ['confidential', 'employee-facing', 'signature-required'], orientation: 'portrait', pageSize: 'letter', version: '1.0' },
+    fileName: { documentType: 'hr-record', identifier: folio },
+    locale, folio, title: text.title, subtitle: record.title, confidentiality: 'Confidential',
+    metadata: [
+      { label: copy.pdf.employee, value: [record.user.name, record.user.position].filter(Boolean).join(' - ') },
+      { label: copy.pdf.reportedBy, value: record.reportedBy.name },
+      { label: copy.pdf.eventDate, value: new Date(record.eventDate).toLocaleString(locale) },
+      { label: copy.pdf.type, value: copy.types[record.type] },
+      { label: copy.pdf.severity, value: record.severity ? copy.severity[record.severity] : copy.pdf.notAvailable },
+      { label: copy.pdf.status, value: copy.status[record.status] },
     ],
-    y,
-  );
-
-  y = addSection(
-    doc,
-    pdfCopy.followUp,
-    [
-      [copy.pdf.description, record.description],
-      [copy.pdf.actionsTaken, record.actionsTaken || copy.pdf.notAvailable],
-      [copy.pdf.witnesses, record.witnesses?.length ? record.witnesses.join(', ') : copy.pdf.notAvailable],
-      [copy.pdf.attachments, record.attachments?.length ? record.attachments.map((attachment) => attachment.name).join(', ') : copy.pdf.notAvailable],
+    sections: [{
+      title: text.followUp, fields: [
+        { label: copy.pdf.description, value: record.description },
+        { label: copy.pdf.actionsTaken, value: record.actionsTaken || copy.pdf.notAvailable },
+        { label: copy.pdf.witnesses, value: record.witnesses?.join(', ') || copy.pdf.notAvailable },
+        { label: copy.pdf.attachments, value: record.attachments?.map(item => item.name).join(', ') || copy.pdf.notAvailable },
+      ],
+    }],
+    signatures: [
+      { label: text.employeeSignature, caption: record.user.name },
+      { label: text.reportedBySignature, caption: record.reportedBy.name },
     ],
-    y,
-  );
+  };
+}
 
-  if (y > pageHeight - 78) {
-    doc.addPage();
-    y = 24;
-  }
+export async function downloadRecordPdf(record: EmployeeRecord, copy: RecordsTranslations, locale: string) {
+  return printStandardDocumentHtml(buildRecordWebDocument(record, copy, locale));
+}
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.setTextColor(15, 23, 42);
-  doc.text(pdfCopy.signatures, left, y);
-  y += 24;
-
-  const signatureWidth = (contentWidth - 12) / 2;
-  [
-    { label: pdfCopy.employeeSignature, name: record.user.name, x: left },
-    { label: pdfCopy.reportedBySignature, name: record.reportedBy.name, x: left + signatureWidth + 12 },
-  ].forEach((signature) => {
-    doc.setDrawColor(148, 163, 184);
-    doc.line(signature.x, y, signature.x + signatureWidth, y);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(15, 23, 42);
-    doc.text(signature.label, signature.x, y + 7);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(71, 85, 105);
-    doc.text(signature.name, signature.x, y + 13, { maxWidth: signatureWidth });
-    doc.text(pdfCopy.signature, signature.x, y + 19);
+/** One user gesture opens one print job; each selected act retains its folio and signatures. */
+export function printRecordsWeb(records: EmployeeRecord[], copy: RecordsTranslations, locale: string) {
+  if (!records.length) return false;
+  return printDocumentHtml({
+    bodyHtml: records.map(record => buildStandardDocumentHtml(buildRecordWebDocument(record, copy, locale))).join(''),
+    contentStyles: '.quotation-document + .quotation-document { break-before: page; }',
+    documentTitle: 'hr-records', locale, pageSize: 'letter',
   });
-
-  addStandardPdfFooters(doc, {
-    confidentiality: 'Confidential',
-    folio: recordNumber,
-    locale,
-    version: '1.0',
-  });
-  doc.save(buildDocumentFileName({
-    documentType: 'hr-record',
-    identifier: recordNumber || record.title,
-  }));
 }

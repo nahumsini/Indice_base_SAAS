@@ -54,6 +54,7 @@ import {
 } from './posKioskAdminApi';
 import { KioskEditModal } from './KioskEditModal';
 import { downloadKioskQrPosterPdf } from './kioskQrPosterPdf';
+import { getWebPrintCopy } from '../../shared/print/webPrintCopy';
 import { KioskModalFrame } from '../../../components/kiosk-engine/KioskModalFrame';
 
 type KioskExperience = 'customer-display' | 'self-service' | 'self-checkout' | 'advisor-queue' | 'restaurant-waiter' | 'restaurant-tables' | 'restaurant-kitchen';
@@ -362,6 +363,7 @@ export function KioskCenterWorkspace({ onCreateView, refreshKey = 0, createdKios
     : `${window.location.origin}${path.startsWith('/') ? path : `/${path}`}`;
 
   const runAction = async (row: PosKioskAdminItem, action: 'access' | 'copy' | 'pdf' | 'toggle') => {
+    const printWindow = action === 'pdf' ? window.open('about:blank', '_blank') : undefined;
     const actionKey = `${action}-${row.id}`;
     setBusyAction(actionKey);
     setError('');
@@ -381,17 +383,18 @@ export function KioskCenterWorkspace({ onCreateView, refreshKey = 0, createdKios
         await navigator.clipboard.writeText(url);
         setNotice(copy.center.copied);
       } else {
-        await downloadKioskQrPosterPdf({
+        const prepared = await downloadKioskQrPosterPdf({
           kioskName: row.name,
           kioskCode: row.code,
           publicUrl: url,
           kioskType: row.kioskType === 'self_checkout' ? 'self_checkout' : 'self_service',
           assignmentLabel: [row.assignment.primaryLabel, row.assignment.secondaryLabel].filter(Boolean).join(' - '),
           locale,
-        });
-        setNotice(copy.center.qrPdfDownloaded);
+        }, printWindow);
+        if (prepared) setNotice(getWebPrintCopy(locale).ready);
       }
     } catch (requestError) {
+      printWindow?.close();
       setError(requestError instanceof Error ? requestError.message : copy.center.actionError);
     } finally {
       setBusyAction('');

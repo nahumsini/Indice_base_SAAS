@@ -53,6 +53,8 @@ export function getSaleNextActionKey(
   if (receivable?.balance && ['overdue', 'due_soon', 'partial'].includes(receivable.status)) {
     return 'collectBalance';
   }
+  // POS owns stock and payment execution; do not suggest repeating them from CRM.
+  if (record.sourceType === 'POS') return (receivable?.balance ?? 0) > 0 ? 'collectBalance' : 'completed';
 
   if (record.financeStatus === 'rejected' || record.paymentEvidenceStatus === 'rejected') {
     return 'resolveFinance';

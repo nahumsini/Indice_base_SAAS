@@ -24,10 +24,7 @@ import {
   UserRound,
   UserRoundCheck,
 } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { buildDocumentFileName } from '../../../shared/print/documentFileName';
-import { addStandardPdfFooters, applyStandardPdfMetadata } from '../../../shared/print/documentPdfEngine';
+import { printStandardDocumentHtml } from '../../../shared/print/standardDocumentHtml';
 import { ConfirmDeleteDialog } from '../../../../components/ConfirmDeleteDialog';
 import { ColumnasConfigModal, type ColumnConfig } from '../../../../components/rh/ColumnasConfigModal';
 import { DataTablePagination } from '../../../../components/table/DataTablePagination';
@@ -1832,44 +1829,12 @@ export function ProjectTasksWorkspace({
   };
 
   const handleDownloadTaskReport = (task: AgendaTaskItem) => {
-    const doc = new jsPDF({ format: 'a4', orientation: 'portrait', unit: 'mm' });
-    const reportTitle = `${copy.report.title} - ${task.folio}`;
-    applyStandardPdfMetadata(doc, { subject: copy.report.title, title: reportTitle });
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.setTextColor(32, 36, 41);
-    doc.text(reportTitle, 14, 18);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    doc.setTextColor(100, 107, 115);
-    doc.text(task.title, 14, 27);
-
-    autoTable(doc, {
-      startY: 36,
-      theme: 'plain',
-      head: [[taskCopy.report.pdf.headField, taskCopy.report.pdf.headValue]],
-      body: taskReportRows(task, taskCopy, locale),
-      styles: {
-        cellPadding: 3,
-        fontSize: 9,
-        overflow: 'linebreak',
-      },
-      headStyles: {
-        fillColor: [243, 244, 244],
-        textColor: [72, 79, 87],
-      },
-      columnStyles: {
-        0: { cellWidth: 54, fontStyle: 'bold' },
-        1: { cellWidth: 126 },
-      },
+    printStandardDocumentHtml({
+      contract: { category: 'operational-report', modifiers: ['internal'], pageSize: 'a4', orientation: 'portrait', version: '1.0' },
+      fileName: { documentType: copy.report.filePrefix, identifier: task.folio },
+      title: copy.report.title, subtitle: task.title, folio: task.folio, locale, confidentiality: 'Internal',
+      tables: [{ columns: [taskCopy.report.pdf.headField, taskCopy.report.pdf.headValue], rows: taskReportRows(task, taskCopy, locale) }],
     });
-
-    addStandardPdfFooters(doc, { confidentiality: 'Internal', folio: task.folio, locale, version: '1.0' });
-    doc.save(buildDocumentFileName({
-      documentType: copy.report.filePrefix,
-      identifier: task.folio,
-    }));
   };
 
   const handleCloseTask = (task: AgendaTaskItem) => {

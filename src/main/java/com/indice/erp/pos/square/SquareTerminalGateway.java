@@ -20,6 +20,12 @@ public interface SquareTerminalGateway {
 
     Checkout cancelCheckout(String accessToken, String checkoutId);
 
+    Refund refundPayment(String accessToken, String idempotencyKey, String paymentId, BigDecimal amount, String currency);
+
+    Refund getRefund(String accessToken, String refundId);
+
+    record Refund(String id, String paymentId, String status, BigDecimal amount, String currency) {}
+
     record OAuthToken(String merchantId, String accessToken, String refreshToken, Instant expiresAt) {
     }
 

@@ -1,0 +1,81 @@
+const en = {
+  title: 'Return to original payment method', scope: 'Full tickets only · Original shift open · Not yet posted to accounting',
+  search: 'Find ticket', reason: 'Reason for return', goods: 'I received all returned items, ready to restock.',
+  prepare: 'Review refund', confirm: 'Confirm refund', refresh: 'Check provider', cancel: 'Cancel preparation',
+  cash: 'I returned the displayed cash amount to the customer.', transfer: 'Original transfer refund receipt/reference',
+  close: 'Back to sale', select: 'Select a ticket', empty: 'No matching tickets in this shift.',
+  pending: 'The refund is not confirmed. Do not repeat payment or use another method.',
+  complete: 'Return completed. Refund confirmed and inventory restored where applicable.',
+  failed: 'The provider rejected or failed the refund. No alternative payment method will be used.',
+  loading: 'Loading…', error: 'Could not complete this operation.', sync: 'Return completed. Refresh the register data.',
+  statuses: { PREPARED: 'Prepared', PROCESSING: 'Awaiting confirmation', COMPLETED: 'Completed', CANCELLED: 'Preparation cancelled' },
+  methods: { CASH: 'Cash', CARD: 'Card', TRANSFER: 'Transfer' } as Record<string, string>,
+};
+const es: typeof en = {
+  title: 'Devolver al medio de pago original', scope: 'Ticket completo · Turno original abierto · Sin contabilizar',
+  search: 'Buscar ticket', reason: 'Motivo de devolución', goods: 'Recibí todos los productos devueltos, aptos para reintegrar al inventario.',
+  prepare: 'Revisar reembolso', confirm: 'Confirmar reembolso', refresh: 'Consultar proveedor', cancel: 'Cancelar preparación',
+  cash: 'Entregué al cliente el importe de efectivo indicado.', transfer: 'Comprobante/referencia del reembolso por transferencia original',
+  close: 'Volver a la venta', select: 'Selecciona un ticket', empty: 'No hay tickets que coincidan en este turno.',
+  pending: 'El reembolso no está confirmado. No repitas el pago ni utilices otro medio.',
+  complete: 'Devolución completada. Reembolso confirmado e inventario restituido cuando corresponde.',
+  failed: 'El proveedor rechazó o falló el reembolso. No se utilizará otro medio de pago.',
+  loading: 'Cargando…', error: 'No se pudo completar la operación.', sync: 'Devolución completada. Actualiza los datos de caja.',
+  statuses: { PREPARED: 'Preparada', PROCESSING: 'Pendiente de confirmación', COMPLETED: 'Completada', CANCELLED: 'Preparación cancelada' },
+  methods: { CASH: 'Efectivo', CARD: 'Tarjeta', TRANSFER: 'Transferencia' },
+};
+const fr: typeof en = {
+  title: 'Rembourser selon le mode de paiement initial', scope: 'Reçu complet · Quart initial ouvert · Vente non comptabilisée',
+  search: 'Rechercher un reçu', reason: 'Motif du retour', goods: 'Tous les articles retournés ont été reçus et peuvent être remis en stock.',
+  prepare: 'Vérifier le remboursement', confirm: 'Confirmer le remboursement', refresh: 'Consulter le fournisseur', cancel: 'Annuler la préparation',
+  cash: 'Le montant en espèces indiqué a été remis au client.', transfer: 'Justificatif du remboursement du virement initial',
+  close: 'Retour à la vente', select: 'Sélectionner un reçu', empty: 'Aucun reçu correspondant dans ce quart.',
+  pending: 'Remboursement non confirmé. Ne répétez pas le paiement et ne changez pas de mode.',
+  complete: 'Retour terminé. Remboursement confirmé et stock rétabli, le cas échéant.',
+  failed: 'Le fournisseur a refusé le remboursement ou celui-ci a échoué. Aucun autre mode de paiement ne sera utilisé.',
+  loading: 'Chargement…', error: 'Impossible de terminer cette opération.', sync: 'Retour terminé. Actualisez les données de caisse.',
+  statuses: { PREPARED: 'Préparé', PROCESSING: 'Confirmation en attente', COMPLETED: 'Terminé', CANCELLED: 'Préparation annulée' },
+  methods: { CASH: 'Espèces', CARD: 'Carte', TRANSFER: 'Virement' },
+};
+const pt: typeof en = {
+  title: 'Reembolsar pelo meio de pagamento original', scope: 'Venda completa · Turno original aberto · Sem contabilização',
+  search: 'Buscar comprovante', reason: 'Motivo da devolução', goods: 'Recebi todos os produtos devolvidos, aptos para retornar ao estoque.',
+  prepare: 'Revisar reembolso', confirm: 'Confirmar reembolso', refresh: 'Consultar provedor', cancel: 'Cancelar preparação',
+  cash: 'Entreguei ao cliente o valor em dinheiro indicado.', transfer: 'Comprovante do reembolso da transferência original',
+  close: 'Voltar à venda', select: 'Selecione um comprovante', empty: 'Nenhum comprovante correspondente neste turno.',
+  pending: 'O reembolso não foi confirmado. Não repita o pagamento nem use outro meio.',
+  complete: 'Devolução concluída. Reembolso confirmado e estoque restituído quando aplicável.',
+  failed: 'O provedor recusou o reembolso ou houve uma falha. Nenhum outro meio de pagamento será utilizado.',
+  loading: 'Carregando…', error: 'Não foi possível concluir a operação.', sync: 'Devolução concluída. Atualize os dados do caixa.',
+  statuses: { PREPARED: 'Preparada', PROCESSING: 'Aguardando confirmação', COMPLETED: 'Concluída', CANCELLED: 'Preparação cancelada' },
+  methods: { CASH: 'Dinheiro', CARD: 'Cartão', TRANSFER: 'Transferência' },
+};
+const ko: typeof en = {
+  title: '원래 결제 수단으로 환불', scope: '전체 영수증 · 원래 근무조가 열려 있음 · 회계 미반영',
+  search: '영수증 검색', reason: '반품 사유', goods: '반품 상품을 모두 받았으며 재입고할 수 있습니다.',
+  prepare: '환불 검토', confirm: '환불 확인', refresh: '결제사 상태 확인', cancel: '준비 취소',
+  cash: '표시된 현금 금액을 고객에게 반환했습니다.', transfer: '원래 계좌이체에 대한 환불 증빙/참조번호',
+  close: '판매로 돌아가기', select: '영수증 선택', empty: '이 근무조에 일치하는 영수증이 없습니다.',
+  pending: '환불이 확인되지 않았습니다. 다시 지급하거나 다른 결제 수단을 사용하지 마세요.',
+  complete: '반품 완료. 환불이 확인되었으며 해당하는 경우 재고가 복구되었습니다.',
+  failed: '결제사가 환불을 거절했거나 환불에 실패했습니다. 다른 결제 수단은 사용하지 않습니다.',
+  loading: '불러오는 중…', error: '작업을 완료하지 못했습니다.', sync: '반품 완료. 계산대 정보를 새로 고침하세요.',
+  statuses: { PREPARED: '준비됨', PROCESSING: '확인 대기 중', COMPLETED: '완료', CANCELLED: '준비 취소됨' },
+  methods: { CASH: '현금', CARD: '카드', TRANSFER: '계좌이체' },
+};
+const zh: typeof en = {
+  title: '按原支付方式退款', scope: '整单退货 · 原班次未关闭 · 尚未记账',
+  search: '搜索小票', reason: '退货原因', goods: '已收到全部退货商品，且商品可重新入库。',
+  prepare: '核对退款', confirm: '确认退款', refresh: '查询支付方', cancel: '取消准备',
+  cash: '已将所示现金金额退还客户。', transfer: '原转账退款凭证/参考号',
+  close: '返回销售', select: '选择小票', empty: '该班次没有匹配的小票。',
+  pending: '退款尚未确认。请勿重复付款或使用其他支付方式。',
+  complete: '退货完成。退款已确认，适用的库存已恢复。',
+  failed: '支付方拒绝退款或退款失败。不会改用其他支付方式。',
+  loading: '加载中…', error: '无法完成此操作。', sync: '退货完成。请刷新收银数据。',
+  statuses: { PREPARED: '已准备', PROCESSING: '等待确认', COMPLETED: '已完成', CANCELLED: '准备已取消' },
+  methods: { CASH: '现金', CARD: '银行卡', TRANSFER: '转账' },
+};
+export function returnCopy(locale: string): typeof en {
+  return ({ es, en, fr, pt, ko, zh } as Record<string, typeof en>)[locale.split('-')[0]] ?? en;
+}

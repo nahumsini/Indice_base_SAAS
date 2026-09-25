@@ -64,6 +64,7 @@ public class CashClosingService {
             );
         }
         shiftValidator.requireClosable(context, shift);
+        repository.requireNoPendingReturns(context, shift.id());
         if (countedCash == null || countedCash.compareTo(BigDecimal.ZERO) < 0) {
             throw PosApiException.badRequest("countedCashAmount must be zero or greater.");
         }

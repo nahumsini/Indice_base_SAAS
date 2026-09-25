@@ -346,6 +346,7 @@ public class TabPermissionRouteClassifier {
             || path.startsWith("/api/v1/pos/cash-registers")) {
             return "GET".equals(method) ? any("pos.cortes", "pos.kpis") : one("pos.cortes");
         }
+        if (path.startsWith("/api/v1/pos/returns")) return one("pos.sale");
         if (path.startsWith("/api/v1/pos/tickets") || path.startsWith("/api/v1/pos/sales")) {
             return "GET".equals(method) ? any("pos.sale", "pos.kpis") : one("pos.sale");
         }

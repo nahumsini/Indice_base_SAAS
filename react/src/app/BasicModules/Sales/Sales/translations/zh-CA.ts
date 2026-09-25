@@ -205,17 +205,20 @@ export const zhCA = {
   },
   statuses: {
     commercial: {
+      completed: '已在 POS 完成',
       pending_validation: '待验证',
       approved: '已批准',
       rejected: '已拒绝',
       cancelled: '已取消',
     },
     finance: {
+      captured: '已在 POS 登记',
       pending: '待处理',
       approved: '已批准',
       rejected: '已拒绝',
     },
     inventory: {
+      returned: '退货已入库',
       pending: '待处理',
       reserved: '已预留',
       approved: '已批准',
@@ -233,12 +236,14 @@ export const zhCA = {
       paid: '已支付',
     },
     movement: {
+      reversed: '已冲销',
       not_generated: '未生成',
       pending: '待处理',
       approved: '已批准',
       completed: '已完成',
     },
     paymentEvidence: {
+      captured: '已在 POS 登记',
       missing: '缺失',
       uploaded: '已上传',
       under_review: '审核中',
