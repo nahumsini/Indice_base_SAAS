@@ -79,6 +79,8 @@ function drawerHarness(locale = 'es-MX') {
     './CompanyAccount/CompanyAccessTab': { CompanyAccessTab: 'access' },
     './CompanyAccount/CompanyBillingTab': { CompanyBillingTab: 'billing' },
     './CompanyAccount/CompanyHistoryTab': { CompanyHistoryTab: 'history' },
+    './CompanyAccount/MercadoPagoActivationPanel': { MercadoPagoActivationPanel: 'mercado-pago-activation' },
+    './CompanyAccount/SquareActivationPanel': { SquareActivationPanel: 'square-activation' },
   }, { requestAnimationFrame: (callback) => callback() });
   const { CompanyAccountDrawer } = load(resolve(root, 'PlatformAdmin/CompanyAccountDrawer.tsx'));
   const props = {
