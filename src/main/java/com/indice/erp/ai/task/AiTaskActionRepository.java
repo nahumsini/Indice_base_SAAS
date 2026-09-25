@@ -51,8 +51,9 @@ public class AiTaskActionRepository {
             statement.setString(5, confirmationHash);
             statement.setString(6, fingerprint);
             statement.setString(7, json(draft));
-            statement.setString(8, draft.title());
-            statement.setString(9, draft.description());
+            // Legacy summary columns are narrower than Tasks; the immutable JSON keeps the full values.
+            statement.setString(8, truncate(draft.title(), 180));
+            statement.setString(9, truncate(draft.description(), 2000));
             statement.setString(10, draft.priority());
             statement.setDate(11, draft.dueDate() == null ? null : Date.valueOf(draft.dueDate()));
             statement.setTimestamp(12, Timestamp.from(expiresAt));
@@ -183,7 +184,7 @@ public class AiTaskActionRepository {
                 """,
             result.id(),
             result.folio(),
-            result.title(),
+            truncate(result.title(), 180),
             result.status(),
             result.dueDate() == null ? null : Date.valueOf(result.dueDate()),
             json(result),

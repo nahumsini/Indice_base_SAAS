@@ -216,6 +216,21 @@ class AiTaskDelegationIntegrationTest {
             .isInstanceOf(java.util.NoSuchElementException.class);
     }
 
+    @Test
+    void editingExistingLongTextPreservesOwnerValuesAcrossConfirmationAndReplay() {
+        String title = "T".repeat(220);
+        String description = "D".repeat(2400);
+        long id = ((Number) tasks.createTask(company, actor[0], Map.of("status", "pending", "title", title,
+            "description", description, "assignedUserCompanyId", actor[1])).get("id")).longValue();
+        var preview = actions.previewUpdate(token, edit(id, "high", null));
+        assertThat(preview.task().title()).isEqualTo(title);
+        assertThat(preview.task().description()).isEqualTo(description);
+        var request = new CommitRequest(preview.confirmationToken(), UUID.randomUUID().toString());
+        assertThat(actions.commitUpdate(token, request).task().title()).isEqualTo(title);
+        assertThat(actions.commitUpdate(token, request).task().title()).isEqualTo(title);
+        assertThat(tasks.getTask(company, id)).containsEntry("title", title).containsEntry("description", description);
+    }
+
     private void workProfile(long[] person, long unit, long business) {
         jdbc.update("INSERT INTO user_work_profiles (company_id,user_company_id,user_id,user_code,position,department,unit_id,business_id,status) VALUES (?,?,?,?,'Operator','Operations',?,?,'active')",
             company, person[1], person[0], "TEST-" + person[1], unit, business);

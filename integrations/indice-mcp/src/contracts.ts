@@ -136,7 +136,7 @@ export const taskUpdateRequestSchema = taskPreviewRequestSchema.partial().extend
 export type TaskUpdateRequest = z.infer<typeof taskUpdateRequestSchema>;
 
 export const taskDraftSchema = z.object({
-  title: z.string().min(1).max(180),
+  title: z.string().min(1).max(220),
   description: z.string().nullable(),
   priority: taskPrioritySchema,
   dueDate: z.iso.date().nullable(),
