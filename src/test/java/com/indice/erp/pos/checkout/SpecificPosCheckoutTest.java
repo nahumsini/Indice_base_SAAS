@@ -210,10 +210,10 @@ class SpecificPosCheckoutTest {
         when(paymentRepository.insertAll(eq(context()), eq(100L), any())).thenReturn(List.of(paymentRecord(PaymentMethod.CARD)));
         when(selfServiceKioskRepository.completeClaim(eq(context()), eq(41L), any(CashRegisterRecord.class), eq(100L)))
             .thenReturn(true);
-        var service = new CheckoutService(
+        var service = CheckoutTestFactory.create(new CheckoutDependencies(
             cashRegisterService, shiftRepository, lookupRepository, salesRecordSummaryRepository,
             ticketRepository, paymentRepository, inventoryDeductionService, ticketMapper, paymentMapper,
-            calculator, validator, discountRuleService, selfServiceKioskRepository);
+            calculator, validator, discountRuleService, selfServiceKioskRepository, null, null));
 
         service.checkout(context(), new PosCheckoutRequest(
             20L, null, 41L, "MXN", List.of(itemWithProduct("1", "10", "0", "0")),
@@ -245,10 +245,10 @@ class SpecificPosCheckoutTest {
                 BigDecimal.ZERO, new BigDecimal("20.0000"), "MXN", null, Instant.now())));
         when(paymentRepository.insertAll(eq(context()), eq(100L), any()))
             .thenReturn(List.of(paymentRecord(PaymentMethod.CARD)));
-        var service = new CheckoutService(
+        var service = CheckoutTestFactory.create(new CheckoutDependencies(
             cashRegisterService, shiftRepository, lookupRepository, salesRecordSummaryRepository,
             ticketRepository, paymentRepository, inventoryDeductionService, ticketMapper, paymentMapper,
-            calculator, validator, discountRuleService, selfServiceKioskRepository, restaurantOrderService);
+            calculator, validator, discountRuleService, selfServiceKioskRepository, restaurantOrderService, null));
 
         service.checkout(context(), new PosCheckoutRequest(
             20L, null, null, 81L, "MXN",
@@ -269,9 +269,9 @@ class SpecificPosCheckoutTest {
     }
 
     private CheckoutService service() {
-        return new CheckoutService(cashRegisterService, shiftRepository, lookupRepository, salesRecordSummaryRepository,
+        return CheckoutTestFactory.create(new CheckoutDependencies(cashRegisterService, shiftRepository, lookupRepository, salesRecordSummaryRepository,
             ticketRepository, paymentRepository, inventoryDeductionService, ticketMapper, paymentMapper, calculator,
-            validator);
+            validator, null, null, null, null));
     }
 
     private PosContext context() {
