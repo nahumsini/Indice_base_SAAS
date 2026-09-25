@@ -93,16 +93,6 @@ type HrKpiWorkspaceState = {
   attendanceStatusFilter: string;
 };
 
-type HrKpiWorkspaceState = {
-  searchQuery: string;
-  selectedDate: string;
-  periodFilter: PeriodFilter;
-  unitFilter: string;
-  businessFilter: string;
-  departmentFilter: string;
-  attendanceStatusFilter: string;
-};
-
 interface KpiCardModel {
   id: string;
   title: string;

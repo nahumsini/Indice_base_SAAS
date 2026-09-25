@@ -49,7 +49,6 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
   const [failureToastMessage, setFailureToastMessage] = useState('');
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [pendingDeleteBudgetExpenseIds, setPendingDeleteBudgetExpenseIds] = useState<string[]>([]);
   const [selectionResetKey, setSelectionResetKey] = useState(0);
   const [successToastMessage, setSuccessToastMessage] = useState('');
