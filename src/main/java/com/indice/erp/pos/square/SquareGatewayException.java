@@ -22,4 +22,8 @@ class SquareGatewayException extends RuntimeException {
     boolean unauthorized() {
         return statusCode == 401;
     }
+
+    int statusCode() {
+        return statusCode;
+    }
 }

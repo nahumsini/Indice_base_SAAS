@@ -17,6 +17,7 @@ public class SquarePaymentIntentMapper {
             SquareTerminalPaymentStatus.valueOf(rs.getString("status")),
             rs.getBigDecimal("amount"), rs.getString("currency_code"),
             rs.getString("checkout_payload_sha256"), rs.getString("checkout_request_json"),
+            rs.getString("square_request_json"),
             rs.getString("failure_message"), getLong(rs, "pos_ticket_id"),
             rs.getLong("created_by_user_id"), rs.getString("created_by_role"),
             rs.getString("scope_type"), getLong(rs, "scope_unit_id"), getLong(rs, "scope_business_id"),
