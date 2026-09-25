@@ -253,6 +253,10 @@ export default function Expenses({ dataReady = true, expenses: controlledExpense
     () => new Set(summaryPeriod.carryoverExpenses.map(expense => expense.id)),
     [summaryPeriod.carryoverExpenses],
   );
+  const summaryExpenses = useMemo(
+    () => filterExpenses(operationalExpenses, { ...filters, statusFilter: 'all' }),
+    [filters, operationalExpenses],
+  );
   const bulkEditableExpenses = useMemo(() => expenses.filter(expense => (
     isBackendId(expense.id)
     && !expense.purchaseOrderId

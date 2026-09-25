@@ -1271,6 +1271,82 @@ Required regression coverage for a recoverable workspace:
 - remove or revoke a remembered option and confirm the view returns to a valid state
 - clear filters and confirm the factory filter state persists while column preferences remain
 
+### 10.2 Tab And Workspace Memory Standard
+
+Moving between module tabs must not erase a user's safe operating context. Use one shared memory
+contract instead of adding unrelated `localStorage` or `sessionStorage` effects inside each view.
+
+The contract has four distinct layers:
+
+1. **Navigation memory** remembers the last valid module tab through `useRoutedModuleTab`. The
+   active tab remains represented by the route so Back, Forward, reload, bookmarks, and direct
+   links behave predictably.
+2. **Workspace memory** uses `useWorkspaceNavigationMemory` for recoverable state owned by one
+   tab. Its key is scoped by authenticated company, user, `moduleKey`, and `tabKey`, with the
+   workspace-state API as the durable copy and scoped local storage as the offline cache.
+3. **Session position** may remember scroll or another harmless return position for the current
+   browser session. It is not durable business state.
+4. **User preferences** such as visible columns, column order, and column widths follow Section 17.
+   They remain independent from filters and are not cleared by a normal tab-memory reset.
+
+Approved workspace-memory fields include:
+
+- search and filter values
+- period and date scope
+- organization, unit, business, ownership, category, and status scope
+- sort field and direction
+- table or board view mode
+- page size
+- the current page only when the restored result scope is still valid; otherwise return to page 1
+- safe analytical display choices that do not change permissions or authoritative calculations
+
+Do not persist as tab memory:
+
+- open modals, popovers, menus, confirmations, or disclosure-only UI state
+- loading, submitting, retry, toast, error, or success state
+- row selection, bulk selection, pending deletion, or another consequential transient action
+- fetched records, backend totals, exchange rates, permission results, entitlements, or tenant/user
+  authority
+- credentials, session material, tokens, sensitive drafts, payment data, or secrets
+
+Restore order and behavior:
+
+1. Start from the current factory defaults.
+2. Merge the newest valid durable workspace state.
+3. Apply explicitly mapped URL fields last; a direct link always wins over remembered state.
+4. Validate every restored enum, identifier, and dependent option against the user's current
+   permissions and available data. Reset stale or unauthorized values safely.
+5. When a parent scope invalidates a remembered child filter, clear the child and persist the
+   corrected state.
+6. If a restored secondary filter is active, open `More filters` automatically. Derive this from
+   active values instead of persisting the disclosure button's open/closed state.
+7. Restore scroll only after the view is ready, without stealing focus.
+
+Operational rules:
+
+- use stable English `moduleKey` and `tabKey` identifiers; visible localized labels are not storage
+  keys
+- wait for navigation memory before redirecting an absent or invalid tab route
+- debounce remote saves and keep the scoped local copy usable when the backend is temporarily
+  unavailable
+- do not let remembered state trigger a mutation, reopen a destructive flow, or bypass current
+  authorization
+- `Clear filters` restores the documented factory filter state, resets pagination, persists that
+  result, and leaves column preferences unchanged
+- a schema or option change must normalize recognized fields and ignore unknown legacy fields; it
+  must not make the tab unusable
+- do not add a second tab-memory hook or module-specific storage convention when either shared hook
+  covers the use case
+
+Required regression coverage for a recoverable workspace:
+
+- configure tab A, navigate to tab B, and return to tab A without losing tab A's filters
+- reload and restore the last valid tab and its safe workspace state
+- open a direct URL and confirm its mapped fields override remembered values
+- confirm different companies and users never read one another's memory
+- remove or revoke a remembered option and confirm the view returns to a valid state
+- clear filters and confirm the factory filter state persists while column preferences remain
+
 ---
 
 ## 11. Emoji And Icon Identity Standard

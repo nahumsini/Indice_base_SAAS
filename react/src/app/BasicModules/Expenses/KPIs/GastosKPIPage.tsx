@@ -414,6 +414,62 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
   }), [preferredCurrency, visibleBudgetLines]);
   const budgetLineAggregates = useExpenseKpiAggregates(budgetLineQueries, sources, monetaryEnabled);
 
+  const driverGroups = useMemo(() => ({
+    ACCOUNTING_ACCOUNT: Array.from(monetaryGroups.byAccountingAccount.entries()).sort((left, right) => right[1].length - left[1].length).slice(0, 20),
+    BUSINESS: Array.from(monetaryGroups.byBusiness.entries()).sort((left, right) => right[1].length - left[1].length).slice(0, 20),
+    PAYMENT_ACCOUNT: Array.from(monetaryGroups.byPaymentAccount.entries()).sort((left, right) => right[1].length - left[1].length).slice(0, 20),
+    PROVIDER: Array.from(monetaryGroups.byProvider.entries()).sort((left, right) => right[1].length - left[1].length).slice(0, 20),
+    UNIT: Array.from(monetaryGroups.byUnit.entries()).sort((left, right) => right[1].length - left[1].length).slice(0, 20),
+  }), [monetaryGroups.byAccountingAccount, monetaryGroups.byBusiness, monetaryGroups.byPaymentAccount, monetaryGroups.byProvider, monetaryGroups.byUnit]);
+  const driverQueries = useMemo<KpiMonetaryBatchQuery[]>(() => (
+    (Object.entries(driverGroups) as Array<[keyof typeof driverGroups, Array<[string, FinanceExpense[]]>]>).flatMap(([type, groups]) => (
+      groups.map(([id, rows]) => ({
+        key: `driver-${type}-${id}`,
+        metric: 'EXPENSE_TOTAL' as const,
+        preferredCurrency,
+        ids: rows.map((row) => row.id),
+      }))
+    ))
+  ), [driverGroups, preferredCurrency]);
+  const driverAggregates = useKpiMonetaryAggregates(driverQueries);
+  const driverNameMaps = useMemo(() => ({
+    ACCOUNTING_ACCOUNT: new Map(sources.accountingAccounts.map((item) => [item.id, `${item.code} · ${item.name}`])),
+    BUSINESS: new Map(sources.referenceData.businesses.map((item) => [item.id, item.name])),
+    PAYMENT_ACCOUNT: new Map(sources.paymentAccounts.map((item) => [item.id, item.name])),
+    PROVIDER: new Map(sources.providers.map((item) => [item.id, item.name])),
+    UNIT: new Map(sources.referenceData.units.map((item) => [item.id, item.name])),
+  }), [sources.accountingAccounts, sources.paymentAccounts, sources.providers, sources.referenceData.businesses, sources.referenceData.units]);
+  const driverRows = useMemo<Record<FinancialOverviewCostDriverType, FinancialOverviewCostDriver[]>>(() => (
+    Object.fromEntries((Object.entries(driverGroups) as Array<[FinancialOverviewCostDriverType, Array<[string, FinanceExpense[]]>]>).map(([type, groups]) => [
+      type,
+      groups.map(([id, rows]) => {
+        const total = driverAggregates.data[`driver-${type}-${id}`]?.preferredTotal ?? 0;
+        return {
+          count: rows.length,
+          currency: preferredCurrency,
+          driverType: type,
+          id,
+          name: driverNameMaps[type].get(id) ?? t.common.unassigned,
+          percentage: totalManaged > 0 ? (total / totalManaged) * 100 : 0,
+          total,
+        };
+      }).filter((row) => row.total > 0).sort((left, right) => right.total - left.total),
+    ])) as Record<FinancialOverviewCostDriverType, FinancialOverviewCostDriver[]>
+  ), [driverAggregates.data, driverGroups, driverNameMaps, preferredCurrency, t.common.unassigned, totalManaged]);
+
+  const visibleBudgetLines = overview.filteredBudgetLines.slice(0, 25);
+  const budgetLineQueries = useMemo<KpiMonetaryBatchQuery[]>(() => visibleBudgetLines.flatMap((row) => {
+    const id = getBudgetLineNumericId(row.id);
+    if (id === null) return [];
+    return [
+      { key: `budget-planned-${row.id}`, metric: 'BUDGET_PLANNED', preferredCurrency, ids: [id] },
+      { key: `budget-committed-${row.id}`, metric: 'BUDGET_COMMITTED', preferredCurrency, ids: [id] },
+      { key: `budget-actual-${row.id}`, metric: 'BUDGET_ACTUAL', preferredCurrency, ids: [id] },
+      { key: `budget-available-${row.id}`, metric: 'BUDGET_AVAILABLE', preferredCurrency, ids: [id] },
+    ] satisfies KpiMonetaryBatchQuery[];
+  }), [preferredCurrency, visibleBudgetLines]);
+  const budgetLineAggregates = useKpiMonetaryAggregates(budgetLineQueries);
+
   const paymentMix = useMemo(() => {
     const rows = [
       { color: '#147514', key: 'PAID', name: t.statuses.paid, value: 0 },
