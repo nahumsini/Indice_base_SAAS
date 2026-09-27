@@ -1,3 +1,5 @@
+import { useLanguage } from '../../shared/context';
+import { createEnglishOverviewControl, type EnglishLearningOverview } from '../englishOverview';
 import type {
   LearningModeControl,
   LearningModeGuideTheme,
@@ -6,6 +8,8 @@ import type {
 import { ModuleLearningGuide } from './ModuleLearningGuide';
 
 interface SimpleModuleLearningGuideProps {
+  englishOverview?: Record<string, EnglishLearningOverview>;
+  englishModuleTitle?: string;
   activeContextLabel: string;
   activeJourneyId?: string;
   appliedJourneyIds?: readonly string[];
@@ -21,6 +25,7 @@ interface SimpleModuleLearningGuideProps {
 }
 
 export function SimpleModuleLearningGuide({
+  englishOverview, englishModuleTitle,
   activeContextLabel,
   activeJourneyId,
   appliedJourneyIds,
@@ -34,23 +39,28 @@ export function SimpleModuleLearningGuide({
   scopeId,
   theme,
 }: SimpleModuleLearningGuideProps) {
+  const { currentLanguage } = useLanguage();
+  const isEnglish = currentLanguage.code.toLowerCase().startsWith('en');
+  const overview = isEnglish && activeJourneyId ? englishOverview?.[activeJourneyId] : undefined;
+  const resolvedJourney = isEnglish && englishOverview
+    ? journey?.map(step => ({ ...step, label: englishOverview[step.id]?.label ?? step.label })) : journey;
   return (
     <ModuleLearningGuide
-      activeContextLabel={activeContextLabel}
+      activeContextLabel={overview?.label ?? activeContextLabel}
       activeJourneyId={activeJourneyId}
       appliedJourneyIds={appliedJourneyIds}
-      contextSignal={contextSignal}
-      controls={controls}
-      ctaLabel="Ir a las funciones"
-      eyebrow="Modo aprendiz"
+      contextSignal={overview?.objective ?? contextSignal}
+      controls={overview ? [createEnglishOverviewControl(activeJourneyId!, overview)] : controls}
+      ctaLabel={isEnglish ? 'Go to the tools' : 'Ir a las funciones'}
+      eyebrow={isEnglish ? 'Learning mode' : 'Modo aprendiz'}
       guideId={guideId}
-      journey={journey}
+      journey={resolvedJourney}
       onJourneyChange={onJourneyChange}
       onPrimaryAction={onPrimaryAction}
       scopeId={scopeId}
-      stepIndicatorLabel="Función"
+      stepIndicatorLabel={isEnglish ? 'Tool' : 'Función'}
       theme={theme}
-      title={moduleTitle}
+      title={isEnglish ? englishModuleTitle ?? moduleTitle : moduleTitle}
     />
   );
 }

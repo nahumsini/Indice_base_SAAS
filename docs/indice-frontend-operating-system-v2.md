@@ -486,8 +486,11 @@ step:
 Until the public Indice app is available in ChatGPT, the visible `Connect AI` experience starts on
 `How to connect` and presents ChatGPT as the only provider:
 
-- `My connections` remains implemented but outside public navigation until the published flow
-  needs it again;
+- `My connections` remains accessible beside the guide so users can inspect activity and revoke
+  unused connections when their active connection capacity is exhausted. Revocation uses the
+  existing authenticated API and the canonical confirmation dialog; history is preserved;
+- creating a connection from this workspace returns to the OAuth setup guide and does not expose
+  manual access tokens;
 - the manual guide uses the production URL `https://app.indiceapp.com/api/v1/ai/mcp`, OAuth
   authentication, and an explicit copy control;
 - each step includes a simplified visual reference within the Indice design system instead of a
@@ -3189,7 +3192,9 @@ The graduation-cap action in the global header opens the shared blue standard-fo
 - show or hide the six-stage journey on `Panel Inicial` independently from the global mode;
 - review the current journey stage and reset it to the first stage without deleting the selected business case.
 
-Opening or cancelling the modal must not change stored preferences. Saving updates the user-and-company-scoped browser preference atomically. Turning the mode off restores the normal operational UI without deleting journey progress or the selected business case. The header keeps a visible active treatment when guidance is enabled, while the action retains dialog semantics instead of toggle-button semantics.
+Opening or cancelling the modal must not change stored preferences. Saving confirms the user-and-company-scoped account preference atomically through `system/learning-mode` in the existing workspace-state API. This preference has no automatic expiry; the browser stores only a cache and a one-time migration source. Closing a session still clears browser data without deleting the account preference. First entry defaults to enabled only when no saved preference exists. Loading must complete before edits are accepted, and failed saves retain the modal draft with a visible retry path. Turning the mode off restores the normal operational UI without deleting journey progress or the selected business case. The header keeps a visible active treatment when guidance is enabled, while the action retains dialog semantics instead of toggle-button semantics.
+
+The secondary workspace follows the same light/dark theme as the main workspace. Theme updates synchronize between same-origin documents without a newly mounted pane persisting a stale default. Session or company changes invalidate in-flight learning preference loads and queued saves; a stale response must not restore another account’s state.
 
 ---
 

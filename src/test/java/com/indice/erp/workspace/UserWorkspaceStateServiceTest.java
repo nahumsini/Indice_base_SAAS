@@ -34,6 +34,22 @@ class UserWorkspaceStateServiceTest {
     }
 
     @Test
+    void learningPreferencesHaveNoExpiryAndRemainScopedToTheAuthenticatedUser() {
+        var state = new ObjectMapper().createObjectNode().put("active", false);
+        service.save(33L, 44L, "system", "learning-mode", state, 1);
+        verify(jdbc).update(contains("DATE_ADD(NOW(), INTERVAL ? DAY)"),
+            eq(33L), eq(44L), eq("system"), eq("learning-mode"), eq(state.toString()), eq(1), isNull());
+    }
+
+    @Test
+    void learningModeNameDoesNotChangeRetentionInAnotherModule() {
+        var state = new ObjectMapper().createObjectNode();
+        service.save(11L, 22L, "sales", "learning-mode", state, 1);
+        verify(jdbc).update(contains("DATE_ADD(NOW(), INTERVAL ? DAY)"),
+            eq(11L), eq(22L), eq("sales"), eq("learning-mode"), eq("{}"), eq(1), eq(90));
+    }
+
+    @Test
     void navigationAndOtherWorkspacesKeepTheirNinetyDayRetention() {
         var state = new ObjectMapper().createObjectNode();
         service.save(11L, 22L, "expenses", "expenses-table", state, 1);

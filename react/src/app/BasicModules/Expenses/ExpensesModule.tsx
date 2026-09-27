@@ -1,3 +1,4 @@
+import { expensesLearningEnglish } from './operationalGuidance/expensesLearningEnglish';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { FailureToast } from '../../components/FailureToast';
 import { IndiceModuleShell } from '../../components/frontend-os';
@@ -315,6 +316,7 @@ export default function ExpensesModule({ learningModeActive = false, onNavigate 
         currentModule="expenses"
         guide={learningModeActive ? (
           <SimpleModuleLearningGuide
+            englishOverview={expensesLearningEnglish}
             activeContextLabel={expensesLearningLabels[activeTab]}
             activeJourneyId={activeTab}
             contextSignal={expensesLearningSignals[activeTab]}

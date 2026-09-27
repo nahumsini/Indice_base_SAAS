@@ -27,13 +27,17 @@ import { useAuthorizationRevision } from '../hooks/useAuthorizationRevision';
 import { canAccessKioskCenter, canAccessModuleTab } from '../access/tabScopeCatalog';
 import { WorkbarLayoutModal } from './workbar/WorkbarLayoutModal';
 import { LearningModeSettingsModal } from '../learningMode/components/LearningModeSettingsModal';
+import { getLearningModeSettingsCopy } from '../learningMode/settingsCopy';
 import type { LearningModeSettings } from '../learningMode/preferences';
 
 interface HeaderProps {
   learningModeActive: boolean;
   learningModeVisible: boolean;
   learningStep: number;
-  onSaveLearningModeSettings: (settings: LearningModeSettings) => void;
+  onSaveLearningModeSettings: (settings: LearningModeSettings) => Promise<void>;
+  learningPreferencesReady: boolean;
+  learningPreferenceError: 'load' | 'save' | null;
+  onRetryLearningPreferences: () => void;
   darkMode: boolean;
   onToggleDarkMode: () => void;
 }
@@ -56,6 +60,7 @@ export function Header({
   learningModeVisible,
   learningStep,
   onSaveLearningModeSettings,
+  learningPreferencesReady, learningPreferenceError, onRetryLearningPreferences,
   darkMode,
   onToggleDarkMode,
 }: HeaderProps) {
@@ -807,7 +812,16 @@ export function Header({
         open={isWorkbarLayoutOpen}
         onOpenChange={setIsWorkbarLayoutOpen}
       />
+      {learningPreferenceError && !isLearningModeSettingsOpen ? (
+        <div role="alert" className="fixed bottom-4 right-4 z-50 max-w-sm rounded-xl border bg-white p-4 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+          {getLearningModeSettingsCopy(currentLanguage.code)[learningPreferenceError === 'load' ? 'loadError' : 'saveError']}
+          <button type="button" onClick={onRetryLearningPreferences} className="ml-2 underline">{getLearningModeSettingsCopy(currentLanguage.code).retry}</button>
+        </div>
+      ) : null}
       <LearningModeSettingsModal
+        ready={learningPreferencesReady}
+        preferenceError={learningPreferenceError}
+        onRetry={onRetryLearningPreferences}
         open={isLearningModeSettingsOpen}
         onOpenChange={setIsLearningModeSettingsOpen}
         currentSettings={{

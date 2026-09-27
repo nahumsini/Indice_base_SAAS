@@ -1089,6 +1089,8 @@ La traducción es contextual, no literal. La personalidad y el negocio deben con
 
 Si una pestaña todavía usa un catálogo especializado solo en español, no mezclar frases españolas dentro de una interfaz inglesa. Usar el catálogo traducido o un fallback completo y explícito mientras se termina la cobertura.
 
+La corrección aprobada el 2026-09-24 habilita la navegación y las etiquetas compartidas en inglés (`en-US` y `en-CA`). Gastos, Caja Chica, Cartera, KPIs, Punto de Venta e Inventario usan un resumen completo en inglés por etapa mientras se amplían sus catálogos detallados. Cada módulo conserva la propiedad de esos textos; el motor compartido solo los presenta como `Workflow overview`. No se reduce el catálogo español ni se modifican los permisos o las acciones operativas. Recursos Humanos conserva su guía traducida y expone también la navegación entre las áreas permitidas.
+
 No usar el nombre de un personaje como clave traducida. Los IDs estables son:
 
 ```ts

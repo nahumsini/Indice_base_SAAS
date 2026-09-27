@@ -25,8 +25,9 @@
     "test:currency-ui": "node --test tests/preferred-currency-modal-regression.test.mjs",
     "test:horizontal-scroll": "node --test tests/horizontal-scroll-controls-regression.test.mjs",
     "test:integrations-ui": "node --test tests/integrations-frontend-regression.test.mjs",
+    "test:integrations-browser": "node tests/ai-connections-browser.mjs",
     "test:invitation": "node --experimental-strip-types --test tests/invitation-frontend-regression.test.mjs",
-    "test:learning-mode": "node --experimental-strip-types --test tests/learning-mode-first-entry-regression.test.mjs tests/learning-mode-settings-modal-regression.test.mjs tests/human-resources-learning-mode-regression.test.mjs tests/module-learning-mode-standard-regression.test.mjs",
+    "test:learning-mode": "node --experimental-strip-types --test tests/learning-mode-first-entry-regression.test.mjs tests/learning-mode-settings-modal-regression.test.mjs tests/human-resources-learning-mode-regression.test.mjs tests/module-learning-mode-standard-regression.test.mjs tests/learning-mode-locale-regression.test.mjs",
     "test:users": "node --test tests/users-access-regression.test.mjs",
     "test:kpis-ui": "node --test tests/kpis-frontend-standard-regression.test.mjs",
     "test:inventory-ui": "node --test tests/inventory-frontend-standard-regression.test.mjs",
@@ -43,6 +44,7 @@
     "test:finance-bulk": "node --test tests/finance-bulk-actions-regression.test.mjs tests/finance-workspace-memory-regression.test.mjs",
     "test:platform-admin-localization": "node --experimental-strip-types --test tests/platform-admin-localization.test.mjs tests/customer-account-localization.test.mjs tests/platform-admin-operations-localization.test.mjs tests/induction-localization.test.mjs tests/training-exam-localization.test.mjs src/app/PlatformAdmin/CatalogWorkspace/catalogLocalization.test.mjs src/app/InternalDevelopment/internalDevelopmentLocalization.test.mjs src/app/Training/translations/sales/salesProcessLocalization.test.mjs tests/loading-bar-localization.test.mjs",
     "test:expenses-browser": "node tests/expenses-filter-browser.mjs",
+    "test:preferences-browser": "node tests/preferences-browser.mjs",
     "test:expenses-mobile-browser": "node tests/expenses-mobile-browser.mjs && node tests/expenses-module-mobile-browser.mjs"
   },
   "dependencies": {

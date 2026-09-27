@@ -1,3 +1,4 @@
+import { useLanguage } from '../../shared/context';
 import { Fragment, useEffect, useRef } from 'react';
 import { IndiceHorizontalScrollControls } from '../../components/ui/horizontal-scroll-controls';
 import { cn } from '../../components/ui/utils';
@@ -22,6 +23,11 @@ export function ModuleLearningJourneyNav({
   theme,
   understoodJourneyIds,
 }: ModuleLearningJourneyNavProps) {
+  const { currentLanguage } = useLanguage();
+  const isSpanish = currentLanguage.code.toLowerCase().startsWith('es');
+  const labels = isSpanish
+    ? { flow: 'Flujo del módulo', journey: 'Recorrido lógico del módulo', step: 'Paso', applied: 'Aplicado', understood: 'Entendido', pending: 'Por revisar' }
+    : { flow: 'Module flow', journey: 'Module journey', step: 'Step', applied: 'Applied', understood: 'Understood', pending: 'To review' };
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const activeStepRef = useRef<HTMLButtonElement | null>(null);
 
@@ -41,20 +47,20 @@ export function ModuleLearningJourneyNav({
         ref={scrollRef}
       >
         <nav
-          aria-label={compact ? 'Flujo del módulo' : 'Recorrido lógico del módulo'}
+          aria-label={compact ? labels.flow : labels.journey}
           className={cn('flex min-w-max items-center p-0.5', compact ? 'gap-1' : 'gap-1.5')}
         >
           {journey.map((step, index) => {
             const isApplied = appliedJourneyIds.has(step.id);
             const isUnderstood = understoodJourneyIds.has(step.id);
             const isActive = step.id === activeJourneyId;
-            const stateLabel = isApplied ? 'Aplicado' : isUnderstood ? 'Entendido' : 'Por revisar';
+            const stateLabel = isApplied ? labels.applied : isUnderstood ? labels.understood : labels.pending;
 
             return (
               <Fragment key={step.id}>
                 <button
                   aria-current={isActive ? 'step' : undefined}
-                  aria-label={`Paso ${index + 1}, ${step.label}: ${stateLabel}`}
+                  aria-label={`${labels.step} ${index + 1}, ${step.label}: ${stateLabel}`}
                   className={cn(
                     'flex shrink-0 items-center border text-left transition-colors motion-reduce:transition-none disabled:cursor-default',
                     compact
@@ -85,7 +91,7 @@ export function ModuleLearningJourneyNav({
                             ? theme.eyebrowClass
                             : 'text-slate-400',
                       )}>
-                        Paso {index + 1} · {stateLabel}
+                        {labels.step} {index + 1} · {stateLabel}
                       </span>
                     ) : null}
                   </span>

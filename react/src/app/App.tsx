@@ -437,8 +437,9 @@ export default function App() {
     setLearningModeVisible,
     setLearningStep,
     saveLearningModeSettings,
+    preferencesReady, preferenceError, retryPreferences,
   } = useLearningModePreferences(sessionTabAccess);
-  const [darkMode, setDarkMode] = useLocalStorageState('indice.app.darkMode', false);
+  const [darkMode, setDarkMode] = useLocalStorageState('indice.app.darkMode', false, true);
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const [isModuleNavigationLoading, setIsModuleNavigationLoading] = useState(false);
   const [allowedModuleRoutes, setAllowedModuleRoutes] = useState<Set<PageId> | null>(null);
@@ -857,6 +858,9 @@ export default function App() {
           learningModeVisible={learningModeVisible}
           learningStep={learningStep}
           onSaveLearningModeSettings={saveLearningModeSettings}
+          learningPreferencesReady={preferencesReady}
+          learningPreferenceError={preferenceError}
+          onRetryLearningPreferences={retryPreferences}
           darkMode={darkMode}
           onToggleDarkMode={toggleDarkMode}
         />}

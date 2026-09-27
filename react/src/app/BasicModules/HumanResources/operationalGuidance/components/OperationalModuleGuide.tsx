@@ -143,6 +143,11 @@ export function OperationalModuleGuide({
   return (
     <ModuleLearningGuide
       activeContextLabel={activeGuide.label}
+      activeJourneyId={activeTabId}
+      journey={(availableTabIds ?? [activeTabId]).map(id => ({ id, label: copy.tabs[id].label, emoji: tabEmojiMap[id] }))}
+      contextSignal={activeGuide.summary}
+      appliedJourneyIds={learningProgress?.appliedAreaIds}
+      onJourneyChange={onNavigateArea ? (id) => onNavigateArea(id as HumanResourcesGuidanceTabId) : undefined}
       controls={controls}
       ctaLabel={activeGuide.ctaLabel}
       eyebrow={copy.eyebrow}

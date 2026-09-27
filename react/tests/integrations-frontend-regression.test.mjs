@@ -40,10 +40,17 @@ test('Conectar IA usa los patrones canónicos del Frontend Engine', () => {
   assert.doesNotMatch(visualSource, /tone="aqua"|#59C3A5|#177D66|#126553/);
 });
 
-test('la guía pública muestra solo ChatGPT y conserva Mis conexiones fuera de navegación', () => {
+test('la guía inicia en ChatGPT y permite administrar conexiones sin emitir claves manuales', () => {
   assert.match(pageSource, /useState<WorkspaceSection>\('guide'\)/);
-  assert.doesNotMatch(pageSource, /id: 'connections'/);
-  assert.doesNotMatch(pageSource, /useAiConnections|ConnectionsWorkspace|CreateAiConnectionWizard/);
+  assert.match(pageSource, /id: 'connections'/);
+  assert.match(pageSource, /<ManageAiConnections/);
+  const manager = read('components/ManageAiConnections.tsx');
+  assert.match(manager, /useAiConnections\(copy\)/);
+  assert.match(manager, /<ConnectionsWorkspace/);
+  assert.match(manager, /<RevokeAiConnectionDialog/);
+  assert.match(manager, /await workspace.revokeConnection\(pendingRevoke\)/);
+  assert.match(manager, /onCreate=\{onConnect\}/);
+  assert.doesNotMatch(pageSource + manager, /CreateAiConnectionWizard|createConnection\(/);
   assert.match(guideSource, /aria-expanded=\{expanded\}/);
   assert.match(guideSource, /copyText\(INDICE_MCP_SERVER_URL\)/);
   assert.match(constantsSource, /https:\/\/app\.indiceapp\.com\/api\/v1\/ai\/mcp/);

@@ -1,3 +1,4 @@
+import { inventoryLearningEnglish } from './operationalGuidance/inventoryLearningEnglish';
 import { lazy, Suspense, useMemo, useRef, type ComponentType, type ReactNode } from 'react';
 import { IndiceModuleShell } from '../../components/frontend-os';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
@@ -147,6 +148,7 @@ function InventoryWorkspace({ learningModeActive, onNavigate }: { learningModeAc
       currentModule="inventory"
       guide={learningModeActive ? (
         <SimpleModuleLearningGuide
+            englishOverview={inventoryLearningEnglish}
           activeContextLabel={activeTabConfig.label}
           activeJourneyId={activeTab}
           contextSignal={inventoryLearningSignals[activeTab]}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Check,
   Compass,
@@ -18,7 +18,10 @@ const JOURNEY_STAGE_COUNT = 6;
 type LearningModeSettingsModalProps = {
   currentSettings: LearningModeSettings;
   onOpenChange: (open: boolean) => void;
-  onSave: (settings: LearningModeSettings) => void;
+  onSave: (settings: LearningModeSettings) => void | Promise<void>;
+  ready?: boolean;
+  preferenceError?: 'load' | 'save' | null;
+  onRetry?: () => void;
   open: boolean;
 };
 
@@ -54,18 +57,27 @@ export function LearningModeSettingsModal({
   onOpenChange,
   onSave,
   open,
+  ready = true, preferenceError = null, onRetry,
 }: LearningModeSettingsModalProps) {
   const { currentLanguage } = useLanguage();
   const copy = getLearningModeSettingsCopy(currentLanguage.code);
   const [draft, setDraft] = useState<LearningModeSettings>(currentSettings);
   const [saving, setSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const savingRef = useRef(false);
+  const wasOpen = useRef(false);
 
   useEffect(() => {
-    if (open) {
+    if (open && !wasOpen.current) {
       setDraft(currentSettings);
-      setSaving(false);
+      setSaveFailed(false);
     }
-  }, [currentSettings.active, currentSettings.step, currentSettings.visible, open]);
+    wasOpen.current = open;
+  }, [currentSettings, open]);
+  useEffect(() => {
+    if (open && ready) setDraft(currentSettings);
+    // Restore the initial draft only when loading completes, not on background refreshes.
+  }, [ready]);
 
   const safeStep = Math.min(
     Math.max(Math.trunc(draft.step), 0),
@@ -79,23 +91,27 @@ export function LearningModeSettingsModal({
       ? copy.previewWithJourney
       : copy.previewModules;
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (savingRef.current || !ready) return;
+    savingRef.current = true;
     setSaving(true);
-    onSave({
-      ...draft,
-      step: safeStep,
-    });
-    window.requestAnimationFrame(() => {
-      setSaving(false);
+    setSaveFailed(false);
+    try {
+      await onSave({ ...draft, step: safeStep });
       onOpenChange(false);
-    });
+    } catch {
+      setSaveFailed(true);
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
   };
 
   return (
     <IndiceModalFrame
       open={open}
       busy={saving}
-      onOpenChange={onOpenChange}
+      onOpenChange={(next) => { if (!savingRef.current) onOpenChange(next); }}
       modalType="standard-form"
       contentClassName="sm:max-w-2xl"
       tone="blue"
@@ -109,13 +125,20 @@ export function LearningModeSettingsModal({
           <button type="button" onClick={() => onOpenChange(false)} disabled={saving}>
             {copy.cancel}
           </button>
-          <button type="button" onClick={handleSave} disabled={saving} className="inline-flex items-center justify-center gap-2">
+          <button type="button" onClick={handleSave} disabled={saving || !ready} className="inline-flex items-center justify-center gap-2">
             {saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
             {saving ? copy.saving : copy.save}
           </button>
         </>
       )}
     >
+      {!ready || saveFailed || preferenceError ? (
+        <div role={saveFailed || preferenceError ? 'alert' : 'status'} className="mb-4 rounded-xl border border-slate-300 p-3 text-sm dark:border-slate-600">
+          {saveFailed || preferenceError === 'save' ? copy.saveError : preferenceError === 'load' ? copy.loadError : copy.loading}
+          {preferenceError === 'load' && onRetry ? <button type="button" onClick={onRetry} className="ml-2 underline">{copy.retry}</button> : null}
+        </div>
+      ) : null}
+      <fieldset disabled={saving || !ready}>
       <section className={cn(
         'rounded-2xl border bg-white p-4 shadow-sm transition dark:bg-slate-900',
         draft.active
@@ -228,6 +251,7 @@ export function LearningModeSettingsModal({
           </div>
         </div>
       </section>
+      </fieldset>
     </IndiceModalFrame>
   );
 }

@@ -1,3 +1,4 @@
+import { pettyCashLearningEnglish } from './operationalGuidance/pettyCashLearningEnglish';
 import { useSearchParams } from 'react-router';
 import { useRef, useState, type ReactNode } from 'react';
 import { IndiceModuleShell } from '../../components/frontend-os';
@@ -163,6 +164,7 @@ export default function CajaChica({ learningModeActive = false, onNavigate }: Ca
         currentModule="petty-cash"
         guide={learningModeActive ? (
           <SimpleModuleLearningGuide
+            englishOverview={pettyCashLearningEnglish}
             activeContextLabel={pettyCashLearningLabels[activeTab]}
             activeJourneyId={activeTab}
             contextSignal={pettyCashLearningSignals[activeTab]}

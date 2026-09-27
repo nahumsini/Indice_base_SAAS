@@ -36,26 +36,19 @@ export function readLearningModePreferences(
       return { ...defaultLearningModePreferences };
     }
 
-    const parsed = JSON.parse(storedValue) as Partial<LearningModePreferences>;
-    if (
-      parsed.version !== 1
-      || typeof parsed.active !== 'boolean'
-      || typeof parsed.visible !== 'boolean'
-      || typeof parsed.step !== 'number'
-      || !Number.isFinite(parsed.step)
-    ) {
-      return { ...defaultLearningModePreferences };
-    }
-
-    return {
-      version: 1,
-      active: parsed.active,
-      visible: parsed.visible,
-      step: Math.max(0, Math.min(7, Math.trunc(parsed.step))),
-    };
+    return parseLearningModePreferences(JSON.parse(storedValue)) ?? { ...defaultLearningModePreferences };
   } catch {
     return { ...defaultLearningModePreferences };
   }
+}
+
+export function parseLearningModePreferences(value: unknown): LearningModePreferences | null {
+  if (!value || typeof value !== 'object') return null;
+  const parsed = value as Partial<LearningModePreferences>;
+  if (parsed.version !== 1 || typeof parsed.active !== 'boolean' || typeof parsed.visible !== 'boolean'
+    || typeof parsed.step !== 'number' || !Number.isFinite(parsed.step)) return null;
+  return { version: 1, active: parsed.active, visible: parsed.visible,
+    step: Math.max(0, Math.min(7, Math.trunc(parsed.step))) };
 }
 
 export function writeLearningModePreferences(

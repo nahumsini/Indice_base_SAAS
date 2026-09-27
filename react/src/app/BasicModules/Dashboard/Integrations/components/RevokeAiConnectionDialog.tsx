@@ -3,10 +3,11 @@ import type { AiConnection } from '../../../../api/aiConnections';
 import { IndiceConfirmationDialog } from '../../../../components/indice-modal';
 import type { IntegrationsTranslations } from '../translations';
 
-export function RevokeAiConnectionDialog({ busy, connection, copy, onCancel, onConfirm }: {
+export function RevokeAiConnectionDialog({ busy, connection, copy, error, onCancel, onConfirm }: {
   busy: boolean;
   connection: AiConnection | null;
   copy: IntegrationsTranslations;
+  error?: string;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -26,6 +27,7 @@ export function RevokeAiConnectionDialog({ busy, connection, copy, onCancel, onC
       tone="blue"
     >
       <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">{copy.revoke.consequence}</p>
+      {error ? <p role="alert" className="mt-3 text-sm text-red-700 dark:text-red-300">{error}</p> : null}
     </IndiceConfirmationDialog>
   );
 }

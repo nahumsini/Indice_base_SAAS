@@ -5,9 +5,10 @@ import { IndiceTitleBar, IndiceWorkspaceNavigation } from '../../../components/f
 import { Button } from '../../../components/ui/button';
 import { AiSetupGuide } from './components/AiSetupGuide';
 import { AiQuestionIdeas } from './components/AiQuestionIdeas';
+import { ManageAiConnections } from './components/ManageAiConnections';
 import { getIntegrationsTranslations } from './translations';
 
-type WorkspaceSection = 'guide' | 'ideas';
+type WorkspaceSection = 'connections' | 'guide' | 'ideas';
 
 export default function Integrations() {
   const { currentLanguage } = useLanguage();
@@ -15,6 +16,7 @@ export default function Integrations() {
   const [activeSection, setActiveSection] = useState<WorkspaceSection>('guide');
 
   const navigationItems = useMemo(() => [
+    { id: 'connections' as const, label: copy.navigation.connections, icon: <Bot /> },
     { id: 'guide' as const, label: copy.navigation.guide, icon: <CircleHelp /> },
     { id: 'ideas' as const, label: copy.navigation.ideas, icon: <Lightbulb /> },
   ], [copy]);
@@ -46,6 +48,9 @@ export default function Integrations() {
         value={activeSection}
       />
 
+      {activeSection === 'connections' ? (
+        <ManageAiConnections copy={copy} locale={currentLanguage.code} onConnect={() => setActiveSection('guide')} />
+      ) : null}
       {activeSection === 'guide' ? (
         <AiSetupGuide copy={copy} />
       ) : null}

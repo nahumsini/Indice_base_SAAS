@@ -37,6 +37,6 @@ test('el guardado conserva una sola preferencia por usuario y empresa', () => {
 
   assert.match(preferences, /indice\.app\.learningMode\.user-\$\{session\.user\.id\}\.company-\$\{session\.company\.id\}/);
   assert.match(hook, /saveLearningModeSettings/);
-  assert.match(hook, /writeLearningModePreferences\(window\.localStorage, storageKey, nextPreferences\)/);
+  assert.match(hook, /workspaceStateApi\.save\(moduleKey, tabKey, next\)/);
   assert.match(contract, /Global learning settings/);
 });

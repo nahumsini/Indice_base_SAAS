@@ -1,3 +1,4 @@
+import { receivablesLearningEnglish } from './operationalGuidance/receivablesLearningEnglish';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { FailureToast } from '../../components/FailureToast';
@@ -296,6 +297,7 @@ function ReceivablesWorkspace({
         currentModule="receivables"
         guide={learningModeActive ? (
           <SimpleModuleLearningGuide
+            englishOverview={receivablesLearningEnglish}
             activeContextLabel={receivablesLearningLabels[activeTab]}
             activeJourneyId={activeTab}
             contextSignal={receivablesLearningSignals[activeTab]}

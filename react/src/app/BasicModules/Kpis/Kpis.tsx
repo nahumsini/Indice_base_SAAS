@@ -1,3 +1,4 @@
+import { kpisLearningEnglish } from './operationalGuidance/kpisLearningEnglish';
 import { lazy, Suspense, useRef, type ComponentType, type ReactNode } from 'react';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { IndiceModuleShell } from '../../components/frontend-os';
@@ -109,12 +110,14 @@ export default function Kpis({ learningModeActive = false, onNavigate }: KpisPro
         currentModule="kpis"
         guide={learningModeActive ? (
             <SimpleModuleLearningGuide
+            englishOverview={kpisLearningEnglish}
               activeContextLabel={kpisLearningLabels[activeTab]}
               activeJourneyId={activeTab}
               contextSignal={kpisLearningSignals[activeTab]}
               controls={kpisLearningControls[activeTab]}
               guideId="kpis-learning-guide"
               journey={learningJourney}
+              englishModuleTitle="Turn information into decisions"
               moduleTitle="Guía para convertir información en decisiones"
               onJourneyChange={(journeyId) => setActiveTab(journeyId as KpiTabId)}
               onPrimaryAction={() => mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}

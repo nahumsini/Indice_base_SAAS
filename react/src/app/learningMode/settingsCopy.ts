@@ -1,4 +1,8 @@
 export type LearningModeSettingsCopy = {
+  loading: string;
+  loadError: string;
+  saveError: string;
+  retry: string;
   activeDescription: string;
   activeLabel: string;
   activeState: string;
@@ -26,6 +30,10 @@ export type LearningModeSettingsCopy = {
 };
 
 const english: LearningModeSettingsCopy = {
+  loading: 'Loading your preferences…',
+  loadError: 'Your preferences could not be loaded. Retry before making changes.',
+  saveError: 'Your changes could not be saved. Please try again.',
+  retry: 'Retry',
   eyebrow: 'Personal settings',
   title: 'Learning mode',
   description: 'Choose how Índice accompanies you while you learn each part of your operation.',
@@ -46,13 +54,17 @@ const english: LearningModeSettingsCopy = {
   previewWithJourney: 'You will see the six-stage journey on the dashboard and contextual guides inside compatible modules.',
   previewModules: 'Module guides will remain active while the dashboard keeps its operational KPIs and favourites.',
   previewInactive: 'Índice will keep its usual operational view. Your journey progress and business case will not be deleted.',
-  footerSummary: 'Saved for this user and company in this browser.',
+  footerSummary: 'Saved to your account for this company, including after signing out.',
   cancel: 'Cancel',
   save: 'Save changes',
   saving: 'Saving…',
 };
 
 const spanish: LearningModeSettingsCopy = {
+  loading: 'Cargando tus preferencias…',
+  loadError: 'No se pudieron cargar tus preferencias. Reintenta antes de cambiarlas.',
+  saveError: 'No se pudieron guardar los cambios. Inténtalo de nuevo.',
+  retry: 'Reintentar',
   eyebrow: 'Configuración personal',
   title: 'Modo aprendiz',
   description: 'Decide cómo te acompaña Índice mientras conoces cada parte de tu operación.',
@@ -73,7 +85,7 @@ const spanish: LearningModeSettingsCopy = {
   previewWithJourney: 'Verás la ruta de seis etapas en el Panel Inicial y guías contextuales dentro de los módulos compatibles.',
   previewModules: 'Las guías de los módulos seguirán activas, mientras el Panel Inicial conserva sus KPIs y favoritos.',
   previewInactive: 'Índice conservará su vista operativa habitual. Tu avance y caso empresarial no se borrarán.',
-  footerSummary: 'Se guarda para este usuario y empresa en este navegador.',
+  footerSummary: 'Se guarda en tu cuenta para esta empresa, incluso al cerrar sesión.',
   cancel: 'Cancelar',
   save: 'Guardar cambios',
   saving: 'Guardando…',
@@ -81,6 +93,10 @@ const spanish: LearningModeSettingsCopy = {
 
 const french: LearningModeSettingsCopy = {
   ...english,
+  loading: 'Chargement de vos préférences…',
+  loadError: 'Impossible de charger vos préférences. Réessayez avant de les modifier.',
+  saveError: 'Impossible d’enregistrer les modifications. Réessayez.',
+  retry: 'Réessayer',
   eyebrow: 'Préférences personnelles',
   title: 'Mode apprentissage',
   description: 'Choisissez comment Índice vous accompagne pendant que vous découvrez chaque partie de votre activité.',
@@ -101,7 +117,7 @@ const french: LearningModeSettingsCopy = {
   previewWithJourney: 'Le parcours en six étapes apparaîtra au tableau de bord et les guides contextuels dans les modules compatibles.',
   previewModules: 'Les guides des modules resteront actifs tandis que le tableau de bord conservera ses indicateurs et favoris.',
   previewInactive: 'Índice conservera sa vue opérationnelle habituelle. Votre progression et votre cas d’entreprise seront conservés.',
-  footerSummary: 'Enregistré pour cet utilisateur et cette entreprise dans ce navigateur.',
+  footerSummary: 'Enregistré dans votre compte pour cette entreprise, même après déconnexion.',
   cancel: 'Annuler',
   save: 'Enregistrer',
   saving: 'Enregistrement…',
@@ -109,6 +125,10 @@ const french: LearningModeSettingsCopy = {
 
 const portuguese: LearningModeSettingsCopy = {
   ...english,
+  loading: 'Carregando suas preferências…',
+  loadError: 'Não foi possível carregar suas preferências. Tente novamente antes de alterá-las.',
+  saveError: 'Não foi possível salvar as alterações. Tente novamente.',
+  retry: 'Tentar novamente',
   eyebrow: 'Configuração pessoal',
   title: 'Modo aprendiz',
   description: 'Escolha como o Índice acompanha você enquanto conhece cada parte da operação.',
@@ -129,7 +149,7 @@ const portuguese: LearningModeSettingsCopy = {
   previewWithJourney: 'Você verá a jornada de seis etapas no painel e guias contextuais nos módulos compatíveis.',
   previewModules: 'Os guias dos módulos continuarão ativos enquanto o painel mantém seus KPIs e favoritos.',
   previewInactive: 'O Índice manterá a visualização operacional habitual. Seu progresso e caso empresarial serão preservados.',
-  footerSummary: 'Salvo para este usuário e empresa neste navegador.',
+  footerSummary: 'Salvo na sua conta para esta empresa, mesmo após sair.',
   cancel: 'Cancelar',
   save: 'Salvar alterações',
   saving: 'Salvando…',
@@ -137,6 +157,10 @@ const portuguese: LearningModeSettingsCopy = {
 
 const korean: LearningModeSettingsCopy = {
   ...english,
+  loading: '설정을 불러오는 중…',
+  loadError: '설정을 불러올 수 없습니다. 변경하기 전에 다시 시도하세요.',
+  saveError: '변경 사항을 저장할 수 없습니다. 다시 시도하세요.',
+  retry: '다시 시도',
   eyebrow: '개인 설정',
   title: '학습 모드',
   description: '운영의 각 부분을 익히는 동안 Índice가 안내하는 방식을 선택하세요.',
@@ -157,7 +181,7 @@ const korean: LearningModeSettingsCopy = {
   previewWithJourney: '대시보드에는 여섯 단계 여정이, 지원되는 모듈에는 상황별 안내가 표시됩니다.',
   previewModules: '모듈 안내는 유지되고 대시보드에는 운영 KPI와 즐겨찾기가 표시됩니다.',
   previewInactive: 'Índice는 일반 운영 화면을 유지합니다. 진행 상황과 비즈니스 사례는 삭제되지 않습니다.',
-  footerSummary: '이 브라우저의 현재 사용자와 회사에 저장됩니다.',
+  footerSummary: '로그아웃 후에도 이 회사의 사용자 계정에 저장됩니다.',
   cancel: '취소',
   save: '변경 사항 저장',
   saving: '저장 중…',
@@ -165,6 +189,10 @@ const korean: LearningModeSettingsCopy = {
 
 const chinese: LearningModeSettingsCopy = {
   ...english,
+  loading: '正在加载偏好设置…',
+  loadError: '无法加载偏好设置。请重试后再修改。',
+  saveError: '无法保存更改。请重试。',
+  retry: '重试',
   eyebrow: '个人设置',
   title: '学习模式',
   description: '选择在了解运营各环节时 Índice 为你提供陪伴的方式。',
@@ -185,7 +213,7 @@ const chinese: LearningModeSettingsCopy = {
   previewWithJourney: '仪表板会显示六阶段路径，支持的模块中会显示情境指引。',
   previewModules: '模块指引保持启用，仪表板则保留运营 KPI 和收藏。',
   previewInactive: 'Índice 将保留常规运营视图，不会删除你的进度和企业案例。',
-  footerSummary: '为此浏览器中的当前用户和公司保存。',
+  footerSummary: '保存到您在此公司的账户，退出登录后仍保留。',
   cancel: '取消',
   save: '保存更改',
   saving: '正在保存…',

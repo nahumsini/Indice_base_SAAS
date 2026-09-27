@@ -1,3 +1,4 @@
+import { pointOfSaleLearningEnglish } from './operationalGuidance/pointOfSaleLearningEnglish';
 import { lazy, Suspense, useEffect, useMemo, useRef } from 'react';
 import { Navigate, useParams } from 'react-router';
 import { IndiceModuleShell } from '../../components/frontend-os';
@@ -193,6 +194,7 @@ function PuntoDeVentaContent({ learningModeActive = false, onNavigate }: PuntoDe
       currentModule="point-of-sale"
       guide={showLearningGuide ? (
         <SimpleModuleLearningGuide
+            englishOverview={pointOfSaleLearningEnglish}
           activeContextLabel={pointOfSaleLearningLabels[activeTab]}
           activeJourneyId={activeTab}
           contextSignal={pointOfSaleLearningSignals[activeTab]}
