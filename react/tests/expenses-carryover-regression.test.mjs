@@ -13,7 +13,7 @@ let locale = 'es-MX';
 function load(relative) {
   function compile(file) {
     const full = [file, `${file}.ts`, `${file}.tsx`, resolve(file, 'index.ts'), resolve(file, 'index.tsx')]
-      .find(candidate => existsSync(candidate) && /\.tsx?$/.test(candidate));
+      .find(candidate => existsSync(candidate) && /\.tsx?$/.test(candidate))?.replaceAll('\\', '/');
     if (!full) throw new Error(`Missing test module: ${file}`);
     if (full.endsWith('/shared/kpiMonetaryApi.ts')) return { useKpiMonetaryAggregate(query) {
       requests.push(query);

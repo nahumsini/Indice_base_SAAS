@@ -38,9 +38,12 @@ public class CashMovementService {
 
     @Transactional
     public CashMovementResponse create(PosContext context, CashMovementCreateRequest request) {
-        var shift = requireShift(context, request.shiftId());
+        shiftRepository.lockCompanyForOperation(context);
+        var shift = shiftRepository.findByIdForUpdate(context, request.shiftId())
+                .orElseThrow(() -> new NoSuchElementException("Shift not found."));
         var command = mapper.toCommand(context, shift, request);
         validator.validate(context, shift, command);
+        if (validator.delta(command).signum() < 0) shiftRepository.requireNoPendingReturn(context, shift.id());
         var movement = repository.insert(context, command);
         if (!shiftRepository.adjustExpectedCash(context, shift.id(), validator.delta(command))) {
             throw PosApiException.conflict("Open shift cash total could not be updated.");

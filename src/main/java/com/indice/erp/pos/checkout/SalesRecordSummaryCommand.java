@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 public record SalesRecordSummaryCommand(
         Long unitId,
         Long businessId,
+        Long contactId,
         String saleNumber,
         String customerName,
         String sellerName,

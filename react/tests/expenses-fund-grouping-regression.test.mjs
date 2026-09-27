@@ -12,7 +12,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '../src/app/BasicM
 const cache = new Map();
 function load(file) {
   const path = [file, `${file}.ts`, `${file}.tsx`, resolve(file, 'index.ts'), resolve(file, 'index.tsx')]
-    .find(value => existsSync(value) && /\.tsx?$/.test(value));
+    .find(value => existsSync(value) && /\.tsx?$/.test(value))?.replaceAll('\\', '/');
   if (!path) throw new Error(`Missing module: ${file}`);
   if (path.endsWith('/shared/kpiMonetaryApi.ts')) return { getKpiMonetaryAggregates: async queries => monetaryApi(queries) };
   if (path.endsWith('/hooks/useAuthorizationRevision.ts')) return { useAuthorizationRevision: () => 0 };

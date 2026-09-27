@@ -70,6 +70,7 @@ public class ShiftService {
 
     @Transactional
     public ShiftResponse close(PosContext context, long shiftId, ShiftCloseRequest request) {
+        repository.lockCompanyForOperation(context);
         var shift = repository.findByIdForUpdate(context, shiftId)
             .orElseThrow(() -> new NoSuchElementException("Shift not found."));
         cashClosingService.close(context, shift, request.countedCashAmount(), request.closingNote());
@@ -78,7 +79,11 @@ public class ShiftService {
 
     @Transactional
     public ShiftResponse cancel(PosContext context, long shiftId, ShiftCancelRequest request) {
-        var shift = requireShift(context, shiftId);
+        repository.lockCompanyForOperation(context);
+        var shift = repository.findByIdForUpdate(context, shiftId)
+                .orElseThrow(() -> new NoSuchElementException("Shift not found."));
+        repository.requireNoPendingReturn(context, shiftId);
+        repository.requireNoActivityForCancellation(context, shiftId);
         validator.requireCancelable(context, shift);
         var command = mapper.toCancelCommand(context, shift, request.reason());
         if (!repository.cancel(context, shiftId, command)) {

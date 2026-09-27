@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { buildDocumentFileName } from '../../shared/print/documentFileName';
+import { printDocumentHtml } from '../../shared/print/documentHtmlPrintEngine';
 import {
   PayrollRunPdfDocument,
   type PayrollRunPdfDocumentProps,
@@ -85,7 +86,13 @@ export function PayrollRunPrintPortal({
     let cancelled = false;
     const triggerId = window.setTimeout(() => {
       void waitForPrintImages(host).then(() => {
-        if (!cancelled) window.print();
+        if (cancelled) return;
+        const output = host.querySelector('.prpdf-report-shell');
+        if (output) printDocumentHtml({
+          bodyHtml: output.outerHTML, documentTitle: document.title,
+          locale: job.locale, includeApplicationStyles: true, pageSize: 'a4',
+        });
+        handleAfterPrint();
       });
     }, 80);
 

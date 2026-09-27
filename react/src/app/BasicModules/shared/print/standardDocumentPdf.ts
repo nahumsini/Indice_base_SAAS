@@ -1,9 +1,11 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { buildDocumentFileName } from './documentFileName';
-import { addStandardPdfFooters, applyStandardPdfMetadata, openStandardPdfForPrint } from './documentPdfEngine';
+import { addStandardPdfFooters, applyStandardPdfMetadata } from './documentPdfEngine';
 import type { DocumentPrintContract } from './documentPrintContract';
+import { printStandardDocumentHtml } from './standardDocumentHtml';
 import { notifyDocumentPrintFailure } from './documentPrintFeedback';
+import { labelsFor, localizedConfidentiality } from './standardDocumentLabels';
 
 export interface StandardDocumentField {
   label: string;
@@ -49,6 +51,7 @@ export interface StandardDocumentDefinition {
   folio?: string;
   generatedAt?: Date;
   issuer?: string;
+  logoUrl?: string;
   showIssuerMetadata?: boolean;
   continuationHeader?: string;
   locale?: string;
@@ -64,36 +67,6 @@ export interface StandardDocumentDefinition {
   title: string;
 }
 
-type Labels = {
-  confidential: string;
-  generated: string;
-  internal: string;
-  issuer: string;
-  recipient: string;
-  status: string;
-  noData: string;
-};
-
-const labelsFor = (locale: string): Labels => {
-  const language = locale.toLowerCase().split('-')[0];
-  return ({
-    en: { confidential: 'Confidential', generated: 'Generated', internal: 'Internal', issuer: 'Issuer', recipient: 'Recipient', status: 'Status', noData: 'No records available' },
-    es: { confidential: 'Confidencial', generated: 'Generado', internal: 'Interno', issuer: 'Emisor', recipient: 'Destinatario', status: 'Estado', noData: 'Sin registros disponibles' },
-    fr: { confidential: 'Confidentiel', generated: 'Généré', internal: 'Interne', issuer: 'Émetteur', recipient: 'Destinataire', status: 'Statut', noData: 'Aucun enregistrement disponible' },
-    ko: { confidential: '기밀', generated: '생성됨', internal: '내부용', issuer: '발행자', recipient: '수신자', status: '상태', noData: '사용 가능한 기록 없음' },
-    pt: { confidential: 'Confidencial', generated: 'Gerado', internal: 'Interno', issuer: 'Emissor', recipient: 'Destinatário', status: 'Status', noData: 'Nenhum registro disponível' },
-    zh: { confidential: '机密', generated: '生成时间', internal: '内部', issuer: '签发方', recipient: '接收方', status: '状态', noData: '暂无记录' },
-  } as Record<string, Labels>)[language] ?? {
-    confidential: 'Confidential', generated: 'Generated', internal: 'Internal', issuer: 'Issuer', recipient: 'Recipient', status: 'Status', noData: 'No records available',
-  };
-};
-
-const localizedConfidentiality = (value: string | undefined, labels: Labels) => {
-  const normalized = value?.trim().toLowerCase();
-  if (normalized === 'confidential') return labels.confidential;
-  if (normalized === 'internal') return labels.internal;
-  return value;
-};
 
 const cleanValue = (value: string | number | null | undefined) => {
   if (value === null || value === undefined || value === '') return '-';
@@ -358,22 +331,13 @@ export const buildStandardDocumentPdf = (definition: StandardDocumentDefinition)
 };
 
 export const printStandardDocumentPdf = (definition: StandardDocumentDefinition) => {
-  const locale = definition.locale ?? 'es-MX';
-  try {
-    const opened = openStandardPdfForPrint(buildStandardDocumentPdf(definition), { locale });
-    return opened;
-  } catch (error) {
-    console.error('Unable to generate standard print document.', error);
-    notifyDocumentPrintFailure(locale, 'generation');
-    return false;
-  }
+  return printStandardDocumentHtml(definition);
 };
 
 export const downloadStandardDocumentPdf = (definition: StandardDocumentDefinition) => {
   try {
     const fileName = buildDocumentFileName({ ...definition.fileName, extension: 'pdf' });
-    buildStandardDocumentPdf(definition).save(fileName);
-    return fileName;
+    return printStandardDocumentHtml(definition) ? fileName : null;
   } catch (error) {
     console.error('Unable to download standard print document.', error);
     notifyDocumentPrintFailure(definition.locale ?? 'es-MX', 'generation');

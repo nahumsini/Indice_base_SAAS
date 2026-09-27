@@ -13,6 +13,16 @@ class TabPermissionRouteClassifierTest {
     private final TabPermissionRouteClassifier classifier = new TabPermissionRouteClassifier();
 
     @Test
+    void posReturnsRequireTheSaleTabForReadsAndMutations() {
+        assertRequirement("GET", "/api/v1/pos/returns/tickets", "pos.sale");
+        assertRequirement("GET", "/api/v1/pos/returns/ticket/12", "pos.sale");
+        assertRequirement("GET", "/api/v1/pos/returns/12", "pos.sale");
+        assertRequirement("POST", "/api/v1/pos/returns", "pos.sale");
+        assertRequirement("POST", "/api/v1/pos/returns/12/confirm", "pos.sale");
+        assertRequirement("POST", "/api/v1/pos/returns/12/cancel", "pos.sale");
+    }
+
+    @Test
     void receivablesAnalyticsIsReadOnlyAndHasItsOwnPermission() {
         assertRequirement("GET", "/api/v1/finance/receivables/kpis/workspace", "receivables.kpis");
         assertAnyOf("GET", "/api/v1/finance/receivables/payments/12/receipt", "receivables.payments", "receivables.kpis");

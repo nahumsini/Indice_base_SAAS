@@ -91,6 +91,22 @@ class InventoryAccountingHistoryIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM finance_journal_entries WHERE company_id = ? AND reversal_of_entry_id IS NOT NULL", Integer.class, company)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT SUM(debit_amount-credit_amount) FROM finance_journal_lines WHERE company_id = ?", BigDecimal.class, company)).isZero();
     }
+
+    @Test void posReturnPreservesAcquisitionCostForTheNextSaleInsteadOfBlockingItsAccounting() {
+        rate("2002-01-01", "20"); rate("2002-01-02", "22"); rate("2002-01-03", "25");
+        receipt("2002-01-01", 10); receipt("2002-01-02", 20);
+        saleOut(123, "2002-01-03");
+        long original = last("sales_inventory_movements");
+        jdbc.update("UPDATE sales_inventory_movements SET movement_type = 'POS_SALE_OUT', status = 'posted' WHERE company_id = ? AND id = ?", company, original);
+        jdbc.update("""
+            INSERT INTO sales_inventory_movements (company_id, movement_number, product_id, product_name, movement_type,
+              quantity, unit_cost, to_warehouse_id, movement_date, status, metadata_json)
+            VALUES (?, ?, ?, 'Historical product', 'POS_SALE_RETURN', 2, 15, ?, '2002-01-03', 'posted',
+              JSON_OBJECT('source', 'POS_RETURN', 'reversalOfMovementId', ?))
+            """, company, UUID.randomUUID().toString(), product, warehouse, original);
+        saleOut(124, "2002-01-03");
+        assertThat(costs.sale(company, 124, "USD", "MXN", new BigDecimal("30")).functionalCost()).isEqualByComparingTo("640");
+    }
     @Test void refundPreservesHistoricalInventoryAndRecognizesCashAtTheRefundRate() {
         rate("2002-01-01", "20");
         long receipt = receipt("2002-01-01", 10);

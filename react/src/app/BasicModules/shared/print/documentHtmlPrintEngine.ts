@@ -1,5 +1,8 @@
 import type { DocumentPageOrientation, DocumentPageSize } from './documentPrintContract';
 import { notifyDocumentPrintFailure } from './documentPrintFeedback';
+import { quotationPrintTheme, thermalQuotationTheme } from './quotationPrintTheme';
+import { getWebPrintCopy } from './webPrintCopy';
+import { prepareDocumentPrintLayout } from './documentPrintLayout';
 
 export const escapeDocumentPrintHtml = (value: string | number | null | undefined) => String(value ?? '')
   .replace(/&/g, '&amp;')
@@ -28,6 +31,7 @@ export interface DocumentHtmlPrintParams {
   orientation?: DocumentPageOrientation;
   pageSize?: DocumentPageSize;
   targetWindow?: Window | null;
+  presentation?: 'quotation' | 'preserve';
 }
 
 export const printDocumentHtml = ({
@@ -40,6 +44,7 @@ export const printDocumentHtml = ({
   orientation = 'portrait',
   pageSize = 'a4',
   targetWindow,
+  presentation = 'quotation',
 }: DocumentHtmlPrintParams) => {
   if (!bodyHtml.trim()) return false;
 
@@ -49,9 +54,10 @@ export const printDocumentHtml = ({
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapeDocumentPrintHtml(documentTitle)}</title>
+    ${includeApplicationStyles ? `<base href="${escapeDocumentPrintHtml(document.baseURI)}" />` : ''}
     ${includeApplicationStyles ? currentApplicationStyles() : ''}
     <style>
-      @page { size: ${resolvePageRule(pageSize, orientation)}; margin: 0; }
+      @page { size: ${resolvePageRule(pageSize, presentation === 'quotation' ? 'portrait' : orientation)}; margin: 0; }
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; }
       body {
@@ -61,11 +67,15 @@ export const printDocumentHtml = ({
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
       }
-      button, [data-print-exclude="true"] { display: none !important; }
+      button { display: none !important; }
+      @media print { [data-print-exclude="true"] { display: none !important; } }
       ${contentStyles}
+      ${presentation === 'quotation' ? (pageSize === '80mm' || pageSize === '58mm' ? thermalQuotationTheme : quotationPrintTheme) : ''}
+      @media print { body > [data-document-content] { display: block !important; } }
+      ${presentation === 'quotation' && pageSize !== '80mm' && pageSize !== '58mm' ? `@page { margin: 10mm; } body { padding: 0; }` : ''}
     </style>
   </head>
-  <body>${bodyHtml}</body>
+  <body><aside data-print-exclude="true" style="padding:12px;font:14px/1.5 sans-serif;background:#f7f7f7;color:#222">${escapeDocumentPrintHtml(getWebPrintCopy(locale).help)}</aside><div data-document-content>${bodyHtml}</div></body>
 </html>`;
 
   const blobUrl = URL.createObjectURL(new Blob([htmlDocument], { type: 'text/html;charset=utf-8' }));
@@ -82,7 +92,7 @@ export const printDocumentHtml = ({
     window.clearInterval(readinessTimer);
     URL.revokeObjectURL(blobUrl);
   };
-  const printWhenReady = () => {
+  const printWhenReady = async () => {
     if (printed) return;
     if (printWindow.closed) { cleanup(); return; }
     try {
@@ -91,6 +101,20 @@ export const printDocumentHtml = ({
       if (printWindow.location.href !== blobUrl || printWindow.document.readyState !== 'complete') return;
       printed = true;
       window.clearInterval(readinessTimer);
+      // Font/image readiness is shared by every web-print adapter, including QR posters.
+      await Promise.race([
+        Promise.all([
+          printWindow.document.fonts?.ready,
+          ...Array.from(printWindow.document.images).map(image => image.complete ? Promise.resolve() : new Promise<void>(resolve => {
+            image.addEventListener('load', () => resolve(), { once: true });
+            image.addEventListener('error', () => { image.style.display = 'none'; resolve(); }, { once: true });
+          })),
+        ]),
+        new Promise(resolve => window.setTimeout(resolve, 5000)),
+      ]);
+      if (printWindow.closed) { cleanup(); return; }
+      Array.from(printWindow.document.images).filter(image => image.complete && image.naturalWidth === 0).forEach(image => { image.style.display = 'none'; });
+      if (presentation === 'quotation') prepareDocumentPrintLayout(printWindow.document, pageSize);
       printWindow.focus();
       printWindow.print();
       window.setTimeout(cleanup, 30_000);

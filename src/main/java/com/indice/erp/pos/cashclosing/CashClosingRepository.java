@@ -46,10 +46,25 @@ public class CashClosingRepository {
             movementTotals.getOrDefault(CashMovementType.SAFE_DROP, BigDecimal.ZERO),
             movementTotals.getOrDefault(CashMovementType.CORRECTION, BigDecimal.ZERO),
             totalSales(context, shift.id()),
-            BigDecimal.ZERO,
+            totalRefunds(context, shift.id()),
             ticketsCount(context, shift.id()),
             paymentSummary(context, shift.id())
         );
+    }
+
+    public void requireNoPendingReturns(PosContext context, long shiftId) {
+        if (jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM pos_returns WHERE company_id = ? AND shift_id = ?
+              AND status IN ('PREPARED', 'PROCESSING')
+            """, Integer.class, context.companyId(), shiftId) > 0)
+            throw com.indice.erp.pos.PosApiException.conflict("Completa la devolución pendiente o cancela su preparación antes de cerrar el turno.");
+    }
+
+    private BigDecimal totalRefunds(PosContext context, long shiftId) {
+        return jdbcTemplate.queryForObject("""
+            SELECT COALESCE(SUM(total_amount), 0) FROM pos_returns
+            WHERE company_id = ? AND shift_id = ? AND status = 'COMPLETED'
+            """, BigDecimal.class, context.companyId(), shiftId);
     }
 
     public long insertClosing(PosContext context, ShiftRecord shift, CashClosingAmounts amounts,

@@ -205,17 +205,20 @@ export const koCA = {
   },
   statuses: {
     commercial: {
+      completed: 'POS에서 완료됨',
       pending_validation: '검증 대기',
       approved: '승인됨',
       rejected: '거절됨',
       cancelled: '취소됨',
     },
     finance: {
+      captured: 'POS에 기록됨',
       pending: '대기',
       approved: '승인됨',
       rejected: '거절됨',
     },
     inventory: {
+      returned: '반품 입고됨',
       pending: '대기',
       reserved: '예약됨',
       approved: '승인됨',
@@ -233,12 +236,14 @@ export const koCA = {
       paid: '지급됨',
     },
     movement: {
+      reversed: '취소됨',
       not_generated: '미생성',
       pending: '대기',
       approved: '승인됨',
       completed: '완료',
     },
     paymentEvidence: {
+      captured: 'POS에 기록됨',
       missing: '없음',
       uploaded: '업로드됨',
       under_review: '검토 중',

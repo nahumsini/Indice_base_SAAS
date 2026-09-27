@@ -1,5 +1,14 @@
+import { quotationPrintTheme } from '../../../shared/print/quotationPrintTheme';
+import { printDocumentHtml } from '../../../shared/print/documentHtmlPrintEngine';
+
+export function printCortesReportHtml(html: string, targetWindow: Window, locale: string) {
+  return printDocumentHtml({
+    bodyHtml: html.match(/<body>([\s\S]*?)<\/body>/)?.[1] ?? '',
+    contentStyles: html.match(/<style>([\s\S]*?)<\/style>/)?.[1] ?? '',
+    documentTitle: 'cash-closing-report', locale, targetWindow,
+  });
+}
 import {
-  documentPrintAttribution,
   formatDocumentPrintDateTime,
   getDocumentPrintLabels,
 } from '../../../shared/print/documentPrintContract';
@@ -298,6 +307,13 @@ export function buildCortesPrintReportHtml({
       table { break-inside: auto; }
       tr { break-inside: avoid; }
     }
+    ${quotationPrintTheme}
+    .color-bar { display:none; }
+    .document-title h1 { font-size:19pt; }
+    .insight-card, .kpi { min-height:0; padding:4mm; border-radius:3mm; }
+    .kpi { background:#fff3f1; border-color:#ffc7c1; }
+    .kpi::before { display:none; }
+    .number, .amount { white-space:normal; font-variant-numeric:tabular-nums; }
   </style>
 </head>
 <body>
@@ -380,7 +396,7 @@ export function buildCortesPrintReportHtml({
     </section>
 
     <footer class="footer">
-      <span>${documentPrintAttribution} · ${escapeHtml(printLabels.updated)}: ${escapeHtml(formatDocumentPrintDateTime(generatedAt, locale))}</span>
+      <span>${escapeHtml(printLabels.updated)}: ${escapeHtml(formatDocumentPrintDateTime(generatedAt, locale))}</span>
       <span>${escapeHtml(documentId)}</span>
     </footer>
   </main>

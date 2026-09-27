@@ -493,17 +493,20 @@ export const esMX = {
   },
   statuses: {
     commercial: {
+      completed: 'Completada en POS',
       pending_validation: 'Pendiente validación',
       approved: 'Aprobada',
       rejected: 'Rechazada',
       cancelled: 'Cancelada',
     },
     finance: {
+      captured: 'Registrado en POS',
       pending: 'Pendiente',
       approved: 'Aprobado',
       rejected: 'Rechazado',
     },
     inventory: {
+      returned: 'Restituido por devolución',
       pending: 'Pendiente',
       reserved: 'Reservado',
       approved: 'Aprobado',
@@ -521,12 +524,14 @@ export const esMX = {
       paid: 'Pagada',
     },
     movement: {
+      reversed: 'Revertido',
       not_generated: 'No generado',
       pending: 'Pendiente',
       approved: 'Aprobado',
       completed: 'Completado',
     },
     paymentEvidence: {
+      captured: 'Registrado en POS',
       missing: 'Faltante',
       uploaded: 'Cargada',
       under_review: 'En revisión',

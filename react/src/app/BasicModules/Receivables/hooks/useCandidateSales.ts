@@ -26,11 +26,11 @@ export function useCandidateSales(
       saleDate: sale.saleDate || todayIso(),
       amount: sale.totalAmount || 0,
       currency: sale.currency || 'MXN',
-      source: sale.saleNumber.toLowerCase().startsWith('pos') ? 'pos' : 'sales',
+      source: sale.sourceType === 'POS' ? 'pos' : 'sales',
     }));
     const existingSaleIds = new Set(existingCreditSales.map((sale) => sale.saleId));
     const merged = isBackendReady
-      ? [...apiCandidateSales, ...transformedSales]
+      ? apiCandidateSales
       : [...transformedSales, ...fallbackCandidateSales];
     const unique = new Map<string, CandidateSale>();
 

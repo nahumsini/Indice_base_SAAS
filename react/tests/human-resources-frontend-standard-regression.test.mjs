@@ -232,7 +232,7 @@ test('Detalle de corrida usa el workspace operativo para revisar varios colabora
   assert.doesNotMatch(inspectorSource, /Ruta de pago/);
 });
 
-test('Nómina imprime corrida y desglose personal en A4 horizontal', () => {
+test('Nómina imprime corrida y desglose personal con orientación adaptativa y sin estilos globales de página', () => {
   const payrollSource = readFileSync(resolve(moduleRoot, 'Payroll/Payroll.tsx'), 'utf8');
   const documentSource = readFileSync(resolve(moduleRoot, 'Payroll/PayrollRunPdfDocument.tsx'), 'utf8');
   const contractSource = readFileSync(resolve(moduleRoot, 'Payroll/payrollPrintContract.ts'), 'utf8');
@@ -251,7 +251,9 @@ test('Nómina imprime corrida y desglose personal en A4 horizontal', () => {
   assert.match(contractSource, /category: 'legal-document'/);
   assert.match(contractSource, /CA_QUEBEC/);
   assert.match(contractSource, /evidenceReferences/);
-  assert.match(printStyles, /size:\s*A4 landscape/);
+  assert.doesNotMatch(printStyles, /@page/);
+  assert.match(portalSource, /printDocumentHtml/);
+  assert.doesNotMatch(portalSource, /window\.print\(\)/);
   assert.match(printStyles, /\.prpdf-document-footer/);
   assert.doesNotMatch(printStyles, /font-weight:\s*(?:600|700|800|900)/);
   assert.doesNotMatch(printStyles, /text-transform:\s*uppercase/);

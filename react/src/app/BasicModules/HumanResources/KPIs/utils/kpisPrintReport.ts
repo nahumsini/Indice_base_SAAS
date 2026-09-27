@@ -1,3 +1,4 @@
+import { printDocumentHtml } from '../../../shared/print/documentHtmlPrintEngine';
 import type { KPIsTranslations } from '../translations';
 import { buildKpiPrintDocumentTitle } from '../../../shared/print/kpiPrintFileName';
 
@@ -214,23 +215,8 @@ const printHtmlDocument = (title: string, bodyHtml: string, locale: string) => {
   </body>
 </html>`;
 
-  const blob = new Blob([htmlDocument], { type: 'text/html;charset=utf-8' });
-  const blobUrl = URL.createObjectURL(blob);
-  const printWindow = window.open(blobUrl, '_blank');
-  if (!printWindow) {
-    URL.revokeObjectURL(blobUrl);
-    return;
-  }
-
-  const cleanup = () => {
-    URL.revokeObjectURL(blobUrl);
-  };
-  printWindow.addEventListener('load', () => {
-    printWindow.focus();
-    printWindow.print();
-    setTimeout(cleanup, 30_000);
-  }, { once: true });
-  setTimeout(cleanup, 60_000);
+  const styles = htmlDocument.match(/<style>([\s\S]*?)<\/style>/)?.[1] ?? '';
+  return printDocumentHtml({ bodyHtml: `<main class="report-shell">${bodyHtml}</main>`, contentStyles: styles, documentTitle: title, locale, presentation: 'quotation' });
 };
 
 const buildDonutBackground = (rows: Array<{ value: number }>) => {
@@ -475,8 +461,7 @@ export const printKpisReport = ({
       </header>
       <div class="page-body">${pageBody}</div>
       <footer class="page-footer">
-        <span><span class="footer-brand">Powered by www.indiceapp.com</span> · ${escapePrintHtml(copy.dashboard.labels.lastUpdated)}: ${escapePrintHtml(lastUpdatedLabel)}</span>
-        <span>${index + 1} / ${pageBodies.length}</span>
+        <span>${escapePrintHtml(copy.dashboard.labels.lastUpdated)}: ${escapePrintHtml(lastUpdatedLabel)}</span>
       </footer>
     </section>
   `).join('');

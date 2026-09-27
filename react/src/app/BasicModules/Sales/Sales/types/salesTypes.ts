@@ -9,13 +9,13 @@ import type {
   SalesWorkflowSaleLine,
 } from '../../types/salesWorkflow';
 
-export type CommercialStatus = 'pending_validation' | 'approved' | 'rejected' | 'cancelled';
-export type FinanceStatus = 'pending' | 'approved' | 'rejected';
-export type InventoryStatus = 'pending' | 'reserved' | 'approved' | 'unavailable';
+export type CommercialStatus = 'pending_validation' | 'approved' | 'rejected' | 'cancelled' | 'completed';
+export type FinanceStatus = 'pending' | 'approved' | 'rejected' | 'captured';
+export type InventoryStatus = 'pending' | 'reserved' | 'approved' | 'unavailable' | 'returned';
 export type DeliveryStatus = 'pending' | 'in_progress' | 'delivered';
 export type CommissionStatus = 'pending' | 'calculated' | 'cut' | 'paid';
-export type InventoryMovementStatus = 'not_generated' | 'pending' | 'approved' | 'completed';
-export type PaymentEvidenceStatus = 'missing' | 'uploaded' | 'under_review' | 'approved' | 'rejected';
+export type InventoryMovementStatus = 'not_generated' | 'pending' | 'approved' | 'completed' | 'reversed';
+export type PaymentEvidenceStatus = 'missing' | 'uploaded' | 'under_review' | 'approved' | 'rejected' | 'captured';
 export type SalesPeriodFilter = 'all' | 'today' | 'this_week' | 'this_month' | 'last_month' | 'custom';
 export type SalesFocusFilter =
   | 'all'
@@ -64,6 +64,7 @@ export type SaleNextActionKey =
 
 export type SaleRecord = {
   id: string;
+  sourceType?: 'SALES' | 'POS';
   backendId?: number;
   saleNumber: string;
   quoteId?: string;

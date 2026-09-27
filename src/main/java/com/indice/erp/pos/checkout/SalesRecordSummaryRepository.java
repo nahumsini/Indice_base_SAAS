@@ -22,14 +22,14 @@ public class SalesRecordSummaryRepository {
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement("""
                 INSERT INTO sales_records
-                (company_id, unit_id, business_id, sale_number, sale_document_reference, customer_name,
+                (company_id, unit_id, business_id, contact_id, sale_number, sale_document_reference, customer_name,
                  seller_name, sale_date, total_amount, subtotal, discount_total, tax_total, margin_total,
                  currency, payment_method, payment_reference, payment_evidence_status, commercial_status,
                  finance_status, inventory_status, delivery_status, commission_status,
-                 inventory_movement_status, sale_lines_json, notes, metadata_json, created_by_user_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0.00, ?, ?, ?, 'captured',
+                 inventory_movement_status, sale_lines_json, notes, metadata_json, created_by_user_id, source_type)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0.00, ?, ?, ?, 'captured',
                         'completed', 'captured', ?, 'pending', 'pending',
-                        ?, ?, ?, ?, ?)
+                        ?, ?, ?, ?, ?, 'POS')
                 """, Statement.RETURN_GENERATED_KEYS);
             bind(statement, context, command);
             return statement;
@@ -43,6 +43,7 @@ public class SalesRecordSummaryRepository {
         statement.setLong(index++, context.companyId());
         statement.setObject(index++, command.unitId());
         statement.setObject(index++, command.businessId());
+        statement.setObject(index++, command.contactId());
         statement.setString(index++, command.saleNumber());
         statement.setString(index++, command.saleNumber());
         statement.setString(index++, command.customerName());

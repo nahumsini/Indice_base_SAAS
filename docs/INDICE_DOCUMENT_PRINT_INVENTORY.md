@@ -4,7 +4,7 @@
 
 Status: Source inventory reverified; safe print-contract corrections implemented; representative visual, legal, and physical-printer QA remains open
 
-Last updated: 2026-08-06
+Last updated: 2026-09-17
 
 Standard source: [Indice Document Print Standard — Draft](./INDICE_DOCUMENT_PRINT_STANDARD_DRAFT.md)
 
@@ -12,15 +12,100 @@ This inventory records every application-owned print or PDF generator found in t
 frontend source. It distinguishes generated documents from uploaded PDFs, mock file
 names, browser attachments, and backend files that the frontend only downloads.
 
-Verified scope: 29 active non-KPI document contracts, 8 KPI print areas on the
+Historical 2026-08-06 scope (not an assertion of today's reachable routes): 29 non-KPI document contracts, 8 KPI print areas on the
 approved/excluded baseline, and 2 protected editorial reports (39 inventoried
 artifacts or print areas in total).
 
-The source draft is still version 0.1 and is not authoritative. A row marked
+The draft's section 0 is now adopted for active basic-module web printing; the rest remains a draft. A historical row marked
 `Remastered` means that its code contract was migrated; it does not mean that legal,
 fiscal, accessibility, or physical-printer approval has been granted.
 
-## Explicit exclusions for this migration
+## Active basic-module migration — 2026-09-17
+
+Decision: quotation style + browser printing / Save as PDF; **IME unchanged**.
+Same-day v0.3 correction: company-only documents, grayscale except the company logo;
+portrait-first with measured table-width fallback to landscape; compact single-sheet
+output when possible, whole paragraphs on the next sheet otherwise. Platform branding
+is removed from owned footers, sources, fallback identity and retained quotation PDF metadata.
+Functional QR/verification destinations and legally required data are not stripped.
+IME remains excluded. Payroll and cut reports now use the common web output flow;
+their document contents, finance calculations and access rules are unchanged.
+This section supersedes the rendering/default-output classifications below, which
+are retained as historical source inventory rather than proof of live routes.
+No backend, API, permission, tax, payroll, accounting or lifecycle rules changed.
+
+Paths below are relative to `react/src/app/BasicModules/` unless noted.
+
+| Module / active documents | Current output / implementation evidence |
+|---|---|
+| RH: daily attendance | Existing web print, shared quotation theme through `HumanResources/Control/utils/timeTablePrintReport.ts` and `shared/print/documentHtmlPrintEngine.ts` |
+| RH: payroll run and employee receipt | Existing browser portal; quotation typography/neutral panels in `HumanResources/Payroll/payrollPdf.css`; A4 landscape, line items and jurisdiction notices preserved |
+| RH: administrative act, individual and selected batch | `HumanResources/Records/utils/records.pdf.ts`: escaped web definitions; selected batch opens one job with separate acts |
+| RH: asset assignment and permission | `HumanResources/Assets/AssetDetailsModal.tsx`; `HumanResources/Permissions/utils/permissionPrintDocument.ts`: quotation web layout; signature fields preserved |
+| RH: KPI report | `HumanResources/KPIs/utils/kpisPrintReport.ts`: existing content routed to shared web theme; remove fixed-height clipping |
+| Processes/tasks: procedure, agenda task, project task | `ProcessesTasks/Processes/processPrintDocument.ts`; `ProcessesTasks/Agenda/utils/agendaTaskReportPdf.ts`; `ProcessesTasks/Projects/components/ProjectTasksWorkspace.tsx`: web documents |
+| Processes/tasks: KPI report | Existing `shared/print/kpiHtmlPrintEngine.ts` adapter now uses shared web-print engine/theme |
+| Sales: quotation and sale note | `Sales/Cotizacion/quotePdf.ts`; `Sales/Sales/utils/saleInvoicePdf.ts`: normal output is web; binary quotation file sharing remains |
+| Sales: KPI report | Existing owner report via `shared/print/kpiHtmlPrintEngine.ts` |
+| POS: sale ticket, paid-receipt ticket, shift-closing ticket | `PointOfSale/Sale/components/TicketModal.tsx`; `PointOfSale/shared/posOperationTickets.ts`: browser print, 80 mm; former ticket PDF placeholder now prints |
+| POS: cut detail and cut-list report | `PointOfSale/Cortes/components/CorteDetailModal.tsx`; `PointOfSale/Cortes/utils/cortesPrintReport.ts`: web documents; existing scope and persisted amounts retained |
+| POS: self-service/self-checkout QR posters | `PointOfSale/Kiosks/kioskQrPosterPdf.ts`: web poster with the actual QR, visible public URL and instructions; reserved window before async access lookup |
+| POS: KPI report | Existing owner report via `shared/print/kpiHtmlPrintEngine.ts` |
+| Inventory: movement act, purchase order and purchase receipt | `Sales/Inventory/components/movements/MovementPrintModal.tsx`; `PointOfSale/shared/pointOfSalePrintDocuments.ts`: shared browser output; inventory route ownership unchanged |
+| Expenses: voucher and selected/filtered table | `Expenses/utils/expensePrintDocument.ts`; `Expenses/utils/expenseTablePrint.ts`: quotation web definitions; table preview and print share renderer, columns/scope/order/native totals retained |
+| Expenses and petty cash: financial KPI reports | `Expenses/KPIs/financialOverviewPdf.ts`: web adapter, full owner-provided metrics/tables/alerts, no new financial calculations |
+| Petty cash: fund account statement | `PettyCash/utils/pettyCashStatementPdf.ts`: same historical definition in sandboxed preview and browser output |
+| Receivables: payment receipt, customer statement, aging, installment schedule and KPIs | `Receivables/utils/receivablesPrintDocuments.ts`: existing definitions now use quotation web engine |
+| Central KPIs: FODA/BCG/health/profitability/inventory/connections/sources | `Kpis/components/AnalyticsDocumentPreviewModal.tsx` and `visualDocumentExport.ts`: explicit quotation-style opt-in; data exports remain unchanged |
+| Central KPIs: accounting reports | `Kpis/InformesContables/InformesContables.tsx`: owner-produced tables/metrics/scope/readiness notices in shared web preview and print |
+| IME: Dashboard diagnosis and KPI maturity overview/dimensions | **Preserved**, no changes to the protected document or stylesheet; analytics opt-in explicitly excludes `overview` and `sectors` |
+| Production / materials | No active print output identified; none introduced |
+
+Not part of the active migration: dormant Postventa generators, POS Clientes legacy
+statement, old petty-cash vouchers, PPI/personal-performance legacy report, complementary
+modules, uploaded attachments and external billing invoices. Existing generators may
+remain on disk; their existence does not mean a reachable user workflow.
+
+### Verification recorded for this change
+
+The v0.3 follow-up uses `documentGrayscale.ts` and `documentPrintLayout.ts` in the
+shared print folder, updates print-only payroll styles and active footer/source adapters,
+and neutralizes only the document area of quotation, movement and specialized analytics
+previews. No new application state, backend, API or data mutation was introduced.
+New checks cover neutral color tokens, colored-logo exemption, measured orientation,
+whole-paragraph CSS and removal of platform branding. Browser artifacts for this revision
+are kept separately in `.run/print-review-monochrome-2026-09-17/`; prior counts below
+describe the earlier coral version and are retained as historical evidence.
+
+v0.3 verification: full frontend suite passed; the final focused RH/Sales/print rerun
+passed 59/59, and TypeScript/build passed (only the existing bundle-size warning).
+Chrome verified eight synthetic cases: portrait quotation/empty/CJK (one sheet),
+125-row table (seven sheets, all rows retained), wide eight-column table (landscape),
+letter with long paragraphs, 80 mm thermal, and borrowed application styles with charts.
+Raster color checks, with LCD subpixel text disabled, found no colored pixels outside
+the company logo; logo color was retained. Imported application print CSS did not hide
+the document. Protected IME files still match the pre-change SHA-256 baseline.
+Real-route, physical-printer and legal/fiscal certification remain pending.
+
+- Local Chrome synthetic fixtures: quotation (1 page), long table (125 rows / 8 pages),
+  landscape (40 rows / 4 pages), letter/signatures (2 pages), CJK (1 page), empty data
+  (1 page), and 80 mm thermal output. DOM rows and horizontal overflow checked; PDFs
+  generated without extra browser headers. This is renderer evidence, not production data QA.
+- `react/tests/quotation-web-print.test.mjs`: escaping, image URL safety, long/empty/native-currency
+  content, localization, blocked/reserved windows, readiness and IME exclusion.
+- Passed: `npm.cmd run typecheck`, `npm.cmd run build`, and the frontend suite
+  (`node --test --test-reporter=dot tests/*.test.mjs`). The focused print/operation/contract
+  rerun passed 18/18, including the selected-HR-act regression. The build retains the
+  existing non-blocking large-chunk warning. Initial stale print assertions and a
+  missing import caught during verification were corrected before these successful runs.
+- Protected IME source/CSS and compact maturity overview SHA-256 values match the
+  pre-change baseline. Existing unrelated worktree changes were preserved; no commit,
+  push, backend/data mutation or deployment was performed for this document task.
+- Remaining: physical printer/paper verification, all real user routes and localized
+  operational datasets, legal/fiscal approval and tagged-PDF accessibility. Existing
+  report section counters are not guaranteed physical sheet counters after wrapping.
+
+## Historical inventory and exclusions (before 2026-09-17)
 
 ### Expenses table print addition — 2026-09-10
 

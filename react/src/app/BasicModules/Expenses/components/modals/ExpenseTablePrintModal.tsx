@@ -1,9 +1,10 @@
+import { StandardDocumentPreview } from '../../../shared/print/StandardDocumentPreview';
+import { getWebPrintCopy } from '../../../shared/print/webPrintCopy';
 import { useMemo, useRef, useState } from 'react';
-import { Download, Printer } from 'lucide-react';
+import { Printer } from 'lucide-react';
 import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
 import { useCompanyPrintIdentity } from '../../../shared/print/useCompanyPrintIdentity';
-import { downloadStandardDocumentPdf, printStandardDocumentPdf } from '../../../shared/print/standardDocumentPdf';
-import { documentPrintAttribution, formatDocumentPrintDateTime, getDocumentPrintLabels } from '../../../shared/print/documentPrintContract';
+import { printStandardDocumentPdf } from '../../../shared/print/standardDocumentPdf';
 import { useExpensesResolvedLocale, useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
 import type { ColumnConfig } from '../../types/expenseView.types';
 import { buildExpenseTableDocument, type ExpensePrintSnapshot, type ExpensePrintReferences } from '../../utils/expenseTablePrint';
@@ -26,11 +27,11 @@ export function ExpenseTablePrintModal({ snapshot, columns, filters, references,
     locale, filters, scope: scope === 'selected' ? copy.selection : copy.filtered, t, references, generatedAt }),
   [rows, columns, identity.name, locale, filters, scope, copy.selection, copy.filtered, t, references, generatedAt]);
   const ready = isReady && rows.length > 0 && columns.some(column => column.visible && column.key !== 'actions');
-  const output = (kind: 'download' | 'print') => {
+  const output = () => {
     if (!ready || busy.current) return;
     busy.current = true; setFailed(false);
     try {
-      const result = kind === 'download' ? downloadStandardDocumentPdf(definition) : printStandardDocumentPdf(definition);
+      const result = printStandardDocumentPdf(definition);
       if (!result) setFailed(true);
     } catch { setFailed(true); }
     finally { busy.current = false; }
@@ -40,8 +41,7 @@ export function ExpenseTablePrintModal({ snapshot, columns, filters, references,
     footerSummary={`${rows.length} ${copy.rows}`}
     footer={<>
       <button type="button" onClick={onClose} className={financeModalSecondaryButtonClass}>{copy.close}</button>
-      <button type="button" disabled={!ready} onClick={() => output('download')} className={financeModalSecondaryButtonClass}><Download className="h-4 w-4" />{copy.download}</button>
-      <button type="button" disabled={!ready} onClick={() => output('print')} className={financeModalPrimaryButtonClass}><Printer className="h-4 w-4" />{copy.print}</button>
+      <button type="button" disabled={!ready} onClick={output} className={financeModalPrimaryButtonClass}><Printer className="h-4 w-4" />{getWebPrintCopy(locale).action}</button>
     </>}>
     <div className="space-y-4">
       <label className="flex flex-wrap items-center gap-3 text-sm font-medium">{copy.scope}
@@ -52,24 +52,7 @@ export function ExpenseTablePrintModal({ snapshot, columns, filters, references,
       </label>
       <IndiceModalValidation messages={failed ? [copy.failed] : []} />
       {!isReady && <p role="status">{copy.preparing}</p>}
-      {!rows.length ? <p>{copy.empty}</p> : <article className="space-y-6 rounded-xl border border-slate-200 bg-white p-5 text-slate-900 shadow-sm sm:p-8">
-        <header className="border-b border-slate-200 pb-5">
-          <p className="text-lg font-medium">{identity.name}</p>
-          <h2 className="mt-2 text-2xl font-medium text-[#147514]">{definition.title}</h2>
-          <p className="mt-2 text-sm text-slate-600">{definition.subtitle}</p>
-        </header>
-        <section><h3 className="text-sm font-medium">{copy.filters}</h3><p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{filters || copy.all}</p><p className="mt-2 text-xs text-slate-500">{copy.notice}</p></section>
-        {definition.tables?.map((table, index) => <section key={index} className="space-y-3">
-          {table.title && <h3 className="text-base font-medium">{table.title}</h3>}
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
-            <table className="w-full border-collapse text-left text-xs">
-              <thead className="bg-slate-50"><tr>{table.columns.map((column, position) => <th key={position} className={`px-3 py-3 font-medium ${table.numericColumnIndices?.includes(position) ? 'text-right' : ''}`}>{column}</th>)}</tr></thead>
-              <tbody>{table.rows.map((row, rowIndex) => <tr key={rowIndex} className="border-t border-slate-200 even:bg-slate-50">{row.map((value, position) => <td key={position} className={`min-w-24 whitespace-pre-wrap break-words px-3 py-3 ${table.numericColumnIndices?.includes(position) ? 'text-right tabular-nums' : ''}`}>{value ?? '—'}</td>)}</tr>)}</tbody>
-            </table>
-          </div>
-        </section>)}
-        <footer className="border-t border-slate-200 pt-4 text-xs text-slate-500">{documentPrintAttribution} · {getDocumentPrintLabels(locale).updated}: {formatDocumentPrintDateTime(generatedAt, locale)}</footer>
-      </article>}
+      {!rows.length ? <p>{copy.empty}</p> : <StandardDocumentPreview definition={definition} />}
     </div>
   </IndiceModalFrame>;
 }

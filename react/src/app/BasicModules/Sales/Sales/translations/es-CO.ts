@@ -56,6 +56,7 @@ export const esCO = {
   statuses: {
     ...esMX.statuses,
     paymentEvidence: {
+      captured: 'Registrado en POS',
       missing: 'Sin soporte',
       uploaded: 'Cargado',
       under_review: 'En revisión',

@@ -36,6 +36,7 @@ class AccountingSourceDiscoveryService {
         var candidates = new ArrayList<PostingCandidate>();
         var issues = new ArrayList<DiscoveryIssue>();
         var eligible = new LinkedHashMap<String, Integer>();
+        issues.addAll(sourceRepository.pendingPosReturns(companyId, from, to));
 
         discoverSales(companyId, from, to, functionalCurrency, candidates, issues, eligible);
         discoverStandaloneCreditSales(companyId, from, to, candidates, issues, eligible);

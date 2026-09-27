@@ -33,7 +33,7 @@ export const buildDocumentFileName = ({
   const baseName = parts
     .map(sanitizeDocumentFileNameSegment)
     .filter(Boolean)
-    .join('_') || 'indice_document';
+    .join('_') || 'document';
   const safeExtension = sanitizeDocumentFileNameSegment(extension.replace(/^\./, '')) || 'pdf';
   return `${baseName}.${safeExtension.toLowerCase()}`;
 };

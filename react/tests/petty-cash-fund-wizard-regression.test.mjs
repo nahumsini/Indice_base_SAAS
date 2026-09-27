@@ -8,7 +8,7 @@ import ts from 'typescript';
 import { hookRuntime } from './helpers/hook-runtime.mjs';
 
 const root = resolve(import.meta.dirname, '../src/app/BasicModules/PettyCash');
-const modulePath = resolve(root, 'components/PettyCashFundsWorkspace.tsx');
+const modulePath = resolve(root, 'components/PettyCashFundsWorkspace.tsx').replaceAll('\\', '/');
 const cache = new Map();
 const ui = new Proxy({}, { get: (_, name) => name });
 let activeRuntime;
@@ -17,7 +17,7 @@ const hooks = { ...React, ...Object.fromEntries(['useState', 'useRef', 'useEffec
   .map(key => [key, (...args) => activeRuntime.hooks[key](...args)])) };
 function load(file) {
   const path = [file, `${file}.ts`, `${file}.tsx`, resolve(file, 'index.ts'), resolve(file, 'index.tsx')]
-    .find(candidate => existsSync(candidate) && /\.tsx?$/.test(candidate));
+    .find(candidate => existsSync(candidate) && /\.tsx?$/.test(candidate))?.replaceAll('\\', '/');
   assert.ok(path, `Missing dependency: ${file}`);
   if (path.endsWith('/hooks/usePettyCashTranslations.ts')) return {
     usePettyCashTranslations: () => load(resolve(root, 'translations/index.ts')).getPettyCashTranslations(locale),

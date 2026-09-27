@@ -77,7 +77,7 @@ class HistoricalInventoryCost {
                     consumed.put(id, new BigDecimal[]{nativeCost, functionalCost});
                     if (id == targetId) { nativeTotal = nativeTotal.add(nativeCost); functional = functional.add(functionalCost); }
                     quantity = quantity.subtract(qty); carrying = carrying.subtract(functionalCost);
-                } else if ("sale_return".equals(type)) {
+                } else if ("sale_return".equals(type) || "POS_SALE_RETURN".equals(type)) {
                     Long original;
                     try { original = new com.fasterxml.jackson.databind.ObjectMapper().readTree(String.valueOf(movement.get("metadata_json"))).path("reversalOfMovementId").longValue(); }
                     catch (Exception error) { throw missing(); }

@@ -510,18 +510,6 @@ export default function Sale() {
     setShowPaidInventoryReceiptModal(true);
   };
 
-  const handleReturn = (saleId: string, type: 'full' | 'partial') => {
-    setShowReturnModal(false);
-    pushActivity({
-      type: 'return',
-      title: 'Devolucion procesada',
-      description: `Devolucion ${type === 'full' ? 'total' : 'parcial'} para venta ${saleId}`,
-      actor: currentShift?.cashierName ?? 'Supervisor',
-      badge: 'Nota credito',
-      tone: 'danger',
-    });
-  };
-
   const openPaymentModal = (method: PaymentMethod) => {
     if (method === 'credit') {
       setCreditRules(readStoredCreditRules());
@@ -790,7 +778,8 @@ export default function Sale() {
                     onRefresh={loadClosingSummary}
                   />
                 ) : showReturnModal ? (
-                  <ReturnModal isOpen workspaceMode onClose={() => setShowReturnModal(false)} onConfirm={handleReturn} />
+                  <ReturnModal isOpen workspaceMode shiftId={currentShift.id} onClose={() => setShowReturnModal(false)}
+                    onCompleted={async () => { await Promise.all([refreshRegisterContext(), syncCheckoutData()]); }} />
                 ) : showCashMovementModal ? (
                   <CashMovementModal
                     isOpen

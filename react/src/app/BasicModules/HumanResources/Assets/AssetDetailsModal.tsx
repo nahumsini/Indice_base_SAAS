@@ -1,3 +1,4 @@
+import { printStandardDocumentHtml } from '../../shared/print/standardDocumentHtml';
 import type { ReactNode } from 'react';
 import {
   Boxes,
@@ -21,8 +22,6 @@ import { useAssetsTranslations } from './hooks/useAssetsTranslations';
 import type { AssetsTranslations } from './translations';
 import { useAssetsPortalTheme } from './useAssetsPortalTheme';
 import { getAssetTypeLabel } from './utils/assets.utils';
-import { buildDocumentFileName } from '../../shared/print/documentFileName';
-import { addStandardPdfFooters, applyStandardPdfMetadata } from '../../shared/print/documentPdfEngine';
 
 interface AssetDetailsModalProps {
   isOpen: boolean;
@@ -90,158 +89,36 @@ const formatValue = (value: number | null, currency: string | null | undefined) 
   });
 };
 
-const addPdfSection = (
-  doc: import('jspdf').jsPDF,
-  title: string,
-  rows: Array<[string, string]>,
-  startY: number,
-) => {
-  const left = 18;
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const maxValueWidth = pageWidth - 84;
-  let y = startY;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.setTextColor(15, 23, 42);
-  doc.text(title, left, y);
-  y += 8;
-
-  rows.forEach(([label, value]) => {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(100, 116, 139);
-    doc.text(label, left, y);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(15, 23, 42);
-    const lines = doc.splitTextToSize(value || '-', maxValueWidth);
-    doc.text(lines, 74, y);
-    y += Math.max(7, lines.length * 5 + 2);
-  });
-
-  return y + 3;
-};
-
-const downloadAssetAssignmentActPdf = async (
-  asset: HrAsset,
-  t: AssetsTranslations,
-  locale: string,
-) => {
-  const { default: jsPDF } = await import('jspdf');
-  const doc = new jsPDF({ unit: 'mm', format: 'letter' });
+const downloadAssetAssignmentActPdf = async (asset: HrAsset, t: AssetsTranslations, locale: string) => {
   const actCopy = t.assignmentAct;
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const left = 18;
-  const contentWidth = pageWidth - left * 2;
-  const issuedAt = new Intl.DateTimeFormat(locale, {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date());
-  applyStandardPdfMetadata(doc, {
-    subject: actCopy.title,
-    title: `${actCopy.title} ${asset.asset_code}`,
-  });
-
-  doc.setDrawColor(89, 143, 127);
-  doc.setLineWidth(1.2);
-  doc.line(left, 14, pageWidth - left, 14);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.setTextColor(32, 36, 41);
-  doc.text(actCopy.title, left, 27);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(100, 107, 115);
-  doc.text(actCopy.brand, pageWidth - left, 27, { align: 'right' });
-
-  let y = 43;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(51, 65, 85);
-  doc.text(`${actCopy.generatedAt}: ${issuedAt}`, left, y);
-  y += 10;
-
-  doc.setFontSize(10);
-  const introLines = doc.splitTextToSize(actCopy.intro, contentWidth);
-  doc.text(introLines, left, y);
-  y += introLines.length * 5 + 7;
-
-  y = addPdfSection(
-    doc,
-    actCopy.assetSection,
-    [
-      [t.detailsModal.fields.code, asset.asset_code],
-      [t.detailsModal.fields.type, getAssetTypeLabel(asset.asset_type, t)],
-      [t.detailsModal.fields.asset, asset.name],
-      [t.detailsModal.fields.model, asset.model || t.emptyValue],
-      [t.detailsModal.fields.serialNumber, asset.serial_number || t.emptyValue],
-      [t.detailsModal.fields.value, formatValue(asset.value_amount, asset.value_currency)],
-      [t.detailsModal.fields.notes, asset.notes || t.detailsModal.empty.noNotes],
+  return printStandardDocumentHtml({
+    contract: { category: 'legal-document', modifiers: ['internal', 'signature-required'], pageSize: 'letter', orientation: 'portrait', version: '1.0' },
+    fileName: { documentType: 'asset-assignment', identifier: asset.asset_code || asset.name },
+    title: actCopy.title, folio: asset.asset_code, locale, confidentiality: 'Internal',
+    notice: actCopy.intro,
+    sections: [
+      { title: actCopy.assetSection, fields: [
+        { label: t.detailsModal.fields.code, value: asset.asset_code },
+        { label: t.detailsModal.fields.type, value: getAssetTypeLabel(asset.asset_type, t) },
+        { label: t.detailsModal.fields.asset, value: asset.name },
+        { label: t.detailsModal.fields.model, value: asset.model || t.emptyValue },
+        { label: t.detailsModal.fields.serialNumber, value: asset.serial_number || t.emptyValue },
+        { label: t.detailsModal.fields.value, value: formatValue(asset.value_amount, asset.value_currency) },
+        { label: t.detailsModal.fields.notes, value: asset.notes || t.detailsModal.empty.noNotes },
+      ] },
+      { title: actCopy.assignmentSection, fields: [
+        { label: t.detailsModal.fields.responsible, value: asset.responsible_name || t.detailsModal.empty.unassigned },
+        { label: t.detailsModal.fields.responsibleEmail, value: asset.responsible_email || t.detailsModal.empty.noEmail },
+        { label: t.detailsModal.fields.unit, value: asset.unit_name || t.detailsModal.empty.noUnit },
+        { label: t.detailsModal.fields.status, value: getStatusLabel(asset.status, t) },
+        { label: t.detailsModal.fields.assignedAt, value: formatDateTime(asset.assigned_at, locale) },
+      ], paragraphs: [actCopy.responsibility] },
     ],
-    y,
-  );
-
-  y = addPdfSection(
-    doc,
-    actCopy.assignmentSection,
-    [
-      [t.detailsModal.fields.responsible, asset.responsible_name || t.detailsModal.empty.unassigned],
-      [t.detailsModal.fields.responsibleEmail, asset.responsible_email || t.detailsModal.empty.noEmail],
-      [t.detailsModal.fields.unit, asset.unit_name || t.detailsModal.empty.noUnit],
-      [t.detailsModal.fields.status, getStatusLabel(asset.status, t)],
-      [t.detailsModal.fields.assignedAt, formatDateTime(asset.assigned_at, locale)],
+    signatures: [
+      { label: actCopy.receiver, caption: asset.responsible_name || t.detailsModal.empty.unassigned },
+      { label: actCopy.issuer, caption: asset.updated_by_name || asset.created_by_name || t.detailsModal.empty.system },
     ],
-    y,
-  );
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(51, 65, 85);
-  const responsibilityLines = doc.splitTextToSize(actCopy.responsibility, contentWidth);
-  doc.text(responsibilityLines, left, y);
-  y += responsibilityLines.length * 5 + 14;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.setTextColor(15, 23, 42);
-  doc.text(actCopy.signatures, left, y);
-  y += 24;
-
-  const signatureWidth = (contentWidth - 12) / 2;
-  const receiverName = asset.responsible_name || t.detailsModal.empty.unassigned;
-  const issuerName = asset.updated_by_name || asset.created_by_name || t.detailsModal.empty.system;
-
-  [
-    { label: actCopy.receiver, name: receiverName, x: left },
-    { label: actCopy.issuer, name: issuerName, x: left + signatureWidth + 12 },
-  ].forEach((signature) => {
-    doc.setDrawColor(148, 163, 184);
-    doc.line(signature.x, y, signature.x + signatureWidth, y);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(15, 23, 42);
-    doc.text(signature.label, signature.x, y + 7);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(71, 85, 105);
-    doc.text(signature.name, signature.x, y + 13, { maxWidth: signatureWidth });
-    doc.text(actCopy.signature, signature.x, y + 19);
   });
-
-  addStandardPdfFooters(doc, {
-    confidentiality: 'Internal',
-    folio: asset.asset_code,
-    locale,
-    version: '1.0',
-  });
-  doc.save(buildDocumentFileName({
-    documentType: 'asset-assignment',
-    identifier: asset.asset_code || asset.name,
-  }));
 };
 
 function SummaryStat({

@@ -60,7 +60,8 @@ test('summary never computes money locally or presents a partial aggregate as a 
   const summary = { total: aggregate, paid: aggregate, pending: aggregate, approved: aggregate, salesBase: aggregate,
     commissionRate: 10, incomplete: false };
   assert.equal(commissionSummaryKpis(summary, 3).commissionRate, 10);
-  assert.equal(commissionSummaryKpis(summary, 3).totalCommissionsLabel, 'USD 10.50');
+  const nativeLabel = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(10.5);
+  assert.equal(commissionSummaryKpis(summary, 3).totalCommissionsLabel, `USD ${nativeLabel}`);
   assert.equal(commissionSummaryKpis({ ...summary, total: { ...aggregate, partial: true }, commissionRate: null }, 3).totalCommissionsLabel, '—');
   assert.equal(commissionSummaryKpis(null, 3).commissionRate, null);
   assert.equal(commissionSummaryKpis({ ...summary, incomplete: true }, 3).totalCommissionsLabel, '—');

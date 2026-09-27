@@ -155,6 +155,7 @@ public class CheckoutService {
     @Transactional
     public PosCheckoutResponse checkout(PosContext context, PosCheckoutRequest request) {
         validator.validateRequest(request);
+        shiftRepository.lockCompanyForOperation(context);
         var register = cashRegisterService.requireOperationalRegister(context, request.cashRegisterId());
         var shift = shiftRepository.findOpenByUserAndRegister(context, register.id()).orElse(null);
         validator.requireOpenShift(context, shift, register);
@@ -528,7 +529,7 @@ public class CheckoutService {
             String notes,
             boolean inventoryDeducted) {
         return new SalesRecordSummaryCommand(
-            shift.unitId(), shift.businessId(), ticketNumber, customerName(customer), context.userName(),
+            shift.unitId(), shift.businessId(), customer == null ? null : customer.id(), ticketNumber, customerName(customer), context.userName(),
             totals.totalAmount(), totals.subtotalAmount(), totals.discountAmount(), totals.taxAmount(),
             lines.getFirst().currencyCode(), paymentMethodSummary(payments), paymentReferenceSummary(payments),
             PosJsonSupport.toJson(inventoryDeductionService.salesLineSnapshots(context, shift, lines)),

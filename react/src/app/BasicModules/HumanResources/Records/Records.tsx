@@ -31,7 +31,7 @@ import type {
   RecordEmployeeOption,
   RecordFiltersState,
 } from './types/records.types';
-import { downloadRecordPdf } from './utils/records.pdf';
+import { downloadRecordPdf, printRecordsWeb } from './utils/records.pdf';
 
 const LazyCreateRecordModal = lazy(() =>
   import('./components/CreateRecordModal').then((module) => ({ default: module.CreateRecordModal })),
@@ -624,9 +624,7 @@ export default function Records() {
     });
 
     try {
-      for (const record of selectedRecords) {
-        await downloadRecordPdf(record, copy, locale);
-      }
+      if (!printRecordsWeb(selectedRecords, copy, locale)) setErrorMessage(copy.errors.exportRecord);
     } catch (error) {
       setErrorMessage(formatErrorMessage(error, copy.errors.exportRecord));
     } finally {

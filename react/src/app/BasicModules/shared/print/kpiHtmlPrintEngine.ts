@@ -1,3 +1,4 @@
+import { printDocumentHtml } from './documentHtmlPrintEngine';
 import { buildKpiPrintDocumentTitle } from './kpiPrintFileName';
 import type { CompanyPrintIdentity } from './useCompanyPrintIdentity';
 
@@ -77,8 +78,7 @@ export const printKpiHtmlReport = ({
       </header>
       <div class="page-body">${pageBody}</div>
       <footer class="page-footer">
-        <span>Powered by www.indiceapp.com · ${escapeKpiPrintHtml(updatedLabelForLocale(locale))}: ${escapeKpiPrintHtml(updatedValue)}</span>
-        <span>${index + 1} / ${pages.length}</span>
+        <span>${escapeKpiPrintHtml(updatedLabelForLocale(locale))}: ${escapeKpiPrintHtml(updatedValue)}</span>
       </footer>
     </section>
   `).join('');
@@ -136,20 +136,6 @@ export const printKpiHtmlReport = ({
   <body><main class="report-shell">${reportHtml}</main></body>
 </html>`;
 
-  const blob = new Blob([htmlDocument], { type: 'text/html;charset=utf-8' });
-  const blobUrl = URL.createObjectURL(blob);
-  const printWindow = window.open(blobUrl, '_blank');
-  if (!printWindow) {
-    URL.revokeObjectURL(blobUrl);
-    return false;
-  }
-
-  const cleanup = () => URL.revokeObjectURL(blobUrl);
-  printWindow.addEventListener('load', () => {
-    printWindow.focus();
-    printWindow.print();
-    setTimeout(cleanup, 30_000);
-  }, { once: true });
-  setTimeout(cleanup, 60_000);
-  return true;
+  const styles = htmlDocument.match(/<style>([\s\S]*?)<\/style>/)?.[1] ?? '';
+  return printDocumentHtml({ bodyHtml: `<main class="report-shell">${reportHtml}</main>`, contentStyles: styles, documentTitle: documentTitle, locale, presentation: 'quotation' });
 };

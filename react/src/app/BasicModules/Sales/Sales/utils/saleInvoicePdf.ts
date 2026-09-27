@@ -1,23 +1,25 @@
 import jsPDF from 'jspdf';
+import { printStandardDocumentHtml } from '../../../shared/print/standardDocumentHtml';
+import type { StandardDocumentDefinition } from '../../../shared/print/standardDocumentPdf';
 import autoTable from 'jspdf-autotable';
 import type { SalesQuote } from '../../types';
 import { formatSalesCurrencyAmount } from '../../utils/salesCurrency';
 import type { SalesRecordsTranslations } from '../translations';
 import type { SaleLine, SaleRecord, SaleRecordDraft, SalesOperationalContext } from '../types/salesTypes';
 import { buildDocumentFileName } from '../../../shared/print/documentFileName';
-import { addStandardPdfFooters, applyStandardPdfMetadata, openStandardPdfForPrint } from '../../../shared/print/documentPdfEngine';
+import { addStandardPdfFooters, applyStandardPdfMetadata } from '../../../shared/print/documentPdfEngine';
 import type { CompanyPrintIdentity } from '../../../shared/print/useCompanyPrintIdentity';
 
 const brand = {
-  coral: [255, 107, 94] as const,
-  yellow: [244, 200, 74] as const,
-  aqua: [89, 195, 165] as const,
-  blue: [37, 99, 235] as const,
-  graphite: [34, 40, 49] as const,
-  slate: [107, 114, 128] as const,
-  light: [247, 248, 250] as const,
-  coralLight: [255, 243, 241] as const,
-  border: [216, 220, 227] as const,
+  coral: [138, 138, 138] as const,
+  yellow: [200, 200, 200] as const,
+  aqua: [170, 170, 170] as const,
+  blue: [96, 96, 96] as const,
+  graphite: [39, 39, 39] as const,
+  slate: [114, 114, 114] as const,
+  light: [248, 248, 248] as const,
+  coralLight: [245, 245, 245] as const,
+  border: [220, 220, 220] as const,
 };
 
 type PdfDocumentWithTable = jsPDF & {
@@ -401,7 +403,7 @@ function buildLegacySaleNotePdf({
 
   const totalsX = right - 76;
   setFill(doc, brand.coralLight);
-  setDraw(doc, [255, 199, 193]);
+  setDraw(doc, [210, 210, 210]);
   doc.roundedRect(totalsX, y, 76, 40, 3, 3, 'FD');
   const totalRows = [
     [copy.modal.fields.currency, currency],
@@ -614,7 +616,7 @@ export async function buildSaleNotePdf({
   y = ensureSpace(y, sale.notes.trim() ? 76 : 62);
   const totalsX = right - 70;
   setFill(doc, brand.coralLight);
-  setDraw(doc, [255, 199, 193]);
+  setDraw(doc, [210, 210, 210]);
   doc.roundedRect(totalsX, y, 70, 30, 3, 3, 'FD');
   const totalRows = [[copy.saleNote.subtotal, sale.subtotal], [copy.saleNote.discount, sale.discountTotal], [copy.modal.fields.taxTotal, sale.taxTotal], [copy.saleNote.total, sale.totalAmount]] as const;
   totalRows.forEach(([label, value], index) => {
@@ -664,16 +666,48 @@ export async function getSaleNotePdfBlob(context: SaleNotePdfContext) {
   return (await buildSaleNotePdf(context)).output('blob');
 }
 
+export function buildSaleNoteWebDocument({ sale, quote, operationalContext, company, copy, locale = 'es-MX' }: SaleNotePdfContext): StandardDocumentDefinition {
+  const currency = sale.currency || operationalContext.currency || 'MXN';
+  const folio = sale.saleNumber || sale.saleDocumentReference || quote?.quoteNumber || copy.common.notAvailable;
+  const documentCopy = getSaleNoteCopy(locale);
+  return {
+    contract: { category: 'transaction-document', modifiers: ['customer-facing'], pageSize: 'a4', orientation: 'portrait', version: '1.0' },
+    fileName: { documentType: 'sale-note', identifier: folio }, locale, folio,
+    title: documentCopy.title, issuer: company?.name || sale.businessName, logoUrl: company?.logoUrl, recipient: sale.customerName,
+    metadata: [
+      { label: copy.modal.fields.sellerName, value: sale.sellerName },
+      { label: copy.modal.fields.paymentMethod, value: sale.paymentMethod },
+      { label: copy.modal.fields.paymentReference, value: sale.paymentReference },
+      { label: copy.modal.fields.saleDate, value: sale.saleDate },
+      { label: copy.modal.fields.quoteReference, value: sale.quoteReference || quote?.quoteNumber },
+      { label: copy.modal.fields.businessUnit, value: sale.businessUnitName },
+      { label: copy.modal.fields.business, value: sale.businessName },
+      { label: copy.modal.fields.currency, value: currency },
+      { label: copy.saleNote.issuedBy, value: [company?.phone, company?.email, company?.address].filter(Boolean).join('\n') },
+    ].filter(field => field.value),
+    tables: [{
+      title: copy.saleNote.itemsTitle,
+      columns: [copy.modal.summaryColumns.item, copy.modal.summaryColumns.category, copy.modal.summaryColumns.quantity, copy.modal.summaryColumns.unitPrice, copy.saleNote.discount, copy.modal.fields.taxTotal, copy.modal.summaryColumns.total],
+      numericColumnIndices: [2, 3, 4, 5, 6],
+      rows: getSaleNoteLines(sale, quote).map(item => [[item.productName, item.sku].filter(Boolean).join('\n'), item.categoryName || copy.common.notAvailable, String(item.quantity), formatCurrency(item.unitPrice, currency), `${item.discountPercent}%`, `${item.taxPercent}%`, formatCurrency(getLineTotal(item), currency)]),
+    }],
+    metrics: [
+      { label: copy.saleNote.subtotal, value: formatCurrency(sale.subtotal, currency) },
+      { label: copy.saleNote.discount, value: formatCurrency(sale.discountTotal, currency) },
+      { label: copy.modal.fields.taxTotal, value: formatCurrency(sale.taxTotal, currency) },
+      { label: copy.saleNote.total, value: formatCurrency(sale.totalAmount, currency) },
+    ],
+    sections: [
+      ...(sale.notes.trim() ? [{ title: copy.modal.fields.notes, paragraphs: [sale.notes] }] : []),
+      { title: documentCopy.noteTitle, paragraphs: [documentCopy.noteBody] },
+    ],
+  };
+}
+
 export async function downloadSaleNotePdf(context: SaleNotePdfContext) {
-  const blob = await getSaleNotePdfBlob(context);
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = getSaleNotePdfFileName(context.sale);
-  link.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return printSaleNotePdf(context);
 }
 
 export async function printSaleNotePdf(context: SaleNotePdfContext) {
-  return openStandardPdfForPrint(await buildSaleNotePdf(context), { locale: context.locale });
+  return printStandardDocumentHtml(buildSaleNoteWebDocument(context));
 }

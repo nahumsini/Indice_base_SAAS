@@ -1,5 +1,4 @@
 import { escapeDocumentPrintHtml as escape, printDocumentHtml } from '../../shared/print/documentHtmlPrintEngine';
-import { documentPrintAttribution } from '../../shared/print/documentPrintContract';
 import type { PosPaidInventoryReceiptResponse } from '../Sale/services/posBackendApi';
 import type { PosCashClosingDetailResponse } from './cashClosingHistory.types';
 
@@ -28,7 +27,7 @@ const money = (value: number | string, currency: string, locale: string, maximum
 };
 const method = (value: string) => ({ CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta', WALLET: 'Monedero', CREDIT: 'Crédito' }[value] || value);
 const unit = (value: string) => ({ Piece: 'pza', Kilogram: 'kg', Gram: 'g', Liter: 'l', Meter: 'm' }[value] || value);
-const footer = `<footer>Comprobante operativo<br>${escape(documentPrintAttribution)}</footer>`;
+const footer = `<footer>Comprobante operativo</footer>`;
 
 export function receiptTicket(receipt: PosPaidInventoryReceiptResponse, locale = 'es-MX'): PosOperationTicket {
   const metadata = receipt.metadata ?? {};

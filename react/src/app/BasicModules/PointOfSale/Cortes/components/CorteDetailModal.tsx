@@ -3,7 +3,6 @@ import { AlertTriangle, Banknote, CheckCircle2, CreditCard, Download, Loader2, P
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { escapeDocumentPrintHtml, printDocumentHtml } from '../../../shared/print/documentHtmlPrintEngine';
 import {
-  documentPrintAttribution,
   formatDocumentPrintDateTime,
   getDocumentPrintLabels,
 } from '../../../shared/print/documentPrintContract';
@@ -113,7 +112,7 @@ export function CorteDetailModal({
             <div class="print-meta"><strong>${escapeDocumentPrintHtml(folio)}</strong><span>${escapeDocumentPrintHtml(formatDateTime(detail.closedAt))}</span></div>
           </header>
           ${documentRef.current.outerHTML}
-          <footer class="print-footer"><span>${documentPrintAttribution} · ${escapeDocumentPrintHtml(printLabels.updated)}: ${escapeDocumentPrintHtml(generatedAt)}</span><span>${escapeDocumentPrintHtml(folio)}</span></footer>
+          <footer class="print-footer"><span>${escapeDocumentPrintHtml(printLabels.updated)}: ${escapeDocumentPrintHtml(generatedAt)}</span><span>${escapeDocumentPrintHtml(folio)}</span></footer>
         </main>`,
       contentStyles: `
         body { padding: 12mm 14mm 10mm; }

@@ -205,17 +205,20 @@ export const frCA = {
   },
   statuses: {
     commercial: {
+      completed: 'Terminée au PDV',
       pending_validation: 'Validation en attente',
       approved: 'Approuvée',
       rejected: 'Rejetée',
       cancelled: 'Annulée',
     },
     finance: {
+      captured: 'Enregistré au PDV',
       pending: 'En attente',
       approved: 'Approuvé',
       rejected: 'Rejeté',
     },
     inventory: {
+      returned: 'Remis en stock',
       pending: 'En attente',
       reserved: 'Réservé',
       approved: 'Approuvé',
@@ -233,12 +236,14 @@ export const frCA = {
       paid: 'Payée',
     },
     movement: {
+      reversed: 'Contrepassé',
       not_generated: 'Non généré',
       pending: 'En attente',
       approved: 'Approuvé',
       completed: 'Terminé',
     },
     paymentEvidence: {
+      captured: 'Enregistré au PDV',
       missing: 'Manquante',
       uploaded: 'Téléversée',
       under_review: 'En révision',

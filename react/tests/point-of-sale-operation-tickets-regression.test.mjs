@@ -49,17 +49,17 @@ test('a backend shift never borrows another register warehouse or code', () => {
   assert.equal(mapped.actualCash, undefined); assert.equal(mapped.difference, undefined);
 });
 
-test('shared print engine waits for the reserved document and prints exactly once after navigation', () => {
+test('shared print engine waits for the reserved document and prints exactly once after navigation', async () => {
   const { printDocumentHtml } = load(resolve(root, '../shared/print/documentHtmlPrintEngine.ts'));
   const originalWindow = globalThis.window;
   let poll, loadHandler, printed = 0;
-  const child = { closed: false, document: { readyState: 'loading' }, location: { href: 'about:blank', replace(value) { this.href = value; loadHandler = undefined; } },
+  const child = { closed: false, document: { readyState: 'loading', images: [], fonts: { ready: Promise.resolve() } }, location: { href: 'about:blank', replace(value) { this.href = value; loadHandler = undefined; } },
     addEventListener(_event, callback) { loadHandler = callback; }, focus() {}, print() { printed++; } };
   globalThis.window = { setInterval(callback) { poll = callback; return 1; }, clearInterval() {}, setTimeout() {} };
   try {
     assert.equal(printDocumentHtml({ bodyHtml: '<p>Saved receipt</p>', documentTitle: 'test', locale: 'es-MX', pageSize: '80mm', targetWindow: child }), true);
     poll(); assert.equal(printed, 0);
-    child.document.readyState = 'complete'; poll(); poll();
+    child.document.readyState = 'complete'; await Promise.all([poll(), poll()]);
     assert.equal(printed, 1); assert.equal(loadHandler, undefined);
     URL.revokeObjectURL(child.location.href);
   } finally { globalThis.window = originalWindow; }

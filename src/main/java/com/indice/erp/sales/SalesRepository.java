@@ -72,6 +72,7 @@ class SalesRepository {
         }
         columns.add("entity.created_at");
         columns.add("entity.updated_at");
+        if ("sales_records".equals(definition.tableName())) columns.add("entity.source_type");
         return String.join(", ", columns);
     }
 
@@ -1349,9 +1350,25 @@ class SalesRepository {
             }
         }
         row.put("filesCount", hasColumn(metadata, "files_count") ? rs.getLong("files_count") : 0L);
+        if ("sales_records".equals(definition.tableName()) && hasColumn(metadata, "source_type")) {
+            row.put("sourceType", rs.getString("source_type"));
+        }
         row.put("createdAt", valueFromResultSet(rs, "created_at", SalesFieldType.DATETIME));
         row.put("updatedAt", valueFromResultSet(rs, "updated_at", SalesFieldType.DATETIME));
         return row;
+    }
+
+    boolean isPosOwnedSale(long companyId, long saleId) {
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject("""
+            SELECT EXISTS (
+                SELECT 1 FROM sales_records sale
+                WHERE sale.company_id = ? AND sale.id = ?
+                  AND (sale.source_type = 'POS' OR EXISTS (
+                      SELECT 1 FROM pos_tickets ticket
+                      WHERE ticket.company_id = sale.company_id AND ticket.sales_record_id = sale.id
+                  ))
+            )
+            """, Boolean.class, companyId, saleId));
     }
 
     private Map<String, Object> quoteItemRow(ResultSet rs) throws SQLException {

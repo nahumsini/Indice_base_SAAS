@@ -1,7 +1,6 @@
 import type { ControlTranslations } from '../translations';
 import type { TimeTableEmployeeRow } from '../types/timeTableTypes';
 import {
-  documentPrintAttribution,
   formatDocumentPrintDateTime,
   getDocumentPrintLabels,
 } from '../../../shared/print/documentPrintContract';
@@ -114,7 +113,7 @@ export function printDailyAttendanceReport({
         <tbody>${rowsHtml}</tbody>
       </table>
       <footer class="footer-note">
-        <span>${documentPrintAttribution} · ${escapePrintHtml(printLabels.updated)}: ${escapePrintHtml(updatedAt)}</span>
+        <span>${escapePrintHtml(printLabels.updated)}: ${escapePrintHtml(updatedAt)}</span>
         <span>${escapePrintHtml(copy.timeTable.printReportTitle)}</span>
       </footer>
     `,

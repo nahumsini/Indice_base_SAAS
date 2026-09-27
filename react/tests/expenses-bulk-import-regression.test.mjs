@@ -20,7 +20,7 @@ const api = async (url, options) => {
 };
 function load(file) {
   const path = [file, `${file}.ts`, `${file}.tsx`, resolve(file, 'index.ts'), resolve(file, 'index.tsx')]
-    .find(value => existsSync(value) && /\.tsx?$/.test(value));
+    .find(value => existsSync(value) && /\.tsx?$/.test(value))?.replaceAll('\\', '/');
   if (!path) throw new Error(`Missing module: ${file}`);
   if (path.endsWith('/lib/apiClient.ts')) return { apiClient: api, ApiClientError };
   if (path.endsWith('/hooks/useExpensesTranslations.ts')) return {

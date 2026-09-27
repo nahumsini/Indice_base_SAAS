@@ -195,6 +195,9 @@ public class SalesService {
         if ("sales".equals(collection)) {
             salesRepository.lockSaleForDeletion(companyId, id);
             saleBefore = get(companyId, collection, id);
+            if (salesRepository.isPosOwnedSale(companyId, id)) {
+                throw new IllegalArgumentException("Esta venta pertenece a POS y es de solo lectura en Ventas. No se pueden modificar sus importes, partidas ni estados desde este módulo.");
+            }
         }
         var updatePayload = payload;
         if ("inventory-warehouses".equals(collection) || "inventory-balances".equals(collection)
@@ -389,6 +392,9 @@ public class SalesService {
         if ("sales".equals(collection)) {
             salesRepository.lockSaleForDeletion(companyId, id);
             collectionService.requireUncollectedForDeletion(companyId, id);
+            if (salesRepository.isPosOwnedSale(companyId, id)) {
+                throw new IllegalArgumentException("Una venta de POS no se puede eliminar desde Ventas.");
+            }
             if (salesRepository.hasSaleInventoryMovements(companyId, id)) throw new IllegalArgumentException("La venta tiene historial de inventario. Usa la cancelación para conservarlo.");
             if (salesRepository.countActiveSaleDependents(companyId, id) > 0) {
                 throw new IllegalArgumentException(
