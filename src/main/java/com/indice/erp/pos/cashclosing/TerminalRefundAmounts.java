@@ -11,7 +11,7 @@ class TerminalRefundAmounts {
         this.jdbc = jdbc;
     }
     BigDecimal sum(PosContext context, long shiftId) {
-        return jdbc.queryForObject("""
+        var terminalRefunds = jdbc.queryForObject("""
             SELECT COALESCE(SUM(reversal.amount), 0) FROM pos_terminal_payment_reversals reversal
             JOIN pos_tickets ticket ON ticket.id = reversal.pos_ticket_id AND ticket.company_id = reversal.company_id
             WHERE reversal.company_id = ? AND reversal.shift_id = ? AND ticket.shift_id = reversal.shift_id
@@ -21,5 +21,17 @@ class TerminalRefundAmounts {
                 AND payment.payment_method = 'CARD' AND payment.status = 'CAPTURED')
               AND """ + PosSqlSupport.scopePredicate("ticket", context.scope()),
             BigDecimal.class, ClosingTicketTotals.params(context, shiftId));
+        var fullReturns = jdbc.queryForObject("""
+            SELECT COALESCE(SUM(returned.total_amount), 0) FROM pos_returns returned
+            JOIN pos_tickets ticket ON ticket.id = returned.ticket_id AND ticket.company_id = returned.company_id
+            WHERE returned.company_id = ? AND returned.shift_id = ? AND ticket.shift_id = returned.shift_id
+              AND returned.status = 'COMPLETED' AND ticket.deleted_at IS NULL
+              AND """ + PosSqlSupport.scopePredicate("ticket", context.scope()),
+            BigDecimal.class, ClosingTicketTotals.params(context, shiftId));
+        return zeroIfNull(terminalRefunds).add(zeroIfNull(fullReturns));
+    }
+
+    private BigDecimal zeroIfNull(BigDecimal amount) {
+        return amount == null ? BigDecimal.ZERO : amount;
     }
 }

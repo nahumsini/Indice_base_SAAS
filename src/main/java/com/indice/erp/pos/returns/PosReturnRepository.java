@@ -5,6 +5,7 @@ import com.indice.erp.pos.PosContext;
 import com.indice.erp.pos.ticket.TicketRepository;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import static com.indice.erp.pos.returns.PosReturnDtos.*;
@@ -13,6 +14,7 @@ import static com.indice.erp.pos.returns.PosReturnDtos.*;
 public class PosReturnRepository {
     private final JdbcTemplate jdbc;
     private final TicketRepository tickets;
+    @Autowired
     public PosReturnRepository(JdbcTemplate jdbc, TicketRepository tickets) { this.jdbc = jdbc; this.tickets = tickets; }
     public PosReturnRepository(JdbcTemplate jdbc) { this(jdbc, null); }
 
