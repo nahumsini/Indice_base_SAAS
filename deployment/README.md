@@ -172,6 +172,35 @@ El preflight sólo aprueba el código y la configuración. No crea
 `deployment/env/.env`, no genera secretos productivos y no publica imágenes en
 un registry.
 
+### POS Square / Mercado Pago Point
+
+The owner protocol and release gates are defined in
+[`docs/pos-terminal-payments-contract-v1.md`](../docs/pos-terminal-payments-contract-v1.md).
+Use the [terminal activation/recovery runbook](../docs/pos-terminal-payments-runbook.md) for
+company OAuth, terminal readiness, secure configuration, physical certification, refund accounting,
+and compatible rollback. Mercado Pago enablement, live charging, and refunds default to false;
+successful local tests do not authorize live activation. Keep recovery available when pausing new
+charges and never reverse an applied Flyway migration.
+
+Production requires mounted application, webhook, and token-protection secret files, the exact
+HTTPS callback, a numeric application ID, and reviewed timeout values. `preflight.sh` rejects direct
+production secrets, an invalid callback, a terminal verification age outside 10 to 3,600 seconds,
+or refunds enabled without the global live gate. The default terminal proof age is 60 seconds.
+
+Live charge admission is a two-step operation: set
+`APP_POS_MERCADO_PAGO_LIVE_ACTIVATION_APPROVED=true` for the reviewed release, then have a
+`PLATFORM_ROOT` move only the approved company's production connection to `PILOT` or `ACTIVE` in
+the company-account panel. Use `SUSPENDED` to pause that company's new charges while leaving
+recovery intact. Refunds have their own `APP_POS_MERCADO_PAGO_REFUNDS_ENABLED` gate; confirmed
+post-close refunds enter the Finance owner review queue and local posting must reuse that adjustment
+rather than send another provider refund.
+
+V277 and V278 are forward-only. V278 stores company activation history, fresh terminal verification
+and leases, and immutable post-close refund adjustment/events. The smoke script only confirms the
+anonymous setup boundary (`401`) and OAuth callback routing (`303`); it does not contact Mercado
+Pago or certify a charge/refund. Before rollback, pause new charges and resolve outstanding payment
+and refund work with a backend that understands both migrations.
+
 ### Publicación segura del catálogo en Stripe
 
 En APPTEST, configura Stripe en modo `test`, conserva

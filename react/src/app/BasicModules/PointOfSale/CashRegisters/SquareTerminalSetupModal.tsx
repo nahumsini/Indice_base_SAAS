@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, Cable, CheckCircle2, CreditCard, Loader2, MapPin, Monitor, Power, RefreshCw, RotateCcw, Unplug } from 'lucide-react';
 import { IndiceModalFrame, IndiceModalSummary, IndiceModalValidation, IndiceModalWizardStepper, type IndiceModalWizardStep } from '../../../components/indice-modal';
 import type { PosCashRegisterResponse } from '../Sale/services/posBackendApi';
@@ -6,15 +6,20 @@ import type { PointOfSaleLocale } from '../translations';
 import { MercadoPagoBrandMark, PaymentProviderCard, SquareBrandMark, SquareSetupSection, squareSetupButtonClass, squareSetupSelectClass } from './SquareTerminalSetupStep';
 import { useSquareTerminalSetupCopy } from './squareTerminalSetupTranslations';
 import { squareSetupStepOrder, type SetupStepId, useSquareTerminalSetupState } from './useSquareTerminalSetupState';
+import { MercadoPagoTerminalSetupModal } from './MercadoPagoTerminalSetupModal';
+import { useMercadoPagoTerminalCopy } from './useMercadoPagoTerminalCopy';
 
 interface SquareTerminalSetupModalProps {
   canManage: boolean;
   onClose: () => void;
   open: boolean;
   registers: PosCashRegisterResponse[];
+  initialProvider?: 'MERCADO_PAGO';
 }
 
-export function SquareTerminalSetupModal({ canManage, onClose, open, registers }: SquareTerminalSetupModalProps) {
+export function SquareTerminalSetupModal({ canManage, onClose, open, registers, initialProvider }: SquareTerminalSetupModalProps) {
+  const [mercadoPagoSelected, setMercadoPagoSelected] = useState(initialProvider === 'MERCADO_PAGO');
+  useEffect(() => { if (open) setMercadoPagoSelected(initialProvider === 'MERCADO_PAGO'); }, [open, initialProvider]);
   const { copy, locale } = useSquareTerminalSetupCopy();
   const setup = useSquareTerminalSetupState({ canManage, copy, locale, open, registers });
   const wizardSteps = useMemo<readonly IndiceModalWizardStep<SetupStepId>[]>(() => [
@@ -28,6 +33,8 @@ export function SquareTerminalSetupModal({ canManage, onClose, open, registers }
   const footerSummary = setup.activeStep === 'terminal' && setup.selectedTerminal && setup.selectedRegister
     ? copy.terminal.selectedSummary(setup.selectedTerminal.name, setup.selectedRegister.name)
     : copy.modal.stepSummary(setup.currentStepIndex + 1, squareSetupStepOrder.length, wizardSteps[setup.currentStepIndex]?.label ?? '');
+
+  if (mercadoPagoSelected) return <MercadoPagoTerminalSetupModal canManage={canManage} onClose={onClose} onBack={() => setMercadoPagoSelected(false)} open={open} registers={registers} />;
 
   return (
     <IndiceModalFrame
@@ -69,7 +76,7 @@ export function SquareTerminalSetupModal({ canManage, onClose, open, registers }
         <IndiceModalWizardStepper accent="coral" activeStepId={setup.activeStep} progressLabel={copy.modal.progress} steps={wizardSteps} />
         {setup.feedback ? <IndiceModalValidation messages={[setup.feedback.message]} tone={setup.feedback.tone} /> : null}
         {setup.loading ? <LoadingState label={copy.state.loading} /> : null}
-        {!setup.loading && setup.activeStep === 'provider' ? <ProviderStep copy={copy} onSelectSquare={setup.selectSquare} /> : null}
+        {!setup.loading && setup.activeStep === 'provider' ? <ProviderStep copy={copy} onSelectSquare={setup.selectSquare} onSelectMercadoPago={() => setMercadoPagoSelected(true)} /> : null}
         {!setup.loading && setup.activeStep === 'connect' ? <ConnectionStep copy={copy} setup={setup} /> : null}
         {!setup.loading && setup.activeStep === 'location' ? <LocationStep copy={copy} setup={setup} /> : null}
         {!setup.loading && setup.activeStep === 'terminal' ? <TerminalStep copy={copy} locale={locale} setup={setup} /> : null}
@@ -85,13 +92,14 @@ function LoadingState({ label }: { label: string }) {
   return <div className="flex min-h-48 items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"><Loader2 className="h-5 w-5 animate-spin text-[#B63B32]" />{label}</div>;
 }
 
-function ProviderStep({ copy, onSelectSquare }: { copy: SetupCopy; onSelectSquare: () => void }) {
+function ProviderStep({ copy, onSelectSquare, onSelectMercadoPago }: { copy: SetupCopy; onSelectSquare: () => void; onSelectMercadoPago: () => void }) {
+  const { copy: mercadoPagoCopy } = useMercadoPagoTerminalCopy();
   return (
     <SquareSetupSection icon={<CreditCard className="h-5 w-5" />} title={copy.providers.title} description={copy.providers.description}>
       <div className="grid gap-4 md:grid-cols-2">
         <PaymentProviderCard actionLabel={copy.providers.configureSquare} badge={copy.providers.available} brand={copy.providers.squareName} description={copy.providers.squareDescription} logo={<SquareBrandMark />} onSelect={onSelectSquare} />
         {/* Mercado Pago is the explicit provider extension point. Add its own typed flow and backend contract here; never route it through Square APIs. */}
-        <PaymentProviderCard actionLabel={copy.providers.comingSoon} badge={copy.providers.comingSoon} brand={copy.providers.mercadoPagoName} description={copy.providers.mercadoPagoDescription} disabled logo={<MercadoPagoBrandMark />} />
+        <PaymentProviderCard actionLabel={mercadoPagoCopy.configure} badge="MX · MXN" brand={copy.providers.mercadoPagoName} description={mercadoPagoCopy.description} logo={<MercadoPagoBrandMark />} onSelect={onSelectMercadoPago} />
       </div>
     </SquareSetupSection>
   );

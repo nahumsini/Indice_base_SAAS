@@ -27,6 +27,7 @@ import { ShiftBar } from './components/ShiftBar';
 import { ShiftSummaryWorkspace } from './components/ShiftSummaryWorkspace';
 import { SmartAlertsStrip } from './components/SmartAlertsStrip';
 import { SquareTerminalRecoveryPanel } from './components/SquareTerminalRecoveryPanel';
+import { MercadoPagoTerminalRecoveryPanel } from './components/MercadoPagoTerminalRecoveryPanel';
 import { useSaleActivityFeed } from './hooks/useSaleActivityFeed';
 import { useSaleCatalog } from './hooks/useSaleCatalog';
 import { useSaleCart } from './hooks/useSaleCart';
@@ -39,6 +40,7 @@ import { useSaleSmartAlerts } from './hooks/useSaleSmartAlerts';
 import { usePendingPreTickets } from './hooks/usePendingPreTickets';
 import { usePendingRestaurantOrders } from './hooks/usePendingRestaurantOrders';
 import { useSuspendedSales } from './hooks/useSuspendedSales';
+import { useSquareTerminalRecoveryCopy } from './services/useSquareTerminalRecoveryCopy';
 import { usePointOfSaleTranslations } from '../hooks/usePointOfSaleTranslations';
 import type { PaymentMethod, PaymentPreview, SaleItem } from './types/sale.types';
 import { useLearningModeHeaderActions } from '../../../learningMode';
@@ -54,6 +56,7 @@ export default function Sale() {
   const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
   const navigate = useNavigate();
   const pointOfSaleCopy = usePointOfSaleTranslations();
+  const { copy: squareTerminalCopy } = useSquareTerminalRecoveryCopy();
   const [customerDisplayPaymentPreview, setCustomerDisplayPaymentPreview] = useState<PaymentPreview | null>(null);
   const { reloadSalesRecords } = useSalesCrm();
   const creditCustomers = usePointOfSaleCustomers();
@@ -247,6 +250,16 @@ export default function Sale() {
   const [discountRules, setDiscountRules] = useState<DiscountRule[]>([]);
   const [discountRulesError, setDiscountRulesError] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const squareRecoveryScope = currentShift
+    ? `${currentShift.cashRegisterId}:${currentShift.id}`
+    : '';
+  const [squareRecoveryCheck, setSquareRecoveryCheck] = useState({ scope: '', blocked: true });
+  const setSquareRecoveryBlocked = useCallback((blocked: boolean) => {
+    setSquareRecoveryCheck({ scope: squareRecoveryScope, blocked });
+  }, [squareRecoveryScope]);
+  const squareRecoveryBlocked = !squareRecoveryScope
+    || squareRecoveryCheck.scope !== squareRecoveryScope
+    || squareRecoveryCheck.blocked;
   const [creditRules, setCreditRules] = useState<CreditRule[]>(() => readStoredCreditRules());
   const selectedCustomer = useMemo(
     () => creditCustomers.find((customer) => customer.id === selectedCustomerId),
@@ -302,7 +315,8 @@ export default function Sale() {
     lastSale,
     checkoutNotice,
     clearCheckoutNotice,
-    isCompletingSale,
+    checkoutBusy,
+    paymentActionsBlocked,
     clearPayments,
     closeAddPaymentModal,
     handleAddPayment,
@@ -312,6 +326,9 @@ export default function Sale() {
     completeSale,
     handleExactPayment,
     recoverSquareTerminalIntent,
+    consumeSquareTerminalRequestResult,
+    retrySquareTerminalRequest,
+    mercadoPago,
   } = useSaleCheckout({
     cart,
     products: saleProducts,
@@ -329,6 +346,8 @@ export default function Sale() {
     customerId: selectedCustomerId,
     preticketId: activePreticketId,
     restaurantOrderId: activeRestaurantOrderId,
+    squareRecoveryBlocked,
+    squareTerminalCopy,
     onCheckoutCompleted: () => {
       setSelectedCustomerId('');
       completeActivePreticket();
@@ -735,12 +754,18 @@ export default function Sale() {
             )}
 
             <SquareTerminalRecoveryPanel
+              companyId={currentShift.companyId}
               cashRegisterId={currentShift.cashRegisterId}
               shiftId={currentShift.id}
-              disabled={isCompletingSale}
+              disabled={checkoutBusy}
               formatCurrency={formatSaleCurrency}
+              copy={squareTerminalCopy}
               onRecover={recoverSquareTerminalIntent}
+              onRequestResult={consumeSquareTerminalRequestResult}
+              onRetryRequest={retrySquareTerminalRequest}
+              onUnresolvedChange={setSquareRecoveryBlocked}
             />
+            <MercadoPagoTerminalRecoveryPanel payment={mercadoPago} formatCurrency={formatSaleCurrency} />
 
             <div
               data-pos-workspace-grid
@@ -778,8 +803,11 @@ export default function Sale() {
                     onRefresh={loadClosingSummary}
                   />
                 ) : showReturnModal ? (
-                  <ReturnModal isOpen workspaceMode shiftId={currentShift.id} onClose={() => setShowReturnModal(false)}
-                    onCompleted={async () => { await Promise.all([refreshRegisterContext(), syncCheckoutData()]); }} />
+                  <ReturnModal isOpen workspaceMode shiftId={currentShift.id}
+                    onClose={() => setShowReturnModal(false)}
+                    onCompleted={async () => {
+                      await Promise.all([refreshRegisterContext(), syncCheckoutData()]);
+                    }} />
                 ) : showCashMovementModal ? (
                   <CashMovementModal
                     isOpen
@@ -888,7 +916,7 @@ export default function Sale() {
                   onCompleteSale={() => {
                     void completeSale();
                   }}
-                  isCompletingSale={isCompletingSale}
+                  isCompletingSale={paymentActionsBlocked}
                   checkoutNotice={checkoutNotice}
                   checkoutRequestId={checkoutRequestId}
                   workspaceMode={isPaymentWorkspaceOpen}
@@ -962,7 +990,7 @@ export default function Sale() {
                   setShowPaidInventoryReceiptModal(false);
                   setIsPaymentWorkspaceOpen(true);
                 }}
-                disabled={cart.length === 0 || isPaymentWorkspaceOpen}
+                disabled={cart.length === 0 || isPaymentWorkspaceOpen || paymentActionsBlocked}
                 className={`min-h-14 rounded-lg px-8 text-lg font-medium transition disabled:cursor-not-allowed ${isPaymentWorkspaceOpen ? 'bg-[#59C3A5] text-[#0B4F40]' : 'bg-[#FF6B5E] text-[#222831] hover:bg-[#ff5a4b] disabled:opacity-45'}`}
               >
                 {isPaymentWorkspaceOpen ? 'Cobro en curso' : 'Cobrar'}

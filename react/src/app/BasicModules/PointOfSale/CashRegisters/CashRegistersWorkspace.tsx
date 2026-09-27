@@ -16,6 +16,11 @@ import { posBackendApi, type PosCashRegisterCreatePayload, type PosCashRegisterR
 import { useCashRegistersCopy, type CashRegistersCopy } from './cashRegistersTranslations';
 import { SquareTerminalSetupModal } from './SquareTerminalSetupModal';
 import { useSquareTerminalSetupCopy } from './squareTerminalSetupTranslations';
+import { useMercadoPagoTerminalCopy } from './useMercadoPagoTerminalCopy';
+import { readMercadoPagoOAuthReturn } from './mercadoPagoOAuthReturn';
+import { readSquareOAuthReturn } from './squareOAuthReturn';
+import { useSquareOAuthCompletion } from './useSquareOAuthCompletion';
+import { mercadoPagoTerminalApi } from '../Sale/services/mercadoPagoTerminalApi';
 
 type Row = {
   warehouse: PosWarehouseSummary;
@@ -86,6 +91,15 @@ function resizeCashRegisterColumnBoundary(
 export default function CashRegistersWorkspace() {
   const { copy, locale } = useCashRegistersCopy();
   const { copy: terminalCopy } = useSquareTerminalSetupCopy();
+  const { copy: mercadoPagoCopy } = useMercadoPagoTerminalCopy();
+  const [oauthReturns] = useState(() => {
+    const url = new URL(window.location.href);
+    const mercadoPago = readMercadoPagoOAuthReturn(url), square = readSquareOAuthReturn(url);
+    return { mercadoPago, square, cleanUrl: `${url.pathname}${url.search}${url.hash}` };
+  });
+  const oauthReturn = oauthReturns.mercadoPago;
+  const oauthHandled = useRef(false);
+  const [initialTerminalProvider, setInitialTerminalProvider] = useState<'MERCADO_PAGO' | undefined>(undefined);
   const { preferredCurrency } = usePreferredBusinessCurrency();
   const [context, setContext] = useState<PosContextResponse | null>(null);
   const [registers, setRegisters] = useState<PosCashRegisterResponse[]>([]);
@@ -110,6 +124,29 @@ export default function CashRegistersWorkspace() {
   const [editing, setEditing] = useState<PosCashRegisterResponse | null>(null);
   const [registerPendingDeletion, setRegisterPendingDeletion] = useState<PosCashRegisterResponse | null>(null);
   const canManageCashRegisters = context?.canManageCashRegisters === true;
+
+  useEffect(() => {
+    if (oauthReturn || oauthReturns.square) window.history.replaceState(window.history.state, '', oauthReturns.cleanUrl);
+  }, [oauthReturn, oauthReturns]);
+
+  useSquareOAuthCompletion({ oauthReturn: oauthReturns.square, ready: Boolean(context), canManage: canManageCashRegisters,
+    errorMessage: terminalCopy.feedback.oauthError, onError: setError, onBusy: setSaving,
+    onCompleted: () => { setSuccessMessage(terminalCopy.connect.connected); setInitialTerminalProvider(undefined); setConfiguringPaymentTerminal(true); },
+  });
+
+  useEffect(() => {
+    if (!oauthReturn || !context || oauthHandled.current) return;
+    oauthHandled.current = true;
+    if (!canManageCashRegisters || !oauthReturn.code || !oauthReturn.state || oauthReturn.error) {
+      setError(mercadoPagoCopy.oauthError);
+      return;
+    }
+    setSaving(true);
+    void mercadoPagoTerminalApi.completeOAuth(oauthReturn.code, oauthReturn.state)
+      .then(() => { setSuccessMessage(mercadoPagoCopy.oauthSuccess); setInitialTerminalProvider('MERCADO_PAGO'); setConfiguringPaymentTerminal(true); })
+      .catch(() => setError(mercadoPagoCopy.oauthError))
+      .finally(() => setSaving(false));
+  }, [oauthReturn, context, canManageCashRegisters, mercadoPagoCopy]);
 
   const initialLoadStarted = useRef(false);
 
@@ -575,9 +612,10 @@ export default function CashRegistersWorkspace() {
     {canManageCashRegisters ? (
       <SquareTerminalSetupModal
         canManage={canManageCashRegisters}
-        onClose={() => setConfiguringPaymentTerminal(false)}
+        onClose={() => { setConfiguringPaymentTerminal(false); setInitialTerminalProvider(undefined); }}
         open={configuringPaymentTerminal}
         registers={registers}
+        initialProvider={initialTerminalProvider}
       />
     ) : null}
     {canManageCashRegisters && editing ? <EditRegisterModal copy={copy} currencyCode={preferredCurrency} register={editing} warehouses={context?.warehouses ?? []} saving={saving} onClose={() => setEditing(null)} onSave={update} /> : null}

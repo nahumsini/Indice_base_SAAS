@@ -14,6 +14,32 @@ export interface PlatformAdminContext {
   can_manage_system_tickets: boolean;
 }
 
+export interface MercadoPagoActivationStatus {
+  companyId: number;
+  environment: string;
+  connectionState: string;
+  activationState: 'DISABLED' | 'PILOT' | 'ACTIVE' | 'SUSPENDED';
+  changedAt: string | null;
+  activatedAt: string | null;
+  suspendedAt: string | null;
+  reason: string | null;
+  version: number;
+  liveChargeAllowed: boolean;
+}
+
+export interface SquareActivationStatus {
+  companyId: number;
+  environment: string;
+  connectionState: string;
+  activationState: 'DISABLED' | 'PILOT' | 'ACTIVE' | 'SUSPENDED';
+  changedAt: string | null;
+  activatedAt: string | null;
+  suspendedAt: string | null;
+  reason: string | null;
+  version: number;
+  liveChargeAllowed: boolean;
+}
+
 export interface PlatformPagination {
   page: number;
   page_size: number;
@@ -1089,6 +1115,20 @@ export const platformAdminApi = {
     return apiClient<PlatformOverview>(`${endpoints.platformAdmin.overview}?${parameters}`);
   },
   getCompany: (companyId: number) => apiClient<PlatformCompanyDetail>(companyPath(companyId)),
+  getMercadoPagoActivation: (companyId: number) => apiClient<MercadoPagoActivationStatus>(
+    `${companyPath(companyId)}/mercado-pago/activation`,
+  ),
+  updateMercadoPagoActivation: (companyId: number, state: MercadoPagoActivationStatus['activationState'], reason: string, expectedVersion: number) => apiClient<MercadoPagoActivationStatus>(
+    `${companyPath(companyId)}/mercado-pago/activation`,
+    { method: 'PUT', body: JSON.stringify({ state, reason, expectedVersion }) },
+  ),
+  getSquareActivation: (companyId: number) => apiClient<SquareActivationStatus>(
+    `${companyPath(companyId)}/square/activation`,
+  ),
+  updateSquareActivation: (companyId: number, state: SquareActivationStatus['activationState'], reason: string, expectedVersion: number) => apiClient<SquareActivationStatus>(
+    `${companyPath(companyId)}/square/activation`,
+    { method: 'PUT', body: JSON.stringify({ state, reason, expectedVersion }) },
+  ),
   getCompanyOptions: (query = '', page = 1, pageSize = 50) => {
     const parameters = new URLSearchParams({ q: query, page: String(page), pageSize: String(pageSize) });
     return apiClient<PlatformCompanyOptions>(`${endpoints.platformAdmin.companies}/options?${parameters}`);

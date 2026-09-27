@@ -4,6 +4,7 @@ import com.indice.erp.pos.PosApiException;
 import com.indice.erp.pos.PosContext;
 import com.indice.erp.pos.ticket.TicketRepository;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import static com.indice.erp.pos.returns.PosReturnDtos.*;
@@ -13,6 +14,16 @@ public class PosReturnRepository {
     private final JdbcTemplate jdbc;
     private final TicketRepository tickets;
     public PosReturnRepository(JdbcTemplate jdbc, TicketRepository tickets) { this.jdbc = jdbc; this.tickets = tickets; }
+    public PosReturnRepository(JdbcTemplate jdbc) { this(jdbc, null); }
+
+    public Optional<PosReturnRecord> find(PosContext context, String reference) {
+        var args = new java.util.ArrayList<Object>();
+        args.add(context.companyId());
+        args.add(reference);
+        com.indice.erp.pos.PosSqlSupport.appendScopeParams(args, context.scope());
+        return jdbc.query(PosReturnSql.FIND + com.indice.erp.pos.PosSqlSupport.scopePredicate("t", context.scope()),
+            new PosReturnRowMapper(), args.toArray()).stream().findFirst();
+    }
 
     public Response get(PosContext context, long id) {
         var rows = jdbc.query("""

@@ -19,6 +19,7 @@ import { PaymentAccountsFilters } from './components/PaymentAccountsFilters';
 import { PaymentAccountsHeaderBanner } from './components/PaymentAccountsHeaderBanner';
 import { PaymentAccountsSummary } from './components/PaymentAccountsSummary';
 import { PaymentAccountsTable } from './components/PaymentAccountsTable';
+import { TerminalRefundAdjustmentsPanel } from './components/TerminalRefundAdjustmentsPanel';
 import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 
 interface PaymentAccountsProps {
@@ -294,6 +295,8 @@ export default function PaymentAccounts({ headerSubtitle, headerTitle, headerTon
           </p>
         </div>
       </div>
+
+      {headerTone === 'green' ? <TerminalRefundAdjustmentsPanel /> : null}
 
       <PaymentAccountsSummary
         accounts={summaryAccounts}

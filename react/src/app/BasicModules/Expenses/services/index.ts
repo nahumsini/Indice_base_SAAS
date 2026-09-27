@@ -21,6 +21,8 @@ export { budgetsService } from './budgets.service';
 export { budgetLinesService } from './budget-lines.service';
 export { financeReferenceDataService } from './finance-reference-data.service';
 export { paymentAccountsService } from './payment-accounts.service';
+export { terminalRefundAdjustmentsService } from './terminal-refund-adjustments.service';
+export type { TerminalRefundAdjustment, TerminalRefundAdjustmentState } from './terminal-refund-adjustments.service';
 export { payableKiosksService, publicPayableKioskService } from './payable-kiosks.service';
 export type {
   PayableKiosk,

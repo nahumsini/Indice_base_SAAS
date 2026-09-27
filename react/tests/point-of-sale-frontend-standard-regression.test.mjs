@@ -231,6 +231,8 @@ test('Square Terminal mantiene cobro verificado por backend y recuperable', () =
   const checkout = readFileSync(resolve(pointOfSaleRoot, 'Sale/hooks/useSaleCheckout.ts'), 'utf8');
   const sale = readFileSync(resolve(pointOfSaleRoot, 'Sale/Sale.tsx'), 'utf8');
   const recovery = readFileSync(resolve(pointOfSaleRoot, 'Sale/components/SquareTerminalRecoveryPanel.tsx'), 'utf8');
+  const attemptStore = readFileSync(resolve(pointOfSaleRoot, 'Sale/services/squareTerminalAttemptStore.ts'), 'utf8');
+  const recoveryCopy = readFileSync(resolve(pointOfSaleRoot, 'Sale/services/squareTerminalRecoveryCopy.ts'), 'utf8');
   const setupModal = readFileSync(resolve(pointOfSaleRoot, 'CashRegisters/SquareTerminalSetupModal.tsx'), 'utf8');
   const setupState = readFileSync(resolve(pointOfSaleRoot, 'CashRegisters/useSquareTerminalSetupState.ts'), 'utf8');
   const setup = `${setupModal}\n${setupState}`;
@@ -243,12 +245,24 @@ test('Square Terminal mantiene cobro verificado por backend y recuperable', () =
   assert.match(api, /refreshSquareTerminalPairingCode[\s\S]*\/pairing-code/);
   assert.match(client, /recoverSquareTerminalPayment\(current\.intentId\)/);
   assert.doesNotMatch(client, /getSquareTerminalPayment\(current\.intentId\)/);
-  assert.match(checkout, /Square Terminal MVP only supports one full card payment/);
+  assert.match(checkout, /squareTerminalCopy\.fullCard/);
   assert.match(checkout, /recoverSquareTerminalIntent/);
+  assert.match(checkout, /squareRecoveryBlocked/);
   assert.match(checkout, /handleCheckoutSaved\(/);
   assert.match(sale, /SquareTerminalRecoveryPanel/);
+  assert.match(sale, /onUnresolvedChange=\{setSquareRecoveryBlocked\}/);
   assert.match(recovery, /listRecoverableSquareTerminalPayments/);
+  assert.match(recovery, /getSquareTerminalPaymentByRequestKey/);
   assert.match(recovery, /cancelSquareTerminalPayment/);
+  assert.match(recovery, /Boolean\(attempt\) \|\| items\.length > 0/);
+  assert.match(recovery, /aria-live="polite"/);
+  assert.match(client, /prepareSquareTerminalAttempt/);
+  assert.match(attemptStore, /crypto\.subtle\.digest\('SHA-256'/);
+  assert.match(attemptStore, /JSON\.stringify\(attempt\)/);
+  assert.doesNotMatch(attemptStore, /customerId|productId|paymentData/);
+  for (const locale of ['en-CA', 'en-US', 'es-MX', 'es-CO', 'fr-CA', 'pt-BR', 'ko-CA', 'zh-CA']) {
+    assert.match(recoveryCopy, new RegExp(`['"]${locale}['"]`));
+  }
   assert.match(setup, /assignSquareTerminal/);
   assert.match(setup, /unassignSquareTerminal/);
   assert.match(setup, /disableSquareTerminal/);
@@ -256,7 +270,8 @@ test('Square Terminal mantiene cobro verificado por backend y recuperable', () =
   assert.match(setupModal, /modalType="wizard"/);
   assert.match(setupModal, /IndiceModalWizardStepper/);
   assert.match(setupModal, /copy\.providers\.mercadoPagoName/);
-  assert.match(setupModal, /disabled[\s\S]*MercadoPagoBrandMark/);
+  assert.match(setupModal, /MercadoPagoBrandMark[\s\S]*onSelect=\{onSelectMercadoPago\}/);
+  assert.match(setupModal, /MercadoPagoTerminalSetupModal/);
   assert.match(setupSteps, /PaymentProviderCard/);
   assert.match(registersWorkspace, /setConfiguringPaymentTerminal\(true\)/);
   assert.match(registersWorkspace, /SquareTerminalSetupModal/);

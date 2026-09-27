@@ -20,6 +20,8 @@ import { CompanyOverviewTab } from "./CompanyAccount/CompanyOverviewTab";
 import { activeProductBenefits as selectActiveProductBenefits, nextBenefitEnd } from "./CompanyAccount/companyAccountState";
 import { CompanyBillingTab } from "./CompanyAccount/CompanyBillingTab";
 import { CompanyHistoryTab } from "./CompanyAccount/CompanyHistoryTab";
+import { MercadoPagoActivationPanel } from "./CompanyAccount/MercadoPagoActivationPanel";
+import { SquareActivationPanel } from "./CompanyAccount/SquareActivationPanel";
 import { initials } from "./CompanyAccount/companyAccountUtils";
 
 export type CompanyAccountTab = "overview" | "modules" | "activity" | "access" | "billing" | "history";
@@ -259,6 +261,9 @@ export function CompanyAccountDrawer({
             saving={saving}
             onUpdatePublicDemo={onUpdatePublicDemo}
           />
+        ) : null}
+        {tab === "overview" && context?.role === "PLATFORM_ROOT" ? (
+          <><MercadoPagoActivationPanel companyId={company.id} /><SquareActivationPanel companyId={company.id} /></>
         ) : null}
 
         {(tab === "modules" || (workspaceApi && tab === "access")) ? (

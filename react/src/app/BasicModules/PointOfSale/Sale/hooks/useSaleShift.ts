@@ -97,6 +97,8 @@ export function useSaleShift({
 
       return {
         ...existingShift,
+        cashierId: backendShift.cashierId,
+        cashierName: backendShift.cashierName,
         cashRegisterId: backendShift.cashRegisterId,
         cashRegisterCode: backendShift.cashRegisterCode,
         cashRegisterName: backendShift.cashRegisterName,

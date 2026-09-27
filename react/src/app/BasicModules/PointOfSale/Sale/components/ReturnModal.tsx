@@ -5,12 +5,16 @@ import { posReturnsApi, type PosReturn, type ReturnCandidate } from '../services
 import { toBackendId } from '../utils/posShiftMappers';
 import { PosModalFrame, posModalPrimaryActionClassName, posModalSecondaryActionClassName } from './PosModalFrame';
 import { returnCopy } from './returnCopy';
+import { getPosReturnCopy } from './posReturnCopy';
+import { TerminalReturnModal } from './TerminalReturnModal';
 
 export function ReturnModal({ isOpen, onClose, workspaceMode = false, shiftId, onCompleted }: {
   isOpen: boolean; onClose: () => void; workspaceMode?: boolean; shiftId?: string; onCompleted?: () => Promise<void>;
 }) {
   const locale = usePointOfSaleResolvedLocale();
   const t = returnCopy(locale);
+  const terminalCopy = getPosReturnCopy(locale);
+  const [showTerminalReturn, setShowTerminalReturn] = useState(false);
   const [search, setSearch] = useState('');
   const [tickets, setTickets] = useState<ReturnCandidate[]>([]);
   const [ticketId, setTicketId] = useState<number | null>(null);
@@ -80,6 +84,10 @@ export function ReturnModal({ isOpen, onClose, workspaceMode = false, shiftId, o
   };
 
   if (!isOpen) return null;
+  if (showTerminalReturn) {
+    return <TerminalReturnModal isOpen workspaceMode={workspaceMode}
+      onClose={() => setShowTerminalReturn(false)} />;
+  }
   return (
     <PosModalFrame
       modalType="standard-form" title={t.title} subtitle={t.scope} closeLabel={t.close}
@@ -87,6 +95,8 @@ export function ReturnModal({ isOpen, onClose, workspaceMode = false, shiftId, o
       presentation={workspaceMode ? 'workspace' : 'modal'} tone={workspaceMode ? 'graphite' : 'coral'}
       footer={<div className="flex flex-wrap gap-2">
         <button type="button" disabled={busy} onClick={onClose} className={posModalSecondaryActionClassName}>{t.close}</button>
+        <button type="button" disabled={busy} onClick={() => setShowTerminalReturn(true)}
+          className={posModalSecondaryActionClassName}>{terminalCopy.title}</button>
         {!result || result.status === 'CANCELLED' ? (
           <button type="button" disabled={busy || loading || !ticketId || !goods || reason.trim().length < 5}
             className={posModalPrimaryActionClassName}

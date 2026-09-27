@@ -17,7 +17,11 @@ class SquareRefundGatewayTest {
         var builder = RestClient.builder();
         var server = MockRestServiceServer.bindTo(builder).build();
         var properties = new SquareTerminalProperties();
-        var gateway = new SquareHttpTerminalGateway(properties, mock(SquareTerminalSecretProvider.class), builder, new ObjectMapper());
+        var rest = builder.baseUrl(properties.apiBaseUrl())
+            .defaultHeader("Square-Version", properties.getApiVersion()).build();
+        var client = new SquareRestClient(rest, new ObjectMapper(), 1_000_000);
+        var gateway = new SquareHttpTerminalGateway(mock(SquareOAuthHttpClient.class),
+            mock(SquareDeviceHttpClient.class), mock(SquareCheckoutHttpClient.class), client);
         server.expect(requestTo(properties.apiBaseUrl() + "/v2/refunds")).andExpect(method(HttpMethod.POST))
             .andExpect(jsonPath("$.idempotency_key").value("same-key"))
             .andExpect(jsonPath("$.payment_id").value("original-payment"))

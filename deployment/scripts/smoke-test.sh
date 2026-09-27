@@ -44,6 +44,24 @@ fi
 echo "Checking MinIO health at ${MINIO_PUBLIC_ENDPOINT}"
 curl --fail --silent --show-error "${MINIO_PUBLIC_ENDPOINT}/minio/health/live" >/dev/null
 
+if [[ "${APP_POS_MERCADO_PAGO_ENABLED:-false}" == "true" ]]; then
+  echo "Checking protected Mercado Pago setup route"
+  mp_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+    "${WEB_PUBLIC_URL}/api/v1/pos/mercado-pago/status")"
+  [[ "${mp_status}" == "401" ]] || {
+    echo "Expected anonymous Mercado Pago status to return 401; received HTTP ${mp_status}." >&2
+    exit 1
+  }
+
+  echo "Checking Mercado Pago OAuth callback routing"
+  mp_callback_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+    "${WEB_PUBLIC_URL}/api/v1/pos/mercado-pago/oauth/callback")"
+  [[ "${mp_callback_status}" == "303" ]] || {
+    echo "Expected Mercado Pago callback to return 303; received HTTP ${mp_callback_status}." >&2
+    exit 1
+  }
+fi
+
 if [[ "${SMOKE_TEST_AUTH_ROUTE:-true}" == "true" ]]; then
   cookie_jar="$(mktemp)"
   csrf_body="$(mktemp)"

@@ -5,6 +5,8 @@ import java.util.Locale;
 public enum SquareTerminalPaymentStatus {
     WAITING,
     APPROVED,
+    PARTIALLY_REFUNDED,
+    REFUNDED,
     DECLINED,
     CANCELLED,
     UNCERTAIN;

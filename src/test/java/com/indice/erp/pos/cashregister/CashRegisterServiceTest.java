@@ -43,12 +43,14 @@ class CashRegisterServiceTest {
     @Mock
     private SettlementPolicyService settlementPolicyService;
 
+    @Mock
+    private com.indice.erp.pos.terminal.TerminalPaymentGuard terminalPayments;
     private CashRegisterService service;
 
     @BeforeEach
     void setUp() {
-        service = new CashRegisterService(
-            repository, shiftRepository, new CashRegisterMapper(), new CashRegisterValidator(), settlementPolicyService);
+        service = CashRegisterTestFactory.create(new CashRegisterDependencies(
+            repository, shiftRepository, new CashRegisterMapper(), new CashRegisterValidator(), settlementPolicyService, terminalPayments));
     }
 
     @Test
@@ -137,6 +139,18 @@ class CashRegisterServiceTest {
             .hasMessageContaining("while a shift is open");
 
         then(repository).should(never()).update(any(), any(Long.class), any());
+    }
+
+    @Test
+    void unresolvedTerminalPaymentBlocksChangingRegisterScopeBeforeMutation() {
+        org.mockito.Mockito.doThrow(com.indice.erp.pos.PosApiException.conflict("Unresolved terminal payment"))
+            .when(terminalPayments).assertNoPending(CONTEXT, 13L);
+        var request = new CashRegisterUpdateRequest(WAREHOUSE.id(), "REG", "Changed", CashRegisterStatus.ACTIVE,
+            true, null, null, null, null, null, null);
+        assertThatThrownBy(() -> service.update(CONTEXT, 13L, request))
+            .isInstanceOf(com.indice.erp.pos.PosApiException.class).hasMessageContaining("Unresolved");
+        then(repository).shouldHaveNoInteractions();
+        then(terminalPayments).should().lockRegister(CONTEXT, 13L);
     }
 
     private CashRegisterRecord register(Long unitId, Long businessId, long version) {

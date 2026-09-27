@@ -71,7 +71,11 @@ this repository.
 - New protected endpoints fail closed. Public endpoints must be explicitly classified and must use
   their documented alternate trust mechanism, rate limits, and audit trail.
 - Browser session mutations require the repository's CSRF protection. Webhooks require signature
-  verification over the raw body and idempotent processing.
+  verification over the raw body and idempotent processing. Mercado Pago Point is the narrow
+  provider exception adopted in `docs/pos-terminal-payments-contract-v1.md`: verify its documented
+  signed query/header manifest, discard the unsigned body, durably deduplicate the wakeup, and
+  obtain financial authority through merchant-authenticated provider reads. This does not change
+  the raw-body signature requirement for Stripe or Square.
 - Never log or commit secrets, raw credentials, session tokens, reset/invitation tokens, payment
   data, biometric material, or unnecessary personal data.
 - Use `BigDecimal` and explicit currency/rounding rules for money. Derived and authoritative totals

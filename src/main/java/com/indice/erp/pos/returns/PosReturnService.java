@@ -8,7 +8,9 @@ import com.indice.erp.pos.status.*;
 import com.indice.erp.pos.ticket.TicketRepository;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,11 +25,58 @@ public class PosReturnService {
     private final ShiftRepository shifts;
     private final PosReturnAccountingGuard accounting;
     private final PosReturnInventoryService inventory;
+    private final PosReturnPaymentGateway providerPayments;
+    @Autowired
+    public PosReturnService(JdbcTemplate jdbc, PosReturnRepository returns, TicketRepository tickets,
+            PaymentRepository payments, ShiftRepository shifts, PosReturnAccountingGuard accounting,
+            PosReturnInventoryService inventory, PosReturnPaymentGateway providerPayments) {
+        this.jdbc = jdbc; this.returns = returns; this.tickets = tickets; this.payments = payments;
+        this.shifts = shifts; this.accounting = accounting; this.inventory = inventory;
+        this.providerPayments = providerPayments;
+    }
     public PosReturnService(JdbcTemplate jdbc, PosReturnRepository returns, TicketRepository tickets,
             PaymentRepository payments, ShiftRepository shifts, PosReturnAccountingGuard accounting,
             PosReturnInventoryService inventory) {
-        this.jdbc = jdbc; this.returns = returns; this.tickets = tickets; this.payments = payments;
-        this.shifts = shifts; this.accounting = accounting; this.inventory = inventory;
+        this(jdbc, returns, tickets, payments, shifts, accounting, inventory, null);
+    }
+    public PosReturnService(PosReturnRepository returns, PosReturnPaymentGateway providerPayments) {
+        this(null, returns, null, null, null, null, null, providerPayments);
+    }
+
+    public PosReturnSummary find(PosContext context, String reference) {
+        return require(context, reference).summary();
+    }
+
+    public PosReturnSummary refund(PosContext context, String reference, PosReturnRefundRequest request) {
+        var reason = request.reason() == null ? "" : request.reason().trim();
+        if (reason.length() < 3) throw PosApiException.badRequest("Refund reason is too short.");
+        var sale = requireEligible(context, reference);
+        providerPayments.refund(context, sale.providerCode(), sale.intentId(),
+            new PosReturnRefundRequest(request.idempotencyKey(), request.amount(), reason));
+        return require(context, reference).summary();
+    }
+
+    public PosReturnSummary refresh(PosContext context, String reference) {
+        var sale = requireEligible(context, reference);
+        providerPayments.refresh(context, sale.providerCode(), sale.intentId());
+        return require(context, reference).summary();
+    }
+
+    PosReturnRecord requireEligible(PosContext context, String reference) {
+        var sale = require(context, reference);
+        if (!"COMPLETED".equals(sale.ticketStatus()))
+            throw PosApiException.conflict("Only completed sales can be refunded.");
+        if (sale.intentId() == null)
+            throw PosApiException.conflict("This sale has no supported terminal payment.");
+        return sale;
+    }
+
+    private PosReturnRecord require(PosContext context, String reference) {
+        var value = reference == null ? "" : reference.trim().toUpperCase(Locale.ROOT);
+        if (value.isEmpty() || value.length() > 80)
+            throw PosApiException.badRequest("Sale number is invalid.");
+        return returns.find(context, value)
+            .orElseThrow(() -> PosApiException.notFound("Sale was not found."));
     }
 
     @Transactional
