@@ -36,7 +36,16 @@ public class SalesAssistantService {
         var scope = scope(user);
         int limit = query.limit() == null ? 20 : query.limit();
         if (limit < 1 || limit > 50 || (query.query() != null && query.query().length() > 120)) throw new IllegalArgumentException("Invalid page.");
-        var binding = hash(List.of(kind, user.companyId(), scope, Arrays.asList(query.query(), query.status(), query.stage(), query.customerId(), query.ownerUserCompanyId(), limit)));
+        if (query.flowId() != null) {
+            if (!kind.equals("opportunity")) throw new IllegalArgumentException("Flow applies only to opportunities.");
+            var selectedFlowId = query.flowId();
+            var activeFlow = flows.assistantFlows(user.companyId()).stream()
+                .anyMatch(flow -> selectedFlowId.equals(flow.id()));
+            if (!activeFlow) throw new NoSuchElementException("Active flow not found.");
+        }
+        var binding = hash(List.of(kind, user.companyId(), scope, Arrays.asList(
+            query.query(), query.status(), query.stage(), query.customerId(),
+            query.ownerUserCompanyId(), query.flowId(), limit)));
         int offset = offset(query.cursor(), binding);
         var page = repository.page(user, scope, kind, query, offset, limit);
         var rows = page.ids().stream().map(id -> view(kind, sales.get(user.companyId(), repository.collection(kind), id))).toList();
@@ -118,8 +127,12 @@ public class SalesAssistantService {
                     .orElseThrow(() -> new IllegalArgumentException("Select an active opportunity flow."));
                 String target = str(payload, "stage");
                 if (target == null) {
-                    if (update) throw new IllegalArgumentException("stage is required when selecting a flow.");
-                    target = flow.stages().stream().filter(s -> s.type().equals("OPEN")).findFirst().orElseThrow().key();
+                    var lifecycle = update ? str(before, "lifecycleStatus") : "OPEN";
+                    target = flow.stages().stream()
+                        .filter(s -> update && !"OPEN".equals(lifecycle)
+                            ? s.type().equals(lifecycle)
+                            : s.type().equals("OPEN"))
+                        .findFirst().orElseThrow().key();
                 }
                 String selected = target;
                 var stage = flow.stages().stream().filter(s -> s.key().equals(selected)).findFirst()

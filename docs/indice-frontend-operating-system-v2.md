@@ -283,6 +283,14 @@ when the content fits legibly; never cut content or shrink text to illegibility.
 Binary quotation sharing and external PDFs remain supported. IME/Business Diagnosis and the
 KPI maturity overview/dimensions are explicitly excluded; never apply document CSS globally.
 
+El Corazón del Caribe tiene una excepción de marca aprobada para sus documentos operativos y
+ejecutivos del administrador independiente. Conserva papel blanco, densidad documental y lectura
+válida en escala de grises, pero puede usar su logotipo a color y acentos medidos de coral, turquesa
+y azul en encabezados, indicadores principales, estados y cabeceras de tabla. El color nunca es la
+única señal de significado, no invade fotografías ni evidencia y no modifica el contenido, el
+alcance, los cálculos o la paginación del documento. Esta excepción pertenece a ese producto y no
+redefine por sí sola la salida neutral de los módulos básicos de Indice.
+
 Expense capture, payable capture and payment use searchable selectors for large reference catalogs.
 Optional notes/evidence are collapsible; submitting and error states preserve captured values.
 The payable draft's chosen transaction currency must survive preferred-currency changes while open.
@@ -844,6 +852,29 @@ system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif
 Do not introduce a new web font in an isolated module. A future font-family
 change requires product-wide performance, localization, glyph, PDF, kiosk, and
 accessibility review.
+
+The Corazón del Caribe operational workspace adopts the already bundled Inter
+variable font as its documented product family, followed by the platform-safe
+stack. This exception applies consistently to traveler, agent, and owner modes;
+Manrope remains limited to public marketing and editorial surfaces. The
+workspace must preserve the weight, localization, performance, and
+accessibility rules below. Its exact implementation tokens, component mapping,
+rollout order, and acceptance criteria live in
+`docs/corazon-workspace-ui-system-v1.md`.
+
+Its operational analytics follow the same hierarchy: one bounded title and tab
+header, a primary filter row with advanced criteria behind progressive
+disclosure, four compact decision metrics on one desktop row, and one result
+surface that can switch between summary and daily detail. Sortable columns act
+on the loaded filtered result, expose `aria-sort`, compare money as exact minor
+units, and keep unavailable values last in either direction.
+
+The Corazón owner Account family applies the same bounded hierarchy to its AI
+assistant, business units, team, plan, and organization directory. Team
+management is a full route with focused permission and invitation edits in the
+existing modal engine. Organization search and ordering stay visible; status,
+role, and attention filters use progressive disclosure. This presentation rule
+does not change membership, authorization, entitlement, or billing ownership.
 
 #### Approved weights
 
@@ -1893,6 +1924,9 @@ one when the current page may no longer exist.
 - keep selection and expansion controls compact and fixed when useful
 - prefer a purpose-built mobile record card when horizontal comparison is no longer the primary task
 - if the table remains on mobile, preserve readable columns, keyboard focus, and touch targets of at least `44px`
+- authenticated phone workspaces expose four authorized primary destinations and a **More** control in a bottom navigation bar; the bar derives from the existing navigation model and never grants authority
+- fixed mobile navigation respects safe-area insets and the content reserves enough bottom space to remain fully reachable
+- dense mobile records show identity, state, the daily value and the primary action first; secondary analysis opens progressively per record
 
 ### 15.10 Shared table engine
 
@@ -3561,6 +3595,151 @@ Every module must be:
 
 Every tab must function as a self-contained operational unit.
 
+Operational report modules use one shared module frame: a bounded header with
+one title, current scope, one primary action and local tabs; one progressive
+filter surface; one compact row of four decision KPIs; and one visible result
+surface. Routine filters stay visible while analytical filters use an explicit
+advanced disclosure inside the same form and query. Local tabs and table views
+reuse already loaded data. Comparable columns sort ascending and descending,
+announce their state, compare money in exact minor units and keep unavailable
+values last. A secondary or historical result remains hidden until selected.
+
+When a module offers **Imprimir selección**, printing includes the module title
+and the currently visible result table only. Navigation, filters, KPI strips,
+view controls and interactive actions are excluded from print. This is the
+canonical application pattern for the provider Summary, Multicalendar,
+Reservations, Cleanings, Maintenance, Bracelets and capacity, Vehicles and
+maintenance, Assigned services, Products, Finance and occupancy, Cuts, Expenses, Pricing
+and Channels; domain authorization, calculations, API contracts and persistence
+remain owned by their modules.
+
+Within the provider Pricing and Channels workspace, **Tarifas**, **Canales**,
+**Cálculo Airbnb / Booking** and **Motor diario** are route-backed sibling tabs.
+The channel calculator reads the official monthly target from Finance and the
+contract model, fixed costs and management commission from Cuts. It persists only
+property-specific channel, tax and operating assumptions. Editing a target from
+this surface opens one monthly planning modal for the Finance sales and occupancy
+targets plus the property's optional break-even override. The Finance target owner
+remains authoritative for goals; when the break-even override is empty, the
+calculator continues to derive it from the contract and fixed costs owned by Cuts.
+The recommendation treats the Finance target and break-even as required owner net,
+uses the greater monthly amount, divides it by expected nights and reverses all
+configured deductions to obtain each channel's public price. Booking commission stays unconfigured until the
+property supplies its actual contract percentage. The daily engine remains a
+separate reviewable proposal and requires explicit confirmation before applying
+prices. Neither surface may create a client-side pricing authority.
+
+The channel calculation modal keeps the fiscal profile as its shared control, then
+presents separate Airbnb and Booking configuration panels because each channel has
+different commission and collection inputs. Each panel pairs the public nightly rate with
+the estimated owner deposit after all configured deductions and keeps the monthly Finance
+target, break-even and required net per night visible. Fiscal details remain available in
+a collapsed disclosure, with a live non-authoritative preview. A separate **Estancia y
+limpieza** modal owns expected occupied nights, minimum stay and cleaning; this keeps
+operating rules out of the tax modal and prevents those property-specific values from being
+copied accidentally with a shared channel profile.
+Known Airbnb Mexico schemes enforce their documented host percentages;
+only the custom scheme accepts a manual Airbnb rate. Effective VAT withholding is
+the lodging VAT rate multiplied by the retained portion and participates in the
+server-owned net calculation. The Mexico presets distinguish a person with RFC, a
+person without RFC and a legal entity; only a custom profile permits manual withholding
+percentages. For 2026, the legal-entity preset with a valid RFC applies the federal
+platform withholding of 2.5 percent ISR and 50 percent of the 16 percent lodging IVA;
+the displayed effective IVA withholding is therefore 8 percent. A provider may apply shared fiscal and channel
+assumptions to selected accommodations in one revision-checked atomic command;
+property nights, cleaning, minimum stay, Finance targets and break-even remain
+property-specific.
+
+When Booking commission VAT is marked as additional, the calculator applies Mexico's
+16 percent VAT to the contractual commission independently from the accommodation's own
+VAT configuration. The owner deposit subtracts channel commission, commission VAT when
+applicable, payment charge, ISR withholding, effective lodging VAT withholding and Cuts
+administration. Booking also records whether payment is collected through Booking.com or
+directly by the accommodation. Platform tax withholding participates in the estimate only
+when the platform collects payment; the contractual commission still participates in both
+models. The recommendation must leave at least the greater of the Finance target or
+break-even after those deductions. Cleaning remains an explicit operating charge and does
+not subsidize the nightly target because average stay length is not authoritative; the UI
+warns that channels can include cleaning and other extras in their commission base.
+
+The Airbnb and Booking columns each pair the public nightly price to configure
+with the server-calculated owner net per night after channel charges, effective
+VAT withholding, ISR, payment charges and contract administration. The interface
+labels the result as an estimate and never presents it as a reconciled or
+withdrawable balance.
+
+Corazón workspace printing builds an isolated document from a fresh authorized
+result or explicit selection; it does not print the live application shell. The
+shared document frame owns only paper presentation: brand, title, scope, issue
+time, page geometry and footer. Each module still owns its fields, calculations,
+privacy rules and snapshot/version semantics. A4 portrait is the default, A4
+landscape is used for wider operational tables, and A3 landscape is reserved for
+dense cleaning grids or established executive reports. Prefer one sheet when the
+result remains legible; otherwise paginate with repeated table headings and intact
+rows instead of shrinking or clipping information.
+
+The paper palette is neutral: white background, dark ink, gray rules and one
+restrained structural accent. Color is never required to interpret a state. The
+company logo and evidence photographs keep their original content. Browser-native
+URL/date headers remain controlled by the print dialog and are not part of the
+application document.
+
+Platform administration must follow the same rule. An executive landing page
+may aggregate decision-ready counts and priorities, but every value must link to
+its owning workflow. Related approval queues may share one tabbed surface while
+preserving their domain endpoints, authorization checks, actions, and legacy
+routes. Role switching belongs in the account menu rather than duplicated
+topbar or sidebar controls.
+
 Every file should remain small enough to understand quickly.
 
 The final product must feel like Human Resources, Processes And Tasks, Expenses, Sales, POS, Inventory, Receivables, Petty Cash, Dashboard, BMI, and PPI can all grow independently without turning Indice into chaos.
+## Official community chat
+
+Authenticated workspaces expose Chat as a primary destination for travelers, agents, owners and
+platform customer service. In the owner mobile navigation, Chat occupies the former Operations
+shortcut; operational modules remain available through the complete module menu. The owner desktop
+navigation includes Chat under Communication. ROOT operators appear inside conversations as
+**Corazón · Customer service**, without exposing the operator's personal identity.
+
+The inbox is a searchable queue with unread work first. Inbox and active thread are separate,
+route-backed views at every breakpoint: the inbox owns keyword, unread and conversation-type
+filters, while the thread uses the full message workspace and always exposes a direct return to the
+inbox. Search matches normalized words across the conversation title, channel label, type and stable
+reference. Advanced fields remain collapsed under **More filters** until requested.
+
+On phones the chat workspace fills the area between the fixed top bar and primary navigation. Only
+the message history scrolls; the thread header and composer remain anchored inside that workspace.
+Every message includes a server-derived text label for customer service, owner, travel agent or
+traveler. Role color is a restrained border or label outline over the standard surface, including in
+dark mode; it never fills the message with a light theme color and is never the only identity cue.
+The browser cannot supply or override the sender role.
+
+Progressive filter shells have one grid owner. Their direct children always use `min-width: 0`,
+advanced fields stay collapsed by default, and legacy module filter selectors cannot redefine the
+shell. Phone layouts use one column below 520 px and may use two equal columns only when both controls
+fit without overflow.
+
+Navigation does not expand the audience contract. Owners see only organization-scoped service and
+case conversations already authorized for their membership and product scope. Agents retain current
+assignment and consent limits, travelers retain trip ownership and participation limits, and ROOT
+reads remain mediated and audited.
+
+## Unified account entry
+
+`/account.html` is the standard sign-in surface and `/workspace.html` is the standard authenticated
+landing for members, agents, owners, staff, distributors and platform direction. Every general
+account enters the traveler context first. Agent, owner and direction tools are explicit mode
+switches shown only when the authenticated profile is authorized for them; the role must never
+silently choose a different visual application at login.
+
+The retired `/admin/` entry is a compatibility redirect, not a user interface. Without a session it
+returns to `/account.html`; with a general authenticated session it returns to `/workspace.html`.
+Driver kiosk and host portal accounts keep their documented specialized entry points. Public access
+links must target `/account.html`, and remembered continuations must not accept the retired entry.
+The local `npm run dev` command enables this commercial workspace; a server that serves the shell
+while returning `COMMERCE_UNAVAILABLE` from its workspace APIs is not a valid local preview.
+
+A stale traveler import route without its local purchase draft returns to `#traveler/trips`. A valid
+draft keeps the import workflow. This prevents bookmarks or interrupted browser storage from
+presenting a failed workspace after a successful login.

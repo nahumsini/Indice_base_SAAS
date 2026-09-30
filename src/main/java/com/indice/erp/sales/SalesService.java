@@ -137,10 +137,10 @@ public class SalesService {
         Long opportunityFlowId = null;
         if ("opportunities".equals(collection)) {
             opportunityFlowId = SalesPayloadSupport.longValue(normalizedPayload, "flowId");
-            removeOpportunityFlowControl(normalizedPayload);
             if (opportunityFlowId == null) {
                 opportunityFlowId = opportunityFlowService.defaultFlowId(companyId);
             }
+            normalizedPayload.put("flowId", opportunityFlowId);
             if (!SalesPayloadSupport.contains(normalizedPayload, "stage")) {
                 normalizedPayload.put("stage", opportunityFlowService.initialStage(companyId, opportunityFlowId));
             }
@@ -224,10 +224,10 @@ public class SalesService {
                     throw new IllegalArgumentException("El producto conserva moneda y tipo después de registrar inventario. Crea otro producto para una configuración distinta.");
             }
         }
-        Long opportunityFlowId = null;
-        if ("opportunities".equals(collection) && SalesPayloadSupport.contains(normalizedPayload, "stage")) {
-            opportunityFlowId = SalesPayloadSupport.longValue(normalizedPayload, "flowId");
-            removeOpportunityFlowControl(normalizedPayload);
+        if ("opportunities".equals(collection)
+                && (SalesPayloadSupport.contains(normalizedPayload, "stage")
+                    || SalesPayloadSupport.contains(normalizedPayload, "flowId"))) {
+            var opportunityFlowId = SalesPayloadSupport.longValue(normalizedPayload, "flowId");
             var position = opportunityFlowService.moveOpportunity(
                     companyId,
                     userId,
@@ -237,8 +237,6 @@ public class SalesService {
             normalizedPayload.put("stage", position.stageKey());
             normalizedPayload.put("lifecycleStatus", position.lifecycleStatus());
             normalizedPayload.put("probabilityPercent", position.probabilityPercent());
-        } else if ("opportunities".equals(collection)) {
-            removeOpportunityFlowControl(normalizedPayload);
         }
         if ("sales".equals(collection)) {
             boolean inventoryCommitted = salesRepository.hasSaleInventoryMovements(companyId, id);
@@ -1500,11 +1498,6 @@ public class SalesService {
         opportunityPayload.put("ownerName", quote.get("assignedSellerName"));
         opportunityPayload.put("notes", "Created from quote " + quote.get("quoteNumber"));
         return opportunityPayload;
-    }
-
-    private void removeOpportunityFlowControl(Map<String, Object> payload) {
-        payload.remove("flowId");
-        payload.remove("flow_id");
     }
 
     private Map<String, Object> dictionaries(long companyId) {

@@ -61,7 +61,9 @@ class SalesServiceOpportunityFlowTest {
         @SuppressWarnings("unchecked")
         var payload = ArgumentCaptor.forClass((Class<Map<String, Object>>) (Class<?>) Map.class);
         verify(repository).create(eq(7L), eq(5L), any(SalesEntityDefinition.class), payload.capture());
-        assertThat(payload.getValue()).containsEntry("stage", "demo");
+        assertThat(payload.getValue())
+                .containsEntry("flowId", 3L)
+                .containsEntry("stage", "demo");
         verify(repository).update(eq(7L), eq(5L), any(SalesEntityDefinition.class), eq(91L),
                 eq(Map.of("stage", "demo", "lifecycleStatus", "OPEN", "probabilityPercent", 40)));
     }
@@ -79,6 +81,30 @@ class SalesServiceOpportunityFlowTest {
 
         verify(repository, never()).create(
                 eq(7L), eq(5L), any(SalesEntityDefinition.class), any());
+    }
+
+    @Test
+    void reassignsAnOpportunityWhenOnlyTheFlowColumnChanges() {
+        when(opportunityFlowService.moveOpportunity(7L, 5L, 91L, 4L, null))
+                .thenReturn(new OpportunityFlowService.MoveResult("discovery", "OPEN", 20));
+        when(repository.get(eq(7L), any(SalesEntityDefinition.class), eq(91L)))
+                .thenReturn(Map.of(
+                        "id", 91L,
+                        "flowId", 4L,
+                        "stage", "discovery",
+                        "lifecycleStatus", "OPEN",
+                        "probabilityPercent", 20));
+
+        service.update(7L, 5L, "opportunities", 91L, Map.of("flowId", 4L));
+
+        @SuppressWarnings("unchecked")
+        var payload = ArgumentCaptor.forClass((Class<Map<String, Object>>) (Class<?>) Map.class);
+        verify(repository).update(eq(7L), eq(5L), any(SalesEntityDefinition.class), eq(91L), payload.capture());
+        assertThat(payload.getValue()).containsExactlyInAnyOrderEntriesOf(Map.of(
+                "flowId", 4L,
+                "stage", "discovery",
+                "lifecycleStatus", "OPEN",
+                "probabilityPercent", 20));
     }
 
     @Test

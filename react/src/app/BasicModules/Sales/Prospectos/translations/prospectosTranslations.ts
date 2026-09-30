@@ -231,6 +231,10 @@ export const enCA = {
       label: 'Opportunity / company',
       description: 'Commercial opportunity name, company, and folio.',
     },
+    flow: {
+      label: 'Sales flow',
+      description: 'Authoritative commercial flow assigned to the opportunity.',
+    },
     contact: {
       label: 'Contact',
       description: 'Primary person, phone, and email connected to the sale.',
@@ -732,6 +736,7 @@ export const esMX: ProspectosCopy = {
   },
   columns: {
     opportunity: { label: 'Oportunidad / empresa', description: 'Nombre comercial de la oportunidad, empresa y folio.' },
+    flow: { label: 'Flujo de venta', description: 'Flujo comercial autoritativo asignado a la oportunidad.' },
     contact: { label: 'Contacto', description: 'Persona principal, teléfono y correo relacionados con la venta.' },
     phone: { label: 'Teléfono', description: 'Teléfono principal para llamadas o WhatsApp.' },
     email: { label: 'Email', description: 'Correo principal del contacto.' },

@@ -22,6 +22,7 @@ export type OpportunityFocusFilter =
 
 export type OpportunityColumnId =
   | 'opportunity'
+  | 'flow'
   | 'contact'
   | 'phone'
   | 'email'

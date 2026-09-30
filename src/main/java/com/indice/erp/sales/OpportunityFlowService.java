@@ -80,9 +80,6 @@ class OpportunityFlowService {
         repository.replaceStages(companyId, flowId, userId, stages);
         repository.recordRevision(companyId, flowId, userId, stages);
 
-        // A new flow deliberately starts every open opportunity at its first open
-        // stage. Global Won/Lost lifecycle is mirrored to its terminal stages.
-        repository.ensurePositionsForFlow(companyId, flowId, userId);
         return response(companyId, repository.requireFlow(companyId, flowId));
     }
 
@@ -108,7 +105,6 @@ class OpportunityFlowService {
         repository.updateFlowName(companyId, flowId, userId, name);
         repository.replaceStages(companyId, flowId, userId, stages);
         repository.recordRevision(companyId, flowId, userId, stages);
-        repository.ensurePositionsForFlow(companyId, flowId, userId);
         return response(companyId, repository.requireFlow(companyId, flowId));
     }
 
@@ -132,32 +128,23 @@ class OpportunityFlowService {
             Long selectedFlowId,
             String rawStage) {
         ensureFactory(companyId);
-        var flows = repository.listFlows(companyId);
-        var activeFlowId = selectedFlowId == null ? defaultFlowId(flows) : selectedFlowId;
+        var activeFlowId = selectedFlowId == null
+                ? defaultFlowId(repository.listFlows(companyId))
+                : selectedFlowId;
         repository.requireFlow(companyId, activeFlowId);
+        var stages = repository.listActiveStages(companyId, activeFlowId);
         var requestedKey = normalizeExistingKey(rawStage);
-        var lifecycle = lifecycleForKey(requestedKey);
+        var target = requestedKey.isBlank()
+                ? firstOpenStage(stages)
+                : requireStage(stages, requestedKey, "stage is not active in the selected opportunity flow.");
+        var lifecycle = target.type();
+        repository.lockOpportunity(companyId, opportunityId);
+        repository.assignFlow(companyId, opportunityId, activeFlowId, userId);
         repository.updateLifecycle(companyId, opportunityId, lifecycle, userId);
-
-        MoveResult selectedPosition = null;
-        for (var flow : flows) {
-            var stages = repository.listActiveStages(companyId, flow.id());
-            var target = terminalStage(stages, lifecycle)
-                    .orElseGet(() -> flow.id() == activeFlowId && !requestedKey.isBlank()
-                            ? requireStage(stages, requestedKey, "stage is not active in the selected opportunity flow.")
-                            : firstOpenStage(stages));
-            repository.recordPositionHistory(
-                    companyId, opportunityId, flow.id(), null, target.id(), "INITIALIZED", userId);
-            repository.upsertPosition(companyId, opportunityId, flow.id(), target, userId);
-            if (flow.id() == activeFlowId) {
-                selectedPosition = new MoveResult(
-                        target.key(), lifecycle, target.defaultProbabilityPercent());
-            }
-        }
-        if (selectedPosition == null) {
-            throw new IllegalStateException("The selected opportunity flow is not active.");
-        }
-        return selectedPosition;
+        repository.recordPositionHistory(
+                companyId, opportunityId, null, activeFlowId, null, target.id(), "INITIALIZED", userId);
+        repository.upsertPosition(companyId, opportunityId, activeFlowId, target, userId);
+        return new MoveResult(target.key(), lifecycle, target.defaultProbabilityPercent());
     }
 
     @Transactional
@@ -168,46 +155,63 @@ class OpportunityFlowService {
             Long selectedFlowId,
             String rawStage) {
         ensureFactory(companyId);
-        var flows = repository.listFlows(companyId);
-        var activeFlowId = selectedFlowId == null ? defaultFlowId(flows) : selectedFlowId;
+        var state = repository.lockOpportunity(companyId, opportunityId);
+        var activeFlowId = selectedFlowId == null ? state.assignedFlowId() : selectedFlowId;
         repository.requireFlow(companyId, activeFlowId);
-        repository.ensurePositionsForFlow(companyId, activeFlowId, userId);
-        var requested = requireStage(
-                repository.listActiveStages(companyId, activeFlowId),
-                normalizeExistingKey(rawStage),
-                "stage is not active in the selected opportunity flow.");
-        var lifecycle = repository.opportunityLifecycle(companyId, opportunityId);
+        var stages = repository.listActiveStages(companyId, activeFlowId);
+        var requestedKey = normalizeExistingKey(rawStage);
+        var flowChanged = activeFlowId != state.assignedFlowId();
+        var existingTargetPosition = flowChanged
+                ? java.util.Optional.<OpportunityFlowRepository.PositionRow>empty()
+                : repository.findPosition(companyId, opportunityId, activeFlowId);
+        var requested = requestedKey.isBlank()
+                ? (flowChanged ? java.util.Optional.<StageRow>empty() : existingTargetPosition
+                        .flatMap(position -> stages.stream()
+                                .filter(stage -> stage.id() == position.stageId() && stage.type().equals("OPEN"))
+                                .findFirst()))
+                        .orElseGet(() -> firstOpenStage(stages))
+                : requireStage(stages, requestedKey,
+                        "stage is not active in the selected opportunity flow.");
+        var lifecycle = state.lifecycle();
 
         if (!"OPEN".equals(lifecycle)) {
-            if (!lifecycle.equals(requested.type())) {
+            var terminal = terminalStage(stages, lifecycle)
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Every opportunity flow must contain Won and Lost."));
+            if (!requestedKey.isBlank() && !lifecycle.equals(requested.type())) {
                 throw new IllegalArgumentException(
                         "Won or lost opportunities cannot be reopened by changing their flow.");
             }
-            return new MoveResult(requested.key(), lifecycle, requested.defaultProbabilityPercent());
+            if (flowChanged) {
+                repository.assignFlow(companyId, opportunityId, activeFlowId, userId);
+            }
+            movePosition(companyId, opportunityId, state.assignedFlowId(), activeFlowId,
+                    terminal, userId, flowChanged ? "FLOW_REASSIGNED" : "MOVED");
+            return new MoveResult(terminal.key(), lifecycle, terminal.defaultProbabilityPercent());
         }
 
         if ("OPEN".equals(requested.type())) {
-            movePosition(companyId, opportunityId, activeFlowId, requested, userId, "MOVED");
+            if (flowChanged) {
+                repository.assignFlow(companyId, opportunityId, activeFlowId, userId);
+            }
+            movePosition(companyId, opportunityId, state.assignedFlowId(), activeFlowId,
+                    requested, userId, flowChanged ? "FLOW_REASSIGNED" : "MOVED");
             return new MoveResult(requested.key(), "OPEN", requested.defaultProbabilityPercent());
         }
 
-        // Closing in any flow is global. Synchronizing every terminal position
-        // prevents a later flow selection from making the opportunity look open.
-        repository.updateLifecycle(companyId, opportunityId, requested.type(), userId);
-        for (var flow : flows) {
-            var terminal = terminalStage(repository.listActiveStages(companyId, flow.id()), requested.type())
-                    .orElseThrow(() -> new IllegalStateException("Every opportunity flow must contain Won and Lost."));
-            movePosition(companyId, opportunityId, flow.id(), terminal, userId, "TERMINAL_SYNC");
+        if (flowChanged) {
+            repository.assignFlow(companyId, opportunityId, activeFlowId, userId);
         }
+        repository.updateLifecycle(companyId, opportunityId, requested.type(), userId);
+        movePosition(companyId, opportunityId, state.assignedFlowId(), activeFlowId,
+                requested, userId, flowChanged ? "FLOW_REASSIGNED_AND_CLOSED" : "CLOSED");
         return new MoveResult(requested.key(), requested.type(), requested.defaultProbabilityPercent());
     }
 
     @Transactional
     MoveResult closeOpportunityAsWon(long companyId, long userId, long opportunityId) {
         ensureFactory(companyId);
-        var flows = repository.listFlows(companyId);
-        var activeFlowId = defaultFlowId(flows);
-        repository.ensurePositionsForFlow(companyId, activeFlowId, userId);
+        var activeFlowId = repository.assignedFlowId(companyId, opportunityId);
         var activeWonStage = terminalStage(repository.listActiveStages(companyId, activeFlowId), "WON")
                 .orElseThrow(() -> new IllegalStateException("The active opportunity flow does not contain a won stage."));
         return moveOpportunity(companyId, userId, opportunityId, activeFlowId, activeWonStage.key());
@@ -254,15 +258,16 @@ class OpportunityFlowService {
     private void movePosition(
             long companyId,
             long opportunityId,
+            long fromFlowId,
             long flowId,
             StageRow target,
             long userId,
             String reason) {
-        var currentStageId = repository.findPosition(companyId, opportunityId, flowId)
+        var currentStageId = repository.findPosition(companyId, opportunityId, fromFlowId)
                 .map(OpportunityFlowRepository.PositionRow::stageId)
                 .orElse(null);
         repository.recordPositionHistory(
-                companyId, opportunityId, flowId, currentStageId, target.id(), reason, userId);
+                companyId, opportunityId, fromFlowId, flowId, currentStageId, target.id(), reason, userId);
         repository.upsertPosition(companyId, opportunityId, flowId, target, userId);
     }
 
@@ -385,10 +390,6 @@ class OpportunityFlowService {
             return java.util.Optional.empty();
         }
         return stages.stream().filter(stage -> lifecycle.equals(stage.type())).findFirst();
-    }
-
-    private String lifecycleForKey(String key) {
-        return "won".equals(key) ? "WON" : "lost".equals(key) ? "LOST" : "OPEN";
     }
 
     private String cleanName(String value) {

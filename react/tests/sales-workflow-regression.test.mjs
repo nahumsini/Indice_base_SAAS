@@ -49,6 +49,8 @@ test('los flujos de oportunidades son seleccionables y alimentan Kanban y filtro
   const kanban = read('src/app/BasicModules/Sales/Prospectos/kanban/ProspectosKanban.tsx');
   const manager = read('src/app/BasicModules/Sales/Prospectos/modals/OpportunityFlowManagerModal.tsx');
   const stageEditor = read('src/app/BasicModules/Sales/Prospectos/modals/OpportunityFlowStageEditor.tsx');
+  const tableRow = read('src/app/BasicModules/Sales/Prospectos/table/ProspectosTableRow.tsx');
+  const context = read('src/app/BasicModules/Sales/salesCrmContext.tsx');
 
   assert.match(header, /copy\.manageFlow/);
   assert.match(header, /SelectTrigger aria-label=\{activeFlowLabel\}/);
@@ -58,7 +60,14 @@ test('los flujos de oportunidades son seleccionables y alimentan Kanban y filtro
   assert.match(page, /salesApi\.createOpportunityFlow/);
   assert.match(page, /salesApi\.updateOpportunityFlow/);
   assert.match(page, /setStageFilter\('all'\)/);
+  assert.match(page, /opportunity\.flowId === selectedFlowId/);
+  assert.doesNotMatch(page, /flowId: selectedFlow\?\.id/);
+  assert.match(page, /await updateOpportunityRecord\(opportunity\.id, \{ flowId \}\)/);
   assert.match(page, /stages=\{opportunityFlowStages\}/);
+  assert.match(tableRow, /case 'flow':/);
+  assert.match(tableRow, /onFlowChange\(opportunity, Number\(flowId\)\)/);
+  assert.match(context, /updateOpportunityRecord: async \(opportunityId, patch\)/);
+  assert.match(context, /toBackendOpportunityPatch\(patch, contacts\)/);
   assert.match(filters, /stages\.map/);
   assert.match(kanban, /stages\.map/);
   assert.match(manager, /modalType="operational-workspace"/);

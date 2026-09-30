@@ -52,6 +52,7 @@ export const spanishWeekdayAliases: Array<{ aliases: string[]; dayIndex: number 
 
 export const defaultOpportunityColumns: ColumnConfig[] = [
   { id: 'opportunity', label: 'Oportunidad / empresa', visible: true, locked: true, description: 'Nombre comercial de la oportunidad, empresa y folio.' },
+  { id: 'flow', label: 'Flujo de venta', visible: true, description: 'Flujo comercial autoritativo al que pertenece la oportunidad.' },
   { id: 'contact', label: 'Contacto', visible: true, description: 'Persona principal, teléfono y correo relacionados con la venta.' },
   { id: 'stage', label: 'Etapa', visible: true, description: 'Avance dentro del pipeline comercial.' },
   { id: 'owner', label: 'Responsable', visible: true, description: 'Vendedor o ejecutivo responsable.' },
@@ -73,6 +74,7 @@ export const defaultOpportunityColumns: ColumnConfig[] = [
 
 export const defaultOpportunityColumnWidths: Record<OpportunityColumnId, number> = {
   opportunity: 250,
+  flow: 190,
   contact: 250,
   phone: 150,
   email: 220,
@@ -94,6 +96,7 @@ export const defaultOpportunityColumnWidths: Record<OpportunityColumnId, number>
 
 export const minimumOpportunityColumnWidths: Record<OpportunityColumnId, number> = {
   opportunity: 220,
+  flow: 160,
   contact: 180,
   phone: 130,
   email: 190,

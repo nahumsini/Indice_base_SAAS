@@ -55,6 +55,7 @@ export type SalesCrmContextValue = {
   deleteContact: (contactId: string) => void;
   addOpportunity: (opportunity: CreateOpportunityInput) => SalesOpportunity;
   updateOpportunity: (opportunityId: string, patch: UpdateOpportunityInput) => void;
+  updateOpportunityRecord: (opportunityId: string, patch: UpdateOpportunityInput) => Promise<SalesOpportunity>;
   deleteOpportunity: (opportunityId: string) => void;
   addProduct: (product: CreateProductInput) => SalesCatalogItem;
   updateProduct: (productId: string, patch: UpdateProductInput) => void;

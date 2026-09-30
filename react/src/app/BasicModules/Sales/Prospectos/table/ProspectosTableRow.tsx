@@ -6,6 +6,7 @@ import {
   opportunityStatuses,
   opportunityTemperatures,
   type OpportunityFlowStage,
+  type OpportunityFlow,
   type OpportunityNextAction,
   type OpportunityProbability,
   type OpportunitySource,
@@ -146,6 +147,7 @@ export function ProspectosTableRow({
   opportunity,
   quotes,
   stages,
+  flows,
   visibleColumns,
   columnWidths,
   ownerSelectOptions,
@@ -153,6 +155,8 @@ export function ProspectosTableRow({
   getOwnerPayloadFromValue,
   onUpdateOpportunity,
   onStageChange,
+  onFlowChange,
+  pendingFlowOpportunityId,
   onOpenFiles,
   onOpenHistory,
   onEdit,
@@ -164,6 +168,7 @@ export function ProspectosTableRow({
   opportunity: SalesOpportunity;
   quotes: SalesQuote[];
   stages: OpportunityFlowStage[];
+  flows: OpportunityFlow[];
   visibleColumns: Array<{ id: string }>;
   columnWidths: Record<OpportunityColumnId, number>;
   ownerSelectOptions: Array<{ value: string; label: string }>;
@@ -171,6 +176,8 @@ export function ProspectosTableRow({
   getOwnerPayloadFromValue: (value: string) => { ownerUserCompanyId: number | null; owner: string };
   onUpdateOpportunity: (opportunityId: string, patch: Partial<Omit<SalesOpportunity, 'id'>>) => void;
   onStageChange: (opportunity: SalesOpportunity, stage: OpportunityStage) => void;
+  onFlowChange: (opportunity: SalesOpportunity, flowId: number) => void;
+  pendingFlowOpportunityId: string | null;
   onOpenFiles: (opportunity: SalesOpportunity) => void;
   onOpenHistory: (opportunity: SalesOpportunity) => void;
   onEdit: (opportunity: SalesOpportunity) => void;
@@ -193,6 +200,23 @@ export function ProspectosTableRow({
             <p className="break-words text-xs font-medium text-[#2563EB]">{opportunity.company}</p>
             <p className="break-all text-xs text-slate-500">{opportunity.id}</p>
           </div>
+        );
+      case 'flow':
+        return (
+          <Select
+            value={opportunity.flowId === undefined ? undefined : String(opportunity.flowId)}
+            disabled={pendingFlowOpportunityId === opportunity.id}
+            onValueChange={(flowId) => onFlowChange(opportunity, Number(flowId))}
+          >
+            <SelectTrigger className="h-9 w-full min-w-0 rounded-full border-blue-200 bg-blue-50 px-3 text-xs font-medium text-blue-800 shadow-none focus:ring-[#2563EB]/20 [&>span]:truncate">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {flows.map((flow) => (
+                <SelectItem key={flow.id} value={String(flow.id)}>{flow.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         );
       case 'contact':
         return (

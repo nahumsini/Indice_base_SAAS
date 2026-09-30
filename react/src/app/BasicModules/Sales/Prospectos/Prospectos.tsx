@@ -131,6 +131,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     createContactRecord,
     addOpportunity,
     updateOpportunity,
+    updateOpportunityRecord,
     deleteOpportunity,
     updateQuoteStatus,
   } = useSalesCrm();
@@ -143,6 +144,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   const [flowPositions, setFlowPositions] = useState<OpportunityFlowPosition[]>([]);
   const [flowCanManage, setFlowCanManage] = useState(false);
   const [flowLoadError, setFlowLoadError] = useState('');
+  const [pendingFlowOpportunityId, setPendingFlowOpportunityId] = useState<string | null>(null);
   const [flowReloadVersion, setFlowReloadVersion] = useState(0);
   const flowPositionRequestId = useRef(0);
   const [pendingWonTransition, setPendingWonTransition] = useState<{
@@ -361,27 +363,30 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     const wonStage = flowStages.find((stage) => stage.type === 'WON');
     const lostStage = flowStages.find((stage) => stage.type === 'LOST');
 
-    return storedOpportunities.map((opportunity) => {
-      const inferredLifecycle = opportunity.lifecycleStatus
-        ?? (opportunity.stage === 'Won' ? 'WON' : opportunity.stage === 'Lost' ? 'LOST' : 'OPEN');
-      const terminalStage = inferredLifecycle === 'WON' ? wonStage : inferredLifecycle === 'LOST' ? lostStage : null;
-      const position = opportunity.backendId === undefined
-        ? undefined
-        : positionsByOpportunity.get(opportunity.backendId);
-      const stage = terminalStage?.key ?? position?.stageKey ?? opportunity.stage;
-      const stageConfig = flowStages.find((item) => item.key === stage);
-      const probabilityPercent = terminalStage?.defaultProbabilityPercent
-        ?? position?.probabilityPercent
-        ?? Number.parseInt(opportunity.probability.replace('%', ''), 10);
-      return {
-        ...opportunity,
-        flowId: selectedFlow?.id,
-        lifecycleStatus: inferredLifecycle,
-        stage,
-        probability: `${Number.isFinite(probabilityPercent) ? probabilityPercent : stageConfig?.defaultProbabilityPercent ?? 0}%`,
-      };
-    });
-  }, [flowPositions, flowStages, selectedFlow?.id, storedOpportunities]);
+    return storedOpportunities
+      .filter((opportunity) => (
+        selectedFlowId === null || selectedFlowId < 0 || opportunity.flowId === selectedFlowId
+      ))
+      .map((opportunity) => {
+        const inferredLifecycle = opportunity.lifecycleStatus
+          ?? (opportunity.stage === 'Won' ? 'WON' : opportunity.stage === 'Lost' ? 'LOST' : 'OPEN');
+        const terminalStage = inferredLifecycle === 'WON' ? wonStage : inferredLifecycle === 'LOST' ? lostStage : null;
+        const position = opportunity.backendId === undefined
+          ? undefined
+          : positionsByOpportunity.get(opportunity.backendId);
+        const stage = terminalStage?.key ?? position?.stageKey ?? opportunity.stage;
+        const stageConfig = flowStages.find((item) => item.key === stage);
+        const probabilityPercent = terminalStage?.defaultProbabilityPercent
+          ?? position?.probabilityPercent
+          ?? Number.parseInt(opportunity.probability.replace('%', ''), 10);
+        return {
+          ...opportunity,
+          lifecycleStatus: inferredLifecycle,
+          stage,
+          probability: `${Number.isFinite(probabilityPercent) ? probabilityPercent : stageConfig?.defaultProbabilityPercent ?? 0}%`,
+        };
+      });
+  }, [flowPositions, flowStages, selectedFlowId, storedOpportunities]);
 
   const ownerSelectOptions = useMemo(() => {
     return ownerOptions.map((owner) => ({ value: ownerOptionValue(owner), label: owner.name }));
@@ -875,6 +880,24 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     });
   };
 
+  const handleOpportunityFlowChange = async (opportunity: SalesOpportunity, flowId: number) => {
+    if (opportunity.flowId === flowId || pendingFlowOpportunityId === opportunity.id) return;
+    setPendingFlowOpportunityId(opportunity.id);
+    try {
+      await updateOpportunityRecord(opportunity.id, { flowId });
+      if (opportunity.backendId !== undefined) {
+        setFlowPositions((current) => current.filter(
+          (position) => position.opportunityId !== opportunity.backendId,
+        ));
+      }
+      setFlowLoadError('');
+    } catch {
+      setFlowLoadError(t.flow.saveError);
+    } finally {
+      setPendingFlowOpportunityId(null);
+    }
+  };
+
   const pendingDeleteQuotesCount = pendingDeleteOpportunity
     ? quotes.filter((quote) => quote.opportunityId === pendingDeleteOpportunity.id).length
     : 0;
@@ -972,6 +995,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
           opportunities={tableOpportunities}
           quotes={quotes}
           stages={opportunityFlowStages}
+          flows={opportunityFlows}
           visibleColumns={localizedVisibleColumns}
           columnWidths={columnWidths}
           tableMinWidth={tableMinWidth}
@@ -985,6 +1009,8 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
           }}
           onUpdateOpportunity={handleUpdateOpportunity}
           onStageChange={handleKanbanStageChange}
+          onFlowChange={handleOpportunityFlowChange}
+          pendingFlowOpportunityId={pendingFlowOpportunityId}
           onOpenFiles={setFilesOpportunity}
           onOpenHistory={setHistoryOpportunity}
           onEdit={handleOpenEditOpportunity}

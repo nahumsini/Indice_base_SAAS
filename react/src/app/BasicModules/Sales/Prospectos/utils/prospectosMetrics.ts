@@ -167,6 +167,8 @@ export function getOpportunitySortValue(
   switch (columnId) {
     case 'opportunity':
       return `${opportunity.opportunityName} ${opportunity.company} ${opportunity.id}`;
+    case 'flow':
+      return opportunity.flowId ?? null;
     case 'contact':
       return opportunity.contactPerson;
     case 'phone':

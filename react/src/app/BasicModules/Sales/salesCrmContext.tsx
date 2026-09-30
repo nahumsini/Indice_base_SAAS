@@ -5,6 +5,7 @@ import {
   toBackendContact,
   toBackendContract,
   toBackendOpportunity,
+  toBackendOpportunityPatch,
   toBackendPostSaleCase,
   toBackendProduct,
   toBackendQuote,
@@ -381,6 +382,33 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
           .catch((error) => handleSyncFailure('update opportunity', error));
       } else if (currentOpportunity) {
         handleSyncFailure('update opportunity', new Error('Missing backend identifier.'));
+      }
+    },
+    updateOpportunityRecord: async (opportunityId, patch) => {
+      const currentOpportunity = opportunities.find((opportunity) => opportunity.id === opportunityId);
+      const backendId = backendIdFrom(currentOpportunity);
+      if (backendId === undefined || !currentOpportunity) {
+        const error = new Error('Missing backend identifier.');
+        handleSyncFailure('update opportunity', error);
+        throw error;
+      }
+      try {
+        const savedOpportunity = await salesApi.update(
+          'opportunities',
+          backendId,
+          toBackendOpportunityPatch(patch, contacts),
+        );
+        const persistedOpportunity = toFrontendOpportunity(savedOpportunity as Record<string, unknown>);
+        setOpportunities((current) => current.map((opportunity) => (
+          opportunity.id === opportunityId || opportunity.backendId === backendId
+            ? persistedOpportunity
+            : opportunity
+        )));
+        setSyncIssue(null);
+        return persistedOpportunity;
+      } catch (error) {
+        handleSyncFailure('update opportunity', error);
+        throw error;
       }
     },
     deleteOpportunity: (opportunityId) => {

@@ -355,6 +355,42 @@ export function toBackendOpportunity(opportunity: Partial<SalesOpportunity>, con
   });
 }
 
+export function toBackendOpportunityPatch(
+  opportunity: Partial<SalesOpportunity>,
+  contacts: SalesContact[],
+) {
+  const serialized = toBackendOpportunity(opportunity, contacts);
+  const sourceKeyByApiKey: Record<string, keyof SalesOpportunity> = {
+    opportunityCode: 'opportunityCode',
+    contactId: 'contactId',
+    unitId: 'unitId',
+    businessId: 'businessId',
+    opportunityName: 'opportunityName',
+    companyName: 'company',
+    contactPerson: 'contactPerson',
+    phone: 'phone',
+    email: 'email',
+    source: 'source',
+    flowId: 'flowId',
+    stage: 'stage',
+    temperature: 'temperature',
+    status: 'status',
+    ownerUserCompanyId: 'ownerUserCompanyId',
+    ownerName: 'owner',
+    estimatedValue: 'estimatedValue',
+    currency: 'currency',
+    probabilityPercent: 'probability',
+    expectedCloseDate: 'expectedCloseDate',
+    nextAction: 'nextAction',
+    nextActionAt: 'nextActionDate',
+    lastContactAt: 'lastContact',
+    notes: 'notes',
+  };
+  return Object.fromEntries(Object.entries(serialized).filter(([apiKey]) => (
+    Object.prototype.hasOwnProperty.call(opportunity, sourceKeyByApiKey[apiKey])
+  )));
+}
+
 export function toFrontendProduct(row: ApiRow): SalesCatalogItem {
   const customFields = toObject(row.customFields);
   const metadata = toObject(row.metadata);

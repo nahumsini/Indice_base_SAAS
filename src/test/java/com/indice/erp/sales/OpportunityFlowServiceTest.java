@@ -56,7 +56,7 @@ class OpportunityFlowServiceTest {
     }
 
     @Test
-    void createsANewFlowAndInitializesEveryOpportunityPosition() {
+    void createsANewFlowWithoutCopyingExistingOpportunities() {
         var factory = new FlowRow(1L, "factory", "Factory flow", true, true);
         var custom = new FlowRow(2L, "direct_sales", "Direct sales", false, false);
         when(repository.listFlows(7L)).thenReturn(List.of(factory));
@@ -74,7 +74,7 @@ class OpportunityFlowServiceTest {
                 stageRequest("lost", "Lost", "CORAL", 70))));
 
         assertThat(response.id()).isEqualTo(2L);
-        verify(repository).ensurePositionsForFlow(7L, 2L, 5L);
+        verify(repository, never()).ensurePositionsForFlow(7L, 2L, 5L);
         @SuppressWarnings("unchecked")
         var stages = ArgumentCaptor.forClass((Class<List<StageRow>>) (Class<?>) List.class);
         verify(repository).replaceStages(eq(7L), eq(2L), eq(5L), stages.capture());
@@ -102,17 +102,16 @@ class OpportunityFlowServiceTest {
 
     @Test
     void movingAnOpenOpportunityChangesOnlyTheSelectedFlowPosition() {
-        var factory = new FlowRow(1L, "factory", "Factory", true, true);
         var custom = new FlowRow(2L, "custom", "Custom", false, false);
         var customStages = List.of(
                 stage(21L, 2L, "incoming", "Incoming", "OPEN", 10, 0),
                 stage(22L, 2L, "demo", "Demo", "OPEN", 60, 1),
                 stage(23L, 2L, "won", "Won", "WON", 100, 2),
                 stage(24L, 2L, "lost", "Lost", "LOST", 0, 3));
-        when(repository.listFlows(7L)).thenReturn(List.of(factory, custom));
         when(repository.requireFlow(7L, 2L)).thenReturn(custom);
         when(repository.listActiveStages(7L, 2L)).thenReturn(customStages);
-        when(repository.opportunityLifecycle(7L, 91L)).thenReturn("OPEN");
+        when(repository.lockOpportunity(7L, 91L))
+                .thenReturn(new OpportunityFlowRepository.OpportunityState("OPEN", 2L));
         when(repository.findPosition(7L, 91L, 2L))
                 .thenReturn(Optional.of(new PositionRow(91L, 21L, "incoming", 10)));
 
@@ -126,45 +125,62 @@ class OpportunityFlowServiceTest {
     }
 
     @Test
-    void winningInOneFlowSynchronizesTheTerminalPositionInEveryFlow() {
-        var factory = new FlowRow(1L, "factory", "Factory", true, true);
+    void winningAnOpportunityClosesOnlyItsAuthoritativeFlowPosition() {
         var custom = new FlowRow(2L, "custom", "Custom", false, false);
-        var factoryWon = stage(13L, 1L, "won", "Won", "WON", 100, 2);
         var customWon = stage(23L, 2L, "won", "Won", "WON", 100, 2);
-        when(repository.listFlows(7L)).thenReturn(List.of(factory, custom));
         when(repository.requireFlow(7L, 2L)).thenReturn(custom);
-        when(repository.listActiveStages(7L, 1L)).thenReturn(List.of(
-                stage(11L, 1L, "new", "New", "OPEN", 10, 0),
-                factoryWon,
-                stage(14L, 1L, "lost", "Lost", "LOST", 0, 3)));
         when(repository.listActiveStages(7L, 2L)).thenReturn(List.of(
                 stage(21L, 2L, "incoming", "Incoming", "OPEN", 10, 0),
                 customWon,
                 stage(24L, 2L, "lost", "Lost", "LOST", 0, 3)));
-        when(repository.opportunityLifecycle(7L, 91L)).thenReturn("OPEN");
+        when(repository.lockOpportunity(7L, 91L))
+                .thenReturn(new OpportunityFlowRepository.OpportunityState("OPEN", 2L));
 
         var result = service.moveOpportunity(7L, 5L, 91L, 2L, "won");
 
         assertThat(result.lifecycleStatus()).isEqualTo("WON");
         verify(repository).updateLifecycle(7L, 91L, "WON", 5L);
-        verify(repository).upsertPosition(7L, 91L, 1L, factoryWon, 5L);
         verify(repository).upsertPosition(7L, 91L, 2L, customWon, 5L);
+        verify(repository, never()).upsertPosition(eq(7L), eq(91L), eq(1L), any(), eq(5L));
     }
 
     @Test
     void aTerminalOpportunityCannotBeReopenedByAnotherFlow() {
         var custom = new FlowRow(2L, "custom", "Custom", false, false);
-        when(repository.listFlows(7L)).thenReturn(List.of(custom));
         when(repository.requireFlow(7L, 2L)).thenReturn(custom);
         when(repository.listActiveStages(7L, 2L)).thenReturn(List.of(
                 stage(21L, 2L, "incoming", "Incoming", "OPEN", 10, 0),
                 stage(22L, 2L, "won", "Won", "WON", 100, 1),
                 stage(23L, 2L, "lost", "Lost", "LOST", 0, 2)));
-        when(repository.opportunityLifecycle(7L, 91L)).thenReturn("WON");
+        when(repository.lockOpportunity(7L, 91L))
+                .thenReturn(new OpportunityFlowRepository.OpportunityState("WON", 2L));
 
         assertThatThrownBy(() -> service.moveOpportunity(7L, 5L, 91L, 2L, "incoming"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("cannot be reopened");
+    }
+
+    @Test
+    void reassignsAnOpenOpportunityToTheFirstOpenStageOfTheDestinationFlow() {
+        var custom = new FlowRow(3L, "enterprise", "Enterprise", false, false);
+        var destinationStages = List.of(
+                stage(31L, 3L, "discovery", "Discovery", "OPEN", 20, 0),
+                stage(32L, 3L, "won", "Won", "WON", 100, 1),
+                stage(33L, 3L, "lost", "Lost", "LOST", 0, 2));
+        when(repository.lockOpportunity(7L, 91L))
+                .thenReturn(new OpportunityFlowRepository.OpportunityState("OPEN", 2L));
+        when(repository.requireFlow(7L, 3L)).thenReturn(custom);
+        when(repository.listActiveStages(7L, 3L)).thenReturn(destinationStages);
+        when(repository.findPosition(7L, 91L, 2L))
+                .thenReturn(Optional.of(new PositionRow(91L, 21L, "incoming", 10)));
+
+        var result = service.moveOpportunity(7L, 5L, 91L, 3L, null);
+
+        assertThat(result.stageKey()).isEqualTo("discovery");
+        verify(repository).assignFlow(7L, 91L, 3L, 5L);
+        verify(repository).recordPositionHistory(
+                7L, 91L, 2L, 3L, 21L, 31L, "FLOW_REASSIGNED", 5L);
+        verify(repository).upsertPosition(7L, 91L, 3L, destinationStages.getFirst(), 5L);
     }
 
     private static List<StageRow> factoryStages() {

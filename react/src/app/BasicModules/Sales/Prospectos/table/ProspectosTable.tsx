@@ -14,7 +14,7 @@ import {
   TableRow,
 } from '../../../../components/ui/table';
 import { useTablePagination } from '../../../../hooks/useTablePagination';
-import type { OpportunityFlowStage, OpportunityStage, SalesOpportunity, SalesQuote } from '../../salesCrmContext';
+import type { OpportunityFlow, OpportunityFlowStage, OpportunityStage, SalesOpportunity, SalesQuote } from '../../salesCrmContext';
 import type { ProspectosCopy } from '../translations';
 import type { OpportunityColumnId, OpportunitySortState } from '../types/prospectosTypes';
 import {
@@ -38,6 +38,7 @@ export function ProspectosTable({
   opportunities,
   quotes,
   stages,
+  flows,
   visibleColumns,
   columnWidths,
   tableMinWidth,
@@ -48,6 +49,8 @@ export function ProspectosTable({
   onSort,
   onUpdateOpportunity,
   onStageChange,
+  onFlowChange,
+  pendingFlowOpportunityId,
   onOpenFiles,
   onOpenHistory,
   onEdit,
@@ -62,6 +65,7 @@ export function ProspectosTable({
   opportunities: SalesOpportunity[];
   quotes: SalesQuote[];
   stages: OpportunityFlowStage[];
+  flows: OpportunityFlow[];
   visibleColumns: ColumnConfig[];
   columnWidths: Record<OpportunityColumnId, number>;
   tableMinWidth: number;
@@ -72,6 +76,8 @@ export function ProspectosTable({
   onSort: (columnId: OpportunityColumnId) => void;
   onUpdateOpportunity: (opportunityId: string, patch: Partial<Omit<SalesOpportunity, 'id'>>) => void;
   onStageChange: (opportunity: SalesOpportunity, stage: OpportunityStage) => void;
+  onFlowChange: (opportunity: SalesOpportunity, flowId: number) => void;
+  pendingFlowOpportunityId: string | null;
   onOpenFiles: (opportunity: SalesOpportunity) => void;
   onOpenHistory: (opportunity: SalesOpportunity) => void;
   onEdit: (opportunity: SalesOpportunity) => void;
@@ -147,6 +153,7 @@ export function ProspectosTable({
                 opportunity={opportunity}
                 quotes={quotes}
                 stages={stages}
+                flows={flows}
                 visibleColumns={visibleColumns}
                 columnWidths={columnWidths}
                 ownerSelectOptions={ownerSelectOptions}
@@ -154,6 +161,8 @@ export function ProspectosTable({
                 getOwnerPayloadFromValue={getOwnerPayloadFromValue}
                 onUpdateOpportunity={onUpdateOpportunity}
                 onStageChange={onStageChange}
+                onFlowChange={onFlowChange}
+                pendingFlowOpportunityId={pendingFlowOpportunityId}
                 onOpenFiles={onOpenFiles}
                 onOpenHistory={onOpenHistory}
                 onEdit={onEdit}

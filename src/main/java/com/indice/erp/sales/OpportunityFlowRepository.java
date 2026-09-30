@@ -160,6 +160,7 @@ class OpportunityFlowRepository {
                   ON opportunity.id = position.opportunity_id
                  AND opportunity.company_id = position.company_id
                  AND opportunity.deleted_at IS NULL
+                 AND opportunity.assigned_flow_id = position.flow_id
                 WHERE position.company_id = ?
                   AND position.flow_id = ?
                 GROUP BY stage.stage_key
@@ -244,6 +245,7 @@ class OpportunityFlowRepository {
                    )
                  END
                 WHERE opportunity.company_id = ?
+                  AND opportunity.assigned_flow_id = flow.id
                   AND opportunity.deleted_at IS NULL
                 ON DUPLICATE KEY UPDATE opportunity_id = VALUES(opportunity_id)
                 """,
@@ -266,6 +268,7 @@ class OpportunityFlowRepository {
                   ON opportunity.id = position.opportunity_id
                  AND opportunity.company_id = position.company_id
                  AND opportunity.deleted_at IS NULL
+                 AND opportunity.assigned_flow_id = position.flow_id
                 WHERE position.company_id = ? AND position.flow_id = ?
                 ORDER BY position.opportunity_id
                 """,
@@ -297,17 +300,74 @@ class OpportunityFlowRepository {
                 flowId).stream().findFirst();
     }
 
-    String opportunityLifecycle(long companyId, long opportunityId) {
+    OpportunityState lockOpportunity(long companyId, long opportunityId) {
         return jdbcTemplate.query(
                 """
-                SELECT lifecycle_status
+                SELECT lifecycle_status, assigned_flow_id
                 FROM sales_opportunities
                 WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+                FOR UPDATE
                 """,
-                (rs, rowNum) -> rs.getString("lifecycle_status"),
+                (rs, rowNum) -> new OpportunityState(
+                        rs.getString("lifecycle_status"),
+                        rs.getLong("assigned_flow_id")),
                 companyId,
                 opportunityId).stream().findFirst()
                 .orElseThrow(() -> new NoSuchElementException("Opportunity not found."));
+    }
+
+    long assignedFlowId(long companyId, long opportunityId) {
+        return jdbcTemplate.query(
+                """
+                SELECT assigned_flow_id
+                FROM sales_opportunities
+                WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+                """,
+                (rs, rowNum) -> rs.getLong("assigned_flow_id"),
+                companyId,
+                opportunityId).stream().findFirst()
+                .orElseThrow(() -> new NoSuchElementException("Opportunity not found."));
+    }
+
+    void assignFlow(long companyId, long opportunityId, long flowId, long userId) {
+        var updated = jdbcTemplate.update(
+                """
+                UPDATE sales_opportunities opportunity
+                JOIN sales_opportunity_flows flow
+                  ON flow.company_id = opportunity.company_id
+                 AND flow.id = ?
+                 AND flow.is_active = 1
+                SET opportunity.assigned_flow_id = ?,
+                    opportunity.updated_by_user_id = ?,
+                    opportunity.updated_at = CURRENT_TIMESTAMP
+                WHERE opportunity.company_id = ?
+                  AND opportunity.id = ?
+                  AND opportunity.deleted_at IS NULL
+                """,
+                flowId,
+                flowId,
+                userId,
+                companyId,
+                opportunityId);
+        if (updated == 0 && jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM sales_opportunities opportunity
+                JOIN sales_opportunity_flows flow
+                  ON flow.company_id = opportunity.company_id
+                 AND flow.id = opportunity.assigned_flow_id
+                 AND flow.is_active = 1
+                WHERE opportunity.company_id = ?
+                  AND opportunity.id = ?
+                  AND opportunity.assigned_flow_id = ?
+                  AND opportunity.deleted_at IS NULL
+                """,
+                Integer.class,
+                companyId,
+                opportunityId,
+                flowId) != 1) {
+            throw new NoSuchElementException("Opportunity or active opportunity flow not found.");
+        }
     }
 
     void upsertPosition(
@@ -351,23 +411,26 @@ class OpportunityFlowRepository {
     void recordPositionHistory(
             long companyId,
             long opportunityId,
+            Long fromFlowId,
             long flowId,
             Long fromStageId,
             long toStageId,
             String reason,
             long userId) {
-        if (fromStageId != null && fromStageId == toStageId) {
+        if (fromFlowId != null && fromFlowId == flowId
+                && fromStageId != null && fromStageId == toStageId) {
             return;
         }
         jdbcTemplate.update(
                 """
                 INSERT INTO sales_opportunity_flow_position_history
-                  (company_id, opportunity_id, flow_id, from_stage_id, to_stage_id,
+                  (company_id, opportunity_id, from_flow_id, flow_id, from_stage_id, to_stage_id,
                    reason_code, created_by_user_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 companyId,
                 opportunityId,
+                fromFlowId,
                 flowId,
                 fromStageId,
                 toStageId,
@@ -417,5 +480,8 @@ class OpportunityFlowRepository {
     }
 
     record PositionRow(long opportunityId, long stageId, String stageKey, int probabilityPercent) {
+    }
+
+    record OpportunityState(String lifecycle, long assignedFlowId) {
     }
 }
