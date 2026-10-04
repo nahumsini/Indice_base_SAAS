@@ -14,6 +14,7 @@ export const messages: PlatformAdminMessages = {
   "Back to ERP": "返回 ERP",
   "Administration sections": "管理部分",
   "Customers": "客户",
+  "Leads": "潜在客户",
   "Promotional access": "促销访问权限",
   "Create and manage auditable access codes without leaving the customer workflow.": "在客户管理流程中创建和管理可审计的访问码。",
   "Deleting...": "正在删除…",

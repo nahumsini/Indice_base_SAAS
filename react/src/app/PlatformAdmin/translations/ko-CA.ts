@@ -14,6 +14,7 @@ export const messages: PlatformAdminMessages = {
   "Back to ERP": "ERP로 돌아가기",
   "Administration sections": "관리 섹션",
   "Customers": "고객",
+  "Leads": "잠재 고객",
   "Promotional access": "프로모션 접근",
   "Create and manage auditable access codes without leaving the customer workflow.": "고객 관리 화면에서 감사 가능한 접근 코드를 생성하고 관리하세요.",
   "Deleting...": "삭제 중…",

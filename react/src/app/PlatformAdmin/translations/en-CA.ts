@@ -13,6 +13,7 @@ export const messages = {
   "Back to ERP": "Back to ERP",
   "Administration sections": "Administration sections",
   "Customers": "Customers",
+  "Leads": "Leads",
   "Promotional access": "Promotional access",
   "Create and manage auditable access codes without leaving the customer workflow.": "Create and manage auditable access codes without leaving the customer workflow.",
   "Deleting...": "Deleting...",

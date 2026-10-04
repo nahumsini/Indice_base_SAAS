@@ -14,6 +14,7 @@ export const messages: PlatformAdminMessages = {
   "Back to ERP": "Voltar ao ERP",
   "Administration sections": "Seções de administração",
   "Customers": "Clientes",
+  "Leads": "Potenciais clientes",
   "Promotional access": "Acesso promocional",
   "Create and manage auditable access codes without leaving the customer workflow.": "Crie e gerencie códigos de acesso auditáveis no fluxo de clientes.",
   "Deleting...": "Excluindo…",

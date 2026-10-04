@@ -39,6 +39,7 @@ export const endpoints = {
   },
   platformAdmin: {
     context: '/api/v1/platform-admin/context',
+    leads: '/api/v1/platform-admin/leads',
     overview: '/api/v1/platform-admin/overview',
     companies: '/api/v1/platform-admin/companies',
     billing: '/api/v1/platform-admin/billing',

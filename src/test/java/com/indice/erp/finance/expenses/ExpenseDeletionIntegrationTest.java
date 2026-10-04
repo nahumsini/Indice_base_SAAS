@@ -179,7 +179,7 @@ class ExpenseDeletionIntegrationTest {
     private CreateExpenseRequest row(String concept, Long payment, Long accounting, String currency) {
         return new CreateExpenseRequest(null, null, null, null, accounting, payment, null, "AUTO-EXP", concept, concept,
             ExpenseType.VARIABLE, new BigDecimal("100.25"), BigDecimal.ZERO, new BigDecimal("100.25"), currency,
-            LocalDate.of(2026, 9, 8), LocalDate.of(2026, 9, 30), null, null, null, false, null, null);
+            LocalDate.of(2026, 9, 8), businessToday().plusDays(10), null, null, null, false, null, null);
     }
     private long company(String name) {
         jdbc.update("INSERT INTO companies (name) VALUES (?)", name);
