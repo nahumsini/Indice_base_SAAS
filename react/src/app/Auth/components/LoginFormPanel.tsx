@@ -12,6 +12,7 @@ import type { FormEvent, ReactNode } from 'react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import type { LoginPageCopy } from './loginTypes';
+import { PUBLIC_DIAGNOSIS_URL } from './loginSiteLinks';
 
 type LoginFormPanelProps = {
   copy: LoginPageCopy;
@@ -32,7 +33,6 @@ type LoginFormPanelProps = {
   onPasswordChange: (value: string) => void;
   onTogglePassword: () => void;
   onOpenResetModal: () => void;
-  onOpenSignupMode: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
@@ -55,7 +55,6 @@ export function LoginFormPanel({
   onPasswordChange,
   onTogglePassword,
   onOpenResetModal,
-  onOpenSignupMode,
   onSubmit,
 }: LoginFormPanelProps) {
   return (
@@ -146,28 +145,13 @@ export function LoginFormPanel({
         </form>
 
         <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-sm text-slate-600">
-          <span>{copy.newAccountPrompt}</span>
-          <button
-            type="button"
-            onClick={onOpenSignupMode}
+          <span>{copy.prospectPrompt}</span>
+          <a
+            href={PUBLIC_DIAGNOSIS_URL}
             className="font-bold text-[var(--indice-structural-blue)] underline-offset-4 transition hover:text-[var(--indice-structural-blue-hover)] hover:underline"
           >
-            {copy.createAccount}
-          </button>
-        </div>
-
-        <div className="mt-5 flex items-center justify-center gap-2 border-t border-slate-100 pt-4" aria-label={copy.frameworkLabel}>
-          {['#59C3A5', '#F4C84A', '#FF6B5E', '#147514'].map((color) => (
-            <span
-              key={color}
-              className="h-2.5 w-8 rounded-full"
-              style={{ backgroundColor: color }}
-              aria-hidden="true"
-            />
-          ))}
-          <span className="ml-1 hidden text-xs font-semibold text-slate-500 sm:inline">
-            {copy.visualMetricLabel}
-          </span>
+            {copy.prospectCta}
+          </a>
         </div>
       </div>
     </section>

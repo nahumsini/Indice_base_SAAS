@@ -42,8 +42,8 @@ export type LoginPageCopy = {
   successToast: string;
   errorFallback: string;
   sessionExpired: string;
-  newAccountPrompt: string;
-  createAccount: string;
+  prospectPrompt: string;
+  prospectCta: string;
   insideTitle: string;
   insideItems: string[];
   resetBadge: string;
