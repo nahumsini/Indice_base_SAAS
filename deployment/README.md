@@ -40,6 +40,9 @@ cp deployment/env/.env.example deployment/env/.env
 - `APP_SESSION_COOKIE_SECURE`
 - `APP_PRODUCT_ANALYTICS_WEB_INGEST_TOKEN` (déjalo vacío para mantener deshabilitada la ingesta
   pública; no lo expongas en JavaScript del navegador)
+- `APP_PLATFORM_LEAD_INGEST_SECRET`: secreto aleatorio privado de al menos 32 caracteres,
+  idéntico a `INDICE_LEAD_INGEST_SECRET` del servidor web comercial. Si está vacío, la
+  recepción de prospectos falla cerrada; no se expone al navegador ni se registra en logs.
 - `APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET`
 - `APP_KIOSK_TOKEN_PROTECTION_SECRET` (obligatoria; distinta de los demás secretos)
 - `APP_BILLING_STORAGE_INCLUDED_BYTES=5368709120` y

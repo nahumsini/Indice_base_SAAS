@@ -260,6 +260,20 @@ impuestos que Stripe calcula y muestra antes de confirmar Checkout:
 
 ### 3.4 Prueba
 
+**Decisión comercial posterior (2026-10-04):** la web pública de Índice ya no conduce a
+checkout, contratación autónoma ni activación automática de prueba. Su único objetivo de
+conversión es solicitar un diagnóstico empresarial inicial sin costo. El equipo contacta al
+prospecto, realiza el diagnóstico y, sólo si hay encaje, puede ofrecer una prueba guiada de
+agentes de 15 días con seguimiento de consultores. La propuesta e implementación son
+personalizadas. La bandeja y los estados de este recorrido están definidos en
+`docs/platform-lead-diagnosis-flow-v1.md`. El catálogo, checkout y entitlements existentes
+permanecen operativos para sus clientes y flujos internos; las reglas históricas siguientes
+describen ese subsistema, no la promesa ni el CTA de la nueva web comercial.
+El propietario confirmó además que la web puede publicar los tres precios mexicanos e
+inclusiones de la oferta comercial (2,999/5,499/9,499 MXN mensuales), anualidades e
+implementación separada. Son información comercial y no sustituyen el catálogo versionado
+ni activan derechos o cobros en Stripe. Cada plan conserva el CTA de diagnóstico.
+
 - Duración pública inicial: 15 días.
 - Requiere tarjeta válida para comenzar.
 - No genera cargo al comenzar y desbloquea `corporativiza` durante la prueba.

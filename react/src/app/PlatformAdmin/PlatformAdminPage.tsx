@@ -101,6 +101,7 @@ import { nextBenefitEnd } from "./CompanyAccount/companyAccountState";
 import CompanyAccountDrawer, { type CompanyAccountTab } from "./CompanyAccountDrawer";
 import { PaymentRequestModal } from "./Customers/PaymentRequestModal";
 import ConsultingAdminTab from "./ConsultingAdminTab";
+import { PlatformLeadsTab } from "./PlatformLeadsTab";
 import { CompaniesDirectoryTab } from "./UsersDirectoryTab";
 import { CatalogProductCard } from "./Catalog";
 import { CommercialOfferWorkspace, ModuleAvailabilityWorkspace } from "./CatalogWorkspace";
@@ -164,6 +165,7 @@ import {
 
 type AdminTab =
   | "customers"
+  | "leads"
   | "companies"
   | "billing"
   | "catalog"
@@ -250,6 +252,7 @@ const tabDefinitions: {
   icon: typeof LayoutDashboard;
 }[] = [
   { id: "customers", es: "Clientes", en: "Customers", icon: Building2 },
+  { id: "leads", es: "Prospectos", en: "Leads", icon: ClipboardList },
   { id: "companies", es: "Empresas", en: "Companies", icon: Users },
   { id: "billing", es: "Facturación", en: "Billing", icon: CreditCard },
   {
@@ -333,6 +336,7 @@ export default function PlatformAdminPage() {
   const visibleTabs = useMemo(
     () => tabs.filter((tab) => {
       if (tab.id === "systemTickets") return Boolean(context?.can_manage_system_tickets);
+      if (tab.id === "leads") return context?.role === "PLATFORM_ROOT" || Boolean(context?.permissions.includes("MANAGE_LEADS"));
       if (tab.id === "internalDevelopment") return context?.role === "PLATFORM_ROOT";
       return true;
     }),
@@ -1117,6 +1121,7 @@ export default function PlatformAdminPage() {
                 }}
               />
             ) : null}
+            {activeTab === "leads" ? <PlatformLeadsTab locale={currentLanguage.code} /> : null}
             {activeTab === "companies" ? (
               <CompaniesDirectoryTab
                 english={english}

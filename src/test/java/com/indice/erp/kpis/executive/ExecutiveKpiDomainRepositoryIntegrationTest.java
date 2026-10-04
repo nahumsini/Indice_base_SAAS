@@ -29,6 +29,7 @@ class ExecutiveKpiDomainRepositoryIntegrationTest {
     private long companyId;
     private long unitId;
     private long businessId;
+    private long flowId;
     private String token;
 
     @BeforeEach
@@ -43,6 +44,8 @@ class ExecutiveKpiDomainRepositoryIntegrationTest {
                 companyId, unitId, "Linda Vista " + token);
         businessId = jdbc.queryForObject("SELECT id FROM businesses WHERE company_id = ? AND name = ?", Long.class,
                 companyId, "Linda Vista " + token);
+        jdbc.update("INSERT INTO sales_opportunity_flows (company_id, flow_key, name, is_default) VALUES (?, 'test', 'Test flow', 1)", companyId);
+        flowId = jdbc.queryForObject("SELECT id FROM sales_opportunity_flows WHERE company_id = ? AND flow_key = 'test'", Long.class, companyId);
     }
 
     @Test
@@ -116,10 +119,10 @@ class ExecutiveKpiDomainRepositoryIntegrationTest {
         insertSale("rejected", "1000.00", "2026-08-06");
         jdbc.update("""
                 INSERT INTO sales_opportunities
-                    (company_id, unit_id, business_id, opportunity_code, opportunity_name,
+                    (company_id, unit_id, business_id, assigned_flow_id, opportunity_code, opportunity_name,
                      stage, status, estimated_value, currency, probability_percent, created_at)
-                VALUES (?, ?, ?, ?, ?, 'qualification', 'active', -100, 'BAD!', 150, '2026-07-10 09:00:00')
-                """, companyId, unitId, businessId, "OPP-" + token, "Opportunity " + token);
+                VALUES (?, ?, ?, ?, ?, ?, 'qualification', 'active', -100, 'BAD!', 150, '2026-07-10 09:00:00')
+                """, companyId, unitId, businessId, flowId, "OPP-" + token, "Opportunity " + token);
 
         jdbc.update("""
                 INSERT INTO finance_petty_cash_funds
