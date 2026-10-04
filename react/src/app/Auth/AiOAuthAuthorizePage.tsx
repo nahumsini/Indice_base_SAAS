@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Bot, Check, Eye, LoaderCircle, LockKeyhole, ShieldCheck } from 'lucide-react';
+import {
+  ArrowRight,
+  Bot,
+  Building2,
+  Check,
+  CircleCheck,
+  Eye,
+  LoaderCircle,
+  LockKeyhole,
+  RefreshCw,
+  ShieldCheck,
+  UserRound,
+} from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router';
 import { aiOAuthApi, type AiOAuthConsentContext } from '../api/aiOAuth';
 import { authApi, type AuthSessionResponse } from '../api/auth';
@@ -67,10 +79,26 @@ export default function AiOAuthAuthorizePage() {
   const [context, setContext] = useState<AiOAuthConsentContext | null>(null);
   const [session, setSession] = useState<AuthSessionResponse | null>(null);
   const [error, setError] = useState('');
+  const [errorStatus, setErrorStatus] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const isLocalPreview = import.meta.env.DEV && query.get('preview') === 'consent';
+  const companyName = session?.company.name ?? (isLocalPreview ? 'El Corazón del Caribe' : undefined);
 
   useEffect(() => {
+    if (isLocalPreview) {
+      setContext({
+        clientName: 'ChatGPT',
+        expiresInDays: 30,
+        userName: 'Nahum',
+        scopes: [
+          'business.snapshot:read', 'business.context:read', 'tasks.read', 'sales.read',
+          'inventory.read', 'expenses.read', 'petty_cash.read', 'receivables.read',
+          'tasks.create', 'tasks.update', 'customers.create', 'opportunities.create',
+        ],
+      });
+      return undefined;
+    }
     let active = true;
     const load = async () => {
       try {
@@ -88,20 +116,23 @@ export default function AiOAuthAuthorizePage() {
           });
           return;
         }
+        setErrorStatus(failure instanceof ApiClientError ? failure.status : null);
         setError(failure instanceof Error ? failure.message : 'No pudimos preparar esta conexión.');
       }
     };
     void load();
     return () => { active = false; };
-  }, [location.pathname, location.search, navigate]);
+  }, [isLocalPreview, location.pathname, location.search, navigate]);
 
   const decide = async (approved: boolean) => {
     try {
       setSubmitting(true);
       setError('');
+      setErrorStatus(null);
       const result = await aiOAuthApi.decide(query, approved);
       window.location.assign(result.redirectUrl);
     } catch (failure) {
+      setErrorStatus(failure instanceof ApiClientError ? failure.status : null);
       setError(failure instanceof Error ? failure.message : 'No pudimos completar la conexión.');
       setSubmitting(false);
     }
@@ -109,73 +140,129 @@ export default function AiOAuthAuthorizePage() {
 
   const informationScopes = context?.scopes.filter((scope) => !actionScopes.has(scope)) ?? [];
   const requestedActions = context?.scopes.filter((scope) => actionScopes.has(scope)) ?? [];
+  const capacityError = errorStatus === 409;
 
   return (
-    <main className="min-h-screen bg-[var(--indice-background)] px-4 py-6 text-slate-950 sm:px-6 lg:py-10">
-      <div className="mx-auto w-full max-w-3xl">
-        <header className="mb-6 flex items-center justify-between">
+    <main className="min-h-screen overflow-x-hidden bg-[linear-gradient(145deg,#F8FAFC_0%,#EFF6FF_48%,#F8FAFC_100%)] px-4 py-5 text-slate-950 dark:bg-[#111827] dark:text-slate-50 sm:px-6 lg:py-8">
+      <div className="mx-auto min-w-0 w-full max-w-4xl">
+        <header className="mb-5 flex items-center justify-between gap-4">
           <IndiceBrandLogo alt="Índice" className="h-12 w-40" imageClassName="w-[188px]" />
-          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--indice-brand-border)] bg-white px-3 py-2 text-xs font-semibold text-[var(--indice-brand-text)] shadow-sm">
-            <LockKeyhole className="h-4 w-4" /> Conexión protegida
+          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--indice-brand-border)] bg-white/90 px-3 py-2 text-xs font-medium text-[var(--indice-brand-text)] shadow-sm dark:bg-slate-900">
+            <LockKeyhole className="h-4 w-4" /> Autorización segura
           </span>
         </header>
 
-        <section className="overflow-hidden rounded-3xl border border-[var(--indice-brand-border)] bg-white shadow-xl">
-          <div className="border-b border-[var(--indice-brand-border)] bg-[var(--indice-brand-action)] px-6 py-7 text-[var(--indice-brand-shell-foreground)] sm:px-8">
-            <div className="flex items-start gap-4">
+        <section className="min-w-0 overflow-hidden rounded-[28px] border border-[var(--indice-brand-border)] bg-white shadow-[0_28px_90px_-48px_rgba(37,99,235,0.45)] dark:border-slate-700 dark:bg-slate-900">
+          <div className="border-b border-[var(--indice-brand-border)] bg-[var(--indice-brand-action)] px-6 py-7 text-[var(--indice-brand-shell-foreground)] sm:px-8 lg:px-10">
+            <div className="flex items-start gap-4 sm:items-center">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15"><Bot className="h-6 w-6" /></span>
               <div>
-                <p className="text-sm font-semibold text-[var(--indice-brand-shell-muted)]">Conectar un asistente con Índice</p>
-                <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Tú decides qué información puede utilizar</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--indice-brand-shell-muted)]">Índice conservará el control de tu empresa y validará tus permisos en cada consulta.</p>
+                <p className="text-sm font-medium text-[var(--indice-brand-shell-muted)]">Conectar un asistente con Índice</p>
+                <h1 className="mt-1 text-2xl font-medium sm:text-3xl">Revisa y autoriza el acceso</h1>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--indice-brand-shell-muted)]">Tú eliges qué puede consultar. Índice conserva el control y valida tus permisos en cada solicitud.</p>
               </div>
             </div>
           </div>
 
-          <div className="p-6 sm:p-8">
+          <div className="border-b border-slate-200 px-6 py-4 dark:border-slate-700 sm:px-8 lg:px-10">
+            <ol className="grid min-w-0 grid-cols-3 gap-2" aria-label="Progreso de conexión">
+              <ConnectionStep label="Ingresar" state="complete" />
+              <ConnectionStep label="Revisar permisos" state="current" />
+              <ConnectionStep label="Finalizar" state="upcoming" />
+            </ol>
+          </div>
+
+          <div className="p-6 sm:p-8 lg:p-10">
             {!context && !error ? (
-              <div className="flex min-h-64 flex-col items-center justify-center text-center">
+              <div className="flex min-h-72 flex-col items-center justify-center text-center" role="status" aria-live="polite">
                 <LoaderCircle className="h-8 w-8 animate-spin text-[var(--indice-brand-action)]" />
-                <p className="mt-4 font-medium">Preparando la conexión segura…</p>
+                <p className="mt-4 font-medium">Preparando tu autorización…</p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Estamos verificando el asistente, tu empresa y los permisos solicitados.</p>
               </div>
             ) : null}
 
             {context ? (
-              <div className="space-y-6">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Asistente que solicita acceso</p>
-                  <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-                    <div><p className="text-lg font-semibold">{context.clientName}</p><p className="text-sm text-slate-600">Empresa: {session?.company.name}</p></div>
-                    <span className="rounded-full bg-[var(--indice-brand-soft)] px-3 py-1 text-sm font-medium text-[var(--indice-brand-text)]">{context.expiresInDays} días</span>
+              <div className="space-y-7">
+                {isLocalPreview ? (
+                  <p role="status" className="rounded-xl border border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] px-4 py-3 text-sm text-[var(--indice-brand-text)]">
+                    Vista previa local con datos de ejemplo. La autorización está desactivada.
+                  </p>
+                ) : null}
+                <div className="grid min-w-0 gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
+                  <aside className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60">
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Solicitud de acceso</p>
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--indice-brand-soft)] text-[var(--indice-brand-text)]"><Bot className="h-5 w-5" /></span>
+                      <div className="min-w-0"><p className="truncate font-medium">{context.clientName}</p><p className="text-xs text-slate-500 dark:text-slate-400">Asistente externo</p></div>
+                    </div>
+                    <div className="border-t border-slate-200 pt-3 dark:border-slate-700">
+                      <IdentityRow icon={<Building2 />} label="Empresa" value={companyName ?? 'Empresa activa'} />
+                      <IdentityRow icon={<UserRound />} label="Cuenta" value={context.userName} />
+                    </div>
+                    <div className="rounded-xl border border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] px-3 py-2 text-sm text-[var(--indice-brand-text)]">
+                      Acceso por <span className="font-medium">{context.expiresInDays} días</span>
+                    </div>
+                  </aside>
+
+                  <div className="min-w-0 space-y-4">
+                    <div>
+                      <h2 className="text-xl font-medium">¿En qué podrá ayudarte?</h2>
+                      <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">Revisa la información y las acciones solicitadas antes de continuar.</p>
+                    </div>
+                    <PermissionBlock icon={<Eye />} title="Información que podrá consultar" scopes={informationScopes} tone="blue" />
+                    {requestedActions.length ? (
+                      <PermissionBlock icon={<Check />} title="Acciones que podrá preparar" scopes={requestedActions} tone="amber" />
+                    ) : null}
                   </div>
                 </div>
 
-                <PermissionBlock icon={<Eye />} title="Podrá responder preguntas sobre" scopes={informationScopes} tone="blue" />
-                {requestedActions.length ? (
-                  <PermissionBlock icon={<Check />} title="También podrá ayudarte a registrar" scopes={requestedActions} tone="amber" />
-                ) : null}
-
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid min-w-0 gap-4 border-y border-slate-200 py-5 dark:border-slate-700 sm:grid-cols-3">
                   <TrustItem title="Sin contraseñas" description="ChatGPT nunca recibe tu contraseña de Índice." />
                   <TrustItem title="Permisos vigentes" description="Si pierdes un permiso, el asistente también." />
                   <TrustItem title="Acceso revocable" description="Puedes cerrarlo desde Conectar IA." />
                 </div>
 
-                {error ? <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+                {error ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">{error}</p> : null}
 
-                <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
-                  <Button type="button" variant="outline" className="h-11 rounded-xl" disabled={submitting} onClick={() => void decide(false)}>Cancelar</Button>
-                  <Button type="button" className="h-11 rounded-xl bg-[var(--indice-brand-action)] px-6 text-[var(--indice-brand-shell-foreground)] hover:bg-[var(--indice-brand-action-hover)]" disabled={submitting} onClick={() => void decide(true)}>
-                    {submitting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                    {submitting ? 'Conectando…' : 'Autorizar conexión'}
-                  </Button>
+                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">Autorizar no permite acciones fuera de tus permisos actuales.</p>
+                  <div className="flex min-w-0 flex-col-reverse gap-3 sm:flex-row">
+                    <Button type="button" variant="outline" className="h-11 rounded-xl" disabled={submitting || isLocalPreview} onClick={() => void decide(false)}>Cancelar</Button>
+                    <Button type="button" className="min-h-11 h-auto rounded-xl bg-[var(--indice-brand-action)] px-6 py-2.5 text-center text-[var(--indice-brand-shell-foreground)] hover:bg-[var(--indice-brand-action-hover)] sm:whitespace-nowrap" disabled={submitting || isLocalPreview} onClick={() => void decide(true)}>
+                      {submitting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                      {submitting ? 'Conectando…' : `Autorizar${companyName ? ` para ${companyName}` : ''}`}
+                    </Button>
+                  </div>
                 </div>
               </div>
             ) : null}
 
             {error && !context ? (
-              <div className="min-h-64 rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-800">
-                <p className="font-semibold">Esta conexión no es válida</p><p className="mt-2 text-sm">{error}</p>
+              <div className="mx-auto max-w-2xl py-4 text-center" role="alert">
+                <span className={`mx-auto flex h-14 w-14 items-center justify-center rounded-2xl ${capacityError ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' : 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300'}`}>
+                  {capacityError ? <Bot className="h-7 w-7" /> : <LockKeyhole className="h-7 w-7" />}
+                </span>
+                <h2 className="mt-5 text-2xl font-medium">{capacityError ? 'No hay espacio para una conexión nueva' : 'No pudimos preparar la autorización'}</h2>
+                <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+                  {capacityError
+                    ? `La cuenta alcanzó el límite de conexiones activas${companyName ? ` en ${companyName}` : ''}. Cierra una conexión que ya no utilices y vuelve a comprobar.`
+                    : error}
+                </p>
+                {capacityError ? (
+                  <div className="mx-auto mt-5 flex max-w-md items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left dark:border-slate-700 dark:bg-slate-800/60">
+                    <Building2 className="h-5 w-5 shrink-0 text-[var(--indice-brand-action)]" />
+                    <div><p className="text-xs text-slate-500 dark:text-slate-400">Empresa que estás conectando</p><p className="font-medium">{companyName ?? 'Empresa activa'}</p></div>
+                  </div>
+                ) : null}
+                <div className="mt-7 flex flex-col-reverse justify-center gap-3 sm:flex-row">
+                  {capacityError ? (
+                    <Button type="button" variant="outline" className="h-11 rounded-xl" onClick={() => window.open('/home-panel/integrations', '_blank', 'noopener,noreferrer')}>Administrar conexiones</Button>
+                  ) : null}
+                  <Button type="button" className="h-11 rounded-xl bg-[var(--indice-brand-action)] px-6 text-[var(--indice-brand-shell-foreground)] hover:bg-[var(--indice-brand-action-hover)]" onClick={() => window.location.reload()}>
+                    <RefreshCw className="h-4 w-4" /> Volver a comprobar
+                  </Button>
+                </div>
+                <p className="mt-5 text-xs text-slate-500 dark:text-slate-400">Tu solicitud permanece abierta mientras administras las conexiones.</p>
               </div>
             ) : null}
           </div>
@@ -188,17 +275,45 @@ export default function AiOAuthAuthorizePage() {
 function PermissionBlock({ icon, scopes, title, tone }: { icon: ReactNode; scopes: string[]; title: string; tone: 'blue' | 'amber' }) {
   const colors = tone === 'blue'
     ? 'border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] text-[var(--indice-brand-text)]'
-    : 'border-amber-200 bg-amber-50/70 text-amber-800';
+    : 'border-amber-200 bg-amber-50/70 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200';
+  const itemColors = tone === 'blue'
+    ? 'border-[var(--indice-brand-border)]/80 bg-white/85 dark:bg-slate-900'
+    : 'border-amber-200/90 bg-white/80 dark:border-amber-900/60 dark:bg-slate-900';
   return (
-    <section className={`rounded-2xl border p-5 ${colors}`}>
-      <h2 className="flex items-center gap-2 font-semibold">{icon}{title}</h2>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {scopes.map((scope) => <span key={scope} className="rounded-full border border-current/15 bg-white px-3 py-1.5 text-sm font-medium">{scopeLabels[scope] ?? scope}</span>)}
+    <section className={`min-w-0 rounded-2xl border p-5 ${colors}`}>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="flex min-w-0 items-center gap-2 text-base font-medium">{icon}<span>{title}</span></h3>
+        <span className="inline-flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full border border-current/15 bg-white/70 px-2 text-xs font-medium dark:bg-slate-900">{scopes.length}</span>
       </div>
+      <ul className="mt-4 grid min-w-0 gap-2 sm:grid-cols-2">
+        {scopes.map((scope) => (
+          <li key={scope} className={`flex min-h-11 min-w-0 items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm ${itemColors}`}>
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-60" aria-hidden="true" />
+            <span className="min-w-0 break-words font-medium leading-5">{scopeLabels[scope] ?? scope}</span>
+          </li>
+        ))}
+      </ul>
+      {tone === 'amber' ? <p className="mt-4 text-xs leading-5 opacity-80">Cada cambio seguirá requiriendo tu confirmación antes de ejecutarse.</p> : null}
     </section>
   );
 }
 
 function TrustItem({ description, title }: { description: string; title: string }) {
-  return <div className="rounded-2xl border border-slate-200 p-4"><p className="text-sm font-semibold">{title}</p><p className="mt-1 text-xs leading-5 text-slate-600">{description}</p></div>;
+  return <div className="flex gap-3"><CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" /><div><p className="text-sm font-medium">{title}</p><p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-400">{description}</p></div></div>;
+}
+
+function ConnectionStep({ label, state }: { label: string; state: 'complete' | 'current' | 'upcoming' }) {
+  return (
+    <li className={`flex min-w-0 items-center gap-1.5 text-xs sm:gap-2 sm:text-sm ${state === 'upcoming' ? 'text-slate-400' : 'text-[var(--indice-brand-text)]'}`} aria-current={state === 'current' ? 'step' : undefined}>
+      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-medium ${state === 'complete' ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300' : state === 'current' ? 'border-[var(--indice-brand-action)] bg-[var(--indice-brand-action)] text-white' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800'}`}>
+        {state === 'complete' ? <Check className="h-4 w-4" /> : state === 'current' ? '2' : '3'}
+      </span>
+      <span className="min-w-0 truncate font-medium">{label}</span>
+      {state !== 'upcoming' ? <ArrowRight className="ml-auto hidden h-4 w-4 opacity-40 sm:block" /> : null}
+    </li>
+  );
+}
+
+function IdentityRow({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+  return <div className="flex items-start gap-2 py-2"><span className="mt-0.5 text-slate-400">{icon}</span><div className="min-w-0"><p className="text-xs text-slate-500 dark:text-slate-400">{label}</p><p className="truncate text-sm font-medium">{value}</p></div></div>;
 }

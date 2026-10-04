@@ -21,6 +21,7 @@ import { isValidEmail, normalizeEmail } from '../shared/validation/email';
 import { LoginBrandPanel } from './components/LoginBrandPanel';
 import { IndiceBrandLogo } from './components/IndiceBrandLogo';
 import { LoginFormPanel } from './components/LoginFormPanel';
+import { OAuthLoginBrandPanel } from './components/OAuthLoginBrandPanel';
 import { PasswordResetModal } from './components/PasswordResetModal';
 
 const LOGIN_MINIMUM_LOADING_MS = 2500;
@@ -64,6 +65,8 @@ export default function LoginPage() {
     && !locationState.returnTo.startsWith('//')
     ? locationState.returnTo
     : '/dashboard';
+  const isOAuthContinuation = safeReturnTo.startsWith('/oauth/authorize')
+    || (import.meta.env.DEV && new URLSearchParams(location.search).get('preview') === 'oauth');
 
   const normalizedEmail = normalizeEmail(email);
   const normalizedCompanyName = companyName.trim();
@@ -277,7 +280,11 @@ export default function LoginPage() {
         </div>
 
         <div className="mx-auto grid w-full max-w-[1280px] flex-1 gap-4 lg:flex-none lg:grid-cols-[1.06fr_0.94fr] lg:items-center lg:gap-6 lg:pb-6 xl:gap-7">
-          <LoginBrandPanel copy={copy} />
+          {isOAuthContinuation ? (
+            <OAuthLoginBrandPanel companyName={normalizedCompanyName} logoAlt={copy.logoAlt} />
+          ) : (
+            <LoginBrandPanel copy={copy} />
+          )}
           {mfaChallenge ? (
             <OtpVerificationPanel
               maskedDestination={mfaChallenge.maskedDestination}
