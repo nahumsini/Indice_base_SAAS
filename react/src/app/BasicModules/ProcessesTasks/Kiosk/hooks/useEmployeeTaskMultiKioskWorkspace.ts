@@ -267,6 +267,7 @@ export function useEmployeeTaskMultiKioskWorkspace({
       if (receivedUpdatedItems) setTasks(result.items);
       setSuccessMessage(copy.success.created(result.task?.title || title));
       resetAgenda();
+      setDateRange('all');
       setCreateOpen(false);
       setCreateDraft(emptyCreateDraft());
       if (!receivedUpdatedItems) {
