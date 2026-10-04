@@ -138,6 +138,27 @@ require_stable_container() {
 validate_inputs() {
   local source_config="${APP_DIR}/deployment/docker/web/nginx.host.conf"
 
+  case "${PUBLIC_URL}" in
+    https://apptest.indiceapp.com)
+      [[ "${WEB_CONTAINER}" == "indice-apptest-web-1" &&
+         "${BACKEND_CONTAINER}" == "indice-apptest-backend-1" &&
+         "${MINIO_CONTAINER}" == "indice-apptest-minio-1" &&
+         "${MCP_CONTAINER}" == "indice-apptest-mcp-1" ]] || {
+        echo "APPTEST public URL requires the APPTEST container names." >&2
+        exit 1
+      }
+      ;;
+    https://app.indiceapp.com)
+      [[ "${WEB_CONTAINER}" == "indice-erp-web-1" &&
+         "${BACKEND_CONTAINER}" == "indice-erp-backend-1" &&
+         "${MINIO_CONTAINER}" == "indice-erp-minio-1" &&
+         "${MCP_CONTAINER}" == "indice-erp-mcp-1" ]] || {
+        echo "Production public URL requires the production container names." >&2
+        exit 1
+      }
+      ;;
+  esac
+
   [[ -f "${source_config}" ]] || { echo "Missing ${source_config}" >&2; exit 1; }
   [[ -r "${source_config}" ]] || { echo "Cannot read ${source_config}" >&2; exit 1; }
   mkdir -p "$(dirname "${WEB_NGINX_HOST_CONFIG}")"
@@ -304,6 +325,7 @@ if [[ "${DEPLOY_DRY_RUN}" == "true" ]]; then
   echo "Host-network deployment validation passed (dry run). No containers were changed."
   echo "Backend image: ${BACKEND_IMAGE}"
   echo "Web image: ${WEB_IMAGE}"
+  echo "Containers: ${MINIO_CONTAINER}, ${BACKEND_CONTAINER}, ${MCP_CONTAINER}, ${WEB_CONTAINER}"
   echo "Backend port: ${HOST_BACKEND_PORT}"
   echo "MCP enabled: ${MCP_ENABLED}"
   if [[ "${MCP_ENABLED}" == "true" ]]; then
@@ -312,7 +334,9 @@ if [[ "${DEPLOY_DRY_RUN}" == "true" ]]; then
   fi
   exit 0
 fi
-trap restore_previous_containers ERR INT TERM
+trap restore_previous_containers EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 echo "Using env file: ${ENV_FILE}"
 echo "Using public URL: ${PUBLIC_URL}"
@@ -452,7 +476,7 @@ if [[ -n "${PUBLIC_URL}" ]]; then
 fi
 
 DEPLOY_SUCCEEDED=true
-trap - ERR INT TERM
+trap - EXIT INT TERM
 finalize_rollback_containers
 
 echo "Host-network stack is healthy."
