@@ -1,11 +1,10 @@
 import type { LoginPageCopy } from './loginTypes';
-import { IndiceBrandLogo } from './IndiceBrandLogo';
 
-const pillarColors = [
-  '#59C3A5',
-  '#F4C84A',
-  '#FF6B5E',
-  '#147514',
+const agentColors = [
+  '#2563EB',
+  '#22B8A8',
+  '#F59E0B',
+  '#7C3AED',
 ] as const;
 
 export function LoginBrandPanel({ copy }: { copy: LoginPageCopy }) {
@@ -15,14 +14,11 @@ export function LoginBrandPanel({ copy }: { copy: LoginPageCopy }) {
       <div className="pointer-events-none absolute -bottom-32 -right-24 h-72 w-72 rounded-full bg-[var(--indice-brand-aqua)]/7 blur-3xl" />
 
       <div className="relative flex flex-col">
-        <div className="hidden items-center justify-between gap-4 lg:flex">
-          <IndiceBrandLogo alt={copy.logoAlt} className="h-16 w-64" imageClassName="w-[292px]" />
-          <span className="inline-flex w-fit items-center rounded-full border border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--indice-brand-action)]">
-            {copy.operatingSystemLabel}
-          </span>
-        </div>
+        <span className="inline-flex w-fit items-center rounded-full border border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--indice-brand-action)]">
+          {copy.operatingSystemLabel}
+        </span>
 
-        <div className="max-w-3xl lg:mt-7 xl:mt-8">
+        <div className="mt-6 max-w-3xl lg:mt-7 xl:mt-8">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--indice-brand-action)] sm:text-sm">
             {copy.workspaceBadge}
           </p>
@@ -47,8 +43,8 @@ export function LoginBrandPanel({ copy }: { copy: LoginPageCopy }) {
           <div className="relative grid grid-cols-2 gap-3 rounded-[22px] border border-slate-200/80 bg-slate-50/75 p-3 sm:p-4 lg:gap-x-12 lg:gap-y-3 lg:p-4">
             <div className="pointer-events-none absolute left-1/2 top-1/2 hidden h-px w-20 -translate-x-1/2 bg-slate-300 lg:block" />
             <div className="pointer-events-none absolute left-1/2 top-1/2 hidden h-20 w-px -translate-y-1/2 bg-slate-300 lg:block" />
-            <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 hidden h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 border-slate-50 bg-[var(--indice-brand-action)] text-center text-[10px] font-bold uppercase tracking-[0.1em] text-white shadow-lg shadow-emerald-950/15 lg:flex">
-              Indice
+            <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 hidden h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 border-slate-50 bg-[var(--indice-brand-action)] text-center text-[10px] font-bold tracking-[0.02em] text-white shadow-lg shadow-emerald-950/15 lg:flex">
+              Lupita
             </div>
 
             {copy.pillars.map((pillar, index) => (
@@ -59,19 +55,19 @@ export function LoginBrandPanel({ copy }: { copy: LoginPageCopy }) {
                 <div className="flex items-center gap-2.5">
                   <span
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-base"
-                    style={{ backgroundColor: `${pillarColors[index] ?? '#59C3A5'}1F` }}
+                    style={{ backgroundColor: `${agentColors[index] ?? '#2563EB'}1F` }}
                     aria-hidden="true"
                   >
                     {pillar.icon}
                   </span>
                   <h2 className="text-sm font-bold text-[#222831]">{pillar.title}</h2>
                 </div>
-                <p className="mt-1.5 hidden text-xs leading-[1.15rem] text-slate-500 lg:block">
+                <p className="mt-1.5 hidden text-xs leading-[1.15rem] text-slate-500 sm:block">
                   {pillar.description}
                 </p>
                 <span
                   className="absolute inset-x-3 bottom-0 h-1 rounded-full sm:inset-x-4"
-                  style={{ backgroundColor: pillarColors[index] ?? '#59C3A5' }}
+                  style={{ backgroundColor: agentColors[index] ?? '#2563EB' }}
                   aria-hidden="true"
                 />
               </article>

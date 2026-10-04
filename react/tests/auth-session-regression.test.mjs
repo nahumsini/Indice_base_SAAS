@@ -227,16 +227,18 @@ test('payable creation never inserts a local phantom record after a failed reque
   );
 });
 
-test('signup and login share the exact delivered credential contract', async () => {
-  const [loginPage, signupPage, signupApi, signupCompletePage, routes] = await Promise.all([
+test('login keeps its credential contract and sends new prospects to diagnosis', async () => {
+  const [loginPage, loginFormPanel, signupPage, signupApi, signupCompletePage, routes] = await Promise.all([
     readFile(new URL('../src/app/Auth/LoginPage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/Auth/components/LoginFormPanel.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/Auth/SignupPage.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/api/billingSignup.ts', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/Auth/SignupCompletePage.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/routes.tsx', import.meta.url), 'utf8'),
   ]);
 
-  assert.match(loginPage, /navigate\('\/signup'\)/);
+  assert.doesNotMatch(loginPage, /navigate\('\/signup'\)/);
+  assert.match(loginFormPanel, /href=\{PUBLIC_DIAGNOSIS_URL\}/);
   assert.match(routes, /path:\s*'\/signup'/);
   assert.match(routes, /path:\s*'\/signup\/complete'/);
   assert.match(signupPage, /isValidAccountPassword\(form\.password\)/);
@@ -263,6 +265,29 @@ test('signup and login share the exact delivered credential contract', async () 
   assert.match(signupCompletePage, /email:\s*loginPrefill\.email/);
   assert.match(loginPage, /password,\s*\n\s*\}\)/);
   assert.doesNotMatch(loginPage, /password:\s*password\.trim\(\)/);
+});
+
+test('login shell keeps the public site navigation and localized footer around the unchanged form', async () => {
+  const [loginPage, header, footer, links, translations] = await Promise.all([
+    readFile(new URL('../src/app/Auth/LoginPage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/Auth/components/LoginSiteHeader.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/Auth/components/LoginSiteFooter.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/Auth/components/loginSiteLinks.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/Auth/translations/loginShell.ts', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(loginPage, /<LoginSiteHeader copy=\{shellCopy\} \/>/);
+  assert.match(loginPage, /<main id="login-main"/);
+  assert.match(loginPage, /<LoginSiteFooter copy=\{shellCopy\} \/>/);
+  assert.match(header, /aria-expanded=\{mobileOpen\}/);
+  assert.match(header, /setCurrentLanguage\(language\)/);
+  assert.match(header, /PUBLIC_DIAGNOSIS_URL/);
+  assert.match(footer, /privacidad\.php/);
+  assert.match(footer, /terminos\.php/);
+  assert.match(links, /diagnostico\.php\?utm_source=app_login&utm_medium=referral/);
+  for (const locale of ['es-MX', 'es-CO', 'en-US', 'en-CA', 'fr-CA', 'pt-BR', 'ko-CA', 'zh-CA']) {
+    assert.match(translations, new RegExp(`'${locale}':`));
+  }
 });
 
 test('public demos use an isolated credential route without changing secure login', async () => {
