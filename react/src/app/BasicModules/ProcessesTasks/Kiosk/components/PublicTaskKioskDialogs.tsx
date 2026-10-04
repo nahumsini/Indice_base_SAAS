@@ -600,6 +600,18 @@ export function PublicTaskKioskDialogs(props: Props) {
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50/70 px-4 py-4 dark:bg-slate-900/40 sm:px-5">
               <p className="text-[10px] font-medium text-[#7A5204] dark:text-[#FDE68A]">{labels.taskDetails}</p>
+              {selectedTask.process_title || selectedTask.process_run_folio || selectedTask.process_reference ? (
+                <section className="mt-2 rounded-2xl border border-[#F4C84A]/40 bg-[#F4C84A]/10 px-4 py-3 text-sm text-slate-700 dark:text-slate-200">
+                  <p className="text-[11px] font-medium text-[#7A5204] dark:text-[#FDE68A]">{copy.task.process}</p>
+                  {selectedTask.process_title ? <p className="mt-1 font-medium text-slate-950 dark:text-white">{selectedTask.process_title}</p> : null}
+                  {selectedTask.process_reference || selectedTask.process_run_folio ? (
+                    <p className="mt-1 break-words text-xs">{selectedTask.process_reference || selectedTask.process_run_folio}</p>
+                  ) : null}
+                  {selectedTask.process_step && selectedTask.process_total_steps ? (
+                    <p className="mt-1 text-xs">{selectedTask.process_step}/{selectedTask.process_total_steps}</p>
+                  ) : null}
+                </section>
+              ) : null}
               {selectedTask.description ? (
                 <p className="mt-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">{selectedTask.description}</p>
               ) : null}

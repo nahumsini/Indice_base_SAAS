@@ -212,6 +212,24 @@ export function EmployeeTaskMultiKioskWorkspaceView({
       ) : (
         <EmployeeTaskAgendaList copy={agendaCopy} emptyBody={copy.empty.filteredBody} emptyTitle={copy.empty.filteredTitle} locale={selectedLocale} onOpen={handleOpenTask} referenceDate={selectedDate} taskCopy={copy} tasks={visibleTasks} />
       )}
+      {tasks.length > 0 && visibleTasks.length === 0 ? (
+        <button
+          type="button"
+          className="mx-auto mt-3 flex min-h-11 items-center rounded-xl border border-[#F4C84A]/60 px-4 text-sm font-medium text-[#7A5204] hover:bg-[#F4C84A]/10 dark:text-[#FDE68A]"
+          onClick={() => {
+            setFocusFilter('team');
+            setDateRange('all');
+            setStatusFilter(tasks.some(task => task.status !== 'completed') ? 'pending_overdue' : 'completed');
+            setViewMode('agenda');
+            setOriginFilter(employeeTaskAllFilterValue);
+            setBusinessFilter(employeeTaskAllFilterValue);
+            changeUnitFilter(employeeTaskAllFilterValue);
+            setSearchQuery('');
+          }}
+        >
+          {copy.workspace.clearFilters} · {agendaCopy.allDates}
+        </button>
+      ) : null}
 
       <PublicTaskKioskFiltersSheet
         applyLabel={copy.workspace.applyFilters}

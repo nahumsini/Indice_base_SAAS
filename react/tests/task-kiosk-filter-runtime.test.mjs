@@ -14,6 +14,19 @@ test('all periods include assigned future tasks without exposing another assigne
   assert.deepEqual(ids([task(1, '2026-09-07'), task(2, '2026-10-12'),
     task(3, today, { is_assigned_to_current_user: false })]), [1, 2]);
 });
+
+test('a future task appears after expanding the date range, including delegated work', () => {
+  const ownTask = task(1, '2026-10-12');
+  const delegatedTask = task(2, '2026-10-12', {
+    assigned_user_company_id: 22,
+    is_assigned_to_current_user: false,
+    is_created_by_current_user: true,
+  });
+  assert.deepEqual(ids([ownTask, delegatedTask], { period: 'today' }), []);
+  assert.deepEqual(ids([ownTask, delegatedTask]), [1]);
+  assert.deepEqual(ids([ownTask, delegatedTask], { focus: 'delegated' }), [2]);
+  assert.deepEqual(ids([ownTask, delegatedTask], { focus: 'team' }), [1, 2]);
+});
 test('tomorrow uses the same reference date for period and status', () => {
   assert.deepEqual(ids([task(1, '2026-09-07'), task(2, '2026-09-08')], { period: 'tomorrow' }), [1]);
 });

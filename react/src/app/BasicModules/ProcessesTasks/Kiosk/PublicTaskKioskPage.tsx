@@ -667,6 +667,11 @@ export default function PublicTaskKioskPage() {
 
       setIsCreateTaskModalOpen(false);
       setActiveTaskTab('open');
+      setFocusFilter(response.task.assigned_user_company_id == null
+        || response.task.assigned_user_company_id === identity.user.id ? 'mine' : 'delegated');
+      setPeriodFilter('all');
+      setUnitFilter(allFilterValue);
+      setBusinessFilter(allFilterValue);
       setCreateTaskForm({
         ...defaultCreateFormForSession(),
         unitId: assignmentOptions?.default_unit_id?.toString() ?? '',
@@ -950,13 +955,14 @@ export default function PublicTaskKioskPage() {
                       variant="outline"
                       className="mx-auto mt-3 flex h-11 rounded-xl border-[#F4C84A]/60 px-4 text-sm font-medium text-[#7A5204] hover:bg-[#F4C84A]/10"
                       onClick={() => {
-                        setFocusFilter('mine');
-                        setPeriodFilter('today');
+                        setFocusFilter('team');
+                        setPeriodFilter('all');
                         setUnitFilter(allFilterValue);
                         setBusinessFilter(allFilterValue);
+                        setActiveTaskTab(tasks.some(task => task.status !== 'completed') ? 'open' : 'resolved');
                       }}
                     >
-                      {labels.clearFilters}
+                      {labels.clearFilters} · {labels.allPeriod}
                     </Button>
                   </div>
                 ) : (
