@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, Building2, Bot, Check, CreditCard, Globe, GraduationCap, LayoutPanelTop, LoaderCircle, User, Sun, Moon, Sunrise, Settings, ShieldCheck, MonitorSmartphone, Search } from 'lucide-react';
+import { BriefcaseBusiness, Building2, Bot, Check, Coins, CreditCard, Globe, GraduationCap, LayoutPanelTop, LoaderCircle, User, Sun, Moon, Sunrise, Settings, ShieldCheck, MonitorSmartphone, Search } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import {
@@ -10,6 +10,7 @@ import {
 } from './ui/dropdown-menu';
 import { getStoredLanguagePreference, useLanguage, languages } from '../shared/context';
 import { NotificationCenter } from './NotificationCenter';
+import { MessagingLauncher } from '../Messaging/MessagingLauncher';
 import { useEffect, useRef, useState } from 'react';
 import { authApi, type PublicDemoCompany } from '../api/auth';
 import type { AuthSessionResponse } from '../api/auth.types';
@@ -19,6 +20,8 @@ import type { AppNotification } from '../api/notifications';
 import { NotificationMenu } from './notifications/NotificationMenu';
 import { useNotifications } from './notifications/useNotifications';
 import { PreferredCurrencyControl } from '../BasicModules/shared/PreferredCurrencyControl';
+import { usePreferredBusinessCurrency } from '../BasicModules/shared/BusinessCurrencyContext';
+import { getPreferredCurrencyCopy } from '../BasicModules/shared/preferredCurrencyCopy';
 import { useHeaderTranslations } from './header/hooks/useHeaderTranslations';
 import { isAdminAccessRole, normalizeAccessRole } from '../access/accessRules';
 import { managedCompanyApi, type ManagedCompanyContext } from '../api/managedCompanies';
@@ -62,6 +65,9 @@ export function Header({
   const navigate = useNavigate();
   const { currentLanguage, setCurrentLanguage } = useLanguage();
   const { copy } = useHeaderTranslations();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
+  const currencyCopy = getPreferredCurrencyCopy(currentLanguage.code);
+  const [isCurrencySettingsOpen, setIsCurrencySettingsOpen] = useState(false);
   const currentHour = new Date().getHours();
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
@@ -525,7 +531,7 @@ export function Header({
               </DropdownMenu>
             ) : null}
 
-            <PreferredCurrencyControl />
+            <MessagingLauncher session={effectiveAuthSession} locale={currentLanguage.code} />
 
             {/* Notificaciones */}
             <NotificationMenu
@@ -728,6 +734,15 @@ export function Header({
                       </DropdownMenuItem>
                     </>
                   ) : null}
+                  <DropdownMenuItem
+                    onSelect={() => setIsCurrencySettingsOpen(true)}
+                    aria-haspopup="dialog"
+                    className="min-h-11 cursor-pointer gap-3 px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10"
+                  >
+                    <Coins className="h-4 w-4 shrink-0 text-[var(--indice-brand-primary)]" />
+                    <span className="min-w-0 flex-1 text-sm font-medium text-gray-900 dark:text-white">{currencyCopy.preferredCurrency}</span>
+                    <span className="rounded-md bg-[var(--indice-brand-soft)] px-2 py-1 text-xs font-medium text-[var(--indice-brand-primary)] dark:bg-white/10 dark:text-white">{preferredCurrency}</span>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator className="my-0 bg-[var(--indice-brand-primary)]/15 dark:bg-[var(--indice-brand-primary)]/20 sm:hidden" />
                   {/* Learning mode settings on mobile - menu only */}
                   <DropdownMenuItem 
@@ -790,6 +805,7 @@ export function Header({
       </div>
 
       {/* Centro de Notificaciones Modal */}
+      {isCurrencySettingsOpen && <PreferredCurrencyControl onClose={() => setIsCurrencySettingsOpen(false)} />}
       <NotificationCenter 
         isOpen={isNotificationCenterOpen}
         items={notifications.items}

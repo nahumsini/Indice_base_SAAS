@@ -329,6 +329,7 @@ export const messages: PlatformAdminMessages = {
   "System tickets": "系统工单",
   "Internal development log": "内部开发日志",
   "Usage & audit": "使用情况和审计",
+  "Website visits": "网站访问",
   "Catalog & modules": "目录和模块",
   "Language": "语言",
   "Local": "本地",

@@ -4,7 +4,11 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "test:commercial-operations": "node --experimental-strip-types --test tests/commercial-operations.test.mjs",
+    "test:commercial-operations-browser": "node tests/commercial-operations-browser.mjs",
     "build": "vite build",
+    "test:messaging": "node --experimental-strip-types --test tests/messaging-runtime.test.mjs tests/notification-center-ui-regression.test.mjs tests/distributor-portal-flow-regression.test.mjs tests/platform-admin-flow-regression.test.mjs",
+    "test:messaging-browser": "node tests/messaging-browser.mjs",
     "calibrate:business-diagnosis": "node scripts/business-diagnosis-engine-calibration.mjs",
     "calibrate:personal-performance": "node scripts/personal-performance-engine-calibration.mjs",
     "dev": "vite",

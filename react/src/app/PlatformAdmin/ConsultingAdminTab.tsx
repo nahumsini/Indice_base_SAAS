@@ -200,6 +200,7 @@ export interface ConsultingAdminHeading {
 }
 
 export default function ConsultingAdminTab({
+  initialQuery = "",
   canManage,
   companies,
   operations = platformAdminApi,
@@ -208,6 +209,7 @@ export default function ConsultingAdminTab({
   attendingConsultant,
 }: {
   canManage: boolean;
+  initialQuery?: string;
   companies: ConsultingCompanyOption[];
   operations?: ConsultingAdminOperations;
   capabilities?: Partial<ConsultingAdminCapabilities>;
@@ -252,7 +254,7 @@ export default function ConsultingAdminTab({
   const [selected, setSelected] =
     useState<PlatformConsultingAppointment | null>(null);
   const [edit, setEdit] = useState<EditState | null>(null);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [statusFilter, setStatusFilter] = useState("ACTIVE");
   const [modeFilter, setModeFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);

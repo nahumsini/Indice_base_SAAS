@@ -7,7 +7,8 @@ import { ContractsAccessPage } from './contracts-access/ContractsAccessPage';
 import { getDistributorPortalCopy } from './contracts-access/translations';
 import { DistributorConsultingPage } from './DistributorConsultingPage';
 import { SystemTicketsWorkspace } from '../SystemTickets';
-import { getSystemTicketCopy } from '../SystemTickets/translations';
+import { CustomerCareWorkspace } from '../Messaging/CustomerCareWorkspace';
+import { messagingCopy } from '../Messaging/copy';
 import { TrainingWorkspace } from '../Training';
 
 export default function DistributorPortalPage() {
@@ -15,7 +16,6 @@ export default function DistributorPortalPage() {
   const [searchParams] = useSearchParams();
   const { currentLanguage } = useLanguage();
   const copy = getDistributorPortalCopy(currentLanguage.code);
-  const ticketCopy = getSystemTicketCopy(currentLanguage.code);
   const requestedTab = searchParams.get('tab');
   const initialTab = requestedTab === 'consulting' || requestedTab === 'training' || requestedTab === 'tickets'
     ? requestedTab
@@ -47,7 +47,7 @@ export default function DistributorPortalPage() {
               <GraduationCap className="h-4 w-4" />Capacitación
             </button>
             <button type="button" onClick={() => setActiveTab('tickets')} className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition ${activeTab === 'tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-              <TicketCheck className="h-4 w-4" />{ticketCopy.tab}
+              <TicketCheck className="h-4 w-4" />{messagingCopy(currentLanguage.code).care}
             </button>
           </div>
         </nav>
@@ -57,7 +57,7 @@ export default function DistributorPortalPage() {
         {activeTab === 'contracts' ? <ContractsAccessPage copy={copy} locale={currentLanguage.code} /> : null}
         {activeTab === 'consulting' ? <DistributorConsultingPage /> : null}
         {activeTab === 'training' ? <TrainingWorkspace portal="distributor" locale={currentLanguage.code} /> : null}
-        {activeTab === 'tickets' ? <SystemTicketsWorkspace portal="distributor" locale={currentLanguage.code} initialFolio={searchParams.get('ticket') ?? ''} /> : null}
+        {activeTab === 'tickets' ? <CustomerCareWorkspace portal="distributor" locale={currentLanguage.code} legacy={<SystemTicketsWorkspace portal="distributor" locale={currentLanguage.code} initialFolio={searchParams.get('ticket') ?? ''} />} /> : null}
       </main>
     </div>
   );

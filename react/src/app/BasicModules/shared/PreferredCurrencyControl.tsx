@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { BadgeDollarSign, Check, Coins, ExternalLink, LoaderCircle, RefreshCw, RotateCcw } from 'lucide-react';
+import { BadgeDollarSign, Check, ExternalLink, LoaderCircle, RefreshCw, RotateCcw } from 'lucide-react';
 import { IndiceModalFrame } from '../../components/indice-modal';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -30,20 +30,18 @@ const toRateDraft = (settings: BusinessExchangeRateSettings) => Object.fromEntri
     .map((option) => [option.code, String(getBusinessExchangeRatePerUsd(option.code, settings.ratesPerUsd))]),
 );
 
-export function PreferredCurrencyControl() {
+// Mounted outside the profile menu so selecting an item can close the menu independently.
+export function PreferredCurrencyControl({ onClose }: { onClose: () => void }) {
   const { currentLanguage } = useLanguage();
   const copy = useMemo(() => getPreferredCurrencyCopy(currentLanguage.code), [currentLanguage.code]);
   const {
-    exchangeRateMetadata,
     exchangeRateSettings,
-    exchangeRatesPerUsd,
     isLoadingDailyExchangeRates,
     preferredCurrency,
     refreshDailyExchangeRateSettings,
     setExchangeRateSettings,
     setPreferredCurrency,
   } = usePreferredBusinessCurrency();
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [draftPreferredCurrency, setDraftPreferredCurrency] = useState<BusinessCurrencyCode>(
     preferredCurrency as BusinessCurrencyCode,
   );
@@ -65,27 +63,8 @@ export function PreferredCurrencyControl() {
     : draftSettings.metadata.source === businessExchangeOfficialDailySource
       ? copy.officialSources
       : copy.internalReference;
-  const preferredExchangeRate = getBusinessExchangeRatePerUsd(preferredCurrency, exchangeRatesPerUsd);
-  const formattedPreferredExchangeRate = new Intl.NumberFormat(undefined, {
-    maximumFractionDigits: preferredCurrency === 'COP' ? 2 : 4,
-  }).format(preferredExchangeRate);
-  const preferredSource = exchangeRateMetadata.sourceDetails?.find(
-    (source) => source.currencyCode === preferredCurrency,
-  );
-  const isPreferredRateOfficial = preferredCurrency === businessExchangeBaseCurrency
-    || preferredSource?.status === 'official';
-
-  const openModal = () => {
-    setDraftPreferredCurrency(preferredCurrency as BusinessCurrencyCode);
-    setDraftSettings(exchangeRateSettings);
-    setDraftExchangeRates(toRateDraft(exchangeRateSettings));
-    setRatesEdited(false);
-    setExchangeRateError('');
-    setIsModalOpen(true);
-  };
-
   const closeModal = () => {
-    if (!isLoadingDailyExchangeRates) setIsModalOpen(false);
+    if (!isLoadingDailyExchangeRates) onClose();
   };
 
   const handleApplyConfiguration = () => {
@@ -108,7 +87,7 @@ export function PreferredCurrencyControl() {
       ? createBusinessManualExchangeRateSettings(nextExchangeRates)
       : draftSettings);
     setExchangeRateError('');
-    setIsModalOpen(false);
+    onClose();
   };
 
   const handleRefreshDailyExchangeRates = async () => {
@@ -131,27 +110,8 @@ export function PreferredCurrencyControl() {
 
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        aria-haspopup="dialog"
-        aria-expanded={isModalOpen}
-        aria-label={`${copy.currency} ${preferredCurrency}, ${copy.equals} ${formattedPreferredExchangeRate} ${preferredCurrency}`}
-        onClick={openModal}
-        className="h-10 min-w-10 gap-1.5 rounded-full border border-white/20 bg-white/10 px-2.5 text-xs font-medium text-[var(--indice-brand-shell-foreground)] shadow-none transition-all hover:border-white/35 hover:bg-white/20 hover:text-[var(--indice-brand-shell-foreground)] dark:border-white/20 dark:bg-white/10 dark:text-[var(--indice-brand-shell-foreground)] dark:hover:border-white/35 dark:hover:bg-white/20 sm:px-3"
-      >
-        <Coins className="h-[18px] w-[18px] shrink-0" />
-        <span className="hidden sm:inline">{preferredCurrency}</span>
-        <span className="hidden text-white/45 sm:inline" aria-hidden="true">·</span>
-        <span className="hidden max-w-[72px] truncate md:inline">{formattedPreferredExchangeRate}</span>
-        <span
-          className={`h-1.5 w-1.5 shrink-0 rounded-full ${isPreferredRateOfficial ? 'bg-emerald-400' : 'bg-amber-400'}`}
-          title={isPreferredRateOfficial ? copy.officialRate : copy.lastRate}
-        />
-      </Button>
-
       <IndiceModalFrame
-        open={isModalOpen}
+        open
         busy={isLoadingDailyExchangeRates}
         onOpenChange={(open) => {
           if (!open) closeModal();

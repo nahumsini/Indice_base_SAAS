@@ -1,4 +1,4 @@
-import type { ReactNode, Ref } from 'react';
+import type { CSSProperties, ReactNode, Ref } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +21,7 @@ export type IndiceModalFrameProps = {
   children: ReactNode;
   closeLabel?: string;
   contentClassName?: string;
+  contentStyle?: CSSProperties;
   description: ReactNode;
   eyebrow?: ReactNode;
   footer?: ReactNode;
@@ -94,6 +95,7 @@ export function IndiceModalFrame({
   children,
   closeLabel,
   contentClassName,
+  contentStyle,
   description,
   eyebrow,
   footer,
@@ -128,6 +130,7 @@ export function IndiceModalFrame({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
+        style={contentStyle}
         aria-busy={busy}
         className={cn(
           'flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white p-0 shadow-[0_28px_80px_rgba(15,23,42,0.3)] dark:border-slate-700 dark:bg-slate-950',

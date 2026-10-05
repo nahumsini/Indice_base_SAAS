@@ -1157,6 +1157,14 @@ and acceptance checklist live in [`KPI_TAB_STANDARD.md`](./KPI_TAB_STANDARD.md).
 The format is implemented in RH; this decision does not imply that other modules
 have already been migrated or verified.
 
+### Platform administration: website visits
+
+The main platform administration navigation exposes Website visits to `PLATFORM_ROOT` only.
+It reads the existing global web analytics dashboard with a date filter; customer account filters
+do not apply to website traffic. The view must show connector status and must not imply that
+uncollected historical visits exist. Website ingestion remains governed by
+`docs/product-analytics-security-contract.md` and the deployment release gate.
+
 ### Platform administration: customer workspace
 
 The approved customer-service organization (2026-09-13) uses the existing Operational Workspace
@@ -1563,10 +1571,12 @@ Showing 25 employees - 21 active - 4 inactive.
 
 ### Global Preferred Currency
 
-The preferred-currency control must always remain visible in the global app header.
+The preferred-currency entry lives inside the global header's profile/avatar menu on desktop and
+mobile. Show its localized label and the current ISO currency code in that menu; do not reserve
+a separate currency button in the header action row.
 
-It is a persistent system utility, not a module-level control. Do not hide it when the
-active view has no monetary fields and do not duplicate it inside module title bars.
+It remains a persistent system utility available from every view, including views without
+monetary fields. Do not duplicate it inside module title bars.
 
 Rules:
 
@@ -1582,7 +1592,8 @@ Rules:
   payment methods on one converted basis, and then show a separately labeled total in the
   preferred currency; follow Section 6.2 of `KPI_TAB_STANDARD.md`
 - missing or stale exchange-rate information must produce a visible warning state
-- the compact header control opens the shared blue Standard Form Modal; the modal uses USD as
+- the profile-menu entry closes the menu and opens the shared blue Standard Form Modal outside
+  the dropdown lifecycle; the modal uses USD as
   the exchange-rate base
 - preferred-currency and rate edits remain in modal draft state until the user saves; closing or
   cancelling the modal does not alter the active configuration
@@ -1593,8 +1604,8 @@ Rules:
   a link to its published source; missing or stale data keeps a visible warning
 - the user preference persists across navigation and sessions
 
-The global control may be visually compact on non-financial views, but it remains visible
-and opens the same currency and exchange-rate modal everywhere.
+The avatar-menu entry opens the same currency and exchange-rate modal everywhere. Opening a new
+modal session initializes its draft from the active preference; Cancel discards only that draft.
 
 ---
 
@@ -2101,6 +2112,12 @@ Use clear section titles.
 Avoid visual noise.
 
 ### Notification Center Workspace
+
+Global Messages and Platform/Distributor Customer Care follow
+`docs/messaging-and-customer-care-contract.md`. Messages uses the shared blue Operational Workspace
+Modal, responsive list/detail navigation, localized labels and explicit send/retry states.
+The messaging workspace must be remounted on account/company changes. Customer Care preserves
+existing system tickets and distinguishes internal notes from customer replies.
 
 The global notification center is an Operational Workspace Modal with the blue Indice product
 identity. It preserves notification ownership and actions while presenting them as a compact,
@@ -3526,6 +3543,30 @@ Never:
 If the user needs to think too much, the frontend is failing.
 
 ---
+
+## 39.1 Platform Administration commercial operations
+
+`PlatformAdmin/CommercialOperations` owns the `pending`, `MX` and `CA` account views. Country is
+the recorded `country_code`, never inferred from currency or language and never used to grant a
+service entitlement. Mexico and Canada journey lists are reference guides, not saved account
+progress. Pending items are suggestions from access/billing issues, active trial expiry or missing
+country. Historical/permanent trials must not generate expiry suggestions.
+
+This frontend uses existing account APIs. Search is server-side; market, attention, distributor
+and expiry filters apply to explicitly counted loaded records (50 per page). Partial coverage,
+loading, failure and revoked access must remain distinguishable. Stale responses cannot replace
+a newer search, and permission changes discard loaded records.
+
+The account detail is an **Operational Workspace Modal** using the blue shared shell. It presents
+real owner/contact, contract, distributor and trial data plus existing account history. Close it
+before opening another account workspace. Customer-care and consulting handoffs prefill a visible
+company-name search; these are search aids, not authorization scopes or assigned commercial tasks.
+
+Website intake and persisted sales stages, operator assignments, notes and next-action dates are
+not available through the current backend. The UI must state that scope and cannot simulate those
+writes in browser storage. Follow-on backend work must own durable intake, deduplication, market
+and service contracts, transactional/versioned transitions, audit and full-dataset queue filters.
+Current billing prices and consulting entitlements remain governed by their existing contracts.
 
 ## 40. Golden Rule
 

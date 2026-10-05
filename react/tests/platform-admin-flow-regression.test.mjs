@@ -9,6 +9,7 @@ const { defaultAnnualDiscountPercent, stripeEnvironmentLabel } = loadTypeScript(
 const root = resolve(import.meta.dirname, "..");
 const read = (path) => readFileSync(resolve(root, path), "utf8");
 const page = read("src/app/PlatformAdmin/PlatformAdminPage.tsx");
+const usageAnalytics = read("src/app/PlatformAdmin/UsageAnalyticsWorkspace.tsx");
 const customerTable = read(
   "src/app/PlatformAdmin/Customers/CustomersTable.tsx",
 );
@@ -42,6 +43,15 @@ test("la tabla tolera respuestas antiguas sin tipo de cuenta", () => {
   assert.match(customerRow, /normalizeAccountType\(company\.user_type\)/);
   assert.match(customerRow, /return "SUPER_ADMIN"/);
   assert.match(customerRow, /<UserTypeBadge type=\{accountType\}/);
+});
+
+test("root tiene una pestaña independiente de visitas web con métricas globales", () => {
+  assert.match(page, /id: "websiteVisits"/);
+  assert.match(page, /tab\.id === "internalDevelopment" \|\| tab\.id === "websiteVisits"\) return context\?\.role === "PLATFORM_ROOT"/);
+  assert.match(page, /activeTab === "websiteVisits" && context\?\.role === "PLATFORM_ROOT"/);
+  assert.match(page, /<UsageAnalyticsWorkspace english=\{english\} audit=\{null\} websiteOnly \/>/);
+  assert.match(usageAnalytics, /platformAdminApi\.getAnalytics\(days, !websiteOnly && companyId \? Number\(companyId\) : undefined\)/);
+  assert.match(usageAnalytics, /dataKey="web_sessions" name=\{copy\.websiteVisits\}/);
 });
 
 test("distribuidores sólo pueden seleccionar productos de la versión comercial activa", () => {

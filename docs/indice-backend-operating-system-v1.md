@@ -23,6 +23,8 @@ This document governs general backend engineering. More specific approved contra
 
 - `docs/INDICE_PREMIUM_MULTITENANT_BILLING_ARCHITECTURE.md` for commercial multitenancy and billing;
 - `docs/kiosk-standard-engine-v2.md` for kiosks and public operational channels;
+- `docs/messaging-and-customer-care-contract.md` for core messaging, participant isolation,
+  customer care, durable notifications and support-only billing recovery;
 - `docs/sales-pos-ownership-and-retry-contract-v1.md` for Sales/POS ownership, checkout
   retries, original-tender POS returns and their explicit accounting/closed-cut boundaries;
 - module domain contracts, such as the Finance contracts under

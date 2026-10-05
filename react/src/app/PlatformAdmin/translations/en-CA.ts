@@ -328,6 +328,7 @@ export const messages = {
   "System tickets": "System tickets",
   "Internal development log": "Internal development log",
   "Usage & audit": "Usage & audit",
+  "Website visits": "Website visits",
   "Catalog & modules": "Catalog & modules",
   "Language": "Language",
   "Local": "Local",

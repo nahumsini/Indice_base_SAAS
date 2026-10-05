@@ -12,6 +12,7 @@ import { formatNotificationTime } from './notificationTime';
 import { getModuleColorClasses } from './notificationStyles';
 import { getNotificationDisplayTitle, getNotificationModule, getNotificationPriority, type NotificationPriority } from './notificationCatalog';
 import type { NotificationCenterCopy } from './notificationCenterCopy';
+import { messagingCopy } from '../../Messaging/copy';
 
 interface NotificationItemCardProps {
   notification: AppNotification;
@@ -76,7 +77,7 @@ export function NotificationItemCard({
                 ) : null}
               </div>
               <p className="mt-1 line-clamp-2 break-words text-sm leading-5 text-slate-600 dark:text-slate-400">
-                {notification.description}
+                {notification.module_slug === 'messaging' ? messagingCopy(locale).subtitle : notification.description}
               </p>
             </div>
             <div className="flex shrink-0 flex-wrap gap-1.5">
