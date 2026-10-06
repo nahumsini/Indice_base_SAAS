@@ -22,6 +22,7 @@ public class RestaurantOrderRepository {
 
     private final JdbcTemplate jdbcTemplate;
 
+    public void requireAssistantRecordAccess(long company,long id,long register){if(jdbcTemplate.queryForList("SELECT id FROM pos_restaurant_orders WHERE company_id=? AND id=? AND settlement_cash_register_id=?",Long.class,company,id,register).isEmpty())throw com.indice.erp.pos.PosApiException.notFound("Source record unavailable in the current register.");}
     public RestaurantOrderRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
@@ -926,6 +927,36 @@ public class RestaurantOrderRepository {
               AND settlement_shift_id = ?
               AND status = 'CLAIMED_FOR_CHECKOUT' AND claimed_by_user_id = ?
             FOR UPDATE
+            """, (rs, rowNum) -> new RestaurantCheckoutOrder(
+                rs.getLong("id"), rs.getLong("company_id"), rs.getLong("settlement_cash_register_id"),
+                rs.getString("order_number"), rs.getString("currency_code"),
+                rs.getLong("claimed_by_user_id"), List.of()),
+            companyId, orderId, registerId, shiftId, userId);
+        if (orders.isEmpty()) return Optional.empty();
+        var order = orders.getFirst();
+        var lines = jdbcTemplate.query("""
+            SELECT product_id, sku_snapshot, product_name_snapshot, quantity, unit_price, line_total_amount
+            FROM pos_restaurant_order_items
+            WHERE company_id = ? AND order_id = ? AND status NOT IN ('CANCELLED', 'VOIDED')
+            ORDER BY sort_order, id
+            """, (rs, rowNum) -> new RestaurantCheckoutLine(
+                rs.getLong("product_id"), rs.getString("sku_snapshot"), rs.getString("product_name_snapshot"),
+                rs.getBigDecimal("quantity"), rs.getBigDecimal("unit_price"), rs.getBigDecimal("line_total_amount")),
+            companyId, orderId);
+        return Optional.of(new RestaurantCheckoutOrder(
+            order.id(), order.companyId(), order.cashRegisterId(), order.orderNumber(),
+            order.currencyCode(), order.claimedByUserId(), List.copyOf(lines)));
+    }
+
+    public Optional<RestaurantCheckoutOrder> inspectCheckout(
+            long companyId, long orderId, long registerId, long shiftId, long userId) {
+        var orders = jdbcTemplate.query("""
+            SELECT id, company_id, settlement_cash_register_id, order_number,
+                   currency_code, claimed_by_user_id
+            FROM pos_restaurant_orders
+            WHERE company_id = ? AND id = ? AND settlement_cash_register_id = ?
+              AND settlement_shift_id = ?
+              AND (status = 'READY_FOR_CHECKOUT' OR (status = 'CLAIMED_FOR_CHECKOUT' AND claimed_by_user_id = ?))
             """, (rs, rowNum) -> new RestaurantCheckoutOrder(
                 rs.getLong("id"), rs.getLong("company_id"), rs.getLong("settlement_cash_register_id"),
                 rs.getString("order_number"), rs.getString("currency_code"),

@@ -310,6 +310,14 @@ public class ProcessTaskCollaborationService {
     }
 
     public void requireTeamReadyForCompletion(long companyId, long actorUserId, long taskId) {
+        checkTeamReadyForCompletion(companyId, actorUserId, taskId, true);
+    }
+
+    public void validateTeamReadyForCompletion(long companyId, long actorUserId, long taskId) {
+        checkTeamReadyForCompletion(companyId, actorUserId, taskId, false);
+    }
+
+    private void checkTeamReadyForCompletion(long companyId, long actorUserId, long taskId, boolean markReady) {
         var assignments = activeAssignments(companyId, taskId);
         if (assignments.size() <= 1) {
             return;
@@ -327,7 +335,7 @@ public class ProcessTaskCollaborationService {
             if (!assigned) {
                 throw new IllegalArgumentException("Only an assigned team member can complete this shared task.");
             }
-            jdbcTemplate.update(
+            if (markReady) jdbcTemplate.update(
                     """
                         UPDATE process_task_assignees
                         SET contribution_status = 'ready', ready_at = COALESCE(ready_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP
@@ -353,7 +361,7 @@ public class ProcessTaskCollaborationService {
                     pendingMembers + " team member(s) must mark their contribution as ready before this task can close.");
         }
 
-        jdbcTemplate.update(
+        if (markReady) jdbcTemplate.update(
                 """
                     UPDATE process_task_assignees
                     SET contribution_status = 'ready', ready_at = COALESCE(ready_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP

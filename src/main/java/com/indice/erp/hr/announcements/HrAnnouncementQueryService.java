@@ -28,6 +28,10 @@ public class HrAnnouncementQueryService {
 
     public Map<String, Object> list(HrAnnouncementActor actor) {
         publisher.publishDueAnnouncements();
+        return listReadOnly(actor);
+    }
+
+    public Map<String, Object> listReadOnly(HrAnnouncementActor actor) {
         var rows = actor.managementAccess()
             ? scopeService.filterManageable(actor, loadAll(actor.companyId()))
             : loadVisible(actor);
@@ -45,6 +49,26 @@ public class HrAnnouncementQueryService {
             throw new NoSuchElementException("Announcement not found.");
         }
         return responseFactory.itemBody(companyId, rows.getFirst());
+    }
+
+    public record AssistantReadReceipt(long userCompanyId,String employeeName,String status,String deliveredAt,String readAt) { }
+    public List<AssistantReadReceipt> assistantReadReceipts(HrAnnouncementActor actor,long id) {
+        if(!actor.managementAccess())throw new SecurityException("Announcement management permission required.");
+        scopeService.requireManageable(actor,id);
+        var parameters=new java.util.ArrayList<Object>();parameters.add(actor.companyId());parameters.add(id);
+        parameters.addAll(actor.operationalScope().hrUserParameters());
+        return jdbcTemplate.query("""
+            SELECT d.user_company_id,COALESCE(NULLIF(u.full_name,''),CONCAT('Employee ',uc.id)) AS employee_name,
+                   d.status,d.delivered_at,d.read_at
+            FROM hr_announcement_deliveries d
+            JOIN user_companies uc ON uc.id=d.user_company_id AND uc.company_id=d.company_id
+            JOIN users u ON u.id=uc.user_id
+            LEFT JOIN user_work_profiles wp ON wp.user_company_id=uc.id AND wp.company_id=uc.company_id
+            WHERE d.company_id=? AND d.announcement_id=? AND d.status<>'cancelled'
+            """+actor.operationalScope().hrUserPredicate("wp")+" ORDER BY employee_name,d.user_company_id",
+            (rs,index)->new AssistantReadReceipt(rs.getLong("user_company_id"),rs.getString("employee_name"),rs.getString("status"),
+                rs.getTimestamp("delivered_at")==null?"":rs.getTimestamp("delivered_at").toLocalDateTime().toString(),
+                rs.getTimestamp("read_at")==null?"":rs.getTimestamp("read_at").toLocalDateTime().toString()),parameters.toArray());
     }
 
     private List<HrAnnouncementRow> loadAll(long companyId) {

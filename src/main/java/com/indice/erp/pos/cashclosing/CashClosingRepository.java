@@ -44,7 +44,8 @@ public class CashClosingRepository {
             payments.cash(context, shift.id()), totals.getOrDefault(CashMovementType.CASH_IN, BigDecimal.ZERO),
             totals.getOrDefault(CashMovementType.CASH_OUT, BigDecimal.ZERO), totals.getOrDefault(CashMovementType.SAFE_DROP, BigDecimal.ZERO),
             totals.getOrDefault(CashMovementType.CORRECTION, BigDecimal.ZERO), tickets.sales(context, shift.id()),
-            refunds.sum(context, shift.id()), tickets.count(context, shift.id()), payments.summary(context, shift.id()));
+            refunds.sum(context, shift.id()), tickets.count(context, shift.id()), payments.summary(context, shift.id()),
+            refunds.byMethod(context, shift.id()));
     }
     public long insertClosing(PosContext context, ShiftRecord shift, CashClosingAmounts amounts, CashClosingCommand command) {
         return insertion.insert(context, shift, amounts, command);

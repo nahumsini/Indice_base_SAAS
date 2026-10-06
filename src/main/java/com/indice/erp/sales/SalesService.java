@@ -579,12 +579,28 @@ public class SalesService {
                 paymentEvidencePrefix(companyId) + saleId + "/");
     }
 
+    @Transactional
+    public Map<String, Object> registerAssistantSalePaymentEvidence(
+            long companyId, long userId, long saleId, Map<String, Object> payload) {
+        // Serialize with collection so the server decides whether this is supplementary evidence.
+        salesRepository.lockSaleForDeletion(companyId, saleId);
+        var sale = salesRepository.get(companyId, definition("sales"), saleId);
+        return registerSalePaymentEvidenceWithPrefix(companyId, userId, saleId, payload,
+                paymentEvidencePrefix(companyId) + saleId + "/", "approved".equals(sale.get("financeStatus")));
+    }
+
     private Map<String, Object> registerSalePaymentEvidenceWithPrefix(
             long companyId,
             long userId,
             long saleId,
             Map<String, Object> payload,
             String requiredObjectKeyPrefix) {
+        return registerSalePaymentEvidenceWithPrefix(companyId, userId, saleId, payload, requiredObjectKeyPrefix, false);
+    }
+
+    private Map<String, Object> registerSalePaymentEvidenceWithPrefix(
+            long companyId, long userId, long saleId, Map<String, Object> payload,
+            String requiredObjectKeyPrefix, boolean supplementary) {
         salesRepository.get(companyId, definition("sales"), saleId);
         requireProductImageStorage();
 
@@ -618,15 +634,15 @@ public class SalesService {
         filePayload.put("entityType", "sale");
         filePayload.put("entityId", saleId);
         filePayload.put("fileName", fileName);
-        filePayload.put("fileKind", "payment_evidence");
-        filePayload.put("fileStatus", "under_review");
+        filePayload.put("fileKind", supplementary ? "payment_supplement" : "payment_evidence");
+        filePayload.put("fileStatus", supplementary ? "uploaded" : "under_review");
         filePayload.put("source", "object_storage");
         filePayload.put("objectKey", objectKey);
         filePayload.put("url", signedProductImageUrl(objectKey));
         filePayload.put("metadata", metadata);
 
         var fileId = salesRepository.createFile(companyId, userId, filePayload);
-        salesRepository.markSalePaymentEvidenceUnderReview(companyId, userId, saleId);
+        if (!supplementary) salesRepository.markSalePaymentEvidenceUnderReview(companyId, userId, saleId);
         var body = new LinkedHashMap<String, Object>(filePayload);
         body.put("id", fileId);
         return body;
@@ -831,6 +847,21 @@ public class SalesService {
         if ("inventory-balances".equals(collection)) {
             inheritInventoryBalanceWarehouseScope(companyId, normalized);
         }
+        return normalized;
+    }
+
+    /** Pure preparation for the named assistant contracts; uses the same hydration and calculators. */
+    Map<String, Object> prepareAssistantWorkflow(long companyId, long userId, String collection, Map<String, Object> payload) {
+        if (!Set.of("sales", "contracts", "post-sales", "commission-rules").contains(collection))
+            throw new IllegalArgumentException("Unsupported sales assistant collection.");
+        var normalized = normalizeBeforeSave(companyId, collection, payload);
+        if (collection.equals("sales")) {
+            assignAuthenticatedSeller(companyId, userId, normalized);
+            SalesLineAmounts.calculate(normalized, true);
+            normalized.putAll(SalesCommissionCalculator.calculate(normalized,
+                salesRepository.list(companyId, definition("commission-rules"), Map.of())));
+        }
+        referenceService.validateEntityPayload(companyId, collection, normalized);
         return normalized;
     }
 

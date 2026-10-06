@@ -33,22 +33,7 @@ public abstract class HrAttendanceAllowedLocationUseCases extends HrAttendancePu
         long userCompanyId,
         Map<String, Object> payload
     ) {
-        payload = normalizePayload(payload);
-        var user = attendanceUserLookupService.loadAttendanceUser(companyId, userCompanyId);
-        if ("terminated".equals(user.status())) {
-            throw new IllegalArgumentException("Terminated users cannot receive attendance locations.");
-        }
-
-        var locationIds = HrPayloadUtils.longList(payload, "location_ids", "allowed_location_ids");
-        var uniqueLocationIds = locationIds.stream()
-            .filter((locationId) -> locationId != null && locationId > 0)
-            .distinct()
-            .toList();
-
-        var locations = new ArrayList<LocationRow>();
-        for (var locationId : uniqueLocationIds) {
-            locations.add(loadLocation(companyId, locationId));
-        }
+        var locations = prepareAssistantAllowedLocations(companyId, userCompanyId, payload);
 
         jdbcTemplate.update(
             """
@@ -69,5 +54,25 @@ public abstract class HrAttendanceAllowedLocationUseCases extends HrAttendancePu
             "user_company_id", userCompanyId,
             "allowed_locations", loadAllowedLocations(companyId, userCompanyId).stream().map(AttendanceLocationPresentation::toLocationMap).toList()
         );
+    }
+    protected java.util.List<LocationRow> prepareAssistantAllowedLocations(long companyId, long userCompanyId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
+        var user = attendanceUserLookupService.loadAttendanceUser(companyId, userCompanyId);
+        if ("terminated".equals(user.status())) {
+            throw new IllegalArgumentException("Terminated users cannot receive attendance locations.");
+        }
+
+        var locationIds = HrPayloadUtils.longList(payload, "location_ids", "allowed_location_ids");
+        var uniqueLocationIds = locationIds.stream()
+            .filter((locationId) -> locationId != null && locationId > 0)
+            .distinct()
+            .toList();
+
+        var locations = new ArrayList<LocationRow>();
+        for (var locationId : uniqueLocationIds) {
+            locations.add(loadLocation(companyId, locationId));
+        }
+
+        return java.util.List.copyOf(locations);
     }
 }

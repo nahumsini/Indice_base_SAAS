@@ -19,8 +19,15 @@ class SquarePaymentRequestPreparer {
         this.amounts = amounts;
     }
     Draft prepare(PosContext context, SquareTerminalDtos.CreatePaymentRequest request) {
+        return prepare(context,request,true);
+    }
+    Draft preview(PosContext context, SquareTerminalDtos.CreatePaymentRequest request) {
+        return prepare(context,request,false);
+    }
+    private Draft prepare(PosContext context, SquareTerminalDtos.CreatePaymentRequest request,boolean lock) {
         var register = d.cashRegisters().requireOperationalRegister(context, request.cashRegisterId());
-        var shift = d.shifts().findOpenByUserAndRegister(context, register.id()).orElse(null);
+        var shift = (lock ? d.shifts().findOpenByUserAndRegister(context, register.id())
+            : d.shifts().readOpenByUserAndRegister(context, register.id())).orElse(null);
         d.validator().requireOpenShift(context, shift, register);
         var json = inputs.json(request);
         var currency = inputs.currency(request.currencyCode());

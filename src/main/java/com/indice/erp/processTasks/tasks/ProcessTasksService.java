@@ -664,7 +664,7 @@ public class ProcessTasksService {
         return body;
     }
 
-    @Transactional
+    @Transactional(isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public Map<String, Object> updateTaskDependencies(
             long companyId,
             long userId,
@@ -672,9 +672,11 @@ public class ProcessTasksService {
             Map<String, Object> payload) {
         requireTaskAccess(companyId, userId, taskId);
         var successor = requireTaskDependencyRef(companyId, taskId);
+        if(successor.projectId()!=null)jdbcTemplate.queryForList("SELECT id FROM projects WHERE company_id=? AND id=? FOR UPDATE",Long.class,companyId,successor.projectId());
         var predecessorTaskId = parseLong(payload, "predecessorTaskId", "predecessor_task_id");
         var dependencyType = dependencyType(payload);
         var lagDays = dependencyLagDays(payload);
+        validateAssistantDependency(companyId,userId,taskId,predecessorTaskId,lagDays);
 
         jdbcTemplate.update(
                 """
@@ -690,15 +692,6 @@ public class ProcessTasksService {
         if (predecessorTaskId == null) {
             return getTask(companyId, taskId);
         }
-
-        if (predecessorTaskId == taskId) {
-            throw new IllegalArgumentException("A task cannot depend on itself.");
-        }
-
-        requireTaskAccess(companyId, userId, predecessorTaskId);
-        var predecessor = requireTaskDependencyRef(companyId, predecessorTaskId);
-        validateSameProjectDependency(successor, predecessor);
-        validateNoDependencyCycle(companyId, taskId, predecessorTaskId);
 
         jdbcTemplate.update(
                 """
@@ -781,6 +774,13 @@ public class ProcessTasksService {
         var task = getTask(companyId, taskId);
         publishTaskPendingAudit(companyId, userId, task);
         return task;
+    }
+
+    /** Completion preview is read-only; the mutation still checks these rules when committing. */
+    public void validateCompletion(long companyId, long userId, long taskId) {
+        requireTaskAccess(companyId, userId, taskId);
+        requireEvidenceForCompletion(companyId, taskId);
+        collaborationService.validateTeamReadyForCompletion(companyId, userId, taskId);
     }
 
     @Transactional
@@ -1319,6 +1319,17 @@ public class ProcessTasksService {
         }
 
         return rows.getFirst();
+    }
+
+    public void validateAssistantDependency(long companyId,long userId,long taskId,Long predecessorTaskId,Integer lagDays) {
+        requireTaskAccess(companyId,userId,taskId);
+        var successor=requireTaskDependencyRef(companyId,taskId);
+        if(lagDays!=null&&(lagDays<0||lagDays>365))throw new IllegalArgumentException("lagDays must be between 0 and 365.");
+        if(predecessorTaskId==null)return;
+        if(predecessorTaskId<=0||predecessorTaskId==taskId)throw new IllegalArgumentException("A task cannot depend on itself or an invalid task.");
+        requireTaskAccess(companyId,userId,predecessorTaskId);
+        validateSameProjectDependency(successor,requireTaskDependencyRef(companyId,predecessorTaskId));
+        validateNoDependencyCycle(companyId,taskId,predecessorTaskId);
     }
 
     private void validateSameProjectDependency(DependencyTaskRef successor, DependencyTaskRef predecessor) {

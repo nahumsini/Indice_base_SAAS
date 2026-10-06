@@ -16,8 +16,15 @@ public record MpPaymentPreflight(CashRegisterService registers, ShiftRepository 
         CheckoutCalculator calculator, CheckoutLookupRepository lookup,
         CheckoutService checkout, MpJson json) {
     public MpPaymentDraft prepare(PosContext context, MpCreatePayment request) {
+        return prepare(context,request,true);
+    }
+    public MpPaymentDraft preview(PosContext context, MpCreatePayment request) {
+        return prepare(context,request,false);
+    }
+    private MpPaymentDraft prepare(PosContext context,MpCreatePayment request,boolean lock) {
         var register = registers.requireOperationalRegister(context, request.cashRegisterId());
-        var shift = shifts.findOpenByUserAndRegister(context, register.id())
+        var shift = (lock ? shifts.findOpenByUserAndRegister(context, register.id())
+            : shifts.readOpenByUserAndRegister(context, register.id()))
             .orElseThrow(() -> PosApiException.conflict("An open shift is required."));
         var lines = calculator.lines(request.items(), "MXN", id -> id == null ? null
             : lookup.findProduct(context, id).orElseThrow(() -> PosApiException.badRequest(

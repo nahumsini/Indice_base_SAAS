@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 class PosSalesIntegrityIntegrationTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired CheckoutExecutionService checkout;
+    @Autowired InventoryDeductionService inventory;
     @Autowired SalesService sales;
     @Autowired com.fasterxml.jackson.databind.ObjectMapper json;
     @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
@@ -75,6 +76,19 @@ class PosSalesIntegrityIntegrationTest {
         assertThatThrownBy(() -> checkout.execute(other, key, request("1"))).isInstanceOf(PosApiException.class);
         assertThat(count("pos_tickets")).isEqualTo(1);
         assertThat(stock()).isEqualByComparingTo("4");
+    }
+
+    @Test void checkoutCannotConsumeReservedStockAndPreflightCombinesDuplicateLines() {
+        jdbc.update("UPDATE sales_inventory_balances SET reserved_quantity=4 WHERE company_id=?",company);
+        var attempt=new org.springframework.transaction.support.TransactionTemplate(transactions);
+        attempt.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_NESTED);
+        assertThatThrownBy(()->attempt.execute(s->checkout.execute(context,UUID.randomUUID().toString(),request("2"))))
+            .isInstanceOf(PosApiException.class).hasMessageContaining("Insufficient stock");
+        assertThat(stock()).isEqualByComparingTo("5");assertThat(count("pos_tickets")).isZero();
+        var line=new CheckoutLine(product,"SKU","Synthetic","PRODUCT",BigDecimal.ONE,BigDecimal.TEN,BigDecimal.ZERO,BigDecimal.ZERO,BigDecimal.TEN,"MXN",true);
+        var current=shifts.findById(context,shift).orElseThrow();
+        assertThatThrownBy(()->inventory.requireAvailable(context,current,List.of(line,line)))
+            .isInstanceOf(PosApiException.class).hasMessageContaining("Insufficient stock");
     }
 
     @Test void everyGenericSaleMutationIsBlockedForPosIncludingStockAndScope() {

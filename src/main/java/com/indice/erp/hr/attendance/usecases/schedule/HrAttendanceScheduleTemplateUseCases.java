@@ -46,28 +46,14 @@ public abstract class HrAttendanceScheduleTemplateUseCases extends HrAttendanceL
 
     @Transactional
     public Map<String, Object> saveScheduleTemplate(long companyId, long userId, Long templateId, Map<String, Object> payload) {
-        payload = normalizePayload(payload);
-        var name = stringValue(payload, "name", "nombre");
-        if (name.isBlank()) {
-            throw new IllegalArgumentException("name is required.");
-        }
-
-        var status = normalizeManagedStatus(stringValue(payload, "status"));
-        var scheduleMode = normalizeScheduleMode(stringValue(payload, "schedule_mode", "mode", "way"));
-        var blockAfterGracePeriod = false;
-        var enforceLocation = parseBoolean(payload, "enforce_location")
-            || parseBoolean(payload, "restrict_to_location")
-            || parseBoolean(payload, "no_permitir_fuera_ubicacion");
-        var locationId = normalizeOptionalForeignKey(parseLong(payload, "location_id", "allowed_location_id", "ubicacion_id"));
-        if (enforceLocation && locationId == null) {
-            throw new IllegalArgumentException("location_id is required when enforce_location is enabled.");
-        }
-        if (locationId != null) {
-            loadLocation(companyId, locationId);
-        }
-
-        var days = parseTemplateDays(payload, scheduleMode);
-        ensureUniqueTemplateName(companyId, templateId, name);
+        var draft = prepareAssistantSchedule(companyId, templateId, payload);
+        var name = draft.name();
+        var status = draft.status();
+        var scheduleMode = draft.scheduleMode();
+        var blockAfterGracePeriod = draft.blockAfterGracePeriod();
+        var enforceLocation = draft.enforceLocation();
+        var locationId = draft.locationId();
+        var days = draft.days();
 
         if (templateId == null || templateId <= 0) {
             KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -142,6 +128,36 @@ public abstract class HrAttendanceScheduleTemplateUseCases extends HrAttendanceL
         }
 
         return Map.of("template", loadScheduleTemplateMap(companyId, templateId));
+    }
+
+    public record AssistantScheduleDraft(String name, String status, String scheduleMode, boolean blockAfterGracePeriod,
+            boolean enforceLocation, Long locationId, java.util.List<com.indice.erp.hr.attendance.models.ScheduleTemplateDayDefinition> days) { }
+
+    protected AssistantScheduleDraft prepareAssistantSchedule(long companyId, Long templateId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
+        var name = stringValue(payload, "name", "nombre");
+        if (name.isBlank()) {
+            throw new IllegalArgumentException("name is required.");
+        }
+
+        var status = normalizeManagedStatus(stringValue(payload, "status"));
+        var scheduleMode = normalizeScheduleMode(stringValue(payload, "schedule_mode", "mode", "way"));
+        var blockAfterGracePeriod = false;
+        var enforceLocation = parseBoolean(payload, "enforce_location")
+            || parseBoolean(payload, "restrict_to_location")
+            || parseBoolean(payload, "no_permitir_fuera_ubicacion");
+        var locationId = normalizeOptionalForeignKey(parseLong(payload, "location_id", "allowed_location_id", "ubicacion_id"));
+        if (enforceLocation && locationId == null) {
+            throw new IllegalArgumentException("location_id is required when enforce_location is enabled.");
+        }
+        if (locationId != null) {
+            loadLocation(companyId, locationId);
+        }
+
+        var days = parseTemplateDays(payload, scheduleMode);
+        ensureUniqueTemplateName(companyId, templateId, name);
+
+        return new AssistantScheduleDraft(name, status, scheduleMode, blockAfterGracePeriod, enforceLocation, locationId, days);
     }
 
     protected void ensureUniqueTemplateName(long companyId, Long templateId, String name) {

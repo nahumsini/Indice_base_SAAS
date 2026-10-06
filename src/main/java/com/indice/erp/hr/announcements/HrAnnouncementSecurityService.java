@@ -66,6 +66,10 @@ public class HrAnnouncementSecurityService {
     private HrAnnouncementActor loadActor(HttpSession session) {
         var currentUser = sessionAuthService.currentUser(session)
             .orElseThrow(() -> new HrAnnouncementApiException(HttpStatus.UNAUTHORIZED, "Unauthorized"));
+        return delegatedActor(currentUser);
+    }
+
+    public HrAnnouncementActor delegatedActor(com.indice.erp.auth.AuthSessionUser currentUser) {
         var rows = jdbcTemplate.query(
             """
                 SELECT uc.id AS user_company_id,

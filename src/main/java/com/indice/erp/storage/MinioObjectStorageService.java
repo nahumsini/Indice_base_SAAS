@@ -148,6 +148,26 @@ public class MinioObjectStorageService implements ObjectStorageService {
     }
 
     @Override
+    public void writeObject(String bucketName, String objectKey, String contentType, byte[] bytes) {
+        if(bytes==null||bytes.length==0||bytes.length>10*1024*1024)throw new IllegalArgumentException("Invalid file size.");
+        try(var stream=new java.io.ByteArrayInputStream(bytes)) {
+            minioClient.putObject(io.minio.PutObjectArgs.builder().bucket(bucketName).object(objectKey)
+                .contentType(contentType).stream(stream,bytes.length,-1).build());
+        } catch(Exception e) { throw new ObjectStorageException("Unable to store private file content.",e); }
+    }
+
+    @Override
+    public byte[] readObject(String bucketName, String objectKey, int maxBytes) {
+        if(maxBytes<1||maxBytes>10*1024*1024)throw new IllegalArgumentException("Invalid file size limit.");
+        try(var stream=minioClient.getObject(GetObjectArgs.builder().bucket(bucketName).object(objectKey).build())) {
+            var bytes=stream.readNBytes(maxBytes+1);
+            if(bytes.length>maxBytes)throw new IllegalArgumentException("Stored file exceeds the size limit.");
+            return bytes;
+        } catch(IllegalArgumentException e) { throw e; }
+        catch(Exception e) { throw new ObjectStorageException("Unable to read private file content.",e); }
+    }
+
+    @Override
     public void copyObject(String bucketName, String sourceObjectKey, String targetObjectKey) {
         try {
             minioClient.copyObject(

@@ -26,6 +26,7 @@ public class SelfServiceKioskRepository {
 
     private final JdbcTemplate jdbcTemplate;
 
+    public void requireAssistantRecordAccess(long company,long id,long register){if(jdbcTemplate.queryForList("SELECT id FROM pos_self_service_pretickets WHERE company_id=? AND id=? AND cash_register_id=?",Long.class,company,id,register).isEmpty())throw com.indice.erp.pos.PosApiException.notFound("Source record unavailable in the current register.");}
     public SelfServiceKioskRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }

@@ -265,6 +265,9 @@ public class PaidInventoryReceiptRepository {
             .stream().findFirst().orElseThrow(() -> PosApiException.notFound("Inventory receipt not found."));
     }
 
+    public List<ReceiptRow> allForShift(PosContext context,long shiftId) {
+        return receiptQuery("WHERE receipt.company_id = ? AND receipt.shift_id = ? ORDER BY receipt.created_at DESC,receipt.id DESC",context.companyId(),shiftId);
+    }
     public List<ReceiptRow> recentForShift(PosContext context, long shiftId) {
         return receiptQuery("WHERE receipt.company_id = ? AND receipt.shift_id = ? ORDER BY receipt.created_at DESC LIMIT 25",
             context.companyId(), shiftId);

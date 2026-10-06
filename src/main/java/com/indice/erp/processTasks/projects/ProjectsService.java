@@ -318,6 +318,12 @@ public class ProjectsService {
         }
     }
 
+    public ProjectCommand validateAssistantProject(long companyId, Map<String,Object> payload) {
+        var command = parseProjectCommand(payload);
+        requireActiveUserCompany(companyId, command.ownerUserCompanyId(), "Owner user not found.");
+        return command;
+    }
+
     private ProjectCommand parseProjectCommand(Map<String, Object> payload) {
         var ownerUserCompanyId = optionalLong(payload, "ownerUserCompanyId");
 
@@ -526,7 +532,7 @@ public class ProjectsService {
         return rows.getFirst();
     }
 
-    private record ProjectCommand(
+    public record ProjectCommand(
             String name,
             String description,
             String status,

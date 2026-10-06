@@ -70,6 +70,14 @@ public class HrAnnouncementCommandService {
         return queryService.loadOne(actor.companyId(), announcementId);
     }
 
+    public HrAnnouncementPayload validateAssistantCreate(HrAnnouncementActor actor, Map<String, Object> payload) {
+        if (!actor.managementAccess()) throw new SecurityException("Announcement management permission required.");
+        var announcement = HrAnnouncementPayload.from(payload);
+        var targets = audienceService.normalizeTargets(actor.companyId(), announcement.audienceType(), payload);
+        scopeService.requireAudienceManageable(actor, announcement.audienceType(), targets);
+        return announcement;
+    }
+
     private Timestamp timestamp(LocalDateTime value) {
         return value == null ? null : Timestamp.valueOf(value);
     }

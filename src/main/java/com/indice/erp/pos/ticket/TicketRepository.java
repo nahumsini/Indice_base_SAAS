@@ -33,6 +33,15 @@ public class TicketRepository {
             LIMIT 300
             """, mapper::mapTicket, params.toArray());
     }
+    public record AssistantPage(List<TicketRecord> items,int totalCount) {}
+    public AssistantPage assistantPage(PosContext context,Long shift,Long register,int limit,int offset) {
+        var args=scopedParams(context);String where=" WHERE ticket.company_id=? AND ticket.deleted_at IS NULL AND "+PosSqlSupport.scopePredicate("ticket",context.scope());
+        if(shift!=null){where+=" AND ticket.shift_id=?";args.add(shift);}
+        if(register!=null){where+=" AND ticket.cash_register_id=?";args.add(register);}
+        int count=jdbcTemplate.queryForObject("SELECT COUNT(*) FROM pos_tickets ticket"+where,Integer.class,args.toArray());
+        if(offset>count)throw new IllegalArgumentException("Ticket cursor no longer valid.");args.add(limit);args.add(offset);
+        var items=jdbcTemplate.query(ticketSelect()+where+" ORDER BY ticket.id DESC LIMIT ? OFFSET ?",mapper::mapTicket,args.toArray());return new AssistantPage(items,count);
+    }
 
     public List<KpiMoneyAmount> summarizeCompletedSalesBetween(
             PosContext context,

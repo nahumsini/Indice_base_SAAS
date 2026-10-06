@@ -74,7 +74,7 @@ class ReleasedSchemaUpgradeIntegrationTest {
         var eventsBefore = jdbc.queryForList("SELECT * FROM platform_lead_events WHERE lead_id=?", lead);
 
         var current = Flyway.configure().dataSource(source).locations("classpath:db/migration")
-                .cleanDisabled(true).load();
+                .target("293").cleanDisabled(true).load();
         assertThat(current.migrate().migrationsExecuted).isEqualTo(3);
         assertThat(current.validateWithResult().validationSuccessful).isTrue();
         assertThat(current.migrate().migrationsExecuted).isZero();
@@ -94,5 +94,29 @@ class ReleasedSchemaUpgradeIntegrationTest {
                 + "JOIN sales_opportunity_flow_stages s ON s.id=p.stage_id "
                 + "WHERE o.company_id=? AND o.lifecycle_status IN ('WON','LOST') "
                 + "AND BINARY UPPER(s.stage_key)=BINARY o.lifecycle_status", Integer.class, company)).isEqualTo(2);
+
+        // APPTEST already has this published V293 lineage. Rehearse its forward-only upgrade too.
+        var publishedHistory = jdbc.queryForList("SELECT * FROM flyway_schema_history ORDER BY installed_rank");
+        int publishedRank = jdbc.queryForObject("SELECT MAX(installed_rank) FROM flyway_schema_history", Integer.class);
+        var latest = Flyway.configure().dataSource(source).locations("classpath:db/migration")
+                .cleanDisabled(true).load();
+        assertThat(latest.migrate().migrationsExecuted).isEqualTo(6);
+        assertThat(latest.validateWithResult().validationSuccessful).isTrue();
+        assertThat(latest.migrate().migrationsExecuted).isZero();
+        assertThat(jdbc.queryForObject("SELECT MAX(CAST(version AS UNSIGNED)) FROM flyway_schema_history",
+                Integer.class)).isEqualTo(299);
+        assertThat(jdbc.queryForList("SELECT * FROM flyway_schema_history WHERE installed_rank<=? "
+                + "ORDER BY installed_rank", publishedRank)).isEqualTo(publishedHistory);
+        assertThat(jdbc.queryForList("SELECT * FROM platform_leads WHERE id=?", lead)).isEqualTo(leadBefore);
+        assertThat(jdbc.queryForList("SELECT * FROM platform_lead_events WHERE lead_id=?", lead)).isEqualTo(eventsBefore);
+        assertThat(jdbc.queryForList("SELECT * FROM sales_opportunity_flow_positions WHERE opportunity_id=?", open))
+                .isEqualTo(position);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.tables "
+                + "WHERE table_schema=DATABASE() AND table_name IN "
+                + "('ai_staged_files','inventory_assistant_movement_origins','pos_purchase_order_revisions',"
+                + "'pos_supplier_invoice_attachments')", Integer.class)).isEqualTo(4);
+        assertThat(jdbc.queryForObject("SELECT numeric_scale FROM information_schema.columns "
+                + "WHERE table_schema=DATABASE() AND table_name='sales_inventory_balances' "
+                + "AND column_name='unit_cost'", Integer.class)).isEqualTo(4);
     }
 }

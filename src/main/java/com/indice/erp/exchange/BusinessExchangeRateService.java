@@ -87,6 +87,11 @@ public class BusinessExchangeRateService {
         this.httpClient = httpClient;
     }
 
+    @Transactional(readOnly=true)
+    public Optional<BusinessExchangeRatesResponse> cachedDailyRates() {
+        return snapshotRepository.find(LocalDate.now(BUSINESS_ZONE));
+    }
+
     @Transactional
     public BusinessExchangeRatesResponse loadDailyRates() {
         return loadDailyRates(false);

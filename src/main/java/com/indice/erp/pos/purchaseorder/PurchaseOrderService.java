@@ -208,6 +208,28 @@ public class PurchaseOrderService {
         return requireOrder(context, orderId);
     }
 
+    @Transactional(readOnly=true)
+    public PurchaseOrderResponse previewDraft(PosContext context, PurchaseOrderCreateRequest request) {
+        var provider=requireProvider(context,request.providerId());
+        var warehouse=repository.findWarehouse(context,request.warehouseId()).orElseThrow(()->PosApiException.badRequest("Warehouse is unavailable in the current scope."));
+        var currency=normalizedCurrency(request.currencyCode());
+        if(request.items()==null||request.items().isEmpty()||request.items().size()>100)throw PosApiException.badRequest("Provide 1 to 100 purchase lines.");
+        var lines=request.items().stream().map(line->toLineCommand(context,provider.id(),line,currency)).toList();
+        var subtotal=sum(lines.stream().map(PurchaseOrderLineCommand::lineSubtotal).toList());
+        var tax=sum(lines.stream().map(PurchaseOrderLineCommand::lineTax).toList());
+        var items=lines.stream().map(line->new PurchaseOrderDtos.PurchaseOrderItemResponse(null,line.productId(),line.sku(),line.productName(),line.quantity(),BigDecimal.ZERO,line.quantity(),line.unitCost(),line.taxRate(),line.lineSubtotal(),line.lineTax(),line.lineTotal())).toList();
+        return new PurchaseOrderResponse(null,context.companyId(),warehouse.unitId(),warehouse.businessId(),warehouse.id(),warehouse.name(),provider.id(),provider.name(),provider.email(),null,PurchaseOrderStatus.DRAFT,request.origin()==null?PurchaseOrderOrigin.POS_REPLENISHMENT:request.origin(),null,currency,subtotal,tax,money(subtotal.add(tax)),request.expectedDate(),null,null,null,null,null,request.notes(),null,items);
+    }
+
+    @Transactional
+    public PurchaseOrderResponse updateDraft(PosContext context,long orderId,PurchaseOrderCreateRequest request) {
+        repository.lockOrder(context,orderId);var before=requireOrder(context,orderId);requireStatus(before,PurchaseOrderStatus.DRAFT);
+        var next=previewDraft(context,request);
+        var lines=request.items().stream().map(line->toLineCommand(context,request.providerId(),line,next.currencyCode())).toList();
+        String previousJson;try {previousJson=objectMapper.writeValueAsString(before);}catch(com.fasterxml.jackson.core.JsonProcessingException e) {throw new IllegalStateException("Invalid purchase revision.",e);}
+        repository.reviseDraft(context,before,next,lines,previousJson);return requireOrder(context,orderId);
+    }
+
     @Transactional(readOnly = true)
     public SupplierSubmissionListResponse listSupplierSubmissions(
             PosContext context,
@@ -739,6 +761,7 @@ public class PurchaseOrderService {
 
     @Transactional
     public PurchaseOrderResponse requestOrder(PosContext context, long orderId, PurchaseOrderActionRequest request) {
+        repository.lockOrder(context,orderId);
         var order = requireOrder(context, orderId);
         requireStatus(order, PurchaseOrderStatus.DRAFT);
         updateStatus(context, orderId, PurchaseOrderStatus.REQUESTED, request);
@@ -747,6 +770,7 @@ public class PurchaseOrderService {
 
     @Transactional
     public PurchaseOrderResponse approveOrder(PosContext context, long orderId, PurchaseOrderActionRequest request) {
+        repository.lockOrder(context,orderId);
         var order = requireOrder(context, orderId);
         requireOneOf(order, PurchaseOrderStatus.DRAFT, PurchaseOrderStatus.REQUESTED);
         updateStatus(context, orderId, PurchaseOrderStatus.APPROVED, request);
@@ -755,6 +779,7 @@ public class PurchaseOrderService {
 
     @Transactional
     public PurchaseOrderResponse sendOrder(PosContext context, long orderId, PurchaseOrderActionRequest request) {
+        repository.lockOrder(context,orderId);
         var order = requireOrder(context, orderId);
         requireOneOf(
             order,
@@ -767,6 +792,7 @@ public class PurchaseOrderService {
 
     @Transactional
     public PurchaseOrderResponse cancelOrder(PosContext context, long orderId, PurchaseOrderActionRequest request) {
+        repository.lockOrder(context,orderId);
         var order = requireOrder(context, orderId);
         if (order.status() == PurchaseOrderStatus.RECEIVED) {
             throw PosApiException.conflict("Received purchase orders cannot be cancelled.");
@@ -786,6 +812,12 @@ public class PurchaseOrderService {
             PurchaseOrderStatus.CONFIRMED,
             PurchaseOrderStatus.APPROVED,
             PurchaseOrderStatus.PARTIALLY_RECEIVED);
+        var seen=new java.util.HashSet<Long>();
+        if(request.items()==null||request.items().isEmpty()||request.items().size()>100)throw PosApiException.badRequest("Provide 1 to 100 receipt lines.");
+        for(var item:request.items()) {
+            if(item.orderItemId()==null||!seen.add(item.orderItemId()))throw PosApiException.badRequest("Each purchase line must occur exactly once in a receipt.");
+            if(item.receivedQuantity()==null||item.receivedQuantity().signum()<=0)throw PosApiException.badRequest("Received quantity must be positive.");
+        }
         var receiptNumber = repository.nextReceiptNumber(context);
         var receiptId = repository.insertReceipt(context, order, receiptNumber, request.notes());
         for (var receiveItem : request.items()) {
@@ -998,6 +1030,7 @@ public class PurchaseOrderService {
             PurchaseOrderItemRequest item,
             String currency) {
         var product = requireProduct(context, item.productId());
+        if(item.quantity()==null||item.quantity().signum()<=0||item.unitCost()==null||item.unitCost().signum()<0)throw PosApiException.badRequest("Invalid purchase quantity or unit cost.");
         var quantity = item.quantity();
         var unitCost = item.unitCost();
         var taxRate = normalizedTaxRate(item.taxRate());

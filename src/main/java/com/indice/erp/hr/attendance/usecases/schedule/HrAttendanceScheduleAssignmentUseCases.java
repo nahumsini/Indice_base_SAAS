@@ -20,44 +20,16 @@ public abstract class HrAttendanceScheduleAssignmentUseCases extends HrAttendanc
 
     @Transactional
     public Map<String, Object> bulkAssignScheduleTemplate(long companyId, long userId, Map<String, Object> payload) {
-        payload = normalizePayload(payload);
-        var templateId = parseLong(payload, "template_id");
-        if (templateId == null || templateId <= 0) {
-            throw new IllegalArgumentException("template_id is required.");
-        }
-
-        var template = loadExistingTemplate(companyId, templateId);
-        if (!"active".equals(template.status())) {
-            throw new IllegalArgumentException("Only active schedule templates can be assigned.");
-        }
-
-        var userCompanyIds = HrPayloadUtils.longList(payload, "user_company_ids");
-        if (userCompanyIds.isEmpty()) {
-            throw new IllegalArgumentException("user_company_ids is required.");
-        }
-
-        var effectiveStartDate = HrPayloadUtils.parseDate(payload, "effective_start_date", "start_date");
-        if (effectiveStartDate == null) {
-            throw new IllegalArgumentException("effective_start_date is required.");
-        }
-
-        var effectiveEndDate = HrPayloadUtils.parseDate(payload, "effective_end_date", "end_date");
-        attendanceAssignmentService.validateNewAssignmentDateRange(effectiveStartDate, effectiveEndDate);
+        var draft = prepareAssistantScheduleAssignment(companyId, payload);
+        var template = draft.template();
+        var userCompanyIds = draft.userCompanyIds();
+        var effectiveStartDate = draft.effectiveStartDate();
+        var effectiveEndDate = draft.effectiveEndDate();
+        var templateId = template.templateId();
 
         var assignments = new ArrayList<Map<String, Object>>();
         for (var userCompanyId : userCompanyIds) {
             var user = attendanceUserLookupService.loadAttendanceUser(companyId, userCompanyId);
-            if ("terminated".equals(user.status())) {
-                throw new IllegalArgumentException("Terminated users cannot receive schedule assignments.");
-            }
-
-            if (attendanceAssignmentService.hasAttendanceActivityInRange(companyId, userCompanyId, effectiveStartDate, effectiveEndDate)) {
-                throw new IllegalArgumentException("HR user already has attendance activity in this date range. Choose a date without recorded attendance.");
-            }
-            if (attendanceAssignmentService.hasActiveWorkSiteAssignmentOverlap(companyId, userCompanyId, effectiveStartDate, effectiveEndDate)) {
-                throw new IllegalArgumentException("HR user already has an active contract site assignment in this date range. Remove the contract site before changing the schedule.");
-            }
-
             var assignmentUserId = attendanceUserLookupService.loadUserIdForCompanyUser(companyId, userCompanyId);
             attendanceAssignmentService.closeOverlappingScheduleAssignments(companyId, userId, userCompanyId, effectiveStartDate, effectiveEndDate);
             jdbcTemplate.update(
@@ -91,5 +63,48 @@ public abstract class HrAttendanceScheduleAssignmentUseCases extends HrAttendanc
             "template_name", displayScheduleTemplateName(template.templateName()),
             "assignments", assignments
         );
+    }
+    public record AssistantScheduleAssignment(com.indice.erp.hr.attendance.models.ScheduleTemplateDefinition template,
+            java.util.List<Long> userCompanyIds, java.time.LocalDate effectiveStartDate, java.time.LocalDate effectiveEndDate) { }
+    protected AssistantScheduleAssignment prepareAssistantScheduleAssignment(long companyId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
+        var templateId = parseLong(payload, "template_id");
+        if (templateId == null || templateId <= 0) {
+            throw new IllegalArgumentException("template_id is required.");
+        }
+
+        var template = loadExistingTemplate(companyId, templateId);
+        if (!"active".equals(template.status())) {
+            throw new IllegalArgumentException("Only active schedule templates can be assigned.");
+        }
+
+        var userCompanyIds = HrPayloadUtils.longList(payload, "user_company_ids");
+        if (userCompanyIds.isEmpty()) {
+            throw new IllegalArgumentException("user_company_ids is required.");
+        }
+
+        var effectiveStartDate = HrPayloadUtils.parseDate(payload, "effective_start_date", "start_date");
+        if (effectiveStartDate == null) {
+            throw new IllegalArgumentException("effective_start_date is required.");
+        }
+
+        var effectiveEndDate = HrPayloadUtils.parseDate(payload, "effective_end_date", "end_date");
+        attendanceAssignmentService.validateNewAssignmentDateRange(effectiveStartDate, effectiveEndDate);
+
+        for (var userCompanyId : userCompanyIds) {
+            var user = attendanceUserLookupService.loadAttendanceUser(companyId, userCompanyId);
+            if ("terminated".equals(user.status())) {
+                throw new IllegalArgumentException("Terminated users cannot receive schedule assignments.");
+            }
+
+            if (attendanceAssignmentService.hasAttendanceActivityInRange(companyId, userCompanyId, effectiveStartDate, effectiveEndDate)) {
+                throw new IllegalArgumentException("HR user already has attendance activity in this date range. Choose a date without recorded attendance.");
+            }
+            if (attendanceAssignmentService.hasActiveWorkSiteAssignmentOverlap(companyId, userCompanyId, effectiveStartDate, effectiveEndDate)) {
+                throw new IllegalArgumentException("HR user already has an active contract site assignment in this date range. Remove the contract site before changing the schedule.");
+            }
+
+        }
+        return new AssistantScheduleAssignment(template, userCompanyIds, effectiveStartDate, effectiveEndDate);
     }
 }

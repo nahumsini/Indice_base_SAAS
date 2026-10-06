@@ -26,6 +26,47 @@ class SalesCollectionService {
         this.timezones = timezones;
     }
 
+    /** Read-only financial effect for confirmation. Universal cash is created only by apply(). */
+    SalesWorkflowContracts.CollectionEffect preview(long companyId,long saleId,Map<String,Object> before,Map<String,Object> after) {
+        if(count("SELECT COUNT(*) FROM pos_tickets WHERE company_id=? AND sales_record_id=?",companyId,saleId)>0)
+            throw new IllegalArgumentException("POS owns the ticket payment and cancellation.");
+        var credits=jdbc.queryForList("SELECT original_amount FROM finance_receivable_accounts WHERE company_id=? AND sales_record_id=? AND deleted_at IS NULL AND status<>'CANCELLED'",companyId,saleId);
+        if(cancelled(after)&&!credits.isEmpty())throw new IllegalArgumentException("Resolve the receivable before cancelling this sale.");
+        var movements=jdbc.queryForList("SELECT payment_account_id,available_delta,currency_code FROM finance_payment_account_movements WHERE company_id=? AND event_key=?",companyId,"SALES:COLLECTION:"+saleId);
+        if(!movements.isEmpty()) {
+            var m=movements.getFirst();
+            return new SalesWorkflowContracts.CollectionEffect(number(m.get("payment_account_id")),token(before,"paymentMethod"),String.valueOf(m.get("currency_code")),
+                cancelled(after)?((BigDecimal)m.get("available_delta")).negate():BigDecimal.ZERO,false,cancelled(after));
+        }
+        if(!confirmed(after)||(before!=null&&confirmed(before)&&!Set.of("credit","credito","crédito").contains(token(before,"paymentMethod"))))
+            return new SalesWorkflowContracts.CollectionEffect(null,token(after,"paymentMethod"),SalesPayloadSupport.stringValue(after,"currency"),BigDecimal.ZERO,false,false);
+        String method=token(after,"paymentMethod");
+        if(method.isBlank())throw new IllegalArgumentException("Select the collection method.");
+        BigDecimal amount=SalesPayloadSupport.decimalValue(after,"totalAmount");
+        if(amount==null||amount.signum()<=0)throw new IllegalArgumentException("Collection amount must be positive.");
+        if(!credits.isEmpty()) {
+            amount=amount.subtract((BigDecimal)credits.getFirst().get("original_amount"));
+            if(amount.signum()<0)throw new IllegalArgumentException("Receivable exceeds sale total.");
+            if(amount.signum()==0)return new SalesWorkflowContracts.CollectionEffect(null,method,SalesPayloadSupport.stringValue(after,"currency"),BigDecimal.ZERO,false,false);
+        }
+        if(Set.of("credit","credito","crédito").contains(method)) {
+            if(!credits.isEmpty())throw new IllegalArgumentException("Select the advance collection method.");
+            return new SalesWorkflowContracts.CollectionEffect(null,method,SalesPayloadSupport.stringValue(after,"currency"),BigDecimal.ZERO,false,false);
+        }
+        String currency=SalesPayloadSupport.stringValue(after,"currency");
+        Long unit=SalesPayloadSupport.longValue(after,"unitId"),business=SalesPayloadSupport.longValue(after,"businessId");
+        Long account=nullableNumber(SalesWorkflowViews.map(after.get("customFields")).get("paymentAccountId"));
+        boolean cash=Set.of("cash","efectivo").contains(method),createsCash=false;
+        if(account==null&&cash) {
+            account=treasury.listEligibleAccounts(companyId,currency,unit,business).stream().filter(a->("UNIVERSAL_CASH:"+currency.toUpperCase(java.util.Locale.ROOT)).equals(a.systemKey())).map(a->a.id()).findFirst().orElse(null);
+            createsCash=account==null;
+        }
+        if(account==null&&!createsCash)throw new IllegalArgumentException("Select an eligible collection destination.");
+        if(account!=null)treasury.requireEligibleAccount(companyId,account,currency,unit,business,cash?Set.of("CASH"):Set.of("BANK"));
+        if(LocalDate.parse(SalesPayloadSupport.stringValue(after,"saleDate")).isAfter(LocalDate.now(timezones.resolve(companyId))))throw new IllegalArgumentException("Future collection date is not allowed.");
+        return new SalesWorkflowContracts.CollectionEffect(account,method,currency,amount,createsCash,false);
+    }
+
     void apply(long companyId, long userId, long saleId, Map<String, Object> before, Map<String, Object> after) {
         // POS owns ticket settlement and Cartera owns installment collection.
         if (count("SELECT COUNT(*) FROM pos_tickets WHERE company_id = ? AND sales_record_id = ?", companyId, saleId) > 0) {

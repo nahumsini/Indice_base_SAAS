@@ -186,6 +186,39 @@ public class HrUserService {
         return getUserDetails(currentUser.companyId(), userCompanyId);
     }
 
+    /** Bounded read-only preparation, with the same normalization as the established owner writes. */
+    public HrUserDraft validateAssistantUser(AuthSessionUser user, Long id, Map<String, Object> payload) {
+        if (id != null) getUserDetails(user, id);
+        var draft = buildHrUserDraft(user.companyId(), payload);
+        hrOperationalScopeService.requireAssignmentInScope(user.companyId(), hrOperationalScopeService.resolve(user), draft.unitId(), draft.businessId());
+        if (id == null) {
+            if (companyAlreadyHasUserEmail(user.companyId(), draft.email())) throw new IllegalArgumentException("Employee email already exists in this company.");
+            validateAssistantImportCapacity(user,1);
+        }
+        return draft;
+    }
+
+    public void validateAssistantImportCapacity(AuthSessionUser user, int count) {
+        var snapshot = seatService.snapshot(user.companyId());
+        if (snapshot.enforced() && snapshot.usedAndReserved() + count > snapshot.limit())
+            throw new SeatCapacityExceededException("The company does not have enough seats for this employee import.", snapshot);
+    }
+
+    public String validateAssistantRegistrationCountry(String country) {
+        var normalized = normalizeCountryCode(country);
+        if (normalized == null) throw new IllegalArgumentException("Employee registrationCountry is required to identify compensation country and currency.");
+        return normalized;
+    }
+
+    /** Partial assistant edits preserve access roles and cannot grant or demote account authority. */
+    @Transactional
+    public Map<String, Object> updateAssistantUser(AuthSessionUser user, long id, Map<String, Object> payload) {
+        var currentRole = jdbcTemplate.queryForObject("SELECT role FROM user_companies WHERE company_id=? AND id=?", String.class, user.companyId(), id);
+        var changes = new LinkedHashMap<>(payload);
+        changes.put("role", currentRole);
+        return updateUser(user, id, changes);
+    }
+
     @Transactional
     public Map<String, Object> createUser(long companyId, long createdBy, Map<String, Object> payload) {
         return createUser(companyId, createdBy, payload, HrOperationalScope.corporateOffice());
@@ -247,13 +280,7 @@ public class HrUserService {
             normalizedItems.add(item);
         }
 
-        var seatSnapshot = seatService.snapshot(currentUser.companyId());
-        if (seatSnapshot.enforced() && seatSnapshot.usedAndReserved() + normalizedItems.size() > seatSnapshot.limit()) {
-            throw new SeatCapacityExceededException(
-                "The company does not have enough available seats for this bulk import.",
-                seatSnapshot
-            );
-        }
+        seatService.requireAvailableSeatsForCreation(currentUser.companyId(), normalizedItems.size());
 
         var created = new ArrayList<Object>();
         for (var item : normalizedItems) {
@@ -383,22 +410,12 @@ public class HrUserService {
     public Map<String, Object> terminateUser(long companyId, long userCompanyId, Map<String, Object> payload) {
         requireHrUser(companyId, userCompanyId);
 
-        var exitDate = parseDate(payload, "exit_date", "termination_date");
-        if (exitDate == null) {
-            throw new IllegalArgumentException("exit_date is required.");
-        }
-
-        var reasonType = normalizeTerminationReasonType(stringValue(payload, "reason_type"));
-        var reasonCode = nullable(stringValue(payload, "specific_reason", "reason_code"));
-        var summary = stringValue(payload, "summary", "termination_summary");
-        if (summary.isBlank()) {
-            throw new IllegalArgumentException("summary is required.");
-        }
-
-        var lastWorkingDay = parseDate(payload, "last_working_day");
-        if (lastWorkingDay == null) {
-            lastWorkingDay = exitDate;
-        }
+        var draft = normalizeTermination(payload);
+        var exitDate = draft.exitDate();
+        var reasonType = draft.reasonType();
+        var reasonCode = draft.reasonCode();
+        var summary = draft.summary();
+        var lastWorkingDay = draft.lastWorkingDay();
 
         var rowsUpdated = jdbcTemplate.update(
             """
@@ -436,6 +453,33 @@ public class HrUserService {
     public Map<String, Object> terminateUser(AuthSessionUser currentUser, long userCompanyId, Map<String, Object> payload) {
         hrOperationalScopeService.requireUserInScope(currentUser, userCompanyId);
         return terminateUser(currentUser.companyId(), userCompanyId, payload);
+    }
+
+    public record AssistantTermination(LocalDate exitDate,LocalDate lastWorkingDay,String reasonType,String reasonCode,String summary) { }
+    public AssistantTermination validateAssistantTermination(AuthSessionUser user,long id,Map<String,Object> payload) {
+        hrOperationalScopeService.requireUserInScope(user,id);
+        requireHrUser(user.companyId(),id);
+        return normalizeTermination(payload);
+    }
+    private AssistantTermination normalizeTermination(Map<String,Object> payload) {
+        var exitDate = parseDate(payload, "exit_date", "termination_date");
+        if (exitDate == null) {
+            throw new IllegalArgumentException("exit_date is required.");
+        }
+
+        var reasonType = normalizeTerminationReasonType(stringValue(payload, "reason_type"));
+        var reasonCode = nullable(stringValue(payload, "specific_reason", "reason_code"));
+        var summary = stringValue(payload, "summary", "termination_summary");
+        if (summary.isBlank()) {
+            throw new IllegalArgumentException("summary is required.");
+        }
+
+        var lastWorkingDay = parseDate(payload, "last_working_day");
+        if (lastWorkingDay == null) {
+            lastWorkingDay = exitDate;
+        }
+
+        return new AssistantTermination(exitDate,lastWorkingDay,reasonType,reasonCode,summary);
     }
 
     public Map<String, Object> createDocumentUpload(long companyId, long userCompanyId, Map<String, Object> payload) {
@@ -524,7 +568,7 @@ public class HrUserService {
         if (!existingRows.isEmpty()) {
             var existing = existingRows.getFirst();
             if (!existing.objectKey().equals(objectKey)) {
-                deleteUserDocumentObjectQuietly(existing.objectKey());
+                com.indice.erp.storage.StorageCommitCleanup.afterCommit(() -> deleteUserDocumentObjectQuietly(existing.objectKey()));
                 storageMeter.release(companyId, existing.objectKey(), "hr_user_document_replaced");
             }
         }
@@ -881,13 +925,7 @@ public class HrUserService {
     }
 
     private void requireAvailableSeatForActiveAccess(long companyId) {
-        var snapshot = seatService.snapshot(companyId);
-        if (snapshot.enforced() && snapshot.usedAndReserved() >= snapshot.limit()) {
-            throw new SeatCapacityExceededException(
-                "The company has reached its seat limit. Purchase another seat before adding this user.",
-                snapshot
-            );
-        }
+        seatService.requireAvailableSeatsForCreation(companyId,1);
     }
 
     private boolean isActiveAccess(String status) {
@@ -1968,7 +2006,7 @@ public class HrUserService {
         }
     }
 
-    private record HrUserDraft(
+    public record HrUserDraft(
         String userCode,
         String firstName,
         String lastName,

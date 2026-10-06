@@ -585,7 +585,7 @@ public class ProcessRunsService {
         return value.trim();
     }
 
-    static LocalDate addConfiguredDays(LocalDate date, int days, boolean includeWeekends) {
+    public static LocalDate addConfiguredDays(LocalDate date, int days, boolean includeWeekends) {
         var result = date;
         if (includeWeekends) return result.plusDays(Math.max(0, days));
         while (result.getDayOfWeek() == DayOfWeek.SATURDAY || result.getDayOfWeek() == DayOfWeek.SUNDAY) {

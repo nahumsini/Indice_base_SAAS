@@ -12,10 +12,14 @@ class CheckoutPreparation {
         this.dependencies = dependencies;
     }
     CheckoutDraft prepare(PosContext context, PosCheckoutRequest request) {
+        return prepare(context, request, true);
+    }
+    CheckoutDraft prepare(PosContext context, PosCheckoutRequest request, boolean lock) {
         var d = dependencies;
         d.validator().validateRequest(request);
         var register = d.cashRegisters().requireOperationalRegister(context, request.cashRegisterId());
-        var shift = d.shifts().findOpenByUserAndRegister(context, register.id()).orElse(null);
+        var shift = (lock ? d.shifts().findOpenByUserAndRegister(context, register.id())
+                : d.shifts().readOpenByUserAndRegister(context, register.id())).orElse(null);
         d.validator().requireOpenShift(context, shift, register);
         var currency = CheckoutCalculator.normalizeCurrency(request.currencyCode());
         if (!CheckoutCalculator.normalizeCurrency(shift.currencyCode()).equals(currency)) {

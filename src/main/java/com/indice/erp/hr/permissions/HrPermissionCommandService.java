@@ -30,8 +30,7 @@ public class HrPermissionCommandService {
 
     @Transactional
     public Map<String, Object> createOwn(PermissionActor actor, Map<String, Object> payload) {
-        rejectSelfScopeOverride(payload);
-        PermissionDraft draft = HrPermissionPayloadSupport.permissionDraft(payload);
+        PermissionDraft draft = validateAssistantOwn(actor,payload);
         var snapshot = commandRepository.loadUserSnapshot(actor.companyId(), actor.userCompanyId());
         var requestId = commandRepository.createRequest(actor.companyId(), actor.userId(), snapshot, draft);
         if (requestId <= 0) {
@@ -39,6 +38,19 @@ public class HrPermissionCommandService {
         }
         commandRepository.updateRequestNumber(actor.companyId(), requestId, folio(requestId));
         return queryService.getOwn(actor, requestId);
+    }
+
+    public PermissionDraft validateAssistantOwn(PermissionActor actor,Map<String,Object> payload) {
+        rejectSelfScopeOverride(payload);
+        commandRepository.loadUserSnapshot(actor.companyId(),actor.userCompanyId());
+        return HrPermissionPayloadSupport.permissionDraft(payload);
+    }
+
+    public String validateAssistantReview(PermissionActor actor,long id,Map<String,Object> payload) {
+        var state=commandRepository.loadRequestState(actor.companyId(),id);
+        requireRequestInManagementScope(actor,state.userCompanyId());
+        if(!"pending".equalsIgnoreCase(state.status()))throw new IllegalArgumentException("Only pending permission requests can be updated.");
+        return HrPermissionPayloadSupport.reviewNotes(payload);
     }
 
     private void rejectSelfScopeOverride(Map<String, Object> payload) {

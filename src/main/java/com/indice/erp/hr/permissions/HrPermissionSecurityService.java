@@ -69,6 +69,19 @@ public class HrPermissionSecurityService {
     private PermissionActor loadActor(HttpSession session) {
         var currentUser = sessionAuthService.currentUser(session)
             .orElseThrow(() -> new HrPermissionApiException(HttpStatus.UNAUTHORIZED, "Unauthorized"));
+        return loadActor(currentUser);
+    }
+
+    public PermissionActor delegatedActor(com.indice.erp.auth.AuthSessionUser currentUser, boolean management) {
+        var actor=loadActor(currentUser);
+        boolean allowed=management ? (ADMIN_ROLES.contains(actor.role())||MANAGER_ROLES.contains(actor.role()))
+            && hrAccessService.canAccessManagementTab(actor.userCompanyId(),actor.role(),HrTab.PERMISSIONS)
+            : hrAccessService.canAccessReadableTab(actor.userCompanyId(),actor.role(),HrTab.PERMISSIONS);
+        if(!allowed||actor.userCompanyId()!=currentUser.userCompanyId())throw new HrPermissionApiException(HttpStatus.FORBIDDEN,"Forbidden");
+        return actor;
+    }
+
+    private PermissionActor loadActor(com.indice.erp.auth.AuthSessionUser currentUser) {
         var rows = jdbcTemplate.query(
             """
                 SELECT uc.id AS user_company_id,

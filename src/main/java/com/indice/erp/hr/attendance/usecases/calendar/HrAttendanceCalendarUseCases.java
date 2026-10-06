@@ -25,6 +25,10 @@ public abstract class HrAttendanceCalendarUseCases extends HrAttendanceSelfDashb
     }
 
     public Map<String, Object> userCalendar(long companyId, long userCompanyId, YearMonth month) {
+        return userCalendar(companyId, userCompanyId, month, true);
+    }
+
+    protected Map<String, Object> userCalendar(long companyId, long userCompanyId, YearMonth month, boolean includePhotos) {
         var user = attendanceUserLookupService.loadAttendanceUser(companyId, userCompanyId);
         var startDate = month.atDay(1);
         var endDate = month.atEndOfMonth();
@@ -57,8 +61,8 @@ public abstract class HrAttendanceCalendarUseCases extends HrAttendanceSelfDashb
             day.put("schedule_rule", scheduleRule == null ? null : toScheduleRuleMap(scheduleRule));
             var activeWorkSite = activeWorkSitesByDate.get(currentDate);
             day.put("active_work_site", activeWorkSite == null ? null : toWorkSiteAssignmentMap(activeWorkSite));
-            day.put("first_photo_url", dailyRecord != null ? attendancePhotoService.signedAttendancePhotoUrl(dailyRecord.firstPhotoObjectKey()) : null);
-            day.put("last_photo_url", dailyRecord != null ? attendancePhotoService.signedAttendancePhotoUrl(dailyRecord.lastPhotoObjectKey()) : null);
+            day.put("first_photo_url", includePhotos && dailyRecord != null ? attendancePhotoService.signedAttendancePhotoUrl(dailyRecord.firstPhotoObjectKey()) : null);
+            day.put("last_photo_url", includePhotos && dailyRecord != null ? attendancePhotoService.signedAttendancePhotoUrl(dailyRecord.lastPhotoObjectKey()) : null);
             day.put("notes", dailyRecord != null ? dailyRecord.notes() : null);
             days.add(day);
         }
@@ -76,7 +80,9 @@ public abstract class HrAttendanceCalendarUseCases extends HrAttendanceSelfDashb
         return body;
     }
 
-    protected Map<String, Object> userCalendar(long companyId, AttendanceUser user, YearMonth month) {
+    protected Map<String,Object> userCalendar(long companyId,AttendanceUser user,YearMonth month){return userCalendar(companyId,user,month,true);}
+
+    protected Map<String, Object> userCalendar(long companyId, AttendanceUser user, YearMonth month,boolean includePhotos) {
         var startDate = month.atDay(1);
         var endDate = month.atEndOfMonth();
         var dailyRecords = attendanceDailyRecordRepository.loadUserDailyRecords(companyId, user.userId(), startDate, endDate);
@@ -104,8 +110,8 @@ public abstract class HrAttendanceCalendarUseCases extends HrAttendanceSelfDashb
             day.put("last_location", dailyRecord != null ? toLocationMap(dailyRecord.lastLocation()) : null);
             day.put("schedule_rule", null);
             day.put("active_work_site", null);
-            day.put("first_photo_url", dailyRecord != null ? attendancePhotoService.signedAttendancePhotoUrl(dailyRecord.firstPhotoObjectKey()) : null);
-            day.put("last_photo_url", dailyRecord != null ? attendancePhotoService.signedAttendancePhotoUrl(dailyRecord.lastPhotoObjectKey()) : null);
+            day.put("first_photo_url", includePhotos && dailyRecord != null ? attendancePhotoService.signedAttendancePhotoUrl(dailyRecord.firstPhotoObjectKey()) : null);
+            day.put("last_photo_url", includePhotos && dailyRecord != null ? attendancePhotoService.signedAttendancePhotoUrl(dailyRecord.lastPhotoObjectKey()) : null);
             day.put("notes", dailyRecord != null ? dailyRecord.notes() : null);
             days.add(day);
         }
