@@ -1,5 +1,7 @@
+import { createChatGptFileDownloader, type ChatGptFileDownloader } from "./chatGptFiles.js";
 import { createHash, randomUUID } from "node:crypto";
-import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
+import express from "express";
+import { hostHeaderValidation } from "@modelcontextprotocol/sdk/server/middleware/hostHeaderValidation.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { ErrorRequestHandler, Request, Response } from "express";
 import { allowedMcpHosts, type IndiceMcpConfig } from "./config.js";
@@ -14,6 +16,7 @@ type DiagnosticEvent = BackendAttempt | {
   durationMs: number; outcome: string; toolCount?: number; catalogFingerprint?: string;
 };
 export interface HttpDependencies {
+  fileDownloader?: ChatGptFileDownloader;
   fetcher?: typeof fetch;
   log?: (event: DiagnosticEvent) => void;
 }
@@ -21,7 +24,17 @@ export interface HttpDependencies {
 export function createIndiceHttpApp(config: IndiceMcpConfig, dependencies: HttpDependencies = {}) {
   const fetcher = dependencies.fetcher ?? fetch;
   const log = dependencies.log ?? (event => console.error(JSON.stringify({ timestamp: new Date().toISOString(), ...event })));
-  const app = createMcpExpressApp({ host: config.host, allowedHosts: allowedMcpHosts(config.host, config.resourceUrl) });
+  const app = express();
+  app.use(hostHeaderValidation(allowedMcpHosts(config.host, config.resourceUrl)));
+  app.use(express.json({limit:"14mb",inflate:false,verify(request,_response,bytes){
+    if(bytes.length<=100*1024)return;
+    const bearer=request.headers.authorization;
+    let fileIntake=false;
+    if(typeof bearer==="string"&&/^Bearer [A-Za-z0-9._~-]+$/.test(bearer)) {
+      try {const body=JSON.parse(bytes.toString("utf8"));fileIntake=body?.method==="tools/call"&&body?.params?.name==="stage_operational_file";}catch{ /* Parser returns the ordinary invalid JSON error. */ }
+    }
+    if(!fileIntake)throw Object.assign(new Error("Request exceeds the ordinary JSON size limit."),{type:"entity.too.large"});
+  }}));
   app.use((_request, response, next) => {
     response.setHeader("Cache-Control", "no-store");
     response.setHeader("X-Content-Type-Options", "nosniff");
@@ -122,7 +135,7 @@ export function createIndiceHttpApp(config: IndiceMcpConfig, dependencies: HttpD
     }
     if (cancellation.signal.aborted || response.destroyed) return;
     // Stateless by design: reauthorize every request, without cross-user or stale catalog caches.
-    const server = createIndiceMcpServer(reader, allowedTools);
+    const server = createIndiceMcpServer(reader, allowedTools, dependencies.fileDownloader ?? createChatGptFileDownloader(config.chatGptFileHosts ?? [],cancellation.signal));
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
     const send = transport.send.bind(transport);
     transport.send = async (message, options) => {

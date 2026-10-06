@@ -75,6 +75,17 @@ class SalesInventoryCloseoutIntegrationTest {
         assertThat((List<?>) sale.get("saleLines")).allSatisfy(value -> assertThat(new BigDecimal(((Map<?, ?>) value).get("unitCost").toString())).isZero());
         assertThat(balance()).isEqualByComparingTo("10");
     }
+    @Test void reservedStockCannotBeConsumedAndAnExplicitConfirmationRollsBack() {
+        jdbc.update("UPDATE sales_inventory_balances SET reserved_quantity = 8 WHERE company_id = ?", company);
+        var sale = sales.create(company, user, "sales", payload(List.of(line(3))));
+        long id = ((Number) sale.get("id")).longValue();
+        assertThat(balance()).isEqualByComparingTo("10");
+        assertThat(sale.get("inventoryMovementStatus")).isNotEqualTo("completed");
+        assertThatThrownBy(() -> sales.update(company, user, "sales", id, Map.of("inventoryStatus", "approved")))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Insufficient inventory");
+        assertThat(balance()).isEqualByComparingTo("10");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM sales_inventory_movements WHERE company_id = ?", Integer.class, company)).isZero();
+    }
     @Test void legacyKpisRespectAssignedOrganizationAndExcludeCancelledSales() {
         var sale = sales.create(company, user, "sales", payload(List.of(line(1))));
         long id = ((Number) sale.get("id")).longValue();

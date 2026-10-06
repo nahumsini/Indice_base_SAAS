@@ -1,0 +1,58 @@
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import { configureTool } from "./toolPolicy.js";
+import { toolError } from "./toolErrors.js";
+import type { TaskCommitRequest } from "./contracts.js";
+import { chatGptFileRequestSchema, createChatGptFileDownloader, fileDownloadHosts, type ChatGptFileDownloader } from "./chatGptFiles.js";
+import { stageFileRequestSchema,stagedFileSchema,fileActionSchema,attachFileRequestSchema,filePreviewSchema,fileCommittedSchema,
+  commerceReportRequestSchema,type CommerceReportRequest,fileListRequestSchema,fileListSchema,fileReadRequestSchema,fileExportRequestSchema,fileContentSchema,fileMetadataSchema,
+  type StageFileRequest,type StagedFile,type FileAction,type FilePreview,type FileCommitted,type FileListRequest,type FileReadRequest,type FileExportRequest,type FileList,type FileContent } from "./fileContracts.js";
+
+export interface FileReader {
+  stageOperationalFile?(request:StageFileRequest):Promise<StagedFile>;
+  previewFileAttachment?(action:FileAction,request:{stagedFileId:string}):Promise<FilePreview>;
+  commitFileAttachment?(action:FileAction,request:TaskCommitRequest):Promise<FileCommitted>;
+  listOperationalFiles?(request:FileListRequest):Promise<FileList>;
+  getOperationalFile?(request:FileReadRequest):Promise<FileContent>;
+  exportHrPayroll?(request:FileExportRequest):Promise<FileContent>;
+  exportCommerceReport?(request:CommerceReportRequest):Promise<FileContent>;
+}
+const domainScopes:Record<FileAction,string>={attach_employee_document:"hr.people.manage",attach_announcement_file:"hr.announcements.manage",add_hr_asset_photo:"hr.assets.manage",attach_hr_record_file:"hr.records.manage",attach_my_hr_permission_file:"hr.permissions.request",attach_hr_permission_file:"hr.permissions.review",attach_task_evidence:"tasks.operate",attach_inventory_product_image:"inventory.products.manage",attach_sale_payment_evidence:"sales.collections.confirm",attach_sales_contract_file:"sales.contracts.manage",attach_supplier_invoice_file:"inventory.invoices.manage",attach_pos_receipt_file:"pos.inventory.receive"};
+export function registerFileTools(server:McpServer,reader:FileReader,allowed?:ReadonlySet<string>,
+  downloadFile:ChatGptFileDownloader=createChatGptFileDownloader(fileDownloadHosts(process.env.INDICE_CHATGPT_FILE_HOSTS))):void {
+  const native=server.registerTool("stage_chatgpt_file",{title:"Preparar adjunto de ChatGPT",
+    description:"Prepara un archivo que el usuario adjuntó en esta conversación para un destino autorizado de Índice. Requiere files.attach y permiso del módulo. Recibe el archivo del host de ChatGPT; no admite enlaces web arbitrarios. Empleados: CV, domicilio o foto, hasta 5 MB; fotos de activos 2.5 MB; otros adjuntos 10 MB. No registra ni reemplaza documentos: continúa con la vista previa específica y aprobación explícita. No uses documentos de identidad nacional, datos bancarios, médicos ni biometría. Reutiliza idempotencyKey para el mismo intento.",
+    inputSchema:chatGptFileRequestSchema,outputSchema:stagedFileSchema,
+    annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:false}},async input=>{
+      try{if(!reader.stageOperationalFile)throw Error("File intake unavailable");
+        const result=stagedFileSchema.parse(await reader.stageOperationalFile(await downloadFile(input)));
+        return {content:[{type:"text" as const,text:"Adjunto temporal preparado; revisa y confirma su registro."}],structuredContent:result};
+      }catch(e){return toolError(e);}
+    });
+  configureTool(native,"stage_chatgpt_file",allowed);
+  native.update({_meta:{...native._meta,"openai/fileParams":["file"]}});
+  const stage=server.registerTool("stage_operational_file",{title:"Preparar archivo",description:"Carga temporal validada de bytes base64 de un archivo que el usuario haya proporcionado explícitamente. No lee rutas locales ni descarga URL. Requiere files.attach y permiso del módulo/destino. Límites: empleados 5 MB, fotos de activos 2.5 MB y demás adjuntos 10 MB. Devuelve solo identificador, nombre, tipo, tamaño, hash y vencimiento; aún no registra un adjunto. Después usa la vista previa específica y solicita confirmación. Reutiliza idempotencyKey en el mismo intento; no repitas automáticamente.",inputSchema:stageFileRequestSchema,outputSchema:stagedFileSchema,annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:false}},async request=>{
+    try{if(!reader.stageOperationalFile)throw Error("File intake unavailable");const result=stagedFileSchema.parse(await reader.stageOperationalFile(request));return {content:[{type:"text" as const,text:"Archivo temporal preparado; revisa y confirma su registro en el destino."}],structuredContent:result};}catch(e){return toolError(e);}
+  });configureTool(stage,"stage_operational_file",allowed);
+  for(const action of fileActionSchema.options) {
+    const preview=server.registerTool(`preview_${action}`,{title:`Revisar archivo: ${action}`,description:`Revisa el archivo temporal exacto, destino y documento anterior cuando se reemplaza. Requiere files.attach y ${domainScopes[action]}. Muestra todo y solicita aprobación explícita antes de registrar. La confirmación vence en cinco minutos o antes si vence el archivo.`,inputSchema:attachFileRequestSchema,outputSchema:filePreviewSchema,annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:false,openWorldHint:false}},async input=>{
+      try{if(!reader.previewFileAttachment)throw Error("File preview unavailable");const result=filePreviewSchema.parse(await reader.previewFileAttachment(action,input));return {content:[{type:"text" as const,text:JSON.stringify(result)}],structuredContent:result};}catch(e){return toolError(e);}
+    });configureTool(preview,`preview_${action}`,allowed);preview.update({_meta:{...preview._meta,securitySchemes:[{type:"oauth2",scopes:["files.attach",domainScopes[action]]}]}});
+    const commit=server.registerTool(action,{title:`Guardar archivo: ${action}`,description:"Registra únicamente la vista previa aprobada. No recibe nuevos archivos ni destinos. Reutiliza la clave del mismo intento; valida nuevamente el contenido, el destino y los permisos vigentes.",inputSchema:z.object({confirmation_token:z.string().regex(/^idx_confirm_[A-Za-z0-9_-]{43}$/),idempotency_key:z.string().min(8).max(128)}).strict(),outputSchema:fileCommittedSchema,annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:false}},async input=>{
+      try{if(!reader.commitFileAttachment)throw Error("File registration unavailable");const result=fileCommittedSchema.parse(await reader.commitFileAttachment(action,{confirmationToken:input.confirmation_token,idempotencyKey:input.idempotency_key}));return {content:[{type:"text" as const,text:result.replayed?"Resultado del registro anterior; el archivo no se duplicó.":"Archivo registrado en el destino confirmado."}],structuredContent:result};}catch(e){return toolError(e);}
+    });configureTool(commit,action,allowed);commit.update({_meta:{...commit._meta,securitySchemes:[{type:"oauth2",scopes:["files.attach",domainScopes[action]]}]}});
+  }
+  const list=server.registerTool("list_operational_files",{title:"Consultar archivos del registro",description:"Lista metadatos e identificadores de archivos del destino autorizado para seleccionar el adjunto exacto. Requiere files.read y permiso de lectura del módulo; no entrega contenido privado.",inputSchema:fileListRequestSchema,outputSchema:fileListSchema,annotations:{readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:false}},async input=>{
+    try{if(!reader.listOperationalFiles)throw Error("File list unavailable");const result=fileListSchema.parse(await reader.listOperationalFiles(input));return {content:[{type:"text" as const,text:JSON.stringify(result)}],structuredContent:result};}catch(e){return toolError(e);}
+  });configureTool(list,"list_operational_files",allowed);
+  function resource(result:FileContent) {const checked=fileContentSchema.parse(result);const metadata=fileMetadataSchema.parse(checked);return {content:[{type:"resource" as const,resource:{uri:checked.uri,mimeType:checked.mimeType,blob:checked.contentBase64}}],structuredContent:metadata};}
+  const get=server.registerTool("get_operational_file",{title:"Recibir archivo autorizado",description:"Entrega el adjunto exacto como recurso privado con bytes, MIME y hash verificados. Requiere consentimiento files.read y lectura vigente del módulo/destino; no devuelve claves de almacenamiento ni enlaces firmados. Puede contener información privada: úsalo exclusivamente cuando el usuario solicite ese archivo.",inputSchema:fileReadRequestSchema,outputSchema:fileMetadataSchema,annotations:{readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:false}},async input=>{
+    try{if(!reader.getOperationalFile)throw Error("Private file read unavailable");return resource(await reader.getOperationalFile(input));}catch(e){return toolError(e);}
+  });configureTool(get,"get_operational_file",allowed);
+  const commerce=server.registerTool("export_commerce_report",{title:"Recibir reporte comercial",description:"Entrega CSV o PDF privado de productos, existencias, movimientos, compras, facturas, ventas, comisiones, tickets, cortes o liquidaciones. Requiere files.read y lectura vigente del dominio y la pestaña. Consulta al propietario original; conserva las monedas y cantidades nativas. Selecciona turno para tickets y corte para liquidaciones. Fechas de hasta 366 días cuando el reporte admite fechas. Rechaza más de 5000 registros o 10 MB; reduce filtros si excede. No recalcula, cobra, publica ni combina monedas. Solicítalo solamente para el reporte que el usuario pidió.",inputSchema:commerceReportRequestSchema,outputSchema:fileMetadataSchema,annotations:{readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:false}},async input=>{
+    try{if(!reader.exportCommerceReport)throw Error("Commerce export unavailable");return resource(await reader.exportCommerceReport(input));}catch(e){return toolError(e);}
+  });configureTool(commerce,"export_commerce_report",allowed);
+  const exportTool=server.registerTool("export_hr_payroll",{title:"Recibir reporte de nómina",description:"Exporta CSV o PDF de las líneas autorizadas con el propietario de nómina, sin recalcular ni cambiar estados. Requiere files.read y hr.payroll.read vigentes. Entrega recurso privado; no combina monedas distintas ni entrega datos bancarios o legales.",inputSchema:fileExportRequestSchema,outputSchema:fileMetadataSchema,annotations:{readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:false}},async input=>{
+    try{if(!reader.exportHrPayroll)throw Error("Payroll export unavailable");return resource(await reader.exportHrPayroll(input));}catch(e){return toolError(e);}
+  });configureTool(exportTool,"export_hr_payroll",allowed);exportTool.update({_meta:{...exportTool._meta,securitySchemes:[{type:"oauth2",scopes:["files.read","hr.payroll.read"]}]}});
+}

@@ -31,6 +31,9 @@ class TerminalRefundAmounts {
         return zeroIfNull(terminalRefunds).add(zeroIfNull(fullReturns));
     }
 
+    java.util.List<com.indice.erp.pos.cashclosing.dto.PaymentMethodSummary> byMethod(PosContext context, long shiftId) {
+        return new ClosingRefundTenderTotals(jdbc).find(context,shiftId,sum(context,shiftId));
+    }
     private BigDecimal zeroIfNull(BigDecimal amount) {
         return amount == null ? BigDecimal.ZERO : amount;
     }

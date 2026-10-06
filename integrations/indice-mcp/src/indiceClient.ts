@@ -1,4 +1,19 @@
+import { terminalReadNameSchema,terminalActionNameSchema,terminalQuerySchema,terminalInputs,terminalReadSchema,terminalPreviewSchema,terminalCommittedSchema,terminalCommitRequestSchema,type TerminalReadName,type TerminalActionName,type TerminalQuery,type TerminalChange,type TerminalReadResult,type TerminalPreview,type TerminalCommitted } from "./terminalContracts.js";
+import { posOperationsReadNameSchema,posOperationsActionNameSchema,posOperationsQuerySchema,posOperationsInputs,posOperationsReadSchema,posOperationsPreviewSchema,posOperationsCommittedSchema,posOperationsCommitRequestSchema,type PosOperationsReadName,type PosOperationsActionName,type PosOperationsQuery,type PosOperationsChange,type PosOperationsReadResult,type PosOperationsPreview,type PosOperationsCommitted } from "./posOperationsContracts.js";
+import { commissionReadNameSchema,commissionActionNameSchema,commissionQuerySchema,commissionInputs,commissionReadSchema,commissionPreviewSchema,commissionCommittedSchema,commissionCommitRequestSchema,type CommissionReadName,type CommissionActionName,type CommissionQuery,type CommissionChange,type CommissionReadResult,type CommissionPreview,type CommissionCommitted } from "./commissionContracts.js";
+import { inventoryCatalogReadNameSchema,inventoryCatalogActionNameSchema,inventoryCatalogQuerySchema,inventoryCatalogInputs,inventoryCatalogReadSchema,inventoryCatalogPreviewSchema,inventoryCatalogCommittedSchema,inventoryCatalogCommitRequestSchema,type InventoryCatalogReadName,type InventoryCatalogActionName,type InventoryCatalogQuery,type InventoryCatalogChange,type InventoryCatalogReadResult,type InventoryCatalogPreview,type InventoryCatalogCommitted } from "./inventoryCatalogContracts.js";
+import { procurementReadNameSchema,procurementActionNameSchema,procurementQuerySchema,procurementInputs,procurementReadSchema,procurementPreviewSchema,procurementCommittedSchema,procurementCommitRequestSchema,type ProcurementReadName,type ProcurementActionName,type ProcurementQuery,type ProcurementChange,type ProcurementReadResult,type ProcurementPreview,type ProcurementCommitted } from "./procurementContracts.js";
+import { posReadNameSchema,posActionNameSchema,posQuerySchema,posInputs,posReadSchema,posPreviewSchema,posCommittedSchema,posCommitRequestSchema,type PosReadName,type PosActionName,type PosQuery,type PosChange,type PosReadResult,type PosPreview,type PosCommitted } from "./posContracts.js";
+import { salesWorkflowReadNameSchema,salesWorkflowActionNameSchema,salesWorkflowQuerySchema,salesWorkflowInputs,salesWorkflowReadSchema,salesWorkflowPreviewSchema,salesWorkflowCommittedSchema,salesWorkflowCommitRequestSchema,type SalesWorkflowReadName,type SalesWorkflowActionName,type SalesWorkflowQuery,type SalesWorkflowChange,type SalesWorkflowReadResult,type SalesWorkflowPreview,type SalesWorkflowCommitted } from "./salesWorkflowContracts.js";
+import { inventoryReadNameSchema,inventoryActionNameSchema,inventoryQuerySchema,inventoryInputs,inventoryReadSchemas,inventoryPreviewSchema,inventoryCommittedSchema,inventoryCommitRequestSchema,type InventoryReadName,type InventoryActionName,type InventoryQuery,type InventoryChange,type InventoryReadResult,type InventoryPreview,type InventoryCommitted } from "./inventoryContracts.js";
+import { commerceReportRequestSchema,stageFileRequestSchema,stagedFileSchema,fileActionSchema,attachFileRequestSchema,filePreviewSchema,fileCommittedSchema,fileCommitRequestSchema,fileListRequestSchema,fileListSchema,fileReadRequestSchema,fileExportRequestSchema,fileContentSchema,type StageFileRequest,type StagedFile,type FileAction,type FilePreview,type FileCommitted,type FileListRequest,type FileReadRequest,type FileExportRequest,type FileList,type FileContent } from "./fileContracts.js";
+import { hrKpiRequestSchema,hrKpiResultSchema,type HrKpiRequest,type HrKpiResult } from "./hrKpiTools.js";
+import { processReadNameSchema,processActionNameSchema,processReadRequestSchema,processChangeRequestSchema,processReadSchemas,processPreviewSchema,processCommittedSchema,processCommitRequestSchema,type ProcessReadName,type ProcessActionName,type ProcessReadRequest,type ProcessReadResult,type ProcessChangeRequest,type ProcessPreview,type ProcessCommitted } from "./processWorkflowContracts.js";
 import { commercialTools } from "./commercialTools.js";
+import { processTaskKpiRequestSchema, processTaskKpiResultSchema, type ProcessTaskKpiRequest, type ProcessTaskKpiResult } from "./processTaskKpiTools.js";
+import { hrActionNameSchema, hrReadNameSchema, hrReadSchemas, hrReadRequestSchema, hrChangeSchema, hrPreviewSchema, hrCommitSchema,
+  type HrActionName, type HrReadName, type HrReadRequest, type HrReadResult, type HrChange, type HrPreview, type HrCommitted } from "./hrContracts.js";
+import { learningRequestSchema, learningGuideSchema, type LearningRequest, type LearningGuide } from "./learningTools.js";
 import type { IndiceMcpConfig } from "./config.js";
 import { backendRequest, type RequestContext } from "./backendTransport.js";
 import { bearerChallenge } from "./toolPolicy.js";
@@ -10,6 +25,7 @@ import {
 } from "./operationalReferenceContracts.js";
 import {
   businessSnapshotQuerySchema,
+  taskOperationRequestSchema, taskOperationNameSchema, type TaskOperationName, type TaskOperationRequest,
   businessSnapshotSchema,
   businessContextResponseSchema,
   businessQueryResultSchema,
@@ -72,6 +88,196 @@ export class IndiceClient {
   ) {
   }
 
+  async stageOperationalFile(request:StageFileRequest):Promise<StagedFile>{return this.fileRequest("stage_operational_file",stageFileRequestSchema.parse(request),stagedFileSchema);}
+  async previewFileAttachment(action:FileAction,request:{stagedFileId:string}):Promise<FilePreview>{fileActionSchema.parse(action);return this.fileRequest(action+"/preview",attachFileRequestSchema.parse(request),filePreviewSchema);}
+  async commitFileAttachment(action:FileAction,request:TaskCommitRequest):Promise<FileCommitted>{fileActionSchema.parse(action);return this.fileRequest(action+"/commit",fileCommitRequestSchema.parse(request),fileCommittedSchema);}
+  async listOperationalFiles(request:FileListRequest):Promise<FileList>{return this.fileRequest("list_operational_files",fileListRequestSchema.parse(request),fileListSchema);}
+  async getOperationalFile(request:FileReadRequest):Promise<FileContent>{return this.fileRequest("get_operational_file",fileReadRequestSchema.parse(request),fileContentSchema);}
+  async exportCommerceReport(request:import("./fileContracts.js").CommerceReportRequest):Promise<import("./fileContracts.js").FileContent>{return this.fileRequest("export_commerce_report",commerceReportRequestSchema.parse(request),fileContentSchema);}
+  async exportHrPayroll(request:FileExportRequest):Promise<FileContent>{return this.fileRequest("export_hr_payroll",fileExportRequestSchema.parse(request),fileContentSchema);}
+  private async fileRequest<T>(operation:string,request:unknown,schema:z.ZodType<T>):Promise<T>{
+    const response=await this.request(`/api/v1/ai/tools/files/${operation}`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(request)});
+    if(!response.ok)throw await this.apiError(response,"Private file operation unavailable.");
+    const parsed=schema.safeParse(await response.json());if(!parsed.success)throw new IndiceApiError("Invalid private file contract.");return parsed.data;
+  }
+
+  async readInventory(tool:InventoryReadName,request:InventoryQuery):Promise<InventoryReadResult>{
+    inventoryReadNameSchema.parse(tool);
+    const response=await this.request(`/api/v1/ai/tools/inventory_workflows/${tool}`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(inventoryQuerySchema.parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to read the workflow.");
+    const result=inventoryReadSchemas[tool].safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow read contract.");return result.data;
+  }
+  async previewInventory(action:InventoryActionName,request:InventoryChange):Promise<InventoryPreview>{
+    inventoryActionNameSchema.parse(action);
+    const response=await this.request(`/api/v1/ai/tools/inventory_workflows/${action}/preview`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(inventoryInputs[action].parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to prepare the workflow.");
+    const result=inventoryPreviewSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow preview contract.");return result.data;
+  }
+  async commitInventory(action:InventoryActionName,request:TaskCommitRequest):Promise<InventoryCommitted>{
+    inventoryActionNameSchema.parse(action);
+    const response=await this.request(`/api/v1/ai/tools/inventory_workflows/${action}/commit`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(inventoryCommitRequestSchema.parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to apply the workflow.");
+    const result=inventoryCommittedSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow commit contract.");return result.data;
+  }
+
+  async readSalesWorkflow(tool:SalesWorkflowReadName,request:SalesWorkflowQuery):Promise<SalesWorkflowReadResult>{
+    salesWorkflowReadNameSchema.parse(tool);
+    const response=await this.request(`/api/v1/ai/tools/sales_workflows/${tool}`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(salesWorkflowQuerySchema.parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to read the workflow.");
+    const result=salesWorkflowReadSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow read contract.");return result.data;
+  }
+  async previewSalesWorkflow(action:SalesWorkflowActionName,request:SalesWorkflowChange):Promise<SalesWorkflowPreview>{
+    salesWorkflowActionNameSchema.parse(action);
+    const response=await this.request(`/api/v1/ai/tools/sales_workflows/${action}/preview`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(salesWorkflowInputs[action].parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to prepare the workflow.");
+    const result=salesWorkflowPreviewSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow preview contract.");return result.data;
+  }
+  async commitSalesWorkflow(action:SalesWorkflowActionName,request:TaskCommitRequest):Promise<SalesWorkflowCommitted>{
+    salesWorkflowActionNameSchema.parse(action);
+    const response=await this.request(`/api/v1/ai/tools/sales_workflows/${action}/commit`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(salesWorkflowCommitRequestSchema.parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to apply the workflow.");
+    const result=salesWorkflowCommittedSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow commit contract.");return result.data;
+  }
+
+  async readPos(tool:PosReadName,request:PosQuery):Promise<PosReadResult>{
+    posReadNameSchema.parse(tool);
+    const response=await this.request(`/api/v1/ai/tools/pos_workflows/${tool}`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(posQuerySchema.parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to read the workflow.");
+    const result=posReadSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow read contract.");return result.data;
+  }
+  async previewPos(action:PosActionName,request:PosChange):Promise<PosPreview>{
+    posActionNameSchema.parse(action);
+    const response=await this.request(`/api/v1/ai/tools/pos_workflows/${action}/preview`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(posInputs[action].parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to prepare the workflow.");
+    const result=posPreviewSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow preview contract.");return result.data;
+  }
+  async commitPos(action:PosActionName,request:TaskCommitRequest):Promise<PosCommitted>{
+    posActionNameSchema.parse(action);
+    const response=await this.request(`/api/v1/ai/tools/pos_workflows/${action}/commit`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(posCommitRequestSchema.parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to apply the workflow.");
+    const result=posCommittedSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow commit contract.");return result.data;
+  }
+
+  async readProcurement(tool:ProcurementReadName,request:ProcurementQuery):Promise<ProcurementReadResult>{
+    procurementReadNameSchema.parse(tool);
+    const response=await this.request(`/api/v1/ai/tools/procurement_workflows/${tool}`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(procurementQuerySchema.parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to read the workflow.");
+    const result=procurementReadSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow read contract.");return result.data;
+  }
+  async previewProcurement(action:ProcurementActionName,request:ProcurementChange):Promise<ProcurementPreview>{
+    procurementActionNameSchema.parse(action);
+    const response=await this.request(`/api/v1/ai/tools/procurement_workflows/${action}/preview`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(procurementInputs[action].parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to prepare the workflow.");
+    const result=procurementPreviewSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow preview contract.");return result.data;
+  }
+  async commitProcurement(action:ProcurementActionName,request:TaskCommitRequest):Promise<ProcurementCommitted>{
+    procurementActionNameSchema.parse(action);
+    const response=await this.request(`/api/v1/ai/tools/procurement_workflows/${action}/commit`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(procurementCommitRequestSchema.parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to apply the workflow.");
+    const result=procurementCommittedSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow commit contract.");return result.data;
+  }
+
+  async readInventoryCatalog(tool:InventoryCatalogReadName,request:InventoryCatalogQuery):Promise<InventoryCatalogReadResult>{
+    inventoryCatalogReadNameSchema.parse(tool);
+    const response=await this.request(`/api/v1/ai/tools/inventory_catalog_workflows/${tool}`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(inventoryCatalogQuerySchema.parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to read the workflow.");
+    const result=inventoryCatalogReadSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow read contract.");return result.data;
+  }
+  async previewInventoryCatalog(action:InventoryCatalogActionName,request:InventoryCatalogChange):Promise<InventoryCatalogPreview>{
+    inventoryCatalogActionNameSchema.parse(action);
+    const response=await this.request(`/api/v1/ai/tools/inventory_catalog_workflows/${action}/preview`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(inventoryCatalogInputs[action].parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to prepare the workflow.");
+    const result=inventoryCatalogPreviewSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow preview contract.");return result.data;
+  }
+  async commitInventoryCatalog(action:InventoryCatalogActionName,request:TaskCommitRequest):Promise<InventoryCatalogCommitted>{
+    inventoryCatalogActionNameSchema.parse(action);
+    const response=await this.request(`/api/v1/ai/tools/inventory_catalog_workflows/${action}/commit`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(inventoryCatalogCommitRequestSchema.parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to apply the workflow.");
+    const result=inventoryCatalogCommittedSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow commit contract.");return result.data;
+  }
+
+  async readTerminal(tool:TerminalReadName,request:TerminalQuery):Promise<TerminalReadResult>{
+    terminalReadNameSchema.parse(tool);
+    const response=await this.request(`/api/v1/ai/tools/terminal_workflows/${tool}`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(terminalQuerySchema.parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to read the workflow.");
+    const result=terminalReadSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow read contract.");return result.data;
+  }
+  async previewTerminal(action:TerminalActionName,request:TerminalChange):Promise<TerminalPreview>{
+    terminalActionNameSchema.parse(action);
+    const response=await this.request(`/api/v1/ai/tools/terminal_workflows/${action}/preview`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(terminalInputs[action].parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to prepare the workflow.");
+    const result=terminalPreviewSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow preview contract.");return result.data;
+  }
+  async commitTerminal(action:TerminalActionName,request:TaskCommitRequest):Promise<TerminalCommitted>{
+    terminalActionNameSchema.parse(action);
+    const response=await this.request(`/api/v1/ai/tools/terminal_workflows/${action}/commit`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(terminalCommitRequestSchema.parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to apply the workflow.");
+    const result=terminalCommittedSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow commit contract.");return result.data;
+  }
+
+  async readPosOperations(tool:PosOperationsReadName,request:PosOperationsQuery):Promise<PosOperationsReadResult>{
+    posOperationsReadNameSchema.parse(tool);
+    const response=await this.request(`/api/v1/ai/tools/pos_operations/${tool}`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(posOperationsQuerySchema.parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to read the workflow.");
+    const result=posOperationsReadSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow read contract.");return result.data;
+  }
+  async previewPosOperations(action:PosOperationsActionName,request:PosOperationsChange):Promise<PosOperationsPreview>{
+    posOperationsActionNameSchema.parse(action);
+    const response=await this.request(`/api/v1/ai/tools/pos_operations/${action}/preview`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(posOperationsInputs[action].parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to prepare the workflow.");
+    const result=posOperationsPreviewSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow preview contract.");return result.data;
+  }
+  async commitPosOperations(action:PosOperationsActionName,request:TaskCommitRequest):Promise<PosOperationsCommitted>{
+    posOperationsActionNameSchema.parse(action);
+    const response=await this.request(`/api/v1/ai/tools/pos_operations/${action}/commit`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(posOperationsCommitRequestSchema.parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to apply the workflow.");
+    const result=posOperationsCommittedSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow commit contract.");return result.data;
+  }
+
+  async readCommission(tool:CommissionReadName,request:CommissionQuery):Promise<CommissionReadResult>{
+    commissionReadNameSchema.parse(tool);
+    const response=await this.request(`/api/v1/ai/tools/commission_workflows/${tool}`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(commissionQuerySchema.parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to read the workflow.");
+    const result=commissionReadSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow read contract.");return result.data;
+  }
+  async previewCommission(action:CommissionActionName,request:CommissionChange):Promise<CommissionPreview>{
+    commissionActionNameSchema.parse(action);
+    const response=await this.request(`/api/v1/ai/tools/commission_workflows/${action}/preview`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(commissionInputs[action].parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to prepare the workflow.");
+    const result=commissionPreviewSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow preview contract.");return result.data;
+  }
+  async commitCommission(action:CommissionActionName,request:TaskCommitRequest):Promise<CommissionCommitted>{
+    commissionActionNameSchema.parse(action);
+    const response=await this.request(`/api/v1/ai/tools/commission_workflows/${action}/commit`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(commissionCommitRequestSchema.parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to apply the workflow.");
+    const result=commissionCommittedSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow commit contract.");return result.data;
+  }
+
+
+  async readProcessWorkflow(tool:ProcessReadName,request:ProcessReadRequest):Promise<ProcessReadResult>{
+    processReadNameSchema.parse(tool);
+    const response=await this.request(`/api/v1/ai/tools/process_workflows/${tool}`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(processReadRequestSchema.parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to read the workflow.");
+    const result=processReadSchemas[tool].safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow read contract.");return result.data;
+  }
+  async previewProcessWorkflow(action:ProcessActionName,request:ProcessChangeRequest):Promise<ProcessPreview>{
+    processActionNameSchema.parse(action);
+    const response=await this.request(`/api/v1/ai/tools/process_workflows/${action}/preview`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(processChangeRequestSchema.parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to prepare the workflow.");
+    const result=processPreviewSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow preview contract.");return result.data;
+  }
+  async commitProcessWorkflow(action:ProcessActionName,request:TaskCommitRequest):Promise<ProcessCommitted>{
+    processActionNameSchema.parse(action);
+    const response=await this.request(`/api/v1/ai/tools/process_workflows/${action}/commit`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(processCommitRequestSchema.parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to apply the workflow.");
+    const result=processCommittedSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow commit contract.");return result.data;
+  }
+
+  async getHrKpis(request:HrKpiRequest):Promise<HrKpiResult> {
+    const response=await this.request("/api/v1/ai/tools/kpis/get_hr_kpis",{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(hrKpiRequestSchema.parse(request))});
+    if(!response.ok)throw await this.apiError(response,"Unable to read HR indicators.");
+    const result=hrKpiResultSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid HR KPI contract.");return result.data;
+  }
   async commercial(tool: string, input: Record<string, unknown>): Promise<unknown> {
     const definition = commercialTools[tool];
     if (!definition) throw new IndiceApiError("Unsupported commercial tool.");
@@ -84,6 +290,17 @@ export class IndiceClient {
     const parsed = definition.output.safeParse(await response.json());
     if (!parsed.success) throw new IndiceApiError("Indice returned an invalid commercial contract.");
     return parsed.data;
+  }
+
+  async getProcessTaskKpis(request: ProcessTaskKpiRequest): Promise<ProcessTaskKpiResult> {
+    const response = await this.request("/api/v1/ai/tools/kpis/get_process_task_kpis", {
+      method: "POST", headers: { Authorization: `Bearer ${this.requireDelegatedToken()}`, "Content-Type": "application/json" },
+      body: JSON.stringify(processTaskKpiRequestSchema.parse(request))
+    });
+    if (!response.ok) throw await this.apiError(response, "Unable to load process task indicators.");
+    const result = processTaskKpiResultSchema.safeParse(await response.json());
+    if (!result.success) throw new IndiceApiError("Indice returned an invalid KPI contract.");
+    return result.data;
   }
 
   async getSalesToday(preferredCurrency?: string): Promise<SalesTodaySummary> {
@@ -168,8 +385,51 @@ export class IndiceClient {
     return this.taskUpdate("preview", taskUpdateRequestSchema.parse(request), taskPreviewResponseSchema);
   }
 
+  async getSystemGuide(request: LearningRequest): Promise<LearningGuide> {
+    const response = await this.request("/api/v1/ai/tools/learning/guide", {
+      method: "POST", headers: { Authorization: `Bearer ${this.requireDelegatedToken()}`, "Content-Type": "application/json" },
+      body: JSON.stringify(learningRequestSchema.parse(request))
+    });
+    if (!response.ok) throw await this.apiError(response, "No hay una guía revisada disponible con los permisos actuales.");
+    return learningGuideSchema.parse(await response.json());
+  }
+
+  async readHr(tool: HrReadName, request: HrReadRequest): Promise<HrReadResult> {
+    const name=hrReadNameSchema.parse(tool);
+    return this.hrRequest(name,hrReadRequestSchema.parse(request),hrReadSchemas[name]);
+  }
+  async previewHr(action: HrActionName, request: HrChange): Promise<HrPreview> {
+    return this.hrRequest(`${hrActionNameSchema.parse(action)}/preview`,hrChangeSchema.parse(request),hrPreviewSchema);
+  }
+  async commitHr(action: HrActionName, request: TaskCommitRequest): Promise<HrCommitted> {
+    return this.hrRequest(`${hrActionNameSchema.parse(action)}/commit`,taskCommitRequestSchema.parse(request),hrCommitSchema);
+  }
+  private async hrRequest<S extends z.ZodType>(path:string,request:unknown,schema:S):Promise<z.infer<S>> {
+    const response=await this.request(`/api/v1/ai/tools/hr/${path}`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(request)});
+    if(!response.ok) throw await this.apiError(response,response.status===409?"El expediente cambió, faltan lugares del plan o la confirmación caducó. Revisa el código del error y prepara otra vista previa.":"No se pudo completar la operación de RH con los permisos actuales.");
+    return schema.parse(await response.json());
+  }
+
   async updateTask(request: TaskCommitRequest): Promise<TaskCommitResponse> {
     return this.taskUpdate("commit", taskCommitRequestSchema.parse(request), taskCommitResponseSchema);
+  }
+
+  async previewTaskOperation(action: TaskOperationName, request: TaskOperationRequest): Promise<TaskPreviewResponse> {
+    return this.taskOperation(action, "preview", taskOperationRequestSchema.parse(request), taskPreviewResponseSchema);
+  }
+
+  async commitTaskOperation(action: TaskOperationName, request: TaskCommitRequest): Promise<TaskCommitResponse> {
+    return this.taskOperation(action, "commit", taskCommitRequestSchema.parse(request), taskCommitResponseSchema);
+  }
+
+  private async taskOperation<S extends z.ZodObject>(action: TaskOperationName, step: string, request: unknown, schema: S): Promise<z.infer<S>> {
+    const response = await this.request(`/api/v1/ai/tools/tasks/operations/${taskOperationNameSchema.parse(action)}/${step}`, {
+      method: "POST", headers: { Authorization: `Bearer ${this.requireDelegatedToken()}`, "Content-Type": "application/json" }, body: JSON.stringify(request)
+    });
+    if (!response.ok) throw await this.apiError(response, response.status === 409
+      ? "La tarea cambió o la confirmación caducó. Prepara otra vista previa."
+      : "No se pudo aplicar la operación de tarea con los permisos actuales.");
+    return schema.parse(await response.json());
   }
 
   private async taskUpdate<S extends z.ZodObject>(step: string, request: unknown, schema: S): Promise<z.infer<S>> {
@@ -256,6 +516,11 @@ export class IndiceClient {
       throw new IndiceApiError("Indice returned an invalid organization reference contract.");
     }
     return parsed.data;
+  }
+
+  async listTaskOrganization(request: ReferencePageRequest = {}): Promise<OrganizationReferencePage> {
+    const response = await this.delegatedReferenceRequest("/api/v1/ai/tools/references/task-organization", "POST", request);
+    return organizationReferencePageSchema.parse(await response.json());
   }
 
   async listPaymentAccounts(request: ReferencePageRequest = {}): Promise<PaymentAccountReferencePage> {

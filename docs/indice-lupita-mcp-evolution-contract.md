@@ -4,7 +4,23 @@ Decisión de producto: 2026-09-22, especificación aportada y adoptada por el pr
 Estado: alcance aprobado; implementación incremental, con estado explícito por entrega.
 Contrato propietario: [MCP Operating System](indice-mcp-operating-system-v1.md).
 
+La decisión del 2026-10-05 amplía el alcance de RH y Procesos/Tareas a ciclos operativos completos.
+Su [matriz de entrega vigente](lupita-hr-processes-delivery-contract-v1.md) reemplaza para esos dos
+módulos las restricciones de solo consulta y exclusiones de configuración de esta propuesta
+anterior. Registra la ficha laboral, altas/importaciones, comunicados, activos, consultas de actas,
+guías y los ciclos operativos de RH, nómina, proyectos, procesos y tareas implementados.
+La certificación real por texto/voz en APPTEST sigue como gate de publicación. Los permisos,
+alcances, conservación y reglas financieras de los propietarios siguen siendo obligatorios.
+
 ## Objetivo y responsabilidades
+
+La decisión del 2026-10-06 autoriza también el cierre operativo de Inventarios, Ventas y POS.
+La [matriz comercial vigente](lupita-commerce-delivery-contract-v1.md) amplía las restricciones
+anteriores mediante operaciones nombradas de sus propietarios. Registra ciclos implementados y
+verificados localmente, con [flujo operativo](lupita-commerce-operating-workflow-v1.md) y
+[evidencia y entrega a despliegue](validation/2026-10-06-lupita-commerce-cycles.md).
+Los cobros, devoluciones, terminales y movimientos conservan permisos, confirmación e idempotencia;
+la aceptación real en APPTEST y el gate de publicación siguen siendo requisitos separados.
 
 Completar las herramientas del MCP existente para la operación de la empresa. Reutilizar servicios,
 entidades y permisos del ERP. La definición de agentes no exige reconstruir módulos ni ampliar
@@ -46,7 +62,9 @@ multiagente aún no están implementadas por esta entrega de herramientas.
 
 ## Alcance funcional aprobado y brechas
 
-Los estados describen el código de esta rama; no certifican disponibilidad en producción.
+La tabla conserva la propuesta del 2026-09-22 y las entregas anteriores. Para el estado actual
+de RH y Procesos/Tareas consulta la matriz del contrato del 2026-10-05 enlazado arriba.
+Ninguno de estos documentos certifica disponibilidad en producción.
 
 | Área | Funciones objetivo | Base existente y trabajo pendiente |
 | --- | --- | --- |
@@ -91,9 +109,10 @@ transición de dominio. Inventario/almacenes requieren acciones acotadas y confi
 exactos de escritura aún no están definidos. La regla de confirmar eliminaciones no autoriza
 agregar herramientas de borrado ni elimina las restricciones de conservación del repositorio.
 
-La exclusión V1 de salario/nómina se reemplazará únicamente para campos autorizados de ficha y
-totales de nómina en su futura entrega, con permiso específico, minimización y pruebas negativas.
-El detalle completo sigue excluido. Los campos V1 siguen filtrados mientras tanto.
+La entrega de ficha laboral ya reemplaza la exclusión de compensación únicamente bajo
+`hr.people.details:read`, permiso administrativo exacto de colaboradores y alcance vigente.
+Las consultas V1 conservan su filtrado. Totales y operaciones de nómina siguen pendientes de su
+entrega específica; la decisión del 2026-10-05 autoriza ese trabajo y exige reglas del propietario.
 
 Lectura de estados bancarios es una habilidad futura, no una herramienta entregada. Comparar
 periodos y combinar módulos exige datos comparables y autorizados; no se inventan totales.

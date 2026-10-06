@@ -12,6 +12,10 @@ public record MpRefundReservation(MpFinancialEvidenceLock locks, MpIntentStore i
         TerminalRefundStore ledger, MpRefundRequestStore requests, MpJson json,
         MpRefundAmounts amounts, MpRefundOutstanding outstanding) {
     public MpRefundRecord reserve(PosContext context, MpIntent candidate, MpRefundRequest request) {
+        return reserve(context,candidate,request,null);
+    }
+    public MpRefundRecord reserveOriginalReturn(PosContext context,MpIntent candidate,MpRefundRequest request,long returnId){return reserve(context,candidate,request,returnId);}
+    private MpRefundRecord reserve(PosContext context,MpIntent candidate,MpRefundRequest request,Long returnId){
         if (!request.idempotencyKey().matches("[A-Za-z0-9_-]{1,64}")) {
             throw PosApiException.badRequest("Refund idempotency key is invalid.");
         }
@@ -25,7 +29,7 @@ public record MpRefundReservation(MpFinancialEvidenceLock locks, MpIntentStore i
                 }
                 return existing;
             }
-            outstanding.assertNone(intent);
+            if(returnId==null)outstanding.assertNone(intent);else outstanding.assertOriginalReturn(context,intent,request,returnId);
             if (intent.paymentId() == null || intent.orderId() == null
                     || !(intent.status().equals("APPROVED") || intent.status().equals("PARTIALLY_REFUNDED"))) {
                 throw PosApiException.conflict("An approved card payment is required.");

@@ -1,0 +1,1461 @@
+{
+  "version": "2026-10-06.v2",
+  "modules": [
+    {
+      "module": "human_resources",
+      "pageId": "human-resources",
+      "locale": "es-MX",
+      "purpose": "Recorre el ciclo del equipo con ejemplos claros y aplica cada herramienta cuando tu negocio la necesite.",
+      "tabs": [
+        {
+          "tab": "collaborators",
+          "label": "Colaboradores",
+          "title": "Crea una base confiable para cada persona",
+          "purpose": "Aquí reúnes identidad, contacto, puesto y condiciones laborales. Un expediente completo alimenta correctamente el resto de RH.",
+          "effect": "Una base confiable mejora responsabilidad, nómina, asistencia y visibilidad del equipo.",
+          "steps": [
+            {
+              "title": "Completa cada expediente",
+              "description": "Usa datos personales, de contacto, puesto y documentos consistentes para reducir seguimiento manual."
+            },
+            {
+              "title": "Segmenta por unidad y departamento",
+              "description": "Conecta colaboradores con sus áreas reales para que filtros, reportes y responsabilidades tengan sentido."
+            },
+            {
+              "title": "Mantén limpio el estado",
+              "description": "Revisa activos e inactivos para evitar ruido en nómina, accesos y reportes."
+            }
+          ]
+        },
+        {
+          "tab": "attendance",
+          "label": "Asistencia",
+          "title": "Entiende cada jornada sin adivinar",
+          "purpose": "Aquí lees entradas, salidas e incidencias con su horario y ubicación. Así distingues una excepción de un problema operativo.",
+          "effect": "La visibilidad de asistencia ayuda a detectar ausencias, retardos, huecos de cobertura y riesgo operativo.",
+          "steps": [
+            {
+              "title": "Revisa señales diarias",
+              "description": "Identifica quién está presente, quién falta y dónde se requiere seguimiento."
+            },
+            {
+              "title": "Conecta asistencia con ubicaciones",
+              "description": "Usa ubicaciones y kioskos para reducir validación manual y alinear asistencia con el lugar real de trabajo."
+            },
+            {
+              "title": "Resuelve excepciones rápido",
+              "description": "Corrige registros faltantes antes de que afecten nómina o conversaciones de desempeño."
+            }
+          ]
+        },
+        {
+          "tab": "control",
+          "label": "Centro de control",
+          "title": "Prepara horarios y accesos antes de operar",
+          "purpose": "Aquí defines cuándo, dónde y cómo registra asistencia el equipo. Esa configuración le da contexto a cada movimiento.",
+          "effect": "Una capa clara de control reduce improvisación y ayuda a supervisores a sostener la ejecución diaria.",
+          "steps": [
+            {
+              "title": "Define horarios con claridad",
+              "description": "Mantén turnos y horas operativas actualizadas para interpretar correctamente asistencia y excepciones."
+            },
+            {
+              "title": "Usa kioskos donde opera el equipo",
+              "description": "Configura puntos de acceso cerca de la operación real para registrar asistencia con menos fricción."
+            },
+            {
+              "title": "Revisa accesos del colaborador",
+              "description": "Mantén PIN, rostro y accesos alineados con el rol actual de cada colaborador."
+            }
+          ]
+        },
+        {
+          "tab": "payroll",
+          "label": "Nómina",
+          "title": "Llega a nómina con la información lista",
+          "purpose": "Aquí conectas salario, variables y deducciones antes de pagar. Revisa los insumos para detectar diferencias a tiempo.",
+          "effect": "Insumos limpios reducen retrabajo, aumentan confianza y ayudan a entender mejor el costo laboral.",
+          "steps": [
+            {
+              "title": "Valida la configuración",
+              "description": "Confirma salario, jurisdicción, banco y datos laborales antes de correr cálculos."
+            },
+            {
+              "title": "Controla pagos variables",
+              "description": "Registra bonos, comisiones y ajustes con contexto para que los cambios sean trazables."
+            },
+            {
+              "title": "Revisa antes de cerrar",
+              "description": "Usa resúmenes para detectar inconsistencias antes de que lleguen a pago o contabilidad."
+            }
+          ]
+        },
+        {
+          "tab": "announcements",
+          "label": "Comunicados",
+          "title": "Convierte un aviso en una acción clara",
+          "purpose": "Aquí explicas qué cambió, a quién afecta y qué debe ocurrir después. Un mensaje útil reduce dudas en la operación.",
+          "effect": "La comunicación estructurada reduce incertidumbre y ayuda a que todos operen con la misma información.",
+          "steps": [
+            {
+              "title": "Publica mensajes accionables",
+              "description": "Explica qué cambió, a quién afecta y qué acción se espera."
+            },
+            {
+              "title": "Segmenta la audiencia",
+              "description": "Envía información al grupo correcto para evitar ruido operativo."
+            }
+          ]
+        },
+        {
+          "tab": "assets",
+          "label": "Activos",
+          "title": "Ubica qué tiene cada persona y en qué estado",
+          "purpose": "Aquí asignas equipo y herramientas a responsables reales. El historial ayuda a recuperar, mantener o reemplazar cada activo.",
+          "effect": "La visibilidad de activos reduce pérdidas, mejora responsabilidad y aclara qué tiene cada colaborador.",
+          "steps": [
+            {
+              "title": "Asigna con responsabilidad",
+              "description": "Conecta cada activo relevante con colaborador, estado y contexto operativo."
+            },
+            {
+              "title": "Revisa condición y devoluciones",
+              "description": "Usa estados para planear reemplazos, recuperaciones y entregas sin confusión."
+            }
+          ]
+        },
+        {
+          "tab": "records",
+          "label": "Actas",
+          "title": "Deja acuerdos e incidentes con contexto",
+          "purpose": "Aquí registras qué ocurrió, quién participó y cuál es el seguimiento. El objetivo es recordar con evidencia, no depender de versiones.",
+          "effect": "Buenas actas protegen a la empresa, sostienen decisiones justas y conservan contexto.",
+          "steps": [
+            {
+              "title": "Captura el contexto",
+              "description": "Documenta qué pasó, quién participó y qué seguimiento requiere."
+            },
+            {
+              "title": "Mantén evidencia trazable",
+              "description": "Adjunta soporte y conserva un historial limpio para revisiones futuras."
+            }
+          ]
+        },
+        {
+          "tab": "permissions",
+          "label": "Permisos",
+          "title": "Aprueba ausencias sin perder cobertura",
+          "purpose": "Aquí revisas la solicitud, su impacto y la decisión. El equipo obtiene una respuesta clara y el negocio conserva visibilidad.",
+          "effect": "Un flujo controlado ayuda a planear cobertura y reduce sorpresas en la operación diaria.",
+          "steps": [
+            {
+              "title": "Evalúa impacto operativo",
+              "description": "Revisa cada solicitud contra cobertura, urgencia y capacidad del equipo."
+            },
+            {
+              "title": "Mantén aprobaciones trazables",
+              "description": "Usa estados y comentarios claros para que las decisiones se entiendan después."
+            }
+          ]
+        },
+        {
+          "tab": "incentives",
+          "label": "Incentivos",
+          "title": "Premia lo que de verdad mueve el negocio",
+          "purpose": "Aquí conectas una recompensa con una conducta o resultado observable. La regla debe ser clara antes de evaluar a las personas.",
+          "effect": "Incentivos claros alinean motivación con prioridades del negocio y no con premios aislados.",
+          "steps": [
+            {
+              "title": "Define qué conducta se premia",
+              "description": "Conecta cada incentivo con un objetivo operativo claro, no solo con un monto."
+            },
+            {
+              "title": "Revisa justicia y consistencia",
+              "description": "Mantén criterios entendibles para que el equipo confíe en el programa."
+            }
+          ]
+        },
+        {
+          "tab": "kpis",
+          "label": "Indicadores RH",
+          "title": "Aprende a leer la salud del equipo",
+          "purpose": "Aquí comparas tamaño, actividad, asistencia y costo laboral. Usa cada señal para formular una pregunta antes de tomar una decisión.",
+          "effect": "Los indicadores de personal ayudan a detectar problemas temprano y decidir dónde poner atención directiva.",
+          "steps": [
+            {
+              "title": "Lee señales del equipo",
+              "description": "Observa cambios en colaboradores activos, calidad de asistencia, permisos e impacto de nómina."
+            },
+            {
+              "title": "Convierte métricas en acción",
+              "description": "Usa movimientos de KPIs para priorizar seguimiento con supervisores, finanzas o líderes."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "processes",
+      "pageId": "processes-tasks",
+      "locale": "es-MX",
+      "purpose": "Usa Procesos y Tareas para convertir prioridades en trabajo visible, rutinas repetibles y ejecución medible.",
+      "tabs": [
+        {
+          "tab": "calendar",
+          "label": "Agenda",
+          "title": "Opera el trabajo diario desde un tablero",
+          "purpose": "Usa Agenda para crear, asignar, priorizar, completar, auditar y dar seguimiento a tareas sin perder contexto.",
+          "effect": "Una agenda disciplinada reduce olvidos, hace visible la responsabilidad y ayuda a cerrar el día con evidencia clara.",
+          "steps": [
+            {
+              "title": "Mantén tareas accionables",
+              "description": "Escribe tareas con título claro, responsable, vencimiento, prioridad y contexto de negocio."
+            },
+            {
+              "title": "Usa la vista correcta",
+              "description": "Usa tabla para control, kanban para flujo y diagrama para tiempos; es el mismo trabajo visto desde distintos ángulos."
+            },
+            {
+              "title": "Cierra con evidencia",
+              "description": "Usa notas, avance, archivos y auditoría para que el trabajo terminado sea confiable, no solo marcado como hecho."
+            }
+          ]
+        },
+        {
+          "tab": "projects",
+          "label": "Proyectos",
+          "title": "Coordina iniciativas sin perder control",
+          "purpose": "Usa Proyectos para agrupar trabajo relacionado, organizar responsables y conectar tareas con un objetivo operativo.",
+          "effect": "La visibilidad de proyectos ayuda a entender por qué importan las tareas y dónde un retraso afecta compromisos mayores.",
+          "steps": [
+            {
+              "title": "Define el resultado del proyecto",
+              "description": "Mantén cada proyecto conectado a un resultado operativo claro para evitar actividad desconectada."
+            },
+            {
+              "title": "Controla el portafolio de tareas",
+              "description": "Usa listas y diagramas para identificar carga, retrasos, responsables y riesgos de tiempo."
+            },
+            {
+              "title": "Revisa el avance con ritmo",
+              "description": "Usa estado y tareas vinculadas para guiar seguimiento antes de que los vencimientos se vuelvan urgencias."
+            }
+          ]
+        },
+        {
+          "tab": "processes",
+          "label": "Procesos",
+          "title": "Convierte trabajo recurrente en rutinas",
+          "purpose": "Usa Procesos para definir generadores operativos que crean tareas futuras con reglas de recurrencia claras.",
+          "effect": "Los procesos recurrentes protegen consistencia: activos generan trabajo futuro, pausados se detienen y eliminados paran definitivamente.",
+          "steps": [
+            {
+              "title": "Separa procesos de tareas",
+              "description": "Trata los procesos como rutinas que generan trabajo, no como elementos individuales por completar."
+            },
+            {
+              "title": "Controla la recurrencia",
+              "description": "Mantén frecuencia, próxima ejecución, responsable y estado correctos para generar solo el trabajo necesario."
+            },
+            {
+              "title": "Pausa antes de eliminar",
+              "description": "Pausa para detener temporalmente; elimina solo cuando la rutina ya no debe generar tareas."
+            }
+          ]
+        },
+        {
+          "tab": "kpis",
+          "label": "KPIs",
+          "title": "Mide la salud de ejecución",
+          "purpose": "Usa KPIs operativos para leer cumplimiento de agenda, flujo de proyectos, disciplina de procesos y riesgo.",
+          "effect": "Los KPIs convierten actividad en señales gerenciales para actuar antes de que el trabajo pendiente se vuelva deuda operativa.",
+          "steps": [
+            {
+              "title": "Lee indicadores adelantados",
+              "description": "Observa trabajo abierto, vencido, auditado y completado para saber si la ejecución mejora o acumula riesgo."
+            },
+            {
+              "title": "Conecta métricas con acción",
+              "description": "Usa movimientos de KPIs para decidir qué equipo, proyecto, proceso o responsable necesita seguimiento."
+            },
+            {
+              "title": "Revisa tendencias",
+              "description": "Un número ayuda, pero el cambio de tendencia muestra si el sistema operativo mejora."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "crm",
+      "pageId": "sales",
+      "locale": "es-MX",
+      "purpose": "Conecta oportunidades, cotizaciones, cierre comercial, preparacion de inventario, validacion financiera y postventa.",
+      "tabs": [
+        {
+          "tab": "leads",
+          "label": "Prospectos",
+          "title": "Construye un pipeline disciplinado",
+          "purpose": "Usa Prospectos para capturar demanda, calificar interes, asignar responsable y definir la siguiente accion comercial.",
+          "effect": "Un pipeline limpio mantiene visible el seguimiento y evita que el ingreso dependa de la memoria.",
+          "steps": [
+            {
+              "title": "Califica antes de cotizar",
+              "description": "Confirma necesidad, presupuesto, tiempo y contexto de decision antes de avanzar a cotizacion."
+            },
+            {
+              "title": "Asigna un vendedor responsable",
+              "description": "Cada oportunidad activa debe tener un dueno claro y una siguiente accion con fecha."
+            },
+            {
+              "title": "Mantén etapas honestas",
+              "description": "Mueve oportunidades solo cuando el cliente realmente avanzo en el proceso de compra."
+            }
+          ]
+        },
+        {
+          "tab": "contacts",
+          "label": "Contactos",
+          "title": "Convierte relaciones en control comercial",
+          "purpose": "Usa Contactos como base de clientes, prospectos, responsables y contexto de seguimiento.",
+          "effect": "Datos confiables facilitan cotizaciones, ventas, entrega y seguimiento para todo el equipo.",
+          "steps": [
+            {
+              "title": "Completa el perfil de relacion",
+              "description": "Mantén visibles empresa, rol, telefono, correo, datos fiscales y responsable."
+            },
+            {
+              "title": "Separa contacto de oportunidad",
+              "description": "Crea primero el contacto y luego conecta oportunidades y cotizaciones a la relacion correcta."
+            },
+            {
+              "title": "Evita responsables vacios",
+              "description": "Los contactos sin responsable generan seguimientos perdidos y responsabilidad confusa."
+            }
+          ]
+        },
+        {
+          "tab": "quotes",
+          "label": "Cotizaciones",
+          "title": "Cotiza con margen y preparacion",
+          "purpose": "Usa Cotizaciones para preparar la oferta, validar productos, proteger margen y controlar vigencia.",
+          "effect": "Una cotizacion debe estar lista para enviarse, entenderse financieramente y convertirse cuando el cliente acepta.",
+          "steps": [
+            {
+              "title": "Revisa preparacion antes de enviar",
+              "description": "Valida cliente, partidas, impuestos, vigencia, productos y margen antes de compartir."
+            },
+            {
+              "title": "Observa riesgo de margen",
+              "description": "Margen bajo o costo faltante debe resolverse antes de convertir la cotizacion en venta."
+            },
+            {
+              "title": "Mantén visible la vigencia",
+              "description": "Cotizaciones vencidas o por vencer necesitan seguimiento antes de enfriar el pipeline."
+            }
+          ]
+        },
+        {
+          "tab": "sales",
+          "label": "Ventas",
+          "title": "Convierte cotizaciones aceptadas en ejecucion",
+          "purpose": "Usa Ventas para registrar cierres ganados y preparar el traspaso a finanzas, inventario, comisiones y postventa.",
+          "effect": "Una cotizacion ganada no es el final. El registro de venta dice que debe validarse y ejecutarse despues.",
+          "steps": [
+            {
+              "title": "Parte de una cotizacion aceptada",
+              "description": "Ventas normalmente debe heredar cliente, vendedor, productos, totales y contexto de la cotizacion."
+            },
+            {
+              "title": "Valida evidencia de pago",
+              "description": "Finanzas avanza mejor cuando metodo, referencia y estado de evidencia estan claros."
+            },
+            {
+              "title": "Prepara el traspaso a inventario",
+              "description": "Ventas mide preparacion; inventario conserva la responsabilidad de stock y aprobacion de movimientos."
+            }
+          ]
+        },
+        {
+          "tab": "contracts",
+          "label": "Contratos",
+          "title": "Formaliza compromisos comerciales",
+          "purpose": "Usa Contratos para controlar compromisos firmados, renovaciones, terminos, responsables y contexto.",
+          "effect": "Los contratos convierten promesas comerciales en acuerdos operativos trazables.",
+          "steps": [
+            {
+              "title": "Conecta contrato con venta",
+              "description": "Mantén cotizacion, cliente, vendedor, fechas y alcance unidos para que entrega tenga contexto."
+            },
+            {
+              "title": "Controla renovacion y vencimiento",
+              "description": "Fechas visibles ayudan a actuar antes de poner en riesgo ingreso o continuidad del servicio."
+            }
+          ]
+        },
+        {
+          "tab": "commissions",
+          "label": "Comisiones",
+          "title": "Convierte resultados de venta en incentivos trazables",
+          "purpose": "Usa Comisiones para definir políticas, revisar resultados generados y enviar cortes controlados a Recursos Humanos y nómina.",
+          "effect": "Un ciclo documentado conecta cada incentivo con una venta elegible, una regla aprobada y un solo traspaso a nómina.",
+          "steps": [
+            {
+              "title": "Define políticas antes de calcular",
+              "description": "Configura participantes, productos elegibles, porcentajes y vigencia antes de generar resultados."
+            },
+            {
+              "title": "Revisa los resultados generados",
+              "description": "Confirma venta, responsable, regla e importe antes de incluir una comisión en el corte."
+            },
+            {
+              "title": "Envía un corte controlado",
+              "description": "Crea y rastrea el traspaso a Recursos Humanos para evitar pagos duplicados."
+            }
+          ]
+        },
+        {
+          "tab": "payment-accounts",
+          "label": "Cuentas de pago",
+          "title": "Mantén controlados los destinos de cobro",
+          "purpose": "Usa Cuentas de pago para mantener las cuentas bancarias, de efectivo e internas disponibles en los flujos comerciales.",
+          "effect": "Un catálogo compartido evita enviar pagos a destinos inactivos, duplicados o poco claros.",
+          "steps": [
+            {
+              "title": "Crea una cuenta verificada",
+              "description": "Registra tipo, moneda, alcance empresarial y contexto identificador seguro antes de utilizarla."
+            },
+            {
+              "title": "Mantén vigente el estado",
+              "description": "Desactiva cuentas que ya no deben recibir pagos nuevos sin borrar su historial."
+            },
+            {
+              "title": "Respeta la propiedad financiera",
+              "description": "Reconoce las cuentas administradas por Caja chica y edítalas desde su flujo financiero propietario."
+            }
+          ]
+        },
+        {
+          "tab": "kpis",
+          "label": "KPIs",
+          "title": "Convierte actividad comercial en decisiones",
+          "purpose": "Usa KPIs para leer pipeline, cotizaciones, ventas registradas, cobros, saldo por cobrar, entrega y seguimiento.",
+          "effect": "Las metricas ayudan a decidir donde poner atencion antes de que los problemas afecten caja o entrega.",
+          "steps": [
+            {
+              "title": "Lee conversion y margen juntos",
+              "description": "Mucho volumen sin margen puede crear presion operativa sin crecimiento sano."
+            },
+            {
+              "title": "Observa validaciones pendientes",
+              "description": "Cuellos de botella en finanzas, inventario y comisiones muestran donde se frena la ejecucion."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "human_resources",
+      "pageId": "human-resources",
+      "locale": "en-CA",
+      "purpose": "Use Human Resources to keep collaborators, attendance, payroll, and responsibilities aligned.",
+      "tabs": [
+        {
+          "tab": "collaborators",
+          "label": "Collaborators",
+          "title": "Centralize the people base",
+          "purpose": "Keep collaborator records, roles, units, and employment context organized from one operational source.",
+          "effect": "A reliable people base improves accountability, payroll control, attendance follow-up, and team visibility.",
+          "steps": [
+            {
+              "title": "Complete every collaborator profile",
+              "description": "Use consistent personal, contact, job, and document data so each person can be managed without manual follow-up."
+            },
+            {
+              "title": "Segment by unit and department",
+              "description": "Connect collaborators to the right operating areas so filters, reports, and responsibilities remain meaningful."
+            },
+            {
+              "title": "Keep status clean",
+              "description": "Review active and inactive collaborators regularly to avoid payroll, access, and reporting noise."
+            }
+          ]
+        },
+        {
+          "tab": "attendance",
+          "label": "Attendance",
+          "title": "Make daily presence visible",
+          "purpose": "Track check-ins, check-outs, shifts, and attendance evidence so daily operation does not depend on memory.",
+          "effect": "Attendance visibility helps detect absences, delays, workload gaps, and operational risk earlier.",
+          "steps": [
+            {
+              "title": "Review daily attendance signals",
+              "description": "Use the attendance view to identify who is present, who is missing, and where follow-up is needed."
+            },
+            {
+              "title": "Connect attendance to locations",
+              "description": "Use locations and kiosks to reduce manual validation and keep attendance aligned with the real workplace."
+            },
+            {
+              "title": "Act on exceptions quickly",
+              "description": "Resolve missing punches and irregular records before they affect payroll or performance conversations."
+            }
+          ]
+        },
+        {
+          "tab": "control",
+          "label": "Control",
+          "title": "Operate schedules and access with discipline",
+          "purpose": "Use control tools to manage schedules, kiosk access, attendance settings, and operational routines.",
+          "effect": "A clear control layer reduces improvisation and helps supervisors keep daily execution consistent.",
+          "steps": [
+            {
+              "title": "Define work schedules clearly",
+              "description": "Keep shifts and operating hours updated so attendance and exceptions are interpreted correctly."
+            },
+            {
+              "title": "Use kiosks where teams operate",
+              "description": "Set access points close to the real operation so collaborators can register attendance with less friction."
+            },
+            {
+              "title": "Review employee access",
+              "description": "Keep PINs, face enrollment, and access settings aligned with each collaborator’s current role."
+            }
+          ]
+        },
+        {
+          "tab": "payroll",
+          "label": "Payroll",
+          "title": "Prepare payroll with cleaner inputs",
+          "purpose": "Use payroll to organize salary data, variable pay, deductions, and run context before payment decisions.",
+          "effect": "Cleaner payroll inputs reduce rework, improve trust, and help finance understand labour cost with more precision.",
+          "steps": [
+            {
+              "title": "Validate payroll setup",
+              "description": "Confirm salary, jurisdiction, bank, and employment data before running payroll calculations."
+            },
+            {
+              "title": "Control variable pay",
+              "description": "Register bonuses, commissions, and adjustments with clear context so payroll changes stay traceable."
+            },
+            {
+              "title": "Review before closing",
+              "description": "Use payroll summaries to catch inconsistencies before they become payment or accounting issues."
+            }
+          ]
+        },
+        {
+          "tab": "announcements",
+          "label": "Announcements",
+          "title": "Communicate operational decisions",
+          "purpose": "Use announcements to keep teams informed about policies, reminders, changes, and relevant company updates.",
+          "effect": "Structured communication reduces uncertainty and helps collaborators act on the same operating information.",
+          "steps": [
+            {
+              "title": "Publish short and actionable updates",
+              "description": "Keep messages focused on what changed, who is affected, and what action is expected."
+            },
+            {
+              "title": "Segment the audience",
+              "description": "Send information to the right groups so teams receive relevant communication without extra noise."
+            }
+          ]
+        },
+        {
+          "tab": "assets",
+          "label": "Assets",
+          "title": "Control assigned work assets",
+          "purpose": "Track equipment, tools, and assigned resources so company property stays connected to responsible people.",
+          "effect": "Asset visibility reduces losses, improves accountability, and helps operations know what each collaborator has.",
+          "steps": [
+            {
+              "title": "Assign assets with responsibility",
+              "description": "Connect every relevant asset to a collaborator, status, and operating context."
+            },
+            {
+              "title": "Review condition and returns",
+              "description": "Use asset status to plan replacement, recovery, and handoff decisions with less confusion."
+            }
+          ]
+        },
+        {
+          "tab": "records",
+          "label": "Records",
+          "title": "Document important people events",
+          "purpose": "Use records to keep agreements, incidents, acknowledgements, and formal HR events organized.",
+          "effect": "Good records protect the company, support fair decisions, and preserve context when people or managers change.",
+          "steps": [
+            {
+              "title": "Capture the event context",
+              "description": "Document what happened, who participated, and what follow-up is required."
+            },
+            {
+              "title": "Keep evidence traceable",
+              "description": "Attach supporting files and maintain a clean history for future reviews."
+            }
+          ]
+        },
+        {
+          "tab": "permissions",
+          "label": "Permissions",
+          "title": "Manage time away with control",
+          "purpose": "Use permissions to organize leave, absences, approvals, and time-off context without losing operational visibility.",
+          "effect": "A controlled permission flow helps managers plan coverage and reduces surprises in daily staffing.",
+          "steps": [
+            {
+              "title": "Review requests with staffing impact",
+              "description": "Evaluate each permission request against coverage, urgency, and team capacity."
+            },
+            {
+              "title": "Keep approvals traceable",
+              "description": "Use clear statuses and comments so decisions remain understandable later."
+            }
+          ]
+        },
+        {
+          "tab": "incentives",
+          "label": "Incentives",
+          "title": "Connect rewards to operational behaviour",
+          "purpose": "Use incentives to reinforce the habits, outcomes, and responsibilities that improve team execution.",
+          "effect": "Clear incentives help align motivation with business priorities instead of disconnected rewards.",
+          "steps": [
+            {
+              "title": "Define the behaviour being rewarded",
+              "description": "Connect each incentive to a clear operational objective, not only to a payment amount."
+            },
+            {
+              "title": "Review fairness and consistency",
+              "description": "Keep incentive criteria understandable so teams trust the program."
+            }
+          ]
+        },
+        {
+          "tab": "kpis",
+          "label": "KPIs",
+          "title": "Measure people operations in real time",
+          "purpose": "Use HR KPIs to read headcount, activity, attendance, payroll, and operational people signals.",
+          "effect": "People metrics help leaders detect issues early and decide where management attention is needed.",
+          "steps": [
+            {
+              "title": "Read the people signals",
+              "description": "Look for changes in active collaborators, attendance quality, permissions, and payroll impact."
+            },
+            {
+              "title": "Turn metrics into action",
+              "description": "Use KPI movement to prioritize follow-up with supervisors, finance, or team leaders."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "processes",
+      "pageId": "processes-tasks",
+      "locale": "en-CA",
+      "purpose": "Use Processes and Tasks to turn operational priorities into visible work, repeatable routines, and measurable execution.",
+      "tabs": [
+        {
+          "tab": "calendar",
+          "label": "Agenda",
+          "title": "Run daily work from one operational board",
+          "purpose": "Use Agenda to create, assign, prioritize, complete, audit, and follow up on tasks without losing execution context.",
+          "effect": "A disciplined agenda reduces forgotten work, makes ownership visible, and helps supervisors close the day with clearer evidence.",
+          "steps": [
+            {
+              "title": "Keep tasks actionable",
+              "description": "Write tasks with clear titles, responsible owners, due dates, priority, and business context so execution is easy to inspect."
+            },
+            {
+              "title": "Use views for the right operating moment",
+              "description": "Use table for control, kanban for flow, and diagram for timing so the same work can be understood from different angles."
+            },
+            {
+              "title": "Close with evidence",
+              "description": "Use notes, progress, files, and audit status to make completed work reliable, not only marked as done."
+            }
+          ]
+        },
+        {
+          "tab": "projects",
+          "label": "Projects",
+          "title": "Coordinate initiatives without losing task control",
+          "purpose": "Use Projects to group related work, organize owners, and connect task execution to a larger operational objective.",
+          "effect": "Project visibility helps teams understand why tasks matter and where delays can affect wider business commitments.",
+          "steps": [
+            {
+              "title": "Define the project outcome",
+              "description": "Keep each project tied to a clear operational result so tasks do not become disconnected activity."
+            },
+            {
+              "title": "Track the task portfolio",
+              "description": "Use project task lists and diagrams to identify workload, delays, owners, and timing risks."
+            },
+            {
+              "title": "Review progress consistently",
+              "description": "Use project status and linked tasks to guide follow-up conversations before deadlines become emergencies."
+            }
+          ]
+        },
+        {
+          "tab": "processes",
+          "label": "Processes",
+          "title": "Convert recurring work into operating routines",
+          "purpose": "Use Processes to define repeatable operational generators that create future tasks from clear recurrence rules.",
+          "effect": "Recurring processes protect consistency: active processes generate future work, paused ones stop, and deleted ones stop permanently.",
+          "steps": [
+            {
+              "title": "Separate processes from tasks",
+              "description": "Treat processes as operating routines that generate tasks, not as individual items to complete."
+            },
+            {
+              "title": "Control recurrence carefully",
+              "description": "Keep frequency, next execution, owner, and status accurate so the engine generates only the work the operation needs."
+            },
+            {
+              "title": "Pause before deleting when in doubt",
+              "description": "Pause processes to stop future work temporarily; delete only when the routine should no longer generate tasks."
+            }
+          ]
+        },
+        {
+          "tab": "kpis",
+          "label": "KPIs",
+          "title": "Measure execution health before work drifts",
+          "purpose": "Use operational KPIs to read agenda compliance, project flow, recurring process discipline, and execution risk.",
+          "effect": "KPIs turn task activity into management signals so leaders can act before missed work becomes operational debt.",
+          "steps": [
+            {
+              "title": "Read leading indicators",
+              "description": "Watch open, overdue, audited, and completed work to understand whether execution is improving or accumulating risk."
+            },
+            {
+              "title": "Connect metrics to action",
+              "description": "Use KPI movement to decide which team, project, process, or owner needs follow-up."
+            },
+            {
+              "title": "Review trends, not only totals",
+              "description": "A single number is useful, but trend changes show whether the operating system is getting healthier."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "crm",
+      "pageId": "sales",
+      "locale": "en-CA",
+      "purpose": "Connect opportunities, quotes, commercial closure, inventory readiness, finance validation, and after-sales execution.",
+      "tabs": [
+        {
+          "tab": "leads",
+          "label": "Leads",
+          "title": "Build a disciplined opportunity pipeline",
+          "purpose": "Use Leads to capture demand, qualify interest, assign ownership, and define the next commercial action.",
+          "effect": "A clean pipeline keeps follow-up visible and prevents revenue from depending on memory.",
+          "steps": [
+            {
+              "title": "Qualify before quoting",
+              "description": "Confirm need, budget, timing, and decision context before moving work into a quote."
+            },
+            {
+              "title": "Assign a responsible seller",
+              "description": "Every active opportunity should have one owner and one next action with a due date."
+            },
+            {
+              "title": "Keep stages honest",
+              "description": "Move opportunities only when the customer has actually advanced in the buying process."
+            }
+          ]
+        },
+        {
+          "tab": "contacts",
+          "label": "Contacts",
+          "title": "Turn relationships into commercial control",
+          "purpose": "Use Contacts as the relationship base for customers, prospects, owners, and follow-up context.",
+          "effect": "Reliable contact data makes quotes, sales handoff, and customer follow-up easier for the whole team.",
+          "steps": [
+            {
+              "title": "Complete the relationship profile",
+              "description": "Keep company, contact role, phone, email, fiscal context, and owner visible."
+            },
+            {
+              "title": "Separate people from opportunities",
+              "description": "Create the contact first, then connect opportunities and quotes to the right relationship."
+            },
+            {
+              "title": "Avoid blank ownership",
+              "description": "Unassigned contacts create missed follow-ups and unclear responsibility."
+            }
+          ]
+        },
+        {
+          "tab": "quotes",
+          "label": "Quotes",
+          "title": "Quote with margin and readiness",
+          "purpose": "Use Quotes to prepare the commercial document, validate products, protect margin, and control validity.",
+          "effect": "A quote should be ready to send, financially understandable, and easy to convert when the customer accepts.",
+          "steps": [
+            {
+              "title": "Check readiness before sending",
+              "description": "Review customer, items, taxes, validity, product data, and margin before sharing the quote."
+            },
+            {
+              "title": "Watch margin risk",
+              "description": "Low margin or missing cost should be resolved before the quote becomes a sale."
+            },
+            {
+              "title": "Keep expiration visible",
+              "description": "Expired and soon-to-expire quotes need follow-up before the pipeline becomes stale."
+            }
+          ]
+        },
+        {
+          "tab": "sales",
+          "label": "Sales",
+          "title": "Convert accepted quotes into execution",
+          "purpose": "Use Sales to register won business and prepare the handoff to finance, inventory, commissions, and after-sales.",
+          "effect": "A won quote is not the end. The sale record tells the company what must be validated and executed next.",
+          "steps": [
+            {
+              "title": "Start from an accepted quote",
+              "description": "Sales should normally inherit customer, seller, products, totals, and context from the accepted quote."
+            },
+            {
+              "title": "Validate payment evidence",
+              "description": "Finance can move faster when payment method, reference, and evidence status are clear."
+            },
+            {
+              "title": "Prepare the inventory handoff",
+              "description": "Sales tracks readiness, while inventory remains responsible for stock execution and movement approval."
+            }
+          ]
+        },
+        {
+          "tab": "contracts",
+          "label": "Contracts",
+          "title": "Formalize commercial commitments",
+          "purpose": "Use Contracts to control signed commitments, renewal dates, terms, responsibility, and execution context.",
+          "effect": "Contracts turn commercial promises into a traceable operating agreement.",
+          "steps": [
+            {
+              "title": "Connect contract to the sale",
+              "description": "Keep quote, customer, seller, dates, and scope connected so delivery has context."
+            },
+            {
+              "title": "Track renewal and expiry",
+              "description": "Visible dates help the team act before revenue or service continuity is at risk."
+            }
+          ]
+        },
+        {
+          "tab": "commissions",
+          "label": "Commissions",
+          "title": "Turn sales results into traceable incentives",
+          "purpose": "Use Commissions to define policies, review generated results, and send controlled cuts to HR and payroll.",
+          "effect": "A documented commission cycle connects each incentive to an eligible sale, an approved rule, and one payroll handoff.",
+          "steps": [
+            {
+              "title": "Define policies before calculating",
+              "description": "Set participants, eligible products, percentages, and validity before sales generate results."
+            },
+            {
+              "title": "Review generated results",
+              "description": "Confirm the sale, seller, rule, and amount before including a commission in a cut."
+            },
+            {
+              "title": "Send one controlled cut",
+              "description": "Create and track the HR handoff so the same result is not paid twice."
+            }
+          ]
+        },
+        {
+          "tab": "payment-accounts",
+          "label": "Payment accounts",
+          "title": "Keep collection destinations controlled",
+          "purpose": "Use Payment accounts to maintain the bank, cash, and internal accounts available to commercial payment flows.",
+          "effect": "A shared account catalogue prevents payments from being sent to inactive, duplicated, or unclear destinations.",
+          "steps": [
+            {
+              "title": "Create one verified account",
+              "description": "Record type, currency, business scope, and safe identifying context before using an account."
+            },
+            {
+              "title": "Keep status current",
+              "description": "Deactivate accounts that should no longer receive new payments without erasing their history."
+            },
+            {
+              "title": "Respect financial ownership",
+              "description": "Recognize petty-cash-managed accounts and edit them only from their owning financial workflow."
+            }
+          ]
+        },
+        {
+          "tab": "kpis",
+          "label": "KPIs",
+          "title": "Turn commercial activity into decisions",
+          "purpose": "Use KPIs to read pipeline, quotes, registered sales, collections, receivables, handoff, and follow-up discipline.",
+          "effect": "Metrics help leaders decide where attention is needed before sales problems become cash or delivery problems.",
+          "steps": [
+            {
+              "title": "Read conversion and margin together",
+              "description": "High sales volume without margin can create operational pressure without healthy growth."
+            },
+            {
+              "title": "Watch pending validations",
+              "description": "Finance, inventory, and commission bottlenecks show where execution is slowing down."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "inventory",
+      "pageId": "inventory",
+      "locale": "es-MX",
+      "purpose": "Crea la ficha comercial y operativa con código, precio, costo, impuestos y configuración de inventario. Registra la entrada física de productos a un almacén con cantidad, costo y referencia. Define las ubicaciones que poseen existencias y sus responsables. Crea el expediente del proveedor con datos de contacto, compra, pago y surtido. Solicita productos a un proveedor con cantidades, costos, destino y fechas. Define desde el catálogo qué productos, categorías o clientes reciben una condición comercial.",
+      "tabs": [
+        {
+          "tab": "products",
+          "label": "Productos",
+          "title": "Productos",
+          "purpose": "Crea la ficha comercial y operativa con código, precio, costo, impuestos y configuración de inventario.",
+          "effect": "Evita productos duplicados y movimientos sin una ficha confiable. Evita categorías improvisadas que fragmentan el catálogo. Separa la información interna de la experiencia que recibe el cliente. Evita fichas paralelas y productos obsoletos disponibles por error.",
+          "steps": [
+            {
+              "title": "Nuevo producto",
+              "description": "Crea la ficha comercial y operativa con código, precio, costo, impuestos y configuración de inventario. Abre el formulario, valida identificadores y agrega el producto al catálogo compartido. Úsalo antes de comprar, recibir o vender un artículo nuevo."
+            },
+            {
+              "title": "Administrar categorías",
+              "description": "Organiza productos en familias útiles para venta, inventario y análisis. Abre el catálogo de categorías para crear, editar y ordenar sin modificar las existencias. Úsalo cuando la clasificación actual no permita encontrar o analizar productos correctamente."
+            },
+            {
+              "title": "Columnas y catálogo público",
+              "description": "Adapta la tabla y controla cómo se consultan productos fuera del flujo interno. Columnas cambia los datos visibles; catálogo público abre la configuración de publicación autorizada. Úsalo para revisar costos, precios, códigos o disponibilidad, y para compartir solo información aprobada."
+            },
+            {
+              "title": "Consultar, editar, duplicar y controlar estado",
+              "description": "Mantiene vigente la ficha durante el ciclo de vida del producto. Las acciones abren detalle, corrigen datos, crean variantes o retiran productos sin borrar historia. Úsalas cuando cambie un atributo o un artículo deje de venderse."
+            }
+          ]
+        },
+        {
+          "tab": "inventory",
+          "label": "Inventario",
+          "title": "Inventario",
+          "purpose": "Registra la entrada física de productos a un almacén con cantidad, costo y referencia.",
+          "effect": "Evita aumentar stock por una compra que todavía no se recibió. Evita existencias sin ubicación ni responsable. Evita corregir el sistema sin explicar qué ocurrió con la mercancía. Conecta la existencia actual con los movimientos que la produjeron.",
+          "steps": [
+            {
+              "title": "Recibir inventario",
+              "description": "Registra la entrada física de productos a un almacén con cantidad, costo y referencia. Abre la recepción y actualiza existencias al confirmar los datos. Úsalo cuando la mercancía haya llegado y pueda verificarse."
+            },
+            {
+              "title": "Administrar almacenes",
+              "description": "Define las ubicaciones que poseen y mueven existencias. Abre la administración para crear o actualizar almacenes y responsables. Úsalo antes de recibir stock en una nueva ubicación."
+            },
+            {
+              "title": "Transferir y ajustar inventario",
+              "description": "Mueve existencias entre almacenes o corrige diferencias justificadas. Transferir conserva origen y destino; ajustar solicita motivo y modifica la existencia con trazabilidad. Transfiere por movimiento físico y ajusta únicamente después de verificar una diferencia."
+            },
+            {
+              "title": "Columnas, filtros e historial",
+              "description": "Encuentra existencias y explica sus cambios por producto, almacén o movimiento. Configura la tabla, segmenta resultados y abre el historial del registro seleccionado. Úsalo al investigar faltantes, sobrestock o diferencias."
+            }
+          ]
+        },
+        {
+          "tab": "warehouses",
+          "label": "Almacenes",
+          "title": "Almacenes",
+          "purpose": "Define las ubicaciones que poseen existencias y sus responsables.",
+          "effect": "Conserva el stock ubicado y evita eliminar existencias por accidente.",
+          "steps": [
+            {
+              "title": "Administrar almacenes",
+              "description": "Define las ubicaciones que poseen existencias y sus responsables. Permite buscar, crear y retirar almacenes; si existe stock, exige transferirlo antes de eliminar. Úsalo antes de recibir inventario en una ubicación nueva o al cerrar una ubicación existente."
+            }
+          ]
+        },
+        {
+          "tab": "providers",
+          "label": "Proveedores",
+          "title": "Proveedores",
+          "purpose": "Crea el expediente del proveedor con datos de contacto, compra, pago y surtido.",
+          "effect": "Evita pedidos y pagos vinculados a contactos incompletos. Hace visibles criterios de compra más allá del nombre. Reduce decisiones basadas únicamente en memoria o costumbre. Mantiene vigente la red de abastecimiento.",
+          "steps": [
+            {
+              "title": "Agregar proveedor",
+              "description": "Crea el expediente del proveedor con datos de contacto, compra, pago y surtido. Abre el formulario y agrega una fuente confiable al catálogo compartido. Úsalo antes de crear compras recurrentes o dar acceso al portal."
+            },
+            {
+              "title": "Columnas",
+              "description": "Elige los datos visibles del directorio de abastecimiento. Organiza categoría, contacto, condiciones, estado y unidad atendida. Úsalo antes de comparar o depurar proveedores."
+            },
+            {
+              "title": "Buscar y segmentar proveedores",
+              "description": "Encuentra proveedores por nombre, categoría, estado o unidad. Acota el catálogo sin modificar expedientes. Úsalo al preparar una compra o revisar alternativas."
+            },
+            {
+              "title": "Editar, portal y estado",
+              "description": "Actualiza información, administra acceso externo y controla disponibilidad. Las acciones conservan historial y aplican permisos o confirmaciones según el cambio. Úsalas cuando cambien condiciones o termine la relación."
+            }
+          ]
+        },
+        {
+          "tab": "purchase-orders",
+          "label": "Órdenes de compra",
+          "title": "Órdenes de compra",
+          "purpose": "Solicita productos a un proveedor con cantidades, costos, destino y fechas.",
+          "effect": "Evita compras por mensaje sin cantidades, precio ni destino confirmados. Reduce confirmaciones dispersas y conserva evidencia de respuesta. Evita pagar o almacenar mercancía que no coincide con el pedido. Mantiene conectados pedido, recepción, inventario y pago.",
+          "steps": [
+            {
+              "title": "Nueva orden de compra",
+              "description": "Solicita productos a un proveedor con cantidades, costos, destino y fechas. Abre el formulario y crea el documento que después se recibe y compara. Úsalo cuando la necesidad y el proveedor estén aprobados."
+            },
+            {
+              "title": "Portal proveedor",
+              "description": "Configura un canal limitado para confirmar y entregar información de las órdenes. Administra acceso sin compartir permisos internos de compras o inventario. Úsalo con proveedores recurrentes que participan en el seguimiento."
+            },
+            {
+              "title": "Recibir mercancía",
+              "description": "Compara lo entregado contra lo ordenado y actualiza inventario. Registra cantidades recibidas, faltantes, fechas y almacén destino. Úsalo al revisar físicamente la entrega."
+            },
+            {
+              "title": "Filtrar, consultar y administrar órdenes",
+              "description": "Encuentra compras por proveedor, estado, fecha o almacén y abre su expediente. Los filtros acotan; las acciones muestran detalle, recepción, factura y seguimiento disponible. Úsalo para revisar retrasos, faltantes y compras aún no facturadas."
+            }
+          ]
+        },
+        {
+          "tab": "discounts",
+          "label": "Descuentos y promociones",
+          "title": "Descuentos y promociones",
+          "purpose": "Define desde el catálogo qué productos, categorías o clientes reciben una condición comercial.",
+          "effect": "Una sola regla gobierna todos los canales sin permitir que cada terminal invente descuentos. POS y Ventas consumen reglas vigentes sin administrar copias independientes. Los canales aplican solamente condiciones vigentes y autorizadas.",
+          "steps": [
+            {
+              "title": "Crear descuento o promoción",
+              "description": "Define desde el catálogo qué productos, categorías o clientes reciben una condición comercial. Configura valor, vigencia, alcance, prioridad y autorización antes de publicar la regla a los canales de venta. Úsalo antes de habilitar una promoción para POS, Ventas, catálogo público o kioscos."
+            },
+            {
+              "title": "Habilitar en POS, Ventas y kioscos",
+              "description": "Controla qué canales pueden consultar y aplicar cada regla aprobada. Publica la misma definición comercial con alcance por empresa, unidad, negocio, almacén y canal. Úsalo cuando una promoción no deba operar igual en mostrador, venta asistida o autoservicio."
+            },
+            {
+              "title": "Controlar margen, combinación y aprobación",
+              "description": "Protege el margen al definir límites, reglas combinables y responsables de autorización. Valida la regla contra precio, costo y otras promociones antes de permitir su uso operativo. Úsalo para descuentos manuales, promociones acumulables o condiciones especiales de cliente."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "inventory",
+      "pageId": "inventory",
+      "locale": "en-CA",
+      "purpose": "Define what you buy and sell before recording physical stock. Explain each stock change through a recorded movement. Identify where stock is kept and who is responsible for it. Link replenishment to an identified supplier. Separate an order commitment from goods actually received. Apply clear commercial rules to controlled products.",
+      "tabs": [
+        {
+          "tab": "products",
+          "label": "Products",
+          "title": "Products",
+          "purpose": "Define what you buy and sell before recording physical stock.",
+          "effect": "A new product appears in the catalogue but has no warehouse stock until a receipt is recorded.",
+          "steps": [
+            {
+              "title": "Workflow",
+              "description": "Search the catalogue, complete the product record and check its unit and commercial information. Creating a product does not receive stock."
+            },
+            {
+              "title": "When to use",
+              "description": "Before a new item is purchased, received or sold."
+            },
+            {
+              "title": "Example",
+              "description": "A new product appears in the catalogue but has no warehouse stock until a receipt is recorded."
+            }
+          ]
+        },
+        {
+          "tab": "inventory",
+          "label": "Inventory",
+          "title": "Inventory",
+          "purpose": "Explain each stock change through a recorded movement.",
+          "effect": "Moving ten units between warehouses changes both locations without creating ten extra units for the company.",
+          "steps": [
+            {
+              "title": "Workflow",
+              "description": "Choose the product and warehouse, review available stock and use the appropriate receipt, transfer or adjustment with supporting details."
+            },
+            {
+              "title": "When to use",
+              "description": "When goods arrive, move between locations or require a justified correction."
+            },
+            {
+              "title": "Example",
+              "description": "Moving ten units between warehouses changes both locations without creating ten extra units for the company."
+            }
+          ]
+        },
+        {
+          "tab": "warehouses",
+          "label": "Warehouses",
+          "title": "Warehouses",
+          "purpose": "Identify where stock is kept and who is responsible for it.",
+          "effect": "Two locations hold the same product but maintain separate quantities.",
+          "steps": [
+            {
+              "title": "Workflow",
+              "description": "Review warehouse records and assign the correct location when recording stock movements."
+            },
+            {
+              "title": "When to use",
+              "description": "Before receiving goods or separating stock by location."
+            },
+            {
+              "title": "Example",
+              "description": "Two locations hold the same product but maintain separate quantities."
+            }
+          ]
+        },
+        {
+          "tab": "providers",
+          "label": "Suppliers",
+          "title": "Suppliers",
+          "purpose": "Link replenishment to an identified supplier.",
+          "effect": "A purchase order uses the existing supplier record so its receipt and follow-up remain connected.",
+          "steps": [
+            {
+              "title": "Workflow",
+              "description": "Search existing supplier records and check their details before preparing a purchase order."
+            },
+            {
+              "title": "When to use",
+              "description": "Before committing to a purchase or updating supplier information."
+            },
+            {
+              "title": "Example",
+              "description": "A purchase order uses the existing supplier record so its receipt and follow-up remain connected."
+            }
+          ]
+        },
+        {
+          "tab": "purchase-orders",
+          "label": "Purchase orders",
+          "title": "Purchase orders",
+          "purpose": "Separate an order commitment from goods actually received.",
+          "effect": "An order for twenty units receives only twelve. The receipt records twelve rather than assuming the whole order arrived.",
+          "steps": [
+            {
+              "title": "Workflow",
+              "description": "Prepare and review the order. When goods arrive, register the actual receipt against the correct warehouse; the order alone does not add stock."
+            },
+            {
+              "title": "When to use",
+              "description": "When purchasing stock and confirming deliveries."
+            },
+            {
+              "title": "Example",
+              "description": "An order for twenty units receives only twelve. The receipt records twelve rather than assuming the whole order arrived."
+            }
+          ]
+        },
+        {
+          "tab": "discounts",
+          "label": "Discounts and promotions",
+          "title": "Discounts and promotions",
+          "purpose": "Apply clear commercial rules to controlled products.",
+          "effect": "A promotion has an end date so a temporary price reduction does not remain active indefinitely.",
+          "steps": [
+            {
+              "title": "Workflow",
+              "description": "Review the eligible products, dates and channel, and check the effect on margin before enabling a discount."
+            },
+            {
+              "title": "When to use",
+              "description": "Before launching or changing a promotion."
+            },
+            {
+              "title": "Example",
+              "description": "A promotion has an end date so a temporary price reduction does not remain active indefinitely."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "pos",
+      "pageId": "point-of-sale",
+      "locale": "es-MX",
+      "purpose": "Asegura que cada almacén tenga capacidad de abrir turnos y permite agregar cajas para operación simultánea. Vincula pantallas de cliente y autoservicio con una caja y alcance operativo concretos. Asigna caja, almacén, cajero, moneda y fondo inicial antes de vender. Define qué datos de los cierres aparecen en la tabla. Elige qué datos de clientes aparecen en el directorio. Define el alcance de la lectura del punto de venta.",
+      "tabs": [
+        {
+          "tab": "cajas",
+          "label": "Administración de cajas",
+          "title": "Administración de cajas",
+          "purpose": "Asegura que cada almacén tenga capacidad de abrir turnos y permite agregar cajas para operación simultánea.",
+          "effect": "Cada usuario abre una sola caja a la vez y cada caja conserva un único responsable activo.",
+          "steps": [
+            {
+              "title": "Administrar cajas por almacén",
+              "description": "Asegura que cada almacén tenga capacidad de abrir turnos y permite agregar cajas para operación simultánea. Muestra almacenes, cajas, disponibilidad y responsables con turno abierto sin perder la trazabilidad de inventario. Úsalo al inaugurar una sucursal, agregar una terminal o corregir la asignación de una caja."
+            }
+          ]
+        },
+        {
+          "tab": "kiosks",
+          "label": "Kioscos de punto de venta",
+          "title": "Kioscos de punto de venta",
+          "purpose": "Vincula pantallas de cliente y autoservicio con una caja y alcance operativo concretos.",
+          "effect": "Mantiene cada extensión vinculada a la caja correcta y evita enlaces permanentes fuera de control.",
+          "steps": [
+            {
+              "title": "Configurar kioscos POS",
+              "description": "Vincula pantallas de cliente y autoservicio con una caja y alcance operativo concretos. Crea enlaces de una sola exhibición, permite rotarlos y controla activación o revocación con auditoría. Úsalo al instalar una pantalla, publicar autoservicio o retirar un dispositivo."
+            }
+          ]
+        },
+        {
+          "tab": "sale",
+          "label": "Terminal de venta",
+          "title": "Terminal de venta",
+          "purpose": "Asigna caja, almacén, cajero, moneda y fondo inicial antes de vender.",
+          "effect": "Evita ventas sin responsable y diferencias que no pertenecen a un turno definido. Reduce errores de precio, producto y existencia. Evita rehacer ventas y aplicar ajustes fuera de las reglas. Alinea venta, caja, cartera e inventario en una sola operación. Conserva una historia explicable de todo lo que afectó la caja.",
+          "steps": [
+            {
+              "title": "Abrir turno y elegir caja",
+              "description": "Asigna caja, almacén, cajero, moneda y fondo inicial antes de vender. Valida el contexto operativo y habilita la terminal únicamente con un turno abierto. Úsalo al iniciar la jornada o entregar la caja a otra persona."
+            },
+            {
+              "title": "Buscar, escanear y agregar productos",
+              "description": "Encuentra artículos por nombre, código o categoría y los incorpora al ticket. Consulta disponibilidad, precio y configuración antes de sumar el producto al carrito. Úsalo durante cada venta y valida la variante correcta antes de cobrar."
+            },
+            {
+              "title": "Cantidad, descuento, suspender y recuperar",
+              "description": "Ajusta partidas y conserva una venta cuando el cliente necesita una pausa. Permite cambiar cantidad, aplicar descuentos autorizados, eliminar partidas o guardar y recuperar pre-tickets. Úsalo antes del cobro y conserva siempre el motivo de cambios sensibles."
+            },
+            {
+              "title": "Cobrar y elegir método de pago",
+              "description": "Registra efectivo, tarjeta, transferencia, crédito o pago mixto contra el total del ticket. Valida importes, calcula cambio, registra referencias y finaliza la venta con comprobante. Úsalo después de confirmar productos, cliente, impuestos y descuentos."
+            },
+            {
+              "title": "Movimientos, devoluciones, pantalla y cierre",
+              "description": "Administra efectivo no relacionado con ventas, devoluciones, pantalla de cliente y final del turno. Cada acción abre un flujo específico con validaciones, motivo y evidencia. Úsalas solo para el evento que representan; no ajustes el saldo para hacerlo coincidir."
+            }
+          ]
+        },
+        {
+          "tab": "cortes",
+          "label": "Cortes de caja",
+          "title": "Cortes de caja",
+          "purpose": "Define qué datos de los cierres aparecen en la tabla.",
+          "effect": "Hace visibles los datos que explican cada diferencia. Evita revisar una versión anterior del corte. Comparte una sola versión del cierre sin copiar cifras manualmente. Distingue una diferencia aislada de un patrón repetido.",
+          "steps": [
+            {
+              "title": "Columnas",
+              "description": "Define qué datos de los cierres aparecen en la tabla. Muestra, oculta y ordena almacén, caja, responsable, esperado, declarado y diferencia. Úsalo para preparar una auditoría o revisión de responsables."
+            },
+            {
+              "title": "Actualizar",
+              "description": "Consulta nuevamente los cierres y refleja cambios recientes. Recarga la fuente sin borrar filtros ni modificar registros. Úsalo después de cerrar un turno o corregir información relacionada."
+            },
+            {
+              "title": "Imprimir reporte",
+              "description": "Genera un reporte con el alcance y los datos visibles del análisis. Prepara la versión imprimible para revisión o archivo. Úsalo después de validar filtros y diferencias."
+            },
+            {
+              "title": "Filtrar, ver tabla o agrupar por día",
+              "description": "Acota cierres y cambia entre detalle tabular y lectura diaria. Aplica periodo, caja, almacén, responsable y estado sin duplicar datos. Usa tabla para expediente y vista diaria para tendencia."
+            }
+          ]
+        },
+        {
+          "tab": "clientes",
+          "label": "Clientes",
+          "title": "Clientes",
+          "purpose": "Elige qué datos de clientes aparecen en el directorio.",
+          "effect": "Permite atender sin abrir cada expediente. Acelera la carga sin multiplicar errores. Evita ventas anónimas y datos dispersos. Conserva una historia continua del cliente.",
+          "steps": [
+            {
+              "title": "Columnas",
+              "description": "Elige qué datos de clientes aparecen en el directorio. Organiza contacto, datos fiscales, responsable, segmento y relación comercial. Úsalo para adaptar la tabla a venta, facturación o seguimiento."
+            },
+            {
+              "title": "Importar contactos",
+              "description": "Incorpora una base existente con validación de columnas y duplicados. Procesa el archivo y reporta qué filas entraron o requieren corrección. Úsalo al migrar clientes autorizados desde otra fuente."
+            },
+            {
+              "title": "Crear contacto",
+              "description": "Registra a la persona o empresa con los datos necesarios para vender y dar seguimiento. Abre el formulario y crea un expediente compartido. Úsalo cuando el cliente sea nuevo o no exista un registro verificable."
+            },
+            {
+              "title": "Consultar, editar y relacionar",
+              "description": "Mantiene el expediente y conecta al cliente con oportunidades, cotizaciones y ventas. Las acciones abren detalle, permiten correcciones y crean flujos relacionados según permisos. Úsalas cuando cambien datos o comience una nueva interacción."
+            }
+          ]
+        },
+        {
+          "tab": "kpis",
+          "label": "KPIs de punto de venta",
+          "title": "KPIs de punto de venta",
+          "purpose": "Define el alcance de la lectura del punto de venta.",
+          "effect": "Evita mezclar turnos, tiendas o periodos distintos. Convierte transacciones en preguntas comerciales accionables. Detecta problemas de ejecución antes de que se vuelvan costumbre. Conserva evidencia de la revisión sin recapturar cifras.",
+          "steps": [
+            {
+              "title": "Periodo, tienda, caja y responsable",
+              "description": "Define el alcance de la lectura del punto de venta. Recalcula tarjetas, señales, métodos de pago y cortes con el mismo contexto. Úsalo antes de comparar ventas o diferencias."
+            },
+            {
+              "title": "Ventas, tickets y métodos de pago",
+              "description": "Resume ingreso, volumen, ticket promedio y mezcla de cobro. Conecta indicadores con el contexto filtrado y señala cambios relevantes. Úsalo para revisar desempeño y comportamiento del cliente."
+            },
+            {
+              "title": "Cierres y diferencias de caja",
+              "description": "Relaciona ventas esperadas, efectivo declarado y variaciones por turno. Muestra cierres del periodo y permite identificar cajas o responsables con diferencias. Úsalo diariamente y antes de consolidar resultados."
+            },
+            {
+              "title": "Imprimir reporte",
+              "description": "Genera una versión compartible del análisis visible. Prepara el reporte con el periodo y contexto aplicados. Úsalo después de validar filtros y comprender señales."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "pos",
+      "pageId": "point-of-sale",
+      "locale": "en-CA",
+      "purpose": "Assign registers and responsible operators before trading. Connect each kiosk to its intended operation. Complete the sale with the correct items and payment. Compare expected and declared amounts for each shift. Keep the customer identity and contact information consistent. Use sales and closing evidence to identify operational changes.",
+      "tabs": [
+        {
+          "tab": "cajas",
+          "label": "Registers",
+          "title": "Registers",
+          "purpose": "Assign registers and responsible operators before trading.",
+          "effect": "A separate register identifies which operator and shift handled a transaction.",
+          "steps": [
+            {
+              "title": "Workflow",
+              "description": "Review the register configuration and responsible people before opening a shift."
+            },
+            {
+              "title": "When to use",
+              "description": "Before starting a sales shift or setting up a new register."
+            },
+            {
+              "title": "Example",
+              "description": "A separate register identifies which operator and shift handled a transaction."
+            }
+          ]
+        },
+        {
+          "tab": "kiosks",
+          "label": "Point of sale kiosks",
+          "title": "Point of sale kiosks",
+          "purpose": "Connect each kiosk to its intended operation.",
+          "effect": "A kiosk is linked to the correct register so its activity can be reviewed in the right place.",
+          "steps": [
+            {
+              "title": "Workflow",
+              "description": "Review the kiosk configuration, assigned register and access status before making it available."
+            },
+            {
+              "title": "When to use",
+              "description": "When preparing a kiosk or changing where it operates."
+            },
+            {
+              "title": "Example",
+              "description": "A kiosk is linked to the correct register so its activity can be reviewed in the right place."
+            }
+          ]
+        },
+        {
+          "tab": "sale",
+          "label": "Sales terminal",
+          "title": "Sales terminal",
+          "purpose": "Complete the sale with the correct items and payment.",
+          "effect": "The cashier checks quantities before confirming the sale.",
+          "steps": [
+            {
+              "title": "Workflow",
+              "description": "Check items, quantities and payment details before confirming the transaction."
+            },
+            {
+              "title": "When to use",
+              "description": "When a customer is ready to pay."
+            },
+            {
+              "title": "Example",
+              "description": "The cashier checks quantities before confirming the sale."
+            }
+          ]
+        },
+        {
+          "tab": "cortes",
+          "label": "Cash closings",
+          "title": "Cash closings",
+          "purpose": "Compare expected and declared amounts for each shift.",
+          "effect": "A difference is checked against payment methods and transactions before it is attributed to the operator.",
+          "steps": [
+            {
+              "title": "Workflow",
+              "description": "Choose the register and shift, review payments and declared amounts, then investigate differences before confirming the close."
+            },
+            {
+              "title": "When to use",
+              "description": "At shift end or when reviewing a cash discrepancy."
+            },
+            {
+              "title": "Example",
+              "description": "A difference is checked against payment methods and transactions before it is attributed to the operator."
+            }
+          ]
+        },
+        {
+          "tab": "clientes",
+          "label": "Customers",
+          "title": "Customers",
+          "purpose": "Keep the customer identity and contact information consistent.",
+          "effect": "Finding an existing customer keeps their purchase history together.",
+          "steps": [
+            {
+              "title": "Workflow",
+              "description": "Search existing customers before adding a record, and verify contact and invoicing details when required."
+            },
+            {
+              "title": "When to use",
+              "description": "Before associating a sale with a customer or updating their details."
+            },
+            {
+              "title": "Example",
+              "description": "Finding an existing customer keeps their purchase history together."
+            }
+          ]
+        },
+        {
+          "tab": "kpis",
+          "label": "Point of sale KPIs",
+          "title": "Point of sale KPIs",
+          "purpose": "Use sales and closing evidence to identify operational changes.",
+          "effect": "A change in sales is compared across equivalent periods before staffing decisions are made.",
+          "steps": [
+            {
+              "title": "Workflow",
+              "description": "Select the period and operating scope, review the indicators and inspect supporting sales or closings."
+            },
+            {
+              "title": "When to use",
+              "description": "During a sales review or after closing shifts."
+            },
+            {
+              "title": "Example",
+              "description": "A change in sales is compared across equivalent periods before staffing decisions are made."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

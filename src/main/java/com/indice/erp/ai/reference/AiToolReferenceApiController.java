@@ -50,6 +50,13 @@ public class AiToolReferenceApiController {
             user -> taskAssignees.search(user, request));
     }
 
+    @PostMapping("/task-organization")
+    public ResponseEntity<?> taskOrganization(@RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+            @RequestBody(required = false) PageRequest request) {
+        return invoke(authorization, AiAccessTokenService.TASKS_READ, "list_task_organization",
+            user -> taskAssignees.organization(user, request));
+    }
+
     @GetMapping("/business-context")
     public ResponseEntity<?> getMyBusinessContext(
         @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization

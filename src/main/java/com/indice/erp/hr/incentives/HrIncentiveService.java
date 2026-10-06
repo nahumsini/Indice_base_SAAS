@@ -135,38 +135,44 @@ public class HrIncentiveService {
 
     @Transactional
     public Map<String, Object> createIncentive(AuthSessionUser currentUser, Map<String, Object> payload) {
-        var name = stringValue(payload, "name", "nombre");
-        if (name.isBlank()) {
-            throw new IllegalArgumentException("name is required.");
-        }
+        var draft=prepareIncentive(currentUser,payload);
+        return applyIncentive(currentUser,draft);
+    }
 
-        var amount = scaled(parseBigDecimal(payload, "amount", "monto"));
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("amount must be greater than zero.");
+    @Transactional
+    public Map<String,Object> createAssistantIncentive(AuthSessionUser user,Map<String,Object> payload,List<AssistantApplication> expected) {
+        // Lock the confirmed recipients before resolving their current payroll currency.
+        for(var application:expected) {
+            jdbcTemplate.queryForList("SELECT id FROM user_companies WHERE company_id=? AND id=? FOR UPDATE",Long.class,user.companyId(),application.userCompanyId());
+            jdbcTemplate.queryForList("SELECT user_company_id FROM user_work_profiles WHERE company_id=? AND user_company_id=? FOR UPDATE",Long.class,user.companyId(),application.userCompanyId());
         }
+        var draft=prepareIncentive(user,payload);
+        var current=assistantApplications(draft);
+        if(current.size()!=expected.size())throw new IllegalArgumentException("Incentive recipients changed after preview. Prepare again.");
+        for(int i=0;i<current.size();i++) {
+            var actual=current.get(i);var approved=expected.get(i);
+            if(actual.userCompanyId()!=approved.userCompanyId()||!actual.currency().equals(approved.currency())||actual.amount().compareTo(approved.amount())!=0||actual.exchangeRate().compareTo(approved.exchangeRate())!=0)
+                throw new IllegalArgumentException("Incentive applications changed after preview. Prepare again.");
+        }
+        return applyIncentive(user,draft);
+    }
 
-        var incentiveType = normalizeType(stringValue(payload, "incentive_type", "type"));
-        if (incentiveType.isBlank()) {
-            incentiveType = "manual";
-        }
-        var currency = normalizeCurrency(stringValue(payload, "currency_code", "currency"), "MXN");
-        var status = normalizeStatus(stringValue(payload, "status"), "active");
-        var effectiveStartDate = parseDate(payload, "effective_start_date", "start_date");
-        if (effectiveStartDate == null) {
-            effectiveStartDate = LocalDate.now();
-        }
-        var effectiveEndDate = parseDate(payload, "effective_end_date", "end_date");
-        if (effectiveEndDate != null && effectiveEndDate.isBefore(effectiveStartDate)) {
-            throw new IllegalArgumentException("effective_end_date must be after effective_start_date.");
-        }
-
-        var sourceReferenceType = stringValue(payload, "source_reference_type");
-        if (sourceReferenceType.isBlank() && "kpi".equals(incentiveType)) {
-            sourceReferenceType = "kpi";
-        }
-        var sourceReferenceId = stringValue(payload, "source_reference_id");
-        var description = stringValue(payload, "description", "concepto");
-        var applicationMode = normalizeApplicationMode(stringValue(payload, "application_mode"));
+    private Map<String,Object> applyIncentive(AuthSessionUser currentUser,AssistantIncentiveDraft draft) {
+        var name=draft.name();
+        var amount=draft.amount();
+        var incentiveType=draft.incentiveType();
+        var currency=draft.currency();
+        var status=draft.status();
+        var effectiveStartDate=draft.effectiveStartDate();
+        var effectiveEndDate=draft.effectiveEndDate();
+        var sourceReferenceType=draft.sourceReferenceType();
+        var sourceReferenceId=draft.sourceReferenceId();
+        var description=draft.description();
+        var applicationMode=draft.applicationMode();
+        var scopeType=draft.scopeType();
+        var employeeIds=draft.employeeIds();
+        var unitIds=draft.unitIds();
+        var businessIds=draft.businessIds();
 
         var keyHolder = new GeneratedKeyHolder();
         final var finalCompanyId = currentUser.companyId();
@@ -223,17 +229,9 @@ public class HrIncentiveService {
         var code = "INC-%06d".formatted(incentiveId);
         jdbcTemplate.update("UPDATE hr_incentives SET incentive_code = ? WHERE id = ?", code, incentiveId);
 
-        var scopeType = normalizeScopeType(stringValue(payload, "scope_type"));
-        var employeeIds = longList(payload, "target_user_company_ids", "employee_ids", "colaboradoresSeleccionados");
-        var unitIds = longList(payload, "target_unit_ids", "unit_ids");
-        var businessIds = longList(payload, "target_business_ids", "business_ids");
-
         insertAssignments(incentiveId, currentUser.companyId(), scopeType, employeeIds, unitIds, businessIds);
         if (!"paused".equals(status)) {
-            var targets = targetEmployees(currentUser.companyId(), scopeType, employeeIds, unitIds, businessIds);
-            if (targets.isEmpty()) {
-                throw new IllegalArgumentException("No eligible collaborators were found for this incentive.");
-            }
+            var targets = draft.targets();
             var applicationEndDate = "next_payroll".equals(applicationMode) && effectiveEndDate == null
                 ? NEXT_PAYROLL_OPEN_END_DATE
                 : (effectiveEndDate == null ? effectiveStartDate : effectiveEndDate);
@@ -251,6 +249,74 @@ public class HrIncentiveService {
         }
 
         return getIncentive(currentUser, incentiveId);
+    }
+
+    public record AssistantIncentiveDraft(String name,BigDecimal amount,String incentiveType,String currency,String status,
+        LocalDate effectiveStartDate,LocalDate effectiveEndDate,String sourceReferenceType,String sourceReferenceId,String description,
+        String applicationMode,String scopeType,List<Long> employeeIds,List<Long> unitIds,List<Long> businessIds,List<TargetEmployee> targets) { }
+    public AssistantIncentiveDraft validateAssistantCreate(AuthSessionUser user,Map<String,Object> payload) {
+        return prepareIncentive(user,payload);
+    }
+    private AssistantIncentiveDraft prepareIncentive(AuthSessionUser currentUser,Map<String,Object> payload) {
+        var name = stringValue(payload, "name", "nombre");
+        if (name.isBlank()) {
+            throw new IllegalArgumentException("name is required.");
+        }
+
+        var amount = scaled(parseBigDecimal(payload, "amount", "monto"));
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("amount must be greater than zero.");
+        }
+
+        var incentiveType = normalizeType(stringValue(payload, "incentive_type", "type"));
+        if (incentiveType.isBlank()) {
+            incentiveType = "manual";
+        }
+        var currency = normalizeCurrency(stringValue(payload, "currency_code", "currency"), "MXN");
+        var status = normalizeStatus(stringValue(payload, "status"), "active");
+        var effectiveStartDate = parseDate(payload, "effective_start_date", "start_date");
+        if (effectiveStartDate == null) {
+            effectiveStartDate = LocalDate.now();
+        }
+        var effectiveEndDate = parseDate(payload, "effective_end_date", "end_date");
+        if (effectiveEndDate != null && effectiveEndDate.isBefore(effectiveStartDate)) {
+            throw new IllegalArgumentException("effective_end_date must be after effective_start_date.");
+        }
+
+        var sourceReferenceType = stringValue(payload, "source_reference_type");
+        if (sourceReferenceType.isBlank() && "kpi".equals(incentiveType)) {
+            sourceReferenceType = "kpi";
+        }
+        var sourceReferenceId = stringValue(payload, "source_reference_id");
+        var description = stringValue(payload, "description", "concepto");
+        var applicationMode = normalizeApplicationMode(stringValue(payload, "application_mode"));
+
+        var scopeType = normalizeScopeType(stringValue(payload, "scope_type"));
+        var employeeIds = longList(payload, "target_user_company_ids", "employee_ids", "colaboradoresSeleccionados");
+        var unitIds = longList(payload, "target_unit_ids", "unit_ids");
+        var businessIds = longList(payload, "target_business_ids", "business_ids");
+
+        var targets=targetEmployees(currentUser.companyId(),scopeType,employeeIds,unitIds,businessIds);
+        if(!"paused".equals(status)&&targets.isEmpty())throw new IllegalArgumentException("No eligible collaborators were found for this incentive.");
+        return new AssistantIncentiveDraft(name,amount,incentiveType,currency,status,effectiveStartDate,effectiveEndDate,sourceReferenceType,sourceReferenceId,description,applicationMode,scopeType,employeeIds,unitIds,businessIds,targets);
+    }
+    public record AssistantApplication(long userCompanyId,BigDecimal amount,String currency,BigDecimal exchangeRate) { }
+    public record AssistantAudience(String type,Long userCompanyId,Long unitId,Long businessId) { }
+    public List<AssistantAudience> assistantAudience(AuthSessionUser user,long id) {
+        getIncentive(user,id);
+        return jdbcTemplate.query("SELECT assignment_type,user_company_id,unit_id,business_id FROM hr_incentive_assignments WHERE company_id=? AND incentive_id=? ORDER BY id",(rs,index)->new AssistantAudience(rs.getString("assignment_type"),rs.getObject("user_company_id",Long.class),rs.getObject("unit_id",Long.class),rs.getObject("business_id",Long.class)),user.companyId(),id);
+    }
+    public record AssistantSavedApplication(long userCompanyId,BigDecimal amount,String currency,BigDecimal exchangeRate,String status) { }
+    public List<AssistantSavedApplication> assistantSavedApplications(AuthSessionUser user,long id) {
+        getIncentive(user,id);
+        return jdbcTemplate.query("SELECT user_company_id,amount,currency_code,status,JSON_UNQUOTE(JSON_EXTRACT(calculation_snapshot_json,'$.fx_rate')) AS fx_rate FROM hr_incentive_applications WHERE company_id=? AND incentive_id=? ORDER BY id",(rs,index)->new AssistantSavedApplication(rs.getLong("user_company_id"),rs.getBigDecimal("amount"),rs.getString("currency_code"),rs.getString("fx_rate")==null?BigDecimal.ONE:new BigDecimal(rs.getString("fx_rate")),rs.getString("status")),user.companyId(),id);
+    }
+    public List<AssistantApplication> assistantApplications(AssistantIncentiveDraft draft) {
+        return draft.targets().stream().map(target->{
+            var currency=resolveCurrencyCode(target.registrationCountry(),draft.currency());
+            var rate=exchangeRateBetween(draft.currency(),currency);
+            return new AssistantApplication(target.userCompanyId(),scaled(draft.amount().multiply(rate)),currency,rate);
+        }).toList();
     }
 
     public Map<String, Object> getIncentive(AuthSessionUser currentUser, long incentiveId) {
@@ -547,6 +613,6 @@ public class HrIncentiveService {
         return Long.parseLong(String.valueOf(value));
     }
 
-    private record TargetEmployee(long userCompanyId, String registrationCountry) {
+    public record TargetEmployee(long userCompanyId, String registrationCountry) {
     }
 }

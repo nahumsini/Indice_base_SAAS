@@ -65,6 +65,28 @@ class AiToolAuthorizationServiceTest {
         when(tabPermissionAccessService.canAccess(eq(USER), any())).thenReturn(false);
         for (String tool : com.indice.erp.ai.commercial.AiCommercialAccess.ACTIONS) assertFalse(service.canUseCommercialTool(USER, tool));
     }
+    @Test
+    void inventoryActionsRequireExactTabsConsentIndependentRolesAndLiveEntitlement() {
+        when(subscriptionStatusProvider.currentStatus(23L)).thenReturn(CompanySubscriptionStatus.activeLegacy());
+        when(moduleEntitlementService.hasActiveEntitlement(23L,"inventory")).thenReturn(true);
+        when(moduleAccessService.canAccess(USER,"inventory")).thenReturn(true);
+        when(tabPermissionAccessService.canAccess(eq(USER),any())).thenReturn(true);
+        when(companyEntitlementService.resolve(23L,"inventory")).thenReturn(new CompanyEntitlementResolution(23L,"inventory",true,EntitlementPolicyMode.ENFORCE,List.of()));
+        assertTrue(service.canUseInventoryTool(USER,"transfer_inventory_stock"));
+        verify(tabPermissionAccessService).canAccess(USER,TabPermissionRequirement.one("inventory.inventory"));
+        assertTrue(service.canUseInventoryTool(USER,"create_inventory_warehouse"));
+        verify(tabPermissionAccessService).canAccess(USER,TabPermissionRequirement.one("inventory.warehouses"));
+        assertTrue(service.canUseInventoryTool(USER,"get_inventory_product"));
+        verify(tabPermissionAccessService).canAccess(USER,TabPermissionRequirement.one("inventory.products"));
+        assertFalse(service.canUseInventoryTool(USER,"create_inventory_product"));
+        assertFalse(service.canUseInventoryTool(USER,"arbitrary_collection_update"));
+        when(tabPermissionAccessService.canAccess(USER,TabPermissionRequirement.one("inventory.inventory"))).thenReturn(false);
+        assertFalse(service.canUseInventoryTool(USER,"transfer_inventory_stock"));
+        when(tabPermissionAccessService.canAccess(USER,TabPermissionRequirement.one("inventory.inventory"))).thenReturn(true);
+        when(companyEntitlementService.resolve(23L,"inventory")).thenReturn(new CompanyEntitlementResolution(23L,"inventory",false,EntitlementPolicyMode.ENFORCE,List.of()));
+        assertFalse(service.canUseInventoryTool(USER,"receive_inventory_stock"));
+        assertFalse(service.canReadGuideTab(USER,"inventory","inventory"));
+    }
 
     @Test
     void allowsOnlyWhenCurrentIndiceAccessStillAllowsSalesKpis() {

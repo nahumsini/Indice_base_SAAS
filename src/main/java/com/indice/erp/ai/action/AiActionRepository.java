@@ -87,6 +87,14 @@ public class AiActionRepository {
         );
     }
 
+    /** Typed domains retain decimal precision when restoring immutable confirmation arguments. */
+    public <T> T readConfirmationArgs(Confirmation confirmation, Class<T> type) {
+        String value=jdbcTemplate.queryForObject("SELECT normalized_args_json FROM ai_action_confirmations WHERE company_id=? AND id=? AND tool_name=?",
+            String.class,confirmation.companyId(),confirmation.id(),confirmation.tool());
+        try {return objectMapper.readerFor(type).with(com.fasterxml.jackson.databind.DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS).readValue(value);}
+        catch(JsonProcessingException e) {throw new IllegalStateException("Stored confirmation arguments are invalid.",e);}
+    }
+
     public long insertPendingExecution(
         AiAccessTokenRepository.StoredToken token,
         Confirmation confirmation,
@@ -133,6 +141,13 @@ public class AiActionRepository {
             ),
             companyId, userId, tool, idempotencyHash
         ).stream().findFirst();
+    }
+
+    public <T> T readExecutionResult(long companyId, long userId, String tool, Execution execution, Class<T> type) {
+        String value=jdbcTemplate.queryForObject("SELECT result_json FROM ai_action_executions WHERE company_id=? AND user_id=? AND tool_name=? AND id=? AND status='COMPLETED'",
+            String.class,companyId,userId,tool,execution.id());
+        try {return objectMapper.readerFor(type).with(com.fasterxml.jackson.databind.DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS).readValue(value);}
+        catch(JsonProcessingException e) {throw new IllegalStateException("Stored execution result is invalid.",e);}
     }
 
     public int completeExecution(long executionId, Map<String, Object> result, Instant now) {

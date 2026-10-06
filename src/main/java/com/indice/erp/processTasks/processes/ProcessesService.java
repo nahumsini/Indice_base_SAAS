@@ -228,21 +228,22 @@ public class ProcessesService {
     @Transactional
     public Map<String, Object> createProcess(long companyId, long userId, String userName,
             Map<String, Object> payload) {
-        var title = requiredString(payload, "title");
-        var description = requiredString(payload, "description");
-        var taskTitleTemplate = normalizedOrFallback(optionalString(payload, "taskTitleTemplate"), title);
-        var taskDescriptionTemplate = normalizedOrFallback(optionalString(payload, "taskDescriptionTemplate"), description);
-        var taskNotesTemplate = optionalString(payload, "taskNotesTemplate");
-        var frequency = normalizedOrFallback(optionalString(payload, "frequency"), "weekly");
-        var priority = normalizedOrFallback(optionalString(payload, "priority"), "medium");
-        var relationCommand = resolveProcessRelations(companyId, userId, userName, payload);
-        var isActive = booleanValue(payload, "isActive", true);
-        var startDate = optionalDate(payload, "startDate", "start_date");
-        var endDate = optionalDate(payload, "endDate", "end_date");
-        var graceDays = boundedInteger(payload, "graceDays", 0, 0, 365);
-        var generationWindowDays = boundedInteger(payload, "generationWindowDays", 45, 1, 365);
-        var evidenceRequired = booleanValue(payload, "evidenceRequired", false);
-        var definition = processDefinitionCommand(companyId, payload, relationCommand, null);
+        var draft = prepareAssistantDefinition(companyId, userId, userName, null, payload);
+        var title = draft.title();
+        var description = draft.description();
+        var taskTitleTemplate = draft.taskTitleTemplate();
+        var taskDescriptionTemplate = draft.taskDescriptionTemplate();
+        var taskNotesTemplate = draft.taskNotesTemplate();
+        var frequency = draft.frequency();
+        var priority = draft.priority();
+        var relationCommand = draft.relationCommand();
+        var isActive = draft.isActive();
+        var startDate = draft.startDate();
+        var endDate = draft.endDate();
+        var graceDays = draft.graceDays();
+        var generationWindowDays = draft.generationWindowDays();
+        var evidenceRequired = draft.evidenceRequired();
+        var definition = draft.definition();
         var folio = documentSequenceService.nextProcessFolio(companyId);
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -291,7 +292,7 @@ public class ProcessesService {
 
         var processId = keyHolder.getKey() != null ? keyHolder.getKey().longValue() : 0L;
         updateDefinitionFields(companyId, processId, definition, 1);
-        publishProcessVersion(companyId, processId, userId, definition, payload);
+        publishProcessVersion(companyId, processId, userId, definition, draft.templates());
         materializeProcess(companyId, processId);
         return getProcess(companyId, processId);
     }
@@ -299,25 +300,22 @@ public class ProcessesService {
     @Transactional
     public Map<String, Object> updateProcess(long companyId, long userId, long processId, Map<String, Object> payload) {
         var lockedCurrentVersion = currentVersionForUpdate(companyId, processId);
-        var title = requiredString(payload, "title");
-        var description = requiredString(payload, "description");
-        var taskTitleTemplate = normalizedOrFallback(optionalString(payload, "taskTitleTemplate"), title);
-        var taskDescriptionTemplate = normalizedOrFallback(optionalString(payload, "taskDescriptionTemplate"), description);
-        var taskNotesTemplate = optionalString(payload, "taskNotesTemplate");
-        var frequency = normalizedOrFallback(optionalString(payload, "frequency"), "weekly");
-        var priority = normalizedOrFallback(optionalString(payload, "priority"), "medium");
-        var relationCommand = resolveProcessRelations(companyId, null, null, payload);
-        var isActive = booleanValue(payload, "isActive", true);
-        var startDate = optionalDate(payload, "startDate", "start_date");
-        var endDate = optionalDate(payload, "endDate", "end_date");
-        var graceDays = boundedInteger(payload, "graceDays", 0, 0, 365);
-        var generationWindowDays = boundedInteger(payload, "generationWindowDays", 45, 1, 365);
-        var evidenceRequired = booleanValue(payload, "evidenceRequired", false);
-        var definition = processDefinitionCommand(
-                companyId,
-                payload,
-                relationCommand,
-                currentDefinition(companyId, processId));
+        var draft = prepareAssistantDefinition(companyId, null, null, processId, payload);
+        var title = draft.title();
+        var description = draft.description();
+        var taskTitleTemplate = draft.taskTitleTemplate();
+        var taskDescriptionTemplate = draft.taskDescriptionTemplate();
+        var taskNotesTemplate = draft.taskNotesTemplate();
+        var frequency = draft.frequency();
+        var priority = draft.priority();
+        var relationCommand = draft.relationCommand();
+        var isActive = draft.isActive();
+        var startDate = draft.startDate();
+        var endDate = draft.endDate();
+        var graceDays = draft.graceDays();
+        var generationWindowDays = draft.generationWindowDays();
+        var evidenceRequired = draft.evidenceRequired();
+        var definition = draft.definition();
         var nextVersion = lockedCurrentVersion + 1;
 
         jdbcTemplate.update(connection -> {
@@ -376,7 +374,7 @@ public class ProcessesService {
         });
 
         updateDefinitionFields(companyId, processId, definition, nextVersion);
-        publishProcessVersion(companyId, processId, userId, definition, payload);
+        publishProcessVersion(companyId, processId, userId, definition, draft.templates());
 
         materializeProcess(companyId, processId);
         return getProcess(companyId, processId);
@@ -536,12 +534,71 @@ public class ProcessesService {
                 processId);
     }
 
+    /** Pure owner validation used by both UI mutation and delegated confirmation. */
+    public AssistantDefinition prepareAssistantDefinition(long companyId, Long userId, String userName, Long processId, Map<String,Object> payload) {
+        var title = requiredString(payload, "title");
+        var description = requiredString(payload, "description");
+        var taskTitleTemplate = normalizedOrFallback(optionalString(payload, "taskTitleTemplate"), title);
+        var taskDescriptionTemplate = normalizedOrFallback(optionalString(payload, "taskDescriptionTemplate"), description);
+        var taskNotesTemplate = optionalString(payload, "taskNotesTemplate");
+        var frequency = normalizedOrFallback(optionalString(payload, "frequency"), "weekly");
+        var priority = normalizedOrFallback(optionalString(payload, "priority"), "medium");
+        var relationCommand = resolveProcessRelations(companyId, userId, userName, payload);
+        var isActive = booleanValue(payload, "isActive", true);
+        var startDate = optionalDate(payload, "startDate", "start_date");
+        var endDate = optionalDate(payload, "endDate", "end_date");
+        var graceDays = boundedInteger(payload, "graceDays", 0, 0, 365);
+        var generationWindowDays = boundedInteger(payload, "generationWindowDays", 45, 1, 365);
+        var evidenceRequired = booleanValue(payload, "evidenceRequired", false);
+        var definition = processDefinitionCommand(companyId, payload, relationCommand, processId == null ? null : currentDefinition(companyId, processId));
+        var templates = parseTaskTemplates(companyId, payload);
+        validateDefinitionTemplateCount(definition.distributionMode(), templates.size());
+        return new AssistantDefinition(title, description, taskTitleTemplate, taskDescriptionTemplate, taskNotesTemplate, frequency, priority, relationCommand, isActive, startDate, endDate, graceDays, generationWindowDays, evidenceRequired, definition, List.copyOf(templates), payload.get("recurrence"));
+    }
+
+    /** Upcoming runs absent from persistence; existing runs keep their published version. */
+    public List<LocalDate> assistantOccurrenceDates(long companyId, Long processId, AssistantDefinition draft) {
+        if (!draft.isActive() || !"recurring".equals(draft.definition().activationMode())) return List.of();
+        var today = LocalDate.now();
+        var start = draft.startDate() != null && draft.startDate().isAfter(today) ? draft.startDate() : today;
+        var end = today.plusDays(draft.generationWindowDays());
+        if (draft.endDate() != null && draft.endDate().isBefore(end)) end = draft.endDate();
+        if (end.isBefore(start)) return List.of();
+        var dates = occurrenceDates(draft.frequency(), draft.recurrence(), start, end);
+        if (processId == null) return dates;
+        var existing = new java.util.HashSet<>(jdbcTemplate.query("SELECT occurrence_date FROM process_runs WHERE company_id = ? AND process_id = ? AND occurrence_date IS NOT NULL", (rs,n) -> rs.getDate(1).toLocalDate(), companyId, processId));
+        return dates.stream().filter(date -> !existing.contains(date)).toList();
+    }
+
+    public List<LocalDate> assistantCurrentOccurrenceDates(long companyId, long processId) {
+        var p = loadProcessForMaterialization(companyId, processId);
+        if (!p.isActive() || !"recurring".equals(p.activationMode())) return List.of();
+        var today = LocalDate.now();
+        var start = p.startDate() != null && p.startDate().isAfter(today) ? p.startDate() : today;
+        var end = today.plusDays(p.generationWindowDays());
+        if (p.endDate() != null && p.endDate().isBefore(end)) end = p.endDate();
+        if (end.isBefore(start)) return List.of();
+        var existing = new java.util.HashSet<>(jdbcTemplate.query("SELECT occurrence_date FROM process_runs WHERE company_id=? AND process_id=? AND occurrence_date IS NOT NULL", (rs,n)->rs.getDate(1).toLocalDate(),companyId,processId));
+        return occurrenceDates(p.frequency(),p.recurrence(),start,end).stream().filter(date->!existing.contains(date)).toList();
+    }
+
+    @Transactional
+    public void setAssistantActive(long companyId, long processId, boolean active) {
+        requireProcess(companyId,processId);
+        jdbcTemplate.update("UPDATE processes SET is_active=? WHERE company_id=? AND id=? AND deleted_at IS NULL",active,companyId,processId);
+    }
+
+    public record AssistantDefinition(String title, String description, String taskTitleTemplate, String taskDescriptionTemplate,
+        String taskNotesTemplate, String frequency, String priority, ProcessRelationCommand relationCommand, boolean isActive,
+        LocalDate startDate, LocalDate endDate, int graceDays, int generationWindowDays, boolean evidenceRequired,
+        ProcessDefinitionCommand definition, List<ProcessTemplateCommand> templates, Object recurrence) { }
+
     private void publishProcessVersion(
             long companyId,
             long processId,
             long actorUserId,
             ProcessDefinitionCommand definition,
-            Map<String, Object> payload) {
+            List<ProcessTemplateCommand> templates) {
         var versionIdHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement(
@@ -569,8 +626,6 @@ public class ProcessesService {
             throw new NoSuchElementException("Process not found.");
         }
         var versionId = versionIdHolder.getKey().longValue();
-        var templates = parseTaskTemplates(companyId, payload);
-        validateDefinitionTemplateCount(definition.distributionMode(), templates.size());
         for (int index = 0; index < templates.size(); index++) {
             insertTaskTemplate(companyId, processId, versionId, index + 1, templates.get(index));
         }
@@ -1771,7 +1826,7 @@ public class ProcessesService {
             boolean isActive) {
     }
 
-    private record ProcessRelationCommand(
+    public record ProcessRelationCommand(
             Long unitId,
             String unitName,
             Long businessId,
@@ -1783,7 +1838,7 @@ public class ProcessesService {
             String responsibleName) {
     }
 
-    private record ProcessDefinitionCommand(
+    public record ProcessDefinitionCommand(
             String distributionMode,
             String activationMode,
             String organizationMode,
@@ -1791,7 +1846,7 @@ public class ProcessesService {
             Long coordinatorUserCompanyId) {
     }
 
-    private record ProcessTemplateCommand(
+    public record ProcessTemplateCommand(
             String title,
             String description,
             String notes,

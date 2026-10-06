@@ -101,8 +101,17 @@ test('las cinco referencias operativas se ofrecen una sola vez como lecturas, nu
   }
   assert.equal(new Set(constants.AI_SCOPE_DEFINITIONS.map((scope) => scope.code)).size, constants.AI_SCOPE_DEFINITIONS.length);
   assert.deepEqual([...constants.ACTION_SCOPE_CODES], [
+    'pos.registers.manage', 'pos.shifts.manage', 'pos.cash.manage', 'pos.terminal.manage', 'pos.settlements.manage', 'pos.orders.manage', 'sales.commissions.cut', 'sales.commissions.schedule', 'inventory.providers.manage', 'inventory.discounts.manage', 'inventory.procurement.manage', 'inventory.procurement.approve', 'inventory.procurement.receive', 'inventory.invoices.manage', 'pos.checkout', 'pos.inventory.receive', 'pos.returns.manage',
+    'sales.manage', 'sales.collections.confirm', 'sales.cancel', 'sales.contracts.manage', 'sales.followups.manage', 'sales.commissions.manage',
+    'inventory.products.manage', 'inventory.warehouses.manage', 'inventory.stock.manage',
+    'inventory.movements.create', 'inventory.movements.cancel',
+    'files.read', 'files.attach',
     'customers.create', 'customers.update', 'opportunities.create', 'opportunities.update', 'quotes.create', 'quotes.update',
-    'tasks.delegate', 'tasks.update', 'tasks.create', 'expenses.create', 'petty_cash.expense:create', 'petty_cash.deposit:create',
+    'hr.people.terminate', 'hr.records.manage', 'hr.announcements.respond', 'hr.permissions.request', 'hr.permissions.review', 'hr.incentives.manage', 'hr.people.manage', 'hr.people.import', 'hr.assets.manage', 'hr.announcements.manage',
+    'hr.control.manage', 'hr.attendance.correct',
+    'hr.payroll.prepare', 'hr.payroll.approve', 'hr.payroll.pay',
+    'projects.manage', 'processes.manage', 'processes.run',
+    'tasks.delegate', 'tasks.update', 'tasks.organize', 'tasks.operate', 'tasks.audit', 'tasks.create', 'expenses.create', 'petty_cash.expense:create', 'petty_cash.deposit:create',
   ]);
 });
 
@@ -118,7 +127,7 @@ test('el lenguaje explica valor y decisión sin mostrar términos internos', () 
 test('delegar y editar requieren consentimiento explícito y tienen texto en ambos idiomas', async () => {
   const english = read('translations/en-CA.ts');
   const oauth = readFileSync(resolve(root, 'src/app/Auth/AiOAuthAuthorizePage.tsx'), 'utf8');
-  for (const scope of ['tasks.delegate', 'tasks.update']) {
+  for (const scope of ['tasks.delegate', 'tasks.update', 'tasks.organize', 'tasks.operate', 'tasks.audit', 'hr.people.manage', 'hr.people.import', 'hr.assets.manage', 'hr.announcements.manage']) {
     assert.equal(constants.READ_SCOPE_CODES.includes(scope), false);
     assert.equal(constants.ACTION_SCOPE_CODES.filter(code => code === scope).length, 1);
     for (const source of [spanishSource, english, oauth]) assert.ok(source.includes(scope));

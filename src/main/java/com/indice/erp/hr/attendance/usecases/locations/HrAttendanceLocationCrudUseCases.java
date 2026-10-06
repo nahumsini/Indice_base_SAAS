@@ -30,54 +30,20 @@ public abstract class HrAttendanceLocationCrudUseCases extends HrAttendanceLocat
 
     @Transactional
     public Map<String, Object> saveLocation(long companyId, long userId, Long locationId, Map<String, Object> payload) {
-        payload = normalizePayload(payload);
-        var name = stringValue(payload, "name", "nombre");
-        if (name.isBlank()) {
-            throw new IllegalArgumentException("name is required.");
-        }
-
-        var latitude = parseDecimalRequired(payload, "latitude");
-        var longitude = parseDecimalRequired(payload, "longitude");
-        var radiusMeters = HrPayloadUtils.parseInteger(payload, "radius_meters", "radius");
-        if (radiusMeters == null || radiusMeters <= 0) {
-            throw new IllegalArgumentException("radius_meters must be greater than zero.");
-        }
-        var contractStartDate = HrPayloadUtils.parseDate(payload, "contract_start_date", "contractStartDate");
-        if (contractStartDate == null) {
-            throw new IllegalArgumentException("contract_start_date is required.");
-        }
-        var contractEndDate = HrPayloadUtils.parseDate(payload, "contract_end_date", "contractEndDate");
-        if (contractEndDate == null) {
-            throw new IllegalArgumentException("contract_end_date is required.");
-        }
-        if (contractEndDate.isBefore(contractStartDate)) {
-            throw new IllegalArgumentException("contract_end_date must be on or after contract_start_date.");
-        }
-        var requiredStartTime = parseTime(payload, "required_start_time");
-        if (requiredStartTime == null) {
-            requiredStartTime = LocalTime.of(8, 0);
-        }
-        var requiredEndTime = parseTime(payload, "required_end_time");
-        if (requiredEndTime == null) {
-            requiredEndTime = LocalTime.of(16, 0);
-        }
-        validatePreferredTimeRange(requiredStartTime, requiredEndTime);
-        var requiredHoursPerDay = normalizeRequiredHoursPerDay(
-            HrPayloadUtils.parseBigDecimal(payload, "required_hours_per_day", "requiredHoursPerDay")
-        );
-        var requiredDaysPerWeek = HrPayloadUtils.parseInteger(payload, "required_days_per_week", "requiredDaysPerWeek");
-        if (requiredDaysPerWeek == null) {
-            requiredDaysPerWeek = 5;
-        }
-        if (requiredDaysPerWeek < 1 || requiredDaysPerWeek > 7) {
-            throw new IllegalArgumentException("required_days_per_week must be between 1 and 7.");
-        }
-        var unitId = normalizeOptionalForeignKey(parseLong(payload, "unit_id", "unitId"));
-        var businessId = normalizeOptionalForeignKey(parseLong(payload, "business_id", "businessId"));
-
-        var status = normalizeManagedStatus(stringValue(payload, "status"));
-        ensureUniqueLocationName(companyId, locationId, name);
-        validateOperationalScope(companyId, unitId, businessId, null);
+        var draft = prepareAssistantLocation(companyId, locationId, payload);
+        var name = draft.name();
+        var latitude = draft.latitude();
+        var longitude = draft.longitude();
+        var radiusMeters = draft.radiusMeters();
+        var contractStartDate = draft.contractStartDate();
+        var contractEndDate = draft.contractEndDate();
+        var requiredStartTime = draft.requiredStartTime();
+        var requiredEndTime = draft.requiredEndTime();
+        var requiredHoursPerDay = draft.requiredHoursPerDay();
+        var requiredDaysPerWeek = draft.requiredDaysPerWeek();
+        var unitId = draft.unitId();
+        var businessId = draft.businessId();
+        var status = draft.status();
 
         if (locationId == null || locationId <= 0) {
             var insertRequiredStartTime = requiredStartTime;
@@ -154,6 +120,64 @@ public abstract class HrAttendanceLocationCrudUseCases extends HrAttendanceLocat
 
         var location = loadLocation(companyId, locationId);
         return Map.of("location", toLocationMap(location));
+    }
+
+    public record AssistantLocationDraft(String name, java.math.BigDecimal latitude, java.math.BigDecimal longitude,
+            int radiusMeters, java.time.LocalDate contractStartDate, java.time.LocalDate contractEndDate,
+            java.time.LocalTime requiredStartTime, java.time.LocalTime requiredEndTime, java.math.BigDecimal requiredHoursPerDay,
+            int requiredDaysPerWeek, Long unitId, Long businessId, String status) { }
+
+    protected AssistantLocationDraft prepareAssistantLocation(long companyId, Long locationId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
+        var name = stringValue(payload, "name", "nombre");
+        if (name.isBlank()) {
+            throw new IllegalArgumentException("name is required.");
+        }
+
+        var latitude = parseDecimalRequired(payload, "latitude");
+        var longitude = parseDecimalRequired(payload, "longitude");
+        var radiusMeters = HrPayloadUtils.parseInteger(payload, "radius_meters", "radius");
+        if (radiusMeters == null || radiusMeters <= 0) {
+            throw new IllegalArgumentException("radius_meters must be greater than zero.");
+        }
+        var contractStartDate = HrPayloadUtils.parseDate(payload, "contract_start_date", "contractStartDate");
+        if (contractStartDate == null) {
+            throw new IllegalArgumentException("contract_start_date is required.");
+        }
+        var contractEndDate = HrPayloadUtils.parseDate(payload, "contract_end_date", "contractEndDate");
+        if (contractEndDate == null) {
+            throw new IllegalArgumentException("contract_end_date is required.");
+        }
+        if (contractEndDate.isBefore(contractStartDate)) {
+            throw new IllegalArgumentException("contract_end_date must be on or after contract_start_date.");
+        }
+        var requiredStartTime = parseTime(payload, "required_start_time");
+        if (requiredStartTime == null) {
+            requiredStartTime = LocalTime.of(8, 0);
+        }
+        var requiredEndTime = parseTime(payload, "required_end_time");
+        if (requiredEndTime == null) {
+            requiredEndTime = LocalTime.of(16, 0);
+        }
+        validatePreferredTimeRange(requiredStartTime, requiredEndTime);
+        var requiredHoursPerDay = normalizeRequiredHoursPerDay(
+            HrPayloadUtils.parseBigDecimal(payload, "required_hours_per_day", "requiredHoursPerDay")
+        );
+        var requiredDaysPerWeek = HrPayloadUtils.parseInteger(payload, "required_days_per_week", "requiredDaysPerWeek");
+        if (requiredDaysPerWeek == null) {
+            requiredDaysPerWeek = 5;
+        }
+        if (requiredDaysPerWeek < 1 || requiredDaysPerWeek > 7) {
+            throw new IllegalArgumentException("required_days_per_week must be between 1 and 7.");
+        }
+        var unitId = normalizeOptionalForeignKey(parseLong(payload, "unit_id", "unitId"));
+        var businessId = normalizeOptionalForeignKey(parseLong(payload, "business_id", "businessId"));
+
+        var status = normalizeManagedStatus(stringValue(payload, "status"));
+        ensureUniqueLocationName(companyId, locationId, name);
+        validateOperationalScope(companyId, unitId, businessId, null);
+
+        return new AssistantLocationDraft(name, latitude, longitude, radiusMeters, contractStartDate, contractEndDate, requiredStartTime, requiredEndTime, requiredHoursPerDay, requiredDaysPerWeek, unitId, businessId, status);
     }
 
 }

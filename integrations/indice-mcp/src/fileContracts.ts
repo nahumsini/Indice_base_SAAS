@@ -1,0 +1,50 @@
+import { createHash } from "node:crypto";
+import { z } from "zod";
+
+export const filePurposeSchema=z.enum(["employee_document","announcement_attachment","asset_photo","hr_record_attachment","my_hr_permission_attachment","hr_permission_attachment","task_evidence","inventory_product_image","sale_payment_evidence","sales_contract_attachment","supplier_invoice_attachment","pos_receipt_attachment"]);
+export const fileActionSchema=z.enum(["attach_employee_document","attach_announcement_file","add_hr_asset_photo","attach_hr_record_file","attach_my_hr_permission_file","attach_hr_permission_file","attach_task_evidence","attach_inventory_product_image","attach_sale_payment_evidence","attach_sales_contract_file","attach_supplier_invoice_file","attach_pos_receipt_file"]);
+export const fileMimeSchema=z.enum(["application/pdf","image/jpeg","image/png","image/webp","image/gif","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document"]);
+const id=z.number().int().positive();
+const hash=z.string().regex(/^[a-f0-9]{64}$/);
+const plainName=z.string().min(1).max(180).refine(v=>!/[\x00-\x1f\x7f/\\]/.test(v),"A plain file name is required.");
+export const stageFileRequestSchema=z.object({purpose:filePurposeSchema,targetId:id,documentType:z.enum(["proof_of_address","resume","profile_photo"]).optional(),fileName:plainName,mimeType:fileMimeSchema,contentBase64:z.string().min(4).max(13981016),idempotencyKey:z.string().min(8).max(128)}).strict().superRefine((v,c)=>{
+  if((v.purpose==="employee_document")!==(v.documentType!==undefined))c.addIssue({code:"custom",message:"Document type is required only for employee documents."});
+  if(!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(v.contentBase64))c.addIssue({code:"custom",message:"Valid base64 content required."});
+  const maximum=v.purpose==="asset_photo"?2621440:v.purpose==="employee_document"?5242880:10485760;
+  if(Buffer.byteLength(v.contentBase64,"base64")>maximum)c.addIssue({code:"custom",message:"File exceeds the domain size limit."});
+  if(["inventory_product_image","sale_payment_evidence","sales_contract_attachment","supplier_invoice_attachment","pos_receipt_attachment"].includes(v.purpose)&&!["application/pdf","image/jpeg","image/png","image/webp"].includes(v.mimeType))c.addIssue({code:"custom",message:"Commerce evidence requires PDF, JPEG, PNG or WebP."});
+  if(v.purpose==="inventory_product_image"&&!v.mimeType.startsWith("image/"))c.addIssue({code:"custom",message:"Product photographs require an image."});
+});
+export const stagedFileSchema=z.object({stagedFileId:z.uuid(),purpose:filePurposeSchema,targetId:id,documentType:z.string().nullable(),fileName:plainName,mimeType:fileMimeSchema,sizeBytes:id.max(10485760),sha256:hash,expiresAt:z.iso.datetime({offset:true})});
+export const attachFileRequestSchema=z.object({stagedFileId:z.uuid()}).strict();
+export const fileCommitRequestSchema=z.object({confirmationToken:z.string().regex(/^idx_confirm_[A-Za-z0-9_-]{43}$/),idempotencyKey:z.string().min(8).max(128)}).strict();
+export const filePreviewSchema=z.object({action:fileActionSchema,confirmationToken:z.string().startsWith("idx_confirm_"),expiresAt:z.iso.datetime({offset:true}),requiresConfirmation:z.literal(true),file:stagedFileSchema,targetName:z.string(),previousFileName:z.string().nullable(),effects:z.array(z.string()).min(1)});
+export const attachedFileSchema=z.object({purpose:filePurposeSchema,targetId:id,attachmentId:id,fileName:plainName,mimeType:fileMimeSchema,sizeBytes:id.max(10485760),sha256:hash});
+export const fileCommittedSchema=z.object({action:fileActionSchema,replayed:z.boolean(),correlationId:z.string(),result:attachedFileSchema});
+export const fileListRequestSchema=z.object({purpose:filePurposeSchema,targetId:id}).strict();
+export const fileReadRequestSchema=fileListRequestSchema.extend({attachmentId:id}).strict();
+export const fileExportRequestSchema=z.object({runId:id,format:z.enum(["csv","pdf"])}).strict();
+export const commerceReportRequestSchema=z.object({report:z.enum(["inventory_products","inventory_balances","inventory_movements","purchase_orders","supplier_invoices","commercial_sales","commission_cuts","pos_tickets","pos_closings","pos_settlements"]),format:z.enum(["csv","pdf"]),from:z.iso.date().optional(),to:z.iso.date().optional(),warehouseId:id.optional(),shiftId:id.optional(),cashRegisterId:id.optional(),closingId:id.optional()}).strict().superRefine((v,c)=>{
+  if((v.from===undefined)!==(v.to===undefined)||(v.from!==undefined&&(v.to!<v.from||(Date.parse(v.to!)-Date.parse(v.from))/86400000>366)))c.addIssue({code:"custom",message:"Use a report date range of at most 366 days."});
+  if(v.from!==undefined&&!["inventory_movements","purchase_orders","supplier_invoices","commercial_sales","pos_closings"].includes(v.report))c.addIssue({code:"custom",message:"This report does not accept dates."});
+  if(v.warehouseId!==undefined&&!["inventory_balances","inventory_movements","purchase_orders"].includes(v.report))c.addIssue({code:"custom",message:"Warehouse filter is unavailable."});
+  if(v.shiftId!==undefined&&v.report!=="pos_tickets"||v.cashRegisterId!==undefined&&!["pos_tickets","pos_closings"].includes(v.report)||v.closingId!==undefined&&v.report!=="pos_settlements")c.addIssue({code:"custom",message:"Unexpected POS filter."});
+  if(v.report==="pos_tickets"&&v.shiftId===undefined||v.report==="pos_settlements"&&v.closingId===undefined)c.addIssue({code:"custom",message:"Select the original shift or closing."});
+});
+export type CommerceReportRequest=z.infer<typeof commerceReportRequestSchema>;
+export const fileListSchema=fileListRequestSchema.extend({items:z.array(z.object({attachmentId:id,fileName:z.string(),mimeType:z.string(),sizeBytes:id,documentType:z.string().nullable()}))});
+export const fileMetadataSchema=z.object({uri:z.string().startsWith("indice://"),fileName:z.string(),mimeType:z.string(),sizeBytes:id.max(10485760),sha256:hash});
+export const fileContentSchema=fileMetadataSchema.extend({contentBase64:z.string().min(4).max(13981016)}).superRefine((v,c)=>{
+  const bytes=Buffer.from(v.contentBase64,"base64");
+  if(bytes.length!==v.sizeBytes||createHash("sha256").update(bytes).digest("hex")!==v.sha256)c.addIssue({code:"custom",message:"Private file integrity mismatch."});
+});
+export type FileAction=z.infer<typeof fileActionSchema>;
+export type StageFileRequest=z.infer<typeof stageFileRequestSchema>;
+export type StagedFile=z.infer<typeof stagedFileSchema>;
+export type FilePreview=z.infer<typeof filePreviewSchema>;
+export type FileCommitted=z.infer<typeof fileCommittedSchema>;
+export type FileReadRequest=z.infer<typeof fileReadRequestSchema>;
+export type FileListRequest=z.infer<typeof fileListRequestSchema>;
+export type FileExportRequest=z.infer<typeof fileExportRequestSchema>;
+export type FileContent=z.infer<typeof fileContentSchema>;
+export type FileList=z.infer<typeof fileListSchema>;

@@ -625,3 +625,48 @@ Shut the stack down:
 ./deployment/scripts/down.sh
 ./deployment/scripts/down.sh dev
 ```
+
+## MCP: cierre RH y Procesos/Tareas
+
+La ampliación usa `V293__ai_operational_file_staging.sql`, MinIO y la cuota existentes. Antes de
+publicar, seguir el [runbook APPTEST](MCP_APPTEST_RUNBOOK.md) y la
+[aceptación de ciclos](../docs/validation/2026-10-06-lupita-hr-processes-cycles.md).
+
+La entrada nativa requiere `INDICE_CHATGPT_FILE_HOSTS`: nombres DNS exactos del proveedor
+comprobados en APPTEST, sin URLs ni comodines. Vacío falla cerrado para esa entrada. El Compose
+APPTEST pasa esa variable al MCP. La ruta HTTPS exacta admite 14 MB para el archivo base64;
+otras llamadas conservan el límite de 100 KB en Node. Recursos privados y OAuth no se cachean.
+
+Rollback: conservar imágenes previas de backend, MCP y web y restaurarlas juntas conforme a este
+documento; revocar conexiones ampliadas si corresponde y desactivar la ruta MCP mediante el
+mecanismo existente. No revertir ni borrar V293, adjuntos registrados, históricos o auditoría.
+Los ejecutores antiguos no aplican las nuevas confirmaciones versionadas. Las filas temporales
+conservan vencimiento/reserva durante rollback y se limpian al restaurar un backend compatible.
+Un build local correcto no acredita la aceptación de texto/voz ni autoriza publicación.
+
+## MCP: cierre Inventarios, Ventas y POS
+
+El paquete comercial incluye backend, MCP y consentimiento/guías del frontend. Consultar el
+[flujo operativo](../docs/lupita-commerce-operating-workflow-v1.md), la
+[matriz de propietarios/herramientas](../docs/lupita-commerce-tool-matrix-v1.md) y la
+[validación y handoff](../docs/validation/2026-10-06-lupita-commerce-cycles.md).
+Construir las tres imágenes desde el mismo commit revisado; el trabajo local sin commit y el
+JAR local no sustituyen una referencia inmutable de release ni el gate público.
+
+Además de V293, Flyway aplica V294–V298: precisión de stock/costo, procedencia de movimientos,
+revisiones de borradores de compra, adjuntos privados de factura y la identidad de devoluciones
+Square/Point. Verificar respaldo y compatibilidad antes de arrancar el backend. Son migraciones
+forward-only; rollback conserva esquema, historial financiero, adjuntos y auditoría.
+
+Compose base/APPTEST y `up-host-network.sh` pasan la configuración Square existente. Las claves
+de aplicación y webhook admiten sus variables `_FILE` y montajes de solo lectura. Conservar la
+clave actual de `APP_POS_SQUARE_TOKEN_PROTECTION_SECRET`; si la instalación usa el fallback
+`APP_KIOSK_TOKEN_PROTECTION_SECRET`, conservar exactamente esa clave. No rotarla durante este
+despliegue ni configurar un valor vacío que pierda el fallback. Los callbacks APPTEST apuntan a
+APPTEST; producción debe usar sus URLs verificadas. Square, LIVE y los reembolsos nacen apagados.
+
+Usar el [runbook APPTEST](MCP_APPTEST_RUNBOOK.md), el entorno protegido real, preflight, dry run,
+smoke y aceptación con datos sintéticos. La validación local de Compose no ejecutó esos pasos
+en el VPS. Mantener apagadas las acciones financieras hasta aceptar merchant/hardware y el
+consentimiento del operador. Restaurar backend/MCP/web compatibles juntos si se necesita rollback;
+no borrar volúmenes ni intentar revertir V294–V298.

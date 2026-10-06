@@ -61,6 +61,16 @@ public class AiTaskActionService {
         return storePreview(token, edit.after(), edit.before());
     }
 
+    public PreviewResponse previewOperation(AiAccessTokenRepository.StoredToken token, AiTaskActionContracts.OperationRequest request, String action) {
+        var prepared = drafts.operation(token, request, action);
+        return storePreview(token, prepared.after(), prepared.before());
+    }
+
+    public CommitResponse commitOperation(AiAccessTokenRepository.StoredToken token, CommitRequest request, String action) {
+        AiTaskDraftService.requireScope(token, AiTaskDraftService.operationScope(action));
+        return commit(token, request, action);
+    }
+
     private PreviewResponse storePreview(AiAccessTokenRepository.StoredToken token, TaskDraft draft, TaskDraft before) {
         var rawConfirmation = generateConfirmationToken();
         var fingerprint = sha256Hex(json(draft));

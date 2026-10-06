@@ -259,6 +259,21 @@ public class PurchaseOrderRepository {
         return orderId;
     }
 
+    void reviseDraft(PosContext context, PurchaseOrderResponse previous, PurchaseOrderResponse next, List<PurchaseOrderLineCommand> lines, String previousJson) {
+        jdbcTemplate.update("INSERT INTO pos_purchase_order_revisions (company_id,purchase_order_id,previous_snapshot_json,changed_by_user_id) VALUES (?,?,CAST(? AS JSON),?)",
+            context.companyId(),previous.id(),previousJson,context.userId());
+        jdbcTemplate.update("UPDATE pos_purchase_order_items SET superseded_at=CURRENT_TIMESTAMP WHERE company_id=? AND purchase_order_id=? AND superseded_at IS NULL",
+            context.companyId(),previous.id());
+        int changed=jdbcTemplate.update("""
+            UPDATE pos_purchase_orders SET unit_id=?,business_id=?,warehouse_id=?,provider_id=?,currency_code=?,
+              subtotal_amount=?,tax_amount=?,total_amount=?,expected_date=?,notes=?,updated_by_user_id=?
+            WHERE company_id=? AND id=? AND status='DRAFT' AND deleted_at IS NULL
+            """,next.unitId(),next.businessId(),next.warehouseId(),next.providerId(),next.currencyCode(),
+            next.subtotalAmount(),next.taxAmount(),next.totalAmount(),next.expectedDate(),next.notes(),context.userId(),context.companyId(),previous.id());
+        if(changed!=1)throw com.indice.erp.pos.PosApiException.conflict("The purchase order is no longer a draft.");
+        lines.forEach(line->insertOrderItem(context,previous.id(),line));
+    }
+
     public boolean updateStatus(PosContext context, long orderId, PurchaseOrderStatus status, String note) {
         var timestampColumn = switch (status) {
             case REQUESTED -> "ordered_at";
@@ -414,13 +429,13 @@ public class PurchaseOrderRepository {
             SELECT COUNT(*)
             FROM pos_purchase_order_items
             WHERE company_id = ? AND purchase_order_id = ?
-              AND received_quantity < quantity
+              AND superseded_at IS NULL AND received_quantity < quantity
             """, Long.class, context.companyId(), orderId);
         var receivedAny = jdbcTemplate.queryForObject("""
             SELECT COUNT(*)
             FROM pos_purchase_order_items
             WHERE company_id = ? AND purchase_order_id = ?
-              AND received_quantity > 0
+              AND superseded_at IS NULL AND received_quantity > 0
             """, Long.class, context.companyId(), orderId);
         var status = pending != null && pending == 0
             ? PurchaseOrderStatus.RECEIVED
@@ -1365,7 +1380,7 @@ public class PurchaseOrderRepository {
         var items = jdbcTemplate.query("""
             SELECT * FROM pos_purchase_order_items
             WHERE company_id = ? AND purchase_order_id IN (""" + placeholders + """
-            )
+            ) AND superseded_at IS NULL
             ORDER BY id ASC
             """, this::mapItem, params.toArray());
         var byOrder = new LinkedHashMap<Long, List<PurchaseOrderItemResponse>>();

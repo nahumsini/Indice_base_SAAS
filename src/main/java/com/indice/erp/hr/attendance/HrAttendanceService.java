@@ -115,6 +115,15 @@ public class HrAttendanceService extends HrAttendanceSelfDailyRecordUseCases {
         );
     }
 
+    public record AssistantKpiSignal(long userCompanyId,String name,String code,String position,String department,Long unitId,String unitName,Long businessId,String businessName,String status,boolean hasRule,boolean restRule) { }
+    /** Pure daily status projection; no kiosk configuration, photo signing or event mutation. */
+    public java.util.List<AssistantKpiSignal> assistantKpiSignals(AuthSessionUser user,LocalDate date) {
+        var people=attendanceUserLookupService.listAttendanceUsers(user.companyId(),hrAttendanceScopeAccess.resolve(user));
+        var rules=loadScheduleRules(user.companyId(),date);
+        var records=attendanceDailyRecordRepository.loadDailyRecords(user.companyId(),date);
+        return people.stream().map(person->{var rule=rules.get(person.id());return new AssistantKpiSignal(person.id(),person.fullName(),person.userCode(),person.positionTitle(),person.department(),person.unitId(),person.unitName(),person.businessId(),person.businessName(),com.indice.erp.hr.attendance.AttendanceSchedulePolicy.resolveEffectiveStatus(records.get(person.id()),rule,date),rule!=null,rule!=null&&rule.isRestDay());}).toList();
+    }
+
     public Map<String, Object> controlOverview(AuthSessionUser currentUser, LocalDate date) {
         var companyId = currentUser.companyId();
         var scope = hrAttendanceScopeAccess.resolve(currentUser);
@@ -214,6 +223,84 @@ public class HrAttendanceService extends HrAttendanceSelfDailyRecordUseCases {
         var scope = hrAttendanceScopeAccess.resolve(currentUser);
         hrAttendanceScopeAccess.requireUserInScope(currentUser.companyId(), scope, userCompanyId);
         return userCalendar(currentUser.companyId(), userCompanyId, month);
+    }
+
+    public Map<String, Object> assistantCalendar(AuthSessionUser currentUser, long userCompanyId, YearMonth month) {
+        var scope = hrAttendanceScopeAccess.resolve(currentUser);
+        hrAttendanceScopeAccess.requireUserInScope(currentUser.companyId(), scope, userCompanyId);
+        return userCalendar(currentUser.companyId(), userCompanyId, month, false);
+    }
+
+    public Map<String,Object> assistantSelfCalendar(AuthSessionUser user,YearMonth month) {
+        return userCalendar(user.companyId(),attendanceUserLookupService.loadAttendanceSessionUser(user.companyId(),user.userId()),month,false);
+    }
+
+    public java.util.List<com.indice.erp.hr.assistant.HrAssistantAttendanceContracts.Event> assistantEvents(AuthSessionUser user,Long member,java.time.LocalDate date) {
+        java.util.List<com.indice.erp.hr.attendance.models.AttendanceEventRow> rows;
+        if(member==null){attendanceUserLookupService.loadAttendanceSessionUser(user.companyId(),user.userId());rows=loadUserAttendanceEventRows(user.companyId(),user.userId(),date);}
+        else{hrAttendanceScopeAccess.requireUserInScope(user.companyId(),hrAttendanceScopeAccess.resolve(user),member);rows=loadAttendanceEventRows(user.companyId(),member,date);}
+        return rows.stream().map(e->new com.indice.erp.hr.assistant.HrAssistantAttendanceContracts.Event(e.id(),e.eventType(),e.eventTimestamp(),e.attendanceDate(),e.resultStatus(),e.eventKind(),e.notes(),e.supersedesEventId())).toList();
+    }
+
+    public void validateAssistantRestPlan(AuthSessionUser user,Map<String,Object> payload) {
+        var scope=hrAttendanceScopeAccess.resolve(user);
+        for(var id:extractRestPlanUserCompanyIds(payload))hrAttendanceScopeAccess.requireUserInScope(user.companyId(),scope,id);
+        prepareAssistantRestPlan(user.companyId(),payload);
+    }
+
+    public AssistantScheduleDraft validateAssistantSchedule(AuthSessionUser currentUser, Long id, Map<String, Object> payload) {
+        var scope = hrAttendanceScopeAccess.resolve(currentUser);
+        if (id != null) loadExistingTemplate(currentUser.companyId(), id, scope);
+        requireManagedLocationPayload(currentUser.companyId(), scope, payload);
+        return prepareAssistantSchedule(currentUser.companyId(), id, payload);
+    }
+
+    public AssistantLocationDraft validateAssistantLocation(AuthSessionUser currentUser, Long id, Map<String, Object> payload) {
+        var scope = hrAttendanceScopeAccess.resolve(currentUser);
+        if (id != null) hrAttendanceScopeAccess.requireLocationInScope(currentUser.companyId(), scope, id);
+        requireManagedLocationPayload(currentUser.companyId(), scope, payload);
+        return prepareAssistantLocation(currentUser.companyId(), id, payload);
+    }
+
+    public String validateAssistantCorrection(AuthSessionUser currentUser, long userCompanyId, LocalDate date, Map<String, Object> payload) {
+        var scope = hrAttendanceScopeAccess.resolve(currentUser);
+        hrAttendanceScopeAccess.requireUserInScope(currentUser.companyId(), scope, userCompanyId);
+        return prepareAssistantCorrection(currentUser.companyId(), userCompanyId, date, payload);
+    }
+
+    public AssistantManualEvent validateAssistantManualEvent(AuthSessionUser currentUser, long userCompanyId, LocalDate date, Map<String, Object> payload) {
+        var scope = hrAttendanceScopeAccess.resolve(currentUser);
+        hrAttendanceScopeAccess.requireUserInScope(currentUser.companyId(), scope, userCompanyId);
+        return prepareAssistantManualEvent(currentUser.companyId(), userCompanyId, date, payload);
+    }
+
+    public AssistantScheduleAssignment validateAssistantScheduleAssignment(AuthSessionUser currentUser, Map<String, Object> payload) {
+        var scope = hrAttendanceScopeAccess.resolve(currentUser);
+        loadExistingTemplate(currentUser.companyId(), parseLong(payload, "template_id"), scope);
+        for (var id : longList(payload, "user_company_ids")) hrAttendanceScopeAccess.requireUserInScope(currentUser.companyId(), scope, id);
+        return prepareAssistantScheduleAssignment(currentUser.companyId(), payload);
+    }
+
+    public java.util.List<com.indice.erp.hr.attendance.models.LocationRow> validateAssistantAllowedLocations(AuthSessionUser currentUser, long member, Map<String, Object> payload) {
+        var scope = hrAttendanceScopeAccess.resolve(currentUser);
+        hrAttendanceScopeAccess.requireUserInScope(currentUser.companyId(), scope, member);
+        for (var id : longList(payload, "location_ids")) hrAttendanceScopeAccess.requireLocationInScope(currentUser.companyId(), scope, id);
+        return prepareAssistantAllowedLocations(currentUser.companyId(), member, payload);
+    }
+
+    public AssistantWorkSiteAssignment validateAssistantWorkSiteAssignment(AuthSessionUser currentUser, Map<String, Object> payload) {
+        var scope = hrAttendanceScopeAccess.resolve(currentUser);
+        hrAttendanceScopeAccess.requireLocationInScope(currentUser.companyId(), scope, parseLong(payload, "location_id"));
+        var templateId = parseLong(payload, "template_id");
+        if (templateId != null) loadExistingTemplate(currentUser.companyId(), templateId, scope);
+        for (var id : longList(payload, "user_company_ids")) hrAttendanceScopeAccess.requireUserInScope(currentUser.companyId(), scope, id);
+        return prepareAssistantWorkSiteAssignment(currentUser.companyId(), payload);
+    }
+
+    public AssistantClearAssignments validateAssistantClearAssignments(AuthSessionUser currentUser, Map<String, Object> payload) {
+        var scope = hrAttendanceScopeAccess.resolve(currentUser);
+        hrAttendanceScopeAccess.requireUserInScope(currentUser.companyId(), scope, parseLong(payload, "user_company_id"));
+        return prepareAssistantClearAssignments(currentUser.companyId(), payload);
     }
 
     public Map<String, Object> createPhotoUpload(AuthSessionUser currentUser, Map<String, Object> payload) {

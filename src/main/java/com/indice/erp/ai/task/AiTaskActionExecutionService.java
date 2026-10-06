@@ -62,14 +62,18 @@ public class AiTaskActionExecutionService {
             ? token.user().userCompanyId() : draft.assigneeUserCompanyId());
         payload.put("description", draft.description());
         payload.put("dueDate", draft.dueDate() == null ? null : draft.dueDate().toString());
+        payload.put("unitId", draft.unitId());
+        payload.put("businessId", draft.businessId());
         Map<String, Object> created;
-        if (draft.taskId() == null) {
+        if (draft.operation() != null) {
+            created = owner.executeOperation(token.user().companyId(), token.user().userId(), draft.taskId(), draft.expectedVersion(), draft.operation());
+        } else if (draft.taskId() == null) {
+            if (draft.changedFields().contains("unitId") || draft.changedFields().contains("businessId"))
+                owner.organizationAssignment(token.user().companyId(), token.user().userId(), draft.assigneeUserCompanyId(), draft.unitId(), draft.businessId(), null);
             if (draft.assigneeUserCompanyId() != null) {
                 owner.assignmentForTask(token.user().companyId(), token.user().userId(), draft.assigneeUserCompanyId(),
                     draft.unitId(), draft.businessId());
             }
-            payload.put("unitId", draft.unitId());
-            payload.put("businessId", draft.businessId());
             created = processTasksService.createTask(token.user().companyId(), token.user().userId(), payload);
         } else {
             payload.keySet().retainAll(draft.changedFields());

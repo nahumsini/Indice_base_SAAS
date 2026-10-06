@@ -52,6 +52,12 @@ public class DiscountRuleService {
         return new RuleListResponse(items, items.size());
     }
 
+    public RuleResponse get(PosContext context,long id) {return response(require(context,id));}
+    public RuleResponse preview(PosContext context,Long id,RuleRequest request) {
+        validate(context,request);var current=id==null?null:require(context,id);
+        return response(new DiscountRuleRecord(id==null?0:id,context.companyId(),request.unitId(),request.businessId(),request.warehouseId(),request.name().trim(),request.description(),normalized(request.scope()),normalized(request.discountType()),request.value(),normalized(request.currencyCode()),request.startsAt(),request.endsAt(),request.minimumAmount(),request.maximumDiscountAmount(),request.customerType(),request.productId(),request.category(),request.requiresAuthorization(),request.stackable(),request.priority(),current==null?"ACTIVE":current.status(),jsonChannels(request.enabledChannels()),current==null?0:current.version(),current==null?null:current.createdAt(),current==null?null:current.updatedAt()));
+    }
+    private String jsonChannels(List<String> channels) {try{return objectMapper.writeValueAsString(channels);}catch(Exception e){throw new IllegalArgumentException("Invalid discount channels.",e);}}
     @Transactional
     public RuleResponse create(PosContext context, RuleRequest request) {
         validate(context, request);

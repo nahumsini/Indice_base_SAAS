@@ -56,7 +56,8 @@ class PaidInventoryReceiptFlowIntegrationTest {
         assertThat(receipt.metadata()).containsEntry("cashRegisterCode", "REC-TEST").containsEntry("notes", "Saved note").containsKey("createdAt");
         assertThat(jdbc.queryForObject("SELECT available_quantity FROM sales_inventory_balances WHERE company_id = ? AND product_id = ?", BigDecimal.class, company, product)).isEqualByComparingTo("7");
         assertThat(jdbc.queryForObject("SELECT reserved_quantity FROM sales_inventory_balances WHERE company_id = ? AND product_id = ?", BigDecimal.class, company, product)).isEqualByComparingTo("1");
-        assertThat(jdbc.queryForObject("SELECT unit_cost FROM sales_inventory_balances WHERE company_id = ? AND product_id = ?", BigDecimal.class, company, product)).isEqualByComparingTo("8.57");
+        // V294 retains the owner's four decimal weighted cost, instead of truncating it to cents.
+        assertThat(jdbc.queryForObject("SELECT unit_cost FROM sales_inventory_balances WHERE company_id = ? AND product_id = ?", BigDecimal.class, company, product)).isEqualByComparingTo("8.5714");
         assertThat(jdbc.queryForObject("SELECT JSON_UNQUOTE(JSON_EXTRACT(custom_fields_json, '$.unrelated')) FROM sales_products WHERE company_id = ? AND id = ?", String.class, company, product)).isEqualTo("keep");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM pos_cash_movements WHERE company_id = ? AND shift_id = ?", Integer.class, company, shift)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM sales_products WHERE company_id = ?", Integer.class, company)).isEqualTo(1);

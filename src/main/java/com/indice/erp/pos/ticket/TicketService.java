@@ -48,6 +48,9 @@ public class TicketService {
         var items = ticketRepository.findAll(context).stream().map(ticketMapper::toResponse).toList();
         return Map.of("items", items, "count", items.size());
     }
+    public record AssistantPage(java.util.List<com.indice.erp.pos.ticket.dto.PosTicketResponse> items,int totalCount) {}
+    @Transactional(readOnly=true)
+    public AssistantPage assistantPage(PosContext context,Long shift,Long register,int limit,int offset){var page=ticketRepository.assistantPage(context,shift,register,limit,offset);return new AssistantPage(page.items().stream().map(ticketMapper::toResponse).toList(),page.totalCount());}
 
     @Transactional(readOnly = true)
     public KpiMonetaryAggregate summarizeToday(PosContext context, String preferredCurrency) {

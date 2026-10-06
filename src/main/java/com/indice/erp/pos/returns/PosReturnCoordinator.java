@@ -9,14 +9,19 @@ import static com.indice.erp.pos.returns.PosReturnDtos.*;
 public class PosReturnCoordinator {
     private final PosReturnService service;
     private final PosReturnRepository repository;
-    private final SquareRefundService square;
+    private final SquareRefundService square;private final PosPointReturnService point;
     public PosReturnCoordinator(PosReturnService service, PosReturnRepository repository, SquareRefundService square) {
-        this.service = service; this.repository = repository; this.square = square;
+        this(service,repository,square,null);
+    }
+    @org.springframework.beans.factory.annotation.Autowired
+    public PosReturnCoordinator(PosReturnService service,PosReturnRepository repository,SquareRefundService square,PosPointReturnService point){
+        this.service = service; this.repository = repository; this.square = square;this.point=point;
     }
     public Response confirm(PosContext context, long id, ConfirmRequest request) {
         var current = repository.get(context, id);
         if (current.payments().stream().noneMatch(p -> "CARD".equals(p.paymentMethod())))
             return service.confirmManual(context, id, request);
+        if("MERCADO_PAGO".equals(service.cardProvider(context,id)))return point.confirm(context,id);
         var command = service.beginSquare(context, id); // Durable identity commits before any external call.
         if (command == null) return repository.get(context, id);
         // Completed provider evidence survives a later inventory failure; retry finalizes without another refund.

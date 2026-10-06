@@ -27,6 +27,9 @@ class SeatServiceIntegrationTest {
     @Autowired
     private SeatService seats;
 
+    @Autowired
+    private org.springframework.transaction.PlatformTransactionManager transactions;
+
     @BeforeEach
     void cleanBefore() {
         cleanTestState();
@@ -116,6 +119,39 @@ class SeatServiceIntegrationTest {
         assertThatThrownBy(() -> seats.requireAvailableSeatForActivation(companyId, inactiveUserId))
             .isInstanceOf(SeatCapacityExceededException.class)
             .hasMessageContaining("seat limit");
+    }
+
+    @Test
+    void concurrentEmployeeBatchesCannotExceedCapacity() throws Exception {
+        var suffix=UUID.randomUUID().toString();
+        jdbc.update("INSERT INTO companies(name) VALUES(?)",COMPANY_PREFIX+suffix);
+        long company=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);
+        jdbc.update("INSERT INTO company_seat_states(company_id,included_seats,purchased_extra_seats) VALUES(?,2,0)",company);
+        var users=new java.util.ArrayList<Long>();
+        for(int i=0;i<4;i++) {
+            jdbc.update("INSERT INTO users(email,password_hash,full_name) VALUES(?,'test','Synthetic employee')",EMAIL_PREFIX+suffix+"-"+i+"@example.test");
+            users.add(jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class));
+        }
+        var ready=new CountDownLatch(2);var start=new CountDownLatch(1);
+        var first=CompletableFuture.supplyAsync(()->createBatchAfterBarrier(company,users.subList(0,2),ready,start));
+        var second=CompletableFuture.supplyAsync(()->createBatchAfterBarrier(company,users.subList(2,4),ready,start));
+        assertThat(ready.await(5,TimeUnit.SECONDS)).isTrue();start.countDown();
+        assertThat(List.of(first.get(20,TimeUnit.SECONDS),second.get(20,TimeUnit.SECONDS))).containsExactlyInAnyOrder("CREATED","CAPACITY_REJECTED");
+        assertThat(seats.snapshot(company).active()).isEqualTo(2);
+        assertThat(seats.snapshot(company).available()).isZero();
+    }
+
+    private String createBatchAfterBarrier(long company,List<Long> users,CountDownLatch ready,CountDownLatch start) {
+        ready.countDown();
+        try {
+            if(!start.await(5,TimeUnit.SECONDS))return "BARRIER_TIMEOUT";
+            return new org.springframework.transaction.support.TransactionTemplate(transactions).execute(status->{
+                seats.requireAvailableSeatsForCreation(company,users.size());
+                for(var user:users)jdbc.update("INSERT INTO user_companies(company_id,user_id,role,status) VALUES(?,?,'user','active')",company,user);
+                return "CREATED";
+            });
+        } catch(SeatCapacityExceededException exception) { return "CAPACITY_REJECTED"; }
+        catch(InterruptedException exception) { Thread.currentThread().interrupt();return "INTERRUPTED"; }
     }
 
     private String reserveAfterBarrier(

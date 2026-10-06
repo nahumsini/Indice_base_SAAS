@@ -11,6 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -100,7 +101,29 @@ public class AiToolTaskApiController {
     }
 
     private ResponseEntity<?> update(String authorization, java.util.function.Function<com.indice.erp.ai.access.AiAccessTokenRepository.StoredToken, Object> operation) {
-        var access = access(authorization, AiAccessTokenService.TASKS_UPDATE);
+        return invoke(authorization, AiAccessTokenService.TASKS_UPDATE, operation);
+    }
+
+    @PostMapping("/operations/{action}/preview")
+    public ResponseEntity<?> previewOperation(@RequestHeader(value=HttpHeaders.AUTHORIZATION, required=false) String authorization,
+            @PathVariable String action, @RequestBody(required=false) AiTaskActionContracts.OperationRequest request) {
+        return operation(authorization, action, token -> actionService.previewOperation(token, request, action));
+    }
+
+    @PostMapping("/operations/{action}/commit")
+    public ResponseEntity<?> commitOperation(@RequestHeader(value=HttpHeaders.AUTHORIZATION, required=false) String authorization,
+            @PathVariable String action, @RequestBody(required=false) CommitRequest request) {
+        return operation(authorization, action, token -> actionService.commitOperation(token, request, action));
+    }
+
+    private ResponseEntity<?> operation(String authorization, String action,
+            java.util.function.Function<com.indice.erp.ai.access.AiAccessTokenRepository.StoredToken, Object> operation) {
+        try { return invoke(authorization, AiTaskDraftService.operationScope(action), operation); }
+        catch (IllegalArgumentException exception) { return ResponseEntity.badRequest().body(error("invalid_request", "Unsupported task operation.")); }
+    }
+
+    private ResponseEntity<?> invoke(String authorization, String scope, java.util.function.Function<com.indice.erp.ai.access.AiAccessTokenRepository.StoredToken, Object> operation) {
+        var access = access(authorization, scope);
         if (access.error() != null) return access.error();
         try {
             return ResponseEntity.ok(operation.apply(access.token()));

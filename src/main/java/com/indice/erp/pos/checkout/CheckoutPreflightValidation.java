@@ -32,7 +32,7 @@ class CheckoutPreflightValidation {
         }
     }
     private CheckoutDraft base(PosContext context, PosCheckoutRequest request) {
-        var draft = preparation.prepare(context, request);
+        var draft = preparation.prepare(context, request, false);
         discounts.validate(context, request, draft, orders.validate(context, request, draft));
         return draft;
     }

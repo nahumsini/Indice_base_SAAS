@@ -3,6 +3,11 @@
 Status: approved product decision, 2026-09-05
 Owners: Point of Sale for the tactile receipt and payout; Sales Inventory for products, balances, and movements; Finance for non-cash account movements.
 
+2026-10-06 precision correction: V294 retains three decimal quantities and four decimal weighted
+unit costs in the shared Inventory balances and movements. This matches the existing receipt
+calculation and input precision. Sale/payment totals, native currency, tax rules, tender and
+idempotency remain unchanged; inventory valuations retain fractions previously rounded to cents.
+
 ## Objective
 
 The active POS register can receive merchandise from a provider, pay for it, and add it to the warehouse linked to that register. The flow is generic across business types and is not limited to metals or recycling.

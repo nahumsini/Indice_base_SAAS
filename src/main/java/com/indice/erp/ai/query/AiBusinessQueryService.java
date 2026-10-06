@@ -104,13 +104,21 @@ public class AiBusinessQueryService {
     }
 
     public Map<String, Object> execute(AuthSessionUser user, String tool, Map<String, Object> rawArgs) {
+        return execute(user,tool,rawArgs,Set.of(com.indice.erp.ai.access.AiAccessTokenService.TASKS_READ,com.indice.erp.ai.access.AiAccessTokenService.HR_ATTENDANCE_READ));
+    }
+
+    public Map<String, Object> execute(com.indice.erp.ai.access.AiAccessTokenRepository.StoredToken token,String tool,Map<String,Object> rawArgs) {
+        return execute(token.user(),tool,rawArgs,token.scopes());
+    }
+
+    private Map<String,Object> execute(AuthSessionUser user,String tool,Map<String,Object> rawArgs,Set<String> scopes) {
         if (!TOOLS.contains(tool)) {
             throw new IllegalArgumentException("Unknown business query tool.");
         }
         var args = rawArgs == null ? Map.<String, Object>of() : rawArgs;
         return switch (tool) {
             case "search_employees" -> searchEmployees(user, args);
-            case "get_employee_overview" -> employeeOverview(user, args);
+            case "get_employee_overview" -> employeeOverview(user, args, scopes);
             case "get_attendance_exceptions" -> attendanceExceptions(user, args);
             case "list_tasks" -> listTasks(user, args);
             case "get_task_detail" -> taskDetail(user, args);
@@ -140,12 +148,11 @@ public class AiBusinessQueryService {
             .filter(row -> equalsFilter(row.get("status"), status))
             .filter(row -> equalsFilter(row.get("department"), department))
             .map(this::safeEmployee)
-            .limit(limit(args))
             .toList();
-        return result("search_employees", "Alcance autorizado de Recursos Humanos", Map.of("matches", rows.size()), rows, null);
+        return pagedResult(user, args, "search_employees", "Alcance autorizado de Recursos Humanos", Map.of("matches", rows.size()), rows, null);
     }
 
-    private Map<String, Object> employeeOverview(AuthSessionUser user, Map<String, Object> args) {
+    private Map<String, Object> employeeOverview(AuthSessionUser user, Map<String, Object> args,Set<String> scopes) {
         requireHr(user, HrTab.COLLABORATORS);
         var employeeId = requiredLong(args, "employeeId");
         var employee = rows(hrUserService.listUsers(user), "rows").stream()
@@ -156,26 +163,36 @@ public class AiBusinessQueryService {
         if (userCompanyId <= 0) userCompanyId = employeeId;
         final long visibleEmployeeId = userCompanyId;
 
-        var taskItems = authorizationService.canReadTasks(user)
+        boolean tasksAvailable=scopes.contains(com.indice.erp.ai.access.AiAccessTokenService.TASKS_READ) && authorizationService.canReadTasks(user);
+        var taskItems = tasksAvailable
             ? rows(tasksService.listTasks(user.companyId(), user.userId()), "items").stream()
                 .filter(row -> longValue(row.get("assignedUserCompanyId")) == visibleEmployeeId
                     || longValue(row.get("assigned_user_company_id")) == visibleEmployeeId
                     || collectionContains(row.get("assigneeUserCompanyIds"), visibleEmployeeId))
                 .map(this::safeTask)
-                .limit(limit(args))
                 .toList()
             : List.<Map<String, Object>>of();
 
         Object attendance = null;
-        if (hrAccessService.canAccessReadableTab(user, HrTab.ATTENDANCE)) {
+        boolean attendanceAvailable=scopes.contains(com.indice.erp.ai.access.AiAccessTokenService.HR_ATTENDANCE_READ) && canReadHr(user,HrTab.ATTENDANCE);
+        if (attendanceAvailable) {
             attendance = redact(attendanceService.userCalendar(user, visibleEmployeeId, month(args)));
         }
         var detail = new LinkedHashMap<String, Object>();
         detail.put("employee", safeEmployee(employee));
-        detail.put("tasks", taskItems);
+        var taskPage = AiQueryPages.page(objectMapper, user, "get_employee_overview", args, taskItems);
+        detail.put("tasks", taskPage.items());
+        var coverage = new LinkedHashMap<String, Object>();
+        coverage.put("available",tasksAvailable);
+        coverage.put("returnedCount", taskPage.returnedCount()); coverage.put("totalCount", tasksAvailable?taskPage.totalCount():null);
+        coverage.put("hasMore", taskPage.hasMore()); coverage.put("nextCursor", taskPage.nextCursor());
+        detail.put("taskCoverage", coverage);
         detail.put("attendance", attendance);
+        detail.put("attendanceAvailable",attendanceAvailable);
+        var summary=new LinkedHashMap<String,Object>();summary.put("taskCount",tasksAvailable?taskItems.size():null);
+        summary.put("tasksAvailable",tasksAvailable);summary.put("attendanceAvailable",attendanceAvailable);
         return result("get_employee_overview", "Empleado visible para el usuario conectado",
-            Map.of("taskCount", taskItems.size()), List.of(), detail);
+            summary, List.of(), detail);
     }
 
     private Map<String, Object> attendanceExceptions(AuthSessionUser user, Map<String, Object> args) {
@@ -188,12 +205,11 @@ public class AiBusinessQueryService {
                 var status = normalized(Objects.toString(first(row, "status", "attendance_status", "attendanceStatus"), ""));
                 return !Set.of("present", "ontime", "atiempo", "presente").contains(status);
             })
-            .limit(limit(args))
             .toList();
         var summary = new LinkedHashMap<String, Object>();
         summary.put("date", date.toString());
         summary.put("exceptionCount", exceptions.size());
-        return result("get_attendance_exceptions", "Asistencia autorizada", summary, exceptions, null);
+        return pagedResult(user, args, "get_attendance_exceptions", "Asistencia autorizada", summary, exceptions, null);
     }
 
     private Map<String, Object> listTasks(AuthSessionUser user, Map<String, Object> args) {
@@ -205,6 +221,10 @@ public class AiBusinessQueryService {
         var overdueOnly = bool(args, "overdueOnly", false);
         var today = LocalDate.now(clock);
         var items = rows(tasksService.listTasks(user.companyId(), user.userId()), "items").stream()
+            .filter(row -> optionalLong(args, "unitId") == null || longValue(first(row, "unitId", "unit_id")) == optionalLong(args, "unitId"))
+            .filter(row -> optionalLong(args, "businessId") == null || longValue(first(row, "businessId", "business_id")) == optionalLong(args, "businessId"))
+            .filter(row -> optionalLong(args, "projectId") == null || longValue(first(row, "projectId", "project_id")) == optionalLong(args, "projectId"))
+            .filter(row -> optionalLong(args, "processId") == null || longValue(first(row, "processId", "process_id")) == optionalLong(args, "processId"))
             .filter(row -> equalsFilter(first(row, "status"), status))
             .filter(row -> equalsFilter(first(row, "priority"), priority))
             .filter(row -> matches(row, query, "title", "description", "folio", "assignedName"))
@@ -212,9 +232,8 @@ public class AiBusinessQueryService {
                 || collectionContains(row.get("assigneeUserCompanyIds"), employeeId))
             .filter(row -> !overdueOnly || isOverdue(row, today))
             .map(this::safeTask)
-            .limit(limit(args))
             .toList();
-        return result("list_tasks", "Tareas visibles para el usuario conectado", Map.of("matches", items.size()), items, null);
+        return pagedResult(user, args, "list_tasks", "Tareas visibles para el usuario conectado", Map.of("matches", items.size()), items, null);
     }
 
     private Map<String, Object> taskDetail(AuthSessionUser user, Map<String, Object> args) {
@@ -494,9 +513,17 @@ public class AiBusinessQueryService {
     }
 
     private Map<String, Object> safeTask(Map<String, Object> row) {
-        return select(row, "id", "folio", "title", "description", "status", "priority", "startDate", "dueDate",
+        var result = select(row, "id", "folio", "title", "description", "status", "priority", "startDate", "dueDate",
             "completedAt", "completionPercent", "assignedUserCompanyId", "assignedName", "assignees", "teamStatus",
-            "processId", "processName", "projectId", "projectName", "unitId", "businessId", "createdAt");
+            "processId", "processName", "projectId", "projectName", "unitId", "businessId", "createdAt",
+            "unitName", "businessName", "assigneeUserCompanyIds", "processRunId", "processRunStatus", "processReference",
+            "evidenceRequired", "completionPolicy", "completionNotes", "notes", "weighting", "audited", "auditNotes",
+            "agendaDate", "agendaStartTime", "agendaEndTime", "agendaTimeZone");
+        if (row.get("assignees") instanceof List<?> members) result.put("assignees", members.stream()
+            .map(this::castMap)
+            .map(member -> select(member, "userCompanyId", "name", "role", "assignmentRole", "contributionStatus", "requiredForCompletion", "readyAt"))
+            .toList());
+        return result;
     }
 
     private Map<String, Object> safeProduct(Map<String, Object> row) {
@@ -560,9 +587,14 @@ public class AiBusinessQueryService {
     }
 
     private void requireHr(AuthSessionUser user, HrTab tab) {
-        if (!hrAccessService.canAccessReadableTab(user, tab)) {
+        if (!canReadHr(user, tab)) {
             throw new SecurityException("The current Indice permissions do not allow this HR query.");
         }
+    }
+
+    private boolean canReadHr(AuthSessionUser user,HrTab tab) {
+        return authorizationService.canReadGuideTab(user,"human_resources",tab.name().toLowerCase(Locale.ROOT))
+            && hrAccessService.canAccessReadableTab(user,tab);
     }
 
     private void requireTasks(AuthSessionUser user) {
@@ -635,6 +667,17 @@ public class AiBusinessQueryService {
         result.put("items", items);
         if (detail != null) result.put("detail", detail);
         return result;
+    }
+
+    private Map<String, Object> pagedResult(AuthSessionUser user, Map<String, Object> args, String tool,
+            String scope, Map<String, Object> summary, List<?> authorized, Object detail) {
+        var page = AiQueryPages.page(objectMapper, user, tool, args, authorized);
+        var response = result(tool, scope, summary, page.items(), detail);
+        response.put("returnedCount", page.returnedCount());
+        response.put("totalCount", page.totalCount());
+        response.put("hasMore", page.hasMore());
+        response.put("nextCursor", page.nextCursor());
+        return response;
     }
 
     @SuppressWarnings("unchecked")

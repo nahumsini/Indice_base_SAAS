@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod/v4";
 import { configureTool } from "./toolPolicy.js";
 import { toolError } from "./toolErrors.js";
-import { referencePageRequestSchema, type ReferencePageRequest } from "./contracts.js";
+import { referencePageRequestSchema, organizationReferencePageSchema, type ReferencePageRequest, type OrganizationReferencePage } from "./contracts.js";
 import {
   taskAssigneeReferencePageSchema, type TaskAssigneeReferencePage,
   customerReferencePageSchema, warehouseReferencePageSchema, providerReferencePageSchema,
@@ -12,6 +12,7 @@ import {
 } from "./operationalReferenceContracts.js";
 
 export interface OperationalReferenceReader {
+  listTaskOrganization?(request?: ReferencePageRequest): Promise<OrganizationReferencePage>;
   searchTaskAssignees?(request?: ReferencePageRequest): Promise<TaskAssigneeReferencePage>;
   searchCustomers?(request?: ReferencePageRequest): Promise<CustomerReferencePage>;
   searchProviders?(request?: ReferencePageRequest): Promise<ProviderReferencePage>;
@@ -46,6 +47,9 @@ export function registerOperationalReferenceTools(server: McpServer, reader: Ope
   register("search_task_assignees", "Buscar responsables de tareas",
     "Busca responsables activos por nombre dentro del alcance de Tareas de Índice. Usa userCompanyId para asignar; no confundas este valor con un employee_id o user_id. Si hay varias coincidencias, pide elegir por nombre y unidad/negocio; nunca adivines el responsable. No envía mensajes ni crea tareas.",
     taskAssigneeReferencePageSchema, reader.searchTaskAssignees?.bind(reader));
+  register("list_task_organization", "Consultar unidades y negocios para tareas",
+    "Resuelve unidades y negocios activos dentro del alcance de Tareas. Selecciona el destino exacto por nombre y unidad, pregunta ante ambigüedad y usa sus IDs en la vista previa. Elegir destino requiere consentimiento tasks.organize; la lista no modifica tareas ni necesita acceso a configuración empresarial.",
+    organizationReferencePageSchema, reader.listTaskOrganization?.bind(reader));
   register("search_customers", "Buscar clientes",
     "Busca clientes compartidos por POS y Ventas por nombre o código, dentro del alcance autorizado. Devuelve identificadores y contexto para seleccionar al cliente exacto; no crea ni edita clientes.",
     customerReferencePageSchema, reader.searchCustomers?.bind(reader));

@@ -33,6 +33,15 @@ class ClosingSettlementTransferTest {
             register(), amounts("100"), BigDecimal.ZERO).transferable()).isEqualByComparingTo("0");
     }
     @Test
+    void tenderRefundsOnlyReduceTheirOriginalSettlement() {
+        var amounts = new CashClosingAmounts(BigDecimal.ZERO,BigDecimal.ZERO,BigDecimal.ZERO,BigDecimal.ZERO,
+            BigDecimal.ZERO,BigDecimal.ZERO,new BigDecimal("500"),new BigDecimal("250"),2,List.of(),
+            List.of(new com.indice.erp.pos.cashclosing.dto.PaymentMethodSummary(PaymentMethod.CASH,new BigDecimal("200"),1L),
+                new com.indice.erp.pos.cashclosing.dto.PaymentMethodSummary(PaymentMethod.TRANSFER,new BigDecimal("50"),1L)));
+        assertThat(ClosingSettlementTransfer.calculate(PaymentMethod.CARD,new BigDecimal("100"),register(),amounts,BigDecimal.ZERO).transferable()).isEqualByComparingTo("100");
+        assertThat(ClosingSettlementTransfer.calculate(PaymentMethod.TRANSFER,new BigDecimal("100"),register(),amounts,BigDecimal.ZERO).transferable()).isEqualByComparingTo("50");
+    }
+    @Test
     void refundGreaterThanCapturedCardGrossFailsClosed() {
         assertThatThrownBy(() -> ClosingSettlementTransfer.calculate(PaymentMethod.CARD, new BigDecimal("100"),
             register(), amounts("101"), BigDecimal.ZERO)).isInstanceOf(PosApiException.class);

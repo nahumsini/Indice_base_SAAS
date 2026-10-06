@@ -46,7 +46,7 @@ public class InventoryDeductionRepository {
               AND warehouse_id = ?
               AND deleted_at IS NULL
               AND uses_inventory = 1
-              AND available_quantity >= ?
+              AND available_quantity - reserved_quantity >= ?
             """, quantity, java.time.LocalDate.now(timezones.resolve(context.companyId())), context.userId(), context.companyId(), productId, warehouseId, quantity);
         return updated > 0;
     }
@@ -59,7 +59,7 @@ public class InventoryDeductionRepository {
               AND warehouse_id = ?
               AND deleted_at IS NULL
               AND uses_inventory = 1
-              AND available_quantity >= ?
+              AND available_quantity - reserved_quantity >= ?
             """, Long.class, context.companyId(), productId, warehouseId, quantity);
         return count != null && count > 0;
     }

@@ -87,13 +87,19 @@ public class InventoryDeductionService {
     }
 
     public void requireAvailable(PosContext context, ShiftRecord shift, List<CheckoutLine> lines) {
+        var combined = new java.util.TreeMap<Long, java.math.BigDecimal>();
+        var names = new java.util.HashMap<Long, String>();
         for (var line : lines) {
             if (!line.stockTracked() || line.productId() == null) {
                 continue;
             }
-            if (!repository.hasAvailable(context, shift.warehouseId(), line.productId(), line.quantity())) {
+            combined.merge(line.productId(), line.quantity(), java.math.BigDecimal::add);
+            names.put(line.productId(), line.productNameSnapshot());
+        }
+        for (var product : combined.entrySet()) {
+            if (!repository.hasAvailable(context, shift.warehouseId(), product.getKey(), product.getValue())) {
                 throw PosApiException.badRequest(
-                    "Insufficient stock for " + line.productNameSnapshot() + " in selected warehouse.");
+                    "Insufficient stock for " + names.get(product.getKey()) + " in selected warehouse.");
             }
         }
     }

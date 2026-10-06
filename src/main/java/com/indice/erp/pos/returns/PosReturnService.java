@@ -79,7 +79,7 @@ public class PosReturnService {
             .orElseThrow(() -> PosApiException.notFound("Sale was not found."));
     }
 
-    @Transactional
+    @Transactional(isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public Response prepare(PosContext context, PrepareRequest request) {
         requireAdmin(context);
         // Lock before the first consistent read: MySQL repeatable-read snapshots must not precede a competing refund.
@@ -89,6 +89,7 @@ public class PosReturnService {
                 || !request.requestKey().matches("[A-Za-z0-9_-]{16,100}"))
             throw PosApiException.badRequest("Confirma la devolución total de los productos e indica un motivo válido.");
         var ticket = tickets.findById(context, request.ticketId()).orElseThrow(() -> PosApiException.notFound("Ticket no disponible."));
+        jdbc.queryForList("SELECT id FROM pos_cash_registers WHERE company_id=? AND id=? FOR UPDATE",Long.class,context.companyId(),ticket.cashRegisterId());
         if (ticket.salesRecordId() == null) throw PosApiException.conflict("El ticket no está vinculado a una venta.");
         var priorKey = jdbc.queryForList("SELECT id, ticket_id, reason, created_by_user_id FROM pos_returns WHERE company_id = ? AND request_key = ?",
                 context.companyId(), request.requestKey());
@@ -128,7 +129,7 @@ public class PosReturnService {
         long id = jdbc.queryForObject("SELECT id FROM pos_returns WHERE company_id = ? AND request_key = ?",
                 Long.class, context.companyId(), request.requestKey());
         for (var payment : original) {
-            String provider = null;
+            String provider = null;PosOriginalCardPayments.Payment card=null;
             if (payment.paymentMethod() == PaymentMethod.CARD) {
                 if (jdbc.queryForObject("""
                     SELECT COUNT(*) FROM pos_returns r JOIN pos_return_payments p
@@ -138,26 +139,44 @@ public class PosReturnService {
                     throw PosApiException.conflict("El proveedor rechazó un reembolso de este ticket. Requiere conciliación; no se generará otra solicitud.");
                 // The current Square checkout contract permits exactly one full card payment.
                 if (original.size() != 1) throw PosApiException.conflict("Los pagos mixtos con tarjeta requieren conciliación con el proveedor.");
+                requireNoSeparateRefund(context,ticket.id());
                 if (payment.amount().stripTrailingZeros().scale() > 2)
                     throw PosApiException.conflict("El importe de tarjeta no puede representarse exactamente en centavos.");
-                provider = jdbc.query("""
-                    SELECT square_payment_id FROM pos_square_terminal_payment_intents
-                    WHERE company_id = ? AND pos_ticket_id = ? AND status = 'APPROVED'
-                      AND amount = ? AND currency_code = ? AND square_payment_id IS NOT NULL
-                    """, (rs, row) -> rs.getString(1), context.companyId(), ticket.id(), payment.amount(), payment.currencyCode())
-                        .stream().findFirst().orElseThrow(() -> PosApiException.conflict("No existe un pago Square verificable para devolver a la tarjeta original."));
+                card=new PosOriginalCardPayments(jdbc).require(context,ticket.id(),payment.amount(),payment.currencyCode());provider=card.paymentId();
             }
             jdbc.update("""
                 INSERT INTO pos_return_payments (company_id, return_id, payment_id, payment_method,
-                  amount, currency_code, provider_payment_id, provider_request_key)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                  amount, currency_code, provider_payment_id, provider_request_key,provider_code,provider_intent_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, context.companyId(), id, payment.id(), payment.paymentMethod().name(), payment.amount(),
-                    payment.currencyCode(), provider, provider == null ? null : UUID.randomUUID().toString());
+                    payment.currencyCode(), provider, provider == null ? null : UUID.randomUUID().toString(),card==null?null:card.provider(),card==null?null:card.intentId());
         }
         inventory.snapshot(context, id, ticket);
         return returns.get(context, id);
     }
 
+    public record Inspection(Response returns, java.util.List<PosReturnInventoryService.StockRestoration> inventory) {}
+    @Transactional(readOnly=true)
+    public Inspection inspect(PosContext context,long ticketId,String reason) {
+        requireAdmin(context);var ticket=tickets.findById(context,ticketId).orElseThrow(()->PosApiException.notFound("Ticket not found."));
+        if(ticket.salesRecordId()==null||ticket.status()!=TicketStatus.COMPLETED)throw PosApiException.conflict("A completed sale ticket is required.");
+        accounting.requireUnpostedSale(context.companyId(),ticket.salesRecordId());var shift=shifts.findById(context,ticket.shiftId()).orElseThrow(()->PosApiException.notFound("Shift not found."));
+        if(shift.status()!=ShiftStatus.OPEN)throw PosApiException.conflict("An original open shift is required.");
+        var original=payments.findByTicketId(context,ticket.id());
+        if(original.isEmpty()||original.stream().anyMatch(p->p.status()!=PaymentStatus.CAPTURED||!ticket.currencyCode().equals(p.currencyCode())||p.amount().signum()<=0||p.paymentMethod()==PaymentMethod.CREDIT||p.paymentMethod()==PaymentMethod.WALLET))throw PosApiException.conflict("Original tender requires financial reconciliation.");
+        if(original.stream().map(p->p.amount()).reduce(BigDecimal.ZERO,BigDecimal::add).compareTo(ticket.totalAmount())!=0)throw PosApiException.conflict("Original payments do not equal ticket total.");
+        var cash=original.stream().filter(p->p.paymentMethod()==PaymentMethod.CASH).map(p->p.amount()).reduce(BigDecimal.ZERO,BigDecimal::add);
+        if(cash.compareTo(shift.expectedCashAmount())>0)throw PosApiException.conflict("Insufficient original shift cash.");
+        for(var payment:original)if(payment.paymentMethod()==PaymentMethod.CARD) {
+            requireNoSeparateRefund(context,ticket.id());
+            if(original.size()!=1||payment.amount().stripTrailingZeros().scale()>2)throw PosApiException.conflict("Mixed or inexact card tender requires financial reconciliation.");
+            new PosOriginalCardPayments(jdbc).require(context,ticket.id(),payment.amount(),payment.currencyCode());
+            int prior=jdbc.queryForObject("SELECT COUNT(*) FROM pos_terminal_payment_reversals WHERE company_id=? AND pos_ticket_id=?",Integer.class,context.companyId(),ticket.id());
+            if(prior>0)throw PosApiException.conflict("An existing provider refund requires reconciliation before returning stock.");
+        }
+        var tender=original.stream().map(v->new Payment(0,v.id(),v.paymentMethod().name(),v.amount(),v.currencyCode(),"PENDING",null,null)).toList();
+        return new Inspection(new Response(0,ticket.id(),ticket.ticketNumber(),shift.id(),"PREPARED",reason,ticket.totalAmount(),ticket.currencyCode(),null,tender),inventory.inspect(context,ticket));
+    }
     @Transactional
     public Response cancelPreparation(PosContext context, long id) {
         var current = lock(context, id);
@@ -206,20 +225,8 @@ public class PosReturnService {
 
     @Transactional
     public SquareCommand beginSquare(PosContext context, long id) {
-        var current = lock(context, id);
-        if ("COMPLETED".equals(current.status())) return null;
-        requireActive(current);
-        if (current.payments().size() != 1 || !"CARD".equals(current.payments().getFirst().paymentMethod()))
-            throw PosApiException.conflict("Esta devolución no corresponde a Square.");
-        var payment = current.payments().getFirst();
-        if (List.of("FAILED", "REJECTED").contains(payment.status()))
-            throw PosApiException.conflict("Square no completó el reembolso. Requiere conciliación con el proveedor; no se cambiará el medio de pago.");
-        int started = jdbc.update("""
-            UPDATE pos_returns SET status = 'PROCESSING', started_by_user_id = COALESCE(started_by_user_id, ?),
-              started_at = COALESCE(started_at, CURRENT_TIMESTAMP)
-            WHERE company_id = ? AND id = ? AND status IN ('PREPARED', 'PROCESSING')
-            """, context.userId(), context.companyId(), id);
-        if (started != 1) throw PosApiException.conflict("La devolución cambió. Consulta su estado antes de continuar.");
+        var current = beginOriginalCard(context,id,"SQUARE");
+        if(current==null)return null;
         return jdbc.queryForObject("""
             SELECT * FROM pos_return_payments WHERE company_id = ? AND return_id = ?
             """, (rs, row) -> new SquareCommand(rs.getString("provider_payment_id"), rs.getString("provider_request_key"),
@@ -227,13 +234,47 @@ public class PosReturnService {
                 context.companyId(), id);
     }
 
+    public String cardProvider(PosContext ctx,long id){requireAdmin(ctx);returns.get(ctx,id);return jdbc.queryForObject("SELECT COALESCE(provider_code,'SQUARE') FROM pos_return_payments WHERE company_id=? AND return_id=? AND payment_method='CARD'",String.class,ctx.companyId(),id);}
+    public record CardIdentity(String provider,long intentId,String requestKey) {}
+    public CardIdentity cardIdentity(PosContext ctx,long id){
+        requireAdmin(ctx);var current=returns.get(ctx,id);
+        return jdbc.queryForObject("SELECT COALESCE(p.provider_code,'SQUARE'),COALESCE(p.provider_intent_id,(SELECT i.id FROM pos_square_terminal_payment_intents i WHERE i.company_id=p.company_id AND i.pos_ticket_id=? AND BINARY i.square_payment_id=BINARY p.provider_payment_id)),p.provider_request_key FROM pos_return_payments p WHERE p.company_id=? AND p.return_id=? AND p.payment_method='CARD'",(rs,n)->{var intent=(Number)rs.getObject(2);if(intent==null)throw PosApiException.conflict("Original provider intent unavailable.");return new CardIdentity(rs.getString(1),intent.longValue(),rs.getString(3));},current.ticketId(),ctx.companyId(),id);
+    }
+    public String cardRequestKey(PosContext ctx,long id){requireAdmin(ctx);returns.get(ctx,id);return jdbc.queryForObject("SELECT provider_request_key FROM pos_return_payments WHERE company_id=? AND return_id=? AND payment_method='CARD'",String.class,ctx.companyId(),id);}
+    private Response beginOriginalCard(PosContext context,long id,String provider){
+        var current=lock(context,id);if("COMPLETED".equals(current.status()))return null;
+        if(!provider.equals(cardProvider(context,id)))throw PosApiException.conflict("The original card provider differs.");
+        requireActive(current);
+        if (current.payments().size() != 1 || !"CARD".equals(current.payments().getFirst().paymentMethod()))
+            throw PosApiException.conflict("Esta devolución no corresponde al pago original de tarjeta.");
+        var payment = current.payments().getFirst();
+        if (List.of("FAILED", "REJECTED").contains(payment.status()))
+            throw PosApiException.conflict("El proveedor no completó el reembolso. Requiere conciliación con el proveedor; no se cambiará el medio de pago.");
+        int started = jdbc.update("""
+            UPDATE pos_returns SET status = 'PROCESSING', started_by_user_id = COALESCE(started_by_user_id, ?),
+              started_at = COALESCE(started_at, CURRENT_TIMESTAMP)
+            WHERE company_id = ? AND id = ? AND status IN ('PREPARED', 'PROCESSING')
+            """, context.userId(), context.companyId(), id);
+        if (started != 1) throw PosApiException.conflict("La devolución cambió. Consulta su estado antes de continuar.");
+        return current;
+    }
+    public record PointCommand(long intentId,String requestKey,BigDecimal amount,String reason){}
+    @Transactional
+    public PointCommand beginPoint(PosContext context,long id){var current=beginOriginalCard(context,id,"MERCADO_PAGO");if(current==null)return null;return jdbc.queryForObject("SELECT provider_intent_id,provider_request_key,amount FROM pos_return_payments WHERE company_id=? AND return_id=? AND payment_method='CARD'",(rs,n)->new PointCommand(rs.getLong(1),rs.getString(2),rs.getBigDecimal(3),current.reason()),context.companyId(),id);}
+    @Transactional
+    public Response acceptPoint(PosContext context,long id,long requestId,String providerId){var current=lock(context,id);if(!"MERCADO_PAGO".equals(cardProvider(context,id)))throw PosApiException.conflict("The original card provider differs.");jdbc.update("UPDATE pos_return_payments SET provider_refund_request_id=? WHERE company_id=? AND return_id=? AND provider_code='MERCADO_PAGO'",requestId,context.companyId(),id);return acceptSquare(context,id,providerId,"COMPLETED");}
+    @Transactional
+    public Response rejectPoint(PosContext context,long id,long requestId,String status){var current=lock(context,id);if(!"MERCADO_PAGO".equals(cardProvider(context,id))||!List.of("FAILED","REJECTED","NOT_SUBMITTED").contains(status))throw PosApiException.conflict("Definitive original Point refund rejection required.");int proof=jdbc.queryForObject("SELECT COUNT(*) FROM pos_mercado_pago_refund_requests q JOIN pos_return_payments p ON p.company_id=q.company_id AND p.provider_intent_id=q.intent_id AND BINARY p.provider_request_key=BINARY q.request_key WHERE q.company_id=? AND q.id=? AND q.status=? AND p.return_id=? AND q.baseline_amount=0 AND q.amount=p.amount AND NOT EXISTS (SELECT 1 FROM pos_terminal_payment_reversals v WHERE v.company_id=q.company_id AND v.provider_code='MERCADO_PAGO' AND v.intent_id=q.intent_id)",Integer.class,context.companyId(),requestId,status,id);if(proof!=1)throw PosApiException.conflict("The original Point rejection cannot be verified.");jdbc.update("UPDATE pos_return_payments SET status=?,provider_refund_request_id=? WHERE company_id=? AND return_id=? AND provider_code='MERCADO_PAGO' AND status='PENDING'",status.equals("NOT_SUBMITTED")?"FAILED":status,requestId,context.companyId(),id);return returns.get(context,id);}
+    @Transactional(readOnly=true)
+    public Inspection inspectExisting(PosContext context,long id){requireAdmin(context);var r=returns.get(context,id);if(!List.of("PREPARED","PROCESSING").contains(r.status()))throw PosApiException.conflict("An active return is required.");var ticket=tickets.findById(context,r.ticketId()).orElseThrow();accounting.requireUnpostedSale(context.companyId(),ticket.salesRecordId());if(shifts.findById(context,r.shiftId()).orElseThrow().status()!=ShiftStatus.OPEN)throw PosApiException.conflict("The original shift must be open.");return new Inspection(r,inventory.inspect(context,ticket));}
+
     @Transactional
     public Response acceptSquare(PosContext context, long id, String providerId, String status) {
         var current = lock(context, id);
         if ("COMPLETED".equals(current.status())) return current;
         if (!"PROCESSING".equals(current.status())) throw PosApiException.conflict("La devolución no está en proceso.");
         if (!List.of("PENDING", "COMPLETED", "FAILED", "REJECTED").contains(status) || providerId == null || providerId.isBlank())
-            throw PosApiException.conflict("Square no devolvió una confirmación verificable.");
+            throw PosApiException.conflict("El proveedor no devolvió una confirmación verificable.");
         jdbc.update("""
             UPDATE pos_return_payments SET provider_refund_id = ?, status = ?,
               confirmed_by_user_id = CASE WHEN ? = 'COMPLETED' THEN ? ELSE confirmed_by_user_id END,
@@ -299,6 +340,10 @@ public class PosReturnService {
     }
     private void requireAdmin(PosContext context) {
         if (!context.canManageOtherUsers()) throw PosApiException.forbidden("La devolución requiere autorización administrativa.");
+    }
+    private void requireNoSeparateRefund(PosContext context,long ticket) {
+        int count=jdbc.queryForObject("SELECT (SELECT COUNT(*) FROM pos_terminal_payment_reversals WHERE company_id=? AND pos_ticket_id=?) + (SELECT COUNT(*) FROM pos_square_refund_requests r JOIN pos_square_terminal_payment_intents i ON i.company_id=r.company_id AND i.id=r.intent_id WHERE i.company_id=? AND i.pos_ticket_id=? AND r.status NOT IN ('FAILED','REJECTED')) + (SELECT COUNT(*) FROM pos_mercado_pago_refund_requests r JOIN pos_mercado_pago_payment_intents i ON i.company_id=r.company_id AND i.id=r.intent_id WHERE i.company_id=? AND i.pos_ticket_id=? AND r.status NOT IN ('FAILED','REJECTED'))",Integer.class,context.companyId(),ticket,context.companyId(),ticket,context.companyId(),ticket);
+        if(count>0)throw PosApiException.conflict("Recover or reconcile the separate provider refund before preparing an original-tender return.");
     }
     public record SquareCommand(String paymentId, String requestKey, String refundId, BigDecimal amount, String currency) {}
 }

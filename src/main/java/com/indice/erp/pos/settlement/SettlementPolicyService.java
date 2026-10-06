@@ -69,6 +69,16 @@ public class SettlementPolicyService {
         if (requestedRules == null || requestedRules.isEmpty()) {
             return repository.findByCurrency(context, register.id(), currency);
         }
+        for (var rule : previewRequestedPolicy(context, register.id(), register.unitId(), register.businessId(), currency, requestedRules)) {
+            repository.upsert(context, register.id(), rule.paymentMethod(), rule.currencyCode(), rule.destinationPaymentAccountId(), rule.settlementTiming(), rule.enabled(), rule.reviewStatus());
+        }
+        return repository.findByCurrency(context, register.id(), currency);
+    }
+
+    /** Pure preview of explicit rule changes; never provisions compatibility accounts. */
+    public List<SettlementRuleResponse> previewRequestedPolicy(PosContext context, Long registerId, Long unitId, Long businessId, String currencyCode, List<SettlementRuleRequest> requestedRules) {
+        var currency = currency(currencyCode);
+        var result = new java.util.ArrayList<SettlementRuleResponse>();
         var seen = new java.util.HashSet<PaymentMethod>();
         for (var request : requestedRules) {
             var method = paymentMethod(request.paymentMethod());
@@ -79,6 +89,7 @@ public class SettlementPolicyService {
             var accountId = request.destinationPaymentAccountId();
             var timing = timing(request.settlementTiming(), method);
             var reviewStatus = "READY";
+            TreasuryAccount account = null;
             if (method == PaymentMethod.CASH && !enabled) {
                 throw PosApiException.badRequest("Cash must remain enabled for every cash register.");
             }
@@ -90,8 +101,8 @@ public class SettlementPolicyService {
                     throw PosApiException.badRequest("Enabled collection methods require a destination payment account.");
                 }
                 if (accountId != null) {
-                    var account = treasuryService.requireEligibleAccount(
-                        context.companyId(), accountId, currency, register.unitId(), register.businessId(),
+                    account = treasuryService.requireEligibleAccount(
+                        context.companyId(), accountId, currency, unitId, businessId,
                         allowedTypes(method)
                     );
                     if (method == PaymentMethod.CASH && "BANK".equals(account.type())) {
@@ -107,12 +118,14 @@ public class SettlementPolicyService {
                     }
                 }
             }
-            repository.upsert(
-                context, register.id(), method.name(), currency, accountId, timing, enabled, reviewStatus
-            );
+            result.add(new SettlementRuleResponse(null, registerId, method.name(), currency, accountId,
+                account == null ? null : account.name(), account == null ? null : account.type(),
+                account == null ? null : account.availableBalance(), account == null ? null : account.pendingBalance(),
+                timing, enabled, reviewStatus, 0));
         }
-        return repository.findByCurrency(context, register.id(), currency);
+        return List.copyOf(result);
     }
+
 
     @Transactional
     public List<CheckoutPayment> resolveCheckoutPayments(
@@ -121,6 +134,19 @@ public class SettlementPolicyService {
             String currencyCode,
             List<CheckoutPayment> payments) {
         var rules = ensureCompatibilityPolicy(context, register, currencyCode);
+        return resolveCurrentPolicy(context, register, currencyCode, payments, rules);
+    }
+
+    /** Assistant previews never provision compatibility accounts or settlement rules. */
+    @Transactional(readOnly = true)
+    public List<CheckoutPayment> previewCheckoutPayments(PosContext context,CashRegisterRecord register,
+            String currencyCode,List<CheckoutPayment> payments) {
+        return resolveCurrentPolicy(context,register,currencyCode,payments,
+            repository.findByCurrency(context,register.id(),currency(currencyCode)));
+    }
+
+    private List<CheckoutPayment> resolveCurrentPolicy(PosContext context,CashRegisterRecord register,
+            String currencyCode,List<CheckoutPayment> payments,List<SettlementRuleResponse> rules) {
         var byMethod = new EnumMap<PaymentMethod, SettlementRuleResponse>(PaymentMethod.class);
         rules.forEach(rule -> byMethod.put(PaymentMethod.valueOf(rule.paymentMethod()), rule));
         return payments.stream().map(payment -> {

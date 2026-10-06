@@ -9,6 +9,10 @@ public record MpRefundService(MpRefundPolicy policy, MpIntentReader reader,
         MpRefundReservation reservation, MpPaymentRecovery recovery,
         MpRefundEligibility eligibility, MpRefundReplay replay, MpRefundLifecycle lifecycle) {
     public MpRefundRecord refund(PosContext context, long id, MpRefundRequest request) {
+        return refund(context,id,request,null);
+    }
+    public MpRefundRecord refundOriginalReturn(PosContext context,long id,MpRefundRequest request,long returnId){if(!context.canManageOtherUsers())throw PosApiException.forbidden("Administrative original-card return access required.");return refund(context,id,request,returnId);}
+    private MpRefundRecord refund(PosContext context,long id,MpRefundRequest request,Long returnId){
         policy.requireEnabled();
         var intent = reader.find(context, id)
             .orElseThrow(() -> PosApiException.notFound("Payment attempt was not found."));
@@ -20,6 +24,6 @@ public record MpRefundService(MpRefundPolicy policy, MpIntentReader reader,
         }
         intent = reader.find(context, id).orElseThrow();
         eligibility.require(intent);
-        return lifecycle.progress(intent, reservation.reserve(context, intent, request), actor);
+        return lifecycle.progress(intent, returnId==null?reservation.reserve(context,intent,request):reservation.reserveOriginalReturn(context,intent,request,returnId), actor);
     }
 }

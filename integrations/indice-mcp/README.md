@@ -7,11 +7,28 @@ El contrato canónico, la matriz de autorización y las reglas para ampliar herr
 
 Herramientas disponibles:
 
+- `get_system_guide`: guía de 34 pestañas: RH (10), Procesos/Tareas (4), CRM (8),
+  Inventarios (6) y POS (6), en español o inglés,
+  reutilizando Modo aprendiz. Filtra permisos actuales y muestra las acciones disponibles;
+  no ejecuta trabajo ni certifica capacitación.
+- RH: `get_employee_file`, `list_hr_organization`, `list_hr_assets`, `get_hr_asset_detail`,
+  `list_announcements`, `get_announcement_detail`, `list_announcement_audience`,
+  `list_hr_records`, `get_hr_record_detail`. Ficha laboral y compensación autorizadas;
+  actas con acuerdos e historial; adjuntos solamente como metadatos.
+- RH confirmado: pares `preview_*` / acción para `create_employee`, `update_employee`,
+  `import_employees`, `inactivate_employee`, `create_hr_asset`, `create_announcement`.
+  Alta/importación requieren país laboral y validan capacidad. La moneda procede de Nómina.
+  Se preservan roles y expedientes; la inactivación no registra terminación laboral.
+
 - `get_sales_today`: cantidad y total monetario vendido hoy.
 - `get_business_snapshot`: resumen ejecutivo por periodo con ventas, cobros, gastos, utilidad, cuentas pendientes, caja chica, tareas, asistencia y alertas.
 - `get_attention_items`: excepciones críticas y de seguimiento ordenadas por prioridad, sin ruido saludable.
 - Personas: `search_employees`, `get_employee_overview`, `get_attendance_exceptions`.
-- Tareas: `list_tasks`, `get_task_detail`.
+- Tareas: `list_tasks`, `get_task_detail`, `list_task_organization`.
+- Operaciones de tareas: pares `preview_*` / acción para `schedule_task`, `add_task_follow_up`,
+  `update_task_contribution`, `share_task`, `complete_task`, `audit_task`, `cancel_task`.
+  Compartir requiere `tasks.operate` y `tasks.delegate`; auditar requiere `tasks.audit`.
+  Finalizar valida evidencia y aportaciones mediante el servicio propietario.
 - Ventas y POS: `get_sales_summary`, `list_sales`, `get_sale_detail`, `get_cash_status`.
 - Productos e inventario: `search_products`, `get_product_detail`, `get_inventory_summary`.
 - Gastos: `get_expense_summary`, `list_expenses`, `get_expense_detail`.
@@ -24,7 +41,10 @@ Herramientas disponibles:
 - `create_task`: crea únicamente la vista previa confirmada y vigente.
 - `search_task_assignees`: busca responsables autorizados por nombre, con unidad y negocio para distinguir coincidencias.
 - `preview_update_task` / `update_task`: vista previa y edición confirmada de título, descripción, prioridad, vencimiento, estado o responsable; conserva campos omitidos y rechaza cambios concurrentes.
-  Delegar requiere `tasks.delegate`; editar requiere `tasks.update`; reasignar requiere ambos. Los permisos nuevos se autorizan explícitamente en una conexión nueva.
+  Delegar requiere `tasks.delegate`; editar requiere `tasks.update`; reasignar requiere ambos.
+  Seleccionar unidad/negocio al crear o editar requiere además `tasks.organize` y valida
+  destinatarios, colaboradores conservados y proyecto. Los permisos nuevos se autorizan
+  explícitamente en una conexión nueva.
 - `preview_create_expense_draft` / `create_expense_draft`: crea un gasto general únicamente en `DRAFT`.
 - `preview_register_fund_expense` / `register_fund_expense`: registra una salida exacta en un fondo; no autoriza un gasto global.
 - `preview_add_money_to_fund` / `add_money_to_fund`: registra un depósito adicional desde una cuenta fuente exacta.
@@ -40,7 +60,14 @@ Herramientas disponibles:
 
 ## Requisitos
 
-El catálogo contiene 59 herramientas (37 consultas y 22 pasos de once acciones).
+El catálogo contiene 232 herramientas: 80 consultas/resolutores, 150 pasos de 75 acciones
+y dos entradas temporales de archivos que requieren registro confirmado.
+La [matriz de RH y Procesos/Tareas](../../docs/lupita-hr-processes-delivery-contract-v1.md)
+documenta los ciclos implementados y los requisitos de aceptación en APPTEST.
+El cierre local no habilita producción ni certifica una conversación real de ChatGPT.
+Las listas nuevas de RH ofrecen `returnedCount`, `totalCount`, `hasMore`, `nextCursor` y
+`nextPage`; continúa con `cursor`, los mismos filtros y `limit`, sin enviar `page`.
+Las listas de empleados, tareas y excepciones de asistencia también exponen cursor y total completo.
 La inicialización incorpora la guía de comportamiento de Lupita. El alcance, las perspectivas
 especialistas y las funciones todavía pendientes están en el
 [contrato de evolución](../../docs/indice-lupita-mcp-evolution-contract.md).
@@ -150,7 +177,8 @@ antes de procesar MCP.
 
 ## Seguridad y autorización
 
-- Todas las consultas son de solo lectura. Las únicas acciones son crear tarea, crear gasto en borrador, registrar salida de fondo e ingresar dinero a un fondo.
+- Las consultas son de solo lectura. Las acciones autorizadas de RH, Procesos/Tareas, Inventarios,
+  Ventas, POS y los usos existentes de Finanzas requieren sus consentimientos separados y confirmación.
 - `companyId`, usuario y membresía proceden de la sesión o del token delegado emitido por Índice.
 - El MCP no acepta campos de autoridad.
 - Los tokens se guardan en la base solo como SHA-256 y se muestran una vez al crearlos.
@@ -160,7 +188,9 @@ antes de procesar MCP.
   muestra sólo herramientas respaldadas por los alcances del token y los permisos vigentes del
   usuario. La ejecución vuelve a validar esos permisos.
 - Cada consulta vuelve a validar suscripción, módulo, acceso del usuario y permiso vigente. Ventas también valida el entitlement comercial `sales`.
-- Recursos Humanos omite nómina, documentos, identificadores nacionales, coordenadas, fotos y biometría.
+- Recursos Humanos expone únicamente ficha, nómina y documentos operativos autorizados. Identidad
+  nacional, salud, datos bancarios y biometría conservan sus canales originales; los archivos
+  privados requieren además los permisos explícitos de archivo y del destino.
 - Fondos nunca exponen tokens ni URLs de kiosco.
 - Los resolutores paginados devuelven `returnedCount`, `totalCount`, `hasMore` y un cursor opaco; nunca aceptan empresa, usuario ni alcance desde el cliente.
 - Cada acción exige una vista previa de máximo 5 minutos. El commit solo recibe token de confirmación y clave de idempotencia; no puede cambiar datos ya confirmados.
@@ -173,5 +203,55 @@ antes de procesar MCP.
 - Timeout obligatorio y validación estricta de la respuesta backend.
 
 ## Límite de publicación
+
+### RH, Procesos/Tareas y archivos
+
+Se completaron los ciclos aprobados: calendarios/eventos propios y de Control, descansos, nómina
+con sus reglas de país/moneda, proyectos, versiones/ejecuciones de procesos, KPIs completos y
+adjuntos de empleados, comunicados, activos, actas/permisos y evidencias de tareas.
+
+`files.attach` y `files.read` son permisos adicionales opcionales apagados por defecto, además
+del permiso vigente del módulo y destino. Las conexiones anteriores conservan su consentimiento.
+`stage_chatgpt_file` usa el [contrato nativo de archivos](https://developers.openai.com/plugins/reference)
+con `openai/fileParams`; ChatGPT suministra el adjunto de la conversación. Configura
+`INDICE_CHATGPT_FILE_HOSTS` con los nombres exactos observados y aprobados en APPTEST, sin URLs
+firmadas ni comodines. El proveedor no documenta allí un dominio de descarga estable. Vacío
+falla cerrado para esa entrada; `stage_operational_file` sigue admitiendo bytes base64.
+
+La descarga exige HTTPS y DNS público fijado en TLS, sin redirecciones, cookies ni credenciales
+de Índice; vence a los 30 segundos. El backend valida formato/MIME/tamaño/hash, cuota y objeto.
+El archivo temporal vence en hasta 15 minutos; la vista previa para registrarlo, en hasta cinco.
+Reintentos del mismo intento no duplican adjuntos. El limpiador respeta archivos registrados.
+Límites: empleados 5 MB, fotos de activos 2.5 MB, otros adjuntos/descargas 10 MB, además de los
+formatos del propietario. Documentos de identidad nacional y biometría conservan su canal.
+
+Los recursos binarios de salida son MCP estándar; presentación y descarga deben aceptarse con
+la conexión real de ChatGPT en cada modo. El MCP no promete persistencia del archivo en el cliente.
+Ver [verificación de ciclos](../../docs/validation/2026-10-06-lupita-hr-processes-cycles.md).
+
+### Inventarios, Ventas y POS
+
+El cierre comercial agrega 61 consultas y 83 acciones confirmadas, con sus propietarios actuales:
+catálogo/almacenes/existencias; proveedores, descuentos, compras y facturas; venta desde cotización,
+cobro, entrega, contratos, seguimiento y comisiones; cajas, turnos, pedidos, tickets, recibos de stock
+pagado, cortes, depósitos, terminales y devoluciones al medio original. Cada conexión recibe únicamente
+lo autorizado por sus permisos y consentimiento; las acciones nuevas nacen apagadas.
+
+El catálogo completo verificado por el SDK contiene 459 herramientas: 141 lecturas, 158 acciones
+con vista previa y dos entradas temporales de archivo. No son 459 acciones independientes.
+Los cinco destinos comerciales de adjunto son producto, evidencia de venta, contrato, factura
+de proveedor y recibo POS. Diez reportes CSV/PDF usan recursos privados y moneda nativa.
+
+Point admite México/MXN y Square conserva país/moneda y merchant verificados. Cobros/reembolsos
+utilizan las reservas financieras nativas fuera de transacciones SQL; los reintentos reutilizan
+la identidad original y no se disparan automáticamente. Los pagos a proveedores, la conciliación
+de períodos cerrados y el pago de comisiones continúan en Finanzas/RH.
+
+Entrega: [flujo operativo](../../docs/lupita-commerce-operating-workflow-v1.md),
+[matriz de herramientas](../../docs/lupita-commerce-tool-matrix-v1.md) y
+[verificación/despliegue](../../docs/validation/2026-10-06-lupita-commerce-cycles.md).
+La configuración Square de backend se pasa en Compose y host-network; la activación LIVE
+y las acciones de reembolso conservan sus gates actuales. El build local no acredita terminales
+reales ni aceptación de archivos, texto o voz en ChatGPT.
 
 Secure MCP Tunnel mantiene el MCP en loopback y permite conexiones privadas de desarrollo. Esta arquitectura no equivale a publicar el complemento en el catálogo público; para distribución pública se necesita además un endpoint MCP HTTPS estable y el proceso de revisión de OpenAI.

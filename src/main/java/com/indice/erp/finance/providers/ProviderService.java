@@ -43,6 +43,21 @@ public class ProviderService {
         return mapper.toResponse(requireProvider(context, providerId));
     }
 
+    @Transactional(readOnly=true)
+    public ProviderResponse previewCreate(FinanceContext context,CreateProviderRequest request) {
+        var assignment=validator.validateCreate(context,request);referenceValidator.validateAssignment(context,assignment);
+        var command=mapper.toCreateCommand(context,request,assignment);requireUnique(context,command,null);
+        return forecast(context,null,command);
+    }
+    @Transactional(readOnly=true)
+    public ProviderResponse previewUpdate(FinanceContext context,long id,UpdateProviderRequest request) {
+        requireProvider(context,id);var assignment=validator.validateUpdate(context,request);referenceValidator.validateAssignment(context,assignment);
+        var command=mapper.toUpdateCommand(context,request,assignment);requireUnique(context,command,id);return forecast(context,id,command);
+    }
+    private ProviderResponse forecast(FinanceContext context,Long id,ProviderCommand command) {
+        var previous=id==null?null:requireProvider(context,id);
+        return mapper.toResponse(new ProviderRecord(id,context.companyId(),command.unitId(),command.businessId(),command.name(),command.legalName(),command.taxId(),command.email(),command.phone(),command.contactName(),command.paymentTermsDays(),command.status(),command.notes(),previous==null?null:previous.createdByUserId(),previous==null?null:previous.updatedByUserId(),previous==null?null:previous.createdAt(),previous==null?null:previous.updatedAt(),null,previous==null?0L:previous.version(),command.customFieldsJson(),command.metadataJson()));
+    }
     @Transactional
     public ProviderResponse create(FinanceContext context, CreateProviderRequest request) {
         var assignment = validator.validateCreate(context, request);
