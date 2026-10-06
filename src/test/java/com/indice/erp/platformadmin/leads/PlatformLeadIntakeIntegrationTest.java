@@ -55,7 +55,8 @@ class PlatformLeadIntakeIntegrationTest {
             .isTrue();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM platform_lead_events WHERE lead_id = ?", Integer.class, id))
             .isEqualTo(1);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version = '290' AND success = 1", Integer.class))
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version = '289' "
+            + "AND checksum = 1752329598 AND success = 1", Integer.class))
             .isEqualTo(1);
     }
 }
