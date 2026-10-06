@@ -153,8 +153,11 @@ disponibilidad de herramientas. Antes de promover una versión:
 4. Comprueba renovación real del token en un entorno aislado y revocación de la conexión. Un
    refresh no puede ampliar scopes; el token anterior no se acepta por una supuesta continuidad.
 5. En datos sintéticos, crea una tarea mediante vista previa + confirmación, y repite el mismo
-   commit con la misma clave: debe devolver el resultado original. No existe herramienta para
-   editar una tarea en este catálogo; no uses una función inexistente como prueba de estabilidad.
+   commit con la misma clave: debe devolver el resultado original. Las entregas posteriores
+   agregan edición y ciclos operativos; prueba solamente herramientas presentes en el manifiesto
+   autorizado, con su consentimiento específico y confirmación. La
+   [matriz vigente](../docs/lupita-commerce-tool-matrix-v1.md) y los
+   [ciclos RH/Procesos](../docs/lupita-hr-processes-delivery-contract-v1.md) definen su alcance.
 6. Simula una caída exclusivamente en APPTEST y verifica 503/recuperación, sin catálogo falso,
    sin pérdida del aislamiento entre cuentas y sin escrituras duplicadas. No cortes producción.
 
@@ -178,7 +181,11 @@ refuerzan este comportamiento, pero no garantizan la conducta o capacidades del 
 
 ## Rollback
 
-Este endurecimiento de continuidad no agrega migraciones. Conserva también el Compose/runbook
+La capa de continuidad no agrega migraciones; las entregas operativas integradas sí agregan
+V294–V299 sobre el V293 publicado. Consulta la
+[decisión de linaje integrado](../docs/decisions/2026-10-06-lupita-admin-integration.md).
+La recuperación debe ensayarse sobre ese esquema y sus registros, archivos y estados nuevos;
+no reutilices sin verificar el backend de recuperación de V293. Conserva también el Compose/runbook
 de la revisión anterior: una imagen MCP anterior no implementa `/readyz`; no uses su imagen con
 el healthcheck nuevo. Para reactivar MCP antiguo, restaura imagen **y** configuración compatibles
 solo después de validar OAuth y el catálogo. Mantén el rollback con MCP detenido si no pasa.

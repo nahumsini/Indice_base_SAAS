@@ -41,3 +41,19 @@ value or provider-account payload belongs in this record.
 The [prior blocked record](../../deployment/releases/2026.10.05-candidate-blocked.md)
 remains historical evidence. Record actual activation evidence separately; this
 decision alone does not say that either target has been deployed.
+
+## Owner-authorized merged continuation — 2026-10-06
+
+After the uploaded Lupita branch was integrated with the administrator, the owner
+explicitly requested updating main and deploying APPTEST first, then production
+after successful verification. The standing instruction leaves Stripe pending.
+This is the same controlled release continuation, now including the named
+HR/Processes and Inventory/Sales/POS owner extensions; it is not permission to
+activate Stripe, providers, LIVE terminal charges or refunds.
+
+The deferral remains limited to the historical TEST credential, which must be
+rechecked as unused by both target runtimes and release configurations. The
+original HIGH finding, owner, due date and 2026-10-07 UTC expiry remain unchanged.
+No prices, subscription versions, billing authority, provider flags or secret
+bytes may change through this deployment. All new domain, file, authorization,
+rollback, exact-artifact and real APPTEST acceptance gates remain mandatory.
