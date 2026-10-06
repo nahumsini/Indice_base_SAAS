@@ -240,6 +240,21 @@ public class SeatService {
         return snapshot;
     }
 
+    /** Serialize a complete create/import transaction against invitations and other activations. */
+    @Transactional
+    public SeatSnapshot requireAvailableSeatsForCreation(long companyId, int count) {
+        if (count < 1) throw new IllegalArgumentException("A positive seat count is required.");
+        if (lockState(companyId) == null) return SeatSnapshot.unlimited(companyId);
+        expireAndSynchronize(companyId);
+        var snapshot = snapshotLocked(companyId);
+        if ((long) snapshot.usedAndReserved() + count > snapshot.limit()) {
+            throw new SeatCapacityExceededException(count == 1
+                ? "The company has reached its seat limit. Purchase another seat before adding this user."
+                : "The company does not have enough available seats for this bulk import.", snapshot);
+        }
+        return snapshot;
+    }
+
     private State lockState(long companyId) {
         return jdbcTemplate.query(
             """

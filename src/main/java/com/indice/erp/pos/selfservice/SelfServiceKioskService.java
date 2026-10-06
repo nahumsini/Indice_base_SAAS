@@ -443,6 +443,12 @@ public class SelfServiceKioskService {
     }
 
     @Transactional(readOnly = true)
+    public void requireAssistantRecordAccess(PosContext context,long id,long register){requireVisibleRegister(context,register);repository.requireAssistantRecordAccess(context.companyId(),id,register);}
+    public PreticketResponse inspectCheckout(PosContext context,long preticketId,long registerId,boolean claimed) {
+        var register=requireVisibleRegister(context,registerId);
+        return (claimed?repository.lockClaimedForCheckout(context,preticketId,register):repository.listPending(context,register).stream().filter(v->v.id()==preticketId).findFirst()).orElseThrow(()->PosApiException.notFound("Current preticket unavailable."));
+    }
+
     public List<Map<String, Object>> audit(PosContext context, long kioskId) {
         require(context, kioskId);
         return repository.listAudit(context.companyId(), kioskId);

@@ -28,19 +28,7 @@ public abstract class HrAttendanceAdminDailyRecordUseCases extends HrAttendanceA
     }
 
     public Map<String, Object> updateDailyRecord(long companyId, long userId, long userCompanyId, LocalDate date, Map<String, Object> payload) {
-        payload = normalizePayload(payload);
-        var user = attendanceUserLookupService.loadAttendanceUser(companyId, userCompanyId);
-        var targetStatusRaw = stringValue(payload, "status", "corrected_status");
-        var correctedStatus = targetStatusRaw.isBlank() ? null : normalizeAttendanceStatus(targetStatusRaw);
-        var currentCorrectedStatus = date.isAfter(LocalDate.now()) && correctedStatus == null
-            ? nullableCurrentCorrectedStatus(companyId, userCompanyId, date)
-            : null;
-        requireCorrectionEditable(
-            user.hireDate(),
-            date,
-            correctedStatus,
-            currentCorrectedStatus
-        );
+        var correctedStatus = prepareAssistantCorrection(companyId, userCompanyId, date, payload);
         var scheduleRule = loadScheduleRule(companyId, userCompanyId, date);
         var notes = nullable(stringValue(payload, "notes"));
         var correctionMetadata = new LinkedHashMap<String, Object>();
@@ -81,6 +69,23 @@ public abstract class HrAttendanceAdminDailyRecordUseCases extends HrAttendanceA
         body.put("effective_status", resolveEffectiveStatus(refreshed, scheduleRule, date));
         body.put("notes", refreshed != null ? refreshed.notes() : null);
         return body;
+    }
+
+    protected String prepareAssistantCorrection(long companyId, long userCompanyId, LocalDate date, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
+        var user = attendanceUserLookupService.loadAttendanceUser(companyId, userCompanyId);
+        var targetStatusRaw = stringValue(payload, "status", "corrected_status");
+        var correctedStatus = targetStatusRaw.isBlank() ? null : normalizeAttendanceStatus(targetStatusRaw);
+        var currentCorrectedStatus = date.isAfter(LocalDate.now()) && correctedStatus == null
+            ? nullableCurrentCorrectedStatus(companyId, userCompanyId, date)
+            : null;
+        requireCorrectionEditable(
+            user.hireDate(),
+            date,
+            correctedStatus,
+            currentCorrectedStatus
+        );
+        return correctedStatus;
     }
 
     private String nullableCurrentCorrectedStatus(long companyId, long userCompanyId, LocalDate date) {
@@ -129,6 +134,12 @@ public abstract class HrAttendanceAdminDailyRecordUseCases extends HrAttendanceA
         body.put("updated_count", items.size());
         body.put("employee_count", assignments.size());
         return body;
+    }
+
+    protected void prepareAssistantRestPlan(long companyId,Map<String,Object> payload) {
+        var assignments=parseRestPlanAssignments(payload);
+        var values=new LinkedHashMap<String,Object>();values.put("status","rest");values.put("notes",payload.get("notes"));
+        for(var assignment:assignments)for(var date:assignment.dates())prepareAssistantCorrection(companyId,assignment.userCompanyId(),date,values);
     }
 
     private List<RestPlanAssignment> parseRestPlanAssignments(Map<String, Object> payload) {
@@ -195,24 +206,9 @@ public abstract class HrAttendanceAdminDailyRecordUseCases extends HrAttendanceA
         LocalDate attendanceDate,
         Map<String, Object> payload
     ) {
-        payload = normalizePayload(payload);
-        var user = attendanceUserLookupService.loadAttendanceUser(companyId, userCompanyId);
-        if ("terminated".equals(user.status())) {
-            throw new IllegalArgumentException("This user is terminated and cannot record attendance.");
-        }
-        ensureAttendanceDateEditable(user, attendanceDate);
-        if (attendanceDate.isAfter(LocalDate.now())) {
-            throw new IllegalArgumentException("Manual attendance cannot be recorded for a future date.");
-        }
-
-        var eventKind = normalizeEventKind(stringValue(payload, "event_kind", "event_type"));
-        if (!List.of("check_in", "check_out").contains(eventKind)) {
-            throw new IllegalArgumentException("Manual attendance can only record check_in or check_out.");
-        }
-
-        var eventTimestamp = resolveManualAttendanceTimestamp(attendanceDate, eventKind, payload);
-        validateOperationalEventTransition(companyId, userCompanyId, attendanceDate, eventTimestamp, eventKind);
-
+        var draft = prepareAssistantManualEvent(companyId, userCompanyId, attendanceDate, payload);
+        var eventKind = draft.kind();
+        var eventTimestamp = draft.timestamp();
         var notes = nullable(stringValue(payload, "notes"));
         var metadata = new LinkedHashMap<String, Object>();
         metadata.put("manual_attendance_event", true);
@@ -265,5 +261,27 @@ public abstract class HrAttendanceAdminDailyRecordUseCases extends HrAttendanceA
         body.put("first_location", refreshed != null ? toLocationMap(refreshed.firstLocation()) : null);
         body.put("last_location", refreshed != null ? toLocationMap(refreshed.lastLocation()) : null);
         return body;
+    }
+    public record AssistantManualEvent(String kind, java.time.LocalDateTime timestamp) { }
+    protected AssistantManualEvent prepareAssistantManualEvent(long companyId, long userCompanyId, LocalDate attendanceDate, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
+        var user = attendanceUserLookupService.loadAttendanceUser(companyId, userCompanyId);
+        if ("terminated".equals(user.status())) {
+            throw new IllegalArgumentException("This user is terminated and cannot record attendance.");
+        }
+        ensureAttendanceDateEditable(user, attendanceDate);
+        if (attendanceDate.isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("Manual attendance cannot be recorded for a future date.");
+        }
+
+        var eventKind = normalizeEventKind(stringValue(payload, "event_kind", "event_type"));
+        if (!List.of("check_in", "check_out").contains(eventKind)) {
+            throw new IllegalArgumentException("Manual attendance can only record check_in or check_out.");
+        }
+
+        var eventTimestamp = resolveManualAttendanceTimestamp(attendanceDate, eventKind, payload);
+        validateOperationalEventTransition(companyId, userCompanyId, attendanceDate, eventTimestamp, eventKind);
+
+        return new AssistantManualEvent(eventKind, eventTimestamp);
     }
 }

@@ -50,6 +50,9 @@ class MigrationVersionUniquenessTest {
         assertTrue(Files.exists(migrationDir.resolve("V265__expense_import_batches.sql")));
         assertReleasedChecksum("V288__platform_lead_diagnosis_flow.sql", 1234112480);
         assertReleasedChecksum("V289__platform_lead_plan_interest.sql", 1752329598);
+        assertReleasedChecksum("V291__messaging_and_customer_care.sql", -160476949);
+        assertReleasedChecksum("V292__messaging_photos.sql", -2011960414);
+        assertReleasedChecksum("V293__sales_opportunity_authoritative_flow_assignment.sql", -736416289);
     }
 
     private void assertReleasedChecksum(String filename, int expected) {

@@ -34,6 +34,19 @@ modified production Java files in this change remain below 50 physical lines; co
 replace affected large services without changing existing routes/DTO compatibility. New Java
 tests follow the same cap. Existing unrelated code is outside the refactor scope.
 
+### Authorized assistant extension, 2026-10-06
+
+The [commerce completion contract](lupita-commerce-delivery-contract-v1.md) adopts incremental
+extensions of the existing return and refund owners for authenticated assistant workflows.
+These preserve the browser routes, provider protocols, original tender identity and accounting
+guards. Repository-wide cohesion rules govern these extensions: an owner and its integration
+regression may exceed the original implementation's 50-line target when splitting would scatter
+one atomic use case. This does not authorize a structural rewrite or another payment framework.
+Mercado Pago full physical returns use the original durable refund request, verified native
+refund evidence and immutable reversal ledger before restoring inventory. Unknown outcomes keep
+the return pending; a confirmed refund with a failed inventory restoration resumes without another
+provider call. Separate payment refunds and active/completed physical returns exclude each other.
+
 ## Company connection and terminal readiness
 
 Mercado Pago OAuth uses PKCE S256, cryptographically generated, hashed, single-use state bound to

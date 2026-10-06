@@ -50,6 +50,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -117,6 +118,123 @@ public class HrPayrollService {
         this.hrIncentivePayrollSupplyService = hrIncentivePayrollSupplyService;
         this.expenseService = expenseService;
         this.authorizationService = authorizationService;
+    }
+
+    /** Pure reads for delegation: no preference creation or payment reconciliation. */
+    public List<HrPayrollAssistantContracts.Run> assistantRuns(AuthSessionUser user) {
+        var scope=hrPayrollScopeAccess.resolve(user);
+        return loadRuns(user.companyId(),scope).stream().map(run->assistantRun(user,run.id())).toList();
+    }
+    public HrPayrollAssistantContracts.Run assistantRun(AuthSessionUser user,long id) {
+        var scope=hrPayrollScopeAccess.resolve(user);
+        var run=loadRun(user.companyId(),id,scope);
+        var rows=loadRunLines(user.companyId(),id,scope);
+        var items=loadRunLineItems(rows.stream().map(PayrollRunLineRow::id).toList());
+        var lines=rows.stream().map(line->assistantStoredLine(line,items.getOrDefault(line.id(),List.of()))).toList();
+        return assistantRunView(run.id(),run.groupingMode(),run.groupingKey(),run.groupingLabel(),run.payPeriod(),run.periodStartDate(),run.periodEndDate(),visibleRunStatus(run.status()),lines,false);
+    }
+    public HrPayrollAssistantContracts.Preparation prepareAssistantPayroll(AuthSessionUser user,String action,Long id,HrPayrollAssistantContracts.Change request) {
+        var permission=switch(action){case "approve_hr_payroll"->HrPayrollAuthorizationService.Action.APPROVE;case "register_hr_payroll_paid"->HrPayrollAuthorizationService.Action.PAY;case "cancel_hr_payroll"->HrPayrollAuthorizationService.Action.CANCEL;default->HrPayrollAuthorizationService.Action.PREPARE;};
+        authorizationService.require(user,permission);
+        var scope=hrPayrollScopeAccess.resolve(user);var preferences=loadAssistantPreferences(user.companyId());
+        if(action.equals("prepare_hr_payroll")) {
+            if(id!=null||request==null||request.periodStartDate()==null||request.lineId()!=null||request.payrollTreatment()!=null||request.notes()!=null||request.manualItems()!=null)throw new IllegalArgumentException("An explicit payroll period required.");
+            var payPeriod=normalizePayPeriod(request.payPeriod());var start=request.periodStartDate();var end=normalizeRunPeriodEndDate(payPeriod,start,preferences);
+            if(request.periodEndDate()!=null&&!request.periodEndDate().equals(end))throw new IllegalArgumentException("Requested end does not match the owner payroll calendar: "+end);
+            var grouping=normalizeGroupingMode(request.groupingMode(),preferences.groupingMode());
+            var people=loadEligibleHrUsers(user.companyId(),payPeriod,true,end,start,scope);
+            if(people.isEmpty())throw new IllegalArgumentException("No eligible employees for this payroll frequency.");
+            if(people.size()>500)throw new IllegalArgumentException("Payroll confirmation is limited to 500 employees.");
+            var result=new ArrayList<HrPayrollAssistantContracts.Run>();
+            for(var group:groupHrUsers(people,grouping)) {
+                var existing=findExistingRun(user.companyId(),grouping,group.groupingKey(),payPeriod,start,end,scope);
+                if(existing!=null){var run=assistantRun(user,existing.id());result.add(new HrPayrollAssistantContracts.Run(run.id(),run.groupingMode(),run.groupingKey(),run.groupingLabel(),run.payPeriod(),run.periodStartDate(),run.periodEndDate(),run.status(),run.employeeCount(),run.totals(),run.lines(),true));continue;}
+                var lines=new ArrayList<HrPayrollAssistantContracts.Line>();
+                for(var person:group.users()) {
+                    var treatment=normalizePayrollTreatment(person.payrollTreatment());
+                    var computation=calculateLineWithEngine(user.companyId(),0,person,preferences,start,end,includeInFiscalForTreatment(treatment));
+                    lines.add(assistantCalculatedLine(0,person.id(),person.fullName(),person.unitId(),person.unitName(),person.businessId(),person.businessName(),payPeriod,treatment,null,computation));
+                }
+                result.add(assistantRunView(0,grouping,group.groupingKey(),group.groupingLabel(),payPeriod,start,end,"draft",lines,false));
+            }
+            var change=new HrPayrollAssistantContracts.Change(payPeriod,start,end,grouping,null,null,null,null);
+            return new HrPayrollAssistantContracts.Preparation(change,new HrPayrollAssistantContracts.Result(List.of()),new HrPayrollAssistantContracts.Result(List.copyOf(result)));
+        }
+        if(id==null||id<1)throw new IllegalArgumentException("A payroll run required.");
+        if(request!=null&&(request.payPeriod()!=null||request.periodStartDate()!=null||request.periodEndDate()!=null||request.groupingMode()!=null))throw new IllegalArgumentException("Period configuration belongs to payroll preparation.");
+        var current=loadRun(user.companyId(),id,scope);
+        var before=new HrPayrollAssistantContracts.Result(List.of(assistantRun(user,id)));
+        if(!action.equals("adjust_hr_payroll_line"))hrPayrollScopeAccess.requireRunFullyInScope(user.companyId(),scope,id);
+        if(action.equals("register_hr_payroll_paid")) {
+            requireRunStatus(current,"approved");ensureDifferentTransitionActor(id,user.userId(),user.role(),PayrollTransition.PAY);
+            ensurePayrollAccountsPayableLinesArePaid(user.companyId(),id);
+            return new HrPayrollAssistantContracts.Preparation(null,before,new HrPayrollAssistantContracts.Result(List.of(assistantWithStatus(before.runs().getFirst(),"paid"))));
+        }
+        requireEditableDraftStatus(current);
+        if(action.equals("cancel_hr_payroll"))return new HrPayrollAssistantContracts.Preparation(null,before,new HrPayrollAssistantContracts.Result(List.of(assistantWithStatus(before.runs().getFirst(),"cancelled"))));
+        if(action.equals("approve_hr_payroll"))ensureDifferentTransitionActor(id,user.userId(),user.role(),PayrollTransition.APPROVE);
+        boolean adjust=action.equals("adjust_hr_payroll_line");
+        if(adjust&&(request==null||request.lineId()==null||request.lineId()<1||request.manualItems()==null||request.manualItems().size()>100))throw new IllegalArgumentException("Line identity and complete manual item replacement required (0–100 items).");
+        if(!adjust&&request!=null&&(request.lineId()!=null||request.payrollTreatment()!=null||request.notes()!=null||request.manualItems()!=null))throw new IllegalArgumentException("Only line adjustment accepts these fields.");
+        if(adjust)hrPayrollScopeAccess.requireRunLineInScope(user.companyId(),scope,id,request.lineId());
+        if(action.equals("approve_hr_payroll")&&current.status().equals("processed")) {
+            ensureFinancialIntegrityForApproval(user.companyId(),id);ensureStatutoryComplianceForApproval(id);ensureColombiaGovernmentReportingReadyForApproval(user.companyId(),id);
+            return new HrPayrollAssistantContracts.Preparation(null,before,new HrPayrollAssistantContracts.Result(List.of(assistantWithStatus(before.runs().getFirst(),"approved"))));
+        }
+        var calculated=new ArrayList<HrPayrollAssistantContracts.Line>();
+        HrPayrollAssistantContracts.Change normalized=null;
+        for(var line:loadRunLines(user.companyId(),id,scope)) {
+            if(adjust&&line.id()!=request.lineId()){calculated.add(before.runs().getFirst().lines().stream().filter(old->old.id()==line.id()).findFirst().orElseThrow());continue;}
+            var jurisdiction=resolvePayrollJurisdiction(user.companyId(),line.userCompanyId());
+            var country=isBlank(line.countryCodeSnapshot())?jurisdiction.country():line.countryCodeSnapshot();
+            var province=isBlank(line.jurisdictionCodeSnapshot())?jurisdiction.province():line.jurisdictionCodeSnapshot();
+            var treatment=adjust&&request.payrollTreatment()!=null?normalizePayrollTreatment(request.payrollTreatment()):line.payrollTreatmentSnapshot();
+            var notes=adjust?request.notes():line.notes();
+            if(notes!=null&&notes.length()>2000)throw new IllegalArgumentException("Payroll notes exceed 2000 characters.");
+            var adjustments=new ArrayList<PayrollCalculationContext.ManualAdjustment>();
+            var retainedItems=new ArrayList<HrPayrollAssistantContracts.Item>();
+            for(var item:loadRunLineAdjustmentItems(line.id()))if(!adjust||!"manual".equals(item.sourceType())){
+                adjustments.add(toStoredAdjustment(item,line.currencyCodeSnapshot()));
+                retainedItems.add(new HrPayrollAssistantContracts.Item(item.code(),item.category(),item.label(),scaled(item.amount()),item.sourceType(),item.currencyCode(),item.taxTreatment(),item.taxable(),item.affectsSocialSecurity(),item.affectsEmployerCost()));
+            }
+            if(adjust) {
+                var manual=new ArrayList<HrPayrollAssistantContracts.ManualItem>();
+                for(var item:request.manualItems()) {
+                    if(item==null||item.label()==null||item.label().isBlank()||item.label().length()>180||item.amount()==null||item.amount().signum()<0||item.amount().compareTo(new BigDecimal("999999999.99"))>0)throw new IllegalArgumentException("Valid manual payroll item required.");
+                    var normalizedItem=payrollManualAdjustmentService.normalize(item.category(),item.label(),item.amount(),resolveCurrencyCode(country));
+                    manual.add(new HrPayrollAssistantContracts.ManualItem(normalizedItem.category(),normalizedItem.label(),normalizedItem.amount()));
+                    adjustments.add(new PayrollCalculationContext.ManualAdjustment(normalizedItem.code(),normalizedItem.category(),normalizedItem.label(),normalizedItem.amount(),normalizedItem.taxTreatment(),normalizedItem.taxable(),normalizedItem.affectsSocialSecurity(),normalizedItem.affectsEmployerCost(),normalizedItem.legalClassification(),normalizedItem.currency(),"manual"));
+                    retainedItems.add(new HrPayrollAssistantContracts.Item(normalizedItem.code(),normalizedItem.category(),normalizedItem.label(),normalizedItem.amount(),"manual",normalizedItem.currency(),normalizedItem.taxTreatment(),normalizedItem.taxable(),normalizedItem.affectsSocialSecurity(),normalizedItem.affectsEmployerCost()));
+                }
+                normalized=new HrPayrollAssistantContracts.Change(null,null,null,null,line.id(),treatment,notes,List.copyOf(manual));
+            }
+            var computation=calculateStoredLineWithEngine(line,current,preferences,adjustments,country,province,includeInFiscalForTreatment(treatment));
+            calculated.add(assistantCalculatedLine(line.id(),line.userCompanyId(),line.userNameSnapshot(),line.unitIdSnapshot(),line.unitNameSnapshot(),line.businessIdSnapshot(),line.businessNameSnapshot(),line.payPeriodSnapshot(),treatment,notes,computation,retainedItems));
+        }
+        var status=action.equals("approve_hr_payroll")?"approved":"draft";
+        var after=assistantRunView(id,current.groupingMode(),current.groupingKey(),current.groupingLabel(),current.payPeriod(),current.periodStartDate(),current.periodEndDate(),status,calculated,false);
+        return new HrPayrollAssistantContracts.Preparation(normalized,before,new HrPayrollAssistantContracts.Result(List.of(after)));
+    }
+    private HrPayrollAssistantContracts.Run assistantWithStatus(HrPayrollAssistantContracts.Run run,String status) {
+        return new HrPayrollAssistantContracts.Run(run.id(),run.groupingMode(),run.groupingKey(),run.groupingLabel(),run.payPeriod(),run.periodStartDate(),run.periodEndDate(),status,run.employeeCount(),run.totals(),run.lines(),run.reused());
+    }
+    private HrPayrollAssistantContracts.Run assistantRunView(long id,String grouping,String key,String label,String frequency,LocalDate start,LocalDate end,String status,List<HrPayrollAssistantContracts.Line> lines,boolean reused) {
+        var totals=new java.util.TreeMap<String,HrPayrollAssistantContracts.CurrencyTotal>();
+        for(var line:lines){var old=totals.getOrDefault(line.currency(),new HrPayrollAssistantContracts.CurrencyTotal(line.currency(),BigDecimal.ZERO,BigDecimal.ZERO,BigDecimal.ZERO,BigDecimal.ZERO));totals.put(line.currency(),new HrPayrollAssistantContracts.CurrencyTotal(line.currency(),old.grossAmount().add(line.grossAmount()),old.deductionsAmount().add(line.deductionsAmount()),old.employerContributionsAmount().add(line.employerContributionsAmount()),old.netAmount().add(line.netAmount())));}
+        return new HrPayrollAssistantContracts.Run(id,grouping,key,label,frequency,start,end,status,lines.size(),List.copyOf(totals.values()),List.copyOf(lines),reused);
+    }
+    private HrPayrollAssistantContracts.Line assistantStoredLine(PayrollRunLineRow line,List<PayrollRunLineItemRow> items) {
+        var projected=items.stream().map(item->new HrPayrollAssistantContracts.Item(item.code(),item.category(),item.label(),scaled(item.amount()),item.sourceType(),item.currencyCode(),item.taxTreatment(),item.taxable(),item.affectsSocialSecurity(),item.affectsEmployerCost())).toList();
+        return new HrPayrollAssistantContracts.Line(line.id(),line.userCompanyId(),line.userNameSnapshot(),line.unitIdSnapshot(),line.unitNameSnapshot(),line.businessIdSnapshot(),line.businessNameSnapshot(),line.countryCodeSnapshot(),line.jurisdictionCodeSnapshot(),line.currencyCodeSnapshot(),line.fxRate(),line.payPeriodSnapshot(),line.payrollTreatmentSnapshot(),line.paymentRoute(),line.notes(),scaled(line.grossAmount()),scaled(line.deductionsAmount()),scaled(line.employerContributionsAmount()),scaled(line.netAmount()),scaled(line.daysPayable()),scaled(line.paidLeaveDays()),scaled(line.absenceDays()),scaled(line.missingAttendanceDays()),scaled(line.regularHours()),scaled(line.overtimeHours()),lineStatutoryCompliance(line),lineCalculationWarnings(line),line.attendanceWarnings(),projected);
+    }
+    private HrPayrollAssistantContracts.Line assistantCalculatedLine(long id,long member,String name,Long unit,String unitName,Long business,String businessName,String frequency,String treatment,String notes,EngineLineComputation computation) {
+        return assistantCalculatedLine(id,member,name,unit,unitName,business,businessName,frequency,treatment,notes,computation,null);
+    }
+    private HrPayrollAssistantContracts.Line assistantCalculatedLine(long id,long member,String name,Long unit,String unitName,Long business,String businessName,String frequency,String treatment,String notes,EngineLineComputation computation,List<HrPayrollAssistantContracts.Item> retainedItems) {
+        var c=computation.context();var r=computation.result();
+        var items=new ArrayList<>(r.items().stream().filter(item->retainedItems==null||!Set.of("manual","incentive").contains(item.sourceType())).map(item->new HrPayrollAssistantContracts.Item(item.code(),item.category(),item.label(),item.amount(),item.sourceType(),item.currencyCode(),item.taxTreatment(),item.taxable(),item.affectsSocialSecurity(),item.affectsEmployerCost())).toList());
+        if(retainedItems!=null)items.addAll(retainedItems);
+        return new HrPayrollAssistantContracts.Line(id,member,name,unit,unitName,business,businessName,c.country(),c.jurisdiction(),c.currency(),c.fxRate(),frequency,treatment,paymentRouteForTreatment(treatment),notes,r.grossAmount(),r.deductionsAmount(),r.employerContributionsAmount(),r.netAmount(),r.daysPayable(),r.paidLeaveDays(),r.absenceDays(),r.missingAttendanceDays(),r.regularHours(),r.overtimeHours(),r.statutoryCompliance(),r.calculationWarnings(),r.attendanceWarnings(),items);
     }
 
     public Map<String, Object> overview(long companyId) {
@@ -1167,7 +1285,11 @@ public class HrPayrollService {
     }
 
     private Map<String, Object> getRunDetail(long companyId, long runId, HrOperationalScope scope) {
-        reconcilePaidPayrollRuns(companyId);
+        return getRunDetail(companyId,runId,scope,true);
+    }
+
+    private Map<String,Object> getRunDetail(long companyId,long runId,HrOperationalScope scope,boolean reconcile) {
+        if(reconcile)reconcilePaidPayrollRuns(companyId);
         var run = loadRun(companyId, runId, scope);
         var runLines = loadRunLines(companyId, runId, scope);
         var itemsByLineId = loadRunLineItems(runLines.stream().map(PayrollRunLineRow::id).toList());
@@ -1257,12 +1379,29 @@ public class HrPayrollService {
         );
     }
 
+    @Transactional
+    public Map<String,Object> updateAssistantRunLine(AuthSessionUser user,long runId,long lineId,Map<String,Object> payload) {
+        authorizationService.require(user,HrPayrollAuthorizationService.Action.PREPARE);
+        return updateRunLine(user.companyId(),runId,lineId,payload,hrPayrollScopeAccess.resolve(user),false);
+    }
+
     private Map<String, Object> updateRunLine(
         long companyId,
         long runId,
         long lineId,
         Map<String, Object> payload,
         HrOperationalScope scope
+    ) {
+        return updateRunLine(companyId,runId,lineId,payload,scope,true);
+    }
+
+    private Map<String, Object> updateRunLine(
+        long companyId,
+        long runId,
+        long lineId,
+        Map<String, Object> payload,
+        HrOperationalScope scope,
+        boolean reconcileDetail
     ) {
         var run = loadRunForUpdate(companyId, runId);
         requireRunStatus(run, "draft");
@@ -1346,7 +1485,7 @@ public class HrPayrollService {
 
         recomputeRunLineFromStoredItems(lineId, ensurePreferences(companyId));
         recomputeRunTotals(runId);
-        return getRunDetail(companyId, runId, scope);
+        return getRunDetail(companyId,runId,scope,reconcileDetail);
     }
 
     public Map<String, Object> listRunLineIncentives(AuthSessionUser currentUser, long runId, long lineId) {
@@ -1719,28 +1858,37 @@ public class HrPayrollService {
         return exportRunCsv(currentUser.companyId(), runId, hrPayrollScopeAccess.resolve(currentUser));
     }
 
-    private String exportRunCsv(long companyId, long runId, HrOperationalScope scope) {
-        var detail = getRunDetail(companyId, runId, scope);
+    public String exportAssistantRunCsv(AuthSessionUser user,long runId) {
+        return exportRunCsv(user.companyId(),runId,hrPayrollScopeAccess.resolve(user),false);
+    }
+
+    private String exportRunCsv(long companyId,long runId,HrOperationalScope scope) {
+        return exportRunCsv(companyId,runId,scope,true);
+    }
+
+    private String exportRunCsv(long companyId, long runId, HrOperationalScope scope,boolean reconcile) {
+        var detail = getRunDetail(companyId, runId, scope,reconcile);
         @SuppressWarnings("unchecked")
         var run = (Map<String, Object>) detail.get("run");
         @SuppressWarnings("unchecked")
         var lines = (List<Map<String, Object>>) detail.get("lines");
 
         var builder = new StringBuilder();
-        builder.append("run_id,period_start_date,period_end_date,status,user_company_id,user_name,pay_period,salary_type,gross_amount,deductions_amount,employer_contributions_amount,net_amount\n");
+        builder.append("run_id,period_start_date,period_end_date,status,user_company_id,user_name,pay_period,salary_type,gross_amount,deductions_amount,employer_contributions_amount,net_amount"+(reconcile?"":",currency")+"\n");
         for (var line : lines) {
-            builder.append(csv(run.get("id"))).append(',')
-                .append(csv(run.get("period_start_date"))).append(',')
-                .append(csv(run.get("period_end_date"))).append(',')
-                .append(csv(run.get("status"))).append(',')
-                .append(csv(line.get("user_company_id"))).append(',')
-                .append(csv(line.get("user_name"))).append(',')
-                .append(csv(line.get("pay_period"))).append(',')
-                .append(csv(line.get("salary_type"))).append(',')
-                .append(csv(line.get("gross_amount"))).append(',')
-                .append(csv(line.get("deductions_amount"))).append(',')
-                .append(csv(line.get("employer_contributions_amount"))).append(',')
-                .append(csv(line.get("net_amount")))
+            builder.append(exportCsv(run.get("id"),!reconcile)).append(',')
+                .append(exportCsv(run.get("period_start_date"),!reconcile)).append(',')
+                .append(exportCsv(run.get("period_end_date"),!reconcile)).append(',')
+                .append(exportCsv(run.get("status"),!reconcile)).append(',')
+                .append(exportCsv(line.get("user_company_id"),!reconcile)).append(',')
+                .append(exportCsv(line.get("user_name"),!reconcile)).append(',')
+                .append(exportCsv(line.get("pay_period"),!reconcile)).append(',')
+                .append(exportCsv(line.get("salary_type"),!reconcile)).append(',')
+                .append(exportCsv(line.get("gross_amount"),!reconcile)).append(',')
+                .append(exportCsv(line.get("deductions_amount"),!reconcile)).append(',')
+                .append(exportCsv(line.get("employer_contributions_amount"),!reconcile)).append(',')
+                .append(exportCsv(line.get("net_amount"),!reconcile))
+                .append(reconcile?"":","+csv(line.get("currency_code")))
                 .append('\n');
         }
         return builder.toString();
@@ -1754,8 +1902,16 @@ public class HrPayrollService {
         return exportRunPdf(currentUser.companyId(), runId, hrPayrollScopeAccess.resolve(currentUser));
     }
 
-    private byte[] exportRunPdf(long companyId, long runId, HrOperationalScope scope) {
-        var detail = getRunDetail(companyId, runId, scope);
+    public byte[] exportAssistantRunPdf(AuthSessionUser user,long runId) {
+        return exportRunPdf(user.companyId(),runId,hrPayrollScopeAccess.resolve(user),false);
+    }
+
+    private byte[] exportRunPdf(long companyId,long runId,HrOperationalScope scope) {
+        return exportRunPdf(companyId,runId,scope,true);
+    }
+
+    private byte[] exportRunPdf(long companyId, long runId, HrOperationalScope scope,boolean reconcile) {
+        var detail = getRunDetail(companyId, runId, scope,reconcile);
         @SuppressWarnings("unchecked")
         var run = (Map<String, Object>) detail.get("run");
         @SuppressWarnings("unchecked")
@@ -1769,14 +1925,14 @@ public class HrPayrollService {
             document.addPage(page);
             var content = new PDPageContentStream(document, page);
 
-            float y = writePayrollPdfHeader(content, bold, regular, run);
+            float y = writePayrollPdfHeader(content, bold, regular, run, !reconcile);
             for (var line : lines) {
                 if (y < 60) {
                     content.close();
                     page = new PDPage(PDRectangle.LETTER);
                     document.addPage(page);
                     content = new PDPageContentStream(document, page);
-                    y = writePayrollPdfHeader(content, bold, regular, run);
+                    y = writePayrollPdfHeader(content, bold, regular, run, !reconcile);
                 }
 
                 content.beginText();
@@ -1788,7 +1944,7 @@ public class HrPayrollService {
                 content.newLineAtOffset(80, 0);
                 content.showText(String.valueOf(line.get("deductions_amount")));
                 content.newLineAtOffset(90, 0);
-                content.showText(String.valueOf(line.get("net_amount")));
+                content.showText(String.valueOf(line.get("net_amount"))+(reconcile?"":" "+String.valueOf(line.get("currency_code"))));
                 content.endText();
                 y -= 14;
             }
@@ -1806,7 +1962,8 @@ public class HrPayrollService {
         PDPageContentStream content,
         PDType1Font bold,
         PDType1Font regular,
-        Map<String, Object> run
+        Map<String, Object> run,
+        boolean includeCurrency
     ) throws IOException {
         float y = 740f;
 
@@ -1834,13 +1991,15 @@ public class HrPayrollService {
         content.newLineAtOffset(80, 0);
         content.showText("Deductions");
         content.newLineAtOffset(90, 0);
-        content.showText("Net");
+        content.showText(includeCurrency?"Net / Currency":"Net");
         content.endText();
 
         return y - 12;
     }
 
-    private PayrollPreferencesRow ensurePreferences(long companyId) {
+    private PayrollPreferencesRow ensurePreferences(long companyId) { return loadPreferences(companyId,true); }
+    private PayrollPreferencesRow loadAssistantPreferences(long companyId) { return loadPreferences(companyId,false); }
+    private PayrollPreferencesRow loadPreferences(long companyId,boolean create) {
         var rows = jdbcTemplate.query(
             """
                 SELECT company_id,
@@ -1884,6 +2043,7 @@ public class HrPayrollService {
             return rows.getFirst();
         }
 
+        if(create) {
         jdbcTemplate.update(
             """
 	                INSERT INTO payroll_preferences
@@ -1892,6 +2052,7 @@ public class HrPayrollService {
                 """,
             companyId
         );
+        }
         return new PayrollPreferencesRow(
             companyId,
             "single",
@@ -2507,6 +2668,18 @@ public class HrPayrollService {
         String country,
         String jurisdiction
     ) {
+        return calculateStoredLineWithEngine(line,run,preferences,manualAdjustments,country,jurisdiction,line.includeInFiscal());
+    }
+
+    private EngineLineComputation calculateStoredLineWithEngine(
+        PayrollRunLineRow line,
+        PayrollRunRow run,
+        PayrollPreferencesRow preferences,
+        List<PayrollCalculationContext.ManualAdjustment> manualAdjustments,
+        String country,
+        String jurisdiction,
+        boolean includeInFiscal
+    ) {
         var resolvedCountry = payrollRuleResolver.normalizeCountry(country);
         var resolvedJurisdiction = resolvePayrollJurisdictionCode(resolvedCountry, jurisdiction);
         var nativeCurrency = isBlank(line.currencyCodeSnapshot()) ? resolveCurrencyCode(resolvedCountry) : line.currencyCodeSnapshot();
@@ -2538,7 +2711,7 @@ public class HrPayrollService {
             resolveFiscalPayrollFrequency(resolvedCountry, line.payPeriodSnapshot()),
             run.periodStartDate(),
             run.periodEndDate(),
-            line.includeInFiscal(),
+            includeInFiscal,
             toSalarySnapshot(line),
             new PayrollCalculationContext.PayrollAttendanceInput(
                 line.daysPayable(),
@@ -4212,6 +4385,11 @@ public class HrPayrollService {
         return "Multiple jurisdictions";
     }
 
+    /** Compensation currency projection for HR files; does not calculate, prepare or modify payroll. */
+    public String employeeCompensationCurrency(String country) {
+        return country == null || country.isBlank() ? null : resolveCurrencyCode(country);
+    }
+
     private String resolveCurrencyCode(String country) {
         return switch (normalizeCountryKey(country)) {
             case "BR", "BRAZIL", "BRASIL" -> "BRL";
@@ -4937,6 +5115,11 @@ public class HrPayrollService {
         } catch (DateTimeParseException ex) {
             throw new IllegalArgumentException("Date filters must use YYYY-MM-DD format.");
         }
+    }
+
+    private String exportCsv(Object value,boolean safe) {
+        if(safe&&value instanceof String text&&!text.stripLeading().isEmpty()&&"=+@-".indexOf(text.stripLeading().charAt(0))>=0)return csv("'"+text);
+        return csv(value);
     }
 
     private String csv(Object value) {

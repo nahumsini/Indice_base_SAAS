@@ -218,6 +218,23 @@ public class HrRecordService {
         );
     }
 
+    public AssistantRecordDraft validateAssistantChange(AuthSessionUser user, Long id, Map<String, Object> payload) {
+        var scope = hrRecordScopeAccess.resolve(user);
+        String status = null;
+        if (id != null) {
+            hrRecordScopeAccess.requireRecordInScope(user.companyId(), scope, id);
+            status = requireRecordState(user.companyId(), id).status();
+        }
+        var person = loadUserSnapshot(user.companyId(), requiredUserCompanyId(payload));
+        hrRecordScopeAccess.requireAssignmentInScope(user.companyId(), scope, person.unitId(), person.businessId());
+        var draft = normalizeDraft(user.companyId(), payload, person, loadActorRef(user.userId()), status, scope);
+        return new AssistantRecordDraft(person.userCompanyId(),draft.recordType(),draft.severity(),draft.status(),draft.title(),draft.description(),
+            draft.actionsTaken(),draft.eventDate(),draft.witnesses().stream().map(w -> new AssistantWitness(w.userCompanyId(),w.name())).toList());
+    }
+    public record AssistantWitness(Long userCompanyId, String name) { }
+    public record AssistantRecordDraft(long userCompanyId, String type, String severity, String status, String title, String description,
+        String actionsTaken, LocalDateTime eventDate, List<AssistantWitness> witnesses) { }
+
     private Map<String, Object> createRecord(
         long companyId,
         long actorUserId,

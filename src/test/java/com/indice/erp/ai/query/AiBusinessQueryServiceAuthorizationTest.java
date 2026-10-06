@@ -33,6 +33,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -60,6 +61,20 @@ class AiBusinessQueryServiceAuthorizationTest {
     @Mock private ShiftService shiftService;
 
     private AiBusinessQueryService service;
+
+    @Test
+    void taskPagesExposeCompleteCountsAndTeamMembershipWithoutPersonalAccountData() {
+        when(authorizationService.canReadTasks(USER)).thenReturn(true);
+        var rows=java.util.stream.LongStream.rangeClosed(1,135).mapToObj(id->Map.<String,Object>of("id",id,"title","Synthetic task", "assignees",List.of(Map.of("userCompanyId",52L,"name","Synthetic collaborator","userId",500L,"email","synthetic@example.test","contributionStatus","ready")))).toList();
+        when(tasksService.listTasks(23L,3L)).thenReturn(Map.of("items",rows));
+        var first=service.execute(USER,"list_tasks",Map.of("limit",100));
+        assertEquals(135,first.get("totalCount"));assertEquals(true,first.get("hasMore"));
+        var serialized=first.toString();
+        org.junit.jupiter.api.Assertions.assertFalse(serialized.contains("synthetic@example.test"));
+        org.junit.jupiter.api.Assertions.assertFalse(serialized.contains("userId=500"));
+        var second=service.execute(USER,"list_tasks",Map.of("limit",100,"cursor",first.get("nextCursor")));
+        assertEquals(35,second.get("returnedCount"));assertEquals(135,second.get("totalCount"));assertEquals(false,second.get("hasMore"));
+    }
 
     @BeforeEach
     void setUp() {
@@ -90,6 +105,27 @@ class AiBusinessQueryServiceAuthorizationTest {
         verify(authorizationService).canReadCommercialSales(USER);
         verify(authorizationService).canReadPosSales(USER);
         verifyNoInteractions(salesService, ticketService);
+    }
+    @Test
+    void hrRoleCannotBypassRevokedCompanyModuleOrEntitlement() {
+        when(authorizationService.canReadGuideTab(USER,"human_resources","collaborators")).thenReturn(true);
+        when(hrAccessService.canAccessReadableTab(USER,HrAccessService.HrTab.COLLABORATORS)).thenReturn(true);
+        when(hrUserService.listUsers(USER)).thenReturn(Map.of("rows",List.of()));
+        service.execute(USER,"search_employees",Map.of());
+        when(authorizationService.canReadGuideTab(USER,"human_resources","collaborators")).thenReturn(false);
+        assertThrows(SecurityException.class,()->service.execute(USER,"search_employees",Map.of()));
+        verify(hrUserService).listUsers(USER);
+    }
+    @Test
+    void employeeOverviewDoesNotReadTasksOrAttendanceWithoutSeparateOAuthConsent() {
+        when(authorizationService.canReadGuideTab(USER,"human_resources","collaborators")).thenReturn(true);
+        when(hrAccessService.canAccessReadableTab(USER,HrAccessService.HrTab.COLLABORATORS)).thenReturn(true);
+        when(hrUserService.listUsers(USER)).thenReturn(Map.of("rows",List.of(Map.of("id",7L,"user_company_id",7L,"full_name","Synthetic employee"))));
+        var token=new com.indice.erp.ai.access.AiAccessTokenRepository.StoredToken(1,USER,Set.of("hr.people:read"));
+        var response=service.execute(token,"get_employee_overview",Map.of("employeeId",7L));
+        var summary=(Map<?,?>)response.get("summary");
+        assertEquals(false,summary.get("tasksAvailable"));assertEquals(null,summary.get("taskCount"));
+        verifyNoInteractions(tasksService,attendanceService);
     }
 
     @Test

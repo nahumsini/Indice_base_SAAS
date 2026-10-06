@@ -7,6 +7,7 @@ import com.indice.erp.pos.ticket.TicketRecord;
 import com.indice.erp.pos.ticket.TicketRepository;
 import com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver;
 import java.math.BigDecimal;
+import java.util.Objects;
 import java.time.LocalDate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -22,7 +23,13 @@ public class PosReturnInventoryService {
         this.jdbc = jdbc; this.json = json; this.tickets = tickets; this.timezones = timezones;
     }
 
-    void snapshot(PosContext context, long returnId, TicketRecord ticket) {
+    public record StockRestoration(long movementId,long productId,long warehouseId,BigDecimal quantity,BigDecimal unitCost,String currency) {}
+    void snapshot(PosContext context,long returnId,TicketRecord ticket) {
+        for(var item:inspect(context,ticket))jdbc.update("INSERT INTO pos_return_items (company_id,return_id,movement_id,quantity,unit_cost,cost_currency) VALUES (?,?,?,?,?,?)",
+            context.companyId(),returnId,item.movementId(),item.quantity(),item.unitCost(),item.currency());
+    }
+    public java.util.List<StockRestoration> inspect(PosContext context, TicketRecord ticket) {
+        var result=new java.util.ArrayList<StockRestoration>();
         try {
             var source = jdbc.queryForObject("SELECT sale_lines_json FROM sales_records WHERE company_id = ? AND id = ?",
                     String.class, context.companyId(), ticket.salesRecordId());
@@ -51,11 +58,9 @@ public class PosReturnInventoryService {
                         || ((Number) move.get("from_warehouse_id")).longValue() != ticket.warehouseId()
                         || ((BigDecimal) move.get("quantity")).compareTo(item.quantity()) != 0)
                     throw PosApiException.conflict("El movimiento original no coincide con el ticket.");
-                jdbc.update("""
-                    INSERT INTO pos_return_items (company_id, return_id, movement_id, quantity, unit_cost, cost_currency)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    """, context.companyId(), returnId, move.get("id"), item.quantity(),
-                    line.path("unitCost").decimalValue(), line.path("costCurrency").asText());
+                var product=jdbc.queryForList("SELECT currency,deleted_at FROM sales_products WHERE company_id=? AND id=?",context.companyId(),item.productId());
+                if(product.size()!=1||product.getFirst().get("deleted_at")!=null||!line.path("costCurrency").asText().equalsIgnoreCase(Objects.toString(product.getFirst().get("currency"),"")))throw PosApiException.conflict("Original inventory currency or product is unavailable for restoration.");
+                result.add(new StockRestoration(((Number)move.get("id")).longValue(),item.productId(),ticket.warehouseId(),item.quantity(),line.path("unitCost").decimalValue(),line.path("costCurrency").asText()));
             }
             int movements = jdbc.queryForObject("""
                 SELECT COUNT(*) FROM sales_inventory_movements WHERE company_id = ? AND movement_type = 'POS_SALE_OUT'
@@ -63,6 +68,7 @@ public class PosReturnInventoryService {
                   AND CAST(JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.posTicketId')) AS UNSIGNED) = ?
                 """, Integer.class, context.companyId(), ticket.id());
             if (movements != stockLines) throw PosApiException.conflict("El inventario original requiere conciliación.");
+            return java.util.List.copyOf(result);
         } catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
             throw PosApiException.conflict("No se pueden interpretar las partidas originales del ticket.");
         }

@@ -52,7 +52,7 @@ public class AiToolQueryApiController {
         }
         var storedToken = token.get();
         try {
-            var response = queryService.execute(storedToken.user(), tool, args);
+            var response = queryService.execute(storedToken, tool, args);
             auditService.recordRead(storedToken, tool, "SUCCESS", HttpStatus.OK.value());
             return ResponseEntity.ok(response);
         } catch (SecurityException exception) {

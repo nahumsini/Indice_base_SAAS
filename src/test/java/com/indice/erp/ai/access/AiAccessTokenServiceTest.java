@@ -54,7 +54,22 @@ class AiAccessTokenServiceTest {
             AiAccessTokenService.SALES_TODAY_READ,
             AiAccessTokenService.BUSINESS_SNAPSHOT_READ,
             AiAccessTokenService.HR_PEOPLE_READ,
+            AiAccessTokenService.LEARNING_READ,
+            AiAccessTokenService.HR_PEOPLE_DETAILS_READ,
+            AiAccessTokenService.HR_ASSETS_READ,
+            AiAccessTokenService.HR_RECORDS_READ,
+            AiAccessTokenService.HR_ANNOUNCEMENTS_READ,
             AiAccessTokenService.HR_ATTENDANCE_READ,
+            AiAccessTokenService.HR_CONTROL_READ,
+            AiAccessTokenService.HR_PAYROLL_READ,
+            AiAccessTokenService.HR_KPIS_READ,
+            AiAccessTokenService.HR_INCENTIVES_READ,
+            AiAccessTokenService.HR_PERMISSIONS_SELF_READ,
+            AiAccessTokenService.HR_PERMISSIONS_READ,
+            AiAccessTokenService.HR_ANNOUNCEMENTS_RECEIPTS_READ,
+            AiAccessTokenService.PROJECTS_READ,
+            AiAccessTokenService.PROCESSES_READ,
+            AiAccessTokenService.TASKS_KPIS_READ,
             AiAccessTokenService.TASKS_READ,
             AiAccessTokenService.SALES_READ,
             AiAccessTokenService.POS_READ,
@@ -91,6 +106,11 @@ class AiAccessTokenServiceTest {
         assertFalse(issued.scopes().contains(AiAccessTokenService.TASKS_CREATE));
         assertFalse(issued.scopes().contains(AiAccessTokenService.TASKS_DELEGATE));
         assertFalse(issued.scopes().contains(AiAccessTokenService.TASKS_UPDATE));
+        assertFalse(issued.scopes().contains(AiAccessTokenService.TASKS_ORGANIZE));
+        assertFalse(issued.scopes().contains(AiAccessTokenService.TASKS_OPERATE));
+        assertFalse(issued.scopes().contains(AiAccessTokenService.TASKS_AUDIT));
+        assertFalse(issued.scopes().contains(AiAccessTokenService.HR_PEOPLE_MANAGE));
+        assertFalse(issued.scopes().contains(AiAccessTokenService.HR_PEOPLE_IMPORT));
         assertTrue(service.supportedScopes().containsAll(Set.of(AiAccessTokenService.TASKS_DELEGATE, AiAccessTokenService.TASKS_UPDATE)));
     }
 

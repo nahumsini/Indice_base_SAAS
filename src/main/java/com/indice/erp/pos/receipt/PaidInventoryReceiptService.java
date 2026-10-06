@@ -130,6 +130,16 @@ public class PaidInventoryReceiptService {
             .toList();
     }
 
+    @Transactional(readOnly=true)
+    public PaidInventoryReceiptDtos.ReceiptResponse get(PosContext context,long id) {
+        var row=repository.requireReceipt(context,id);shifts.findById(context,row.shiftId()).orElseThrow(()->PosApiException.notFound("Shift not found."));
+        return response(context,row,repository.items(context,id),row.status(),row.reversalReason());
+    }
+    @Transactional(readOnly=true)
+    public List<PaidInventoryReceiptDtos.ReceiptResponse> historyForShift(PosContext context,long shiftId) {
+        shifts.findById(context,shiftId).orElseThrow(()->PosApiException.notFound("Shift not found."));
+        return repository.allForShift(context,shiftId).stream().map(row->response(context,row,repository.items(context,row.id()),row.status(),row.reversalReason())).toList();
+    }
     @Transactional
     public PaidInventoryReceiptDtos.ReceiptResponse create(
             PosContext context, PaidInventoryReceiptDtos.CreateRequest request) {
@@ -231,6 +241,37 @@ public class PaidInventoryReceiptService {
             request.paymentAccountId(), subtotal, tax, total, currency, nullable(request.paymentReference()),
             "POSTED", null, responses, printedMetadata);
     }
+
+    /** Pure assistant preparation shares the authoritative native tax and inventory cost calculator. */
+    @Transactional(readOnly=true)
+    public Preview preview(PosContext context,PaidInventoryReceiptDtos.CreateRequest request) {
+        var register=cashRegisters.requireOperationalRegister(context,request.cashRegisterId());
+        var shift=requireOpenShift(context,request.shiftId(),register.id(),false);
+        if(!Objects.equals(shift.warehouseId(),register.warehouseId())||!Objects.equals(shift.unitId(),register.unitId())||!Objects.equals(shift.businessId(),register.businessId()))throw PosApiException.conflict("The open shift and register must retain their warehouse and organization.");
+        var currency=currency(request.currencyCode());
+        if(!currency.equalsIgnoreCase(shift.currencyCode())||!Objects.equals(shift.warehouseId(),register.warehouseId()))throw PosApiException.badRequest("Receipt must match the open shift currency and warehouse.");
+        String method=token(request.paymentMethod());
+        if(!PAYMENT_METHODS.contains(method)||(method.equals("CASH")&&request.paymentAccountId()!=null)||(method.equals("TRANSFER")&&request.paymentAccountId()==null))throw PosApiException.badRequest("Select cash or an eligible transfer account.");
+        if(request.items()==null||request.items().isEmpty()||request.items().size()>MAX_ITEMS)throw PosApiException.badRequest("Receipt requires 1 to 100 items.");
+        var provider=providers.get(toFinanceContext(context),request.providerId());
+        if(provider.status()!=ProviderStatus.ACTIVE)throw PosApiException.badRequest("Provider must be active.");
+        var lines=new ArrayList<PaidInventoryReceiptDtos.ItemResponse>();
+        BigDecimal subtotal=BigDecimal.ZERO,tax=BigDecimal.ZERO,total=BigDecimal.ZERO;
+        for(var item:request.items()) {
+            var p=prepareItem(context,item,currency);
+            subtotal=subtotal.add(p.subtotal());tax=tax.add(p.tax());total=total.add(p.lineTotal());
+            var product=p.product();
+            lines.add(new PaidInventoryReceiptDtos.ItemResponse(0,product==null?0:product.id(),product==null?p.productInput().name():product.name(),
+                product==null?p.productInput().sku():product.sku(),product==null?PaidInventoryReceiptRepository.normalizeUnit(p.productInput().inventoryUnit()):product.inventoryUnit(),p.quantity(),p.enteredUnitCost(),p.inventoryUnitCost(),p.taxRate(),p.taxIncluded(),p.taxProfileId(),p.taxName(),p.subtotal(),p.tax(),p.lineTotal()));
+        }
+        total=money(total);if(total.signum()<=0)throw PosApiException.badRequest("Receipt total must be positive.");
+        if(method.equals("CASH")&&shift.expectedCashAmount().compareTo(total)<0)throw PosApiException.conflict("Insufficient cash in the open shift.");
+        if(method.equals("TRANSFER"))treasury.requireEligibleAccount(context.companyId(),request.paymentAccountId(),currency,shift.unitId(),shift.businessId(),Set.of("BANK"));
+        return new Preview(register.id(),shift.id(),register.warehouseId(),provider.id(),provider.name(),currency,method,request.paymentAccountId(),money(subtotal),money(tax),total,List.copyOf(lines));
+    }
+    public record Preview(long cashRegisterId,long shiftId,Long warehouseId,long providerId,String providerName,
+        String currency,String paymentMethod,Long paymentAccountId,BigDecimal subtotal,BigDecimal tax,BigDecimal total,
+        List<PaidInventoryReceiptDtos.ItemResponse> items) {}
 
     public PaidInventoryReceiptDtos.AttachmentUploadResponse presignAttachment(
             PosContext context, long receiptId, PaidInventoryReceiptDtos.AttachmentUploadRequest request) {

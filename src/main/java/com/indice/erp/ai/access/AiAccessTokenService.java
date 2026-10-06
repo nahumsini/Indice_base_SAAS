@@ -21,12 +21,73 @@ public class AiAccessTokenService {
 
     public static final String SALES_TODAY_READ = "sales.today:read";
     public static final String BUSINESS_SNAPSHOT_READ = "business.snapshot:read";
+    public static final String HR_PERMISSIONS_SELF_READ = "hr.permissions.self:read";
+    public static final String HR_PERMISSIONS_READ = "hr.permissions.read";
+    public static final String HR_PERMISSIONS_REQUEST = "hr.permissions.request";
+    public static final String HR_PERMISSIONS_REVIEW = "hr.permissions.review";
+    public static final String HR_INCENTIVES_READ = "hr.incentives.read";
+    public static final String HR_INCENTIVES_MANAGE = "hr.incentives.manage";
     public static final String HR_PEOPLE_READ = "hr.people:read";
+    public static final String LEARNING_READ = "learning.read";
+    public static final String HR_PEOPLE_DETAILS_READ = "hr.people.details:read";
+    public static final String HR_ASSETS_READ = "hr.assets.read";
+    public static final String HR_RECORDS_READ = "hr.records.read";
+    public static final String HR_ANNOUNCEMENTS_READ = "hr.announcements.read";
+    public static final String HR_ANNOUNCEMENTS_RECEIPTS_READ = "hr.announcements.receipts:read";
+    public static final String HR_PEOPLE_MANAGE = "hr.people.manage";
+    public static final String HR_PEOPLE_TERMINATE = "hr.people.terminate";
+    public static final String HR_RECORDS_MANAGE = "hr.records.manage";
+    public static final String HR_ANNOUNCEMENTS_RESPOND = "hr.announcements.respond";
+    public static final String HR_PEOPLE_IMPORT = "hr.people.import";
+    public static final String HR_ASSETS_MANAGE = "hr.assets.manage";
+    public static final String HR_ANNOUNCEMENTS_MANAGE = "hr.announcements.manage";
     public static final String HR_ATTENDANCE_READ = "hr.attendance:read";
+    public static final String HR_KPIS_READ = "hr.kpis:read";
+    public static final String HR_PAYROLL_READ = "hr.payroll.read";
+    public static final String HR_PAYROLL_PREPARE = "hr.payroll.prepare";
+    public static final String HR_PAYROLL_APPROVE = "hr.payroll.approve";
+    public static final String HR_PAYROLL_PAY = "hr.payroll.pay";
+    public static final String PROJECTS_READ = "projects.read";
+    public static final String PROJECTS_MANAGE = "projects.manage";
+    public static final String PROCESSES_READ = "processes.read";
+    public static final String PROCESSES_MANAGE = "processes.manage";
+    public static final String PROCESSES_RUN = "processes.run";
+    public static final String HR_CONTROL_READ = "hr.control.read";
+    public static final String HR_CONTROL_MANAGE = "hr.control.manage";
+    public static final String HR_ATTENDANCE_CORRECT = "hr.attendance.correct";
     public static final String TASKS_READ = "tasks.read";
+    public static final String TASKS_KPIS_READ = "tasks.kpis:read";
     public static final String SALES_READ = "sales.read";
+    public static final String SALES_MANAGE = "sales.manage";
+    public static final String SALES_COLLECTIONS_CONFIRM = "sales.collections.confirm";
+    public static final String SALES_CANCEL = "sales.cancel";
+    public static final String SALES_CONTRACTS_MANAGE = "sales.contracts.manage";
+    public static final String SALES_FOLLOWUPS_MANAGE = "sales.followups.manage";
+    public static final String SALES_COMMISSIONS_MANAGE = "sales.commissions.manage";
+    public static final String POS_TERMINAL_MANAGE = "pos.terminal.manage";
+    public static final String POS_SETTLEMENTS_MANAGE = "pos.settlements.manage";
+    public static final String POS_ORDERS_MANAGE = "pos.orders.manage";
+    public static final String SALES_COMMISSIONS_CUT = "sales.commissions.cut";
+    public static final String SALES_COMMISSIONS_SCHEDULE = "sales.commissions.schedule";
+    public static final String INVENTORY_PROVIDERS_MANAGE = "inventory.providers.manage";
+    public static final String INVENTORY_DISCOUNTS_MANAGE = "inventory.discounts.manage";
+    public static final String INVENTORY_PROCUREMENT_MANAGE = "inventory.procurement.manage";
+    public static final String INVENTORY_PROCUREMENT_APPROVE = "inventory.procurement.approve";
+    public static final String INVENTORY_PROCUREMENT_RECEIVE = "inventory.procurement.receive";
+    public static final String INVENTORY_INVOICES_MANAGE = "inventory.invoices.manage";
     public static final String POS_READ = "pos.read";
+    public static final String POS_REGISTERS_MANAGE = "pos.registers.manage";
+    public static final String POS_SHIFTS_MANAGE = "pos.shifts.manage";
+    public static final String POS_CASH_MANAGE = "pos.cash.manage";
+    public static final String POS_CHECKOUT = "pos.checkout";
+    public static final String POS_INVENTORY_RECEIVE = "pos.inventory.receive";
+    public static final String POS_RETURNS_MANAGE = "pos.returns.manage";
     public static final String INVENTORY_READ = "inventory.read";
+    public static final String INVENTORY_PRODUCTS_MANAGE = "inventory.products.manage";
+    public static final String INVENTORY_WAREHOUSES_MANAGE = "inventory.warehouses.manage";
+    public static final String INVENTORY_STOCK_MANAGE = "inventory.stock.manage";
+    public static final String INVENTORY_MOVEMENTS_CREATE = "inventory.movements.create";
+    public static final String INVENTORY_MOVEMENTS_CANCEL = "inventory.movements.cancel";
     public static final String EXPENSES_READ = "expenses.read";
     public static final String PETTY_CASH_READ = "petty_cash.read";
     public static final String RECEIVABLES_READ = "receivables.read";
@@ -49,18 +110,23 @@ public class AiAccessTokenService {
     public static final String TASKS_CREATE = "tasks.create";
     public static final String TASKS_DELEGATE = "tasks.delegate";
     public static final String TASKS_UPDATE = "tasks.update";
+    public static final String TASKS_ORGANIZE = "tasks.organize";
+    public static final String TASKS_OPERATE = "tasks.operate";
+    public static final String TASKS_AUDIT = "tasks.audit";
     public static final String EXPENSES_CREATE = "expenses.create";
     public static final String PETTY_CASH_EXPENSE_CREATE = "petty_cash.expense:create";
     public static final String PETTY_CASH_DEPOSIT_CREATE = "petty_cash.deposit:create";
+    public static final String FILES_READ = "files.read";
+    public static final String FILES_ATTACH = "files.attach";
     public static final String OPENID = "openid";
     public static final String EMAIL = "email";
 
     private static final Set<String> DEFAULT_SCOPES = Set.of(
         SALES_TODAY_READ,
         BUSINESS_SNAPSHOT_READ,
-        HR_PEOPLE_READ,
-        HR_ATTENDANCE_READ,
-        TASKS_READ,
+        HR_ANNOUNCEMENTS_RECEIPTS_READ, HR_INCENTIVES_READ, HR_PERMISSIONS_SELF_READ, HR_PERMISSIONS_READ, HR_PEOPLE_READ, LEARNING_READ, HR_PEOPLE_DETAILS_READ, HR_ASSETS_READ, HR_ANNOUNCEMENTS_READ, HR_RECORDS_READ,
+        HR_ATTENDANCE_READ, HR_CONTROL_READ, HR_PAYROLL_READ, HR_KPIS_READ,
+        TASKS_READ, TASKS_KPIS_READ, PROJECTS_READ, PROCESSES_READ,
         SALES_READ,
         POS_READ,
         INVENTORY_READ,
@@ -73,7 +139,15 @@ public class AiAccessTokenService {
         OPPORTUNITIES_READ, QUOTES_READ, COMMERCIAL_REFERENCES_READ
     );
     private static final Set<String> ACTION_SCOPES = Set.of(
-        TASKS_CREATE, TASKS_DELEGATE, TASKS_UPDATE,
+        POS_TERMINAL_MANAGE, POS_SETTLEMENTS_MANAGE, POS_ORDERS_MANAGE, SALES_COMMISSIONS_CUT, SALES_COMMISSIONS_SCHEDULE, INVENTORY_PROVIDERS_MANAGE, INVENTORY_DISCOUNTS_MANAGE,
+        INVENTORY_PROCUREMENT_MANAGE, INVENTORY_PROCUREMENT_APPROVE, INVENTORY_PROCUREMENT_RECEIVE, INVENTORY_INVOICES_MANAGE,
+        POS_REGISTERS_MANAGE, POS_SHIFTS_MANAGE, POS_CASH_MANAGE, POS_CHECKOUT, POS_INVENTORY_RECEIVE, POS_RETURNS_MANAGE,
+        SALES_MANAGE, SALES_COLLECTIONS_CONFIRM, SALES_CANCEL, SALES_CONTRACTS_MANAGE, SALES_FOLLOWUPS_MANAGE, SALES_COMMISSIONS_MANAGE,
+        INVENTORY_PRODUCTS_MANAGE, INVENTORY_WAREHOUSES_MANAGE, INVENTORY_STOCK_MANAGE, INVENTORY_MOVEMENTS_CREATE, INVENTORY_MOVEMENTS_CANCEL,
+        FILES_READ, FILES_ATTACH,
+        TASKS_CREATE, TASKS_DELEGATE, TASKS_UPDATE, TASKS_ORGANIZE, TASKS_OPERATE, TASKS_AUDIT,
+        HR_CONTROL_MANAGE, HR_ATTENDANCE_CORRECT, HR_PAYROLL_PREPARE, HR_PAYROLL_APPROVE, HR_PAYROLL_PAY, PROJECTS_MANAGE, PROCESSES_MANAGE, PROCESSES_RUN,
+        HR_INCENTIVES_MANAGE, HR_PERMISSIONS_REQUEST, HR_PERMISSIONS_REVIEW, HR_PEOPLE_MANAGE, HR_PEOPLE_TERMINATE, HR_PEOPLE_IMPORT, HR_ASSETS_MANAGE, HR_ANNOUNCEMENTS_MANAGE, HR_RECORDS_MANAGE, HR_ANNOUNCEMENTS_RESPOND,
         CUSTOMERS_CREATE, CUSTOMERS_UPDATE, OPPORTUNITIES_CREATE, OPPORTUNITIES_UPDATE, QUOTES_CREATE, QUOTES_UPDATE,
         EXPENSES_CREATE,
         PETTY_CASH_EXPENSE_CREATE,

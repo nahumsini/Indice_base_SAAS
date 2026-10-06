@@ -53,9 +53,10 @@ for (const definition of definitions) {
   });
 }
 
-test("new catalog is closed and accepts all 59 implemented tools", () => {
-  assert.equal(indiceToolNameSchema.options.length, 59);
-  assert.equal(toolCapabilitiesSchema.parse({ version: "v1", tools: indiceToolNameSchema.options }).tools.length, 59);
+test("new catalog is closed and accepts the implemented tools", () => {
+  assert.equal(new Set(indiceToolNameSchema.options).size, indiceToolNameSchema.options.length);
+  assert.ok(indiceToolNameSchema.options.includes("list_task_organization"));
+  assert.equal(toolCapabilitiesSchema.parse({ version: "v1", tools: indiceToolNameSchema.options }).tools.length, indiceToolNameSchema.options.length);
   assert.equal(toolCapabilitiesSchema.safeParse({ version: "v1", tools: ["pay_anything"] }).success, false);
 });
 

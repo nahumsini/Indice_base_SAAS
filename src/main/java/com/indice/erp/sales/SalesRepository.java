@@ -596,7 +596,7 @@ class SalesRepository {
             if (!Boolean.TRUE.equals(balance.get("usesInventory"))) {
                 throw new IllegalArgumentException("The selected product is not enabled for inventory in this warehouse.");
             }
-            var available = (BigDecimal) balance.get("availableQuantity");
+            var available = ((BigDecimal) balance.get("availableQuantity")).subtract((BigDecimal) balance.get("reservedQuantity"));
             requiredByProduct.merge(productId, quantity, BigDecimal::add);
             if (available.compareTo(requiredByProduct.get(productId)) < 0) {
                 throw new IllegalArgumentException("Insufficient inventory for " + product.get("name") + " in " + warehouse.get("name") + ".");
@@ -631,7 +631,7 @@ class SalesRepository {
             if (!Boolean.TRUE.equals(balance.get("usesInventory"))) {
                 throw new IllegalArgumentException("The selected product is not enabled for inventory in this warehouse.");
             }
-            var available = (BigDecimal) balance.get("availableQuantity");
+            var available = ((BigDecimal) balance.get("availableQuantity")).subtract((BigDecimal) balance.get("reservedQuantity"));
             if (available.compareTo(quantity) < 0) {
                 throw new IllegalArgumentException("Insufficient inventory for " + product.get("name") + " in " + warehouse.get("name") + ".");
             }
@@ -860,7 +860,7 @@ class SalesRepository {
     private Map<String, Object> requireInventoryBalanceForUpdate(long companyId, long productId, long warehouseId) {
         return jdbcTemplate.query(
                 """
-                        SELECT id, available_quantity, unit_cost, uses_inventory
+                        SELECT id, available_quantity, reserved_quantity, unit_cost, uses_inventory
                         FROM sales_inventory_balances
                         WHERE company_id = ? AND product_id = ? AND warehouse_id = ? AND deleted_at IS NULL
                         FOR UPDATE
@@ -869,6 +869,7 @@ class SalesRepository {
                     var row = new LinkedHashMap<String, Object>();
                     row.put("id", rs.getLong("id"));
                     row.put("availableQuantity", rs.getBigDecimal("available_quantity"));
+                    row.put("reservedQuantity", rs.getBigDecimal("reserved_quantity"));
                     row.put("unitCost", rs.getBigDecimal("unit_cost"));
                     row.put("usesInventory", rs.getBoolean("uses_inventory"));
                     return row;

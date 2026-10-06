@@ -46,6 +46,20 @@ public class SalesCommissionCutService {
     public Map<String, Object> create(AuthSessionUser user, Map<String, Object> payload) {
         var start = date(payload.get("periodStart"));
         var end = date(payload.get("periodEnd"));
+        if (start == null || end == null || end.isBefore(start)) throw new IllegalArgumentException("Invalid commission period.");
+        if (eligible(user.companyId(), start, end).isEmpty()) throw new IllegalArgumentException("No hay comisiones disponibles para este periodo.");
+        return createUsingRates(user,payload,exchangeRateService.loadDailyRates());
+    }
+
+    @Transactional
+    public Map<String,Object> createReviewed(AuthSessionUser user,Map<String,Object> payload,com.indice.erp.exchange.BusinessExchangeRatesResponse rates) {
+        return createUsingRates(user,payload,rates);
+    }
+
+    private Map<String,Object> createUsingRates(AuthSessionUser user,Map<String,Object> payload,com.indice.erp.exchange.BusinessExchangeRatesResponse rates) {
+        jdbcTemplate.queryForList("SELECT id FROM companies WHERE id=? FOR UPDATE",Long.class,user.companyId());
+        var start = date(payload.get("periodStart"));
+        var end = date(payload.get("periodEnd"));
         if (start == null || end == null || end.isBefore(start)) throw new IllegalArgumentException("El periodo del corte no es válido.");
         var rows = eligible(user.companyId(), start, end);
         if (rows.isEmpty()) throw new IllegalArgumentException("No hay comisiones disponibles para este periodo.");
@@ -78,7 +92,7 @@ public class SalesCommissionCutService {
             total = total.add(amount);
         }
         var preferredCurrency = normalizeCurrency(payload.get("preferredCurrency"));
-        var rates = exchangeRateService.loadDailyRates();
+
         var rateMetadata = rates.metadata();
         var rateDate = rateMetadata == null || rateMetadata.sourceDate() == null || rateMetadata.sourceDate().isBlank()
             ? LocalDate.now() : LocalDate.parse(rateMetadata.sourceDate());
@@ -219,16 +233,17 @@ public class SalesCommissionCutService {
         jdbcTemplate.update("INSERT INTO sales_commission_cuts (company_id, cut_code, period_start, period_end, created_by_user_id) VALUES (?, ?, ?, ?, ?)", user.companyId(), "PENDING-" + System.nanoTime(), Date.valueOf(start), Date.valueOf(end), user.userId());
         return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
     }
-    private List<CommissionRow> eligible(long companyId, LocalDate start, LocalDate end) {
+    public List<CommissionRow> eligible(long companyId, LocalDate start, LocalDate end) {
         return jdbcTemplate.query("""
             SELECT s.id, s.seller_user_company_id, s.commission_amount, UPPER(COALESCE(s.currency, 'MXN')) currency
             FROM sales_records s
             WHERE s.company_id = ? AND s.sale_date BETWEEN ? AND ? AND s.commission_amount > 0
+              AND s.deleted_at IS NULL AND LOWER(COALESCE(s.commercial_status,'')) NOT IN ('cancelled','canceled','rejected','voided')
               AND s.seller_user_company_id IS NOT NULL AND s.commission_status IN ('calculated', 'approved')
               AND NOT EXISTS (SELECT 1 FROM sales_commission_cut_items i WHERE i.company_id = s.company_id AND i.sale_id = s.id)
             ORDER BY s.id
             """, (rs, n) -> new CommissionRow(rs.getLong(1), rs.getLong(2), rs.getBigDecimal(3), rs.getString(4)), companyId, Date.valueOf(start), Date.valueOf(end));
     }
     private LocalDate date(Object value) { try { return value == null ? null : LocalDate.parse(String.valueOf(value)); } catch (RuntimeException ex) { return null; } }
-    private record CommissionRow(long saleId, long userCompanyId, BigDecimal amount, String currency) {}
+    public record CommissionRow(long saleId, long userCompanyId, BigDecimal amount, String currency) {}
 }

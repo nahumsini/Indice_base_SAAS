@@ -272,6 +272,17 @@ public class HrAssetService {
         );
     }
 
+    public AssistantAssetDraft validateAssistantCreate(AuthSessionUser user, Map<String, Object> payload) {
+        var draft = normalizeCreatePayload(user.companyId(), payload);
+        hrAssetScopeAccess.requireTargetInScope(user.companyId(), hrAssetScopeAccess.resolve(user), draft.unitId(), draft.responsibleUserCompanyId());
+        if (!draft.assetCode().isBlank()) ensureUniqueAssetCode(user.companyId(), draft.assetCode(), null);
+        ensureUniqueSerialNumber(user.companyId(), draft.serialNumber(), null);
+        return new AssistantAssetDraft(draft.assetCode(),draft.assetType(),draft.name(),draft.model(),draft.serialNumber(),draft.responsibleUserCompanyId(),draft.unitId(),draft.status(),draft.assignedAt(),draft.valueAmount(),draft.valueCurrency(),draft.notes());
+    }
+
+    public record AssistantAssetDraft(String assetCode,String assetType,String name,String model,String serialNumber,
+        Long responsibleUserCompanyId,Long unitId,String status,LocalDateTime assignedAt,BigDecimal valueAmount,String valueCurrency,String notes) { }
+
     private Map<String, Object> createAsset(
         long companyId,
         long actorUserId,
@@ -380,6 +391,61 @@ public class HrAssetService {
         Map<String, Object> payload,
         HrOperationalScope scope
     ) {
+        var draft = prepareAssetUpdate(companyId,assetId,payload,scope);
+        var assetCode = draft.assetCode();
+        var assetType = draft.assetType();
+        var name = draft.name();
+        var model = draft.model();
+        var serialNumber = draft.serialNumber();
+        var unitId = draft.unitId();
+        var valueAmount = draft.valueAmount();
+        var valueCurrency = draft.valueCurrency();
+        var notes = draft.notes();
+        var photoDrafts = draft.photoDrafts();
+        var replacePhotos = draft.replacePhotos();
+
+        var rowsUpdated = jdbcTemplate.update(
+            """
+                UPDATE user_assets
+                SET asset_code = ?,
+                    asset_type = ?,
+                    name = ?,
+                    model = ?,
+                    serial_number = ?,
+                    unit_id = ?,
+                    value_amount = ?,
+                    value_currency = ?,
+                    notes = ?,
+                    updated_by_user_id = ?
+                WHERE id = ? AND company_id = ?
+                """,
+            assetCode,
+            assetType,
+            name,
+            nullable(model),
+            nullable(serialNumber),
+            unitId,
+            valueAmount,
+            valueCurrency,
+            nullable(notes),
+            actorUserId,
+            assetId,
+            companyId
+        );
+
+        if (rowsUpdated == 0) {
+            throw new NoSuchElementException("Asset not found.");
+        }
+
+        if (replacePhotos) {
+            deleteAssetPhotos(companyId, assetId);
+        }
+        insertAssetPhotos(companyId, assetId, actorUserId, photoDrafts);
+
+        return assetDetails(companyId, assetId);
+    }
+
+    private AssetUpdateDraft prepareAssetUpdate(long companyId,long assetId,Map<String,Object> payload,HrOperationalScope scope) {
         rejectLifecycleFields(payload);
         var current = requireAssetState(companyId, assetId);
         hrAssetScopeAccess.requireAssetInScope(companyId, scope, assetId);
@@ -447,45 +513,34 @@ public class HrAssetService {
         ensureUniqueAssetCode(companyId, assetCode, assetId);
         ensureUniqueSerialNumber(companyId, serialNumber, assetId);
 
-        var rowsUpdated = jdbcTemplate.update(
-            """
-                UPDATE user_assets
-                SET asset_code = ?,
-                    asset_type = ?,
-                    name = ?,
-                    model = ?,
-                    serial_number = ?,
-                    unit_id = ?,
-                    value_amount = ?,
-                    value_currency = ?,
-                    notes = ?,
-                    updated_by_user_id = ?
-                WHERE id = ? AND company_id = ?
-                """,
-            assetCode,
-            assetType,
-            name,
-            nullable(model),
-            nullable(serialNumber),
-            unitId,
-            valueAmount,
-            valueCurrency,
-            nullable(notes),
-            actorUserId,
-            assetId,
-            companyId
-        );
-
-        if (rowsUpdated == 0) {
-            throw new NoSuchElementException("Asset not found.");
+        return new AssetUpdateDraft(assetCode,assetType,name,model,serialNumber,unitId,valueAmount,valueCurrency,notes,photoDrafts,replacePhotos);
+    }
+    private record AssetUpdateDraft(String assetCode,String assetType,String name,String model,String serialNumber,Long unitId,
+        BigDecimal valueAmount,String valueCurrency,String notes,List<AssetPhotoDraft> photoDrafts,boolean replacePhotos) { }
+    public AssistantAssetDraft validateAssistantUpdate(AuthSessionUser user,long id,Map<String,Object> payload) {
+        var draft=prepareAssetUpdate(user.companyId(),id,payload,hrAssetScopeAccess.resolve(user));
+        var current=requireAssetState(user.companyId(),id);
+        return new AssistantAssetDraft(draft.assetCode(),draft.assetType(),draft.name(),draft.model(),draft.serialNumber(),
+            current.responsibleUserCompanyId(),draft.unitId(),current.status(),current.assignedAt(),draft.valueAmount(),draft.valueCurrency(),draft.notes());
+    }
+    public record AssistantAssignment(Long responsibleUserCompanyId,Long unitId,String status,LocalDateTime effectiveAt,String notes,String changeReason) { }
+    public AssistantAssignment validateAssistantAssignment(AuthSessionUser user,long id,Map<String,Object> payload,boolean reassignment) {
+        var scope=hrAssetScopeAccess.resolve(user);
+        var current=requireAssetState(user.companyId(),id);
+        hrAssetScopeAccess.requireAssetInScope(user.companyId(),scope,id);
+        var status=normalizeStatus(reassignment && stringValue(payload,"status").isBlank()?"assigned":requiredString(payload,"status"));
+        if(reassignment || ASSIGNABLE_STATUSES.contains(status)) {
+            var draft=normalizeAssignmentCommand(user.companyId(),payload,current.unitId(),status);
+            hrAssetScopeAccess.requireTargetInScope(user.companyId(),scope,draft.unitId(),draft.responsibleUserCompanyId());
+            return new AssistantAssignment(draft.responsibleUserCompanyId(),draft.unitId(),draft.status(),draft.assignedAt(),draft.notes(),draft.changeReason());
         }
-
-        if (replacePhotos) {
-            deleteAssetPhotos(companyId, assetId);
-        }
-        insertAssetPhotos(companyId, assetId, actorUserId, photoDrafts);
-
-        return assetDetails(companyId, assetId);
+        if(containsAnyKey(payload,"responsible_user_company_id","responsibleUserCompanyId"))
+            throw new IllegalArgumentException("Responsible is allowed only for assigned or custody assets.");
+        var unit=hasAnyKey(payload,"unit_id")?resolveUnitId(user.companyId(),payload):current.unitId();
+        hrAssetScopeAccess.requireTargetInScope(user.companyId(),scope,unit,null);
+        var date=parseDateTime(payload,"changed_at");
+        return new AssistantAssignment(null,unit,status,date==null?LocalDateTime.now():date,
+            normalizeOptionalText(stringValue(payload,"notes"),"notes",4000),normalizeChangeReason(stringValue(payload,"change_reason"),defaultChangeReason(status)));
     }
 
     @Transactional

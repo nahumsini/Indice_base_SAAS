@@ -37,6 +37,16 @@ public class AiTaskAssigneeReferenceService {
         return Normalizer.normalize(value == null ? "" : value, Normalizer.Form.NFD)
             .replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT);
     }
+    public ReferencePage<AiReferenceResolverContracts.OrganizationReference> organization(AuthSessionUser user, PageRequest request) {
+        if (!authorization.canReadTasks(user)) throw new SecurityException("Task permission required.");
+        var page = AiReferencePages.normalize(request);
+        var query = normalized(page.query());
+        var items = tasks.organization(user.companyId(), user.userId()).stream()
+            .filter(item -> normalized(item.name()).contains(query) || normalized(item.unitName()).contains(query))
+            .map(item -> new AiReferenceResolverContracts.OrganizationReference(item.referenceType(), item.id(), item.name(),
+                item.unitId(), item.unitName(), item.status())).toList();
+        return AiReferencePages.all(clock, "TASK_ASSIGNMENT_SCOPE", items, page);
+    }
     public record Assignee(long userCompanyId, String name, Long unitId, String unitName,
         Long businessId, String businessName) { }
 }

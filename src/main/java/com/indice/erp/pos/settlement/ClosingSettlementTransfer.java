@@ -15,10 +15,10 @@ record ClosingSettlementTransfer(BigDecimal gross, BigDecimal retained, BigDecim
         var retained = method == PaymentMethod.CASH ? money(register.retainedCashAmount()).min(money(countedCash)) : ZERO;
         var transferable = method == PaymentMethod.CASH
             ? money(amounts.safeDropAmount().add(countedCash.subtract(retained).max(BigDecimal.ZERO))) : gross;
-        if (method == PaymentMethod.CARD) {
-            var refunded = money(amounts.totalRefundsAmount());
+        if (method != PaymentMethod.CASH) {
+            var refunded = money(amounts.refunded(method));
             if (refunded.signum() < 0 || refunded.compareTo(gross) > 0)
-                throw PosApiException.conflict("Verified card refunds exceed the shift's card collections.");
+                throw PosApiException.conflict("Verified refunds exceed the shift's collections for " + method + ".");
             transferable = gross.subtract(refunded);
         }
         return new ClosingSettlementTransfer(gross, retained, transferable);

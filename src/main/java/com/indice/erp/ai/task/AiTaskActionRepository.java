@@ -73,7 +73,7 @@ public class AiTaskActionRepository {
                        request_fingerprint, normalized_args_json, task_title,
                        task_description, task_priority, task_due_date, expires_at, consumed_at
                 FROM ai_action_confirmations
-                WHERE confirmation_hash = ? AND tool_name IN ('create_task', 'create_task_v2', 'update_task')
+                WHERE confirmation_hash = ? AND tool_name IN ('create_task', 'create_task_v2', 'update_task', 'create_task_v3', 'update_task_v3', 'task_operation_v1')
                 LIMIT 1
                 """,
             (rs, rowNum) -> new Confirmation(
@@ -233,6 +233,9 @@ public class AiTaskActionRepository {
     }
 
     private static String confirmationTool(TaskDraft draft) {
+        if (draft.operation() != null) return "task_operation_v1";
+        if (draft.changedFields().contains("unitId") || draft.changedFields().contains("businessId"))
+            return draft.taskId() == null ? "create_task_v3" : "update_task_v3";
         // Older releases reconstruct create_task confirmations as self-assigned. Keep explicit
         // assignments invisible to that reader so rollback rejects rather than changes the assignee.
         return draft.taskId() == null && draft.assigneeUserCompanyId() != null ? "create_task_v2" : draft.tool();

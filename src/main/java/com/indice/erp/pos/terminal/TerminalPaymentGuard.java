@@ -25,6 +25,10 @@ public class TerminalPaymentGuard {
     public void assertNoPending(PosContext context, long registerId) {
         assertNoPendingExcept(context, registerId, null, null);
     }
+    public void inspectNoPending(PosContext context, long registerId) {
+        if (!pending.read(context, registerId).isEmpty())
+            throw PosApiException.conflict("Recover the unresolved terminal payment before continuing.");
+    }
     public void assertNoPendingExcept(PosContext context, long registerId, String provider, Long intentId) {
         TerminalRegisterLock.requireTransaction();
         if (pending.find(context, registerId).stream().anyMatch(attempt ->

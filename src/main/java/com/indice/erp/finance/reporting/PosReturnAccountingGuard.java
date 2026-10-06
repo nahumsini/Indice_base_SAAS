@@ -15,6 +15,11 @@ public class PosReturnAccountingGuard {
     @Transactional(propagation = Propagation.MANDATORY)
     public void lockAndRequireUnpostedSale(long company, long sale) {
         jdbc.queryForList("SELECT id FROM companies WHERE id = ? FOR UPDATE", company);
+        requireUnpostedSale(company,sale);
+    }
+
+    @Transactional(readOnly=true)
+    public void requireUnpostedSale(long company,long sale) {
         int posted = jdbc.queryForObject("""
             SELECT COUNT(*) FROM finance_journal_entries
             WHERE company_id = ? AND source_module = 'sales' AND source_type = 'SALE'

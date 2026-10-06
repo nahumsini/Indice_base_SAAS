@@ -1,8 +1,11 @@
+import { fileDownloadHosts } from "./chatGptFiles.js";
+
 export type McpTransport = "stdio" | "http";
 export type IndiceAuthMode = "session" | "delegated";
 
 export interface IndiceMcpConfig {
   backendUrl: URL;
+  chatGptFileHosts?: readonly string[];
   authMode: IndiceAuthMode;
   companyName?: string;
   email?: string;
@@ -41,6 +44,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): IndiceMcpConfi
 
   return {
     backendUrl,
+    chatGptFileHosts:fileDownloadHosts(env.INDICE_CHATGPT_FILE_HOSTS),
     authMode,
     ...(authMode === "session" ? {
       companyName: required(env, "INDICE_COMPANY_NAME"),

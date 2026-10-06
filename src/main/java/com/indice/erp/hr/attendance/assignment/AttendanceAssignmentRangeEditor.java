@@ -110,15 +110,16 @@ public class AttendanceAssignmentRangeEditor {
         return jdbcTemplate.update(
             """
                 INSERT INTO %s
-                (company_id, user_company_id, %s, effective_start_date, effective_end_date, status, created_by)
-                VALUES (?, ?, ?, ?, ?, 'active', ?)
+                (company_id, user_company_id, user_id, %s, effective_start_date, effective_end_date, status, created_by)
+                SELECT member.company_id, member.id, member.user_id, ?, ?, ?, 'active', ?
+                FROM user_companies member WHERE member.company_id = ? AND member.id = ?
                 """.formatted(tableName, assignmentColumn),
-            companyId,
-            userCompanyId,
             assignmentTargetId,
             effectiveStartDate,
             effectiveEndDate,
-            userId
+            userId,
+            companyId,
+            userCompanyId
         );
     }
 

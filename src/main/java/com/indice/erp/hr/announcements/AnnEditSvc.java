@@ -38,11 +38,23 @@ public class AnnEditSvc {
 
     @Transactional
     public Map<String, Object> update(HrAnnouncementActor actor, long announcementId, Map<String, Object> payload) {
+        var announcement = validateAssistantUpdate(actor, announcementId, payload);
+        var targets = audienceService.normalizeTargets(actor.companyId(), announcement.audienceType(), payload);
+        return applyUpdate(actor, announcementId, announcement, targets);
+    }
+
+    public HrAnnouncementPayload validateAssistantUpdate(HrAnnouncementActor actor, long announcementId, Map<String, Object> payload) {
+        if (!actor.managementAccess()) throw new SecurityException("Announcement management permission required.");
         visSvc.requireCompanyAnnouncement(actor.companyId(), announcementId);
         var announcement = HrAnnouncementPayload.from(payload);
         var targets = audienceService.normalizeTargets(actor.companyId(), announcement.audienceType(), payload);
         scopeService.requireManageable(actor, announcementId);
         scopeService.requireAudienceManageable(actor, announcement.audienceType(), targets);
+        return announcement;
+    }
+
+    private Map<String, Object> applyUpdate(HrAnnouncementActor actor, long announcementId, HrAnnouncementPayload announcement,
+            Map<String, java.util.List<String>> targets) {
         jdbcTemplate.update(
             """
                 UPDATE hr_announcements

@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.Map;
 
-record HrAnnouncementPayload(
+public record HrAnnouncementPayload(
     String title,
     String type,
     String content,

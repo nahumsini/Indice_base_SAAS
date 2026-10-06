@@ -127,6 +127,79 @@ public class AiToolAuthorizationService {
             && processTasksAccessService.canAccess(user);
     }
 
+    public boolean canUseProcessWorkflowTool(AuthSessionUser user,String tool) {
+        var base=tool.startsWith("preview_")?tool.substring(8):tool;
+        var permission=TabPermissionRequirement.one(base.endsWith("_project")||base.equals("list_projects")?"processes.projects":"processes.processes");
+        return (base.endsWith("_project")||base.equals("list_projects")
+            ?canUseModule(user,"processes",permission)
+            :canUseModuleCapability(user,"processes","processes",permission))
+            && processTasksAccessService.canAccess(user);
+    }
+
+    public boolean canUseTerminalTool(AuthSessionUser user,String tool) {
+        if(!com.indice.erp.pos.assistant.PosTerminalReadService.READS.contains(tool)&&!com.indice.erp.pos.assistant.PosTerminalPreparation.ACTIONS.contains(tool))return false;
+        boolean returns=tool.contains("refund")||tool.contains("return");
+        if(returns&&!Set.of("root","superadmin","admin","owner").contains(normalizeRole(user.role())))return false;
+        return canUseModuleCapability(user,"pos","pos",TabPermissionRequirement.one(returns?"pos.cortes":"pos.sale"));
+    }
+
+    public boolean canUsePosOperationsTool(AuthSessionUser user,String tool) {
+        if(!com.indice.erp.pos.assistant.PosOperationsService.READS.contains(tool)&&!com.indice.erp.pos.assistant.PosOperationsService.ACTIONS.contains(tool))return false;
+        if(tool.contains("settlement")&&!Set.of("root","superadmin","admin","owner").contains(normalizeRole(user.role())))return false;
+        return canUseModuleCapability(user,"pos","pos",TabPermissionRequirement.one(tool.contains("closing")?"pos.cortes":"pos.sale"));
+    }
+
+    public boolean canUseCommissionTool(AuthSessionUser user,String tool) {
+        if(!com.indice.erp.sales.SalesCommissionAssistantService.READS.contains(tool)&&!com.indice.erp.sales.SalesCommissionAssistantService.ACTIONS.contains(tool))return false;
+        return Set.of("root","superadmin").contains(normalizeRole(user.role()))&&canUseModuleCapability(user,"crm","sales",TabPermissionRequirement.one("crm.commissions"));
+    }
+
+    public boolean canUseInventoryCatalogTool(AuthSessionUser user,String tool) {
+        boolean action=com.indice.erp.pos.purchaseorder.assistant.InventoryCatalogAssistantService.ACTIONS.contains(tool);
+        if(!action&&!com.indice.erp.pos.purchaseorder.assistant.InventoryCatalogAssistantService.READS.contains(tool))return false;
+        if(action&&!Set.of("root","superadmin","admin","owner").contains(normalizeRole(user.role())))return false;
+        return canUseModuleCapability(user,"inventory","inventory",TabPermissionRequirement.one(tool.contains("provider")?"inventory.providers":"inventory.discounts"));
+    }
+    public boolean canUseProcurementTool(AuthSessionUser user,String tool) {
+        if(!com.indice.erp.pos.purchaseorder.assistant.ProcurementAssistantService.READS.contains(tool)&&!com.indice.erp.pos.purchaseorder.assistant.ProcurementAssistantService.ACTIONS.contains(tool))return false;
+        String kind=com.indice.erp.pos.purchaseorder.assistant.ProcurementAssistantService.kind(tool);
+        if((kind.equals("invoice")||tool.startsWith("review_")||tool.equals("approve_purchase_order")||tool.equals("cancel_purchase_order")||tool.equals("convert_supplier_submission"))&&!Set.of("root","superadmin","admin","owner").contains(normalizeRole(user.role())))return false;
+        String tab=kind.equals("invoice")?"inventory.purchase-orders":kind.equals("submission")||kind.equals("link")?"inventory.providers":"inventory.purchase-orders";
+        return canUseModuleCapability(user,"inventory","inventory",TabPermissionRequirement.one(tab));
+    }
+
+    public boolean canUseInventoryTool(AuthSessionUser user, String tool) {
+        if(!com.indice.erp.sales.InventoryAssistantService.READS.contains(tool)&&!com.indice.erp.sales.InventoryAssistantService.ACTIONS.contains(tool))return false;
+        String tab=tool.contains("product")?"inventory.products":tool.contains("warehouse")?"inventory.warehouses":"inventory.inventory";
+        if(tool.endsWith("_product")&&!tool.startsWith("get_")&&!Set.of("root","superadmin","admin","owner","dueno").contains(normalizeRole(user.role())))return false;
+        return canUseModuleCapability(user,"inventory","inventory",TabPermissionRequirement.one(tab));
+    }
+
+    public boolean canReadGuideTab(AuthSessionUser user, String module, String tab) {
+        if(Set.of("crm","inventory","pos").contains(module))
+            return canUseModuleCapability(user,module,module.equals("crm")?"sales":module,TabPermissionRequirement.one(module+"."+tab));
+        if (!Set.of("human_resources", "processes").contains(module)) return false;
+        return canUseModule(user, module, TabPermissionRequirement.one(module + "." + tab))
+            && (!"processes".equals(module) || processTasksAccessService.canAccess(user));
+    }
+
+    public boolean canUseSalesWorkflowTool(AuthSessionUser user,String tool) {
+        if(!com.indice.erp.sales.SalesWorkflowService.READS.contains(tool)&&!com.indice.erp.sales.SalesWorkflowService.ACTIONS.contains(tool))return false;
+        String kind=com.indice.erp.sales.SalesWorkflowService.kind(tool);
+        if(kind.equals("rule")&&!Set.of("root","superadmin").contains(normalizeRole(user.role())))return false;
+        if((kind.equals("rule")||Set.of("confirm_sale_collection","cancel_commercial_sale").contains(tool))&&!Set.of("root","superadmin","admin","owner").contains(normalizeRole(user.role())))return false;
+        String tab=kind.equals("contract")?"crm.contracts":kind.equals("rule")?"crm.commissions":"crm.sales";
+        return canUseModuleCapability(user,"crm","sales",TabPermissionRequirement.one(tab));
+    }
+
+    public boolean canUsePosWorkflowTool(AuthSessionUser user,String tool) {
+        if(!com.indice.erp.pos.assistant.PosAssistantService.READS.contains(tool)&&!com.indice.erp.pos.assistant.PosAssistantService.ACTIONS.contains(tool))return false;
+        boolean admin=tool.endsWith("_register")&&!tool.startsWith("get_")||tool.contains("return")||tool.equals("reverse_pos_inventory_receipt");
+        if(admin&&!Set.of("root","superadmin","admin","owner").contains(normalizeRole(user.role())))return false;
+        String tab=tool.contains("register")?"pos.cajas":tool.contains("closing")||tool.contains("return")||tool.equals("close_pos_shift")||tool.equals("cancel_pos_shift")?"pos.cortes":"pos.sale";
+        return canUseModuleCapability(user,"pos","pos",TabPermissionRequirement.one(tab));
+    }
+
     public boolean canReadCommercialSales(AuthSessionUser user) {
         return canUseModuleCapability(user, "crm", "sales", COMMERCIAL_SALES_PERMISSION);
     }

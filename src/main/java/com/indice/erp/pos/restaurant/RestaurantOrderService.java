@@ -576,6 +576,13 @@ public class RestaurantOrderService {
         return Map.of("released", true);
     }
 
+    @Transactional(readOnly=true)
+    public void requireAssistantRecordAccess(PosContext context,long id,long register){cashRegisters.requireOperationalRegister(context,register);repository.requireAssistantRecordAccess(context.companyId(),id,register);}
+    public RestaurantCheckoutOrder inspectCheckout(PosContext context,long orderId,long registerId) {
+        cashRegisters.requireOperationalRegister(context,registerId);var shift=requireOpenCheckoutShift(context,registerId);
+        return repository.inspectCheckout(context.companyId(),orderId,registerId,shift.id(),context.userId()).orElseThrow(()->PosApiException.notFound("Current restaurant checkout order unavailable."));
+    }
+
     public RestaurantCheckoutOrder requireClaimedForCheckout(
             PosContext context, long orderId, long registerId) {
         var shift = requireOpenCheckoutShift(context, registerId);

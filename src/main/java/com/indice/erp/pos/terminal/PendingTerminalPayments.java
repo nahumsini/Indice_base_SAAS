@@ -13,21 +13,25 @@ public class PendingTerminalPayments {
         this.jdbc = jdbc;
     }
     public List<Attempt> find(PosContext context, long registerId) {
+        return find(context, registerId, true);
+    }
+    public List<Attempt> read(PosContext context, long registerId) {
+        return find(context, registerId, false);
+    }
+    private List<Attempt> find(PosContext context, long registerId, boolean lock) {
         var rows = new java.util.ArrayList<Attempt>();
         rows.addAll(jdbc.query("""
             SELECT 'SQUARE' provider_code, id FROM pos_square_terminal_payment_intents
             WHERE company_id = ? AND cash_register_id = ? AND pos_ticket_id IS NULL
               AND status IN ('WAITING', 'UNCERTAIN', 'APPROVED', 'PARTIALLY_REFUNDED',
                 'RECONCILIATION_REQUIRED')
-            FOR UPDATE
-            """, (rs, row) -> new Attempt(rs.getString("provider_code"), rs.getLong("id")), context.companyId(), registerId));
+            """ + (lock ? " FOR UPDATE" : ""), (rs, row) -> new Attempt(rs.getString("provider_code"), rs.getLong("id")), context.companyId(), registerId));
         rows.addAll(jdbc.query("""
             SELECT 'MERCADO_PAGO' provider_code, id FROM pos_mercado_pago_payment_intents
             WHERE company_id = ? AND cash_register_id = ? AND pos_ticket_id IS NULL
               AND status IN ('WAITING', 'UNCERTAIN', 'APPROVED', 'PARTIALLY_REFUNDED',
                 'RECONCILIATION_REQUIRED')
-            FOR UPDATE
-            """, (rs, row) -> new Attempt(rs.getString("provider_code"), rs.getLong("id")), context.companyId(), registerId));
+            """ + (lock ? " FOR UPDATE" : ""), (rs, row) -> new Attempt(rs.getString("provider_code"), rs.getLong("id")), context.companyId(), registerId));
         return rows;
     }
 }

@@ -80,6 +80,12 @@ public class ShiftRepository {
     }
 
     public Optional<ShiftRecord> findOpenByUserAndRegister(PosContext context, long registerId) {
+        return findOpenByUserAndRegister(context, registerId, true);
+    }
+    public Optional<ShiftRecord> readOpenByUserAndRegister(PosContext context, long registerId) {
+        return findOpenByUserAndRegister(context, registerId, false);
+    }
+    private Optional<ShiftRecord> findOpenByUserAndRegister(PosContext context, long registerId, boolean lock) {
         var params = scopedParams(context);
         params.add(1, context.userId());
         params.add(2, registerId);
@@ -87,8 +93,8 @@ public class ShiftRepository {
             WHERE shift.company_id = ? AND shift.opened_by_user_id = ? AND shift.cash_register_id = ?
               AND shift.deleted_at IS NULL AND shift.status = 'OPEN'
               AND """ + PosSqlSupport.scopePredicate("shift", context.scope()) + """
-            ORDER BY shift.opened_at DESC LIMIT 1 FOR UPDATE
-            """, mapper::mapRow, params.toArray()).stream().findFirst();
+            ORDER BY shift.opened_at DESC LIMIT 1
+            """ + (lock ? " FOR UPDATE" : ""), mapper::mapRow, params.toArray()).stream().findFirst();
     }
 
     public boolean hasBlockingShiftForRegister(PosContext context, long registerId) {

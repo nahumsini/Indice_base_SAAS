@@ -1,9 +1,25 @@
+import {registerTerminalTools,type TerminalReader} from "./terminalTools.js";
+import {registerPosOperationsTools,type PosOperationsReader} from "./posOperationsTools.js";
+import {registerCommissionTools,type CommissionReader} from "./commissionTools.js";
+import {registerInventoryCatalogTools,type InventoryCatalogReader} from "./inventoryCatalogTools.js";
+import {registerProcurementTools,type ProcurementReader} from "./procurementTools.js";
+import {registerPosTools,type PosReader} from "./posTools.js";
+import {registerSalesWorkflowTools,type SalesWorkflowReader} from "./salesWorkflowTools.js";
+import { registerInventoryTools, type InventoryReader } from "./inventoryTools.js";
+import type { ChatGptFileDownloader } from "./chatGptFiles.js";
+import { registerFileTools,type FileReader } from "./fileTools.js";
+import { registerHrKpiTools,type HrKpiReader } from "./hrKpiTools.js";
+import { registerProcessWorkflowTools, type ProcessWorkflowReader } from "./processWorkflowTools.js";
 import { registerCommercialTools, type CommercialReader } from "./commercialTools.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { RegisteredTool } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerOperationalReferenceTools, type OperationalReferenceReader } from "./operationalReferenceTools.js";
 import { lupitaInstructions } from "./assistantInstructions.js";
 import { registerTaskEditingTools } from "./taskEditingTools.js";
+import { registerTaskOperationTools, type TaskOperator } from "./taskOperationTools.js";
+import { registerLearningTools, type LearningReader } from "./learningTools.js";
+import { registerHrTools, type HrReader } from "./hrTools.js";
+import { registerProcessTaskKpiTools, type ProcessTaskKpiReader } from "./processTaskKpiTools.js";
 import { configureTool } from "./toolPolicy.js";
 import { toolError } from "./toolErrors.js";
 import * as z from "zod/v4";
@@ -36,7 +52,7 @@ import type {
   TaskPreviewResponse
 } from "./contracts.js";
 
-export interface IndiceBusinessReader extends OperationalReferenceReader, CommercialReader {
+export interface IndiceBusinessReader extends TerminalReader, PosOperationsReader, CommissionReader, InventoryCatalogReader, ProcurementReader, PosReader, SalesWorkflowReader, InventoryReader, OperationalReferenceReader, CommercialReader, TaskOperator, LearningReader, HrReader, ProcessTaskKpiReader, ProcessWorkflowReader, HrKpiReader, FileReader {
   getSalesToday(preferredCurrency?: string): Promise<SalesTodaySummary>;
   getBusinessSnapshot(query?: BusinessSnapshotQuery): Promise<BusinessSnapshot>;
   queryBusiness?(tool: string, args?: Record<string, unknown>): Promise<BusinessQueryResult>;
@@ -54,7 +70,8 @@ export interface IndiceBusinessReader extends OperationalReferenceReader, Commer
 
 export function createIndiceMcpServer(
   reader: IndiceBusinessReader,
-  allowedTools?: ReadonlySet<string>
+  allowedTools?: ReadonlySet<string>,
+  fileDownloader?: ChatGptFileDownloader
 ): McpServer {
   const server = new McpServer({
     name: "indice-business-tools",
@@ -259,7 +276,9 @@ export function createIndiceMcpServer(
       due_date: z.iso.date().optional()
         .describe("Fecha de vencimiento exacta en formato YYYY-MM-DD."),
       assignee_user_company_id: z.number().int().positive().optional()
-        .describe("userCompanyId exacto de search_task_assignees. Si se omite, se asigna a ti.")
+        .describe("userCompanyId exacto de search_task_assignees. Si se omite, se asigna a ti."),
+      unit_id: z.number().int().positive().optional().describe("Unidad autorizada; requiere tasks.organize."),
+      business_id: z.number().int().positive().optional().describe("Negocio autorizado; requiere tasks.organize.")
     }).strict(),
     outputSchema: taskPreviewResponseSchema,
     annotations: {
@@ -268,14 +287,16 @@ export function createIndiceMcpServer(
       idempotentHint: false,
       openWorldHint: false
     }
-  }, async ({ title, description, priority, due_date, assignee_user_company_id }) => {
+  }, async ({ title, description, priority, due_date, assignee_user_company_id, unit_id, business_id }) => {
     try {
       const result = await reader.previewCreateTask({
         title,
         description,
         priority,
         dueDate: due_date,
-        assigneeUserCompanyId: assignee_user_company_id
+        assigneeUserCompanyId: assignee_user_company_id,
+        ...(unit_id === undefined ? {} : { unitId: unit_id }),
+        ...(business_id === undefined ? {} : { businessId: business_id })
       });
       return {
         content: [{ type: "text", text: humanTaskPreview(result) }],
@@ -325,6 +346,21 @@ export function createIndiceMcpServer(
   registerReferenceResolverTools(server, reader, allowedTools);
   registerOperationalReferenceTools(server, reader, allowedTools);
   registerTaskEditingTools(server, reader, allowedTools);
+  registerTaskOperationTools(server, reader, allowedTools);
+  registerLearningTools(server, reader, allowedTools);
+  registerHrTools(server, reader, allowedTools);
+  registerInventoryTools(server, reader, allowedTools);
+  registerSalesWorkflowTools(server, reader, allowedTools);
+  registerPosTools(server, reader, allowedTools);
+  registerProcurementTools(server, reader, allowedTools);
+  registerInventoryCatalogTools(server, reader, allowedTools);
+  registerCommissionTools(server, reader, allowedTools);
+  registerPosOperationsTools(server, reader, allowedTools);
+  registerTerminalTools(server, reader, allowedTools);
+  registerProcessWorkflowTools(server, reader, allowedTools);
+  registerHrKpiTools(server, reader, allowedTools);
+  registerFileTools(server,reader,allowedTools,fileDownloader);
+  registerProcessTaskKpiTools(server, reader, allowedTools);
   registerCommercialTools(server, reader, allowedTools);
   registerFinanceActionTools(server, reader, allowedTools);
 
@@ -453,6 +489,10 @@ const queryOutputSchema = {
   generatedAt: z.iso.datetime(),
   scope: z.string(),
   count: z.number().int().nonnegative(),
+  returnedCount: z.number().int().nonnegative().optional(),
+  totalCount: z.number().int().nonnegative().optional(),
+  hasMore: z.boolean().optional(),
+  nextCursor: z.string().nullable().optional(),
   summary: z.record(z.string(), z.unknown()),
   items: z.array(z.record(z.string(), z.unknown())),
   detail: z.unknown().optional()
@@ -509,6 +549,7 @@ function registerBusinessReadTools(
     toArgs: (input: Record<string, unknown>) => Record<string, unknown>
   ) => registerBusinessReadTool(server, reader, name, title, description, inputSchema, toArgs, allowedTools);
   const limit = z.number().int().min(1).max(100).optional().describe("Máximo de registros; predeterminado 25.");
+  const cursor = z.string().max(256).optional().describe("nextCursor de la respuesta anterior, conservando los mismos filtros.");
   const from = z.iso.date().optional().describe("Fecha inicial inclusiva YYYY-MM-DD.");
   const to = z.iso.date().optional().describe("Fecha final inclusiva YYYY-MM-DD.");
 
@@ -516,18 +557,18 @@ function registerBusinessReadTools(
     "Busca colaboradores visibles para el usuario conectado sin revelar nómina, documentos ni identificadores sensibles.", {
       query: z.string().trim().min(1).max(120).optional(),
       status: z.string().trim().max(40).optional(),
-      department: z.string().trim().max(120).optional(), limit
+      department: z.string().trim().max(120).optional(), limit, cursor
     }, input => input);
 
   register("get_employee_overview", "Consultar empleado",
     "Obtiene el perfil operativo, tareas visibles y asistencia mensual de un colaborador autorizado. No devuelve salario, documentos ni datos personales sensibles.", {
       employee_id: z.number().int().positive(),
-      month: z.string().regex(/^\d{4}-\d{2}$/).optional(), limit
+      month: z.string().regex(/^\d{4}-\d{2}$/).optional(), limit, cursor
     }, input => camelArgs(input, { employee_id: "employeeId" }));
 
   register("get_attendance_exceptions", "Consultar incidencias de asistencia",
     "Lista ausencias, retardos y otras excepciones de asistencia visibles para una fecha; omite fotos, coordenadas y datos biométricos.", {
-      date: z.iso.date().optional(), limit
+      date: z.iso.date().optional(), limit, cursor
     }, input => input);
 
   register("list_tasks", "Listar tareas",
@@ -536,8 +577,13 @@ function registerBusinessReadTools(
       status: z.string().trim().max(40).optional(),
       priority: z.enum(["low", "medium", "high"]).optional(),
       employee_id: z.number().int().positive().optional(),
-      overdue_only: z.boolean().optional(), limit
-    }, input => camelArgs(input, { employee_id: "employeeId", overdue_only: "overdueOnly" }));
+      unit_id: z.number().int().positive().optional(),
+      business_id: z.number().int().positive().optional(),
+      project_id: z.number().int().positive().optional(),
+      process_id: z.number().int().positive().optional(),
+      overdue_only: z.boolean().optional(), limit, cursor
+    }, input => camelArgs(input, { employee_id: "employeeId", overdue_only: "overdueOnly", unit_id: "unitId",
+      business_id: "businessId", project_id: "projectId", process_id: "processId" }));
 
   register("get_task_detail", "Consultar detalle de tarea",
     "Obtiene una tarea visible con seguimiento y dependencias, respetando el mismo alcance de Índice.", {
@@ -767,7 +813,9 @@ function humanBusinessQuery(result: BusinessQueryResult): string {
   const summary = Object.entries(result.summary)
     .map(([key, value]) => `${key}: ${typeof value === "object" ? JSON.stringify(value) : String(value)}`)
     .join("; ");
-  return `${result.scope}. ${result.count} registros${summary ? `. ${summary}` : ""}.`;
+  const coverage = result.totalCount === undefined ? `${result.count} registros`
+    : `${result.returnedCount ?? result.count} de ${result.totalCount} registros autorizados${result.hasMore ? "; hay más páginas: usa nextCursor con los mismos filtros" : "; consulta completa"}`;
+  return `${result.scope}. ${coverage}${summary ? `. ${summary}` : ""}.`;
 }
 
 function humanFinancePreview(result: FinanceActionPreviewResponse): string {

@@ -51,6 +51,7 @@ class AiToolCapabilityServiceTest {
             "get_sales_today",
             "list_tasks",
             "get_task_detail",
+            "list_task_organization",
             "preview_create_expense_draft",
             "create_expense_draft"
         ), Set.copyOf(service.allowedTools(token)));
@@ -67,7 +68,7 @@ class AiToolCapabilityServiceTest {
     }
 
     @Test
-    void existingConnectionKeepsItsThirtyTwoToolsWithoutNewConsent() {
+    void existingConnectionKeepsItsToolsWithoutNewActionConsent() {
         var token = token(Set.of(
             AiAccessTokenService.SALES_TODAY_READ,
             AiAccessTokenService.BUSINESS_SNAPSHOT_READ,
@@ -90,6 +91,7 @@ class AiToolCapabilityServiceTest {
         when(authorizationService.canReadSalesToday(USER)).thenReturn(true);
         when(authorizationService.canReadBusinessSnapshot(USER)).thenReturn(true);
         when(hrAccessService.canAccessReadableTab(eq(USER), any())).thenReturn(true);
+        when(authorizationService.canReadGuideTab(eq(USER),eq("human_resources"),any())).thenReturn(true);
         when(authorizationService.canReadTasks(USER)).thenReturn(true);
         when(authorizationService.canReadCommercialSales(USER)).thenReturn(true);
         when(authorizationService.canReadPosCash(USER)).thenReturn(true);
@@ -112,8 +114,11 @@ class AiToolCapabilityServiceTest {
             "search_employees",
             "get_employee_overview",
             "get_attendance_exceptions",
+            "get_my_attendance_calendar",
+            "get_my_attendance_events",
             "list_tasks",
             "get_task_detail",
+            "list_task_organization",
             "get_sales_summary",
             "list_sales",
             "get_sale_detail",
@@ -141,6 +146,20 @@ class AiToolCapabilityServiceTest {
         ), Set.copyOf(service.allowedTools(token)));
     }
 
+    @Test
+    void privateFilesRequireAdditionalConsentAndLoseDiscoveryOnCurrentPermissionRevocation() {
+        when(authorizationService.canReadTasks(USER)).thenReturn(true);
+        when(authorizationService.canCreateTask(USER)).thenReturn(true);
+        var old=Set.copyOf(service.allowedTools(token(Set.of("tasks.read","tasks.operate"))));
+        org.junit.jupiter.api.Assertions.assertFalse(old.contains("stage_chatgpt_file"));
+        org.junit.jupiter.api.Assertions.assertFalse(old.contains("get_operational_file"));
+        var opted=token(Set.of("tasks.read","tasks.operate","files.read","files.attach"));
+        var current=Set.copyOf(service.allowedTools(opted));
+        org.junit.jupiter.api.Assertions.assertTrue(current.containsAll(Set.of("stage_chatgpt_file","stage_operational_file","get_operational_file","attach_task_evidence")));
+        when(authorizationService.canReadTasks(USER)).thenReturn(false);
+        when(authorizationService.canCreateTask(USER)).thenReturn(false);
+        org.junit.jupiter.api.Assertions.assertTrue(service.allowedTools(opted).isEmpty());
+    }
     private AiAccessTokenRepository.StoredToken token(Set<String> scopes) {
         return new AiAccessTokenRepository.StoredToken(91L, USER, scopes);
     }
@@ -159,6 +178,14 @@ class AiToolCapabilityServiceTest {
         when(authorizationService.canReadProviders(USER)).thenReturn(false);
         assertEquals(Set.of("search_customers", "list_warehouses", "search_budget_lines", "search_accounting_accounts"),
             Set.copyOf(service.allowedTools(token)));
+    }
+    @Test
+    void trainingRequiresAnActiveAuthorizedModuleInAdditionToNewConsent() {
+        var connection = token(Set.of(AiAccessTokenService.LEARNING_READ));
+        assertEquals(Set.of(), Set.copyOf(service.allowedTools(connection)));
+        when(authorizationService.canReadTasks(USER)).thenReturn(true);
+        assertEquals(Set.of("get_system_guide"), Set.copyOf(service.allowedTools(connection)));
+        assertEquals(Set.of("list_tasks", "get_task_detail", "list_task_organization"), Set.copyOf(service.allowedTools(token(Set.of(AiAccessTokenService.TASKS_READ)))));
     }
     @Test
     void taskDelegationAndEditingNeedExplicitScopesAndCurrentWritePermission() {

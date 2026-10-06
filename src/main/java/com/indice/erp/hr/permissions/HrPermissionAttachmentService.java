@@ -40,6 +40,16 @@ public class HrPermissionAttachmentService {
 
     public Map<String, Object> createOwnUpload(PermissionActor actor, long requestId, Map<String, Object> payload) {
         ensureOwnRequest(actor, requestId);
+        return createUpload(actor,requestId,payload);
+    }
+
+    /** Called only with the current administrative actor and owner request scope. */
+    public Map<String,Object> createManagementUpload(PermissionActor actor,long requestId,Map<String,Object> payload) {
+        queryService.getManagement(actor,requestId);
+        return createUpload(actor,requestId,payload);
+    }
+
+    private Map<String,Object> createUpload(PermissionActor actor,long requestId,Map<String,Object> payload) {
         requireStorage();
         AttachmentDraft draft = HrPermissionAttachmentSupport.attachmentDraft(payload);
         var objectKey = HrPermissionAttachmentSupport.buildObjectKey(actor.companyId(), requestId, draft.fileName(), LocalDate.now());
@@ -57,6 +67,18 @@ public class HrPermissionAttachmentService {
     @Transactional
     public Map<String, Object> registerOwnAttachment(PermissionActor actor, long requestId, Map<String, Object> payload) {
         ensureOwnRequest(actor, requestId);
+        register(actor,requestId,payload);
+        return queryService.getOwn(actor,requestId);
+    }
+
+    @Transactional
+    public Map<String,Object> registerManagementAttachment(PermissionActor actor,long requestId,Map<String,Object> payload) {
+        queryService.getManagement(actor,requestId);
+        register(actor,requestId,payload);
+        return queryService.getManagement(actor,requestId);
+    }
+
+    private void register(PermissionActor actor,long requestId,Map<String,Object> payload) {
         requireStorage();
         AttachmentDraft draft = HrPermissionAttachmentSupport.attachmentDraft(payload);
         var objectKey = HrPermissionAttachmentSupport.normalizeObjectKey(actor.companyId(), requestId, String.valueOf(payload.getOrDefault("object_key", payload.getOrDefault("objectKey", ""))));
@@ -65,7 +87,6 @@ public class HrPermissionAttachmentService {
         }
         storageMeter.commit(actor.companyId(), documentsBucket(), objectKey, draft.sizeBytes());
         attachmentRepository.insertAttachment(actor.companyId(), requestId, actor.userId(), draft.fileName(), draft.contentType(), draft.sizeBytes(), objectKey);
-        return queryService.getOwn(actor, requestId);
     }
 
     private void ensureOwnRequest(PermissionActor actor, long requestId) {

@@ -76,6 +76,67 @@ class AiTaskDelegationIntegrationTest {
     }
 
     @Test
+    void operationalPreviewsDoNotMutateAndLifecycleUsesConfirmedOwnerActions() {
+        long id = ownTask();
+        var allowed = new StoredToken(token.id(), token.user(), Set.of("tasks.operate", "tasks.audit", "tasks.delegate"));
+        var schedule = new com.indice.erp.processTasks.tasks.ProcessTaskOperation("schedule_task", LocalDate.of(2027, 1, 12),
+            java.time.LocalTime.of(9, 0), java.time.LocalTime.of(10, 0), "America/Toronto", null, null, null, null, null, null, null, null);
+        assertThatThrownBy(() -> actions.previewOperation(token, new OperationRequest(id, schedule), "schedule_task")).isInstanceOf(SecurityException.class);
+        var prepared = actions.previewOperation(allowed, new OperationRequest(id, schedule), "schedule_task");
+        assertThat(tasks.getTask(company, id)).containsEntry("agendaDate", null);
+        var key = new CommitRequest(prepared.confirmationToken(), UUID.randomUUID().toString());
+        assertThatThrownBy(() -> actions.commitOperation(allowed, key, "cancel_task")).isInstanceOf(AiTaskActionConflictException.class);
+        actions.commitOperation(allowed, key, "schedule_task");
+        assertThat(tasks.getTask(company, id)).containsEntry("agendaDate", "2027-01-12").containsEntry("agendaTimeZone", "America/Toronto");
+        assertThat(actions.commitOperation(allowed, key, "schedule_task").replayed()).isTrue();
+        var followUp = new com.indice.erp.processTasks.tasks.ProcessTaskOperation("add_task_follow_up", null, null, null, null,
+            "Synthetic follow-up", LocalDate.of(2027, 1, 13), "decision", null, null, null, null, null);
+        var followPreview = actions.previewOperation(allowed, new OperationRequest(id, followUp), "add_task_follow_up");
+        assertThat(count("process_task_follow_ups")).isZero();
+        var followCommit = new CommitRequest(followPreview.confirmationToken(), UUID.randomUUID().toString());
+        actions.commitOperation(allowed, followCommit, "add_task_follow_up");
+        actions.commitOperation(allowed, followCommit, "add_task_follow_up");
+        assertThat(count("process_task_follow_ups")).isEqualTo(1);
+        var complete = new com.indice.erp.processTasks.tasks.ProcessTaskOperation("complete_task", null, null, null, null, null, null, null, null, "Finished", 100, null, null);
+        var finish = actions.previewOperation(allowed, new OperationRequest(id, complete), "complete_task");
+        assertThat(tasks.getTask(company, id)).containsEntry("status", "pending");
+        actions.commitOperation(allowed, new CommitRequest(finish.confirmationToken(), UUID.randomUUID().toString()), "complete_task");
+        var audit = new com.indice.erp.processTasks.tasks.ProcessTaskOperation("audit_task", null, null, null, null, null, null, null, null, "Verified", null, 4, null);
+        var review = actions.previewOperation(allowed, new OperationRequest(id, audit), "audit_task");
+        actions.commitOperation(allowed, new CommitRequest(review.confirmationToken(), UUID.randomUUID().toString()), "audit_task");
+        assertThat(tasks.getTask(company, id)).containsEntry("status", "completed").containsEntry("audited", true).containsEntry("weighting", 4);
+    }
+
+    @Test
+    void teamPreviewValidatesRecipientsAndContributionChangesInvalidatePreparedClosure() {
+        long id = ownTask();
+        var allowed = new StoredToken(token.id(), token.user(), Set.of("tasks.operate", "tasks.delegate"));
+        var share = new com.indice.erp.processTasks.tasks.ProcessTaskOperation("share_task", null, null, null, null, null, null, null, null, null, null, null, List.of(actor[1], recipient[1]));
+        var preview = actions.previewOperation(allowed, new OperationRequest(id, share), "share_task");
+        assertThat(preview.task().teamReview().before()).hasSize(1);
+        assertThat(preview.task().teamReview().after()).hasSize(2);
+        assertThat(preview.task().teamReview().added()).extracting(ProcessTaskAssistantService.TeamMember::userCompanyId).containsExactly(recipient[1]);
+        assertThat(preview.task().teamReview().removed()).isEmpty();
+        assertThat(((List<?>)tasks.getTask(company, id).get("assigneeUserCompanyIds"))).hasSize(1);
+        actions.commitOperation(allowed, new CommitRequest(preview.confirmationToken(), UUID.randomUUID().toString()), "share_task");
+        var complete = new com.indice.erp.processTasks.tasks.ProcessTaskOperation("complete_task", null, null, null, null, null, null, null, null, null, null, null, null);
+        assertThatThrownBy(() -> actions.previewOperation(allowed, new OperationRequest(id, complete), "complete_task")).isInstanceOf(IllegalArgumentException.class);
+        tasks.updateCurrentUserContribution(company, recipient[0], id, Map.of("status", "ready"));
+        var ready = actions.previewOperation(allowed, new OperationRequest(id, complete), "complete_task");
+        // Preview must not implicitly mark the lead ready.
+        assertThat(jdbc.queryForObject("SELECT contribution_status FROM process_task_assignees WHERE company_id=? AND task_id=? AND user_company_id=? AND removed_at IS NULL", String.class, company, id, actor[1])).isEqualTo("pending");
+        tasks.updateCurrentUserContribution(company, recipient[0], id, Map.of("status", "working"));
+        var nested = new TransactionTemplate(transactions);
+        nested.setPropagationBehavior(TransactionDefinition.PROPAGATION_NESTED);
+        assertThatThrownBy(() -> nested.execute(status -> actions.commitOperation(allowed,
+            new CommitRequest(ready.confirmationToken(), UUID.randomUUID().toString()), "complete_task")))
+            .isInstanceOf(ProcessTaskAssistantService.TaskChangedException.class);
+        assertThat(tasks.getTask(company, id)).containsEntry("status", "pending");
+        jdbc.update("UPDATE process_tasks SET evidence_required=TRUE WHERE company_id=? AND id=?", company, id);
+        assertThatThrownBy(() -> actions.previewOperation(allowed, new OperationRequest(id, complete), "complete_task")).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void editsOnlyRequestedFieldsAndPreservesOtherCollaborators() {
         var teammate = person(company, "Synthetic teammate");
         var row = tasks.createTask(company, actor[0], Map.of("status", "pending", "title", "Original title", "description", "Keep description",
@@ -201,6 +262,60 @@ class AiTaskDelegationIntegrationTest {
     }
 
     @Test
+    void explicitOrganizationRequiresConsentAndPersistsOnlyConfirmedDestination() {
+        jdbc.update("INSERT INTO units (company_id,name,status) VALUES (?, 'Destination unit', 'active')", company);
+        long unit = jdbc.queryForObject("SELECT id FROM units WHERE company_id=?", Long.class, company);
+        jdbc.update("INSERT INTO businesses (company_id,unit_id,name,status) VALUES (?,?,'Destination business','active')", company, unit);
+        long business = jdbc.queryForObject("SELECT id FROM businesses WHERE company_id=?", Long.class, company);
+        var request = new PreviewRequest("Scoped task", null, null, null, recipient[1], unit, business);
+        assertThatThrownBy(() -> actions.preview(token, request)).isInstanceOf(SecurityException.class);
+        var scopes = new java.util.HashSet<>(token.scopes()); scopes.add("tasks.organize");
+        var permitted = new StoredToken(token.id(), token.user(), Set.copyOf(scopes));
+        var preview = actions.preview(permitted, request);
+        assertThat(preview.task().unitName()).isEqualTo("Destination unit");
+        var confirmation = confirmations.findConfirmation(hashToken(preview.confirmationToken())).orElseThrow();
+        assertThat(jdbc.queryForObject("SELECT tool_name FROM ai_action_confirmations WHERE id=?", String.class, confirmation.id())).isEqualTo("create_task_v3");
+        var result = actions.commit(permitted, new CommitRequest(preview.confirmationToken(), UUID.randomUUID().toString()));
+        assertThat(tasks.getTask(company, result.task().id())).containsEntry("unitId", unit).containsEntry("businessId", business);
+    }
+
+    @Test
+    void organizationEditsKeepUnrequestedFieldsAndRejectForeignAndMismatchedReferences() {
+        long id = ownTask();
+        jdbc.update("INSERT INTO units (company_id,name,status) VALUES (?, 'Destination unit', 'active')", company);
+        long unit = jdbc.queryForObject("SELECT id FROM units WHERE company_id=?", Long.class, company);
+        jdbc.update("INSERT INTO businesses (company_id,unit_id,name,status) VALUES (?,?,'Destination business','active')", company, unit);
+        long business = jdbc.queryForObject("SELECT id FROM businesses WHERE company_id=?", Long.class, company);
+        var scopes = new java.util.HashSet<>(token.scopes()); scopes.add("tasks.organize");
+        var permitted = new StoredToken(token.id(), token.user(), Set.copyOf(scopes));
+        var change = new UpdateRequest(id, null, null, null, null, null, null, null, null, unit, business, null);
+        assertThatThrownBy(() -> actions.previewUpdate(token, change)).isInstanceOf(SecurityException.class);
+        var preview = actions.previewUpdate(permitted, change);
+        assertThat(preview.task().changedFields()).containsExactly("unitId", "businessId");
+        var original = tasks.getTask(company, id);
+        var commit = new CommitRequest(preview.confirmationToken(), UUID.randomUUID().toString());
+        actions.commitUpdate(permitted, commit);
+        assertThat(tasks.getTask(company, id)).containsEntry("title", original.get("title"))
+            .containsEntry("assignedUserCompanyId", actor[1]).containsEntry("unitId", unit).containsEntry("businessId", business);
+        assertThat(actions.commitUpdate(permitted, commit).replayed()).isTrue();
+        long foreign = company();
+        jdbc.update("INSERT INTO units (company_id,name,status) VALUES (?, 'Private unit', 'active')", foreign);
+        long foreignUnit = jdbc.queryForObject("SELECT id FROM units WHERE company_id=?", Long.class, foreign);
+        assertThatThrownBy(() -> actions.previewUpdate(permitted,
+            new UpdateRequest(id, null, null, null, null, null, null, null, null, foreignUnit, null, true)))
+            .isInstanceOf(java.util.NoSuchElementException.class);
+        assertThatThrownBy(() -> actions.previewUpdate(permitted,
+            new UpdateRequest(id, null, null, null, null, null, null, null, null, foreignUnit, business, null)))
+            .isInstanceOf(IllegalArgumentException.class);
+        assertThat(owner.organization(company, actor[0])).noneMatch(item -> item.id() == foreignUnit && item.referenceType().equals("UNIT"));
+    }
+
+    private String hashToken(String raw) {
+        try { return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(raw.getBytes(java.nio.charset.StandardCharsets.UTF_8))); }
+        catch (Exception error) { throw new IllegalStateException(error); }
+    }
+
+    @Test
     void commitRevalidatesRecipientAndTenantBoundTaskIds() {
         var preview = actions.preview(token, new PreviewRequest("Test", null, null, null, recipient[1]));
         jdbc.update("UPDATE user_companies SET status='inactive' WHERE company_id=? AND id=?", company, recipient[1]);
@@ -232,6 +347,32 @@ class AiTaskDelegationIntegrationTest {
         assertThat(actions.commitUpdate(token, request).task().title()).isEqualTo(title);
         assertThat(actions.commitUpdate(token, request).task().title()).isEqualTo(title);
         assertThat(tasks.getTask(company, id)).containsEntry("title", title).containsEntry("description", description);
+    }
+
+    @Test void dependenciesUseTheOwnerRejectCyclesAndInvalidateStaleApprovals() {
+        jdbc.update("INSERT INTO projects(company_id,folio,name,created_by) VALUES(?,'SYNTHETIC-PROJECT','Synthetic project',?)",company,actor[0]);
+        long project=jdbc.queryForObject("SELECT id FROM projects WHERE company_id=?",Long.class,company);
+        long first=ownTask(),second=ownTask(),third=ownTask();
+        jdbc.update("UPDATE process_tasks SET project_id=? WHERE company_id=?",project,company);
+        var scopes=new java.util.HashSet<>(token.scopes());scopes.add("tasks.operate");
+        var permitted=new StoredToken(token.id(),token.user(),Set.copyOf(scopes));
+        var operation=new com.indice.erp.processTasks.tasks.ProcessTaskOperation("update_task_dependency",null,null,null,null,null,null,null,null,null,null,null,null,first,2);
+        var preview=actions.previewOperation(permitted,new OperationRequest(second,operation),"update_task_dependency");
+        assertThat(count("process_task_dependencies")).isZero();
+        var commit=new CommitRequest(preview.confirmationToken(),UUID.randomUUID().toString());
+        actions.commitOperation(permitted,commit,"update_task_dependency");
+        assertThat(actions.commitOperation(permitted,commit,"update_task_dependency").replayed()).isTrue();
+        assertThat(tasks.getTask(company,second)).containsEntry("predecessorTaskId",first).containsEntry("dependencyLagDays",2);
+        var cycle=new com.indice.erp.processTasks.tasks.ProcessTaskOperation("update_task_dependency",null,null,null,null,null,null,null,null,null,null,null,null,second,0);
+        assertThatThrownBy(()->actions.previewOperation(permitted,new OperationRequest(first,cycle),"update_task_dependency")).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("cycle");
+        var stale=actions.previewOperation(permitted,new OperationRequest(third,operation),"update_task_dependency");
+        tasks.updateTaskDependencies(company,actor[0],third,Map.of("predecessorTaskId",second,"lagDays",0));
+        var nested=new TransactionTemplate(transactions);nested.setPropagationBehavior(TransactionDefinition.PROPAGATION_NESTED);
+        assertThatThrownBy(()->nested.execute(status->actions.commitOperation(permitted,new CommitRequest(stale.confirmationToken(),UUID.randomUUID().toString()),"update_task_dependency"))).isInstanceOf(ProcessTaskAssistantService.TaskChangedException.class);
+        var clear=new com.indice.erp.processTasks.tasks.ProcessTaskOperation("update_task_dependency",null,null,null,null,null,null,null,null,null,null,null,null,null,0);
+        var remove=actions.previewOperation(permitted,new OperationRequest(second,clear),"update_task_dependency");
+        actions.commitOperation(permitted,new CommitRequest(remove.confirmationToken(),UUID.randomUUID().toString()),"update_task_dependency");
+        assertThat(tasks.getTask(company,second).get("predecessorTaskId")).isNull();
     }
 
     private void workProfile(long[] person, long unit, long business) {

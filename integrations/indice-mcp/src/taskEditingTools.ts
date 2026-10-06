@@ -24,7 +24,10 @@ export function registerTaskEditingTools(server: McpServer, reader: TaskEditor, 
       assignee_user_company_id: z.number().int().positive().optional()
         .describe("userCompanyId obtenido de search_task_assignees; requiere tasks.delegate."),
       clear_description: z.boolean().optional().describe("true sólo si se pidió eliminar la descripción."),
-      clear_due_date: z.boolean().optional().describe("true sólo si se pidió quitar el vencimiento.")
+      clear_due_date: z.boolean().optional().describe("true sólo si se pidió quitar el vencimiento."),
+      unit_id: z.number().int().positive().optional().describe("Unidad autorizada; requiere tasks.organize."),
+      business_id: z.number().int().positive().optional().describe("Negocio autorizado que pertenece a la unidad; requiere tasks.organize."),
+      clear_business: z.boolean().optional().describe("Quitar el negocio específico y mantener alcance de unidad; requiere tasks.organize.")
     }).strict(),
     outputSchema: taskPreviewResponseSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
@@ -34,14 +37,17 @@ export function registerTaskEditingTools(server: McpServer, reader: TaskEditor, 
       const result = taskPreviewResponseSchema.parse(await reader.previewUpdateTask({
         taskId: input.task_id, title: input.title, description: input.description, priority: input.priority,
         dueDate: input.due_date, status: input.status, assigneeUserCompanyId: input.assignee_user_company_id,
-        clearDescription: input.clear_description, clearDueDate: input.clear_due_date
+        clearDescription: input.clear_description, clearDueDate: input.clear_due_date,
+        unitId: input.unit_id, businessId: input.business_id, clearBusiness: input.clear_business
       }));
       const fields = result.task.changedFields ?? [];
       const labels: Record<string, string> = { title: "Título", description: "Descripción", priority: "Prioridad",
-        dueDate: "Vencimiento", status: "Estado", assignedUserCompanyId: "Responsable" };
+        dueDate: "Vencimiento", status: "Estado", assignedUserCompanyId: "Responsable", unitId: "Unidad", businessId: "Negocio" };
       const values = (draft: typeof result.task | null | undefined, field: string): unknown => {
         if (!draft) return null;
         if (field === "assignedUserCompanyId") return draft.assignee;
+        if (field === "unitId") return draft.unitName ?? draft.unitId;
+        if (field === "businessId") return draft.businessName ?? draft.businessId;
         return (draft as unknown as Record<string, unknown>)[field];
       };
       const lines = fields.map(field => `${labels[field] ?? field}: ${values(result.before, field) ?? "—"} → ${values(result.task, field) ?? "—"}`);

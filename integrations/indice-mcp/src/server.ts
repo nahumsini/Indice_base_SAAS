@@ -2,13 +2,14 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { loadConfig } from "./config.js";
 import { IndiceClient } from "./indiceClient.js";
+import { createChatGptFileDownloader } from "./chatGptFiles.js";
 import { createIndiceMcpServer } from "./mcpServer.js";
 import { createIndiceHttpApp } from "./httpApp.js";
 
 async function main(): Promise<void> {
   const config = loadConfig();
   if (config.transport === "stdio") {
-    await createIndiceMcpServer(new IndiceClient(config)).connect(new StdioServerTransport());
+    await createIndiceMcpServer(new IndiceClient(config),undefined,createChatGptFileDownloader(config.chatGptFileHosts ?? [])).connect(new StdioServerTransport());
     console.error("Indice MCP is ready on stdio.");
     return;
   }
