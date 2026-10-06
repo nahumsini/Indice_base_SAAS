@@ -170,6 +170,11 @@ La validación del backend comienza con `mvnw clean test`; esta limpieza es obli
 recurso Flyway renombrado en una integración no permanezca en `target/classes` simulando una versión
 duplicada que ya no existe en el árbol fuente.
 
+La integración posterior al esquema publicado V289 conserva las identidades/checksums V288/V289
+y agrega V291, V292 y V293. Ejecuta también el ensayo de actualización aislado definido en la
+[decisión de linaje](../docs/decisions/2026-10-05-released-migration-lineage.md). No uses `repair`,
+no renumeres el historial y no consideres que un arranque desde cero certifica ese upgrade.
+
 `--example` permite los valores inseguros documentales de `.env.example`; nunca
 debe usarse como autorización para desplegar esos valores en producción.
 

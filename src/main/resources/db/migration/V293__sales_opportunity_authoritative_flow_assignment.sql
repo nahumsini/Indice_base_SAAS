@@ -1,3 +1,4 @@
+-- Forward-only integration after the released platform lead V288/V289 lineage.
 ALTER TABLE `sales_opportunity_flows`
   ADD UNIQUE KEY `uk_sales_opportunity_flows_company_id` (`company_id`, `id`);
 

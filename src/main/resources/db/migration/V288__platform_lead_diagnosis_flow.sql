@@ -1,3 +1,4 @@
+-- Platform lead diagnosis flow; follows production schema V287.
 CREATE TABLE platform_leads (
     id BIGINT NOT NULL AUTO_INCREMENT,
     submission_id CHAR(36) NOT NULL,
