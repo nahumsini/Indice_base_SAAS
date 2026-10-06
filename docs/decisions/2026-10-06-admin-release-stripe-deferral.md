@@ -17,8 +17,8 @@ It does not create a general exception for exposed secrets.
   during the recorded read-only check. The historical LIVE secret is expired.
 - Owner: product/release owner coordinates revocation with the Stripe account owner.
 - Status: unresolved; not PASS and not a security certification.
-- Due: before any Stripe/billing activation or commercial-model implementation.
-  This exception expires on 2026-10-07 UTC or at the start of that work, whichever
+- Due: before any Stripe/billing activation or production release changing billing authority.
+  This exception expires on 2026-10-07 UTC or at the start of that activation/release, whichever
   occurs first; further releases require a fresh decision or remediation.
 
 Fingerprint-only inspection found the historical TEST secret was not used by

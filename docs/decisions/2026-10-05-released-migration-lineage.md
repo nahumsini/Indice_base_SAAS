@@ -42,3 +42,16 @@ environment preflight, immutable artifacts/scans and target smoke/UAT are requir
 non-null flow requirement; the prior backend may validate future migrations but still cannot create
 opportunities without a flow. Therefore old-image rollback must be proved behaviorally, or use an
 explicitly tested compatible recovery artifact. Never reverse the migration or erase business data.
+
+## Pre-activation preservation correction — 2026-10-06
+
+Both targets still reported V289; V293 had not been activated on either target.
+The isolated APPTEST backup/restore rehearsal found that its opportunity backfill
+implicitly advanced `sales_opportunities.updated_at` through MySQL's `ON UPDATE`
+clause. A deterministic upgrade regression with historical creation/update times
+reproduced the mismatch. The **unreleased** V293 now explicitly retains the prior
+`updated_at` while assigning the default flow. No released migration is edited,
+no target history/checksum is repaired, and no operational timestamp is rewritten
+after the fact. Existing opportunity columns, lead events and existing positions
+must remain identical through upgrade; only the new assignment and additive
+missing-position backfill are authorized. Recovery sources carry identical SQL.

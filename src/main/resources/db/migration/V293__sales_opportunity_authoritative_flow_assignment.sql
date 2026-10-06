@@ -17,7 +17,10 @@ JOIN (
   GROUP BY flow.company_id
 ) selected_flow
   ON selected_flow.company_id = opportunity.company_id
-SET opportunity.assigned_flow_id = selected_flow.flow_id
+-- This is a schema backfill, not a commercial edit. Preserve the original
+-- timestamp explicitly against MySQL's ON UPDATE CURRENT_TIMESTAMP behavior.
+SET opportunity.assigned_flow_id = selected_flow.flow_id,
+    opportunity.updated_at = opportunity.updated_at
 WHERE opportunity.assigned_flow_id IS NULL;
 
 INSERT INTO `sales_opportunity_flow_positions`

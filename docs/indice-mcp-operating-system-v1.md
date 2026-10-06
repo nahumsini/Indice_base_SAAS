@@ -245,6 +245,12 @@ through the reverse proxy and preserves the Authorization header. The public rou
 bounded JSON body, rate limiting and no-store responses. Readiness must distinguish MCP process
 liveness from backend authorization-service availability.
 
+The runtime does not enable Express forwarded-IP trust. Authorization continues
+to derive from the delegated bearer and current backend grants, never a forwarded
+client address. The transitive `proxy-addr` package is pinned to patched `2.0.8`
+for CVE-2026-90711; its mapped-IPv6 trust and unchanged no-proxy-trust behavior
+have regressions. This dependency correction changes no tools, scopes or action protocol.
+
 ### 7.1 Conversation continuity and bounded recovery
 
 HTTP remains stateless: a new SDK server/transport processes each request. Conversation continuity

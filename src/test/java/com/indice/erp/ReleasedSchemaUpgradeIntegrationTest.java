@@ -52,6 +52,9 @@ class ReleasedSchemaUpgradeIntegrationTest {
                     + "(company_id, opportunity_code, opportunity_name, lifecycle_status) VALUES (?, ?, 'Upgrade', ?)",
                     company, status, status);
         }
+        jdbc.update("UPDATE sales_opportunities SET created_at='2024-11-12 02:03:04', "
+                + "updated_at='2025-01-02 03:04:05' WHERE company_id=?", company);
+        var opportunitiesBefore = jdbc.queryForList("SELECT * FROM sales_opportunities WHERE company_id=? ORDER BY id", company);
         long open = jdbc.queryForObject("SELECT id FROM sales_opportunities WHERE company_id=? "
                 + "AND lifecycle_status='OPEN'", Long.class, company);
         long proposal = jdbc.queryForObject("SELECT id FROM sales_opportunity_flow_stages "
@@ -79,6 +82,9 @@ class ReleasedSchemaUpgradeIntegrationTest {
                 + "ORDER BY installed_rank", lastRank)).isEqualTo(history);
         assertThat(jdbc.queryForList("SELECT * FROM platform_leads WHERE id=?", lead)).isEqualTo(leadBefore);
         assertThat(jdbc.queryForList("SELECT * FROM platform_lead_events WHERE lead_id=?", lead)).isEqualTo(eventsBefore);
+        var opportunitiesAfter = jdbc.queryForList("SELECT * FROM sales_opportunities WHERE company_id=? ORDER BY id", company);
+        opportunitiesAfter.forEach(row -> row.remove("assigned_flow_id"));
+        assertThat(opportunitiesAfter).isEqualTo(opportunitiesBefore);
         assertThat(jdbc.queryForList("SELECT * FROM sales_opportunity_flow_positions WHERE opportunity_id=?", open))
                 .isEqualTo(position);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM sales_opportunities "
