@@ -1,10 +1,29 @@
 # Flujo de prospectos y diagnóstico empresarial (2026-10-04)
 
-La decisión comercial vigente para la web pública es un solo CTA: **solicitar un diagnóstico
+La decisión comercial vigente para México es un solo CTA: **solicitar un diagnóstico
 empresarial inicial sin costo**. Índice contacta personalmente al interesado. La comunicación
 se centra en Lupita, sus capacidades especializadas para operar módulos desde herramientas de
 IA compatibles, consultores, automatización empresarial y kioscos; no promete automatización
 autónoma sin revisión ni una prueba inmediata.
+
+## Extensión de mercado: Canadá (decisión del 2026-10-04)
+
+México sigue siendo el mercado principal con diagnóstico, implementación y consultoría.
+Canadá es un mercado adicional para adquisición en Toronto, con suscripción autoservicio
+sin consultoría mensual ni implementación obligatoria. El catálogo web canadiense aprobado
+es Controla $199, Escala $369 y Corporativo $649 CAD/mes, 20 % de ahorro anual y un
+bloque extra de 10 personas por $75 CAD/mes. País de oferta e idioma se seleccionan por
+separado; la ubicación solo propone un mercado inicial. Los módulos y especialistas por
+plan conservan el alcance público mexicano, sujeto a permisos reales.
+
+La landing `/canada.php` y `planes.php?market=CA` están preparadas localmente para esa
+oferta. Su formulario actual envía un lead consentido al mismo administrador de
+plataforma; **no crea una cuenta ni activa la prueba**. El registro público vigente del
+SaaS utiliza un checkout Stripe en USD, mientras que el endpoint interno de prueba de
+15 días está deshabilitado por defecto y no constituye un registro público seguro.
+No lanzar pauta que prometa activación autoservicio hasta implementar y verificar el
+registro canadiense y el cobro CAD bajo un contrato aprobado. No reutilizar el checkout
+USD como si correspondiera a estos precios CAD.
 
 ## Recorrido y autoridad
 

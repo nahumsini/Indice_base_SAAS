@@ -1,0 +1,111 @@
+<div id="indice-canada-preview" aria-label="Propuesta de página canadiense de Índice">
+  <style>
+    #indice-canada-preview{--ic-ink:light-dark(#172b50,#edf3ff);--ic-sub:light-dark(#596a83,#b9c7dd);--ic-bg:light-dark(#fff,#111b2d);--ic-soft:light-dark(#eef4ff,#172842);--ic-blue:light-dark(#2863ed,#80a4ff);--ic-blue-ink:light-dark(#fff,#101a31);--ic-line:light-dark(#dce5f3,#30415e);--ic-card:light-dark(#fff,#192840);color:var(--ic-ink);background:var(--ic-bg);font-family:Inter,Arial,sans-serif;overflow:hidden;border:1px solid var(--ic-line);border-radius:16px}
+    #indice-canada-preview *{box-sizing:border-box}
+    #indice-canada-preview header,#indice-canada-preview section,#indice-canada-preview footer{padding-left:clamp(20px,4vw,48px);padding-right:clamp(20px,4vw,48px)}
+    #indice-canada-preview header{display:flex;justify-content:space-between;align-items:center;gap:22px;min-height:74px;border-bottom:1px solid var(--ic-line)}
+    #indice-canada-preview .ic-logo{display:flex;align-items:end;gap:3px;color:var(--ic-blue);font-size:23px;font-weight:500;letter-spacing:-1px;white-space:nowrap}
+    #indice-canada-preview .ic-bar{width:6px;border-radius:4px 4px 1px 1px;display:inline-block;margin-bottom:3px}
+    #indice-canada-preview .ic-bar:nth-child(1){height:10px;background:#ff645d}#indice-canada-preview .ic-bar:nth-child(2){height:16px;background:#ffc83d}#indice-canada-preview .ic-bar:nth-child(3){height:22px;background:#27b8a8}#indice-canada-preview .ic-bar:nth-child(4){height:29px;background:#2863ed;margin-right:3px}
+    #indice-canada-preview nav{display:flex;gap:20px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+    #indice-canada-preview nav a{color:var(--ic-ink);text-decoration:none;font-size:13px}
+    #indice-canada-preview .ic-pill{border:1px solid var(--ic-line);border-radius:99px;padding:9px 12px;font-size:12px;white-space:nowrap}
+    #indice-canada-preview .ic-btn{display:inline-flex;align-items:center;justify-content:center;background:var(--ic-blue);color:var(--ic-blue-ink);text-decoration:none;border-radius:10px;padding:12px 18px;font-size:13px;font-weight:500;min-height:42px}
+    #indice-canada-preview .ic-btn-light{background:transparent;color:var(--ic-blue);border:1px solid var(--ic-blue)}
+    #indice-canada-preview .ic-hero{background:linear-gradient(120deg,var(--ic-soft),var(--ic-bg));padding-top:56px;padding-bottom:58px;display:grid;grid-template-columns:minmax(0,1.12fr) minmax(270px,.88fr);gap:38px;align-items:center}
+    #indice-canada-preview .ic-eyebrow{color:var(--ic-blue);font-size:12px;font-weight:500;letter-spacing:2px;text-transform:uppercase;margin:0 0 18px}
+    #indice-canada-preview h1{font-size:clamp(31px,4vw,49px);line-height:1.1;letter-spacing:-1.8px;font-weight:500;max-width:600px;margin:0 0 18px}
+    #indice-canada-preview .ic-lead{color:var(--ic-sub);font-size:16px;line-height:1.6;max-width:510px;margin:0 0 22px}
+    #indice-canada-preview .ic-actions{display:flex;gap:10px;flex-wrap:wrap}
+    #indice-canada-preview .ic-small{font-size:12px;color:var(--ic-sub);margin:15px 0 0;line-height:1.5}
+    #indice-canada-preview .ic-chat{background:var(--ic-card);border:1px solid var(--ic-line);border-radius:18px;box-shadow:0 20px 50px light-dark(#2854a017,#0004);padding:18px;max-width:390px;width:100%;justify-self:center}
+    #indice-canada-preview .ic-chat-top{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--ic-line);padding-bottom:14px;margin-bottom:20px;font-size:13px}
+    #indice-canada-preview .ic-avatar{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--ic-blue);color:var(--ic-blue-ink);font-weight:500}
+    #indice-canada-preview .ic-chat-top span:last-child{color:var(--ic-sub);margin-left:auto;font-size:11px}
+    #indice-canada-preview .ic-message{max-width:85%;padding:11px 13px;border-radius:12px;font-size:13px;line-height:1.4;margin:12px 0}
+    #indice-canada-preview .ic-message-user{background:var(--ic-soft);margin-left:auto}
+    #indice-canada-preview .ic-message-agent{background:light-dark(#e9f6f3,#1d403c)}
+    #indice-canada-preview .ic-chat-tail{border-top:1px solid var(--ic-line);padding-top:14px;margin-top:18px;color:var(--ic-sub);font-size:11px}
+    #indice-canada-preview .ic-section{padding-top:47px;padding-bottom:49px}
+    #indice-canada-preview .ic-section h2{font-size:27px;letter-spacing:-.6px;font-weight:500;margin:0 0 8px}
+    #indice-canada-preview .ic-section>p{color:var(--ic-sub);font-size:14px;margin:0 0 24px;line-height:1.5}
+    #indice-canada-preview .ic-steps,#indice-canada-preview .ic-plans{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+    #indice-canada-preview .ic-step{border-top:2px solid var(--ic-blue);padding-top:14px}
+    #indice-canada-preview .ic-step b{display:block;color:var(--ic-blue);font-size:12px;margin-bottom:14px;font-weight:500}
+    #indice-canada-preview h3{font-size:17px;font-weight:500;margin:0 0 8px}
+    #indice-canada-preview .ic-step p,#indice-canada-preview .ic-plan p{font-size:13px;color:var(--ic-sub);line-height:1.5;margin:0}
+    #indice-canada-preview .ic-alt{background:var(--ic-soft)}
+    #indice-canada-preview .ic-plan{background:var(--ic-card);border:1px solid var(--ic-line);border-radius:14px;padding:21px;min-height:145px}
+    #indice-canada-preview .ic-plan-featured{border:2px solid var(--ic-blue)}
+    #indice-canada-preview .ic-plan-tag{font-size:11px;color:var(--ic-blue);font-weight:500;display:block;margin-top:16px}
+    #indice-canada-preview .ic-trial{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center}
+    #indice-canada-preview .ic-trial p{margin:6px 0 0;color:var(--ic-sub);font-size:13px;line-height:1.5}
+    #indice-canada-preview footer{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;border-top:1px solid var(--ic-line);padding-top:21px;padding-bottom:22px;font-size:12px;color:var(--ic-sub)}
+    @media(max-width:720px){#indice-canada-preview nav a:not(.ic-btn){display:none}#indice-canada-preview header{min-height:66px}#indice-canada-preview .ic-hero{grid-template-columns:1fr;padding-top:40px;gap:25px}#indice-canada-preview .ic-chat{max-width:none}#indice-canada-preview .ic-steps,#indice-canada-preview .ic-plans{grid-template-columns:1fr}#indice-canada-preview .ic-trial{grid-template-columns:1fr}}
+    @media(max-width:420px){#indice-canada-preview .ic-pill{display:none}#indice-canada-preview header .ic-btn{padding:10px}#indice-canada-preview .ic-logo{font-size:20px}}
+  </style>
+  <header>
+    <div class="ic-logo" aria-label="Índice"><i class="ic-bar"></i><i class="ic-bar"></i><i class="ic-bar"></i><i class="ic-bar"></i>Índice</div>
+    <nav aria-label="Main navigation"><a href="#ic-how">How it works</a><a href="#ic-plans">Plans</a><span class="ic-pill">🇨🇦 Canada · English</span><a class="ic-btn" href="#ic-start">Start free trial</a></nav>
+  </header>
+  <section class="ic-hero">
+    <div>
+      <p class="ic-eyebrow">Lupita + AI agents · Canada</p>
+      <h1 id="ic-headline">Run your business with Lupita and your AI agents.</h1>
+      <p class="ic-lead" id="ic-subhead">Keep people, tasks, sales and finances connected. Your team works in Índice; Lupita helps you move work forward through the modules you choose.</p>
+      <div class="ic-actions"><a class="ic-btn" href="#ic-start">Start your 15-day trial →</a><a class="ic-btn ic-btn-light" href="#ic-plans">Explore plans</a></div>
+      <p class="ic-small">Self-service subscription · Plan prices in CAD · No monthly consulting included</p>
+    </div>
+    <div class="ic-chat" aria-label="Illustrative interaction with Lupita">
+      <div class="ic-chat-top"><span class="ic-avatar">L</span><strong>Lupita</strong><span>Illustrative example</span></div>
+      <div class="ic-message ic-message-user">What needs attention today?</div>
+      <div class="ic-message ic-message-agent">Let's review your open tasks and priorities in Índice.</div>
+      <div class="ic-chat-tail">You review and authorize actions in your workspace.</div>
+    </div>
+  </section>
+  <section class="ic-section" id="ic-how">
+    <h2>Get started on your own terms</h2>
+    <p>A simple path from first visit to daily use.</p>
+    <div class="ic-steps">
+      <div class="ic-step"><b>01</b><h3>Create your workspace</h3><p>Share your business details so we can set up your account and know how to reach you.</p></div>
+      <div class="ic-step"><b>02</b><h3>Try Índice for 15 days</h3><p>Explore Lupita and the modules and agents available in your trial.</p></div>
+      <div class="ic-step"><b>03</b><h3>Choose a subscription</h3><p>Continue with the plan that fits your operation. Optional assistance is available separately.</p></div>
+    </div>
+  </section>
+  <section class="ic-section ic-alt" id="ic-plans">
+    <h2>Choose the right scope</h2>
+    <p>Three subscription levels. Lupita and authorized agents work within each plan's modules.</p>
+    <div class="ic-plans">
+      <div class="ic-plan"><h3>Controla</h3><p>People, tasks and processes. Lupita + Controla agent.</p><span class="ic-plan-tag">Subscription · CAD</span></div>
+      <div class="ic-plan ic-plan-featured"><h3>Escala</h3><p>Add operations, inventory and a sales channel. Lupita + Controla, Escala and Finance agents.</p><span class="ic-plan-tag">Subscription · CAD</span></div>
+      <div class="ic-plan"><h3>Corporativo</h3><p>Full operational scope, receivables and executive visibility. Adds the Corporativo agent.</p><span class="ic-plan-tag">Subscription · CAD</span></div>
+    </div>
+  </section>
+  <section class="ic-section ic-trial" id="ic-start">
+    <div><h2>See what Lupita can do with your team.</h2><p>Create your account, leave your contact details, and begin your 15-day trial.</p></div>
+    <a class="ic-btn" href="#ic-start">Start free trial →</a>
+  </section>
+  <footer><span>Índice · Canada</span><span>Privacy · Terms · Log in</span></footer>
+  <script>
+    (function(){
+      var root=document.getElementById('indice-canada-preview');
+      var state={message:'lupita'};
+      function render(){
+        var headline=root.querySelector('#ic-headline');
+        var subhead=root.querySelector('#ic-subhead');
+        if(state.message==='outcome'){
+          headline.textContent='Less busywork. More control over your business.';
+          subhead.textContent='Put your people, tasks, sales and finances in one place. Lupita and specialized AI agents help your team stay on top of the work.';
+        }else{
+          headline.textContent='Run your business with Lupita and your AI agents.';
+          subhead.textContent='Keep people, tasks, sales and finances connected. Your team works in Índice; Lupita helps you move work forward through the modules you choose.';
+        }
+      }
+      render();
+      if(globalThis.Tweak){
+        var tweak=new Tweak({container:root,onChange:render});
+        tweak.addSelect(state,'message',{label:'Hero message',options:[{label:'Lupita first',value:'lupita'},{label:'Business outcome first',value:'outcome'}]});
+      }
+    })();
+  </script>
+</div>
