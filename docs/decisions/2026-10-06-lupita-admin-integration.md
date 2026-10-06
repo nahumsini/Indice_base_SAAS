@@ -67,3 +67,13 @@ No new production deployment is recorded or certified by this decision.
 Existing frontend chunk-size, Java deprecated/unchecked API and Node TypeScript
 stripping warnings remain. No functional local, APPTEST or production data is used
 by these tests.
+
+## Subsequent release preparation
+
+The application source was pushed to main as `d89c09d39f45`; its exact CI passed.
+Fresh protected-target preflights, four immutable image scans/SBOMs, private restored-data
+V299 candidate/recovery rehearsals and both deployment dry runs subsequently passed.
+The obsolete merge CI referenced above was cancelled and is not release evidence.
+[The current readiness report](../validation/2026-10-06-lupita-admin-release-readiness.md)
+records the exact artifacts and results, plus the unresolved public MCP traffic-protection
+gate and real authenticated acceptance. No new APPTEST or production activation occurred.
