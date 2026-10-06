@@ -58,7 +58,11 @@ No new production deployment is recorded or certified by this decision.
   generation check passed. No VPS activation was executed.
 - Production-dependency npm audits for React and MCP: zero reported vulnerabilities;
   staged integration secret scan: zero findings. Image/backend SCA remains separate.
-- Full backend suite and exact-commit merged CI still require their own results.
+- Full backend suite: 3,190 tests, zero failures/errors, one skipped opt-in upgrade
+  (that upgrade was separately executed successfully above). Java compilation passed.
+- Merged CI was started for code commit `7ae778497bc2410424582151d6cd04584034dcd8`:
+  [GitHub Actions](https://github.com/nahumsini/Indice_base_SAAS/actions/runs/37501208324).
+  Its final verdict and all image/APPTEST release gates remain pending.
 
 Existing frontend chunk-size, Java deprecated/unchecked API and Node TypeScript
 stripping warnings remain. No functional local, APPTEST or production data is used
