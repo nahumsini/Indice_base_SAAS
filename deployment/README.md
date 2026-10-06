@@ -560,6 +560,17 @@ environment's live configuration. Preflight and CI run the synthetic command-lev
 under `deployment/tests/host-network-recovery.test.mjs`; it does not replace real restored-data,
 schema-compatible recovery-image, authenticated UAT or canary verification.
 
+When a forward-only migration makes the original backend incompatible, set
+`DEPLOY_BACKEND_RECOVERY_IMAGE` to the immutable backend image rehearsed against
+an upgraded isolated restore. The wrapper validates and creates that stopped
+container with the selected target's runtime configuration before replacing the
+backend. Failed activation starts the compatible container and checks its health;
+successful activation retains it as `BACKEND_CONTAINER-rollback`. The incompatible
+original remains stopped with a unique `-pre-upgrade` suffix and must not be
+started against the upgraded database. An unhealthy compatible recovery is an
+operator incident, not a reason to fall back to incompatible code. The ordinary
+no-schema-change path still restores and retains the exact original containers.
+
 The deployment refuses to start when less than 10 GiB is free. Override the threshold only after an operator reviews `df -h` and `docker system df`; do not delete database or MinIO volumes to free space.
 
 Before the real execution, run the same production command once with

@@ -157,7 +157,7 @@ export function IndiceWorkspaceNavigation<TabId extends string>({
         return (
           <Fragment key={item.id}>
           {item.group && item.group !== items[index - 1]?.group ? (
-            <span role="presentation" className="self-center px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            <span role="presentation" className="self-center px-2 text-xs font-medium text-slate-400 dark:text-slate-500">
               {item.group}
             </span>
           ) : null}

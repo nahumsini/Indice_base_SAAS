@@ -23,12 +23,14 @@ const save = () => fs.writeFileSync(statePath, JSON.stringify(state));
 if (command === 'sleep') process.exit(0);
 if (command === 'curl') {
  const url = args.at(-1);
+ const recovered = state.containers['indice-apptest-backend-1']?.generation === 'compatible';
  if ((failure === 'minio-health' && url.includes('/minio/')) ||
-     (failure === 'backend-health' && url.includes(':8182/')) ||
+     (failure === 'backend-health' && url.includes(':8182/') && !recovered) ||
+     (failure === 'recovery-health' && url.includes(':8182/')) ||
      (failure === 'web-health' && url.includes(':8180/'))) process.exit(22);
  process.exit(0);
 }
-if (args[0] === 'image') process.exit(0);
+if (args[0] === 'image') process.exit(args.at(-1).includes('missing') ? 1 : 0);
 if (args[0] === 'volume') { console.log('synthetic-volume'); process.exit(0); }
 if (args[0] === 'inspect' || (args[0] === 'container' && args[1] === 'inspect')) {
  const container = state.containers[args.at(-1)];
@@ -49,13 +51,16 @@ if (args[0] === 'rename') {
  state.containers[args[1]].running = args[0] === 'start';
 } else if (args[0] === 'rm') {
  delete state.containers[args.at(-1)];
-} else if (args[0] === 'run') {
+} else if (args[0] === 'run' || args[0] === 'create') {
  const name = args[args.indexOf('--name') + 1];
- if (failure === 'backend-run' && name.includes('backend')) process.exit(42);
- if (failure === 'signal' && name.includes('backend')) {
+ if (failure === 'recovery-create' && args[0] === 'create') process.exit(42);
+ if (failure === 'backend-run' && name.includes('backend') && args[0] === 'run') process.exit(42);
+ if (failure === 'signal' && name.includes('backend') && args[0] === 'run') {
   process.kill(process.ppid, 'SIGTERM'); process.exit(0);
  }
- state.containers[name] = {generation: 'new', running: true};
+ state.containers[name] = {generation: args[0] === 'create' ? 'compatible' : 'new',
+   running: args[0] === 'run', image: args.at(-1), network: args[args.indexOf('--network') + 1],
+   runtimeEnv: args.includes('--env-file') ? fs.readFileSync(args[args.indexOf('--env-file') + 1], 'utf8') : ''};
 } else if (args[0] !== 'exec' && args[0] !== 'cp') process.exit(99);
 save();
 `;
@@ -157,5 +162,71 @@ test('a shared production/APPTEST Nginx mount blocks activation before any mutat
   for (const name of names) assert.equal(result.containers[name]?.generation, 'old');
   assert.equal(result.containers['indice-erp-web-1'].generation, 'production');
   assert.equal(result.config, originalConfig);
+  assert.deepEqual(result.temporaryFiles, []);
+});
+
+const recoveryOverrides = {DEPLOY_BACKEND_RECOVERY_IMAGE: 'test-backend:compatible-immutable'};
+for (const [failure, status] of [['backend-run', 42], ['backend-health', 22], ['web-health', 22], ['signal', 143]]) {
+  test(`schema-changing failed ${failure} uses the compatible backend, never the pre-upgrade backend`, () => {
+    const result = exercise(failure, recoveryOverrides);
+    assert.equal(result.status, status, result.stderr);
+    const backend = result.containers['indice-apptest-backend-1'];
+    assert.equal(backend.generation, 'compatible');
+    assert.equal(backend.running, true);
+    assert.equal(backend.image, recoveryOverrides.DEPLOY_BACKEND_RECOVERY_IMAGE);
+    assert.equal(backend.network, 'host');
+    assert.match(backend.runtimeEnv, /SERVER_PORT=8182/);
+    assert.match(backend.runtimeEnv, /APP_WEB_PUBLIC_URL=https:\/\/apptest.indiceapp.com/);
+    const originals = Object.entries(result.containers).filter(([name]) => name.endsWith('-pre-upgrade'));
+    assert.equal(originals.length, 1);
+    assert.equal(originals[0][1].generation, 'old');
+    assert.equal(originals[0][1].running, false);
+    for (const name of names.filter(name => !name.includes('backend'))) {
+      assert.equal(result.containers[name].generation, 'old');
+      assert.equal(result.containers[name].running, true);
+    }
+    assert.equal(result.config, originalConfig);
+    assert.deepEqual(result.temporaryFiles, []);
+  });
+}
+
+test('successful schema-changing deployment retains the compatible rollback and stopped original', () => {
+  const result = exercise('', recoveryOverrides);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.containers['indice-apptest-backend-1'].generation, 'new');
+  assert.equal(result.containers['indice-apptest-backend-1-rollback'].generation, 'compatible');
+  assert.equal(result.containers['indice-apptest-backend-1-rollback'].running, false);
+  const originals = Object.entries(result.containers).filter(([name]) => name.endsWith('-pre-upgrade'));
+  assert.equal(originals.length, 1);
+  assert.equal(originals[0][1].running, false);
+  assert.deepEqual(result.temporaryFiles, []);
+});
+
+test('missing compatible image blocks activation before replacing any container', () => {
+  const result = exercise('', {DEPLOY_BACKEND_RECOVERY_IMAGE: 'test-backend:missing-immutable'});
+  assert.equal(result.status, 1);
+  assert.deepEqual(Object.keys(result.containers).sort(), [...names].sort());
+  for (const name of names) assert.equal(result.containers[name].generation, 'old');
+  assert.equal(result.config, originalConfig);
+});
+
+test('failed compatible-container preparation restores MinIO without replacing the old backend', () => {
+  const result = exercise('recovery-create', recoveryOverrides);
+  assert.equal(result.status, 42, result.stderr);
+  assert.deepEqual(Object.keys(result.containers).sort(), [...names].sort());
+  for (const name of names) {
+    assert.equal(result.containers[name].generation, 'old');
+    assert.equal(result.containers[name].running, true);
+  }
+  assert.deepEqual(result.temporaryFiles, []);
+});
+
+test('unhealthy compatible recovery reports incomplete recovery and does not start incompatible code', () => {
+  const result = exercise('recovery-health', recoveryOverrides);
+  assert.equal(result.status, 22, result.stderr);
+  assert.match(result.stderr, /Automatic recovery was incomplete/);
+  assert.equal(result.containers['indice-apptest-backend-1'].generation, 'compatible');
+  const original = Object.entries(result.containers).find(([name]) => name.endsWith('-pre-upgrade'));
+  assert.equal(original[1].running, false);
   assert.deepEqual(result.temporaryFiles, []);
 });

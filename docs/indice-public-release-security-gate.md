@@ -61,6 +61,13 @@ Use these states for every item:
 a known cross-tenant disclosure, authentication bypass, payment integrity issue, unrecoverable data
 loss risk, exposed secret, or actively exploitable critical/high vulnerability.
 
+The explicit owner replacement decision for the 2026-10-06 administrative release
+is narrowly recorded in
+[the Stripe deferral decision](decisions/2026-10-06-admin-release-stripe-deferral.md).
+It leaves the historical TEST-secret finding unresolved, expires as documented,
+and does not waive any other gate or authorize billing activation. It is not a
+general residual-risk waiver or a precedent for future releases.
+
 Evidence should name:
 
 - release commit/image digest;

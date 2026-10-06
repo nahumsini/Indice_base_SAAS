@@ -61,6 +61,9 @@ MCP_CONTAINER="${MCP_CONTAINER:-indice-erp-mcp-1}"
 # the runtime keys loaded above so the file cannot overwrite the release choice.
 WEB_IMAGE="${DEPLOY_WEB_IMAGE:-${WEB_IMAGE:-indice-erp-web:latest}}"
 BACKEND_IMAGE="${DEPLOY_BACKEND_IMAGE:-${BACKEND_IMAGE:-indice-erp-backend:latest}}"
+# Required by the release operator when the original backend is incompatible
+# with the forward-only schema. This image must be rehearsed on an upgraded restore.
+BACKEND_RECOVERY_IMAGE="${DEPLOY_BACKEND_RECOVERY_IMAGE:-}"
 MCP_IMAGE="${DEPLOY_MCP_IMAGE:-${MCP_IMAGE:-indice-erp-mcp:latest}}"
 MINIO_IMAGE="${MINIO_IMAGE:-minio/minio:latest}"
 MINIO_DATA_VOLUME="${MINIO_DATA_VOLUME:-indice-erp_minio-data}"
@@ -131,7 +134,7 @@ require_stable_container() {
   if [[ "${running}" != "true" || "${restarting}" != "false" || "${restart_count}" != "0" ]]; then
     echo "Container ${container} is not a stable deployment candidate " \
       "(running=${running}, restarting=${restarting}, restartCount=${restart_count})." >&2
-    exit 1
+    return 1
   fi
 }
 
@@ -185,6 +188,9 @@ validate_inputs() {
   fi
   require_immutable_image WEB_IMAGE
   require_immutable_image BACKEND_IMAGE
+  if [[ -n "${BACKEND_RECOVERY_IMAGE}" ]]; then
+    require_immutable_image BACKEND_RECOVERY_IMAGE
+  fi
   if [[ "${MCP_ENABLED}" != "true" && "${MCP_ENABLED}" != "false" ]]; then
     echo "MCP_ENABLED must be true or false." >&2
     exit 1
@@ -295,6 +301,8 @@ PREPARED_NGINX_CONFIG=""
 NGINX_CONFIG_BACKUP=""
 NGINX_CONFIG_CHANGED=false
 NGINX_CONFIG_EXISTED=false
+RECOVERY_BACKEND_CONTAINER=""
+RECOVERY_BACKEND_USED=false
 
 candidate_name() {
   printf '%s-%s' "$1" "${DEPLOY_CANDIDATE_SUFFIX}"
@@ -323,6 +331,35 @@ restore_previous_containers() {
     container="${REPLACED_CONTAINERS[index]}"
     candidate="$(candidate_name "${container}")"
     docker rm -f "${container}" >/dev/null 2>&1 || true
+    if [[ "${container}" == "${BACKEND_CONTAINER}" && -n "${RECOVERY_BACKEND_CONTAINER}" ]]; then
+      # Never restart the original backend after a potentially applied schema
+      # upgrade. Retain it stopped for forensics, not as an automatic rollback.
+      if docker container inspect "${candidate}" >/dev/null 2>&1; then
+        if ! docker rename "${candidate}" "${candidate}-pre-upgrade" >/dev/null; then
+          echo "Could not retain the pre-upgrade backend; operator recovery is required." >&2
+          failed=true
+          continue
+        fi
+      fi
+      if docker rename "${RECOVERY_BACKEND_CONTAINER}" "${container}" >/dev/null; then
+        RECOVERY_BACKEND_USED=true
+        if ! docker start "${container}" >/dev/null; then
+          failed=true
+        else
+          sleep "${BACKEND_STARTUP_WAIT_SECONDS:-45}"
+          if ! require_stable_container "${container}" ||
+             ! curl --fail --silent --show-error "http://127.0.0.1:${HOST_BACKEND_PORT}/api/v1/health" >/dev/null ||
+             ! require_stable_container "${container}"; then
+            echo "Compatible backend recovery is unhealthy; operator intervention is required." >&2
+            failed=true
+          fi
+        fi
+      else
+        echo "Could not activate the compatible backend; operator recovery is required." >&2
+        failed=true
+      fi
+      continue
+    fi
     if docker container inspect "${candidate}" >/dev/null 2>&1; then
       if ! docker rename "${candidate}" "${container}" >/dev/null ||
          ! docker start "${container}" >/dev/null; then
@@ -354,6 +391,13 @@ finish_deployment() {
   fi
   [[ -z "${BACKEND_ENV_FILE}" ]] || rm -f "${BACKEND_ENV_FILE}"
   [[ -z "${PREPARED_NGINX_CONFIG}" ]] || rm -f "${PREPARED_NGINX_CONFIG}"
+  if [[ "${DEPLOY_SUCCEEDED}" != "true" && "${RECOVERY_BACKEND_USED}" != "true" && -n "${RECOVERY_BACKEND_CONTAINER}" ]]; then
+    # Before backend replacement this is only an unused, stopped candidate.
+    # Keep it when recovery failed: the operator may still need it.
+    if [[ "${recovery_failed}" != "true" ]]; then
+      docker rm -f "${RECOVERY_BACKEND_CONTAINER}" >/dev/null 2>&1 || true
+    fi
+  fi
   if [[ "${recovery_failed}" == "true" ]]; then
     echo "Automatic recovery was incomplete; retain recovery artifacts and intervene before retrying." >&2
     [[ "${status}" -ne 0 ]] || status=1
@@ -368,6 +412,15 @@ finalize_rollback_containers() {
   for container in "${REPLACED_CONTAINERS[@]}"; do
     candidate="$(candidate_name "${container}")"
     rollback="${container}-${DEPLOY_BACKUP_SUFFIX}"
+    if [[ "${container}" == "${BACKEND_CONTAINER}" && -n "${RECOVERY_BACKEND_CONTAINER}" ]]; then
+      docker rm -f "${rollback}" >/dev/null 2>&1 || true
+      docker rename "${RECOVERY_BACKEND_CONTAINER}" "${rollback}"
+      RECOVERY_BACKEND_USED=true
+      if docker container inspect "${candidate}" >/dev/null 2>&1; then
+        docker rename "${candidate}" "${candidate}-pre-upgrade"
+      fi
+      continue
+    fi
     if docker container inspect "${candidate}" >/dev/null 2>&1; then
       docker rm -f "${rollback}" >/dev/null 2>&1 || true
       docker rename "${candidate}" "${rollback}"
@@ -381,6 +434,7 @@ if [[ "${DEPLOY_DRY_RUN}" == "true" ]]; then
   echo "Host-network deployment validation passed (dry run). No containers were changed."
   echo "Backend image: ${BACKEND_IMAGE}"
   echo "Web image: ${WEB_IMAGE}"
+  [[ -z "${BACKEND_RECOVERY_IMAGE}" ]] || echo "Compatible backend recovery image: ${BACKEND_RECOVERY_IMAGE}"
   echo "Containers: ${MINIO_CONTAINER}, ${BACKEND_CONTAINER}, ${MCP_CONTAINER}, ${WEB_CONTAINER}"
   echo "Backend port: ${HOST_BACKEND_PORT}"
   echo "MCP enabled: ${MCP_ENABLED}"
@@ -454,6 +508,17 @@ prepare_backend_secret_mount APP_POS_MERCADO_PAGO_TOKEN_PROTECTION_SECRET_FILE /
 
 BACKEND_ENV_FILE="$(mktemp)"
 prepare_backend_env "${BACKEND_ENV_FILE}"
+
+if [[ -n "${BACKEND_RECOVERY_IMAGE}" ]]; then
+  RECOVERY_BACKEND_CONTAINER="$(candidate_name "${BACKEND_CONTAINER}")-compatible"
+  docker create \
+    --name "${RECOVERY_BACKEND_CONTAINER}" \
+    --restart unless-stopped \
+    --network host \
+    --env-file "${BACKEND_ENV_FILE}" \
+    "${BACKEND_SECRET_MOUNTS[@]}" \
+    "${BACKEND_RECOVERY_IMAGE}" >/dev/null
+fi
 
 preserve_current_container "${BACKEND_CONTAINER}"
 docker run -d \
