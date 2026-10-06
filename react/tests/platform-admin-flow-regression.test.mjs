@@ -49,7 +49,7 @@ test("root tiene una pestaña independiente de visitas web con métricas globale
   assert.match(page, /id: "websiteVisits"/);
   assert.match(page, /tab\.id === "internalDevelopment" \|\| tab\.id === "websiteVisits"\) return context\?\.role === "PLATFORM_ROOT"/);
   assert.match(page, /activeTab === "websiteVisits" && context\?\.role === "PLATFORM_ROOT"/);
-  assert.match(page, /<UsageAnalyticsWorkspace english=\{english\} audit=\{null\} websiteOnly \/>/);
+  assert.match(page, /<UsageAnalyticsWorkspace english=\{english\} audit=\{null\} websiteOnly onOpenLead=/);
   assert.match(usageAnalytics, /platformAdminApi\.getAnalytics\(days, !websiteOnly && companyId \? Number\(companyId\) : undefined\)/);
   assert.match(usageAnalytics, /dataKey="web_sessions" name=\{copy\.websiteVisits\}/);
 });
@@ -673,15 +673,27 @@ test("los modales de clientes usan los patrones oficiales sin navegación duplic
   assert.doesNotMatch(customerModalPresentation, /font-(?:bold|semibold)/);
 });
 
-test("clientes conserva una identidad visual verde Índice", () => {
-  assert.match(page, /activeTab === "customers" \? "aqua" : "blue"/);
-  assert.match(page, /<IndiceTitleBar[\s\S]*?tone="aqua"/);
+test("administración usa identidad azul y conserva el verde del expediente de cliente", () => {
+  assert.match(page, /data-workbar-position=\{sidebarWorkbar \? "left" : "top"\}/);
+  assert.match(page, /<IndiceAdminWorkspaceHeader/);
+  assert.match(page, /tone="blue"[\s\S]*?value=\{activeTab\}/);
+  assert.match(page, /tone="blue"\s+icon=\{<Building2/);
   assert.match(customerTable, /tone="aqua"/);
   assert.match(company, /tone="aqua"/);
   assert.match(account, /tone="aqua"/);
   assert.match(accountTypeEdit, /tone="aqua"/);
   assert.match(distributorAssignment, /tone="aqua"/);
   assert.match(trialExtension, /tone="aqua"/);
+});
+
+test("la navegación de plataforma sigue el recorrido comercial y conserva permisos", () => {
+  const order = ['websiteVisits', 'leads', 'commercialOperations', 'customers', 'companies', 'billing', 'consulting', 'training', 'systemTickets', 'catalog', 'audit', 'internalDevelopment'];
+  const definitions = page.match(/const tabDefinitions:[\s\S]*?= \[([\s\S]*?)\];/)?.[1] ?? '';
+  const ids = [...definitions.matchAll(/id: "([A-Za-z]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(ids, order);
+  assert.match(page, /tab\.id === "leads"[\s\S]*?MANAGE_LEADS/);
+  assert.match(page, /tab\.id === "internalDevelopment" \|\| tab\.id === "websiteVisits"/);
+  assert.match(page, /setWorkbarSettingsOpen\(true\)/);
 });
 
 test("la tabla separa el creador histórico del distribuidor vigente", () => {

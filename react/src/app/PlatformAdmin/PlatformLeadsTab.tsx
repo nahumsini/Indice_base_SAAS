@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ArrowRight, CalendarClock, Mail, Phone, RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowRight, CalendarClock, ClipboardList, Mail, Phone, RefreshCw } from 'lucide-react';
+import { IndiceFilterBar, IndiceFilterSearch, IndiceFilterSelect, IndiceTitleBar } from '../components/frontend-os';
 import {
   platformLeadsApi,
   type PlatformLead,
@@ -79,7 +80,7 @@ function addDays(value: string, days: number) {
   return date;
 }
 
-export function PlatformLeadsTab({ locale }: { locale: string }) {
+export function PlatformLeadsTab({ locale, initialLeadId }: { locale: string; initialLeadId?: number | null }) {
   const language = locale.startsWith('es') ? 'es' : 'en';
   const copy = strings[language];
   const formatDate = (value: string | null) => value
@@ -97,6 +98,7 @@ export function PlatformLeadsTab({ locale }: { locale: string }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const detailSequence = useRef(0);
 
   const refresh = useCallback(async () => {
     try {
@@ -115,21 +117,29 @@ export function PlatformLeadsTab({ locale }: { locale: string }) {
   useEffect(() => { void refresh(); }, [refresh]);
 
   const open = async (id: number) => {
+    const request = ++detailSequence.current;
+    setSelected(null);
     setBusy(true);
     setMessage('');
     try {
       const detail = await platformLeadsApi.detail(id);
+      if (request !== detailSequence.current) return;
       setSelected(detail);
       setStatus(detail.lead.status);
       setOwnerId(detail.lead.assignedAdminId?.toString() ?? '');
       setNextAction(localInput(detail.lead.nextActionAt));
       setNote('');
     } catch {
-      setMessage(copy.error);
+      if (request === detailSequence.current) setMessage(copy.error);
     } finally {
-      setBusy(false);
+      if (request === detailSequence.current) setBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (initialLeadId) void open(initialLeadId);
+    return () => { detailSequence.current += 1; };
+  }, [initialLeadId]);
 
   const save = async () => {
     if (!selected || busy) return;
@@ -162,17 +172,13 @@ export function PlatformLeadsTab({ locale }: { locale: string }) {
   };
 
   return <section className="space-y-5">
-    <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div><h1 className="text-2xl font-bold text-slate-900">{copy.title}</h1><p className="mt-1 text-sm text-slate-600">{copy.intro}</p></div>
-        <button type="button" onClick={() => void refresh()} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><RefreshCw size={16} />{copy.refresh}</button>
-      </div>
-      <div className="mt-5 flex flex-wrap gap-3">
-        <input aria-label={copy.search} placeholder={copy.search} value={query} onChange={(event) => setQuery(event.target.value)} className="min-w-[220px] flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" />
-        <select aria-label={copy.status} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="rounded-xl border border-slate-300 px-3 py-2 text-sm"><option value="">{copy.all}</option>{Object.keys(statusLabels).map((key) => <option key={key} value={key}>{statusLabels[key as PlatformLeadStatus][language]}</option>)}</select>
-      </div>
-      <p className="mt-3 text-xs text-slate-500">{copy.showing} {total}</p>
-    </header>
+    <IndiceTitleBar tone="blue" icon={<ClipboardList className="h-5 w-5" />} title={copy.title} subtitle={copy.intro} actions={
+      <button type="button" onClick={() => void refresh()} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-medium text-blue-700 transition hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-300"><RefreshCw size={16} />{copy.refresh}</button>
+    } />
+    <IndiceFilterBar title={copy.title} summary={`${copy.showing} ${total}`} gridClassName="lg:grid-cols-[minmax(0,1fr)_260px]">
+      <IndiceFilterSearch label={copy.search} placeholder={copy.search} tone="blue" value={query} onValueChange={setQuery} onClear={() => setQuery('')} />
+      <IndiceFilterSelect label={copy.status} tone="blue" value={statusFilter || 'all'} onValueChange={(value) => setStatusFilter(value === 'all' ? '' : value)} options={[{ value: 'all', label: copy.all }, ...Object.keys(statusLabels).map((key) => ({ value: key, label: statusLabels[key as PlatformLeadStatus][language] }))]} />
+    </IndiceFilterBar>
     {message ? <p role="status" className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">{message}</p> : null}
     <div className="grid gap-5 xl:grid-cols-[minmax(320px,0.85fr)_minmax(500px,1.15fr)]">
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">

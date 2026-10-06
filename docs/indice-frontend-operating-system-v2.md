@@ -1191,13 +1191,41 @@ and acceptance checklist live in [`KPI_TAB_STANDARD.md`](./KPI_TAB_STANDARD.md).
 The format is implemented in RH; this decision does not imply that other modules
 have already been migrated or verified.
 
-### Platform administration: website visits
+### Platform administration: acquisition and commercial flow
 
-The main platform administration navigation exposes Website visits to `PLATFORM_ROOT` only.
-It reads the existing global web analytics dashboard with a date filter; customer account filters
-do not apply to website traffic. The view must show connector status and must not imply that
-uncollected historical visits exist. Website ingestion remains governed by
-`docs/product-analytics-security-contract.md` and the deployment release gate.
+The main platform navigation retains the Website visits section and its `PLATFORM_ROOT` gate.
+Its workspace exposes Commercial overview, Campaigns and plans, and Website traffic through
+the shared view navigation. Saved lead reporting belongs to the Leads owner and follows
+[`platform-commercial-acquisition-kpi-contract.md`](./platform-commercial-acquisition-kpi-contract.md).
+Use server aggregates and paginated drilldowns, not the limited inbox, for commercial counts.
+The four primary cards and history-based stage distribution are a documented domain exception
+to the basic-module eight-card grid. Pending follow-up spans all intake dates; the funnel uses
+the selected intake cohort. Remember view, period and lead market with the existing navigation
+memory engine. A detail action opens the authorized existing lead follow-up; it does not create
+another editor or grant a permission.
+
+Website traffic remains global, with a date filter and explicit connector availability. The
+lead market and customer account filters do not apply to anonymous traffic. Unavailable traffic
+uses an unavailable state, not fabricated zero visits. Submission-event session rate is not
+visitor-to-confirmed-lead conversion. Website ingestion remains governed by
+`docs/product-analytics-security-contract.md` and the deployment release gate; this workspace
+does not enable collection.
+
+### Platform administration: module shell and commercial journey
+
+`/platform-admin` uses the institutional blue identity for its module header, primary
+navigation, tab title bars and principal actions. Its workbar follows the saved top/left
+preference; the left position becomes a scrollable sidebar on desktop, while narrow
+screens retain horizontal navigation. The same configuration dialog is available from
+the platform header. The customer account workspace retains its own aqua identity once
+opened; the platform-level Customers tab remains blue.
+
+The primary sections follow the operator journey: acquisition (website visits and
+leads), conversion (commercial operations), accounts (customers, companies and
+billing), delivery (consulting, training and system tickets), then control (catalog,
+usage/audit and internal development). This is navigation order, not a new business
+status, entitlement or automated handoff. Preserve the existing landing section,
+URL memory and permission gates for each section.
 
 ### Platform administration: customer workspace
 
@@ -3601,11 +3629,13 @@ real owner/contact, contract, distributor and trial data plus existing account h
 before opening another account workspace. Customer-care and consulting handoffs prefill a visible
 company-name search; these are search aids, not authorization scopes or assigned commercial tasks.
 
-Website intake and persisted sales stages, operator assignments, notes and next-action dates are
-not available through the current backend. The UI must state that scope and cannot simulate those
-writes in browser storage. Follow-on backend work must own durable intake, deduplication, market
-and service contracts, transactional/versioned transitions, audit and full-dataset queue filters.
-Current billing prices and consulting entitlements remain governed by their existing contracts.
+The separate Leads section now owns consented website intake, persisted commercial
+stages, assignments, notes and next-action dates under
+[`platform-lead-diagnosis-flow-v1.md`](./platform-lead-diagnosis-flow-v1.md). These lead
+records do not automatically provision a customer account, subscription, agents or
+entitlements. Commercial Operations remains the account-based reference and handoff
+workspace; it must not simulate lead writes in browser storage. Current billing prices
+and consulting entitlements remain governed by their existing contracts.
 
 ## 40. Golden Rule
 

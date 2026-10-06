@@ -7,7 +7,7 @@ import {
   type OperationsCopy,
   type OperationsLocale,
 } from "./OperationsTranslations";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Activity,
   Building2,
@@ -31,7 +31,11 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { IndiceTitleBar } from '../components/frontend-os';
+import { IndiceFilterBar, IndiceFilterSelect, IndiceTitleBar, IndiceWorkspaceNavigation } from '../components/frontend-os';
+import { useWorkspaceNavigationMemory } from '../hooks/useWorkspaceNavigationMemory';
+import type { AcquisitionView, LeadMarket } from '../api/platformLeadAnalytics';
+import { LeadCommercialAnalytics } from './LeadCommercialAnalytics';
+import { getLeadAnalyticsCopy } from './leadAnalyticsCopy';
 import {
   platformAdminApi,
   type PlatformAnalytics,
@@ -94,34 +98,55 @@ export function UsageAnalyticsWorkspace({
   english,
   audit,
   websiteOnly = false,
+  onOpenLead,
 }: {
   english: boolean;
   audit: PlatformAudit | null;
   websiteOnly?: boolean;
+  onOpenLead?: (id: number) => void;
 }) {
   const { copy, locale } = useOperationsCopy();
   const tabs = getTabs(copy);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>(websiteOnly ? 'web' : 'summary');
   const [days, setDays] = useState<7 | 30 | 90>(30);
+  const [acquisitionView, setAcquisitionView] = useState<AcquisitionView>('overview');
+  const [market, setMarket] = useState<LeadMarket>('all');
+  const [refreshKey, setRefreshKey] = useState(0);
+  const requestSequence = useRef(0);
+  const commercialCopy = getLeadAnalyticsCopy(locale);
+  const navigationState = useMemo(() => ({ view: acquisitionView, days, market }), [acquisitionView, days, market]);
+  const restoreAcquisition = useCallback((state: { view?: unknown; days?: unknown; market?: unknown }) => {
+    setAcquisitionView(['overview', 'sources', 'traffic'].includes(String(state.view)) ? state.view as AcquisitionView : 'overview');
+    setDays([7, 30, 90].includes(Number(state.days)) ? Number(state.days) as 7 | 30 | 90 : 30);
+    setMarket(['all', 'MX', 'CA', 'OTHER'].includes(String(state.market)) ? state.market as LeadMarket : 'all');
+  }, []);
+  useWorkspaceNavigationMemory({ moduleKey: 'platform-admin', tabKey: 'acquisition-analysis', state: navigationState,
+    defaults: { view: 'overview' as AcquisitionView, days: 30 as const, market: 'all' as LeadMarket },
+    urlFields: { view: 'acquisition-view', days: 'acquisition-days', market: 'lead-market' }, onRestore: restoreAcquisition,
+    rememberScroll: false, enabled: websiteOnly });
   const [companyId, setCompanyId] = useState('');
   const [analytics, setAnalytics] = useState<PlatformAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
+    const request = ++requestSequence.current;
     setLoading(true);
+    setAnalytics(null);
     setError('');
     try {
-      setAnalytics(await platformAdminApi.getAnalytics(days, !websiteOnly && companyId ? Number(companyId) : undefined));
+      const result = await platformAdminApi.getAnalytics(days, !websiteOnly && companyId ? Number(companyId) : undefined);
+      if (request === requestSequence.current) setAnalytics(result);
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : (copy.usageAnalyticsCouldNotBeLoaded));
+      if (request === requestSequence.current) setError(failure instanceof Error ? failure.message : (copy.usageAnalyticsCouldNotBeLoaded));
     } finally {
-      setLoading(false);
+      if (request === requestSequence.current) setLoading(false);
     }
   }, [companyId, days, copy, websiteOnly]);
 
   useEffect(() => {
     void load();
+    return () => { requestSequence.current += 1; };
   }, [load]);
 
   const chartData = useMemo(() => (analytics?.trend ?? []).map((row) => ({
@@ -133,17 +158,17 @@ export function UsageAnalyticsWorkspace({
   const selectedCompany = analytics?.company_options.find((company) => String(company.id) === companyId);
 
   return (
-    <div className="space-y-5">
+    <div className={websiteOnly ? 'grid min-w-0 grid-cols-1 gap-6' : 'space-y-5'}>
       <IndiceTitleBar
+        className="mb-0"
         tone="blue"
         icon={websiteOnly ? <Globe2 className="h-5 w-5" /> : <ChartNoAxesColumnIncreasing className="h-5 w-5" />}
-        eyebrow={copy.productObservability}
-        title={websiteOnly ? copy.websiteVisits : copy.usageAndTraceability}
-        subtitle={websiteOnly ? copy.trafficIsAnonymousCampaignSourceVisitedPage : copy.understandAdoptionActiveAttentionAndWebsiteDemand}
+        title={websiteOnly ? commercialCopy.t('title') : copy.usageAndTraceability}
+        subtitle={websiteOnly ? commercialCopy.t('subtitle') : copy.understandAdoptionActiveAttentionAndWebsiteDemand}
         actions={(
           <button
             type="button"
-            onClick={() => void load()}
+            onClick={() => { setRefreshKey((value) => value + 1); void load(); }}
             disabled={loading}
             className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-medium text-blue-800 transition hover:bg-blue-50 disabled:opacity-60"
           >
@@ -152,6 +177,12 @@ export function UsageAnalyticsWorkspace({
           </button>
         )}
       />
+
+      {websiteOnly ? <IndiceWorkspaceNavigation<AcquisitionView> ariaLabel={commercialCopy.t('title')}
+        items={[{ id: 'overview', label: commercialCopy.t('overview'), icon: <ChartNoAxesColumnIncreasing /> },
+          { id: 'sources', label: commercialCopy.t('sources'), icon: <Users /> },
+          { id: 'traffic', label: commercialCopy.t('traffic'), icon: <Globe2 /> }]}
+        onValueChange={setAcquisitionView} value={acquisitionView} variant="views" tone="blue" /> : null}
 
       {!websiteOnly ? <section className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
         <div className="flex flex-wrap gap-2">
@@ -173,7 +204,10 @@ export function UsageAnalyticsWorkspace({
         </div>
       </section> : null}
 
-      {activeTab !== 'technical' ? (
+      {websiteOnly ? <IndiceFilterBar title={copy.analysisScope} subtitle={acquisitionView === 'traffic' ? copy.trafficIsAnonymousCampaignSourceVisitedPage : commercialCopy.t('recordedLeads')} gridClassName="md:grid-cols-2">
+        <IndiceFilterSelect label={copy.period} tone="blue" value={String(days)} onValueChange={(value) => setDays(Number(value) as 7 | 30 | 90)} options={[{ value: '7', label: copy.lastDays }, { value: '30', label: copy.lastDays31 }, { value: '90', label: copy.lastDays32 }]} />
+        {acquisitionView !== 'traffic' ? <IndiceFilterSelect label={commercialCopy.t('market')} tone="blue" value={market} onValueChange={(value) => setMarket(value as LeadMarket)} options={[{ value: 'all', label: commercialCopy.t('allMarkets') }, { value: 'MX', label: commercialCopy.t('mexico') }, { value: 'CA', label: commercialCopy.t('canada') }, { value: 'OTHER', label: commercialCopy.t('other') }]} /> : null}
+      </IndiceFilterBar> : activeTab !== 'technical' ? (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className={`grid gap-4 lg:items-end ${websiteOnly ? 'lg:grid-cols-[1fr_240px]' : 'lg:grid-cols-[1fr_240px_240px]'}`}>
             <div>
@@ -208,11 +242,15 @@ export function UsageAnalyticsWorkspace({
         </section>
       ) : null}
 
-      {error ? <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">{error}</div> : null}
+      {error && (!websiteOnly || acquisitionView === 'traffic') ? <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">{error}</div> : null}
+
+      {websiteOnly && acquisitionView !== 'traffic' && !loading && analytics && !analytics.web_connector.configured && !analytics.web_connector.receiving_data ? <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-300">{commercialCopy.t('measurementPending')}</p> : null}
+
+      {websiteOnly ? <LeadCommercialAnalytics days={days} market={market} view={acquisitionView} refreshKey={refreshKey} onOpenLead={onOpenLead} /> : null}
 
       {!websiteOnly && activeTab === 'summary' ? <SummaryView analytics={analytics} chartData={chartData} english={english} loading={loading} onOpen={setActiveTab} /> : null}
       {!websiteOnly && activeTab === 'app' ? <PlatformUsageView analytics={analytics} english={english} loading={loading} /> : null}
-      {activeTab === 'web' && !error ? <WebsiteUsageView analytics={analytics} chartData={chartData} english={english} loading={loading} /> : null}
+      {activeTab === 'web' && !error && (!websiteOnly || acquisitionView === 'traffic') ? <WebsiteUsageView analytics={analytics} chartData={chartData} english={english} loading={loading} /> : null}
       {!websiteOnly && activeTab === 'technical' ? <TechnicalAuditView audit={audit} english={english} /> : null}
     </div>
   );
@@ -315,24 +353,26 @@ function WebsiteUsageView({ analytics, chartData, english, loading }: { analytic
   const web = analytics?.web;
   const receiving = analytics?.web_connector.receiving_data;
   const configured = analytics?.web_connector.configured;
+  const measured = Boolean(configured || receiving);
+  const commercialCopy = getLeadAnalyticsCopy(locale);
   return (
     <div className="space-y-5">
       <section className={`flex flex-col gap-4 rounded-2xl border px-5 py-4 sm:flex-row sm:items-center sm:justify-between ${receiving ? 'border-emerald-200 bg-emerald-50' : configured ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
         <div className="flex items-start gap-3">
           <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${receiving ? 'bg-emerald-100 text-emerald-700' : configured ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}><Globe2 className="h-5 w-5" /></span>
-          <div><h2 className="font-medium text-slate-950">{receiving ? (copy.websiteConnectedAndReceivingData) : configured ? (copy.connectorConfiguredWaitingForTraffic) : (copy.connectorReadyDeploymentKeyPending)}</h2><p className="mt-1 text-sm text-slate-600">{copy.trafficIsAnonymousCampaignSourceVisitedPage}
+          <div><h2 className="font-medium text-slate-950">{receiving ? (copy.websiteConnectedAndReceivingData) : configured ? (copy.connectorConfiguredWaitingForTraffic) : commercialCopy.t('measurementPending')}</h2><p className="mt-1 text-sm text-slate-600">{copy.trafficIsAnonymousCampaignSourceVisitedPage}
             </p></div>
         </div>
         <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-medium ${receiving ? 'bg-emerald-100 text-emerald-800' : configured ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-700'}`}>{receiving ? (copy.receiving) : configured ? (copy.configured) : (copy.pendingActivation)}</span>
       </section>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <InsightCard icon={Users} tone="blue" label={copy.uniqueVisitors} value={loading ? '—' : operationsNumber(web?.visitors ?? 0, locale)} helper={copy.anonymousBrowserReferences} />
-        <InsightCard icon={Activity} tone="mint" label={copy.sessions} value={loading ? '—' : operationsNumber(web?.sessions ?? 0, locale)} helper={copy.websiteVisits} />
-        <InsightCard icon={Clock3} tone="gold" label={copy.activeReadingTime} value={loading ? '—' : formatDuration(locale, web?.active_seconds ?? 0, english)} helper={copy.visibleAndFocusedOnly} />
-        <InsightCard icon={MousePointerClick} tone="coral" label={copy.leadConversions} value={loading ? '—' : operationsNumber(web?.conversions ?? 0, locale)} helper={copy.successfulSubmissions} />
+        <InsightCard icon={Users} tone="blue" label={copy.uniqueVisitors} value={loading || !measured ? '—' : operationsNumber(web?.visitors ?? 0, locale)} helper={copy.anonymousBrowserReferences} />
+        <InsightCard icon={Activity} tone="mint" label={copy.sessions} value={loading || !measured ? '—' : operationsNumber(web?.sessions ?? 0, locale)} helper={copy.websiteVisits} />
+        <InsightCard icon={Clock3} tone="gold" label={copy.activeReadingTime} value={loading || !measured ? '—' : formatDuration(locale, web?.active_seconds ?? 0, english)} helper={copy.visibleAndFocusedOnly} />
+        <InsightCard icon={MousePointerClick} tone="coral" label={commercialCopy.t('measuredSubmitRate')} value={loading || !measured || web?.conversion_rate_percent == null ? '—' : new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 }).format(web.conversion_rate_percent / 100)} helper={commercialCopy.t('measuredSubmitHelp')} />
       </div>
       <Card title={copy.websiteVisits} description={copy.trafficIsAnonymousCampaignSourceVisitedPage}>
-        {chartData.length ? (
+        {measured && chartData.length ? (
           <div className="h-[280px] px-2 pb-3 pt-5">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ left: -20, right: 12 }}>
@@ -345,7 +385,7 @@ function WebsiteUsageView({ analytics, chartData, english, loading }: { analytic
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        ) : <EmptyState text={copy.collectionHasStartedTheTrendWillAppear} />}
+        ) : <EmptyState text={measured ? copy.collectionHasStartedTheTrendWillAppear : commercialCopy.t('measurementPending')} />}
       </Card>
       <div className="grid gap-5 xl:grid-cols-2">
         <AttentionTable rows={analytics?.web_pages ?? []} english={english} title={copy.contentReceivingAttention} />

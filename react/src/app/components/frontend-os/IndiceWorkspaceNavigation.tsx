@@ -1,4 +1,4 @@
-import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
+import { Fragment, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { Check } from 'lucide-react';
 import {
   getModulePrimaryForeground,
@@ -12,6 +12,7 @@ export type IndiceWorkspaceNavigationItem<TabId extends string> = {
   description?: string;
   icon?: ReactNode;
   disabled?: boolean;
+  group?: string;
 };
 
 type IndiceWorkspaceNavigationProps<TabId extends string> = {
@@ -151,11 +152,16 @@ export function IndiceWorkspaceNavigation<TabId extends string>({
         ? 'flex w-fit max-w-full flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800'
         : 'flex flex-wrap items-center gap-1.5'} ${className}`}
     >
-      {items.map((item) => {
+      {items.map((item, index) => {
         const active = value === item.id;
         return (
+          <Fragment key={item.id}>
+          {item.group && item.group !== items[index - 1]?.group ? (
+            <span role="presentation" className="self-center px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              {item.group}
+            </span>
+          ) : null}
           <button
-            key={item.id}
             type="button"
             role="tab"
             aria-selected={active}
@@ -182,6 +188,7 @@ export function IndiceWorkspaceNavigation<TabId extends string>({
             ) : null}
             <span>{item.label}</span>
           </button>
+          </Fragment>
         );
       })}
     </nav>

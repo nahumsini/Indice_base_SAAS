@@ -41,7 +41,7 @@
     "test:pos-catalog": "node --experimental-strip-types --test tests/point-of-sale-catalog-warehouse-regression.test.mjs",
     "test:print": "node --test tests/document-print-standard-regression.test.mjs",
     "test:phone-validation": "node scripts/phone-validation-regression.mjs",
-    "test:platform-admin": "node --experimental-strip-types --test tests/company-account-state.test.mjs tests/company-workspace-flow.test.mjs tests/platform-admin-flow-regression.test.mjs tests/catalog-publication.test.mjs tests/stripe-setup-panel.test.mjs tests/mercado-pago-activation-regression.test.mjs tests/square-activation-regression.test.mjs && npm run test:platform-admin-localization",
+    "test:platform-admin": "node --experimental-strip-types --test tests/company-account-state.test.mjs tests/company-workspace-flow.test.mjs tests/platform-admin-flow-regression.test.mjs tests/platform-lead-analytics-flow.test.mjs tests/catalog-publication.test.mjs tests/stripe-setup-panel.test.mjs tests/mercado-pago-activation-regression.test.mjs tests/square-activation-regression.test.mjs && npm run test:platform-admin-localization",
     "test:billing-flow": "node --experimental-strip-types --test tests/billing-flow-regression.test.mjs tests/payment-request-flow.test.mjs tests/billing-payment-method-flow.test.mjs",
     "test:distributor-portal": "node --test tests/distributor-portal-flow-regression.test.mjs",
     "typecheck": "tsc --noEmit",

@@ -360,7 +360,9 @@ function PlatformAdminRoute() {
 
   return (
     <Suspense fallback={<LocalizedLoadingBarOverlay isVisible variant="platform" />}>
-      <PlatformAdminPage />
+      <WorkbarLayoutProvider>
+        <PlatformAdminPage />
+      </WorkbarLayoutProvider>
     </Suspense>
   );
 }

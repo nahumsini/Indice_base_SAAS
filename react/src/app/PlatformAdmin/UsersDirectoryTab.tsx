@@ -31,6 +31,7 @@ import {
   LifecyclePanel,
 } from "./CompanyUserActivityPanels";
 import { IndiceConfirmationDialog } from "../components/indice-modal/IndiceConfirmationDialog";
+import { IndiceTitleBar, IndiceWorkspaceNavigation } from "../components/frontend-os";
 
 type CompanyRole = "user" | "admin" | "superadmin" | "root";
 type CompanyWorkspaceTab = "users" | "activities" | "allActivities";
@@ -289,50 +290,30 @@ export function CompaniesDirectoryTab({
 
   return (
     <section className="space-y-4">
-      <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4 shadow-sm">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="grid h-11 w-11 place-items-center rounded-xl bg-white text-blue-700 shadow-sm">
-            <UsersRound className="h-5 w-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-semibold text-slate-950">
-              {copy.companies}
-            </h2>
-            <p className="mt-1 text-sm text-slate-600">
-              {activeCompanyTab === "users" ? copy.userDirectoryHelp : activeCompanyTab === "activities" ? copy.companyActivityHelp : copy.allActivityHelp}
-            </p>
-          </div>
-          <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-medium text-blue-700">
-            {operationsNumber(directoryTotal, locale)} {copy.companies125}
-          </span>
-        </div>
-      </div>
+      <IndiceTitleBar
+        tone="blue"
+        icon={<UsersRound className="h-5 w-5" />}
+        title={copy.companies}
+        subtitle={activeCompanyTab === "users" ? copy.userDirectoryHelp : activeCompanyTab === "activities" ? copy.companyActivityHelp : copy.allActivityHelp}
+        actions={<span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-medium text-blue-700 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-300">{operationsNumber(directoryTotal, locale)} {copy.companies125}</span>}
+      />
 
-      <div className="flex max-w-full gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-        {companyWorkspaceTabs.map((tab) => {
-          const Icon = tab.icon;
-          const active = activeCompanyTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => {
-                setActiveCompanyTab(tab.id);
-                if (tab.id === "allActivities") {
-                  void loadAllActivity();
-                }
-              }}
-              className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition ${
-                active
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {tab.en}
-            </button>
-          );
-        })}
+      <div className="max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <IndiceWorkspaceNavigation<CompanyWorkspaceTab>
+          ariaLabel={copy.companies}
+          className="min-w-max flex-nowrap"
+          items={companyWorkspaceTabs.map((tab) => {
+            const Icon = tab.icon;
+            return { id: tab.id, label: tab.en, icon: <Icon className="h-4 w-4" /> };
+          })}
+          onValueChange={(tab) => {
+            setActiveCompanyTab(tab);
+            if (tab === "allActivities") void loadAllActivity();
+          }}
+          tone="blue"
+          value={activeCompanyTab}
+          variant="sections"
+        />
       </div>
 
       {feedback ? (

@@ -260,11 +260,29 @@ detail reuse the operational summary mapping so access validity, lifecycle and b
 have the same meaning in both views. This read contract does not alter billing, entitlement or
 credential mutation authority.
 
+### Platform lead commercial reporting contract
+
+`GET /api/v1/platform-admin/leads/analytics` and `/analytics/details` are platform-owned
+cross-account commercial reads, not tenant endpoints. Resolve the actor from the authenticated
+session and require `MANAGE_LEADS` before any repository read, using the existing platform access
+service. This authority is independent from product-analytics `PLATFORM_VIEW`. The report joins
+only the platform intake and its recorded history; it does not grant customer-company authority.
+
+Use explicit DTOs, full-source aggregates, consistent read snapshots, bounded query dimensions
+and pagination. The scope, history-based formulas, SLA eligibility, current backlog, market
+classification and minimal detail projection are defined in
+[`platform-commercial-acquisition-kpi-contract.md`](./platform-commercial-acquisition-kpi-contract.md).
+Do not infer subscription activation, collections or revenue from a lead status. This is a
+read-only projection: no schema, intake, credential, billing or entitlement lifecycle changes.
+
 ## 9. Persistence And Flyway
 
 Flyway is the only schema-change path for Spring-owned data.
 
 - Never edit an applied versioned migration or an adopted baseline.
+- The released V288/V289 lead identities and the forward V293 integration are pinned by the
+  [released-lineage decision](decisions/2026-10-05-released-migration-lineage.md). Fresh-schema
+  validation alone does not establish compatibility with an already released database.
 - Inspect `src/main/resources/db/migration/` to choose the next unused version; do not rely on a
   stale number in prose.
 - Use descriptive `V{version}__{scope}_{purpose}.sql` names.

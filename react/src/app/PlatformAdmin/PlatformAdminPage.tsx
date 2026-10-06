@@ -16,7 +16,6 @@ import {
 } from "react";
 import {
   Activity,
-  ArrowLeft,
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
@@ -67,10 +66,13 @@ import {
   IndiceFilterBar,
   IndiceFilterSearch,
   IndiceFilterSelect,
+  IndiceAdminWorkspaceHeader,
   IndiceTitleBar,
   IndiceWorkspaceNavigation,
 } from "../components/frontend-os";
 import { useWorkspaceNavigationMemory } from "../hooks/useWorkspaceNavigationMemory";
+import { useWorkbarLayout } from "../components/workbar/WorkbarLayoutContext";
+import { WorkbarLayoutModal } from "../components/workbar/WorkbarLayoutModal";
 import { DataTablePagination } from "../components/table/DataTablePagination";
 import {
   getIndiceTableMinimumWidth,
@@ -218,7 +220,7 @@ const initialBenefit: BenefitPayload = {
 };
 
 const controlClass =
-  "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-[#177D66] focus:ring-2 focus:ring-[#177D66]/10 disabled:bg-slate-100 disabled:text-slate-400";
+  "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 disabled:bg-slate-100 disabled:text-slate-400";
 const tableHeadClass =
   "whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-slate-500";
 const tableCellClass = "px-4 py-3 align-middle text-sm text-slate-700";
@@ -256,35 +258,33 @@ const tabDefinitions: {
   id: AdminTab;
   es: string;
   en: string;
+  phase: "acquisition" | "conversion" | "account" | "service" | "control";
   icon: typeof LayoutDashboard;
 }[] = [
-  { id: "customers", es: "Clientes", en: "Customers", icon: Building2 },
-  { id: "leads", es: "Prospectos", en: "Leads", icon: ClipboardList },
-  { id: "commercialOperations", es: "Operación comercial", en: "Commercial operations", icon: Handshake },
-  { id: "companies", es: "Empresas", en: "Companies", icon: Users },
-  { id: "billing", es: "Facturación", en: "Billing", icon: CreditCard },
+  { id: "websiteVisits", es: "Visitas del sitio web", en: "Website visits", phase: "acquisition", icon: Globe2 },
+  { id: "leads", es: "Prospectos", en: "Leads", phase: "acquisition", icon: ClipboardList },
+  { id: "commercialOperations", es: "Operación comercial", en: "Commercial operations", phase: "conversion", icon: Handshake },
+  { id: "customers", es: "Clientes", en: "Customers", phase: "account", icon: Building2 },
+  { id: "companies", es: "Empresas", en: "Companies", phase: "account", icon: Users },
+  { id: "billing", es: "Facturación", en: "Billing", phase: "account", icon: CreditCard },
+  { id: "consulting", es: "Consultorías", en: "Consulting", phase: "service", icon: Handshake },
+  { id: "training", es: "Capacitación y contenido", en: "Training & content", phase: "service", icon: GraduationCap },
+  { id: "systemTickets", es: "Tickets de sistema", en: "System tickets", phase: "service", icon: TicketCheck },
   {
     id: "catalog",
     es: "Catálogo y módulos",
     en: "Catalog & modules",
+    phase: "control",
     icon: Boxes,
   },
-  { id: "consulting", es: "Consultorías", en: "Consulting", icon: Handshake },
-  { id: "training", es: "Capacitación y contenido", en: "Training & content", icon: GraduationCap },
-  {
-    id: "systemTickets",
-    es: "Tickets de sistema",
-    en: "System tickets",
-    icon: TicketCheck,
-  },
+  { id: "audit", es: "Uso y auditoría", en: "Usage & audit", phase: "control", icon: Activity },
   {
     id: "internalDevelopment",
     es: "Registro de desarrollo interno",
     en: "Internal development log",
+    phase: "control",
     icon: FileClock,
   },
-  { id: "websiteVisits", es: "Visitas del sitio web", en: "Website visits", icon: Globe2 },
-  { id: "audit", es: "Uso y auditoría", en: "Usage & audit", icon: Activity },
 ];
 
 const isAdminTab = (value: unknown): value is AdminTab =>
@@ -306,6 +306,8 @@ const offerLabels = (locale: string): Record<string, string> => {
 export default function PlatformAdminPage() {
   const { t, locale } = usePlatformAdminTranslations();
   const navigate = useNavigate();
+  const { position, isDualScreenActive } = useWorkbarLayout();
+  const [workbarSettingsOpen, setWorkbarSettingsOpen] = useState(false);
   const { currentLanguage } = useLanguage();
   const english = !currentLanguage.code.startsWith("es");
   const tabs = useMemo(
@@ -319,6 +321,7 @@ export default function PlatformAdminPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>("customers");
   const [careQuery, setCareQuery] = useState("");
   const [consultingQuery, setConsultingQuery] = useState("");
+  const [focusedLeadId, setFocusedLeadId] = useState<number | null>(null);
   const adminNavigationState = useMemo(
     () => ({ section: activeTab }),
     [activeTab],
@@ -965,88 +968,60 @@ export default function PlatformAdminPage() {
   };
 
   const environment = environmentLabel(locale);
+  const sidebarWorkbar = position === "left" && !isDualScreenActive;
+  const phaseLabels = english
+    ? { acquisition: "Attract", conversion: "Convert", account: "Accounts", service: "Deliver", control: "Control" }
+    : { acquisition: "Captar", conversion: "Convertir", account: "Cuentas", service: "Acompañar", control: "Control" };
   return (
     <main
       className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-white"
       data-module="platform-admin"
+      data-workbar-position={sidebarWorkbar ? "left" : "top"}
     >
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-3 lg:px-6">
-          <div className="flex min-w-0 items-center gap-4">
-            <IndiceBrandLogo
-              alt="Índice"
-              className="h-9 w-28 shrink-0"
-              imageClassName="w-[130px]"
-            />
-            <div className="hidden h-8 w-px bg-slate-200 sm:block" />
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="truncate text-base font-medium text-slate-900 dark:text-white">
-                  {t("Platform administration")}
-                </h1>
-                <span
-                  className={`hidden rounded-full px-2 py-1 text-[11px] font-medium sm:inline-flex ${environment.className}`}
-                >
-                  {environment.label}
-                </span>
-              </div>
-              <p className="hidden text-xs text-slate-500 dark:text-slate-400 md:block">
-                {t("Customers, catalog, access and commercial operations")}
-              </p>
+      <div className={sidebarWorkbar ? "lg:flex lg:items-start" : undefined}>
+        <header className={`z-30 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 ${sidebarWorkbar ? "lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:shrink-0 lg:overflow-y-auto lg:border-b-0 lg:border-r" : "sticky top-0"}`}>
+          <div className={`mx-auto max-w-[1600px] px-4 py-3 lg:px-6 ${sidebarWorkbar ? "lg:px-4" : ""}`}>
+            <div className={`mb-3 flex items-center gap-3 ${sidebarWorkbar ? "lg:justify-between" : ""}`}>
+              <IndiceBrandLogo alt="Índice" className="h-8 w-28 shrink-0" imageClassName="w-[130px]" />
+              <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${environment.className}`}>{environment.label}</span>
             </div>
+            <IndiceAdminWorkspaceHeader
+              backLabel={t("Back to ERP")}
+              onBack={() => navigate("/dashboard")}
+              icon={<LayoutDashboard />}
+              title={t("Platform administration")}
+              subtitle={t("Customers, catalog, access and commercial operations")}
+              actions={
+                <>
+                  <PlatformAdminLanguageSelect />
+                  <button type="button" onClick={() => setWorkbarSettingsOpen(true)} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" aria-label={english ? "Configure workbar" : "Configurar barra de trabajo"} title={english ? "Configure workbar" : "Configurar barra de trabajo"}>
+                    <Settings2 className="h-4 w-4" />
+                  </button>
+                  <button type="button" onClick={() => void loadAll()} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" aria-label={t("Refresh data")}>
+                    <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                  </button>
+                </>
+              }
+            />
           </div>
-          <div className="flex items-center gap-2">
-            <PlatformAdminLanguageSelect />
-            <button
-              type="button"
-              onClick={() => void loadAll()}
-              className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-              aria-label={t("Refresh data")}
-            >
-              <RefreshCw
-                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
-              />
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate("/dashboard")}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">
-                {t("Back to ERP")}
-              </span>
-            </button>
+          <div className={`mx-auto max-w-[1600px] overflow-x-auto px-4 pb-3 lg:px-6 ${sidebarWorkbar ? "lg:overflow-visible lg:px-3" : ""}`}>
+            <IndiceWorkspaceNavigation<AdminTab>
+              ariaLabel={t("Administration sections")}
+              className={sidebarWorkbar ? "min-w-max flex-nowrap lg:min-w-0 lg:flex-col lg:items-stretch lg:[&>button]:w-full lg:[&>button]:justify-start lg:[&>button]:rounded-xl lg:[&>span]:pt-3" : "min-w-max flex-nowrap"}
+              items={visibleTabs.map((tab) => {
+                const Icon = tab.icon;
+                return { id: tab.id, label: tab.label, group: phaseLabels[tab.phase], icon: <Icon /> };
+              })}
+              onValueChange={setActiveTab}
+              tone="blue"
+              value={activeTab}
+              variant="sections"
+            />
           </div>
-        </div>
-        <div className="mx-auto max-w-[1600px] px-4 py-2 lg:px-6">
-          <IndiceWorkspaceNavigation<AdminTab>
-            ariaLabel={
-              t("Administration sections")
-            }
-            items={visibleTabs.map((tab) => {
-              const Icon = tab.icon;
-              return {
-                id: tab.id,
-                label: tab.label,
-                icon: <Icon />,
-              };
-            })}
-            onValueChange={setActiveTab}
-            tone={activeTab === "customers" ? "aqua" : "blue"}
-            value={activeTab}
-            variant="sections"
-          />
-        </div>
-        <div className="grid h-1 grid-cols-4" aria-hidden="true">
-          <span className="bg-[#59C3A5]" />
-          <span className="bg-[#F7C845]" />
-          <span className="bg-[#FF6B63]" />
-          <span className="bg-[#2563EB]" />
-        </div>
-      </header>
+          <div className="h-1 bg-[#2563EB]" aria-hidden="true" />
+        </header>
 
-      <div className="mx-auto max-w-[1600px] space-y-5 px-4 py-5 lg:px-6 lg:py-6">
+      <div className={`min-w-0 flex-1 space-y-5 px-4 py-5 lg:px-6 lg:py-6 ${sidebarWorkbar ? "" : "mx-auto max-w-[1600px]"}`}>
         {error ? (
           <div
             role="alert"
@@ -1132,14 +1107,13 @@ export default function PlatformAdminPage() {
                 }}
               />
             ) : null}
-            {activeTab === "leads" ? <PlatformLeadsTab locale={currentLanguage.code} /> : null}
             {activeTab === "commercialOperations" ? (
               <CommercialOperationsWorkspace locale={currentLanguage.code}
                 onOpenCompany={(id, tab) => void openCompany(id, tab)}
                 onOpenCare={context?.can_manage_system_tickets ? name => { setCareQuery(name); setActiveTab("systemTickets"); } : undefined}
                 onOpenConsulting={name => { setConsultingQuery(name); setActiveTab("consulting"); }} />
             ) : null}
-            {activeTab === "leads" ? <PlatformLeadsTab locale={currentLanguage.code} /> : null}
+            {activeTab === "leads" ? <PlatformLeadsTab locale={currentLanguage.code} initialLeadId={focusedLeadId} /> : null}
             {activeTab === "companies" ? (
               <CompaniesDirectoryTab
                 english={english}
@@ -1214,7 +1188,7 @@ export default function PlatformAdminPage() {
               <InternalDevelopmentWorkspace locale={currentLanguage.code} />
             ) : null}
             {activeTab === "websiteVisits" && context?.role === "PLATFORM_ROOT" ? (
-              <UsageAnalyticsWorkspace english={english} audit={null} websiteOnly />
+              <UsageAnalyticsWorkspace english={english} audit={null} websiteOnly onOpenLead={(id) => { setFocusedLeadId(id); setActiveTab("leads"); }} />
             ) : null}
             {activeTab === "audit" ? (
               <AuditTab english={english} data={auditLog} />
@@ -1222,6 +1196,9 @@ export default function PlatformAdminPage() {
           </>
         ) : null}
       </div>
+      </div>
+
+      <WorkbarLayoutModal open={workbarSettingsOpen} onOpenChange={setWorkbarSettingsOpen} />
 
       {selected && revocation?.kind !== "benefit" && !paymentRequestCompany && !accountTypeEdit && !distributorAssignment && !trialExtension ? (
         <CompanyAccountDrawer
@@ -1533,7 +1510,7 @@ function CustomersTab({
   return (
     <div className="space-y-5" aria-busy={loading}>
       <IndiceTitleBar
-        tone="aqua"
+        tone="blue"
         icon={<Building2 className="h-5 w-5" />}
         title={
           t("Customer control center")
@@ -1546,7 +1523,7 @@ function CustomersTab({
             <button
               type="button"
               onClick={() => setColumnsOpen(true)}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#59C3A5]/45 bg-white px-4 text-sm font-medium text-[#176B5B] transition hover:bg-[#59C3A5]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25 dark:bg-slate-900 dark:text-[#8FE0CA]"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-medium text-blue-700 transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-300"
             >
               <Columns3 className="h-4 w-4" />
               {copy.columns}
@@ -1556,22 +1533,22 @@ function CustomersTab({
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#59C3A5]/45 bg-white px-4 text-sm font-medium text-[#176B5B] transition hover:bg-[#59C3A5]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25 dark:bg-slate-900 dark:text-[#8FE0CA]"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-medium text-blue-700 transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-300"
                   >
                     <MoreHorizontal className="h-4 w-4" />
                     {copy.more}
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-64 rounded-xl border-[#59C3A5]/30 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-900">
+                <DropdownMenuContent align="end" className="min-w-64 rounded-xl border-blue-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-900">
                   {canManageCourtesy ? (
                     <DropdownMenuItem onSelect={onOpenCourtesy} className="rounded-lg py-2.5">
-                      <Gift className="h-4 w-4 text-[#177D66]" />
+                      <Gift className="h-4 w-4 text-blue-700" />
                       {t("Promotional access")}
                     </DropdownMenuItem>
                   ) : null}
                   {canCreate ? (
                     <DropdownMenuItem onSelect={onQuickCreate} className="rounded-lg py-2.5">
-                      <Sparkles className="h-4 w-4 text-[#177D66]" />
+                      <Sparkles className="h-4 w-4 text-blue-700" />
                       {t("Quick test account")}
                     </DropdownMenuItem>
                   ) : null}
@@ -1582,7 +1559,7 @@ function CustomersTab({
               <button
                 type="button"
                 onClick={onCreate}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white transition hover:bg-[#126553] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
               >
                 <Plus className="h-4 w-4" />
                 {t("Add account")}
@@ -1600,14 +1577,14 @@ function CustomersTab({
           placeholder={
             t("Company, email or ID")
           }
-          tone="aqua"
+          tone="blue"
           value={query}
           onValueChange={onQuery}
           onClear={() => onQuery("")}
         />
         <IndiceFilterSelect
           label={t("Account type")}
-          tone="aqua"
+          tone="blue"
           value={userTypeFilter}
           onValueChange={onUserType}
           options={[
@@ -1622,7 +1599,7 @@ function CustomersTab({
         />
         <IndiceFilterSelect
           label={t("Commercial status")}
-          tone="aqua"
+          tone="blue"
           value={statusFilter}
           onValueChange={onStatus}
           options={[
@@ -1821,7 +1798,6 @@ function BillingTab({
       <IndiceTitleBar
         tone="blue"
         icon={<CreditCard className="h-5 w-5" />}
-        eyebrow={t("Billing")}
         title={t("Payments and documents")}
         subtitle={
           t("Stripe remains the payment authority; this view shows synchronized operational status.")
@@ -1862,14 +1838,14 @@ function BillingTab({
         <IndiceFilterSearch
           label={t("Search")}
           placeholder={t("Customer, invoice, status or ID")}
-          tone="aqua"
+          tone="blue"
           value={query}
           onValueChange={setQuery}
           onClear={() => setQuery("")}
         />
         <IndiceFilterSelect
           label={t("Document status")}
-          tone="aqua"
+          tone="blue"
           value={status}
           onValueChange={setStatus}
           options={[
@@ -2369,7 +2345,7 @@ function CatalogAndModulesTab({
   return (
     <div className="space-y-5">
       <IndiceTitleBar
-        tone="aqua"
+        tone="blue"
         icon={<Boxes className="h-5 w-5" />}
         title={t("Catalog and modules")}
         subtitle={
@@ -2380,7 +2356,7 @@ function CatalogAndModulesTab({
             type="button"
             disabled={syncing}
             onClick={() => void synchronizeComplementaries()}
-            className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#59C3A5]/35 bg-white px-4 text-sm font-medium text-[#176B5B] shadow-sm transition hover:bg-[#59C3A5]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25 disabled:opacity-60 dark:bg-slate-900 dark:text-[#8FE0CA]"
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-medium text-blue-700 shadow-sm transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 disabled:opacity-60 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-300"
           >
             <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
             {t("Sync add-ons")}
@@ -2406,12 +2382,12 @@ function CatalogAndModulesTab({
           };
         })}
         onValueChange={setView}
-        tone="aqua"
+        tone="blue"
         value={view}
         variant="sections"
       />
 
-      <section className="overflow-hidden rounded-2xl border border-[#59C3A5]/30 bg-white shadow-sm dark:border-[#59C3A5]/25 dark:bg-slate-900">
+      <section className="overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm dark:border-blue-800 dark:bg-slate-900">
         <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-start gap-3">
             <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${draftVersion ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>
@@ -2445,7 +2421,7 @@ function CatalogAndModulesTab({
                 type="button"
                 disabled={!canManage || catalogWorkflowBusy}
                 onClick={() => void prepareCatalogDraft()}
-                className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white transition hover:bg-[#126553] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30 disabled:opacity-50"
+                className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 disabled:opacity-50"
               >
                 <Plus className="h-4 w-4" />
                 {t("Prepare changes")}
@@ -2492,7 +2468,7 @@ function CatalogAndModulesTab({
       )}
 
       {draftVersion ? (
-        <div className="sticky bottom-4 z-20 flex flex-col gap-3 rounded-2xl border border-[#59C3A5]/40 bg-white/95 p-4 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.5)] backdrop-blur dark:bg-slate-900/95 sm:flex-row sm:items-center sm:justify-between">
+        <div className="sticky bottom-4 z-20 flex flex-col gap-3 rounded-2xl border border-blue-200 bg-white/95 p-4 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.5)] backdrop-blur dark:border-blue-800 dark:bg-slate-900/95 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-medium text-slate-950">
               {t("Unpublished changes")}
@@ -2510,7 +2486,7 @@ function CatalogAndModulesTab({
               type="button"
               disabled={!canManage || catalogWorkflowBusy}
               onClick={() => void validateCatalogDraft()}
-              className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#59C3A5]/40 bg-white px-4 text-sm font-medium text-[#176B5B] transition hover:bg-[#59C3A5]/10 disabled:opacity-50 dark:bg-slate-900 dark:text-[#8FE0CA]"
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-medium text-blue-700 transition hover:bg-blue-50 disabled:opacity-50 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-300"
             >
               <ShieldCheck className="h-4 w-4" />
               {t("Validate offer")}
@@ -2522,7 +2498,7 @@ function CatalogAndModulesTab({
                 setPublishError(null);
                 setPublishDialogOpen(true);
               }}
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white hover:bg-[#126653] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
             >
               <BadgeCheck className="h-4 w-4" />
               {t("Sync and publish offer")}
@@ -2879,14 +2855,14 @@ function CatalogTab({
               placeholder={
                 t("Product or offer")
               }
-              tone="aqua"
+              tone="blue"
               value={priceQuery}
               onValueChange={setPriceQuery}
               onClear={() => setPriceQuery("")}
             />
             <IndiceFilterSelect
               label={t("Type")}
-              tone="aqua"
+              tone="blue"
               value={priceTypeFilter}
               onValueChange={setPriceTypeFilter}
               options={[
@@ -2904,7 +2880,7 @@ function CatalogTab({
             />
             <IndiceFilterSelect
               label={t("Sales status")}
-              tone="aqua"
+              tone="blue"
               value={priceStatusFilter}
               onValueChange={setPriceStatusFilter}
               options={[

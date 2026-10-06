@@ -81,4 +81,15 @@ class ProductAnalyticsRepositoryIntegrationTest {
             .singleElement().satisfies(row -> assertThat(row).containsEntry("source", "google"));
         assertThat(repository.dataSince()).isEqualTo(usageDate.toString());
     }
+
+    @Test
+    void websiteSubmissionRateCountsSessionsOnceAndEmptyPeriodsRemainUnavailable() {
+        var now = Instant.parse("2026-08-28T20:10:00Z");
+        repository.observe(webSessionKey, usageDate, "/diagnostico.php", "form", 1, 15, 0, 3, now);
+        var web = repository.webSummary(usageDate, usageDate);
+        assertThat(web).containsEntry("conversions", 4L).containsEntry("converting_sessions", 1L);
+        assertThat((java.math.BigDecimal) web.get("conversion_rate_percent")).isEqualByComparingTo("100.00");
+        var empty = repository.webSummary(LocalDate.of(2037, 1, 1), LocalDate.of(2037, 1, 1));
+        assertThat(empty).containsEntry("sessions", 0L).containsEntry("conversion_rate_percent", null);
+    }
 }

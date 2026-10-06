@@ -124,7 +124,10 @@ public class ProductAnalyticsRepository {
                        COALESCE(SUM(page_usage.view_count), 0) AS views,
                        COALESCE(SUM(page_usage.active_seconds), 0) AS active_seconds,
                        COALESCE(SUM(page_usage.interaction_count), 0) AS interactions,
-                       COALESCE(SUM(page_usage.conversion_count), 0) AS conversions
+                       COALESCE(SUM(page_usage.conversion_count), 0) AS conversions,
+                       COUNT(DISTINCT CASE WHEN page_usage.conversion_count > 0 THEN page_usage.session_key END) AS converting_sessions,
+                       ROUND(100.0 * COUNT(DISTINCT CASE WHEN page_usage.conversion_count > 0 THEN page_usage.session_key END)
+                         / NULLIF(COUNT(DISTINCT page_usage.session_key), 0), 2) AS conversion_rate_percent
                 FROM product_analytics_page_usage page_usage
                 JOIN product_analytics_sessions analytics_session
                   ON analytics_session.session_key = page_usage.session_key
@@ -137,7 +140,9 @@ public class ProductAnalyticsRepository {
                 "views", rs.getLong("views"),
                 "active_seconds", rs.getLong("active_seconds"),
                 "interactions", rs.getLong("interactions"),
-                "conversions", rs.getLong("conversions")
+                "conversions", rs.getLong("conversions"),
+                "converting_sessions", rs.getLong("converting_sessions"),
+                "conversion_rate_percent", rs.getBigDecimal("conversion_rate_percent")
             ),
             Date.valueOf(from), Date.valueOf(to)
         );

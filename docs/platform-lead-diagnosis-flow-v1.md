@@ -43,7 +43,7 @@ USD como si correspondiera a estos precios CAD.
 4. `POST /api/v1/public/platform-leads` verifica firma y ventana de cinco minutos; una clave
    de envío repetida sólo es idempotente si el cuerpo coincide. Si la app no confirma 201, la
    web muestra error y **no** afirma haber guardado el prospecto. No hay PII en log local.
-   V290 conserva el plan de interés validado (`CONTROLA`, `ESCALA`, `CORPORATIVO`) para
+   V289 conserva el plan de interés validado (`CONTROLA`, `ESCALA`, `CORPORATIVO`) para
    que el consultor lo vea en la bandeja sin tratarlo como selección contractual.
 5. `PLATFORM_ROOT` o un administrador con `MANAGE_LEADS` y MFA entra a la bandeja de prospectos.
    El lead nuevo recibe una próxima acción interna a 24 horas; el equipo puede asignar
@@ -58,14 +58,24 @@ tenant, suscripción, agentes ni entitlements. La activación técnica se hace p
 administrativo autorizado y debe verificarse por separado. No se modifican cobros de Stripe,
 catálogo, contratos existentes ni las rutas históricas de signup del SaaS.
 
+## Seguimiento de captación y resultados comerciales
+
+El workspace de captación del administrador consulta prospectos persistidos e historial de
+etapas, no el listado limitado de la bandeja ni eventos anónimos de navegación. Su contrato
+de medición, cohortes, contacto en 24 horas, pendientes de todas las fechas y detalle accionable
+se define en [platform-commercial-acquisition-kpi-contract.md](./platform-commercial-acquisition-kpi-contract.md).
+Los resultados siguen siendo comerciales: `WON` no confirma un cobro y `TRIAL_ACTIVE` no
+confirma activación técnica. La medición web puede seguir pendiente sin impedir consultar
+prospectos ya guardados.
+
 ## Seguridad, despliegue y reversión
 
 - `APP_PLATFORM_LEAD_INGEST_SECRET` en backend y `INDICE_LEAD_INGEST_SECRET` en PHP deben ser
   el mismo secreto privado aleatorio de al menos 32 caracteres. Se configura fuera de git.
-- Desplegar primero backend + migraciones V289 y V290 y comprobar salud y bandeja; configurar el secreto;
+- Desplegar primero backend + migraciones V288 y V289 y comprobar salud y bandeja; configurar el secreto;
   después desplegar la web. Probar un envío sintético consentido en staging, verificar que
   aparece una sola vez en la bandeja y que rechazo de firma/CSRF no crea registros.
 - Para revertir la presentación, restaurar la web anterior y retirar el secreto de ingesta.
-  V289 y V290 son forward-only: tablas y prospectos se conservan; no borrar datos comerciales.
+  V288 y V289 son forward-only: tablas y prospectos se conservan; no borrar datos comerciales.
 - No registrar cuerpo, email, teléfono, firma ni secreto en logs. Restringir retención y acceso
   al equipo comercial autorizado; cualquier política de eliminación requiere decisión aparte.

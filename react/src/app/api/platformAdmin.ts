@@ -819,6 +819,8 @@ export interface PlatformAnalyticsSummary {
   active_companies?: number;
   visitors?: number;
   conversions?: number;
+  converting_sessions?: number;
+  conversion_rate_percent?: number | null;
 }
 
 export interface PlatformAnalyticsPage {
