@@ -513,6 +513,12 @@ MCP anteriores debe restaurar también su healthcheck, porque no implementan `/r
 Después de aprobar todas las puertas de APPTEST, producción conserva el MCP en
 loopback pero usa `3011` para no colisionar con APPTEST en el mismo host:
 
+Excepción única para la liberación integrada del 2026-10-06: el propietario pidió hacer la
+revisión manual directamente en producción después del despliegue y smoke operativo. La
+[decisión acotada](../docs/decisions/2026-10-06-owner-production-acceptance.md) reemplaza sólo
+ese orden/entorno de aceptación; no marca UAT como aprobado ni elimina las puertas técnicas,
+respaldo/restauración, rollback compatible, capacidad, permisos, canary o conservación de precios.
+
 ```bash
 RELEASE_SHA="$(git rev-parse --short=12 HEAD)"
 APP_DIR=/home/corazon/app.indiceapp.com \

@@ -458,6 +458,13 @@ Production/catalog release requires all of the following:
 - approved domain verification, privacy, terms and isolated reviewer account;
 - documented rollback with the previous immutable images retained.
 
+One-release sequencing exception: after the protected 2026-10-06 APPTEST deployment/canary,
+the owner explicitly chose to conduct manual administrator and real-client acceptance in
+production. The [bounded decision](decisions/2026-10-06-owner-production-acceptance.md) controls
+only that location/timing for the exact named artifacts. Those checks remain UNKNOWN until done;
+technical/security/data-integrity gates and fail-closed authority are unchanged. This is not a
+general public-enablement or future-release exception.
+
 ## 8. Change and verification discipline
 
 Adding or changing a tool requires, in the same change:

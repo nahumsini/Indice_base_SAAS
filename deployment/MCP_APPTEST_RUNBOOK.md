@@ -167,6 +167,12 @@ de recargar Apache; los retos ACME deben continuar fuera del proxy.
 
 ## Aceptación de continuidad y diagnóstico
 
+La instrucción posterior del propietario para esta liberación integrada del 2026-10-06 traslada
+la revisión manual al entorno productivo después del despliegue verificado. Sigue la
+[decisión limitada a esa liberación](../docs/decisions/2026-10-06-owner-production-acceptance.md):
+la evidencia manual sigue pendiente, no se modifica OAuth ni se omiten las puertas técnicas.
+El procedimiento normal APPTEST anterior a promoción sigue vigente para las demás liberaciones.
+
 No expongas `/healthz` ni `/readyz` en el proxy público. El `401` anónimo, por sí solo, no acredita
 disponibilidad de herramientas. Antes de promover una versión:
 

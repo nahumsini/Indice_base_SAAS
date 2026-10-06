@@ -68,6 +68,13 @@ It leaves the historical TEST-secret finding unresolved, expires as documented,
 and does not waive any other gate or authorize billing activation. It is not a
 general residual-risk waiver or a precedent for future releases.
 
+For that same release, the owner's later explicit instruction to review directly in production
+replaces only the human-UAT location/timing, as recorded in the
+[bounded production-acceptance decision](decisions/2026-10-06-owner-production-acceptance.md).
+Manual evidence remains UNKNOWN and the sequencing risk is ACCEPTED, not PASS. All technical,
+security, financial-integrity, backup/recovery and monitoring gates still apply; the decision does
+not waive a known security defect or extend the Stripe exception.
+
 Evidence should name:
 
 - release commit/image digest;

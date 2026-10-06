@@ -57,3 +57,9 @@ original HIGH finding, owner, due date and 2026-10-07 UTC expiry remain unchange
 No prices, subscription versions, billing authority, provider flags or secret
 bytes may change through this deployment. All new domain, file, authorization,
 rollback, exact-artifact and real APPTEST acceptance gates remain mandatory.
+
+The owner's later instruction to review this same release directly in production replaces only
+the manual-UAT location/timing under the
+[bounded production-acceptance decision](2026-10-06-owner-production-acceptance.md).
+Technical APPTEST verification/canary already passed; manual evidence stays UNKNOWN. This does
+not extend this credential deferral, change billing authority or waive any other technical gate.

@@ -50,3 +50,8 @@ Synthetic tests do not certify a real ChatGPT OAuth/PKCE/refresh/revocation sess
 continuity. Production remains blocked until those APPTEST checks and the representative administrator
 UI/business-flow review have evidence. No credentials, token hashes or customer payloads belong in
 logs, this decision or the report.
+
+Later owner instruction: after the APPTEST deployment/canary passed, the owner explicitly asked
+to test in production. The [one-release replacement](2026-10-06-owner-production-acceptance.md)
+changes only the manual acceptance location/timing; it does not convert UNKNOWN evidence into
+PASS or relax technical/security/integrity gates.
