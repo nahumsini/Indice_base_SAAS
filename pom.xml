@@ -31,6 +31,9 @@
 		<!-- Security maintenance within the existing Spring Boot 3.5 / Tomcat 10.1 line. -->
 		<tomcat.version>10.1.59</tomcat.version>
 		<jackson-bom.version>2.21.7</jackson-bom.version>
+		<!-- Release SCA fixes; preserve the existing Spring Boot major and logging backend. -->
+		<commons-lang3.version>3.18.0</commons-lang3.version>
+		<log4j2.version>2.25.5</log4j2.version>
 	</properties>
 	<dependencyManagement>
 		<dependencies>

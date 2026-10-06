@@ -96,6 +96,7 @@ jobs:
       - name: Run frontend regression tests
         working-directory: react
         run: |
+          npm run test:release-dependencies
           npm run test:auth
           npm run test:dashboard-ui
           npm run test:human-resources-ui

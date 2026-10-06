@@ -4,6 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "test:release-dependencies": "node --test tests/release-dependency-regression.test.mjs",
     "test:commercial-operations": "node --experimental-strip-types --test tests/commercial-operations.test.mjs",
     "test:commercial-operations-browser": "node tests/commercial-operations-browser.mjs",
     "build": "vite build",
@@ -93,7 +94,7 @@
     "country-state-city": "^3.2.1",
     "date-fns": "3.6.0",
     "embla-carousel-react": "8.6.0",
-    "fflate": "^0.8.2",
+    "fflate": "0.8.3",
     "input-otp": "1.4.2",
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",
@@ -127,6 +128,9 @@
     "tailwindcss": "4.1.12",
     "typescript": "^6.0.2",
     "vite": "6.4.3"
+  },
+  "overrides": {
+    "dompurify": "3.4.16"
   },
   "pnpm": {
     "overrides": {
