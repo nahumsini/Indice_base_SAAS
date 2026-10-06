@@ -5,6 +5,11 @@ authenticated acceptance pending. Production remains unchanged.
 This record continues, rather than rewrites, the earlier
 [blocked readiness report](2026-10-06-lupita-admin-release-readiness.md).
 
+Historical checkpoint: the owner's later explicit choice to test directly in production and the
+subsequent activation are tracked in the [production release record](2026-10-06-protected-production-release.md).
+The pending-UAT/production state below describes this APPTEST checkpoint; no manual acceptance
+is inferred from the later deployment.
+
 ## Authority and source
 
 The owner authorized the dedicated MCP protection and the staged APPTEST-before-production
