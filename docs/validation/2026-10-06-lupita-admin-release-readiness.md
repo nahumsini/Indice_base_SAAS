@@ -4,6 +4,10 @@ Status: prepared, **activation blocked**. No new APPTEST or production release w
 The owner authorized merging, updating main and APPTEST-before-production, with Stripe pending.
 This authorization does not remove canonical release gates.
 
+Historical checkpoint: the subsequently authorized MCP protection and actual staged activation
+are tracked separately in the [protected APPTEST release record](2026-10-06-mcp-protected-apptest-release.md).
+The findings and target state below describe this checkpoint, not the later runtime.
+
 ## Source and immutable artifacts
 
 Merged application source: `d89c09d39f4567c4c4c4b91e2534d7324a0d094c`, pushed to main.
