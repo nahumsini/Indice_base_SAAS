@@ -4,9 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
@@ -29,6 +34,7 @@ class ExecutiveKpiDomainRepositoryIntegrationTest {
     private long companyId;
     private long unitId;
     private long businessId;
+    private long flowId;
     private String token;
 
     @BeforeEach
@@ -43,6 +49,8 @@ class ExecutiveKpiDomainRepositoryIntegrationTest {
                 companyId, unitId, "Linda Vista " + token);
         businessId = jdbc.queryForObject("SELECT id FROM businesses WHERE company_id = ? AND name = ?", Long.class,
                 companyId, "Linda Vista " + token);
+        jdbc.update("INSERT INTO sales_opportunity_flows (company_id, flow_key, name, is_default) VALUES (?, 'test', 'Test flow', 1)", companyId);
+        flowId = jdbc.queryForObject("SELECT id FROM sales_opportunity_flows WHERE company_id = ? AND flow_key = 'test'", Long.class, companyId);
     }
 
     @Test
@@ -72,6 +80,62 @@ class ExecutiveKpiDomainRepositoryIntegrationTest {
         assertThat(total(repository.loadExpenseValue(scope, "total_amount", false))).isEqualByComparingTo("600.00");
         assertThat(total(repository.loadExpenseValue(scope, "balance_amount", false))).isEqualByComparingTo("550.00");
         assertThat(total(repository.loadExpenseValue(scope, "balance_amount", true))).isEqualByComparingTo("300.00");
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "America/Toronto, 2026-10-05",
+        "America/Toronto, 2026-11-01",
+        "Asia/Tokyo, 2026-10-06"
+    })
+    void processCutoffUsesCompanyDayForUtcEventsIncludingDst(String zone, String day) {
+        jdbc.update("UPDATE units SET timezone = ? WHERE id = ? AND company_id = ?", zone, unitId, companyId);
+        jdbc.update("UPDATE businesses SET timezone = ? WHERE id = ? AND company_id = ?", zone, businessId, companyId);
+        var date = LocalDate.parse(day);
+        var cutoff = LocalDateTime.ofInstant(date.plusDays(1).atStartOfDay(ZoneId.of(zone)).toInstant(), ZoneOffset.UTC);
+        insertTask("BEFORE-CUTOFF", "completed", day, null, null);
+        insertTask("COMPLETED-AT-CUTOFF", "completed", day, null, null);
+        insertTask("CREATED-AT-CUTOFF", "completed", day, null, null);
+        setTaskEvents("BEFORE-CUTOFF", cutoff.minusHours(2), cutoff.minusHours(1), null, null);
+        setTaskEvents("COMPLETED-AT-CUTOFF", cutoff.minusHours(2), cutoff, null, null);
+        setTaskEvents("CREATED-AT-CUTOFF", cutoff, cutoff, null, null);
+
+        var snapshot = repository.loadProcesses(new ExecutiveKpiScope(companyId, date, date,
+            "custom", unitId, businessId, "", "all", "MXN", date));
+
+        assertThat(snapshot.totalTasks()).isEqualTo(2);
+        assertThat(snapshot.closedTasks()).isEqualTo(1);
+        assertThat(snapshot.pendingAuditTasks()).isEqualTo(1);
+    }
+
+    @Test
+    void processCancellationAndAuditAtNextCompanyMidnightAreAfterCutoff() {
+        var day = "2026-10-05";
+        var date = LocalDate.parse(day);
+        jdbc.update("UPDATE units SET timezone = 'America/Toronto' WHERE id = ?", unitId);
+        jdbc.update("UPDATE businesses SET timezone = 'America/Toronto' WHERE id = ?", businessId);
+        var cutoff = LocalDateTime.parse("2026-10-06T04:00:00");
+        insertTask("CANCELLED-BEFORE", "cancelled", day, null, null);
+        insertTask("CANCELLED-AT-CUTOFF", "cancelled", day, null, null);
+        setTaskEvents("CANCELLED-BEFORE", cutoff.minusHours(2), cutoff.minusHours(1), cutoff.minusMinutes(1), null);
+        setTaskEvents("CANCELLED-AT-CUTOFF", cutoff.minusHours(2), cutoff.minusHours(1), cutoff, cutoff);
+        jdbc.update("UPDATE process_tasks SET audited = 1 WHERE company_id = ? AND folio = ?",
+            companyId, "TASK-CANCELLED-AT-CUTOFF-" + token);
+
+        var snapshot = repository.loadProcesses(new ExecutiveKpiScope(companyId, date, date,
+            "custom", unitId, businessId, "", "all", "MXN", date));
+
+        assertThat(snapshot.totalTasks()).isEqualTo(1);
+        assertThat(snapshot.closedTasks()).isEqualTo(1);
+        assertThat(snapshot.pendingAuditTasks()).isEqualTo(1);
+    }
+
+    private void setTaskEvents(String suffix, LocalDateTime created, LocalDateTime completed,
+            LocalDateTime cancelled, LocalDateTime audited) {
+        jdbc.update("""
+            UPDATE process_tasks SET created_at = ?, completed_at = ?, cancelled_at = ?, audited_at = ?
+            WHERE company_id = ? AND folio = ?
+            """, created, completed, cancelled, audited, companyId, "TASK-" + suffix + '-' + token);
     }
 
     @Test
@@ -116,10 +180,10 @@ class ExecutiveKpiDomainRepositoryIntegrationTest {
         insertSale("rejected", "1000.00", "2026-08-06");
         jdbc.update("""
                 INSERT INTO sales_opportunities
-                    (company_id, unit_id, business_id, opportunity_code, opportunity_name,
+                    (company_id, unit_id, business_id, assigned_flow_id, opportunity_code, opportunity_name,
                      stage, status, estimated_value, currency, probability_percent, created_at)
-                VALUES (?, ?, ?, ?, ?, 'qualification', 'active', -100, 'BAD!', 150, '2026-07-10 09:00:00')
-                """, companyId, unitId, businessId, "OPP-" + token, "Opportunity " + token);
+                VALUES (?, ?, ?, ?, ?, ?, 'qualification', 'active', -100, 'BAD!', 150, '2026-07-10 09:00:00')
+                """, companyId, unitId, businessId, flowId, "OPP-" + token, "Opportunity " + token);
 
         jdbc.update("""
                 INSERT INTO finance_petty_cash_funds

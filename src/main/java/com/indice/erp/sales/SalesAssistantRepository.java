@@ -41,6 +41,10 @@ class SalesAssistantRepository {
             if (!kind.equals("opportunity")) throw new IllegalArgumentException("Stage applies only to opportunities.");
             where += " AND e.stage = ?"; args.add(query.stage());
         }
+        if (query.flowId() != null) {
+            if (!kind.equals("opportunity")) throw new IllegalArgumentException("Flow applies only to opportunities.");
+            where += " AND e.assigned_flow_id = ?"; args.add(query.flowId());
+        }
         if (query.customerId() != null) {
             if (kind.equals("customer")) throw new IllegalArgumentException("Customer filter applies to opportunities and quotes.");
             where += " AND e.contact_id = ?"; args.add(query.customerId());
@@ -57,12 +61,14 @@ class SalesAssistantRepository {
 
     List<PipelineBucket> pipeline(AuthSessionUser user, HrOperationalScope scope, Flow flow) {
         var initial = flow.stages().stream().filter(stage -> stage.type().equals("OPEN")).findFirst().orElseThrow().key();
-        var args = new ArrayList<Object>(java.util.Arrays.asList(initial, flow.id(), user.companyId()));
+        var args = new ArrayList<Object>(java.util.Arrays.asList(
+            initial, flow.id(), user.companyId(), flow.id()));
+        var scopeClause = scopeSql("opportunity", scope, args);
         return jdbc.query("SELECT COALESCE(s.stage_key, CASE WHEN e.lifecycle_status = 'WON' THEN 'won'"
             + " WHEN e.lifecycle_status = 'LOST' THEN 'lost' ELSE ? END) pipeline_stage, e.lifecycle_status, e.currency, COUNT(*) n, SUM(e.estimated_value) amount"
             + " FROM sales_opportunities e LEFT JOIN sales_opportunity_flow_positions p ON p.company_id = e.company_id AND p.opportunity_id = e.id AND p.flow_id = ?"
             + " LEFT JOIN sales_opportunity_flow_stages s ON s.company_id = e.company_id AND s.id = p.stage_id AND s.is_active = 1"
-            + " WHERE e.company_id = ? AND e.deleted_at IS NULL" + scopeSql("opportunity", scope, args)
+            + " WHERE e.company_id = ? AND e.assigned_flow_id = ? AND e.deleted_at IS NULL" + scopeClause
             + " GROUP BY pipeline_stage, e.lifecycle_status, e.currency ORDER BY pipeline_stage, e.currency",
             (rs, n) -> new PipelineBucket(rs.getString("pipeline_stage"), rs.getString("lifecycle_status"), rs.getString("currency"),
                 rs.getInt("n"), rs.getBigDecimal("amount")), args.toArray());
