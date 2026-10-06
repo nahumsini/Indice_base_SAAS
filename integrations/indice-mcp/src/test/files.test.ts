@@ -67,9 +67,9 @@ test("file schemas reject caller authority, unknown paths and altered binary out
 test("large HTTP messages cannot expand the ordinary limit or upload without a bearer header",async()=>{
   const fixture=await httpFixture((async()=>json({version:"v1",tools:[]})) as typeof fetch);
   try {
-    for(const [name,token] of [["list_tasks","idx_ai_synthetic"],["stage_operational_file",null]]) {
+    for(const [name,token,status] of [["list_tasks","idx_ai_synthetic",413],["stage_operational_file",null,401]] as const) {
       const result=await fetch(fixture.url,{method:"POST",headers:{"Content-Type":"application/json",...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify({jsonrpc:"2.0",id:1,method:"tools/call",params:{name,arguments:{contentBase64:"a".repeat(110*1024)}}})});
-      assert.equal(result.status,413);assert.ok(!(await result.text()).includes("aaaa"));
+      assert.equal(result.status,status);assert.ok(!(await result.text()).includes("aaaa"));
     }
   }finally{await fixture.close();}
 });

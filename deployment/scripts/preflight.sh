@@ -118,7 +118,7 @@ resolve_protected_value() {
 }
 
 validate_mcp_configuration() {
-  local enabled image transport auth_mode host
+  local enabled image transport auth_mode host proxy_config requirement
   enabled="$(read_env_value MCP_ENABLED)"
   enabled="${enabled:-false}"
   if [[ "${enabled}" != "true" && "${enabled}" != "false" ]]; then
@@ -154,6 +154,20 @@ validate_mcp_configuration() {
     echo "Host Nginx must expose only the exact OAuth-protected MCP route." >&2
     return 1
   fi
+  for proxy_config in nginx.host.conf nginx.conf; do
+    for requirement in \
+      'limit_req_zone $server_name zone=indice_mcp_requests:1m rate=20r/s;' \
+      'limit_conn_zone $server_name zone=indice_mcp_connections:1m;' \
+      'limit_req zone=indice_mcp_requests burst=40 nodelay;' \
+      'limit_conn indice_mcp_connections 8;' \
+      'limit_req_status 429;' 'limit_conn_status 429;' \
+      'client_body_timeout 15s;' 'location @indice_mcp_throttled'; do
+      if ! grep -Fq "${requirement}" "${DEPLOY_DIR}/docker/web/${proxy_config}"; then
+        echo "MCP capacity protection is missing from ${proxy_config}." >&2
+        return 1
+      fi
+    done
+  done
 }
 
 require_boolean_value() {

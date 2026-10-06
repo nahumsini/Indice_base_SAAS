@@ -182,11 +182,11 @@ test("a lost commit response is not replayed automatically and an explicit retry
   } finally { await fixture.close(); }
 });
 
-test("malformed and oversized HTTP requests never reach the backend or echo submitted content", async () => {
+test("anonymous malformed and oversized HTTP requests fail authentication before parsing", async () => {
   let calls = 0;
   const fixture = await httpFixture((async () => { calls++; return json({}); }) as typeof fetch);
   try {
-    for (const [body, status] of [["{private-malformed", 400], [JSON.stringify({ private: "x".repeat(110000) }), 413]] as const) {
+    for (const [body, status] of [["{private-malformed", 401], [JSON.stringify({ private: "x".repeat(110000) }), 401]] as const) {
       const response = await fetch(fixture.url, { method: "POST", headers: { "Content-Type": "application/json" }, body });
       assert.equal(response.status, status);
       assert.doesNotMatch(await response.text(), /private/);

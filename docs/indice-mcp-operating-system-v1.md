@@ -372,11 +372,42 @@ through the reverse proxy and preserves the Authorization header. The public rou
 bounded JSON body, rate limiting and no-store responses. Readiness must distinguish MCP process
 liveness from backend authorization-service availability.
 
+The dedicated HTTP capacity policy is fixed and version-reviewed, not client-configurable:
+
+- Both supplied Nginx configurations use one shared `$server_name` bucket per environment:
+  20 requests/second, burst 40 without queuing, and at most eight simultaneous MCP requests.
+  Only the exact `/api/v1/ai/mcp` location consumes these quotas. Untrusted Host or forwarded-IP
+  changes cannot rotate the key. Other APIs, OAuth metadata and private readiness are unaffected.
+- The MCP process independently limits `/mcp` to 20 requests/second, burst 40, and eight in flight
+  before authorization/body parsing. Slots release exactly once on completion or disconnection.
+- After the backend validates each request's current delegated manifest, a connection has an
+  independent 8 requests/second, burst 24 quota. Its in-memory SHA-256 token key is never logged,
+  grants are never cached, and the quota map retains at most 1024 entries with 60-second idle
+  expiry. A full map rejects new keys instead of evicting a live quota. This is not tenant authority.
+- Capacity rejection returns JSON-RPC HTTP `429`, `Retry-After: 1`, `Cache-Control: no-store` and
+  no OAuth-expiry challenge. Never automatically replay a write because of throttling.
+- The manifest is validated **before** body consumption. Ordinary JSON is limited to 100 KiB;
+  only a current manifest containing `stage_operational_file` selects the 14 MiB parser, and a body
+  over 100 KiB must name that exact intake. Declared oversized bodies are rejected before reading;
+  compressed JSON remains disallowed. Authentication errors before parsing have a null RPC ID.
+- Nginx bounds body inactivity to 15 seconds; Node bounds header receipt to 15 seconds and whole
+  request receipt to 30 seconds. These are not a new deadline or retry for an already received action.
+
+This policy is capacity protection for the current single MCP process per environment, not a
+distributed quota service or complete denial-of-service defense. Scaling replicas or changing the
+proxy trust boundary requires a reviewed shared-capacity policy. Actual Nginx container regressions
+and HTTP SDK tests verify rejection, recovery, privacy and unchanged permission/continuity behavior.
+
 The runtime does not enable Express forwarded-IP trust. Authorization continues
 to derive from the delegated bearer and current backend grants, never a forwarded
 client address. The transitive `proxy-addr` package is pinned to patched `2.0.8`
 for CVE-2026-90711; its mapped-IPv6 trust and unchanged no-proxy-trust behavior
 have regressions. This dependency correction changes no tools, scopes or action protocol.
+
+The MCP SDK is pinned to `1.31.0`, the minimum corrected 1.x version for
+`GHSA-6qxp-vccf-f47h`/`CVE-2026-104850`. The affected OAuth-client credential forwarding is not
+used by this delegated server; do not introduce unbound persisted OAuth-client credentials.
+This patch does not replace the backend's token/resource validation or change consent.
 
 ### 7.1 Conversation continuity and bounded recovery
 
@@ -451,7 +482,6 @@ separate approved domain decision and recovery tests.
   filter in memory; employee/task/attendance lists now have bound opaque cursors and full counts; the
   eight paged reference lists expose opaque cursors (business context is a separate singleton); customer and warehouse count/row
   queries paginate in SQL, while the Finance reference lists still paginate after owner filtering;
-- the public MCP route has no repository-defined dedicated rate-limit policy;
 - backend reachability is covered by readiness; an authenticated synthetic monitor and actual
   ChatGPT text/voice continuity still require APPTEST operational validation;
 - the full ChatGPT APPTEST and reviewer checklist remains incomplete;

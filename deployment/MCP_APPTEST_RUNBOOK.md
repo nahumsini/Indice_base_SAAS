@@ -11,6 +11,7 @@ puede usarse el túnel seguro. Para preparar una publicación pública, Nginx ex
 1. Ejecuta `./deployment/scripts/preflight.sh` con el entorno protegido de
    APPTEST y una base exclusiva para pruebas.
 2. Verifica respaldo de la base y compatibilidad de las migraciones.
+   El preflight también verifica la política dedicada de tráfico en ambas configuraciones Nginx.
 3. Construye las tres imágenes con el mismo commit:
 
 ```bash
@@ -129,6 +130,33 @@ OPENAI_DOMAIN_CHALLENGE_TOKEN='valor-entregado-por-openai' \
 El puerto `3010` no debe publicarse en firewall, balanceador ni DNS. El proxy web
 solo puede publicar la ruta MCP exacta y debe conservar el encabezado `Authorization`.
 
+### Protección de tráfico y cargas
+
+La política vigente limita el MCP por entorno a 20 solicitudes/s, ráfaga 40 y ocho solicitudes
+simultáneas, tanto en Nginx como en el proceso. Una conexión validada tiene además 8 solicitudes/s
+y ráfaga 24. No son límites de conexiones OAuth: se conservan los cinco accesos por usuario y empresa.
+El rechazo es `429` con `Retry-After: 1`, JSON-RPC y `no-store`, nunca una expiración de OAuth.
+La clave del proxy no depende de `Host` ni `X-Forwarded-For` enviados por el cliente.
+
+El token y manifiesto se validan antes de leer el cuerpo. Sin autorización de carga, el máximo
+es 100 KiB; los 14 MiB se reservan al permiso y herramienta exacta `stage_operational_file`.
+Nginx acota la inactividad del cuerpo a 15 s; Node acota recepción de encabezados/cuerpo a 15/30 s.
+No se cambia el plazo ni se repite automáticamente una escritura ya recibida.
+
+Antes de activar las imágenes, ejecuta la regresión real en contenedores desechables sin puertos
+publicados ni tráfico externo; nunca satures el MCP público para comprobar los límites:
+
+```bash
+MCP_TRAFFIC_TEST_WEB_IMAGE="indice-erp-web:${RELEASE_SHA}" \
+MCP_TRAFFIC_TEST_NODE_IMAGE="indice-erp-mcp:${RELEASE_SHA}" \
+node --test deployment/tests/mcp-proxy-traffic.test.mjs
+```
+
+La prueba usa ambas configuraciones completas y un backend sintético. Comprueba saturación,
+rechazo por tasa, claves no rotables por encabezados falsos, recuperación, APIs ajenas al MCP y
+ausencia de secretos/query strings en logs. Mantén esta protección del proxy en una recuperación;
+si el MCP anterior no resulta compatible, déjalo detenido en lugar de abrir una ruta sin límites.
+
 Si cPanel/Apache excluye todo `/.well-known/` para ACME, conserva esa exclusión
 general pero agrega antes tres `ProxyPass` exactos hacia el frontend de APPTEST:
 `/.well-known/oauth-protected-resource` y
@@ -168,6 +196,7 @@ Los eventos JSON `mcp_request` y `mcp_backend_request` se correlacionan mediante
 - `authorization_denied`/403: revisar permisos vigentes; no se resuelve ampliando TTL.
 - `no_authorized_tools`: catálogo legítimamente vacío; revisar consentimiento y permisos.
 - `tool_failed`: consultar estado/duración del intento backend asociado, sin capturar su payload.
+- `traffic_limited`/429: revisar capacidad y esperar `Retry-After`; no reconectar ni ampliar permisos.
 - Si no llega ninguna petición al MCP, revisar cliente/proxy y exposición del catálogo; no
   atribuir automáticamente la ausencia de herramientas a una caída de Índice.
 

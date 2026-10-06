@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import test from "node:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import type { OAuthClientProvider } from "@modelcontextprotocol/sdk/client/auth.js";
+import { fetchToken, type OAuthClientProvider } from "@modelcontextprotocol/sdk/client/auth.js";
 import type { OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
 import { httpFixture, json, queryResult } from "./httpFixture.js";
 
@@ -44,13 +44,13 @@ test("SDK client refreshes expired access through HTTP OAuth discovery and keeps
   }) as typeof fetch, { oauthIssuer: new URL(issuer), oauthResourceMetadataUrl: new URL(`${issuer}/metadata`) });
   resource = fixture.url.toString();
   fixture.config.resourceUrl = fixture.url;
-  let tokens: OAuthTokens = { access_token: "synthetic-expired", token_type: "Bearer", refresh_token: "synthetic-refresh-0" };
+  let tokens: OAuthTokens = { access_token: "synthetic-expired", token_type: "Bearer", refresh_token: "synthetic-refresh-0", issuer };
   const provider: OAuthClientProvider = {
     redirectUrl: `${issuer}/callback`,
     clientMetadata: { redirect_uris: [`${issuer}/callback`], token_endpoint_auth_method: "none" },
-    clientInformation: () => ({ client_id: "synthetic-client" }),
+    clientInformation: () => ({ client_id: "synthetic-client", issuer }),
     tokens: () => tokens,
-    saveTokens: replacement => { tokens = replacement; },
+    saveTokens: replacement => { assert.equal(replacement.issuer, issuer); tokens = replacement; },
     redirectToAuthorization: () => { throw new Error("Unexpected interactive authorization"); },
     saveCodeVerifier: () => {}, codeVerifier: () => "synthetic-verifier"
   };
@@ -72,4 +72,23 @@ test("SDK client refreshes expired access through HTTP OAuth discovery and keeps
     oauth.closeAllConnections();
     await new Promise<void>((resolve, reject) => oauth.close(error => error ? reject(error) : resolve()));
   }
+});
+
+test("patched SDK refuses to send issuer-bound OAuth client credentials to another authorization server", async () => {
+  let sends = 0;
+  const issuer = "https://authorized.example.test";
+  const provider: OAuthClientProvider = {
+    redirectUrl: `${issuer}/callback`,
+    clientMetadata: { redirect_uris: [`${issuer}/callback`], token_endpoint_auth_method: "client_secret_post" },
+    clientInformation: () => ({ client_id: "synthetic-client", client_secret: "synthetic-client-secret", issuer }),
+    tokens: () => ({ access_token: "synthetic-access", token_type: "Bearer", refresh_token: "synthetic-refresh", issuer }),
+    saveTokens: () => { throw new Error("Unexpected credential mutation"); },
+    prepareTokenRequest: () => new URLSearchParams({ grant_type: "refresh_token", refresh_token: "synthetic-refresh" }),
+    redirectToAuthorization: () => { throw new Error("Unexpected redirect"); },
+    saveCodeVerifier: () => {}, codeVerifier: () => "synthetic-verifier"
+  };
+  await assert.rejects(() => fetchToken(provider, "https://untrusted.example.test", {
+    fetchFn: async () => { sends++; return json({}); }
+  }), /bound to authorization server/);
+  assert.equal(sends, 0);
 });

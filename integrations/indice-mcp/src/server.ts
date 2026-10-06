@@ -4,7 +4,7 @@ import { loadConfig } from "./config.js";
 import { IndiceClient } from "./indiceClient.js";
 import { createChatGptFileDownloader } from "./chatGptFiles.js";
 import { createIndiceMcpServer } from "./mcpServer.js";
-import { createIndiceHttpApp } from "./httpApp.js";
+import { createIndiceHttpServer } from "./httpApp.js";
 
 async function main(): Promise<void> {
   const config = loadConfig();
@@ -13,8 +13,7 @@ async function main(): Promise<void> {
     console.error("Indice MCP is ready on stdio.");
     return;
   }
-  const app = createIndiceHttpApp(config);
-  const httpServer = app.listen(config.port, config.host, () => {
+  const httpServer = createIndiceHttpServer(config).listen(config.port, config.host, () => {
     console.error(`Indice MCP is ready at http://${config.host}:${config.port}/mcp.`);
   });
   await new Promise<void>((resolve, reject) => {

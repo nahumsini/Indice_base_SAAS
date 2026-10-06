@@ -1,5 +1,6 @@
 import { createChatGptFileDownloader, type ChatGptFileDownloader } from "./chatGptFiles.js";
 import { createHash, randomUUID } from "node:crypto";
+import { createServer } from "node:http";
 import express from "express";
 import { hostHeaderValidation } from "@modelcontextprotocol/sdk/server/middleware/hostHeaderValidation.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -10,6 +11,7 @@ import { IndiceApiError, IndiceClient } from "./indiceClient.js";
 import { createIndiceMcpServer } from "./mcpServer.js";
 import { bearerChallenge, supportedScopes } from "./toolPolicy.js";
 import type { BackendAttempt } from "./backendTransport.js";
+import { McpHttpTraffic } from "./httpTraffic.js";
 
 type DiagnosticEvent = BackendAttempt | {
   event: "mcp_request"; requestId: string; method: string; tool?: string; status: number;
@@ -25,16 +27,15 @@ export function createIndiceHttpApp(config: IndiceMcpConfig, dependencies: HttpD
   const fetcher = dependencies.fetcher ?? fetch;
   const log = dependencies.log ?? (event => console.error(JSON.stringify({ timestamp: new Date().toISOString(), ...event })));
   const app = express();
+  const traffic = new McpHttpTraffic();
   app.use(hostHeaderValidation(allowedMcpHosts(config.host, config.resourceUrl)));
-  app.use(express.json({limit:"14mb",inflate:false,verify(request,_response,bytes){
+  const ordinaryJson = express.json({ limit: "100kb", inflate: false });
+  const fileJson = express.json({limit:"14mb",inflate:false,verify(_request,_response,bytes){
     if(bytes.length<=100*1024)return;
-    const bearer=request.headers.authorization;
     let fileIntake=false;
-    if(typeof bearer==="string"&&/^Bearer [A-Za-z0-9._~-]+$/.test(bearer)) {
-      try {const body=JSON.parse(bytes.toString("utf8"));fileIntake=body?.method==="tools/call"&&body?.params?.name==="stage_operational_file";}catch{ /* Parser returns the ordinary invalid JSON error. */ }
-    }
+    try {const body=JSON.parse(bytes.toString("utf8"));fileIntake=body?.method==="tools/call"&&body?.params?.name==="stage_operational_file";}catch{ /* Parser returns the ordinary invalid JSON error. */ }
     if(!fileIntake)throw Object.assign(new Error("Request exceeds the ordinary JSON size limit."),{type:"entity.too.large"});
-  }}));
+  }});
   app.use((_request, response, next) => {
     response.setHeader("Cache-Control", "no-store");
     response.setHeader("X-Content-Type-Options", "nosniff");
@@ -67,21 +68,36 @@ export function createIndiceHttpApp(config: IndiceMcpConfig, dependencies: HttpD
   app.get("/.well-known/oauth-protected-resource", resourceMetadata);
   app.get("/.well-known/oauth-protected-resource/mcp", resourceMetadata);
 
-  app.post("/mcp", async (request, response) => {
+  app.all("/mcp", (_request, response, next) => {
+    const release = traffic.acquire();
+    if (!release) {
+      const requestId = randomUUID();
+      response.header("X-Request-ID", requestId).header("Retry-After", "1").header("Connection", "close")
+        .status(429).json({ jsonrpc: "2.0", error: { code: -32004, message: "MCP capacity exceeded. Retry later." }, id: null });
+      log({ event: "mcp_request", requestId, method: "other", status: 429, durationMs: 0, outcome: "traffic_limited" });
+      return;
+    }
+    response.once("finish", release);
+    response.once("close", release);
+    _request.once("aborted", release);
+    next();
+  });
+
+  app.post("/mcp", async (request, response, next) => {
     const requestId = randomUUID();
     response.setHeader("X-Request-ID", requestId);
     const start = performance.now();
     const cancellation = new AbortController();
     const methods = new Set(["initialize", "notifications/initialized", "ping", "tools/list", "tools/call"]);
-    const method = methods.has(request.body?.method) ? request.body.method as string : "other";
-    const candidate = method === "tools/call" ? indiceToolNameSchema.safeParse(request.body?.params?.name) : undefined;
-    const tool = candidate ? candidate.success ? candidate.data : "unknown" : undefined;
+    let method = "other";
+    let tool: string | undefined;
     let outcome = "processing";
     let toolCount: number | undefined;
     let catalogFingerprint: string | undefined;
     let finished = false;
     let cleanup: (() => void) | undefined;
     response.once("finish", () => { finished = true; });
+    request.once("aborted", () => { cancellation.abort(); cleanup?.(); });
     response.once("close", () => {
       cancellation.abort();
       cleanup?.();
@@ -92,7 +108,7 @@ export function createIndiceHttpApp(config: IndiceMcpConfig, dependencies: HttpD
     const rpcError = (status: number, code: number, message: string) => {
       if (response.destroyed || response.headersSent) return;
       const id = typeof request.body?.id === "number" || typeof request.body?.id === "string" ? request.body.id : null;
-      response.status(status).json({ jsonrpc: "2.0", error: { code, message }, id });
+      response.header("Connection", "close").status(status).json({ jsonrpc: "2.0", error: { code, message }, id });
     };
     const authorization = request.header("authorization");
     if (!authorization?.toLowerCase().startsWith("bearer ") || !authorization.slice(7).trim() || authorization.length > 4096) {
@@ -134,33 +150,62 @@ export function createIndiceHttpApp(config: IndiceMcpConfig, dependencies: HttpD
       return;
     }
     if (cancellation.signal.aborted || response.destroyed) return;
-    // Stateless by design: reauthorize every request, without cross-user or stale catalog caches.
-    const server = createIndiceMcpServer(reader, allowedTools, dependencies.fileDownloader ?? createChatGptFileDownloader(config.chatGptFileHosts ?? [],cancellation.signal));
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-    const send = transport.send.bind(transport);
-    transport.send = async (message, options) => {
-      // SDK 1.x preserves _meta but does not emit this OpenAI descriptor extension.
-      // Mirror it at the wire boundary without replacing SDK discovery/schema handling.
-      if (method === "tools/list" && "result" in message && Array.isArray(message.result.tools)) {
-        message = { ...message, result: { ...message.result,
-          tools: message.result.tools.map(descriptor => ({ ...descriptor,
-            securitySchemes: descriptor._meta?.securitySchemes })) } };
+    if (!traffic.admitValidatedGrant(authorization.slice(7).trim())) {
+      outcome = "traffic_limited";
+      response.header("Retry-After", "1");
+      rpcError(429, -32004, "MCP connection rate exceeded. Retry later.");
+      return;
+    }
+    // Authenticate before consuming the body. Only an explicitly authorized intake gets 14 MiB.
+    const fileAllowed = allowedTools.has("stage_operational_file");
+    if (Number(request.header("Content-Length")) > (fileAllowed ? 14 * 1024 * 1024 : 100 * 1024)) {
+      outcome = "invalid_request";
+      rpcError(413, -32700, "Invalid or oversized JSON request");
+      return;
+    }
+    const parser = fileAllowed ? fileJson : ordinaryJson;
+    parser(request, response, error => {
+      if (error) { outcome = "invalid_request"; next(error); return; }
+      void handleAuthorizedRequest().catch(() => {
+        outcome = "protocol_error";
+        rpcError(500, -32603, "Unable to process this MCP request");
+        cleanup?.();
+      });
+    });
+
+    async function handleAuthorizedRequest() {
+      if (cancellation.signal.aborted || response.destroyed) return;
+      method = methods.has(request.body?.method) ? request.body.method as string : "other";
+      const candidate = method === "tools/call" ? indiceToolNameSchema.safeParse(request.body?.params?.name) : undefined;
+      tool = candidate ? candidate.success ? candidate.data : "unknown" : undefined;
+      // Stateless by design: reauthorize every request, without cross-user or stale catalog caches.
+      const server = createIndiceMcpServer(reader, allowedTools, dependencies.fileDownloader ?? createChatGptFileDownloader(config.chatGptFileHosts ?? [],cancellation.signal));
+      const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+      const send = transport.send.bind(transport);
+      transport.send = async (message, options) => {
+        // SDK 1.x preserves _meta but does not emit this OpenAI descriptor extension.
+        // Mirror it at the wire boundary without replacing SDK discovery/schema handling.
+        if (method === "tools/list" && "result" in message && Array.isArray(message.result.tools)) {
+          message = { ...message, result: { ...message.result,
+            tools: message.result.tools.map(descriptor => ({ ...descriptor,
+              securitySchemes: descriptor._meta?.securitySchemes })) } };
+        }
+        // Inspect only the result flag, never serialize or log business payloads.
+        if (method === "tools/call" && "result" in message && outcome !== "tool_not_available") {
+          outcome = message.result.isError === true ? "tool_failed" : "completed";
+        }
+        return send(message, options);
+      };
+      cleanup = () => { void transport.close().catch(() => {}); void server.close().catch(() => {}); };
+      try {
+        outcome = tool && !allowedTools.has(tool) ? "tool_not_available" : toolCount === 0 ? "no_authorized_tools" : "completed";
+        await server.connect(transport);
+        await transport.handleRequest(request, response, request.body);
+      } catch {
+        outcome = "protocol_error";
+        rpcError(500, -32603, "Unable to process this MCP request");
+        cleanup();
       }
-      // Inspect only the result flag, never serialize or log business payloads.
-      if (method === "tools/call" && "result" in message && outcome !== "tool_not_available") {
-        outcome = message.result.isError === true ? "tool_failed" : "completed";
-      }
-      return send(message, options);
-    };
-    cleanup = () => { void transport.close().catch(() => {}); void server.close().catch(() => {}); };
-    try {
-      outcome = tool && !allowedTools.has(tool) ? "tool_not_available" : toolCount === 0 ? "no_authorized_tools" : "completed";
-      await server.connect(transport);
-      await transport.handleRequest(request, response, request.body);
-    } catch {
-      outcome = "protocol_error";
-      rpcError(500, -32603, "Unable to process this MCP request");
-      cleanup();
     }
   });
 
@@ -177,9 +222,15 @@ export function createIndiceHttpApp(config: IndiceMcpConfig, dependencies: HttpD
   app.delete("/mcp", unsupported);
   const malformed: ErrorRequestHandler = (error: unknown, _request, response, _next) => {
     const oversized = typeof error === "object" && error !== null && "type" in error && error.type === "entity.too.large";
-    if (!response.headersSent) response.header("Cache-Control", "no-store").status(oversized ? 413 : 400)
+    if (!response.headersSent) response.header("Cache-Control", "no-store").header("Connection", "close").status(oversized ? 413 : 400)
       .json({ jsonrpc: "2.0", error: { code: -32700, message: "Invalid or oversized JSON request" }, id: null });
   };
   app.use(malformed);
   return app;
+}
+
+export function createIndiceHttpServer(config: IndiceMcpConfig, dependencies: HttpDependencies = {}) {
+  // Bounds receiving headers/body, not the duration of an already received tool action.
+  return createServer({ requestTimeout: 30_000, headersTimeout: 15_000, connectionsCheckingInterval: 1000 },
+    createIndiceHttpApp(config, dependencies));
 }

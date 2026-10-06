@@ -93,6 +93,13 @@ jobs:
         working-directory: react
         run: npm run build
 
+      - name: Verify delegated MCP authorization, traffic protection and tool regressions
+        working-directory: integrations/indice-mcp
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm audit --omit=dev --audit-level=high
+
       - name: Run frontend regression tests
         working-directory: react
         run: |
@@ -149,3 +156,12 @@ jobs:
 
       - name: Build web image
         run: docker build -f deployment/docker/web/Dockerfile -t indice-erp-web:ci .
+
+      - name: Build MCP image
+        run: docker build -f deployment/docker/mcp/Dockerfile -t indice-erp-mcp:ci .
+
+      - name: Verify actual Nginx MCP traffic controls in isolated containers
+        env:
+          MCP_TRAFFIC_TEST_WEB_IMAGE: indice-erp-web:ci
+          MCP_TRAFFIC_TEST_NODE_IMAGE: indice-erp-mcp:ci
+        run: node --test deployment/tests/mcp-proxy-traffic.test.mjs
