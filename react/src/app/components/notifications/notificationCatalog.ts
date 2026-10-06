@@ -1,4 +1,5 @@
 import type { AppNotification } from '../../api/notifications';
+import { messagingCopy } from '../../Messaging/copy';
 
 export type NotificationPriority = 'high' | 'medium' | 'low';
 
@@ -396,6 +397,7 @@ export function getLocalizedNotificationPreferenceGroups(locale: string): Notifi
 }
 
 export function getNotificationDisplayTitle(notification: AppNotification, locale: string) {
+  if (notification.module_slug === 'messaging') return messagingCopy(locale).title;
   const language = notificationLanguage(locale);
   const subtype = notification.source_subtype as keyof typeof notificationTitles.en;
   const catalogTitle = notificationTitles[language][subtype];

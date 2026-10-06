@@ -33,6 +33,7 @@ import {
   Download,
   ExternalLink,
   FileClock,
+  Globe2,
   Gift,
   GraduationCap,
   HardDrive,
@@ -90,6 +91,10 @@ import {
 } from "../components/ui/dropdown-menu";
 import { useLanguage } from "../shared/context";
 import { SystemTicketsWorkspace } from "../SystemTickets";
+import { CustomerCareWorkspace } from "../Messaging/CustomerCareWorkspace";
+import { messagingCopy } from "../Messaging/copy";
+import { CommercialOperationsWorkspace } from "./CommercialOperations/CommercialOperationsWorkspace";
+import { commercialCopy } from "./CommercialOperations/copy";
 import { TrainingWorkspace } from "../Training";
 import { InternalDevelopmentWorkspace } from "../InternalDevelopment";
 import { UsageAnalyticsWorkspace } from "./UsageAnalyticsWorkspace";
@@ -164,6 +169,7 @@ import {
 } from "../api/platformAdmin";
 
 type AdminTab =
+  | "commercialOperations"
   | "customers"
   | "leads"
   | "companies"
@@ -173,6 +179,7 @@ type AdminTab =
   | "training"
   | "systemTickets"
   | "internalDevelopment"
+  | "websiteVisits"
   | "audit";
 type BillingSortKey =
   "customer" | "invoice" | "status" | "amount" | "paid" | "period";
@@ -253,6 +260,7 @@ const tabDefinitions: {
 }[] = [
   { id: "customers", es: "Clientes", en: "Customers", icon: Building2 },
   { id: "leads", es: "Prospectos", en: "Leads", icon: ClipboardList },
+  { id: "commercialOperations", es: "Operación comercial", en: "Commercial operations", icon: Handshake },
   { id: "companies", es: "Empresas", en: "Companies", icon: Users },
   { id: "billing", es: "Facturación", en: "Billing", icon: CreditCard },
   {
@@ -275,6 +283,7 @@ const tabDefinitions: {
     en: "Internal development log",
     icon: FileClock,
   },
+  { id: "websiteVisits", es: "Visitas del sitio web", en: "Website visits", icon: Globe2 },
   { id: "audit", es: "Uso y auditoría", en: "Usage & audit", icon: Activity },
 ];
 
@@ -303,11 +312,13 @@ export default function PlatformAdminPage() {
     () =>
       tabDefinitions.map((tab) => ({
         ...tab,
-        label: t(tab.en as Parameters<typeof t>[0]),
+        label: tab.id === "commercialOperations" ? commercialCopy(currentLanguage.code).title : tab.id === "systemTickets" ? messagingCopy(currentLanguage.code).care : t(tab.en as Parameters<typeof t>[0]),
       })),
-    [t],
+    [t, currentLanguage.code],
   );
   const [activeTab, setActiveTab] = useState<AdminTab>("customers");
+  const [careQuery, setCareQuery] = useState("");
+  const [consultingQuery, setConsultingQuery] = useState("");
   const adminNavigationState = useMemo(
     () => ({ section: activeTab }),
     [activeTab],
@@ -337,10 +348,10 @@ export default function PlatformAdminPage() {
     () => tabs.filter((tab) => {
       if (tab.id === "systemTickets") return Boolean(context?.can_manage_system_tickets);
       if (tab.id === "leads") return context?.role === "PLATFORM_ROOT" || Boolean(context?.permissions.includes("MANAGE_LEADS"));
-      if (tab.id === "internalDevelopment") return context?.role === "PLATFORM_ROOT";
+      if (tab.id === "internalDevelopment" || tab.id === "websiteVisits") return context?.role === "PLATFORM_ROOT";
       return true;
     }),
-    [context?.can_manage_system_tickets, context?.role, tabs],
+    [context?.can_manage_system_tickets, context?.permissions, context?.role, tabs],
   );
   useEffect(() => {
     if (
@@ -1122,6 +1133,13 @@ export default function PlatformAdminPage() {
               />
             ) : null}
             {activeTab === "leads" ? <PlatformLeadsTab locale={currentLanguage.code} /> : null}
+            {activeTab === "commercialOperations" ? (
+              <CommercialOperationsWorkspace locale={currentLanguage.code}
+                onOpenCompany={(id, tab) => void openCompany(id, tab)}
+                onOpenCare={context?.can_manage_system_tickets ? name => { setCareQuery(name); setActiveTab("systemTickets"); } : undefined}
+                onOpenConsulting={name => { setConsultingQuery(name); setActiveTab("consulting"); }} />
+            ) : null}
+            {activeTab === "leads" ? <PlatformLeadsTab locale={currentLanguage.code} /> : null}
             {activeTab === "companies" ? (
               <CompaniesDirectoryTab
                 english={english}
@@ -1181,6 +1199,7 @@ export default function PlatformAdminPage() {
             ) : null}
             {activeTab === "consulting" ? (
               <ConsultingAdminTab
+                initialQuery={consultingQuery}
                 canManage={Boolean(context?.can_manage_consulting)}
                 companies={companies}
               />
@@ -1189,10 +1208,13 @@ export default function PlatformAdminPage() {
               <TrainingWorkspace portal="root" locale={currentLanguage.code} />
             ) : null}
             {activeTab === "systemTickets" && context?.can_manage_system_tickets ? (
-              <SystemTicketsWorkspace portal="root" locale={currentLanguage.code} />
+              <CustomerCareWorkspace portal="platform" locale={currentLanguage.code} initialQuery={careQuery} legacy={<SystemTicketsWorkspace portal="root" locale={currentLanguage.code} />} />
             ) : null}
             {activeTab === "internalDevelopment" && context?.role === "PLATFORM_ROOT" ? (
               <InternalDevelopmentWorkspace locale={currentLanguage.code} />
+            ) : null}
+            {activeTab === "websiteVisits" && context?.role === "PLATFORM_ROOT" ? (
+              <UsageAnalyticsWorkspace english={english} audit={null} websiteOnly />
             ) : null}
             {activeTab === "audit" ? (
               <AuditTab english={english} data={auditLog} />

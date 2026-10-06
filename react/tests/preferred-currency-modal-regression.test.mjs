@@ -7,7 +7,11 @@ const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
 test('preferred currency uses a staged standard-form modal with attributed sources', async () => {
   const control = await read('../src/app/BasicModules/shared/PreferredCurrencyControl.tsx');
 
-  assert.match(control, /aria-haspopup="dialog"/);
+  const header = await read('../src/app/components/Header.tsx');
+  assert.match(header, /onSelect=\{\(\) => setIsCurrencySettingsOpen\(true\)\}\s+aria-haspopup="dialog"/);
+  assert.match(header, /currencyCopy\.preferredCurrency/);
+  assert.match(header, /isCurrencySettingsOpen && <PreferredCurrencyControl onClose=/);
+  assert.doesNotMatch(header, /<PreferredCurrencyControl\s*\/>/);
   assert.match(control, /<IndiceModalFrame/);
   assert.match(control, /modalType="standard-form"/);
   assert.match(control, /tone="blue"/);

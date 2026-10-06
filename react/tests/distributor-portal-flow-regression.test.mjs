@@ -28,7 +28,9 @@ test('el distribuidor entra desde su menu a contratos y accesos', () => {
 });
 
 test('tickets de sistema permite reportar y seguir solo los folios del distribuidor', () => {
-  assert.match(page, /ticketCopy\.tab/);
+  assert.match(page, /messagingCopy\(currentLanguage.code\)\.care/);
+  assert.match(page, /CustomerCareWorkspace/);
+  assert.match(page, /legacy=\{<SystemTicketsWorkspace/);
   assert.match(page, /portal="distributor"/);
   assert.match(systemTickets, /SystemTicketsWorkspace/);
   assert.match(systemTickets, /systemTicketsApi\.create/);

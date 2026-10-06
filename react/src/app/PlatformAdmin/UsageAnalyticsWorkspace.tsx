@@ -93,13 +93,15 @@ const averageSeconds = (row: PlatformAnalyticsPage) => (
 export function UsageAnalyticsWorkspace({
   english,
   audit,
+  websiteOnly = false,
 }: {
   english: boolean;
   audit: PlatformAudit | null;
+  websiteOnly?: boolean;
 }) {
   const { copy, locale } = useOperationsCopy();
   const tabs = getTabs(copy);
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>('summary');
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>(websiteOnly ? 'web' : 'summary');
   const [days, setDays] = useState<7 | 30 | 90>(30);
   const [companyId, setCompanyId] = useState('');
   const [analytics, setAnalytics] = useState<PlatformAnalytics | null>(null);
@@ -110,13 +112,13 @@ export function UsageAnalyticsWorkspace({
     setLoading(true);
     setError('');
     try {
-      setAnalytics(await platformAdminApi.getAnalytics(days, companyId ? Number(companyId) : undefined));
+      setAnalytics(await platformAdminApi.getAnalytics(days, !websiteOnly && companyId ? Number(companyId) : undefined));
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : (copy.usageAnalyticsCouldNotBeLoaded));
     } finally {
       setLoading(false);
     }
-  }, [companyId, days, copy]);
+  }, [companyId, days, copy, websiteOnly]);
 
   useEffect(() => {
     void load();
@@ -134,10 +136,10 @@ export function UsageAnalyticsWorkspace({
     <div className="space-y-5">
       <IndiceTitleBar
         tone="blue"
-        icon={<ChartNoAxesColumnIncreasing className="h-5 w-5" />}
+        icon={websiteOnly ? <Globe2 className="h-5 w-5" /> : <ChartNoAxesColumnIncreasing className="h-5 w-5" />}
         eyebrow={copy.productObservability}
-        title={copy.usageAndTraceability}
-        subtitle={copy.understandAdoptionActiveAttentionAndWebsiteDemand}
+        title={websiteOnly ? copy.websiteVisits : copy.usageAndTraceability}
+        subtitle={websiteOnly ? copy.trafficIsAnonymousCampaignSourceVisitedPage : copy.understandAdoptionActiveAttentionAndWebsiteDemand}
         actions={(
           <button
             type="button"
@@ -151,7 +153,7 @@ export function UsageAnalyticsWorkspace({
         )}
       />
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+      {!websiteOnly ? <section className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
         <div className="flex flex-wrap gap-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -169,16 +171,18 @@ export function UsageAnalyticsWorkspace({
             );
           })}
         </div>
-      </section>
+      </section> : null}
 
       {activeTab !== 'technical' ? (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="grid gap-4 lg:grid-cols-[1fr_240px_240px] lg:items-end">
+          <div className={`grid gap-4 lg:items-end ${websiteOnly ? 'lg:grid-cols-[1fr_240px]' : 'lg:grid-cols-[1fr_240px_240px]'}`}>
             <div>
               <h2 className="font-medium text-slate-950">{copy.analysisScope}
             </h2>
               <p className="mt-1 text-sm text-slate-500">
-                {selectedCompany
+                {websiteOnly
+                  ? copy.websiteVisits
+                  : selectedCompany
                   ? (operationsText(copy.platformActivityForValueWebsiteMetricsRemain, { value0: selectedCompany.name }, locale))
                   : (copy.allCustomerAccountsAndGlobalWebsiteTraffic)}
               </p>
@@ -192,24 +196,24 @@ export function UsageAnalyticsWorkspace({
                 <option value={90}>{copy.lastDays32}</option>
               </select>
             </label>
-            <label className="text-sm font-medium text-slate-700">
+            {!websiteOnly ? <label className="text-sm font-medium text-slate-700">
               {copy.customerAccount}
               <select value={companyId} onChange={(event) => setCompanyId(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
                 <option value="">{copy.allAccounts}
             </option>
                 {(analytics?.company_options ?? []).map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
               </select>
-            </label>
+            </label> : null}
           </div>
         </section>
       ) : null}
 
       {error ? <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">{error}</div> : null}
 
-      {activeTab === 'summary' ? <SummaryView analytics={analytics} chartData={chartData} english={english} loading={loading} onOpen={setActiveTab} /> : null}
-      {activeTab === 'app' ? <PlatformUsageView analytics={analytics} english={english} loading={loading} /> : null}
-      {activeTab === 'web' ? <WebsiteUsageView analytics={analytics} english={english} loading={loading} /> : null}
-      {activeTab === 'technical' ? <TechnicalAuditView audit={audit} english={english} /> : null}
+      {!websiteOnly && activeTab === 'summary' ? <SummaryView analytics={analytics} chartData={chartData} english={english} loading={loading} onOpen={setActiveTab} /> : null}
+      {!websiteOnly && activeTab === 'app' ? <PlatformUsageView analytics={analytics} english={english} loading={loading} /> : null}
+      {activeTab === 'web' && !error ? <WebsiteUsageView analytics={analytics} chartData={chartData} english={english} loading={loading} /> : null}
+      {!websiteOnly && activeTab === 'technical' ? <TechnicalAuditView audit={audit} english={english} /> : null}
     </div>
   );
 }
@@ -306,7 +310,7 @@ function PlatformUsageView({ analytics, english, loading }: { analytics: Platfor
   );
 }
 
-function WebsiteUsageView({ analytics, english, loading }: { analytics: PlatformAnalytics | null; english: boolean; loading: boolean }) {
+function WebsiteUsageView({ analytics, chartData, english, loading }: { analytics: PlatformAnalytics | null; chartData: Array<PlatformAnalytics['trend'][number] & { label: string }>; english: boolean; loading: boolean }) {
   const { copy, locale } = useOperationsCopy();
   const web = analytics?.web;
   const receiving = analytics?.web_connector.receiving_data;
@@ -327,6 +331,22 @@ function WebsiteUsageView({ analytics, english, loading }: { analytics: Platform
         <InsightCard icon={Clock3} tone="gold" label={copy.activeReadingTime} value={loading ? '—' : formatDuration(locale, web?.active_seconds ?? 0, english)} helper={copy.visibleAndFocusedOnly} />
         <InsightCard icon={MousePointerClick} tone="coral" label={copy.leadConversions} value={loading ? '—' : operationsNumber(web?.conversions ?? 0, locale)} helper={copy.successfulSubmissions} />
       </div>
+      <Card title={copy.websiteVisits} description={copy.trafficIsAnonymousCampaignSourceVisitedPage}>
+        {chartData.length ? (
+          <div className="h-[280px] px-2 pb-3 pt-5">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ left: -20, right: 12 }}>
+                <defs><linearGradient id="websiteVisitsTrend" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#59C3A5" stopOpacity={0.3} /><stop offset="95%" stopColor="#59C3A5" stopOpacity={0.02} /></linearGradient></defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={(value) => operationsNumber(Number(value), locale)} allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                <Tooltip formatter={(value) => operationsNumber(Number(value), locale)} />
+                <Area type="monotone" dataKey="web_sessions" name={copy.websiteVisits} stroke="#177D66" fill="url(#websiteVisitsTrend)" strokeWidth={2.5} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        ) : <EmptyState text={copy.collectionHasStartedTheTrendWillAppear} />}
+      </Card>
       <div className="grid gap-5 xl:grid-cols-2">
         <AttentionTable rows={analytics?.web_pages ?? []} english={english} title={copy.contentReceivingAttention} />
         <Card title={copy.acquisitionSources} description={copy.knowWhichChannelsBringQualifiedTraffic}>

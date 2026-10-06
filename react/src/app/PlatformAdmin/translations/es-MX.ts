@@ -330,6 +330,7 @@ export const messages: PlatformAdminMessages = {
   "System tickets": "Tickets de sistema",
   "Internal development log": "Registro de desarrollo interno",
   "Usage & audit": "Uso y auditoría",
+  "Website visits": "Visitas del sitio web",
   "Catalog & modules": "Catálogo y módulos",
   "Language": "Idioma",
   "Local": "Local",

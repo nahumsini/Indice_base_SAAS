@@ -54,6 +54,14 @@ public class PaymentCollectionAccessService {
 
     /** Exact recovery routes; existing authentication, ownership, CSRF and MFA guards still apply. */
     public static boolean permitsRecovery(String method, String path) {
+        // Core customer support remains reachable; MessagingAccess restricts locked companies
+        // to their own SUPPORT conversations and denies team/distributor/directory access.
+        if ("GET".equals(method) && (path.equals("/api/v1/messaging/context")
+            || path.equals("/api/v1/messaging/unread") || path.equals("/api/v1/messaging/conversations")
+            || path.matches("/api/v1/messaging/conversations/[0-9]+")
+            || path.matches("/api/v1/messaging/conversations/[0-9]+/attachments/[0-9a-f-]{36}"))) return true;
+        if ("POST".equals(method) && (path.equals("/api/v1/messaging/conversations")
+            || path.matches("/api/v1/messaging/conversations/[0-9]+/(messages|read|attachments)"))) return true;
         if (path.startsWith("/api/v1/platform-admin/")) return true;
         if ("DELETE".equals(method) && path.equals("/api/v1/auth/managed-company")) return true;
         if ("GET".equals(method) && path.matches("/api/v1/auth/password-reset/[^/]+")) return true;

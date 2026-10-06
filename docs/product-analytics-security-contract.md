@@ -32,6 +32,11 @@ Until those controls are certified, leave the token empty and show the website c
 pending. Authenticated application analytics and the platform dashboard do not depend on this
 public integration.
 
+The PHP website connector lives in the separate `indice_web` repository. Its
+`ANALYTICS-CONNECTOR.md` describes the first-party browser events, server-only token, per-source
+rate and body limits, aggregate counters, and rotation steps. Shipping that code alone does not
+authorize setting the production ingest token; release evidence remains required above.
+
 ## Data minimization
 
 - Application identity is derived from the authenticated session and is never accepted from the

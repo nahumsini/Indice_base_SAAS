@@ -168,6 +168,10 @@ Estos reportes no sustituyen los contratos ni certifican una liberación posteri
 
 ## Mantener la documentación operante
 
+La mensajería y el Centro de atención siguen el
+[contrato de comunicación y atención](messaging-and-customer-care-contract.md) y el
+[runbook de mensajería](../deployment/messaging.md).
+
 Al crear o actualizar una regla:
 
 1. Identifica su propietario y actualiza la fuente canónica o el contrato especializado.

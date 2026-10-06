@@ -840,3 +840,12 @@ almacenamiento, suspensión y exportaciones; verificarse la rotación de secreto
 MFA de plataforma; y realizarse una revisión explícita que autorice el modo
 `sk_live_`/`livemode=true`, aun cuando el runtime ya pueda validarlo técnicamente. No se habilitará
 enforcement global como parte del alta.
+
+## Mensajería universal y recuperación por soporte
+
+Mensajes es una capacidad básica autenticada. La atención de Índice está disponible sin
+distribuidor. Las rutas exactas de recuperación de `PaymentCollectionAccessService` permiten
+consultar y responder casos propios `SUPPORT` durante restricciones comerciales o de suscripción.
+`MessagingAccess` aplica `supportOnly` y conserva autenticación, membresía activa, aislamiento y
+CSRF. Esta excepción no habilita directorio, conversaciones de compañeros o distribuidores,
+ni otros módulos. Véase [el contrato de mensajería](messaging-and-customer-care-contract.md).

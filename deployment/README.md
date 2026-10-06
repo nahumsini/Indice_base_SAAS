@@ -2,6 +2,8 @@
 
 This repo now ships a dedicated Docker deployment layout under `deployment/`.
 
+Messaging and Customer Care have a dedicated [operations and release runbook](messaging.md).
+
 ## Layout
 
 - `compose/docker-compose.yml`: production-safe base stack
