@@ -126,6 +126,9 @@ jobs:
       - name: Validate shell scripts
         run: bash -n deployment/scripts/*.sh scripts/*.sh
 
+      - name: Rehearse host-network deployment failure recovery
+        run: node --test deployment/tests/host-network-recovery.test.mjs
+
       - name: Validate base Compose config
         run: docker compose --env-file deployment/env/.env.example -f deployment/compose/docker-compose.yml config --quiet
 

@@ -350,6 +350,11 @@ two-step workflow can protect consistency.
   states. Requests contain inputs, not trusted derived outcomes.
 - Store timestamps in the repository's UTC convention. Resolve company/user timezone only at the
   domain or presentation boundary.
+- Executive process snapshots compare UTC creation/completion/cancellation/audit events with the
+  exclusive start of the next day in the company's resolved business timezone, including DST.
+  Agenda and deadline DATE fields remain calendar dates. This corrects the UTC/company-day cutoff;
+  it does not rewrite retained timestamps or change task lifecycle, permissions, local Processes
+  and Tasks measurement definitions, or current-state data-quality indicators.
 - Effective-dated fiscal/payroll rules retain the exact version or snapshot used for an approved
   calculation.
 - Payroll recalculation reuses the snapshotted attendance control-day denominator. Legacy fallback

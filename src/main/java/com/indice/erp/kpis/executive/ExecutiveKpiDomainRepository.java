@@ -3,6 +3,8 @@ package com.indice.erp.kpis.executive;
 import com.indice.erp.kpis.currency.KpiMoneyAmount;
 import com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -26,37 +28,45 @@ public class ExecutiveKpiDomainRepository {
 
     public ProcessSnapshot loadProcesses(ExecutiveKpiScope scope) {
         var filter = numericScope(scope, "task", null);
-        var params = withBoundsAndSnapshot(scope, filter.params());
+        var params = withBoundsAndSnapshot(scope, List.of());
+        // Date-only agenda/deadlines remain calendar dates. Persisted event timestamps
+        // are UTC, so the inclusive company day ends at the next local midnight.
+        // Bind a UTC DATETIME rather than relying on the JVM/session date or MySQL
+        // timezone tables; DST days need not be 24 hours long.
+        params.add(LocalDateTime.ofInstant(scope.to().plusDays(1)
+                .atStartOfDay(timeZones.resolve(scope.companyId())).toInstant(), ZoneOffset.UTC));
+        params.addAll(filter.params());
         return jdbcTemplate.queryForObject("""
                 WITH bounds AS (SELECT CAST(? AS DATE) AS from_date, CAST(? AS DATE) AS to_date,
-                                       CAST(? AS DATE) AS snapshot_date)
+                                       CAST(? AS DATE) AS snapshot_date, CAST(? AS DATETIME) AS cutoff_exclusive)
                 SELECT SUM(CASE
                              WHEN COALESCE(task.agenda_date, task.due_date) BETWEEN bounds.from_date AND bounds.to_date
-                              AND DATE(task.created_at) <= bounds.to_date
-                              AND (task.cancelled_at IS NULL OR DATE(task.cancelled_at) > bounds.to_date)
+                              AND task.created_at < bounds.cutoff_exclusive
+                              AND (task.cancelled_at IS NULL OR task.cancelled_at >= bounds.cutoff_exclusive)
                              THEN 1 ELSE 0
                            END) AS total_tasks,
                        SUM(CASE
                              WHEN COALESCE(task.agenda_date, task.due_date) BETWEEN bounds.from_date AND bounds.to_date
-                              AND DATE(task.created_at) <= bounds.to_date
-                              AND (task.cancelled_at IS NULL OR DATE(task.cancelled_at) > bounds.to_date)
-                              AND (DATE(task.completed_at) <= bounds.to_date
+                              AND task.created_at < bounds.cutoff_exclusive
+                              AND (task.cancelled_at IS NULL OR task.cancelled_at >= bounds.cutoff_exclusive)
+                              AND (task.completed_at < bounds.cutoff_exclusive
                                    OR (LOWER(task.status) = 'completed' AND task.completed_at IS NULL))
                              THEN 1 ELSE 0
                            END) AS closed_tasks,
                        SUM(CASE
                              WHEN COALESCE(task.agenda_date, task.due_date) < bounds.to_date
-                              AND DATE(task.created_at) <= bounds.to_date
-                              AND (task.completed_at IS NULL OR DATE(task.completed_at) > bounds.to_date)
-                              AND (task.cancelled_at IS NULL OR DATE(task.cancelled_at) > bounds.to_date)
+                              AND task.created_at < bounds.cutoff_exclusive
+                              AND (task.completed_at IS NULL OR task.completed_at >= bounds.cutoff_exclusive)
+                              AND (task.cancelled_at IS NULL OR task.cancelled_at >= bounds.cutoff_exclusive)
                              THEN 1 ELSE 0
                            END) AS overdue_tasks,
                        SUM(CASE
-                             WHEN (DATE(task.completed_at) <= bounds.to_date
+                             WHEN task.created_at < bounds.cutoff_exclusive
+                              AND (task.completed_at < bounds.cutoff_exclusive
                                    OR (LOWER(task.status) = 'completed' AND task.completed_at IS NULL))
                               AND (COALESCE(task.audited, 0) = 0 OR task.audited_at IS NULL
-                                   OR DATE(task.audited_at) > bounds.to_date)
-                              AND (task.cancelled_at IS NULL OR DATE(task.cancelled_at) > bounds.to_date)
+                                   OR task.audited_at >= bounds.cutoff_exclusive)
+                              AND (task.cancelled_at IS NULL OR task.cancelled_at >= bounds.cutoff_exclusive)
                              THEN 1 ELSE 0
                            END) AS pending_audit_tasks,
                        SUM(CASE
@@ -66,9 +76,9 @@ public class ExecutiveKpiDomainRepository {
                            END) AS unassigned_tasks,
                        ROUND(AVG(CASE
                              WHEN COALESCE(task.agenda_date, task.due_date) BETWEEN bounds.from_date AND bounds.to_date
-                              AND (task.cancelled_at IS NULL OR DATE(task.cancelled_at) > bounds.to_date)
+                              AND (task.cancelled_at IS NULL OR task.cancelled_at >= bounds.cutoff_exclusive)
                              THEN CASE
-                               WHEN DATE(task.completed_at) <= bounds.to_date THEN 100
+                               WHEN task.completed_at < bounds.cutoff_exclusive THEN 100
                                ELSE LEAST(100, GREATEST(0, COALESCE(task.completion_percent, 0)))
                              END
                              ELSE NULL
@@ -93,7 +103,7 @@ public class ExecutiveKpiDomainRepository {
                        SUM(CASE
                              WHEN bounds.to_date < bounds.snapshot_date
                               AND COALESCE(task.agenda_date, task.due_date) BETWEEN bounds.from_date AND bounds.to_date
-                              AND (task.completed_at IS NULL OR DATE(task.completed_at) > bounds.to_date)
+                              AND (task.completed_at IS NULL OR task.completed_at >= bounds.cutoff_exclusive)
                              THEN 1 ELSE 0
                            END) AS historical_mutable_rows
                 FROM process_tasks task

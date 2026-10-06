@@ -170,6 +170,19 @@ validate_inputs() {
     echo "PUBLISH_LOCAL_FRONTEND_DIST=true but ${APP_DIR}/react/dist/index.html is missing." >&2
     exit 1
   fi
+  # A writable bind-mounted configuration must not control the other environment.
+  # Inspect only its Nginx mount, never its secret-bearing environment.
+  local other_web=""
+  [[ "${WEB_CONTAINER}" != "indice-apptest-web-1" ]] || other_web="indice-erp-web-1"
+  [[ "${WEB_CONTAINER}" != "indice-erp-web-1" ]] || other_web="indice-apptest-web-1"
+  if [[ -n "${other_web}" ]] && docker container inspect "${other_web}" >/dev/null 2>&1; then
+    local other_config
+    other_config="$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/etc/nginx/conf.d/default.conf"}}{{.Source}}{{end}}{{end}}' "${other_web}")"
+    if [[ "${other_config}" == "${WEB_NGINX_HOST_CONFIG}" ]]; then
+      echo "APPTEST and production must not share WEB_NGINX_HOST_CONFIG; select an environment-specific path." >&2
+      exit 1
+    fi
+  fi
   require_immutable_image WEB_IMAGE
   require_immutable_image BACKEND_IMAGE
   if [[ "${MCP_ENABLED}" != "true" && "${MCP_ENABLED}" != "false" ]]; then
@@ -250,7 +263,6 @@ resolve_minio_data_mount() {
 
 prepare_nginx_host_config() {
   local source_config="${APP_DIR}/deployment/docker/web/nginx.host.conf"
-  local prepared_config
 
   if [[ ! -f "${source_config}" ]]; then
     echo "Missing ${source_config}" >&2
@@ -258,19 +270,31 @@ prepare_nginx_host_config() {
   fi
 
   mkdir -p "$(dirname "${WEB_NGINX_HOST_CONFIG}")"
-  prepared_config="$(mktemp)"
+  PREPARED_NGINX_CONFIG="$(mktemp)"
   sed \
     -e "s#listen 8080;#listen ${HOST_WEB_PORT};#g" \
     -e "s#127\\.0\\.0\\.1:8082#127.0.0.1:${HOST_BACKEND_PORT}#g" \
     -e "s#127\\.0\\.0\\.1:9000#127.0.0.1:${HOST_MINIO_API_PORT}#g" \
     -e "s#127\\.0\\.0\\.1:3010#127.0.0.1:${HOST_MCP_PORT}#g" \
-    "${source_config}" >"${prepared_config}"
-  install -m 0644 "${prepared_config}" "${WEB_NGINX_HOST_CONFIG}"
-  rm -f "${prepared_config}"
+    "${source_config}" >"${PREPARED_NGINX_CONFIG}"
+  if [[ -f "${WEB_NGINX_HOST_CONFIG}" ]]; then
+    NGINX_CONFIG_BACKUP="$(mktemp "${WEB_NGINX_HOST_CONFIG}.recovery.XXXXXX")"
+    install -m 0644 "${WEB_NGINX_HOST_CONFIG}" "${NGINX_CONFIG_BACKUP}"
+    NGINX_CONFIG_EXISTED=true
+  fi
+  NGINX_CONFIG_CHANGED=true
+  install -m 0644 "${PREPARED_NGINX_CONFIG}" "${WEB_NGINX_HOST_CONFIG}"
+  rm -f "${PREPARED_NGINX_CONFIG}"
+  PREPARED_NGINX_CONFIG=""
 }
 
 REPLACED_CONTAINERS=()
 DEPLOY_SUCCEEDED=false
+BACKEND_ENV_FILE=""
+PREPARED_NGINX_CONFIG=""
+NGINX_CONFIG_BACKUP=""
+NGINX_CONFIG_CHANGED=false
+NGINX_CONFIG_EXISTED=false
 
 candidate_name() {
   printf '%s-%s' "$1" "${DEPLOY_CANDIDATE_SUFFIX}"
@@ -292,7 +316,7 @@ preserve_current_container() {
 }
 
 restore_previous_containers() {
-  local index container candidate
+  local index container candidate failed=false
   [[ "${DEPLOY_SUCCEEDED}" == "true" ]] && return 0
   echo "Deployment failed. Restoring the previous containers..." >&2
   for ((index=${#REPLACED_CONTAINERS[@]}-1; index>=0; index--)); do
@@ -300,11 +324,43 @@ restore_previous_containers() {
     candidate="$(candidate_name "${container}")"
     docker rm -f "${container}" >/dev/null 2>&1 || true
     if docker container inspect "${candidate}" >/dev/null 2>&1; then
-      docker rename "${candidate}" "${container}" >/dev/null
-      docker start "${container}" >/dev/null
+      if ! docker rename "${candidate}" "${container}" >/dev/null ||
+         ! docker start "${container}" >/dev/null; then
+        echo "Could not restore ${container}; operator recovery is required." >&2
+        failed=true
+      fi
     fi
   done
+  if [[ "${failed}" == "true" ]]; then
+    return 1
+  fi
   echo "Previous containers restored. Review the failed container logs before retrying." >&2
+}
+
+finish_deployment() {
+  local status=$? recovery_failed=false
+  trap - EXIT INT TERM
+  # Keep one EXIT handler: temporary-secret cleanup must never replace recovery.
+  set +e
+  if [[ "${DEPLOY_SUCCEEDED}" != "true" ]]; then
+    if [[ "${NGINX_CONFIG_CHANGED}" == "true" ]]; then
+      if [[ "${NGINX_CONFIG_EXISTED}" == "true" ]]; then
+        install -m 0644 "${NGINX_CONFIG_BACKUP}" "${WEB_NGINX_HOST_CONFIG}" || recovery_failed=true
+      else
+        rm -f "${WEB_NGINX_HOST_CONFIG}" || recovery_failed=true
+      fi
+    fi
+    restore_previous_containers || recovery_failed=true
+  fi
+  [[ -z "${BACKEND_ENV_FILE}" ]] || rm -f "${BACKEND_ENV_FILE}"
+  [[ -z "${PREPARED_NGINX_CONFIG}" ]] || rm -f "${PREPARED_NGINX_CONFIG}"
+  if [[ "${recovery_failed}" == "true" ]]; then
+    echo "Automatic recovery was incomplete; retain recovery artifacts and intervene before retrying." >&2
+    [[ "${status}" -ne 0 ]] || status=1
+  else
+    [[ -z "${NGINX_CONFIG_BACKUP}" ]] || rm -f "${NGINX_CONFIG_BACKUP}"
+  fi
+  exit "${status}"
 }
 
 finalize_rollback_containers() {
@@ -334,7 +390,7 @@ if [[ "${DEPLOY_DRY_RUN}" == "true" ]]; then
   fi
   exit 0
 fi
-trap restore_previous_containers EXIT
+trap finish_deployment EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
@@ -397,7 +453,6 @@ prepare_backend_secret_mount APP_POS_MERCADO_PAGO_WEBHOOK_SECRET_FILE /run/secre
 prepare_backend_secret_mount APP_POS_MERCADO_PAGO_TOKEN_PROTECTION_SECRET_FILE /run/secrets/indice-mp-token-protection-secret
 
 BACKEND_ENV_FILE="$(mktemp)"
-trap 'rm -f "${BACKEND_ENV_FILE}"' EXIT
 prepare_backend_env "${BACKEND_ENV_FILE}"
 
 preserve_current_container "${BACKEND_CONTAINER}"
@@ -476,7 +531,6 @@ if [[ -n "${PUBLIC_URL}" ]]; then
 fi
 
 DEPLOY_SUCCEEDED=true
-trap - EXIT INT TERM
 finalize_rollback_containers
 
 echo "Host-network stack is healthy."

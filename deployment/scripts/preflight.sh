@@ -28,7 +28,7 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   exit 1
 fi
 
-for command in bash docker git java npm; do
+for command in bash docker git java node npm; do
   if ! command -v "${command}" >/dev/null 2>&1; then
     echo "Missing required command: ${command}" >&2
     exit 1
@@ -451,6 +451,7 @@ fi
 
 echo "Validating deployment scripts and Compose configuration..."
 bash -n "${DEPLOY_DIR}"/scripts/*.sh
+node --test "${DEPLOY_DIR}/tests/host-network-recovery.test.mjs"
 compose_config_options=(--quiet)
 if [[ "${DEPLOY_TOPOLOGY}" == "host-network" ]]; then
   # Host-network deployments use the protected environment directly. The Compose

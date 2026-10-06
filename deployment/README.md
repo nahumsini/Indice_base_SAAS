@@ -551,6 +551,15 @@ PUBLIC_URL=https://apptest.indiceapp.com \
 
 If any replacement or smoke check fails, the containers that were active before the command are restored automatically. After success, that previous set remains stopped with the `-rollback` suffix. This application rollback does not reverse Flyway migrations, so a verified database backup and migration compatibility review remain mandatory.
 
+`up-host-network.sh` uses one EXIT handler for recovery and temporary-secret cleanup. A failed
+activation restores the previous Nginx configuration before restarting its containers, preserves
+the original failure/signal exit code, and reports incomplete recovery for operator intervention.
+APPTEST and production must use separate `WEB_NGINX_HOST_CONFIG` paths; a shared mount blocks
+activation and dry-run. Choose an environment-specific path rather than editing the other
+environment's live configuration. Preflight and CI run the synthetic command-level regression
+under `deployment/tests/host-network-recovery.test.mjs`; it does not replace real restored-data,
+schema-compatible recovery-image, authenticated UAT or canary verification.
+
 The deployment refuses to start when less than 10 GiB is free. Override the threshold only after an operator reviews `df -h` and `docker system df`; do not delete database or MinIO volumes to free space.
 
 Before the real execution, run the same production command once with
