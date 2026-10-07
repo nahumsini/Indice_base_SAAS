@@ -39,6 +39,7 @@ interface OperationalModuleGuideProps {
     reason: string,
   ) => void;
   onSetExpanded?: (expanded: boolean) => void;
+  onRetrySync?: () => void;
 }
 
 const tabEmojiMap: Record<HumanResourcesGuidanceTabId, string> = {
@@ -70,6 +71,7 @@ export function OperationalModuleGuide({
   onSelectEmployee,
   onSetEmployeeException,
   onSetExpanded,
+  onRetrySync,
 }: OperationalModuleGuideProps) {
   const { currentLanguage } = useLanguage();
   const activeGuide = copy.tabs[activeTabId];
@@ -134,6 +136,7 @@ export function OperationalModuleGuide({
         onSelectEmployee={onSelectEmployee}
         onSetEmployeeException={onSetEmployeeException}
         onSetExpanded={onSetExpanded}
+        onRetrySync={onRetrySync}
         progress={learningProgress}
         signals={learningSignals}
       />

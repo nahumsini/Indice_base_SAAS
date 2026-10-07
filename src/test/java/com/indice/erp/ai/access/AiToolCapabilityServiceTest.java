@@ -2,6 +2,7 @@ package com.indice.erp.ai.access;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
@@ -183,9 +184,15 @@ class AiToolCapabilityServiceTest {
     void trainingRequiresAnActiveAuthorizedModuleInAdditionToNewConsent() {
         var connection = token(Set.of(AiAccessTokenService.LEARNING_READ));
         assertEquals(Set.of(), Set.copyOf(service.allowedTools(connection)));
+        when(authorizationService.canReadGuideTab(eq(USER),anyString(),anyString())).thenAnswer(i->"processes".equals(i.getArgument(1))&&"calendar".equals(i.getArgument(2)));
+        assertEquals(Set.of("get_system_guide","get_learning_progress","get_next_learning_mission"), Set.copyOf(service.allowedTools(connection)));
+        assertEquals(Set.of("preview_update_learning_progress","update_learning_progress"),Set.copyOf(service.allowedTools(token(Set.of(AiAccessTokenService.LEARNING_MANAGE)))));
         when(authorizationService.canReadTasks(USER)).thenReturn(true);
-        assertEquals(Set.of("get_system_guide"), Set.copyOf(service.allowedTools(connection)));
         assertEquals(Set.of("list_tasks", "get_task_detail", "list_task_organization"), Set.copyOf(service.allowedTools(token(Set.of(AiAccessTokenService.TASKS_READ)))));
+    }
+    @Test void projectOnlyLearningAccessDoesNotRequireCalendarPermission() {
+        when(authorizationService.canReadGuideTab(eq(USER),anyString(),anyString())).thenAnswer(i->"processes".equals(i.getArgument(1))&&"projects".equals(i.getArgument(2)));
+        assertEquals(Set.of("get_system_guide","get_learning_progress","get_next_learning_mission"),Set.copyOf(service.allowedTools(token(Set.of(AiAccessTokenService.LEARNING_READ)))));
     }
     @Test
     void taskDelegationAndEditingNeedExplicitScopesAndCurrentWritePermission() {

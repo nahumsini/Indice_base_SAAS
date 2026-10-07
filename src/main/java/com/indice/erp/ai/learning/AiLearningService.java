@@ -41,9 +41,8 @@ public class AiLearningService {
                     .filter(tab -> authorization.canReadGuideTab(token.user(), module.module(), tab.tab())
                         && (!"human_resources".equals(module.module()) || hr.canAccessReadableTab(token.user(), com.indice.erp.hr.HrAccessService.HrTab.valueOf(tab.tab().toUpperCase(java.util.Locale.ROOT)))))
                     .map(tab -> new TabGuide(tab.tab(), tab.label(), tab.title(), tab.purpose(), tab.effect(), tab.steps(),
-                        "en-CA".equals(locale) ? "Open " + module.pageId() + ", select " + tab.label() + " and enable Learning mode."
-                            : "Abre " + module.pageId() + ", selecciona " + tab.label() + " y activa Modo aprendiz.",
-                        toolsFor(module.module(), tab.tab(), allowedTools, token))).toList();
+                        navigation(module,tab,locale),
+                        toolsFor(module.module(), tab.tab(), allowedTools, token),tab.chapterId(),tab.version(),tab.journey(),tab.companion())).toList();
                 return new ModuleGuide(module.module(), module.pageId(), module.purpose(), tabs);
             }).filter(module -> !module.tabs().isEmpty()).toList();
         if (args.module() != null && modules.isEmpty()) throw new NoSuchElementException("No reviewed guide available in the current authorized scope.");
@@ -54,6 +53,12 @@ public class AiLearningService {
         return new Guide(catalog.version(), locale, logic, modules);
     }
 
+    private static String navigation(ModuleContent module,TabContent tab,String locale) {
+        var english="en-CA".equals(locale);
+        return (english?"Open ":"Abre ")+module.pageId()+(english?", select ":", selecciona ")+tab.label()
+            +(tab.companion()?(english?" and enable Learning mode.":" y activa Modo aprendiz.")
+                :(english?". Use this guide from the dashboard or chat; this screen has no learning companion.":". Consulta esta guía desde el Dashboard o chat; esta pantalla no muestra acompañante aprendiz."));
+    }
     private List<String> toolsFor(String module, String tab, List<String> permitted, StoredToken token) {
         var fileTools=fileToolsFor(module,tab,permitted,token);
         var allowed=permitted.stream().filter(t->!fileTools.contains(t)).toList();
@@ -94,6 +99,15 @@ public class AiLearningService {
     private boolean salesDomain(String tool,String kind) {var action=tool.startsWith("preview_")?tool.substring(8):tool;return (com.indice.erp.sales.SalesWorkflowService.READS.contains(action)||com.indice.erp.sales.SalesWorkflowService.ACTIONS.contains(action))&&com.indice.erp.sales.SalesWorkflowService.kind(action).equals(kind);}
     private boolean posDomain(String tool) {var action=tool.startsWith("preview_")?tool.substring(8):tool;return com.indice.erp.pos.assistant.PosTerminalReadService.READS.contains(action)||com.indice.erp.pos.assistant.PosTerminalPreparation.ACTIONS.contains(action)||com.indice.erp.pos.assistant.PosAssistantService.READS.contains(action)||com.indice.erp.pos.assistant.PosAssistantService.ACTIONS.contains(action)||com.indice.erp.pos.assistant.PosOperationsService.READS.contains(action)||com.indice.erp.pos.assistant.PosOperationsService.ACTIONS.contains(action);}
     private List<String> domainToolsFor(String module, String tab, List<String> allowed) {
+        if("config_center".equals(module))return allowed.stream().filter(t->tab.equals("business-structure")&&Set.of("get_my_business_context","list_units_and_businesses").contains(t)).toList();
+        if("expenses".equals(module))return allowed.stream().filter(t->switch(tab){
+            case "expenses"->t.contains("expense")&&!t.contains("fund");case "kpis"->t.equals("get_expense_summary");
+            case "providers"->t.equals("search_providers");case "payment_accounts"->t.equals("list_payment_accounts");
+            case "budgets"->t.equals("search_budget_lines");case "accounting"->t.equals("search_accounting_accounts");default->false;}).toList();
+        if("petty_cash".equals(module))return allowed.stream().filter(t->Set.of("list_funds","get_funds_status").contains(t)
+            ||tab.equals("control")&&t.contains("fund")).toList();
+        if("receivables".equals(module))return allowed.stream().filter(t->t.equals("get_receivables_status")).toList();
+        if("kpis".equals(module))return allowed.stream().filter(t->tab.equals("kpis")&&Set.of("get_business_snapshot","get_attention_items").contains(t)).toList();
         if("inventory".equals(module)) return allowed.stream().filter(tool->{
             var action=tool.startsWith("preview_")?tool.substring(8):tool;
             return switch(tab) {

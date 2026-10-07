@@ -45,6 +45,14 @@ public class PettyCashAttachmentService {
     }
 
     @Transactional(readOnly = true)
+    public java.util.List<com.indice.erp.storage.OperationalFileReference> references(FinanceContext context,long fundId,long receiptId) {
+        requireSettlementLine(context,fundId,receiptId);
+        return jdbcTemplate.query("SELECT id,original_filename,mime_type,size_bytes,object_key FROM finance_petty_cash_settlement_line_attachments WHERE company_id=? AND petty_cash_fund_id=? AND settlement_line_id=? AND deleted_at IS NULL ORDER BY id",
+            (rs,row)->new com.indice.erp.storage.OperationalFileReference(rs.getLong("id"),rs.getString("original_filename"),rs.getString("mime_type"),rs.getLong("size_bytes"),rs.getString("object_key")),context.companyId(),fundId,receiptId);
+    }
+    public void validateAssistantWrite(FinanceContext context,long fundId,long receiptId) { requireMutableSettlementLine(requireSettlementLine(context,fundId,receiptId)); }
+
+    @Transactional(readOnly = true)
     public Map<String, Object> listAttachments(FinanceContext context, long fundId, long settlementLineId) {
         requireSettlementLine(context, fundId, settlementLineId);
         var rows = loadAttachments(context.companyId(), fundId, settlementLineId);

@@ -1,3 +1,4 @@
+import {financeReadNameSchema,financeActionNameSchema,financeInputs,financeQuerySchema,financeCommitRequestSchema,PageSchema,PreviewSchema,CommittedSchema,type FinanceReadName,type FinanceWorkflowActionName,type FinanceQuery,type FinanceChange,type FinancePage,type FinancePreview,type FinanceCommitted} from "./financeContracts.js";
 import { terminalReadNameSchema,terminalActionNameSchema,terminalQuerySchema,terminalInputs,terminalReadSchema,terminalPreviewSchema,terminalCommittedSchema,terminalCommitRequestSchema,type TerminalReadName,type TerminalActionName,type TerminalQuery,type TerminalChange,type TerminalReadResult,type TerminalPreview,type TerminalCommitted } from "./terminalContracts.js";
 import { posOperationsReadNameSchema,posOperationsActionNameSchema,posOperationsQuerySchema,posOperationsInputs,posOperationsReadSchema,posOperationsPreviewSchema,posOperationsCommittedSchema,posOperationsCommitRequestSchema,type PosOperationsReadName,type PosOperationsActionName,type PosOperationsQuery,type PosOperationsChange,type PosOperationsReadResult,type PosOperationsPreview,type PosOperationsCommitted } from "./posOperationsContracts.js";
 import { commissionReadNameSchema,commissionActionNameSchema,commissionQuerySchema,commissionInputs,commissionReadSchema,commissionPreviewSchema,commissionCommittedSchema,commissionCommitRequestSchema,type CommissionReadName,type CommissionActionName,type CommissionQuery,type CommissionChange,type CommissionReadResult,type CommissionPreview,type CommissionCommitted } from "./commissionContracts.js";
@@ -6,7 +7,7 @@ import { procurementReadNameSchema,procurementActionNameSchema,procurementQueryS
 import { posReadNameSchema,posActionNameSchema,posQuerySchema,posInputs,posReadSchema,posPreviewSchema,posCommittedSchema,posCommitRequestSchema,type PosReadName,type PosActionName,type PosQuery,type PosChange,type PosReadResult,type PosPreview,type PosCommitted } from "./posContracts.js";
 import { salesWorkflowReadNameSchema,salesWorkflowActionNameSchema,salesWorkflowQuerySchema,salesWorkflowInputs,salesWorkflowReadSchema,salesWorkflowPreviewSchema,salesWorkflowCommittedSchema,salesWorkflowCommitRequestSchema,type SalesWorkflowReadName,type SalesWorkflowActionName,type SalesWorkflowQuery,type SalesWorkflowChange,type SalesWorkflowReadResult,type SalesWorkflowPreview,type SalesWorkflowCommitted } from "./salesWorkflowContracts.js";
 import { inventoryReadNameSchema,inventoryActionNameSchema,inventoryQuerySchema,inventoryInputs,inventoryReadSchemas,inventoryPreviewSchema,inventoryCommittedSchema,inventoryCommitRequestSchema,type InventoryReadName,type InventoryActionName,type InventoryQuery,type InventoryChange,type InventoryReadResult,type InventoryPreview,type InventoryCommitted } from "./inventoryContracts.js";
-import { commerceReportRequestSchema,stageFileRequestSchema,stagedFileSchema,fileActionSchema,attachFileRequestSchema,filePreviewSchema,fileCommittedSchema,fileCommitRequestSchema,fileListRequestSchema,fileListSchema,fileReadRequestSchema,fileExportRequestSchema,fileContentSchema,type StageFileRequest,type StagedFile,type FileAction,type FilePreview,type FileCommitted,type FileListRequest,type FileReadRequest,type FileExportRequest,type FileList,type FileContent } from "./fileContracts.js";
+import { financeReportRequestSchema,commerceReportRequestSchema,stageFileRequestSchema,stagedFileSchema,fileActionSchema,attachFileRequestSchema,filePreviewSchema,fileCommittedSchema,fileCommitRequestSchema,fileListRequestSchema,fileListSchema,fileReadRequestSchema,fileExportRequestSchema,fileContentSchema,type StageFileRequest,type StagedFile,type FileAction,type FilePreview,type FileCommitted,type FileListRequest,type FileReadRequest,type FileExportRequest,type FileList,type FileContent } from "./fileContracts.js";
 import { hrKpiRequestSchema,hrKpiResultSchema,type HrKpiRequest,type HrKpiResult } from "./hrKpiTools.js";
 import { processReadNameSchema,processActionNameSchema,processReadRequestSchema,processChangeRequestSchema,processReadSchemas,processPreviewSchema,processCommittedSchema,processCommitRequestSchema,type ProcessReadName,type ProcessActionName,type ProcessReadRequest,type ProcessReadResult,type ProcessChangeRequest,type ProcessPreview,type ProcessCommitted } from "./processWorkflowContracts.js";
 import { commercialTools } from "./commercialTools.js";
@@ -14,6 +15,8 @@ import { processTaskKpiRequestSchema, processTaskKpiResultSchema, type ProcessTa
 import { hrActionNameSchema, hrReadNameSchema, hrReadSchemas, hrReadRequestSchema, hrChangeSchema, hrPreviewSchema, hrCommitSchema,
   type HrActionName, type HrReadName, type HrReadRequest, type HrReadResult, type HrChange, type HrPreview, type HrCommitted } from "./hrContracts.js";
 import { learningRequestSchema, learningGuideSchema, type LearningRequest, type LearningGuide } from "./learningTools.js";
+import {learningProgressRequestSchema,learningChangeSchema,learningCommitSchema,learningProgressSchema,learningPreviewSchema,learningCommittedSchema,
+  type LearningProgressRequest,type LearningChange,type LearningCommit,type LearningProgress,type LearningPreview,type LearningCommitted} from './learningProgressTools.js';
 import type { IndiceMcpConfig } from "./config.js";
 import { backendRequest, type RequestContext } from "./backendTransport.js";
 import { bearerChallenge } from "./toolPolicy.js";
@@ -101,6 +104,11 @@ export class IndiceClient {
     const parsed=schema.safeParse(await response.json());if(!parsed.success)throw new IndiceApiError("Invalid private file contract.");return parsed.data;
   }
 
+  async readFinance(tool:FinanceReadName,request:FinanceQuery):Promise<FinancePage>{financeReadNameSchema.parse(tool);return this.financeRequest(tool,financeQuerySchema.parse(request),PageSchema);}
+  async previewFinance(action:FinanceWorkflowActionName,request:FinanceChange):Promise<FinancePreview>{financeActionNameSchema.parse(action);return this.financeRequest(action+"/preview",financeInputs[action].parse(request),PreviewSchema);}
+  async commitFinance(action:FinanceWorkflowActionName,request:TaskCommitRequest):Promise<FinanceCommitted>{financeActionNameSchema.parse(action);return this.financeRequest(action+"/commit",financeCommitRequestSchema.parse(request),CommittedSchema);}
+  private async financeRequest<T>(operation:string,request:unknown,schema:z.ZodType<T>):Promise<T>{const response=await this.request(`/api/v1/ai/tools/finance_workflows/${operation}`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(request)});if(!response.ok)throw await this.apiError(response,"Finance workflow unavailable.");const result=schema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid finance workflow contract.");return result.data;}
+  async exportFinanceReport(request:import("./fileContracts.js").FinanceReportRequest):Promise<FileContent>{return this.fileRequest("export_finance_report",financeReportRequestSchema.parse(request),fileContentSchema);}
   async readInventory(tool:InventoryReadName,request:InventoryQuery):Promise<InventoryReadResult>{
     inventoryReadNameSchema.parse(tool);
     const response=await this.request(`/api/v1/ai/tools/inventory_workflows/${tool}`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(inventoryQuerySchema.parse(request))});
@@ -392,6 +400,15 @@ export class IndiceClient {
     });
     if (!response.ok) throw await this.apiError(response, "No hay una guía revisada disponible con los permisos actuales.");
     return learningGuideSchema.parse(await response.json());
+  }
+
+  async getLearningProgress(request:LearningProgressRequest):Promise<LearningProgress> { return this.learningProgressRequest('',learningProgressRequestSchema.parse(request),learningProgressSchema); }
+  async previewLearningProgress(request:LearningChange):Promise<LearningPreview> { return this.learningProgressRequest('/preview',learningChangeSchema.parse(request),learningPreviewSchema); }
+  async commitLearningProgress(request:LearningCommit):Promise<LearningCommitted> { return this.learningProgressRequest('/commit',learningCommitSchema.parse(request),learningCommittedSchema); }
+  private async learningProgressRequest<S extends z.ZodType>(path:string,request:unknown,schema:S):Promise<z.infer<S>> {
+    const response=await this.request(`/api/v1/ai/tools/learning/progress${path}`,{method:'POST',headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,'Content-Type':'application/json'},body:JSON.stringify(request)});
+    if(!response.ok)throw await this.apiError(response,'No se pudo consultar o guardar tu aprendizaje con los permisos actuales.');
+    return schema.parse(await response.json());
   }
 
   async readHr(tool: HrReadName, request: HrReadRequest): Promise<HrReadResult> {

@@ -55,6 +55,21 @@ class AiToolAuthorizationServiceTest {
     }
 
     @Test
+    void financeWorkflowsRequireExactTabsAndCurrentEntitlement(){
+        when(subscriptionStatusProvider.currentStatus(23L)).thenReturn(CompanySubscriptionStatus.activeLegacy());
+        when(moduleEntitlementService.hasActiveEntitlement(eq(23L),anyString())).thenReturn(true);
+        when(moduleAccessService.canAccess(eq(USER),anyString())).thenReturn(true);
+        when(tabPermissionAccessService.canAccess(eq(USER),any())).thenReturn(true);
+        when(companyEntitlementService.resolve(eq(23L),anyString())).thenAnswer(i->new CompanyEntitlementResolution(23L,i.getArgument(1),true,EntitlementPolicyMode.ENFORCE,List.of()));
+        for(var spec:com.indice.erp.finance.assistant.FinanceAssistantTools.ALL.values()){
+            boolean setup=spec.write()&&java.util.Set.of("accounting_account","payment_account","provider","budget","budget_line","fund").contains(spec.kind())&&!java.util.Set.of("deposit","remove_attachment").contains(spec.operation());
+            if(setup)assertFalse(service.canUseFinanceWorkflowTool(USER,spec.name()));else {assertTrue(service.canUseFinanceWorkflowTool(USER,spec.name()),spec.name());verify(tabPermissionAccessService,org.mockito.Mockito.atLeastOnce()).canAccess(USER,TabPermissionRequirement.one(spec.module()+"."+spec.tab()));}
+        }
+        assertFalse(service.canUseFinanceWorkflowTool(USER,"arbitrary_finance_mutation"));
+        when(tabPermissionAccessService.canAccess(USER,TabPermissionRequirement.one("petty_cash.statements"))).thenReturn(false);assertFalse(service.canUseFinanceWorkflowTool(USER,"close_petty_cash_statement"));
+        when(companyEntitlementService.resolve(23L,"expenses")).thenReturn(new CompanyEntitlementResolution(23L,"expenses",false,EntitlementPolicyMode.ENFORCE,List.of()));assertFalse(service.canUseFinanceWorkflowTool(USER,"register_expense_payment"));
+    }
+    @Test
     void commercialActionsRequireTheOwningTabAndLiveEntitlement() {
         allowLegacyAccess();
         for (String tool : com.indice.erp.ai.commercial.AiCommercialAccess.ACTIONS) {

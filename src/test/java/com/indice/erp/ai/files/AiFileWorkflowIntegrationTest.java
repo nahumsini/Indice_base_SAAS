@@ -32,6 +32,8 @@ class AiFileWorkflowIntegrationTest {
     @Autowired ProcessTasksService tasks;@Autowired org.springframework.transaction.PlatformTransactionManager transactions;
     @Autowired AiFileCleanupService cleanup;
     @Autowired AiCommerceReportService commerceReports;
+    @Autowired com.indice.erp.ai.financeworkflow.AiFinanceWorkflowActionService finance;
+    @Autowired com.fasterxml.jackson.databind.ObjectMapper mapper;
     @MockitoBean AiToolAuthorizationService authorization;@MockitoBean ObjectStorageService storage;@MockitoBean CompanyStorageMeter meter;
     final Map<String,byte[]> objects=new HashMap<>();final Map<String,String> mimes=new HashMap<>();
     StoredToken token;long company,unit,business,person;final byte[] pdf="%PDF-1.4\nSynthetic isolated attachment\n%%EOF".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
@@ -59,6 +61,26 @@ class AiFileWorkflowIntegrationTest {
         var employee=new EmployeeChange("Synthetic","File employee",UUID.randomUUID()+"@example.test",null,"Operator","Operations",unit,business,null,new BigDecimal("150"),"weekly","daily",null,"permanent",null,null,"CA");
         person=applyHr("create_employee",new Change(null,employee,null,null,null)).employees().getFirst().userCompanyId();
     }
+    @Test void financeEvidenceUsesOwnerRegistrationPrivateReadsAndReplayForAllThreeTargets(){
+        when(authorization.canUseFinanceWorkflowTool(any(),anyString())).thenReturn(true);
+        var scopes=new HashSet<>(token.scopes());scopes.addAll(Set.of("expenses.read","expenses.manage","expenses.accounts.manage","expenses.budgets.manage","petty_cash.read","petty_cash.funds.manage","petty_cash.expense:create","petty_cash.receipts.manage"));token=new StoredToken(token.id(),token.user(),Set.copyOf(scopes));
+        var today=LocalDate.now(ZoneId.of("America/Toronto"));
+        long expense=saveFinance("create_expense_payable",Map.of("expense",Map.of("concept","Synthetic evidence expense","totalAmount","10.25","currencyCode","CAD","expenseDate",today.toString()))).records().expenses().getFirst().id();
+        long budget=saveFinance("create_finance_budget",Map.of("budget",Map.of("name","Synthetic evidence budget","currencyCode","CAD","periodStart",today.withDayOfMonth(1).toString(),"periodEnd",today.plusMonths(2).toString()))).records().budgets().getFirst().id();
+        long line=saveFinance("create_finance_budget_line",Map.of("budgetLine",Map.of("budgetId",budget,"name","Synthetic evidence obligation","plannedAmount","20.25","currencyCode","CAD"))).records().budgetLines().getFirst().id();
+        long custody=saveFinance("create_finance_payment_account",Map.of("account",Map.of("name","Synthetic evidence custody","type","PETTY_CASH","openingBalance","0.00","currencyCode","CAD"))).records().paymentAccounts().getFirst().id();
+        long fund=saveFinance("create_petty_cash_fund",Map.of("fund",Map.of("name","Synthetic evidence client fund","fundType","EXTERNAL_MANAGED","paymentAccountId",custody,"limitAmount","100.00","currencyCode","CAD","externalOwnerType","COMPANY","externalOwnerName","Synthetic client","externalOwnerRelationship","CLIENT","statementRecipientEmail","synthetic@example.test"))).records().funds().getFirst().id();
+        long receipt=saveFinance("capture_petty_cash_receipt",Map.of("fundId",fund,"receipt",Map.of("description","Synthetic evidence receipt","totalAmount","10.25","currencyCode","CAD","expenseDate",today.toString()))).records().receipts().getFirst().id();
+        for(var entry:List.of(Map.entry(Purpose.expense_attachment,expense),Map.entry(Purpose.budget_line_attachment,line),Map.entry(Purpose.petty_cash_receipt_attachment,receipt))){
+            String action=switch(entry.getKey()){case expense_attachment->"attach_expense_file";case budget_line_attachment->"attach_budget_line_file";default->"attach_petty_cash_receipt_file";};
+            var staged=intake.stage(token,request(entry.getKey(),entry.getValue(),null,"synthetic-receipt.pdf",pdf,"application/pdf"));var p=actions.preview(token,action,new AttachRequest(staged.stagedFileId()));var c=new CommitRequest(p.confirmationToken(),UUID.randomUUID().toString());var result=actions.commit(token,action,c);assertThat(actions.commit(token,action,c).replayed()).isTrue();
+            assertThat(owner.list(token.user(),entry.getKey(),entry.getValue()).items()).hasSize(1);assertThat(owner.read(token.user(),new ReadRequest(entry.getKey(),entry.getValue(),result.result().attachmentId())).contentBase64()).isEqualTo(Base64.getEncoder().encodeToString(pdf));
+            assertThat(jdbc.queryForObject("SELECT normalized_args_json FROM ai_action_confirmations WHERE company_id=? AND tool_name=?",String.class,company,"file_attachment_v1:"+action)).doesNotContain("objectKey","private.invalid",Base64.getEncoder().encodeToString(pdf));
+            var remove=Map.<String,Object>of("id",entry.getValue(),"attachmentId",result.result().attachmentId());if(entry.getKey()==Purpose.petty_cash_receipt_attachment){remove=new HashMap<>(remove);remove.put("fundId",fund);}saveFinance(switch(entry.getKey()){case expense_attachment->"remove_expense_attachment";case budget_line_attachment->"remove_budget_line_attachment";default->"remove_petty_cash_receipt_attachment";},remove);assertThat(owner.list(token.user(),entry.getKey(),entry.getValue()).items()).isEmpty();
+        }
+        assertThat(count("finance_expense_payments")).isZero();
+    }
+    private com.indice.erp.finance.assistant.FinanceAssistantContracts.Result saveFinance(String name,Map<String,Object> args){var p=finance.preview(token,name,mapper.convertValue(args,com.indice.erp.finance.assistant.FinanceAssistantContracts.Change.class));return finance.commit(token,name,new com.indice.erp.finance.assistant.FinanceAssistantContracts.CommitRequest(p.confirmationToken(),UUID.randomUUID().toString())).result();}
     @Test void employeeFileIsTemporaryUntilConfirmedPrivateReadAndReplayDoNotDuplicate() {
         var request=request(Purpose.employee_document,person,"resume","resume.pdf",pdf,"application/pdf");var staged=intake.stage(token,request);
         assertThat(intake.stage(token,request)).isEqualTo(staged);assertThat(count("user_documents")).isZero();

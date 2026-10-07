@@ -28,6 +28,18 @@ public class BudgetLineService {
     }
 
     @Transactional(readOnly = true)
+    public void validateAssistantCreate(FinanceContext context,CreateBudgetLineRequest request) {
+        var assignment=validator.validateCreate(context,request);referenceValidator.validateReferences(context,request.budgetId(),assignment);
+        requireUniqueName(context,mapper.toCreateCommand(context,request,assignment).name(),null);
+    }
+    @Transactional(readOnly = true)
+    public void validateAssistantUpdate(FinanceContext context,long id,UpdateBudgetLineRequest request) {
+        var current=requireBudgetLine(context,id);var assignment=validator.validateUpdate(context,request);
+        referenceValidator.validateReferences(context,request.budgetId(),assignment);
+        requireUniqueName(context,mapper.toUpdateCommand(context,request,assignment,current).name(),id);
+    }
+
+    @Transactional(readOnly = true)
     public BudgetLineListResponse list(FinanceContext context) {
         var budgetLines = repository.findAll(context).stream()
             .map(mapper::toResponse)

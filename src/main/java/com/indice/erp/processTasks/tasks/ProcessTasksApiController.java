@@ -39,11 +39,13 @@ public class ProcessTasksApiController {
     }
 
     @PostMapping
+    @com.indice.erp.learning.LearningApplied("processes.calendar")
     public ResponseEntity<?> create(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestBody Map<String, Object> payload) {
         var access = guard.requireWrite(session, csrfToken);
+        com.indice.erp.learning.LearningOperationContext.capture(access.user());
         if (access.denied()) {
             return access.error();
         }
@@ -58,12 +60,14 @@ public class ProcessTasksApiController {
     }
 
     @PutMapping("/{taskId}")
+    @com.indice.erp.learning.LearningApplied("processes.calendar")
     public ResponseEntity<?> update(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long taskId,
             @RequestBody Map<String, Object> payload) {
         var access = guard.requireWrite(session, csrfToken);
+        com.indice.erp.learning.LearningOperationContext.capture(access.user());
         if (access.denied()) {
             return access.error();
         }
@@ -78,12 +82,14 @@ public class ProcessTasksApiController {
     }
 
     @PatchMapping("/{taskId}")
+    @com.indice.erp.learning.LearningApplied("processes.calendar")
     public ResponseEntity<?> patch(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long taskId,
             @RequestBody(required = false) Map<String, Object> payload) {
         var access = guard.requireWrite(session, csrfToken);
+        com.indice.erp.learning.LearningOperationContext.capture(access.user());
         if (access.denied()) {
             return access.error();
         }

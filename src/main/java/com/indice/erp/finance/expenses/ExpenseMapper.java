@@ -66,6 +66,23 @@ public class ExpenseMapper {
     }
 
     public ExpenseResponse toResponse(ExpenseRecord record) {
+        return toResponse(record, record.paymentStatus());
+    }
+
+    /** Same overdue rule as native maintenance, projected without changing the row or its version. */
+    public ExpenseResponse toAssistantResponse(ExpenseRecord record, LocalDate asOfDate) {
+        var paymentStatus = record.paymentStatus();
+        if (record.dueDate() != null && record.dueDate().isBefore(asOfDate)
+                && record.balanceAmount() != null && record.balanceAmount().signum() > 0
+                && !java.util.Set.of(ExpenseStatus.PAID, ExpenseStatus.CLOSED, ExpenseStatus.CANCELLED,
+                    ExpenseStatus.REJECTED).contains(record.status())
+                && java.util.Set.of(PaymentStatus.UNPAID, PaymentStatus.PARTIALLY_PAID).contains(paymentStatus)) {
+            paymentStatus = PaymentStatus.OVERDUE;
+        }
+        return toResponse(record, paymentStatus);
+    }
+
+    private ExpenseResponse toResponse(ExpenseRecord record, PaymentStatus paymentStatus) {
         return new ExpenseResponse(
             record.id(), record.companyId(), record.unitId(), record.businessId(), record.providerId(),
             record.budgetLineId(), record.accountingAccountId(), record.paymentAccountId(),
@@ -73,7 +90,7 @@ public class ExpenseMapper {
             record.expenseType(), record.subtotalAmount(), record.taxAmount(), record.totalAmount(),
             record.paidAmount(), record.balanceAmount(), record.currencyCode(), record.expenseDate(),
             record.dueDate(), record.paymentDate(), record.closeDate(), record.requestedByUserId(),
-            record.approvedByUserId(), record.performedByUserId(), record.status(), record.paymentStatus(),
+            record.approvedByUserId(), record.performedByUserId(), record.status(), paymentStatus,
             record.auditStatus(), record.attachmentCount(), record.createdByUserId(), record.updatedByUserId(),
             record.createdAt(), record.updatedAt(), record.deletedAt(), record.version(),
             FinanceJsonSupport.toJsonNode(record.customFieldsJson()),

@@ -38,6 +38,65 @@ public class ExpensePaymentReversalService {
     }
 
     @Transactional
+    public void validateAssistant(FinanceContext context,long expenseId,long paymentId,ReverseExpensePaymentRequest request) {
+        repository.lockCompanyForCreation(context);
+        var expense = repository.findByIdForUpdate(context, expenseId)
+            .orElseThrow(() -> FinanceApiException.notFound("Expense not found."));
+        if (request == null || request.reason() == null || request.reason().isBlank() || request.reason().trim().length() > 500)
+            throw FinanceApiException.badRequest("A reversal reason is required (maximum 500 characters).");
+        var history = jdbc.query("""
+            SELECT id, payment_account_id, amount, currency_code, payment_date, source, idempotency_key, reversed_at
+            FROM finance_expense_payments WHERE company_id = ? AND expense_id = ? ORDER BY id DESC FOR UPDATE
+            """, (rs, row) -> new Payment(rs.getLong("id"), rs.getObject("payment_account_id", Long.class),
+                rs.getBigDecimal("amount"), rs.getString("currency_code"), rs.getObject("payment_date", LocalDate.class),
+                rs.getString("source"), rs.getString("idempotency_key"), rs.getTimestamp("reversed_at") != null),
+            context.companyId(), expenseId);
+        var payment = history.stream().filter(row -> row.id() == paymentId).findFirst()
+            .orElseThrow(() -> FinanceApiException.notFound("Expense payment not found."));
+        // Payment identity is the retry key. A retry can never undo a subsequent installment.
+        if (payment.reversed()) return;
+        if (!Objects.equals(expense.version(), request.expectedVersion()))
+            throw FinanceApiException.conflict("The expense changed. Reload it before reversing a payment.");
+        if (expense.originFund() != null || "PETTY_CASH".equals(expense.auditStatus()) || expense.purchaseOrderId() != null
+                || "AUDITED".equals(expense.auditStatus())
+                || !List.of(ExpenseStatus.PAID, ExpenseStatus.PARTIALLY_PAID).contains(expense.status()))
+            throw FinanceApiException.conflict("This expense requires its source correction workflow.");
+        if (expense.accountingPosted() || Boolean.TRUE.equals(jdbc.queryForObject("""
+            SELECT EXISTS(SELECT 1 FROM finance_journal_entries journal JOIN finance_expense_payments payment
+              ON payment.company_id = journal.company_id
+                AND CAST(payment.id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci = journal.source_id
+              WHERE journal.company_id = ? AND payment.expense_id = ? AND journal.source_type = 'EXPENSE_PAYMENT'
+                AND journal.status = 'POSTED')
+            """, Boolean.class, context.companyId(), expenseId)))
+            throw FinanceApiException.conflict("This expense has posted accounting entries. Use an accounting adjustment.");
+        var active = history.stream().filter(row -> !row.reversed()).toList();
+        if (active.isEmpty() || active.getFirst().id() != paymentId)
+            throw FinanceApiException.conflict("Only the last recorded active payment can be reversed.");
+        var paid = active.stream().map(Payment::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (paid.compareTo(expense.paidAmount()) != 0 || active.stream().anyMatch(row -> !expense.currencyCode().equals(row.currency())))
+            throw FinanceApiException.conflict("Payment history must be reconciled before this expense can be reopened.");
+        var reason = request.reason().trim();
+        String eventKey = switch (payment.source()) {
+            case "SETTLED_ON_CREATE" -> "EXPENSE_PAYMENT:SETTLED_ON_CREATE:" + expenseId;
+            case "RECORDED" -> payment.key() == null
+                ? "EXPENSE_PAYMENT:RECORDED:" + expenseId + ":" + paid.toPlainString()
+                : "EXPENSE_PAYMENT:RECORDED:IDEMPOTENT:" + payment.key();
+            case "LEGACY_AGGREGATE" -> null;
+            default -> throw FinanceApiException.conflict("This payment must be corrected by its source module.");
+        };
+
+    }
+
+    @Transactional(readOnly=true)
+    public BigDecimal previewTreasuryRefund(FinanceContext context,long expenseId,long paymentId){
+        var expense=repository.findById(context,expenseId).orElseThrow(()->FinanceApiException.notFound("Expense not found."));
+        var row=jdbc.queryForMap("SELECT source,idempotency_key,reversed_at FROM finance_expense_payments WHERE company_id=? AND expense_id=? AND id=?",context.companyId(),expenseId,paymentId);
+        if(row.get("reversed_at")!=null)return BigDecimal.ZERO;
+        String key=switch(String.valueOf(row.get("source"))){case "SETTLED_ON_CREATE"->"EXPENSE_PAYMENT:SETTLED_ON_CREATE:"+expenseId;case "RECORDED"->row.get("idempotency_key")==null?"EXPENSE_PAYMENT:RECORDED:"+expenseId+":"+expense.paidAmount().toPlainString():"EXPENSE_PAYMENT:RECORDED:IDEMPOTENT:"+row.get("idempotency_key");default->null;};
+        return treasury.previewExpenseRefund(context.companyId(),expenseId,key,false);
+    }
+
+    @Transactional
     public ExpenseResponse reverse(FinanceContext context, long expenseId, long paymentId, ReverseExpensePaymentRequest request) {
         repository.lockCompanyForCreation(context);
         var expense = repository.findByIdForUpdate(context, expenseId)

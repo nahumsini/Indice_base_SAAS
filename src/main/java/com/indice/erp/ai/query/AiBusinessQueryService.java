@@ -356,15 +356,15 @@ public class AiBusinessQueryService {
 
     private Map<String, Object> expenseSummary(AuthSessionUser user, Map<String, Object> args) {
         var context = requireFinance(user, "expenses");
-        var expenses = filteredExpenses(expenseService.list(context).expenses(), args);
+        var workspace=expenseService.list(context);var expenses = filteredExpenses(workspace.expenses(), args,workspace.asOfDate());
         var rows = expenses.stream().map(this::safeExpense).toList();
-        var summary = expenseTotals(expenses);
+        var summary = expenseTotals(expenses,workspace.asOfDate());summary.put("asOfDate",workspace.asOfDate());summary.put("timeZone",workspace.timeZone());
         return result("get_expense_summary", "Gastos autorizados", summary, List.of(), null);
     }
 
     private Map<String, Object> listExpenses(AuthSessionUser user, Map<String, Object> args) {
         var context = requireFinance(user, "expenses");
-        var items = filteredExpenses(expenseService.list(context).expenses(), args).stream()
+        var workspace=expenseService.list(context);var items = filteredExpenses(workspace.expenses(), args,workspace.asOfDate()).stream()
             .map(this::safeExpense)
             .limit(limit(args))
             .toList();
@@ -383,13 +383,13 @@ public class AiBusinessQueryService {
 
     private Map<String, Object> fundsStatus(AuthSessionUser user, Map<String, Object> args) {
         var context = requireFinance(user, "petty_cash");
-        var workspace = pettyCashService.workspace(context);
+        var workspace = pettyCashService.assistantSnapshot(context);
         var fundId = optionalLong(args, "fundId");
         var funds = workspace.funds().stream()
             .filter(fund -> fundId == null || fund.id().equals(fundId))
             .map(fund -> {
                 var row = new LinkedHashMap<String, Object>();
-                row.put("id", fund.id()); row.put("name", fund.name()); row.put("currency", fund.currencyCode());
+                row.put("fundType",fund.fundType());row.put("id", fund.id()); row.put("name", fund.name()); row.put("currency", fund.currencyCode());
                 row.put("limit", fund.limitAmount()); row.put("currentBalance", fund.currentBalanceAmount());
                 row.put("status", fund.status()); row.put("unitId", fund.unitId()); row.put("businessId", fund.businessId());
                 row.put("paymentAccountId", fund.paymentAccountId());
@@ -398,11 +398,13 @@ public class AiBusinessQueryService {
             }).toList();
         var summary = new LinkedHashMap<String, Object>();
         summary.put("fundCount", funds.size());
-        summary.put("balancesByCurrency", totals(funds, "currency", "currentBalance"));
+        summary.put("balanceClassification","INTERNAL_COMPANY");
+        summary.put("balancesByCurrency", totals(funds.stream().filter(f->"INTERNAL_COMPANY".equals(String.valueOf(f.get("fundType")))).toList(), "currency", "currentBalance"));
+        summary.put("externalBalancesByCurrency",totals(funds.stream().filter(f->"EXTERNAL_MANAGED".equals(String.valueOf(f.get("fundType")))).toList(),"currency","currentBalance"));
         var detail = new LinkedHashMap<String, Object>();
-        detail.put("statements", redact(workspace.statements()));
-        detail.put("recentMovements", redact(workspace.movements().stream().limit(limit(args)).toList()));
-        detail.put("recentExpenses", redact(workspace.settlementLines().stream().limit(limit(args)).toList()));
+        detail.put("statements", redact(workspace.statements().stream().filter(v->fundId==null||v.pettyCashFundId().equals(fundId)).toList()));
+        detail.put("recentMovements", redact(workspace.movements().stream().filter(v->fundId==null||v.pettyCashFundId().equals(fundId)).limit(limit(args)).toList()));
+        detail.put("recentExpenses", redact(workspace.settlementLines().stream().filter(v->fundId==null||v.pettyCashFundId().equals(fundId)).limit(limit(args)).toList()));
         return result("get_funds_status", "Fondos autorizados", summary, funds, detail);
     }
 
@@ -554,14 +556,13 @@ public class AiBusinessQueryService {
         return row;
     }
 
-    private List<ExpenseResponse> filteredExpenses(List<ExpenseResponse> source, Map<String, Object> args) {
+    private List<ExpenseResponse> filteredExpenses(List<ExpenseResponse> source, Map<String, Object> args,LocalDate today) {
         var status = text(args, "status");
         var paymentStatus = text(args, "paymentStatus");
         var query = text(args, "query");
         var from = optionalDate(args, "from");
         var to = optionalDate(args, "to");
         var overdueOnly = bool(args, "overdueOnly", false);
-        var today = LocalDate.now(clock);
         return source.stream()
             .filter(item -> equalsFilter(item.status(), status))
             .filter(item -> equalsFilter(item.paymentStatus(), paymentStatus))
@@ -572,17 +573,18 @@ public class AiBusinessQueryService {
             .toList();
     }
 
-    private Map<String, Object> expenseTotals(List<ExpenseResponse> expenses) {
-        var rows = expenses.stream().map(item -> Map.<String, Object>of(
+    private Map<String, Object> expenseTotals(List<ExpenseResponse> expenses,LocalDate today) {
+        var rows = expenses.stream().filter(item->!java.util.Set.of("CANCELLED","REJECTED").contains(item.status().name())).map(item -> Map.<String, Object>of(
             "currency", item.currencyCode(), "total", item.totalAmount(), "paid", item.paidAmount(), "balance", item.balanceAmount()
         )).toList();
         var summary = new LinkedHashMap<String, Object>();
         summary.put("expenseCount", expenses.size());
         summary.put("totalsByCurrency", totals(rows, "currency", "total"));
+        summary.put("recognizedByCurrency",totals(expenses.stream().filter(e->java.util.Set.of("APPROVED","PARTIALLY_PAID","PAID","CLOSED").contains(e.status().name())).map(e->Map.<String,Object>of("currency",e.currencyCode(),"amount",e.totalAmount())).toList(),"currency","amount"));
         summary.put("paidByCurrency", totals(rows, "currency", "paid"));
         summary.put("payableByCurrency", totals(rows, "currency", "balance"));
         summary.put("overdueCount", expenses.stream().filter(item -> item.balanceAmount().signum() > 0
-            && item.dueDate() != null && item.dueDate().isBefore(LocalDate.now(clock))).count());
+            && item.dueDate() != null && item.dueDate().isBefore(today)&&!java.util.Set.of("CANCELLED","REJECTED","CLOSED").contains(item.status().name())).count());
         return summary;
     }
 

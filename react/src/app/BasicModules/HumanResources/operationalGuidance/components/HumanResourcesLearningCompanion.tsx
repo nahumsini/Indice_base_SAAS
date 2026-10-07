@@ -1,3 +1,4 @@
+import {useLearningCharacter} from '../../../../learningMode/useLearningCharacter';
 import { useMemo } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
@@ -31,6 +32,7 @@ import type { HumanResourcesGuidanceTabId } from '../types';
 import { HumanResourcesCandidateMission } from './HumanResourcesCandidateMission';
 import { HumanResourcesJourneyNav } from './HumanResourcesJourneyNav';
 import { HumanResourcesLearningToolPreview } from './HumanResourcesLearningToolPreview';
+import {LearningWorkflowDetails} from '../../../../learningMode/components/LearningWorkflowDetails';
 
 interface HumanResourcesLearningCompanionProps {
   activeTabId: HumanResourcesGuidanceTabId;
@@ -53,6 +55,7 @@ interface HumanResourcesLearningCompanionProps {
     reason: string,
   ) => void;
   onSetExpanded: (expanded: boolean) => void;
+  onRetrySync?: () => void;
   progress: HumanResourcesLearningProgress;
   signals: HumanResourcesLearningSignals;
 }
@@ -71,13 +74,11 @@ export function HumanResourcesLearningCompanion({
   onSelectEmployee,
   onSetEmployeeException,
   onSetExpanded,
+  onRetrySync,
   progress,
   signals,
 }: HumanResourcesLearningCompanionProps) {
-  const [selectedCharacterId] = useLocalStorageState<LearningCharacterId | null>(
-    learningCharacterStorageKey,
-    null,
-  );
+  const [selectedCharacterId] = useLearningCharacter();
   const journey = useMemo(() => humanResourcesLearningJourneyOrder.filter(
     (areaId) => availableTabIds.includes(areaId),
   ), [availableTabIds]);
@@ -209,8 +210,10 @@ export function HumanResourcesLearningCompanion({
                         {isApplied ? 'Aplicado' : isUnderstood ? 'Entendido' : 'Por revisar'}
                       </span>
                     </div>
+                    {progress.syncError?<p role="status" className="mt-2 text-xs text-amber-700 dark:text-amber-300">No se pudo sincronizar tu avance. <button type="button" onClick={onRetrySync} className="underline">Reintentar</button></p>:null}
                     <h3 className="mt-1 text-base font-medium text-slate-950 dark:text-white">{activeGuide.title}</h3>
                     <p className="mt-1 text-sm leading-5 text-slate-700 dark:text-slate-200">{activeGuide.summary}</p>
+                    <LearningWorkflowDetails module="human_resources" tab={activeTabId}/>
                     <div className="mt-2 flex items-start gap-1.5 text-xs leading-5 text-slate-600 dark:text-slate-300">
                       <span aria-hidden="true" className="shrink-0">🧰</span>
                       <p><span className="font-medium text-slate-800 dark:text-slate-100">Aquí vas a usar:</span> {humanResourcesLearningToolNames[activeTabId]}</p>

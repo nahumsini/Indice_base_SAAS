@@ -18,7 +18,8 @@ test('la guía modular compartida conserva títulos y usa el estándar compacto 
   assert.match(guideSource, /Cómo usar esta parte/);
   assert.match(guideSource, /Ver caso real/);
   assert.match(progressSource, /company-\$\{session\.company\.id\}:user-\$\{session\.user\.id\}/);
-  assert.match(progressSource, /storedState\.storageKey === storageKey/);
+  assert.match(progressSource, /useLearningViewState/);
+  assert.match(progressSource, /useLearningProgress/);
   assert.match(journeySource, /IndiceHorizontalScrollControls/);
   assert.match(journeySource, /prefers-reduced-motion/);
   assert.doesNotMatch(bridgeSource, /createPortal/);

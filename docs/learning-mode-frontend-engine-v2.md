@@ -1607,6 +1607,12 @@ La interfaz puede advertir riesgos directamente, por ejemplo colaboradores sin h
 - La CTA desplaza a la herramienta real. Agregar o abrir un colaborador reutiliza los flujos existentes y no recrea formularios ni permisos dentro de la guía.
 - El estado local de aprendizaje no es fuente autoritativa de datos laborales, cumplimiento, autorización o finalización de configuración.
 
+La extensión aprobada del 2026-10-06 adopta [guía compartida y avance privado web/MCP](learning-mode-mcp-progress-contract-v1.md).
+El avance autoritativo se guarda en el backend por usuario, empresa, capítulo y versión. La memoria
+local queda como caché de presentación; no declara Aplicado. Los pasos revisados se mantienen
+en español e inglés en `curriculum.ts`, con catálogo generado y verificación de vigencia en CI.
+Se preservan esta geometría, las seis sesiones, la misión RH y las excepciones de Panel Inicial y POS/Venta.
+
 ### 29.7 Aplicación general por módulo
 
 Todo módulo migrado debe cumplir esta anatomía:

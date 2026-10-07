@@ -29,6 +29,7 @@ public class AiAccessTokenService {
     public static final String HR_INCENTIVES_MANAGE = "hr.incentives.manage";
     public static final String HR_PEOPLE_READ = "hr.people:read";
     public static final String LEARNING_READ = "learning.read";
+    public static final String LEARNING_MANAGE = "learning.manage";
     public static final String HR_PEOPLE_DETAILS_READ = "hr.people.details:read";
     public static final String HR_ASSETS_READ = "hr.assets.read";
     public static final String HR_RECORDS_READ = "hr.records.read";
@@ -138,7 +139,23 @@ public class AiAccessTokenService {
         CUSTOMERS_READ, PROVIDERS_READ, WAREHOUSES_READ, BUDGET_LINES_READ, ACCOUNTING_ACCOUNTS_READ,
         OPPORTUNITIES_READ, QUOTES_READ, COMMERCIAL_REFERENCES_READ
     );
+    public static final String EXPENSES_ACCOUNTING_MANAGE = "expenses.accounting.manage";
+    public static final String EXPENSES_ACCOUNTS_MANAGE = "expenses.accounts.manage";
+    public static final String EXPENSES_PROVIDERS_MANAGE = "expenses.providers.manage";
+    public static final String EXPENSES_BUDGETS_MANAGE = "expenses.budgets.manage";
+    public static final String EXPENSES_MANAGE = "expenses.manage";
+    public static final String EXPENSES_APPROVE = "expenses.approve";
+    public static final String EXPENSES_PAY = "expenses.pay";
+    public static final String EXPENSES_REVERSE = "expenses.reverse";
+    public static final String PETTY_CASH_FUNDS_MANAGE = "petty_cash.funds.manage";
+    public static final String PETTY_CASH_RECEIPTS_MANAGE = "petty_cash.receipts.manage";
+    public static final String PETTY_CASH_RECEIPTS_APPROVE = "petty_cash.receipts.approve";
+    public static final String PETTY_CASH_STATEMENTS_CLOSE = "petty_cash.statements.close";
     private static final Set<String> ACTION_SCOPES = Set.of(
+        EXPENSES_ACCOUNTING_MANAGE, EXPENSES_ACCOUNTS_MANAGE, EXPENSES_PROVIDERS_MANAGE, EXPENSES_BUDGETS_MANAGE,
+        EXPENSES_MANAGE, EXPENSES_APPROVE, EXPENSES_PAY, EXPENSES_REVERSE,
+        PETTY_CASH_FUNDS_MANAGE, PETTY_CASH_RECEIPTS_MANAGE, PETTY_CASH_RECEIPTS_APPROVE, PETTY_CASH_STATEMENTS_CLOSE,
+        LEARNING_MANAGE,
         POS_TERMINAL_MANAGE, POS_SETTLEMENTS_MANAGE, POS_ORDERS_MANAGE, SALES_COMMISSIONS_CUT, SALES_COMMISSIONS_SCHEDULE, INVENTORY_PROVIDERS_MANAGE, INVENTORY_DISCOUNTS_MANAGE,
         INVENTORY_PROCUREMENT_MANAGE, INVENTORY_PROCUREMENT_APPROVE, INVENTORY_PROCUREMENT_RECEIVE, INVENTORY_INVOICES_MANAGE,
         POS_REGISTERS_MANAGE, POS_SHIFTS_MANAGE, POS_CASH_MANAGE, POS_CHECKOUT, POS_INVENTORY_RECEIVE, POS_RETURNS_MANAGE,

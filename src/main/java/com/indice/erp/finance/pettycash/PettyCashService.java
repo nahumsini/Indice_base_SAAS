@@ -65,6 +65,104 @@ public class PettyCashService {
         this.typeChanges = typeChanges;
     }
 
+    @Transactional(readOnly = true)
+    public PettyCashWorkspaceResponse assistantSnapshot(FinanceContext context) {
+        var funds=repository.findFunds(context).stream().map(mapper::toResponse).toList();
+        var statements=repository.findStatements(context).stream().map(mapper::toResponse).toList();
+        var movements=repository.findMovements(context).stream().map(mapper::toResponse).toList();
+        var receipts=repository.findSettlementLines(context).stream().map(mapper::toResponse).toList();
+        return new PettyCashWorkspaceResponse(funds,statements,movements,receipts,funds.size());
+    }
+    @Transactional(readOnly = true)
+    public void validateAssistantCreate(FinanceContext context,CreatePettyCashFundRequest request) {
+        var assignment=validator.validateCreate(context,request);
+        requireUniqueName(context,mapper.toCreateCommand(context,request,assignment,null).name(),null);
+    }
+    @Transactional(readOnly = true)
+    public void validateAssistantUpdate(FinanceContext context,long id,UpdatePettyCashFundRequest request) {
+        var existing=requireFund(context,id);typeChanges.requireNoPendingChange(context,id);
+        var assignment=validator.validateUpdate(context,request,existing);
+        var command=mapper.toUpdateCommand(context,request,assignment,existing,existing.kioskPublicToken());
+        if(command.fundType()!=existing.fundType())throw FinanceApiException.conflict("Use the prospective type-change workflow.");
+        if(repository.hasFinancialActivity(context,id)&&(!java.util.Objects.equals(command.paymentAccountId(),existing.paymentAccountId())||!command.currencyCode().equalsIgnoreCase(existing.currencyCode())))
+            throw FinanceApiException.conflict("The fund custody account and currency are protected by financial history.");
+        requireUniqueName(context,command.name(),id);
+    }
+    @Transactional(readOnly = true)
+    public void validateAssistantMovement(FinanceContext context,long fundId,CreatePettyCashMovementRequest request) {
+        var fund=requireFund(context,fundId);typeChanges.requireDateAvailable(context,fundId,request.movementDate());
+        var statement=assistantStatementForActivity(context,fund,request.pettyCashStatementId(),request.movementDate());
+        if(statement!=null)fund=repository.fundForStatement(context,fund,statement);
+        validator.validateMovement(context,fund,request);requireCurrencyMatch(fund,request.currencyCode());
+        requireResolvedMovementAccounts(fund,mapper.toCommand(context,request));
+    }
+    @Transactional(readOnly = true)
+    public void validateAssistantReceipt(FinanceContext context,long fundId,CreatePettyCashSettlementLineRequest request) {
+        var fund=requireFund(context,fundId);typeChanges.requireDateAvailable(context,fundId,request.expenseDate());
+        validator.validateSettlementLine(context,request);requireCurrencyMatch(fund,request.currencyCode());
+        assistantStatementForActivity(context,fund,request.pettyCashStatementId(),request.expenseDate());
+    }
+    private PettyCashStatementRecord assistantStatementForActivity(FinanceContext context,
+            PettyCashFundRecord fund,Long requestedStatementId,LocalDate activityDate) {
+        var date=activityDate==null?LocalDate.now(timeZoneResolver.resolve(context.companyId())):activityDate;
+        PettyCashStatementRecord statement;
+        if(requestedStatementId!=null) {
+            statement=requireStatement(context,requestedStatementId);
+            if(!statement.pettyCashFundId().equals(fund.id()))throw FinanceApiException.badRequest("Statement does not belong to this fund.");
+            if(date.isBefore(statement.periodStart())||date.isAfter(statement.periodEnd()))throw FinanceApiException.badRequest("The activity date does not belong to the selected statement stage.");
+        } else {
+            statement=repository.findStatementForDate(context,fund.id(),date)
+                .or(()->repository.findOpenStatementForFund(context,fund.id(),YearMonth.from(date).toString())).orElse(null);
+        }
+        return statement==null?null:requireMutableStatement(statement);
+    }
+    @Transactional(readOnly = true)
+    public java.util.List<com.indice.erp.finance.pettycash.dto.PettyCashTypeChangeResponse> assistantTypeChanges(FinanceContext context,long fundId){return typeChanges.history(context,fundId);}
+    @Transactional(readOnly = true)
+    public void validateAssistantTypeChange(FinanceContext context,long fundId,com.indice.erp.finance.pettycash.dto.ChangePettyCashFundTypeRequest request){typeChanges.validateAssistantSchedule(context,fundId,request);}
+    @Transactional(readOnly = true)
+    public void validateAssistantAuthorization(FinanceContext context,long fundId,long lineId) {
+        var fund=requireFund(context,fundId);var line=requireSettlementLine(context,lineId);
+        if(!line.pettyCashFundId().equals(fundId))throw FinanceApiException.badRequest("Receipt does not belong to this fund.");
+        var statement=requireStatement(context,line.pettyCashStatementId());requireStatementNotClosed(statement);
+        fund=repository.fundForStatement(context,fund,statement);
+        if(!canCreateExpenseFromSettlementLine(line.status())||line.status()==PettyCashSettlementLineStatus.EXPENSE_CREATED
+                ||fund.fundType()==PettyCashFundType.EXTERNAL_MANAGED&&line.status()==PettyCashSettlementLineStatus.VALIDATED)
+            throw FinanceApiException.conflict("Receipt is not awaiting authorization.");
+        if(line.status()!=PettyCashSettlementLineStatus.VALIDATED&&(line.status()==PettyCashSettlementLineStatus.DRAFT||line.attachmentCount()<=0)&&!canAuthorizeWithoutEvidence(context))
+            throw FinanceApiException.badRequest("Receipt evidence or the explicit administrator authorization is required.");
+        if(fund.fundType()==PettyCashFundType.INTERNAL_COMPANY&&line.accountingAccountId()==null)throw FinanceApiException.badRequest("Internal receipts require an accounting account.");
+    }
+    @Transactional(readOnly = true)
+    public void validateAssistantClose(FinanceContext context,long fundId,long statementId,ClosePettyCashStatementRequest request) {
+        var fund=requireFund(context,fundId);var statement=requireStatement(context,statementId);
+        if(!statement.pettyCashFundId().equals(fundId))throw FinanceApiException.badRequest("Statement does not belong to this fund.");
+        fund=repository.fundForStatement(context,fund,statement);requireStatementNotClosed(statement);
+        if(repository.countPendingSettlementLinesForStatement(context,statementId)>0)throw FinanceApiException.conflict("Resolve pending receipts before closing the statement.");
+        var balance=statement.declaredClosingBalanceAmount()==null?BigDecimal.ZERO:statement.declaredClosingBalanceAmount();
+        if(request.expectedClosingBalance()==null||request.expectedClosingBalance().compareTo(balance)!=0)throw FinanceApiException.conflict("The statement balance changed.");
+        if(request.action()==null)throw FinanceApiException.badRequest("Closing action required.");
+        var date=request.closeDate()==null?LocalDate.now(timeZoneResolver.resolve(context.companyId())):request.closeDate();typeChanges.requireDateAvailable(context,fundId,date);
+        switch(request.action()) {
+            case CLOSE_CLEAN->{if(balance.signum()!=0)throw FinanceApiException.badRequest("A clean close requires zero balance.");}
+            case CARRY_FORWARD->{if(balance.signum()==0)throw FinanceApiException.badRequest("Carry forward requires a nonzero balance.");
+                repository.findOpenStatementForFund(context,fundId,YearMonth.parse(statement.periodKey()).plusMonths(1).toString()).ifPresent(this::requireStatementNotClosed);}
+            case FORGIVE_SURPLUS->{if(balance.signum()<=0)throw FinanceApiException.badRequest("Surplus resolution requires a positive balance.");}
+            case FORGIVE_SHORTAGE,CHARGE_EMPLOYEE->{if(balance.signum()>=0)throw FinanceApiException.badRequest("Shortage resolution requires a negative balance.");
+                if(request.action()==PettyCashStatementCloseAction.CHARGE_EMPLOYEE&&fund.responsibleUserId()==null)throw FinanceApiException.badRequest("Assign a responsible collaborator before charging payroll.");}
+            case RETURN_TO_SOURCE->{
+                if(balance.signum()<=0)throw FinanceApiException.badRequest("Return requires a positive balance.");
+                var command=new PettyCashMovementCommand(statementId,fund.paymentAccountId(),request.destinationPaymentAccountId(),PettyCashMovementType.RETURN_TO_SOURCE,balance,fund.currencyCode(),date,
+                    request.externalDestinationName(),"RETURN",null,request.reference(),null,null,request.reference(),context.userId(),null,null);
+                validator.validateMovementAccounts(context,command.fromPaymentAccountId(),command.toPaymentAccountId(),command.currencyCode());requireResolvedMovementAccounts(fund,command);
+            }
+        }
+    }
+    @Transactional
+    public java.util.List<com.indice.erp.finance.pettycash.dto.PettyCashTypeChangeResponse> assistantScheduleTypeChange(FinanceContext context,long fundId,com.indice.erp.finance.pettycash.dto.ChangePettyCashFundTypeRequest request){return typeChanges.schedule(context,fundId,request);}
+    @Transactional
+    public java.util.List<com.indice.erp.finance.pettycash.dto.PettyCashTypeChangeResponse> assistantCancelTypeChange(FinanceContext context,long fundId,long changeId){return typeChanges.cancel(context,fundId,changeId);}
+
     @Transactional
     public PettyCashWorkspaceResponse workspace(FinanceContext context) {
         var fundRecords = repository.findFunds(context);

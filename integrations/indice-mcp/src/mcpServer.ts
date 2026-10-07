@@ -1,3 +1,4 @@
+import {registerFinanceTools,type FinanceReader} from "./financeTools.js";
 import {registerTerminalTools,type TerminalReader} from "./terminalTools.js";
 import {registerPosOperationsTools,type PosOperationsReader} from "./posOperationsTools.js";
 import {registerCommissionTools,type CommissionReader} from "./commissionTools.js";
@@ -52,7 +53,7 @@ import type {
   TaskPreviewResponse
 } from "./contracts.js";
 
-export interface IndiceBusinessReader extends TerminalReader, PosOperationsReader, CommissionReader, InventoryCatalogReader, ProcurementReader, PosReader, SalesWorkflowReader, InventoryReader, OperationalReferenceReader, CommercialReader, TaskOperator, LearningReader, HrReader, ProcessTaskKpiReader, ProcessWorkflowReader, HrKpiReader, FileReader {
+export interface IndiceBusinessReader extends FinanceReader, TerminalReader, PosOperationsReader, CommissionReader, InventoryCatalogReader, ProcurementReader, PosReader, SalesWorkflowReader, InventoryReader, OperationalReferenceReader, CommercialReader, TaskOperator, LearningReader, HrReader, ProcessTaskKpiReader, ProcessWorkflowReader, HrKpiReader, FileReader {
   getSalesToday(preferredCurrency?: string): Promise<SalesTodaySummary>;
   getBusinessSnapshot(query?: BusinessSnapshotQuery): Promise<BusinessSnapshot>;
   queryBusiness?(tool: string, args?: Record<string, unknown>): Promise<BusinessQueryResult>;
@@ -350,6 +351,7 @@ export function createIndiceMcpServer(
   registerLearningTools(server, reader, allowedTools);
   registerHrTools(server, reader, allowedTools);
   registerInventoryTools(server, reader, allowedTools);
+  registerFinanceTools(server, reader, allowedTools);
   registerSalesWorkflowTools(server, reader, allowedTools);
   registerPosTools(server, reader, allowedTools);
   registerProcurementTools(server, reader, allowedTools);

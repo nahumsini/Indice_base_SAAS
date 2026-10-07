@@ -38,11 +38,13 @@ public class ProjectsApiController {
     }
 
     @PostMapping
+    @com.indice.erp.learning.LearningApplied("processes.projects")
     public ResponseEntity<?> create(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestBody Map<String, Object> payload) {
         var access = guard.requireWrite(session, csrfToken);
+        com.indice.erp.learning.LearningOperationContext.capture(access.user());
         if (access.denied()) {
             return access.error();
         }
@@ -57,12 +59,14 @@ public class ProjectsApiController {
     }
 
     @PutMapping("/{projectId}")
+    @com.indice.erp.learning.LearningApplied("processes.projects")
     public ResponseEntity<?> update(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long projectId,
             @RequestBody Map<String, Object> payload) {
         var access = guard.requireWrite(session, csrfToken);
+        com.indice.erp.learning.LearningOperationContext.capture(access.user());
         if (access.denied()) {
             return access.error();
         }
@@ -94,11 +98,13 @@ public class ProjectsApiController {
     }
 
     @PostMapping("/{projectId}/complete")
+    @com.indice.erp.learning.LearningApplied("processes.projects")
     public ResponseEntity<?> complete(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long projectId) {
         var access = guard.requireWrite(session, csrfToken);
+        com.indice.erp.learning.LearningOperationContext.capture(access.user());
         if (access.denied()) {
             return access.error();
         }

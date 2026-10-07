@@ -111,7 +111,7 @@ test('las cinco referencias operativas se ofrecen una sola vez como lecturas, nu
     'hr.control.manage', 'hr.attendance.correct',
     'hr.payroll.prepare', 'hr.payroll.approve', 'hr.payroll.pay',
     'projects.manage', 'processes.manage', 'processes.run',
-    'tasks.delegate', 'tasks.update', 'tasks.organize', 'tasks.operate', 'tasks.audit', 'tasks.create', 'expenses.create', 'petty_cash.expense:create', 'petty_cash.deposit:create',
+    'tasks.delegate', 'tasks.update', 'tasks.organize', 'learning.manage', 'tasks.operate', 'tasks.audit', 'tasks.create', 'expenses.accounting.manage', 'expenses.accounts.manage', 'expenses.providers.manage', 'expenses.budgets.manage', 'expenses.manage', 'expenses.approve', 'expenses.pay', 'expenses.reverse', 'petty_cash.funds.manage', 'petty_cash.receipts.manage', 'petty_cash.receipts.approve', 'petty_cash.statements.close', 'expenses.create', 'petty_cash.expense:create', 'petty_cash.deposit:create',
   ]);
 });
 

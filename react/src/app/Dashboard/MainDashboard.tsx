@@ -1,3 +1,5 @@
+import {LearningJourneyProgress} from '../learningMode/components/LearningJourneyProgress';
+import {useLearningCharacter} from '../learningMode/useLearningCharacter';
 import { useMemo, useState } from "react";
 import {
   sortBasicModulesForOperationalLauncher,
@@ -39,7 +41,7 @@ export interface MainDashboardProps {
   setLearningModeVisible: (visible: boolean) => void;
   learningStep: number;
   setLearningStep: (step: number) => void;
-  onNavigate: (page: PageId) => void;
+  onNavigate: (page: PageId, tab?: string) => void;
 }
 
 export function MainDashboard({
@@ -55,11 +57,7 @@ export function MainDashboard({
   const { favorites, toggleFavorite, getFavoriteModules } = useFavorites();
   const [isKPIConfigOpen, setIsKPIConfigOpen] = useState(false);
   const availableModules = useAccessibleModuleCatalog(t);
-  const [selectedLearningCharacter, setSelectedLearningCharacter] =
-    useLocalStorageState<LearningCharacterId | null>(
-      learningCharacterStorageKey,
-      null,
-    );
+  const [selectedLearningCharacter, setSelectedLearningCharacter] = useLearningCharacter();
   const [selectedKPIIds, setSelectedKPIIds] = useLocalStorageState<string[]>(
     "indice.dashboard.selectedKpis.v2",
     [...defaultDashboardKpiIds],
@@ -172,6 +170,7 @@ export function MainDashboard({
 
   return (
     <main className="mx-auto max-w-[1600px] space-y-8 px-4 py-6 sm:space-y-10 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+      {isOperationalJourneyVisible && <LearningJourneyProgress onNavigate={(page,tab)=>onNavigate(page as PageId,tab)} />}
       {isOperationalJourneyVisible && (
         <OperationalJourney
           copy={copy.operationalJourney}

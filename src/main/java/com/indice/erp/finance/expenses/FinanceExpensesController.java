@@ -63,11 +63,13 @@ public class FinanceExpensesController {
     }
 
     @PostMapping
+    @com.indice.erp.learning.LearningApplied("expenses.expenses")
     public ResponseEntity<?> create(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @Valid @RequestBody CreateExpenseRequest request) {
         var access = guard.requireWriteAccess(session, csrfToken);
+        if(access.context()!=null)com.indice.erp.learning.LearningOperationContext.capture(access.context().companyId(),access.context().userId());
         if (access.denied()) {
             return access.error();
         }
@@ -75,12 +77,14 @@ public class FinanceExpensesController {
     }
 
     @PutMapping("/{expenseId}")
+    @com.indice.erp.learning.LearningApplied("expenses.expenses")
     public ResponseEntity<?> update(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long expenseId,
             @Valid @RequestBody UpdateExpenseRequest request) {
         var access = guard.requireWriteAccess(session, csrfToken);
+        if(access.context()!=null)com.indice.erp.learning.LearningOperationContext.capture(access.context().companyId(),access.context().userId());
         if (access.denied()) {
             return access.error();
         }

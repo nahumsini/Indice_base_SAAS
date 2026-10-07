@@ -35,7 +35,11 @@ This document governs general backend engineering. More specific approved contra
   funding and external means, including the approved 2026-09-10 funding-source extension;
 - `docs/petty-cash-fund-classification-stages-v1.md` for prospective internal/external changes,
   historical statement snapshots and owned-cash treatment;
+- `docs/lupita-finance-delivery-contract-v1.md` for delegated Expenses/Funds owner ports, exact
+  consent, immutable financial review, private attachments and native statement/payroll boundaries;
 - `deployment/README.md` for deployment, production configuration, and rollback.
+- `docs/learning-mode-mcp-progress-contract-v1.md` for the shared learning curriculum, private
+  user/company progress, explicit owner completion projections and MCP progress confirmation.
 
 The folder `saas-multitenant/` is a superseded proposal, not a description of the current backend.
 When a dated report conflicts with the implementation, inspect current code, migrations, tests,

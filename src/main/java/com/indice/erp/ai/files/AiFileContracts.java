@@ -10,7 +10,7 @@ public final class AiFileContracts {
         employee_document, announcement_attachment, asset_photo, hr_record_attachment,
         my_hr_permission_attachment, hr_permission_attachment, task_evidence,
         inventory_product_image, sale_payment_evidence, sales_contract_attachment,
-        supplier_invoice_attachment, pos_receipt_attachment
+        supplier_invoice_attachment, pos_receipt_attachment, expense_attachment, budget_line_attachment, petty_cash_receipt_attachment
     }
     public record StageRequest(Purpose purpose, Long targetId, String documentType, String fileName,
                                String mimeType, String contentBase64, String idempotencyKey) {

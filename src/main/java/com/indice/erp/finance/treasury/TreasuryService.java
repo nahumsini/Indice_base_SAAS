@@ -209,6 +209,21 @@ public class TreasuryService {
         return post(command, false);
     }
 
+    /** Current recorded refund, used only after the expense owner authorizes a review. */
+    @Transactional(readOnly=true)
+    public BigDecimal previewExpenseRefund(long companyId,long expenseId,String eventKey,boolean all){
+        if(!all&&eventKey==null)return BigDecimal.ZERO;
+        return jdbcTemplate.queryForObject("""
+            SELECT COALESCE(SUM(-movement.available_delta),0)
+            FROM finance_payment_account_movements movement
+            WHERE movement.company_id=? AND movement.source_module='EXPENSES'
+              AND movement.source_type='EXPENSE_PAYMENT' AND movement.source_id=?
+              AND (? OR movement.event_key=?)
+              AND NOT EXISTS(SELECT 1 FROM finance_payment_account_movements reversal
+                WHERE reversal.company_id=movement.company_id AND reversal.reversal_of_movement_id=movement.id)
+            """,BigDecimal.class,companyId,String.valueOf(expenseId),all,eventKey);
+    }
+
     /** Expense removal compensates only recorded debits; an unassigned legacy payment creates no cash. */
     @Transactional
     public void reverseExpensePayments(long companyId, long expenseId, long userId, String reason) {

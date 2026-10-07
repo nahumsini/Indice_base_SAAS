@@ -50,6 +50,14 @@ class UserWorkspaceStateServiceTest {
     }
 
     @Test
+    void privateLearningViewsHaveNoExpiry() {
+        var state = new ObjectMapper().createObjectNode().put("expanded", true);
+        service.save(33L, 44L, "system", "learning-view-human-resources", state, 1);
+        verify(jdbc).update(contains("DATE_ADD(NOW(), INTERVAL ? DAY)"),
+            eq(33L), eq(44L), eq("system"), eq("learning-view-human-resources"), eq(state.toString()), eq(1), isNull());
+    }
+
+    @Test
     void navigationAndOtherWorkspacesKeepTheirNinetyDayRetention() {
         var state = new ObjectMapper().createObjectNode();
         service.save(11L, 22L, "expenses", "expenses-table", state, 1);

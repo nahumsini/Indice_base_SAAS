@@ -126,6 +126,41 @@ public class ExpenseImportService {
         }
         return new ExpenseListResponse(List.copyOf(saved), saved.size());
     }
+
+    /** Read-only review uses the import owner's restrictions before a confirmation is issued. */
+    public void validateAssistantImport(FinanceContext context,
+            com.indice.erp.finance.expenses.dto.CreateExpenseRequest row) {
+        if (row == null) throw FinanceApiException.badRequest("Expense row is required.");
+        if (row.purchaseOrderId() != null || row.budgetLineId() != null) {
+            throw FinanceApiException.badRequest("Use the source workflow for purchase orders and budget-linked expenses.");
+        }
+        if (!"AUTO-EXP".equals(row.folio())) {
+            throw FinanceApiException.badRequest("Imported expense numbers are assigned by the system.");
+        }
+        references.validateImportPaymentAccount(context, row.paymentAccountId(), row.currencyCode());
+        references.validateImportAccountingAccount(context, row.accountingAccountId());
+        if (Boolean.TRUE.equals(row.settleOnCreate()) && (row.expenseDate() == null
+                || row.expenseDate().isAfter(LocalDate.now(timeZones.resolve(context.companyId()))))) {
+            throw FinanceApiException.badRequest("Paid imports require an expense date no later than today.");
+        }
+        expenses.validateAssistantCreate(context, ExpenseImportTax.normalize(row), true);
+    }
+
+    /** Batch review deliberately retains the batch owner's narrower source and reference rules. */
+    public void validateAssistantUpdate(FinanceContext context, UpdateExpensesBatchRequest.Row row) {
+        var existing = expenses.assistantGet(context, row.id());
+        if (!java.util.Objects.equals(row.expectedVersion(), existing.version())) {
+            throw FinanceApiException.conflict("The expense changed. Reload it before editing.");
+        }
+        if (existing.purchaseOrderId() != null || existing.budgetLineId() != null
+                || existing.originFund() != null || existing.accountingPosted()) {
+            throw FinanceApiException.conflict("This expense is protected and cannot be edited in a batch.");
+        }
+        references.validateImportPaymentAccount(context, row.expense().paymentAccountId(), row.expense().currencyCode());
+        references.validateImportAccountingAccount(context, row.expense().accountingAccountId());
+        corrections.validateAssistant(context, row.id(),
+            new com.indice.erp.finance.expenses.dto.CorrectExpenseRequest(row.expectedVersion(), row.expense()));
+    }
     private String serialize(Object value) {
         try { return json.writeValueAsString(value); }
         catch (JsonProcessingException ex) { throw new IllegalStateException("Import could not be serialized", ex); }

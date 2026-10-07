@@ -8,6 +8,7 @@ const progressStoragePrefix = 'indice.learningMode.humanResources';
 type LearningProgressSessionScope = Pick<AuthSessionResponse, 'user' | 'company'>;
 
 export interface HumanResourcesLearningProgress {
+  syncError?: boolean;
   activeAreaId: HumanResourcesGuidanceTabId;
   appliedAreaIds: HumanResourcesGuidanceTabId[];
   employeeExceptions: Record<string, EmployeeLearningExceptions>;

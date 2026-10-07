@@ -167,23 +167,27 @@ public class PurchaseOrderController {
     }
 
     @PostMapping("/product-suppliers")
+    @com.indice.erp.learning.LearningApplied("inventory.providers")
     public ResponseEntity<?> upsertProductSupplier(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @Valid @RequestBody ProductSupplierRequest request) {
         var access = guard.requireWriteAccess(session, csrfToken);
+        if(access.context()!=null)com.indice.erp.learning.LearningOperationContext.capture(access.context().companyId(),access.context().userId());
         return access.denied()
             ? access.error()
             : ResponseEntity.status(HttpStatus.CREATED).body(service.upsertProductSupplier(access.context(), request));
     }
 
     @PutMapping("/product-suppliers/{supplierLinkId}")
+    @com.indice.erp.learning.LearningApplied("inventory.providers")
     public ResponseEntity<?> updateProductSupplier(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long supplierLinkId,
             @Valid @RequestBody ProductSupplierRequest request) {
         var access = guard.requireWriteAccess(session, csrfToken);
+        if(access.context()!=null)com.indice.erp.learning.LearningOperationContext.capture(access.context().companyId(),access.context().userId());
         return access.denied()
             ? access.error()
             : ResponseEntity.ok(service.updateProductSupplier(access.context(), supplierLinkId, request));
@@ -211,47 +215,55 @@ public class PurchaseOrderController {
     }
 
     @PostMapping("/purchase-orders")
+    @com.indice.erp.learning.LearningApplied("inventory.purchase-orders")
     public ResponseEntity<?> createPurchaseOrder(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @Valid @RequestBody PurchaseOrderCreateRequest request) {
         var access = guard.requireWriteAccess(session, csrfToken);
+        if(access.context()!=null)com.indice.erp.learning.LearningOperationContext.capture(access.context().companyId(),access.context().userId());
         return access.denied()
             ? access.error()
             : ResponseEntity.status(HttpStatus.CREATED).body(service.createOrder(access.context(), request));
     }
 
     @PostMapping("/purchase-orders/{orderId}/request")
+    @com.indice.erp.learning.LearningApplied("inventory.purchase-orders")
     public ResponseEntity<?> requestPurchaseOrder(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long orderId,
             @RequestBody(required = false) PurchaseOrderActionRequest request) {
         var access = guard.requireWriteAccess(session, csrfToken);
+        if(access.context()!=null)com.indice.erp.learning.LearningOperationContext.capture(access.context().companyId(),access.context().userId());
         return access.denied()
             ? access.error()
             : ResponseEntity.ok(service.requestOrder(access.context(), orderId, emptyAction(request)));
     }
 
     @PostMapping("/purchase-orders/{orderId}/approve")
+    @com.indice.erp.learning.LearningApplied("inventory.purchase-orders")
     public ResponseEntity<?> approvePurchaseOrder(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long orderId,
             @RequestBody(required = false) PurchaseOrderActionRequest request) {
         var access = guard.requireWriteAccess(session, csrfToken);
+        if(access.context()!=null)com.indice.erp.learning.LearningOperationContext.capture(access.context().companyId(),access.context().userId());
         return access.denied()
             ? access.error()
             : ResponseEntity.ok(service.approveOrder(access.context(), orderId, emptyAction(request)));
     }
 
     @PostMapping("/purchase-orders/{orderId}/send")
+    @com.indice.erp.learning.LearningApplied("inventory.purchase-orders")
     public ResponseEntity<?> sendPurchaseOrder(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long orderId,
             @RequestBody(required = false) PurchaseOrderActionRequest request) {
         var access = guard.requireWriteAccess(session, csrfToken);
+        if(access.context()!=null)com.indice.erp.learning.LearningOperationContext.capture(access.context().companyId(),access.context().userId());
         return access.denied()
             ? access.error()
             : ResponseEntity.ok(service.sendOrder(access.context(), orderId, emptyAction(request)));
@@ -270,12 +282,14 @@ public class PurchaseOrderController {
     }
 
     @PostMapping("/purchase-orders/{orderId}/receive")
+    @com.indice.erp.learning.LearningApplied("inventory.purchase-orders")
     public ResponseEntity<?> receivePurchaseOrder(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long orderId,
             @Valid @RequestBody PurchaseOrderReceiveRequest request) {
         var access = guard.requireWriteAccess(session, csrfToken);
+        if(access.context()!=null)com.indice.erp.learning.LearningOperationContext.capture(access.context().companyId(),access.context().userId());
         return access.denied()
             ? access.error()
             : ResponseEntity.ok(service.receiveOrder(access.context(), orderId, request));
@@ -303,11 +317,13 @@ public class PurchaseOrderController {
     }
 
     @PostMapping("/supplier-submissions")
+    @com.indice.erp.learning.LearningApplied("inventory.providers")
     public ResponseEntity<?> createSupplierSubmission(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @Valid @RequestBody SupplierSubmissionCreateRequest request) {
         var access = guard.requireWriteAccess(session, csrfToken);
+        if(access.context()!=null)com.indice.erp.learning.LearningOperationContext.capture(access.context().companyId(),access.context().userId());
         return access.denied()
             ? access.error()
             : ResponseEntity.status(HttpStatus.CREATED).body(service.createSupplierSubmission(access.context(), request));

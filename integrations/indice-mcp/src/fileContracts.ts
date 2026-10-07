@@ -1,8 +1,9 @@
+import {financeQuerySchema} from "./financeContracts.js";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 
-export const filePurposeSchema=z.enum(["employee_document","announcement_attachment","asset_photo","hr_record_attachment","my_hr_permission_attachment","hr_permission_attachment","task_evidence","inventory_product_image","sale_payment_evidence","sales_contract_attachment","supplier_invoice_attachment","pos_receipt_attachment"]);
-export const fileActionSchema=z.enum(["attach_employee_document","attach_announcement_file","add_hr_asset_photo","attach_hr_record_file","attach_my_hr_permission_file","attach_hr_permission_file","attach_task_evidence","attach_inventory_product_image","attach_sale_payment_evidence","attach_sales_contract_file","attach_supplier_invoice_file","attach_pos_receipt_file"]);
+export const filePurposeSchema=z.enum(["employee_document","announcement_attachment","asset_photo","hr_record_attachment","my_hr_permission_attachment","hr_permission_attachment","task_evidence","inventory_product_image","sale_payment_evidence","sales_contract_attachment","supplier_invoice_attachment","pos_receipt_attachment","expense_attachment","budget_line_attachment","petty_cash_receipt_attachment"]);
+export const fileActionSchema=z.enum(["attach_employee_document","attach_announcement_file","add_hr_asset_photo","attach_hr_record_file","attach_my_hr_permission_file","attach_hr_permission_file","attach_task_evidence","attach_inventory_product_image","attach_sale_payment_evidence","attach_sales_contract_file","attach_supplier_invoice_file","attach_pos_receipt_file","attach_expense_file","attach_budget_line_file","attach_petty_cash_receipt_file"]);
 export const fileMimeSchema=z.enum(["application/pdf","image/jpeg","image/png","image/webp","image/gif","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document"]);
 const id=z.number().int().positive();
 const hash=z.string().regex(/^[a-f0-9]{64}$/);
@@ -12,7 +13,7 @@ export const stageFileRequestSchema=z.object({purpose:filePurposeSchema,targetId
   if(!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(v.contentBase64))c.addIssue({code:"custom",message:"Valid base64 content required."});
   const maximum=v.purpose==="asset_photo"?2621440:v.purpose==="employee_document"?5242880:10485760;
   if(Buffer.byteLength(v.contentBase64,"base64")>maximum)c.addIssue({code:"custom",message:"File exceeds the domain size limit."});
-  if(["inventory_product_image","sale_payment_evidence","sales_contract_attachment","supplier_invoice_attachment","pos_receipt_attachment"].includes(v.purpose)&&!["application/pdf","image/jpeg","image/png","image/webp"].includes(v.mimeType))c.addIssue({code:"custom",message:"Commerce evidence requires PDF, JPEG, PNG or WebP."});
+  if(["inventory_product_image","sale_payment_evidence","sales_contract_attachment","supplier_invoice_attachment","pos_receipt_attachment","expense_attachment","budget_line_attachment","petty_cash_receipt_attachment"].includes(v.purpose)&&!["application/pdf","image/jpeg","image/png","image/webp"].includes(v.mimeType))c.addIssue({code:"custom",message:"Commerce evidence requires PDF, JPEG, PNG or WebP."});
   if(v.purpose==="inventory_product_image"&&!v.mimeType.startsWith("image/"))c.addIssue({code:"custom",message:"Product photographs require an image."});
 });
 export const stagedFileSchema=z.object({stagedFileId:z.uuid(),purpose:filePurposeSchema,targetId:id,documentType:z.string().nullable(),fileName:plainName,mimeType:fileMimeSchema,sizeBytes:id.max(10485760),sha256:hash,expiresAt:z.iso.datetime({offset:true})});
@@ -48,3 +49,6 @@ export type FileListRequest=z.infer<typeof fileListRequestSchema>;
 export type FileExportRequest=z.infer<typeof fileExportRequestSchema>;
 export type FileContent=z.infer<typeof fileContentSchema>;
 export type FileList=z.infer<typeof fileListSchema>;
+
+export const financeReportRequestSchema=z.object({report:z.enum(["expenses","expense_payments","budgets","budget_lines","petty_cash_funds","petty_cash_statements","petty_cash_receipts","petty_cash_movements"]),format:z.enum(["csv","pdf"]),filters:financeQuerySchema.omit({cursor:true,limit:true}).strict().optional()}).strict();
+export type FinanceReportRequest=z.infer<typeof financeReportRequestSchema>;

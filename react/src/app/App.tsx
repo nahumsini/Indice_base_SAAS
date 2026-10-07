@@ -720,17 +720,20 @@ export default function App() {
     setDarkMode((current) => !current);
   };
 
-  const handleModuleNavigation = (page?: string) => {
+  const handleModuleNavigation = (page?: string, tab?: string) => {
     const targetPage = resolvePageId(page) ?? 'dashboard';
     const safeTargetPage = isModuleAccessLoaded && !canAccessModulePage(targetPage, allowedModuleRoutes)
       ? 'dashboard'
       : targetPage;
 
-    if (safeTargetPage === currentPage) {
+    const targetDefinition = MODULE_TAB_SCOPE_CATALOG[safeTargetPage];
+    const safeTab = tab && targetDefinition?.tabs[tab] && sessionTabAccess !== undefined
+      && allowedModuleTabIds(safeTargetPage, [tab], sessionTabAccess).includes(tab) ? tab : undefined;
+    if (safeTargetPage === currentPage && !safeTab) {
       return;
     }
 
-    const targetPath = getPagePath(safeTargetPage);
+    const targetPath = getPagePath(safeTargetPage, safeTab);
     showModuleNavigationLoading(targetPath);
     navigateAfterLoadingPaint(targetPath);
   };
@@ -765,7 +768,7 @@ export default function App() {
         setLearningModeVisible={setLearningModeVisible}
         learningStep={learningStep}
         setLearningStep={setLearningStep}
-        onNavigate={(page) => handleModuleNavigation(page)}
+        onNavigate={(page, tab) => handleModuleNavigation(page, tab)}
       />
     ) : currentPage === 'human-resources' ? (
       <HumanResources learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />

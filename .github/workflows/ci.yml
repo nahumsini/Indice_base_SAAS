@@ -94,6 +94,7 @@ jobs:
         run: npm run build
 
       - name: Verify delegated MCP authorization, traffic protection and tool regressions
+        # Reviewed lessons must be refreshed when active owner screens or implementations change.
         working-directory: integrations/indice-mcp
         run: |
           npm ci --no-audit --no-fund
@@ -117,6 +118,7 @@ jobs:
           npm run test:processes-tasks-ui
           npm run test:invitation
           npm run test:learning-mode
+          node ../scripts/generate-lupita-learning-catalog.mjs --check
           npm run test:users
           npm run test:kpis-ui
           npm run test:inventory-ui

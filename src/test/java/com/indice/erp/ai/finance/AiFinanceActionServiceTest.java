@@ -39,6 +39,7 @@ class AiFinanceActionServiceTest {
     @Mock private AiFinanceActionRepository repository;
     @Mock private AiFinanceActionExecutionService executionService;
     @Mock private FinanceAccessService financeAccessService;
+    @Mock private AiFinanceReviewService reviews;
 
     private AiFinanceActionService service;
 
@@ -49,7 +50,7 @@ class AiFinanceActionServiceTest {
             executionService,
             financeAccessService,
             new ObjectMapper().findAndRegisterModules(),
-            Clock.fixed(NOW, ZoneOffset.UTC)
+            Clock.fixed(NOW, ZoneOffset.UTC),reviews
         );
     }
 

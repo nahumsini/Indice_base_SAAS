@@ -85,12 +85,14 @@ public class HrUserApiController {
     }
 
     @PostMapping
+    @com.indice.erp.learning.LearningApplied("human_resources.collaborators")
     public ResponseEntity<?> create(
         HttpSession session,
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var user = sessionAuthService.currentUser(session);
+        user.ifPresent(com.indice.erp.learning.LearningOperationContext::capture);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
@@ -148,6 +150,7 @@ public class HrUserApiController {
     }
 
     @PutMapping("/{userCompanyId}")
+    @com.indice.erp.learning.LearningApplied("human_resources.collaborators")
     public ResponseEntity<?> update(
         HttpSession session,
         @PathVariable long userCompanyId,
@@ -155,6 +158,7 @@ public class HrUserApiController {
         @RequestBody Map<String, Object> payload
     ) {
         var user = sessionAuthService.currentUser(session);
+        user.ifPresent(com.indice.erp.learning.LearningOperationContext::capture);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
@@ -213,6 +217,7 @@ public class HrUserApiController {
     }
 
     @PostMapping("/{userCompanyId}/documents")
+    @com.indice.erp.learning.LearningApplied("human_resources.collaborators")
     public ResponseEntity<?> registerDocument(
         HttpSession session,
         @PathVariable long userCompanyId,
@@ -220,6 +225,7 @@ public class HrUserApiController {
         @RequestBody Map<String, Object> payload
     ) {
         var user = sessionAuthService.currentUser(session);
+        user.ifPresent(com.indice.erp.learning.LearningOperationContext::capture);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }

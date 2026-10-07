@@ -1,3 +1,4 @@
+import {useLearningCharacter} from '../useLearningCharacter';
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../../components/ui/button';
@@ -22,6 +23,7 @@ import type {
 } from '../types';
 import { useModuleLearningProgress } from '../useModuleLearningProgress';
 import { ModuleLearningJourneyNav } from './ModuleLearningJourneyNav';
+import {curriculumControls} from '../curriculumControls';
 
 interface ModuleLearningGuideProps {
   activeContextLabel: string;
@@ -52,7 +54,7 @@ export function ModuleLearningGuide({
   activeJourneyId: requestedJourneyId,
   appliedJourneyIds = [],
   contextSignal,
-  controls,
+  controls: interfaceControls,
   ctaLabel,
   eyebrow,
   guideId,
@@ -65,15 +67,16 @@ export function ModuleLearningGuide({
   title,
 }: ModuleLearningGuideProps) {
   const { currentLanguage } = useLanguage();
+  const controls=useMemo(()=>[...curriculumControls(guideId,requestedJourneyId,currentLanguage.code),...interfaceControls],
+    [guideId,requestedJourneyId,currentLanguage.code,interfaceControls]);
   const dashboardCopy = useMainDashboardTranslations();
-  const [selectedCharacterId] = useLocalStorageState<LearningCharacterId | null>(
-    learningCharacterStorageKey,
-    null,
-  );
+  const [selectedCharacterId] = useLearningCharacter();
   const {
     markUnderstood,
     progress,
     setExpanded,
+    error:progressError,
+    retry:retryProgress,
   } = useModuleLearningProgress(guideId);
   const [slideState, setSlideState] = useState({ scopeId, index: 0 });
   const slideCount = controls.length;
@@ -87,7 +90,9 @@ export function ModuleLearningGuide({
   const isSpanish = currentLanguage.code.toLowerCase().startsWith('es');
   const journeySteps = useMemo<readonly LearningModeJourneyStep[]>(() => {
     if (journey?.length) {
-      return journey;
+      return requestedJourneyId && !journey.some(step=>step.id===requestedJourneyId)
+        ? [...journey,{id:requestedJourneyId,label:activeContextLabel,emoji:activeControl?.emoji??'🧭'}]
+        : journey;
     }
 
     return [{
@@ -103,7 +108,7 @@ export function ModuleLearningGuide({
   const understoodJourneyIds = new Set(
     progress.understoodJourneyIds.filter((id) => journeySteps.some((step) => step.id === id)),
   );
-  const appliedJourneyIdSet = new Set(appliedJourneyIds);
+  const appliedJourneyIdSet = new Set(progress.appliedJourneyIds);
   const reviewedJourneyCount = journeySteps.filter(
     (step) => understoodJourneyIds.has(step.id) || appliedJourneyIdSet.has(step.id),
   ).length;
@@ -228,6 +233,10 @@ export function ModuleLearningGuide({
               <p className="mt-0.5 line-clamp-2 text-xs leading-4 text-slate-600 sm:truncate dark:text-slate-300">
                 {labels.contextualSignal}
               </p>
+              {progressError?<p role="status" className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                {isSpanish?'No se pudo sincronizar tu avance.':'Your progress could not be synchronized.'}
+                <button type="button" className="ml-2 underline" onClick={retryProgress}>{isSpanish?'Reintentar':'Retry'}</button>
+              </p>:null}
             </div>
           </div>
           <div className="flex items-center justify-between gap-2 sm:justify-end">
