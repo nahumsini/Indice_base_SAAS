@@ -24,6 +24,8 @@ import { usePreferredBusinessCurrency } from '../BasicModules/shared/BusinessCur
 import { getPreferredCurrencyCopy } from '../BasicModules/shared/preferredCurrencyCopy';
 import { useHeaderTranslations } from './header/hooks/useHeaderTranslations';
 import { isAdminAccessRole, normalizeAccessRole } from '../access/accessRules';
+import { canDiscoverTraining } from '../Training/trainingAccess';
+import { getTrainingWorkspaceCopy } from '../Training/translations/workspace';
 import { managedCompanyApi, type ManagedCompanyContext } from '../api/managedCompanies';
 import { getCachedAuthSession } from '../api/authSessionStore';
 import { useAuthorizationRevision } from '../hooks/useAuthorizationRevision';
@@ -681,6 +683,14 @@ export function Header({
                       <DropdownMenuSeparator className="my-0 bg-[var(--indice-brand-primary)]/15 dark:bg-[var(--indice-brand-primary)]/20" />
                     </>
                   )}
+                  {canDiscoverTraining(effectiveAuthSession, platformAdminRole) ? (
+                    <DropdownMenuItem onClick={() => navigate('/training')} className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10">
+                      <GraduationCap className="mr-3 h-4 w-4 text-[var(--indice-brand-primary)]" />
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        {getTrainingWorkspaceCopy(currentLanguage.code).title}
+                      </span>
+                    </DropdownMenuItem>
+                  ) : null}
                   {isAdminAccessRole(effectiveAuthSession?.user.role) && !isPublicDemoSession ? (
                     <>
                       {canAccessModuleTab('home-panel', 'integrations', effectiveAuthSession) ? (

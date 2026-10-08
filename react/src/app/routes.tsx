@@ -1,5 +1,5 @@
 import { Component, lazy, Suspense, useEffect, type ErrorInfo, type ReactNode } from 'react';
-import { createBrowserRouter, redirect, useLocation, useNavigate, useRouteError } from 'react-router';
+import { createBrowserRouter, redirect, useLocation, useNavigate, useRouteError, type LoaderFunctionArgs } from 'react-router';
 import { AiOAuthAuthorizePage, InviteAcceptPage, LoginPage, PublicDemoPage, PublicPlansPage, ResetPasswordPage, SignupCompletePage, SignupPage } from './Auth';
 import { AiConnectionSupportPage } from './Public/AiConnectionSupportPage';
 import { authApi } from './api/auth';
@@ -8,6 +8,7 @@ import { ApiClientError } from './lib/apiClient';
 import { BusinessCurrencyProvider } from './BasicModules/shared/BusinessCurrencyContext';
 import { LocalizedLoadingBarOverlay } from './components/LocalizedLoadingBarOverlay';
 import { WorkbarLayoutProvider } from './components/workbar/WorkbarLayoutContext';
+import { getLegacyTrainingDestination, requireTrainingSession } from './Training/trainingAccess';
 
 const App = lazy(() => import('./App'));
 const InvestmentPage = lazy(() => import('./Public/Investment/InvestmentPage'));
@@ -16,6 +17,7 @@ const ExpensesPayablesKiosk = lazy(() => import('./BasicModules/Expenses/Kiosk/P
 const ProcessTasksKiosk = lazy(() => import('./BasicModules/ProcessesTasks/Kiosk/PublicTaskKioskPage'));
 const PettyCashKiosk = lazy(() => import('./BasicModules/PettyCash/Kiosk/PublicPettyCashKioskPage'));
 const PublicCatalogPage = lazy(() => import('./BasicModules/Sales/Productos/publicCatalog/PublicCatalogPage'));
+const PublicBookingPage = lazy(() => import('./ComplementaryModules/Scheduling/PublicBookingPage'));
 const CustomerDisplay = lazy(() => import('./BasicModules/PointOfSale/CustomerDisplay'));
 const SupplierPortal = lazy(() => import('./BasicModules/PointOfSale/SupplierPortal'));
 const SelfServiceKiosk = lazy(() => import('./BasicModules/PointOfSale/SelfServiceKiosk'));
@@ -25,6 +27,7 @@ const PlatformAdminPage = lazy(() => import('./PlatformAdmin/PlatformAdminPage')
 const DistributorPortalPage = lazy(() => import('./DistributorPortal/DistributorPortalPage'));
 const MultiKioskMobilePage = lazy(() => import('./KioskCenter/MultiKioskMobilePage'));
 const TrainingCertificateVerificationPage = lazy(() => import('./Training/TrainingCertificateVerificationPage'));
+const TrainingPage = lazy(() => import('./Training/TrainingPage'));
 
 const chunkReloadStorageKey = 'indice:route-chunk-reload-attempted';
 const renderChunkReloadStorageKey = 'indice:render-chunk-reload-attempted';
@@ -388,6 +391,29 @@ function DistributorPortalRoute() {
   );
 }
 
+function TrainingRoute() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => subscribeToAuthenticationExpired(() => {
+    navigate('/login', {
+      replace: true,
+      state: {
+        authenticationExpired: true,
+        returnTo: `${location.pathname}${location.search}${location.hash}`,
+      },
+    });
+  }), [location.hash, location.pathname, location.search, navigate]);
+
+  return (
+    <WorkspaceRenderErrorBoundary>
+      <Suspense fallback={<LocalizedLoadingBarOverlay isVisible variant="moduleNavigation" />}>
+        <TrainingPage />
+      </Suspense>
+    </WorkspaceRenderErrorBoundary>
+  );
+}
+
 const redirectToLanding = async () => {
   const session = await getRouteSessionOrNull();
   return redirect(session ? '/dashboard' : '/login');
@@ -413,7 +439,9 @@ const requireAuthenticatedSession = async () => {
   return null;
 };
 
-const requirePlatformAdminSession = async () => {
+const requirePlatformAdminSession = async ({ request }: LoaderFunctionArgs) => {
+  const trainingDestination = getLegacyTrainingDestination(request.url);
+  if (trainingDestination) return redirect(trainingDestination);
   const session = await getRouteSessionOrNull();
   if (!session) return redirect('/login');
   const { platformAdminApi } = await import('./api/platformAdmin');
@@ -427,7 +455,9 @@ const requirePlatformAdminSession = async () => {
   }
 };
 
-const requireDistributorPortalSession = async () => {
+const requireDistributorPortalSession = async ({ request }: LoaderFunctionArgs) => {
+  const trainingDestination = getLegacyTrainingDestination(request.url);
+  if (trainingDestination) return redirect(trainingDestination);
   const session = await getRouteSessionOrNull();
   if (!session) return redirect('/login');
   if (session.company.commercial_account_type !== 'DISTRIBUTOR') return redirect('/dashboard');
@@ -558,6 +588,12 @@ export const router = createBrowserRouter([
     element: <PublicCatalogRoute />,
   },
   {
+    id: 'public-scheduling',
+    path: '/book/:alias',
+    element: <Suspense fallback={<LocalizedLoadingBarOverlay isVisible variant="publicCatalog" />}><PublicBookingPage /></Suspense>,
+    errorElement: <WorkspaceRouteError />,
+  },
+  {
     path: '/pos-display/pair',
     element: <CustomerDisplayRoute />,
   },
@@ -606,6 +642,13 @@ export const router = createBrowserRouter([
     path: '/distributor-portal',
     element: <DistributorPortalRoute />,
     loader: requireDistributorPortalSession,
+  },
+  {
+    id: 'training-centre',
+    path: '/training',
+    element: <TrainingRoute />,
+    errorElement: <WorkspaceRouteError />,
+    loader: requireTrainingSession,
   },
   {
     path: '/:pageId/*',

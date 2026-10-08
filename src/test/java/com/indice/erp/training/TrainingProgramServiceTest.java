@@ -1,15 +1,20 @@
 package com.indice.erp.training;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.doThrow;
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.distributorportal.DistributorPortfolioAccessPolicy;
+import com.indice.erp.distributorportal.DistributorPortalForbiddenException;
 import com.indice.erp.platformadmin.PlatformAdminAccessService;
+import com.indice.erp.platformadmin.PlatformAdminForbiddenException;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
@@ -94,5 +99,49 @@ class TrainingProgramServiceTest {
             .hasMessageContaining("validación obligatoria");
 
         verifyNoInteractions(jdbc);
+    }
+
+    @Test
+    void distributorWorkspaceReadsOnlyTheLearnerProgressWithoutPlatformAuthorityOrGlobalSummary() {
+        var workspace = service.distributorWorkspace(actor);
+
+        verify(distributorAccess).requireDistributor(actor);
+        verify(jdbc).queryForList(
+            anyString(), eq(String.class), eq(actor.userId()),
+            eq(TrainingProgramService.PROGRAM_CODE), eq(TrainingProgramService.PROGRAM_VERSION)
+        );
+        verifyNoMoreInteractions(jdbc);
+        verifyNoInteractions(platformAccess);
+        assertThat(workspace).containsKeys("program_code", "program_version", "completed_item_codes")
+            .doesNotContainKey("audience_summary");
+    }
+
+    @Test
+    void deniedDistributorDoesNotReadProgressOrFallBackToPlatformAccess() {
+        doThrow(new DistributorPortalForbiddenException("Denied"))
+            .when(distributorAccess).requireDistributor(actor);
+
+        assertThatThrownBy(() -> service.distributorWorkspace(actor))
+            .isInstanceOf(DistributorPortalForbiddenException.class);
+        verifyNoInteractions(jdbc, platformAccess);
+    }
+
+    @Test
+    void platformWorkspaceRetainsItsViewGateAndAuthorizedAudienceSummary() {
+        var workspace = service.platformWorkspace(actor.userId());
+
+        verify(platformAccess).require(actor.userId(), "PLATFORM_VIEW");
+        verifyNoInteractions(distributorAccess);
+        assertThat(workspace).containsKey("audience_summary");
+    }
+
+    @Test
+    void ordinaryCompanyMembershipCannotBypassPlatformTrainingAuthorization() {
+        doThrow(new PlatformAdminForbiddenException("Denied"))
+            .when(platformAccess).require(actor.userId(), "PLATFORM_VIEW");
+
+        assertThatThrownBy(() -> service.platformWorkspace(actor.userId()))
+            .isInstanceOf(PlatformAdminForbiddenException.class);
+        verifyNoInteractions(jdbc, distributorAccess);
     }
 }

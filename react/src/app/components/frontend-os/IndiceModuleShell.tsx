@@ -16,6 +16,8 @@ import { IndiceHorizontalScrollControls } from '../ui/horizontal-scroll-controls
 import { useWorkbarLayout } from '../workbar/WorkbarLayoutContext';
 
 const MODULE_EMOJI_BY_ROUTE: Record<string, string> = {
+  'minutes-control': '📝',
+  scheduling: '📅',
   'human-resources': '👥',
   'processes-tasks': '✅',
   expenses: '💸',

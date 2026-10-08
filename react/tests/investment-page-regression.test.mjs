@@ -830,7 +830,7 @@ test('the public route has no session loader and existing routes keep their prot
   assert.match(main, /publicPresentationRouteIds\.has\(match\.route\.id\)/);
   assert.match(main, /'investment-carlos-munoz'/);
   assert.match(main, /'presentation'/);
-  assert.match(main, /if \(isInvestment\) return children/);
+  assert.match(main, /if \(skipTenantDataProviders\) return children/);
   assert.match(main, /<FavoritesProvider><PettyCashProvider>\{children\}/);
 });
 

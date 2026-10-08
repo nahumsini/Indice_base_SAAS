@@ -38,7 +38,7 @@ Los roles Root y Super Admin no saltan el entitlement de la empresa. Su acceso t
 | Slug | Ruta | Estado inicial | Modelo |
 | --- | --- | --- | --- |
 | `maintenance` | `maintenance` | conserva su estado actual | módulo |
-| `control_minutas` | `minutes-control` | planeado, bloqueado | módulo |
+| `control_minutas` | `minutes-control` | piloto local, sin entitlements automáticos (V302) | pestañas |
 | `cleaning` | `cleaning` | planeado, bloqueado | módulo |
 | `lavanderia` | `laundry` | planeado, bloqueado | módulo |
 | `transportacion` | `transportation` | planeado, bloqueado | módulo |
@@ -49,8 +49,17 @@ Los roles Root y Super Admin no saltan el entitlement de la empresa. Su acceso t
 | `correo` | `email` | planeado, bloqueado | módulo |
 | `clima_laboral` | `work-climate` | planeado, bloqueado | módulo |
 | `affiliates` | `affiliate-management` | planeado, bloqueado | módulo |
+| `scheduling` | `scheduling` | piloto local, sin entitlements automáticos (V300) | pestañas |
 
 La migración no crea entitlements ni asignaciones para los módulos nuevos.
+El contrato específico de Agenda y eventos está en
+[scheduling-module-contract-v1.md](scheduling-module-contract-v1.md). Su acceso público requiere
+además publicación explícita y el adaptador del Engine habilitado; no concede acceso a plataforma.
+
+Control de juntas reutiliza el slug legado `control_minutas`, con scopes `meetings`, `agreements`
+e `indicators`. Su contrato es [meeting-control-module-contract-v1.md](meeting-control-module-contract-v1.md).
+V302 no migra ni comparte registros Root de desarrollo interno y no concede acceso al administrador
+de plataforma. Un piloto local no certifica publicación ni habilitación comercial en producción.
 
 ## Selector de accesos
 

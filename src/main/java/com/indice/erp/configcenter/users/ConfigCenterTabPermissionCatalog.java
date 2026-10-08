@@ -90,7 +90,16 @@ public final class ConfigCenterTabPermissionCatalog {
 
         tab("kpis", "kpis", "KPIs", "KPIs"),
         tab("kpis", "accounting-reports", "Financial Statements", "Estados financieros"),
-        tab("kpis", "automated-reports", "Automated Reports", "Informes automatizados")
+        tab("kpis", "automated-reports", "Automated Reports", "Informes automatizados"),
+        tab("scheduling", "calendar", "Calendar", "Agenda"),
+        tab("scheduling", "reservations", "Reservations", "Reservas"),
+        tab("scheduling", "clients", "Clients", "Clientes"),
+        tab("scheduling", "events", "Events", "Eventos"),
+        tab("scheduling", "indicators", "Indicators", "Indicadores"),
+        tab("scheduling", "configuration", "Configuration", "Configuración"),
+        tab("control_minutas", "meetings", "Meetings", "Juntas"),
+        tab("control_minutas", "agreements", "Agreements", "Acuerdos"),
+        tab("control_minutas", "indicators", "Indicators", "Indicadores")
     );
     static final Set<String> VALID_KEYS = validKeys();
 
@@ -161,6 +170,7 @@ public final class ConfigCenterTabPermissionCatalog {
         if (!"user".equals(normalizedRole)) {
             return true;
         }
+        if (List.of("scheduling.configuration","scheduling.clients").contains(permissionKey)) return false;
         if (!permissionKey.startsWith(CONFIG_CENTER_MODULE + ".")
             && !permissionKey.startsWith(HR_MODULE + ".")) {
             return true;
@@ -198,6 +208,7 @@ public final class ConfigCenterTabPermissionCatalog {
         if (CONFIG_CENTER_MODULE.equals(tab.moduleSlug()) || HR_MODULE.equals(tab.moduleSlug())) {
             return "management";
         }
+        if ("scheduling.configuration".equals(key)) return "management";
         return "operational";
     }
 
@@ -291,6 +302,12 @@ public final class ConfigCenterTabPermissionCatalog {
 
     private static LocalizedDescription descriptionFor(String permissionKey) {
         return switch (permissionKey) {
+            case "scheduling.calendar" -> description("View sessions in your scheduling scope.","Consultar las sesiones de tu alcance.");
+            case "scheduling.reservations" -> description("Review, confirm and follow up on your reservations.","Revisar, confirmar y dar seguimiento a tus reservas.");
+            case "scheduling.clients" -> description("Administrators can read the company master client directory.","Los administradores consultan el directorio maestro de clientes de la empresa.");
+            case "scheduling.events" -> description("View events; administrators can configure hosts and capacity.","Consultar eventos; los administradores configuran anfitrión y cupo.");
+            case "scheduling.indicators" -> description("Measure reservations and attendance in your scope.","Medir reservas y asistencia dentro de tu alcance.");
+            case "scheduling.configuration" -> description("Configure services, team availability and the public page.","Configurar servicios, disponibilidad del equipo y página pública.");
             case "config_center.profile" -> description("Update personal identity, contact details and account security.", "Actualizar identidad, datos de contacto y seguridad de la cuenta.");
             case "config_center.business-structure" -> description("Organize corporate office, units, businesses and their locations.", "Organizar oficina corporativa, unidades, negocios y sus ubicaciones.");
             case "config_center.business-profile" -> description("Complete the company diagnosis and turn its results into an improvement plan.", "Completar el diagnóstico de la empresa y convertir sus resultados en un plan de mejora.");

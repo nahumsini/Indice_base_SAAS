@@ -93,6 +93,26 @@ public class ModuleAccessService {
         return count != null && count > 0;
     }
 
+    /** Current entitlement/release read for a complete use case inside an existing transaction.
+     * Does not confer user/tab authority. Keeps Engine idempotency and the owner mutation atomic.
+     */
+    public boolean companyCanAccessForMutation(long companyId, String rawModuleSlug) {
+        if (!org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()) {
+            throw new IllegalStateException("Entitlement locking requires a transaction.");
+        }
+        var slug = ModuleSlugNormalizer.normalize(rawModuleSlug);
+        if (companyId <= 0 || slug.isBlank()) return false;
+        return !jdbcTemplate.query("""
+            SELECT module_row.slug FROM modules module_row
+            INNER JOIN company_module_entitlements entitlement
+              ON entitlement.company_id=? AND entitlement.module_slug=module_row.slug
+            WHERE module_row.slug=? AND LOWER(COALESCE(entitlement.status,'active'))='active'
+              AND COALESCE(module_row.is_active,1)=1 AND COALESCE(module_row.assignment_enabled,1)=1
+              AND LOWER(COALESCE(module_row.lifecycle_status,'released')) IN ('pilot','released')
+            FOR SHARE
+            """,(r,n)->r.getString(1),companyId,slug).isEmpty();
+    }
+
     private String normalizeRole(String rawRole) {
         var role = rawRole == null ? "" : rawRole.trim().toLowerCase(Locale.ROOT);
         return "super admin".equals(role) ? "superadmin" : role;

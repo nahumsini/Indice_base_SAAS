@@ -13,6 +13,22 @@ exposes that assignment as an editable Sales flow column. Selecting a workflow f
 limits the table, metrics, filters, agenda, and Kanban to opportunities assigned to that workflow.
 Creating a workflow does not copy existing opportunities into it.
 
+### Workspace visibility feedback (2026-10-06)
+
+The selected workflow is a safe view scope, not a company-default mutation. It is restored through
+the existing user-and-company-scoped workspace navigation memory; an explicit `flow` URL parameter
+wins over remembered state. Restoration waits for the authorized catalogue, validates the workflow
+identifier, and resets dependent stage/page state when the remembered workflow is unavailable.
+Clearing search filters does not change the selected workflow.
+
+The selector displays current assignment counts from the already loaded, owner-visible records,
+before search/period filters. These transient navigation counts are not monetary KPIs, are not saved
+as workspace state, and are unavailable while records are loading or a load failed. An empty assigned
+workflow explains that other workflows may still contain opportunities and offers view-only links.
+Only a successful backend-confirmed reassignment displays the saved destination and a link to view
+it. It does not automatically change the current workflow, delete/copy an opportunity, or alter the
+company default. Pending and failed saves never display success feedback.
+
 Reassigning an open opportunity is an explicit transactional mutation. The destination workflow is
 validated as active and tenant-owned, the opportunity starts in the destination's first open stage,
 and the compatibility `stage` and `probability_percent` projection is updated in the same transaction.

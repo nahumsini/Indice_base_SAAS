@@ -56,6 +56,7 @@ const moduleMetaBySlug: Record<
     title: (t: Translator, fallbackName: string) => string;
   }
 > = {
+  scheduling: { route: 'scheduling', emoji: '📅', color: 'coral', category: 'complementary', title: (t, fallbackName) => t.modules.scheduling ?? fallbackName },
   config_center: {
     route: 'home-panel',
     emoji: '🏠',
@@ -165,7 +166,7 @@ const moduleMetaBySlug: Record<
   control_minutas: {
     route: 'minutes-control',
     emoji: '📝',
-    color: 'gray',
+    color: 'blue',
     category: 'complementary',
     title: (t) => t.modules.controlMinutas,
   },

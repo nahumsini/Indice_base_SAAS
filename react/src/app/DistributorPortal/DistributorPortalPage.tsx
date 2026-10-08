@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeft, FileKey2, GraduationCap, Handshake, TicketCheck } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { IndiceBrandLogo } from '../Auth/components/IndiceBrandLogo';
 import { useLanguage } from '../shared/context';
 import { ContractsAccessPage } from './contracts-access/ContractsAccessPage';
@@ -9,18 +9,19 @@ import { DistributorConsultingPage } from './DistributorConsultingPage';
 import { SystemTicketsWorkspace } from '../SystemTickets';
 import { CustomerCareWorkspace } from '../Messaging/CustomerCareWorkspace';
 import { messagingCopy } from '../Messaging/copy';
-import { TrainingWorkspace } from '../Training';
+import { getTrainingWorkspaceCopy } from '../Training/translations/workspace';
 
 export default function DistributorPortalPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { currentLanguage } = useLanguage();
   const copy = getDistributorPortalCopy(currentLanguage.code);
+  const trainingCopy = getTrainingWorkspaceCopy(currentLanguage.code);
   const requestedTab = searchParams.get('tab');
-  const initialTab = requestedTab === 'consulting' || requestedTab === 'training' || requestedTab === 'tickets'
+  const initialTab = requestedTab === 'consulting' || requestedTab === 'tickets'
     ? requestedTab
     : 'contracts';
-  const [activeTab, setActiveTab] = useState<'contracts' | 'consulting' | 'training' | 'tickets'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'contracts' | 'consulting' | 'tickets'>(initialTab);
 
   return (
     <div className="min-h-screen bg-[#F7F8FA] text-[#222831] dark:bg-slate-950 dark:text-white">
@@ -43,9 +44,9 @@ export default function DistributorPortalPage() {
             <button type="button" onClick={() => setActiveTab('consulting')} className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition ${activeTab === 'consulting' ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
               <Handshake className="h-4 w-4" />{copy.tabs.consulting}
             </button>
-            <button type="button" onClick={() => setActiveTab('training')} className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition ${activeTab === 'training' ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-              <GraduationCap className="h-4 w-4" />Capacitación
-            </button>
+            <Link to="/training" className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-50 px-4 text-sm font-semibold text-[#2563EB] transition hover:bg-blue-100 focus-visible:outline-2 focus-visible:outline-blue-500 dark:bg-blue-950 dark:text-blue-200">
+              <GraduationCap className="h-4 w-4" />{trainingCopy.title}
+            </Link>
             <button type="button" onClick={() => setActiveTab('tickets')} className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition ${activeTab === 'tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
               <TicketCheck className="h-4 w-4" />{messagingCopy(currentLanguage.code).care}
             </button>
@@ -56,7 +57,6 @@ export default function DistributorPortalPage() {
       <main className="mx-auto max-w-[1600px] px-5 py-6">
         {activeTab === 'contracts' ? <ContractsAccessPage copy={copy} locale={currentLanguage.code} /> : null}
         {activeTab === 'consulting' ? <DistributorConsultingPage /> : null}
-        {activeTab === 'training' ? <TrainingWorkspace portal="distributor" locale={currentLanguage.code} /> : null}
         {activeTab === 'tickets' ? <CustomerCareWorkspace portal="distributor" locale={currentLanguage.code} legacy={<SystemTicketsWorkspace portal="distributor" locale={currentLanguage.code} initialFolio={searchParams.get('ticket') ?? ''} />} /> : null}
       </main>
     </div>

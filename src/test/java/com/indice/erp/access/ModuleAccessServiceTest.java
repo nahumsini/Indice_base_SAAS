@@ -2,6 +2,7 @@ package com.indice.erp.access;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -19,6 +20,12 @@ class ModuleAccessServiceTest {
 
     @Mock
     private JdbcTemplate jdbcTemplate;
+
+    @Test
+    void currentEntitlementReadsRequireAnExistingUseCaseTransaction() {
+        assertThrows(IllegalStateException.class, () -> new ModuleAccessService(jdbcTemplate)
+            .companyCanAccessForMutation(7L, "scheduling"));
+    }
 
     @Test
     void rejectsModuleUntilCompanyLifecycleAndEntitlementAllowIt() {
