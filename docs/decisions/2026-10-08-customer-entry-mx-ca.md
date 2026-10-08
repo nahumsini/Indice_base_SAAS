@@ -58,6 +58,20 @@ take a card, save automatic-charge consent, charge or lift expiry after a verifi
    pending. Canada must not silently acquire implementation/consulting charges.
 
 Do not merge a claimed launch-ready main, enable public signup, advertise completed autoservice
-or deploy production until the exact combined candidate clears these blockers. A reviewed
-default-off foundation can be integrated separately once full CI is healthy, without representing
-the incomplete paid onboarding as released.
+or deploy production until the exact combined candidate clears these blockers.
+
+## Owner-requested main checkpoint — 2026-10-08
+
+After the default-off foundation and its payment/release limitations were reported, the owner
+explicitly requested updating main and identifying the work remaining for today's launch.
+Integrate `c1be1a0c` as a development coordination checkpoint, not a launch-ready release.
+The working tree and remote main were unchanged at inspection; integration is fast-forward.
+The exact branch CI was still running, with remote migration validation/startup successful:
+[run 37846979481](https://github.com/nahumsini/Indice_base_SAAS/actions/runs/37846979481).
+Local focused validation remains recorded separately; full CI is not claimed successful.
+
+This request replaces only the earlier sequencing condition for the Git checkpoint. It does
+not waive the public release/security gates, publish a paid catalog, deploy either environment,
+enable public entry, create a payment mandate or authorize charges. The five remaining release
+blockers above remain in force. Further entry/payment work and the separate module delivery
+should branch from this updated checkpoint and coordinate migration numbering before merging.

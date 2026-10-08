@@ -128,7 +128,8 @@ The final focused suite is green. These resolved iterations are not release exce
   release gates, not assertions supplied by these local tests.
 - Another agent must finish basic Agenda/Meeting Control delivery. V305/V306 are allocated;
   reconcile next migration numbering and scoped canonical additions before combining branches.
-- Main update: N/A — not performed while the combined release is unverified.
+- Initial main update: N/A at foundation handoff. The owner subsequently requested the
+  default-off development checkpoint; see the coordination decision. This is not release approval.
 - APPTEST/production deployment: N/A — not performed. Catalog publication/payment mutations: N/A.
 
 Next safe increment: close versioned regional payment/consent and marketing wiring while the
