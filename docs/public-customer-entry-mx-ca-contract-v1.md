@@ -39,6 +39,10 @@ It has not been certified against the real provider. Reminders, regional additio
 blocks, regional storage billing and operator reconciliation tooling are not implemented.
 Native portal/invoice recovery is reused; cancellation, failed charge and authentication
 must still pass provider TEST plus real APPTEST acceptance.
+The native primary Dashboard now exposes the owner-only demo deadline/countdown and plan/payment
+entry. Native expired-trial recovery explains preserved data and routes to `/billing`; it does not
+change the deadline, entitlement or verified-payment gate. These in-app notices are not outbound
+reminders. Non-owner/delegated/historical/converted accounts keep their existing flows.
 Legacy USD selection/preview/update, ordinary activation and collection activation reject
 this cohort before creating a checkout. A card added elsewhere cannot lift its deadline.
 
