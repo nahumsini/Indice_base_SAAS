@@ -135,3 +135,23 @@ The final focused suite is green. These resolved iterations are not release exce
 Next safe increment: close versioned regional payment/consent and marketing wiring while the
 entry stays off, then combine tested module work, clear full CI/security gates and run actual
 APPTEST end-to-end acceptance before public enablement/production rollout.
+
+## Remote CI follow-up and receipt precision
+
+The full foundation CI finished FAILED:
+[run 37846979481](https://github.com/nahumsini/Indice_base_SAAS/actions/runs/37846979481),
+3,323 tests, 1 failure, 363 context errors, 1 skipped. The context errors retain the missing
+LearningProgressRepository MVC-slice dependency. The new entry failure exposed Linux clock
+nanoseconds being lost on DATETIME(6) persistence: the first interest response and its replay
+had slightly different continuation timestamps.
+
+The entry owner now normalizes that timestamp to database microsecond precision **before**
+persisting and returning it. It does not loosen the assertion, change the 24-hour window, trial
+duration, payment policy or schema. A fixed nanosecond-clock regression covers the platform
+difference. Compilation plus the complete entry/access/controller/availability/contracts and
+migration-uniqueness subset passed: **20 tests, 0 failures, 0 errors** on the isolated test DB.
+The original broader 114-test local result remains historical, not a full-CI claim.
+
+Only `PublicTrialEntryService`, `PublicTrialEntryPrecisionTest` and this report change in the
+precision follow-up. Full CI, Learning integration and all public-release blockers still need
+to be cleared on the final combined main SHA. No deployment, provider call or charge was made.

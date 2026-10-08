@@ -93,7 +93,9 @@ public class PublicTrialEntryService {
                 return new PublicTrialEntryContracts.Continuation(key, existing.expiresAt());
             }
             var leadId = leads.captureSelfServiceInterest(UUID.randomUUID().toString(), fingerprint, input);
-            var expiresAt = clock.instant().plus(Duration.ofHours(24));
+            // Match DATETIME(6) before returning the first receipt. Linux clocks can carry
+            // nanoseconds; a replay must return exactly the persisted microsecond deadline.
+            var expiresAt = clock.instant().plus(Duration.ofHours(24)).truncatedTo(java.time.temporal.ChronoUnit.MICROS);
             entries.insert(BillingHashing.sha256(key), sessionHash, keyHash, fingerprint, leadId, country, expiresAt);
             audit.record("SIGNUP", "TRIAL_INTEREST_CAPTURED", "SUCCESS", keyHash, null, null, null, null,
                 Map.of("countryCode", country, "policy", "VERIFIED_NO_CARD_15D_V1"));
