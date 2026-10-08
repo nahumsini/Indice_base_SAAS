@@ -21,8 +21,8 @@ The remaining file changes come from the two source branches.
 ## Verification
 
 - Frontend focused regressions: 65 passed; learning regressions after correction: 12 passed.
-- Frontend TypeScript: passed before the catalog correction; recheck in progress.
-- Frontend Vite build: passed before the catalog correction, with chunk-size warnings.
+- Frontend TypeScript: passed, including recheck after the catalog correction.
+- Frontend Vite build: passed, including rebuild after the correction, with chunk-size warnings.
   Initial sandbox-only build failed on restricted directory access; elevated retry passed.
 - MCP build and suite: 158 passed.
 - Backend production and test sources compiled. Focused tests: 25 passed, one failed.
