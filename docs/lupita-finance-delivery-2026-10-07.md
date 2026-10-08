@@ -1,5 +1,9 @@
 # Entrega final local: Gastos y Caja Chica en MCP
 
+Nota de integración 2026-10-08: V300 de aprendizaje se renumeró a V304 sin cambiar su SQL.
+La evidencia V300 de este informe corresponde a la rama original; consultar la
+[decisión de migración](decisions/2026-10-08-learning-migration-integration.md) antes de reutilizar esa base.
+
 Fecha: 2026-10-07. Rama: `codex/learning-mode-mcp-2026-10-06`.
 Estado: implementación y recorridos locales verificados; publicación/aceptación del ambiente destino: **N/A, no ejecutadas**.
 

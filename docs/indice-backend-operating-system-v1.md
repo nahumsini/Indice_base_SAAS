@@ -284,6 +284,9 @@ read-only projection: no schema, intake, credential, billing or entitlement life
 Flyway is the only schema-change path for Spring-owned data.
 
 - Never edit an applied versioned migration or an adopted baseline.
+- The owner-approved [learning integration decision](decisions/2026-10-08-learning-migration-integration.md)
+  assigns the unreleased learning branch's V300 to V304 without changing its SQL, preserving
+  scheduling V300-V303. Databases with the former learning V300 require separate lineage review.
 - The released V288/V289 lead identities and the forward V293 integration are pinned by the
   [released-lineage decision](decisions/2026-10-05-released-migration-lineage.md). Fresh-schema
   validation alone does not establish compatibility with an already released database.

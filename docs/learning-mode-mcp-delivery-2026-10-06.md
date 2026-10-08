@@ -1,5 +1,9 @@
 # Entrega: Modo aprendiz compartido con MCP
 
+Nota de integración 2026-10-08: las referencias V300 de este informe son históricas.
+Aprendizaje usa V304 en la combinación de main, con SQL idéntico; consultar la
+[decisión de migración](decisions/2026-10-08-learning-migration-integration.md).
+
 Fecha: 2026-10-06. Rama: `codex/learning-mode-mcp-2026-10-06`.
 Estado: implementación local verificada, despliegue pendiente.
 Este informe registra evidencia de esta revisión; el comportamiento se gobierna por el

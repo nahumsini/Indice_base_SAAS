@@ -95,7 +95,9 @@ conservarse como memoria de presentación, sin acreditar automáticamente el cap
 
 ## 4. Persistencia y aislamiento
 
-V300 añade `learning_chapter_progress`, `learning_journey_state` y `learning_operation_events`.
+V304 añade `learning_chapter_progress`, `learning_journey_state` y `learning_operation_events`.
+La [decisión de integración](decisions/2026-10-08-learning-migration-integration.md) conserva
+el SQL de la antigua V300 de aprendizaje y exige revisar por separado las bases con ese historial.
 Todas las consultas y escrituras incluyen usuario y empresa autenticados. La declaración es
 única por usuario, empresa, capítulo y versión; reintentar no cambia su primera fecha.
 Seleccionar una misión y declarar Entendido constituye un caso de uso transaccional.
@@ -160,14 +162,14 @@ las instrucciones describan correctamente una función nueva.
 ## 7. Entrega y rollback
 
 Seguir [deployment/README.md](../deployment/README.md). Construir y publicar backend, frontend y
-MCP de la misma revisión; aplicar V300 mediante Flyway antes de habilitar la nueva interfaz.
-V300 es aditiva y no altera tablas del negocio. Un rollback restaura las imágenes anteriores y
+MCP de la misma revisión; aplicar V304 mediante Flyway antes de habilitar la nueva interfaz.
+V304 es aditiva y no altera tablas del negocio. Un rollback restaura las imágenes anteriores y
 conserva las tablas nuevas; no ejecuta migraciones inversas ni borra progreso o auditoría.
 
 Antes del despliegue, comprobar migraciones y checksums frente a la base del entorno destino.
 La prueba en una base nueva no certifica el historial de una base ya existente. Un checksum
 inconsistente de versiones anteriores debe resolverse según el runbook y su revisión original;
-no se corrige editando V300 ni reparando automáticamente una base operativa.
+no se corrige editando V304 ni reparando automáticamente una base operativa.
 
 Verificación requerida: pruebas de aislamiento, versión, CSRF, permiso revocado, confirmación,
 replay, proyección de evidencia y respuestas tardías; Flyway en base aislada; TypeScript, builds
