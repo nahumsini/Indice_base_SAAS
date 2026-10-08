@@ -61,8 +61,12 @@ test('a later successful chapter does not discard an earlier failed declaration'
 });
 
 test('all current chapters have bilingual workflows, stable IDs and explicit POS exceptions',()=>{
-  assert.equal(learningChapters.length,58);assert.equal(new Set(learningChapters.map(c=>c.id)).size,58);
-  assert.equal(new Set(learningChapters.map(c=>c.module)).size,10);
+  assert.equal(learningChapters.length,67);assert.equal(new Set(learningChapters.map(c=>c.id)).size,67);
+  assert.equal(new Set(learningChapters.map(c=>c.module)).size,12);
+  for (const [module, tabs] of Object.entries({control_minutas:['meetings','agreements','indicators'],scheduling:['calendar','reservations','clients','events','indicators','configuration']})) {
+    assert.deepEqual(learningChapters.filter(c=>c.module===module).map(c=>c.tab),tabs);
+    assert.ok(learningChapters.filter(c=>c.module===module).every(c=>c.evidenceTools.length===0));
+  }
   for(const c of learningChapters){assert.equal(c.steps.length,3);for(const step of c.steps){assert.equal(step.length,2);assert.ok(step.every(text=>text.length>20));}}
   const sale=learningChapters.find(c=>c.id==='pos.sale');assert.equal(sale.companion,false);assert.equal(sale.journey,false);
   assert.ok(learningChapters.filter(c=>c.module==='config_center').every(c=>!c.companion));

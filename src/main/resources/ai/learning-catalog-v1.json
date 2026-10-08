@@ -1,7 +1,286 @@
 {
   "version": "2026-10-07.v4",
-  "sourceDigest": "bd4f07d8f116aa0995081504179a0d19ae62d2622cce0889c9632dabebb8678c",
+  "sourceDigest": "34a9e2b8f5b0d01ed274a32e69f4ea9779eb58be0265c6c60faa684f23c549fc",
   "modules": [
+    {
+      "module": "control_minutas",
+      "pageId": "minutes-control",
+      "locale": "es-MX",
+      "stage": 2,
+      "purpose": "Procesos y tareas",
+      "tabs": [
+        {
+          "tab": "meetings",
+          "label": "Juntas y minutas",
+          "title": "Juntas y minutas",
+          "purpose": "Revisa participantes, responsable, horario y permisos antes de planear una junta o serie finita.",
+          "effect": "Comprueba la junta guardada y su seguimiento. Las notificaciones internas no acreditan correo o invitaciones externas.",
+          "chapterId": "control_minutas.meetings",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Revisa participantes, responsable, horario y permisos antes de planear una junta o serie finita."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Planea la junta y registra su minuta y decisiones desde Control de juntas."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Comprueba la junta guardada y su seguimiento. Las notificaciones internas no acreditan correo o invitaciones externas."
+            }
+          ]
+        },
+        {
+          "tab": "agreements",
+          "label": "Acuerdos y seguimiento",
+          "title": "Acuerdos y seguimiento",
+          "purpose": "Identifica la junta, el acuerdo, su responsable y fecha; consulta solo los registros autorizados.",
+          "effect": "Comprueba el estado y la evidencia guardados. Un acuerdo no crea automáticamente una tarea de Procesos.",
+          "chapterId": "control_minutas.agreements",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Identifica la junta, el acuerdo, su responsable y fecha; consulta solo los registros autorizados."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Registra y actualiza acuerdos y su seguimiento desde el propietario de juntas."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Comprueba el estado y la evidencia guardados. Un acuerdo no crea automáticamente una tarea de Procesos."
+            }
+          ]
+        },
+        {
+          "tab": "indicators",
+          "label": "Indicadores de juntas",
+          "title": "Indicadores de juntas",
+          "purpose": "Selecciona periodo y alcance autorizado para juntas y acuerdos.",
+          "effect": "Distingue los resultados operativos del avance de aprendizaje; leer una guía no completa acuerdos.",
+          "chapterId": "control_minutas.indicators",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Selecciona periodo y alcance autorizado para juntas y acuerdos."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Consulta los indicadores y revisa los registros que explican el seguimiento."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Distingue los resultados operativos del avance de aprendizaje; leer una guía no completa acuerdos."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "scheduling",
+      "pageId": "scheduling",
+      "locale": "es-MX",
+      "stage": 2,
+      "purpose": "Procesos y tareas",
+      "tabs": [
+        {
+          "tab": "calendar",
+          "label": "Agenda unificada",
+          "title": "Agenda unificada",
+          "purpose": "Selecciona periodo, colaborador y vista y comprueba tus permisos de agenda.",
+          "effect": "Comprueba el horario y estado guardados. Ver una solicitud no confirma disponibilidad ni reserva.",
+          "chapterId": "scheduling.calendar",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Selecciona periodo, colaborador y vista y comprueba tus permisos de agenda."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Consulta reservas y eventos en la agenda unificada y abre el registro autorizado."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Comprueba el horario y estado guardados. Ver una solicitud no confirma disponibilidad ni reserva."
+            }
+          ]
+        },
+        {
+          "tab": "reservations",
+          "label": "Reservas y asistencia",
+          "title": "Reservas y asistencia",
+          "purpose": "Revisa servicio, colaborador, horario, consentimiento y capacidad antes de capturar o confirmar.",
+          "effect": "Comprueba el estado persistido y registra asistencia cuando corresponda. Una solicitud no garantiza lugar y archivar conserva el historial.",
+          "chapterId": "scheduling.reservations",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Revisa servicio, colaborador, horario, consentimiento y capacidad antes de capturar o confirmar."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Captura o revisa la solicitud y confirma desde Agendamiento; pausa, reanuda o cancela con el motivo requerido."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Comprueba el estado persistido y registra asistencia cuando corresponda. Una solicitud no garantiza lugar y archivar conserva el historial."
+            }
+          ]
+        },
+        {
+          "tab": "clients",
+          "label": "Clientes compartidos",
+          "title": "Clientes compartidos",
+          "purpose": "Comprueba tus permisos de Clientes en Ventas y el acceso administrativo requerido en Agendamiento.",
+          "effect": "Comprueba la identidad del cliente antes de asociarlo. Una solicitud pública no crea automáticamente un cliente CRM.",
+          "chapterId": "scheduling.clients",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Comprueba tus permisos de Clientes en Ventas y el acceso administrativo requerido en Agendamiento."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Consulta los clientes mediante el propietario de Ventas desde la sección autorizada."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Comprueba la identidad del cliente antes de asociarlo. Una solicitud pública no crea automáticamente un cliente CRM."
+            }
+          ]
+        },
+        {
+          "tab": "events",
+          "label": "Eventos y cupos",
+          "title": "Eventos y cupos",
+          "purpose": "Define anfitrión, horario y cupo y revisa las colisiones de disponibilidad.",
+          "effect": "Comprueba el evento y los estados de sus inscripciones; contacta a los participantes manualmente sin suponer envío externo.",
+          "chapterId": "scheduling.events",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Define anfitrión, horario y cupo y revisa las colisiones de disponibilidad."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Crea el evento y revisa sus solicitudes. Para cambiar un evento con participantes activos, cancélalo con motivo y crea otro."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Comprueba el evento y los estados de sus inscripciones; contacta a los participantes manualmente sin suponer envío externo."
+            }
+          ]
+        },
+        {
+          "tab": "indicators",
+          "label": "Indicadores de agenda",
+          "title": "Indicadores de agenda",
+          "purpose": "Selecciona periodo y colaborador dentro de tu alcance autorizado.",
+          "effect": "Verifica estados e historial antes de interpretar resultados; el aprendizaje no modifica asistencia ni métricas.",
+          "chapterId": "scheduling.indicators",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Selecciona periodo y colaborador dentro de tu alcance autorizado."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Consulta solicitudes, reservas y asistencia desde los indicadores de Agendamiento."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Verifica estados e historial antes de interpretar resultados; el aprendizaje no modifica asistencia ni métricas."
+            }
+          ]
+        },
+        {
+          "tab": "configuration",
+          "label": "Servicios, equipo y agenda pública",
+          "title": "Servicios, equipo y agenda pública",
+          "purpose": "Revisa servicios, duración, anticipación, equipo activo y disponibilidad semanal explícita.",
+          "effect": "Comparte solo el enlace guardado y publicado. Guardar no habilita el adaptador público ni concede permisos; las solicitudes requieren confirmación interna.",
+          "chapterId": "scheduling.configuration",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Revisa servicios, duración, anticipación, equipo activo y disponibilidad semanal explícita."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Guarda servicios y equipo y configura apariencia y publicación de la agenda desde sus espacios autorizados."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Comparte solo el enlace guardado y publicado. Guardar no habilita el adaptador público ni concede permisos; las solicitudes requieren confirmación interna."
+            }
+          ]
+        }
+      ]
+    },
     {
       "module": "config_center",
       "pageId": "home-panel",
@@ -1930,6 +2209,285 @@
               "id": "verify",
               "title": "Comprueba el resultado",
               "description": "Consulta historial de ejecuciones y entregas. Programar no demuestra envío exitoso; el agente no inventa destinatarios ni entrega externa."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "control_minutas",
+      "pageId": "minutes-control",
+      "locale": "en-CA",
+      "stage": 2,
+      "purpose": "Processes and tasks",
+      "tabs": [
+        {
+          "tab": "meetings",
+          "label": "Meetings and minutes",
+          "title": "Meetings and minutes",
+          "purpose": "Review participants, owner, time and permissions before planning a meeting or finite series.",
+          "effect": "Check the saved meeting and its follow-up. Internal notifications do not prove email or external invitations.",
+          "chapterId": "control_minutas.meetings",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Review participants, owner, time and permissions before planning a meeting or finite series."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Plan the meeting and record its minutes and decisions in Meeting control."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Check the saved meeting and its follow-up. Internal notifications do not prove email or external invitations."
+            }
+          ]
+        },
+        {
+          "tab": "agreements",
+          "label": "Agreements and follow-up",
+          "title": "Agreements and follow-up",
+          "purpose": "Identify the meeting, agreement, owner and date; review only authorized records.",
+          "effect": "Check the saved status and evidence. An agreement does not automatically create a Processes task.",
+          "chapterId": "control_minutas.agreements",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Identify the meeting, agreement, owner and date; review only authorized records."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Record and update agreements and their follow-up through the meeting owner."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Check the saved status and evidence. An agreement does not automatically create a Processes task."
+            }
+          ]
+        },
+        {
+          "tab": "indicators",
+          "label": "Meeting indicators",
+          "title": "Meeting indicators",
+          "purpose": "Select the period and authorized scope for meetings and agreements.",
+          "effect": "Distinguish operational results from learning progress; reading a guide does not complete agreements.",
+          "chapterId": "control_minutas.indicators",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Select the period and authorized scope for meetings and agreements."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Review indicators and the records behind the follow-up."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Distinguish operational results from learning progress; reading a guide does not complete agreements."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "scheduling",
+      "pageId": "scheduling",
+      "locale": "en-CA",
+      "stage": 2,
+      "purpose": "Processes and tasks",
+      "tabs": [
+        {
+          "tab": "calendar",
+          "label": "Unified agenda",
+          "title": "Unified agenda",
+          "purpose": "Select the period, staff member and view and check your agenda permissions.",
+          "effect": "Check the saved time and status. Viewing a request does not confirm availability or a booking.",
+          "chapterId": "scheduling.calendar",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Select the period, staff member and view and check your agenda permissions."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Review bookings and events in the unified agenda and open the authorized record."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Check the saved time and status. Viewing a request does not confirm availability or a booking."
+            }
+          ]
+        },
+        {
+          "tab": "reservations",
+          "label": "Bookings and attendance",
+          "title": "Bookings and attendance",
+          "purpose": "Review service, staff, time, consent and capacity before capturing or confirming.",
+          "effect": "Check the persisted status and record attendance when applicable. A request does not guarantee a place and archiving preserves history.",
+          "chapterId": "scheduling.reservations",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Review service, staff, time, consent and capacity before capturing or confirming."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Capture or review the request and confirm through Scheduling; pause, resume or cancel with the required reason."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Check the persisted status and record attendance when applicable. A request does not guarantee a place and archiving preserves history."
+            }
+          ]
+        },
+        {
+          "tab": "clients",
+          "label": "Shared clients",
+          "title": "Shared clients",
+          "purpose": "Check your Sales client permissions and the administrative access required in Scheduling.",
+          "effect": "Check the client identity before linking it. A public request does not automatically create a CRM client.",
+          "chapterId": "scheduling.clients",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Check your Sales client permissions and the administrative access required in Scheduling."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Review clients through the Sales owner from the authorized section."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Check the client identity before linking it. A public request does not automatically create a CRM client."
+            }
+          ]
+        },
+        {
+          "tab": "events",
+          "label": "Events and capacity",
+          "title": "Events and capacity",
+          "purpose": "Define host, time and capacity and check availability conflicts.",
+          "effect": "Check the event and registration statuses; contact participants manually without assuming external delivery.",
+          "chapterId": "scheduling.events",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Define host, time and capacity and check availability conflicts."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Create the event and review its requests. To change an event with active participants, cancel it with a reason and create another."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Check the event and registration statuses; contact participants manually without assuming external delivery."
+            }
+          ]
+        },
+        {
+          "tab": "indicators",
+          "label": "Scheduling indicators",
+          "title": "Scheduling indicators",
+          "purpose": "Select period and staff within your authorized scope.",
+          "effect": "Check statuses and history before interpreting results; learning does not change attendance or metrics.",
+          "chapterId": "scheduling.indicators",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Select period and staff within your authorized scope."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Review requests, bookings and attendance through Scheduling indicators."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Check statuses and history before interpreting results; learning does not change attendance or metrics."
+            }
+          ]
+        },
+        {
+          "tab": "configuration",
+          "label": "Services, team and public agenda",
+          "title": "Services, team and public agenda",
+          "purpose": "Review services, duration, notice, active staff and explicit weekly availability.",
+          "effect": "Share only the saved and published link. Saving does not enable the public adapter or grant permissions; requests require internal confirmation.",
+          "chapterId": "scheduling.configuration",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Review services, duration, notice, active staff and explicit weekly availability."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Save services and staff and configure agenda appearance and publication from their authorized workspaces."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Share only the saved and published link. Saving does not enable the public adapter or grant permissions; requests require internal confirmation."
             }
           ]
         }

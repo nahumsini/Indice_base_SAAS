@@ -4,6 +4,15 @@ Generated from the reviewed bilingual curriculum. Domain owners remain authorita
 
 | Chapter | Stage | Page/tab | Version | Evidence actions |
 | --- | --- | --- | --- | --- |
+| control_minutas.meetings | 3 | minutes-control/meetings | 2 | Understanding only until an owner completion is integrated |
+| control_minutas.agreements | 3 | minutes-control/agreements | 2 | Understanding only until an owner completion is integrated |
+| control_minutas.indicators | 3 | minutes-control/indicators | 2 | Understanding only until an owner completion is integrated |
+| scheduling.calendar | 3 | scheduling/calendar | 2 | Understanding only until an owner completion is integrated |
+| scheduling.reservations | 3 | scheduling/reservations | 2 | Understanding only until an owner completion is integrated |
+| scheduling.clients | 3 | scheduling/clients | 2 | Understanding only until an owner completion is integrated |
+| scheduling.events | 3 | scheduling/events | 2 | Understanding only until an owner completion is integrated |
+| scheduling.indicators | 3 | scheduling/indicators | 2 | Understanding only until an owner completion is integrated |
+| scheduling.configuration | 3 | scheduling/configuration | 2 | Understanding only until an owner completion is integrated |
 | config_center.business-structure | 1 | home-panel/business-structure | 2 | Understanding only until an owner completion is integrated |
 | config_center.profile | 1 | home-panel/profile | 2 | Understanding only until an owner completion is integrated |
 | config_center.users | 1 | home-panel/users | 2 | Understanding only until an owner completion is integrated |

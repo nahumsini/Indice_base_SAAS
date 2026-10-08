@@ -25,11 +25,13 @@ for (const scope of Object.values(scopes)) for (const tab of Object.keys(scope.t
   if (!ids.has(`${scope.moduleSlug}.${tab}`)) throw new Error(`Current tab lacks a reviewed chapter: ${scope.moduleSlug}.${tab}`);
 // Changes to an owner, its active screens, or reviewed guides invalidate the generated catalog.
 const trackedRoots = ['react/src/app/BasicModules', 'react/src/app/ComplementaryModules/Inventory',
+  'react/src/app/ComplementaryModules/MinutesControl', 'react/src/app/ComplementaryModules/Scheduling',
   'react/src/app/learningMode', 'react/src/app/Messaging', 'react/src/app/components/Header.tsx',
   'react/src/app/App.tsx', 'react/src/app/Dashboard',
   'src/main/java/com/indice/erp/hr', 'src/main/java/com/indice/erp/processTasks',
   'src/main/java/com/indice/erp/pos', 'src/main/java/com/indice/erp/sales', 'src/main/java/com/indice/erp/finance',
   'src/main/java/com/indice/erp/learning', 'src/main/java/com/indice/erp/ai/learning',
+  'src/main/java/com/indice/erp/meetings', 'src/main/java/com/indice/erp/scheduling',
   'src/main/java/com/indice/erp/kpis', 'src/main/java/com/indice/erp/configcenter',
   'integrations/indice-mcp/src/contracts.ts', 'integrations/indice-mcp/src/financeContracts.ts', 'src/main/java/com/indice/erp/ai/financeworkflow'];
 async function sourceFiles(relative) {

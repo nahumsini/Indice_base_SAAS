@@ -19,6 +19,7 @@ const definitions: Record<string, readonly [string, number]> = {
   processes: ['processes-tasks', 2], expenses: ['expenses', 3], petty_cash: ['petty-cash', 3],
   receivables: ['receivables', 3], inventory: ['inventory', 4], crm: ['sales', 4],
   pos: ['point-of-sale', 4], kpis: ['kpis', 5],
+  control_minutas: ['minutes-control', 2], scheduling: ['scheduling', 2],
 };
 function chapter(module: string, tab: string, label: LearningText, steps: readonly LearningText[], evidenceTools: readonly string[] = []): LearningChapter {
   const [pageId, stage] = definitions[module];
@@ -27,6 +28,51 @@ function chapter(module: string, tab: string, label: LearningText, steps: readon
     journey: !(module === 'pos' && tab === 'sale') };
 }
 export const learningChapters: readonly LearningChapter[] = [
+  chapter('control_minutas', 'meetings', ['Juntas y minutas', 'Meetings and minutes'], [
+    ['Revisa participantes, responsable, horario y permisos antes de planear una junta o serie finita.', 'Review participants, owner, time and permissions before planning a meeting or finite series.'],
+    ['Planea la junta y registra su minuta y decisiones desde Control de juntas.', 'Plan the meeting and record its minutes and decisions in Meeting control.'],
+    ['Comprueba la junta guardada y su seguimiento. Las notificaciones internas no acreditan correo o invitaciones externas.', 'Check the saved meeting and its follow-up. Internal notifications do not prove email or external invitations.'],
+  ]),
+  chapter('control_minutas', 'agreements', ['Acuerdos y seguimiento', 'Agreements and follow-up'], [
+    ['Identifica la junta, el acuerdo, su responsable y fecha; consulta solo los registros autorizados.', 'Identify the meeting, agreement, owner and date; review only authorized records.'],
+    ['Registra y actualiza acuerdos y su seguimiento desde el propietario de juntas.', 'Record and update agreements and their follow-up through the meeting owner.'],
+    ['Comprueba el estado y la evidencia guardados. Un acuerdo no crea automáticamente una tarea de Procesos.', 'Check the saved status and evidence. An agreement does not automatically create a Processes task.'],
+  ]),
+  chapter('control_minutas', 'indicators', ['Indicadores de juntas', 'Meeting indicators'], [
+    ['Selecciona periodo y alcance autorizado para juntas y acuerdos.', 'Select the period and authorized scope for meetings and agreements.'],
+    ['Consulta los indicadores y revisa los registros que explican el seguimiento.', 'Review indicators and the records behind the follow-up.'],
+    ['Distingue los resultados operativos del avance de aprendizaje; leer una guía no completa acuerdos.', 'Distinguish operational results from learning progress; reading a guide does not complete agreements.'],
+  ]),
+  chapter('scheduling', 'calendar', ['Agenda unificada', 'Unified agenda'], [
+    ['Selecciona periodo, colaborador y vista y comprueba tus permisos de agenda.', 'Select the period, staff member and view and check your agenda permissions.'],
+    ['Consulta reservas y eventos en la agenda unificada y abre el registro autorizado.', 'Review bookings and events in the unified agenda and open the authorized record.'],
+    ['Comprueba el horario y estado guardados. Ver una solicitud no confirma disponibilidad ni reserva.', 'Check the saved time and status. Viewing a request does not confirm availability or a booking.'],
+  ]),
+  chapter('scheduling', 'reservations', ['Reservas y asistencia', 'Bookings and attendance'], [
+    ['Revisa servicio, colaborador, horario, consentimiento y capacidad antes de capturar o confirmar.', 'Review service, staff, time, consent and capacity before capturing or confirming.'],
+    ['Captura o revisa la solicitud y confirma desde Agendamiento; pausa, reanuda o cancela con el motivo requerido.', 'Capture or review the request and confirm through Scheduling; pause, resume or cancel with the required reason.'],
+    ['Comprueba el estado persistido y registra asistencia cuando corresponda. Una solicitud no garantiza lugar y archivar conserva el historial.', 'Check the persisted status and record attendance when applicable. A request does not guarantee a place and archiving preserves history.'],
+  ]),
+  chapter('scheduling', 'clients', ['Clientes compartidos', 'Shared clients'], [
+    ['Comprueba tus permisos de Clientes en Ventas y el acceso administrativo requerido en Agendamiento.', 'Check your Sales client permissions and the administrative access required in Scheduling.'],
+    ['Consulta los clientes mediante el propietario de Ventas desde la sección autorizada.', 'Review clients through the Sales owner from the authorized section.'],
+    ['Comprueba la identidad del cliente antes de asociarlo. Una solicitud pública no crea automáticamente un cliente CRM.', 'Check the client identity before linking it. A public request does not automatically create a CRM client.'],
+  ]),
+  chapter('scheduling', 'events', ['Eventos y cupos', 'Events and capacity'], [
+    ['Define anfitrión, horario y cupo y revisa las colisiones de disponibilidad.', 'Define host, time and capacity and check availability conflicts.'],
+    ['Crea el evento y revisa sus solicitudes. Para cambiar un evento con participantes activos, cancélalo con motivo y crea otro.', 'Create the event and review its requests. To change an event with active participants, cancel it with a reason and create another.'],
+    ['Comprueba el evento y los estados de sus inscripciones; contacta a los participantes manualmente sin suponer envío externo.', 'Check the event and registration statuses; contact participants manually without assuming external delivery.'],
+  ]),
+  chapter('scheduling', 'indicators', ['Indicadores de agenda', 'Scheduling indicators'], [
+    ['Selecciona periodo y colaborador dentro de tu alcance autorizado.', 'Select period and staff within your authorized scope.'],
+    ['Consulta solicitudes, reservas y asistencia desde los indicadores de Agendamiento.', 'Review requests, bookings and attendance through Scheduling indicators.'],
+    ['Verifica estados e historial antes de interpretar resultados; el aprendizaje no modifica asistencia ni métricas.', 'Check statuses and history before interpreting results; learning does not change attendance or metrics.'],
+  ]),
+  chapter('scheduling', 'configuration', ['Servicios, equipo y agenda pública', 'Services, team and public agenda'], [
+    ['Revisa servicios, duración, anticipación, equipo activo y disponibilidad semanal explícita.', 'Review services, duration, notice, active staff and explicit weekly availability.'],
+    ['Guarda servicios y equipo y configura apariencia y publicación de la agenda desde sus espacios autorizados.', 'Save services and staff and configure agenda appearance and publication from their authorized workspaces.'],
+    ['Comparte solo el enlace guardado y publicado. Guardar no habilita el adaptador público ni concede permisos; las solicitudes requieren confirmación interna.', 'Share only the saved and published link. Saving does not enable the public adapter or grant permissions; requests require internal confirmation.'],
+  ]),
   chapter('config_center', 'business-structure', ['Empresa, unidades y negocios', 'Company, units and businesses'], [
     ['Define la identidad y tipo de operación de la empresa; distingue una unidad de negocio de una sucursal.', 'Set the company identity and operation type; distinguish a business unit from a branch.'],
     ['Crea las unidades y sus negocios, revisa dirección y ubicación y guarda desde Panel Inicial.', 'Create units and their businesses, check the address and location, and save in Home panel.'],
