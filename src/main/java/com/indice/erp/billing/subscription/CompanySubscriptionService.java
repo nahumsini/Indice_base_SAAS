@@ -2,6 +2,8 @@ package com.indice.erp.billing.subscription;
 
 import com.indice.erp.billing.lifecycle.CommercialLifecycleProperties;
 import com.indice.erp.billing.collection.PaymentCollectionAccessService;
+import com.indice.erp.billing.signup.PublicTrialAccessService;
+import org.springframework.beans.factory.annotation.Autowired;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
@@ -17,6 +19,7 @@ public class CompanySubscriptionService implements CompanySubscriptionStatusProv
     private final Clock clock;
     private final CommercialLifecycleProperties lifecycleProperties;
     private final PaymentCollectionAccessService collection;
+    private final PublicTrialAccessService publicTrial;
 
     public CompanySubscriptionService(
         JdbcTemplate jdbcTemplate,
@@ -24,14 +27,29 @@ public class CompanySubscriptionService implements CompanySubscriptionStatusProv
         CommercialLifecycleProperties lifecycleProperties,
         PaymentCollectionAccessService collection
     ) {
+        this(jdbcTemplate, clock, lifecycleProperties, collection, null);
+    }
+
+    @Autowired
+    public CompanySubscriptionService(JdbcTemplate jdbcTemplate, Clock clock,
+        CommercialLifecycleProperties lifecycleProperties, PaymentCollectionAccessService collection,
+        PublicTrialAccessService publicTrial) {
         this.jdbcTemplate = jdbcTemplate;
         this.clock = clock;
         this.lifecycleProperties = lifecycleProperties;
         this.collection = collection;
+        this.publicTrial = publicTrial;
     }
 
     @Override
     public CompanySubscriptionStatus currentStatus(long companyId) {
+        var publicDeadline = publicTrial == null ? java.util.Optional.<Instant>empty() : publicTrial.deadline(companyId);
+        if (publicDeadline.isPresent()) {
+            var end = publicDeadline.get();
+            var allowed = end.isAfter(clock.instant());
+            // This is an access projection of the native trial, not a paid plan or Stripe record.
+            return new CompanySubscriptionStatus("trialing", "", end, allowed, allowed ? "" : "trial_expired");
+        }
         var decision = collection.access(companyId);
         if (decision == PaymentCollectionAccessService.Access.PAYMENT_ONLY) {
             return new CompanySubscriptionStatus("payment_required", "", null, false, PaymentCollectionAccessService.OVERDUE);

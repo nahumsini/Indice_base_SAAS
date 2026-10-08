@@ -1,6 +1,6 @@
 import { Component, lazy, Suspense, useEffect, type ErrorInfo, type ReactNode } from 'react';
 import { createBrowserRouter, redirect, useLocation, useNavigate, useRouteError, type LoaderFunctionArgs } from 'react-router';
-import { AiOAuthAuthorizePage, InviteAcceptPage, LoginPage, PublicDemoPage, PublicPlansPage, ResetPasswordPage, SignupCompletePage, SignupPage } from './Auth';
+import { AiOAuthAuthorizePage, InviteAcceptPage, LoginPage, PublicDemoPage, PublicPlansPage, ResetPasswordPage, SignupCompletePage, SignupPage, TrialStartPage } from './Auth';
 import { AiConnectionSupportPage } from './Public/AiConnectionSupportPage';
 import { authApi } from './api/auth';
 import { subscribeToAuthenticationExpired } from './api/authSessionStore';
@@ -535,6 +535,12 @@ export const router = createBrowserRouter([
   {
     path: '/plans',
     element: <PublicPlansPage />,
+    loader: redirectIfAuthenticated,
+  },
+  {
+    id: 'public-trial-entry',
+    path: '/start',
+    element: <TrialStartPage />,
     loader: redirectIfAuthenticated,
   },
   {

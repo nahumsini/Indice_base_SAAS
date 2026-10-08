@@ -729,3 +729,21 @@ guards. Meetings owns durable reminder receipts and calls the existing AppNotifi
 contract; each scheduler candidate is isolated in its own tenant-scoped transaction, rechecks
 current module/tab authority and copies no private record content into the global inbox.
 No external invitation, automatic task, infinite recurrence or implicit completion is introduced.
+
+## 23. Verified Public Customer Entry MX/CA Owner Contract
+
+[Public customer entry MX/CA contract v1](public-customer-entry-mx-ca-contract-v1.md) owns the
+new browser signup exception. Billing owns the pretenant entry; Platform Leads exposes explicit
+native capture/read/trial-recording contracts. Session CSRF, a durable network rate limit,
+browser-bound hashed continuation, email verification and request idempotency precede tenant
+creation. The complete use case joins native provisioning and lead activation in one transaction.
+No public company/user/admin/module authority, fabricated Stripe identity, price or payment is
+accepted. Temporary product grants come only from active released basic products; Core module
+assignment also excludes pilots for this cohort. DTO diagnostics redact credentials and identity.
+
+The new cohort's exclusive 15-day deadline is persistent authority, enforced for operational
+read/write, native module access and subscription access projection even with legacy lifecycle
+or signup flags disabled. Existing companies retain their policy. Paid conversion is an explicit
+future owner transition, not a flag, redirect, saved card or administrative lead-stage change.
+Until regional payment and advance consent are implemented, native legacy selection/activation
+cannot quote or charge this cohort using USD. Public entry remains off by default.

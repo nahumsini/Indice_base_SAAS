@@ -13,4 +13,8 @@ public record BillingSignupEmailVerificationResponse(
     Instant verifiedExpiresAt,
     String message
 ) {
+    @Override public String toString() {
+        return "BillingSignupEmailVerificationResponse[started=" + started + ", verified=" + verified
+            + ", blocked=" + blocked + ", details=redacted]";
+    }
 }

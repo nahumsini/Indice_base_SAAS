@@ -18,9 +18,9 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class PlatformLeadRepository {
     private static final String SELECT = """
-        SELECT lead.*, administrator_user.full_name AS assigned_name
-        FROM platform_leads lead
-        LEFT JOIN platform_administrators administrator ON administrator.id = lead.assigned_admin_id
+        SELECT lead_row.*, administrator_user.full_name AS assigned_name
+        FROM platform_leads lead_row
+        LEFT JOIN platform_administrators administrator ON administrator.id = lead_row.assigned_admin_id
         LEFT JOIN users administrator_user ON administrator_user.id = administrator.user_id
         """;
 
@@ -84,17 +84,17 @@ public class PlatformLeadRepository {
     }
 
     public Page list(String query, String status, int limit) {
-        var filter = " WHERE (? = '' OR lead.status = ?) AND (? = '' OR lead.full_name LIKE ? OR lead.company_name LIKE ? OR lead.email LIKE ?)";
+        var filter = " WHERE (? = '' OR lead_row.status = ?) AND (? = '' OR lead_row.full_name LIKE ? OR lead_row.company_name LIKE ? OR lead_row.email LIKE ?)";
         var like = "%" + query + "%";
-        var items = jdbc.query(SELECT + filter + " ORDER BY lead.created_at DESC, lead.id DESC LIMIT ?",
+        var items = jdbc.query(SELECT + filter + " ORDER BY lead_row.created_at DESC, lead_row.id DESC LIMIT ?",
             SUMMARY_MAPPER, status, status, query, like, like, like, limit);
-        var total = jdbc.queryForObject("SELECT COUNT(*) FROM platform_leads lead" + filter,
+        var total = jdbc.queryForObject("SELECT COUNT(*) FROM platform_leads lead_row" + filter,
             Long.class, status, status, query, like, like, like);
         return new Page(items, total == null ? 0 : total);
     }
 
     public Summary find(long id) {
-        var rows = jdbc.query(SELECT + " WHERE lead.id = ?", SUMMARY_MAPPER, id);
+        var rows = jdbc.query(SELECT + " WHERE lead_row.id = ?", SUMMARY_MAPPER, id);
         return rows.isEmpty() ? null : rows.getFirst();
     }
 

@@ -3906,3 +3906,16 @@ shows coordinator/minutes responsibility without implying access grants or exter
 Review distinguishes overlapping dates, finite recurrence and human-confirmed evidence. Editing
 explicitly separates one meeting from future planned occurrences, preserving existing history.
 Internal reminders have localized generic inbox labels and scoped deep links, not private text.
+
+### Verified customer entry MX/CA
+
+The public `/start` route follows the
+[customer entry owner contract](public-customer-entry-mx-ca-contract-v1.md): business/consented
+lead, email verification/account, and confirmed demo access. It reuses the institutional blue
+login-site header/footer and native controls, with one-column touch-safe mobile presentation
+and visible retryable errors. Market selection is independent from the eight ERP languages.
+The route does not mount private Favorites or Petty Cash providers. Credentials, continuation,
+OTP and drafts remain in memory, never in URLs or persistent browser storage. Failed verification
+keeps the pending challenge for retry; account retries cannot restart the demo or duplicate a lead.
+The demo checkbox is not payment consent. Public-disabled and payment-not-ready states are
+explicit; no price, payment readiness, diagnosis completion or paid access is invented by UI.

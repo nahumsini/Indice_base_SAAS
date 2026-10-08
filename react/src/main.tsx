@@ -38,7 +38,7 @@ window.addEventListener('unhandledrejection', (event) => {
 // user explicitly retries.
 
 const rootElement = document.getElementById('root');
-const publicPresentationRouteIds = new Set(['investment', 'investment-carlos-munoz', 'presentation', 'public-scheduling']);
+const publicPresentationRouteIds = new Set(['investment', 'investment-carlos-munoz', 'presentation', 'public-scheduling', 'public-trial-entry']);
 const standaloneWorkspaceRouteIds = new Set(['training-centre']);
 
 // Public presentations and booking pages must not mount tenant-data providers.

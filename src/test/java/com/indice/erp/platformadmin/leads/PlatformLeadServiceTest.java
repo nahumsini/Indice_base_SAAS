@@ -97,6 +97,17 @@ class PlatformLeadServiceTest {
             current.diagnosisCompletedAt(), NOW, NOW.plusSeconds(15 * 86400L));
     }
 
+    @Test
+    void selfServiceActivationCannotOverwriteAClosedCommercialLead() {
+        for (var status : java.util.List.of("WON", "LOST")) {
+            when(repository.find(42L)).thenReturn(summary(status, null));
+            assertThrows(IllegalStateException.class, () -> service.recordSelfServiceTrial(
+                42L, "ana@example.com", NOW, NOW.plusSeconds(15 * 86400L)));
+        }
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never())
+            .update(any(Long.class), any(Integer.class), any(), any(), any(), any(), any(), any());
+    }
+
     private byte[] body(boolean consent) throws Exception {
         return mapper.writeValueAsBytes(new Submission("Ana", "Empresa Uno", "ana@example.com", "", "México",
             "Seguimiento de tareas", "/diagnostico.php", "WEBSITE", "", "", "", "CONTROLA", consent));

@@ -135,6 +135,36 @@ public class CommercialOfferSelectionService {
         return activeProducts("MONTH").stream().filter(product -> !product.complementary()).toList();
     }
 
+    /** Temporary access selection, not a price quote or a subscription purchase. */
+    public CommercialOfferSelection selectPublicTrial(String countryCode) {
+        if (!Set.of("MX", "CA").contains(countryCode)) {
+            throw new IllegalArgumentException("This trial is available only in Mexico and Canada.");
+        }
+        var version = activeVersion();
+        var products = jdbcTemplate.query("""
+            SELECT p.id, p.product_code, p.display_name, p.product_type
+            FROM billing_catalog_products p
+            WHERE p.catalog_version_id = ? AND p.active = 1 AND p.product_type = 'BASIC'
+              AND p.commercial_kind = 'MODULE'
+              AND EXISTS (
+                  SELECT 1 FROM billing_product_capabilities pc JOIN modules m
+                    ON BINARY m.slug = BINARY (CASE pc.capability_code WHEN 'sales' THEN 'crm' ELSE pc.capability_code END)
+                  WHERE pc.product_id = p.id AND m.is_active = 1 AND m.assignment_enabled = 1
+                    AND LOWER(m.lifecycle_status) = 'released')
+              AND NOT EXISTS (
+                  SELECT 1 FROM billing_product_capabilities pc JOIN modules m
+                    ON BINARY m.slug = BINARY (CASE pc.capability_code WHEN 'sales' THEN 'crm' ELSE pc.capability_code END)
+                  WHERE pc.product_id = p.id AND (m.is_active <> 1 OR m.assignment_enabled <> 1
+                    OR LOWER(m.lifecycle_status) <> 'released'))
+            ORDER BY p.sort_order, p.id
+            """, (rs, n) -> new CommercialOfferSelection.Product(rs.getLong("id"), rs.getString("product_code"),
+            rs.getString("display_name"), rs.getString("product_type"), null, null), version.id());
+        if (products.isEmpty()) throw new IllegalStateException("No released basic products are available for trial.");
+        return new CommercialOfferSelection(version.id(), version.code(), "PUBLIC_TRIAL_2026_10",
+            BillingInterval.MONTH, "CA".equals(countryCode) ? "CAD" : "MXN", 10, 0,
+            null, null, 0, 0, null, null, products, List.of(), capabilities(products), null, 0, null, null);
+    }
+
     public List<CommercialOfferSelection.Product> activeProducts(String intervalValue) {
         var interval = BillingInterval.parse(intervalValue);
         var version = activeVersion();

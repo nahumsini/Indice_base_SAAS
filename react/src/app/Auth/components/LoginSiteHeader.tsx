@@ -18,7 +18,7 @@ const publicLinks = (copy: LoginShellCopy) => [
   { label: copy.plans, href: `${PUBLIC_SITE_URL}/planes.php` },
 ];
 
-export function LoginSiteHeader({ copy }: { copy: LoginShellCopy }) {
+export function LoginSiteHeader({ copy, signInActive = true }: { copy: LoginShellCopy; signInActive?: boolean }) {
   const { currentLanguage, setCurrentLanguage } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
   const links = publicLinks(copy);
@@ -80,9 +80,9 @@ export function LoginSiteHeader({ copy }: { copy: LoginShellCopy }) {
 
         <div className="hidden items-center gap-2 lg:flex">
           {languagePicker(false)}
-          <span aria-current="page" className="px-2 py-2 text-[13px] font-semibold text-[#2563eb]">
+          {signInActive ? <span aria-current="page" className="px-2 py-2 text-[13px] font-semibold text-[#2563eb]">
             {copy.signIn}
-          </span>
+          </span> : <a href="/login" className="px-2 py-2 text-[13px] font-semibold text-[#2563eb]">{copy.signIn}</a>}
           <a
             href={PUBLIC_DIAGNOSIS_URL}
             className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#2563eb] px-4 text-[13px] font-semibold text-white transition hover:bg-[#1d4ed8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb]"
@@ -114,9 +114,9 @@ export function LoginSiteHeader({ copy }: { copy: LoginShellCopy }) {
                 {link.label}
               </a>
             ))}
-            <span aria-current="page" className="rounded-lg px-3 py-3 text-sm font-semibold text-[#2563eb]">
+            {signInActive ? <span aria-current="page" className="rounded-lg px-3 py-3 text-sm font-semibold text-[#2563eb]">
               {copy.signIn}
-            </span>
+            </span> : <a href="/login" className="rounded-lg px-3 py-3 text-sm font-semibold text-[#2563eb]">{copy.signIn}</a>}
             <a href={PUBLIC_DIAGNOSIS_URL} className="mt-2 inline-flex min-h-11 items-center justify-center rounded-lg bg-[#2563eb] px-4 text-sm font-semibold text-white">
               {copy.diagnosis}
             </a>

@@ -8,6 +8,7 @@ import com.indice.erp.billing.collection.PaymentCollectionProtectionService;
 import com.indice.erp.billing.seats.SeatService;
 import com.indice.erp.billing.signup.BillingSignupConflictException;
 import com.indice.erp.billing.signup.BillingSignupIntentRepository;
+import com.indice.erp.billing.signup.PublicTrialAccessService;
 import com.indice.erp.billing.stripe.StripeCheckoutGateway;
 import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
 import com.indice.erp.billing.stripe.StripeSecretProvider;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -43,6 +45,7 @@ public class BillingActivationService {
     private final SeatService seats;
     private final Clock clock;
     private final PaymentCollectionProtectionService protection;
+    private final PublicTrialAccessService publicTrial;
 
     public BillingActivationService(
         JdbcTemplate jdbcTemplate,
@@ -59,6 +62,16 @@ public class BillingActivationService {
         Clock clock,
         PaymentCollectionProtectionService protection
     ) {
+        this(jdbcTemplate, transactions, offers, signupIntents, stripeGateway, stripeProperties, stripeSecrets,
+            platformAdminService, audit, selectionChanges, seats, clock, protection, null);
+    }
+
+    @Autowired
+    public BillingActivationService(JdbcTemplate jdbcTemplate, TransactionTemplate transactions,
+        CommercialOfferSelectionService offers, BillingSignupIntentRepository signupIntents,
+        StripeCheckoutGateway stripeGateway, StripePhaseTwoProperties stripeProperties, StripeSecretProvider stripeSecrets,
+        PlatformAdminService platformAdminService, BillingAuditService audit, BillingSelectionChangeService selectionChanges,
+        SeatService seats, Clock clock, PaymentCollectionProtectionService protection, PublicTrialAccessService publicTrial) {
         this.jdbcTemplate = jdbcTemplate;
         this.transactions = transactions;
         this.offers = offers;
@@ -72,6 +85,7 @@ public class BillingActivationService {
         this.seats = seats;
         this.clock = clock;
         this.protection = protection;
+        this.publicTrial = publicTrial;
     }
 
     public BillingActivationResponse createCheckout(
@@ -80,6 +94,7 @@ public class BillingActivationService {
         String idempotencyKey,
         BillingSelectionRequest request
     ) {
+        requireLegacyFlow(companyId);
         stripeSecrets.requireEnabled();
         requireCollectionRoute(companyId, null);
         var cleanKey = requireIdempotencyKey(idempotencyKey);
@@ -96,6 +111,7 @@ public class BillingActivationService {
     /** Collection uses its immutable quoted selection and never starts or shortens a trial. */
     public BillingActivationResponse createCollectionCheckout(long companyId, long actorUserId,
         String idempotencyKey, CommercialOfferSelection selection, long paymentRequestId) {
+        requireLegacyFlow(companyId);
         stripeSecrets.requireEnabled();
         var cleanKey = requireIdempotencyKey(idempotencyKey);
         requireNoStripeSubscription(companyId);
@@ -106,6 +122,10 @@ public class BillingActivationService {
             throw new IllegalStateException("La selección de cobro guardada no es válida.");
         }
         return createSelectedCheckout(companyId, actorUserId, cleanKey, selection, paymentRequestId);
+    }
+
+    private void requireLegacyFlow(long companyId) {
+        if (publicTrial != null) publicTrial.requireLegacyPaidFlowAllowed(companyId);
     }
 
     private BillingActivationResponse createSelectedCheckout(long companyId, long actorUserId,

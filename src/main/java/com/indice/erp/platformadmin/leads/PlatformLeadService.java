@@ -91,6 +91,48 @@ public class PlatformLeadService {
         return repository.list(text(query, 120, false), normalizedStatus, 200);
     }
 
+    /** Native billing-entry owner contract. No HTTP route or platform permission is granted. */
+    @Transactional
+    public long captureSelfServiceInterest(String submissionId, String fingerprint, Submission submission) {
+        var input = validate(submission);
+        var existing = repository.findIdBySubmission(uuid(submissionId));
+        if (existing != null) return sameSubmission(existing, fingerprint);
+        var id = repository.insert(submissionId, fingerprint, input, clock.instant());
+        repository.event(id, null, "SELF_SERVICE_INTEREST", null, "NEW", null);
+        return id;
+    }
+
+    public Submission selfServiceInterest(long leadId) {
+        var lead = repository.find(leadId);
+        if (lead == null) throw new IllegalArgumentException("Trial entry was not found.");
+        return new Submission(lead.fullName(), lead.companyName(), lead.email(), lead.phone(), lead.country(),
+            lead.challenge(), lead.landingPath(), lead.sourceChannel(), lead.utmSource(), lead.utmMedium(),
+            lead.utmCampaign(), lead.planInterest(), true);
+    }
+
+    /** Called only after verified native tenant provisioning, inside the same transaction. */
+    @Transactional
+    public void recordSelfServiceTrial(long leadId, String verifiedEmail, Instant startsAt, Instant endsAt) {
+        var lead = repository.find(leadId);
+        if (lead == null || !lead.email().equalsIgnoreCase(verifiedEmail)) {
+            throw new SecurityException("Trial lead binding was rejected.");
+        }
+        if (lead.trialStartedAt() != null) {
+            if (!lead.trialStartedAt().equals(startsAt) || !lead.trialEndsAt().equals(endsAt)) {
+                throw new IllegalStateException("The trial window cannot be restarted.");
+            }
+            return;
+        }
+        if (Set.of("WON", "LOST").contains(lead.status())) {
+            throw new IllegalStateException("The lead was closed. Trial entry requires review.");
+        }
+        if (!repository.update(leadId, lead.version(), "TRIAL_ACTIVE", lead.assignedAdminId(),
+            startsAt.plus(Duration.ofDays(3)), lead.diagnosisCompletedAt(), startsAt, endsAt)) {
+            throw new IllegalStateException("Lead changed. Please retry.");
+        }
+        repository.event(leadId, null, "SELF_SERVICE_TRIAL_STARTED", lead.status(), "TRIAL_ACTIVE", null);
+    }
+
     public Detail detail(long actorUserId, long id) {
         authorize(actorUserId);
         var lead = repository.find(id);

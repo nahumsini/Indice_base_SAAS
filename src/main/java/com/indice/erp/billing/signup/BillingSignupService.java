@@ -255,7 +255,7 @@ public class BillingSignupService {
         return value != null && value.startsWith("price_");
     }
 
-    private void validate(BillingSignupRequest request, String idempotencyKey) {
+    static void validate(BillingSignupRequest request, String idempotencyKey) {
         if (request == null) {
             throw new IllegalArgumentException("Signup request is required.");
         }
@@ -283,7 +283,7 @@ public class BillingSignupService {
         }
     }
 
-    private void requireLength(String value, String field, int minimum, int maximum) {
+    private static void requireLength(String value, String field, int minimum, int maximum) {
         var length = value == null ? 0 : value.trim().length();
         if (length < minimum || length > maximum) {
             throw new IllegalArgumentException(field + " must contain between " + minimum + " and " + maximum + " characters.");

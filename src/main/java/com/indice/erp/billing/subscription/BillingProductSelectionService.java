@@ -3,6 +3,7 @@ package com.indice.erp.billing.subscription;
 import com.indice.erp.billing.catalog.CommercialOfferSelection;
 import com.indice.erp.billing.catalog.CommercialOfferSelectionService;
 import com.indice.erp.billing.seats.SeatService;
+import com.indice.erp.billing.signup.PublicTrialAccessService;
 import com.indice.erp.billing.stripe.StripeBillingGateway;
 import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
 import com.indice.erp.billing.stripe.StripeSecretProvider;
@@ -19,6 +20,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -33,6 +35,7 @@ public class BillingProductSelectionService {
     private final PlatformAuditService audit;
     private final BillingSelectionChangeService changes;
     private final BillingAccountAuthorityService billingAuthority;
+    private final PublicTrialAccessService publicTrial;
 
     public BillingProductSelectionService(
         JdbcTemplate jdbcTemplate,
@@ -45,6 +48,15 @@ public class BillingProductSelectionService {
         BillingSelectionChangeService changes,
         BillingAccountAuthorityService billingAuthority
     ) {
+        this(jdbcTemplate, offers, stripeProperties, stripeSecrets, stripeGateway, seats, audit, changes,
+            billingAuthority, null);
+    }
+
+    @Autowired
+    public BillingProductSelectionService(JdbcTemplate jdbcTemplate, CommercialOfferSelectionService offers,
+        StripePhaseTwoProperties stripeProperties, StripeSecretProvider stripeSecrets, StripeBillingGateway stripeGateway,
+        SeatService seats, PlatformAuditService audit, BillingSelectionChangeService changes,
+        BillingAccountAuthorityService billingAuthority, PublicTrialAccessService publicTrial) {
         this.jdbcTemplate = jdbcTemplate;
         this.offers = offers;
         this.stripeProperties = stripeProperties;
@@ -54,6 +66,7 @@ public class BillingProductSelectionService {
         this.audit = audit;
         this.changes = changes;
         this.billingAuthority = billingAuthority;
+        this.publicTrial = publicTrial;
     }
 
     public BillingSelectionResponse current(long companyId) {
@@ -61,6 +74,7 @@ public class BillingProductSelectionService {
     }
 
     public BillingSelectionResponse current(long companyId, Long actorUserId) {
+        requireLegacyFlow(companyId);
         var state = state(companyId);
         var currentCodes = selectedCodes(companyId, state);
         var stored = state != null && state.stripeManaged()
@@ -82,6 +96,7 @@ public class BillingProductSelectionService {
     }
 
     public BillingSelectionResponse preview(long companyId, BillingSelectionRequest request) {
+        requireLegacyFlow(companyId);
         var state = state(companyId);
         var interval = interval(request, state);
         requireStableActiveInterval(state, interval);
@@ -113,6 +128,7 @@ public class BillingProductSelectionService {
         BillingSelectionRequest request,
         String expectedCatalogVersion
     ) {
+        requireLegacyFlow(companyId);
         var cleanKey = requireIdempotencyKey(idempotencyKey);
         var state = state(companyId);
         var interval = interval(request, state);
@@ -174,6 +190,10 @@ public class BillingProductSelectionService {
         return response(
             companyId, state(companyId), scheduled, selectedCodes(companyId, state), chargedNow, actorUserId
         );
+    }
+
+    private void requireLegacyFlow(long companyId) {
+        if (publicTrial != null) publicTrial.requireLegacyPaidFlowAllowed(companyId);
     }
 
     private boolean updateStripe(SubscriptionState state, CommercialOfferSelection selection, String idempotencyKey) {

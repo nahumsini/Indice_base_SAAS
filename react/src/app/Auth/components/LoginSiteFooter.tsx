@@ -4,7 +4,7 @@ import { PUBLIC_DIAGNOSIS_URL, PUBLIC_SITE_URL } from './loginSiteLinks';
 
 const footerLinkClass = 'leading-6 text-white/75 transition hover:text-white focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
 
-export function LoginSiteFooter({ copy }: { copy: LoginShellCopy }) {
+export function LoginSiteFooter({ copy, signInHref = '#login-main' }: { copy: LoginShellCopy; signInHref?: string }) {
   return (
     <footer className="bg-[#0d2348] text-white/75">
       <div className="mx-auto max-w-[1280px] px-4 py-9 sm:px-6 lg:px-8">
@@ -36,7 +36,7 @@ export function LoginSiteFooter({ copy }: { copy: LoginShellCopy }) {
           ]} />
           <FooterGroup title={copy.support} links={[
             { label: copy.contact, href: PUBLIC_DIAGNOSIS_URL },
-            { label: copy.signIn, href: '#login-main' },
+            { label: copy.signIn, href: signInHref },
             { label: copy.privacy, href: `${PUBLIC_SITE_URL}/privacidad.php` },
             { label: copy.terms, href: `${PUBLIC_SITE_URL}/terminos.php` },
           ]} />

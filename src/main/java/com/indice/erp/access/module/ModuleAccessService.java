@@ -82,6 +82,9 @@ public class ModuleAccessService {
                  AND entitlement.module_slug = module_row.slug
                  AND LOWER(COALESCE(entitlement.status, 'active')) = 'active'
                 WHERE module_row.slug = ?
+                  AND NOT EXISTS (SELECT 1 FROM billing_trial_entries trial_entry
+                    WHERE trial_entry.company_id = entitlement.company_id AND trial_entry.status = 'ACTIVE'
+                      AND trial_entry.trial_ends_at <= CURRENT_TIMESTAMP(6))
                   AND COALESCE(module_row.is_active, 1) = 1
                   AND COALESCE(module_row.assignment_enabled, 1) = 1
                   AND LOWER(COALESCE(module_row.lifecycle_status, 'released')) IN ('pilot', 'released')
@@ -107,6 +110,9 @@ public class ModuleAccessService {
             INNER JOIN company_module_entitlements entitlement
               ON entitlement.company_id=? AND entitlement.module_slug=module_row.slug
             WHERE module_row.slug=? AND LOWER(COALESCE(entitlement.status,'active'))='active'
+              AND NOT EXISTS (SELECT 1 FROM billing_trial_entries trial_entry
+                WHERE trial_entry.company_id = entitlement.company_id AND trial_entry.status = 'ACTIVE'
+                  AND trial_entry.trial_ends_at <= CURRENT_TIMESTAMP(6))
               AND COALESCE(module_row.is_active,1)=1 AND COALESCE(module_row.assignment_enabled,1)=1
               AND LOWER(COALESCE(module_row.lifecycle_status,'released')) IN ('pilot','released')
             FOR SHARE

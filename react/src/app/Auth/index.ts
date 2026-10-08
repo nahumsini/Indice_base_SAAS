@@ -3,6 +3,7 @@ export { default as PublicDemoPage } from './PublicDemoPage';
 export { default as InviteAcceptPage } from './InviteAcceptPage';
 export { default as ResetPasswordPage } from './ResetPasswordPage';
 export { default as SignupPage } from './SignupPage';
+export { default as TrialStartPage } from './TrialStartPage';
 export { default as SignupCompletePage } from './SignupCompletePage';
 export { PublicPlansPage } from './PublicPlans';
 export { default as AiOAuthAuthorizePage } from './AiOAuthAuthorizePage';

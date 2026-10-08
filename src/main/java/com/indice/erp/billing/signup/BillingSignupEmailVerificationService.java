@@ -197,6 +197,16 @@ public class BillingSignupEmailVerificationService {
         return new VerifiedEmail(normalizedEmail, verificationReference, row.verifiedAt());
     }
 
+    /** Public trial entry may use an OTP challenge only for its server-owned lead email. */
+    public void requireOwnedChallenge(String email, String verificationReference) {
+        var row = BillingSignupEmailVerificationInput.validReference(verificationReference)
+            ? repository.findVerification(verificationReference) : null;
+        if (row == null || !BillingSignupEmailVerificationInput.normalizeEmail(email)
+            .equals(BillingSignupEmailVerificationInput.normalizeEmail(row.email()))) {
+            throw exception(HttpStatus.BAD_REQUEST, "EMAIL_VERIFICATION_MISMATCH", "Email verification is unavailable.");
+        }
+    }
+
     private void ensureEmailIsNew(String email) {
         if (repository.existingUserCount(email) > 0) {
             throw exception(HttpStatus.CONFLICT, "EMAIL_ALREADY_REGISTERED",

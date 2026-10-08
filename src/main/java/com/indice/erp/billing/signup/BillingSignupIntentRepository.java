@@ -121,6 +121,14 @@ public class BillingSignupIntentRepository {
         return rows.isEmpty() ? null : rows.getFirst();
     }
 
+    public void markVerifiedTrial(long id, Instant startsAt) {
+        jdbcTemplate.update("""
+            UPDATE billing_signup_intents SET status = 'TRIAL_VERIFIED', completed_at = ?, version = version + 1
+            WHERE id = ? AND status = 'PENDING' AND email_verified_at IS NOT NULL
+              AND stripe_customer_id IS NULL AND stripe_checkout_session_id IS NULL AND stripe_subscription_id IS NULL
+            """, Timestamp.from(startsAt), id);
+    }
+
     public BillingSignupIntent findByPublicReference(String publicReference) {
         var rows = jdbcTemplate.query(
             selectSql("public_token_hash = ?"),

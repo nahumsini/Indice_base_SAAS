@@ -101,8 +101,19 @@ public class BillingTenantProvisioningService {
             return new ProvisioningResult(intentId, "REQUIRES_REVIEW", null, null, false);
         }
         var courtesySignup = "COURTESY_COMPLETED".equals(intent.checkoutStatus());
-        if (!"CHECKOUT_COMPLETED".equals(intent.checkoutStatus()) && !courtesySignup) {
+        var verifiedTrial = "TRIAL_VERIFIED".equals(intent.checkoutStatus());
+        if (!"CHECKOUT_COMPLETED".equals(intent.checkoutStatus()) && !courtesySignup && !verifiedTrial) {
             return new ProvisioningResult(intentId, "NOT_ELIGIBLE", null, null, false);
+        }
+        if (verifiedTrial && (intent.emailVerifiedAt() == null || intent.stripeCustomerId() != null)) {
+            throw new IllegalStateException("Verified trial provisioning requires verified email and no payment identity.");
+        }
+        if (verifiedTrial && jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM billing_trial_entries entry JOIN platform_leads lead_row ON lead_row.id = entry.lead_id
+            WHERE entry.signup_intent_id = ? AND entry.status = 'LEAD_CAPTURED'
+              AND entry.country_code = ? AND LOWER(lead_row.email) = LOWER(?)
+            """, Integer.class, intentId, intent.countryCode(), intent.email()) != 1) {
+            throw new IllegalStateException("Verified trial entry binding is required.");
         }
         var courtesy = courtesySignup ? signupIntents.courtesyProvisioningSpec(intentId) : null;
         if (courtesySignup && courtesy == null) {
@@ -147,7 +158,7 @@ public class BillingTenantProvisioningService {
         );
 
         var selectedProductIds = Set.copyOf(signupIntents.productIds(intentId));
-        var initialAccessProductIds = courtesySignup
+        var initialAccessProductIds = courtesySignup || verifiedTrial
             ? selectedProductIds
             : fullTrialProductIds(intent.catalogVersionId(), selectedProductIds);
         var moduleSlugs = provisionOwnerModules(
@@ -155,7 +166,8 @@ public class BillingTenantProvisioningService {
             companyId,
             membershipId,
             courtesy,
-            initialAccessProductIds
+            initialAccessProductIds,
+            verifiedTrial
         );
         provisionOwnerTabs(membershipId, moduleSlugs);
         associateBillingRecords(intentId, companyId, intent.stripeCustomerId());
@@ -190,7 +202,7 @@ public class BillingTenantProvisioningService {
         var auditDetail = new java.util.LinkedHashMap<String, Object>();
         auditDetail.put("ownerRole", "superadmin");
         auditDetail.put("scope", "corporate_office");
-        auditDetail.put("signupChannel", courtesySignup ? "COURTESY" : "STRIPE");
+        auditDetail.put("signupChannel", courtesySignup ? "COURTESY" : verifiedTrial ? "VERIFIED_TRIAL" : "STRIPE");
         auditDetail.put("moduleCount", moduleSlugs.size());
         if (courtesySignup) {
             auditDetail.put("courtesyPermanent", courtesy.permanent());
@@ -306,7 +318,8 @@ public class BillingTenantProvisioningService {
         long companyId,
         long membershipId,
         BillingSignupIntentRepository.CourtesyProvisioningSpec courtesy,
-        Set<Long> selectedProductIds
+        Set<Long> selectedProductIds,
+        boolean releasedOnly
     ) {
         var allowedProducts = courtesy == null ? Set.<String>of() : Set.copyOf(courtesy.productCodes());
         var productModules = jdbcTemplate.query(
@@ -322,6 +335,7 @@ public class BillingTenantProvisioningService {
                   AND p.active = 1
                   AND p.product_type IN ('CORE', 'BASIC', 'ADDON')
                   AND m.is_active = 1
+                  AND (? = 0 OR LOWER(m.lifecycle_status) = 'released')
                 ORDER BY m.slug
                 """,
             (rs, rowNum) -> new ProductModule(
@@ -330,7 +344,8 @@ public class BillingTenantProvisioningService {
                 rs.getString("product_code"),
                 rs.getString("product_type")
             ),
-            catalogVersionId
+            catalogVersionId,
+            releasedOnly ? 1 : 0
         );
         var moduleSlugs = new LinkedHashSet<String>();
         for (var productModule : productModules) {

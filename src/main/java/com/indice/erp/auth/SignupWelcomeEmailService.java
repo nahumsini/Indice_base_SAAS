@@ -66,7 +66,7 @@ public class SignupWelcomeEmailService {
 
     public void sendWorkspaceWelcome(WorkspaceWelcomeEmail welcome) {
         if (!enabled) {
-            log.info("Signup welcome email disabled for {}", welcome.email());
+            log.info("Signup welcome email delivery is disabled.");
             return;
         }
         try {
@@ -75,9 +75,9 @@ public class SignupWelcomeEmailService {
             } else {
                 sendWithSmtp(welcome);
             }
-            log.info("Signup welcome email sent to {}", welcome.email());
+            log.info("Signup welcome email delivered.");
         } catch (RuntimeException ex) {
-            log.warn("Unable to send signup welcome email to {}", welcome.email(), ex);
+            log.warn("Signup welcome email delivery failed ({}).", ex.getClass().getSimpleName());
         }
     }
 

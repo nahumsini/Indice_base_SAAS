@@ -1,6 +1,27 @@
-# Flujo de prospectos y diagnóstico empresarial (2026-10-04)
+# Flujo de prospectos y diagnóstico empresarial
 
-La decisión comercial vigente para México es un solo CTA: **solicitar un diagnóstico
+## Política vigente de entrada MX/CA (2026-10-08)
+
+Las nuevas altas de México y Canadá siguen prospecto → verificación de correo → cuenta nativa
+→ demo de 15 días sin tarjeta. El diagnóstico gratuito acompaña la demo, sin impedir el acceso
+inicial. Después se configura el pago del plan elegido, con consentimiento expreso separado para
+el cobro automático al vencimiento. País comercial e idioma continúan independientes.
+
+El [contrato de entrada MX/CA](public-customer-entry-mx-ca-contract-v1.md) gobierna la excepción
+pública de navegador y el vínculo entre Lead y Billing. Captación y verificación por sí solas
+no crean una cuenta. Únicamente la activación técnica transaccional registra
+`SELF_SERVICE_TRIAL_STARTED`, las fechas inmutables y `TRIAL_ACTIVE` en el lead correspondiente.
+No inventa diagnóstico realizado, pago ni cliente ganado, y no sobrescribe un lead cerrado.
+
+Cambiar manualmente un lead a `TRIAL_ACTIVE` continúa siendo una decisión comercial, no
+aprovisionamiento. Conserva su transición de diagnóstico y permisos administrativos existentes.
+El diagnóstico/HMAC de PHP sigue operativo mientras la nueva entrada permanece deshabilitada.
+La conexión de los CTA web y la conversión pagada CAD/MXN están pendientes del cierre del flujo;
+no presentar la implementación parcial como lanzamiento autoservicio terminado.
+
+## Recorrido anterior y diagnóstico asistido (2026-10-04)
+
+La decisión comercial anterior para México era un solo CTA: **solicitar un diagnóstico
 empresarial inicial sin costo**. Índice contacta personalmente al interesado. La comunicación
 se centra en Lupita, sus capacidades especializadas para operar módulos desde herramientas de
 IA compatibles, consultores, automatización empresarial y kioscos; no promete automatización

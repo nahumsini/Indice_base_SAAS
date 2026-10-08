@@ -260,7 +260,28 @@ impuestos que Stripe calcula y muestra antes de confirmar Checkout:
 
 ### 3.4 Prueba
 
-**Decisión comercial posterior (2026-10-04):** la web pública de Índice ya no conduce a
+**Decisión vigente para nuevas altas MX/CA (2026-10-08):** captación de prospecto → correo
+verificado → cuenta nativa → demo de 15 días sin tarjeta. El diagnóstico inicial sin costo
+acompaña la demo; no condiciona la creación de cuenta. La demo incluye los productos básicos
+liberados del catálogo y 10 personas. Agenda y Control de juntas se incorporarán como básicos
+cuando su responsable cierre sus contratos, pruebas y publicación; esta decisión comercial no
+libera pilotos ni concede permisos por sí sola.
+
+El propietario aprobó **cobro automático del plan elegido al terminar la demo, con método de
+pago válido y consentimiento previo separado**. La aceptación de la demo o el permiso de contacto
+no autorizan cargos. La selección de pago debe congelar oferta, moneda regional, importe,
+intervalo, impuestos aplicables, fecha del primer cobro y versión del consentimiento. Agregar
+una tarjeta no reinicia la ventana de 15 días. Sin activación de pago verificada, el vencimiento
+bloquea lectura y escritura operativas y conserva autenticación y recuperación de facturación.
+No cambia contratos históricos, precios USD, cortesías, suscripciones ni sus políticas de gracia.
+
+Contrato y estado de implementación: [public-customer-entry-mx-ca-contract-v1.md](public-customer-entry-mx-ca-contract-v1.md).
+El incremento inicial crea la demo y aplica el vencimiento; la conversión regional pagada aún
+no está implementada. La bandera pública permanece deshabilitada y el flujo legado USD no
+se puede usar para estas nuevas demos. No anunciar alta pública funcional ni habilitar la
+captación autoservicio comercial hasta completar pagos, web y las puertas de liberación.
+
+**Antecedente sustituido para nuevas altas MX/CA (2026-10-04):** la web pública de Índice no conducía a
 checkout, contratación autónoma ni activación automática de prueba. Su único objetivo de
 conversión es solicitar un diagnóstico empresarial inicial sin costo. El equipo contacta al
 prospecto, realiza el diagnóstico y, sólo si hay encaje, puede ofrecer una prueba guiada de
@@ -272,7 +293,10 @@ describen ese subsistema, no la promesa ni el CTA de la nueva web comercial.
 El propietario confirmó además que la web puede publicar los tres precios mexicanos e
 inclusiones de la oferta comercial (2,999/5,499/9,499 MXN mensuales), anualidades e
 implementación separada. Son información comercial y no sustituyen el catálogo versionado
-ni activan derechos o cobros en Stripe. Cada plan conserva el CTA de diagnóstico.
+ni activan derechos o cobros en Stripe. En ese recorrido cada plan conservaba el CTA de diagnóstico.
+
+Las reglas siguientes describen el registro legado con tarjeta y sus contratos existentes;
+no sustituyen la nueva política MX/CA ni justifican reiniciar su demo:
 
 - Duración pública inicial: 15 días.
 - Requiere tarjeta válida para comenzar.
