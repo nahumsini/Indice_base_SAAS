@@ -76,7 +76,7 @@ public class PlatformCatalogManagementService {
                 JOIN billing_catalog_versions version_row
                   ON version_row.id = product.catalog_version_id AND version_row.id = ?
                 JOIN modules module_row ON BINARY product.product_code = BINARY CONCAT('addon_', module_row.slug)
-                WHERE product.product_type = 'ADDON'
+                WHERE product.product_type = 'ADDON' AND product.market_code IS NULL
                   AND module_row.module_category IN ('complementary', 'ai')
                   AND NOT EXISTS (
                       SELECT 1 FROM billing_product_capabilities existing_capability
@@ -99,7 +99,7 @@ public class PlatformCatalogManagementService {
                 JOIN billing_catalog_versions version_row
                   ON version_row.id = product.catalog_version_id AND version_row.id = ?
                 JOIN (SELECT 'MONTH' AS billing_interval UNION ALL SELECT 'YEAR') interval_row
-                WHERE product.product_type = 'ADDON'
+                WHERE product.product_type = 'ADDON' AND product.market_code IS NULL
                   AND NOT EXISTS (
                       SELECT 1 FROM billing_catalog_prices existing_price
                       WHERE existing_price.catalog_version_id = product.catalog_version_id
@@ -357,15 +357,16 @@ public class PlatformCatalogManagementService {
         var editable = editableProduct(actorUserId, product(productId));
         var ids = jdbcTemplate.queryForList("""
             SELECT id FROM billing_catalog_prices
-            WHERE catalog_product_id = ? AND currency = 'USD' AND billing_interval IN ('MONTH', 'YEAR')
+            WHERE catalog_product_id = ? AND billing_interval IN ('MONTH', 'YEAR')
             ORDER BY billing_interval FOR UPDATE
             """, Long.class, editable.id());
-        if (ids.size() != 2) throw new IllegalStateException("El producto debe tener sus tarifas mensual y anual en USD.");
+        if (ids.size() != 2) throw new IllegalStateException("El producto debe tener sus tarifas mensual y anual en una sola moneda.");
         var rows = ids.stream().map(this::price).toList();
         var monthly = rows.stream().filter(row -> "MONTH".equals(row.billingInterval())).findFirst()
             .orElseThrow(() -> new IllegalStateException("Falta la tarifa mensual."));
         var annual = rows.stream().filter(row -> "YEAR".equals(row.billingInterval())).findFirst()
             .orElseThrow(() -> new IllegalStateException("Falta la tarifa anual."));
+        if (!monthly.currency().equals(annual.currency())) throw new IllegalStateException("Las tarifas deben usar la misma moneda.");
         // The outer transaction saves both intervals together. updatePrice invalidates changed Stripe references.
         updatePrice(actorUserId, monthly.id(), new PriceUpdateRequest(request.monthly_amount_cents(), null, null));
         updatePrice(actorUserId, annual.id(), new PriceUpdateRequest(request.annual_amount_cents(), null, null));
@@ -534,12 +535,12 @@ public class PlatformCatalogManagementService {
                     catalog_version_id, product_code, display_name, description, product_type,
                     commercial_kind, external_product_id, stripe_tax_code, stripe_mode,
                     stripe_account_id, stripe_verified_at, stripe_sync_status, stripe_synced_at,
-                    sort_order, active
+                    sort_order, active, market_code, included_seats
                 )
                 SELECT ?, product_code, display_name, description, product_type,
                        commercial_kind, external_product_id, stripe_tax_code, stripe_mode,
                        stripe_account_id, stripe_verified_at, stripe_sync_status, stripe_synced_at,
-                       sort_order, active
+                       sort_order, active, market_code, included_seats
                 FROM billing_catalog_products WHERE catalog_version_id = ?
                 """,
             draftId,
@@ -658,7 +659,7 @@ public class PlatformCatalogManagementService {
                 UPDATE billing_catalog_prices price
                 JOIN billing_catalog_products product ON product.id = price.catalog_product_id
                 SET price.price_type = CASE product.commercial_kind WHEN 'PACKAGE' THEN 'PACKAGE' ELSE 'PRODUCT' END
-                WHERE product.catalog_version_id = ? AND product.commercial_kind IN ('MODULE', 'PACKAGE')
+                WHERE product.catalog_version_id = ? AND product.commercial_kind IN ('MODULE', 'PACKAGE') AND product.market_code IS NULL
                   AND BINARY price.billable_code = BINARY product.product_code
                 """,
             draftId
@@ -726,7 +727,7 @@ public class PlatformCatalogManagementService {
                        interval_row.billing_interval, 'USD', NULL, 1, NULL, 'DRAFT'
                 FROM billing_catalog_products product
                 JOIN (SELECT 'MONTH' AS billing_interval UNION ALL SELECT 'YEAR') interval_row
-                WHERE product.catalog_version_id = ? AND product.commercial_kind IN ('MODULE', 'PACKAGE')
+                WHERE product.catalog_version_id = ? AND product.commercial_kind IN ('MODULE', 'PACKAGE') AND product.market_code IS NULL
                   AND NOT EXISTS (
                       SELECT 1 FROM billing_catalog_prices price
                       WHERE price.catalog_version_id = product.catalog_version_id

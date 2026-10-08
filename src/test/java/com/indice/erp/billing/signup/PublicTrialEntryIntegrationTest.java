@@ -39,6 +39,9 @@ class PublicTrialEntryIntegrationTest {
     @Autowired CommercialLifecycleAccessService access;
     @Autowired ModuleAccessService modules;
     @Autowired PublicTrialEntryRateLimit rate;
+    @Autowired PublicTrialPaymentRepository payments;
+    @Autowired PublicTrialAccessService publicTrial;
+    @Autowired com.indice.erp.platformadmin.PlatformRegionalCatalogService regionalCatalog;
     @Autowired com.indice.erp.billing.subscription.CompanySubscriptionService subscription;
     @Autowired com.indice.erp.billing.subscription.BillingActivationService activation;
     @Autowired com.indice.erp.billing.subscription.BillingProductSelectionService selection;
@@ -225,6 +228,65 @@ class PublicTrialEntryIntegrationTest {
         assertThat(rate.consume(network)).isFalse();
         assertThat(rate.consume(network)).isFalse();
     }
+
+    @Test void regionalConsentIsFrozenAndConversionPreservesOriginalWindowAndCustomerBinding() {
+        var receipt = paymentFixture();
+        var consent = payments.consent(receipt.intentId());
+        assertThat(consent.currency()).isEqualTo("CAD");
+        assertThat(consent.firstChargeAt()).isAfterOrEqualTo(receipt.endsAt());
+        assertThat(consent.paidInvoiceId()).isNull();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM billing_trial_payment_consents WHERE company_id = ?", Integer.class, receipt.companyId())).isEqualTo(1);
+        payments.saveCustomer(receipt.companyId(), receipt.intentId(), "cus_repository_test");
+        payments.saveCustomer(receipt.companyId(), receipt.intentId(), "cus_repository_test");
+        assertThatThrownBy(() -> payments.saveCustomer(receipt.companyId(), receipt.intentId(), "cus_foreign_test"))
+            .isInstanceOf(BillingSignupConflictException.class);
+        assertThat(payments.customer(receipt.companyId())).isEqualTo("cus_repository_test");
+        payments.verifiedSetup(receipt.intentId(), receipt.endsAt().minusSeconds(60));
+        // Simulate a trusted financial handler's receipt, not a provider call or access grant.
+        assertThat(payments.convert(consent, "in_repository_" + receipt.intentId(), consent.firstChargeAt())).isTrue();
+        assertThat(payments.convert(consent, "in_repository_" + receipt.intentId(), consent.firstChargeAt())).isFalse();
+        assertThat(payments.trial(receipt.companyId(), false).converted()).isTrue();
+        assertThat(payments.trial(receipt.companyId(), false).endsAt()).isEqualTo(receipt.endsAt());
+        assertThat(publicTrial.deadline(receipt.companyId())).isEmpty();
+        assertThatThrownBy(() -> publicTrial.requireLegacyPaidFlowAllowed(receipt.companyId())).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test void subscriptionAttemptCannotChargeLateOrOutliveTheProviderRetryWindow() {
+        var late = paymentFixture();
+        payments.requireSubscriptionAttempt(late.intentId(), PublicTrialPaymentRepository.providerDeadline(late.endsAt()));
+        assertThat(payments.subscriptionAttemptRecorded(late.intentId())).isFalse();
+        assertThat(jdbc.queryForObject("SELECT status FROM billing_signup_intents WHERE id = ?", String.class, late.intentId())).isEqualTo("FAILED");
+        var retry = paymentFixture();
+        var started = retry.endsAt().minusSeconds(60);
+        payments.requireSubscriptionAttempt(retry.intentId(), started);
+        payments.requireSubscriptionAttempt(retry.intentId(), started.plusSeconds(1));
+        assertThat(payments.subscriptionAttemptRecorded(retry.intentId())).isTrue();
+        assertThatThrownBy(() -> payments.requireSubscriptionAttempt(retry.intentId(), started.plus(Duration.ofHours(23))))
+            .isInstanceOf(com.indice.erp.billing.stripe.StripeEventProcessingException.class);
+    }
+
+    private PaymentFixture paymentFixture() {
+        var input = input("CA"); var key = BillingHashing.randomReference();
+        var entry = service.start(input, key, "payment-repository-test");
+        var proof = verified(entry.entryReference(), "payment-repository-test", input.email());
+        var result = service.activate(new PublicTrialEntryContracts.Activate(entry.entryReference(), proof.verificationReference(), "Test-Only-Secure-Password1", true), "payment-repository-test");
+        var company = jdbc.queryForObject("SELECT company_id FROM billing_trial_entries WHERE reference_hash = ?", Long.class, BillingHashing.sha256(key));
+        var intent = jdbc.queryForObject("SELECT signup_intent_id FROM billing_trial_entries WHERE company_id = ?", Long.class, company);
+        var actor = jdbc.queryForObject("SELECT owner_user_id FROM billing_signup_intents WHERE id = ?", Long.class, intent);
+        jdbc.update("INSERT INTO platform_administrators (user_id, platform_role, status, mfa_required, created_by_user_id) VALUES (?, 'PLATFORM_ROOT', 'ACTIVE', 0, ?)", actor, actor);
+        var draft = regionalCatalog.prepare(actor);
+        var product = jdbc.queryForObject("SELECT id FROM billing_catalog_products WHERE catalog_version_id = ? AND product_code = 'ca_controla'", Long.class, draft.catalogVersionId());
+        jdbc.update("UPDATE billing_catalog_prices SET external_price_id = 'price_repository_test', stripe_mode = 'TEST', stripe_account_id = 'acct_repository_test' WHERE catalog_product_id = ? AND billing_interval = 'MONTH'", product);
+        var selection = new com.indice.erp.billing.catalog.CommercialOfferSelection(draft.catalogVersionId(), draft.versionCode(), "ca_controla",
+            com.indice.erp.billing.catalog.BillingInterval.MONTH, "CAD", 10, 0, 19900L, 19900L, 0, 0, "price_repository_test", null,
+            java.util.List.of(new com.indice.erp.billing.catalog.CommercialOfferSelection.Product(product, "ca_controla", "Controla", "ADDON", 19900L, "price_repository_test")));
+        var quote = new PublicTrialPaymentContracts.Quote("ca_controla", "Controla", "MONTH", "CAD", 19900, 10,
+            "a".repeat(64), PublicTrialPaymentContracts.TERMS_VERSION, "AFTER_TRIAL", result.trialEndsAt(), java.util.List.of("hr", "process_tasks"));
+        payments.freeze(company, actor, intent, selection, quote, result.trialStartsAt());
+        payments.freeze(company, actor, intent, selection, quote, result.trialStartsAt());
+        return new PaymentFixture(company, intent, result.trialEndsAt());
+    }
+    private record PaymentFixture(long companyId, long intentId, Instant endsAt) { }
 
     private BillingSignupEmailVerificationResponse verified(String entry, String session, String emailAddress) {
         var challenge = service.startVerification(entry, session);

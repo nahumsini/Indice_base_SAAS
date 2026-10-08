@@ -1,6 +1,8 @@
 import type { CatalogCopy } from "./en-CA";
 
 export const koCA: CatalogCopy = {
+  "regionalDraft": "멕시코 / 캐나다 준비",
+  "regionalDraftDescription": "작업 버전에 지역 요금제를 추가합니다. 가격을 게시하거나 결제하지 않습니다.",
   "publishOfferInStripe": "Stripe {0}에 상품 게시",
   "savedPricesWillBeSynchronizedAndVerifiedBefore": "상품을 판매하기 전에 저장된 가격을 동기화하고 확인합니다. 기존 구독에는 약정 가격이 유지됩니다.",
   "cancel": "취소",

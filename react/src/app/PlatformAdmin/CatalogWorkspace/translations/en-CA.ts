@@ -1,4 +1,6 @@
 export const enCA = {
+  "regionalDraft": "Prepare Mexico / Canada",
+  "regionalDraftDescription": "Add regional plans to the working version. This does not publish prices or make charges.",
   "publishOfferInStripe": "Publish offer in Stripe {0}",
   "savedPricesWillBeSynchronizedAndVerifiedBefore": "Saved prices will be synchronized and verified before the offer becomes available. Existing subscriptions keep their agreed prices.",
   "cancel": "Cancel",

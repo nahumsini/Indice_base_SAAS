@@ -61,6 +61,7 @@ public class CommercialOfferSelectionService {
                  AND (price.effective_from IS NULL OR price.effective_from <= CURRENT_TIMESTAMP)
                  AND (price.effective_to IS NULL OR price.effective_to > CURRENT_TIMESTAMP)
                 WHERE product.catalog_version_id = ?
+                  AND EXISTS (SELECT 1 FROM billing_catalog_products legacy WHERE legacy.id = product.id AND legacy.market_code IS NULL)
                 ORDER BY product.sort_order, product.id
                 """,
             (rs, rowNum) -> new CommercialOfferSelection.Product(
@@ -190,6 +191,7 @@ public class CommercialOfferSelectionService {
                  AND (price.effective_from IS NULL OR price.effective_from <= CURRENT_TIMESTAMP)
                  AND (price.effective_to IS NULL OR price.effective_to > CURRENT_TIMESTAMP)
                 WHERE product.catalog_version_id = ?
+                  AND EXISTS (SELECT 1 FROM billing_catalog_products legacy WHERE legacy.id = product.id AND legacy.market_code IS NULL)
                 ORDER BY product.sort_order, product.id
                 """,
             (rs, rowNum) -> new CommercialOfferSelection.Product(
@@ -213,6 +215,7 @@ public class CommercialOfferSelectionService {
                        unit_amount_cents, included_quantity, status
                 FROM billing_catalog_prices
                 WHERE catalog_version_id = ?
+                  AND currency = 'USD'
                   AND (effective_from IS NULL OR effective_from <= CURRENT_TIMESTAMP)
                   AND (effective_to IS NULL OR effective_to > CURRENT_TIMESTAMP)
                 ORDER BY price_type, billable_code, billing_interval

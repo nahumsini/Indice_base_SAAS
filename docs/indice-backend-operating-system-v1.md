@@ -743,7 +743,9 @@ assignment also excludes pilots for this cohort. DTO diagnostics redact credenti
 
 The new cohort's exclusive 15-day deadline is persistent authority, enforced for operational
 read/write, native module access and subscription access projection even with legacy lifecycle
-or signup flags disabled. Existing companies retain their policy. Paid conversion is an explicit
-future owner transition, not a flag, redirect, saved card or administrative lead-stage change.
-Until regional payment and advance consent are implemented, native legacy selection/activation
-cannot quote or charge this cohort using USD. Public entry remains off by default.
+or signup flags disabled. Existing companies retain their policy. Paid conversion uses the
+regional receipt and native signed-inbox financial transaction described in the owner contract,
+not a flag, redirect, saved card or administrative lead-stage change. Regional catalog drafts
+and payment creation use independent owner controls, with public release disabled pending
+provider/end-to-end certification. Native legacy selection/activation cannot quote or charge
+this cohort using USD, including after conversion. No legacy add-on billing fallback is added.

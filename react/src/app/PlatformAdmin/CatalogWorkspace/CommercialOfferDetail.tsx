@@ -21,9 +21,10 @@ const cents = (value: string) => {
     ? Math.round(amount * 100)
     : null;
 };
-const currency = (value: number, languageCode: string) => new Intl.NumberFormat(languageCode, {
+const currency = (value: number, languageCode: string, currencyCode = "USD") => new Intl.NumberFormat(languageCode, {
   style: "currency",
-  currency: "USD",
+  currency: currencyCode,
+  currencyDisplay: "code",
   maximumFractionDigits: 2,
 }).format(Number.isFinite(value) ? value : 0);
 
@@ -180,6 +181,7 @@ export function CommercialOfferDetail({
   );
   const monthPrice = prices.find((price) => price.billing_interval === "MONTH");
   const yearPrice = prices.find((price) => price.billing_interval === "YEAR");
+  const productCurrency = monthPrice?.currency ?? yearPrice?.currency ?? "USD";
 
   useEffect(() => {
     const creatingPackage = mode === "new-package";
@@ -428,7 +430,7 @@ export function CommercialOfferDetail({
                 </div>
               </div>
               <div className="grid gap-4 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2 dark:bg-slate-950/40">
-                {[[copy.monthly, monthly, setMonthly, monthlyStripe], [copy.annual, yearly, setYearly, yearlyStripe]].map(([label, amount, setAmount, stripe]) => (
+                {[[copy.monthly.replace("USD", productCurrency), monthly, setMonthly, monthlyStripe], [copy.annual.replace("USD", productCurrency), yearly, setYearly, yearlyStripe]].map(([label, amount, setAmount, stripe]) => (
                   <div key={label as string} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
                     <label className="text-sm font-semibold text-slate-900 dark:text-white">{label as string}<input value={amount as string} disabled={!editable} onChange={(event) => (setAmount as (value: string) => void)(event.target.value)} type="number" min="0" step="0.01" className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3" /></label>
                     <div className="mt-3"><p className="text-xs font-medium text-slate-500">{copy.stripePrice}</p><div className="mt-1.5 flex min-h-10 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 font-mono text-sm text-slate-500">{(stripe as string) || copy.notConnected}</div></div>
@@ -438,7 +440,7 @@ export function CommercialOfferDetail({
               <div className="rounded-2xl border border-[#59C3A5]/35 bg-[#F3FBF8] p-4">
                 <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-[#177D66] shadow-sm"><Calculator className="h-5 w-5" /></span><div><h4 className="font-medium text-slate-950">{copy.annualCalculator}</h4><p className="mt-1 text-sm text-slate-500">{copy.annualCalculatorHelp}</p></div></div>
                 <label className="mt-4 block max-w-xs text-sm font-medium text-slate-700">{copy.annualDiscount} %<input value={annualDiscount} onChange={(event) => setAnnualDiscount(event.target.value)} type="number" min="0" max="100" step="0.5" className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3" /></label>
-                {monthlyValue > 0 ? <><div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-white p-3"><p className="text-xs text-slate-500">{copy.regularAnnual}</p><p className="mt-1 font-medium text-slate-950">{currency(regularAnnualValue, languageCode)}</p></div><div className="rounded-xl bg-white p-3"><p className="text-xs text-slate-500">{copy.annualSavings}</p><p className="mt-1 font-medium text-emerald-700">{currency(annualSavingsValue, languageCode)}</p></div><div className="rounded-xl bg-white p-3"><p className="text-xs text-slate-500">{copy.suggestedAnnual}</p><p className="mt-1 font-medium text-slate-950">{currency(suggestedAnnualValue, languageCode)}</p></div></div><button type="button" disabled={!editable} onClick={() => setYearly(suggestedAnnualValue.toFixed(2))} className="mt-4 inline-flex h-10 items-center justify-center rounded-xl border border-[#59C3A5] bg-white px-4 text-sm font-medium text-[#177D66] hover:bg-[#E9F8F3] disabled:opacity-40">{copy.applyAnnual}</button></> : <p className="mt-4 rounded-xl bg-white px-4 py-3 text-sm text-slate-500">{copy.calculatorNeedsMonthly}</p>}
+                {monthlyValue > 0 ? <><div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-white p-3"><p className="text-xs text-slate-500">{copy.regularAnnual}</p><p className="mt-1 font-medium text-slate-950">{currency(regularAnnualValue, languageCode, productCurrency)}</p></div><div className="rounded-xl bg-white p-3"><p className="text-xs text-slate-500">{copy.annualSavings}</p><p className="mt-1 font-medium text-emerald-700">{currency(annualSavingsValue, languageCode, productCurrency)}</p></div><div className="rounded-xl bg-white p-3"><p className="text-xs text-slate-500">{copy.suggestedAnnual}</p><p className="mt-1 font-medium text-slate-950">{currency(suggestedAnnualValue, languageCode, productCurrency)}</p></div></div><button type="button" disabled={!editable} onClick={() => setYearly(suggestedAnnualValue.toFixed(2))} className="mt-4 inline-flex h-10 items-center justify-center rounded-xl border border-[#59C3A5] bg-white px-4 text-sm font-medium text-[#177D66] hover:bg-[#E9F8F3] disabled:opacity-40">{copy.applyAnnual}</button></> : <p className="mt-4 rounded-xl bg-white px-4 py-3 text-sm text-slate-500">{copy.calculatorNeedsMonthly}</p>}
               </div>
               <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs leading-5 text-slate-500">{copy.replacementHelp}</p>
               <details className="rounded-xl border border-slate-200 p-4">

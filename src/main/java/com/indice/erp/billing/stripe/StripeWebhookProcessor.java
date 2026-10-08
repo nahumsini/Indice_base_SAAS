@@ -14,6 +14,7 @@ public class StripeWebhookProcessor {
     private final StripePhaseTwoProperties properties;
     private final BillingAuditService audit;
     private final StripeWebhookPaymentContextResolver paymentContexts;
+    private final com.indice.erp.billing.signup.PublicTrialPaymentService trialPayments;
 
     public StripeWebhookProcessor(
         StripeWebhookEventRepository repository,
@@ -22,11 +23,19 @@ public class StripeWebhookProcessor {
         BillingAuditService audit,
         StripeWebhookPaymentContextResolver paymentContexts
     ) {
+        this(repository, handler, properties, audit, paymentContexts, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public StripeWebhookProcessor(StripeWebhookEventRepository repository, StripeWebhookEventHandler handler,
+        StripePhaseTwoProperties properties, BillingAuditService audit, StripeWebhookPaymentContextResolver paymentContexts,
+        com.indice.erp.billing.signup.PublicTrialPaymentService trialPayments) {
         this.repository = repository;
         this.handler = handler;
         this.properties = properties;
         this.audit = audit;
         this.paymentContexts = paymentContexts;
+        this.trialPayments = trialPayments;
     }
 
     public int processBatch() {
@@ -37,6 +46,7 @@ public class StripeWebhookProcessor {
                 break;
             }
             try {
+                if (trialPayments != null) trialPayments.prepareSetup(event);
                 var paymentContext = paymentContexts.resolve(event);
                 var result = handler.process(event, paymentContext);
                 repository.markProcessed(event.id(), result);

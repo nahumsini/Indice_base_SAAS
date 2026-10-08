@@ -276,10 +276,12 @@ bloquea lectura y escritura operativas y conserva autenticación y recuperación
 No cambia contratos históricos, precios USD, cortesías, suscripciones ni sus políticas de gracia.
 
 Contrato y estado de implementación: [public-customer-entry-mx-ca-contract-v1.md](public-customer-entry-mx-ca-contract-v1.md).
-El incremento inicial crea la demo y aplica el vencimiento; la conversión regional pagada aún
-no está implementada. La bandera pública permanece deshabilitada y el flujo legado USD no
+El incremento inicial crea la demo y aplica el vencimiento. El siguiente incremento local
+añade catálogo regional, consentimiento separado, registro alojado del método y conversión
+por factura pagada verificada; su certificación con proveedor y APPTEST sigue pendiente.
+Las banderas públicas permanecen deshabilitadas y el flujo legado USD no
 se puede usar para estas nuevas demos. No anunciar alta pública funcional ni habilitar la
-captación autoservicio comercial hasta completar pagos, web y las puertas de liberación.
+captación autoservicio comercial hasta certificar pagos, web y las puertas de liberación.
 
 **Antecedente sustituido para nuevas altas MX/CA (2026-10-04):** la web pública de Índice no conducía a
 checkout, contratación autónoma ni activación automática de prueba. Su único objetivo de

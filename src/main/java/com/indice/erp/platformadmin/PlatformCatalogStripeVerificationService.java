@@ -153,7 +153,7 @@ public class PlatformCatalogStripeVerificationService {
                 SELECT id, billing_interval, currency, unit_amount_cents, external_price_id,
                        stripe_tax_behavior, stripe_mode, stripe_account_id, stripe_sync_status
                 FROM billing_catalog_prices
-                WHERE catalog_product_id = ? AND billing_interval IN ('MONTH', 'YEAR') AND currency = 'USD'
+                WHERE catalog_product_id = ? AND billing_interval IN ('MONTH', 'YEAR')
                 """,
             (rs, rowNum) -> new PriceReference(
                 rs.getLong(1), rs.getString(2), rs.getString(3),
@@ -162,6 +162,10 @@ public class PlatformCatalogStripeVerificationService {
             ),
             product.id()
         );
+        if (prices.size() != 2 || prices.stream().map(PriceReference::currency).distinct().count() != 1
+            || prices.stream().map(PriceReference::interval).distinct().count() != 2) {
+            blockers.add(blocker("INVALID_RECURRING_RATES", product.productCode(), "The product needs monthly and annual rates in one currency."));
+        }
         for (var price : prices) {
             if (price.amountCents() == null || price.amountCents() <= 0 || !referenceReady(
                 price.externalPriceId(), "price_", price.stripeMode(), price.stripeAccountId(),

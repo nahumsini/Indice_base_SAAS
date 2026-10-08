@@ -2,6 +2,7 @@ import { benefitRevocationImpact, type BenefitRevocationImpact } from "./Company
 import { getCustomerAccountCopy } from "./Customers/customerAccountTranslations";
 import { catalogProductLabel } from "./CatalogWorkspace/catalogLabels";
 import { catalogValidationMessage } from "./CatalogWorkspace/catalogValidationMessage";
+import { getCatalogCopy } from "./CatalogWorkspace/translations";
 import { PlatformAdminLanguageSelect } from "./PlatformAdminLanguageSelect";
 import { usePlatformAdminTranslations } from "./translations/usePlatformAdminTranslations";
 import { getPlatformAdminTranslator, type PlatformAdminLocale } from "./translations";
@@ -2265,6 +2266,20 @@ function CatalogAndModulesTab({
     }
   };
 
+  const prepareRegionalCatalog = async () => {
+    if (!canPublish || !canManage || catalogWorkflowBusy || syncing || saving) return;
+    setCatalogWorkflowBusy(true);
+    setSyncFeedback(null);
+    try {
+      const draft = await platformAdminApi.prepareRegionalCatalog();
+      onCatalogChange(await platformAdminApi.getCatalog());
+      setCatalogValidation(null);
+      setSyncFeedback({ type: "success", message: t("{p0} is ready for controlled changes.", { p0: draft.versionCode }) });
+    } catch {
+      setSyncFeedback({ type: "error", message: t("The working version could not be prepared.") });
+    } finally { setCatalogWorkflowBusy(false); }
+  };
+
   const validateCatalogDraft = async () => {
     if (!draftVersion || catalogWorkflowBusy) return;
     setCatalogWorkflowBusy(true);
@@ -2345,6 +2360,12 @@ function CatalogAndModulesTab({
           t("Decide what Indice offers, group it into products and define the amount customers will pay.")
         }
         actions={
+          <>
+          {canPublish && canManage ? <button type="button" disabled={catalogWorkflowBusy || syncing || saving}
+            onClick={() => void prepareRegionalCatalog()} title={getCatalogCopy(locale).regionalDraftDescription}
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-medium text-blue-700 shadow-sm hover:bg-blue-50 disabled:opacity-60 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-300">
+            <Plus className="h-4 w-4" />{getCatalogCopy(locale).regionalDraft}
+          </button> : null}
           <button
             type="button"
             disabled={syncing}
@@ -2354,6 +2375,7 @@ function CatalogAndModulesTab({
             <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
             {t("Sync add-ons")}
           </button>
+          </>
         }
       />
 

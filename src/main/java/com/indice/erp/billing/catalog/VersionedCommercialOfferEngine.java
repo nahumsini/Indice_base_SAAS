@@ -34,6 +34,7 @@ final class VersionedCommercialOfferEngine {
                     FROM billing_catalog_products product
                     LEFT JOIN billing_catalog_prices price ON price.catalog_product_id = product.id
                     WHERE product.catalog_version_id = ? AND product.active = 1
+                      AND product.market_code IS NULL
                       AND (
                           product.commercial_kind = 'SEAT'
                           OR (

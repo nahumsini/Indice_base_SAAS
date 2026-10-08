@@ -1,4 +1,9 @@
 import { AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { managedCompanyApi } from '../api/managedCompanies';
+import { trialPaymentApi, type TrialPaymentWorkspaceData } from '../api/trialPayment';
+import { TrialPaymentWorkspace } from './TrialPaymentWorkspace';
+import { getTrialPaymentCopy } from './translations/trialPayment';
 import { Button } from '../components/ui/button';
 import { useLanguage } from '../shared/context';
 import { BillingConfigurationPanel } from './components/BillingConfigurationPanel';
@@ -12,6 +17,31 @@ import { useBillingPaymentMethod } from './hooks/useBillingPaymentMethod';
 import { getBillingCopy } from './translations';
 
 export default function SubscriptionManagementPage() {
+  const { currentLanguage } = useLanguage();
+  const copy = getTrialPaymentCopy(currentLanguage.code);
+  const [data, setData] = useState<TrialPaymentWorkspaceData | null>(null);
+  const [legacy, setLegacy] = useState(false);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let active = true;
+    setError(false);
+    managedCompanyApi.context().then(async context => {
+      if (context.active) { if (active) setLegacy(true); return; }
+      const workspace = await trialPaymentApi.workspace();
+      if (active) { setData(workspace); setLegacy(!workspace.cohort); }
+    }).catch(() => { if (active) setError(true); });
+    return () => { active = false; };
+  }, [attempt]);
+  if (legacy) return <LegacySubscriptionManagementPage />;
+  if (data?.cohort) return <TrialPaymentWorkspace initial={data} />;
+  return <main className="min-h-screen bg-slate-50 p-6 text-slate-900 dark:bg-slate-950 dark:text-white">
+    <p role={error ? 'alert' : 'status'}>{error ? copy.error : copy.loading}</p>
+    {error ? <Button className="mt-3" onClick={() => setAttempt(value => value + 1)}>{copy.retry}</Button> : null}
+  </main>;
+}
+
+function LegacySubscriptionManagementPage() {
   const { currentLanguage } = useLanguage();
   const copy = getBillingCopy(currentLanguage.code);
   const billing = useBillingManagement(copy);

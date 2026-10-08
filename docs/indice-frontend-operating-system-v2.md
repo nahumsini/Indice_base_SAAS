@@ -3919,3 +3919,11 @@ OTP and drafts remain in memory, never in URLs or persistent browser storage. Fa
 keeps the pending challenge for retry; account retries cannot restart the demo or duplicate a lead.
 The demo checkbox is not payment consent. Public-disabled and payment-not-ready states are
 explicit; no price, payment readiness, diagnosis completion or paid access is invented by UI.
+
+Native `/billing` routes the regional cohort to its quoted plan/mandate workspace while keeping
+historical and delegated account review in the existing workspace. It uses the shared institutional
+header, blue identity, eight-language copy, native CSRF/API client, mobile/dark layouts and an
+unchecked payment checkbox. Quote changes reset consent. AFTER_TRIAL and post-expiry IMMEDIATE
+mandates are distinct; pending setup and saved method never render as paid access. Redirects
+require the exact HTTPS Stripe host. Invoice/portal recovery remains native. Backend errors
+fail closed rather than falling back to USD or treating callback query parameters as financial proof.

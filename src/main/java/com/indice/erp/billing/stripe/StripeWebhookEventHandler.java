@@ -29,6 +29,7 @@ public class StripeWebhookEventHandler {
     private final CommercialLifecycleService commercialLifecycle;
     private final BillingActivationService activationService;
     private final BillingSelectionChangeService selectionChanges;
+    private final com.indice.erp.billing.signup.PublicTrialPaymentService trialPayments;
 
     public StripeWebhookEventHandler(
         ObjectMapper objectMapper,
@@ -41,6 +42,16 @@ public class StripeWebhookEventHandler {
         BillingActivationService activationService,
         BillingSelectionChangeService selectionChanges
     ) {
+        this(objectMapper, signupIntents, projections, provisioning, audit, entitlementProjection,
+            commercialLifecycle, activationService, selectionChanges, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public StripeWebhookEventHandler(ObjectMapper objectMapper, BillingSignupIntentRepository signupIntents,
+        BillingProjectionRepository projections, BillingTenantProvisioningService provisioning, BillingAuditService audit,
+        CompanyEntitlementProjectionService entitlementProjection, CommercialLifecycleService commercialLifecycle,
+        BillingActivationService activationService, BillingSelectionChangeService selectionChanges,
+        com.indice.erp.billing.signup.PublicTrialPaymentService trialPayments) {
         this.objectMapper = objectMapper;
         this.signupIntents = signupIntents;
         this.projections = projections;
@@ -50,6 +61,7 @@ public class StripeWebhookEventHandler {
         this.commercialLifecycle = commercialLifecycle;
         this.activationService = activationService;
         this.selectionChanges = selectionChanges;
+        this.trialPayments = trialPayments;
     }
 
     @Transactional
@@ -103,6 +115,15 @@ public class StripeWebhookEventHandler {
         }
         var sessionId = requiredText(object, "id");
         var customerId = objectId(object.path("customer"));
+        if (regionalIntent(intent.id())) {
+            var consent = trialPayments.consent(intent.id());
+            if (consent.subscriptionId() == null || !sessionId.equals(consent.sessionId())
+                || !java.util.Objects.equals(customerId, consent.customerId())) {
+                throw new StripeEventProcessingException("WAITING_TRIAL_SETUP_VERIFICATION", "The trial setup is not verified yet.");
+            }
+            signupIntents.markCheckoutCompleted(intent.id(), eventId, eventCreatedAt, customerId, sessionId, consent.subscriptionId());
+            return StripeWebhookEventRepository.ProcessingResult.processed(consent.companyId(), intent.id(), consent.subscriptionId());
+        }
         var subscriptionId = objectId(object.path("subscription"));
         signupIntents.markCheckoutCompleted(
             intent.id(), eventId, eventCreatedAt, customerId, sessionId, subscriptionId
@@ -151,6 +172,7 @@ public class StripeWebhookEventHandler {
     ) {
         var subscriptionId = requiredText(object, "id");
         var intent = resolveIntent(object);
+        if (trialPayments != null) trialPayments.requireSubscriptionBinding(intent == null ? null : intent.id(), object);
         var status = text(object, "status");
         if ("customer.subscription.deleted".equals(eventType)) {
             status = "canceled";
@@ -188,7 +210,7 @@ public class StripeWebhookEventHandler {
         );
         if (intent != null) {
             signupIntents.attachSubscription(intent.id(), subscriptionId, eventId, eventCreatedAt);
-            if (activationService.isActivationIntent(intent.id())) {
+            if (activationService.isActivationIntent(intent.id()) && !regionalIntent(intent.id())) {
                 activationService.complete(intent.id(), objectId(object.path("customer")));
             }
         }
@@ -218,6 +240,13 @@ public class StripeWebhookEventHandler {
         var invoiceId = requiredText(object, "id");
         var subscriptionId = invoiceSubscriptionId(object);
         var association = subscriptionId == null ? null : projections.associationForSubscription(subscriptionId);
+        var regional = trialPayments == null ? null : trialPayments.bySubscription(subscriptionId);
+        if (regional == null && trialPayments != null && trialPayments.unconvertedRegionalCustomer(objectId(object.path("customer")))) {
+            throw new StripeEventProcessingException("WAITING_TRIAL_INVOICE_BINDING", "The regional invoice is waiting for its verified subscription binding.");
+        }
+        if (regional != null && (association == null || association.companyId() == null)) {
+            throw new StripeEventProcessingException("WAITING_TRIAL_SUBSCRIPTION_PROJECTION", "The regional invoice is waiting for its subscription.");
+        }
         var periodStartsAt = nullableInstant(object.path("period_start"));
         projections.upsertInvoice(
             new BillingProjectionRepository.InvoiceSnapshot(
@@ -239,6 +268,9 @@ public class StripeWebhookEventHandler {
         );
         var settledInvoice = ("invoice.paid".equals(eventType) || "invoice.payment_succeeded".equals(eventType))
             && "paid".equalsIgnoreCase(text(object, "status"));
+        if (settledInvoice && regional != null && trialPayments.confirmPaid(subscriptionId, association.companyId(), object, eventCreatedAt)) {
+            activationService.complete(regional.intentId(), regional.customerId());
+        }
         if (association != null && association.companyId() != null
             && ("invoice.payment_failed".equals(eventType) || settledInvoice)) {
             commercialLifecycle.applyInvoiceEvent(
@@ -402,6 +434,8 @@ public class StripeWebhookEventHandler {
         var customerId = objectId(object.path("customer"));
         return customerId == null ? null : signupIntents.findByStripeCustomerId(customerId);
     }
+
+    private boolean regionalIntent(long id) { return trialPayments != null && trialPayments.regionalIntent(id); }
 
     private String invoiceSubscriptionId(JsonNode object) {
         var direct = objectId(object.path("subscription"));

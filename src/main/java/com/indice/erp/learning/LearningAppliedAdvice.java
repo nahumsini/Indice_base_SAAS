@@ -15,7 +15,9 @@ public class LearningAppliedAdvice implements ResponseBodyAdvice<Object> {
     private final SessionAuthService sessions;
     private final LearningProgressRepository repository;
     private final LearningCatalogService catalog;
-    public LearningAppliedAdvice(SessionAuthService sessions,LearningProgressRepository repository,LearningCatalogService catalog) {
+    public LearningAppliedAdvice(SessionAuthService sessions,
+        @org.springframework.context.annotation.Lazy LearningProgressRepository repository,
+        @org.springframework.context.annotation.Lazy LearningCatalogService catalog) {
         this.sessions=sessions;this.repository=repository;this.catalog=catalog;
     }
     public boolean supports(MethodParameter method,Class<? extends HttpMessageConverter<?>> converter) { return method.hasMethodAnnotation(LearningApplied.class); }

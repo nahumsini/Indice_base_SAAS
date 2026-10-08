@@ -1,0 +1,81 @@
+const en = {
+  title: 'Your demo, plan and payment', subtitle: 'One original 15-day demo. Your data stays in your workspace.',
+  loading: 'Loading your account…', error: 'We could not verify your account. Retry before continuing.', retry: 'Refresh', back: 'Back to ERP',
+  demo: 'Original demo deadline', period: 'Billing period', monthly: 'Monthly', annual: 'Annual', plan: 'Choose your plan',
+  people: 'people included', taxes: 'Before applicable taxes, calculated by Stripe. Implementation and consulting are not included in this payment.',
+  unavailable: 'Regional payment is not available yet. Your demo deadline does not change; contact Índice before it expires.',
+  consent: 'I authorize the selected plan and applicable taxes to be charged automatically at the original demo deadline, then each selected billing period, until I cancel. Saving a card does not restart my demo.',
+  immediate: 'My demo has ended. I authorize the selected plan and applicable taxes to be charged when I finish registering the payment method, then each selected billing period, until I cancel. No new demo starts.',
+  continue: 'Register payment method securely', busy: 'Preparing secure payment…', pending: 'Payment setup is pending. It does not prove payment or extend the demo.',
+  registered: 'Payment method registered. Access after the demo requires a verified successful charge.', paid: 'Your demo has converted after verified payment.',
+  portal: 'Manage card and invoices', confirmCancel: 'Cancel automatic renewal?', cancel: 'Cancel renewal',
+  selected: 'Selected plan', receipt: 'Payment status', invoice: 'Open invoice',
+};
+type Copy = typeof en;
+const es: Copy = {
+  title: 'Tu demo, plan y pago', subtitle: 'Una demo de 15 días con fecha original. Tus datos permanecen en tu empresa.',
+  loading: 'Consultando tu cuenta…', error: 'No pudimos verificar tu cuenta. Reintenta antes de continuar.', retry: 'Actualizar', back: 'Volver al ERP',
+  demo: 'Vencimiento original de la demo', period: 'Periodo de pago', monthly: 'Mensual', annual: 'Anual', plan: 'Elige tu plan',
+  people: 'personas incluidas', taxes: 'Antes de impuestos aplicables, calculados por Stripe. Este pago no incluye implementación ni consultoría.',
+  unavailable: 'El pago regional aún no está disponible. La fecha de tu demo no cambia; contacta a Índice antes de que venza.',
+  consent: 'Autorizo el cobro automático del plan seleccionado y los impuestos aplicables al vencer mi demo original y después en cada periodo elegido, hasta cancelar. Guardar una tarjeta no reinicia la demo.',
+  immediate: 'Mi demo terminó. Autorizo el cobro del plan seleccionado y los impuestos aplicables al terminar de registrar el método de pago y después en cada periodo elegido, hasta cancelar. No comienza otra demo.',
+  continue: 'Registrar método de pago seguro', busy: 'Preparando el pago seguro…', pending: 'El registro de pago está pendiente. No prueba un pago ni amplía la demo.',
+  registered: 'Método de pago registrado. El acceso después de la demo requiere un cobro exitoso verificado.', paid: 'Tu demo se convirtió después de un pago verificado.',
+  portal: 'Administrar tarjeta y facturas', confirmCancel: '¿Cancelar la renovación automática?', cancel: 'Cancelar renovación',
+  selected: 'Plan seleccionado', receipt: 'Estado de pago', invoice: 'Abrir factura',
+};
+const fr: Copy = {
+  title: 'Votre essai, forfait et paiement', subtitle: 'Un seul essai de 15 jours, sans modifier son échéance. Vos données sont conservées.',
+  loading: 'Chargement du compte…', error: 'Impossible de vérifier votre compte. Réessayez avant de continuer.', retry: 'Actualiser', back: 'Retour à l’ERP',
+  demo: 'Échéance initiale de l’essai', period: 'Période de facturation', monthly: 'Mensuelle', annual: 'Annuelle', plan: 'Choisissez votre forfait',
+  people: 'personnes incluses', taxes: 'Avant les taxes applicables, calculées par Stripe. Ce paiement exclut l’implantation et la consultation.',
+  unavailable: 'Le paiement régional n’est pas encore disponible. L’échéance reste inchangée; contactez Índice avant cette date.',
+  consent: 'J’autorise le prélèvement automatique du forfait choisi et des taxes applicables à l’échéance initiale, puis à chaque période choisie, jusqu’à l’annulation. Enregistrer une carte ne recommence pas l’essai.',
+  immediate: 'Mon essai est terminé. J’autorise le prélèvement du forfait choisi et des taxes applicables à la fin de l’enregistrement du moyen de paiement, puis à chaque période choisie, jusqu’à l’annulation. Aucun nouvel essai ne commence.',
+  continue: 'Enregistrer un moyen de paiement sécurisé', busy: 'Préparation du paiement sécurisé…', pending: 'Configuration du paiement en attente. Elle ne confirme pas un paiement et ne prolonge pas l’essai.',
+  registered: 'Moyen de paiement enregistré. L’accès après l’essai exige un prélèvement réussi et vérifié.', paid: 'Votre essai a été converti après un paiement vérifié.',
+  portal: 'Gérer la carte et les factures', confirmCancel: 'Annuler le renouvellement automatique?', cancel: 'Annuler le renouvellement',
+  selected: 'Forfait choisi', receipt: 'État du paiement', invoice: 'Ouvrir la facture',
+};
+const pt: Copy = {
+  title: 'Sua demonstração, plano e pagamento', subtitle: 'Uma demonstração de 15 dias com prazo original. Seus dados permanecem na empresa.',
+  loading: 'Carregando sua conta…', error: 'Não foi possível verificar sua conta. Tente novamente antes de continuar.', retry: 'Atualizar', back: 'Voltar ao ERP',
+  demo: 'Prazo original da demonstração', period: 'Período de pagamento', monthly: 'Mensal', annual: 'Anual', plan: 'Escolha seu plano',
+  people: 'pessoas incluídas', taxes: 'Antes dos impostos aplicáveis, calculados pelo Stripe. Este pagamento não inclui implantação nem consultoria.',
+  unavailable: 'O pagamento regional ainda não está disponível. O prazo não muda; fale com a Índice antes do vencimento.',
+  consent: 'Autorizo a cobrança automática do plano escolhido e dos impostos aplicáveis no prazo original e depois em cada período escolhido, até cancelar. Salvar um cartão não reinicia a demonstração.',
+  immediate: 'Minha demonstração terminou. Autorizo a cobrança do plano escolhido e dos impostos aplicáveis ao concluir o cadastro do pagamento e depois em cada período escolhido, até cancelar. Não começa outra demonstração.',
+  continue: 'Cadastrar pagamento seguro', busy: 'Preparando pagamento seguro…', pending: 'Cadastro de pagamento pendente. Não comprova pagamento nem estende a demonstração.',
+  registered: 'Pagamento cadastrado. O acesso após a demonstração exige uma cobrança bem-sucedida e verificada.', paid: 'Sua demonstração foi convertida após pagamento verificado.',
+  portal: 'Gerenciar cartão e faturas', confirmCancel: 'Cancelar a renovação automática?', cancel: 'Cancelar renovação',
+  selected: 'Plano escolhido', receipt: 'Estado do pagamento', invoice: 'Abrir fatura',
+};
+const ko: Copy = {
+  title: '체험, 요금제 및 결제', subtitle: '최초 종료일이 유지되는 15일 체험입니다. 회사 데이터는 보존됩니다.',
+  loading: '계정 확인 중…', error: '계정을 확인하지 못했습니다. 계속하기 전에 다시 시도하세요.', retry: '새로 고침', back: 'ERP로 돌아가기',
+  demo: '최초 체험 종료일', period: '결제 주기', monthly: '월간', annual: '연간', plan: '요금제 선택',
+  people: '명 포함', taxes: 'Stripe가 계산하는 적용 세금은 별도입니다. 구축 및 컨설팅은 이 결제에 포함되지 않습니다.',
+  unavailable: '지역 결제를 아직 사용할 수 없습니다. 체험 종료일은 변경되지 않으며 종료 전에 Índice에 문의하세요.',
+  consent: '최초 체험 종료일에 선택한 요금제와 적용 세금이 자동 청구되고 취소할 때까지 선택한 주기마다 청구되는 데 동의합니다. 카드를 저장해도 체험이 다시 시작되지 않습니다.',
+  immediate: '체험이 종료되었습니다. 결제 수단 등록 완료 시 선택한 요금제와 적용 세금이 청구되고 취소할 때까지 선택한 주기마다 청구되는 데 동의합니다. 새 체험은 시작되지 않습니다.',
+  continue: '안전하게 결제 수단 등록', busy: '안전한 결제 준비 중…', pending: '결제 등록 대기 중입니다. 결제 완료 증거나 체험 연장이 아닙니다.',
+  registered: '결제 수단이 등록되었습니다. 체험 후 접근하려면 확인된 정상 결제가 필요합니다.', paid: '확인된 결제 후 체험이 전환되었습니다.',
+  portal: '카드 및 청구서 관리', confirmCancel: '자동 갱신을 취소하시겠습니까?', cancel: '갱신 취소',
+  selected: '선택한 요금제', receipt: '결제 상태', invoice: '청구서 열기',
+};
+const zh: Copy = {
+  title: '试用、方案与付款', subtitle: '15 天试用保留最初截止日期。公司数据将被保留。',
+  loading: '正在查询账户…', error: '无法验证账户。请在继续前重试。', retry: '刷新', back: '返回 ERP',
+  demo: '最初试用截止日期', period: '付款周期', monthly: '按月', annual: '按年', plan: '选择方案',
+  people: '人包含在内', taxes: '价格不含 Stripe 计算的适用税费。本次付款不包含实施或咨询。',
+  unavailable: '地区付款暂不可用。试用截止日期不会改变；请在到期前联系 Índice。',
+  consent: '我授权在最初试用到期时自动收取所选方案及适用税费，之后按所选周期收费，直到取消。保存银行卡不会重新开始试用。',
+  immediate: '试用已结束。我授权在完成付款方式登记时收取所选方案及适用税费，之后按所选周期收费，直到取消。不会开始新的试用。',
+  continue: '安全登记付款方式', busy: '正在准备安全付款…', pending: '付款登记待处理。这不代表付款成功，也不会延长试用。',
+  registered: '已登记付款方式。试用后访问需要经过验证的成功扣款。', paid: '验证付款成功后，试用已转换。',
+  portal: '管理银行卡和账单', confirmCancel: '取消自动续订？', cancel: '取消续订',
+  selected: '所选方案', receipt: '付款状态', invoice: '打开账单',
+};
+const copies: Record<string, Copy> = { 'en-CA': en, 'en-US': en, 'es-MX': es, 'es-CO': es, 'fr-CA': fr, 'pt-BR': pt, 'ko-CA': ko, 'zh-CA': zh };
+export const getTrialPaymentCopy = (locale: string): Copy => copies[locale] ?? en;

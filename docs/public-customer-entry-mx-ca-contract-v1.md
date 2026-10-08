@@ -1,6 +1,7 @@
 # Public customer entry MX/CA contract v1
 
-Status: approved product policy; initial local implementation, public release disabled.
+Status: approved product policy; entry and regional payment increment implemented locally,
+provider/end-to-end certification pending, public release disabled.
 Decision date: 2026-10-08. Owners: Billing (entry/account/access), Platform Leads (commercial
 interest), Auth (email proof/session/credentials), Catalog (published products/prices).
 
@@ -32,9 +33,12 @@ provisioning, linked commercial trial, original deadline, 10-seat state and excl
 Native trial product grants and module/tab access are reused. No Stripe customer, subscription,
 price, payment or courtesy entitlement is fabricated.
 
-Not implemented: the new regional paid offer/checkout, advance payment-consent receipt,
-verified conversion to paid access, card-change/failed-payment recovery for this cohort,
-reminders and marketing-site CTA integration. `paidActivationReady=false` is truthful.
+The regional payment increment below adds an owned catalog draft, authenticated quotes,
+separate payment receipts, hosted method collection and signed-inbox conversion handling.
+It has not been certified against the real provider. Reminders, regional additional-person
+blocks, regional storage billing and operator reconciliation tooling are not implemented.
+Native portal/invoice recovery is reused; cancellation, failed charge and authentication
+must still pass provider TEST plus real APPTEST acceptance.
 Legacy USD selection/preview/update, ordinary activation and collection activation reject
 this cohort before creating a checkout. A card added elsewhere cannot lift its deadline.
 
@@ -71,8 +75,9 @@ failure is not success. No activation is claimed when provisioning reports revie
 
 At `now >= trial_ends_at`, operational reads and writes are denied through native lifecycle,
 module and subscription guards, independent of cron or legacy lifecycle flags. Auth and native
-billing recovery remain available. This increment has no persisted `CONVERTED` state: a later
-forward migration and trusted owner transition must implement paid conversion before release.
+billing recovery remain available. V308 adds `CONVERTED`; only the trusted payment transition
+below removes the new-cohort deadline guard. It does not remove ordinary paid-subscription
+access, cancellation, failed-payment or lifecycle rules.
 
 ## Public endpoint inventory
 
@@ -98,9 +103,9 @@ raw credentials, OTP, continuation/session capabilities or unnecessary contact i
 Account authority is derived from server-owned lead/email/provisioning data. A public user
 never receives platform-administrator or distributor privileges through signup.
 
-## Next increment: regional automatic conversion requirements
+## Regional automatic conversion owner contract
 
-This is the approved target, **not current executable behavior**:
+Implemented locally; provider certification and public enablement remain separate:
 
 1. Publish/verify a versioned regional offer through Catalog's audited owner workflow. CAD for
    Canada, MXN for Mexico, server-derived totals/discounts/capacity and approved inclusion rules.
@@ -124,14 +129,75 @@ This is the approved target, **not current executable behavior**:
    rendered as a paid account. Preserve approved existing collection rules for historical clients.
 
 Stripe's official references support explicit agreement for future/off-session payment and a
-timestamp trial end; verify compatibility with the repository's pinned API/SDK before implementation:
+timestamp trial end; actual compatibility must be certified with the pinned API/SDK:
 [saved-method agreement](https://docs.stripe.com/payments/save-during-payment?locale=en-GB&mobile-ui=payment-element&platform=ios),
-[subscription trial end](https://docs.stripe.com/api/subscriptions/update?api-version=2025-04-30.basil).
+[subscription trial end](https://docs.stripe.com/api/subscriptions/create),
+[hosted setup collection](https://docs.stripe.com/api/checkout/sessions/create).
 This technical contract does not replace legal/tax review required by the release gate.
 
 Mexico's separately priced implementation service is not included in the new payment consent.
 Its mandatory/optional timing and collection policy remain to be decided explicitly. Canada has
 no mandatory implementation or included monthly consulting under its approved acquisition offer.
+
+### Native catalog, quote and provider sequence
+
+- V307 adds nullable `market_code` and `included_seats` metadata. Existing global products
+  stay unclassified and retain five-person USD semantics. No migration seeds or publishes prices.
+- Root's CSRF-protected `POST /api/v1/platform-admin/catalog/regional-draft` invokes the
+  native draft/clone/audit owner, adding missing CA/MX Controla, Escala Sales, Escala POS and
+  Corporativo packages with ten people. Retries preserve operator edits. Monthly/annual
+  amounts start from the approved offer table, not browser input. Synchronization and
+  publication remain the existing reviewed workflow, including account/mode/price verification.
+- Native recurring prices now support one currency per product with monthly and annual rates.
+  Legacy public selection/price reads exclude regional products and keep USD. Regional quotes
+  require published, verified CAD/MXN references and released capabilities; no USD or env fallback.
+- V308 stores company/owner/intent, original cutoff, first-payment timing, versioned terms,
+  quote hash, catalog/product/Price, currency, base amount, interval, ten seats and account/mode.
+  Contact/trial consent is never reused. Taxes are exclusive; implementation is excluded.
+- `GET /api/v1/billing/subscription/trial-payment?interval=MONTH|YEAR` returns the current
+  company's owner workspace. `POST` requires native session CSRF, a 64-hex Idempotency-Key,
+  exact current quote/version and explicit automatic-payment consent. Company and actor are
+  server context, never request authority. Managed/distributor/platform review contexts cannot pay.
+- Native existing-company activation freezes the intent and receipt transactionally, without
+  creating a second tenant or granting paid access. A bounded hosted Stripe `mode=setup` session
+  collects the method and billing address. Native customer binding is reused and cannot be
+  overwritten by another provider customer. Browser redirects must use the exact HTTPS Stripe host.
+- Signature-verified durable `checkout.session.completed` processing performs provider reads
+  outside the financial transaction. Customer/method, account/mode, business country and quote
+  must match. The subsequent subscription uses the original absolute `trial_end`, rounded up
+  only to the next provider second (less than one second); it never adds another trial.
+- First setup attempted after the cutoff cannot turn an earlier AFTER_TRIAL mandate into an
+  immediate charge. An owner must review an IMMEDIATE quote and accept a separate mandate.
+  The original trial remains expired. V309 records the subscription attempt before network I/O;
+  uncertain retries stop after 23 hours for reconciliation, before provider key retention can expire.
+- Setup/subscription/zero invoice do not convert. A full positive signed paid invoice must match
+  the bound subscription/customer, account mode, CAD/MXN, frozen Price, quantity and base line,
+  non-truncated lines and first-charge period/time. Out-of-band payments do not count. The native
+  webhook transaction binds the paid receipt, transitions ACTIVE to CONVERTED, applies native
+  activation/capacity and refreshes lifecycle/entitlements. Duplicate receipts are inert.
+- Out-of-order subscription/invoice events for an unpaid regional customer remain retryable
+  until their verified binding/projection exists; they are not silently processed as orphan invoices.
+
+### Availability and explicit outstanding limits
+
+`APP_BILLING_SIGNUP_REGIONAL_PAYMENTS_ENABLED=false` is independent of public entry and web
+navigation. Owner readiness requires Stripe and its durable processor enabled plus available
+verified regional offers. Public `paidActivationReady` additionally requires both markets and
+both intervals available; it is availability, not legal approval or a guarantee of payment.
+Turning intake/payment creation off does not cancel prior mandates, ignore signed inbox work,
+remove persistent expiry or erase receipts. Cancellation belongs to native billing/Stripe controls.
+
+Regional extra people and storage remain unavailable through the old USD add-on resolver.
+Their approved block quantities/prices and further consent must be implemented before advertising
+them as purchasable. This increment certifies neither reminders nor provider outage repair.
+An expired/uncertain provider attempt stays blocked for reconciliation; do not reset the trial,
+invent success, delete evidence, rotate an idempotency key blindly or perform a speculative charge.
+
+Marketing uses an independent `INDICE_PUBLIC_TRIAL_ENTRY_ENABLED=false` switch. Enabled main
+CTAs route MX/CA and optional plan interest to native ERP `/start`; only allowlisted anonymous
+UTM values cross. No credentials/contact identity appear in URLs and no second PHP lead is sent.
+Disabled navigation retains the signed legacy intake and Canadian form. The web switch must
+not precede backend/catalog readiness and real-session acceptance.
 
 ## Rollout, compatibility and coordination
 
@@ -148,5 +214,6 @@ nor an application deployment publishes a paid catalog.
 Application rollback preserves V305/V306 and captured records. After any real activation,
 do not roll back to code that ignores this cohort's persistent deadline. Stop intake and use a
 compatible known-good revision or forward fix; do not delete entries or repair applied checksums.
+V307–V309 are also forward-only: keep receipt and attempt evidence across application rollback.
 The exact rollout and remaining blockers are tracked in the
 [coordination decision](decisions/2026-10-08-customer-entry-mx-ca.md).

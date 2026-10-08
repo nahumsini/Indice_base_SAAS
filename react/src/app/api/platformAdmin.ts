@@ -1228,6 +1228,9 @@ export const platformAdminApi = {
     `${endpoints.platformAdmin.catalog}/drafts`,
     { method: 'POST' },
   ),
+  prepareRegionalCatalog: () => apiClient<{ catalogVersionId: number; versionCode: string; published: false; createdProducts: string[] }>(
+    `${endpoints.platformAdmin.catalog}/regional-draft`, { method: 'POST' },
+  ),
   validateCatalogDraft: (versionId: number) => apiClient<PlatformCatalogValidation>(
     `${endpoints.platformAdmin.catalog}/drafts/${versionId}/validation`,
     { method: 'POST' },
