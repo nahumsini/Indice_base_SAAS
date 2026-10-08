@@ -64,6 +64,62 @@ frontend/backend; para reiniciarlos por separado usa sus targets en terminales d
 El frontend recibe `VITE_BACKEND_URL=http://127.0.0.1:8082` y `VITE_API_BASE_URL` vacío desde Make.
 Si eliges puertos alternativos, conserva la relación entre Vite, backend y storage.
 
+## ERP paralelo con historial limpio
+
+Si la base funcional conserva un linaje Flyway incompatible con el código actual, no la repares,
+reinicies ni traslades datos automáticamente. Puedes levantar otro ERP completo con una base
+nueva y persistente, siguiendo la [decisión de linaje](decisions/2026-10-05-released-migration-lineage.md).
+El entorno anterior permanece intacto; este entorno no contiene sus empresas ni registros.
+
+La integración local de Agenda usa frontend **5175**, backend **8083** y MySQL **13317**.
+Verifica que esos puertos y los nombres siguientes estén libres antes del primer arranque:
+
+```bash
+docker run -d --name indice-mysql-modules-local --restart unless-stopped \
+  -p 127.0.0.1:13317:3306 \
+  --mount type=volume,source=indice-modules-local-data,target=/var/lib/mysql \
+  -e MYSQL_DATABASE=indice_modules_local \
+  -e MYSQL_USER=indice_user -e MYSQL_PASSWORD=indice_pass \
+  -e MYSQL_ROOT_PASSWORD=local_modules_root \
+  mysql:8.0 --character-set-server=utf8mb4 --collation-server=utf8mb4_0900_ai_ci
+```
+
+Estas credenciales son únicamente sintéticas y locales. Espera a que MySQL acepte conexiones.
+Con MinIO y face-service locales disponibles, inicia el backend en una terminal:
+
+```bash
+SPRING_DATASOURCE_URL='jdbc:mysql://127.0.0.1:13317/indice_modules_local?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&forceConnectionTimeZoneToSession=true&useUnicode=true&characterEncoding=utf8' \
+SPRING_DATASOURCE_USERNAME=indice_user SPRING_DATASOURCE_PASSWORD=indice_pass \
+SERVER_PORT=8083 APP_WEB_ALLOWED_ORIGINS=http://127.0.0.1:5175 \
+KIOSK_ENGINE_ADAPTER_SCHEDULING_ENABLED=true \
+make backend LOCAL_WEB_PUBLIC_URL=http://127.0.0.1:5175
+```
+
+Cuando Spring esté listo, inicia Vite en otra terminal:
+
+```bash
+make frontend FRONTEND_PORT=5175 VITE_BACKEND_URL=http://127.0.0.1:8083
+```
+
+Accede a `http://127.0.0.1:5175/dashboard` con Empresa Demo Spring y el login sintético documentado
+arriba. El bootstrap local concede a esa empresa acceso a los módulos asignables activos en
+estado `pilot` o `released`; no modifica las empresas del local anterior ni una suscripción Stripe.
+Agenda aparece en **Módulos complementarios** y usa las rutas, permisos y APIs reales del ERP.
+Servicios, colaboradores, horarios y página pública se configuran dentro del módulo; el arranque
+no publica una agenda ni crea reservas. El flag del adaptador público se activa sólo para este
+backend local y no reemplaza la publicación explícita de la página.
+
+Los cambios se conservan en `indice-modules-local-data`. Para reiniciar una instancia ya creada,
+usa `docker start indice-mysql-modules-local` y vuelve a ejecutar los dos comandos de aplicación.
+No vuelvas a crear el contenedor ni elimines su volumen. Los targets habituales `make down`,
+`make db-reset` y `make db-repair` no gestionan esta instancia paralela.
+`indice_modules_local` es una base **funcional**, no una base para pruebas de integración.
+
+Control de juntas usa el mismo ERP paralelo en
+`http://127.0.0.1:5175/minutes-control/meetings`. El arranque aplica V302 y habilita el piloto sólo
+para la empresa demo sintética mediante el bootstrap local existente. No crea juntas, acuerdos
+ni copia registros Root. Las pruebas del módulo usan exclusivamente `indice_test_db`.
+
 ## Base de pruebas aislada
 
 [La configuración de pruebas](../src/test/resources/application.properties) usa `indice_test_db`

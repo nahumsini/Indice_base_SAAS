@@ -28,6 +28,7 @@ const canonicalPageIds = [
   'sales-agent',
   'analytics',
   'training',
+  'scheduling',
   'coach',
   'kiosk-center',
   'kiosk-management',
@@ -90,6 +91,7 @@ export const legacyPageAliases: Record<string, PageId> = {
   analitica: 'analytics',
   indice_analitica: 'analytics',
   capacitacion: 'training',
+  scheduling: 'scheduling',
   'indice-coach': 'coach',
   coach: 'coach',
   kpis: 'kpis',
@@ -127,6 +129,7 @@ export const moduleRoutes: Record<string, PageId> = {
   indiceAgenteVentas: 'sales-agent',
   indiceAnalitica: 'analytics',
   capacitacion: 'training',
+  scheduling: 'scheduling',
   indiceCoach: 'coach',
 };
 

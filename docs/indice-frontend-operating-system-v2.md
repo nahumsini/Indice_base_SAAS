@@ -719,6 +719,7 @@ Use these colors unless the existing module already defines a stronger approved 
 - Sales: coral `#FF6B5E`
 - Point of Sale: coral `#FF6B5E`
 - Inventory: coral family, connected to Sales and POS
+- Scheduling (Agenda and events): coral `#FF6B5E`, including its complementary-module shell
 - Expenses: green `#147514`
 - Receivables: green `#147514`
 - Petty Cash: green finance family
@@ -1222,10 +1223,33 @@ opened; the platform-level Customers tab remains blue.
 
 The primary sections follow the operator journey: acquisition (website visits and
 leads), conversion (commercial operations), accounts (customers, companies and
-billing), delivery (consulting, training and system tickets), then control (catalog,
+billing), delivery (consulting and system tickets), then control (catalog,
 usage/audit and internal development). This is navigation order, not a new business
 status, entitlement or automated handoff. Preserve the existing landing section,
 URL memory and permission gates for each section.
+
+### Training: independent learning centre
+
+`/training` owns the learning presentation outside `/platform-admin`. The ERP profile
+menu and distributor portal link to this workspace; training is not a platform-admin
+tab. Reuse the shared workspace header and existing training curriculum, exams,
+resources and certificates. Support all eight runtime locales and narrow screens.
+
+The route must authenticate and authorize against the existing training backend before
+rendering. Distributor sessions use only `/api/v1/distributor-portal/training`, whose
+active distributor membership policy remains authoritative. Existing platform viewers
+retain `/api/v1/platform-admin/training` and its `PLATFORM_VIEW` requirement. Do not
+fall back from a denied distributor to platform authority, accept a portal from URL
+parameters, grant platform roles, or request platform-management context to open
+distributor training. Public demo sessions cannot enter. Menu visibility is only UX.
+
+Redirect explicit legacy `/platform-admin?section=training` and
+`/distributor-portal?tab=training` links to the new protected route before loading the
+old workspace. A saved platform navigation preference of `training` resets to
+`customers`, without redirecting every subsequent administrator visit. Progress stays
+keyed by learner/program/version; API shapes, CSRF, assessment ownership, certificate
+verification and platform-only audience summaries remain unchanged. This separation
+does not grant access to ordinary distributor staff or ordinary Índice company members.
 
 ### Platform administration: customer workspace
 
@@ -3811,6 +3835,74 @@ links must target `/account.html`, and remembered continuations must not accept 
 The local `npm run dev` command enables this commercial workspace; a server that serves the shell
 while returning `COMMERCE_UNAVAILABLE` from its workspace APIs is not a valid local preview.
 
+### ERP scheduling complementary pilot
+
+The native ERP `scheduling` pilot lives under `react/src/app/ComplementaryModules/Scheduling`,
+not the dormant modules scaffold and not PlatformAdmin. Follow
+[Scheduling module contract v1](scheduling-module-contract-v1.md): one Agenda/reservations tab,
+Clients, Events and Indicators. Services, Team/availability and Public agenda are title-bar modal
+actions, not separate configuration tabs. It reuses the
+canonical configurable module shell, title/filter/table/modal and workspace-navigation primitives,
+eight locales, coral identity (`#FF6B5E`, graphite foreground on primary actions), colored identity
+emojis, light/dark surfaces and explicit operator permissions. Product chrome stays blue and saved
+public-page business colors remain independent. KPI drilldowns
+preserve period/status; an unavailable attendance denominator is not zero.
+
+Calendar/Table views share period and collaborator filters. Day/week/month presentation adopts the
+existing calendar rhythm without adding a scheduling engine; owner APIs scope all company agendas
+or an operator's own staff. Services and Team/availability open operational-workspace modals;
+their standard create/edit form replaces the list frame instead of nesting another modal. Public
+agenda uses one operational-workspace modal with live preview, saved public/personalized links,
+localized copy and safe colors. The underlying agenda filters/view stay intact. Legacy reservation
+links preserve their filters and open Table in the unified tab; backend permission scopes stay
+independent despite the visual union.
+The title bar follows the shared three-direct-action limit: New request, Team/availability and
+Public agenda remain direct for a fully authorized operator; Services and Refresh are in Actions.
+With fewer eligible actions, the shell exposes the permitted actions directly according to Section 12.
+Filters use the shared white card and 44px coral-focus controls, with adjacent From/To, Status and
+Collaborator. Do not invent a search field unsupported by the owner query. Table-only archived
+records live under More filters, restored active values reveal it, and Clear restores factory filters
+without changing the selected view. Timezone is data context, not a filter-header notice.
+Reservation commands use native reasoned forms/confirmations for reassignment, pause/resume and
+soft archive. Clients embeds the actual Sales Contactos workspace/provider/data boundary, with
+the same data, forms and actions. It requires native Sales module access and the contacts permission
+in addition to Scheduling clients access; without them it shows an explicit access message, not
+an empty CRM or a permission grant. The earlier narrow read-only endpoint remains compatible.
+Removed records retain their history.
+
+`/book/:alias` is a public Kiosk Engine presentation and must not mount private financial/favorites
+providers or fetch ERP credentials. Public requests visibly require manual confirmation; no email
+delivery, CRM conversion or confirmed reservation is inferred from submission. Contact drafts and
+public tokens remain in memory only. The compact pilot Learning Mode companion remembers expansion
+through the existing scoped hook without pretending a visit is applied business progress.
+
 A stale traveler import route without its local purchase draft returns to `#traveler/trips`. A valid
 draft keeps the import workflow. This prevents bookmarks or interrupted browser storage from
 presenting a failed workspace after a successful login.
+
+### ERP meeting control complementary pilot
+
+`react/src/app/ComplementaryModules/MinutesControl` is the active native workspace for the existing
+`minutes-control` route / `control_minutas` slug, not the former mock entry. See
+[Meeting control module contract v1](meeting-control-module-contract-v1.md).
+Identity is corporate blue with 📝; tabs follow Juntas → Acuerdos → Indicadores, using independent
+native permissions. Calendar/Table share search and period; status/responsible use More filters.
+Title actions are New, Flows and series, and Refresh. All operational tables use the canonical header, expandable
+resizing, backend allowlisted sorting and shared 10/25/50/100/200 pagination. Safe filters, widths,
+view and page use existing company/user-scoped workspace memory; no record content is persisted.
+Record detail, planning, minutes, transitions and discard replace one native modal frame, never
+nest another. Cancellation is a reasoned confirmation that retains evidence. The compact learning
+companion uses the native scoped expansion hook without pretending business progress was completed.
+Eight localized operational indicators link to matching backend-filtered attention records. No
+unit ranking, synthetic chart, financial formula or corporate Root record is reused. The module
+remains a local pilot, with no public links, automatic invitations or platform administration grant.
+
+The approved local planning extension classifies Junta única as a grouped Standard Form Modal;
+flow/series as a Modal Wizard Índice (purpose/people, schedule, backend date review); flows/series
+management as an Operational Workspace Modal; and archive, pause/resume, future cancellation
+and discard as Confirmation Modals. All use the existing frame, module-blue header/footer and
+native wizard components. Drafts survive Back, errors and retries in memory only. People selection
+shows coordinator/minutes responsibility without implying access grants or external invitations.
+Review distinguishes overlapping dates, finite recurrence and human-confirmed evidence. Editing
+explicitly separates one meeting from future planned occurrences, preserving existing history.
+Internal reminders have localized generic inbox labels and scoped deep links, not private text.

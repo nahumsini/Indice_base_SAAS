@@ -275,6 +275,7 @@ type TranslationDictionary = {
       indiceAgenteVentas: string;
       indiceAnalitica: string;
       capacitacion: string;
+      scheduling: string;
       indiceCoach: string;
     };
     notifications: {
@@ -1778,7 +1779,7 @@ const translations: Translations = {
       kpis: 'KPIs',
       mantenimiento: 'Mantenimiento',
       inventarios: 'Inventarios',
-      controlMinutas: 'Control de minutas',
+      controlMinutas: 'Control de juntas',
       limpieza: 'Limpieza',
       lavanderia: 'Lavandería',
       transportacion: 'Transportación',
@@ -1792,6 +1793,7 @@ const translations: Translations = {
       indiceAgenteVentas: 'Índice Agente de Ventas',
       indiceAnalitica: 'Índice Analítica',
       capacitacion: 'Capacitación',
+      scheduling: 'Agenda y eventos',
       indiceCoach: 'Índice Coach',
     },
     notifications: {
@@ -2662,7 +2664,7 @@ const translations: Translations = {
       kpis: 'KPIs',
       mantenimiento: 'Mantenimiento',
       inventarios: 'Inventarios',
-      controlMinutas: 'Control de minutas',
+      controlMinutas: 'Control de juntas',
       limpieza: 'Limpieza',
       lavanderia: 'Lavandería',
       transportacion: 'Transportación',
@@ -2676,6 +2678,7 @@ const translations: Translations = {
       indiceAgenteVentas: 'Índice Agente de Ventas',
       indiceAnalitica: 'Índice Analítica',
       capacitacion: 'Capacitación',
+      scheduling: 'Agenda y eventos',
       indiceCoach: 'Índice Coach',
     },
     notifications: {
@@ -3546,7 +3549,7 @@ const translations: Translations = {
       kpis: 'KPIs',
       mantenimiento: 'Maintenance',
       inventarios: 'Inventory',
-      controlMinutas: 'Minutes control',
+      controlMinutas: 'Meeting control',
       limpieza: 'Cleaning',
       lavanderia: 'Laundry',
       transportacion: 'Transportation',
@@ -3560,6 +3563,7 @@ const translations: Translations = {
       indiceAgenteVentas: 'Sales Agent Index',
       indiceAnalitica: 'Analytics Index',
       capacitacion: 'Training',
+      scheduling: 'Scheduling & events',
       indiceCoach: 'Coach Index',
     },
     notifications: {
@@ -4430,7 +4434,7 @@ const translations: Translations = {
       kpis: 'KPIs',
       mantenimiento: 'Maintenance',
       inventarios: 'Inventory',
-      controlMinutas: 'Minutes control',
+      controlMinutas: 'Meeting control',
       limpieza: 'Cleaning',
       lavanderia: 'Laundry',
       transportacion: 'Transportation',
@@ -4444,6 +4448,7 @@ const translations: Translations = {
       indiceAgenteVentas: 'Sales Agent Index',
       indiceAnalitica: 'Analytics Index',
       capacitacion: 'Training',
+      scheduling: 'Scheduling & events',
       indiceCoach: 'Coach Index',
     },
     notifications: {
@@ -5314,7 +5319,7 @@ const translations: Translations = {
       kpis: 'KPIs',
       mantenimiento: 'Maintenance',
       inventarios: 'Inventaire',
-      controlMinutas: 'Contrôle des procès-verbaux',
+      controlMinutas: 'Gestion des réunions',
       limpieza: 'Nettoyage',
       lavanderia: 'Buanderie',
       transportacion: 'Transport',
@@ -5328,6 +5333,7 @@ const translations: Translations = {
       indiceAgenteVentas: 'Index Agent de Ventes',
       indiceAnalitica: 'Index Analytique',
       capacitacion: 'Formation',
+      scheduling: 'Agenda et événements',
       indiceCoach: 'Index Coach',
     },
     notifications: {
@@ -6198,7 +6204,7 @@ const translations: Translations = {
       kpis: 'KPIs',
       mantenimiento: 'Manutenção',
       inventarios: 'Inventário',
-      controlMinutas: 'Controle de atas',
+      controlMinutas: 'Controle de reuniões',
       limpieza: 'Limpeza',
       lavanderia: 'Lavanderia',
       transportacion: 'Transporte',
@@ -6212,6 +6218,7 @@ const translations: Translations = {
       indiceAgenteVentas: 'Índice Agente de Vendas',
       indiceAnalitica: 'Índice Analítica',
       capacitacion: 'Treinamento',
+      scheduling: 'Agenda e eventos',
       indiceCoach: 'Índice Coach',
     },
     notifications: {
@@ -7082,7 +7089,7 @@ const translations: Translations = {
       kpis: 'KPI',
       mantenimiento: '유지 보수',
       inventarios: '재고',
-      controlMinutas: '회의록 관리',
+      controlMinutas: '회의 관리',
       limpieza: '청소',
       lavanderia: '세탁',
       transportacion: '운송',
@@ -7096,6 +7103,7 @@ const translations: Translations = {
       indiceAgenteVentas: '판매 에이전트 지수',
       indiceAnalitica: '분석 지수',
       capacitacion: '교육',
+      scheduling: '일정 및 이벤트',
       indiceCoach: '코치 지수',
     },
     notifications: {
@@ -7966,7 +7974,7 @@ const translations: Translations = {
       kpis: 'KPI',
       mantenimiento: '维护',
       inventarios: '库存',
-      controlMinutas: '会议记录控制',
+      controlMinutas: '会议管理',
       limpieza: '清洁',
       lavanderia: '洗衣',
       transportacion: '运输',
@@ -7980,6 +7988,7 @@ const translations: Translations = {
       indiceAgenteVentas: '销售代理指数',
       indiceAnalitica: '分析指数',
       capacitacion: '培训',
+      scheduling: '预约与活动',
       indiceCoach: '教练指数',
     },
     notifications: {

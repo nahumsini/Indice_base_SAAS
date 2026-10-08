@@ -4,6 +4,7 @@ import { RouterProvider } from 'react-router';
 import { router } from './app/routes';
 import { FavoritesProvider, LanguageProvider } from './app/shared/context';
 import { PettyCashProvider } from './app/BasicModules/PettyCash/context/PettyCashContext';
+import { getLegacyTrainingDestination } from './app/Training/trainingAccess';
 import './styles/index.css';
 
 const chunkReloadStorageKey = 'indice:chunk-reload-attempted';
@@ -37,14 +38,18 @@ window.addEventListener('unhandledrejection', (event) => {
 // user explicitly retries.
 
 const rootElement = document.getElementById('root');
-const publicPresentationRouteIds = new Set(['investment', 'investment-carlos-munoz', 'presentation']);
+const publicPresentationRouteIds = new Set(['investment', 'investment-carlos-munoz', 'presentation', 'public-scheduling']);
+const standaloneWorkspaceRouteIds = new Set(['training-centre']);
 
-// The static investment presentation must not mount tenant-data providers.
-// All existing routes retain the same providers, including after SPA navigation.
+// Public presentations and booking pages must not mount tenant-data providers.
+// Independent training also avoids loading unrelated tenant financial data.
+// All other existing routes retain the same providers, including after SPA navigation.
 function WorkspaceProviders({ children }: { children: ReactNode }) {
-  const isInvestment = useSyncExternalStore(router.subscribe, () =>
-    router.state.matches.some(match => publicPresentationRouteIds.has(match.route.id)));
-  if (isInvestment) return children;
+  const skipTenantDataProviders = useSyncExternalStore(router.subscribe, () =>
+    router.state.matches.some(match => publicPresentationRouteIds.has(match.route.id)
+      || standaloneWorkspaceRouteIds.has(match.route.id))
+    || Boolean(getLegacyTrainingDestination(`${window.location.origin}${router.state.location.pathname}${router.state.location.search}`)));
+  if (skipTenantDataProviders) return children;
   return <FavoritesProvider><PettyCashProvider>{children}</PettyCashProvider></FavoritesProvider>;
 }
 

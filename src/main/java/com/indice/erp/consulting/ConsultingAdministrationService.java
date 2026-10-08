@@ -22,6 +22,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
+import com.indice.erp.scheduling.SchedulingResourceAvailabilityService;
 
 @Service
 public class ConsultingAdministrationService {
@@ -39,19 +41,22 @@ public class ConsultingAdministrationService {
     private final PlatformAuditService audit;
     private final ConsultingAppointmentEmailService emailService;
     private final Clock clock;
+    private final SchedulingResourceAvailabilityService schedulingResources;
 
     public ConsultingAdministrationService(
         JdbcTemplate jdbcTemplate,
         PlatformAdminAccessService access,
         PlatformAuditService audit,
         ConsultingAppointmentEmailService emailService,
-        Clock clock
+        Clock clock,
+        SchedulingResourceAvailabilityService schedulingResources
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.access = access;
         this.audit = audit;
         this.emailService = emailService;
         this.clock = clock;
+        this.schedulingResources = schedulingResources;
     }
 
     public Map<String, Object> workspace(long actorUserId) {
@@ -371,7 +376,7 @@ public class ConsultingAdministrationService {
         return location(locationId);
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public Map<String, Object> createAppointment(long actorUserId, AdminAppointmentCreateRequest request) {
         access.require(actorUserId, "PLATFORM_CONSULTING_WRITE");
         return createAppointmentAfterAuthorization(
@@ -379,7 +384,7 @@ public class ConsultingAdministrationService {
         );
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public Map<String, Object> createDistributorAppointmentAfterAuthorization(
         long actorUserId,
         long distributorCompanyId,
@@ -453,6 +458,7 @@ public class ConsultingAdministrationService {
         var duration = request.durationMinutes() == null ? 60 : request.durationMinutes();
         if (!Set.of(30, 60, 90).contains(duration)) throw new IllegalArgumentException("Choose a valid session duration.");
         requireAvailableConsultingWindow(consultantEmail, startAt, duration);
+        schedulingResources.requireFree(consultantEmail, startAt, duration, null, null, null);
 
         var keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -532,13 +538,13 @@ public class ConsultingAdministrationService {
         );
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public Map<String, Object> updateAppointment(long actorUserId, long appointmentId, AppointmentUpdateRequest request) {
         access.require(actorUserId, "PLATFORM_CONSULTING_WRITE");
         return updateAppointmentAfterAuthorization(actorUserId, appointmentId, request, true);
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public Map<String, Object> updateDistributorAppointmentAfterAuthorization(
         long actorUserId,
         long appointmentId,
@@ -624,6 +630,11 @@ public class ConsultingAdministrationService {
             if (consultantName == null) throw new IllegalArgumentException("Assign a consultant before confirming.");
             if (consultantEmail != null && !EMAIL.matcher(consultantEmail).matches()) {
                 throw new IllegalArgumentException("Enter a valid consultant email.");
+            }
+            if (consultantEmail != null) {
+                var duration = jdbcTemplate.queryForObject(
+                    "SELECT duration_minutes FROM consulting_appointments WHERE id = ?", Integer.class, appointmentId);
+                schedulingResources.requireFree(consultantEmail, confirmedStart, duration, null, null, appointmentId);
             }
         }
         if (meetingUrl != null && !HTTPS_URL.matcher(meetingUrl).matches()) {

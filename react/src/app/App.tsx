@@ -52,6 +52,7 @@ const MODULE_NAVIGATION_LOADING_MS = 700;
 const AUTHORIZATION_REVALIDATION_MS = 15_000;
 
 const HumanResources = lazy(() => import('./BasicModules/HumanResources'));
+const Scheduling = lazy(() => import('./ComplementaryModules/Scheduling/Scheduling'));
 const ProcessesTasks = lazy(() => import('./BasicModules/ProcessesTasks'));
 const PanelInicial = lazy(() => import('./BasicModules/Dashboard'));
 const Gastos = lazy(() => import('./BasicModules/Expenses/ExpensesModule'));
@@ -737,7 +738,6 @@ export default function App() {
 
   const standaloneModulePages: Partial<Record<PageId, StandaloneModuleComponent>> = {
     maintenance: Mantenimiento,
-    'minutes-control': ControlMinutas,
     cleaning: Limpieza,
     laundry: Lavanderia,
     transportation: Transportacion,
@@ -769,6 +769,10 @@ export default function App() {
       />
     ) : currentPage === 'human-resources' ? (
       <HumanResources learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
+    ) : currentPage === 'scheduling' ? (
+      <Scheduling learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
+    ) : currentPage === 'minutes-control' ? (
+      <ControlMinutas learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'processes-tasks' ? (
       <ProcessesTasks learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'home-panel' ? (

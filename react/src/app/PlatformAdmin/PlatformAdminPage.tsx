@@ -34,7 +34,6 @@ import {
   FileClock,
   Globe2,
   Gift,
-  GraduationCap,
   HardDrive,
   Handshake,
   KeyRound,
@@ -97,7 +96,6 @@ import { CustomerCareWorkspace } from "../Messaging/CustomerCareWorkspace";
 import { messagingCopy } from "../Messaging/copy";
 import { CommercialOperationsWorkspace } from "./CommercialOperations/CommercialOperationsWorkspace";
 import { commercialCopy } from "./CommercialOperations/copy";
-import { TrainingWorkspace } from "../Training";
 import { InternalDevelopmentWorkspace } from "../InternalDevelopment";
 import { UsageAnalyticsWorkspace } from "./UsageAnalyticsWorkspace";
 import AccountCreationModal from "./AccountCreationModal";
@@ -178,7 +176,6 @@ type AdminTab =
   | "billing"
   | "catalog"
   | "consulting"
-  | "training"
   | "systemTickets"
   | "internalDevelopment"
   | "websiteVisits"
@@ -268,7 +265,6 @@ const tabDefinitions: {
   { id: "companies", es: "Empresas", en: "Companies", phase: "account", icon: Users },
   { id: "billing", es: "Facturación", en: "Billing", phase: "account", icon: CreditCard },
   { id: "consulting", es: "Consultorías", en: "Consulting", phase: "service", icon: Handshake },
-  { id: "training", es: "Capacitación y contenido", en: "Training & content", phase: "service", icon: GraduationCap },
   { id: "systemTickets", es: "Tickets de sistema", en: "System tickets", phase: "service", icon: TicketCheck },
   {
     id: "catalog",
@@ -330,7 +326,7 @@ export default function PlatformAdminPage() {
     (restored: { section?: unknown }) => {
       const section = restored.section === "users" || restored.section === "activities"
         ? "companies"
-        : restored.section;
+        : restored.section === "training" ? "customers" : restored.section;
       if (isAdminTab(section)) setActiveTab(section);
     },
     [],
@@ -1177,9 +1173,6 @@ export default function PlatformAdminPage() {
                 canManage={Boolean(context?.can_manage_consulting)}
                 companies={companies}
               />
-            ) : null}
-            {activeTab === "training" ? (
-              <TrainingWorkspace portal="root" locale={currentLanguage.code} />
             ) : null}
             {activeTab === "systemTickets" && context?.can_manage_system_tickets ? (
               <CustomerCareWorkspace portal="platform" locale={currentLanguage.code} initialQuery={careQuery} legacy={<SystemTicketsWorkspace portal="root" locale={currentLanguage.code} />} />

@@ -7,6 +7,8 @@ type TabScopeDefinition = {
 };
 
 export const MODULE_TAB_SCOPE_CATALOG: Partial<Record<PageId, TabScopeDefinition>> = {
+  'minutes-control': { moduleSlug: 'control_minutas', tabs: { meetings: 'meetings', agreements: 'agreements', indicators: 'indicators' } },
+  scheduling: { moduleSlug: 'scheduling', tabs: { calendar: 'calendar', reservations: 'reservations', clients: 'clients', events: 'events', indicators: 'indicators', configuration: 'configuration' } },
   'home-panel': {
     moduleSlug: 'config_center',
     tabs: {
@@ -145,6 +147,7 @@ export function canAccessModuleTab(
     return true;
   }
   const role = normalizeTabScopeRole(session?.user.role);
+  if (page === 'scheduling' && ['configuration','clients'].includes(tabId) && !ADMIN_ROLES.has(role)) return false;
   if (page === 'home-panel' && !ADMIN_ROLES.has(role) && !PERSONAL_HOME_TABS.has(tabId)) {
     return false;
   }
@@ -196,6 +199,7 @@ export function isTabScopeAssignableToRole(permissionKey: string, role: string |
   if (normalizedRole !== 'user') {
     return true;
   }
+  if (['scheduling.configuration','scheduling.clients'].includes(permissionKey)) return false;
   if (!permissionKey.startsWith('config_center.') && !permissionKey.startsWith('human_resources.')) {
     return true;
   }

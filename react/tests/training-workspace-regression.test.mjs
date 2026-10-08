@@ -19,8 +19,11 @@ test('el programa publica siete sesiones y conserva el proceso comercial complet
 });
 
 test('root y distribuidores reutilizan el mismo workspace con progreso persistente', () => {
-  assert.match(rootPortal, /TrainingWorkspace portal="root"/);
-  assert.match(distributorPortal, /TrainingWorkspace portal="distributor"/);
+  const page = readFileSync(new URL('../src/app/Training/TrainingPage.tsx', import.meta.url), 'utf8');
+  assert.match(page, /TrainingWorkspace portal=\{portal\}/);
+  assert.doesNotMatch(rootPortal, /TrainingWorkspace|id: "training"/);
+  assert.doesNotMatch(distributorPortal, /<TrainingWorkspace|import \{ TrainingWorkspace \}/);
+  assert.match(distributorPortal, /to="\/training"/);
   assert.match(training, /method: 'PATCH'/);
   assert.match(training, /completed_item_codes/);
 });

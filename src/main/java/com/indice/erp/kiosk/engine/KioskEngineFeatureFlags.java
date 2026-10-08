@@ -19,6 +19,8 @@ public class KioskEngineFeatureFlags {
     private final boolean globalCenterEnabled;
     private final boolean multiDashboardEnabled;
     private final boolean employeeCenterEnabled;
+    @Value("${kiosk.engine.adapter.scheduling.enabled:false}")
+    private boolean schedulingAdapterEnabled;
 
     public KioskEngineFeatureFlags(
             @Value("${kiosk.engine.registry.enabled:true}") boolean registryEnabled,
@@ -70,6 +72,7 @@ public class KioskEngineFeatureFlags {
             case "PROCUREMENT" -> procurementAdapterEnabled;
             case "POINT_OF_SALE" -> pointOfSaleAdapterEnabled;
             case "SALES" -> salesAdapterEnabled;
+            case "SCHEDULING" -> schedulingAdapterEnabled;
             case "PROVIDER_CENTER" -> multiDashboardEnabled;
             default -> false;
         };

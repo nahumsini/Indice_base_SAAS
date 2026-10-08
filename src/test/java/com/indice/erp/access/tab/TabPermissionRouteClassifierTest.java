@@ -12,6 +12,30 @@ class TabPermissionRouteClassifierTest {
 
     private final TabPermissionRouteClassifier classifier = new TabPermissionRouteClassifier();
 
+    @Test void meetingControlScopesAreIndependentAndUnknownPrivateRoutesFailClosed() {
+        assertRequirement("GET","/api/v1/meetings","control_minutas.meetings");
+        assertRequirement("PUT","/api/v1/meetings/1/minutes","control_minutas.meetings");
+        assertRequirement("GET","/api/v1/meetings/calendar","control_minutas.meetings");
+        assertRequirement("GET","/api/v1/meetings/members","control_minutas.meetings");
+        assertRequirement("GET","/api/v1/meetings/unknown","control_minutas.meetings");
+        assertRequirement("GET","/api/v1/meetings/agreement-meetings","control_minutas.agreements");
+        assertRequirement("POST","/api/v1/meetings/agreements/1/status","control_minutas.agreements");
+        assertRequirement("GET","/api/v1/meetings/metrics","control_minutas.indicators");
+    }
+    @Test void schedulingUsesItsOwnScopesAndPublicTrustBoundary(){
+        assertRequirement("GET","/api/v1/scheduling/calendar","scheduling.calendar");
+        assertRequirement("GET","/api/v1/scheduling/metrics","scheduling.indicators");
+        assertRequirement("POST","/api/v1/scheduling/events","scheduling.events");
+        assertRequirement("GET","/api/v1/scheduling/services","scheduling.configuration");
+        assertRequirement("POST","/api/v1/scheduling/reservations/1/status","scheduling.reservations");
+        assertRequirement("POST","/api/v1/scheduling/reservations/1/management","scheduling.reservations");
+        assertRequirement("POST","/api/v1/scheduling/reservations/1/assignment","scheduling.reservations");
+        assertRequirement("GET","/api/v1/scheduling/clients","scheduling.clients");
+        assertAnyOf("GET","/api/v1/scheduling/calendar-grid","scheduling.calendar","scheduling.reservations");
+        assertAnyOf("GET","/api/v1/scheduling/staff-options","scheduling.calendar","scheduling.reservations");
+        assertTrue(classify("GET","/api/v1/public/scheduling/synthetic").isEmpty());
+    }
+
     @Test
     void posReturnsRequireTheSaleTabForReadsAndMutations() {
         assertRequirement("GET", "/api/v1/pos/returns/tickets", "pos.sale");

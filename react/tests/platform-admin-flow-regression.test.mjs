@@ -687,7 +687,7 @@ test("administración usa identidad azul y conserva el verde del expediente de c
 });
 
 test("la navegación de plataforma sigue el recorrido comercial y conserva permisos", () => {
-  const order = ['websiteVisits', 'leads', 'commercialOperations', 'customers', 'companies', 'billing', 'consulting', 'training', 'systemTickets', 'catalog', 'audit', 'internalDevelopment'];
+  const order = ['websiteVisits', 'leads', 'commercialOperations', 'customers', 'companies', 'billing', 'consulting', 'systemTickets', 'catalog', 'audit', 'internalDevelopment'];
   const definitions = page.match(/const tabDefinitions:[\s\S]*?= \[([\s\S]*?)\];/)?.[1] ?? '';
   const ids = [...definitions.matchAll(/id: "([A-Za-z]+)"/g)].map((match) => match[1]);
   assert.deepEqual(ids, order);

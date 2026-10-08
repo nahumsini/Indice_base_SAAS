@@ -66,6 +66,12 @@ public class ModuleEntitlementInterceptor implements HandlerInterceptor {
         if (path.startsWith("/api/v1/hr/")) {
             return one("human_resources");
         }
+        if (path.startsWith("/api/v1/scheduling")) {
+            return one("scheduling");
+        }
+        if (path.startsWith("/api/v1/meetings")) {
+            return one("control_minutas");
+        }
         if (path.startsWith("/api/v1/finance/petty-cash")) {
             return one("petty_cash");
         }

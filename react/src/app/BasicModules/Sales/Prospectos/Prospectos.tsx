@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { authApi } from '../../../api/auth';
+import { IndiceViewState } from '../../../components/frontend-os';
 import { useLanguage } from '../../../shared/context';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import { useKpiMonetaryAggregates } from '../../shared/kpiMonetaryApi';
@@ -35,6 +36,7 @@ import { downloadQuotePdf } from '../Cotizacion/quotePdf';
 import { SalesDetailModal } from '../Sales/components/SalesDetailModal';
 import { useSalesRecords } from '../Sales/hooks/useSalesRecords';
 import { useSalesTranslations } from '../Sales/hooks/useSalesTranslations';
+import { useSalesTranslations as useSalesModuleTranslations } from '../hooks/useSalesTranslations';
 import type { SaleRecord, SalesCurrentSeller } from '../Sales/types/salesTypes';
 import { inventoryApi } from '../Inventory/services/inventoryApi';
 import type { InventoryWarehouse } from '../Inventory/types/inventoryTypes';
@@ -60,7 +62,7 @@ import type {
   OpportunityFormState,
   OpportunityPeriodFilter,
 } from './types/prospectosTypes';
-import { canViewAllOpportunities, getContactById, getOwnerSelectValue } from './utils/prospectosFilters';
+import { canViewAllOpportunities, getContactById, getOwnerSelectValue, opportunityBelongsToCurrentUser } from './utils/prospectosFilters';
 import {
   formatOpportunitySchedule,
   getOpportunityStatusForStage,
@@ -76,12 +78,15 @@ import {
 } from './utils/prospectosFlow';
 import { useProspectosTranslations } from './hooks/useProspectosTranslations';
 import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
+import { countOpportunityFlowAssignments, resolveOpportunityWorkspaceFlowId } from './utils/prospectosFlowWorkspace';
+import { OpportunityFlowFeedback, type OpportunityFlowReassignment } from './components/OpportunityFlowFeedback';
 
 interface ProspectosProps {
   learningModeActive?: boolean;
 }
 
 type ProspectosWorkspaceState = {
+  flowId: number;
   searchQuery: string;
   focusFilter: OpportunityFocusFilter;
   periodFilter: OpportunityPeriodFilter;
@@ -97,6 +102,7 @@ type ProspectosWorkspaceState = {
 };
 
 const prospectosWorkspaceDefaults: ProspectosWorkspaceState = {
+  flowId: 0,
   searchQuery: '',
   focusFilter: 'all',
   periodFilter: 'all',
@@ -112,6 +118,7 @@ const prospectosWorkspaceDefaults: ProspectosWorkspaceState = {
 };
 
 const prospectosWorkspaceUrlFields: Partial<Record<keyof ProspectosWorkspaceState, string>> = {
+  flowId: 'flow',
   searchQuery: 'q', focusFilter: 'focus', periodFilter: 'period', stageFilter: 'stage',
   ownerFilter: 'owner', temperatureFilter: 'temperature', sourceFilter: 'source',
   activeView: 'view', sortColumn: 'sort', sortDirection: 'direction',
@@ -123,6 +130,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   const t = useProspectosTranslations();
   const quoteCopy = useQuotesTranslations();
   const salesCopy = useSalesTranslations();
+  const salesModuleCopy = useSalesModuleTranslations();
   const {
     contacts,
     opportunities: storedOpportunities,
@@ -134,6 +142,8 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     updateOpportunityRecord,
     deleteOpportunity,
     updateQuoteStatus,
+    isLoading: opportunitiesLoading,
+    loadError: opportunitiesLoadError,
   } = useSalesCrm();
   const navigate = useNavigate();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -141,6 +151,9 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   const [isFlowManagerOpen, setIsFlowManagerOpen] = useState(false);
   const [opportunityFlows, setOpportunityFlows] = useState<OpportunityFlow[]>([]);
   const [selectedFlowId, setSelectedFlowId] = useState<number | null>(null);
+  const [defaultFlowId, setDefaultFlowId] = useState<number | null>(null);
+  const [flowCatalogReady, setFlowCatalogReady] = useState(false);
+  const [flowReassignment, setFlowReassignment] = useState<OpportunityFlowReassignment | null>(null);
   const [flowPositions, setFlowPositions] = useState<OpportunityFlowPosition[]>([]);
   const [flowCanManage, setFlowCanManage] = useState(false);
   const [flowLoadError, setFlowLoadError] = useState('');
@@ -192,31 +205,38 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   } = useProspectosViewState();
 
   const workspaceState = useMemo<ProspectosWorkspaceState>(() => ({
+    flowId: selectedFlowId !== null && selectedFlowId > 0 ? selectedFlowId : 0,
     searchQuery, focusFilter, periodFilter, stageFilter, ownerFilter, temperatureFilter,
     sourceFilter, activeView, sortColumn: sortState.columnId,
     sortDirection: sortState.direction, ...paginationState,
   }), [
     activeView, focusFilter, ownerFilter, paginationState, periodFilter, searchQuery,
-    sortState, sourceFilter, stageFilter, temperatureFilter,
+    sortState, sourceFilter, stageFilter, temperatureFilter, selectedFlowId,
   ]);
 
-  useWorkspaceNavigationMemory({
+  const workspaceReady = useWorkspaceNavigationMemory({
     moduleKey: 'sales',
     tabKey: 'prospects',
     state: workspaceState,
     defaults: prospectosWorkspaceDefaults,
     urlFields: prospectosWorkspaceUrlFields,
+    enabled: flowCatalogReady,
     onRestore: (restored) => {
+      const flowId = resolveOpportunityWorkspaceFlowId(restored.flowId, opportunityFlows, defaultFlowId);
+      const flow = opportunityFlows.find(item => item.id === flowId);
+      const validStage = restored.stageFilter === 'all' || flow?.stages.some(stage => stage.key === restored.stageFilter);
+      const staleFlow = restored.flowId > 0 && restored.flowId !== flowId;
+      setSelectedFlowId(flowId);
       setSearchQuery(restored.searchQuery);
       setFocusFilter(restored.focusFilter);
       setPeriodFilter(restored.periodFilter);
-      setStageFilter(restored.stageFilter);
+      setStageFilter(!staleFlow && validStage ? restored.stageFilter : 'all');
       setOwnerFilter(restored.ownerFilter);
       setTemperatureFilter(restored.temperatureFilter);
       setSourceFilter(restored.sourceFilter);
       setActiveView(restored.activeView);
       setSortState({ columnId: restored.sortColumn, direction: restored.sortDirection });
-      setPaginationState({ currentPage: restored.currentPage, pageSize: restored.pageSize });
+      setPaginationState({ currentPage: staleFlow || !validStage ? 1 : restored.currentPage, pageSize: restored.pageSize });
     },
   });
 
@@ -291,9 +311,8 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
           stages: flow.stages.map((stage) => toFrontendOpportunityFlowStage(stage, flow.factory)),
         }));
         setOpportunityFlows(flows);
-        setSelectedFlowId((current) => (
-          current !== null && flows.some((flow) => flow.id === current) ? current : response.defaultFlowId
-        ));
+        setDefaultFlowId(response.defaultFlowId);
+        setFlowCatalogReady(true);
         setFlowCanManage(response.canManage);
         setFlowLoadError('');
       })
@@ -308,6 +327,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
           stages: defaultOpportunityFlowStages,
         }]);
         setSelectedFlowId(-1);
+        setFlowCatalogReady(false);
         setFlowCanManage(false);
         setFlowLoadError(t.flow.loadError);
       });
@@ -315,6 +335,21 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
       isMounted = false;
     };
   }, [flowReloadVersion, isFlowManagerOpen, t.flow.factory, t.flow.loadError]);
+
+  useEffect(() => {
+    if (!workspaceReady || !flowCatalogReady) return;
+    const validFlowId = resolveOpportunityWorkspaceFlowId(selectedFlowId, opportunityFlows, defaultFlowId);
+    const validFlow = opportunityFlows.find(flow => flow.id === validFlowId);
+    if (validFlowId !== selectedFlowId) {
+      setSelectedFlowId(validFlowId);
+      setStageFilter('all');
+      setFlowReassignment(null);
+      setPaginationState(current => ({ ...current, currentPage: 1 }));
+    } else if (stageFilter !== 'all' && !validFlow?.stages.some(stage => stage.key === stageFilter)) {
+      setStageFilter('all');
+      setPaginationState(current => ({ ...current, currentPage: 1 }));
+    }
+  }, [defaultFlowId, flowCatalogReady, opportunityFlows, selectedFlowId, stageFilter, workspaceReady]);
 
   const opportunityBackendSignature = useMemo(
     () => storedOpportunities.map((opportunity) => opportunity.backendId).filter(Boolean).join(','),
@@ -458,6 +493,13 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   const canViewAllVisibleOpportunities = canViewAllOpportunities(currentUserRole);
   const canManageOpportunityFlow = flowCanManage;
   const shouldScopeOpportunitiesByOwner = currentUserRole !== null && !canViewAllVisibleOpportunities;
+  const flowOpportunityCounts = useMemo(() => {
+    if (!workspaceReady || opportunitiesLoading || opportunitiesLoadError || currentUserRole === null) return null;
+    const visibleRecords = storedOpportunities.filter(opportunity => !shouldScopeOpportunitiesByOwner
+      || opportunityBelongsToCurrentUser(opportunity, currentUserCompanyId, currentOwnerNames));
+    return countOpportunityFlowAssignments(visibleRecords, opportunityFlows);
+  }, [currentOwnerNames, currentUserCompanyId, currentUserRole, opportunitiesLoadError, opportunitiesLoading,
+    opportunityFlows, shouldScopeOpportunitiesByOwner, storedOpportunities, workspaceReady]);
   const opportunityFlowStages = useMemo(() => flowStages.map((stage) => ({
     ...stage,
     opportunityCount: opportunities.filter(
@@ -851,6 +893,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     if (flowId < 0) {
       setFlowPositions([]);
       setSelectedFlowId(flowId);
+      setFlowReassignment(null);
       return;
     }
     const requestId = flowPositionRequestId.current + 1;
@@ -863,6 +906,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         stageKey: toFrontendOpportunityStageKey(position.stageKey),
       })));
       setSelectedFlowId(flowId);
+      setFlowReassignment(null);
       setStageFilter('all');
       resetPage();
       setFlowLoadError('');
@@ -883,8 +927,13 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   const handleOpportunityFlowChange = async (opportunity: SalesOpportunity, flowId: number) => {
     if (opportunity.flowId === flowId || pendingFlowOpportunityId === opportunity.id) return;
     setPendingFlowOpportunityId(opportunity.id);
+    setFlowReassignment(null);
     try {
-      await updateOpportunityRecord(opportunity.id, { flowId });
+      const savedOpportunity = await updateOpportunityRecord(opportunity.id, { flowId });
+      const destination = opportunityFlows.find(flow => flow.id === savedOpportunity.flowId);
+      if (destination && savedOpportunity.flowId !== opportunity.flowId) {
+        setFlowReassignment({ opportunityName: savedOpportunity.opportunityName, flowId: destination.id, flowName: destination.name });
+      }
       if (opportunity.backendId !== undefined) {
         setFlowPositions((current) => current.filter(
           (position) => position.opportunityId !== opportunity.backendId,
@@ -907,6 +956,12 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
       : t.deleteConfirm.simple(pendingDeleteOpportunity.opportunityName)
     : '';
 
+  // Do not show an unscoped list or enable creation in the company default while
+  // the remembered workflow is still being restored.
+  if ((selectedFlowId === null || (flowCatalogReady && !workspaceReady)) && !flowLoadError) {
+    return <IndiceViewState variant="loading" tone="coral" title={salesModuleCopy.loading.openingTitle} description={salesModuleCopy.loading.openingDescription} />;
+  }
+
   return (
     <section className="space-y-5">
       <ProspectosHeader
@@ -916,6 +971,9 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         selectedFlowId={selectedFlowId}
         activeFlowLabel={t.flow.selectFlow}
         factoryLabel={t.flow.factory}
+        flowCounts={flowOpportunityCounts}
+        formatFlowCount={t.flow.opportunities}
+        flowSelectionReady={workspaceReady && flowCatalogReady}
         onSelectFlow={handleSelectOpportunityFlow}
         onManageFlow={() => setIsFlowManagerOpen(true)}
         onOpenColumns={() => setIsColumnsModalOpen(true)}
@@ -931,6 +989,16 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
       ) : null}
 
       <ProspectosViewTabs labels={t.views} activeView={activeView} onViewChange={setActiveView} />
+
+      <OpportunityFlowFeedback
+        copy={t.flow}
+        flows={opportunityFlows}
+        activeFlow={selectedFlow}
+        counts={flowOpportunityCounts}
+        reassignment={flowReassignment}
+        onViewFlow={handleSelectOpportunityFlow}
+        onDismiss={() => setFlowReassignment(null)}
+      />
 
       <ProspectosFilters
         copy={t}

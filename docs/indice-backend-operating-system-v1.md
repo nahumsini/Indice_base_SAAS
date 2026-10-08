@@ -669,3 +669,56 @@ The backend is the authority for access, business invariants, and durable state.
 Build scoped use cases, not quick endpoints. Preserve customer behavior, make tenant boundaries
 unavoidable, keep financial truth reproducible, and require evidence before declaring a public
 release safe.
+
+## 21. Scheduling Complementary Pilot Owner Contract
+
+The local `scheduling` pilot uses Spring/JdbcTemplate, explicit DTOs and the existing module/tab,
+session-CSRF and Kiosk Engine boundaries. Its public and private endpoint inventory, company/staff
+scope, manual review policy and deferred integrations are governed by
+[Scheduling module contract v1](scheduling-module-contract-v1.md). V300 creates no grants or prices.
+
+Scheduling and Consulting expose only an internal boolean busy-window contract for a verified
+consultant identity. A pseudonymous shared resource mutex and current reads prevent cross-company
+overlaps without returning another tenant's business data or letting one owner mutate another's
+records. Existing consulting benefits, payloads, pricing and notifications remain behavior-locked.
+Public capture rechecks publication/entitlement in the Engine transaction, preserving atomic
+payload-bound idempotency; shared entitlement reads use the native ModuleAccessService contract.
+This is a scoped resource-ownership extension, not a general cross-tenant query exemption.
+
+V301 extends the scheduling owner with versioned pause/resume, administrator-only reassignment,
+soft archive, reasoned audit, and allowlisted public appearance. Calendar-grid/staff-options require
+calendar OR reservations permission; all reads remain tenant/operator scoped. Pause releases
+occupancy; resumption/reassignment validate current availability under the existing resource locks.
+Archived terminal attendance remains authoritative history, not a delete.
+Sales owns the narrow `SalesClientDirectoryService` read-only master-client contract. Scheduling
+administrators with the clients tab may read scoped nondeleted contact summaries through it,
+without acquiring Sales module access or mutation authority. Anonymous requests never create or
+silently bind master clients. Existing Sales workflows and permissions remain behavior-locked.
+The unified Scheduling frontend may embed the existing Sales client workspace only with its
+native `crm` module access and `crm.contacts` permission, in addition to Scheduling clients access.
+Its client commands use existing Sales endpoints and guards, not the read-only directory contract
+or Scheduling authority. Visual merging of agenda tabs and modal setup does not merge backend
+scopes or weaken calendar, reservation, configuration, tenant or object checks.
+
+## 22. Meeting Control Complementary Pilot Owner Contract
+
+The existing `control_minutas` registry identity is the `meetings` owner's local complementary
+pilot, governed by [Meeting control module contract v1](meeting-control-module-contract-v1.md).
+`/api/v1/meetings` uses explicit DTOs, native module/tab authorization, session CSRF and
+JdbcTemplate tenant predicates. Nonadministrators are bounded by meeting ownership/participation
+and agreement assignment. Minimal agreement selectors do not confer access to minutes or Root.
+Complete mutation transactions validate active members and entitlement, serialize use cases,
+enforce record versions, bind create retries to payloads and retain lifecycle audit.
+DTO diagnostic strings redact business content; private minutes and participants are not logged.
+Meeting cancellation never deletes agreements or silently mutates Processes tasks.
+V302 creates owned tables and activates only the registry pilot; it creates no company grants,
+user assignments, prices or migration of the platform's corporate development records.
+
+The approved local V303 extension adds explicit purpose/expected-result metadata, delegated
+minutes responsibility, reusable planning flows and finite series. Preview and confirmation use
+one owner recurrence planner; all reviewed occurrences are created in one idempotent transaction.
+Versioned future edits and reasoned future cancellation retain existing evidence and native object
+guards. Meetings owns durable reminder receipts and calls the existing AppNotificationService
+contract; each scheduler candidate is isolated in its own tenant-scoped transaction, rechecks
+current module/tab authority and copies no private record content into the global inbox.
+No external invitation, automatic task, infinite recurrence or implicit completion is introduced.

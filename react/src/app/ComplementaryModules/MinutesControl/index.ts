@@ -1,1 +1,1 @@
-export { default } from './Reuniones';
+export { default } from './MinutesControl';

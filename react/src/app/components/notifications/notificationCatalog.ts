@@ -1,5 +1,7 @@
 import type { AppNotification } from '../../api/notifications';
 import { messagingCopy } from '../../Messaging/copy';
+import { getMeetingCopy } from '../../ComplementaryModules/MinutesControl/translations/meetingCopy';
+import { getMeetingWorkflowCopy } from '../../ComplementaryModules/MinutesControl/translations/meetingWorkflowCopy';
 
 export type NotificationPriority = 'high' | 'medium' | 'low';
 
@@ -245,6 +247,10 @@ export const notificationPreferenceGroups: NotificationPreferenceGroup[] = [
 ];
 
 export function getNotificationModule(notification: AppNotification, locale = 'en-CA'): NotificationModuleMeta {
+  if (notification.module_slug === 'control_minutas') {
+    const label = getMeetingCopy(locale).title;
+    return { slug: 'control_minutas', label, shortLabel: label, emoji: '📝', color: 'blue' };
+  }
   const moduleMeta = moduleCatalog[notification.module_slug] ?? {
     slug: notification.module_slug || 'general',
     label: titleCase((notification.module_slug || 'general').replace(/_/g, ' ')),
@@ -398,6 +404,11 @@ export function getLocalizedNotificationPreferenceGroups(locale: string): Notifi
 
 export function getNotificationDisplayTitle(notification: AppNotification, locale: string) {
   if (notification.module_slug === 'messaging') return messagingCopy(locale).title;
+  if (notification.module_slug === 'control_minutas') {
+    const copy = getMeetingCopy(locale);
+    const titles: Record<string, string> = { upcoming_meeting: getMeetingWorkflowCopy(locale).upcoming, missing_minutes: copy.missingMinutes, overdue_agreement: copy.overdueAgreements };
+    return titles[notification.source_subtype] ?? copy.title;
+  }
   const language = notificationLanguage(locale);
   const subtype = notification.source_subtype as keyof typeof notificationTitles.en;
   const catalogTitle = notificationTitles[language][subtype];

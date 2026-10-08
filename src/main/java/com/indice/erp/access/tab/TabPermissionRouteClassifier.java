@@ -51,6 +51,12 @@ public class TabPermissionRouteClassifier {
             return Optional.empty();
         }
 
+        if (path.startsWith("/api/v1/meetings")) {
+            if (path.startsWith("/api/v1/meetings/metrics")) return one("control_minutas.indicators");
+            if (path.startsWith("/api/v1/meetings/agreements") || path.startsWith("/api/v1/meetings/agreement-meetings") || path.startsWith("/api/v1/meetings/agreement-assignees")) return one("control_minutas.agreements");
+            return one("control_minutas.meetings");
+        }
+
         var v2Requirement = classifyKioskAdmin(path);
         if (v2Requirement.isPresent()) {
             return v2Requirement;
@@ -107,6 +113,18 @@ public class TabPermissionRouteClassifier {
 
         if (path.startsWith("/api/v1/agenda")) {
             return one("processes.calendar");
+        }
+        if (path.startsWith("/api/v1/scheduling")) {
+            if (path.startsWith("/api/v1/scheduling/clients")) return one("scheduling.clients");
+            if (path.equals("/api/v1/scheduling/calendar-grid") || path.equals("/api/v1/scheduling/staff-options")) return any("scheduling.calendar","scheduling.reservations");
+            if (path.equals("/api/v1/scheduling/calendar")) return one("scheduling.calendar");
+            if (path.equals("/api/v1/scheduling/metrics")) return one("scheduling.indicators");
+            if (path.startsWith("/api/v1/scheduling/events")) return one("scheduling.events");
+            if (path.equals("/api/v1/scheduling/catalog")) return any("scheduling.reservations","scheduling.events");
+            if (path.equals("/api/v1/scheduling/links")) return any("scheduling.configuration","scheduling.events","scheduling.reservations");
+            if (path.startsWith("/api/v1/scheduling/reservations") || path.equals("/api/v1/scheduling/slots"))
+                return one("scheduling.reservations");
+            return one("scheduling.configuration");
         }
         if (path.startsWith("/api/v1/process-tasks")) {
             return "GET".equals(method) ? any(PROCESSES_ANY) : any(
@@ -434,6 +452,7 @@ public class TabPermissionRouteClassifier {
             || path.startsWith("/api/v1/billing/signup")
             || path.startsWith("/api/v1/billing/stripe")
             || path.startsWith("/api/v1/platform")
+            || path.startsWith("/api/v1/public/scheduling/")
             || path.contains("/public-kiosk/")
             || path.contains("/public-payable-kiosks/")
             || path.startsWith("/api/v2/kiosks/public/")
