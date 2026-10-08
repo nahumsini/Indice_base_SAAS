@@ -26,6 +26,17 @@ public class BudgetService {
     }
 
     @Transactional(readOnly = true)
+    public void validateAssistantCreate(FinanceContext context,CreateBudgetRequest request) {
+        var assignment=validator.validateCreate(context,request);var command=mapper.toCreateCommand(context,request,assignment);
+        requireUniqueNameAndPeriod(context,command.name(),command.periodStart(),command.periodEnd(),null);
+    }
+    @Transactional(readOnly = true)
+    public void validateAssistantUpdate(FinanceContext context,long id,UpdateBudgetRequest request) {
+        requireBudget(context,id);var assignment=validator.validateUpdate(context,request);var command=mapper.toUpdateCommand(context,request,assignment);
+        requireUniqueNameAndPeriod(context,command.name(),command.periodStart(),command.periodEnd(),id);
+    }
+
+    @Transactional(readOnly = true)
     public BudgetListResponse list(FinanceContext context) {
         var budgets = repository.findAll(context).stream()
             .map(mapper::toResponse)

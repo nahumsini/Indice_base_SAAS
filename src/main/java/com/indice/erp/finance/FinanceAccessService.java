@@ -46,6 +46,10 @@ public class FinanceAccessService {
         return resolveContext(currentUser, PAYMENT_ACCOUNT_READ_MODULE_SLUGS);
     }
 
+    public Optional<FinanceContext> resolveAssistantContext(AuthSessionUser currentUser,String module) {
+        return resolveContext(currentUser, Set.of(module));
+    }
+
     private Optional<FinanceContext> resolveContext(AuthSessionUser currentUser, Set<String> allowedModuleSlugs) {
         var role = normalizeRole(currentUser.role());
         if (FULL_ACCESS_ROLES.contains(role)) {
@@ -72,6 +76,24 @@ public class FinanceAccessService {
                 || businessBelongsToUnit(context.companyId(), businessId, context.scope().unitId());
             case BUSINESS_OFFICE -> businessId != null && businessId.equals(context.scope().businessId());
         };
+    }
+
+    /** Bounded operational references for assigning fund custody, without HR file access. */
+    public java.util.List<com.indice.erp.finance.assistant.FinanceAssistantContracts.Responsible> assistantResponsibles(FinanceContext context) {
+        var rows=jdbcTemplate.query("""
+            SELECT uc.user_id, uc.id AS membership_id, COALESCE(u.full_name,'') AS responsible_name,
+                   wp.unit_id, wp.business_id
+            FROM user_companies uc JOIN users u ON u.id=uc.user_id
+            LEFT JOIN user_work_profiles wp ON wp.company_id=uc.company_id AND wp.user_company_id=uc.id
+              AND wp.id=(SELECT MAX(current_profile.id) FROM user_work_profiles current_profile
+                         WHERE current_profile.company_id=uc.company_id AND current_profile.user_company_id=uc.id)
+            WHERE uc.company_id=? AND LOWER(COALESCE(uc.status,'active')) IN ('active','activo')
+              AND uc.id=(SELECT MAX(active_membership.id) FROM user_companies active_membership
+                         WHERE active_membership.company_id=uc.company_id AND active_membership.user_id=uc.user_id
+                           AND LOWER(COALESCE(active_membership.status,'active')) IN ('active','activo'))
+            ORDER BY uc.id
+            """,(rs,row)->new com.indice.erp.finance.assistant.FinanceAssistantContracts.Responsible(rs.getLong("user_id"),rs.getLong("membership_id"),rs.getString("responsible_name"),rs.getObject("unit_id",Long.class),rs.getObject("business_id",Long.class)),context.companyId());
+        return rows.stream().filter(r->containsAssignment(context,r.unitId(),r.businessId())).toList();
     }
 
     private FinanceContext toContext(

@@ -98,12 +98,14 @@ public class HrRecordApiController {
     }
 
     @PostMapping
+    @com.indice.erp.learning.LearningApplied("human_resources.records")
     public ResponseEntity<?> create(
         HttpSession session,
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var user = sessionAuthService.currentUser(session);
+        user.ifPresent(com.indice.erp.learning.LearningOperationContext::capture);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
@@ -128,6 +130,7 @@ public class HrRecordApiController {
     }
 
     @PutMapping("/{recordId}")
+    @com.indice.erp.learning.LearningApplied("human_resources.records")
     public ResponseEntity<?> update(
         HttpSession session,
         @PathVariable long recordId,
@@ -135,6 +138,7 @@ public class HrRecordApiController {
         @RequestBody Map<String, Object> payload
     ) {
         var user = sessionAuthService.currentUser(session);
+        user.ifPresent(com.indice.erp.learning.LearningOperationContext::capture);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
@@ -219,6 +223,7 @@ public class HrRecordApiController {
     }
 
     @PostMapping("/{recordId}/attachments")
+    @com.indice.erp.learning.LearningApplied("human_resources.records")
     public ResponseEntity<?> registerAttachment(
         HttpSession session,
         @PathVariable long recordId,
@@ -226,6 +231,7 @@ public class HrRecordApiController {
         @RequestBody Map<String, Object> payload
     ) {
         var user = sessionAuthService.currentUser(session);
+        user.ifPresent(com.indice.erp.learning.LearningOperationContext::capture);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }

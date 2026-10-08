@@ -23,7 +23,7 @@ public class AiToolAuthorizationService {
     // Bounded to one synchronous capability evaluation, never reused by the next HTTP request.
     private final ThreadLocal<Map<Check, Boolean>> capabilityEvaluation = new ThreadLocal<>();
 
-    <T> T withCapabilityEvaluation(Supplier<T> operation) {
+    public <T> T withCapabilityEvaluation(Supplier<T> operation) {
         var previous = capabilityEvaluation.get();
         capabilityEvaluation.set(new HashMap<>());
         try { return operation.get(); }
@@ -176,10 +176,14 @@ public class AiToolAuthorizationService {
     }
 
     public boolean canReadGuideTab(AuthSessionUser user, String module, String tab) {
-        if(Set.of("crm","inventory","pos").contains(module))
-            return canUseModuleCapability(user,module,module.equals("crm")?"sales":module,TabPermissionRequirement.one(module+"."+tab));
-        if (!Set.of("human_resources", "processes").contains(module)) return false;
-        return canUseModule(user, module, TabPermissionRequirement.one(module + "." + tab))
+        if(Set.of("crm","inventory","pos").contains(module)) {
+            var permissionTab = module.equals("inventory") ? switch(tab) { case "warehouses" -> "inventory"; case "discounts" -> "products"; default -> tab; }
+                : module.equals("crm") && Set.of("commissions", "payment-accounts").contains(tab) ? "sales" : tab;
+            return canUseModuleCapability(user,module,module.equals("crm")?"sales":module,TabPermissionRequirement.one(module+"."+permissionTab));
+        }
+        if (!Set.of("human_resources", "processes", "config_center", "expenses", "petty_cash", "receivables", "kpis").contains(module)) return false;
+        var permissionTab=module.equals("expenses")&&tab.equals("payment_accounts")?"payment-accounts":tab;
+        return canUseModule(user, module, TabPermissionRequirement.one(module + "." + permissionTab))
             && (!"processes".equals(module) || processTasksAccessService.canAccess(user));
     }
 
@@ -219,6 +223,15 @@ public class AiToolAuthorizationService {
 
     public boolean canReadPosCash(AuthSessionUser user) {
         return canUseModuleCapability(user, "pos", "pos", POS_CASH_PERMISSION);
+    }
+
+    public boolean canUseFinanceWorkflowTool(AuthSessionUser user,String tool) {
+        var spec=com.indice.erp.finance.assistant.FinanceAssistantTools.ALL.get(tool);
+        if(spec==null)return false;
+        if(spec.write()&&Set.of("accounting_account","payment_account","provider","budget","budget_line","fund").contains(spec.kind())
+                &&!Set.of("deposit","remove_attachment").contains(spec.operation())
+                &&!Set.of("root","superadmin","admin","owner","dueno").contains(normalizeRole(user.role())))return false;
+        return canUseModuleCapability(user,spec.module(),spec.module(),TabPermissionRequirement.one(spec.module()+"."+spec.tab()));
     }
 
     public boolean canReadExpenses(AuthSessionUser user) {

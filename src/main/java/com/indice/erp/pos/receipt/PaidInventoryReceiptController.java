@@ -75,11 +75,13 @@ public class PaidInventoryReceiptController {
     }
 
     @PostMapping
+    @com.indice.erp.learning.LearningApplied("pos.sale")
     public ResponseEntity<?> create(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @Valid @RequestBody PaidInventoryReceiptDtos.CreateRequest request) {
         var access = guard.requireWriteAccess(session, csrfToken);
+        if(access.context()!=null)com.indice.erp.learning.LearningOperationContext.capture(access.context().companyId(),access.context().userId());
         if (access.denied()) return access.error();
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(access.context(), request));
     }

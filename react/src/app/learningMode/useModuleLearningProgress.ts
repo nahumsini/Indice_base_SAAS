@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import {useLearningViewState} from './useLearningViewState';
+import {useLearningProgress} from './useLearningProgress';
+import {learningGuideModules} from './curriculum';
 import { getCachedAuthSession } from '../api/authSessionStore';
 import type { AuthSessionResponse } from '../api/auth.types';
 
@@ -50,65 +53,20 @@ export function getModuleLearningProgressStorageKey(guideId: string) {
     : `${progressStoragePrefix}:${guideId}:unscoped`;
 }
 
-const readProgress = (storageKey: string) => {
-  if (typeof window === 'undefined') {
-    return { ...defaultModuleLearningProgress };
-  }
-
-  try {
-    const storedValue = window.localStorage.getItem(storageKey);
-    return storedValue
-      ? normalizeModuleLearningProgress(JSON.parse(storedValue))
-      : { ...defaultModuleLearningProgress };
-  } catch {
-    return { ...defaultModuleLearningProgress };
-  }
-};
 
 export function useModuleLearningProgress(guideId: string) {
   const storageKey = getModuleLearningProgressStorageKey(guideId);
-  const [storedState, setStoredState] = useState(() => ({
-    storageKey,
-    value: readProgress(storageKey),
-  }));
-  const progress = storedState.storageKey === storageKey
-    ? storedState.value
-    : readProgress(storageKey);
-
-  const updateProgress = useCallback((
-    update: (current: ModuleLearningProgress) => ModuleLearningProgress,
-  ) => {
-    setStoredState((current) => {
-      const currentValue = current.storageKey === storageKey
-        ? current.value
-        : readProgress(storageKey);
-      return { storageKey, value: update(currentValue) };
-    });
-  }, [storageKey]);
-
-  useEffect(() => {
-    if (storedState.storageKey !== storageKey || typeof window === 'undefined') {
-      return;
-    }
-
-    try {
-      window.localStorage.setItem(storageKey, JSON.stringify(storedState.value));
-    } catch {
-      // Keep the current session usable when browser storage is unavailable.
-    }
-  }, [storageKey, storedState]);
-
-  return useMemo(() => ({
-    progress,
-    markUnderstood: (journeyId: string) => updateProgress((current) => ({
-      ...current,
-      understoodJourneyIds: current.understoodJourneyIds.includes(journeyId)
-        ? current.understoodJourneyIds
-        : [...current.understoodJourneyIds, journeyId],
-    })),
-    setExpanded: (expanded: boolean) => updateProgress((current) => ({
-      ...current,
-      expanded,
-    })),
-  }), [progress, updateProgress]);
+  const view = useLearningViewState('learning-view-'+guideId, storageKey, defaultModuleLearningProgress, normalizeModuleLearningProgress);
+  const remote = useLearningProgress();
+  const module = learningGuideModules[guideId];
+  const chapters = remote.progress?.chapters.filter(c=>c.module===module) ?? [];
+  return useMemo(()=>({
+    progress: {...view.value,
+      understoodJourneyIds: chapters.filter(c=>c.understoodAt!==null).map(c=>c.tab),
+      appliedJourneyIds: chapters.filter(c=>c.status==='applied').map(c=>c.tab)},
+    markUnderstood:(journeyId:string)=>{if(module)void remote.update(module,journeyId,'understood');},
+    setExpanded:(expanded:boolean)=>view.update(current=>({...current,expanded})),
+    error:remote.error||view.error, ready:remote.ready,
+    retry:()=>{remote.retry();view.retry();},
+  }),[view.value,view.update,view.error,remote.progress,remote.error,remote.ready,remote.update,module]);
 }

@@ -15,6 +15,14 @@ extends the operational target as of 2026-10-06. Its delivery matrix records loc
 owner cycles, with an [operating workflow](lupita-commerce-operating-workflow-v1.md),
 [exact tool matrix](lupita-commerce-tool-matrix-v1.md) and
 [verification/release handoff](validation/2026-10-06-lupita-commerce-cycles.md).
+The user-approved [Expenses and Petty Cash completion contract](lupita-finance-delivery-contract-v1.md)
+extends the operational target as of 2026-10-07 with 135 named tools. Its
+[operating workflow](lupita-finance-operating-workflow-v1.md),
+[exact matrix](lupita-finance-tool-matrix-v1.md) and
+[verification handoff](lupita-finance-delivery-2026-10-07.md) govern this extension.
+Catalogs, payments, reversals, signed statement decisions and private evidence use native owners.
+Paid imports and due-status approvals require their additional payment/approval consent. New
+write scopes are opt-in and do not upgrade existing grants.
 Named actions continue to require current owner access, explicit consent and immutable confirmation.
 Real APPTEST and public release acceptance are separate from local implementation verification.
 
@@ -69,9 +77,13 @@ does not consume another slot. Never raise the limit or revoke other connections
 
 ## 3. Current tool authorization matrix
 
-The closed MCP catalog contains 459 tools after the commerce completion: 141 reads, 158
+The closed MCP catalog contains 598 tools after the finance completion extension: 168 reads, 214
 preview/commit action pairs and two temporary file-intake tools. The tables below retain the
 RH/Processes foundation; the [commerce matrix](lupita-commerce-tool-matrix-v1.md) extends it.
+The [learning progress contract](learning-mode-mcp-progress-contract-v1.md) adds shared reviewed
+guidance for 58 chapters in 10 modules, private progress and an explicit `learning.manage` action
+pair. Existing connections retain their original consent; learning declarations never grant
+business permissions or certify that all chapter requirements are satisfied.
 `Any(...)` means at least one current tab grant is required.
 Every row also inherits the common invariant above.
 
@@ -178,7 +190,9 @@ records acceptance and domain limits. These rows never authorize arbitrary API d
 
 | Tool | OAuth scope | Owner module and tab permission | Risk and additional rule |
 | --- | --- | --- | --- |
-| `get_system_guide` | `learning.read` | Current authorized RH or Processes tab, including current subscription/module/owner access | Reviewed bilingual Modo aprendiz content; filter every tab and available action. No authorized module returns denied access. |
+| `get_system_guide` | `learning.read` | Current authorized chapter in the 10 adopted modules, including current subscription/module/owner access | Shared reviewed bilingual curriculum; filter every tab and available action. No authorized module returns denied access. |
+| `get_learning_progress`, `get_next_learning_mission` | `learning.read` | Authenticated user and company; current chapter/tab access | Durable private progress and next pending mission; never another user's learning or consultant certifications. |
+| `preview_update_learning_progress`, `update_learning_progress` | `learning.manage` | Current authorized chapter/version; immutable actor-bound confirmation and idempotency | Only start/resume or declared understanding. Applied requires explicit compatible owner evidence. |
 | `list_task_organization` | `tasks.read` | Same read rule as `list_tasks` | Active unit/business names in the Tasks assignment owner scope; no Configuration permission required |
 | `list_hr_organization` | `hr.people.manage` | `human_resources.collaborators`, current management role | Read-only active destinations for employee changes, using RH organizational scope |
 | `get_employee_file` | `hr.people.details:read` | `human_resources.collaborators`, current management role | Authorized employment/contact/compensation fields and document metadata; excludes legal IDs, health, banking and private file content |
@@ -484,11 +498,12 @@ separate approved domain decision and recovery tests.
 
 ## 9. Known bounded V1 debt
 
-- generic business and finance result schemas remain dynamic;
+- generic business and legacy finance results remain dynamic; the new finance workflow endpoints
+  use explicit DTOs and exact decimal strings;
 - several legacy sales/product/finance lists still have limits without a cursor contract and
   filter in memory; employee/task/attendance lists now have bound opaque cursors and full counts; the
   eight paged reference lists expose opaque cursors (business context is a separate singleton); customer and warehouse count/row
-  queries paginate in SQL, while the Finance reference lists still paginate after owner filtering;
+  queries paginate in SQL, while Finance references and the new finance workflow lists still paginate after owner filtering;
 - backend reachability is covered by readiness; an authenticated synthetic monitor and actual
   ChatGPT text/voice continuity still require APPTEST operational validation;
 - the full ChatGPT APPTEST and reviewer checklist remains incomplete;

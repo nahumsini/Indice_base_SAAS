@@ -39,6 +39,7 @@ public class AiFileApiController {
         catch(ObjectStorageDisabledException e){return ResponseEntity.status(409).body(error("file_storage_unavailable","Private file storage is not enabled."));}
         catch(ObjectStorageException e){return ResponseEntity.status(503).body(error("file_storage_unavailable","Private file storage is temporarily unavailable."));}
         catch(com.indice.erp.pos.PosApiException e){return ResponseEntity.status(e.status()).body(error("file_owner_rejected","The current domain owner rejected the file operation."));}
+        catch(com.indice.erp.finance.FinanceApiException e){if(read)audit.recordRead(token.get(),tool,"FAILURE",e.status().value());return ResponseEntity.status(e.status()).body(error("file_owner_rejected","The finance owner rejected the requested file operation."));}
         catch(com.indice.erp.hr.announcements.HrAnnouncementApiException e){return ResponseEntity.status(e.status()).body(error("file_permission_required","Announcement owner rejected the file operation."));}
         catch(com.indice.erp.hr.permissions.HrPermissionApiException e){return ResponseEntity.status(e.status()).body(error("file_permission_required","Permission owner rejected the file operation."));}
         catch(IllegalArgumentException e){return ResponseEntity.badRequest().body(error("invalid_file_request",e.getMessage()));}

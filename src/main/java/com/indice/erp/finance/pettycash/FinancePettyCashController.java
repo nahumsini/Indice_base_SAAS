@@ -79,11 +79,13 @@ public class FinancePettyCashController {
     }
 
     @PostMapping("/funds")
+    @com.indice.erp.learning.LearningApplied("petty_cash.cash")
     public ResponseEntity<?> createFund(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @Valid @RequestBody CreatePettyCashFundRequest request) {
         var access = guard.requireWriteAccess(session, csrfToken);
+        if(access.context()!=null)com.indice.erp.learning.LearningOperationContext.capture(access.context().companyId(),access.context().userId());
         if (access.denied()) {
             return access.error();
         }
@@ -91,12 +93,14 @@ public class FinancePettyCashController {
     }
 
     @PutMapping("/funds/{fundId}")
+    @com.indice.erp.learning.LearningApplied("petty_cash.cash")
     public ResponseEntity<?> updateFund(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long fundId,
             @Valid @RequestBody UpdatePettyCashFundRequest request) {
         var access = guard.requireWriteAccess(session, csrfToken);
+        if(access.context()!=null)com.indice.erp.learning.LearningOperationContext.capture(access.context().companyId(),access.context().userId());
         if (access.denied()) {
             return access.error();
         }
@@ -190,12 +194,14 @@ public class FinancePettyCashController {
     }
 
     @PostMapping("/funds/{fundId}/movements")
+    @com.indice.erp.learning.LearningApplied("petty_cash.control")
     public ResponseEntity<?> createMovement(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long fundId,
             @Valid @RequestBody CreatePettyCashMovementRequest request) {
         var access = guard.requireWriteAccess(session, csrfToken);
+        if(access.context()!=null)com.indice.erp.learning.LearningOperationContext.capture(access.context().companyId(),access.context().userId());
         if (access.denied()) {
             return access.error();
         }
@@ -216,12 +222,14 @@ public class FinancePettyCashController {
     }
 
     @PostMapping("/funds/{fundId}/settlement-lines")
+    @com.indice.erp.learning.LearningApplied("petty_cash.control")
     public ResponseEntity<?> createSettlementLine(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long fundId,
             @Valid @RequestBody CreatePettyCashSettlementLineRequest request) {
         var access = guard.requireWriteAccess(session, csrfToken);
+        if(access.context()!=null)com.indice.erp.learning.LearningOperationContext.capture(access.context().companyId(),access.context().userId());
         if (access.denied()) {
             return access.error();
         }
@@ -271,6 +279,7 @@ public class FinancePettyCashController {
     }
 
     @PostMapping("/funds/{fundId}/statements/{statementId}/close")
+    @com.indice.erp.learning.LearningApplied("petty_cash.statements")
     public ResponseEntity<?> closeStatement(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
@@ -278,6 +287,7 @@ public class FinancePettyCashController {
             @PathVariable long statementId,
             @Valid @RequestBody ClosePettyCashStatementRequest request) {
         var access = guard.requireWriteAccess(session, csrfToken);
+        if(access.context()!=null)com.indice.erp.learning.LearningOperationContext.capture(access.context().companyId(),access.context().userId());
         if (access.denied()) {
             return access.error();
         }
@@ -324,6 +334,7 @@ public class FinancePettyCashController {
     }
 
     @PostMapping("/funds/{fundId}/settlement-lines/{settlementLineId}/attachments")
+    @com.indice.erp.learning.LearningApplied("petty_cash.control")
     public ResponseEntity<?> registerSettlementLineAttachment(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
@@ -331,6 +342,7 @@ public class FinancePettyCashController {
             @PathVariable long settlementLineId,
             @RequestBody Map<String, Object> payload) {
         var access = guard.requireWriteAccess(session, csrfToken);
+        if(access.context()!=null)com.indice.erp.learning.LearningOperationContext.capture(access.context().companyId(),access.context().userId());
         if (access.denied()) {
             return access.error();
         }

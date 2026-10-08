@@ -68,10 +68,7 @@ export function resolveOperationalJourneyStatus(
   stageIndex: number,
   currentStep: number,
 ): OperationalJourneyStageStatus {
-  if (stageIndex < currentStep) {
-    return "completed";
-  }
-
+  // Selecting a later stage is navigation, not evidence of learning completion.
   if (stageIndex === currentStep) {
     return "active";
   }

@@ -15,12 +15,13 @@ public class AiFileAccess {
         Map.entry("attach_my_hr_permission_file",Purpose.my_hr_permission_attachment),Map.entry("attach_hr_permission_file",Purpose.hr_permission_attachment),
         Map.entry("attach_task_evidence",Purpose.task_evidence),Map.entry("attach_inventory_product_image",Purpose.inventory_product_image),
         Map.entry("attach_sale_payment_evidence",Purpose.sale_payment_evidence),Map.entry("attach_sales_contract_file",Purpose.sales_contract_attachment),
-        Map.entry("attach_supplier_invoice_file",Purpose.supplier_invoice_attachment),Map.entry("attach_pos_receipt_file",Purpose.pos_receipt_attachment));
+        Map.entry("attach_supplier_invoice_file",Purpose.supplier_invoice_attachment),Map.entry("attach_pos_receipt_file",Purpose.pos_receipt_attachment),Map.entry("attach_expense_file",Purpose.expense_attachment),Map.entry("attach_budget_line_file",Purpose.budget_line_attachment),Map.entry("attach_petty_cash_receipt_file",Purpose.petty_cash_receipt_attachment));
     public static final Set<String> READS=Set.of("list_operational_files","get_operational_file","export_hr_payroll");
     private final AiHrAccess hr;private final AiToolAuthorizationService authorization;
     public AiFileAccess(AiHrAccess hr,AiToolAuthorizationService authorization){this.hr=hr;this.authorization=authorization;}
     public boolean allowed(StoredToken token,Purpose purpose,boolean write) {
         if(purpose==null||!token.scopes().contains(write?"files.attach":"files.read"))return false;
+        if(Set.of(Purpose.expense_attachment,Purpose.budget_line_attachment,Purpose.petty_cash_receipt_attachment).contains(purpose)){String tool=switch(purpose){case expense_attachment->write?"remove_expense_attachment":"get_finance_expense";case budget_line_attachment->write?"remove_budget_line_attachment":"get_finance_budget_line";default->write?"remove_petty_cash_receipt_attachment":"get_petty_cash_receipt";};return token.scopes().contains(com.indice.erp.finance.assistant.FinanceAssistantTools.require(tool).scope())&&authorization.canUseFinanceWorkflowTool(token.user(),tool);}
         if(AiCommerceFileOwnerService.supports(purpose))return commerceAllowed(token,purpose,write);
         if(purpose==Purpose.task_evidence)return token.scopes().contains(write?"tasks.operate":"tasks.read")
             &&(write?authorization.canCreateTask(token.user()):authorization.canReadTasks(token.user()));

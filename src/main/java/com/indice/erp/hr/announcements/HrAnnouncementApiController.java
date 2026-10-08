@@ -40,16 +40,19 @@ public class HrAnnouncementApiController {
     }
 
     @PostMapping
+    @com.indice.erp.learning.LearningApplied("human_resources.announcements")
     public ResponseEntity<?> create(
         HttpSession session,
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var actor = securityService.requireManagementWriteActor(session, csrfToken);
+        com.indice.erp.learning.LearningOperationContext.capture(actor.companyId(),actor.userId());
         return ResponseEntity.status(HttpStatus.CREATED).body(hrAnnouncementService.createAnnouncement(actor, payload));
     }
 
     @PatchMapping("/{announcementId}")
+    @com.indice.erp.learning.LearningApplied("human_resources.announcements")
     public ResponseEntity<?> update(
         HttpSession session,
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
@@ -57,6 +60,7 @@ public class HrAnnouncementApiController {
         @RequestBody Map<String, Object> payload
     ) {
         var actor = securityService.requireManagementWriteActor(session, csrfToken);
+        com.indice.erp.learning.LearningOperationContext.capture(actor.companyId(),actor.userId());
         return ResponseEntity.ok(hrAnnouncementService.updateAnnouncement(actor, announcementId, payload));
     }
 

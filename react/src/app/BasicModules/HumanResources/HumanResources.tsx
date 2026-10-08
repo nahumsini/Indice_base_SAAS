@@ -61,7 +61,7 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
   const employeeLearningActionsRef = useRef<EmployeeLearningActions | null>(null);
   const tabScrollPositionsRef = useRef(new Map<HumanResourcesTabId, number>());
   const [learningSignals, setLearningSignals] = useState(emptyHumanResourcesLearningSignals);
-  const learningProgress = useHumanResourcesLearningProgress();
+  const learningProgress = useHumanResourcesLearningProgress(learningModeActive);
   const [visitedTabIds, setVisitedTabIds] = useState<Set<HumanResourcesTabId>>(
     () => new Set(['collaborators']),
   );
@@ -211,6 +211,7 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
               });
             }}
             onSetExpanded={learningProgress.setExpanded}
+            onRetrySync={learningProgress.retry}
           />
         ) : undefined}
         onNavigate={onNavigate}

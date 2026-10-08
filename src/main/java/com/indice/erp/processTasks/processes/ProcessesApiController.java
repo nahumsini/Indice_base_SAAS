@@ -74,12 +74,14 @@ public class ProcessesApiController {
     }
 
     @PostMapping("/occasional/runs")
+    @com.indice.erp.learning.LearningApplied("processes.processes")
     public ResponseEntity<?> createOccasionalRun(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
             @RequestBody OccasionalRunRequest request) {
         var access = guard.requireWrite(session, csrfToken);
+        com.indice.erp.learning.LearningOperationContext.capture(access.user());
         if (access.denied()) {
             return access.error();
         }
@@ -135,11 +137,13 @@ public class ProcessesApiController {
     }
 
     @PostMapping
+    @com.indice.erp.learning.LearningApplied("processes.processes")
     public ResponseEntity<?> create(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestBody Map<String, Object> payload) {
         var access = guard.requireWrite(session, csrfToken);
+        com.indice.erp.learning.LearningOperationContext.capture(access.user());
         if (access.denied()) {
             return access.error();
         }
@@ -160,12 +164,14 @@ public class ProcessesApiController {
     }
 
     @PutMapping("/{processId}")
+    @com.indice.erp.learning.LearningApplied("processes.processes")
     public ResponseEntity<?> update(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long processId,
             @RequestBody Map<String, Object> payload) {
         var access = guard.requireWrite(session, csrfToken);
+        com.indice.erp.learning.LearningOperationContext.capture(access.user());
         if (access.denied()) {
             return access.error();
         }

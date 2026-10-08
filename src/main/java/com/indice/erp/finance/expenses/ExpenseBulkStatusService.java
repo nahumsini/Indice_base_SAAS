@@ -34,6 +34,54 @@ public class ExpenseBulkStatusService {
     }
 
     @Transactional
+    public void validateAssistant(FinanceContext context, ExpenseBulkStatusRequest request) {
+        if (request.target() == null || request.effectiveDate() == null || request.rows() == null
+                || request.rows().isEmpty() || request.rows().size() > 200 || request.requestKey() == null
+                || request.requestKey().isBlank() || request.requestKey().length() > 80) {
+            throw FinanceApiException.badRequest("Select between 1 and 200 expenses and provide a date and request key.");
+        }
+        var today = LocalDate.now(timeZones.resolve(context.companyId()));
+        switch (request.target()) {
+            case PAID -> {
+                if (request.paymentAccountId() == null || request.effectiveDate().isAfter(today))
+                    throw FinanceApiException.badRequest("Select a payment account and a payment date no later than today.");
+            }
+            case PENDING -> {
+                if (request.effectiveDate().isBefore(today))
+                    throw FinanceApiException.badRequest("Pending expenses require a due date today or later.");
+            }
+            case OVERDUE -> {
+                if (!request.effectiveDate().isBefore(today))
+                    throw FinanceApiException.badRequest("Overdue expenses require a due date before today.");
+            }
+        }
+        repository.lockCompanyForCreation(context);
+        var records = new ArrayList<ExpenseRecord>();
+        var ids = new HashSet<Long>();
+        for (var selection : request.rows()) {
+            if (selection == null || !ids.add(selection.id())) throw FinanceApiException.badRequest("Duplicate expense selection.");
+            var record = repository.findByIdForUpdate(context, selection.id())
+                .orElseThrow(() -> FinanceApiException.notFound("Expense not found."));
+            if (!Objects.equals(record.version(), selection.expectedVersion()))
+                throw FinanceApiException.conflict("An expense changed. Reload the selection before retrying.");
+            if (record.originFund() != null || "PETTY_CASH".equals(record.auditStatus()) || record.accountingPosted()
+                    || record.purchaseOrderId() != null || record.budgetLineId() != null)
+                throw FinanceApiException.conflict("Linked or posted expenses require their source workflow.");
+            if (!java.util.Set.of(ExpenseStatus.DRAFT, ExpenseStatus.PENDING_APPROVAL, ExpenseStatus.APPROVED,
+                    ExpenseStatus.PARTIALLY_PAID).contains(record.status()) || record.balanceAmount().signum() <= 0)
+                throw FinanceApiException.conflict("Only open expenses with a remaining balance can change here. Paid expenses require a reversal.");
+            if (request.target() == ExpenseBulkStatusRequest.Target.PAID) {
+                if (request.effectiveDate().isBefore(record.expenseDate()))
+                    throw FinanceApiException.badRequest("Payment date cannot precede the expense date.");
+                references.validateImportPaymentAccount(context, request.paymentAccountId(), record.currencyCode());
+                references.validatePaymentAccountForPayment(context, request.paymentAccountId(), record.currencyCode());
+            }
+            records.add(record);
+        }
+
+    }
+
+    @Transactional
     public ExpenseListResponse apply(FinanceContext context, ExpenseBulkStatusRequest request) {
         if (request.target() == null || request.effectiveDate() == null || request.rows() == null
                 || request.rows().isEmpty() || request.rows().size() > 200 || request.requestKey() == null

@@ -78,11 +78,13 @@ public class FinanceReceivablesController {
     }
 
     @PostMapping("/credit-sales")
+    @com.indice.erp.learning.LearningApplied("receivables.credit-sales")
     public ResponseEntity<?> createCreditSale(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @Valid @RequestBody CreateCreditSaleRequest request) {
         var access = guard.requireWriteAccess(session, csrfToken);
+        if(access.context()!=null)com.indice.erp.learning.LearningOperationContext.capture(access.context().companyId(),access.context().userId());
         if (access.denied()) {
             return access.error();
         }
@@ -90,11 +92,13 @@ public class FinanceReceivablesController {
     }
 
     @PostMapping("/payments")
+    @com.indice.erp.learning.LearningApplied("receivables.payments")
     public ResponseEntity<?> registerPayment(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @Valid @RequestBody RegisterReceivablePaymentRequest request) {
         var access = guard.requireWriteAccess(session, csrfToken);
+        if(access.context()!=null)com.indice.erp.learning.LearningOperationContext.capture(access.context().companyId(),access.context().userId());
         if (access.denied()) {
             return access.error();
         }

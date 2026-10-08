@@ -33,6 +33,37 @@ public class ExpenseBulkActionService {
     }
 
     @Transactional
+    public void validateAssistant(FinanceContext context, ExpenseBulkActionRequest request) {
+        if (request.action() == null || request.rows() == null || request.rows().isEmpty() || request.rows().size() > 200)
+            throw FinanceApiException.badRequest("Select between 1 and 200 expenses.");
+        repository.lockCompanyForCreation(context);
+        var records = new ArrayList<ExpenseRecord>();
+        var ids = new HashSet<Long>();
+        for (var row : request.rows()) {
+            if (row == null || !ids.add(row.id())) throw FinanceApiException.badRequest("Duplicate expense selection.");
+            var record = repository.findByIdForUpdate(context, row.id())
+                .orElseThrow(() -> FinanceApiException.notFound("Expense not found."));
+            if (!Objects.equals(row.expectedVersion(), record.version()))
+                throw FinanceApiException.conflict("An expense changed. Reload the selection before retrying.");
+            if (request.action() == Action.DELETE) {
+                validateTarget(context, record, request);
+                deletions.validate(context, record);
+                records.add(record);
+                continue;
+            }
+            if (record.originFund() != null || "PETTY_CASH".equals(record.auditStatus()))
+                throw FinanceApiException.conflict("Fund expenses must be changed from Petty Cash.");
+            if (record.accountingPosted() || record.purchaseOrderId() != null || record.budgetLineId() != null)
+                throw FinanceApiException.conflict("Linked or posted expenses require an adjustment from their source workflow.");
+            if (record.status() == ExpenseStatus.CANCELLED || record.status() == ExpenseStatus.REJECTED || record.status() == ExpenseStatus.CLOSED)
+                throw FinanceApiException.conflict("Cancelled, rejected or closed expenses cannot be changed in bulk.");
+            validateTarget(context, record, request);
+            records.add(record);
+        }
+
+    }
+
+    @Transactional
     public ExpenseListResponse apply(FinanceContext context, ExpenseBulkActionRequest request) {
         if (request.action() == null || request.rows() == null || request.rows().isEmpty() || request.rows().size() > 200)
             throw FinanceApiException.badRequest("Select between 1 and 200 expenses.");

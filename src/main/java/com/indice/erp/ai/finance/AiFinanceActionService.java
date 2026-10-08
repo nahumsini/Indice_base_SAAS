@@ -37,7 +37,7 @@ public class AiFinanceActionService {
     private final AiFinanceActionExecutionService executionService;
     private final FinanceAccessService financeAccessService;
     private final ObjectMapper objectMapper;
-    private final Clock clock;
+    private final Clock clock;private final AiFinanceReviewService reviews;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public AiFinanceActionService(
@@ -45,13 +45,13 @@ public class AiFinanceActionService {
         AiFinanceActionExecutionService executionService,
         FinanceAccessService financeAccessService,
         ObjectMapper objectMapper,
-        Clock clock
+        Clock clock,AiFinanceReviewService reviews
     ) {
         this.repository = repository;
         this.executionService = executionService;
         this.financeAccessService = financeAccessService;
         this.objectMapper = objectMapper;
-        this.clock = clock;
+        this.clock = clock;this.reviews=reviews;
     }
 
     public AiFinanceActionContracts.PreviewResponse preview(
@@ -68,6 +68,7 @@ public class AiFinanceActionService {
             // Domain existence and scope are revalidated atomically during commit.
             if (fundId <= 0 || context.companyId() == null) throw new IllegalArgumentException("fundId is required.");
         }
+        normalized.putAll(reviews.review(token.user(),tool,normalized));
         var confirmationToken = generateConfirmationToken();
         var fingerprint = sha256Hex(json(normalized));
         var expiresAt = clock.instant().plus(CONFIRMATION_TTL);
@@ -102,8 +103,6 @@ public class AiFinanceActionService {
         var correlationId = UUID.randomUUID().toString();
         try {
             var response = executionService.execute(token, confirmation, idempotencyHash, correlationId);
-            repository.insertAudit(token, tool, confirmation.id(), "COMMIT", "SUCCESS", correlationId,
-                idempotencyHash, confirmation.normalizedArgs(), response.result(), null, null);
             return response;
         } catch (DuplicateKeyException exception) {
             var concurrent = repository.findExecution(token.user().companyId(), token.user().userId(), tool, idempotencyHash)
@@ -128,6 +127,7 @@ public class AiFinanceActionService {
         if (!"COMPLETED".equals(execution.status())) {
             throw conflict("action_in_progress", "The action is still being processed. Try again shortly.");
         }
+        reviews.replay(token.user(),confirmation.tool(),execution.result());
         var response = new AiFinanceActionContracts.CommitResponse(
             true, execution.correlationId(), confirmation.tool(), execution.result()
         );

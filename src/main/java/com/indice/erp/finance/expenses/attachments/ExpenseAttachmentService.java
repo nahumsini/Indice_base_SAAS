@@ -39,6 +39,12 @@ public class ExpenseAttachmentService {
     }
 
     @Transactional(readOnly = true)
+    public java.util.List<com.indice.erp.storage.OperationalFileReference> references(FinanceContext context,long id) {
+        requireExpense(context,id);
+        return repository.list(context.companyId(),id).stream().map(row->new com.indice.erp.storage.OperationalFileReference(row.id(),row.originalFilename(),row.mimeType(),row.sizeBytes(),row.objectKey())).toList();
+    }
+
+    @Transactional(readOnly = true)
     public ExpenseAttachmentListResponse list(FinanceContext context, long expenseId) {
         requireExpense(context, expenseId);
         var items = repository.list(context.companyId(), expenseId).stream()

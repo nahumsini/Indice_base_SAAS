@@ -43,6 +43,43 @@ class PettyCashTypeChanges {
             context.companyId(), fundId);
     }
 
+    @Transactional(readOnly = true)
+    public void validateAssistantSchedule(FinanceContext context,long fundId,ChangePettyCashFundTypeRequest request) {
+        var existing = requireFund(context, fundId);
+        if (request.expectedVersion() == null || !request.expectedVersion().equals(existing.version())) {
+            throw FinanceApiException.conflict("The fund changed. Refresh and review the type change.");
+        }
+        requireNoPendingChange(context, fundId);
+        if (existing.status() == PettyCashFundStatus.CLOSED) throw FinanceApiException.conflict("A closed fund cannot change type.");
+        var configuration = request.configuration();
+        if (configuration == null || configuration.fundType() == null || configuration.fundType() == existing.fundType()) {
+            throw FinanceApiException.badRequest("Choose a different fund type.");
+        }
+        if (!existing.currencyCode().equalsIgnoreCase(configuration.currencyCode())) {
+            throw FinanceApiException.badRequest("Changing fund type preserves its currency.");
+        }
+        if (!java.util.Objects.equals(existing.paymentAccountId(), configuration.paymentAccountId())) {
+            throw FinanceApiException.badRequest("Changing fund type preserves its custody account.");
+        }
+        var reason = request.reason() == null ? "" : request.reason().trim();
+        if (reason.length() < 8 || reason.length() > 500) throw FinanceApiException.badRequest("A reason between 8 and 500 characters is required.");
+        var today = LocalDate.now(zones.resolve(context.companyId()));
+        var earliest = repository.hasFinancialActivity(context, fundId) ? today.plusDays(1) : today;
+        if (request.effectiveDate() == null || request.effectiveDate().isBefore(earliest)) {
+            throw FinanceApiException.badRequest("The type change must start on or after " + earliest + ".");
+        }
+        var futureActivity = jdbc.queryForObject("""
+            SELECT (SELECT COUNT(*) FROM finance_petty_cash_movements WHERE company_id = ? AND petty_cash_fund_id = ? AND movement_date >= ? AND deleted_at IS NULL)
+              + (SELECT COUNT(*) FROM finance_petty_cash_settlement_lines WHERE company_id = ? AND petty_cash_fund_id = ? AND expense_date >= ? AND deleted_at IS NULL)
+              + (SELECT COUNT(*) FROM finance_petty_cash_statements WHERE company_id = ? AND petty_cash_fund_id = ? AND period_end >= ? AND status IN ('CLOSED','TRANSFERRED_TO_NEXT_CUT','FORGIVEN_SHORTAGE','CHARGED_TO_EMPLOYEE') AND deleted_at IS NULL)
+            """, Long.class, context.companyId(), fundId, request.effectiveDate(), context.companyId(), fundId, request.effectiveDate(), context.companyId(), fundId, request.effectiveDate());
+        if (futureActivity > 0) throw FinanceApiException.conflict("There is already activity or a closed statement on or after the chosen date.");
+        if (pendingReceipts(context, fundId) > 0) {
+            throw FinanceApiException.conflict("Resolve the fund's pending receipts before scheduling its type change.");
+        }
+        var assignment = validator.validateUpdate(context, configuration, existing);
+    }
+
     @Transactional
     public List<PettyCashTypeChangeResponse> schedule(FinanceContext context, long fundId, ChangePettyCashFundTypeRequest request) {
         repository.lockFund(context, fundId);

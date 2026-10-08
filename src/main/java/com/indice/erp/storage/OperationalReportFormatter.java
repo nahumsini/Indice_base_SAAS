@@ -9,8 +9,12 @@ import org.apache.pdfbox.pdmodel.font.*;
 public final class OperationalReportFormatter {
     private OperationalReportFormatter(){}
     public static byte[] csv(List<String> columns,List<List<String>> rows){
+        return csv(columns,rows,Set.of());
+    }
+    /** Owners declare typed numeric columns; untrusted text always keeps formula protection. */
+    public static byte[] csv(List<String> columns,List<List<String>> rows,Set<String> numericColumns){
         var out=new StringBuilder();out.append(String.join(",",columns)).append('\n');
-        for(var row:rows){for(int i=0;i<row.size();i++){if(i>0)out.append(',');String value=row.get(i);if(!value.isEmpty()&&"=+-@".indexOf(value.stripLeading().isEmpty()?' ':value.stripLeading().charAt(0))>=0)value="'"+value;out.append('"').append(value.replace("\"","\"\"")).append('"');}out.append('\n');}
+        for(var row:rows){for(int i=0;i<row.size();i++){if(i>0)out.append(',');String value=row.get(i);boolean numeric=numericColumns.contains(columns.get(i));if(numeric&&!value.isEmpty()&&!value.matches("-?[0-9]+(\\.[0-9]+)?"))throw new IllegalArgumentException("Invalid numeric report value.");if(!numeric&&!value.isEmpty()&&"=+-@".indexOf(value.stripLeading().isEmpty()?' ':value.stripLeading().charAt(0))>=0)value="'"+value;out.append('"').append(value.replace("\"","\"\"")).append('"');}out.append('\n');}
         return out.toString().getBytes(StandardCharsets.UTF_8);
     }
     public static byte[] pdf(String title,List<String> columns,List<List<String>> rows){

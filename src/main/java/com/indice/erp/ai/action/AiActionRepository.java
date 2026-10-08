@@ -190,6 +190,14 @@ public class AiActionRepository {
         catch (JsonProcessingException exception) { throw new IllegalStateException("AI action serialization failed.", exception); }
     }
 
+    /** Private learning projection: only authoritative successful commits, never previews or uncertain results. */
+    public Map<String, Instant> completedLearningOperations(long companyId, long userId) {
+        var result = new java.util.HashMap<String, Instant>();
+        jdbcTemplate.query("SELECT tool_name, MAX(created_at) FROM ai_action_audit_events WHERE company_id=? AND user_id=? AND event_type='COMMIT' AND outcome='SUCCESS' GROUP BY tool_name",
+            (org.springframework.jdbc.core.RowCallbackHandler) row -> result.put(row.getString(1), row.getTimestamp(2).toInstant()), companyId, userId);
+        return result;
+    }
+
     private Map<String, Object> parse(String value) {
         if (value == null || value.isBlank()) return new LinkedHashMap<>();
         try { return objectMapper.readValue(value, MAP_TYPE); }

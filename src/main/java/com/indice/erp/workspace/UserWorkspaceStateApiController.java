@@ -35,13 +35,15 @@ public class UserWorkspaceStateApiController {
     }
 
     @GetMapping("/{moduleKey}/{tabKey}")
-    public ResponseEntity<?> get(HttpSession session, @PathVariable String moduleKey, @PathVariable String tabKey) {
+    public ResponseEntity<?> get(HttpSession session, @PathVariable String moduleKey, @PathVariable String tabKey,
+        @RequestHeader(value="X-Learning-Actor",required=false) String expectedLearningActor) {
         var context = tenantContextResolver.resolve(session);
         if (context.isEmpty()) {
             return unauthorized();
         }
         try {
             var actor = context.get();
+            if(learningActorChanged(moduleKey,tabKey,expectedLearningActor,actor.company_id(),actor.user_id()))return learningActorConflict();
             return ResponseEntity.ok(workspaceStateService.get(actor.company_id(), actor.user_id(), moduleKey, tabKey));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
@@ -54,6 +56,7 @@ public class UserWorkspaceStateApiController {
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @PathVariable String moduleKey,
         @PathVariable String tabKey,
+        @RequestHeader(value="X-Learning-Actor",required=false) String expectedLearningActor,
         @RequestBody WorkspaceStateRequest request
     ) {
         var context = tenantContextResolver.resolve(session);
@@ -63,14 +66,22 @@ public class UserWorkspaceStateApiController {
         try {
             sessionCsrfService.requireCsrf(session, csrfToken);
             var actor = context.get();
+            if(learningActorChanged(moduleKey,tabKey,expectedLearningActor,actor.company_id(),actor.user_id()))return learningActorConflict();
             return ResponseEntity.ok(workspaceStateService.save(
                 actor.company_id(), actor.user_id(), moduleKey, tabKey,
                 request == null ? null : request.state(),
                 request == null ? null : request.schemaVersion()
             ));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+            return invalidWrite(moduleKey,tabKey,ex);
         }
+    }
+
+    private boolean learningActorChanged(String module,String tab,String expected,long company,long user) {
+        return "system".equals(module)&&tab.startsWith("learning-view-")&&!(company+":"+user).equals(expected);
+    }
+    private ResponseEntity<?> learningActorConflict() {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code","learning_actor_changed"));
     }
 
     @DeleteMapping("/{moduleKey}/{tabKey}")
@@ -78,7 +89,8 @@ public class UserWorkspaceStateApiController {
         HttpSession session,
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @PathVariable String moduleKey,
-        @PathVariable String tabKey
+        @PathVariable String tabKey,
+        @RequestHeader(value="X-Learning-Actor",required=false) String expectedLearningActor
     ) {
         var context = tenantContextResolver.resolve(session);
         if (context.isEmpty()) {
@@ -87,11 +99,18 @@ public class UserWorkspaceStateApiController {
         try {
             sessionCsrfService.requireCsrf(session, csrfToken);
             var actor = context.get();
+            if(learningActorChanged(moduleKey,tabKey,expectedLearningActor,actor.company_id(),actor.user_id()))return learningActorConflict();
             workspaceStateService.delete(actor.company_id(), actor.user_id(), moduleKey, tabKey);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+            return invalidWrite(moduleKey,tabKey,ex);
         }
+    }
+
+    private ResponseEntity<?> invalidWrite(String module,String tab,IllegalArgumentException failure) {
+        var status="system".equals(module)&&tab.startsWith("learning-view-")&&"Invalid CSRF token.".equals(failure.getMessage())
+            ? HttpStatus.FORBIDDEN : HttpStatus.BAD_REQUEST;
+        return ResponseEntity.status(status).body(Map.of("message",failure.getMessage()));
     }
 
     private static ResponseEntity<Map<String, String>> unauthorized() {

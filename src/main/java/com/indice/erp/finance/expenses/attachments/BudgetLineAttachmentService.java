@@ -35,6 +35,12 @@ public class BudgetLineAttachmentService {
     }
 
     @Transactional(readOnly = true)
+    public java.util.List<com.indice.erp.storage.OperationalFileReference> references(FinanceContext context,long id) {
+        requireBudgetLine(context,id);
+        return repository.list(context.companyId(),id).stream().map(row->new com.indice.erp.storage.OperationalFileReference(row.id(),row.originalFilename(),row.mimeType(),row.sizeBytes(),row.objectKey())).toList();
+    }
+
+    @Transactional(readOnly = true)
     public ExpenseAttachmentListResponse list(FinanceContext context, long budgetLineId) {
         requireBudgetLine(context, budgetLineId);
         var items = repository.list(context.companyId(), budgetLineId).stream()

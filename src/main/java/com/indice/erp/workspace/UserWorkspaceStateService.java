@@ -74,7 +74,7 @@ public class UserWorkspaceStateService {
         var resolvedSchemaVersion = schemaVersion == null ? 1 : Math.max(1, schemaVersion);
         // Explicit user preferences last until changed; navigation keeps its retention.
         Integer retentionDays = (scope.moduleKey().equals("expenses") && scope.tabKey().equals("expenses-columns"))
-            || (scope.moduleKey().equals("system") && scope.tabKey().equals("learning-mode"))
+            || (scope.moduleKey().equals("system") && (scope.tabKey().equals("learning-mode") || scope.tabKey().startsWith("learning-view-")))
             ? null : RETENTION_DAYS;
 
         jdbcTemplate.update(

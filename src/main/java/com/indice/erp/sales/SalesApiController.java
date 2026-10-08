@@ -327,12 +327,14 @@ public class SalesApiController {
     }
 
     @PostMapping("/quotes/{quoteId}/connection")
+    @com.indice.erp.learning.LearningApplied("crm.quotes")
     public ResponseEntity<?> connectQuote(
             HttpSession session,
             @PathVariable long quoteId,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestBody(required = false) Map<String, Object> payload) {
         var user = currentUser(session);
+        user.ifPresent(com.indice.erp.learning.LearningOperationContext::capture);
         if (user.isEmpty()) {
             return unauthorized();
         }
@@ -382,11 +384,13 @@ public class SalesApiController {
     }
 
     @PostMapping("/commission-cuts")
+    @com.indice.erp.learning.LearningApplied("crm.commissions")
     public ResponseEntity<?> createCommissionCut(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestBody Map<String, Object> payload) {
         var user = currentUser(session);
+        user.ifPresent(com.indice.erp.learning.LearningOperationContext::capture);
         if (user.isEmpty()) return unauthorized();
         var csrfFailure = requireCsrf(session, csrfToken);
         if (csrfFailure != null) {
@@ -408,11 +412,13 @@ public class SalesApiController {
     }
 
     @PutMapping("/commission-cut-schedule")
+    @com.indice.erp.learning.LearningApplied("crm.commissions")
     public ResponseEntity<?> saveCommissionCutSchedule(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestBody Map<String, Object> payload) {
         var user = currentUser(session);
+        user.ifPresent(com.indice.erp.learning.LearningOperationContext::capture);
         if (user.isEmpty()) return unauthorized();
         var csrfFailure = requireCsrf(session, csrfToken);
         if (csrfFailure != null) {
@@ -462,11 +468,13 @@ public class SalesApiController {
     }
 
     @PostMapping("/inventory-operations/commit")
+    @com.indice.erp.learning.LearningApplied("inventory.inventory")
     public ResponseEntity<?> commitInventoryOperation(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestBody(required = false) Map<String, Object> payload) {
         var user = currentUser(session);
+        user.ifPresent(com.indice.erp.learning.LearningOperationContext::capture);
         if (user.isEmpty()) {
             return unauthorized();
         }
@@ -488,12 +496,14 @@ public class SalesApiController {
     }
 
     @PostMapping("/{collection}")
+    @com.indice.erp.learning.LearningApplied(pathVariable="collection", chaptersByValue={"contacts=crm.contacts", "opportunities=crm.leads", "quotes=crm.quotes", "sales=crm.sales", "contracts=crm.contracts", "commission-rules=crm.commissions", "products=inventory.products", "inventory-warehouses=inventory.warehouses", "inventory-balances=inventory.inventory"})
     public ResponseEntity<?> create(
             HttpSession session,
             @PathVariable String collection,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestBody(required = false) Map<String, Object> payload) {
         var user = currentUser(session);
+        user.ifPresent(com.indice.erp.learning.LearningOperationContext::capture);
         if (user.isEmpty()) {
             return unauthorized();
         }
@@ -533,6 +543,7 @@ public class SalesApiController {
     }
 
     @PutMapping("/{collection}/{id}")
+    @com.indice.erp.learning.LearningApplied(pathVariable="collection", chaptersByValue={"contacts=crm.contacts", "opportunities=crm.leads", "quotes=crm.quotes", "sales=crm.sales", "contracts=crm.contracts", "commission-rules=crm.commissions", "products=inventory.products", "inventory-warehouses=inventory.warehouses", "inventory-balances=inventory.inventory"})
     public ResponseEntity<?> update(
             HttpSession session,
             @PathVariable String collection,
@@ -540,6 +551,7 @@ public class SalesApiController {
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestBody(required = false) Map<String, Object> payload) {
         var user = currentUser(session);
+        user.ifPresent(com.indice.erp.learning.LearningOperationContext::capture);
         if (user.isEmpty()) {
             return unauthorized();
         }

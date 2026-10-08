@@ -32,7 +32,7 @@
     "test:integrations-ui": "node --test tests/integrations-frontend-regression.test.mjs",
     "test:integrations-browser": "node tests/ai-connections-browser.mjs",
     "test:invitation": "node --experimental-strip-types --test tests/invitation-frontend-regression.test.mjs",
-    "test:learning-mode": "node --experimental-strip-types --test tests/learning-mode-first-entry-regression.test.mjs tests/learning-mode-settings-modal-regression.test.mjs tests/human-resources-learning-mode-regression.test.mjs tests/module-learning-mode-standard-regression.test.mjs tests/learning-mode-locale-regression.test.mjs",
+    "test:learning-mode": "node --experimental-strip-types --test tests/learning-mode-first-entry-regression.test.mjs tests/learning-mode-settings-modal-regression.test.mjs tests/human-resources-learning-mode-regression.test.mjs tests/module-learning-mode-standard-regression.test.mjs tests/learning-mode-locale-regression.test.mjs tests/learning-progress-runtime.test.mjs",
     "test:users": "node --test tests/users-access-regression.test.mjs",
     "test:kpis-ui": "node --test tests/kpis-frontend-standard-regression.test.mjs",
     "test:inventory-ui": "node --test tests/inventory-frontend-standard-regression.test.mjs",

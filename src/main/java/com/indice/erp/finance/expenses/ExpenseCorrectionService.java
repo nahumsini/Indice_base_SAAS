@@ -40,6 +40,49 @@ public class ExpenseCorrectionService {
         this.jdbc = jdbc; this.json = json;
     }
 
+    @Transactional(readOnly = true)
+    public void validateAssistant(FinanceContext context,long id,CorrectExpenseRequest correction) {
+        var existing=repository.findById(context,id).orElseThrow(()->FinanceApiException.notFound("Expense not found."));
+        if (correction == null || correction.expense() == null || correction.expectedVersion() == null
+                || !Objects.equals(existing.version(), correction.expectedVersion()))
+            throw FinanceApiException.conflict("The expense changed. Reload it before editing.");
+        if (existing.originFund() != null || "PETTY_CASH".equals(existing.auditStatus()))
+            throw FinanceApiException.conflict("Fund expenses must be managed from their source fund.");
+        if (existing.accountingPosted())
+            throw FinanceApiException.conflict("This expense has a posted journal entry. Use an accounting adjustment to preserve the ledger.");
+        if (existing.purchaseOrderId() != null || List.of(ExpenseStatus.CLOSED, ExpenseStatus.CANCELLED, ExpenseStatus.REJECTED).contains(existing.status()))
+            throw FinanceApiException.conflict("Closed, cancelled, rejected or purchase-order expenses require their source correction workflow.");
+        var request = correction.expense();
+        var assignment = validator.validateUpdate(context, request);
+        references.validateUpdate(context, assignment, request);
+        if (request.totalAmount().signum() <= 0)
+            throw FinanceApiException.badRequest("The corrected expense total must be greater than zero.");
+        if (!Objects.equals(request.budgetLineId(), existing.budgetLineId())
+                || !Objects.equals(request.purchaseOrderId(), existing.purchaseOrderId()))
+            throw FinanceApiException.conflict("A correction cannot replace the source budget or purchase order.");
+        boolean hasPaymentHistory = Boolean.TRUE.equals(jdbc.queryForObject(
+            "SELECT EXISTS(SELECT 1 FROM finance_expense_payments WHERE company_id = ? AND expense_id = ?)",
+            Boolean.class, context.companyId(), id));
+        if ((hasPaymentHistory || existing.paidAmount().signum() > 0 || existing.budgetLineId() != null)
+                && !existing.currencyCode().equalsIgnoreCase(request.currencyCode()))
+            throw FinanceApiException.conflict("An expense with payments or a budget must retain its original currency.");
+        if (existing.paidAmount().compareTo(request.totalAmount()) > 0)
+            throw FinanceApiException.conflict("The corrected total is below payments already recorded. Correct or reverse the excess payment first.");
+        if (existing.paidAmount().signum() > 0 && !Objects.equals(existing.paymentAccountId(), request.paymentAccountId()))
+            throw FinanceApiException.conflict("Changing the expense cannot move an existing payment to another account.");
+        if (!Objects.equals(request.paymentAccountId(), existing.paymentAccountId()))
+            references.validateImportPaymentAccount(context, request.paymentAccountId(), request.currencyCode());
+        if (existing.paidAmount().signum() > 0 && request.expenseDate().isAfter(LocalDate.now(timeZones.resolve(context.companyId()))))
+            throw FinanceApiException.badRequest("A paid expense cannot have a future expense date.");
+
+        var balance = request.totalAmount().subtract(existing.paidAmount());
+        var status = existing.paidAmount().signum() > 0
+            ? (balance.signum() == 0 ? ExpenseStatus.PAID : ExpenseStatus.PARTIALLY_PAID) : existing.status();
+        var paymentStatus = balance.signum() == 0 ? PaymentStatus.PAID
+            : request.dueDate() != null && request.dueDate().isBefore(LocalDate.now(timeZones.resolve(context.companyId()))) ? PaymentStatus.OVERDUE
+            : existing.paidAmount().signum() > 0 ? PaymentStatus.PARTIALLY_PAID : PaymentStatus.UNPAID;
+    }
+
     @Transactional
     public ExpenseResponse correct(FinanceContext context, long id, CorrectExpenseRequest correction) {
         repository.lockCompanyForCreation(context);

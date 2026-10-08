@@ -47,12 +47,14 @@ public class AttendanceAccessApiController extends AttendanceApiControllerSuppor
     }
 
     @PostMapping("/access-profiles")
+    @com.indice.erp.learning.LearningApplied("human_resources.control")
     public ResponseEntity<?> createAccessProfile(
         HttpSession session,
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var currentUser = sessionAuthService.currentUser(session);
+        currentUser.ifPresent(com.indice.erp.learning.LearningOperationContext::capture);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }

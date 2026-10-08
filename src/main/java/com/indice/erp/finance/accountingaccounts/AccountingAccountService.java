@@ -31,6 +31,19 @@ public class AccountingAccountService {
     }
 
     @Transactional(readOnly = true)
+    public void validateAssistantCreate(FinanceContext context, CreateAccountingAccountRequest request) {
+        var assignment=validator.validateCreate(context,request);
+        referenceValidator.validateAssignment(context,assignment);
+        requireUnique(context,mapper.toCreateCommand(context,request,assignment),null);
+    }
+    @Transactional(readOnly = true)
+    public void validateAssistantUpdate(FinanceContext context,long id,UpdateAccountingAccountRequest request) {
+        requireAccount(context,id);var assignment=validator.validateUpdate(context,request);
+        referenceValidator.validateAssignment(context,assignment);
+        requireUnique(context,mapper.toUpdateCommand(context,request,assignment),id);
+    }
+
+    @Transactional(readOnly = true)
     public AccountingAccountListResponse list(FinanceContext context) {
         var accounts = repository.findAll(context).stream()
             .map(mapper::toResponse)

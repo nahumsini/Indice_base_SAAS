@@ -37,6 +37,7 @@ aislamiento, autorización, integridad ni seguridad de liberación.
 | Tema | Contrato |
 |---|---|
 | Metodología y Modo aprendiz | [Learning Mode](learning-mode-frontend-engine-v2.md) |
+| Guía y avance privado web/MCP | [Learning progress contract](learning-mode-mcp-progress-contract-v1.md) |
 | Registro y disponibilidad de módulos | [Module Access Registry](complementary-module-access-registry-standard-2026-08-02.md) |
 | Permisos de módulos y pestañas | [User Module/Tab Scope Standard](users-module-tab-scope-standard-2026-08-02.md) |
 | Estructura de pestañas analíticas | [KPI Tab Standard](KPI_TAB_STANDARD.md) |
@@ -45,6 +46,12 @@ aislamiento, autorización, integridad ni seguridad de liberación.
 | Analítica del producto | [Product Analytics Security Contract](product-analytics-security-contract.md) |
 
 ### Finanzas, fondos y cartera
+
+La operación de estos módulos desde MCP se entrega con su
+[contrato](lupita-finance-delivery-contract-v1.md),
+[flujo operativo](lupita-finance-operating-workflow-v1.md),
+[matriz de herramientas](lupita-finance-tool-matrix-v1.md) y
+[reporte de verificación](lupita-finance-delivery-2026-10-07.md).
 
 | Tema | Contrato |
 |---|---|

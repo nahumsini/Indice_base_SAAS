@@ -27,7 +27,7 @@ public class AiFinanceActionExecutionService {
     private final ExpenseService expenseService;
     private final PettyCashService pettyCashService;
     private final ObjectMapper objectMapper;
-    private final Clock clock;
+    private final Clock clock;private final AiFinanceReviewService reviews;
 
     public AiFinanceActionExecutionService(
         AiFinanceActionRepository repository,
@@ -35,14 +35,14 @@ public class AiFinanceActionExecutionService {
         ExpenseService expenseService,
         PettyCashService pettyCashService,
         ObjectMapper objectMapper,
-        Clock clock
+        Clock clock,AiFinanceReviewService reviews
     ) {
         this.repository = repository;
         this.financeAccessService = financeAccessService;
         this.expenseService = expenseService;
         this.pettyCashService = pettyCashService;
         this.objectMapper = objectMapper;
-        this.clock = clock;
+        this.clock = clock;this.reviews=reviews;
     }
 
     @Transactional
@@ -60,6 +60,7 @@ public class AiFinanceActionExecutionService {
         }
         var context = financeAccessService.resolveContext(token.user())
             .orElseThrow(() -> new SecurityException("The current Indice permissions do not allow finance actions."));
+        reviews.validate(token.user(),confirmation.tool(),confirmation.normalizedArgs());
         var result = switch (confirmation.tool()) {
             case AiFinanceActionService.CREATE_EXPENSE_DRAFT -> createExpense(context, confirmation.normalizedArgs());
             case AiFinanceActionService.REGISTER_FUND_EXPENSE -> registerFundExpense(context, confirmation.normalizedArgs());
@@ -69,6 +70,7 @@ public class AiFinanceActionExecutionService {
         if (repository.completeExecution(executionId, result, clock.instant()) != 1) {
             throw new IllegalStateException("Action execution could not be completed.");
         }
+        repository.insertAudit(token,confirmation.tool(),confirmation.id(),"COMMIT","SUCCESS",correlationId,idempotencyHash,Map.of("action",confirmation.tool()),Map.of("action",confirmation.tool()),null,null);
         return new AiFinanceActionContracts.CommitResponse(false, correlationId, confirmation.tool(), result);
     }
 

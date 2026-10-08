@@ -66,6 +66,28 @@ public class ExpenseService {
         this.timeZoneResolver = timeZoneResolver;
     }
 
+    @Transactional(readOnly = true)
+    public void validateAssistantPayment(FinanceContext context,long expenseId,RecordExpensePaymentRequest request,boolean settlement) {
+        var existing=requireExpense(context,expenseId);
+        requireStatus(existing,List.of(ExpenseStatus.DRAFT,ExpenseStatus.PENDING_APPROVAL,ExpenseStatus.APPROVED,ExpenseStatus.PARTIALLY_PAID),"paid");
+        if("AUDITED".equals(existing.auditStatus())||existing.originFund()!=null||"PETTY_CASH".equals(existing.auditStatus()))throw FinanceApiException.conflict("This expense must be managed by its source owner.");
+        if(request.amount()==null||request.amount().signum()<=0||request.amount().compareTo(existing.balanceAmount())>0)throw FinanceApiException.badRequest("Payment must be positive and at most the current remaining balance.");
+        if(request.paymentDate()==null||request.paymentDate().isAfter(businessDate(context))||request.paymentDate().isBefore(existing.expenseDate()))throw FinanceApiException.badRequest("Use a payment date from the expense date through today.");
+        if(!settlement&&request.paymentAccountId()==null)throw FinanceApiException.badRequest("Payment account required for an installment.");
+        referenceValidator.validateImportPaymentAccount(context,request.paymentAccountId(),existing.currencyCode());
+    }
+
+    @Transactional(readOnly = true)
+    public void validateAssistantCreate(FinanceContext context,CreateExpenseRequest request,boolean importCapture) {
+        var assignment=validator.validateCreate(context,request);
+        referenceValidator.validateCreate(context,assignment,request);
+        if(Boolean.TRUE.equals(request.settleOnCreate())) {
+            if(request.expenseDate().isAfter(businessDate(context)))throw FinanceApiException.badRequest("A paid capture cannot have a future expense date.");
+            if(importCapture)referenceValidator.validateImportPaymentAccount(context,request.paymentAccountId(),request.currencyCode());
+            else referenceValidator.validatePaymentAccountForPayment(context,request.paymentAccountId(),request.currencyCode());
+        }
+    }
+
     @Transactional
     public ExpenseListResponse list(FinanceContext context) {
         var zone = timeZoneResolver.resolve(context.companyId());
@@ -75,6 +97,20 @@ public class ExpenseService {
             .map(mapper::toResponse)
             .toList();
         return new ExpenseListResponse(expenses, expenses.size(), asOfDate, zone.getId());
+    }
+
+    /** Delegated reads and previews must not persist overdue maintenance before confirmation. */
+    @Transactional(readOnly = true)
+    public ExpenseListResponse assistantList(FinanceContext context) {
+        var zone = timeZoneResolver.resolve(context.companyId());
+        var asOfDate = LocalDate.now(zone);
+        var rows = repository.findAll(context).stream().map(row -> mapper.toAssistantResponse(row, asOfDate)).toList();
+        return new ExpenseListResponse(rows, rows.size(), LocalDate.now(zone), zone.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public ExpenseResponse assistantGet(FinanceContext context, long expenseId) {
+        return mapper.toAssistantResponse(requireExpense(context, expenseId), businessDate(context));
     }
 
     @Transactional

@@ -27,7 +27,10 @@ public class PettyCashBulkActionService {
     }
 
     @Transactional
-    public PettyCashBulkActionResponse apply(FinanceContext context, long fundId, PettyCashBulkActionRequest request) {
+    public void validateAssistant(FinanceContext context,long fundId,PettyCashBulkActionRequest request) { validateAssistant(context,fundId,request,false); }
+    @Transactional
+    public void validateAssistantReversal(FinanceContext context,long fundId,PettyCashBulkActionRequest request){ requireSingleReversal(request);validateAssistant(context,fundId,request,true); }
+    private void validateAssistant(FinanceContext context,long fundId,PettyCashBulkActionRequest request,boolean allowRejected) {
         if (request.action() == null || request.rows() == null || request.rows().isEmpty() || request.rows().size() > 200)
             throw FinanceApiException.badRequest("Select between 1 and 200 receipts.");
         // Same serialization boundary as journal synchronization, followed by fund, cut and receipts.
@@ -51,7 +54,52 @@ public class PettyCashBulkActionService {
                 throw FinanceApiException.badRequest("Every receipt must belong to the selected fund and cut.");
             if (!Objects.equals(line.version(), row.expectedVersion()))
                 throw FinanceApiException.conflict("A receipt changed. Reload the selection before retrying.");
-            if (line.status() == PettyCashSettlementLineStatus.REVERSED || line.status() == PettyCashSettlementLineStatus.REJECTED)
+            if (line.status() == PettyCashSettlementLineStatus.REVERSED || line.status() == PettyCashSettlementLineStatus.REJECTED&&!allowRejected)
+                throw FinanceApiException.conflict("Rejected or reversed receipts cannot be changed in bulk.");
+            if (line.expenseId() != null) {
+                var sources = jdbc.queryForList("SELECT id FROM finance_expenses WHERE company_id = ? AND id = ? AND audit_status = 'PETTY_CASH' AND deleted_at IS NULL FOR UPDATE", Long.class, context.companyId(), line.expenseId());
+                if (sources.isEmpty()) throw FinanceApiException.conflict("The linked expense must be reconciled before changing this receipt.");
+                var posted = jdbc.queryForObject("SELECT COUNT(*) FROM finance_journal_entries WHERE company_id = ? AND source_type = 'EXPENSE' AND source_id = ? AND status = 'POSTED'", Long.class, context.companyId(), String.valueOf(line.expenseId()));
+                if (posted != null && posted > 0) throw FinanceApiException.conflict("This expense has a posted journal entry. Use an accounting adjustment to preserve the ledger.");
+            }
+            if (request.action() == PettyCashBulkActionRequest.Action.ACCOUNTING_ACCOUNT && request.targetId() == null
+                    && line.status() == PettyCashSettlementLineStatus.EXPENSE_CREATED)
+                throw FinanceApiException.badRequest("An authorized internal expense requires an accounting account.");
+            lines.add(line);
+        }
+
+    }
+
+    @Transactional
+    public PettyCashBulkActionResponse apply(FinanceContext context, long fundId, PettyCashBulkActionRequest request) { return apply(context,fundId,request,false); }
+    @Transactional
+    public PettyCashBulkActionResponse applyAssistantReversal(FinanceContext context,long fundId,PettyCashBulkActionRequest request){requireSingleReversal(request);return apply(context,fundId,request,true);}
+    private void requireSingleReversal(PettyCashBulkActionRequest request){if(request==null||request.action()!=PettyCashBulkActionRequest.Action.DELETE||request.rows()==null||request.rows().size()!=1)throw FinanceApiException.badRequest("A single reviewed receipt reversal is required.");}
+    private PettyCashBulkActionResponse apply(FinanceContext context,long fundId,PettyCashBulkActionRequest request,boolean allowRejected) {
+        if (request.action() == null || request.rows() == null || request.rows().isEmpty() || request.rows().size() > 200)
+            throw FinanceApiException.badRequest("Select between 1 and 200 receipts.");
+        // Same serialization boundary as journal synchronization, followed by fund, cut and receipts.
+        jdbc.queryForList("SELECT id FROM companies WHERE id = ? FOR UPDATE", Long.class, context.companyId());
+        repository.lockFund(context, fundId);
+        var fund = repository.findFundById(context, fundId).orElseThrow(() -> FinanceApiException.notFound("Fund not found."));
+        var statement = repository.findStatementByIdForUpdate(context, request.statementId())
+            .orElseThrow(() -> FinanceApiException.notFound("Statement not found."));
+        if (!Objects.equals(statement.pettyCashFundId(), fundId)) throw FinanceApiException.badRequest("Statement does not belong to this fund.");
+        if (java.util.Set.of(PettyCashStatementStatus.CLOSED, PettyCashStatementStatus.FORGIVEN_SHORTAGE,
+                PettyCashStatementStatus.CHARGED_TO_EMPLOYEE, PettyCashStatementStatus.TRANSFERRED_TO_NEXT_CUT).contains(statement.status()))
+            throw FinanceApiException.conflict("This cut is closed. Its receipts cannot be changed.");
+        String targetName = validateTarget(context, request);
+        var ids = new HashSet<Long>();
+        var lines = new ArrayList<PettyCashSettlementLineRecord>();
+        for (var row : request.rows()) {
+            if (row == null || !ids.add(row.id())) throw FinanceApiException.badRequest("Duplicate receipt selection.");
+            jdbc.queryForList("SELECT id FROM finance_petty_cash_settlement_lines WHERE company_id = ? AND id = ? FOR UPDATE", Long.class, context.companyId(), row.id());
+            var line = repository.findSettlementLineById(context, row.id()).orElseThrow(() -> FinanceApiException.notFound("Receipt not found."));
+            if (!Objects.equals(line.pettyCashFundId(), fundId) || !Objects.equals(line.pettyCashStatementId(), request.statementId()))
+                throw FinanceApiException.badRequest("Every receipt must belong to the selected fund and cut.");
+            if (!Objects.equals(line.version(), row.expectedVersion()))
+                throw FinanceApiException.conflict("A receipt changed. Reload the selection before retrying.");
+            if (line.status() == PettyCashSettlementLineStatus.REVERSED || line.status() == PettyCashSettlementLineStatus.REJECTED&&!allowRejected)
                 throw FinanceApiException.conflict("Rejected or reversed receipts cannot be changed in bulk.");
             if (line.expenseId() != null) {
                 var sources = jdbc.queryForList("SELECT id FROM finance_expenses WHERE company_id = ? AND id = ? AND audit_status = 'PETTY_CASH' AND deleted_at IS NULL FOR UPDATE", Long.class, context.companyId(), line.expenseId());

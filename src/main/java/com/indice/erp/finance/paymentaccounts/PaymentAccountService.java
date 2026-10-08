@@ -38,6 +38,22 @@ public class PaymentAccountService {
     }
 
     @Transactional(readOnly = true)
+    public void validateAssistantCreate(FinanceContext context,CreatePaymentAccountRequest request) {
+        var assignment=validator.validateCreate(context,request);referenceValidator.validateAssignment(context,assignment);
+        requireUniqueName(context,mapper.toCreateCommand(context,request,assignment).name(),null);
+    }
+    @Transactional(readOnly = true)
+    public void validateAssistantUpdate(FinanceContext context,long id,UpdatePaymentAccountRequest request) {
+        var existing=requireAccount(context,id);requireUserManaged(existing);
+        var assignment=validator.validateUpdate(context,request);referenceValidator.validateAssignment(context,assignment);
+        var command=mapper.toUpdateCommand(context,request,assignment);
+        if(hasFinancialEvidence(context,existing)&&(!existing.currencyCode().equals(command.currencyCode())||existing.type()!=command.type()
+                ||!java.util.Objects.equals(existing.unitId(),command.unitId())||!java.util.Objects.equals(existing.businessId(),command.businessId())))
+            throw FinanceApiException.conflict("The account currency, type and scope are protected by its financial history.");
+        requireUniqueName(context,command.name(),id);
+    }
+
+    @Transactional(readOnly = true)
     public PaymentAccountListResponse list(FinanceContext context) {
         var accounts = repository.findAll(context).stream()
             .map(mapper::toResponse)

@@ -29,7 +29,8 @@ public class AiToolCapabilityService {
     private List<String> resolveAllowedTools(AiAccessTokenRepository.StoredToken token) {
         var tools = new TreeSet<String>();
         var user = token.user();
-        add(tools, token, AiAccessTokenService.LEARNING_READ, () -> canReadLearning(user), "get_system_guide");
+        add(tools, token, AiAccessTokenService.LEARNING_READ, () -> canReadLearning(user), "get_system_guide", "get_learning_progress", "get_next_learning_mission");
+        add(tools, token, AiAccessTokenService.LEARNING_MANAGE, () -> canReadLearning(user), "preview_update_learning_progress", "update_learning_progress");
         add(tools,token,AiAccessTokenService.HR_KPIS_READ,()->authorizationService.canReadGuideTab(user,"human_resources","kpis")&&hrAccessService.canAccessManagementTab(user,HrTab.KPIS),"get_hr_kpis");
         var hrTools = new com.indice.erp.ai.hr.AiHrAccess(authorizationService, hrAccessService);
         for (var tool : com.indice.erp.ai.hr.AiHrAccess.READS)
@@ -176,15 +177,29 @@ public class AiToolCapabilityService {
         add(tools,token,AiAccessTokenService.FILES_READ,()->java.util.Arrays.stream(com.indice.erp.ai.files.AiCommerceReportContracts.Report.values()).anyMatch(r->com.indice.erp.ai.files.AiCommerceReportService.allowed(token,r,authorizationService)),"export_commerce_report");
         for(var entry:com.indice.erp.ai.files.AiFileAccess.ACTIONS.entrySet())
             add(tools,token,AiAccessTokenService.FILES_ATTACH,()->fileAccess.allowed(token,entry.getValue(),true),"preview_"+entry.getKey(),entry.getKey());
+        for(var spec:com.indice.erp.finance.assistant.FinanceAssistantTools.ALL.values()) {
+            if(spec.write())add(tools,token,spec.scope(),()->authorizationService.canUseFinanceWorkflowTool(user,spec.name())
+                &&(!spec.name().equals("update_finance_expense_due_status")||token.scopes().contains("expenses.approve"))
+                &&(!spec.operation().equals("remove_attachment")||token.scopes().contains("files.attach")),"preview_"+spec.name(),spec.name());
+            else add(tools,token,spec.scope(),()->authorizationService.canUseFinanceWorkflowTool(user,spec.name()),spec.name());
+        }
+        add(tools,token,AiAccessTokenService.FILES_READ,()->java.util.Arrays.stream(com.indice.erp.ai.financeworkflow.AiFinanceReportService.Report.values()).anyMatch(r->com.indice.erp.ai.financeworkflow.AiFinanceReportService.allowed(token,r,authorizationService)),"export_finance_report");
         return List.copyOf(tools);
     }
 
     private boolean canReadLearning(AuthSessionUser user) {
+        for(var entry:java.util.Map.of("config_center",List.of("profile","business-structure","business-profile","consulting","integrations","users"),
+            "expenses",List.of("accounting","providers","payment_accounts","budgets","expenses","kpis"),
+            "petty_cash",List.of("cash","control","statements","kpis"),
+            "receivables",List.of("credit-customers","credit-sales","accounts-receivable","payments","kpis"),
+            "kpis",List.of("kpis","accounting-reports","automated-reports")).entrySet())
+            for(var tab:entry.getValue())if(authorizationService.canReadGuideTab(user,entry.getKey(),tab))return true;
         for(var entry:java.util.Map.of("inventory",List.of("products","warehouses","inventory","providers","purchase-orders","discounts"),
                 "crm",List.of("contacts","leads","quotes","sales","kpis","commissions","payment-accounts","contracts"),
                 "pos",List.of("sale","cajas","kiosks","clientes","cortes","kpis")).entrySet())
             for(var tab:entry.getValue())if(authorizationService.canReadGuideTab(user,entry.getKey(),tab))return true;
-        if (authorizationService.canReadTasks(user)) return true;
+        for(var tab:List.of("calendar","projects","processes","kpis"))
+            if(authorizationService.canReadGuideTab(user,"processes",tab))return true;
         for (var tab : HrTab.values()) {
             if (authorizationService.canReadGuideTab(user, "human_resources", tab.name().toLowerCase(java.util.Locale.ROOT))
                     && hrAccessService.canAccessReadableTab(user, tab)) return true;
