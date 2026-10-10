@@ -1,14 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useContext, useRef, useState } from 'react';
 import { ApiClientError } from '../lib/apiClient';
-import { messagingApi } from './api';
+import { useMessagingApi, MessagingVisibleContext } from './MessagingTransportContext';
 import { mergeMessages, pollDelay, requestIdentity } from './messageState';
-import type { Conversation, Message, MessagingPortal } from './types';
+import type { Conversation, Message, MessagingPortal, Participant } from './types';
 import { usePhotoDraft } from './usePhotoDraft';
 
 export function useConversation(portal: MessagingPortal, id: number, onChanged: () => void) {
-  const api = useMemo(() => messagingApi(portal), [portal]);
+  const api = useMessagingApi(portal);
+  const visible = useContext(MessagingVisibleContext);
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [revision, setRevision] = useState(0);
   const [hasOlder, setHasOlder] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
@@ -31,7 +36,7 @@ export function useConversation(portal: MessagingPortal, id: number, onChanged: 
   const fail = useCallback((failure: unknown) => {
     if (!mounted.current) return;
     if (failure instanceof ApiClientError && [401, 403, 404].includes(failure.status)) {
-      revoked.current = true; setMessages([]); setConversation(null); setDraft(''); photos.clear();
+      revoked.current = true; setMessages([]); setParticipants([]); setConversation(null); setDraft(''); photos.clear();
     }
     setError(failure);
   }, [photos.clear]);
@@ -45,22 +50,28 @@ export function useConversation(portal: MessagingPortal, id: number, onChanged: 
       if (!mounted.current) return;
       setConversation(current => !current || result.conversation.version >= current.version ? result.conversation : current);
       setMessages(current => mergeMessages(current, result.messages.items));
+      setParticipants(result.participants ?? []);
+      setRevision(value => value + 1);
       if (after === 0) setHasOlder(result.messages.hasMore);
       const latest = result.messages.items[result.messages.items.length - 1]?.id ?? 0;
       cursor.current = Math.max(cursor.current, latest);
-      if (!document.hidden && cursor.current > readCursor.current) {
-        const readTo = cursor.current;
-        await api.read(id, readTo);
-        readCursor.current = readTo;
-        changed.current();
-      }
       failures.current = 0;
       setError(null);
     } catch (failure) { failures.current += 1; fail(failure); }
     finally { inFlight.current = false; if (mounted.current) setLoading(false); }
   }, [api, id, fail]);
 
+  const reading = useRef(false);
+  const markRead = useCallback(async (messageId: number) => {
+    if (!visibleRef.current || document.hidden || revoked.current || reading.current || messageId > cursor.current || messageId <= readCursor.current) return;
+    reading.current = true;
+    try { await api.read(id, messageId); if (mounted.current) { readCursor.current = messageId; changed.current(); } }
+    catch (failure) { fail(failure); }
+    finally { reading.current = false; }
+  }, [api, id, fail]);
+
   useEffect(() => {
+    if (!visible) return;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
@@ -73,7 +84,7 @@ export function useConversation(portal: MessagingPortal, id: number, onChanged: 
     window.addEventListener('focus', focus);
     document.addEventListener('visibilitychange', focus);
     return () => { stopped = true; clearTimeout(timer); window.removeEventListener('focus', focus); document.removeEventListener('visibilitychange', focus); };
-  }, [refresh]);
+  }, [refresh, visible]);
 
   const send = async () => {
     if ((!draft.trim() && !photos.photos.length) || sendingRef.current || revoked.current) return;
@@ -110,5 +121,5 @@ export function useConversation(portal: MessagingPortal, id: number, onChanged: 
     } catch (failure) { await refresh(); fail(failure); return false; }
     finally { sendingRef.current = false; if (mounted.current) setSending(false); }
   };
-  return { conversation, messages, hasOlder, error, loading, sending, draft, setDraft, visibility, setVisibility, send, older, refresh, change, photos };
+  return { conversation, messages, participants, revision, markRead, hasOlder, error, loading, sending, draft, setDraft, visibility, setVisibility, send, older, refresh, change, photos };
 }

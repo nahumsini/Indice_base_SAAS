@@ -1,7 +1,10 @@
 import type { AppNotification } from '../../api/notifications';
 import { messagingCopy } from '../../Messaging/copy';
+import { getSchedulingOperationsCopy } from '../../ComplementaryModules/Scheduling/translations/schedulingOperationsCopy';
+import { getSchedulingCopy } from '../../ComplementaryModules/Scheduling/translations/schedulingCopy';
 import { getMeetingCopy } from '../../ComplementaryModules/MinutesControl/translations/meetingCopy';
 import { getMeetingWorkflowCopy } from '../../ComplementaryModules/MinutesControl/translations/meetingWorkflowCopy';
+import { getMaintenanceCopy } from '../../ComplementaryModules/Maintenance/translations/maintenanceCopy';
 
 export type NotificationPriority = 'high' | 'medium' | 'low';
 
@@ -247,6 +250,14 @@ export const notificationPreferenceGroups: NotificationPreferenceGroup[] = [
 ];
 
 export function getNotificationModule(notification: AppNotification, locale = 'en-CA'): NotificationModuleMeta {
+  if (notification.module_slug === 'scheduling') {
+    const label = getSchedulingCopy(locale).title;
+    return { slug: 'scheduling', label, shortLabel: label, emoji: '📅', color: 'coral' };
+  }
+  if (notification.module_slug === 'maintenance') {
+    const label = getMaintenanceCopy(locale).title;
+    return { slug: 'maintenance', label, shortLabel: label, emoji: '🔧', color: 'gray' };
+  }
   if (notification.module_slug === 'control_minutas') {
     const label = getMeetingCopy(locale).title;
     return { slug: 'control_minutas', label, shortLabel: label, emoji: '📝', color: 'blue' };
@@ -403,7 +414,15 @@ export function getLocalizedNotificationPreferenceGroups(locale: string): Notifi
 }
 
 export function getNotificationDisplayTitle(notification: AppNotification, locale: string) {
+  if (notification.module_slug === 'maintenance') {
+    const copy = getMaintenanceCopy(locale);
+    return notification.source_subtype === 'work_overdue' ? `${copy.title} · ${copy.overdue}` : `${copy.title} · ${copy.orders}`;
+  }
   if (notification.module_slug === 'messaging') return messagingCopy(locale).title;
+  if (notification.module_slug === 'scheduling') {
+    const op = getSchedulingOperationsCopy(locale);
+    return ({ booking_requested: op.bookingRequested, booking_updated: op.bookingUpdated, booking_upcoming: op.bookingUpcoming } as Record<string,string>)[notification.source_subtype] ?? op.bookingUpdated;
+  }
   if (notification.module_slug === 'control_minutas') {
     const copy = getMeetingCopy(locale);
     const titles: Record<string, string> = { upcoming_meeting: getMeetingWorkflowCopy(locale).upcoming, missing_minutes: copy.missingMinutes, overdue_agreement: copy.overdueAgreements };

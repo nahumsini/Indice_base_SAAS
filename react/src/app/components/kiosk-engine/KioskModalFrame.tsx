@@ -4,6 +4,7 @@ import {
   type IndiceModalType,
 } from '../indice-modal';
 import { cn } from '../ui/utils';
+import { useKioskNavigationState } from './KioskNavigationBoundary';
 
 export type KioskModalSurface = 'administration' | 'public';
 export type KioskModalSize = 'compact' | 'form' | 'wizard' | 'workspace';
@@ -57,6 +58,13 @@ export function KioskModalFrame({
   tone = 'green',
   ...props
 }: KioskModalFrameProps) {
+  useKioskNavigationState({
+    dirty: surface === 'public' && props.open && (size === 'form' || size === 'wizard'),
+    busy: surface === 'public' && props.open && Boolean(props.busy),
+    // Keep the current owner frame active; its own close flow handles its draft.
+    // An outer navigation request must never stack a confirmation above it.
+    blocked: surface === 'public' && props.open,
+  });
   const widthClassName = surface === 'public'
     ? publicWidth[size]
     : administrationWidth[size];

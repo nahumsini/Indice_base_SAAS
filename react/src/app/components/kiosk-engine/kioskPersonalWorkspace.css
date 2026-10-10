@@ -1,0 +1,71 @@
+/* Opt-in presentation for personal employee tools and their existing modal frames.
+   Module colors, business controls and public/legacy defaults remain owner-defined. */
+.kiosk-personal-workspace {
+  --kiosk-personal-radius: 1.5rem;
+  overflow-wrap: anywhere;
+}
+.kiosk-personal-workspace :is([data-kiosk-workspace-context], [data-kiosk-workspace-surface], [data-personal-tool-card]) {
+  border-radius: var(--kiosk-personal-radius);
+  box-shadow: 0 4px 16px -12px rgb(20 54 117 / 28%);
+}
+.kiosk-personal-workspace [data-kiosk-workspace-context] { padding: 1rem; }
+.kiosk-personal-workspace [data-kiosk-workspace-context] > div:first-child > span:first-child {
+  width: 3rem; height: 3rem; border-radius: 1rem;
+}
+.kiosk-personal-workspace [data-kiosk-section-header] { flex-wrap: wrap; }
+.kiosk-personal-workspace [data-kiosk-section-header] h2 { font-size: 1.125rem; line-height: 1.5; }
+.kiosk-personal-workspace :is(button, summary) { min-height: 2.75rem; }
+.kiosk-personal-workspace button { min-width: 2.75rem; }
+.kiosk-personal-workspace [role=tab] { flex-direction: column; }
+.kiosk-personal-workspace [role=tab] [data-kiosk-tab-badge],
+.dark .kiosk-personal-workspace [role=tab] [data-kiosk-tab-badge] { background: #fff; color: #222831; border: 1px solid #e2e8f0; }
+.kiosk-personal-workspace [data-kiosk-sticky-action] button,
+.kiosk-personal-workspace [data-personal-waiter] footer button { min-height: 3rem; }
+.kiosk-personal-workspace button { font-size: .875rem; }
+.kiosk-personal-workspace button:not([data-floor-table]) { white-space: normal; }
+.kiosk-personal-workspace :is(input:not([type=checkbox]):not([type=radio]):not([type=file]), select, textarea) {
+  min-width: 0; max-width: 100%; min-height: 3rem; font-size: 1rem;
+}
+.kiosk-personal-workspace .truncate {
+  white-space: normal; text-overflow: clip; overflow-wrap: anywhere;
+}
+.kiosk-personal-workspace :is(.text-slate-400, .text-slate-500) { color: #475569; }
+.dark .kiosk-personal-workspace :is(.text-slate-400, .text-slate-500) { color: #cbd5e1; }
+.dark .kiosk-personal-workspace .text-slate-600 { color: #cbd5e1; }
+.kiosk-personal-workspace :is(.text-\[9px\], .text-\[10px\], .text-\[11px\]) { font-size: .75rem; line-height: 1.5; }
+.kiosk-personal-workspace [data-kiosk-file-dropzone] { border-radius: 1rem; padding: 1rem; }
+.kiosk-personal-workspace [data-kiosk-file-dropzone] > span:last-child > span:first-child { font-size: .875rem; }
+.kiosk-personal-workspace [data-kiosk-workflow-stepper] { padding: .75rem 0; }
+.kiosk-personal-workspace [data-kiosk-workflow-stepper] [role=listitem] > span:last-child { white-space: normal; font-size: .75rem; }
+.kiosk-personal-workspace [data-kiosk-workspace-context][data-kiosk-tone=green] { background: linear-gradient(120deg, #f0fdf4, #fff 80%); }
+.kiosk-personal-workspace [data-kiosk-workspace-context][data-kiosk-tone=coral] { background: linear-gradient(120deg, #fff1f2, #fff 80%); }
+.dark .kiosk-personal-workspace [data-kiosk-workspace-context][data-kiosk-tone] { background: linear-gradient(120deg, #172132, #020617 80%); }
+.kiosk-personal-workspace [data-floor-table] .truncate { white-space: nowrap; text-overflow: ellipsis; }
+.kiosk-personal-workspace [data-personal-waiter] section { border-radius: var(--kiosk-personal-radius); }
+.kiosk-personal-workspace [data-personal-waiter] [data-mobile-waiter-navigation] { border-radius: var(--kiosk-personal-radius); padding: .5rem; }
+.kiosk-personal-workspace [data-personal-waiter] [data-mobile-waiter-navigation] button { padding: .75rem; border-radius: 1rem; }
+[data-kiosk-large-text=true] .kiosk-personal-workspace :is(.text-xs, .text-sm) { font-size: 1rem; }
+.kiosk-personal-product-modal [data-personal-product-quantity] { grid-template-columns: 2.75rem minmax(1.5rem, 1fr) 2.75rem; }
+.kiosk-personal-product-modal [data-personal-product-quantity] :is(button, output) { height: 3rem; }
+.kiosk-personal-product-modal input[type=search] { min-height: 3rem; font-size: 1rem; }
+.kiosk-personal-product-modal [data-personal-product-card] { border-radius: 1.5rem; }
+.kiosk-personal-product-modal [data-personal-product-price] { flex-wrap: wrap; }
+.kiosk-personal-workspace a { min-height: 2.75rem; min-width: 2.75rem; }
+.kiosk-personal-coral-modal [data-slot=dialog-header] p,
+.kiosk-personal-coral-modal [data-slot=dialog-footer] [aria-live] { color: #222831; }
+.dark .kiosk-personal-coral-modal [data-slot=dialog-header] p,
+.dark .kiosk-personal-coral-modal [data-slot=dialog-footer] [aria-live] { color: #fff; }
+@media (max-width: 767px) {
+  .kiosk-personal-workspace [data-personal-waiter] [data-personal-open-table] { padding: 1rem; }
+}
+@media (max-width: 1023px) {
+  .kiosk-personal-workspace [data-personal-waiter] footer {
+    position: fixed; inset-inline: .75rem; bottom: var(--employee-navigation-height, 0px);
+    z-index: 30; max-width: 31rem; margin-inline: auto; border: 1px solid #dbe4ef;
+    border-radius: 1.5rem; box-shadow: 0 -6px 24px -18px rgb(15 23 42 / 40%);
+  }
+  .dark .kiosk-personal-workspace [data-personal-waiter] footer { border-color: #334155; }
+  .kiosk-personal-workspace [data-personal-order-contents] { overflow: visible; padding-bottom: 14rem; }
+  .kiosk-personal-workspace [data-personal-order-contents] > div { height: auto; overflow: visible; }
+  [data-kiosk-large-text=true] .kiosk-personal-workspace [data-personal-order-contents] { padding-bottom: 18rem; }
+}

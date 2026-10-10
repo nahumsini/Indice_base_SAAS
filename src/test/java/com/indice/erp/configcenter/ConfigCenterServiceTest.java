@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -42,6 +44,39 @@ class ConfigCenterServiceTest {
 
     @Mock
     private ConfigCenterScopeAccess scopeAccess;
+
+    @Test
+    void companyLogoRejectsMissingCompanyBeforeReadingSettings() {
+        assertThrows(IllegalArgumentException.class, () -> newService().getCompanyLogo(7L));
+        verify(jdbcTemplate).query(eq("SELECT logo_url FROM companies WHERE id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<String>>any(), eq(7L));
+        org.mockito.Mockito.verifyNoMoreInteractions(jdbcTemplate);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "legacy.png, '{\"logo\":\" configured.png \"}', configured.png",
+        "legacy.png, '{\"logo\":\"\",\"logo_url\":\"old.png\"}', ''",
+        "legacy.png, '{\"logo_url\":\"old.png\"}', legacy.png",
+        "'', '{\"logo_url\":\"old.png\"}', old.png",
+        "'', '{}', ''"
+    })
+    void companyLogoSharesConfigurationPrecedenceWithoutLoadingPrivateData(
+            String storedLogo, String template, String expected) {
+        when(jdbcTemplate.query(eq("SELECT logo_url FROM companies WHERE id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<String>>any(), eq(7L))).thenReturn(List.of(storedLogo));
+        when(jdbcTemplate.query(eq("SELECT settings_json FROM company_settings WHERE company_id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<String>>any(), eq(7L)))
+            .thenReturn(List.of("{\"config_center\":{\"empresa_template\":" + template + "}}"));
+
+        assertEquals(expected, newService().getCompanyLogo(7L));
+
+        verify(jdbcTemplate).query(eq("SELECT logo_url FROM companies WHERE id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<String>>any(), eq(7L));
+        verify(jdbcTemplate).query(eq("SELECT settings_json FROM company_settings WHERE company_id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<String>>any(), eq(7L));
+        org.mockito.Mockito.verifyNoMoreInteractions(jdbcTemplate);
+    }
 
     @Test
     void deleteUserRejectsCurrentUserBeforeQueryingDatabase() {

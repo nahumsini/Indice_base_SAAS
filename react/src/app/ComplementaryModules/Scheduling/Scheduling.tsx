@@ -44,7 +44,7 @@ function SchedulingContent({ onNavigate, learningModeActive = false }: Schedulin
           {activeTab === 'calendar' ? <ReservationsTab mode={capabilities.readScope} copy={copy} locale={currentLanguage.code}
             canRead={capabilities.canRead} canCapture={capabilities.canCapture} administrator={administrator} canConfigure={capabilities.canConfigure} /> :
             activeTab === 'clients' ? <ClientsTab copy={copy} learningModeActive={learningModeActive}/> :
-            activeTab === 'events' ? <EventsTab copy={copy} locale={currentLanguage.code} administrator={administrator} /> :
+            activeTab === 'events' ? <EventsTab canReadParticipants={capabilities.canRead} copy={copy} locale={currentLanguage.code} administrator={administrator} /> :
             <IndicatorsTab copy={copy} locale={currentLanguage.code} canInspect={capabilities.canCapture} />}
         </Suspense>}
     </div>

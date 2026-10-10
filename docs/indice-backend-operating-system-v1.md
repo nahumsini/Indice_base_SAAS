@@ -730,6 +730,31 @@ contract; each scheduler candidate is isolated in its own tenant-scoped transact
 current module/tab authority and copies no private record content into the global inbox.
 No external invitation, automatic task, infinite recurrence or implicit completion is introduced.
 
+## 22.1 Adopted coordination owner extension — 2026-10-08
+
+The approved Agenda/Meetings operational completion is specified by their module contracts.
+V307 adds split hours, unavailable dates, staff service eligibility, explicit Sales contact links,
+event location, reschedule audit instants, agreement follow-up preference and a unique native task
+link. V308 adds durable Scheduling notification receipts. They create no access or billing grants.
+These migrations are additive and forward-only; rollback retains operational data.
+
+`MeetingBusyWindowService` extends the shared verified-identity availability boundary with only
+an occupied/free boolean. Scheduling, Consulting and Meetings use the same resource mutex for
+mutations; read-only previews do not request write locks. `HrSchedulingAvailabilityService` returns
+only a company-scoped approved-leave date boolean while HR is enabled. No leave reason/type is
+exposed. Existing bookings are not automatically mutated when leave changes.
+
+Private reservation rescheduling preserves status and snapshots and rechecks current availability.
+Scheduling configuration, capture and reservation mutations recheck active company entitlement in
+their transaction. Explicit contact selection additionally enforces native Sales/contacts authority.
+`ProcessTaskMeetingContract` delegates task creation/reads to Processes with its native entitlement,
+tab and assignment/object scope; idempotent links do not synchronize completion. Append-only closed
+minutes addenda, agreement edits/notes and series follow-up preserve the original evidence.
+Both owners deliver generic inbox signals through `AppNotificationService` with durable receipts,
+current recipient permissions and authorized deep links. Participant email, public self-service and
+external calendar synchronization are not introduced. Agreement follow-up is independent of meeting
+reminder pause/cancellation. Calendar downloads and browser print are private presentation outputs.
+
 ## 23. Verified Public Customer Entry MX/CA Owner Contract
 
 [Public customer entry MX/CA contract v1](public-customer-entry-mx-ca-contract-v1.md) owns the
@@ -747,3 +772,45 @@ or signup flags disabled. Existing companies retain their policy. Paid conversio
 future owner transition, not a flag, redirect, saved card or administrative lead-stage change.
 Until regional payment and advance consent are implemented, native legacy selection/activation
 cannot quote or charge this cohort using USD. Public entry remains off by default.
+
+## 24. Maintenance operational pilot owner contract
+
+[Maintenance module contract v1](maintenance-module-contract-v1.md) governs `/api/v1/maintenance`.
+The module owns requests, work orders, procedures, technical dossiers, outages and evidence.
+Current tenant membership, entitlement, tab grant, organizational scope and assigned-technician
+ownership are enforced independently of browser controls. Mutations lock the tenant and use
+versions and replay keys; accepted requests and preventive cycles have durable unique identities.
+V309–V311 are additive, forward-only pilot migrations. They preserve existing assignments,
+backfill compatible tab grants only for already assigned members, and create no prices or subscriptions.
+
+HR custody remains in HR through `HrAssetMaintenanceContract`. Inventory consumption/reversal
+delegates to `InventoryAssistantService.executeMaintenance`, preserving native authorization,
+stock transactions and `INDICE_MAINTENANCE` provenance. Expense links use the Finance owner's
+live status/amounts and never create payment entries. Process tasks use their native owner boundary
+and retain independent status. Scheduling shares its verified-identity mutex and boolean busy
+contract; maintenance appointments also check approved HR leave. Due dates alone reserve no slot.
+
+Required evidence and procedure snapshots gate submission and closure. Private uploads validate
+the immutable copied object, declared length/MIME, decoded image or inactive PDF content, current
+ownership and quota before registration. Notifications use the native inbox with durable receipts
+and current recipient authorization. Bounded workers retain per-cycle identities across retries.
+Financial indicators group by currency and use only closed orders in the chosen period; missing
+source authorization suppresses totals. Above 500 orders, no partial total is presented and the
+caller must narrow the period. Current backlog is independent of the selected reporting period.
+
+### Employee Multikiosk personal surfaces (2026-10-09)
+
+`MultiKioskTodayController` and `MultiKioskMessagingController` are explicitly public alternate-trust
+routes beneath `/api/v2/multi-kiosks/public/{publicToken}`. Feature flags, browser-bound parent session,
+operational company/definition, membership, PIN validity, expiry and revocation fail closed. No ERP
+session identity or caller-provided tenant/membership is accepted as authority. Mutations enforce the
+existing session CSRF mechanism. Polling and read acknowledgements do not extend inactivity.
+
+Today composes minimal owner DTOs after current catalogue/capability checks. Tasks owns assigned
+pending counts and bounded previews; HR owns linked schedule interpretation and existing personal
+punch storage. Neither business projection moves to the shared engine. Messaging delegates to the
+existing MEMBER actor policy, service and attachment owner; conversation participation, tenant scope,
+idempotency, send/upload limits, audit and durable outbox remain there. No operator endpoints or
+provider access are added. Responses use no-store and retain appropriate owner HTTP failure statuses.
+This extension requires no schema migration. Its authoritative domain contracts are
+`kiosk-standard-engine-v2.md` §34 and `messaging-and-customer-care-contract.md`.

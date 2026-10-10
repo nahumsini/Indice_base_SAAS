@@ -17,7 +17,31 @@ public class MeetingService {
     private final MeetingRepository repository;
     private final ModuleAccessService modules;
     private final ObjectMapper mapper;
-    public MeetingService(MeetingRepository repository,ModuleAccessService modules,ObjectMapper mapper){this.repository=repository;this.modules=modules;this.mapper=mapper;}
+    private final com.indice.erp.scheduling.SchedulingResourceAvailabilityService resources;
+    private final com.indice.erp.processTasks.tasks.ProcessTaskMeetingContract tasks;
+    private final com.indice.erp.hr.permissions.HrSchedulingAvailabilityService hr;
+    public MeetingService(MeetingRepository repository,ModuleAccessService modules,ObjectMapper mapper,
+        com.indice.erp.scheduling.SchedulingResourceAvailabilityService resources,com.indice.erp.processTasks.tasks.ProcessTaskMeetingContract tasks,com.indice.erp.hr.permissions.HrSchedulingAvailabilityService hr){this.repository=repository;this.modules=modules;this.mapper=mapper;this.resources=resources;this.tasks=tasks;this.hr=hr;}
+    private List<String> peopleEmails(AuthSessionUser actor,MeetingRequest body){
+        var people=new TreeSet<>(body.participantIds());people.add(body.ownerId());
+        return people.stream().map(id->repository.jdbc().queryForObject("SELECT u.email FROM users u JOIN user_companies uc ON uc.user_id=u.id WHERE uc.company_id=? AND uc.user_id=? AND uc.status='active' ORDER BY uc.id DESC LIMIT 1",String.class,actor.companyId(),id))
+            .map(email->email.toLowerCase(Locale.ROOT)).distinct().sorted().toList();
+    }
+    int appointmentConflicts(AuthSessionUser actor,MeetingRequest body,Instant from,Instant to){
+        var people=new HashSet<>(body.participantIds());people.add(body.ownerId());
+        var first=from.atZone(ZoneId.of(body.timezone())).toLocalDate();var last=to.minusNanos(1).atZone(ZoneId.of(body.timezone())).toLocalDate();
+        if(people.stream().anyMatch(user->hr.unavailable(actor.companyId(),user,first,last)))return 1;
+        return (int)peopleEmails(actor,body).stream().filter(email->resources.busyWithoutMeetings(email,from,to,null,null,null)).count();
+    }
+    private void requireAppointmentAvailability(AuthSessionUser actor,MeetingRequest body){
+        var emails=peopleEmails(actor,body);emails.forEach(resources::lock);
+        var people=new HashSet<>(body.participantIds());people.add(body.ownerId());
+        var first=body.startAt().atZone(ZoneId.of(body.timezone())).toLocalDate();
+        var last=body.endAt().minusNanos(1).atZone(ZoneId.of(body.timezone())).toLocalDate();
+        if(people.stream().anyMatch(user->hr.unavailable(actor.companyId(),user,first,last)))throw new MeetingPlanningException("meeting_appointment_conflict");
+        if(emails.stream().anyMatch(email->resources.busyWithoutMeetings(email,body.startAt(),body.endAt(),null,null,null)))
+            throw new MeetingPlanningException("meeting_appointment_conflict");
+    }
     void lock(AuthSessionUser actor){
         repository.jdbc().queryForObject("SELECT id FROM companies WHERE id=? FOR UPDATE",Long.class,actor.companyId());
         if(!modules.companyCanAccessForMutation(actor.companyId(),"control_minutas"))throw new SecurityException();
@@ -62,6 +86,7 @@ public class MeetingService {
     @Transactional public MeetingDetail create(AuthSessionUser actor,MeetingRequest body,String key){
         lock(actor);validate(actor,body);String hash=fingerprint(body);Long old=replay(actor,"MEETING",key,hash);
         if(old!=null)return repository.detail(actor,old);
+        requireAppointmentAvailability(actor,body);
         long id=repository.insert("INSERT INTO meeting_records(company_id,title,meeting_type,start_at,end_at,timezone,owner_id,agenda,location,minutes,decisions,created_by) VALUES(?,?,?,?,?,?,?,?,?,'','',?)",actor.companyId(),body.title().trim(),body.meetingType(),Timestamp.from(body.startAt()),Timestamp.from(body.endAt()),body.timezone(),body.ownerId(),body.agenda().trim(),body.location().trim(),actor.userId());
         participants(actor,id,body);savePlanning(actor,id,body,null,body.ownerId());remember(actor,"MEETING",key,hash,id);audit(actor,id,null,"MEETING_CREATED","");return repository.detail(actor,id);
     }
@@ -70,7 +95,7 @@ public class MeetingService {
         var prior=repository.planning(actor.companyId(),id);
         long minutesOwner=body.minutesOwnerId()!=null?body.minutesOwnerId():prior.minutesOwner().id()==row.ownerId()?body.ownerId():prior.minutesOwner().id();
         if(minutesOwner!=body.ownerId()&&!body.participantIds().contains(minutesOwner))throw new MeetingPlanningException("meeting_minutes_owner_invalid");
-        if(!row.status().equals("PLANNED"))throw new IllegalStateException();participants(actor,id,body);
+        if(!row.status().equals("PLANNED"))throw new IllegalStateException();requireAppointmentAvailability(actor,body);participants(actor,id,body);
         repository.jdbc().update("UPDATE meeting_records SET title=?,meeting_type=?,start_at=?,end_at=?,timezone=?,owner_id=?,agenda=?,location=?,version=version+1,updated_at=CURRENT_TIMESTAMP(6) WHERE company_id=? AND id=?",body.title().trim(),body.meetingType(),Timestamp.from(body.startAt()),Timestamp.from(body.endAt()),body.timezone(),body.ownerId(),body.agenda().trim(),body.location().trim(),actor.companyId(),id);
         savePlanning(actor,id,body,prior,row.ownerId());audit(actor,id,null,"MEETING_UPDATED","");return repository.detail(actor,id);
     }
@@ -107,5 +132,43 @@ public class MeetingService {
         if(body.reason()==null||body.reason().trim().length()<3||body.reason().length()>2000)throw new IllegalArgumentException();
         repository.jdbc().update("UPDATE meeting_agreements SET status=?,resolution=?,version=version+1,updated_at=CURRENT_TIMESTAMP(6) WHERE company_id=? AND id=?",body.status(),body.reason().trim(),actor.companyId(),id);
         audit(actor,row.meetingId(),id,"AGREEMENT_"+body.status(),body.reason().trim());return repository.agreement(actor,id,false);
+    }
+    @Transactional public AgreementItem updateAgreement(AuthSessionUser actor,long id,AgreementUpdateRequest body){
+        lock(actor);var row=repository.agreement(actor,id,true);owner(actor,row.meetingOwnerId());version(row.version(),body.expectedVersion());
+        if(!row.status().equals("OPEN"))throw new IllegalStateException();
+        if(body.title()==null||body.title().isBlank()||body.title().length()>240||body.dueDate()==null
+            ||body.dueDate().isBefore(LocalDate.of(2000,1,1))||body.dueDate().isAfter(LocalDate.of(2100,1,1)))throw new IllegalArgumentException();
+        note(body.reason());member(actor.companyId(),body.assigneeId());
+        if(body.assigneeId()!=row.meetingOwnerId()&&repository.participants(actor.companyId(),row.meetingId()).stream().noneMatch(p->p.id()==body.assigneeId()))throw new IllegalArgumentException();
+        repository.jdbc().update("UPDATE meeting_agreements SET title=?,assignee_id=?,due_date=?,followup_enabled=?,version=version+1,updated_at=CURRENT_TIMESTAMP(6) WHERE company_id=? AND id=?",
+            body.title().trim(),body.assigneeId(),java.sql.Date.valueOf(body.dueDate()),body.followupEnabled()==null?row.followupEnabled():body.followupEnabled(),actor.companyId(),id);
+        audit(actor,row.meetingId(),id,"AGREEMENT_UPDATED",body.reason().trim());return repository.agreement(actor,id,false);
+    }
+    @Transactional public AgreementDetail agreementNote(AuthSessionUser actor,long id,NoteRequest body){
+        lock(actor);var row=repository.agreement(actor,id,true);version(row.version(),body.expectedVersion());note(body.text());
+        if(!MeetingAccessService.administrator(actor)&&actor.userId()!=row.meetingOwnerId()&&actor.userId()!=row.assigneeId())throw new SecurityException();
+        if(!row.status().equals("OPEN"))throw new IllegalStateException();
+        repository.jdbc().update("UPDATE meeting_agreements SET version=version+1,updated_at=CURRENT_TIMESTAMP(6) WHERE company_id=? AND id=?",actor.companyId(),id);
+        audit(actor,row.meetingId(),id,"AGREEMENT_NOTE",body.text().trim());return repository.agreementDetail(actor,id);
+    }
+    @Transactional public MeetingDetail addendum(AuthSessionUser actor,long id,NoteRequest body){
+        lock(actor);var row=repository.meeting(actor,id,true);version(row.version(),body.expectedVersion());note(body.text());
+        if(!MeetingAccessService.administrator(actor)&&actor.userId()!=row.ownerId()&&actor.userId()!=repository.planning(actor.companyId(),id).minutesOwner().id())throw new SecurityException();
+        if(!row.status().equals("COMPLETED"))throw new IllegalStateException();
+        repository.jdbc().update("UPDATE meeting_records SET version=version+1,updated_at=CURRENT_TIMESTAMP(6) WHERE company_id=? AND id=?",actor.companyId(),id);
+        audit(actor,id,null,"MINUTES_ADDENDUM",body.text().trim());return repository.detail(actor,id);
+    }
+    private static void note(String text){if(text==null||text.trim().length()<3||text.length()>2000)throw new IllegalArgumentException();}
+    @Transactional public AgreementDetail createTask(AuthSessionUser actor,long id,long expectedVersion){
+        lock(actor);var row=repository.agreement(actor,id,true);owner(actor,row.meetingOwnerId());
+        if(!tasks.allowed(actor))throw new SecurityException();
+        var links=repository.jdbc().queryForList("SELECT task_id FROM meeting_agreement_task_links WHERE company_id=? AND agreement_id=?",Long.class,actor.companyId(),id);
+        if(!links.isEmpty()){tasks.read(actor,links.getFirst());return repository.agreementDetail(actor,id);}
+        version(row.version(),expectedVersion);if(!row.status().equals("OPEN"))throw new IllegalStateException();
+        var task=tasks.create(actor,row.title(),row.assigneeId(),row.dueDate());
+        repository.jdbc().update("INSERT INTO meeting_agreement_task_links(company_id,agreement_id,task_id,created_by) VALUES(?,?,?,?)",actor.companyId(),id,task.id(),actor.userId());
+        repository.jdbc().update("UPDATE meeting_agreements SET version=version+1,updated_at=CURRENT_TIMESTAMP(6) WHERE company_id=? AND id=?",actor.companyId(),id);
+        audit(actor,row.meetingId(),id,"AGREEMENT_TASK_LINKED","");
+        return repository.agreementDetail(actor,id);
     }
 }

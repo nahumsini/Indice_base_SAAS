@@ -28,7 +28,7 @@ import type {
 } from './restaurantKioskApi';
 import { RestaurantProductModal } from './RestaurantProductModal';
 
-type TableSort = 'floor' | 'name' | 'status';
+type TableSort = 'floor' | 'name' | 'status' | 'cards';
 
 export type RestaurantWorkspaceMutation = (
   capability: string,
@@ -37,18 +37,20 @@ export type RestaurantWorkspaceMutation = (
 ) => Promise<boolean>;
 
 export function RestaurantFloorPlanPanel({
+  personal = false,
   mutate,
   onSelectTable,
   selectedTableId,
   workspace,
 }: {
+  personal?: boolean;
   mutate: RestaurantWorkspaceMutation;
   onSelectTable: (table: RestaurantTable) => void;
   selectedTableId: number | null;
   workspace: RestaurantWorkspace;
 }) {
   const [areaFilter, setAreaFilter] = useState('all');
-  const [tableSort, setTableSort] = useState<TableSort>('floor');
+  const [tableSort, setTableSort] = useState<TableSort>(personal ? 'cards' : 'floor');
   const areas = useMemo(
     () => [...new Set(workspace.tables.map(table => table.areaName).filter(Boolean))],
     [workspace.tables],
@@ -64,6 +66,7 @@ export function RestaurantFloorPlanPanel({
 
   return (
     <TableMapPanel
+      personal={personal}
       areaFilter={areaFilter}
       areaGroups={areaGroups}
       areas={areas}
@@ -81,9 +84,11 @@ export function RestaurantFloorPlanPanel({
 }
 
 export function WaiterStationWorkspace({
+  personal = false,
   mutate,
   workspace,
 }: {
+  personal?: boolean;
   mutate: RestaurantWorkspaceMutation;
   workspace: RestaurantWorkspace;
 }) {
@@ -115,18 +120,19 @@ export function WaiterStationWorkspace({
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3" data-waiter-workspace>
+    <div className="flex min-h-0 flex-1 flex-col gap-3" data-waiter-workspace data-personal-waiter={personal || undefined}>
       <nav className="sticky top-0 z-20 grid grid-cols-2 gap-2 border-y border-slate-200 bg-white/95 p-2 backdrop-blur dark:border-slate-700 dark:bg-slate-950/95 sm:rounded-xl sm:border sm:shadow-sm lg:hidden" data-mobile-waiter-navigation aria-label="Navegación de la estación de mesero">
         <button aria-pressed={mobilePane === 'tables'} className={`min-h-12 rounded-xl px-3 text-sm font-medium ${mobilePane === 'tables' ? 'bg-[#222831] text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-200'}`} onClick={() => setMobilePane('tables')} type="button">
-          Mesas · {workspace.tables.length}
+          {personal ? <span aria-hidden="true" className="mr-2 text-xl">🍽️</span> : null}Mesas · {workspace.tables.length}
         </button>
         <button aria-pressed={mobilePane === 'order'} className={`min-h-12 rounded-xl px-3 text-sm font-medium disabled:opacity-40 ${mobilePane === 'order' ? 'bg-[#FF6B5E] text-[#222831]' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-200'}`} disabled={!selectedTable} onClick={() => setMobilePane('order')} type="button">
-          {selectedTable ? selectedTable.name : 'Comanda'}{selectedOrder ? ` · ${selectedOrder.items.length}` : ''}
+          {personal ? <span aria-hidden="true" className="mr-2 text-xl">🧾</span> : null}{selectedTable ? selectedTable.name : 'Comanda'}{selectedOrder ? ` · ${selectedOrder.items.length}` : ''}
         </button>
       </nav>
       <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-2">
         <div className={`${mobilePane === 'tables' ? 'flex' : 'hidden'} min-h-0 min-w-0 lg:flex`}>
           <RestaurantFloorPlanPanel
+            personal={personal}
             mutate={mutate}
             onSelectTable={selectTable}
             selectedTableId={selectedTableId}
@@ -136,6 +142,7 @@ export function WaiterStationWorkspace({
 
         <div className={`${mobilePane === 'order' ? 'flex' : 'hidden'} min-h-0 min-w-0 lg:flex`}>
           <SelectedTablePanel
+            personal={personal}
             guestCount={guestCount}
             onGuestCountChange={setGuestCount}
             onOpenTable={openSelectedTable}
@@ -152,6 +159,7 @@ export function WaiterStationWorkspace({
 }
 
 function TableMapPanel({
+  personal = false,
   areaFilter,
   areaGroups,
   areas,
@@ -165,6 +173,7 @@ function TableMapPanel({
   tableCount,
   tables,
 }: {
+  personal?: boolean;
   areaFilter: string;
   areaGroups: Array<{ areaName: string; tables: RestaurantTable[] }>;
   areas: string[];
@@ -277,10 +286,10 @@ function TableMapPanel({
           <div>
             <div className="flex items-center gap-2">
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#FF6B5E]/10 text-[#B63B32] dark:text-[#FFB0AA]">
-                <Armchair aria-hidden="true" className="h-5 w-5" />
+                {personal ? <span aria-hidden="true" className="text-2xl">🍽️</span> : <Armchair aria-hidden="true" className="h-5 w-5" />}
               </span>
               <div>
-                <h2 className="text-xl font-medium">Mapa de mesas</h2>
+                <h2 className="text-xl font-medium">{personal ? "Tus mesas" : "Mapa de mesas"}</h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400">{tableCount} mesas en el salón</p>
               </div>
             </div>
@@ -302,7 +311,7 @@ function TableMapPanel({
                 onChange={value => onSortChange(value as TableSort)}
                 value={sort}
               >
-                <option value="floor">Orden del salón</option>
+                {personal ? <option value="cards">Vista de tarjetas</option> : null}<option value="floor">Orden del salón</option>
                 <option value="name">Nombre</option>
                 <option value="status">Estado</option>
               </SelectControl>
@@ -384,9 +393,10 @@ function TableMapPanel({
                 tables={group.tables}
               />
             ) : (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
+              <div className={personal ? "grid grid-cols-1 gap-3 min-[430px]:grid-cols-2" : "grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3"}>
                 {group.tables.map(table => (
                   <TableShapeButton
+                    personal={personal}
                     key={table.id}
                     onSelect={() => onSelectTable(table)}
                     selected={selectedTableId === table.id}
@@ -403,10 +413,12 @@ function TableMapPanel({
 }
 
 function TableShapeButton({
+  personal = false,
   onSelect,
   selected,
   table,
 }: {
+  personal?: boolean;
   onSelect: () => void;
   selected: boolean;
   table: RestaurantTable;
@@ -420,6 +432,20 @@ function TableShapeButton({
       ? 'border-[#FF6B5E] bg-[#FF6B5E]/10 text-slate-950 dark:text-white'
       : 'border-emerald-300 bg-white text-slate-950 hover:border-emerald-500 hover:bg-emerald-50 dark:border-emerald-500/35 dark:bg-slate-950 dark:text-white dark:hover:bg-emerald-500/10';
   const ariaLabel = `${table.name}, ${stateLabel}, ${table.capacity} lugares${occupied ? `, total ${money(table.totalAmount)}` : ''}`;
+
+  if (personal) return (
+    <button type="button" aria-label={ariaLabel} aria-pressed={selected} onClick={onSelect}
+      className={`flex w-full flex-col gap-3 rounded-3xl border p-4 text-left shadow-sm transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300 ${tone} ${selected ? 'ring-2 ring-[#FF6B5E]' : ''}`}>
+      <span className="flex w-full flex-wrap items-center justify-between gap-2">
+        <span aria-hidden="true" className="grid h-12 w-12 place-items-center rounded-2xl bg-white/70 text-2xl dark:bg-slate-800">{requested ? '🧾' : occupied ? '🍽️' : '🛎️'}</span>
+        <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${requested ? 'bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-100' : occupied ? 'bg-rose-100 text-rose-900 dark:bg-rose-950 dark:text-rose-200' : 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'}`}>{stateLabel}</span>
+      </span>
+      <span className="text-lg font-medium leading-6">{table.name}</span>
+      <span className="text-sm text-slate-600 dark:text-slate-300">{occupied ? `${Math.max(1, table.guestCount || 1)} personas` : `${table.capacity} lugares`}</span>
+      {occupied ? <span className="text-xl font-medium">{money(table.totalAmount)}</span> : null}
+      {occupied ? <span className="text-xs text-slate-600 dark:text-slate-300">{table.responsibleWaiterName || 'Mesero por asignar'}</span> : null}
+    </button>
+  );
 
   return (
     <button
@@ -643,6 +669,7 @@ function ShapeButton({ active, icon, label, onClick }: { active: boolean; icon: 
 }
 
 function SelectedTablePanel({
+  personal = false,
   guestCount,
   mutate,
   onGuestCountChange,
@@ -652,6 +679,7 @@ function SelectedTablePanel({
   sourceRegisterOpen,
   workspace,
 }: {
+  personal?: boolean;
   guestCount: number;
   mutate: RestaurantWorkspaceMutation;
   onGuestCountChange: (value: number) => void;
@@ -670,7 +698,7 @@ function SelectedTablePanel({
 
   return (
     <section className="flex min-h-[calc(100dvh-13rem)] w-full min-w-0 flex-1 flex-col overflow-hidden bg-white dark:bg-slate-950 sm:rounded-xl sm:border sm:border-[#222831]/10 sm:dark:border-slate-700 lg:min-h-0">
-      <SelectedTableHeader order={order} table={selectedTable} />
+      <SelectedTableHeader personal={personal} order={order} table={selectedTable} />
 
       {!selectedTable ? (
         <div className="min-h-0 flex-1 bg-[#F7F8FA] p-4 dark:bg-slate-900/60">
@@ -682,6 +710,7 @@ function SelectedTablePanel({
         </div>
       ) : !order ? (
         <OpenTableState
+          personal={personal}
           guestCount={guestCount}
           onGuestCountChange={onGuestCountChange}
           onOpenTable={onOpenTable}
@@ -695,7 +724,7 @@ function SelectedTablePanel({
             order={order}
             sourceRegisterOpen={sourceRegisterOpen}
           />
-          <div className="min-h-0 flex-1 overflow-hidden bg-[#F7F8FA] dark:bg-slate-900/60">
+          <div data-personal-order-contents={personal || undefined} className="min-h-0 flex-1 overflow-hidden bg-[#F7F8FA] dark:bg-slate-900/60">
             <OrderContents
               mutate={mutate}
               onAddProducts={() => setIsProductModalOpen(true)}
@@ -710,6 +739,7 @@ function SelectedTablePanel({
           />
           {isProductModalOpen ? (
             <RestaurantProductModal
+              personal={personal}
               mutate={mutate}
               onClose={() => setIsProductModalOpen(false)}
               order={order}
@@ -723,18 +753,18 @@ function SelectedTablePanel({
   );
 }
 
-function SelectedTableHeader({ order, table }: { order?: RestaurantOrder; table?: RestaurantTable }) {
+function SelectedTableHeader({ personal = false, order, table }: { personal?: boolean; order?: RestaurantOrder; table?: RestaurantTable }) {
   const waiterName = order?.responsibleWaiterName || table?.responsibleWaiterName;
   return (
     <div className="flex min-h-[5.25rem] flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#222831] px-4 py-3 text-white">
       <div className="flex min-w-0 items-center gap-3">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#FF6B5E]/20 text-[#FFB0AA]">
-          <Utensils aria-hidden="true" className="h-5 w-5" />
+          {personal ? <span aria-hidden="true" className="text-2xl">🍽️</span> : <Utensils aria-hidden="true" className="h-5 w-5" />}
         </span>
         <div className="min-w-0">
           <p className="text-xs text-slate-300">{order?.orderNumber || 'Mesa seleccionada'}</p>
           <h2 className="truncate text-xl font-medium">{table?.name || 'Comanda actual'}</h2>
-          {table ? <p className="truncate text-xs text-slate-400">{table.areaName} · {table.capacity} lugares{order ? ` · ${waiterName ? `Mesero ${waiterName}` : 'Mesero por asignar'}` : ''}</p> : null}
+          {table ? <p className="truncate text-xs text-slate-300">{table.areaName} · {table.capacity} lugares{order ? ` · ${waiterName ? `Mesero ${waiterName}` : 'Mesero por asignar'}` : ''}</p> : null}
         </div>
       </div>
       {table ? (
@@ -748,12 +778,14 @@ function SelectedTableHeader({ order, table }: { order?: RestaurantOrder; table?
 }
 
 function OpenTableState({
+  personal = false,
   guestCount,
   onGuestCountChange,
   onOpenTable,
   sourceRegisterOpen,
   table,
 }: {
+  personal?: boolean;
   guestCount: number;
   onGuestCountChange: (value: number) => void;
   onOpenTable: () => Promise<void>;
@@ -762,9 +794,9 @@ function OpenTableState({
 }) {
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto bg-[#F7F8FA] p-4 dark:bg-slate-900/60">
-      <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm dark:border-slate-700 dark:bg-slate-950">
+      <div data-personal-open-table={personal || undefined} className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm dark:border-slate-700 dark:bg-slate-950">
         <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-          <Armchair aria-hidden="true" className="h-7 w-7" />
+          {personal ? <span aria-hidden="true" className="text-3xl">🛎️</span> : <Armchair aria-hidden="true" className="h-7 w-7" />}
         </span>
         <h3 className="mt-4 text-2xl font-medium">{table.name} está disponible</h3>
         <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500 dark:text-slate-400">

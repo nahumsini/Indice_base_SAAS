@@ -12,7 +12,7 @@ import { getIndiceTableMinimumColumnWidth } from './indiceTableColumnSizing';
 
 export type IndiceTableSortDirection = 'asc' | 'desc';
 export type IndiceTableAlignment = 'left' | 'center' | 'right';
-export type IndiceTableTone = 'coral' | 'blue' | 'aqua' | 'green';
+export type IndiceTableTone = 'coral' | 'blue' | 'aqua' | 'green' | 'gray';
 
 export type IndiceTableColumnDefinition<ColumnId extends string> = {
   id: ColumnId;
@@ -57,6 +57,12 @@ const tableToneClassNames: Record<IndiceTableTone, {
   icon: string;
   resize: string;
 }> = {
+  gray: {
+    active: 'text-slate-700 dark:text-slate-200',
+    focus: 'focus-visible:ring-slate-500/25',
+    icon: 'text-slate-600 dark:text-slate-300',
+    resize: 'hover:border-slate-500 hover:bg-slate-500/15 focus-visible:border-slate-500 focus-visible:bg-slate-500/15',
+  },
   aqua: {
     active: 'text-[#177D66] dark:text-[#8FE0CA]',
     focus: 'focus-visible:ring-[#59C3A5]/25',

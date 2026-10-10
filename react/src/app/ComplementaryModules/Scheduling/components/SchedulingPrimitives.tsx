@@ -6,6 +6,9 @@ import { getIndiceFilterControlClassName } from '../../../components/frontend-os
 import { MODULE_COLORS, type IndiceModuleTone } from '../../../styles/moduleColors';
 import type { ReservationStatus } from '../services/schedulingApi';
 import type { SchedulingCopy } from '../translations/schedulingCopy';
+import { ApiClientError } from '../../../lib/apiClient';
+import { useLanguage } from '../../../shared/context';
+import { getSchedulingOperationsCopy } from '../translations/schedulingOperationsCopy';
 import { schedulingEmoji, schedulingTone } from '../utils/schedulingIdentity';
 
 export const panelClass = 'rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900';
@@ -35,25 +38,27 @@ export function StatusBadge({ status, copy }: { status: ReservationStatus; copy:
   return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${statusClass[status]}`}>{copy[status]}</span>;
 }
 /** One modal frame changes to a discard confirmation; it never opens a nested modal. */
-export function EditorFrame({ title, description, copy, children, onSave, onClose, onSaved, modalType = 'standard-form', saveLabel, destructive = false, icon = schedulingEmoji.calendar }: {
+export function EditorFrame({ title, description, copy, children, onSave, onClose, onSaved, modalType = 'standard-form', saveLabel, destructive = false, icon = schedulingEmoji.calendar, hasChanges = false }: {
   title: string; description: string; copy: SchedulingCopy; children: ReactNode;
   onSave: () => Promise<unknown>; onClose: () => void; onSaved: () => void;
   modalType?: IndiceModalType;
   saveLabel?: string; destructive?: boolean;
   icon?: ReactNode;
+  hasChanges?: boolean;
 }) {
   const formId = useId();
-  const [busy, setBusy] = useState(false), [error, setError] = useState(false);
+  const { currentLanguage } = useLanguage(), op = getSchedulingOperationsCopy(currentLanguage.code);
+  const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const [dirty, setDirty] = useState(false), [discard, setDiscard] = useState(false);
-  const close = () => dirty ? setDiscard(true) : onClose();
+  const close = () => dirty || hasChanges ? setDiscard(true) : onClose();
   return <IndiceModalFrame open onOpenChange={open => { if (!open) close(); }} busy={busy} tone={schedulingTone} closeLabel={copy.close}
     modalType={discard ? 'confirmation' : modalType} title={discard ? copy.discard : title}
     description={description} icon={<span className="text-xl leading-none">{icon}</span>} footer={discard ? <>
       <ActionButton onClick={() => setDiscard(false)}>{copy.keepEditing}</ActionButton><ActionButton onClick={onClose}>{copy.close}</ActionButton>
     </> : <><ActionButton disabled={busy} onClick={close}>{copy.cancel}</ActionButton><ActionButton primary disabled={busy} type="submit" form={formId} data-modal-destructive={destructive||undefined} style={destructive?{'--scheduling-accent':'#DC2626','--scheduling-accent-foreground':'#FFFFFF'} as React.CSSProperties:undefined}>{busy ? copy.loading : saveLabel??copy.save}</ActionButton></>}>
     {!discard && <form id={formId} className="space-y-5" onChange={() => setDirty(true)} onSubmit={async event => {
-      event.preventDefault(); if (busy) return; setBusy(true); setError(false);
-      try { await onSave(); onSaved(); } catch { setError(true); } finally { setBusy(false); }
-    }}>{error && <Feedback error>{copy.error}</Feedback>}{children}</form>}
+      event.preventDefault(); if (busy) return; setBusy(true); setError('');
+      try { await onSave(); onSaved(); } catch (error) { setError(error instanceof ApiClientError && error.status === 409 ? op.conflict : copy.error); } finally { setBusy(false); }
+    }}>{error && <Feedback error>{error}</Feedback>}{children}</form>}
   </IndiceModalFrame>;
 }

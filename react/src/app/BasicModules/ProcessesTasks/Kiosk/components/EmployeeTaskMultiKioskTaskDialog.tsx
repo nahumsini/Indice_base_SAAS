@@ -3,12 +3,8 @@ import {
   CalendarDays,
   ClipboardCheck,
   Clock3,
-  FileUp,
-  FolderKanban,
   LoaderCircle,
   MapPin,
-  Paperclip,
-  UserRound,
 } from 'lucide-react';
 import {
   KioskFileDropzone,
@@ -131,6 +127,7 @@ export function EmployeeTaskMultiKioskTaskDialog({
 
   return (
     <KioskModalFrame
+      contentClassName="[&_button]:min-h-11 [&_button]:min-w-11"
       busy={interactionBusy}
       closeLabel={copy.selectedTask.closeModal}
       description={`${taskTypeLabel(task, copy)} · ${task.folio}`}
@@ -138,7 +135,7 @@ export function EmployeeTaskMultiKioskTaskDialog({
       footer={completionEnabled ? (
         <Button
           type="button"
-          className="h-12 rounded-xl bg-white px-5 text-sm font-medium text-[#7A5204] hover:bg-white/90"
+          className="h-auto min-h-12 whitespace-normal rounded-xl bg-[#143675] px-5 py-3 text-base font-medium text-white hover:bg-[#102c60]"
           disabled={interactionBusy || requiredEvidenceMissing}
           onClick={() => void onComplete()}
         >
@@ -148,7 +145,7 @@ export function EmployeeTaskMultiKioskTaskDialog({
       ) : closeButton}
       footerLeading={completionEnabled ? closeButton : undefined}
       footerSummary={task.evidence_required ? agendaCopy.detailUi.evidenceRequired : agendaCopy.detailUi.evidenceOptional}
-      icon={<ClipboardCheck className="h-5 w-5" />}
+      icon={<span aria-hidden="true" className="text-2xl">📋</span>}
       onOpenChange={(open) => {
         if (!open && !interactionBusy) onClose();
       }}
@@ -163,20 +160,57 @@ export function EmployeeTaskMultiKioskTaskDialog({
           <KioskWorkspaceNotice kind="error">{errorMessage}</KioskWorkspaceNotice>
         ) : null}
 
-        <section aria-labelledby="task-instructions-heading" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-          <h3 id="task-instructions-heading" className="text-[11px] font-medium text-[#9A6B05] dark:text-[#FDE68A]">{agendaCopy.detailUi.instructions}</h3>
+        <section aria-labelledby="task-instructions-heading" className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+          <h3 id="task-instructions-heading" className="text-sm font-medium text-[#9A6B05] dark:text-[#FDE68A]">{agendaCopy.detailUi.instructions}</h3>
           <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-slate-300">{task.description || agendaCopy.detailUi.noInstructions}</p>
         </section>
 
+        <section aria-labelledby="task-evidence-heading" className={`rounded-[1.5rem] border p-4 shadow-sm ${requiredEvidenceMissing ? 'border-amber-300 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-950/20' : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950'}`}>
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F4C84A]/25 text-[#7A5204] dark:text-[#FDE68A]"><span aria-hidden="true" className="text-2xl">📸</span></span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 id="task-evidence-heading" className="font-medium text-slate-950 dark:text-white">{task.evidence_required ? agendaCopy.detailUi.evidenceRequired : agendaCopy.detailUi.evidenceOptional}</h3>
+                <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">{task.attachments}/5</span>
+              </div>
+              <p className={`mt-1 text-xs leading-5 ${requiredEvidenceMissing ? 'text-amber-800 dark:text-amber-200' : 'text-slate-600 dark:text-slate-300'}`}>
+                {task.evidence_required
+                  ? evidenceSatisfied ? agendaCopy.detailUi.evidenceReady : agendaCopy.detailUi.evidenceMissing
+                  : agendaCopy.detailUi.fileLimit}
+              </p>
+            </div>
+          </div>
+          {canAddEvidence ? (
+            <KioskFileDropzone
+              accept={evidenceAccept}
+              className="mt-3 rounded-2xl [&_span]:text-sm [&_p]:text-sm"
+              description={task.evidence_required ? agendaCopy.detailUi.fileLimit : undefined}
+              disabled={interactionBusy}
+              icon={evidenceBusy ? <LoaderCircle aria-hidden="true" className="h-5 w-5 animate-spin" /> : <span aria-hidden="true" className="text-2xl">📎</span>}
+              multiple
+              onChange={(event) => {
+                const files = taskKioskFilesFromInput(event.currentTarget.files);
+                event.currentTarget.value = '';
+                if (files.length) onEvidenceFiles(task, files);
+              }}
+              title={evidenceBusy ? agendaCopy.detailUi.uploading : agendaCopy.detailUi.upload}
+              tone="yellow"
+            />
+          ) : null}
+        </section>
+
+        <details className="group rounded-[1.5rem] border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 rounded-[1.5rem] px-4 py-3 text-sm font-medium text-slate-700 focus-visible:ring-4 focus-visible:ring-amber-300 dark:text-slate-200 [&::-webkit-details-marker]:hidden"><span aria-hidden="true" className="text-xl">🗓️</span>{agendaCopy.scheduleUi.label} · {agendaCopy.detailUi.participation}<span aria-hidden="true" className="ml-auto transition-transform group-open:rotate-90">›</span></summary>
+          <div className="space-y-3 px-3 pb-3">
         {task.process_id ? (
-          <section aria-labelledby="task-process-heading" className="rounded-2xl border border-amber-200 bg-amber-50/55 p-4 dark:border-amber-900/60 dark:bg-amber-950/20">
+          <section aria-labelledby="task-process-heading" className="rounded-[1.5rem] border border-amber-200 bg-amber-50/55 p-4 dark:border-amber-900/60 dark:bg-amber-950/20">
             <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F4C84A]/30 text-[#7A5204] dark:text-[#FDE68A]"><FolderKanban aria-hidden="true" className="h-5 w-5" /></span>
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F4C84A]/30 text-[#7A5204] dark:text-[#FDE68A]"><span aria-hidden="true" className="text-2xl">🔄</span></span>
               <div className="min-w-0">
-                <h3 id="task-process-heading" className="text-[11px] font-medium text-amber-700 dark:text-amber-200">{agendaCopy.detailUi.processContext}</h3>
+                <h3 id="task-process-heading" className="text-sm font-medium text-amber-700 dark:text-amber-200">{agendaCopy.detailUi.processContext}</h3>
                 <p className="mt-1 font-medium text-slate-950 dark:text-white">{task.process_title || taskTypeLabel(task, copy)}</p>
                 <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">{task.process_reference || task.process_run_folio || task.folio}</p>
-                {processPosition ? <span className="mt-2 inline-flex rounded-lg bg-white/80 px-2 py-1 text-[10px] font-medium text-amber-800 dark:bg-slate-950/70 dark:text-amber-200">{processPosition}</span> : null}
+                {processPosition ? <span className="mt-2 inline-flex rounded-lg bg-white/80 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-slate-950/70 dark:text-amber-200">{processPosition}</span> : null}
               </div>
             </div>
           </section>
@@ -184,9 +218,9 @@ export function EmployeeTaskMultiKioskTaskDialog({
 
         <section aria-labelledby="task-planning-heading" className="space-y-2">
           <div className="flex items-center justify-between gap-3 px-1">
-            <h3 id="task-planning-heading" className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{agendaCopy.scheduleUi.label}</h3>
+            <h3 id="task-planning-heading" className="text-sm font-medium text-slate-600 dark:text-slate-300">{agendaCopy.scheduleUi.label}</h3>
             {canReschedule && task.can_reschedule ? (
-              <Button type="button" variant="ghost" className="h-9 rounded-lg px-2 text-xs text-[#7A5204] dark:text-[#FDE68A]" disabled={interactionBusy} onClick={() => onOpenSchedule(task)}>
+              <Button type="button" variant="ghost" className="h-auto min-h-11 whitespace-normal rounded-xl px-3 py-2 text-sm text-[#7A5204] dark:text-[#FDE68A]" disabled={interactionBusy} onClick={() => onOpenSchedule(task)}>
                 <CalendarClock aria-hidden="true" className="h-4 w-4" />{agendaCopy.scheduleUi.edit}
               </Button>
             ) : null}
@@ -201,57 +235,23 @@ export function EmployeeTaskMultiKioskTaskDialog({
           </div>
         </section>
 
-        <section aria-labelledby="task-participation-heading" className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-          <h3 id="task-participation-heading" className="px-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">{agendaCopy.detailUi.participation}</h3>
+        <section aria-labelledby="task-participation-heading" className="rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+          <h3 id="task-participation-heading" className="px-1 text-sm font-medium text-slate-600 dark:text-slate-300">{agendaCopy.detailUi.participation}</h3>
           <div className="mt-3 flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F4C84A]/25 text-[#7A5204] dark:text-[#FDE68A]"><UserRound aria-hidden="true" className="h-5 w-5" /></span>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F4C84A]/25 text-[#7A5204] dark:text-[#FDE68A]"><span aria-hidden="true" className="text-2xl">👤</span></span>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">{copy.task.responsible}</p>
-              <p className="truncate text-sm font-medium text-slate-950 dark:text-white">{task.assigned_name || copy.identity.fallbackStatus}</p>
-              {location ? <p className="mt-1 flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400"><MapPin aria-hidden="true" className="h-3.5 w-3.5" /><span className="truncate">{location}</span></p> : null}
+              <p className="text-sm text-slate-600 dark:text-slate-300">{copy.task.responsible}</p>
+              <p className="break-words text-sm font-medium text-slate-950 dark:text-white">{task.assigned_name || copy.identity.fallbackStatus}</p>
+              {location ? <p className="mt-1 flex items-center gap-1 text-sm text-slate-600 dark:text-slate-300"><MapPin aria-hidden="true" className="h-3.5 w-3.5" /><span className="truncate">{location}</span></p> : null}
             </div>
           </div>
         </section>
 
-        <section aria-labelledby="task-evidence-heading" className={`rounded-2xl border p-4 shadow-sm ${requiredEvidenceMissing ? 'border-amber-300 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-950/20' : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950'}`}>
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F4C84A]/25 text-[#7A5204] dark:text-[#FDE68A]"><Paperclip aria-hidden="true" className="h-5 w-5" /></span>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 id="task-evidence-heading" className="font-medium text-slate-950 dark:text-white">{task.evidence_required ? agendaCopy.detailUi.evidenceRequired : agendaCopy.detailUi.evidenceOptional}</h3>
-                <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">{task.attachments}/5</span>
-              </div>
-              <p className={`mt-1 text-xs leading-5 ${requiredEvidenceMissing ? 'text-amber-800 dark:text-amber-200' : 'text-slate-500 dark:text-slate-400'}`}>
-                {task.evidence_required
-                  ? evidenceSatisfied ? agendaCopy.detailUi.evidenceReady : agendaCopy.detailUi.evidenceMissing
-                  : agendaCopy.detailUi.fileLimit}
-              </p>
-            </div>
           </div>
-          {canAddEvidence ? (
-            <KioskFileDropzone
-              accept={evidenceAccept}
-              className="mt-3"
-              description={task.evidence_required ? agendaCopy.detailUi.fileLimit : undefined}
-              disabled={interactionBusy}
-              icon={evidenceBusy ? <LoaderCircle aria-hidden="true" className="h-5 w-5 animate-spin" /> : <FileUp aria-hidden="true" className="h-5 w-5" />}
-              multiple
-              onChange={(event) => {
-                const files = taskKioskFilesFromInput(event.currentTarget.files);
-                event.currentTarget.value = '';
-                if (files.length) onEvidenceFiles(task, files);
-              }}
-              title={evidenceBusy ? agendaCopy.detailUi.uploading : agendaCopy.detailUi.upload}
-              tone="yellow"
-            />
-          ) : null}
-          {task.evidence_required && requiredEvidenceMissing ? (
-            <KioskWorkspaceFieldStatus className="mt-3" kind="warning">{agendaCopy.detailUi.evidenceMissing}</KioskWorkspaceFieldStatus>
-          ) : null}
-        </section>
+        </details>
 
         {completionEnabled ? (
-          <section className="space-y-4 rounded-2xl border border-[#F4C84A]/35 bg-white p-4 shadow-sm dark:border-[#F4C84A]/20 dark:bg-slate-950">
+          <section className="space-y-4 rounded-[1.5rem] border border-[#F4C84A]/35 bg-white p-4 shadow-sm dark:border-[#F4C84A]/20 dark:bg-slate-950">
             {contributionFlow ? (
               <KioskWorkspaceFieldStatus>{copy.selectedTask.contributionDescription}</KioskWorkspaceFieldStatus>
             ) : (
@@ -260,7 +260,7 @@ export function EmployeeTaskMultiKioskTaskDialog({
             <label className="block">
               <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{contributionFlow ? copy.selectedTask.contributionNotes : copy.selectedTask.notes}</span>
               <Textarea
-                className="mt-2 min-h-24 rounded-xl"
+                className="mt-2 min-h-28 rounded-2xl text-base"
                 disabled={interactionBusy}
                 placeholder={contributionFlow ? copy.selectedTask.contributionNotesPlaceholder : copy.selectedTask.notesPlaceholder}
                 value={completionNotes}

@@ -35,6 +35,24 @@ public abstract class ConfigCenterCompanyUseCases extends ConfigCenterInvitation
         super(jdbcTemplate, objectMapper, passwordEncoder, objectStorageService, objectStorageProperties, storageMeter);
     }
 
+    /** Public branding projection for a company already resolved by the calling owner. */
+    public String getCompanyLogo(long companyId) {
+        var logos = jdbcTemplate.query(
+            "SELECT logo_url FROM companies WHERE id = ? LIMIT 1",
+            (rs, rowNum) -> safe(rs.getString("logo_url")), companyId);
+        if (logos.isEmpty()) {
+            throw new IllegalArgumentException("Company not found.");
+        }
+        return resolveCompanyLogo(logos.getFirst(),
+            loadSettingsRoot(companyId).path(CONFIG_CENTER_KEY).path("empresa_template"));
+    }
+
+    private String resolveCompanyLogo(String storedLogo, JsonNode template) {
+        // An explicitly cleared logo must not revive the legacy company image.
+        return template.has("logo") ? template.path("logo").asText("").trim()
+            : firstNonBlank(storedLogo, readOptionalText(template, "logo_url"));
+    }
+
     public Map<String, Object> getEmpresa(long companyId) {
         var companyRows = jdbcTemplate.query(
             "SELECT id, name, logo_url FROM companies WHERE id = ? LIMIT 1",
@@ -65,14 +83,8 @@ public abstract class ConfigCenterCompanyUseCases extends ConfigCenterInvitation
         );
 
         var empresa = new LinkedHashMap<>(companyRows.get(0));
-        if (configCenterNode.path("empresa_template").has("logo")) {
-            empresa.put("logo_url", configCenterNode.path("empresa_template").path("logo").asText("").trim());
-        } else {
-            empresa.put("logo_url", firstNonBlank(
-                objectString(empresa.get("logo_url")),
-                readOptionalText(configCenterNode.path("empresa_template"), "logo_url")
-            ));
-        }
+        empresa.put("logo_url", resolveCompanyLogo(
+            objectString(empresa.get("logo_url")), configCenterNode.path("empresa_template")));
         empresa.put("plan_id", null);
         empresa.put("industria", firstNonBlank(
             stringValue(empresaTemplate.get("industria")),

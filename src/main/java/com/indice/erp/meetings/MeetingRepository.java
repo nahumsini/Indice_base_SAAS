@@ -13,12 +13,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public class MeetingRepository {
     private final JdbcTemplate db;
-    public MeetingRepository(JdbcTemplate db){this.db=db;}
+    private final com.indice.erp.processTasks.tasks.ProcessTaskMeetingContract tasks;
+    public MeetingRepository(JdbcTemplate db,com.indice.erp.processTasks.tasks.ProcessTaskMeetingContract tasks){this.db=db;this.tasks=tasks;}
     private static final String SELECT="SELECT m.*,u.full_name owner_name,(SELECT COUNT(*) FROM meeting_participants p WHERE p.company_id=m.company_id AND p.meeting_id=m.id) participant_count FROM meeting_records m JOIN users u ON u.id=m.owner_id ";
     static String visibility(AuthSessionUser actor){return MeetingAccessService.administrator(actor)?"":" AND (m.owner_id="+actor.userId()+" OR EXISTS(SELECT 1 FROM meeting_participants p WHERE p.company_id=m.company_id AND p.meeting_id=m.id AND p.user_id="+actor.userId()+"))";}
     private static String agreementVisibility(AuthSessionUser actor){return MeetingAccessService.administrator(actor)?"":" AND (a.assignee_id="+actor.userId()+" OR m.owner_id="+actor.userId()+" OR EXISTS(SELECT 1 FROM meeting_participants p WHERE p.company_id=m.company_id AND p.meeting_id=m.id AND p.user_id="+actor.userId()+"))";}
     private static final RowMapper<MeetingItem> MEETING=(r,n)->new MeetingItem(r.getLong("id"),r.getString("title"),r.getString("meeting_type"),r.getString("status"),r.getTimestamp("start_at").toInstant(),r.getTimestamp("end_at").toInstant(),r.getString("timezone"),r.getLong("owner_id"),r.getString("owner_name"),r.getInt("participant_count"),!r.getString("minutes").isBlank(),r.getLong("version"));
-    private static final RowMapper<AgreementItem> AGREEMENT=(r,n)->new AgreementItem(r.getLong("id"),r.getLong("meeting_id"),r.getString("meeting_title"),r.getString("title"),r.getLong("assignee_id"),r.getString("assignee_name"),r.getDate("due_date").toLocalDate(),r.getString("status"),r.getString("resolution"),r.getLong("version"),r.getLong("owner_id"));
+    private static final RowMapper<AgreementItem> AGREEMENT=(r,n)->new AgreementItem(r.getLong("id"),r.getLong("meeting_id"),r.getString("meeting_title"),r.getString("title"),r.getLong("assignee_id"),r.getString("assignee_name"),r.getDate("due_date").toLocalDate(),r.getString("status"),r.getString("resolution"),r.getLong("version"),r.getLong("owner_id"),r.getBoolean("followup_enabled"));
     private static final String AGREEMENT_SELECT="SELECT a.*,m.title meeting_title,m.owner_id,u.full_name assignee_name FROM meeting_agreements a JOIN meeting_records m ON m.company_id=a.company_id AND m.id=a.meeting_id JOIN users u ON u.id=a.assignee_id ";
     @Transactional(readOnly=true) public Page<MeetingItem> meetings(AuthSessionUser actor,Instant from,Instant to,String search,String status,int page,int size){
         return meetings(actor,from,to,search,status,"",0,"start","asc",page,size);
@@ -55,8 +56,17 @@ public class MeetingRepository {
     }
     public boolean activeMember(long company,long user){return Boolean.TRUE.equals(db.queryForObject("SELECT EXISTS(SELECT 1 FROM user_companies WHERE company_id=? AND user_id=? AND status='active')",Boolean.class,company,user));}
     @Transactional(readOnly=true) public List<MeetingChoice> choices(AuthSessionUser actor){
-        var rows=db.query(SELECT+" WHERE m.company_id=?"+(MeetingAccessService.administrator(actor)?"":" AND m.owner_id="+actor.userId())+" AND m.status<>'CANCELLED' ORDER BY m.start_at DESC,m.id DESC LIMIT 100",MEETING,actor.companyId());
-        return rows.stream().filter(m->MeetingAccessService.administrator(actor)||m.ownerId()==actor.userId()).map(m->{var people=new ArrayList<>(participants(actor.companyId(),m.id()));if(people.stream().noneMatch(p->p.id()==m.ownerId()))people.add(new Member(m.ownerId(),m.ownerName()));return new MeetingChoice(m.id(),m.title(),people);}).toList();
+        return choices(actor,"",0,1,100).items();
+    }
+    @Transactional(readOnly=true) public Page<MeetingChoice> choices(AuthSessionUser actor,String search,long selected,int page,int size){
+        String where=" WHERE m.company_id=?"+(MeetingAccessService.administrator(actor)?"":" AND m.owner_id="+actor.userId())
+            +" AND (m.status<>'CANCELLED' OR m.id=?) AND (?=0 OR m.id=?) AND (?='' OR LOCATE(LOWER(?),LOWER(m.title))>0)";
+        Object[] args={actor.companyId(),selected,selected,selected,search,search};
+        long total=db.queryForObject("SELECT COUNT(*) FROM meeting_records m"+where,Long.class,args);
+        var values=new ArrayList<>(Arrays.asList(args));values.add(size);values.add((page-1)*size);
+        var rows=db.query(SELECT+where+" ORDER BY m.start_at DESC,m.id DESC LIMIT ? OFFSET ?",MEETING,values.toArray());
+        var items=rows.stream().map(m->{var people=new ArrayList<>(participants(actor.companyId(),m.id()));if(people.stream().noneMatch(p->p.id()==m.ownerId()))people.add(new Member(m.ownerId(),m.ownerName()));return new MeetingChoice(m.id(),m.title(),people);}).toList();
+        return new Page<>(items,total,page,size);
     }
     @Transactional(readOnly=true) public Directory assignees(AuthSessionUser actor){
         String scope=" FROM meeting_agreements a JOIN meeting_records m ON m.company_id=a.company_id AND m.id=a.meeting_id JOIN users u ON u.id=a.assignee_id WHERE a.company_id=?"+agreementVisibility(actor);
@@ -67,15 +77,38 @@ public class MeetingRepository {
         return agreements(actor,from,to,search,status,"",0,"due","asc",LocalDate.now(ZoneOffset.UTC),page,size);
     }
     @Transactional(readOnly=true) public Page<AgreementItem> agreements(AuthSessionUser actor,LocalDate from,LocalDate to,String search,String status,String attention,long assigneeId,String sort,String direction,LocalDate today,int page,int size){
-        if(!Set.of("","overdueAgreements").contains(attention)||!Set.of("asc","desc").contains(direction))throw new IllegalArgumentException();
+        return agreements(actor,from,to,search,status,attention,assigneeId,sort,direction,today,page,size,0);
+    }
+    @Transactional(readOnly=true) public Page<AgreementItem> agreements(AuthSessionUser actor,LocalDate from,LocalDate to,String search,String status,String attention,long assigneeId,String sort,String direction,LocalDate today,int page,int size,long meetingId){
+        return agreements(actor,from,to,search,status,attention,assigneeId,sort,direction,today,page,size,meetingId,false);
+    }
+    @Transactional(readOnly=true) public Page<AgreementItem> agreements(AuthSessionUser actor,LocalDate from,LocalDate to,String search,String status,String attention,long assigneeId,String sort,String direction,LocalDate today,int page,int size,long meetingId,boolean includePrevious){
+        if(!Set.of("","overdueAgreements","allOverdue","allOpen").contains(attention)||!Set.of("asc","desc").contains(direction)||meetingId<0)throw new IllegalArgumentException();
+        Long seriesId=null;Instant currentStart=Instant.EPOCH;
+        if(includePrevious){if(meetingId<=0)throw new IllegalArgumentException();var context=meeting(actor,meetingId,false);seriesId=planning(actor.companyId(),meetingId).seriesId();currentStart=context.startAt();}
         String order=switch(sort){case "due"->"a.due_date";case "title"->"a.title";case "meeting"->"m.title";case "assignee"->"u.full_name";case "status"->"a.status";default->throw new IllegalArgumentException();};
-        String where=" WHERE a.company_id=? AND a.due_date>=? AND a.due_date<?"+agreementVisibility(actor)+" AND (?='' OR a.status=?) AND (?='' OR LOCATE(LOWER(?),LOWER(a.title))>0) AND (?=0 OR a.assignee_id=?) AND (?='' OR (a.status='OPEN' AND a.due_date<?))";
-        Object[] args={actor.companyId(),java.sql.Date.valueOf(from),java.sql.Date.valueOf(to),status,status,search,search,assigneeId,assigneeId,attention,java.sql.Date.valueOf(today)};
+        boolean all=meetingId>0||attention.equals("allOverdue")||attention.equals("allOpen");
+        String where=" WHERE a.company_id=? AND (? OR (a.due_date>=? AND a.due_date<?))"+agreementVisibility(actor)
+            +" AND (?=0 OR a.meeting_id=? OR (? AND a.status='OPEN' AND m.series_id=? AND m.start_at<?)) AND (?='' OR a.status=?) AND (?='' OR LOCATE(LOWER(?),LOWER(a.title))>0) AND (?=0 OR a.assignee_id=?)"
+            +(attention.equals("allOpen")?" AND a.status='OPEN'":!attention.isEmpty()?" AND a.status='OPEN' AND a.due_date<?":"");
+        var arguments=new ArrayList<Object>(Arrays.asList(actor.companyId(),all,java.sql.Date.valueOf(from),java.sql.Date.valueOf(to),meetingId,meetingId,includePrevious,seriesId,Timestamp.from(currentStart),status,status,search,search,assigneeId,assigneeId));
+        if(!attention.isEmpty()&&!attention.equals("allOpen"))arguments.add(java.sql.Date.valueOf(today));
+        Object[] args=arguments.toArray();
         long total=db.queryForObject("SELECT COUNT(*) FROM meeting_agreements a JOIN meeting_records m ON m.company_id=a.company_id AND m.id=a.meeting_id"+where,Long.class,args);
         var values=new ArrayList<>(Arrays.asList(args));values.add(size);values.add((page-1)*size);
         return new Page<>(db.query(AGREEMENT_SELECT+where+" ORDER BY "+order+" "+direction+",a.id LIMIT ? OFFSET ?",AGREEMENT,values.toArray()),total,page,size);
     }
     public AgreementItem agreement(AuthSessionUser actor,long id,boolean lock){return db.query(AGREEMENT_SELECT+" WHERE a.company_id=? AND a.id=?"+agreementVisibility(actor)+(lock?" FOR UPDATE":""),AGREEMENT,actor.companyId(),id).stream().findFirst().orElseThrow(NoSuchElementException::new);}
+    @Transactional(readOnly=true) public AgreementDetail agreementDetail(AuthSessionUser actor,long id){
+        var row=agreement(actor,id,false);
+        var history=db.query("SELECT a.action,u.full_name,a.reason,a.occurred_at FROM meeting_audit a JOIN users u ON u.id=a.actor_id WHERE a.company_id=? AND a.agreement_id=? ORDER BY a.id DESC LIMIT 100",
+            (r,n)->new AuditItem(r.getString(1),r.getString(2),r.getString(3),r.getTimestamp(4).toInstant()),actor.companyId(),id);
+        var links=db.queryForList("SELECT task_id FROM meeting_agreement_task_links WHERE company_id=? AND agreement_id=?",Long.class,actor.companyId(),id);
+        com.indice.erp.processTasks.tasks.ProcessTaskMeetingContract.TaskLink task=null;
+        if(!links.isEmpty()&&tasks.allowed(actor)){try{task=tasks.read(actor,links.getFirst());}catch(SecurityException|NoSuchElementException inaccessible){/* Task ownership can be narrower than meeting membership. */}}
+        return new AgreementDetail(row,history,task,links.isEmpty()&&tasks.allowed(actor)&&row.status().equals("OPEN")
+            &&(MeetingAccessService.administrator(actor)||row.meetingOwnerId()==actor.userId()));
+    }
     @Transactional(readOnly=true) public Metrics metrics(AuthSessionUser actor,Instant from,Instant to,ZoneId zone){
         String scope=" FROM meeting_records m WHERE m.company_id=? AND m.start_at>=? AND m.start_at<?"+visibility(actor);
         Object[] args={actor.companyId(),Timestamp.from(from),Timestamp.from(to)};

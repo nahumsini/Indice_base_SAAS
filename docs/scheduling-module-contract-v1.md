@@ -53,7 +53,8 @@ list, refreshes agenda options, and preserves the underlying period/collaborator
 Public agenda is one operational-workspace modal with a live preview, publication/appearance,
 the saved public link and personalized staff links. Sharing uses saved publication, never an
 unsaved alias; changing appearance does not remove existing sharing functionality.
-Recurrent events, staff exceptions/holidays and external calendar sync are not claimed.
+Recurrent events and external calendar synchronization remain outside this pilot. The operational
+extension below adds split weekly hours, unavailable dates and service eligibility per staff member.
 
 ## Pilot behavior
 
@@ -74,7 +75,7 @@ Administrators can reassign future individual REQUESTED/CONFIRMED/PAUSED session
 active company member with valid availability. Event registrations retain the event host;
 historical attendance cannot be reassigned. The snapshotted duration/buffer is preserved, and
 the existing cross-company resource mutex prevents collisions. Former inactive staff do not
-trap existing company bookings. No notification is inferred; contact participants manually.
+trap existing company bookings. Staff receive private inbox notices; contact participants manually.
 Remove is a soft archive (`archived_at`), not a physical deletion: active bookings become CANCELLED,
 terminal status/attendance stays unchanged, and audit evidence is retained. Operational lists
 exclude archives by default; the table can include them explicitly. Historical metrics retain
@@ -121,7 +122,10 @@ request transaction: Engine idempotency and owner persistence must commit or rol
 | `GET /api/v1/scheduling/...` | Session, company entitlement, user module assignment and real tab scopes; private contact reads administrator/company or operator/own staff | Date ranges ≤366 days, reservation pagination 10–200; events bounded to 500 with upcoming events prioritized |
 | `GET /api/v1/scheduling/calendar-grid`, `/staff-options` | Same private guards; calendar OR reservations scope; collaborator must belong to the company and the authorized operator | Grid ≤43 UTC days to allow 42 local days across DST, 2,000 reservation/event rows per category plus totals; no public exposure |
 | `GET /api/v1/scheduling/clients` | Scheduling entitlement/assignment, clients tab, company administrator; delegates the read-only Sales master-client owner contract | Tenant-scoped nondeleted contacts only, escaped search ≤180, pagination 10–200; no CRM mutation, financial data or Sales permission grant |
+| `GET /api/v1/scheduling/booking-clients` | Scheduling reservations tab and administrator plus native Sales/contacts authority | Tenant-scoped owner search, 25 contacts per page; no inferred email association |
+| `GET /api/v1/scheduling/reservations/{id}`, `/{id}/history`, `/events/{id}/participants` | Session/module, calendar OR reservations tab and company/own-staff object scope | Private details; history limited to 100; participant pagination excludes archived records |
 | `POST /api/v1/scheduling/reservations/{id}/assignment`, `/management` | Same session/module/reservations/object checks plus CSRF; assignment requires administrator, management allows own-staff operator | Transaction, optimistic version, current availability/resource checks; reasoned audit with previous/next staff IDs; no hard delete |
+| `POST /api/v1/scheduling/reservations/{id}/reschedule` | Session/module/reservations/object checks and CSRF; company entitlement rechecked in transaction | Version and reason required; individual active reservations only; current resource availability and old/new instant audit |
 | `POST/PUT /api/v1/scheduling/...` | Same session/module/tab/object checks plus CSRF; configuration and event administration restricted to company administrators | Company transaction, optimistic version checks, append-only scheduling business audit; private request idempotency |
 
 The alias/Engine token are public-channel addresses, not a participant login. A public sender cannot
@@ -180,7 +184,99 @@ been inserted by this change. Public booking additionally requires
 an active commercial lifecycle and explicit page publication. Turning the adapter off is the
 public-access rollback; disabling the module/entitlement also fails closed without deleting data.
 
-No changes to Stripe, prices, consulting monthly benefits, invitation/email delivery, external
-calendar providers or global prospect/CRM records. Email verification, reminders, verified
-participant self-service, webinar streaming/meeting links and CRM attribution remain future owner
-integrations, not hidden placeholders. All deployment/public-release gates still apply.
+No changes to Stripe, consulting monthly benefits, invitation/email delivery, external calendar
+providers or global prospect/CRM records. Email verification, verified participant self-service,
+webinar streaming and automatic CRM attribution remain future owner integrations. Events accept
+a plain-text location or meeting link; no video service is provisioned. Deployment/public-release
+gates still apply.
+
+## Approved operational extension — 2026-10-08 (implemented 2026-10-09)
+
+The user approved implementation after the module review. This local branch completes operational
+flows; it does not declare the module released, deploy it, or create live access grants.
+
+- Internal capture exposes the same eligible published future events as the public catalog.
+  The four steps are selection, time, contacts and final review. Internal capture uses the native
+  wizard stepper and a stable modal footer; back retains data and sending happens only after review.
+- A private Sales client picker requires administrator, Scheduling reservations, native `crm`
+  and `crm.contacts`. Selection explicitly links a tenant-owned contact and prefills its fields;
+  editing those fields clears the link, and consent must still be captured. Anonymous submissions
+  cannot supply `clientId`. There is no inferred email match or write to the master contact.
+- Staff support up to 28 nonoverlapping weekly windows, 366 explicitly unavailable dates, and
+  a tenant-validated service selection. Empty service selection preserves the former all-services
+  behavior. Old staff requests that omit the new lists preserve saved configuration. Minimum
+  notice may be zero; booking still requires a future start and current availability.
+- Individual REQUESTED/CONFIRMED/PAUSED reservations can be rescheduled with a reason and current
+  version. Status, reference, contact, duration and buffer snapshots remain intact. The backend
+  rechecks staff/service eligibility, availability and occupancy; audit retains old/new instants.
+  A paused reservation stays paused. Event participants cannot individually change the event time.
+- Event details, publication, location and capacity can change with active participants; capacity
+  cannot fall below confirmed attendance. Host/time/duration remain locked while active participants
+  exist. Private participants are paginated through calendar/reservations permission and host scope.
+- Private reservation details include the captured phone and recent audit (maximum 100 entries).
+  KPI links reset collaborator/page filters and explicitly include archives to match their totals.
+- `MeetingBusyWindowService` adds a boolean occupancy boundary for validated user identity. Agenda,
+  Consulting and Meetings share the existing hashed resource mutex. Meetings retain their explicit
+  internal overlap policy; confirmed appointments/events cannot be overridden through that policy.
+  Read-only previews avoid locking reads; mutations retain current locking reads.
+- `HrSchedulingAvailabilityService` supplies only a tenant-scoped unavailable-date boolean for
+  approved leave while HR entitlement is active. Leave type/reason never leaves HR. Half-day leave
+  conservatively blocks the date because HR has no morning/afternoon interval authority. Existing
+  bookings are not silently cancelled when a leave is approved later.
+- Staff inbox notices cover requests and changed reservations. Confirmed appointments within the
+  next 24 hours get a best-effort reminder. Delivery rechecks active membership, entitlement and
+  reservations permission; durable owner receipts prevent retries from reviving dismissed notices.
+  The scheduler checks 100 candidates per cycle with a cursor, defaults to 60000 ms, and uses
+  `app.scheduling.reminder-initial-delay-ms` / `app.scheduling.reminder-delay-ms`. The global inbox
+  receives generic localized labels and an authorized reservation-ID link, never attendee details.
+  These are internal notices, not participant email/SMS delivery.
+- Private calendar downloads contain one UTC event, stable identity/version and status; requests
+  are tentative and pauses/cancellations are cancelled. The serializer follows
+  [RFC 5545](https://www.rfc-editor.org/rfc/rfc5545), including UTF-8 folding and escaped text.
+  Export does not synchronize external calendars or send invitations.
+
+V307 adds operational configuration/link/audit fields. V308 adds a composite reservation key and
+durable notification receipts. Both are forward-only. Rollback retains their additive schema and
+data. Disable the pilot through existing access/public-adapter gates before reverting application
+code: older staff editors cannot safely preserve the new split-hours configuration. Restore a
+compatible version before permitting configuration writes. No rollback drops business history.
+Commercial inclusion without an extra module charge follows
+the named exception in the billing architecture; actual publication still requires its release gates.
+
+## Local verification and handoff — 2026-10-09
+
+Scope: `codex/agenda-juntas-operacion`, based on `25fd637a`. Application changes are in
+`react/src/app/ComplementaryModules/Scheduling`, `MinutesControl`, the shared calendar serializer
+and notification copy; backend changes are in Scheduling/Meetings and their explicit Sales, HR,
+Processes and Consulting owner boundaries. V307/V308 and the frontend, backend, modal and billing
+contracts accompany those changes. No dependency, deployment configuration or live grant changed.
+
+Verified locally:
+
+- `Scheduling*Test,Meeting*Test,MigrationVersionUniquenessTest`: 76 passed, none skipped. This
+  includes tenant/permission/CSRF rejection, conflict and retry behavior, rescheduling, resource
+  occupancy, HR leave, client links, notification deduplication, agreement follow-up and task links.
+- `Consulting*Test,OperationalNotificationSyncServiceTest`: 12 passed, none skipped. Backend
+  compilation passed. The existing Consulting MVC fixture needed mocks for the global learning
+  advice dependencies; its four tests then passed without changing production controller behavior.
+- Flyway startup/validation applied V307 and V308 only to the isolated `indice_test_db` container.
+  Functional and production databases were not migrated.
+- The calendar-export, Scheduling and Meeting node suites: 20 passed. Notification UI: 3 passed.
+- TypeScript and the production Vite build passed. Existing large-chunk warnings remain nonblocking.
+  The final build returned exit code 0 with stderr separated from PowerShell error handling.
+- Both browser suites passed against synthetic API fixtures in real Chrome: private/public Agenda,
+  Meetings and agreement flows, eight locales, tab permissions, mobile/dark presentation, wizard
+  Back/review, custom public appearance, modal discard protection, addenda and native task linking.
+  Backend integration tests independently verify persistence and authorization; these browser runs
+  are not a deployed full-stack acceptance test.
+- `git diff --check` passed. Screenshots and command logs remain ignored local artifacts in `.run`.
+
+Preserved behavior includes existing routes and lifecycle statuses, tenant isolation, native
+authorization, original minutes, reservation snapshots and Consulting commercial benefits. The
+read-only Consulting availability boundary no longer asks MySQL for a write lock; mutation locking
+remains intact. Forms retain drafts on recoverable failures and warn before discarding changes.
+
+Release acceptance/deployment: N/A for this local implementation. Remaining work is APPTEST and
+authorized acceptance before publication, plus the explicitly deferred external integrations above.
+Internal reminders are best effort; HR half-days conservatively block their date, and exports do
+not synchronize calendars. Commercial inclusion is documented without changing live subscriptions.

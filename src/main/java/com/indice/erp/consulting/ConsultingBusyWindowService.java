@@ -17,7 +17,8 @@ public class ConsultingBusyWindowService {
             WHERE LOWER(consultant_email)=? AND status='CONFIRMED'
              AND (? IS NULL OR id<>?) AND COALESCE(confirmed_start_at,preferred_start_at)<?
              AND DATE_ADD(COALESCE(confirmed_start_at,preferred_start_at),INTERVAL duration_minutes MINUTE)>?
-            """+(TransactionSynchronizationManager.isActualTransactionActive()?" FOR UPDATE":""),
+            """+(TransactionSynchronizationManager.isActualTransactionActive()
+                &&!TransactionSynchronizationManager.isCurrentTransactionReadOnly()?" FOR UPDATE":""),
             (r,n)->r.getLong(1),verifiedEmail.toLowerCase(java.util.Locale.ROOT),excludedAppointment,
             excludedAppointment,Timestamp.from(to),Timestamp.from(from));
         return !records.isEmpty();

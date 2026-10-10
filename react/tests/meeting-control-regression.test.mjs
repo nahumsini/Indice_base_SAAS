@@ -112,6 +112,12 @@ test("generic meeting notification signals keep localized identity without busin
         return load("translations/meetingCopy.ts");
       if (name.endsWith("meetingWorkflowCopy"))
         return load("translations/meetingWorkflowCopy.ts");
+      if (name.endsWith("maintenanceCopy"))
+        return loadTypescript(resolve("src/app/ComplementaryModules/Maintenance/translations/maintenanceCopy.ts"),
+          () => loadTypescript(resolve("src/app/ComplementaryModules/Maintenance/translations/maintenanceLocales.ts")));
+      if (name.endsWith("schedulingOperationsCopy") || name.endsWith("schedulingCopy"))
+        return loadTypescript(resolve("src/app/ComplementaryModules/Scheduling/translations/" + name.split("/").at(-1) + ".ts"),
+          dependency => loadTypescript(resolve("src/app/ComplementaryModules/Scheduling/translations/" + dependency.split("/").at(-1) + ".ts")));
       throw new Error("Unexpected dependency " + name);
     },
   );

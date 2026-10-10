@@ -1,4 +1,4 @@
-import { CalendarClock, Clock3, Trash2 } from 'lucide-react';
+import { CalendarClock, Trash2 } from 'lucide-react';
 import { KioskModalFrame } from '../../../../components/kiosk-engine/KioskModalFrame';
 import { KioskWorkspaceNotice } from '../../../../components/kiosk-engine/KioskToolWorkspace';
 import { Button } from '../../../../components/ui/button';
@@ -59,13 +59,14 @@ export function EmployeeTaskScheduleDialog({
 
   return (
     <KioskModalFrame
+      contentClassName="[&_button]:min-h-11 [&_button]:min-w-11"
       busy={busy}
       closeLabel={copy.processUi.cancel}
       description={labels.dialogDescription}
-      footer={<Button type="button" disabled={busy || !draft.date} onClick={onSave}><CalendarClock aria-hidden="true" className="h-4 w-4" />{busy ? labels.saving : labels.save}</Button>}
+      footer={<Button type="button" className="min-h-12 rounded-xl bg-[#143675] text-white hover:bg-[#102c60]" disabled={busy || !draft.date} onClick={onSave}><CalendarClock aria-hidden="true" className="h-4 w-4" />{busy ? labels.saving : labels.save}</Button>}
       footerLeading={closeButton}
       footerSummary={draft.date ? `${draft.date}${draft.startTime ? ` · ${draft.startTime}` : ''}` : labels.noTime}
-      icon={<Clock3 className="h-5 w-5" />}
+      icon={<span aria-hidden="true" className="text-2xl">🕘</span>}
       onOpenChange={open => { if (!open) onClose(); }}
       open
       size="form"
@@ -74,37 +75,37 @@ export function EmployeeTaskScheduleDialog({
       tone="yellow"
     >
       <div aria-busy={busy || undefined} className="space-y-4">
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900 dark:bg-amber-950/20">
+        <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900 dark:bg-amber-950/20">
           <p className="text-xs font-medium text-amber-700 dark:text-amber-200">{task.folio}</p>
           <p className="mt-1 font-medium text-slate-950 dark:text-white">{task.title}</p>
-          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{labels.dialogDescription}</p>
+          <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">{labels.dialogDescription}</p>
         </div>
 
         {errorMessage ? <KioskWorkspaceNotice kind="error">{errorMessage}</KioskWorkspaceNotice> : null}
 
         <div className="grid grid-cols-2 gap-2">
-          <Button type="button" variant="outline" className="h-11 rounded-xl" disabled={busy} onClick={() => applyShortcut(localDateTime())}>{labels.quickNow}</Button>
-          <Button type="button" variant="outline" className="h-11 rounded-xl" disabled={busy} onClick={() => applyShortcut(localDateTime(30))}>{labels.quickThirty}</Button>
-          <Button type="button" variant="outline" className="h-11 rounded-xl" disabled={busy} onClick={() => applyShortcut({ date: localEmployeeTaskDate(), time: '15:00' })}>{labels.quickAfternoon}</Button>
-          <Button type="button" variant="outline" className="h-11 rounded-xl" disabled={busy} onClick={() => applyShortcut(tomorrowAtNine())}>{labels.quickTomorrow}</Button>
+          <Button type="button" variant="outline" className="h-auto min-h-12 whitespace-normal rounded-2xl bg-white text-sm dark:bg-slate-950" disabled={busy} onClick={() => applyShortcut(localDateTime())}>{labels.quickNow}</Button>
+          <Button type="button" variant="outline" className="h-auto min-h-12 whitespace-normal rounded-2xl bg-white text-sm dark:bg-slate-950" disabled={busy} onClick={() => applyShortcut(localDateTime(30))}>{labels.quickThirty}</Button>
+          <Button type="button" variant="outline" className="h-auto min-h-12 whitespace-normal rounded-2xl bg-white text-sm dark:bg-slate-950" disabled={busy} onClick={() => applyShortcut({ date: localEmployeeTaskDate(), time: '15:00' })}>{labels.quickAfternoon}</Button>
+          <Button type="button" variant="outline" className="h-auto min-h-12 whitespace-normal rounded-2xl bg-white text-sm dark:bg-slate-950" disabled={busy} onClick={() => applyShortcut(tomorrowAtNine())}>{labels.quickTomorrow}</Button>
         </div>
 
         <div className="grid grid-cols-1 gap-4 min-[380px]:grid-cols-2">
           <label className="space-y-2">
             <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{labels.date}</span>
-            <Input type="date" disabled={busy} value={draft.date} onChange={event => onChange({ ...draft, date: event.target.value })} />
+            <Input className="h-12 min-w-0 rounded-xl text-base" type="date" disabled={busy} value={draft.date} onChange={event => onChange({ ...draft, date: event.target.value })} />
           </label>
           <label className="space-y-2">
             <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{labels.startTime}</span>
-            <Input type="time" disabled={busy} value={draft.startTime} onChange={event => onChange({ ...draft, startTime: event.target.value })} />
+            <Input className="h-12 min-w-0 rounded-xl text-base" type="time" disabled={busy} value={draft.startTime} onChange={event => onChange({ ...draft, startTime: event.target.value })} />
           </label>
         </div>
 
         <fieldset>
           <legend className="text-sm font-medium text-slate-700 dark:text-slate-200">{labels.duration}</legend>
-          <div className="mt-2 grid grid-cols-4 gap-2">
+          <div className="mt-2 grid grid-cols-2 gap-2 min-[380px]:grid-cols-4">
             {[15, 30, 60, 90].map(minutes => (
-              <button key={minutes} type="button" disabled={busy || !draft.startTime} className={`min-h-11 rounded-xl border px-2 text-xs font-medium transition disabled:opacity-40 ${draft.durationMinutes === minutes ? 'border-[#F4C84A] bg-[#F4C84A]/20 text-[#7A5204] dark:text-[#FDE68A]' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300'}`} onClick={() => onChange({ ...draft, durationMinutes: minutes })}>
+              <button key={minutes} type="button" disabled={busy || !draft.startTime} className={`min-h-11 rounded-xl border px-2 py-2 text-sm font-medium transition disabled:opacity-40 ${draft.durationMinutes === minutes ? 'border-[#F4C84A] bg-[#F4C84A]/20 text-[#7A5204] dark:text-[#FDE68A]' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300'}`} onClick={() => onChange({ ...draft, durationMinutes: minutes })}>
                 {labels.minuteDuration(minutes)}
               </button>
             ))}

@@ -12,7 +12,19 @@ public class SalesClientDirectoryService {
     public record Client(long id,String companyName,String contactPerson,String email,String phone,String status) { }
     public record Directory(List<Client> items,long total,int page,int pageSize) { }
     private final JdbcTemplate db;
-    public SalesClientDirectoryService(JdbcTemplate db){this.db=db;}
+    private final com.indice.erp.access.module.ModuleAccessService modules;
+    private final com.indice.erp.access.tab.TabPermissionAccessService tabs;
+    public SalesClientDirectoryService(JdbcTemplate db,com.indice.erp.access.module.ModuleAccessService modules,
+        com.indice.erp.access.tab.TabPermissionAccessService tabs){this.db=db;this.modules=modules;this.tabs=tabs;}
+    public boolean canSelect(com.indice.erp.auth.AuthSessionUser actor){
+        return modules.canAccess(actor,"crm")&&tabs.canAccess(actor,new com.indice.erp.access.tab.TabPermissionRequirement(List.of("crm.contacts")));
+    }
+    public Client selected(com.indice.erp.auth.AuthSessionUser actor,long id){
+        if(!canSelect(actor))throw new SecurityException();
+        return db.query("SELECT id,company_name,contact_person,email,phone,status FROM sales_contacts WHERE company_id=? AND id=? AND deleted_at IS NULL",
+            (r,n)->new Client(r.getLong(1),r.getString(2),r.getString(3),r.getString(4),r.getString(5),r.getString(6)),actor.companyId(),id)
+            .stream().findFirst().orElseThrow(java.util.NoSuchElementException::new);
+    }
     @Transactional(readOnly=true)
     public Directory read(long company,String search,int page,int size){
         if(company<=0||page<1||page>10000||!List.of(10,25,50,100,200).contains(size)||search!=null&&search.length()>180)

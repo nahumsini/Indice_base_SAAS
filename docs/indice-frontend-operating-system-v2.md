@@ -3283,7 +3283,7 @@ Every migrated module keeps its original title bar and actions visible. The coll
 
 Point of Sale does not render the companion inside its transactional `Sale` tab. Inventory must explicitly teach `Product → Warehouse → Inventory → Provider → Purchase order → Receipt/movement` and must not conflate catalog identity, physical location, and on-hand quantity.
 
-`Panel Inicial` remains part of the Dashboard learning journey but does not render an internal learning guide. The Dashboard keeps its approved six-section structure while its learning presentation follows the same compact, colorful, instructional language.
+`Panel Inicial` remains part of the Dashboard learning journey but does not render an internal learning guide. The Dashboard keeps its approved six-stage learning journey while its learning presentation follows the same compact, colorful, instructional language. In normal mode, it shows KPIs, favorites, basic modules, and complementary modules. Product decision (2026-10-09): remove the standalone `Inteligencia artificial / Módulos de IA` section from the Dashboard in all modes.
 
 The detailed state, content, exception, responsive, and migration rules live in `docs/learning-mode-frontend-engine-v2.md`, section 29. That specialized contract controls module learning within the repository-wide accessibility, localization, permission, and behavior-preservation rules in this document.
 
@@ -3907,6 +3907,25 @@ Review distinguishes overlapping dates, finite recurrence and human-confirmed ev
 explicitly separates one meeting from future planned occurrences, preserving existing history.
 Internal reminders have localized generic inbox labels and scoped deep links, not private text.
 
+### Adopted Agenda and Meetings operational extension — 2026-10-08
+
+Agenda capture uses the canonical wizard stepper with four steps (selection, time, contact, review)
+and native stable footer actions inside the private modal. Review precedes the only submission.
+Phone, rescheduling history and paginated event participants are private owner views. Weekly staff
+configuration supports multiple nonoverlapping windows, unavailable dates and service eligibility.
+Events with participants permit metadata/capacity editing while protecting host/time/duration.
+The Sales picker requires native Sales/contacts plus Scheduling capture permissions, preserves
+Sales ownership and requires explicit consent. KPI deep links reset hidden collaborator/pagination
+filters and include archives to match the calculated population.
+
+Agreements open with explicit meeting context across due dates; general Open/Overdue views are not
+limited to the current month. Search/pagination replaces the truncated meeting selector. Detail,
+edit, progress notes, closed-minutes addenda and native task linking use one modal frame and scoped
+owner APIs. Series follow-up reuses original open commitments. Record drafts remain in memory.
+Print reuses the shared document engine; `.ics` downloads export one authorized occurrence without
+inviting anyone or claiming synchronization. Generic staff notifications use localized module copy.
+These owner extensions preserve native module/tab permissions and pilot release status.
+
 ### Verified customer entry MX/CA
 
 The public `/start` route follows the
@@ -3919,3 +3938,55 @@ OTP and drafts remain in memory, never in URLs or persistent browser storage. Fa
 keeps the pending challenge for retry; account retries cannot restart the demo or duplicate a lead.
 The demo checkbox is not payment consent. Public-disabled and payment-not-ready states are
 explicit; no price, payment readiness, diagnosis completion or paid access is invented by UI.
+
+### Maintenance operational pilot (2026-10-09)
+
+The active `/maintenance` runtime follows
+[Maintenance module contract v1](maintenance-module-contract-v1.md). Its six permission-filtered
+tabs are Requests, Work orders, Assets and locations, Preventive, Indicators and Configuration.
+It adopts `IndiceModuleShell`, native filters/table/pagination, workspace navigation memory,
+calendar/view navigation, modal engine and the remembered compact learning companion. The
+shared table and modal engines admit an additive gray tone; their existing tone behavior is preserved.
+
+Operational lists sort through backend allowlists with deterministic pagination; column widths,
+safe filters and view preference are remembered without persisting record drafts. Order views are
+Table, Kanban and deadline Calendar, each with explicit server pagination. Preventive indicator
+drilldowns preserve their original-deadline range and exclude cancelled work. Current backlog
+drilldowns clear the period so old work remains visible. Costs display estimated, incurred and
+paid service amounts separately, grouped by currency, with explicit unavailable/limit states.
+
+Capture/progress/cost forms, a three-step preventive wizard, technical dossiers and reasoned
+confirmations use one active frame and busy/unsaved-change protection. HR assets, technicians,
+units, businesses, inventory and expenses use bounded searchable owner selectors. QR deep links
+require normal authorization; private print/PDF and `.ics` downloads do not grant access or
+invite recipients. All eight ERP locales and mobile layouts are supported. The module remains
+a pilot pending the public release gate, without changing existing subscriptions.
+
+### Employee kiosk personal workspace (2026-10-09)
+
+The 2026-10-10 messaging extension is shared with the ERP messenger: direct chats without subject,
+named groups, participant/read indicators and compact personal-task capture follow
+`messaging-and-customer-care-contract.md`. Team composition defaults to direct chat; care retains
+its subject and workflow. Navy message bubbles, decorative color emojis and readable mobile
+controls use the existing operational workspace. Task capture replaces the thread body inside
+the same frame, preserves the composer draft and uses its existing navigation guard. No nested
+modal or second task/messaging engine is introduced.
+
+The approved employee Multikiosk extension follows §34 of `kiosk-standard-engine-v2.md` and the
+employee boundary in `messaging-and-customer-care-contract.md`. `EmployeeKioskPortal` owns stable
+Today/Tools/Messages navigation: bottom navigation on mobile, compact top navigation on desktop.
+Today renders owner-projected attendance and assigned task counts; errors are explicit and unavailable
+counts are never presented as zero. Tools retain authorized order, compact brand cards and search state.
+Module workspaces load lazily. Task controls use progressive disclosure and retain all existing views,
+filters, capture and process actions. The shared header remains one row at 320px.
+
+`MessagingWorkspace` accepts a module-owned transport context. The kiosk provides only the PIN-bound
+transport, including photo reads/uploads, and never falls back to ERP identity. Desktop uses two panes;
+mobile uses list/detail replacement with a keyboard-aware visual viewport. Hidden panes stop thread
+polling/read acknowledgements. Personal state is memory-only and unmounts on session loss or logout.
+`KioskNavigationBoundary` is a navigation guard signal, not a new modal or authorization engine.
+Owners report dirty/busy state; public form/wizard frames also guard navigation while open. Confirmations
+reuse `IndiceConfirmationDialog`; forms retain `KioskModalFrame` / `IndiceModalFrame` behavior.
+The new navigation and Today copy cover all supported language families, with existing accessible
+large-text, contrast and reduced-motion preferences. Verify with `test:kiosk-employee-browser` plus
+the kiosk/messaging regressions, TypeScript and build.

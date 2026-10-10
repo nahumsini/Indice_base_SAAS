@@ -9,6 +9,7 @@ import {
 import { useEffect, useState } from 'react';
 import type { LiveFaceChallengeCapture } from '../../../../../components/LiveFaceChallenge';
 import { KioskIdentityGate } from '../../../../../components/kiosk-engine/KioskIdentityGate';
+import { KioskStickyActionBar } from '../../../../../components/kiosk-engine/KioskToolWorkspace';
 import { Button } from '../../../../../components/ui/button';
 import { deriveInitials, type KioskStepItem } from './PublicKioskComponents';
 import { PublicKioskActivityCard } from './PublicKioskActivityCard';
@@ -24,6 +25,7 @@ import type {
 } from './publicKioskTypes';
 
 interface PublicKioskIdentityPanelProps {
+  personal?: boolean;
   activeActivityLocation?: { name: string } | null;
   activityStateLabel: string;
   activeTodayActivity: KioskTodayActivity | null;
@@ -63,6 +65,7 @@ interface PublicKioskIdentityPanelProps {
 }
 
 export function PublicKioskIdentityPanel({
+  personal = false,
   activeActivityLocation,
   activityStateLabel,
   activeTodayActivity,
@@ -158,32 +161,33 @@ export function PublicKioskIdentityPanel({
   const verificationLabel = evidenceMode === 'photo' ? copy.photoCaptured : copy.faceVerified;
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col bg-transparent p-0 dark:bg-transparent">
+    <section className="flex min-h-0 flex-1 flex-col bg-transparent p-0 dark:bg-transparent" data-personal-attendance={personal || undefined}>
       {errorMessage ? (
         <div role="alert" className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 dark:border-rose-800/50 dark:bg-rose-950/50 dark:text-rose-200">
           {errorMessage}
         </div>
       ) : null}
 
-      <div className="space-y-3 pb-2">
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_14px_34px_-32px_rgba(15,23,42,0.8)] dark:border-slate-800 dark:bg-slate-950">
+      <div className={personal && hasIdentityEvidence && locationState && nextPunchType ? 'space-y-3 pb-24 md:pb-2' : 'space-y-3 pb-2'}>
+        <section className={personal ? 'rounded-[1.5rem] border border-[#BDE7DD] bg-[#EFFAF6] p-4 dark:border-emerald-900 dark:bg-emerald-950/35' : 'rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_14px_34px_-32px_rgba(15,23,42,0.8)] dark:border-slate-800 dark:bg-slate-950'}>
           <div className="flex min-w-0 items-start gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#59C3A5]/14 text-base font-medium text-[#177D66] dark:bg-[#8FE0CA]/12 dark:text-[#8FE0CA]">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#59C3A5]/14 text-base font-medium text-[#126553] dark:bg-[#8FE0CA]/12 dark:text-[#8FE0CA]">
               {deriveInitials(identifiedHrUser.full_name)}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-medium text-[#177D66] dark:text-[#8FE0CA]">
+              <p className={personal ? 'text-xs text-[#126553] dark:text-[#8FE0CA]' : 'text-[10px] font-medium text-[#177D66] dark:text-[#8FE0CA]'}>
                 {copy.identifiedTitle}
               </p>
               <h2 className="mt-1 line-clamp-2 text-lg font-medium leading-tight tracking-tight text-slate-950 dark:text-white">
                 {identifiedHrUser.full_name}
               </h2>
-              <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{identityDetail}</p>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{identityDetail}</p>
             </div>
             <Button
               type="button"
               variant="outline"
               aria-label={copy.reset}
+              disabled={busyState !== 'idle' || isLoading}
               className="h-10 shrink-0 gap-2 rounded-xl border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 hover:border-[#177D66]/30 hover:text-[#177D66] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
               onClick={onReset}
             >
@@ -191,16 +195,18 @@ export function PublicKioskIdentityPanel({
               <span className="hidden min-[390px]:inline">{copy.reset}</span>
             </Button>
           </div>
-          <div className="mt-3 flex min-w-0 items-center gap-2 border-t border-slate-100 pt-3 text-xs font-medium text-slate-500 dark:border-slate-800 dark:text-slate-400">
+          <div className={personal ? 'mt-2 flex min-w-0 items-center gap-2 text-xs text-slate-600 dark:text-slate-300' : 'mt-3 flex min-w-0 items-center gap-2 border-t border-slate-200 pt-3 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-300'}>
             <MapPin aria-hidden="true" className="h-4 w-4 shrink-0 text-[#177D66] dark:text-[#8FE0CA]" />
             <span className="truncate">{kioskLocationLabel}</span>
           </div>
+          {personal ? <KioskProgressRail personal nextActionLabel={nextActionLabel} stepLabel={copy.stepLabel} steps={kioskSteps} /> : null}
         </section>
 
-        <KioskProgressRail nextActionLabel={nextActionLabel} stepLabel={copy.stepLabel} steps={kioskSteps} />
+        {!personal ? <KioskProgressRail nextActionLabel={nextActionLabel} stepLabel={copy.stepLabel} steps={kioskSteps} /> : null}
 
         {!hasIdentityEvidence || verificationExpanded ? (
           <PublicKioskVerificationSection
+            personal={personal}
             canUseFace={canUseFace}
             copy={copy}
             evidenceMode={evidenceMode}
@@ -222,12 +228,13 @@ export function PublicKioskIdentityPanel({
               <Check aria-hidden="true" className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-medium text-[#177D66] dark:text-[#8FE0CA]">{copy.steps.identity}</p>
+              <p className="text-xs font-medium text-[#177D66] dark:text-[#8FE0CA]">{copy.steps.identity}</p>
               <p className="mt-0.5 truncate text-sm font-medium text-slate-950 dark:text-white">{verificationLabel}</p>
             </div>
             <Button
               type="button"
               variant="ghost"
+              disabled={busyState !== 'idle' || isLoading}
               className="h-10 shrink-0 rounded-lg px-3 text-xs font-medium text-[#177D66] hover:bg-[#59C3A5]/10 dark:text-[#8FE0CA]"
               onClick={() => {
                 if (evidenceMode === 'face') {
@@ -248,7 +255,7 @@ export function PublicKioskIdentityPanel({
                 {locationState ? <Check aria-hidden="true" className="h-5 w-5" /> : <MapPin aria-hidden="true" className="h-5 w-5" />}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-medium text-[#177D66] dark:text-[#8FE0CA]">{copy.stepLabel} 3</p>
+                <p className="text-xs font-medium text-[#177D66] dark:text-[#8FE0CA]">{copy.stepLabel} 3</p>
                 <h2 className="mt-1 text-lg font-medium tracking-tight text-slate-950 dark:text-white">{copy.steps.location}</h2>
                 <p className="mt-1 text-sm font-medium leading-5 text-slate-500 dark:text-slate-400">
                   {locationState ? copy.locationReady : copy.locationRequiredHint}
@@ -291,10 +298,10 @@ export function PublicKioskIdentityPanel({
           />
         ) : null}
 
-        <footer className="px-4 py-3 text-center text-[11px] font-medium text-slate-400 dark:text-slate-500">
+        <footer className="px-4 py-3 text-center text-xs text-slate-600 dark:text-slate-300">
           Powered by{' '}
           <a
-            className="font-medium text-slate-500 underline decoration-slate-300 underline-offset-4 hover:text-[#177D66] dark:text-slate-400 dark:decoration-slate-700 dark:hover:text-[#8FE0CA]"
+            className="font-medium text-slate-600 underline decoration-slate-300 underline-offset-4 hover:text-[#177D66] dark:text-slate-300 dark:decoration-slate-700 dark:hover:text-[#8FE0CA]"
             href="https://www.indiceapp.com"
             rel="noreferrer"
             target="_blank"
@@ -304,7 +311,7 @@ export function PublicKioskIdentityPanel({
         </footer>
 
         {hasIdentityEvidence && locationState && nextPunchType ? (
-          <div className="sticky bottom-0 z-20 -mx-3 border-t border-slate-200 bg-white/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
+          <KioskStickyActionBar position={personal ? 'contained' : 'sticky'} className={personal ? 'fixed inset-x-3 bottom-[var(--employee-navigation-height,0px)] z-30 mx-auto max-w-[31rem] md:static md:mx-0' : '-mx-3 rounded-none border-x-0 border-b-0 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-none'}>
             <Button
               type="button"
               disabled={!nextPunchEnabled}
@@ -316,7 +323,7 @@ export function PublicKioskIdentityPanel({
                 : <LogOut aria-hidden="true" className="h-5 w-5" />}
               {nextPunchType === 'check_in' ? copy.checkIn : copy.checkOut}
             </Button>
-          </div>
+          </KioskStickyActionBar>
         ) : null}
       </div>
     </section>
@@ -324,10 +331,12 @@ export function PublicKioskIdentityPanel({
 }
 
 function KioskProgressRail({
+  personal = false,
   nextActionLabel,
   stepLabel,
   steps,
 }: {
+  personal?: boolean;
   nextActionLabel: string;
   stepLabel: string;
   steps: KioskStepItem[];
@@ -347,7 +356,7 @@ function KioskProgressRail({
       aria-valuemax={steps.length}
       aria-valuemin={1}
       aria-valuenow={currentStepIndex + 1}
-      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-950"
+      className={personal ? 'mt-3 border-t border-[#BDE7DD] pt-3 dark:border-emerald-900' : 'rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-950'}
       role="progressbar"
     >
       <div className="relative">
@@ -357,19 +366,19 @@ function KioskProgressRail({
             <div className="flex justify-center" key={step.label}>
               <span
                 aria-label={`${stepLabel} ${index + 1}: ${step.label}`}
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium shadow-[0_0_0_4px_white] dark:shadow-[0_0_0_4px_#020617] ${step.state === 'done' ? 'bg-[#177D66] text-white' : step.state === 'active' ? 'border-2 border-[#177D66] bg-white text-[#177D66] dark:bg-slate-950 dark:text-[#8FE0CA]' : 'border border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500'}`}
+                className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium shadow-[0_0_0_4px_white] dark:shadow-[0_0_0_4px_#020617] ${step.state === 'done' ? 'bg-[#177D66] text-white' : step.state === 'active' ? 'border-2 border-[#177D66] bg-white text-[#177D66] dark:bg-slate-950 dark:text-[#8FE0CA]' : 'border border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
               >
-                {step.state === 'done' ? <Check aria-hidden="true" className="h-4 w-4" /> : index + 1}
+                {step.state === 'done' ? <Check aria-hidden="true" className="h-4 w-4" /> : personal ? <span aria-hidden="true" className="text-lg" style={{ fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif' }}>{['🔐', '📸', '📍', '✅'][index]}</span> : index + 1}
               </span>
             </div>
           ))}
         </div>
       </div>
       <div className="mt-3 text-center">
-        <p className="text-[10px] font-medium text-[#177D66] dark:text-[#8FE0CA]">
+        <p className={personal ? 'text-sm font-medium text-[#126553] dark:text-[#8FE0CA]' : 'text-[10px] font-medium text-[#177D66] dark:text-[#8FE0CA]'}>
           {stepLabel} {currentStepIndex + 1} · {steps[currentStepIndex]?.label}
         </p>
-        <p className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">{nextActionLabel}</p>
+        {!personal ? <p className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">{nextActionLabel}</p> : null}
       </div>
     </section>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarPlus, ChevronLeft, Play } from 'lucide-react';
+import { ChevronLeft, Play } from 'lucide-react';
 import type {
   EmployeeOccasionalProcessCreateResponse,
   EmployeeOccasionalProcessPreviewResponse,
@@ -118,7 +118,7 @@ export function EmployeeTaskOccasionalProcessDialog({
   const footer = step === 'details' ? (
     <>
       <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>{labels.cancel}</Button>
-      <Button type="button" disabled={busy || !canPreview || !processId || !reference.trim() || !startDate} onClick={() => void loadPreview()}>
+      <Button type="button" className="h-auto min-h-12 whitespace-normal rounded-xl bg-[#143675] px-4 py-3 text-white hover:bg-[#102c60]" disabled={busy || !canPreview || !processId || !reference.trim() || !startDate} onClick={() => void loadPreview()}>
         {labels.review}
       </Button>
     </>
@@ -127,7 +127,7 @@ export function EmployeeTaskOccasionalProcessDialog({
       <Button type="button" variant="outline" disabled={busy} onClick={() => { setStep('details'); setPreview(null); }}>
         <ChevronLeft aria-hidden="true" className="h-4 w-4" />{labels.back}
       </Button>
-      <Button type="button" disabled={busy || !canCreate} onClick={() => void createRun()}>
+      <Button type="button" className="h-auto min-h-12 whitespace-normal rounded-xl bg-[#143675] px-4 py-3 text-white hover:bg-[#102c60]" disabled={busy || !canCreate} onClick={() => void createRun()}>
         <Play aria-hidden="true" className="h-4 w-4" />
         {preview?.duplicateReference ? labels.startAnyway : labels.start}
       </Button>
@@ -136,12 +136,13 @@ export function EmployeeTaskOccasionalProcessDialog({
 
   return (
     <KioskModalFrame
+      contentClassName="[&_button]:min-h-11 [&_button]:min-w-11"
       busy={busy}
       closeLabel={labels.cancel}
       description={labels.description}
       footer={footer}
       footerSummary={selected ? `${selected.folio} · ${selected.taskCount}` : undefined}
-      icon={<CalendarPlus className="h-5 w-5" />}
+      icon={<span aria-hidden="true" className="text-2xl">🚀</span>}
       onOpenChange={onOpenChange}
       open={open}
       size="wizard"
@@ -160,11 +161,11 @@ export function EmployeeTaskOccasionalProcessDialog({
         <IndiceModalValidation messages={error ? [error] : []} />
 
         {options.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-amber-300 bg-amber-50 px-4 py-8 text-center text-sm leading-6 text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+          <p className="rounded-[1.5rem] border border-dashed border-amber-300 bg-amber-50 px-4 py-8 text-center text-sm leading-6 text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
             {labels.empty}
           </p>
         ) : step === 'details' ? (
-          <div className="space-y-4">
+          <fieldset disabled={busy} className="space-y-4 disabled:opacity-70">
             <label className="block space-y-2">
               <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{labels.process}</span>
               <select className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-950 outline-none focus:border-[#F4C84A] focus:ring-4 focus:ring-[#F4C84A]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={processId} onChange={event => { setProcessId(event.target.value); setPreview(null); setOperationId(requestId()); }}>
@@ -174,34 +175,34 @@ export function EmployeeTaskOccasionalProcessDialog({
             </label>
             <label className="block space-y-2">
               <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{labels.reference}</span>
-              <Input maxLength={220} placeholder={labels.referencePlaceholder} value={reference} onChange={event => { setReference(event.target.value); setOperationId(requestId()); }} />
+              <Input className="h-12 min-w-0 rounded-xl text-base" maxLength={220} placeholder={labels.referencePlaceholder} value={reference} onChange={event => { setReference(event.target.value); setOperationId(requestId()); }} />
             </label>
             <label className="block space-y-2">
               <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{labels.startDate}</span>
-              <Input type="date" value={startDate} onChange={event => { setStartDate(event.target.value); setOperationId(requestId()); }} />
+              <Input className="h-12 min-w-0 rounded-xl text-base" type="date" value={startDate} onChange={event => { setStartDate(event.target.value); setOperationId(requestId()); }} />
             </label>
             <label className="block space-y-2">
               <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{labels.notes}</span>
-              <Textarea maxLength={2000} value={notes} onChange={event => setNotes(event.target.value)} />
+              <Textarea className="min-h-28 rounded-xl text-base" maxLength={2000} value={notes} onChange={event => setNotes(event.target.value)} />
             </label>
-          </div>
+          </fieldset>
         ) : preview ? (
           <div className="space-y-3">
             {preview.duplicateReference ? <IndiceModalValidation tone="warning" messages={[labels.duplicate(preview.matchingRuns)]} /> : null}
-            <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900 dark:bg-amber-950/20">
+            <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900 dark:bg-amber-950/20">
               <p className="font-medium text-slate-950 dark:text-white">{preview.reference}</p>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{preview.startDate} · v{preview.version}</p>
             </div>
             {preview.tasks.map(task => (
-              <article key={task.templateId} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                <div className="flex items-start justify-between gap-3">
+              <article key={task.templateId} className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-medium text-slate-950 dark:text-white">{task.position}. {task.title}</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{labels.stage} {task.stage} · {task.assignees.join(', ') || labels.unassigned}</p>
+                    <p className="font-medium text-slate-950 dark:text-white"><span className="mr-2 inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#FFF3CB] text-sm text-[#684708]">{task.position}</span>{task.title}</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">{labels.stage} {task.stage} · {task.assignees.join(', ') || labels.unassigned}</p>
                   </div>
-                  {task.evidenceRequired ? <span className="shrink-0 rounded-full bg-amber-100 px-2 py-1 text-[10px] font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-200">{labels.evidenceRequired}</span> : null}
+                  {task.evidenceRequired ? <span className="max-w-full rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-200">{labels.evidenceRequired}</span> : null}
                 </div>
-                <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">{task.scheduledDate} → {task.dueDate}</p>
+                <p className="mt-3 text-xs text-slate-600 dark:text-slate-300">{task.scheduledDate} → {task.dueDate}</p>
               </article>
             ))}
           </div>

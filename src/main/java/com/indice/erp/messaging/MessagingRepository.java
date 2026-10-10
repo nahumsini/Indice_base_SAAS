@@ -19,6 +19,10 @@ public class MessagingRepository {
     private static final String SELECT = """
         SELECT c.*, co.name company_name, COALESCE(assignee.full_name,'') assignee_name,
           COALESCE(requester.full_name,'User') requester_name,
+          CASE WHEN c.kind='DIRECT' THEN COALESCE((SELECT u.full_name FROM messaging_participants p
+            JOIN user_companies uc ON uc.id=p.membership_id JOIN users u ON u.id=uc.user_id
+            WHERE p.conversation_id=c.id AND uc.company_id=c.company_id AND p.membership_id<>:membershipId LIMIT 1),'User')
+            ELSE c.subject END display_name,
           (SELECT COUNT(*) FROM messaging_messages m
            WHERE m.conversation_id = c.id AND m.visibility = 'PUBLIC'
              AND m.sender_user_id <> :userId AND m.id > COALESCE(
@@ -59,11 +63,13 @@ public class MessagingRepository {
             case "UNASSIGNED" -> " AND c.assigned_user_id IS NULL AND c.status <> 'RESOLVED'";
             case "MINE" -> " AND c.assigned_user_id = :userId AND c.status <> 'RESOLVED'";
             case "OPEN", "WAITING_CUSTOMER", "RESOLVED" -> " AND c.status = :filter";
-            case "DIRECT", "SUPPORT", "DISTRIBUTOR" -> " AND c.kind = :filter";
+            case "DIRECT", "GROUP", "SUPPORT", "DISTRIBUTOR" -> " AND c.kind = :filter";
             default -> "";
         };
         var rows = named.query(SELECT + " WHERE " + scope(a) + condition
-            + " AND (c.subject LIKE :query OR co.name LIKE :query OR requester.full_name LIKE :query)"
+            + " AND (c.subject LIKE :query OR co.name LIKE :query OR requester.full_name LIKE :query OR EXISTS"
+            + " (SELECT 1 FROM messaging_participants p JOIN user_companies uc ON uc.id=p.membership_id"
+            + " JOIN users u ON u.id=uc.user_id WHERE p.conversation_id=c.id AND uc.company_id=c.company_id AND u.full_name LIKE :query))"
             + " ORDER BY c.updated_at DESC, c.id DESC LIMIT 41 OFFSET :offset",
             params(a).addValue("filter", filter).addValue("query", "%" + query + "%").addValue("offset", offset), this::conversation);
         return page(rows, 40);
@@ -169,7 +175,21 @@ public class MessagingRepository {
             """,Long.class,a.companyId(),a.membershipId(),r.requestKey(),directKey);
         jdbc.update("INSERT IGNORE INTO messaging_participants(conversation_id,membership_id) VALUES (?,?)",id,a.membershipId());
         if (r.recipientMembershipId()!=null) jdbc.update("INSERT IGNORE INTO messaging_participants(conversation_id,membership_id) VALUES (?,?)",id,r.recipientMembershipId());
+        if (r.participantMembershipIds()!=null) for (var memberId:r.participantMembershipIds())
+            jdbc.update("INSERT IGNORE INTO messaging_participants(conversation_id,membership_id) VALUES (?,?)",id,memberId);
         return id;
+    }
+    public List<Participant> participants(Conversation c) {
+        if (!List.of("DIRECT","GROUP").contains(c.kind())) return List.of();
+        return jdbc.query("""
+            SELECT uc.id,uc.user_id,COALESCE(NULLIF(u.full_name,''),'User') name,
+                LOWER(COALESCE(uc.status,'active'))='active' active,COALESCE(r.last_message_id,0) last_read
+            FROM messaging_participants p JOIN user_companies uc ON uc.id=p.membership_id AND uc.company_id=?
+            JOIN users u ON u.id=uc.user_id LEFT JOIN messaging_reads r ON r.conversation_id=p.conversation_id
+                AND r.user_id=uc.user_id AND r.actor_scope='MEMBER'
+            WHERE p.conversation_id=? ORDER BY name,uc.id
+            """,(rs,n)->new Participant(rs.getLong("id"),rs.getLong("user_id"),rs.getString("name"),
+                rs.getBoolean("active"),rs.getLong("last_read")),c.companyId(),c.id());
     }
     public boolean isParticipant(long conversationId, long membershipId) {
         return jdbc.queryForObject("SELECT COUNT(*) FROM messaging_participants WHERE conversation_id = ? AND membership_id = ?",Integer.class,conversationId,membershipId)==1;
@@ -248,7 +268,7 @@ public class MessagingRepository {
             r.getString("topic"),r.getString("module_name"),r.getString("language"),r.getString("status"),r.getString("priority"),r.getLong("created_by_membership_id"),
             r.getObject("distributor_company_id",Long.class),r.getObject("assigned_user_id",Long.class),r.getString("assignee_name"),r.getString("requester_name"),
             r.getLong("version"),r.getObject("last_message_id",Long.class),instant(r,"first_response_at"),instant(r,"resolved_at"),instant(r,"awaiting_since"),
-            instant(r,"created_at"),instant(r,"updated_at"),r.getLong("unread_count"));
+            instant(r,"created_at"),instant(r,"updated_at"),r.getLong("unread_count"),r.getString("display_name"));
     }
     private Message message(ResultSet r, int n) throws SQLException {
         return new Message(r.getLong("id"),r.getLong("conversation_id"),r.getLong("sender_user_id"),r.getString("sender_name"),r.getString("sender_scope"),

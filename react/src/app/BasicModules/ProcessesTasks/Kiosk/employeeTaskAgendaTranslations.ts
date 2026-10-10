@@ -21,6 +21,7 @@ export interface EmployeeTaskAgendaCopy {
   previousDate: string;
   results: (count: number) => string;
   scheduled: string;
+  clearSearch: string;
   search: string;
   searchPlaceholder: string;
   subtitle: string;
@@ -91,6 +92,7 @@ export interface EmployeeTaskAgendaCopy {
 }
 
 const es: EmployeeTaskAgendaCopy = {
+  clearSearch: "Limpiar búsqueda",
   agenda: 'Agenda',
   allDates: 'Todas las fechas',
   allVisible: 'Todas visibles',
@@ -152,6 +154,7 @@ const es: EmployeeTaskAgendaCopy = {
 };
 
 const en: EmployeeTaskAgendaCopy = {
+  clearSearch: "Clear search",
   agenda: 'Agenda',
   allDates: 'All dates',
   allVisible: 'All visible',
@@ -212,6 +215,7 @@ const en: EmployeeTaskAgendaCopy = {
 };
 
 const fr: EmployeeTaskAgendaCopy = {
+  clearSearch: "Effacer la recherche",
   ...en,
   agenda: 'Agenda', allDates: 'Toutes les dates', allVisible: 'Toutes visibles', board: 'Tableau',
   completed: 'Terminées', date: 'Date', day: 'Jour', emptyColumn: 'Aucune tâche dans cet état.',
@@ -257,6 +261,7 @@ const fr: EmployeeTaskAgendaCopy = {
 };
 
 const pt: EmployeeTaskAgendaCopy = {
+  clearSearch: "Limpar busca",
   ...en,
   agenda: 'Agenda', allDates: 'Todas as datas', allVisible: 'Todas visíveis', board: 'Quadro',
   completed: 'Concluídas', date: 'Data', day: 'Dia', emptyColumn: 'Nenhuma tarefa neste estado.',
@@ -302,6 +307,7 @@ const pt: EmployeeTaskAgendaCopy = {
 };
 
 const ko: EmployeeTaskAgendaCopy = {
+  clearSearch: "검색 지우기",
   ...en,
   agenda: '일정', allDates: '모든 날짜', allVisible: '표시 가능한 전체', board: '보드', completed: '완료',
   date: '날짜', day: '일', emptyColumn: '이 상태의 작업이 없습니다.', inProgress: '진행 중', nextDate: '다음 날짜',
@@ -344,6 +350,7 @@ const ko: EmployeeTaskAgendaCopy = {
 };
 
 const zh: EmployeeTaskAgendaCopy = {
+  clearSearch: "清除搜索",
   ...en,
   agenda: '日程', allDates: '所有日期', allVisible: '全部可见', board: '看板', completed: '已完成',
   date: '日期', day: '日', emptyColumn: '此状态下没有任务。', inProgress: '进行中', nextDate: '下一日期',

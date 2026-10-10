@@ -4,6 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "test:maintenance-browser": "node tests/maintenance-browser.mjs",
     "test:meeting-control": "node --test tests/meeting-control-regression.test.mjs",
     "test:meeting-control-browser": "node tests/meeting-control-browser.mjs",
     "test:scheduling": "node --test tests/scheduling-module-regression.test.mjs",
@@ -14,6 +15,10 @@
     "build": "vite build",
     "test:messaging": "node --experimental-strip-types --test tests/messaging-runtime.test.mjs tests/notification-center-ui-regression.test.mjs tests/distributor-portal-flow-regression.test.mjs tests/platform-admin-flow-regression.test.mjs",
     "test:messaging-browser": "node tests/messaging-browser.mjs",
+    "test:kiosk-employee-browser": "node tests/kiosk-employee-browser.mjs",
+    "test:kiosk-tasks-browser": "node tests/kiosk-tasks-browser.mjs",
+    "test:kiosk-tools-browser": "node tests/kiosk-tools-browser.mjs",
+    "test:kiosk-attendance-browser": "node tests/kiosk-attendance-browser.mjs",
     "calibrate:business-diagnosis": "node scripts/business-diagnosis-engine-calibration.mjs",
     "calibrate:personal-performance": "node scripts/personal-performance-engine-calibration.mjs",
     "dev": "vite",

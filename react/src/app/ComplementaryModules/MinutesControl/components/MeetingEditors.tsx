@@ -9,6 +9,7 @@ import {
 import type { MeetingCopy } from "../translations/meetingCopy";
 import { useLanguage } from "../../../shared/context";
 import { getMeetingWorkflowCopy } from "../translations/meetingWorkflowCopy";
+import { FollowupEditor } from "./AgreementEditors";
 import {
   Editor,
   Field,
@@ -44,6 +45,7 @@ export function MinutesEditor({
   const w = getMeetingWorkflowCopy(currentLanguage.code);
   const [minutes, setMinutes] = useState(detail.minutes),
     [decisions, setDecisions] = useState(detail.decisions);
+  if (detail.meeting.status === "COMPLETED") return <FollowupEditor meeting={detail} copy={copy} onClose={onClose} onSaved={onSaved}/>;
   return (
     <Editor
       title={copy.editMinutes}
@@ -155,100 +157,4 @@ export function TransitionEditor({
     </Editor>
   );
 }
-export function AgreementEditor({ copy, onClose, onSaved }: EditorProps) {
-  const choices = useMeetingQuery(
-    useCallback((signal) => meetingApi.choices(signal), []),
-  );
-  const [form, setForm] = useState({
-    meetingId: 0,
-    title: "",
-    assigneeId: 0,
-    dueDate: dateInput(new Date(Date.now() + 7 * 86400000)),
-  });
-  const key = useRequestKey(),
-    selected = choices.data?.find((m) => m.id === form.meetingId);
-  return (
-    <Editor
-      title={copy.newAgreement}
-      copy={copy}
-      ready={Boolean(choices.data?.length && !choices.error)}
-      onClose={onClose}
-      onSaved={onSaved}
-      onSave={() => meetingApi.agreement(form, key(form))}
-    >
-      {choices.loading ? (
-        <Feedback>{copy.loading}</Feedback>
-      ) : choices.error ? (
-        <Feedback error>{copy.error}</Feedback>
-      ) : !choices.data?.length ? (
-        <Feedback>{copy.empty}</Feedback>
-      ) : (
-        <>
-          {choices.data.length === 100 && <Feedback>{copy.partial}</Feedback>}
-          <Field label={copy.meeting}>
-            <select
-              className={control}
-              required
-              value={form.meetingId || ""}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  meetingId: Number(e.target.value),
-                  assigneeId: 0,
-                })
-              }
-            >
-              <option value="" disabled>
-                —
-              </option>
-              {choices.data.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.title}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label={copy.name}>
-            <input
-              className={control}
-              required
-              maxLength={240}
-              value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
-            />
-          </Field>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={copy.assignee}>
-              <select
-                className={control}
-                required
-                value={form.assigneeId || ""}
-                onChange={(e) =>
-                  setForm({ ...form, assigneeId: Number(e.target.value) })
-                }
-              >
-                <option value="" disabled>
-                  —
-                </option>
-                {selected?.participants.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label={copy.due}>
-              <input
-                className={control}
-                type="date"
-                required
-                value={form.dueDate}
-                onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-              />
-            </Field>
-          </div>
-        </>
-      )}
-    </Editor>
-  );
-}
+export { AgreementEditor } from "./AgreementEditors";

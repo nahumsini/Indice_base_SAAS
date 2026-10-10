@@ -2470,7 +2470,129 @@ El Engine v2 se considera establecido cuando:
 
 ---
 
-## 34. Regla de implementación
+## 34. Espacio personal del colaborador (2026-10-09)
+
+La entrada de un colaborador por PIN presenta **Hoy / Herramientas / Mensajes**. En celular la
+navegación es inferior, fija, etiquetada y respeta safe areas; en escritorio es superior y compacta.
+Las herramientas mantienen el orden y la autorización publicados por el administrador. Proveedores
+conservan su portal separado. El tamaño de pantalla no cambia la política de sesión compartida.
+
+`GET /api/v2/multi-kiosks/public/{publicToken}/today` valida la misma sesión padre, sin crear sesiones
+hijas ni renovar actividad. `MultiKioskTodayService` consulta proyecciones personales de los owners:
+`HrAttendanceService.employeeDay` y `ProcessTaskKioskService.employeeDay`. El catálogo y la capacidad
+efectiva se revalidan antes de consultar cada owner; una herramienta no autorizada se omite. Tareas
+devuelve conteos autoritativos y hasta tres pendientes asignados al colaborador. RH resuelve el horario
+del perfil vinculado, conservando la persistencia actual de fichajes personales. No firma fotos ni
+descarga historiales completos para construir el inicio. La fecha la determina el backend.
+
+Mensajería es una capacidad personal core, no una herramienta comercial ni un grant implícito a otros
+módulos. Su contrato y endpoints se rigen por [Messaging](messaging-and-customer-care-contract.md).
+La identidad sale exclusivamente de la sesión PIN vigente y ligada al navegador. Los roles del ERP
+no otorgan acceso a conversaciones ajenas. La mensajería utiliza los mismos participantes, historial,
+fotos, cursores, límites e idempotencia del owner; no incorpora colas de atención para operadores.
+
+El frontend carga workspaces por demanda, muestra fallos/offline sin inventar ceros y conserva la
+búsqueda de herramientas y la conversación seleccionada mientras la identidad permanezca activa.
+Los borradores viven en memoria; abandonar un borrador requiere una decisión y un envío bloquea la
+salida. Volver al PIN, expirar o revocar la sesión destruye el estado personal. Las lecturas automáticas
+no prolongan la sesión. No se implementa escritura offline ni se promete entrega push.
+
+La familia visual conserva azul Índice para navegación/mensajes, aqua RH, amarillo tareas, coral
+comercial y verde financiero. Controles táctiles de 44px como mínimo, acciones principales de 48px,
+inputs de 16px en celular, contraste y tipografía del Frontend OS. Tareas mantiene Agenda/Horario/
+Tablero, captura y procesos; la búsqueda permanece visible y alcance/fecha rápida usan controles
+desplegables.
+
+La pestaña **Hoy** adopta un saludo compacto en azul profundo, fecha localizada del backend,
+asistencia como acción principal y accesos de pendientes/mensajes en dos columnas móviles.
+Emojis nativos a color acompañan las etiquetas sin sustituirlas; son decorativos para lectores de
+pantalla. Texto grafito sobre superficies claras, aqua y amarillo; blanco únicamente sobre azul
+oscuro. Los pendientes vencidos se distinguen con texto y color semántico, tomando como referencia
+la fecha del backend. La lista conserva el orden autorizado y abre el workspace del owner.
+Este refinamiento visual no modifica Herramientas, Mensajes, APIs ni políticas de acceso.
+
+El encabezado del colaborador acompaña esa familia con identidad compacta, emoji decorativo,
+opciones y salida diferenciadas, conservando sus etiquetas accesibles. La navegación personal
+usa una barra inferior redondeada con emojis a color, nombre visible y selección azul con texto
+blanco; en escritorio se presenta arriba. Su altura real, incluidos safe areas y texto grande,
+reserva espacio tanto para el contenido como para las acciones fijas de los owners. El contador
+de mensajes conserva su significado y no depende únicamente del color. El PIN y el portal de
+proveedores mantienen sus contratos de presentación y autorización.
+
+El encabezado del portal de empleados muestra el logo de la empresa desde la pantalla de PIN.
+El bootstrap agrega `company_logo_url` mediante una proyección mínima de `ConfigCenterService`,
+usando únicamente la empresa resuelta por el enlace validado del multikiosco. Comparte la
+precedencia de Configuración de empresa: un logo borrado explícitamente no recupera imágenes
+legacy. No consulta perfiles personales ni expone la configuración completa. El logo se muestra
+completo, sin recorte, sobre fondo blanco y en un espacio fijo; si falta o falla su carga se muestra
+🏢. Cambiar de colaborador conserva la marca de la empresa. Los espacios de herramientas
+mantienen su botón de regreso.
+
+La pestaña **Herramientas** del colaborador usa una cabecera azul suave con identidad 🧰,
+nombre de sesión y conteo real de resultados. En celular, las tarjetas horizontales presentan
+emojis a color, acento del módulo propietario, nombres completos, descripción legible y una
+acción explícita de apertura; toda la tarjeta es táctil. En escritorio se distribuyen en columnas.
+La búsqueda conserva el umbral existente de seis accesos, ignora acentos y permite limpiarla
+sin perder el foco; un resultado vacío ofrece la misma recuperación. Se respeta el orden
+autorizado por backend, el bloqueo mientras se abre una herramienta y los estados de verificación.
+Texto grande revela las descripciones completas; modo oscuro mantiene contraste legible.
+Esta presentación personal no reemplaza la del Centro de Proveedores.
+
+En Recursos Humanos, los menús de Asistencia ⏰, Comunicados 📣, Actas 📋 y Permisos 🗓️
+reutilizan `KioskWorkspaceTabs` con densidad cómoda: dos columnas en celular estrecho, cuatro
+cuando hay espacio, texto sin truncar y selección aqua con texto oscuro. Solo aparecen secciones
+concedidas por la sesión hija; la navegación admite flechas, Inicio y Fin y relaciona cada pestaña
+con su panel. Cambiar de sección usa el guard existente para conservar o descartar evidencia
+pendiente y bloquear la salida durante un envío. El registro de asistencia mantiene foto/rostro,
+GPS, permisos e idempotencia; su acción queda fija sobre la navegación personal en celular,
+con espacio reservado en el contenido, y permanece en el flujo de la página en escritorio.
+La variante personal elimina el selector redundante cuando solo está disponible foto y muestra
+una sola instrucción de captura. Cámara y biometría conservan sus contratos propietarios. Las
+variantes predeterminadas del motor de pestañas y captura continúan disponibles a otros owners.
+
+El refinamiento de **Tareas y procesos** del 2026-10-10 mantiene amarillo del módulo y emojis
+decorativos en Agenda 📋, Horario 🕘 y Tablero 🗂️. Los indicadores personales conservan etiquetas
+visibles desde 320px; las tarjetas muestran título completo, estado textual, origen y evidencia,
+con metadatos legibles. La agenda usa una columna en celular y dos cuando hay espacio; el tablero
+conserva desplazamiento horizontal contenido, sin arrastrar tarjetas ni cambiar estados por gestos.
+Horario coloca la hora sobre la tarjeta en celular para conservar el ancho de lectura.
+
+La búsqueda tiene limpieza explícita con restauración del foco. Los filtros personales reutilizan
+`KioskModalFrame`, con foco contenido, Escape y acciones estables. El detalle prioriza instrucciones
+y evidencia y despliega horario, proceso y participación bajo demanda. Captura, planificación y
+revisión de procesos ocasionales conservan comandos, validaciones, permisos, referencias duplicadas,
+subida/adopción de archivos e idempotencia del owner. La vista de revisión permanece previa al inicio
+de un proceso. Las variantes personales de resumen, tarjeta y filtros no sustituyen la presentación
+predeterminada del kiosco independiente. La regresión de navegador usa APIs y archivos sintéticos.
+
+Las herramientas personales restantes comparten esa presentación mediante la variante optativa
+`personal` de `KioskToolWorkspaceFrame`: superficies redondeadas, emojis decorativos, campos
+de 16px, controles táctiles de al menos 44px y nombres e importes completos. Cuentas por pagar
+y Caja chica conservan verde; Venta en ruta, Meseros y Pre-ticket conservan coral con texto
+grafito en las acciones principales. Las capturas financieras y el asistente de venta reservan
+espacio para su acción fija sobre la navegación personal en celular; en escritorio vuelve al flujo.
+Los importes se apilan cuando no caben en columnas. No se cambian cálculos, payloads, permisos,
+persistencia, validación de existencias ni reintentos de evidencia sobre registros ya guardados.
+
+Meseros inicia con tarjetas de mesa que muestran nombre completo, estado textual, capacidad y
+consumo. La vista del salón y su edición autorizada siguen disponibles. La selección de mesa,
+comensales, rondas y solicitud de cuenta conservan el contrato del owner. En celular se reserva
+espacio para las acciones de la comanda sobre la navegación, sin tapar las partidas. El catálogo
+personal usa el mismo modal, con controles compactos de comensal/cantidad y desplazamiento del cuerpo
+completo para que los productos sigan alcanzables en pantallas bajas. Pre-ticket ofrece tarjetas
+amplias, resumen del pedido y recuperación de una búsqueda vacía. Los controles de cantidad del
+pedido se bloquean durante el envío. Las variantes independientes de restaurante, caja chica y
+sus modales mantienen su presentación predeterminada. La regresión `kiosk-tools-browser.mjs`
+usa sesiones, archivos y APIs sintéticos; no registra operaciones financieras reales.
+
+## 35. Regla de implementación
+
+Mensajes comparte con el ERP la extensión del 2026-10-10 del contrato de mensajería: chats directos
+sin asunto, grupos nombrados con integrantes explícitos, ✓ guardado y ✓✓ leído por todos, con
+conteo parcial en grupos. La captura breve de tarea personal conserva el borrador del chat y exige
+la herramienta nativa Mis tareas compuesta en el multikiosco y su capacidad de creación vigente,
+además de los permisos del owner. Se mantiene PIN/CSRF y no se prolonga la sesión por sondeos ni
+lecturas automáticas. El cuerpo se sustituye en el mismo workspace y no añade un modal anidado.
 
 Ninguna fase debe comenzar eliminando infraestructura legacy. Primero se agregan contratos, pruebas y adaptadores; después se enruta tráfico bajo feature flag; finalmente se retira duplicación solo cuando exista evidencia de paridad.
 

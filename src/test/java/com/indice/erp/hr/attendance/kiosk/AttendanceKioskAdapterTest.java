@@ -144,7 +144,7 @@ class AttendanceKioskAdapterTest {
     @Test
     void nativeAttendanceToolUsesTheSelfDashboardShapeAndOnlyPunchCapabilities() {
         var definition = nativeToolDefinition();
-        given(attendance.selfDashboard(org.mockito.ArgumentMatchers.eq(7L),
+        given(attendance.employeeDashboard(org.mockito.ArgumentMatchers.eq(7L),
             org.mockito.ArgumentMatchers.eq(501L), any(LocalDate.class)))
             .willReturn(Map.of(
                 "date", "2026-09-01",

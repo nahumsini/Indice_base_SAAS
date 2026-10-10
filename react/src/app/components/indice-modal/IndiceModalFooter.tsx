@@ -9,9 +9,15 @@ export type IndiceModalFooterProps = {
   tone?: IndiceModalFooterTone;
 };
 
-export type IndiceModalFooterTone = 'aqua' | 'blue' | 'coral' | 'green' | 'yellow';
+export type IndiceModalFooterTone = 'aqua' | 'blue' | 'coral' | 'green' | 'yellow' | 'gray';
 
 const actionToneStyles: Record<IndiceModalFooterTone, string> = {
+  gray: [
+    '[&>button]:!border-white [&>button]:!bg-white [&>button]:!text-slate-600 [&>button]:shadow-sm',
+    '[&>button:hover]:!bg-white/90',
+    '[&>button:last-child]:!border-white [&>button:last-child]:!bg-white [&>button:last-child]:!text-slate-800',
+    '[&>button:last-child:hover]:!bg-white/90',
+  ].join(' '),
   aqua: [
     '[&>button]:!border-white [&>button]:!bg-white [&>button]:!text-slate-600 [&>button]:shadow-sm',
     '[&>button:hover]:!bg-white/90',
@@ -45,6 +51,7 @@ const actionToneStyles: Record<IndiceModalFooterTone, string> = {
 };
 
 const summaryToneStyles: Record<IndiceModalFooterTone, string> = {
+  gray: 'text-white/85',
   aqua: 'text-white/85',
   blue: 'text-white/85',
   coral: 'text-[#222831]/75 dark:text-white/85',

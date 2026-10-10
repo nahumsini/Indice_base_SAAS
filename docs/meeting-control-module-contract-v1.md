@@ -97,10 +97,11 @@ replaced, not silently removed. Existing records do not require a data rewrite.
 
 ### Native internal reminders
 
-Off by default. Selecting 15/30/60/1440 minutes enables upcoming-meeting reminders,
-missing-minutes notices after the session, and overdue-agreement notices by the meeting
-timezone. Pausing a series suppresses its internal signals. Cancelled source meetings
-do not send reminders; retained agreements remain actionable in their tab.
+Upcoming-meeting and missing-minutes reminders are off by default. Selecting 15/30/60/1440
+minutes enables them; pausing a series or cancelling its source meeting suppresses those signals.
+The approved operational extension makes overdue agreements independent: each open agreement
+defaults to follow-up enabled and retains it after meeting cancellation or reminder pause.
+Its coordinator/administrator can disable follow-up explicitly without closing the agreement.
 
 `meetings` owns durable signal receipts and uses `AppNotificationService` as the explicit
 notification-owner contract. Each record dispatch has its own transaction and tenant
@@ -117,6 +118,47 @@ links reopen scoped records and recheck access. No browser business drafts are p
 No email, calendar invitation, video call, WhatsApp delivery or automatic task is implied.
 V303 adds owned flow, series, planning metadata, signal receipt and workflow audit storage;
 it does not grant entitlements or copy the corporate Root register.
+
+## Approved operational extension — 2026-10-08 (implemented 2026-10-09)
+
+- Agreement navigation retains the originating meeting ID and queries that meeting across all due
+  dates. General views include all open and all overdue commitments, independently of the current
+  month. Period-based KPI drilldowns still use their original explicit date population.
+- Agreement creation has server-side search and pagination, with a separately resolved selected
+  meeting. Older records remain selectable beyond the former first 100 choices. Only existing
+  coordinator/administrator authority can create/edit; the selector never exposes minutes.
+- OPEN agreements can change title, active assignee, due date and follow-up preference with current
+  version and a reason. Coordinator/administrator owns edits. The assignee may append progress
+  notes or complete their own agreement. The detail exposes a scoped audit capped at 100 with
+  truncation disclosure; stale versions remain conflicts, not last-write-wins updates.
+- Completed minutes remain immutable. Coordinator, administrator or delegated minutes owner can
+  append a versioned addendum, recorded as an independent audit entry. Printing reuses the shared
+  grayscale browser document engine, retains original minutes/decisions plus available addenda,
+  and discloses the history bound. It is an operational copy, not a legal-signature service.
+- Contextual series follow-up includes original OPEN agreements from earlier occurrences of the
+  same company/series. It enforces visibility on each agreement and on the selected meeting.
+  No agreement, deadline or responsibility is cloned or silently changed.
+- A human action can create one linked native Processes task from an OPEN agreement. It requires
+  both agreement coordination authority and native `processes` / `processes.calendar` access,
+  including owner assignment/unit/business checks. `ProcessTaskMeetingContract` delegates to the
+  existing task owner. A tenant-unique durable link makes retries return the same task. Task and
+  agreement completion remain separate explicit validations; changing one never implies the other.
+  Task details are projected only when the reader also has task object access.
+- Agenda/Consulting confirmed occupancy and HR approved unavailable dates are checked during
+  preview and again under the shared resource mutex before writes. Such conflicts cannot be
+  overridden with the meeting-overlap acknowledgement. Cross-owner checks return booleans only.
+  The existing acknowledgement policy for overlaps among company meetings remains intact.
+- Calendar downloads export the selected occurrence as a UTC `.ics` file; they neither create an
+  external meeting nor send invitations. Original lifecycle, recurrence bounds and native permissions
+  remain in force. Operational copy supports all eight configured locales.
+
+New private routes under `/api/v1/meetings`: `GET /agreement-meetings/search`,
+`GET/PUT /agreements/{id}`, `POST /agreements/{id}/notes`, `POST /agreements/{id}/task`,
+and `POST /{id}/addenda`. All retain session/module/tab/object checks and CSRF for mutations.
+The agreements list accepts `meetingId` and `includePrevious`; invalid/unauthorized context fails
+closed. V307 adds follow-up state and the task link; it grants no commercial or user access.
+The module remains a pilot until release/acceptance gates close. Calendar sync, verified external
+invitations, attachments and automatic task generation remain outside this delivery.
 
 ## Indicators
 
@@ -146,3 +188,17 @@ V302 registers the existing module as assignable pilot and creates its owned tab
 It creates no entitlements, assignments or billing prices. Synthetic native-local demo
 activation follows the existing local bootstrap only. Production activation, commercial
 prices, release security review and deployment remain separate approvals.
+
+## Local verification and handoff — 2026-10-09
+
+The operational extension is implemented on `codex/agenda-juntas-operacion`. The shared
+[coordination verification record](scheduling-module-contract-v1.md#local-verification-and-handoff--2026-10-09)
+lists changed areas, test commands/results, database isolation, preserved behavior and release limits.
+Meeting integration coverage passed 29 cases within the 76-test coordination run. Browser coverage
+also passed agreement edit/reassignment, progress history, task retry/link presentation, closed-minute
+addenda, series follow-up, calendar export, delegated access and mobile/dark presentation.
+
+Original minutes/decisions, native task ownership and independent completion remain intact. Browser
+printing is an operational copy bounded by the disclosed 100-entry audit history. Attachments,
+external invitations and provider calendar synchronization remain deferred. Production deployment
+and live entitlement changes: N/A; this delivery does not promote the pilot to released status.

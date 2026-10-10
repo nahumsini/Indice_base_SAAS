@@ -43,6 +43,7 @@ export function ScopeFilters({
   total,
   people = [],
   onChange,
+  hideDates = false,
 }: {
   scope: ListScope;
   defaults: ListScope;
@@ -50,6 +51,7 @@ export function ScopeFilters({
   statuses: readonly string[];
   total?: number;
   people?: { id: number; name: string }[];
+  hideDates?: boolean;
   onChange: (scope: ListScope) => void;
 }) {
   const c = useIndiceFilterDisclosureCopy(),
@@ -107,7 +109,7 @@ export function ScopeFilters({
         onClear={() => change("search", "")}
         inputClassName="rounded-[12px]"
       />
-      <Field label={copy.from}>
+      {!hideDates && <><Field label={copy.from}>
         <input
           className={control}
           type="date"
@@ -123,6 +125,7 @@ export function ScopeFilters({
           onChange={(e) => change("to", e.target.value)}
         />
       </Field>
+      </>}
       {advanced && (
         <IndiceFilterAdvancedSection className="md:col-span-2 lg:col-span-3">
           <IndiceFilterSelect
@@ -272,6 +275,8 @@ export function restoreScope(
       "awaitingClosure",
       "missingMinutes",
       "overdueAgreements",
+      "allOpen",
+      "allOverdue",
     ].includes(state.attention)
       ? state.attention
       : "",

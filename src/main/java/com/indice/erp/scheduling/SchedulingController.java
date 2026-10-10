@@ -17,11 +17,12 @@ public class SchedulingController {
     private final SchedulingConfigurationService configuration;
     private final SchedulingBookingService booking;
     private final SchedulingReservationManagementService management;
+    private final com.indice.erp.sales.SalesClientDirectoryService clients;
     private final com.indice.erp.kiosk.engine.KioskEngineFeatureFlags flags;
     public SchedulingController(SchedulingAccessService access,SchedulingRepository repository,
         SchedulingConfigurationService configuration,SchedulingBookingService booking,com.indice.erp.kiosk.engine.KioskEngineFeatureFlags flags,
-        SchedulingReservationManagementService management){
-        this.access=access;this.repository=repository;this.configuration=configuration;this.booking=booking;this.flags=flags;this.management=management;
+        SchedulingReservationManagementService management,com.indice.erp.sales.SalesClientDirectoryService clients){
+        this.access=access;this.repository=repository;this.configuration=configuration;this.booking=booking;this.flags=flags;this.management=management;this.clients=clients;
     }
     public record Readiness(boolean publicAccessEnabled) { }
     @GetMapping("/readiness") public Readiness readiness(HttpSession s){
@@ -81,6 +82,20 @@ public class SchedulingController {
         return repository.staff(actor.companyId()).stream().filter(t->SchedulingAccessService.administrator(actor)||t.userId()==actor.userId())
             .map(t->new StaffOption(t.id(),t.publicName(),t.timezone(),t.active())).toList();
     }
+    @GetMapping("/reservations/{id}") public ReservationItem detail(HttpSession s,@PathVariable long id){
+        var actor=access.requireAny(s,List.of("calendar","reservations"),null,false);
+        var row=repository.reservation(actor.companyId(),id);validateStaffFilter(actor,row.staffId());return row;
+    }
+    @GetMapping("/reservations/{id}/history") public List<AuditEntry> history(HttpSession s,@PathVariable long id){
+        var actor=access.requireAny(s,List.of("calendar","reservations"),null,false);
+        var row=repository.reservation(actor.companyId(),id);validateStaffFilter(actor,row.staffId());return repository.history(actor.companyId(),id);
+    }
+    @GetMapping("/events/{id}/participants") public ReservationPage participants(HttpSession s,@PathVariable long id,
+        @RequestParam(defaultValue="1")int page,@RequestParam(defaultValue="25")int pageSize){
+        var actor=access.requireAny(s,List.of("calendar","reservations"),null,false);
+        if(page<1||page>10000||!List.of(10,25,50,100,200).contains(pageSize))throw new IllegalArgumentException();
+        validateStaffFilter(actor,repository.event(actor.companyId(),id).staffId());return repository.eventParticipants(actor.companyId(),id,page,pageSize);
+    }
     private void validateStaffFilter(com.indice.erp.auth.AuthSessionUser actor,Long staffId){
         if(staffId==null)return;
         var staff=repository.staff(actor.companyId()).stream().filter(t->t.id()==staffId).findFirst().orElseThrow();
@@ -123,6 +138,10 @@ public class SchedulingController {
         @RequestHeader(value="X-CSRF-Token",required=false)String token,@PathVariable long id,@Valid @RequestBody ReassignRequest body){
         return management.reassign(access.require(s,"reservations",token,true),id,body);
     }
+    @PostMapping("/reservations/{id}/reschedule") public ReservationItem reschedule(HttpSession s,
+        @RequestHeader(value="X-CSRF-Token",required=false)String token,@PathVariable long id,@Valid @RequestBody RescheduleRequest body){
+        return management.reschedule(access.require(s,"reservations",token,true),id,body);
+    }
     @PostMapping("/reservations/{id}/management") public ReservationItem manage(HttpSession s,
         @RequestHeader(value="X-CSRF-Token",required=false)String token,@PathVariable long id,@Valid @RequestBody ManageRequest body){
         return management.manage(access.require(s,"reservations",token,true),id,body);
@@ -130,9 +149,19 @@ public class SchedulingController {
     @GetMapping("/catalog") public PublicWorkspace catalog(HttpSession s){
         var actor=access.requireAny(s,List.of("reservations","events"),null,false);long company=actor.companyId();
         var staff=repository.activeStaff(company).stream().filter(t->(SchedulingAccessService.administrator(actor)
-            ||t.userId()==actor.userId())).map(t->new PublicStaff(t.id(),t.publicName(),t.timezone())).toList();
+            ||t.userId()==actor.userId())).map(t->new PublicStaff(t.id(),t.publicName(),t.timezone(),t.serviceIds())).toList();
+        var staffIds=staff.stream().map(PublicStaff::id).collect(java.util.stream.Collectors.toSet());
+        var events=repository.publicEvents(company,Instant.now()).stream().filter(e->staffIds.contains(e.staffId()))
+            .map(e->new PublicEvent(e.id(),e.staffId(),e.title(),e.description(),e.startAt(),e.durationMinutes(),
+                Math.max(0,e.capacity()-(int)e.confirmedCount()),e.location())).toList();
         return new PublicWorkspace("","","",repository.services(company).stream().filter(ServiceItem::active)
-            .map(t->new PublicService(t.id(),t.name(),t.description(),t.durationMinutes(),t.noticeHours())).toList(),staff,List.of());
+            .map(t->new PublicService(t.id(),t.name(),t.description(),t.durationMinutes(),t.noticeHours())).toList(),staff,events,PageAppearance.defaults(),
+                SchedulingAccessService.administrator(actor)&&clients.canSelect(actor));
+    }
+    @GetMapping("/booking-clients") public com.indice.erp.sales.SalesClientDirectoryService.Directory bookingClients(HttpSession s,
+        @RequestParam(defaultValue="")String search,@RequestParam(defaultValue="1")int page){
+        var actor=access.require(s,"reservations",null,false);SchedulingAccessService.requireAdministrator(actor);
+        if(!clients.canSelect(actor))throw new SecurityException();return clients.read(actor.companyId(),search,page,25);
     }
     public record ShareLink(String publicUrl) { }
     @GetMapping("/links") public ShareLink links(HttpSession s){

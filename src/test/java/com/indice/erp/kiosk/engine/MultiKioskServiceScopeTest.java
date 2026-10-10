@@ -42,6 +42,7 @@ class MultiKioskServiceScopeTest {
     @Mock private KioskProviderMultiDashboardService providerDashboard;
     @Mock private KioskRateLimitService rateLimits;
     @Mock private KioskPaymentCollectionGuard collectionGuard;
+    @Mock private com.indice.erp.configcenter.ConfigCenterService companyConfiguration;
 
     private BCryptPasswordEncoder passwordEncoder;
     private MultiKioskService service;
@@ -52,7 +53,20 @@ class MultiKioskServiceScopeTest {
         service = new MultiKioskService(
             jdbcTemplate, new ObjectMapper(), passwordEncoder, protection,
             employeeAccess, employeeTools, providerTools, dashboard, providerDashboard,
-            rateLimits, collectionGuard, 28_800, 43_200);
+            rateLimits, collectionGuard, companyConfiguration, 28_800, 43_200);
+    }
+
+    @Test
+    void bootstrapLoadsOnlyBrandingFromTheResolvedCompany() throws Exception {
+        stubPublicQueries(List.of());
+        given(companyConfiguration.getCompanyLogo(7L)).willReturn("https://images.example/company.png");
+
+        var result = service.bootstrap("public-token");
+
+        assertThat(result.get("company_logo_url")).isEqualTo("https://images.example/company.png");
+        assertThat(result).doesNotContainKeys("employee", "avatar_url", "config_center");
+        verify(companyConfiguration).getCompanyLogo(7L);
+        org.mockito.Mockito.verifyNoMoreInteractions(companyConfiguration);
     }
 
     @Test
@@ -93,7 +107,7 @@ class MultiKioskServiceScopeTest {
 
         verify(collectionGuard, times(6)).requireOperationalAccess(7L);
         verify(jdbcTemplate, never()).update(anyString(), any(Object[].class));
-        verifyNoInteractions(dashboard, employeeAccess, employeeTools, rateLimits);
+        verifyNoInteractions(dashboard, employeeAccess, employeeTools, rateLimits, companyConfiguration);
         assertThat(wasQueryCalled("FROM multi_kiosk_sessions")).isFalse();
         assertThat(wasQueryCalled("SELECT name FROM companies")).isFalse();
         assertThat(wasQueryCalled("credential.secret_hash")).isFalse();
@@ -112,6 +126,8 @@ class MultiKioskServiceScopeTest {
             "public-token", TEST_PIN, "browser-session", "test-network");
 
         assertThat(result).containsKeys("session_token", "employee", "kiosks");
+        assertThat(result.get("employee")).isEqualTo(Map.of("name", "Active member 91"));
+        verifyNoInteractions(companyConfiguration);
         assertThat(wasQueryCalled("FROM user_companies membership")).isTrue();
         assertThat(wasQueryCalled("credential.status = 'ACTIVE'")).isTrue();
         assertThat(wasQueryCalled("LIMIT 250")).isFalse();
@@ -151,6 +167,7 @@ class MultiKioskServiceScopeTest {
             .hasMessage("Invalid personal PIN.");
 
         assertThat(wasUpdateCalled("INSERT INTO multi_kiosk_sessions")).isFalse();
+        verifyNoInteractions(companyConfiguration);
         verify(rateLimits, never()).releaseSuccessfulMultiKioskPinAttempt(
             7L, 44L, "test-network");
     }
@@ -168,6 +185,7 @@ class MultiKioskServiceScopeTest {
 
         assertThat(result).containsKeys("session_token", "identity", "provider", "kiosks");
         assertThat(result.get("provider")).isEqualTo(Map.of("id", 501L, "name", "Proveedor Uno"));
+        verifyNoInteractions(companyConfiguration);
         assertThat(wasQueryCalled("provider.company_id = ?")).isTrue();
         assertThat(wasQueryCalled("credential_origin = 'PROVIDER_CENTER_ADMIN'")).isTrue();
         assertThat(wasUpdateCalled("'PROVIDER'")).isTrue();
@@ -225,6 +243,8 @@ class MultiKioskServiceScopeTest {
         var result = service.session("public-token", "parent-session", "browser-session");
 
         assertThat(result).containsKeys("employee", "kiosks", "expires_at");
+        assertThat(result.get("employee")).isEqualTo(Map.of("name", "Active member"));
+        verifyNoInteractions(companyConfiguration);
         assertThat(wasQueryCalled("credential.status = 'ACTIVE'")).isTrue();
         assertThat(wasQueryCalled("membership.company_id = session.company_id")).isTrue();
         assertThat(wasSqlUsed("multi_kiosk_assignments")).isFalse();

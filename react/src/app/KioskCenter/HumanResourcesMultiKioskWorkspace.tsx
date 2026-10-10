@@ -3,11 +3,12 @@ import {
   CalendarDays,
   ClipboardList,
   Clock3,
-  FileText,
   LoaderCircle,
   Plus,
 } from 'lucide-react';
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useContext, useEffect, useId, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { KioskNavigationBoundary, type KioskNavigationState } from '../components/kiosk-engine/KioskNavigationBoundary';
+import { useEmployeeNavigationGuard } from './multi-kiosk/useEmployeeNavigationGuard';
 import type {
   HumanResourcesKioskAnnouncement,
   HumanResourcesKioskPermission,
@@ -52,6 +53,11 @@ interface SectionDefinition {
   key: HrSection;
   label: string;
   Icon: typeof Clock3;
+}
+
+const sectionEmojis: Record<HrSection, string> = { attendance: '⏰', announcements: '📣', records: '📋', permissions: '🗓️' };
+function HrEmoji({ section }: { section: HrSection }) {
+  return <span aria-hidden="true" className="text-2xl leading-none" style={{ fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif' }}>{sectionEmojis[section]}</span>;
 }
 
 function csrfFor(token: string) {
@@ -115,6 +121,13 @@ export function HumanResourcesMultiKioskWorkspace({
   onRefresh,
 }: HumanResourcesMultiKioskWorkspaceProps) {
   const copy = getHumanResourcesKioskCopy(locale);
+  const tabId = useId();
+  const sectionNavigation = useEmployeeNavigationGuard(locale);
+  const registerParent = useContext(KioskNavigationBoundary);
+  const registerSection = useCallback((id: string, state: KioskNavigationState | null) => {
+    registerParent(id, state);
+    sectionNavigation.register(id, state);
+  }, [registerParent, sectionNavigation.register]);
   const granted = workspace.session.capabilities;
   const has = (capability: string) => granted.includes(capability);
   const sections = useMemo<SectionDefinition[]>(() => {
@@ -190,21 +203,24 @@ export function HumanResourcesMultiKioskWorkspace({
   }
 
   return (
-    <KioskToolWorkspaceFrame data-human-resources-kiosk>
+    <KioskNavigationBoundary.Provider value={registerSection}>
+    <KioskToolWorkspaceFrame className="space-y-4 [[data-kiosk-large-text=true]_&_.text-xs]:text-base [[data-kiosk-large-text=true]_&_.text-sm]:text-base" data-human-resources-kiosk>
       <KioskWorkspaceTabs<HrSection>
         activeValue={activeSection}
         ariaLabel={copy.navigationLabel}
-        items={sections.map(({ key, label, Icon }) => ({
-          icon: <Icon className="h-4 w-4" />,
+        density="comfortable"
+        idPrefix={tabId}
+        items={sections.map(({ key, label }) => ({
+          icon: <HrEmoji section={key} />,
           label,
           value: key,
         }))}
-        onChange={setActiveSection}
+        onChange={next => { if (next !== activeSection) sectionNavigation.request(() => setActiveSection(next)); }}
         sticky={false}
         tone="aqua"
       />
 
-      <div aria-label={sections.find(section => section.key === activeSection)?.label} role="tabpanel">
+      <div id={`${tabId}-panel-${activeSection}`} aria-labelledby={`${tabId}-tab-${activeSection}`} role="tabpanel">
         {activeSection === 'attendance' ? (
           <AttendanceMultiKioskWorkspace
             token={token}
@@ -217,12 +233,12 @@ export function HumanResourcesMultiKioskWorkspace({
         ) : null}
 
         {activeSection === 'announcements' ? (
-          <KioskWorkspaceSurface className="space-y-4">
-            <KioskWorkspaceSectionHeader icon={<Bell className="h-5 w-5" />} title={copy.announcements.title} description={copy.announcements.description} tone="aqua" />
+          <KioskWorkspaceSurface className="space-y-4 rounded-[1.5rem] p-4 sm:p-5">
+            <KioskWorkspaceSectionHeader icon={<HrEmoji section="announcements" />} title={copy.announcements.title} description={copy.announcements.description} tone="aqua" />
             {!announcements?.available ? <EmptyState>{copy.unavailable}</EmptyState> : announcements.items.length === 0 ? (
               <EmptyState>{copy.announcements.empty}</EmptyState>
             ) : (
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-3">
                 {announcements.items.map(item => (
                   <button
                     className="min-h-24 rounded-2xl border border-slate-200 p-4 text-left transition hover:border-[#59C3A5] hover:bg-[#59C3A5]/[0.06] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#177D66]/20 dark:border-slate-700"
@@ -234,8 +250,8 @@ export function HumanResourcesMultiKioskWorkspace({
                       <p className="font-medium leading-5 text-slate-950 dark:text-white">{item.title}</p>
                       {!item.is_read ? <span aria-hidden="true" className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#177D66]" /> : null}
                     </div>
-                    <p className="mt-2 line-clamp-2 text-sm leading-5 text-slate-500 dark:text-slate-400">{text(item.content)}</p>
-                    <p className="mt-2 text-xs text-slate-400">{dateLabel(item.published_at, locale)}</p>
+                    <p className="mt-2 line-clamp-2 text-sm leading-5 text-slate-500 dark:text-slate-300">{text(item.content)}</p>
+                    <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">{dateLabel(item.published_at, locale)}</p>
                   </button>
                 ))}
               </div>
@@ -244,12 +260,12 @@ export function HumanResourcesMultiKioskWorkspace({
         ) : null}
 
         {activeSection === 'records' ? (
-          <KioskWorkspaceSurface className="space-y-4">
-            <KioskWorkspaceSectionHeader icon={<ClipboardList className="h-5 w-5" />} title={copy.records.title} description={copy.records.description} tone="aqua" />
+          <KioskWorkspaceSurface className="space-y-4 rounded-[1.5rem] p-4 sm:p-5">
+            <KioskWorkspaceSectionHeader icon={<HrEmoji section="records" />} title={copy.records.title} description={copy.records.description} tone="aqua" />
             {!records?.available ? <EmptyState>{copy.unavailable}</EmptyState> : records.items.length === 0 ? (
               <EmptyState>{copy.records.empty}</EmptyState>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {records.items.map(item => (
                   <button
                     className="flex min-h-20 w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 p-4 text-left transition hover:border-[#59C3A5] hover:bg-[#59C3A5]/[0.06] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#177D66]/20 dark:border-slate-700"
@@ -258,8 +274,8 @@ export function HumanResourcesMultiKioskWorkspace({
                     type="button"
                   >
                     <span className="min-w-0">
-                      <span className="block truncate font-medium text-slate-950 dark:text-white">{item.title}</span>
-                      <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
+                      <span className="block break-words text-base font-medium text-slate-950 dark:text-white">{item.title}</span>
+                      <span className="mt-1 block text-xs text-slate-500 dark:text-slate-300">
                         {[text(item.record_number), dateLabel(item.event_date, locale)].filter(Boolean).join(' · ')}
                       </span>
                     </span>
@@ -272,42 +288,36 @@ export function HumanResourcesMultiKioskWorkspace({
         ) : null}
 
         {activeSection === 'permissions' ? (
-          <KioskWorkspaceSurface className="space-y-4">
+          <KioskWorkspaceSurface className="space-y-4 rounded-[1.5rem] p-4 sm:p-5">
             <KioskWorkspaceSectionHeader
-              icon={<CalendarDays className="h-5 w-5" />}
+              icon={<HrEmoji section="permissions" />}
               title={copy.permissions.title}
               description={copy.permissions.description}
               tone="aqua"
-              action={has(capabilities.permissionCreate) ? (
-                <button
-                  aria-label={copy.permissions.create}
-                  className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-3 text-sm font-medium text-white shadow-sm transition hover:bg-[#126652] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#177D66]/20"
-                  onClick={() => { setPermissionError(''); setPermissionModalOpen(true); }}
-                  type="button"
-                >
-                  <Plus className="h-4 w-4" aria-hidden="true" />
-                  <span className="hidden min-[390px]:inline">{copy.permissions.create}</span>
-                </button>
-              ) : undefined}
             />
+            {has(capabilities.permissionCreate) ? (
+              <button aria-label={copy.permissions.create} className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#59C3A5] px-4 py-3 text-base font-medium text-[#222831] transition hover:bg-[#3AAE90] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#177D66]/25" onClick={() => { setPermissionError(''); setPermissionModalOpen(true); }} type="button">
+                <Plus className="h-5 w-5" aria-hidden="true" />{copy.permissions.create}
+              </button>
+            ) : null}
             {permissionSuccess ? <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-200">{permissionSuccess}</p> : null}
             {!permissions?.available ? <EmptyState>{copy.unavailable}</EmptyState> : permissions.items.length === 0 ? (
               <EmptyState>{copy.permissions.empty}</EmptyState>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {permissions.items.map(item => (
                   <article className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700" key={item.id}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate font-medium text-slate-950 dark:text-white">{copy.permissions.types[text(item.type).toLowerCase()] ?? text(item.type, item.folio || '—')}</p>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        <p className="break-words text-base font-medium text-slate-950 dark:text-white">{copy.permissions.types[text(item.type).toLowerCase()] ?? text(item.type, item.folio || '—')}</p>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
                           {dateLabel(item.startDate, locale)}{item.endDate && item.endDate !== item.startDate ? ` – ${dateLabel(item.endDate, locale)}` : ''}
                         </p>
                       </div>
                       <StatusBadge value={item.status} labels={copy.status} />
                     </div>
                     {item.reason ? <p className="mt-3 line-clamp-2 text-sm leading-5 text-slate-600 dark:text-slate-300">{item.reason}</p> : null}
-                    {item.folio ? <p className="mt-2 text-xs text-slate-400">{item.folio}</p> : null}
+                    {item.folio ? <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">{item.folio}</p> : null}
                   </article>
                 ))}
               </div>
@@ -322,7 +332,7 @@ export function HumanResourcesMultiKioskWorkspace({
         size="form"
         surface="public"
         tone="aqua"
-        icon={<Bell className="h-5 w-5" />}
+        icon={<HrEmoji section="announcements" />}
         title={selectedAnnouncement?.title ?? copy.announcements.detail}
         description={selectedAnnouncement ? [dateLabel(selectedAnnouncement.published_at, locale), selectedAnnouncement.author_name ? copy.announcements.publishedBy(selectedAnnouncement.author_name) : ''].filter(Boolean).join(' · ') : copy.announcements.description}
         footer={<button className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm font-medium" onClick={() => setSelectedAnnouncement(null)} type="button">{copy.close}</button>}
@@ -336,7 +346,7 @@ export function HumanResourcesMultiKioskWorkspace({
         size="form"
         surface="public"
         tone="aqua"
-        icon={<FileText className="h-5 w-5" />}
+        icon={<HrEmoji section="records" />}
         title={selectedRecord?.title ?? copy.records.detail}
         description={selectedRecord ? [text(selectedRecord.record_number), dateLabel(selectedRecord.event_date, locale)].filter(Boolean).join(' · ') : copy.records.description}
         footer={<button className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm font-medium" onClick={() => setSelectedRecord(null)} type="button">{copy.close}</button>}
@@ -355,7 +365,7 @@ export function HumanResourcesMultiKioskWorkspace({
         size="form"
         surface="public"
         tone="aqua"
-        icon={<CalendarDays className="h-5 w-5" />}
+        icon={<HrEmoji section="permissions" />}
         title={copy.permissions.formTitle}
         description={copy.permissions.formDescription}
         footer={<button aria-busy={permissionBusy || undefined} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium disabled:opacity-60" disabled={permissionBusy} form="hr-permission-form" type="submit">{permissionBusy ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}{copy.permissions.submit}</button>}
@@ -377,6 +387,8 @@ export function HumanResourcesMultiKioskWorkspace({
           <label className="block space-y-1.5"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.permissions.reason}</span><textarea className="min-h-28 w-full resize-y rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm outline-none focus:border-[#177D66] focus:ring-4 focus:ring-[#177D66]/15 dark:border-slate-700 dark:bg-slate-950" maxLength={2000} name="reason" placeholder={copy.permissions.reasonPlaceholder} required /></label>
         </form>
       </KioskModalFrame>
+      {sectionNavigation.prompt}
     </KioskToolWorkspaceFrame>
+    </KioskNavigationBoundary.Provider>
   );
 }

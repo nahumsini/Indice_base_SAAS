@@ -95,6 +95,7 @@ export function planningError(
   error: unknown,
   w: MeetingWorkflowCopy,
   fallback: string,
+  appointmentConflict?: string,
 ): string {
   const code =
     error instanceof ApiClientError
@@ -103,6 +104,7 @@ export function planningError(
         ? error.message
         : "";
   const messages: Record<string, string> = {
+    meeting_appointment_conflict: appointmentConflict || w.futureConflict,
     meeting_purpose_required: w.required,
     meeting_start_past: w.startPast,
     meeting_time_gap: w.timeGap,

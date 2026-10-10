@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
+import { mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+const artifactDir=resolve(process.env.INDICE_BROWSER_ARTIFACTS || tmpdir(), "indice-coordination");
+mkdirSync(artifactDir,{recursive:true});
 import { createServer } from "vite";
 const { chromium } = await import(
   process.env.INDICE_PLAYWRIGHT_MODULE || "playwright"
@@ -97,6 +101,7 @@ try {
       },
     ],
   ]);
+  const agreementHistory = new Map(), taskLinks = new Map();
   let agreements = [
     {
       id: 1,
@@ -136,6 +141,7 @@ try {
         company: { id: 8, name: "Empresa sintética", active: true, role },
         csrfToken: "synthetic-csrf",
       });
+    if (path === "/api/v1/learning/progress") return ok({catalogVersion:"synthetic",currentChapterId:null,stages:[],chapters:[],nextMission:null});
     if (path.startsWith("/api/v1/workspace-state/"))
       return ok({ state: {}, schemaVersion: 1 });
     if (path === "/api/v1/modules")
@@ -228,6 +234,29 @@ try {
       }
       if (tail === "/agreement-assignees")
         return ok({ items: people, total: people.length });
+      if (tail === "/agreement-meetings/search") {
+        const selected=Number(url.searchParams.get('selected')), term=url.searchParams.get('search')||'';
+        const items=meetings.filter(m=>(selected?m.id===selected:m.status!=="CANCELLED")&&m.title.toLowerCase().includes(term.toLowerCase())).map(m=>({id:m.id,title:m.title,participants:people}));
+        return ok({items,total:items.length,page:1,pageSize:25});
+      }
+      if (/^\/agreements\/\d+(\/(notes|task))?$/.test(tail)) {
+        const row=agreements.find(a=>a.id===Number(tail.split('/')[2]));
+        const project=()=>({agreement:row,history:agreementHistory.get(row.id)||[],task:taskLinks.get(row.id)||null,canLinkTask:role==='superadmin'&&!taskLinks.has(row.id)&&row.status==='OPEN'});
+        if(req.method()==='GET')return ok(project());
+        const body=req.postDataJSON();assert.equal(body.expectedVersion,row.version);row.version++;
+        if(req.method()==='PUT'){
+          assert.ok(body.reason);Object.assign(row,{title:body.title,assigneeId:body.assigneeId,assigneeName:people.find(p=>p.id===body.assigneeId).name,dueDate:body.dueDate,followupEnabled:body.followupEnabled});
+          return ok(row);
+        }
+        if(tail.endsWith('/notes'))agreementHistory.set(row.id,[{action:'AGREEMENT_NOTE',reason:body.text,actorName:people[0].name,occurredAt:new Date().toISOString()},...(agreementHistory.get(row.id)||[])]);
+        if(tail.endsWith('/task'))taskLinks.set(row.id,{id:7,folio:'TASK-7',title:row.title,status:'pending',dueDate:row.dueDate});
+        return ok(project());
+      }
+      if (/^\/\d+\/addenda$/.test(tail)) {
+        const id=Number(tail.split('/')[1]), row=meetings.find(m=>m.id===id), body=req.postDataJSON();
+        assert.equal(row.status,'COMPLETED');assert.equal(body.expectedVersion,row.version);row.version++;
+        texts.get(id).history.unshift({action:'MINUTES_ADDENDUM',reason:body.text,actorName:people[0].name,occurredAt:new Date().toISOString()});return ok(detail(id));
+      }
       if (tail === "/agreement-meetings")
         return ok(
           meetings
@@ -425,7 +454,7 @@ try {
           .map((a) => a.finished.catch(() => {})),
       ),
     );
-  await page.goto(origin + "/tests/browser/meeting-control.html");
+  await page.goto(origin + "/tests/browser/meeting-control.html", { waitUntil: 'domcontentloaded', timeout: 120000 });
   await page.getByText("Junta de estrategia", { exact: true }).waitFor();
   await fits();
   assert.equal(
@@ -522,8 +551,23 @@ try {
     .click();
   await page.getByRole("dialog").waitFor({ state: "hidden" });
   assert.equal(meetings[0].status, "COMPLETED");
+  const originalMinutes=texts.get(1).minutes;
+  await review();await page.getByRole('button',{name:'Agregar adenda',exact:true}).click();
+  await page.getByRole('textbox',{name:'Agregar adenda',exact:true}).fill('Aclaración de cierre sintética');await page.getByRole('button',{name:'Guardar',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+  assert.equal(texts.get(1).minutes,originalMinutes);assert.equal(texts.get(1).history[0].action,'MINUTES_ADDENDUM');
+  await review();await page.getByText('Aclaración de cierre sintética',{exact:true}).waitFor();
+  const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Agregar al calendario',exact:true}).click()]);assert.match(download.suggestedFilename(),/\.ics$/);
+  await page.getByRole('dialog').getByRole('button',{name:'Cerrar',exact:true}).last().click();
   await page.getByRole("button", { name: "Acuerdos", exact: true }).click();
   await page.getByText("Preparar seguimiento", { exact: true }).waitFor();
+  await page.getByRole('button',{name:'Preparar seguimiento',exact:true}).click();await page.getByRole('button',{name:'Editar acuerdo',exact:true}).click();
+  await page.getByLabel('Título',{exact:true}).fill('Preparar seguimiento actualizado');await page.getByRole('dialog').getByLabel('Responsable',{exact:true}).selectOption('42');await page.getByLabel('Motivo / evidencia del resultado',{exact:true}).fill('Cambio de responsable acordado');
+  await page.getByRole('button',{name:'Guardar',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});assert.equal(agreements[0].assigneeId,42);
+  await page.getByRole('button',{name:'Preparar seguimiento actualizado',exact:true}).click();await page.getByRole('button',{name:'Agregar seguimiento',exact:true}).click();
+  await page.getByRole('textbox',{name:'Agregar seguimiento',exact:true}).fill('Primer avance documentado');await page.getByRole('button',{name:'Guardar',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+  await page.getByRole('button',{name:'Preparar seguimiento actualizado',exact:true}).click();await page.getByText(/Primer avance documentado/).waitFor();await page.getByRole('button',{name:'Crear tarea vinculada',exact:true}).click();await page.getByText(/TASK-7/).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Crear tarea vinculada',exact:true}).count(),0);
+  await page.getByRole('dialog').getByRole('button',{name:'Cerrar',exact:true}).last().click();
   await page
     .getByRole("button", { name: "Nuevo acuerdo", exact: true })
     .click();
@@ -531,7 +575,7 @@ try {
   await page
     .getByLabel("Título", { exact: true })
     .fill("Acuerdo sintético nuevo");
-  await page.getByLabel("Responsable", { exact: true }).selectOption("43");
+  await page.getByRole("dialog").getByLabel("Responsable", { exact: true }).selectOption("43");
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
   await page.getByRole("dialog").waitFor({ state: "hidden" });
   await page
@@ -627,11 +671,11 @@ try {
     .getByLabel("Nombre del flujo *", { exact: true })
     .fill("Revisión semanal de equipo");
   await settle();
-  await page.screenshot({ path: "/tmp/indice-meeting-series-review.png" });
+  await page.screenshot({ path: resolve(artifactDir,"indice-meeting-series-review.png") });
   await page.setViewportSize({ width: 390, height: 844 });
   await fits();
   await settle();
-  await page.screenshot({ path: "/tmp/indice-meeting-series-mobile.png" });
+  await page.screenshot({ path: resolve(artifactDir,"indice-meeting-series-mobile.png") });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page
     .getByRole("button", { name: "Programar serie", exact: true })
@@ -772,10 +816,10 @@ try {
   await page.getByRole("tab", { name: "Calendario", exact: true }).click();
   await page.getByText("Junta de estrategia", { exact: true }).waitFor();
   await settle();
-  await page.screenshot({ path: "/tmp/indice-meeting-control-dark.png" });
+  await page.screenshot({ path: resolve(artifactDir,"indice-meeting-control-dark.png") });
   await page.evaluate(() => document.documentElement.classList.remove("dark"));
   await settle();
-  await page.screenshot({ path: "/tmp/indice-meeting-control-desktop.png" });
+  await page.screenshot({ path: resolve(artifactDir,"indice-meeting-control-desktop.png") });
   for (const width of [320, 768, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     await fits();
@@ -855,10 +899,13 @@ try {
     "Meeting UI passed: create retry/CSRF, guided series review/Back, delegated roles, saved flow reuse/archive, future edit preview, pause/resume/cancel, scoped deep links, calendar/table, minutes/lifecycle, agreements, eight locales, scoped tabs, mobile/dark.",
   );
 } catch (error) {
+  console.error(error);
+  const failedPage = browser?.contexts()[0]?.pages()[0];
+  if (failedPage) console.error('Failure at', failedPage.url(), (await failedPage.locator('body').innerText().catch(() => '')).slice(0, 8000));
   await browser
     ?.contexts()[0]
     ?.pages()[0]
-    ?.screenshot({ path: "/tmp/indice-meeting-control-failure.png" });
+    ?.screenshot({ path: resolve(artifactDir,"indice-meeting-control-failure.png"), timeout: 5000 }).catch(() => {});
   throw error;
 } finally {
   await browser?.close();

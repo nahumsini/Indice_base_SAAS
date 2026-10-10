@@ -17,7 +17,7 @@ public final class MeetingDtos {
         List<Member> participants,List<AuditItem> history,PlanningMetadata planning) { @Override public String toString(){return "MeetingDetail[protected]";} }
     public record MeetingChoice(long id,String title,List<Member> participants) { @Override public String toString(){return "MeetingChoice[protected]";} }
     public record AgreementItem(long id,long meetingId,String meetingTitle,String title,long assigneeId,
-        String assigneeName,LocalDate dueDate,String status,String resolution,long version,long meetingOwnerId) { @Override public String toString(){return "AgreementItem[protected]";} }
+        String assigneeName,LocalDate dueDate,String status,String resolution,long version,long meetingOwnerId,boolean followupEnabled) { @Override public String toString(){return "AgreementItem[protected]";} }
     public record Page<T>(List<T> items,long total,int page,int pageSize) { @Override public String toString(){return "Page[total="+total+"]";} }
     public record Metrics(long planned,long inProgress,long completed,long cancelled,long awaitingClosure,
         long missingMinutes,long openAgreements,long overdueAgreements,Instant calculatedAt,String timezone) { }
@@ -35,4 +35,16 @@ public final class MeetingDtos {
         @Positive long expectedVersion) { @Override public String toString(){return "TransitionRequest[protected]";} }
     public record AgreementRequest(@Positive long meetingId,@NotBlank @Size(max=240) String title,
         @Positive long assigneeId,@NotNull LocalDate dueDate) { @Override public String toString(){return "AgreementRequest[protected]";} }
+    public record AgreementUpdateRequest(@NotBlank @Size(max=240) String title,@Positive long assigneeId,
+        @NotNull LocalDate dueDate,@NotBlank @Size(min=3,max=2000) String reason,@Positive long expectedVersion,Boolean followupEnabled) {
+        @Override public String toString(){return "AgreementUpdateRequest[protected]";}
+    }
+    public record NoteRequest(@NotBlank @Size(min=3,max=2000) String text,@Positive long expectedVersion) {
+        @Override public String toString(){return "NoteRequest[protected]";}
+    }
+    public record AgreementDetail(AgreementItem agreement,List<AuditItem> history,
+        com.indice.erp.processTasks.tasks.ProcessTaskMeetingContract.TaskLink task,boolean canLinkTask) {
+        @Override public String toString(){return "AgreementDetail[protected]";}
+    }
+    public record VersionRequest(@Positive long expectedVersion) { }
 }

@@ -35,6 +35,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
     KioskMultiDashboardV2Controller.class,
     MultiKioskAdminV2Controller.class,
     MultiKioskPublicV2Controller.class,
+    MultiKioskMessagingController.class,
+    MultiKioskTodayController.class,
     SalesPublicCatalogSharePreviewController.class
 })
 public class KioskPublicV2ExceptionHandler {

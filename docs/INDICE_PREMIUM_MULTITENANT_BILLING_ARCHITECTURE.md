@@ -247,6 +247,15 @@ impuestos que Stripe calcula y muestra antes de confirmar Checkout:
   el beneficio de ese mes. Una sesión adicional cuesta USD 79.
 - Los módulos complementarios no se publican en el lanzamiento. Su precio aprobado futuro es USD
   29 mensuales antes de impuestos, pero necesitan una decisión de publicación posterior.
+  **Excepción aprobada para Agenda y eventos y Control de juntas (2026-10-08), ampliada a
+  Mantenimiento (2026-10-09):** su funcionalidad
+  operativa se incluye sin cargo adicional de módulo para complementar los productos básicos.
+  El precio futuro de USD 29 no se aplica a `scheduling`, `control_minutas` ni `maintenance`. Esta entrega local
+  no modifica suscripciones, Stripe ni precios publicados, ni concede acceso a pilotos. Su inclusión
+  efectiva en ofertas/demo se habilita mediante el catálogo y los contratos de acceso existentes
+  cuando terminen pruebas, aceptación y publicación; permisos de empresa, módulo, pestaña y objeto
+  siguen siendo obligatorios. No se extiende esta excepción a otros complementos ni a servicios
+  externos de correo, SMS o calendarios.
 - La suscripción conserva su versión e importe mientras mantenga la misma oferta. Cambiar de paquete,
   cancelar y volver a contratar adopta la versión vigente. Al agregar usuarios o almacenamiento a
   la misma suscripción, se usa el precio verificado de su catálogo contratado, incluso si está

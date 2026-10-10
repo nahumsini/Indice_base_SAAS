@@ -57,7 +57,9 @@ export type Agreement = {
   resolution: string;
   version: number;
   meetingOwnerId: number;
+  followupEnabled?: boolean;
 };
+export type AgreementDetail = { agreement: Agreement; history: MeetingDetail["history"]; task: { id: number; folio: string; title: string; status: string; dueDate: string } | null; canLinkTask: boolean };
 export type MeetingChoice = {
   id: number;
   title: string;
@@ -166,6 +168,16 @@ const save = <T>(path: string, method: string, body: unknown, key?: string) =>
     headers: key ? { "Idempotency-Key": key } : undefined,
   });
 export const meetingApi = {
+  createTask: (record: Agreement) => save<AgreementDetail>(`/agreements/${record.id}/task`, "POST", { expectedVersion: record.version }),
+  searchChoices: (search: string, page: number, selected: number, signal: AbortSignal) =>
+    apiClient<Page<MeetingChoice>>(`${root}/agreement-meetings/search?${query({ search, page, selected, pageSize: 25 })}`, { signal }),
+  agreementDetail: (id: number, signal: AbortSignal) => apiClient<AgreementDetail>(`${root}/agreements/${id}`, { signal }),
+  updateAgreement: (record: Agreement, body: Omit<AgreementRequest, "meetingId"> & { reason: string; followupEnabled: boolean }) =>
+    save<Agreement>(`/agreements/${record.id}`, "PUT", { ...body, expectedVersion: record.version }),
+  agreementNote: (record: Agreement, text: string) =>
+    save<AgreementDetail>(`/agreements/${record.id}/notes`, "POST", { text, expectedVersion: record.version }),
+  addendum: (detail: MeetingDetail, text: string) =>
+    save<MeetingDetail>(`/${detail.meeting.id}/addenda`, "POST", { text, expectedVersion: detail.meeting.version }),
   preview: (body: PlanRequest) =>
     save<PlanPreview>("/planning/preview", "POST", body),
   plan: (body: PlanRequest, key: string) =>

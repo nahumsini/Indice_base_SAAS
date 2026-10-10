@@ -51,6 +51,15 @@ public class TabPermissionRouteClassifier {
             return Optional.empty();
         }
 
+        if (path.startsWith("/api/v1/maintenance")) {
+            if (path.startsWith("/api/v1/maintenance/requests")) return one("maintenance.requests");
+            if (path.startsWith("/api/v1/maintenance/orders")) return one("maintenance.orders");
+            if (path.startsWith("/api/v1/maintenance/assets")) return one("maintenance.assets");
+            if (path.startsWith("/api/v1/maintenance/plans")) return one("maintenance.preventive");
+            if (path.startsWith("/api/v1/maintenance/metrics")) return one("maintenance.indicators");
+            if (path.startsWith("/api/v1/maintenance/settings")) return one("maintenance.configuration");
+            return any("maintenance.requests","maintenance.orders","maintenance.assets","maintenance.preventive","maintenance.indicators","maintenance.configuration");
+        }
         if (path.startsWith("/api/v1/meetings")) {
             if (path.startsWith("/api/v1/meetings/metrics")) return one("control_minutas.indicators");
             if (path.startsWith("/api/v1/meetings/agreements") || path.startsWith("/api/v1/meetings/agreement-meetings") || path.startsWith("/api/v1/meetings/agreement-assignees")) return one("control_minutas.agreements");

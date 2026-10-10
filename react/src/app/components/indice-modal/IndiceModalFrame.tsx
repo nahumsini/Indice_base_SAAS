@@ -44,6 +44,13 @@ const toneStyles: Record<IndiceModalTone, {
   header: string;
   title: string;
 }> = {
+  gray: {
+    close: 'border-white/30 bg-white/10 text-white hover:bg-white/20',
+    description: 'text-white/85',
+    footer: 'bg-slate-600 dark:bg-slate-800',
+    header: 'bg-slate-500 text-white dark:bg-slate-700',
+    title: 'text-white',
+  },
   aqua: {
     close: 'border-[#222831]/20 bg-white/20 text-[#222831] hover:bg-white/35 dark:border-white/30 dark:text-white',
     description: 'text-[#222831]/75 dark:text-white/85',

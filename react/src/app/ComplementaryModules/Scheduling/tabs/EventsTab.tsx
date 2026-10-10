@@ -6,13 +6,17 @@ import { useSchedulingQuery } from '../hooks/useSchedulingQuery';
 import type { SchedulingCopy } from '../translations/schedulingCopy';
 import { ActionButton, Feedback, panelClass } from '../components/SchedulingPrimitives';
 import { EventEditor } from '../components/EventEditor';
+import { EventParticipants } from '../components/EventParticipants';
+import { getSchedulingOperationsCopy } from '../translations/schedulingOperationsCopy';
 import { EventCancellation } from '../components/EventCancellation';
 import { schedulingEmoji, schedulingTone } from '../utils/schedulingIdentity';
 
-export default function EventsTab({ copy, locale, administrator }: { copy: SchedulingCopy; locale: string; administrator: boolean }) {
+export default function EventsTab({ copy, locale, administrator, canReadParticipants }: { canReadParticipants: boolean; copy: SchedulingCopy; locale: string; administrator: boolean }) {
   const query = useSchedulingQuery(useCallback(async (signal: AbortSignal) => {
     const [events, catalog, links] = await Promise.all([schedulingApi.events(signal), schedulingApi.catalog(signal), schedulingApi.links(signal)]); return { events, catalog, links };
   }, []));
+  const op = getSchedulingOperationsCopy(locale);
+  const [participants, setParticipants] = useState<Event | null>(null);
   const [editor, setEditor] = useState<Event | 'new' | null>(null);
   const [cancelling, setCancelling] = useState<Event | null>(null);
   const [feedback, setFeedback] = useState<'copied' | 'error' | null>(null);
@@ -30,7 +34,7 @@ export default function EventsTab({ copy, locale, administrator }: { copy: Sched
           <dl className="grid gap-3 text-sm sm:grid-cols-2"><div><dt className="text-slate-500">{copy.consultant}</dt><dd className="mt-1">{staff?.publicName ?? '—'}</dd></div>
             <div><dt className="text-slate-500">{copy.eventAt}</dt><dd className="mt-1">{new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: staff?.timezone }).format(new Date(event.startAt))}<span className="block text-xs text-slate-500">{staff?.timezone}</span></dd></div>
             <div><dt className="text-slate-500">{copy.reserved}</dt><dd className="mt-1">{event.confirmedCount} / {event.capacity}</dd></div><div><dt className="text-slate-500">{copy.duration}</dt><dd className="mt-1">{event.durationMinutes} {copy.minutes}</dd></div></dl>
-          <div className="flex flex-wrap gap-3">{administrator && event.status === 'ACTIVE' && event.confirmedCount === 0 && new Date(event.startAt) > new Date() && <ActionButton onClick={() => setEditor(event)}>{copy.edit}</ActionButton>}
+          <div className="flex flex-wrap gap-3">{canReadParticipants && <ActionButton onClick={() => setParticipants(event)}>{op.attendees}</ActionButton>}{administrator && event.status === 'ACTIVE' && new Date(event.startAt) > new Date() && <ActionButton onClick={() => setEditor(event)}>{copy.edit}</ActionButton>}
             {administrator && event.status === 'ACTIVE' && <ActionButton onClick={() => setCancelling(event)}>{copy.cancelEvent}</ActionButton>}
             {event.status === 'ACTIVE' && event.published && query.data!.links.publicUrl && new Date(event.startAt) > new Date() && <ActionButton onClick={async () => {
               try { await navigator.clipboard.writeText(new URL(`${query.data!.links.publicUrl}?event=${event.id}`, window.location.origin).href); setFeedback('copied'); } catch { setFeedback('error'); }
@@ -38,6 +42,7 @@ export default function EventsTab({ copy, locale, administrator }: { copy: Sched
           </div>
         </article>;
       })}</div>}
+      {participants && <EventParticipants event={participants} copy={copy} locale={locale} onClose={() => setParticipants(null)} />}
       {editor && <EventEditor copy={copy} catalog={query.data.catalog} event={editor === 'new' ? undefined : editor} onClose={() => setEditor(null)} onSaved={() => { setEditor(null); query.reload(); }} />}
       {cancelling && <EventCancellation copy={copy} event={cancelling} onClose={() => setCancelling(null)} onSaved={() => { setCancelling(null); query.reload(); }} />}
     </>}

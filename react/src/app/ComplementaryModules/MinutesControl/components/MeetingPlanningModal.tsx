@@ -13,6 +13,7 @@ import {
   type PlanResult,
 } from "../services/meetingApi";
 import type { MeetingCopy } from "../translations/meetingCopy";
+import { getMeetingOperationsCopy } from "../translations/meetingOperationsCopy";
 import { getMeetingWorkflowCopy } from "../translations/meetingWorkflowCopy";
 import {
   initialPlanning,
@@ -53,6 +54,7 @@ export function MeetingPlanningModal({
 }) {
   const { currentLanguage } = useLanguage();
   const w = getMeetingWorkflowCopy(currentLanguage.code);
+  const op = getMeetingOperationsCopy(currentLanguage.code);
   const directory = useMeetingQuery(
     useCallback((signal) => meetingApi.members(signal), []),
   );
@@ -180,7 +182,7 @@ export function MeetingPlanningModal({
       setPreview(result);
       go(2);
     } catch (e) {
-      setError(planningError(e, w, w.previewError));
+      setError(planningError(e, w, w.previewError, op.appointmentConflict));
     } finally {
       setBusy(false);
     }
@@ -248,6 +250,7 @@ export function MeetingPlanningModal({
           e instanceof ApiClientError && e.status === 409
             ? copy.conflict
             : copy.error,
+          op.appointmentConflict,
         ),
       );
     } finally {

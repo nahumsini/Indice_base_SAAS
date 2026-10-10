@@ -25,19 +25,19 @@ public class MeetingReminderService {
         if(!modules.companyCanAccessForMutation(company,"control_minutas"))return;
         var rows=db.query("SELECT m.*,COALESCE(s.reminders_paused,0) paused FROM meeting_records m LEFT JOIN meeting_series s ON s.company_id=m.company_id AND s.id=m.series_id WHERE m.company_id=? AND m.id=? FOR UPDATE",
             (r,n)->new Pending(r.getString("status"),r.getTimestamp("start_at").toInstant(),r.getTimestamp("end_at").toInstant(),r.getString("timezone"),r.getLong("owner_id"),r.getObject("minutes_owner_id")==null?r.getLong("owner_id"):r.getLong("minutes_owner_id"),r.getInt("reminder_minutes"),r.getString("minutes").isBlank(),r.getBoolean("paused")),company,meeting);
-        if(rows.isEmpty())return;var m=rows.getFirst();if(m.paused()||m.status().equals("CANCELLED"))return;
+        if(rows.isEmpty())return;var m=rows.getFirst();boolean meetingReminders=!m.paused()&&!m.status().equals("CANCELLED")&&m.reminder()>0;
         var now=Instant.now();String date=m.start().atZone(ZoneId.of(m.zone())).toLocalDate().toString();
         String link="/minutes-control/meetings?meeting="+meeting+"&from="+date+"&to="+date+"&q=&owner=0&status=&attention=";
-        if(m.reminder()>0&&m.status().equals("PLANNED")&&m.start().isAfter(now)&&!m.start().minusSeconds(m.reminder()*60L).isAfter(now)){
+        if(meetingReminders&&m.status().equals("PLANNED")&&m.start().isAfter(now)&&!m.start().minusSeconds(m.reminder()*60L).isAfter(now)){
             var people=new TreeSet<Long>();people.add(m.owner());people.add(m.minutesOwner());people.addAll(db.queryForList("SELECT user_id FROM meeting_participants WHERE company_id=? AND meeting_id=?",Long.class,company,meeting));
             for(long user:people)deliver(company,meeting,user,"upcoming_meeting",m.start().toString()+":"+m.reminder(),"meetings",link);
         }
-        if(m.reminder()>0&&m.emptyMinutes()&&m.end().isBefore(now)&&!m.status().equals("COMPLETED")){
+        if(meetingReminders&&m.emptyMinutes()&&m.end().isBefore(now)&&!m.status().equals("COMPLETED")){
             for(long user:new TreeSet<>(List.of(m.owner(),m.minutesOwner())))deliver(company,meeting,user,"missing_minutes",m.end().toString(),"meetings",link);
         }
-        if(m.reminder()>0){
+        {
             var today=LocalDate.now(ZoneId.of(m.zone()));
-            var agreements=db.query("SELECT id,assignee_id,due_date FROM meeting_agreements WHERE company_id=? AND meeting_id=? AND status='OPEN' AND due_date<? ORDER BY id LIMIT 200",
+            var agreements=db.query("SELECT id,assignee_id,due_date FROM meeting_agreements WHERE company_id=? AND meeting_id=? AND status='OPEN' AND followup_enabled=1 AND due_date<? AND NOT EXISTS(SELECT 1 FROM meeting_reminder_receipts r WHERE r.company_id=meeting_agreements.company_id AND r.meeting_id=meeting_agreements.meeting_id AND r.recipient_user_id=meeting_agreements.assignee_id AND r.signal_type='overdue_agreement' AND r.signal_key=CONCAT(meeting_agreements.id,':',meeting_agreements.due_date)) ORDER BY id LIMIT 200",
                 (r,n)->new Late(r.getLong(1),r.getLong(2),r.getDate(3).toLocalDate()),company,meeting,java.sql.Date.valueOf(today));
             for(var a:agreements)deliver(company,meeting,a.user(),"overdue_agreement",a.id()+":"+a.due(),"agreements","/minutes-control/agreements?from="+a.due()+"&to="+a.due()+"&q=&assignee=0&status=OPEN&attention=overdueAgreements");
         }

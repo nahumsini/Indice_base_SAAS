@@ -7,12 +7,14 @@ import type { Reservation, ReservationPage } from '../services/schedulingApi';
 import type { SchedulingCopy } from '../translations/schedulingCopy';
 import { ActionButton, StatusBadge } from './SchedulingPrimitives';
 import type { ManagementAction } from './ReservationManagement';
+import { getSchedulingOperationsCopy } from '../translations/schedulingOperationsCopy';
 export type ReservationColumn = 'time' | 'attendee' | 'service' | 'consultant' | 'status';
 export function ReservationsTable({ data, columns, copy, locale, page, size, canManage, administrator, onPage, onSize, onResize, onReview, onManage }: {
   data: ReservationPage; columns: IndiceTableColumnDefinition<ReservationColumn>[]; copy: SchedulingCopy; locale: string; page: number; size: number;
   canManage: boolean; administrator: boolean; onPage: (page: number) => void; onSize: (size: number) => void;
   onResize: (id: ReservationColumn, width: number) => void; onReview: (record: Reservation) => void; onManage: (record: Reservation, action: ManagementAction) => void;
 }) {
+  const op = getSchedulingOperationsCopy(locale);
   return <IndiceTableShell pagination={<DataTablePagination currentPage={page} totalPages={Math.max(1,Math.ceil(data.total/size))} totalCount={data.total} pageSize={size}
     pageSizeOptions={[10,25,50,100,200]} pageStart={data.total?(page-1)*size+1:0} pageEnd={Math.min(page*size,data.total)} onPageChange={onPage} onPageSizeChange={onSize}/> }>
     <IndiceOperationalTable minimumWidth={columns.reduce((sum,c)=>sum+c.width,210)}><IndiceTableColGroup columns={columns} actionsWidth={210}/>
@@ -29,6 +31,7 @@ export function ReservationsTable({ data, columns, copy, locale, page, size, can
             <ActionButton onClick={()=>onReview(record)} aria-label={`${copy.details}: ${record.attendeeName}`}>{copy.details}</ActionButton>
             {canManage&&!record.archivedAt&&<DropdownMenu><DropdownMenuTrigger asChild><ActionButton aria-label={`${copy.actions}: ${record.attendeeName}`} className="px-3"><MoreHorizontal className="h-4 w-4"/></ActionButton></DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuItem disabled={Boolean(record.eventId)||!['REQUESTED','CONFIRMED','PAUSED'].includes(record.status)} onSelect={()=>onManage(record,'RESCHEDULE')}><ArrowRightLeft className="h-4 w-4"/>{op.reschedule}</DropdownMenuItem>
                 {administrator&&<DropdownMenuItem disabled={Boolean(record.eventId)||!future||!['REQUESTED','CONFIRMED','PAUSED'].includes(record.status)} onSelect={()=>onManage(record,'REASSIGN')}><ArrowRightLeft className="h-4 w-4"/>{copy.reassign}</DropdownMenuItem>}
                 {record.status==='PAUSED'?<DropdownMenuItem disabled={!future} onSelect={()=>onManage(record,'RESUME')}><Play className="h-4 w-4"/>{copy.resume}</DropdownMenuItem>:
                   <DropdownMenuItem disabled={!active||!future} onSelect={()=>onManage(record,'PAUSE')}><Pause className="h-4 w-4"/>{copy.pause}</DropdownMenuItem>}

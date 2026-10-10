@@ -89,12 +89,12 @@ export function RouteSalesProductPicker({
       <KioskWorkspaceSectionHeader
         action={(
           <div className="shrink-0 rounded-xl bg-rose-50 px-2.5 py-1.5 text-right dark:bg-rose-950/30">
-            <p className="text-[10px] leading-4 text-slate-500">{selectedLines} elegidos</p>
-            <p className="text-sm font-medium text-[#C94840] dark:text-rose-200">{money(total, currency, locale)}</p>
+            <p className="text-xs leading-4 text-slate-600">{selectedLines} elegidos</p>
+            <p className="text-sm font-medium text-[#B63B32] dark:text-rose-200">{money(total, currency, locale)}</p>
           </div>
         )}
         description={<span className="hidden min-[430px]:inline">Busca, filtra y agrega sin salir del catálogo.</span>}
-        icon={<Package className="h-5 w-5" />}
+        icon={<span aria-hidden="true" className="text-2xl">📦</span>}
         title="Arma la venta"
         tone="coral"
       />
@@ -130,7 +130,7 @@ export function RouteSalesProductPicker({
         />
         <span className="min-w-0">
           <span className="block text-sm font-medium text-slate-950 dark:text-white">Agregar impuesto a la venta</span>
-          <span className="block text-xs leading-4 text-slate-500">
+          <span className="block text-xs leading-4 text-slate-600">
             {applyProductTaxes
               ? 'Se sumará la tasa fiscal configurada en cada producto.'
               : 'Venta sin impuesto: el total no sumará IVA.'}
@@ -140,12 +140,13 @@ export function RouteSalesProductPicker({
 
       <div className="sticky top-0 z-10 -mx-1 space-y-1.5 rounded-xl border border-slate-100 bg-white/95 p-1 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/95" data-route-sales-catalog-controls>
         <label className="relative block">
-          <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
+          <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-600" />
           <input
             value={query}
+            aria-label="Buscar producto, SKU o categoría"
             disabled={!warehouseId}
             placeholder={warehouseId ? 'Buscar producto, SKU o categoría' : 'Selecciona un almacén para ver existencias'}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-[#E85D52] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:disabled:bg-slate-900"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-[#E85D52] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:disabled:bg-slate-900"
             onChange={event => onQueryChange(event.target.value)}
           />
         </label>
@@ -158,7 +159,8 @@ export function RouteSalesProductPicker({
             <button
               key={id}
               type="button"
-              className={`min-h-10 shrink-0 rounded-full border px-2.5 text-[11px] font-medium ${catalogView === id ? 'border-[#E85D52] bg-rose-50 text-[#C94840] dark:bg-rose-950/30 dark:text-rose-200' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300'}`}
+              aria-pressed={catalogView === id}
+              className={`min-h-11 shrink-0 rounded-full border px-2.5 text-xs font-medium ${catalogView === id ? 'border-[#E85D52] bg-rose-50 text-[#B63B32] dark:text-rose-200 dark:bg-rose-950/30 dark:text-rose-200' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300'}`}
               onClick={() => setCatalogView(id)}
             >
               {catalogView === id ? <Check className="mr-1 inline h-3.5 w-3.5" /> : null}{label}
@@ -166,11 +168,11 @@ export function RouteSalesProductPicker({
           ))}
           {categories.length ? (
             <label className="relative shrink-0">
-              <SlidersHorizontal className="pointer-events-none absolute left-3 top-3 h-3.5 w-3.5 text-slate-400" />
+              <SlidersHorizontal className="pointer-events-none absolute left-3 top-3 h-3.5 w-3.5 text-slate-600" />
               <select
                 aria-label="Filtrar por categoría"
                 value={category}
-                className="h-10 max-w-40 rounded-full border border-slate-200 bg-white pl-8 pr-7 text-[11px] text-slate-600 outline-none focus:border-[#E85D52] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
+                className="h-12 max-w-44 rounded-full border border-slate-200 bg-white pl-8 pr-7 text-xs text-slate-600 outline-none focus:border-[#E85D52] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
                 onChange={event => setCategory(event.target.value)}
               >
                 <option value="all">Todas las categorías</option>
@@ -191,10 +193,10 @@ export function RouteSalesProductPicker({
           const lineTotal = quantity * Number(product.price || 0)
             * (applyProductTaxes ? 1 + Number(product.tax_percent || 0) / 100 : 1);
           return (
-            <article key={product.id} className={`rounded-2xl border p-2 transition ${quantity ? 'border-rose-300 bg-rose-50/50 shadow-sm dark:border-rose-900 dark:bg-rose-950/20' : 'border-slate-200 dark:border-slate-700'}`}>
-              <div className="grid grid-cols-[3rem_minmax(0,1fr)_auto] gap-2">
-                <div className="relative grid h-12 w-12 place-items-center overflow-hidden rounded-xl bg-slate-100 text-slate-400 dark:bg-slate-800">
-                  <Package className="h-5 w-5" />
+            <article key={product.id} className={`rounded-[1.5rem] border p-4 transition ${quantity ? 'border-rose-300 bg-rose-50/50 shadow-sm dark:border-rose-900 dark:bg-rose-950/20' : 'border-slate-200 dark:border-slate-700'}`}>
+              <div className="grid grid-cols-[3rem_minmax(0,1fr)] gap-3">
+                <div className="relative grid h-12 w-12 place-items-center overflow-hidden rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-800">
+                  <span aria-hidden="true" className="text-2xl">📦</span>
                   {imageUrl ? (
                     <img
                       src={imageUrl}
@@ -206,24 +208,24 @@ export function RouteSalesProductPicker({
                   ) : null}
                 </div>
                 <div className="min-w-0">
-                  <p className="line-clamp-2 text-sm font-medium leading-tight text-slate-950 dark:text-white">{product.name}</p>
-                  <p className="mt-1 truncate text-[11px] text-slate-500">{product.sku || product.code || 'Sin clave'}{product.category ? ` · ${product.category}` : ''}</p>
+                  <p className="break-words text-base font-medium leading-6 text-slate-950 dark:text-white">{product.name}</p>
+                  <p className="mt-1 truncate text-xs text-slate-600">{product.sku || product.code || 'Sin clave'}{product.category ? ` · ${product.category}` : ''}</p>
                 </div>
-                <div className="text-right">
+                <div className="col-span-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2 dark:border-slate-800">
                   <p className="text-sm font-medium text-slate-950 dark:text-white">{money(product.price, product.currency, locale)}</p>
-                  <p className="mt-1 text-[10px] text-slate-400">{applyProductTaxes ? `Imp. ${product.tax_percent}%` : 'Sin impuesto'}</p>
+                  <p className="mt-1 text-xs text-slate-600">{applyProductTaxes ? `Imp. ${product.tax_percent}%` : 'Sin impuesto'}</p>
                 </div>
               </div>
-              {product.description ? <p className="mt-1.5 line-clamp-1 text-[11px] leading-4 text-slate-500">{product.description}</p> : null}
-              <div className="mt-2 flex items-end justify-between gap-2">
+              {product.description ? <p className="mt-1.5 line-clamp-1 text-xs leading-4 text-slate-600">{product.description}</p> : null}
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className={`text-xs ${warehouseId && !service && available <= 0 ? 'text-red-600' : 'text-slate-500'}`}>
+                  <p className={`text-xs ${warehouseId && !service && available <= 0 ? 'text-red-600' : 'text-slate-600'}`}>
                     {!warehouseId ? 'Elige almacén' : service ? 'Servicio disponible' : available > 0 ? `${available} disponibles` : 'Sin existencia'}
                   </p>
-                  {quantity ? <p className="mt-0.5 truncate text-xs font-medium text-[#C94840]">Importe {money(lineTotal, product.currency, locale)}</p> : null}
+                  {quantity ? <p className="mt-0.5 truncate text-xs font-medium text-[#B63B32] dark:text-rose-200">Importe {money(lineTotal, product.currency, locale)}</p> : null}
                 </div>
                 <div className="flex shrink-0 items-center rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950">
-                  <button type="button" aria-label={`Quitar ${product.name}`} className="grid h-11 w-10 place-items-center disabled:opacity-30" disabled={!warehouseId || quantity <= 0} onClick={() => onQuantityChange(product, quantity - 1)}><Minus className="h-4 w-4" /></button>
+                  <button type="button" aria-label={`Quitar ${product.name}`} className="grid h-12 w-12 place-items-center disabled:opacity-30" disabled={!warehouseId || quantity <= 0} onClick={() => onQuantityChange(product, quantity - 1)}><Minus className="h-4 w-4" /></button>
                   <input
                     aria-label={`Cantidad de ${product.name}`}
                     type="number"
@@ -231,10 +233,10 @@ export function RouteSalesProductPicker({
                     min="0"
                     max={service ? undefined : available}
                     value={quantity}
-                    className="h-11 w-10 border-x border-slate-200 bg-transparent text-center text-sm font-medium outline-none [appearance:textfield] dark:border-slate-700 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    className="h-12 w-12 border-x border-slate-200 bg-transparent text-center text-sm font-medium outline-none [appearance:textfield] dark:border-slate-700 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     onChange={event => onQuantityChange(product, Number(event.target.value) || 0)}
                   />
-                  <button type="button" aria-label={`Agregar ${product.name}`} className="grid h-11 w-10 place-items-center text-[#C94840] disabled:opacity-30" disabled={!warehouseId || incompatibleCurrency || (!service && quantity >= available)} onClick={() => onQuantityChange(product, quantity + 1)}><Plus className="h-4 w-4" /></button>
+                  <button type="button" aria-label={`Agregar ${product.name}`} className="grid h-12 w-12 place-items-center text-[#B63B32] dark:text-rose-200 disabled:opacity-30" disabled={!warehouseId || incompatibleCurrency || (!service && quantity >= available)} onClick={() => onQuantityChange(product, quantity + 1)}><Plus className="h-4 w-4" /></button>
                 </div>
               </div>
             </article>
@@ -244,7 +246,7 @@ export function RouteSalesProductPicker({
 
       {!visibleProducts.length ? (
         <KioskWorkspaceEmptyState
-          action={<button type="button" className="min-h-10 rounded-xl px-3 text-xs font-medium text-[#C94840]" onClick={() => { setCatalogView('all'); setCategory('all'); onQueryChange(''); }}>Mostrar todos</button>}
+          action={<button type="button" className="min-h-11 rounded-xl px-3 text-xs font-medium text-[#B63B32] dark:text-rose-200" onClick={() => { setCatalogView('all'); setCategory('all'); onQueryChange(''); }}>Mostrar todos</button>}
           description="Prueba otra búsqueda o muestra todo el catálogo."
           icon={<Package className="h-6 w-6" />}
           title="No hay productos en esta vista"

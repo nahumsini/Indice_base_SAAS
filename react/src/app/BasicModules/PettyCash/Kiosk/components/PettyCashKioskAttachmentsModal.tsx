@@ -7,6 +7,7 @@ import {
 import type { PublicPettyCashAttachment, PublicPettyCashReceipt } from '../pettyCashKioskApi';
 
 interface PettyCashKioskAttachmentsModalProps {
+  personal?: boolean;
   attachments: PublicPettyCashAttachment[];
   closeLabel: string;
   description: string;
@@ -36,6 +37,7 @@ function formatCreatedAt(value: string | null | undefined, locale: string) {
 }
 
 export function PettyCashKioskAttachmentsModal({
+  personal = false,
   attachments,
   closeLabel,
   description,
@@ -51,6 +53,7 @@ export function PettyCashKioskAttachmentsModal({
 }: PettyCashKioskAttachmentsModalProps) {
   return (
     <KioskModalFrame
+      contentClassName={personal ? 'kiosk-personal-workspace' : undefined}
       busy={isLoading}
       closeLabel={closeLabel}
       description={receipt?.description ?? description}
@@ -60,7 +63,7 @@ export function PettyCashKioskAttachmentsModal({
         </button>
       )}
       footerSummary={`${attachments.length} ${title.toLocaleLowerCase(locale)}`}
-      icon={<Paperclip className="h-5 w-5" />}
+      icon={personal ? <span aria-hidden="true" className="text-2xl">📎</span> : <Paperclip className="h-5 w-5" />}
       onOpenChange={(open) => !open && onClose()}
       open={Boolean(receipt)}
       size="form"

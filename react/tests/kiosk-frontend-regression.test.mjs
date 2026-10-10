@@ -929,7 +929,7 @@ test('kiosk center composes native and scoped operational tools while the public
   assert.match(posWorkspaceSource, /data-preticket-result/);
   assert.match(posWorkspaceSource, /<KioskModalFrame/);
   assert.match(posWorkspaceSource, /surface="public"/);
-  assert.match(posWorkspaceSource, /grid h-11 w-11/);
+  assert.match(posWorkspaceSource, /grid h-12 w-12 shrink-0/);
   assert.doesNotMatch(posWorkspaceSource, /absolute inset-0 z-50 grid place-items-center/);
   assert.match(legacyTaskWorkspaceSource, /process-tasks\.task\.create@1/);
   assert.match(legacyTaskWorkspaceSource, /process-tasks\.task\.complete@1/);
@@ -1401,7 +1401,7 @@ test('multi-kiosk attendance presents a compact capability-aware mobile flow wit
   assert.match(page, /compact=\{Boolean\(session\)\}/);
   assert.match(page, /data-multi-kiosk-app-bar/);
   assert.match(page, /identityName=\{session\?\.identity\?\.name \?\? session\?\.provider\?\.name \?\? session\?\.employee\?\.name\}/);
-  assert.match(page, /onBack=\{workspace \? providerAudience[\s\S]*?: returnToLauncher : undefined\}/);
+  assert.match(page, /onBack=\{workspace \? providerAudience[\s\S]*?: \(\) => navigation\.request\(returnToLauncher\) : undefined\}/);
   assert.match(page, /workspace\.experience_status !== 'READY'[\s\S]*onClick=\{returnToLauncher\}/);
   assert.match(page, /aria-label=\{copy\.workspace\.back\}[\s\S]*?<ArrowLeft/);
   assert.match(shell, /env\(safe-area-inset-top\)/);
@@ -1445,7 +1445,7 @@ test('multi-kiosk launcher preserves its localized responsive and accessible int
   assert.match(page, /employeeName=\{session\.identity\?\.name \?\? session\.employee\?\.name \?\? ''\}/);
   assert.match(shell, /data-kiosk-utility-mode="embedded"/);
   assert.match(shell, /headerUsesEmbeddedUtilities \? header\(embeddedUtilities\) : header/);
-  assert.match(launcher, /type="search"[\s\S]*?className="min-h-12/);
+  assert.match(launcher, /type="search"[\s\S]*?className=\{cn\('min-h-12/);
   assert.match(launcher, /sticky top-0[\s\S]*?role="search"/);
   assert.match(launcher, /sessionStatusLabel/);
   assert.match(tile, /min-h-\[12rem\]/);
@@ -1474,7 +1474,7 @@ test('multi-kiosk launcher preserves its localized responsive and accessible int
   assert.doesNotMatch(`${page}\n${launcher}\n${tile}`, /\bfont-(?:bold|extrabold|black)\b/);
 });
 
-test('employee multi-kiosk home remasters only the launcher and preserves authorized tool order', async () => {
+test('employee tools preserve authorized order and use the compact personal launcher', async () => {
   const [page, home, launcher] = await Promise.all([
     readFile(new URL('../src/app/KioskCenter/MultiKioskMobilePage.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/KioskCenter/multi-kiosk/EmployeeKioskHome.tsx', import.meta.url), 'utf8'),
@@ -1483,9 +1483,9 @@ test('employee multi-kiosk home remasters only the launcher and preserves author
 
   assert.match(page, /provider \? \([\s\S]*ProviderPortalHome[\s\S]*\) : \([\s\S]*EmployeeKioskHome/);
   assert.match(home, /data-employee-kiosk-home/);
-  assert.match(home, /<h2[\s\S]*\{employeeName\}/);
-  assert.match(home, /copy\.launcher\.activeSession/);
-  assert.match(home, /copy\.launcher\.accessCount\(cards\.length\)/);
+  assert.match(home, /sessionLabel=\{employeeName\}/);
+  assert.match(home, /compact/);
+  assert.match(launcher, /copy\.accessCount\(visibleCards\.length\)/);
   assert.match(home, /<MultiKioskLauncherDashboard[\s\S]*cards=\{cards\}/);
   assert.doesNotMatch(home, /copy\.header\.defaultDescription|copy\.launcher\.accessNote/);
   assert.doesNotMatch(home, /\.sort\(|multiKioskPublicApi|MultiKioskToolHost|workspace/);
@@ -1544,10 +1544,10 @@ test('employee tool workspaces share one kiosk family while preserving module id
   assert.match(modalFrame, /overflow-wrap:anywhere/);
   assert.match(humanResources, /KioskWorkspaceTabs<HrSection>[\s\S]*tone="aqua"/);
   assert.match(humanResources, /busy=\{permissionBusy\}[\s\S]*footerLeading=/);
-  assert.match(tasks, /KioskWorkspaceContextBar[\s\S]*tone="yellow"/);
-  assert.match(taskAgenda, /KioskWorkspaceSectionHeader[\s\S]*tone="yellow"/);
-  assert.match(taskAgenda, /grid grid-cols-3 gap-1 rounded-xl bg-slate-100/);
-  assert.match(taskAgenda, /canCreate && canStartProcess \? 'grid-cols-2'/);
+  assert.match(tasks, /useKioskNavigationState/);
+  assert.match(taskAgenda, /data-task-advanced-controls/);
+  assert.match(taskAgenda, /grid grid-cols-3 gap-2 rounded-2xl bg-slate-50/);
+  assert.match(taskAgenda, /canCreate && canStartProcess \? 'min-\[360px\]:grid-cols-2'/);
   assert.match(taskDialog, /KioskFileDropzone[\s\S]*tone="yellow"/);
   assert.match(taskDialog, /KioskWorkspaceFieldStatus/);
   assert.match(taskCreateDialog, /KioskWorkspaceNotice/);
@@ -1626,7 +1626,7 @@ test('multi-kiosk launcher lets a shared device return safely to employee PIN id
   assert.match(page, /setWorkspace\(null\)/);
   assert.match(page, /setActiveKioskId\(null\)/);
   assert.match(page, /setSession\(null\)/);
-  assert.match(page, /onSignOut=\{session \? \(\) => \{ void signOut\(\); \} : undefined\}/);
+  assert.match(page, /onSignOut=\{session \? \(\) => navigation\.request\(\(\) => \{ void signOut\(\); \}\) : undefined\}/);
   assert.match(page, /useSearchParams\(\)/);
   assert.match(page, /requestedToolIdentity = searchParams\.get\('tool'\)/);
   assert.match(page, /getMultiKioskToolIdentity\(card\)/);

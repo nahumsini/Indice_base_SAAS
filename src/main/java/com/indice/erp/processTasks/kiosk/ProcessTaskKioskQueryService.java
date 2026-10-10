@@ -27,6 +27,34 @@ class ProcessTaskKioskQueryService {
         this.assignmentScopeService = assignmentScopeService;
     }
 
+    ProcessTaskKioskService.PersonalTasks personalDay(
+            ProcessTaskKioskRow kiosk, ProcessTaskKioskEmployee employee, LocalDate date) {
+        var params = new ArrayList<Object>();
+        params.add(kiosk.companyId());
+        params.add(employee.userCompanyId());
+        appendScopeParams(params, kiosk);
+        var from = """
+            FROM process_tasks task
+            LEFT JOIN businesses business ON business.id = task.business_id AND business.company_id = task.company_id
+            WHERE task.company_id = ? AND task.deleted_at IS NULL
+              AND task.status IN ('pending', 'in_progress', 'paused')
+              AND EXISTS (SELECT 1 FROM process_task_assignees a
+                WHERE a.company_id = task.company_id AND a.task_id = task.id
+                  AND a.user_company_id = ? AND a.removed_at IS NULL)
+            """ + scopeSql(kiosk);
+        var countParams = new ArrayList<Object>();
+        countParams.add(date); countParams.addAll(params);
+        var counts = jdbcTemplate.queryForMap(
+            "SELECT COUNT(*) AS pending, COALESCE(SUM(task.due_date < ?), 0) AS overdue " + from,
+            countParams.toArray());
+        var items = jdbcTemplate.query("SELECT task.id, task.title, task.due_date, task.status " + from
+                + " ORDER BY task.due_date IS NULL, task.due_date, task.id LIMIT 3",
+            (rs, row) -> new ProcessTaskKioskService.PersonalTask(rs.getLong("id"), rs.getString("title"),
+                rs.getString("due_date"), rs.getString("status")), params.toArray());
+        return new ProcessTaskKioskService.PersonalTasks(((Number) counts.get("pending")).longValue(),
+            ((Number) counts.get("overdue")).longValue(), items);
+    }
+
     List<Map<String, Object>> listTasks(
             ProcessTaskKioskRow kiosk,
             ProcessTaskKioskEmployee employee) {

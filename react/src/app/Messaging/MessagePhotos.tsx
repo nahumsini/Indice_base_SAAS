@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ImagePlus, X } from 'lucide-react';
-import { messagingApi } from './api';
+import { useMessagingApi } from './MessagingTransportContext';
 import { photoCopy } from './photoCopy';
 import type { MessagingPortal, PhotoAttachment } from './types';
 import type { DraftPhoto } from './usePhotoDraft';
@@ -29,6 +29,7 @@ export function MessagePhoto({ photo, portal, conversationId, locale, onLoad }: 
   photo: PhotoAttachment; portal: MessagingPortal; conversationId: number; locale: string; onLoad?: () => void;
 }) {
   const c = photoCopy(locale);
+  const api = useMessagingApi(portal);
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [revision, setRevision] = useState(0);
@@ -36,9 +37,9 @@ export function MessagePhoto({ photo, portal, conversationId, locale, onLoad }: 
   useEffect(() => {
     let active = true;
     setUrl(null); setFailed(false);
-    messagingApi(portal).photo(conversationId, photo.id).then(result => { if (active) setUrl(result.url); }).catch(() => { if (active) setFailed(true); });
+    api.photo(conversationId, photo.id).then(result => { if (active) setUrl(result.url); }).catch(() => { if (active) setFailed(true); });
     return () => { active = false; };
-  }, [portal, conversationId, photo.id, revision]);
+  }, [api, conversationId, photo.id, revision]);
   if (failed) return <div className="my-2 text-sm"><p>{c.failed}</p><button type="button" className={control} onClick={() => setRevision(value => value + 1)}>{c.retry}</button></div>;
   if (!url) return <p role="status" className="my-2 text-xs">{c.preparing}</p>;
   return <button type="button" className="my-2 block max-w-full overflow-hidden rounded-xl focus-visible:ring-2 focus-visible:ring-blue-500"

@@ -39,10 +39,12 @@ public class SchedulingRepository {
         return db.query("SELECT * FROM scheduling_staff WHERE company_id=? ORDER BY public_name,id"+currentRead(),
             (r,n)->new StaffItem(r.getLong("id"),r.getLong("user_id"),r.getString("public_name"),
                 r.getString("timezone"),r.getBoolean("active"),r.getLong("version"),
-                days(company,r.getLong("id"))),company);
+                days(company,r.getLong("id")),unavailableDates(company,r.getLong("id")),staffServices(company,r.getLong("id"))),company);
     }
+    private List<java.time.LocalDate> unavailableDates(long company,long staff){return db.query("SELECT unavailable_date FROM scheduling_unavailable_dates WHERE company_id=? AND staff_id=? ORDER BY unavailable_date",(r,n)->r.getDate(1).toLocalDate(),company,staff);}
+    private List<Long> staffServices(long company,long staff){return db.queryForList("SELECT service_id FROM scheduling_staff_services WHERE company_id=? AND staff_id=? ORDER BY service_id",Long.class,company,staff);}
     public List<AvailabilityDay> days(long company,long staff) {
-        return db.query("SELECT * FROM scheduling_availability WHERE company_id=? AND staff_id=? ORDER BY day_of_week"+currentRead(),
+        return db.query("SELECT * FROM scheduling_availability WHERE company_id=? AND staff_id=? ORDER BY day_of_week,start_time"+currentRead(),
             (r,n)->new AvailabilityDay(r.getInt("day_of_week"),r.getTime("start_time").toLocalTime(),
                 r.getTime("end_time").toLocalTime()),company,staff);
     }
@@ -114,14 +116,16 @@ public class SchedulingRepository {
     }
     private static final String EVENT_SELECT="""
             SELECT e.*,(SELECT COUNT(*) FROM scheduling_reservations r
-              WHERE r.company_id=e.company_id AND r.event_id=e.id AND r.status='CONFIRMED') AS confirmed_count
+              WHERE r.company_id=e.company_id AND r.event_id=e.id AND r.status='CONFIRMED') AS confirmed_count,
+              (SELECT COUNT(*) FROM scheduling_reservations r WHERE r.company_id=e.company_id AND r.event_id=e.id
+                AND r.status IN ('REQUESTED','CONFIRMED','PAUSED') AND r.archived_at IS NULL) AS active_participant_count
             FROM scheduling_events e
             """;
     private EventItem eventRow(ResultSet r,int n)throws SQLException {
         return new EventItem(r.getLong("id"),r.getLong("staff_id"),r.getString("title"),
                 r.getString("description"),r.getTimestamp("start_at").toInstant(),r.getInt("duration_minutes"),
                 r.getInt("capacity"),r.getLong("confirmed_count"),r.getBoolean("published"),
-                r.getString("status"),r.getLong("version"));
+                r.getString("status"),r.getLong("version"),r.getLong("active_participant_count"),r.getString("location"));
     }
     private static final String RESERVATION_SELECT="""
         SELECT r.*,COALESCE(s.name,e.title) AS service_name,t.public_name AS staff_name
@@ -156,13 +160,22 @@ public class SchedulingRepository {
         if(rows.isEmpty())throw new NoSuchElementException("Reservation unavailable.");
         return rows.getFirst();
     }
+    public ReservationPage eventParticipants(long company,long event,int page,int size){
+        long total=db.queryForObject("SELECT COUNT(*) FROM scheduling_reservations WHERE company_id=? AND event_id=? AND archived_at IS NULL",Long.class,company,event);
+        var rows=db.query(RESERVATION_SELECT+" WHERE r.company_id=? AND r.event_id=? AND r.archived_at IS NULL ORDER BY r.attendee_name,r.id LIMIT ? OFFSET ?",this::reservationRow,company,event,size,(page-1)*size);
+        return new ReservationPage(rows,total,page,size);
+    }
+    public List<AuditEntry> history(long company,long reservation){
+        return db.query("SELECT action,reason,created_at,previous_start_at,next_start_at FROM scheduling_audit WHERE company_id=? AND entity_type='RESERVATION' AND entity_id=? ORDER BY id DESC LIMIT 100",
+            (r,n)->new AuditEntry(r.getString(1),r.getString(2),r.getTimestamp(3).toInstant(),r.getTimestamp(4)==null?null:r.getTimestamp(4).toInstant(),r.getTimestamp(5)==null?null:r.getTimestamp(5).toInstant()),company,reservation);
+    }
     private ReservationItem reservationRow(ResultSet r,int n)throws SQLException {
         return new ReservationItem(r.getLong("id"),r.getString("reference"),r.getLong("staff_id"),
             r.getObject("service_id",Long.class),r.getObject("event_id",Long.class),r.getString("service_name"),
             r.getString("staff_name"),r.getString("attendee_name"),r.getString("attendee_email"),
-            r.getString("attendee_company"),r.getTimestamp("start_at").toInstant(),r.getInt("duration_minutes"),
+            r.getString("attendee_company"),r.getString("attendee_phone"),r.getTimestamp("start_at").toInstant(),r.getInt("duration_minutes"),
             r.getString("status"),r.getLong("version"),r.getString("paused_from_status"),
-            r.getTimestamp("archived_at")==null?null:r.getTimestamp("archived_at").toInstant());
+            r.getTimestamp("archived_at")==null?null:r.getTimestamp("archived_at").toInstant(),r.getObject("client_id",Long.class));
     }
     public void audit(long company,Long actor,String entity,long id,String action) {
         db.update("INSERT INTO scheduling_audit(company_id,actor_user_id,entity_type,entity_id,action) VALUES(?,?,?,?,?)",

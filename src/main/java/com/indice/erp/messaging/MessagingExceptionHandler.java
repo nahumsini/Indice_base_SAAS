@@ -14,7 +14,7 @@ public class MessagingExceptionHandler {
         boolean csrf="Invalid CSRF token.".equals(error.getMessage());
         return ResponseEntity.status(csrf?403:400).body(Map.of("message",csrf?"Invalid CSRF token.":"Invalid messaging request."));
     }
-    @ExceptionHandler({PlatformAdminForbiddenException.class,DistributorPortalForbiddenException.class})
+    @ExceptionHandler({PlatformAdminForbiddenException.class,DistributorPortalForbiddenException.class,SecurityException.class})
     public ResponseEntity<?> forbidden(RuntimeException error) {
         return ResponseEntity.status(403).body(Map.of("message","Messaging access denied."));
     }

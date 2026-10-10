@@ -24,7 +24,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
-@SpringBootTest(properties={"kiosk.engine.adapter.scheduling.enabled=true","app.email.enabled=false"})
+@SpringBootTest(properties={"kiosk.engine.adapter.scheduling.enabled=true","app.email.enabled=false","app.scheduling.reminder-initial-delay-ms=86400000","app.meetings.reminder-initial-delay-ms=86400000"})
 @AutoConfigureMockMvc
 class SchedulingIntegrationTest {
     @Autowired MockMvc mvc;
@@ -36,6 +36,8 @@ class SchedulingIntegrationTest {
     @Autowired SchedulingReservationManagementService management;
     @Autowired com.indice.erp.sales.SalesClientDirectoryService clientDirectory;
     @Autowired SchedulingResourceAvailabilityService resources;
+    @Autowired SchedulingNotificationService notifications;
+    @Autowired com.indice.erp.meetings.MeetingService meetings;
     @Autowired ModuleAccessService modules;
     @Autowired SchedulingPublicAdapter adapter;
     @Autowired KioskRegistryService registry;
@@ -70,7 +72,9 @@ class SchedulingIntegrationTest {
     private ReservationItem confirm(AuthSessionUser owner,long id){var row=repository.reservation(owner.companyId(),id);return booking.transition(owner,id,new TransitionRequest("CONFIRMED","",row.version()));}
     @AfterEach void cleanup(){
         for(long tenant:new long[]{company,otherCompany})if(tenant>0){
-            for(String table:List.of("scheduling_capture_replays","scheduling_audit","scheduling_reservations","scheduling_events","scheduling_pages","scheduling_availability","scheduling_staff","scheduling_services","consulting_appointments","sales_contacts"))
+            db.update("DELETE FROM user_permission_requests WHERE company_id=?",tenant);
+            db.update("DELETE FROM scheduling_notification_receipts WHERE company_id=?",tenant);
+            for(String table:List.of("meeting_create_replays","meeting_audit","meeting_participants","meeting_records","scheduling_capture_replays","scheduling_audit","scheduling_reservations","scheduling_events","scheduling_pages","scheduling_unavailable_dates","scheduling_staff_services","scheduling_availability","scheduling_staff","scheduling_services","consulting_appointments","sales_contacts"))
                 db.update("DELETE FROM "+table+" WHERE company_id=?",tenant);
             var kiosks=db.queryForList("SELECT id FROM kiosk_definitions WHERE company_id=? AND owner_module='SCHEDULING'",Long.class,tenant);
             for(long kiosk:kiosks){db.update("DELETE FROM kiosk_definition_capabilities WHERE kiosk_definition_id=?",kiosk);db.update("DELETE FROM kiosk_definitions WHERE id=?",kiosk);}
@@ -207,6 +211,7 @@ class SchedulingIntegrationTest {
         assertThat(repository.metrics(company,null,start.minusSeconds(1),start.plusSeconds(86400)).cancelled()).isEqualTo(1);
     }
     @Test void sharedConsultantCannotBeConfirmedInTwoCompanies()throws Exception{
+        db.update("INSERT INTO company_module_entitlements(company_id,module_slug,status,source) VALUES(?,'scheduling','active','test')",otherCompany);
         db.update("INSERT INTO user_companies(company_id,user_id,role,status,visibility) VALUES(?,?,'superadmin','active','all')",otherCompany,user);
         var other=new AuthSessionUser(user,otherCompany,"Synthetic consultant","superadmin");
         configuration.service(other,null,new ServiceRequest("Other diagnosis","",60,0,1,true,null));
@@ -306,7 +311,7 @@ class SchedulingIntegrationTest {
         long second=reservation(booking.requestInternal(actor,request,UUID.randomUUID().toString()));
         assertThat(second).isNotEqualTo(first);
         assertThatThrownBy(()->booking.transition(actor,first,new TransitionRequest("CONFIRMED","",1))).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(()->configuration.event(actor,event.id(),new EventRequest(staff,"Changed","",start,60,5,true,event.version())))
+        assertThatThrownBy(()->configuration.event(actor,event.id(),new EventRequest(staff,"Changed","",start.plusSeconds(3600),60,5,true,event.version())))
             .isInstanceOf(IllegalStateException.class);
     }
     @Test void anonymousPublicHttpRequestsUseThePublishedCompanyAndRejectMissingCsrf()throws Exception{
@@ -328,6 +333,92 @@ class SchedulingIntegrationTest {
         configuration.page(actor,new PageRequest(page.alias(),page.title(),page.description(),false,page.version()));
         mvc.perform(get("/api/v1/public/scheduling/"+page.alias())).andExpect(status().isNotFound());
         mvc.perform(get("/api/v1/scheduling/services")).andExpect(status().isUnauthorized());
+    }
+    @Test void internalCatalogExposesPublishedEventsAndPrivateContactDetails()throws Exception{
+        configuration.event(actor,null,new EventRequest(staff,"Workshop","",start,60,5,true,null,"Room A"));
+        var event=repository.events(company).getFirst();
+        var body=new ReservationRequest(null,event.id(),staff,start,"Synthetic guest","guest@example.com","Synthetic","555-0100",true);
+        long id=reservation(booking.requestInternal(actor,body,UUID.randomUUID().toString()));
+        mvc.perform(get("/api/v1/scheduling/catalog").session(session())).andExpect(status().isOk()).andExpect(jsonPath("$.events[0].id").value(event.id()));
+        mvc.perform(get("/api/v1/scheduling/reservations/"+id).session(session())).andExpect(status().isOk()).andExpect(jsonPath("$.attendeePhone").value("555-0100"));
+        mvc.perform(get("/api/v1/scheduling/events/"+event.id()+"/participants").session(session())).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1));
+        assertThat(repository.event(company,event.id()).activeParticipantCount()).isEqualTo(1);
+        configuration.event(actor,event.id(),new EventRequest(staff,"Updated workshop","",start,60,6,true,event.version(),"Room B"));
+        assertThat(repository.event(company,event.id()).location()).isEqualTo("Room B");
+        assertThatThrownBy(()->configuration.event(actor,event.id(),new EventRequest(staff,"Updated workshop","",start.plusSeconds(3600),60,6,true,event.version()+1,"Room B"))).isInstanceOf(IllegalStateException.class);
+    }
+    @Test void reschedulingRechecksOccupancyAndRetainsVersionAndHistory(){
+        long id=create("move");var original=confirm(actor,id);
+        var moved=management.reschedule(actor,id,new RescheduleRequest(start.plusSeconds(7200),"Requested by attendee",original.version()));
+        assertThat(moved.status()).isEqualTo("CONFIRMED");assertThat(moved.durationMinutes()).isEqualTo(original.durationMinutes());
+        assertThat(repository.history(company,id).getFirst().previousStartAt()).isEqualTo(start);
+        assertThat(repository.history(company,id).getFirst().nextStartAt()).isEqualTo(moved.startAt());
+        confirm(actor,create("replacement"));
+        assertThatThrownBy(()->management.reschedule(actor,id,new RescheduleRequest(start,"Occupied time",moved.version()))).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(()->management.reschedule(actor,id,new RescheduleRequest(start.plusSeconds(10800),"Stale update",original.version()))).isInstanceOf(IllegalStateException.class);
+        assertThat(repository.reservation(company,id).startAt()).isEqualTo(moved.startAt());
+    }
+    @Test void splitHoursUnavailableDatesAndServicesControlAvailability(){
+        var date=start.atZone(ZoneOffset.UTC).toLocalDate();int day=date.getDayOfWeek().getValue();
+        var windows=List.of(new AvailabilityDay(day,LocalTime.of(9,0),LocalTime.NOON),new AvailabilityDay(day,LocalTime.of(14,0),LocalTime.of(17,0)));
+        var old=repository.staff(company).getFirst();
+        configuration.staff(actor,staff,new StaffRequest(user,old.publicName(),"UTC",true,windows,old.version(),List.of(),List.of(service)));
+        var slots=booking.slots(company,new SlotRequest(service,staff,date));
+        assertThat(slots.starts()).contains(date.atTime(10,0).toInstant(ZoneOffset.UTC),date.atTime(14,0).toInstant(ZoneOffset.UTC)).doesNotContain(date.atTime(12,0).toInstant(ZoneOffset.UTC));
+        configuration.staff(actor,staff,new StaffRequest(user,old.publicName(),"UTC",true,windows,old.version()+1,List.of(date),List.of(service)));
+        assertThat(booking.slots(company,new SlotRequest(service,staff,date)).starts()).isEmpty();
+        var overlapping=List.of(windows.getFirst(),new AvailabilityDay(day,LocalTime.of(11,0),LocalTime.of(14,0)));
+        assertThatThrownBy(()->configuration.staff(actor,staff,new StaffRequest(user,old.publicName(),"UTC",true,overlapping,old.version()+2,List.of(),List.of(service)))).isInstanceOf(IllegalArgumentException.class);
+    }
+    @Test void meetingsAndAppointmentsEnforceTheSameResourceOccupation(){
+        db.update("INSERT INTO company_module_entitlements(company_id,module_slug,status,source) VALUES(?,'control_minutas','active','test')",company);
+        long id=create("shared");
+        var body=new com.indice.erp.meetings.MeetingDtos.MeetingRequest("Synthetic meeting","WORKING",start,start.plusSeconds(3600),"UTC",user,List.of(),"","",null);
+        var meeting=meetings.create(actor,body,UUID.randomUUID().toString());
+        assertThatThrownBy(()->confirm(actor,id)).isInstanceOf(IllegalStateException.class);
+        meetings.transition(actor,meeting.meeting().id(),new com.indice.erp.meetings.MeetingDtos.TransitionRequest("CANCELLED","Released time",1));
+        confirm(actor,id);
+        assertThatThrownBy(()->meetings.create(actor,body,UUID.randomUUID().toString())).hasMessage("meeting_appointment_conflict");
+    }
+    @Test void approvedHrLeaveBlocksSlotsAndConfirmationWithoutExposingReasons(){
+        long id=create("leave");var date=start.atZone(ZoneOffset.UTC).toLocalDate();
+        db.update("INSERT INTO company_module_entitlements(company_id,module_slug,status,source) VALUES(?,'human_resources','active','test')",company);
+        long membership=db.queryForObject("SELECT id FROM user_companies WHERE company_id=? AND user_id=?",Long.class,company,user);
+        db.update("INSERT INTO user_permission_requests(company_id,request_number,user_company_id,user_id,user_name_snapshot,permission_type,start_date,end_date,requested_days,is_half_day,status,reason,created_by_user_id,updated_by_user_id) VALUES(?,?,?,?,?,'vacation',?,?,1,0,'approved','Synthetic approved leave',?,?)",
+            company,"PER-"+UUID.randomUUID().toString().substring(0,12),membership,user,"Synthetic",java.sql.Date.valueOf(date),java.sql.Date.valueOf(date),user,user);
+        assertThat(booking.slots(company,new SlotRequest(service,staff,date)).starts()).isEmpty();
+        assertThatThrownBy(()->confirm(actor,id)).isInstanceOf(IllegalStateException.class).hasMessage("The member is unavailable.");
+        db.update("UPDATE user_permission_requests SET status='rejected' WHERE company_id=?",company);
+        assertThat(booking.slots(company,new SlotRequest(service,staff,date)).starts()).contains(start);
+    }
+    @Test void privateClientLinksRequireSalesAccessAndTenantOwnershipWhilePublicRequestsRejectThem(){
+        long client=repository.insert("INSERT INTO sales_contacts(company_id,contact_code,company_name,contact_person,email,phone,status) VALUES(?,'COORD-TEST','Synthetic master','Synthetic contact','master@example.com','','ACTIVE')",company);
+        var base=request("client");var linked=new ReservationRequest(base.serviceId(),null,staff,start,base.attendeeName(),base.attendeeEmail(),base.attendeeCompany(),base.attendeePhone(),true,client);
+        db.update("INSERT INTO company_module_entitlements(company_id,module_slug,status,source) VALUES(?,'crm','active','test')",company);
+        long id=reservation(booking.requestInternal(actor,linked,UUID.randomUUID().toString()));assertThat(repository.reservation(company,id).clientId()).isEqualTo(client);
+        db.update("UPDATE company_module_entitlements SET status='inactive' WHERE company_id=? AND module_slug='crm'",company);
+        assertThatThrownBy(()->booking.requestInternal(actor,linked,UUID.randomUUID().toString())).isInstanceOf(SecurityException.class);
+        assertThatThrownBy(()->booking.requestPublic(company,1,linked)).isInstanceOf(IllegalArgumentException.class);
+        db.update("UPDATE company_module_entitlements SET status='active' WHERE company_id=? AND module_slug='crm'",company);
+        long foreign=repository.insert("INSERT INTO sales_contacts(company_id,contact_code,company_name,contact_person,email,phone,status) VALUES(?,'FOREIGN','Other master','Other contact','foreign@example.com','','ACTIVE')",otherCompany);
+        assertThatThrownBy(()->booking.requestInternal(actor,new ReservationRequest(base.serviceId(),null,staff,start,base.attendeeName(),base.attendeeEmail(),"","",true,foreign),UUID.randomUUID().toString())).isInstanceOf(NoSuchElementException.class);
+    }
+    @Test void revocationBlocksReschedulingAndConfigurationWithinTheMutation(){
+        long id=create("revoked");
+        db.update("UPDATE company_module_entitlements SET status='inactive' WHERE company_id=? AND module_slug='scheduling'",company);
+        assertThatThrownBy(()->management.reschedule(actor,id,new RescheduleRequest(start.plusSeconds(3600),"Revoked request",1))).isInstanceOf(SecurityException.class);
+        assertThatThrownBy(()->configuration.service(actor,null,new ServiceRequest("Blocked","",60,0,0,true,null))).isInstanceOf(SecurityException.class);
+    }
+    @Test void staffNotificationsAreDurablePrivateAndDoNotReopenDismissedMessages(){
+        long id=create("notification");
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM scheduling_notification_receipts WHERE company_id=? AND reservation_id=? AND signal_type='booking_requested'",Integer.class,company,id)).isEqualTo(1);
+        db.update("UPDATE app_notifications SET dismissed_at=UTC_TIMESTAMP(6) WHERE company_id=? AND source_module='scheduling'",company);
+        notifications.dispatch(company,id,true);
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM app_notifications WHERE company_id=? AND source_module='scheduling' AND dismissed_at IS NOT NULL",Integer.class,company)).isEqualTo(1);
+        assertThat(db.queryForObject("SELECT description FROM app_notifications WHERE company_id=? AND source_module='scheduling' LIMIT 1",String.class,company)).isEmpty();
+        db.update("UPDATE scheduling_reservations SET start_at=TIMESTAMPADD(HOUR,1,UTC_TIMESTAMP(6)),status='CONFIRMED' WHERE company_id=? AND id=?",company,id);
+        notifications.dispatch(company,id,false);notifications.dispatch(company,id,false);
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM scheduling_notification_receipts WHERE company_id=? AND reservation_id=? AND signal_type='booking_upcoming'",Integer.class,company,id)).isEqualTo(1);
     }
     private int compete(Callable<?> first,Callable<?> second)throws Exception{
         var latch=new CountDownLatch(1);try(var executor=Executors.newFixedThreadPool(2)){

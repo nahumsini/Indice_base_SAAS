@@ -52,6 +52,13 @@ class HrAssetApiControllerTest {
     @MockBean
     private HrAccessService hrAccessService;
 
+    // Global MVC response advice is present in this slice; persistence remains mocked.
+    @MockBean
+    private com.indice.erp.learning.LearningProgressRepository learningProgressRepository;
+
+    @MockBean
+    private com.indice.erp.learning.LearningCatalogService learningCatalogService;
+
     @BeforeEach
     void allowHrAccessByDefault() {
         given(hrAccessService.canAccessManagementTab(any(AuthSessionUser.class), any(HrTab.class)))

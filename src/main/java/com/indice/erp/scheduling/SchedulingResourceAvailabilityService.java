@@ -16,8 +16,10 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 public class SchedulingResourceAvailabilityService {
     private final JdbcTemplate db;
     private final ConsultingBusyWindowService consulting;
-    public SchedulingResourceAvailabilityService(JdbcTemplate db,ConsultingBusyWindowService consulting){
-        this.db=db;this.consulting=consulting;
+    private final com.indice.erp.meetings.MeetingBusyWindowService meetings;
+    private final com.indice.erp.maintenance.MaintenanceBusyWindowService maintenance;
+    public SchedulingResourceAvailabilityService(JdbcTemplate db,ConsultingBusyWindowService consulting,com.indice.erp.meetings.MeetingBusyWindowService meetings,com.indice.erp.maintenance.MaintenanceBusyWindowService maintenance){
+        this.db=db;this.consulting=consulting;this.meetings=meetings;this.maintenance=maintenance;
     }
     public void lock(String email) {
         if(!TransactionSynchronizationManager.isActualTransactionActive())
@@ -37,9 +39,21 @@ public class SchedulingResourceAvailabilityService {
     }
     public boolean busy(String email,Instant from,Instant to,Long excludedReservation,Long excludedEvent,
         Long excludedConsulting) {
+        return busyWithoutMeetings(email,from,to,excludedReservation,excludedEvent,excludedConsulting)||meetings.busy(email,from,to);
+    }
+    /** Meetings retains its own overlap/acknowledgement policy while respecting confirmed appointments. */
+    public boolean busyWithoutMeetings(String email,Instant from,Instant to,Long excludedReservation,Long excludedEvent,
+        Long excludedConsulting) {
+        return appointmentsBusy(email,from,to,excludedReservation,excludedEvent,excludedConsulting)||maintenance.busy(email,from,to,null);
+    }
+    public boolean busyWithoutMaintenance(String email,Instant from,Instant to) {
+        return appointmentsBusy(email,from,to,null,null,null)||meetings.busy(email,from,to);
+    }
+    private boolean appointmentsBusy(String email,Instant from,Instant to,Long excludedReservation,Long excludedEvent,Long excludedConsulting) {
         // Locking reads observe current committed rows even when an Engine caller opened
         // a REPEATABLE_READ transaction before obtaining the consultant mutex.
-        String currentRead=TransactionSynchronizationManager.isActualTransactionActive()?" FOR UPDATE":"";
+        String currentRead=TransactionSynchronizationManager.isActualTransactionActive()
+            &&!TransactionSynchronizationManager.isCurrentTransactionReadOnly()?" FOR UPDATE":"";
         var reservations=db.query("""
             SELECT r.id FROM scheduling_reservations r
             JOIN scheduling_staff s ON s.company_id=r.company_id AND s.id=r.staff_id

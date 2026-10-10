@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Camera, ImagePlus } from 'lucide-react';
 import { Button } from './ui/button';
 
@@ -20,6 +20,8 @@ interface AttendancePhotoCaptureCardProps {
   photo: AttendancePhotoSelection | null;
   disabled?: boolean;
   showHeader?: boolean;
+  showHelperText?: boolean;
+  emptyPreviewIcon?: ReactNode;
   showGalleryUpload?: boolean;
   className?: string;
   videoClassName?: string;
@@ -51,6 +53,8 @@ export function AttendancePhotoCaptureCard({
   photo,
   disabled = false,
   showHeader = true,
+  showHelperText = true,
+  emptyPreviewIcon,
   showGalleryUpload = true,
   className,
   videoClassName,
@@ -283,8 +287,8 @@ export function AttendancePhotoCaptureCard({
 
           {!photo && showEmptyPreview ? (
             <div className={emptyPreviewClassName ?? 'mb-4 flex h-40 w-full flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50 text-center text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400'}>
-              <Camera className="h-8 w-8" />
-              <p className="mt-2 text-sm font-medium">{emptyPreviewLabel ?? helperText}</p>
+              {emptyPreviewIcon ?? <Camera className="h-8 w-8" />}
+              {emptyPreviewLabel !== '' ? <p className="mt-2 text-sm font-medium">{emptyPreviewLabel ?? helperText}</p> : null}
             </div>
           ) : null}
 
@@ -298,7 +302,7 @@ export function AttendancePhotoCaptureCard({
         </>
       )}
 
-      <p className="text-xs text-gray-500 dark:text-gray-400">{helperText}</p>
+      {showHelperText ? <p className="text-xs text-gray-500 dark:text-gray-400">{helperText}</p> : null}
     </div>
   );
 }

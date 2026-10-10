@@ -127,7 +127,7 @@ public class AttendanceKioskAdapter implements KioskModuleAdapter {
     public Map<String, Object> employeeBootstrap(KioskExecutionContext context) {
         requireEmployeeContext(context);
         if (isNativeAttendanceTool(context.definition())) {
-            var dashboard = attendance.selfDashboard(
+            var dashboard = attendance.employeeDashboard(
                 context.definition().companyId(), context.session().identityId(), LocalDate.now());
             var result = nativeToolWorkspace(context.definition(), dashboard);
             result.put("authentication", "ENGINE_PIN_SESSION");
@@ -204,7 +204,7 @@ public class AttendanceKioskAdapter implements KioskModuleAdapter {
                     requireNativeToolPhotoEvidence(request.payload());
                     var recorded = new LinkedHashMap<>(attendance.recordSelfKioskEvent(
                         context.definition().companyId(), context.session().identityId(), request.payload()));
-                    var refreshed = attendance.selfDashboard(
+                    var refreshed = attendance.employeeDashboard(
                         context.definition().companyId(), context.session().identityId(), LocalDate.now());
                     recorded.put("today_activity", nativeTodayActivity(refreshed));
                     yield recorded;
@@ -359,7 +359,7 @@ public class AttendanceKioskAdapter implements KioskModuleAdapter {
             "date", source.getOrDefault("attendance_date", LocalDate.now().toString())));
         for (var key : java.util.List.of(
                 "status", "corrected_status", "first_check_in_at", "last_check_out_at",
-                "first_location", "last_location", "minutes_late")) {
+                "first_location", "last_location", "minutes_late", "schedule_start", "schedule_end")) {
             activity.put(key, source.get(key));
         }
         activity.put("has_check_in", source.get("first_check_in_at") != null);

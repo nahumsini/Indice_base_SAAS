@@ -1,4 +1,4 @@
-import { ChevronRight, ShieldCheck } from 'lucide-react';
+import { ArrowRight, ChevronRight, ShieldCheck } from 'lucide-react';
 import { cn } from '../../components/ui/utils';
 import {
   getMultiKioskToolPresentation,
@@ -17,7 +17,13 @@ export interface MultiKioskToolTileProps {
   source: MultiKioskToolSource;
   statusLabel?: string;
   statusTone?: 'attention' | 'ready';
+  compact?: boolean;
 }
+
+const compactAccents = {
+  aqua: 'bg-[#59C3A5]', blue: 'bg-[#2563EB]', coral: 'bg-[#FF6B5E]',
+  green: 'bg-[#147514]', violet: 'bg-violet-500', yellow: 'bg-[#F4C84A]',
+};
 
 export function MultiKioskToolTile({
   actionLabel,
@@ -30,10 +36,40 @@ export function MultiKioskToolTile({
   source,
   statusLabel,
   statusTone = 'ready',
+  compact = false,
 }: MultiKioskToolTileProps) {
   const presentation = getMultiKioskToolPresentation(source);
   const hasSelectionState = typeof selected === 'boolean';
   const resolvedModuleLabel = moduleLabel ?? presentation.ownerModule.replace(/_/g, ' ');
+
+  if (compact) return (
+    <button
+      type="button"
+      aria-label={[`${actionLabel}: ${presentation.name}`, statusLabel].filter(Boolean).join('. ')}
+      aria-busy={busy || undefined}
+      aria-pressed={hasSelectionState ? selected : undefined}
+      data-multi-kiosk-id={'id' in source ? source.id : undefined}
+      disabled={disabled || busy}
+      onClick={onClick}
+      className={cn(
+        'group relative flex h-full min-h-32 w-full items-center gap-3 overflow-hidden rounded-[1.5rem] border border-[#E0E7F1] bg-white p-4 text-left shadow-[0_3px_12px_-8px_rgba(20,54,117,0.22)] transition-[border-color,background-color,box-shadow,transform] duration-150 hover:shadow-[0_6px_18px_-8px_rgba(20,54,117,0.22)] focus-visible:outline-none focus-visible:ring-4 active:scale-[0.99] disabled:cursor-wait disabled:opacity-60 disabled:active:scale-100 motion-reduce:transform-none motion-reduce:transition-none dark:border-slate-700 dark:bg-slate-900 sm:gap-4',
+        presentation.toneClasses.tileHover,
+        selected && presentation.toneClasses.tileSelected,
+        className,
+      )}
+    >
+      <span aria-hidden="true" className={cn('absolute inset-y-5 left-0 w-1 rounded-r-full', compactAccents[presentation.tone])} />
+      <MultiKioskToolEmoji source={source} busy={busy} selected={selected} className="h-14 w-14 self-start rounded-[1.125rem] shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] [&>span:first-child]:text-[2rem]" />
+      <span className="flex min-w-0 flex-1 flex-col py-0.5">
+        <span data-kiosk-tool-name className="text-base font-medium leading-[1.375rem] text-[#143675] [overflow-wrap:anywhere] dark:text-blue-100">{presentation.name}</span>
+        <span data-kiosk-tool-description className="mt-1 line-clamp-2 text-sm leading-5 text-[#425466] [overflow-wrap:anywhere] dark:text-slate-300">{presentation.description}</span>
+        {statusLabel ? <span data-kiosk-tool-status className="mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50 px-2 py-1 text-xs leading-5 text-amber-900 dark:bg-amber-950 dark:text-amber-200"><ShieldCheck size={15} className="mt-0.5 shrink-0" aria-hidden="true" />{statusLabel}</span> : null}
+        <span data-kiosk-tool-action className="mt-2 inline-flex items-center gap-1 text-sm font-medium leading-5 text-[#1D4ED8] dark:text-blue-300">
+          {actionLabel}<ArrowRight size={16} aria-hidden="true" className="transition-transform group-hover:translate-x-0.5 motion-reduce:transform-none" />
+        </span>
+      </span>
+    </button>
+  );
 
   return (
     <button

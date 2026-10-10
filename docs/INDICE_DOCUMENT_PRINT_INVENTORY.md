@@ -342,3 +342,12 @@ Additional regression evidence:
 ## POS operational tickets extension — 2026-09-07
 
 `app/BasicModules/PointOfSale/shared/posOperationTickets.ts` provides the paid inventory receipt and individual shift closing thermal tickets (80 mm, internal operational documents, native transaction currency). Entrypoints are `PaidInventoryReceiptModal`, `ShiftClosingTicketModal`, and `CorteDetailModal`. All use the shared `documentHtmlPrintEngine`; receipt/closing reprints query saved documents and never resubmit financial or inventory commands. The engine observes document readiness from the opener so a reserved print window still prints after navigation replaces its initial document.
+
+## Maintenance pilot work order — 2026-10-09
+
+`app/ComplementaryModules/Maintenance/components/OrderDossier.tsx` prints the authorized
+order snapshot through `printStandardDocumentHtml`: folio, status, asset, technician, original
+and current deadline, diagnosis, result and procedure completion. Output is A4 portrait with
+the saved record version, localized copy and shared company-neutral print styling. Private
+attachment URLs and financial source data are excluded. This is an internal operational
+document; it does not certify payment or automatically restore asset availability.

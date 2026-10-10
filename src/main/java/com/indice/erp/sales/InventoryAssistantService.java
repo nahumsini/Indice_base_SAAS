@@ -60,6 +60,15 @@ public class InventoryAssistantService {
     public Prepared prepare(AuthSessionUser user,String action,Change change) { return plan(user,action,change,false).prepared; }
     @Transactional
     public Result execute(AuthSessionUser user,Prepared confirmed,String correlation) {
+        return executeOwned(user,confirmed,correlation,"INDICE_ASSISTANT_INVENTORY");
+    }
+    /** Maintenance delegates a human-confirmed stock issue/reversal; the native ledger remains authoritative. */
+    @Transactional
+    public Result executeMaintenance(AuthSessionUser user,Prepared confirmed,String correlation) {
+        if(!Set.of("issue_inventory_stock","cancel_inventory_movement").contains(confirmed.action()))throw new IllegalArgumentException("Unsupported maintenance stock action.");
+        return executeOwned(user,confirmed,correlation,"INDICE_MAINTENANCE");
+    }
+    private Result executeOwned(AuthSessionUser user,Prepared confirmed,String correlation,String source) {
         var scope=scope(user);Change change=confirmed.change();
         if(change.id()!=null&&(confirmed.action().endsWith("_product")||confirmed.action().endsWith("_warehouse")))repository.lockMaintenance(user,scope,confirmed.action(),change.id());
         repository.lockAssignment(user,change.warehouse());
@@ -84,7 +93,7 @@ public class InventoryAssistantService {
             var movementPayloads=new ArrayList<Map<String,Object>>();
             for(var raw:current.movements) {
                 var m=new LinkedHashMap<>(raw);m.put("groupId",correlation);
-                var metadata=map(m.get("metadata"));metadata.put("source","INDICE_ASSISTANT_INVENTORY");metadata.put("correlationId",correlation);m.put("metadata",metadata);movementPayloads.add(m);
+                var metadata=map(m.get("metadata"));metadata.put("source",source);metadata.put("correlationId",correlation);m.put("metadata",metadata);movementPayloads.add(m);
             }
             payload.put("movements",movementPayloads);
             var committedMovements=new ArrayList<MovementView>();

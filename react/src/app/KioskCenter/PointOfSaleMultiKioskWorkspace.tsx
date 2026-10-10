@@ -1,3 +1,4 @@
+import { useKioskNavigationState } from '../components/kiosk-engine/KioskNavigationBoundary';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, CheckCircle2, LoaderCircle, Minus, Plus, Search, ShoppingBag, Store, TriangleAlert } from 'lucide-react';
 import type { MultiKioskChildWorkspace } from '../api/multiKiosks';
@@ -44,7 +45,7 @@ function csrfFor(token: string) {
 
 function copyFor(locale: string) {
   if (locale.toLowerCase().startsWith('es')) return {
-    search: 'Buscar producto', cart: 'Venta actual', empty: 'Agrega productos para continuar.',
+    noResults: 'No encontramos productos. Prueba otro nombre o categoría.', clear: 'Limpiar filtros', search: 'Buscar producto', cart: 'Venta actual', empty: 'Agrega productos para continuar.',
     name: 'Nombre del cliente', create: 'Crear pre-ticket',
     workspace: 'Punto de venta', catalog: 'Catálogo disponible',
     catalogDescription: 'Busca y agrega productos al pedido desde esta pantalla.',
@@ -60,7 +61,7 @@ function copyFor(locale: string) {
     updating: 'Actualizando la comanda…',
   };
   return {
-    search: 'Search products', cart: 'Current sale', empty: 'Add products to continue.',
+    noResults: 'No products found. Try a different name or category.', clear: 'Clear filters', search: 'Search products', cart: 'Current sale', empty: 'Add products to continue.',
     name: 'Customer name', create: 'Create pre-ticket',
     workspace: 'Point of sale', catalog: 'Available catalog',
     catalogDescription: 'Find and add products to the order from this screen.',
@@ -85,7 +86,7 @@ export function PointOfSaleMultiKioskWorkspace(props: PointOfSaleMultiKioskWorks
   if (kioskType === 'self_service') {
     return <SelfServiceMultiKioskWorkspace {...props} />;
   }
-  return <KioskToolWorkspaceFrame><KioskWorkspaceNotice kind="error">{copyFor(props.locale).unsupported}</KioskWorkspaceNotice></KioskToolWorkspaceFrame>;
+  return <KioskToolWorkspaceFrame personal><KioskWorkspaceNotice kind="error">{copyFor(props.locale).unsupported}</KioskWorkspaceNotice></KioskToolWorkspaceFrame>;
 }
 
 function SelfServiceMultiKioskWorkspace({
@@ -125,6 +126,7 @@ function SelfServiceMultiKioskWorkspace({
   const requiredNameMissing = Boolean(bootstrap?.customerNameRequired && !customerName.trim());
   const canCreate = workspace.session.capabilities.includes(selfServiceCapabilities.create)
     && count > 0 && !requiredNameMissing && !busy && bootstrap?.sourceRegisterOpen !== false;
+  useKioskNavigationState({ busy, dirty: !receipt && Boolean(count || customerName.trim()) });
   const changeQuantity = (productId: number, delta: number) => setQuantities(current => {
     const next = Math.max(0, (current[productId] ?? 0) + delta);
     return { ...current, [productId]: next };
@@ -151,7 +153,7 @@ function SelfServiceMultiKioskWorkspace({
 
   if (!bootstrap) return null;
   if (!bootstrap.sourceRegisterOpen) return (
-    <KioskToolWorkspaceFrame data-multi-kiosk-pos>
+    <KioskToolWorkspaceFrame personal data-multi-kiosk-pos>
       <KioskWorkspaceEmptyState description={copy.unavailable} icon={<TriangleAlert className="h-7 w-7" />} tone="coral" />
     </KioskToolWorkspaceFrame>
   );
@@ -164,7 +166,7 @@ function SelfServiceMultiKioskWorkspace({
   };
 
   if (receipt) return (
-    <KioskToolWorkspaceFrame className="flex min-h-[calc(100dvh-12rem)] items-center justify-center py-4" data-multi-kiosk-pos data-preticket-result>
+    <KioskToolWorkspaceFrame personal className="flex min-h-[calc(100dvh-12rem)] items-center justify-center py-4" data-multi-kiosk-pos data-preticket-result>
       <KioskWorkspaceSurface className="w-full p-5 text-center sm:p-7">
         <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
           <CheckCircle2 className="h-8 w-8" aria-hidden="true" />
@@ -177,10 +179,10 @@ function SelfServiceMultiKioskWorkspace({
           <p className="mt-3 text-sm text-emerald-800 dark:text-emerald-200">{receipt.preticketNumber}</p>
         </div>
         <div className="mt-4 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-left dark:bg-slate-900">
-          <span className="text-sm text-slate-500 dark:text-slate-400">{copy.total}</span>
+          <span className="text-sm text-slate-600 dark:text-slate-300">{copy.total}</span>
           <span className="text-xl font-medium text-slate-950 dark:text-white">{new Intl.NumberFormat(locale, { style: 'currency', currency: receipt.currencyCode }).format(Number(receipt.totalAmount))}</span>
         </div>
-        <Button type="button" onClick={resetPreticket} className="mt-5 min-h-14 w-full rounded-xl bg-[#FF6B5E] text-base font-medium text-[#222831] hover:bg-[#E8564B]">
+        <Button type="button" onClick={resetPreticket} className="mt-5 min-h-14 w-full rounded-xl bg-[#FF6B5E] text-base font-medium text-[#222831] hover:bg-[#ff5a4c]">
           <Plus className="h-5 w-5" aria-hidden="true" />{copy.newPreticket}
         </Button>
       </KioskWorkspaceSurface>
@@ -188,21 +190,21 @@ function SelfServiceMultiKioskWorkspace({
   );
 
   return (
-    <KioskToolWorkspaceFrame width="catalog" data-multi-kiosk-pos>
+    <KioskToolWorkspaceFrame personal width="catalog" className="xl:max-w-5xl" data-multi-kiosk-pos>
       <KioskWorkspaceContextBar
         density="compact"
         description={`${bootstrap.warehouseName} · ${bootstrap.cashRegisterName}`}
         eyebrow={copy.workspace}
-        icon={<Store className="h-5 w-5" />}
+        icon={<span aria-hidden="true" className="text-2xl">🛒</span>}
         meta={<div className="flex items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-300"><span>{copy.itemCount(count)}</span><span className="font-medium text-[#B63B32] dark:text-[#FFB0AA]">{currency}</span></div>}
         title={bootstrap.name}
         tone="coral"
       />
-      <div className="relative grid gap-3 pb-20 lg:grid-cols-[minmax(0,1fr)_20rem] lg:pb-0">
+      <div className="relative grid gap-3 pb-20 xl:grid-cols-[minmax(0,1fr)_20rem] xl:pb-0">
       <KioskWorkspaceSurface className="min-w-0 p-3 sm:p-4">
         <KioskWorkspaceSectionHeader
           description={copy.catalogDescription}
-          icon={<ShoppingBag className="h-5 w-5" />}
+          icon={<span aria-hidden="true" className="text-2xl">🛍️</span>}
           title={copy.catalog}
           tone="coral"
         />
@@ -232,54 +234,55 @@ function SelfServiceMultiKioskWorkspace({
             </div>
           ) : null}
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+        <div className="mt-4 grid grid-cols-1 gap-3 min-[430px]:grid-cols-2">
           {visibleItems.map(item => {
             const quantity = quantities[item.productId] ?? 0;
             return (
-              <article key={item.productId} className={`flex min-h-40 flex-col rounded-2xl border bg-white p-3 transition-colors dark:bg-slate-950 ${quantity > 0 ? 'border-rose-400 ring-2 ring-rose-500/10 dark:border-rose-700' : 'border-slate-200 dark:border-slate-700'}`}>
-                <p className="line-clamp-2 text-sm font-medium text-slate-950 dark:text-white">{item.name}</p>
-                <p className="mt-1 truncate text-[11px] text-slate-500">{item.sku || item.category}</p>
+              <article key={item.productId} className={`flex min-h-40 flex-col rounded-3xl border bg-white p-4 transition-colors dark:bg-slate-950 ${quantity > 0 ? 'border-rose-400 ring-2 ring-rose-500/10 dark:border-rose-700' : 'border-slate-200 dark:border-slate-700'}`}>
+                <span aria-hidden="true" className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-rose-50 text-2xl dark:bg-rose-500/10">🛍️</span><p className="text-base font-medium leading-6 text-slate-950 dark:text-white">{item.name}</p>
+                <p className="mt-1 truncate text-xs text-slate-500">{item.sku || item.category}</p>
                 <p className="mt-2 text-sm font-medium text-rose-700 dark:text-rose-300">{new Intl.NumberFormat(locale, { style: 'currency', currency }).format(Number(item.unitPrice))}</p>
                 <div className="mt-auto flex items-center justify-between gap-1 pt-3">
-                  <button aria-label={`${copy.cart}: ${item.name} -`} type="button" disabled={quantity === 0} onClick={() => changeQuantity(item.productId, -1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 disabled:opacity-30 dark:border-slate-700"><Minus className="h-4 w-4" /></button>
+                  <button aria-label={`${copy.cart}: ${item.name} -`} type="button" disabled={busy || quantity === 0} onClick={() => changeQuantity(item.productId, -1)} className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-slate-200 disabled:opacity-30 dark:border-slate-700"><Minus className="h-4 w-4" /></button>
                   <span className="min-w-6 text-center text-base font-medium">{quantity}</span>
-                  <button aria-label={`${copy.cart}: ${item.name} +`} type="button" disabled={!item.available} onClick={() => changeQuantity(item.productId, 1)} className="grid h-11 w-11 place-items-center rounded-xl bg-[#FF6B5E] text-[#222831] disabled:opacity-30"><Plus className="h-4 w-4" /></button>
+                  <button aria-label={`${copy.cart}: ${item.name} +`} type="button" disabled={busy || !item.available} onClick={() => changeQuantity(item.productId, 1)} className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#FF6B5E] text-[#222831] disabled:opacity-30"><Plus className="h-4 w-4" /></button>
                 </div>
               </article>
             );
           })}
         </div>
-        {visibleItems.length === 0 ? <div className="mt-4"><KioskWorkspaceEmptyState description={copy.empty} icon={<ShoppingBag className="h-6 w-6" />} tone="coral" /></div> : null}
+        {visibleItems.length === 0 ? <div className="mt-4"><KioskWorkspaceEmptyState description={copy.noResults} action={<Button variant="outline" onClick={() => { setSearch(''); setCategory('all'); }}>{copy.clear}</Button>} icon={<span aria-hidden="true" className="text-2xl">🛍️</span>} tone="coral" /></div> : null}
       </KioskWorkspaceSurface>
-      <aside className="hidden h-fit rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-950 lg:sticky lg:top-3 lg:block">
-        <div className="flex items-center gap-2"><ShoppingBag className="h-5 w-5 text-rose-700" /><h3 className="text-base font-medium text-slate-950 dark:text-white">{copy.cart}</h3><span className="ml-auto rounded-full bg-slate-100 px-2.5 py-1 text-xs">{count}</span></div>
+      <aside className="hidden h-fit rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-950 xl:sticky xl:top-3 xl:block">
+        <div className="flex items-center gap-2"><ShoppingBag className="h-5 w-5 text-rose-700" /><h3 className="text-base font-medium text-slate-950 dark:text-white">{copy.cart}</h3><span className="ml-auto rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-200">{count}</span></div>
         {selectedItems.length ? <ul className="mt-3 divide-y divide-slate-100">{selectedItems.map(item => <li key={item.productId} className="flex gap-3 py-3 text-sm"><span className="min-w-0 flex-1 truncate">{item.name}</span><span className="font-medium">× {quantities[item.productId]}</span></li>)}</ul> : <p className="my-6 text-center text-sm text-slate-500">{copy.empty}</p>}
-        {bootstrap.customerNameRequired ? <label className="mt-3 block"><span className="mb-2 block text-xs font-medium text-slate-600">{copy.name} *</span><input value={customerName} onChange={event => setCustomerName(event.target.value)} className="h-12 w-full rounded-2xl border border-slate-200 px-3 text-base outline-none focus:border-rose-400" /></label> : null}
+        {bootstrap.customerNameRequired ? <label className="mt-3 block"><span className="mb-2 block text-xs font-medium text-slate-600">{copy.name} *</span><input disabled={busy} value={customerName} onChange={event => setCustomerName(event.target.value)} className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base outline-none focus:border-rose-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white" /></label> : null}
         <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4"><span className="text-sm text-slate-500">{copy.total}</span><span className="text-lg font-medium text-slate-950 dark:text-white">{formattedTotal}</span></div>
-        <Button type="button" disabled={!canCreate} onClick={() => void create()} className="mt-4 min-h-12 w-full rounded-xl bg-[#FF6B5E] text-base font-medium text-[#222831] hover:bg-[#E8564B]">{busy ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}{copy.create}</Button>
+        <Button type="button" disabled={!canCreate} onClick={() => void create()} className="mt-4 min-h-12 w-full rounded-xl bg-[#FF6B5E] text-base font-medium text-[#222831] hover:bg-[#ff5a4c]">{busy ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}{copy.create}</Button>
         {error ? <div className="mt-3"><KioskWorkspaceNotice kind="error">{error}</KioskWorkspaceNotice></div> : null}
       </aside>
       </div>
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 lg:hidden" data-preticket-cart-bar>
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 xl:hidden" data-preticket-cart-bar>
         <KioskStickyActionBar className="mx-auto max-w-[31rem] border-0 bg-transparent p-0 pb-0 shadow-none" position="contained">
         <button type="button" disabled={count === 0} onClick={() => setCartOpen(true)} className="mx-auto flex min-h-14 w-full max-w-[31rem] items-center gap-3 rounded-2xl bg-[#222831] px-4 text-left text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-45">
           <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/10">
             <ShoppingBag className="h-5 w-5" aria-hidden="true" />
-            {count > 0 ? <span className="absolute -right-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-[#FF6B5E] px-1 text-[10px] font-medium text-[#222831]">{count}</span> : null}
+            {count > 0 ? <span className="absolute -right-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-[#FF6B5E] px-1 text-xs font-medium text-[#222831]">{count}</span> : null}
           </span>
           <span className="min-w-0 flex-1"><span className="block text-xs text-slate-300">{copy.itemCount(count)}</span><span className="block text-sm font-medium">{copy.viewCart}</span></span>
-          <span className="text-lg font-medium">{formattedTotal}</span>
+          <span className="min-w-0 break-words text-lg font-medium">{formattedTotal}</span>
         </button>
         </KioskStickyActionBar>
       </div>
       <KioskModalFrame
+      contentClassName="kiosk-personal-workspace kiosk-personal-coral-modal [&_button]:min-h-11 [&_button]:min-w-11"
         open={cartOpen}
         onOpenChange={setCartOpen}
         busy={busy}
         surface="public"
         size="form"
         tone="coral"
-        icon={<ShoppingBag className="h-5 w-5" />}
+        icon={<span aria-hidden="true" className="text-2xl">🛍️</span>}
         eyebrow={copy.itemCount(count)}
         title={copy.cart}
         description={copy.cartDescription}
@@ -294,19 +297,19 @@ function SelfServiceMultiKioskWorkspace({
         {selectedItems.length ? (
           <ul className="divide-y divide-slate-200 dark:divide-slate-800">
             {selectedItems.map(item => (
-              <li key={item.productId} className="flex items-center gap-2 py-3">
+              <li key={item.productId} className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-2 py-4">
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium text-slate-950 dark:text-white">{item.name}</span>
                   <span className="mt-0.5 block text-xs text-slate-500">{new Intl.NumberFormat(locale, { style: 'currency', currency }).format(Number(item.unitPrice))}</span>
                 </span>
-                <button aria-label={`${item.name} -`} type="button" onClick={() => changeQuantity(item.productId, -1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 dark:border-slate-700"><Minus className="h-4 w-4" /></button>
+                <button aria-label={`${item.name} -`} type="button" disabled={busy} onClick={() => changeQuantity(item.productId, -1)} className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-slate-200 dark:border-slate-700"><Minus className="h-4 w-4" /></button>
                 <span className="min-w-6 text-center text-base font-medium">{quantities[item.productId]}</span>
-                <button aria-label={`${item.name} +`} type="button" onClick={() => changeQuantity(item.productId, 1)} className="grid h-11 w-11 place-items-center rounded-xl bg-[#FF6B5E] text-[#222831]"><Plus className="h-4 w-4" /></button>
+                <button aria-label={`${item.name} +`} type="button" disabled={busy || !item.available} onClick={() => changeQuantity(item.productId, 1)} className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#FF6B5E] text-[#222831]"><Plus className="h-4 w-4" /></button>
               </li>
             ))}
           </ul>
         ) : <p className="py-8 text-center text-sm text-slate-500">{copy.empty}</p>}
-        {bootstrap.customerNameRequired ? <label className="mt-4 block"><span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">{copy.name} *</span><input value={customerName} onChange={event => setCustomerName(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-500/10 dark:border-slate-700 dark:bg-slate-900" /></label> : null}
+        {bootstrap.customerNameRequired ? <label className="mt-4 block"><span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">{copy.name} *</span><input disabled={busy} value={customerName} onChange={event => setCustomerName(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-500/10 dark:border-slate-700 dark:bg-slate-900" /></label> : null}
         {error ? <div className="mt-4"><KioskWorkspaceNotice kind="error">{error}</KioskWorkspaceNotice></div> : null}
       </KioskModalFrame>
     </KioskToolWorkspaceFrame>
@@ -346,11 +349,13 @@ function RestaurantMultiKioskWorkspace({
     }
   };
 
+  useKioskNavigationState({ busy, dirty: false });
+
   if (!current) return null;
-  return <KioskToolWorkspaceFrame width="catalog"><section className="relative bg-slate-100 dark:bg-slate-950 sm:overflow-hidden sm:rounded-2xl sm:border sm:border-slate-200 sm:dark:border-slate-700" aria-busy={busy || undefined} data-multi-kiosk-pos data-pos-restaurant-workspace>
+  return <KioskToolWorkspaceFrame personal width="catalog"><section className="relative bg-slate-100 dark:bg-slate-950 sm:overflow-hidden sm:rounded-2xl sm:border sm:border-slate-200 sm:dark:border-slate-700" aria-busy={busy || undefined} data-multi-kiosk-pos data-pos-restaurant-workspace>
     {busy ? <p role="status" className="sticky top-0 z-40 flex min-h-12 items-center justify-center gap-2 border-b border-rose-200 bg-rose-50/95 px-3 text-sm font-medium text-rose-800 backdrop-blur dark:border-rose-900 dark:bg-rose-950/90 dark:text-rose-200"><LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />{copy.updating}</p> : null}
     {error ? <div className="m-3"><KioskWorkspaceNotice kind="error">{error}</KioskWorkspaceNotice></div> : null}
     {!current.sourceRegisterOpen ? <p className="m-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{copy.unavailable}</p> : null}
-    <WaiterStationWorkspace workspace={current} mutate={mutate} />
+    <WaiterStationWorkspace personal workspace={current} mutate={mutate} />
   </section></KioskToolWorkspaceFrame>;
 }

@@ -294,6 +294,7 @@ export interface MultiKioskBootstrap {
   name: string;
   description: string;
   company_name: string;
+  company_logo_url?: string;
   theme_key: string;
   locale: string;
   access_methods: string[];
@@ -708,8 +709,26 @@ export const isMultiKioskChildAuthorityLoss = (error: unknown) => (
   && error.code === 'KIOSK_NOT_AVAILABLE'
 );
 
+export interface MultiKioskToday {
+  date: string;
+  attendance: { kioskId: number; day: { date: string; status: string; startTime: string | null; endTime: string | null; firstCheckIn: string | null; lastCheckOut: string | null; restDay: boolean } } | null;
+  tasks: { kioskId: number; day: { pending: number; overdue: number; items: Array<{ id: number; title: string; dueDate: string | null; status: string }> } } | null;
+}
+
 export const multiKioskPublicApi = {
   bootstrap: loadPublicBootstrap,
+  today: (token: string, signal?: AbortSignal) => publicRequest<MultiKioskToday>(`${publicBase(token)}/today`, {
+    headers: { 'X-Multi-Kiosk-Session-Token': multiKioskMobileSession.get(token) }, signal,
+  }),
+  employeeMessaging<T>(token: string, path: string, init: RequestInit = {}): Promise<T> {
+    return withPublicCsrfRecovery(token, '', csrfToken => publicRequest<T>(
+      `${publicBase(token)}/messaging${path}`, {
+        ...init,
+        headers: { ...init.headers, 'X-CSRF-Token': csrfToken,
+          'X-Multi-Kiosk-Session-Token': multiKioskMobileSession.get(token) },
+      },
+    ));
+  },
   async authenticate(token: string, pin: string, csrfToken: string, providerName?: string) {
     const data = await withPublicCsrfRecovery(token, csrfToken, currentCsrfToken => (
       publicRequest<MultiKioskMobileSession>(`${publicBase(token)}/sessions`, {

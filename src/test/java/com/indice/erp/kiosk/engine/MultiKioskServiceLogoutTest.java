@@ -53,7 +53,8 @@ class MultiKioskServiceLogoutTest {
     void setUp() {
         service = new MultiKioskService(
             jdbcTemplate, new ObjectMapper(), new BCryptPasswordEncoder(), protection,
-            employeeAccess, employeeTools, null, dashboard, null, rateLimits, collectionGuard, 28_800, 43_200);
+            employeeAccess, employeeTools, null, dashboard, null, rateLimits, collectionGuard,
+            mock(com.indice.erp.configcenter.ConfigCenterService.class), 28_800, 43_200);
     }
 
     @Test

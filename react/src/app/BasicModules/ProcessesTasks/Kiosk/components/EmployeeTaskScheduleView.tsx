@@ -1,4 +1,3 @@
-import { Clock3, ListChecks } from 'lucide-react';
 import type { EmployeeTaskAgendaCopy } from '../employeeTaskAgendaTranslations';
 import type { TaskKioskLocale, TaskKioskTranslations } from '../translations';
 import type { PublicTaskKioskTask } from '../processTaskKioskApi';
@@ -48,17 +47,17 @@ export function EmployeeTaskScheduleView({
   const isToday = referenceDate === localEmployeeTaskDate();
 
   if (!tasks.length) {
-    return <PublicTaskKioskEmptyState icon={<ListChecks className="h-7 w-7" />} title={taskCopy.empty.filteredTitle} body={taskCopy.empty.filteredBody} />;
+    return <PublicTaskKioskEmptyState icon={<span aria-hidden="true" className="text-3xl">🗓️</span>} title={taskCopy.empty.filteredTitle} body={taskCopy.empty.filteredBody} />;
   }
 
   const renderTask = (task: PublicTaskKioskTask, time?: string) => (
-    <div key={task.id} className="grid grid-cols-[4.25rem_minmax(0,1fr)] gap-2">
-      <div className="relative flex justify-end pr-3">
-        <div aria-hidden="true" className="absolute bottom-[-0.75rem] right-0 top-5 w-px bg-slate-200 dark:bg-slate-800" />
+    <div key={task.id} className="grid grid-cols-1 gap-2 min-[600px]:grid-cols-[4.75rem_minmax(0,1fr)]">
+      <div className="relative flex justify-start pl-3 min-[600px]:justify-end min-[600px]:pl-0 min-[600px]:pr-3">
+        <div aria-hidden="true" className="absolute bottom-[-0.75rem] right-0 top-5 hidden w-px min-[600px]:block bg-slate-200 dark:bg-slate-800" />
         <button
           type="button"
           disabled={!canReschedule || !task.can_reschedule}
-          className="relative z-10 h-10 rounded-xl bg-white px-2 text-xs font-medium text-[#7A5204] shadow-sm ring-1 ring-slate-200 transition hover:ring-[#F4C84A] disabled:cursor-default disabled:text-slate-500 dark:bg-slate-950 dark:text-[#FDE68A] dark:ring-slate-800"
+          className="relative z-10 min-h-11 min-w-11 rounded-xl bg-[#FFF3CB] px-3 text-sm font-medium text-[#7A5204] shadow-sm ring-1 ring-slate-200 transition hover:ring-[#F4C84A] disabled:cursor-default disabled:text-slate-500 dark:bg-slate-950 dark:text-[#FDE68A] dark:ring-slate-800"
           aria-label={`${copy.scheduleUi.edit}: ${task.title}`}
           onClick={() => onSchedule(task)}
         >
@@ -66,6 +65,7 @@ export function EmployeeTaskScheduleView({
         </button>
       </div>
       <PublicTaskKioskTaskCard
+        personal
         attachmentsLabel={taskCopy.workspace.attachments}
         copy={taskCopy}
         dueLabel={taskCopy.task.due}
@@ -82,16 +82,16 @@ export function EmployeeTaskScheduleView({
   return (
     <section className="space-y-4" data-task-kiosk-schedule>
       <header className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F4C84A]/20 text-[#7A5204] dark:text-[#FDE68A]"><Clock3 aria-hidden="true" className="h-5 w-5" /></span>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F4C84A]/20 text-[#7A5204] dark:text-[#FDE68A]"><span aria-hidden="true" className="text-2xl">🕘</span></span>
         <div>
           <h3 className="font-medium text-slate-950 dark:text-white">{copy.scheduleUi.label}</h3>
-          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{copy.scheduleUi.description}</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{copy.scheduleUi.description}</p>
         </div>
       </header>
 
       {isToday ? (
         <div className="grid grid-cols-[4.25rem_minmax(0,1fr)] items-center gap-2" aria-label={`${copy.scheduleUi.currentTime} ${currentTime()}`}>
-          <span className="pr-3 text-right text-[11px] font-medium text-rose-600">{currentTime()}</span>
+          <span className="pr-3 text-right text-sm font-medium text-rose-700 dark:text-rose-300">{currentTime()}</span>
           <span className="h-px bg-rose-400"><span className="sr-only">{copy.scheduleUi.currentTime}</span></span>
         </div>
       ) : null}
@@ -101,7 +101,7 @@ export function EmployeeTaskScheduleView({
       {unscheduled.length ? (
         <div className="space-y-3 pt-2">
           <div className="grid grid-cols-[4.25rem_minmax(0,1fr)] items-center gap-2">
-            <span className="pr-3 text-right text-[10px] font-medium text-slate-400">{copy.unscheduled}</span>
+            <span className="pr-3 text-right text-xs font-medium text-slate-600 dark:text-slate-300">{copy.unscheduled}</span>
             <span className="h-px border-t border-dashed border-slate-300 dark:border-slate-700" />
           </div>
           {unscheduled.map(task => renderTask(task))}

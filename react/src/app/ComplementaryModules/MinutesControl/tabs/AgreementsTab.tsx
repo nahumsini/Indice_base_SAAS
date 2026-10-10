@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
+import { AgreementDetail, FollowupEditor } from "../components/AgreementEditors";
+import { getMeetingOperationsCopy } from "../translations/meetingOperationsCopy";
 import { Plus, RotateCw, Check, X } from "lucide-react";
 import { IndiceTitleBar } from "../../../components/frontend-os/IndiceTitleBar";
 import { IndiceTableActionGroup } from "../../../components/table/IndiceTableEngine";
@@ -42,13 +45,19 @@ export default function AgreementsTab({
   userId: number;
   administrator: boolean;
 }) {
+  const [params, setParams] = useSearchParams();
+  const rawMeetingId = Number(params.get("meeting"));
+  const meetingId = Number.isSafeInteger(rawMeetingId) && rawMeetingId > 0 ? rawMeetingId : 0;
+  const [includePrevious, setIncludePrevious] = useState(false);
+  const op = getMeetingOperationsCopy(locale);
+  const [detailId, setDetailId] = useState<number | null>(null), [editing, setEditing] = useState<Agreement | null>(null), [note, setNote] = useState<Agreement | null>(null);
   const now = new Date(),
     defaults: ListScope = {
       from: dateInput(new Date(now.getFullYear(), now.getMonth(), 1)),
       to: dateInput(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
       search: "",
       status: "",
-      attention: "",
+      attention: meetingId || params.has("attention") ? "" : "allOpen",
       person: 0,
       sort: "due",
       direction: "asc",
@@ -90,6 +99,7 @@ export default function AgreementsTab({
         valid
           ? meetingApi.agreements(
               {
+                meetingId, includePrevious: String(Boolean(meetingId && includePrevious)),
                 from: scope.from,
                 to: dateEnd(scope.to),
                 search,
@@ -106,6 +116,7 @@ export default function AgreementsTab({
             )
           : Promise.resolve(undefined),
       [
+        meetingId, includePrevious,
         valid,
         scope.from,
         scope.to,
@@ -123,7 +134,7 @@ export default function AgreementsTab({
   );
   useWorkspaceNavigationMemory({
     moduleKey: "control_minutas",
-    tabKey: "agreements-v1",
+    tabKey: "agreements-v2",
     state: scope,
     defaults,
     urlFields: {
@@ -139,6 +150,7 @@ export default function AgreementsTab({
   });
   const close = () => {
       setCreate(false);
+      setDetailId(null); setEditing(null); setNote(null);
       setTransition(null);
     },
     saved = () => {
@@ -166,8 +178,12 @@ export default function AgreementsTab({
           </>
         }
       />
+      <div className="flex flex-wrap items-center gap-2">
+        {meetingId ? <><span className="text-sm">{op.meetingScope}</span><Action primary={includePrevious} onClick={() => { setIncludePrevious(!includePrevious); setScope({ ...scope, page: 1 }); }}>{op.carryover}</Action><Action onClick={() => { const next = new URLSearchParams(params); next.delete("meeting"); setParams(next); }}>{op.removeScope}</Action></> : [ ["allOpen", op.allOpen], ["allOverdue", op.allOverdue], ["", op.period] ].map(([value, label]) => <Action key={value} primary={scope.attention === value} onClick={() => setScope({ ...scope, attention: value, status: "", page: 1 })}>{label}</Action>)}
+      </div>
       <ScopeFilters
         scope={scope}
+        hideDates={Boolean(meetingId) || scope.attention === "allOpen" || scope.attention === "allOverdue"}
         defaults={defaults}
         copy={copy}
         statuses={statuses}
@@ -203,9 +219,9 @@ export default function AgreementsTab({
               return (
                 <>
                   <TableCell className="px-5 py-4">
-                    <p className="truncate font-medium" title={row.title}>
+                    <button type="button" className="min-h-11 max-w-full truncate text-left font-medium text-blue-700 underline-offset-4 hover:underline dark:text-blue-300" title={row.title} onClick={() => setDetailId(row.id)}>
                       {row.title}
-                    </p>
+                    </button>
                     {row.resolution && (
                       <details className="mt-2 whitespace-pre-wrap break-words text-xs text-slate-500">
                         <summary className="cursor-pointer">
@@ -273,8 +289,11 @@ export default function AgreementsTab({
         )
       )}
       {create && (
-        <AgreementEditor copy={copy} onClose={close} onSaved={saved} />
+        <AgreementEditor copy={copy} meetingId={meetingId} onClose={close} onSaved={saved} />
       )}
+      {detailId && <AgreementDetail id={detailId} copy={copy} locale={locale} userId={userId} administrator={administrator} onClose={close} onEdit={row => { setDetailId(null); setEditing(row); }} onNote={row => { setDetailId(null); setNote(row); }} />}
+      {editing && <AgreementEditor record={editing} copy={copy} onClose={close} onSaved={saved} />}
+      {note && <FollowupEditor agreement={note} copy={copy} onClose={close} onSaved={saved} />}
       {transition && (
         <TransitionEditor
           copy={copy}

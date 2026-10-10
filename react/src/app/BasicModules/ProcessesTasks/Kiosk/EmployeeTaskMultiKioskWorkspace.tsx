@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import { useKioskNavigationState } from '../../../components/kiosk-engine/KioskNavigationBoundary';
 import { RefreshCw, ShieldAlert } from 'lucide-react';
 import { multiKioskMobileSession, multiKioskPublicApi, type MultiKioskChildWorkspace } from '../../../api/multiKiosks';
 import {
   KioskToolWorkspaceFrame,
-  KioskWorkspaceContextBar,
   KioskWorkspaceNotice,
 } from '../../../components/kiosk-engine/KioskToolWorkspace';
 import { EmployeeTaskAgendaList, EmployeeTaskAgendaBoard, EmployeeTaskAgendaToolbar } from './components/EmployeeTaskAgendaWorkspace';
@@ -19,7 +19,7 @@ import {
   TaskKioskFilterSelect,
 } from './components/PublicTaskKioskWorkspaceSections';
 import { getEmployeeTaskAgendaCopy } from './employeeTaskAgendaTranslations';
-import { employeeInitials, multiKioskCsrfFor } from './employeeTaskMultiKioskWorkspaceUtils';
+import { multiKioskCsrfFor } from './employeeTaskMultiKioskWorkspaceUtils';
 import {
   employeeTaskAllFilterValue,
   employeeTaskCapabilities,
@@ -113,6 +113,8 @@ export function EmployeeTaskMultiKioskWorkspaceView({
   const scopeLabel = workspace.bootstrap?.scope_label ?? card.purpose;
   const occasionalProcesses = workspace.bootstrap?.occasional_processes?.items ?? [];
 
+  useKioskNavigationState({ busy: Boolean(busy), dirty: Boolean((createOpen && (createDraft.title.trim() || createDraft.description.trim())) || (selectedTask && (completionNotes.trim() || completionPercent !== selectedTask.completion_percent))) });
+
   if (!canRead) {
     return (
       <section role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
@@ -123,35 +125,23 @@ export function EmployeeTaskMultiKioskWorkspaceView({
   }
 
   return (
-    <KioskToolWorkspaceFrame>
+    <KioskToolWorkspaceFrame width="catalog" data-employee-task-workspace className="space-y-4 [[data-kiosk-large-text=true]_&_.text-xs]:text-base [[data-kiosk-large-text=true]_&_.text-sm]:text-base">
       {errorMessage ? <KioskWorkspaceNotice kind="error">{errorMessage}</KioskWorkspaceNotice> : null}
       {successMessage ? <KioskWorkspaceNotice kind="success">{successMessage}</KioskWorkspaceNotice> : null}
       {enhancements.successMessage ? <KioskWorkspaceNotice kind="success">{enhancements.successMessage}</KioskWorkspaceNotice> : null}
       {processSuccessMessage ? <KioskWorkspaceNotice kind="success">{processSuccessMessage}</KioskWorkspaceNotice> : null}
 
-      {employee ? (
-        <KioskWorkspaceContextBar
-          action={(
-            <button
-              aria-label={busy === 'refresh' ? copy.loading.title : copy.identity.refresh}
-              className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-[#F4C84A] hover:bg-[#F4C84A]/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#F4C84A]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
-              onClick={() => void handleRefresh()}
-              type="button"
-            >
-              <RefreshCw aria-hidden="true" className={`h-4 w-4 ${busy === 'refresh' ? 'animate-spin' : ''}`} />
-            </button>
-          )}
-          density="compact"
-          description={employee.position_title || employee.department || employee.user_code || copy.identity.fallbackStatus}
-          eyebrow={copy.identity.eyebrow}
-          icon={employeeInitials(employee.full_name)}
-          meta={<p className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">{scopeLabel}</p>}
-          title={employee.full_name}
-          tone="yellow"
-        />
-      ) : null}
+      <header className="flex items-center gap-3 px-1">
+        <span aria-hidden="true" className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-[#F4C84A]/50 bg-[#FFF7DC] text-2xl dark:bg-amber-950/40">✅</span>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-slate-600 dark:text-slate-300">{employee?.full_name ?? copy.identity.eyebrow}</p>
+          <h2 className="text-[22px] font-medium leading-tight text-slate-950 dark:text-white">{agendaCopy.title}</h2>
+        </div>
+        <button type="button" aria-label={copy.identity.refresh} disabled={Boolean(busy)} onClick={() => void handleRefresh()} className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white text-[#143675] shadow-sm transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-blue-200"><RefreshCw aria-hidden="true" size={19} className={busy === 'refresh' ? 'animate-spin' : ''} /></button>
+      </header>
 
       <PublicTaskKioskSummaryStrip
+        personal
         compact
         openLabel={copy.sidebar.openTasks}
         openValue={openTasks.length}
@@ -232,7 +222,9 @@ export function EmployeeTaskMultiKioskWorkspaceView({
       ) : null}
 
       <PublicTaskKioskFiltersSheet
+        personal
         applyLabel={copy.workspace.applyFilters}
+        closeLabel={copy.workspace.close}
         clearLabel={copy.workspace.clearFilters}
         description={copy.workspace.filtersDescription}
         isOpen={filtersOpen}

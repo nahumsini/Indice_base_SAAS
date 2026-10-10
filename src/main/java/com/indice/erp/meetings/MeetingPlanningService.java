@@ -33,6 +33,7 @@ public class MeetingPlanningService {
         if(body.saveFlowName()!=null&&body.saveFlowName().length()>120)throw new IllegalArgumentException();
     }
     private int conflicts(AuthSessionUser actor,MeetingRequest body,Instant start,Instant end,long excludingSeries){
+        if(meetings.appointmentConflicts(actor,body,start,end)>0)throw new MeetingPlanningException("meeting_appointment_conflict");
         var people=new TreeSet<>(body.participantIds());people.add(body.ownerId());
         String ids=String.join(",",people.stream().map(String::valueOf).toList());
         return repository.jdbc().queryForObject("SELECT COUNT(*) FROM meeting_records m WHERE m.company_id=? AND m.status IN ('PLANNED','IN_PROGRESS') AND m.start_at<? AND m.end_at>? AND (?=0 OR COALESCE(m.series_id,0)<>?) AND (m.owner_id IN ("+ids+") OR EXISTS(SELECT 1 FROM meeting_participants p WHERE p.company_id=m.company_id AND p.meeting_id=m.id AND p.user_id IN ("+ids+")))",Integer.class,actor.companyId(),Timestamp.from(end),Timestamp.from(start),excludingSeries,excludingSeries);

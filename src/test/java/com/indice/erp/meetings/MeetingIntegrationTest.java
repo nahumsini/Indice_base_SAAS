@@ -18,7 +18,7 @@ import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.http.MediaType;
 
-@SpringBootTest(properties="app.email.enabled=false")
+@SpringBootTest(properties={"app.email.enabled=false","app.scheduling.reminder-initial-delay-ms=86400000","app.meetings.reminder-initial-delay-ms=86400000"})
 @AutoConfigureMockMvc
 class MeetingIntegrationTest {
     @Autowired MeetingRepository repository;
@@ -45,6 +45,8 @@ class MeetingIntegrationTest {
     private MeetingDetail create(){return service.create(actor,request(),UUID.randomUUID().toString());}
     private MockHttpSession session(long id,long tenant){var s=new MockHttpSession();s.setAttribute(SessionAuthService.SESSION_USER_ID,id);s.setAttribute(SessionAuthService.SESSION_COMPANY_ID,tenant);s.setAttribute(SessionAuthService.SESSION_USER_NAME,"Synthetic");s.setAttribute(SessionAuthService.SESSION_LOGIN_CSRF,"synthetic-csrf");return s;}
     @AfterEach void cleanup(){
+        for(long tenant:new long[]{company,other})if(tenant>0)db.update("DELETE FROM meeting_agreement_task_links WHERE company_id=?",tenant);
+        for(long tenant:new long[]{company,other})if(tenant>0)db.update("DELETE FROM process_tasks WHERE company_id=?",tenant);
         for(long tenant:new long[]{company,other})if(tenant>0){for(String table:List.of("meeting_create_replays","meeting_workflow_audit","meeting_reminder_receipts","meeting_audit","meeting_agreements","meeting_participants","meeting_records","meeting_series","meeting_flows"))db.update("DELETE FROM "+table+" WHERE company_id=?",tenant);db.update("DELETE FROM companies WHERE id=?",tenant);}
         for(long id:new long[]{user,participant,stranger})if(id>0)db.update("DELETE FROM users WHERE id=?",id);
     }
@@ -135,6 +137,69 @@ class MeetingIntegrationTest {
     @Test void concurrentIdenticalCreateRetriesProduceOneRecord()throws Exception{
         var pool=java.util.concurrent.Executors.newFixedThreadPool(2);String key=UUID.randomUUID().toString();var ready=new java.util.concurrent.CyclicBarrier(2);
         try{java.util.concurrent.Callable<Long> call=()->{ready.await(10,java.util.concurrent.TimeUnit.SECONDS);return service.create(actor,request(),key).meeting().id();};var first=pool.submit(call);var second=pool.submit(call);assertThat(first.get(20,java.util.concurrent.TimeUnit.SECONDS)).isEqualTo(second.get(20,java.util.concurrent.TimeUnit.SECONDS));assertThat(repository.meetings(actor,start.minusSeconds(1),start.plusSeconds(86400),"","",1,25).total()).isEqualTo(1);}finally{pool.shutdownNow();}
+    }
+    @Test void agreementContextIncludesOlderDatesAndEditsAreScopedAndVersioned(){
+        var meeting=create();var due=LocalDate.now().minusMonths(3);
+        var agreement=service.agreement(actor,new AgreementRequest(meeting.meeting().id(),"Historical obligation",participant,due),UUID.randomUUID().toString());
+        assertThat(repository.agreements(actor,LocalDate.now(),LocalDate.now().plusDays(1),"","","",0,"due","asc",LocalDate.now(),1,25,meeting.meeting().id()).items()).extracting(AgreementItem::id).containsExactly(agreement.id());
+        assertThat(repository.agreements(actor,LocalDate.now(),LocalDate.now().plusDays(1),"","","allOverdue",0,"due","asc",LocalDate.now(),1,25).total()).isEqualTo(1);
+        assertThatThrownBy(()->repository.agreementDetail(outsider,agreement.id())).isInstanceOf(NoSuchElementException.class);
+        var update=new AgreementUpdateRequest("Updated obligation",user,LocalDate.now().plusDays(2),"Reassigned with new deadline",1,false);
+        assertThatThrownBy(()->service.updateAgreement(member,agreement.id(),update)).isInstanceOf(SecurityException.class);
+        var edited=service.updateAgreement(actor,agreement.id(),update);assertThat(edited.assigneeId()).isEqualTo(user);assertThat(edited.followupEnabled()).isFalse();
+        assertThatThrownBy(()->service.updateAgreement(actor,agreement.id(),update)).isInstanceOf(IllegalStateException.class);
+        var noted=service.agreementNote(actor,agreement.id(),new NoteRequest("Progress evidence",edited.version()));
+        assertThat(noted.history().getFirst().reason()).isEqualTo("Progress evidence");
+    }
+    @Test void addendaPreserveClosedMinutesAndRejectStaleVersions(){
+        var meeting=create();long id=meeting.meeting().id();
+        service.minutes(actor,id,new MinutesRequest("Original minutes","Original decisions",1));
+        service.transition(actor,id,new TransitionRequest("IN_PROGRESS","",2));
+        service.transition(actor,id,new TransitionRequest("COMPLETED","",3));
+        var amended=service.addendum(actor,id,new NoteRequest("Additional signed clarification",4));
+        assertThat(amended.minutes()).isEqualTo("Original minutes");assertThat(amended.decisions()).isEqualTo("Original decisions");
+        assertThat(amended.history().getFirst().action()).isEqualTo("MINUTES_ADDENDUM");
+        assertThatThrownBy(()->service.addendum(actor,id,new NoteRequest("Stale clarification",4))).isInstanceOf(IllegalStateException.class);
+    }
+    @Test void overdueFollowupSurvivesDisabledMeetingRemindersAndCancellation(){
+        var meeting=create();long id=meeting.meeting().id();
+        service.agreement(actor,new AgreementRequest(id,"Overdue owner obligation",user,LocalDate.now().minusDays(1)),UUID.randomUUID().toString());
+        service.transition(actor,id,new TransitionRequest("CANCELLED","Meeting cancelled; obligation remains",1));
+        reminders.dispatch(company,id);reminders.dispatch(company,id);
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM meeting_reminder_receipts WHERE company_id=? AND signal_type='overdue_agreement'",Integer.class,company)).isEqualTo(1);
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM meeting_reminder_receipts WHERE company_id=? AND signal_type='upcoming_meeting'",Integer.class,company)).isZero();
+    }
+    @Test void meetingChoicesFindOlderRecordsAndSearchBeyondFirstPage(){
+        long selected=0;
+        for(int i=0;i<106;i++){
+            var body=new MeetingRequest("Synthetic choice "+i,"WORKING",start.minusSeconds((120-i)*86400L),start.minusSeconds((120-i)*86400L-3600),"UTC",user,List.of(participant),"","",null);
+            long id=service.create(actor,body,UUID.randomUUID().toString()).meeting().id();if(i==0)selected=id;
+        }
+        assertThat(repository.choices(actor,"",0,5,25).items()).hasSize(6);
+        assertThat(repository.choices(actor,"",selected,1,25).items()).extracting(MeetingChoice::id).containsExactly(selected);
+        assertThat(repository.choices(actor,"choice 105",0,1,25).items()).hasSize(1);
+        assertThat(repository.choices(outsider,"",selected,1,25).items()).isEmpty();
+    }
+    @Test void taskLinkUsesNativeOwnerAndIsUniqueAcrossRetries(){
+        var meeting=create();var agreement=service.agreement(actor,new AgreementRequest(meeting.meeting().id(),"Deliver commitment",participant,LocalDate.now().plusDays(7)),UUID.randomUUID().toString());
+        db.update("INSERT INTO company_module_entitlements(company_id,module_slug,status,source) VALUES(?,'processes','inactive','test')",company);
+        assertThat(repository.agreementDetail(actor,agreement.id()).canLinkTask()).isFalse();
+        assertThatThrownBy(()->service.createTask(actor,agreement.id(),1)).isInstanceOf(SecurityException.class);
+        db.update("UPDATE company_module_entitlements SET status='active' WHERE company_id=? AND module_slug='processes'",company);
+        var linked=service.createTask(actor,agreement.id(),1);assertThat(linked.task()).isNotNull();
+        assertThat(service.createTask(actor,agreement.id(),1).task().id()).isEqualTo(linked.task().id());
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM process_tasks WHERE company_id=?",Integer.class,company)).isEqualTo(1);
+        service.agreementStatus(actor,agreement.id(),new TransitionRequest("DONE","Validated independently",linked.agreement().version()));
+        assertThat(db.queryForObject("SELECT status FROM process_tasks WHERE company_id=? AND id=?",String.class,company,linked.task().id())).isEqualTo("pending");
+    }
+    @Test void seriesFollowupReusesExistingOpenAgreementsWithoutCopyingThem(){
+        var series=planning.create(actor,new PlanRequest(rich(start,null),new Recurrence("WEEKLY",1,2),"",false),UUID.randomUUID().toString());
+        long first=series.firstMeetingId(),second=db.queryForObject("SELECT id FROM meeting_records WHERE company_id=? AND series_id=? AND occurrence_number=2",Long.class,company,series.seriesId());
+        var agreement=service.agreement(actor,new AgreementRequest(first,"Carry original obligation",participant,LocalDate.now().minusDays(2)),UUID.randomUUID().toString());
+        assertThat(repository.agreements(actor,LocalDate.now(),LocalDate.now().plusDays(1),"","","",0,"due","asc",LocalDate.now(),1,25,second,true).items()).extracting(AgreementItem::id).containsExactly(agreement.id());
+        assertThat(repository.agreements(actor,LocalDate.now(),LocalDate.now().plusDays(1),"","","",0,"due","asc",LocalDate.now(),1,25,second,false).items()).isEmpty();
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM meeting_agreements WHERE company_id=?",Integer.class,company)).isEqualTo(1);
+        assertThatThrownBy(()->repository.agreements(outsider,LocalDate.now(),LocalDate.now().plusDays(1),"","","",0,"due","asc",LocalDate.now(),1,25,second,true)).isInstanceOf(NoSuchElementException.class);
     }
     private MeetingRequest rich(Instant at,Long version){var m=request();return new MeetingRequest(m.title(),m.meetingType(),at,at.plusSeconds(3600),"UTC",user,List.of(participant),m.agenda(),m.location(),version,"Review blockers","Decide owners",participant,30);}
     @Test void reviewedSeriesAndFlowAreAtomicIdempotentAndTenantScoped(){

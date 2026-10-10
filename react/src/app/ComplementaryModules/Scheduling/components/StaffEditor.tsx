@@ -1,16 +1,22 @@
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { schedulingApi, type Staff } from '../services/schedulingApi';
 import type { SchedulingCopy } from '../translations/schedulingCopy';
-import { controlClass, EditorFrame, Field } from './SchedulingPrimitives';
+import { ActionButton, controlClass, EditorFrame, Feedback, Field } from './SchedulingPrimitives';
 import { schedulingEmoji } from '../utils/schedulingIdentity';
+import { getSchedulingOperationsCopy } from '../translations/schedulingOperationsCopy';
+import { useSchedulingQuery } from '../hooks/useSchedulingQuery';
 
 export function StaffEditor({ staff, members, copy, locale, onClose, onSaved }: { staff?: Staff; members: { id: number; name: string }[];
   copy: SchedulingCopy; locale: string; onClose: () => void; onSaved: () => void }) {
+  const op = getSchedulingOperationsCopy(locale), [date,setDate] = useState('');
+  const services = useSchedulingQuery(useCallback(signal => schedulingApi.services(signal), []));
   const [draft, setDraft] = useState({ userId: staff?.userId ?? 0, publicName: staff?.publicName ?? '', timezone: staff?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
-    active: staff?.active ?? true, days: staff?.days ?? [1, 2, 3, 4, 5].map(dayOfWeek => ({ dayOfWeek, startTime: '09:00', endTime: '17:00' })) });
+    active: staff?.active ?? true, days: staff?.days ?? [1, 2, 3, 4, 5].map(dayOfWeek => ({ dayOfWeek, startTime: '09:00', endTime: '17:00' })),
+    unavailableDates: staff?.unavailableDates ?? [], serviceIds: staff?.serviceIds ?? [] });
+  const initialDraft = useRef(JSON.stringify(draft));
   const weekday = (day: number) => new Intl.DateTimeFormat(locale, { weekday: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 0, 4 + day)));
   return <EditorFrame icon={schedulingEmoji.team} title={staff ? copy.edit : copy.newStaff} description={copy.configurationHint} copy={copy} onClose={onClose} onSaved={onSaved}
-    onSave={() => schedulingApi.saveStaff({ ...draft, version: staff?.version }, staff?.id)}>
+    hasChanges={JSON.stringify(draft) !== initialDraft.current} onSave={() => schedulingApi.saveStaff({ ...draft, version: staff?.version }, staff?.id)}>
     <div className="grid gap-4 sm:grid-cols-2"><Field label={copy.member}><select className={controlClass} required disabled={Boolean(staff)} value={draft.userId || ''}
       onChange={e => { const member = members.find(m => m.id === Number(e.target.value)); setDraft({ ...draft, userId: Number(e.target.value), publicName: member?.name ?? '' }); }}>
       <option value="">{copy.selectOption}</option>{members.map(member => <option key={member.id} value={member.id}>{member.name}</option>)}</select></Field>
@@ -19,14 +25,29 @@ export function StaffEditor({ staff, members, copy, locale, onClose, onSaved }: 
       <label className="flex min-h-11 items-center gap-3 text-sm sm:mt-7"><input type="checkbox" className="h-4 w-4 accent-[#FF6B5E]" checked={draft.active} onChange={e => setDraft({ ...draft, active: e.target.checked })} />{copy.active}</label>
     </div>
     <fieldset className="space-y-3"><legend className="mb-3 text-sm font-medium">{copy.weekly}</legend>{[1, 2, 3, 4, 5, 6, 7].map(day => {
-      const window = draft.days.find(d => d.dayOfWeek === day);
-      return <div key={day} className="grid gap-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-800 sm:grid-cols-[1fr_1fr_1fr]">
-        <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-4 w-4 accent-[#FF6B5E]" checked={Boolean(window)} onChange={e => setDraft({ ...draft,
+      const windows = draft.days.map((row,index)=>({...row,index})).filter(d => d.dayOfWeek === day);
+      return <div key={day} className="space-y-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
+        <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-4 w-4 accent-[#FF6B5E]" checked={Boolean(windows.length)} onChange={e => setDraft({ ...draft,
           days: e.target.checked ? [...draft.days, { dayOfWeek: day, startTime: '09:00', endTime: '17:00' }] : draft.days.filter(d => d.dayOfWeek !== day) })} />{weekday(day)}</label>
-        {(['startTime', 'endTime'] as const).map(key => <Field key={key} label={`${key === 'startTime' ? copy.start : copy.end} · ${weekday(day)}`}>
-          <input className={controlClass} type="time" required={Boolean(window)} disabled={!window} value={window?.[key]?.slice(0, 5) ?? ''} step={60}
-            onChange={e => setDraft({ ...draft, days: draft.days.map(d => d.dayOfWeek === day ? { ...d, [key]: e.target.value } : d) })} /></Field>)}
+        {windows.map(window=><div key={window.index} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+          {(['startTime', 'endTime'] as const).map(key => <Field key={key} label={`${key === 'startTime' ? copy.start : copy.end} · ${weekday(day)}`}>
+            <input className={controlClass} type="time" required value={window[key].slice(0,5)} step={60}
+              onChange={e => setDraft({ ...draft, days: draft.days.map((d,i) => i===window.index ? { ...d, [key]: e.target.value } : d) })} /></Field>)}
+          <ActionButton onClick={()=>setDraft({...draft,days:draft.days.filter((_,i)=>i!==window.index)})}>{op.remove}</ActionButton>
+        </div>)}
+        {windows.length>0&&draft.days.length<28&&<ActionButton onClick={()=>setDraft({...draft,days:[...draft.days,{dayOfWeek:day,startTime:'18:00',endTime:'19:00'}]})}>{op.addWindow}</ActionButton>}
       </div>;
     })}</fieldset>
+    <fieldset className="space-y-3"><legend className="font-medium">{op.unavailableDates}</legend>
+      <div className="flex flex-wrap items-end gap-3"><Field label={copy.date}><input className={controlClass} type="date" value={date} onChange={e=>setDate(e.target.value)}/></Field>
+        <ActionButton disabled={!date||draft.unavailableDates.includes(date)||draft.unavailableDates.length>=366} onClick={()=>{setDraft({...draft,unavailableDates:[...draft.unavailableDates,date].sort()});setDate('');}}>{op.addDate}</ActionButton></div>
+      <ul className="flex flex-wrap gap-2">{draft.unavailableDates.map(d=><li key={d}><ActionButton aria-label={op.remove+': '+d} onClick={()=>setDraft({...draft,unavailableDates:draft.unavailableDates.filter(v=>v!==d)})}>{d} ×</ActionButton></li>)}</ul>
+    </fieldset>
+    <fieldset className="space-y-3"><legend className="font-medium">{copy.services}</legend><p className="text-sm text-slate-500">{op.servicesHint}</p>
+      {services.loading && <Feedback>{copy.loading}</Feedback>}{services.error && <Feedback error>{copy.error}</Feedback>}
+      <div className="grid gap-2 sm:grid-cols-2">{services.data?.map(service=><label key={service.id} className="flex min-h-11 items-center gap-3 text-sm">
+        <input type="checkbox" checked={draft.serviceIds.includes(service.id)} onChange={e=>setDraft({...draft,serviceIds:e.target.checked?[...draft.serviceIds,service.id]:draft.serviceIds.filter(id=>id!==service.id)})}/>{service.name}
+      </label>)}</div>
+    </fieldset>
   </EditorFrame>;
 }

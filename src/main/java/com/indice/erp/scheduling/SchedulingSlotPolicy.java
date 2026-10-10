@@ -11,6 +11,7 @@ public final class SchedulingSlotPolicy {
         var today=now.atZone(zone).toLocalDate();
         if(date.isBefore(today)||date.isAfter(today.plusDays(90)))
             throw new IllegalArgumentException("Choose a date within 90 days.");
+        if(staff.unavailableDates().contains(date)||!staff.serviceIds().isEmpty()&&!staff.serviceIds().contains(service.id()))return List.of();
         var result=new ArrayList<Instant>();
         for(var day:staff.days()) {
             if(day.dayOfWeek()!=date.getDayOfWeek().getValue())continue;

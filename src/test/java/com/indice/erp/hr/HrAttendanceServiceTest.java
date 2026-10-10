@@ -70,6 +70,28 @@ class HrAttendanceServiceTest {
         assertEquals("Attendance can only be edited on or after this user's hire date: 2026-04-29.", error.getMessage());
     }
 
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void personalKioskResolvesTheLinkedEmployeeScheduleWithoutWritingAttendance() {
+        var date = LocalDate.now();
+        when(jdbcTemplate.query(anyString(), org.mockito.ArgumentMatchers.any(RowMapper.class), org.mockito.ArgumentMatchers.any(Object[].class)))
+            .thenAnswer(invocation -> {
+                var sql = (String) invocation.getArgument(0);
+                if (sql.contains("FROM users u")) return List.of(new com.indice.erp.hr.attendance.models.AttendanceUser(
+                    9L, 99L, "employee@example.test", "Employee", "user", "active", ""));
+                if (sql.contains("FROM hr_users e")) return List.of(new com.indice.erp.hr.attendance.models.AttendanceHrUser(
+                    12L, "EMP", "Employee", "Staff", "Operations", date.minusYears(1), "active", null, "", null, ""));
+                if (sql.contains("FROM user_schedule_assignments")) return List.of(new com.indice.erp.hr.attendance.models.ScheduleRule(
+                    12L, 5L, "open", false, false, null, "", null, null, 0, 0, 0, false));
+                if (sql.contains("user_attendance_daily_records")) return List.of();
+                throw new AssertionError("Unexpected query in minimal employee projection");
+            });
+        var day = createService().employeeDay(1L, 9L, date);
+        assertEquals("pending", day.status());
+        assertEquals(null, day.firstCheckIn());
+        org.mockito.Mockito.verify(jdbcTemplate, org.mockito.Mockito.never()).update(anyString(), org.mockito.ArgumentMatchers.any(Object[].class));
+    }
+
     private HrAttendanceService createService() {
         var objectMapper = new ObjectMapper();
         var attendancePhotoService = new AttendancePhotoService(new DisabledObjectStorageService(), new ObjectStorageProperties());

@@ -1,3 +1,4 @@
+import { useKioskNavigationState } from '../components/kiosk-engine/KioskNavigationBoundary';
 import { LoaderCircle } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LiveFaceChallengeCapture } from '../components/LiveFaceChallenge';
@@ -86,6 +87,7 @@ export function AttendanceMultiKioskWorkspace({
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [busyState, setBusyState] = useState<PublicKioskBusyState>('idle');
+  useKioskNavigationState({ busy: busyState !== 'idle', dirty: Boolean(fallbackPhotoUpload.photo) });
   const punchInFlightRef = useRef(false);
 
   useEffect(() => {
@@ -367,6 +369,7 @@ export function AttendanceMultiKioskWorkspace({
         </p>
       ) : null}
       <PublicKioskIdentityPanel
+        personal
         activeActivityLocation={viewModel.activeActivityLocation}
         activityStateLabel={viewModel.activityStateLabel}
         activeTodayActivity={viewModel.activeTodayActivity}

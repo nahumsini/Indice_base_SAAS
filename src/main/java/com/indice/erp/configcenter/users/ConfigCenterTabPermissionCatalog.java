@@ -99,7 +99,13 @@ public final class ConfigCenterTabPermissionCatalog {
         tab("scheduling", "configuration", "Configuration", "Configuración"),
         tab("control_minutas", "meetings", "Meetings", "Juntas"),
         tab("control_minutas", "agreements", "Agreements", "Acuerdos"),
-        tab("control_minutas", "indicators", "Indicators", "Indicadores")
+        tab("control_minutas", "indicators", "Indicators", "Indicadores"),
+        tab("maintenance", "requests", "Requests", "Reportes"),
+        tab("maintenance", "orders", "Work orders", "Órdenes de trabajo"),
+        tab("maintenance", "assets", "Assets and locations", "Equipos y ubicaciones"),
+        tab("maintenance", "preventive", "Preventive maintenance", "Preventivos"),
+        tab("maintenance", "indicators", "Indicators", "Indicadores"),
+        tab("maintenance", "configuration", "Configuration", "Configuración")
     );
     static final Set<String> VALID_KEYS = validKeys();
 
@@ -167,6 +173,8 @@ public final class ConfigCenterTabPermissionCatalog {
         if (isProtectedScope(permissionKey)) {
             return false;
         }
+        if (permissionKey.equals("maintenance.configuration") && !Set.of("admin","owner","dueno").contains(normalizedRole)) return false;
+        if (Set.of("maintenance.preventive","maintenance.indicators").contains(permissionKey) && !Set.of("admin","owner","dueno","manager","approver").contains(normalizedRole)) return false;
         if (!"user".equals(normalizedRole)) {
             return true;
         }

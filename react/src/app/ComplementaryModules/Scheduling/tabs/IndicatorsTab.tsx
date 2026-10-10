@@ -31,7 +31,7 @@ export default function IndicatorsTab({ copy, locale, canInspect }: { copy: Sche
         [copy.attendance, query.data.attendanceRate === null ? '—' : `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(query.data.attendanceRate)}%`, null],
       ] as const).map(([label, value, status]) => <section key={label} className={panelClass}><h3 className="text-sm font-medium text-slate-500 dark:text-slate-300">{label}</h3>
         <p className="mt-3 text-3xl font-medium">{typeof value === 'number' ? new Intl.NumberFormat(locale).format(value) : value}</p>
-        {status && canInspect && <Link className="mt-3 inline-flex min-h-11 items-center rounded-lg text-sm font-medium text-[#B63B32] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E] dark:text-[#FFB0AA]" to={`/scheduling/calendar?${new URLSearchParams({ ...range, status, view: 'table' })}`}>{copy.inspect}</Link>}
+        {status && canInspect && <Link className="mt-3 inline-flex min-h-11 items-center rounded-lg text-sm font-medium text-[#B63B32] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E] dark:text-[#FFB0AA]" to={`/scheduling/calendar?${new URLSearchParams({ ...range, status, view: 'table', staff: '0', archived: 'true', page: '1' })}`}>{copy.inspect}</Link>}
         {!status && <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-300">{query.data!.attendanceRate === null ? copy.noAttendance : copy.attendanceFormula}</p>}</section>)}</div>
       <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{copy.sourceMetrics}</p>
     </>}

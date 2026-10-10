@@ -1,6 +1,7 @@
 import type { PublicPettyCashIncomeMovement } from '../pettyCashKioskApi';
 
 interface PettyCashKioskIncomeCardProps {
+  personal?: boolean;
   amount: string;
   date: string;
   movement: PublicPettyCashIncomeMovement;
@@ -10,6 +11,7 @@ interface PettyCashKioskIncomeCardProps {
 }
 
 export function PettyCashKioskIncomeCard({
+  personal = false,
   amount,
   date,
   movement,
@@ -18,11 +20,11 @@ export function PettyCashKioskIncomeCard({
   title,
 }: PettyCashKioskIncomeCardProps) {
   return (
-    <article className="w-full rounded-2xl border border-[#147514]/20 bg-white p-3 shadow-[0_12px_28px_-28px_rgba(15,23,42,0.9)] dark:border-emerald-400/20 dark:bg-slate-950">
-      <div className="flex items-start justify-between gap-3">
+    <article data-personal-tool-card={personal || undefined} className="w-full rounded-2xl border border-[#147514]/20 bg-white p-3 shadow-[0_12px_28px_-28px_rgba(15,23,42,0.9)] dark:border-emerald-400/20 dark:bg-slate-950">
+      <div className={`flex items-start justify-between gap-3 ${personal ? 'flex-wrap' : ''}`}>
         <div className="min-w-0">
-          <p className="text-xs font-medium text-emerald-700/70 dark:text-emerald-300/70">{date}</p>
-          <h3 className="mt-1 truncate text-sm font-medium leading-5 text-slate-950 dark:text-white">{title}</h3>
+          <p className={`text-xs font-medium ${personal ? 'text-slate-600 dark:text-slate-300' : 'text-emerald-700/70 dark:text-emerald-300/70'}`}>{date}</p>
+          <h3 className="mt-1 truncate text-sm font-medium leading-5 text-slate-950 dark:text-white">{personal ? <span aria-hidden="true" className="mr-2 text-xl">💵</span> : null}{title}</h3>
         </div>
         <p className="shrink-0 text-sm font-medium text-[#147514] dark:text-emerald-300">{amount}</p>
       </div>

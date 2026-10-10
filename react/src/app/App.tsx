@@ -259,7 +259,6 @@ function Dashboard({
 
   const mainModules = availableModules.filter((module) => module.category === 'basic');
   const complementaryModules = availableModules.filter((module) => module.category === 'complementary');
-  const aiModules = availableModules.filter((module) => module.category === 'ai');
 
   const favoriteModules = getFavoriteModules(availableModules);
   const isGuidedLearningVisible = learningModeActive && learningModeVisible;
@@ -385,28 +384,6 @@ function Dashboard({
         </div>
         <ModuleCarousel singleRow={true}>
           {complementaryModules.map((module, index) => (
-            <ModuleCard
-              key={index}
-              {...module}
-              isFavorite={favorites.includes(module.id)}
-              onToggleFavorite={() => toggleFavorite(module.id)}
-              onClick={() => handleModuleClick(module.route)}
-              size="small"
-            />
-          ))}
-        </ModuleCarousel>
-      </section>
-
-      {/* Sección Módulos de IA */}
-      <section className="pb-10">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-            🤖 {t.sections.aiModules}
-          </h2>
-          <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t.sections.aiLabel}</span>
-        </div>
-        <ModuleCarousel gridClasses="grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-10">
-          {aiModules.map((module, index) => (
             <ModuleCard
               key={index}
               {...module}
@@ -740,7 +717,6 @@ export default function App() {
   };
 
   const standaloneModulePages: Partial<Record<PageId, StandaloneModuleComponent>> = {
-    maintenance: Mantenimiento,
     cleaning: Limpieza,
     laundry: Lavanderia,
     transportation: Transportacion,
@@ -776,6 +752,8 @@ export default function App() {
       <Scheduling learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'minutes-control' ? (
       <ControlMinutas learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
+    ) : currentPage === 'maintenance' ? (
+      <Mantenimiento learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'processes-tasks' ? (
       <ProcessesTasks learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'home-panel' ? (

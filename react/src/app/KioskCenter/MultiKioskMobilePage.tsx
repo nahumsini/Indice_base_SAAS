@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowLeft,
-  Grid2X2,
   Handshake,
   LoaderCircle,
   LockKeyhole,
   LogOut,
+  MoreHorizontal,
 } from 'lucide-react';
 import { useParams, useSearchParams } from 'react-router';
 import {
@@ -37,6 +37,11 @@ import { ProviderCenterAccessGate } from './multi-kiosk/ProviderCenterAccessGate
 import { ProviderPortalHome } from './multi-kiosk/ProviderPortalHome';
 import { ProviderPortalLayout } from './multi-kiosk/ProviderPortalLayout';
 import { getProviderCenterPublicCopy, type ProviderCenterPublicCopy } from './providerCenterPublicTranslations';
+import { EmployeeKioskPortal } from './multi-kiosk/EmployeeKioskPortal';
+import { employeePortalCopy } from './multi-kiosk/employeePortalCopy';
+import { useEmployeeNavigationGuard } from './multi-kiosk/useEmployeeNavigationGuard';
+import { KioskNavigationBoundary } from '../components/kiosk-engine/KioskNavigationBoundary';
+import { Avatar, AvatarImage, AvatarFallback } from '../components/ui/avatar';
 
 const accents: Record<string, { color: string; soft: string; textClassName: string }> = {
   'indice-aqua': { color: '#177D66', soft: '#EAF8F3', textClassName: 'text-emerald-700 dark:text-emerald-300' },
@@ -65,6 +70,15 @@ const friendlyError = (error: unknown, copy: MultiKioskMobileCopy) => {
   return copy.errors.generic;
 };
 
+function KioskCompanyLogo({ bootstrap }: { bootstrap: MultiKioskBootstrap }) {
+  return (
+    <Avatar key={`${bootstrap.company_name}:${bootstrap.company_logo_url ?? ''}`} className="h-11 w-11 rounded-2xl border border-[#DBEAFE] bg-white shadow-[0_2px_5px_-3px_rgba(20,54,117,0.3)] dark:border-blue-900" role="img" aria-label={bootstrap.company_name} title={bootstrap.company_name} data-kiosk-company-logo>
+      <AvatarImage src={bootstrap.company_logo_url || undefined} alt="" className="object-contain p-1" referrerPolicy="no-referrer" />
+      <AvatarFallback className="rounded-2xl bg-[#EFF6FF] text-2xl leading-none dark:bg-blue-950" style={{ fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif' }} aria-hidden="true">🏢</AvatarFallback>
+    </Avatar>
+  );
+}
+
 function MultiKioskHeader({
   bootstrap,
   identityName,
@@ -77,6 +91,7 @@ function MultiKioskHeader({
   onSignOut,
   utilities,
   workspace,
+  locale,
 }: {
   bootstrap: MultiKioskBootstrap;
   identityName?: string;
@@ -89,46 +104,48 @@ function MultiKioskHeader({
   onSignOut?: () => void;
   utilities?: ReactNode;
   workspace?: MultiKioskChildWorkspace | null;
+  locale: string;
 }) {
   const signOutLabel = bootstrap.audience_type === 'PROVIDER'
     ? (providerCopy?.header.changeProvider ?? copy.launcher.signOut)
     : copy.launcher.signOut;
+  const employeeHeader = bootstrap.audience_type !== 'PROVIDER';
 
   if (compact && identityName) {
     return (
       <header
-        className="border-b border-slate-200 bg-white px-3 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top))] dark:border-slate-800 dark:bg-slate-950 sm:px-4"
+        className={`border-b bg-white px-3 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top))] dark:bg-slate-950 sm:px-4 ${employeeHeader ? 'border-[#E3EAF4] shadow-[0_4px_16px_-12px_rgba(20,54,117,0.3)] dark:border-slate-800' : 'border-slate-200 dark:border-slate-800'}`}
         data-multi-kiosk-app-bar
       >
-        <div className="grid min-h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 max-[479px]:grid-cols-1 sm:gap-3">
+        <div className="grid min-h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:gap-3">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             {workspace && onBack ? (
               <button
                 type="button"
                 onClick={onBack}
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700 outline-none transition hover:bg-slate-50 focus-visible:ring-4 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
+                className={`grid h-11 w-11 shrink-0 place-items-center border outline-none transition-colors focus-visible:ring-4 ${employeeHeader ? 'rounded-2xl border-[#DBEAFE] bg-[#EFF6FF] text-[#143675] hover:bg-[#DBEAFE] dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200' : 'rounded-xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900'}`}
                 style={{ '--tw-ring-color': `${accent.color}25` } as React.CSSProperties}
                 aria-label={copy.workspace.back}
               >
                 <ArrowLeft className="h-5 w-5" aria-hidden="true" />
               </button>
+            ) : employeeHeader ? (
+              <KioskCompanyLogo bootstrap={bootstrap} />
             ) : (
               <span
                 aria-hidden="true"
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-xl"
                 style={{ color: accent.color, backgroundColor: accent.soft }}
               >
-                {bootstrap.audience_type === 'PROVIDER'
-                  ? <Handshake className="h-5 w-5" />
-                  : <Grid2X2 className="h-5 w-5" />}
+                <Handshake className="h-5 w-5" />
               </span>
             )}
             {workspace ? (
-              <MultiKioskToolGlyph source={workspace.kiosk} className="h-10 w-10 shrink-0 rounded-xl max-[359px]:hidden" />
+              <MultiKioskToolGlyph source={workspace.kiosk} className="hidden h-10 w-10 shrink-0 rounded-xl sm:grid" />
             ) : null}
 
             <div className="min-w-0 flex-1">
-              <p className={`truncate text-[11px] font-medium leading-4 ${workspace ? 'text-slate-500 dark:text-slate-400' : accent.textClassName}`}>
+              <p className={`truncate font-medium leading-4 ${employeeHeader ? 'text-xs text-[#425466] dark:text-slate-300' : `text-[11px] ${workspace ? 'text-slate-500 dark:text-slate-400' : accent.textClassName}`}`}>
                 {workspace
                   ? bootstrap.audience_type === 'PROVIDER'
                     ? providerCopy?.header.portal ?? moduleName(workspace.kiosk.module, copy)
@@ -136,32 +153,35 @@ function MultiKioskHeader({
                   : bootstrap.company_name}
               </p>
               <h1
-                className="truncate text-base font-medium leading-5 text-slate-950 dark:text-white sm:text-lg"
+                className={`truncate text-base font-medium leading-5 sm:text-lg ${employeeHeader ? 'text-[#143675] dark:text-blue-100' : 'text-slate-950 dark:text-white'}`}
                 id={workspace ? 'multi-kiosk-workspace-title' : undefined}
               >
                 {workspace ? workspace.kiosk.name : bootstrap.name}
               </h1>
               {workspace ? (
-                <p className="truncate text-[11px] leading-4 text-slate-500 dark:text-slate-400">
-                  {workspace.bootstrap?.scope_label ?? workspace.kiosk.purpose} · {identityName}
+                <p className={`truncate text-[11px] leading-4 ${employeeHeader ? 'text-[#425466] dark:text-slate-300' : 'text-slate-500 dark:text-slate-400'}`}>
+                  {identityName}
                 </p>
               ) : null}
             </div>
           </div>
 
           <div className="flex shrink-0 items-center justify-end gap-2">
-            {utilities}
+            <details className="relative">
+              <summary aria-label={employeePortalCopy(locale).settings} title={employeePortalCopy(locale).settings} className={`grid h-11 w-11 cursor-pointer list-none place-items-center border transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/30 [&::-webkit-details-marker]:hidden ${employeeHeader ? 'rounded-2xl border-[#E3EAF4] bg-[#F7F9FC] text-[#143675] hover:border-blue-300 hover:bg-[#EFF6FF] dark:border-slate-700 dark:bg-slate-900 dark:text-blue-200' : 'rounded-xl border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300'}`}>{employeeHeader ? <span aria-hidden="true" className="text-[1.375rem] leading-none" style={{ fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif' }}>⚙️</span> : <MoreHorizontal size={20} />}</summary>
+              <div className={`absolute right-0 top-[3.25rem] z-50 flex gap-2 border border-slate-200 bg-white p-2.5 shadow-[0_12px_32px_-12px_rgba(20,54,117,0.3)] dark:border-slate-700 dark:bg-slate-950 ${employeeHeader ? 'rounded-2xl' : 'rounded-xl'}`}>{utilities}</div>
+            </details>
             {onSignOut ? (
               <button
                 type="button"
                 onClick={onSignOut}
                 disabled={busy}
-                className="inline-flex h-11 w-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-0 text-sm font-medium text-slate-700 outline-none transition hover:bg-slate-50 focus-visible:ring-4 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900 sm:w-auto sm:px-3"
+                className={`inline-flex h-11 w-11 shrink-0 items-center justify-center gap-2 border px-0 text-sm font-medium outline-none transition-colors focus-visible:ring-4 disabled:opacity-50 sm:w-auto sm:px-3 ${employeeHeader ? 'rounded-2xl border-[#F5D9D5] bg-[#FFF0EE] text-[#9E352E] hover:border-[#E9AAA2] hover:bg-[#FFE2DD] dark:border-rose-900 dark:bg-rose-950/60 dark:text-rose-200 dark:hover:bg-rose-950' : 'rounded-xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900'}`}
                 style={{ '--tw-ring-color': `${accent.color}25` } as React.CSSProperties}
                 aria-label={signOutLabel}
                 title={signOutLabel}
               >
-                <LogOut className="h-4 w-4" aria-hidden="true" />
+                <LogOut className="h-[1.125rem] w-[1.125rem]" aria-hidden="true" />
                 <span className="hidden sm:inline">{bootstrap.audience_type === 'PROVIDER' ? signOutLabel : copy.launcher.changeEmployee}</span>
               </button>
             ) : null}
@@ -175,15 +195,13 @@ function MultiKioskHeader({
     <header className="border-b border-slate-200 bg-white px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] dark:border-slate-800 dark:bg-slate-950 sm:px-6">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 max-[479px]:grid-cols-1">
         <div className="flex min-w-0 items-start gap-3">
-          <span
+          {employeeHeader ? <KioskCompanyLogo bootstrap={bootstrap} /> : <span
             aria-hidden="true"
             className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl"
             style={{ color: accent.color, backgroundColor: accent.soft }}
           >
-            {bootstrap.audience_type === 'PROVIDER'
-              ? <Handshake className="h-5 w-5" />
-              : <Grid2X2 className="h-5 w-5" />}
-          </span>
+            <Handshake className="h-5 w-5" />
+          </span>}
           <div className="min-w-0">
             <p className={`text-xs font-medium ${accent.textClassName}`}>
               {bootstrap.audience_type === 'PROVIDER' && providerCopy
@@ -293,7 +311,10 @@ function Launcher({ session, accent, busy, busyId, copy, error, locale, onOpen, 
 export default function MultiKioskMobilePage() {
   const token = useParams().publicAccessToken ?? '';
   const [searchParams, setSearchParams] = useSearchParams();
+  const setSearchParamsRef = useRef(setSearchParams);
+  setSearchParamsRef.current = setSearchParams;
   const { currentLanguage } = useLanguage();
+  const navigation = useEmployeeNavigationGuard(currentLanguage.code);
   const [bootstrap, setBootstrap] = useState<MultiKioskBootstrap | null>(null);
   const [session, setSession] = useState<MultiKioskMobileSession | null>(null);
   const [workspace, setWorkspace] = useState<MultiKioskChildWorkspace | null>(null);
@@ -321,13 +342,13 @@ export default function MultiKioskMobilePage() {
   copyRef.current = copy;
 
   const setToolRoute = useCallback((identity: string | null, replace = false) => {
-    setSearchParams(current => {
+    setSearchParamsRef.current(current => {
       const next = new URLSearchParams(current);
       if (identity) next.set('tool', identity);
       else next.delete('tool');
       return next;
     }, { replace });
-  }, [setSearchParams]);
+  }, []);
 
   const clearLocalAuthority = useCallback((message = '', clearRoute = true) => {
     openControllerRef.current?.abort();
@@ -335,6 +356,7 @@ export default function MultiKioskMobilePage() {
     openingKioskIdRef.current = null;
     workspaceRequestRef.current += 1;
     multiKioskMobileSession.clearAuthority(token);
+    navigation.clear();
     routeAttemptRef.current = '';
     setWorkspace(null);
     setActiveKioskId(null);
@@ -342,7 +364,7 @@ export default function MultiKioskMobilePage() {
     setBusyId(null);
     setError(message);
     if (clearRoute) setToolRoute(null, true);
-  }, [setToolRoute, token]);
+  }, [setToolRoute, token, navigation.clear]);
 
   const clearChildAuthority = useCallback((kioskId: number, message: string) => {
     openControllerRef.current?.abort();
@@ -482,10 +504,17 @@ export default function MultiKioskMobilePage() {
     if (requestedToolIdentity) return;
     routeAttemptRef.current = '';
     if (!workspace) return;
+    if (navigation.isBlocked()) {
+      setToolRoute(getMultiKioskToolIdentity(workspace.kiosk), true);
+      navigation.request(() => {
+        setWorkspace(null); setActiveKioskId(null); setError(''); setToolRoute(null, true);
+      });
+      return;
+    }
     setWorkspace(null);
     setActiveKioskId(null);
     setError('');
-  }, [requestedToolIdentity, workspace]);
+  }, [requestedToolIdentity, workspace, navigation.isBlocked, navigation.request, setToolRoute]);
 
   const refreshWorkspace = useCallback(async () => {
     if (activeKioskId === null) return;
@@ -621,9 +650,20 @@ export default function MultiKioskMobilePage() {
     >
       {authenticatedSurface}
     </ProviderPortalLayout>
+  ) : session ? (
+    <EmployeeKioskPortal token={token} session={session} locale={currentLanguage.code} copy={copy}
+      accent={accent} workspace={workspaceOpen ? authenticatedSurface : null} busyId={busyId} error={error}
+      onOpen={openTool} onHome={returnToLauncher} onAuthorizationFailure={failure => {
+        if (failure instanceof ApiClientError && failure.code === 'KIOSK_NOT_AVAILABLE') {
+          clearLocalAuthority(copy.errors.sessionExpired); return true;
+        }
+        return handleAuthorizationFailure(failure);
+      }}
+      navigate={navigation.request} />
   ) : authenticatedSurface;
 
   return (
+    <KioskNavigationBoundary.Provider value={navigation.register}>
     <KioskPublicShell
       moduleScope="MULTI_KIOSK"
       defaultLocale={bootstrap?.locale}
@@ -641,6 +681,7 @@ export default function MultiKioskMobilePage() {
       ) : null}
       header={bootstrap ? ((utilities) => (
         <MultiKioskHeader
+          locale={currentLanguage.code}
           bootstrap={bootstrap}
           accent={accent}
           copy={copy}
@@ -650,8 +691,8 @@ export default function MultiKioskMobilePage() {
           busy={loading || busyId !== null}
           onBack={workspace ? providerAudience
             ? () => window.dispatchEvent(new Event('provider-portal-home-request'))
-            : returnToLauncher : undefined}
-          onSignOut={session ? () => { void signOut(); } : undefined}
+            : () => navigation.request(returnToLauncher) : undefined}
+          onSignOut={session ? () => navigation.request(() => { void signOut(); }) : undefined}
           utilities={utilities}
           workspace={workspace}
         />
@@ -676,5 +717,7 @@ export default function MultiKioskMobilePage() {
         )
       ) : portalSurface}
     </KioskPublicShell>
+    {navigation.prompt}
+    </KioskNavigationBoundary.Provider>
   );
 }

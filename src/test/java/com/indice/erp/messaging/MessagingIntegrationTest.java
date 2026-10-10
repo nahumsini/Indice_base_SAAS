@@ -30,7 +30,7 @@ import org.springframework.web.server.ResponseStatusException;
 @JdbcTest(properties={"logging.level.org.springframework=WARN","logging.level.org.springframework.jdbc.core=WARN","logging.file.path=.run/messaging-tests"})
 @AutoConfigureTestDatabase(replace=AutoConfigureTestDatabase.Replace.NONE)
 @Import({MessagingRepository.class,MessagingService.class,MessagingAccess.class,PlatformAdminAccessService.class,
-    DistributorPortfolioAccessPolicy.class,SessionCsrfService.class,MessagingAttachmentService.class,MessagingAttachmentRepository.class})
+    DistributorPortfolioAccessPolicy.class,SessionCsrfService.class,MessagingAttachmentService.class,MessagingAttachmentRepository.class,MessagingTaskService.class})
 class MessagingIntegrationTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired MessagingService service;
@@ -38,6 +38,8 @@ class MessagingIntegrationTest {
     @Autowired MessagingAccess access;
     @Autowired SessionCsrfService csrf;
     @Autowired MessagingAttachmentService photos;
+    @Autowired MessagingTaskService messageTasks;
+    @MockitoBean com.indice.erp.processTasks.tasks.ProcessTaskMessagingContract taskOwner;
     @MockitoBean com.indice.erp.storage.ObjectStorageService storage;
     @MockitoBean com.indice.erp.storage.ObjectStorageProperties storageProperties;
     @MockitoBean com.indice.erp.billing.storage.CompanyStorageMeter meter;
@@ -71,6 +73,19 @@ class MessagingIntegrationTest {
         when(storage.readObjectPrefix(anyString(),anyString(),anyInt())).thenReturn(new byte[]{(byte)137,80,78,71,13,10,26,10});
         when(storage.presignDownload(anyString(),anyString(),eq(60))).thenReturn("https://storage.example.test/read");
     }
+    @Test void authenticatedPinMemberUsesExistingConversationsAndCannotImpersonateAnotherMembership() {
+        var conversation = service.create(alice, create("DIRECT", bob.membershipId())).conversation().id();
+        var pinActor = access.memberActor(new AuthSessionUser(bob.userId(), bob.companyId(), bob.membershipId(), "PIN member", "admin"));
+        assertThat(pinActor.scope()).isEqualTo("MEMBER");
+        assertThat(service.detail(pinActor, conversation, 0, 0).messages().items()).hasSize(1);
+        assertThatThrownBy(() -> access.memberActor(new AuthSessionUser(bob.userId(), alice.companyId(), outsider.membershipId(), "Spoofed", "admin")))
+            .isInstanceOf(ResponseStatusException.class);
+        jdbc.update("UPDATE user_companies SET status='inactive' WHERE id=?", bob.membershipId());
+        assertThatThrownBy(() -> access.memberActor(new AuthSessionUser(bob.userId(), bob.companyId(), bob.membershipId(), "Revoked", "admin")))
+            .isInstanceOf(ResponseStatusException.class);
+        verifyNoInteractions(auth);
+    }
+
     @Test void directConversationIsPrivateAndTenantScoped() {
         var id=service.create(alice,create("DIRECT",bob.membershipId())).conversation().id();
         assertThat(service.detail(bob,id,0,0).messages().items()).hasSize(1);
@@ -78,6 +93,76 @@ class MessagingIntegrationTest {
         assertThatThrownBy(()->service.detail(outsider,id,0,0)).isInstanceOf(ResponseStatusException.class);
         assertThatThrownBy(()->service.detail(root,id,0,0)).isInstanceOf(ResponseStatusException.class);
         assertThatThrownBy(()->service.create(alice,create("DIRECT",outsider.membershipId()))).isInstanceOf(ResponseStatusException.class);
+    }
+    @Test void directChatNeedsNoSubjectAndDisplaysTheOtherPersonForEachMember() {
+        var result=service.create(alice,new Create("DIRECT",bob.membershipId(),null,null,null,"es-MX","Hello",key()));
+        assertThat(result.conversation().subject()).isEmpty();
+        assertThat(result.conversation().displayName()).isEqualTo("Bob");
+        assertThat(service.detail(bob,result.conversation().id(),0,0).conversation().displayName()).isEqualTo("Alice");
+        assertThat(service.list(alice,"DIRECT","Bob",0).items()).hasSize(1);
+        assertThat(result.participants()).hasSize(2);
+    }
+    @Test void legacyDirectCreationRetryFingerprintRemainsCompatible() throws Exception {
+        record LegacyCreate(String kind,Long recipientMembershipId,String subject,String topic,String moduleName,String language,String body,String requestKey) { }
+        var r=new Create("DIRECT",bob.membershipId(),"Legacy subject","FAILURE","HR","es-MX","Hello",key());
+        var legacy=new LegacyCreate(r.kind(),r.recipientMembershipId(),r.subject(),r.topic(),r.moduleName(),r.language(),r.body(),r.requestKey());
+        var bytes=new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsBytes(legacy);
+        var fingerprint=java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));
+        var result=service.create(alice,r);
+        assertThat(repository.creationFingerprint(alice,r.requestKey())).isEqualTo(fingerprint);
+        assertThat(service.create(alice,r).conversation().id()).isEqualTo(result.conversation().id());
+    }
+    @Test void groupsArePrivateIdempotentAndNotifyEveryOtherMember() {
+        var carol=member(alice.companyId(),"Carol","user");
+        var nonmember=member(alice.companyId(),"Not invited","admin");
+        var request=new Create("GROUP",null,null,null,null,"es-MX","Welcome",key(),java.util.List.of(bob.membershipId(),carol.membershipId()),"Opening team");
+        var result=service.create(alice,request);var id=result.conversation().id();
+        assertThat(service.create(alice,request).conversation().id()).isEqualTo(id);
+        assertThat(result.participants()).hasSize(3);
+        assertThat(service.detail(carol,id,0,0).messages().items()).hasSize(1);
+        assertThat(service.list(alice,"GROUP","Opening",0).items()).hasSize(1);
+        assertThat(service.list(nonmember,"GROUP","",0).items()).isEmpty();
+        assertThatThrownBy(()->service.detail(nonmember,id,0,0)).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(()->service.detail(root,id,0,0)).isInstanceOf(ResponseStatusException.class);
+        var sent=service.send(bob,id,new Send("Ready","PUBLIC",key()));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM messaging_notification_outbox WHERE message_id=?",Integer.class,sent.id())).isEqualTo(2);
+        service.read(carol,id,new Read(sent.id()));
+        // Empty incremental responses must still refresh read receipts.
+        var poll=service.detail(bob,id,sent.id(),0);
+        assertThat(poll.messages().items()).isEmpty();
+        assertThat(poll.participants().stream().filter(p->p.userId()==carol.userId()).findFirst().orElseThrow().lastReadMessageId()).isEqualTo(sent.id());
+        assertThat(poll.participants().stream().filter(p->p.userId()==alice.userId()).findFirst().orElseThrow().lastReadMessageId()).isZero();
+        jdbc.update("UPDATE user_companies SET status='inactive' WHERE id=?",carol.membershipId());
+        assertThatThrownBy(()->service.send(alice,id,new Send("Blocked","PUBLIC",key()))).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(()->service.detail(carol,id,0,0)).isInstanceOf(ResponseStatusException.class);
+    }
+    @Test void groupsRejectForeignInactiveRepeatedAndInsufficientParticipants() {
+        var carol=member(alice.companyId(),"Carol","user");
+        for(var ids:java.util.List.of(java.util.List.of(bob.membershipId()),java.util.List.of(bob.membershipId(),outsider.membershipId()),
+                java.util.List.of(bob.membershipId(),bob.membershipId()),java.util.List.of(bob.membershipId(),alice.membershipId()))) {
+            assertThatThrownBy(()->service.create(alice,new Create("GROUP",null,"",null,"","es-MX","Hello",key(),ids,"Team"))).isInstanceOf(ResponseStatusException.class);
+        }
+        jdbc.update("UPDATE user_companies SET status='inactive' WHERE id=?",carol.membershipId());
+        assertThatThrownBy(()->service.create(alice,new Create("GROUP",null,"",null,"","es-MX","Hello",key(),java.util.List.of(bob.membershipId(),carol.membershipId()),"Team"))).isInstanceOf(ResponseStatusException.class);
+    }
+    @Test void personalTaskRetriesAreScopedAndDoNotDuplicateTheOwnerMutation() {
+        var id=service.create(alice,create("DIRECT",bob.membershipId())).conversation().id();
+        when(taskOwner.allowed(any())).thenReturn(true);
+        jdbc.update("INSERT INTO process_tasks(company_id,folio,title,assigned_user_id,assigned_user_company_id,created_by) VALUES (?,?,?,?,?,?)",alice.companyId(),"MSG-TEST","Call back",alice.userId(),alice.membershipId(),alice.userId());
+        var taskId=jdbc.queryForObject("SELECT id FROM process_tasks WHERE company_id=? AND folio='MSG-TEST'",Long.class,alice.companyId());
+        var link=new com.indice.erp.processTasks.tasks.ProcessTaskMessagingContract.TaskLink(taskId,"MSG-TEST","Call back","pending",null);
+        when(taskOwner.create(any(),isNull(),eq("Call back"),isNull())).thenReturn(link);
+        when(taskOwner.read(any(),eq(taskId))).thenReturn(link);
+        var request=new MessagingTaskService.CreateTask("Call back",null,key());
+        assertThat(messageTasks.create(alice,id,request,false,null)).isEqualTo(link);
+        assertThat(messageTasks.create(alice,id,request,false,null)).isEqualTo(link);
+        verify(taskOwner,times(1)).create(any(),isNull(),eq("Call back"),isNull());
+        assertThatThrownBy(()->messageTasks.create(alice,id,new MessagingTaskService.CreateTask("Changed",null,request.requestKey()),false,null)).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(()->messageTasks.create(outsider,id,request,false,null)).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(()->messageTasks.create(alice,id,request,true,null)).isInstanceOf(ResponseStatusException.class);
+        when(taskOwner.allowed(any())).thenReturn(false);
+        assertThat(messageTasks.context(alice,false,null).canCreate()).isFalse();
+        assertThatThrownBy(()->messageTasks.create(alice,id,request,false,null)).isInstanceOf(ResponseStatusException.class);
     }
     @Test void directPairIsUniqueAndRetriesDoNotDuplicateMessages() {
         var request=create("DIRECT",bob.membershipId());
@@ -187,7 +272,7 @@ class MessagingIntegrationTest {
         assertThatThrownBy(()->access.actor(req)).isInstanceOf(ResponseStatusException.class);
     }
     @Test void httpRoutesEnforceAuthenticationCsrfAndPlatformAuthority() throws Exception {
-        var mvc=org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(new MessagingController(access,service,photos))
+        var mvc=org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(new MessagingController(access,service,photos,messageTasks))
             .setControllerAdvice(new MessagingExceptionHandler()).build();
         var session=new MockHttpSession();
         when(auth.currentUser(session)).thenReturn(Optional.of(new AuthSessionUser(alice.userId(),alice.companyId(),alice.membershipId(),"Alice","user")));

@@ -403,6 +403,20 @@ public class KioskMultiDashboardService {
         }
     }
 
+    /** Personal projections/shortcuts pass the same composition and requested capability policy as a workspace. */
+    public KioskResolvedDefinition personalOverviewDefinition(
+            AuthSessionUser user, long multiKioskId, String toolKey, String readCapability) {
+        var card = listForMultiKiosk(user, multiKioskId).stream()
+            .filter(item -> toolKey.equals(item.get("tool_key"))).findFirst().orElse(null);
+        if (card == null) return null;
+        var definition = registry.requireById(user.companyId(), ((Number) card.get("id")).longValue());
+        var adapter = adapterRegistry.requireAdapter(definition.ownerModule());
+        boolean allowed = adapter.capabilities(definition).stream()
+            .filter(capability -> readCapability.equals(capability.versionedKey()))
+            .anyMatch(capability -> employeeCapabilityAllowed(user, definition, adapter, capability, true));
+        return allowed ? definition : null;
+    }
+
     private boolean hasEnabledCapability(
             AuthSessionUser user,
             EmployeeCenterCandidate candidate) {

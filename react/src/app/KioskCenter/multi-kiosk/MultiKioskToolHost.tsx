@@ -1,15 +1,16 @@
+import { lazy, Suspense } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import type { MultiKioskChildWorkspace } from '../../api/multiKiosks';
-import { EmployeeTaskMultiKioskWorkspace } from '../../BasicModules/ProcessesTasks/Kiosk/EmployeeTaskMultiKioskWorkspace';
-import { LegacyTaskMultiKioskWorkspace } from '../../BasicModules/ProcessesTasks/Kiosk/LegacyTaskMultiKioskWorkspace';
-import { RouteSalesMultiKioskWorkspace } from '../../BasicModules/Sales/Kiosk/RouteSalesMultiKioskWorkspace';
-import { HumanResourcesMultiKioskWorkspace } from '../HumanResourcesMultiKioskWorkspace';
-import { PettyCashMultiKioskWorkspace } from '../PettyCashMultiKioskWorkspace';
-import { PayablesMultiKioskWorkspace } from '../PayablesMultiKioskWorkspace';
-import { PointOfSaleMultiKioskWorkspace } from '../PointOfSaleMultiKioskWorkspace';
+const EmployeeTaskMultiKioskWorkspace = lazy(() => import('../../BasicModules/ProcessesTasks/Kiosk/EmployeeTaskMultiKioskWorkspace').then(module => ({ default: module.EmployeeTaskMultiKioskWorkspace })));
+const LegacyTaskMultiKioskWorkspace = lazy(() => import('../../BasicModules/ProcessesTasks/Kiosk/LegacyTaskMultiKioskWorkspace').then(module => ({ default: module.LegacyTaskMultiKioskWorkspace })));
+const RouteSalesMultiKioskWorkspace = lazy(() => import('../../BasicModules/Sales/Kiosk/RouteSalesMultiKioskWorkspace').then(module => ({ default: module.RouteSalesMultiKioskWorkspace })));
+const HumanResourcesMultiKioskWorkspace = lazy(() => import('../HumanResourcesMultiKioskWorkspace').then(module => ({ default: module.HumanResourcesMultiKioskWorkspace })));
+const PettyCashMultiKioskWorkspace = lazy(() => import('../PettyCashMultiKioskWorkspace').then(module => ({ default: module.PettyCashMultiKioskWorkspace })));
+const PayablesMultiKioskWorkspace = lazy(() => import('../PayablesMultiKioskWorkspace').then(module => ({ default: module.PayablesMultiKioskWorkspace })));
+const PointOfSaleMultiKioskWorkspace = lazy(() => import('../PointOfSaleMultiKioskWorkspace').then(module => ({ default: module.PointOfSaleMultiKioskWorkspace })));
 import type { MultiKioskMobileCopy } from '../multiKioskMobileTranslations';
 import { getMultiKioskToolPresentation } from './toolPresentation';
-import { ProviderCenterMultiKioskWorkspace } from './ProviderCenterMultiKioskWorkspace';
+const ProviderCenterMultiKioskWorkspace = lazy(() => import('./ProviderCenterMultiKioskWorkspace').then(module => ({ default: module.ProviderCenterMultiKioskWorkspace })));
 
 export interface MultiKioskToolHostProps {
   copy: MultiKioskMobileCopy;
@@ -25,7 +26,11 @@ export interface MultiKioskToolHostProps {
  * Resolves a module-owned employee workspace by stable tool identity.
  * Module fallbacks are retained only for legacy Multikiosk compositions.
  */
-export function MultiKioskToolHost({
+export function MultiKioskToolHost(props: MultiKioskToolHostProps) {
+  return <Suspense fallback={<p role="status" className="p-5 text-center text-sm text-slate-500">{props.copy.loading}</p>}><ResolvedToolWorkspace {...props} /></Suspense>;
+}
+
+function ResolvedToolWorkspace({
   copy,
   kioskId,
   locale,

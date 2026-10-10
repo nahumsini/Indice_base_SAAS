@@ -5,12 +5,14 @@ import type { RestaurantCatalogItem, RestaurantOrder } from './restaurantKioskAp
 import type { RestaurantWorkspaceMutation } from './WaiterStationWorkspace';
 
 export function RestaurantProductModal({
+  personal = false,
   mutate,
   onClose,
   order,
   products,
   sourceRegisterOpen,
 }: {
+  personal?: boolean;
   mutate: RestaurantWorkspaceMutation;
   onClose: () => void;
   order: RestaurantOrder;
@@ -80,9 +82,9 @@ export function RestaurantProductModal({
       busy={addingProductId != null}
       surface="public"
       size="workspace"
-      bodyClassName="overflow-hidden p-0 sm:p-0"
+      bodyClassName={personal ? "overflow-y-auto p-0 sm:p-0" : "overflow-hidden p-0 sm:p-0"}
       closeLabel="Cerrar catálogo"
-      contentClassName="sm:!h-[92dvh]"
+      contentClassName={personal ? "kiosk-personal-workspace kiosk-personal-coral-modal kiosk-personal-product-modal sm:!h-[92dvh]" : "sm:!h-[92dvh]"}
       eyebrow="Estación de mesero"
       footer={(
         <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-medium text-[#B63B32] shadow-sm" onClick={onClose} type="button">
@@ -90,15 +92,20 @@ export function RestaurantProductModal({
         </button>
       )}
       footerSummary={`Comensal ${guestNumber} · cantidad ${quantity} · ${filteredProducts.length} productos disponibles`}
-      icon={<ShoppingBag className="h-6 w-6" />}
-      description="Elige al comensal y toca un producto para agregarlo directamente a su comanda."
-      title={`Agregar productos · ${order.tableName}`}
+      icon={personal ? <span aria-hidden="true" className="text-2xl">🍽️</span> : <ShoppingBag className="h-6 w-6" />}
+      description={personal ? order.tableName : 'Elige al comensal y toca un producto para agregarlo directamente a su comanda.'}
+      title={personal ? 'Agregar productos' : `Agregar productos · ${order.tableName}`}
       tone="coral"
     >
-      <div className="flex h-full min-h-0 flex-col bg-[#F7F8FA] dark:bg-slate-900">
+      <div className={`flex min-h-0 flex-col bg-[#F7F8FA] dark:bg-slate-900 ${personal ? 'min-h-full' : 'h-full'}`}>
         <div className="shrink-0 border-b border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950 sm:p-4">
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
-            <div className="min-w-0">
+          <div className={personal ? 'grid grid-cols-2 items-end gap-3' : 'grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto]'}>
+            {personal ? <label className="min-w-0">
+              <span className="mb-2 block text-sm font-medium"><span aria-hidden="true">👤</span> Comensal</span>
+              <select aria-label="Seleccionar comensal" value={guestNumber} onChange={event => setGuestNumber(Number(event.target.value))} disabled={addingProductId != null} className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 dark:border-slate-700 dark:bg-slate-900">
+                {Array.from({ length: order.guestCount }, (_, index) => index + 1).map(guest => <option key={guest} value={guest}>{guest}</option>)}
+              </select>
+            </label> : <div className="min-w-0">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <p className="inline-flex items-center gap-2 text-sm font-medium">
                   <UserRound aria-hidden="true" className="h-4 w-4 text-[#B63B32]" />¿Para quién es?
@@ -118,11 +125,11 @@ export function RestaurantProductModal({
                   </button>
                 ))}
               </div>
-            </div>
+            </div>}
 
             <div>
               <p className="mb-2 text-sm font-medium">Cantidad por toque</p>
-              <div className="grid grid-cols-[3.5rem_4.25rem_3.5rem] items-center overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+              <div data-personal-product-quantity={personal || undefined} className="grid grid-cols-[3.5rem_4.25rem_3.5rem] items-center overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
                 <button aria-label="Reducir cantidad" className="grid h-14 place-items-center disabled:opacity-35" disabled={quantity <= 1} onClick={() => setQuantity(current => Math.max(1, current - 1))} type="button">
                   <Minus aria-hidden="true" className="h-5 w-5" />
                 </button>
@@ -140,7 +147,7 @@ export function RestaurantProductModal({
             <input
               className="min-h-16 w-full rounded-xl border-2 border-slate-300 bg-white pl-14 pr-14 text-lg outline-none transition focus:border-[#FF6B5E] focus:ring-4 focus:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
               onChange={event => setSearch(event.target.value)}
-              placeholder="Buscar por nombre, código o categoría"
+              placeholder={personal ? 'Buscar producto' : 'Buscar por nombre, código o categoría'}
               type="search"
               value={search}
             />
@@ -163,13 +170,14 @@ export function RestaurantProductModal({
               <div><ShoppingBag className="mx-auto h-10 w-10 text-slate-300" /><p className="mt-3 text-lg font-medium">No encontramos productos disponibles</p><p className="mt-1 text-sm text-slate-500">Prueba con otro nombre, código o categoría.</p></div>
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+            <div className={personal ? "grid grid-cols-1 gap-3" : "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"}>
               {filteredProducts.map(product => {
                 const available = Number(product.availableQuantity || 0);
                 const unavailableForQuantity = product.stockTracked && quantity > available;
                 const added = lastAddedProductId === product.id;
                 return (
                   <button
+                    data-personal-product-card={personal || undefined}
                     aria-label={`Agregar ${quantity} ${product.name} al comensal ${guestNumber}`}
                     className={`group flex min-h-40 flex-col rounded-xl border bg-white p-4 text-left shadow-sm outline-none transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 dark:bg-slate-950 ${added ? 'border-emerald-400 ring-4 ring-emerald-500/10' : 'border-slate-200 hover:border-[#FF6B5E] focus-visible:ring-4 focus-visible:ring-[#FF6B5E]/20 dark:border-slate-700'}`}
                     disabled={!sourceRegisterOpen || addingProductId != null || unavailableForQuantity}
@@ -179,15 +187,15 @@ export function RestaurantProductModal({
                   >
                     <div className="flex w-full items-start justify-between gap-3">
                       <span className={`grid h-12 w-12 place-items-center rounded-xl ${added ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-[#FF6B5E]/10 text-[#B63B32] dark:text-[#FFB0AA]'}`}>
-                        {added ? <Check className="h-6 w-6" /> : <ShoppingBag className="h-5 w-5" />}
+                        {added ? <Check className="h-6 w-6" /> : personal ? <span aria-hidden="true" className="text-2xl">🍽️</span> : <ShoppingBag className="h-5 w-5" />}
                       </span>
                       <span className="grid h-12 w-12 place-items-center rounded-full bg-[#222831] text-white transition group-hover:bg-[#FF6B5E] group-hover:text-[#222831]">
                         <Plus aria-hidden="true" className="h-5 w-5" />
                       </span>
                     </div>
-                    <h3 className="mt-3 line-clamp-2 text-base font-medium leading-5">{product.name}</h3>
+                    <h3 className={`mt-3 text-base font-medium leading-6 ${personal ? '' : 'line-clamp-2'}`}>{product.name}</h3>
                     <p className="mt-1 truncate text-xs text-slate-400">{product.sku}</p>
-                    <div className="mt-auto flex w-full items-end justify-between gap-3 pt-3">
+                    <div data-personal-product-price={personal || undefined} className="mt-auto flex w-full items-end justify-between gap-3 pt-3">
                       <div><p className="text-lg font-medium text-[#B63B32] dark:text-[#FFB0AA]">{money(Number(product.price) * quantity)}</p>{quantity > 1 ? <p className="text-[11px] text-slate-400">{quantity} × {money(product.price)}</p> : null}</div>
                       <span className={`text-xs ${unavailableForQuantity ? 'text-red-600 dark:text-red-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
                         {product.stockTracked ? unavailableForQuantity ? `Solo ${available}` : `${available} disp.` : 'Disponible'}

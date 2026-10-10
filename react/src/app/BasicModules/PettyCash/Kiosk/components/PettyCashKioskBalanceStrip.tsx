@@ -7,6 +7,7 @@ interface BalanceMetric {
 }
 
 interface PettyCashKioskBalanceStripProps {
+  personal?: boolean;
   currentBalance: BalanceMetric;
   fundLimit: BalanceMetric;
   periodExpenses: BalanceMetric;
@@ -21,6 +22,7 @@ const toneClasses = {
 } as const;
 
 export function PettyCashKioskBalanceStrip({
+  personal = false,
   currentBalance,
   fundLimit,
   periodExpenses,
@@ -32,6 +34,14 @@ export function PettyCashKioskBalanceStrip({
     { ...periodIncome, icon: <Banknote className="h-4 w-4" /> },
     { ...periodExpenses, icon: <ReceiptText className="h-4 w-4" /> },
   ];
+
+  if (personal) return <section className="grid grid-cols-2 gap-2" aria-label={metrics.map(metric => metric.label).join(', ')}>
+    {metrics.map((metric, index) => <div key={metric.label} className={`min-w-0 rounded-[1.5rem] border p-3 ${index === 0 ? 'border-[#147514] bg-[#147514] text-white' : 'border-slate-200 bg-white text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white'}`}>
+      <span aria-hidden="true" className="text-2xl">{['💰', '🛡️', '💵', '🧾'][index]}</span>
+      <p className="mt-2 break-words text-lg font-medium tabular-nums">{metric.value}</p>
+      <p className={`mt-1 text-xs leading-5 ${index === 0 ? 'text-white' : 'text-slate-600 dark:text-slate-300'}`}>{metric.label}</p>
+    </div>)}
+  </section>;
 
   return (
     <section className="grid grid-cols-2 gap-2" aria-label={metrics.map(metric => metric.label).join(', ')}>

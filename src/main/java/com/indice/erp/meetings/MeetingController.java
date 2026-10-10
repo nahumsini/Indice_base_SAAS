@@ -18,6 +18,12 @@ public class MeetingController {
     public MeetingController(MeetingAccessService access,MeetingRepository repository,MeetingService service){this.access=access;this.repository=repository;this.service=service;}
     @GetMapping("/members") public Directory members(HttpSession s){return repository.members(access.require(s,List.of("meetings"),null,false).companyId());}
     @GetMapping("/agreement-meetings") public List<MeetingChoice> choices(HttpSession s){return repository.choices(access.require(s,List.of("agreements"),null,false));}
+    @GetMapping("/agreement-meetings/search") public Page<MeetingChoice> choices(HttpSession s,
+        @RequestParam(defaultValue="")String search,@RequestParam(defaultValue="0")long selected,
+        @RequestParam(defaultValue="1")int page,@RequestParam(defaultValue="25")int pageSize){
+        filters(search,"",page,pageSize,true);if(selected<0)throw new IllegalArgumentException();
+        return repository.choices(access.require(s,List.of("agreements"),null,false),search.trim(),selected,page,pageSize);
+    }
     @GetMapping("/agreement-assignees") public Directory assignees(HttpSession s){return repository.assignees(access.require(s,List.of("agreements"),null,false));}
     @GetMapping public Page<MeetingItem> list(HttpSession s,@RequestParam Instant from,@RequestParam Instant to,
         @RequestParam(defaultValue="") String search,@RequestParam(defaultValue="") String status,
@@ -48,11 +54,20 @@ public class MeetingController {
         @RequestParam(defaultValue="")String search,@RequestParam(defaultValue="")String status,
         @RequestParam(defaultValue="")String attention,@RequestParam(defaultValue="0")long assigneeId,
         @RequestParam(defaultValue="due")String sort,@RequestParam(defaultValue="asc")String direction,@RequestParam(defaultValue="UTC")String timezone,
-        @RequestParam(defaultValue="1")int page,@RequestParam(defaultValue="25")int pageSize){
+        @RequestParam(defaultValue="1")int page,@RequestParam(defaultValue="25")int pageSize,@RequestParam(defaultValue="0")long meetingId,@RequestParam(defaultValue="false")boolean includePrevious){
         if(!from.isBefore(to)||to.isAfter(from.plusDays(366)))throw new IllegalArgumentException();filters(search,status,page,pageSize,true);
-        if(assigneeId<0)throw new IllegalArgumentException();
-        return repository.agreements(access.require(s,List.of("agreements"),null,false),from,to,search.trim(),status,attention,assigneeId,sort,direction,LocalDate.now(ZoneId.of(timezone)),page,pageSize);
+        if(assigneeId<0||meetingId<0)throw new IllegalArgumentException();
+        return repository.agreements(access.require(s,List.of("agreements"),null,false),from,to,search.trim(),status,attention,assigneeId,sort,direction,LocalDate.now(ZoneId.of(timezone)),page,pageSize,meetingId,includePrevious);
     }
+    @GetMapping("/agreements/{id}") public AgreementDetail agreementDetail(HttpSession s,@PathVariable long id){return repository.agreementDetail(access.require(s,List.of("agreements"),null,false),id);}
+    @PostMapping("/agreements/{id}/task") public AgreementDetail createTask(HttpSession s,@PathVariable long id,
+        @RequestHeader(value="X-CSRF-Token",required=false)String token,@Valid @RequestBody VersionRequest body){return service.createTask(access.require(s,List.of("agreements"),token,true),id,body.expectedVersion());}
+    @PutMapping("/agreements/{id}") public AgreementItem updateAgreement(HttpSession s,@PathVariable long id,
+        @RequestHeader(value="X-CSRF-Token",required=false)String token,@Valid @RequestBody AgreementUpdateRequest body){return service.updateAgreement(access.require(s,List.of("agreements"),token,true),id,body);}
+    @PostMapping("/agreements/{id}/notes") public AgreementDetail agreementNote(HttpSession s,@PathVariable long id,
+        @RequestHeader(value="X-CSRF-Token",required=false)String token,@Valid @RequestBody NoteRequest body){return service.agreementNote(access.require(s,List.of("agreements"),token,true),id,body);}
+    @PostMapping("/{id}/addenda") public MeetingDetail addendum(HttpSession s,@PathVariable long id,
+        @RequestHeader(value="X-CSRF-Token",required=false)String token,@Valid @RequestBody NoteRequest body){return service.addendum(access.require(s,List.of("meetings"),token,true),id,body);}
     @PostMapping("/agreements") public AgreementItem agreement(HttpSession s,@RequestHeader(value="X-CSRF-Token",required=false)String token,
         @RequestHeader(value="Idempotency-Key",required=false)String key,@Valid @RequestBody AgreementRequest body){return service.agreement(access.require(s,List.of("agreements"),token,true),body,key);}
     @PostMapping("/agreements/{id}/status") public AgreementItem agreementStatus(HttpSession s,@RequestHeader(value="X-CSRF-Token",required=false)String token,

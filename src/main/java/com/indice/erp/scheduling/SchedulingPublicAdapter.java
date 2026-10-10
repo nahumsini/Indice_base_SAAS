@@ -41,13 +41,13 @@ public class SchedulingPublicAdapter implements KioskModuleAdapter {
     @Override public Map<String,Object> bootstrap(KioskExecutionContext context){
         long company=definition(context).companyId();var page=repository.page(company).orElseThrow(KioskUnavailableException::new);
         var members=repository.activeStaff(company);
-        var staff=members.stream().map(s->new PublicStaff(s.id(),s.publicName(),s.timezone())).toList();
+        var staff=members.stream().map(s->new PublicStaff(s.id(),s.publicName(),s.timezone(),s.serviceIds())).toList();
         var staffIds=staff.stream().map(PublicStaff::id).toList();
         var services=repository.services(company).stream().filter(ServiceItem::active)
             .map(s->new PublicService(s.id(),s.name(),s.description(),s.durationMinutes(),s.noticeHours())).toList();
         var events=repository.publicEvents(company,clock.instant()).stream().filter(e->staffIds.contains(e.staffId()))
             .map(e->new PublicEvent(e.id(),e.staffId(),e.title(),e.description(),e.startAt(),e.durationMinutes(),
-                Math.max(0,e.capacity()-(int)e.confirmedCount()))).toList();
+                Math.max(0,e.capacity()-(int)e.confirmedCount()),e.location())).toList();
         return mapper.convertValue(new PublicWorkspace("",page.title(),page.description(),services,staff,events,page.appearance()),MAP);
     }
     @Override public KioskAuthorization authorize(KioskExecutionContext context,KioskActionRequest request){

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { CalendarDays, ChevronLeft, ChevronRight, ClipboardList, Globe, Plus, RotateCw, Users, Wrench } from 'lucide-react';
 import { IndiceTitleBar } from '../../../components/frontend-os/IndiceTitleBar';
 import { IndiceTitleBarOverflow } from '../../../components/frontend-os/IndiceTitleBarOverflow';
@@ -24,6 +25,9 @@ const statuses = ['REQUESTED','CONFIRMED','COMPLETED','NO_SHOW','CANCELLED','PAU
 export default function ReservationsTab({ mode, copy, locale, canRead = true, canCapture, canConfigure = false, administrator = false }: {
   mode: 'calendar'|'reservations'; copy: SchedulingCopy; locale: string; canRead?: boolean; canCapture: boolean; canConfigure?: boolean; administrator?: boolean;
 }) {
+  const [params] = useSearchParams();
+  const candidateId = Number(params.get('reservation'));
+  const requestedId = Number.isSafeInteger(candidateId) && candidateId > 0 ? candidateId : 0;
   const today=dateInput(new Date()),initial=calendarPeriod(today,'month');
   const [explicit]=useState(()=>new URLSearchParams(window.location.search));
   const initialDate=(key:string,fallback:string)=>/^\d{4}-\d{2}-\d{2}$/.test(explicit.get(key)??'')?explicit.get(key)!:fallback;
@@ -36,6 +40,8 @@ export default function ReservationsTab({ mode, copy, locale, canRead = true, ca
   const filterCopy=useIndiceFilterDisclosureCopy();
   useEffect(()=>{if(includeArchived)setAdvancedOpen(true);},[includeArchived]);
   const [capture,setCapture]=useState(false),[review,setReview]=useState<Reservation|null>(null),[publicOpen,setPublicOpen]=useState(false);
+  const requested = useSchedulingQuery(useCallback(signal => canRead && requestedId ? schedulingApi.reservation(requestedId, signal) : Promise.resolve(undefined), [canRead, requestedId]));
+  useEffect(() => { if (requested.data) setReview(requested.data); }, [requested.data]);
   const [configuration,setConfiguration]=useState<AgendaConfigurationSection|null>(null);
   const [management,setManagement]=useState<{record:Reservation;action:ManagementAction}|null>(null);
   const [widths,setWidths]=useState({time:240,attendee:260,service:230,consultant:210,status:160});
@@ -45,11 +51,11 @@ export default function ReservationsTab({ mode, copy, locale, canRead = true, ca
   const calendar=useSchedulingQuery(useCallback(signal=>canRead&&view==='calendar'&&validCalendar?schedulingApi.calendarGrid(dateScope(from,to),staffId||undefined,status as ReservationStatus||undefined,signal):Promise.resolve(undefined),[canRead,view,validCalendar,from,to,staffId,status]));
   useWorkspaceNavigationMemory({moduleKey:'scheduling',tabKey:'calendar',state:{from,to,view,period,staffId,status,page,size,widths,includeArchived},
     defaults:{...initial,view:'calendar',period:'month',staffId:0,status:'',page:1,size:25,widths,includeArchived:false},
-    urlFields:{from:'from',to:'to',status:'status',view:'view',staffId:'staff'},onRestore:state=>{
+    urlFields:{from:'from',to:'to',status:'status',view:'view',staffId:'staff',includeArchived:'archived',page:'page'},onRestore:state=>{
       if(/^\d{4}-\d{2}-\d{2}$/.test(state.from))setFrom(state.from);if(/^\d{4}-\d{2}-\d{2}$/.test(state.to))setTo(state.to);
       if(['table','calendar'].includes(state.view))setView(state.view as typeof view);if(['day','week','month'].includes(state.period))setPeriod(state.period as CalendarPeriod);
       setStaffId(Number.isSafeInteger(Number(state.staffId))&&Number(state.staffId)>0?Number(state.staffId):0);
-      setStatus(statuses.includes(state.status as ReservationStatus)?state.status:'');setIncludeArchived(state.includeArchived===true);
+      setStatus(statuses.includes(state.status as ReservationStatus)?state.status:'');setIncludeArchived(String(state.includeArchived)==='true');
       setPage(Number.isInteger(state.page)&&state.page>0&&state.page<=10000?state.page:1);setSize([10,25,50,100,200].includes(state.size)?state.size:25);
       if(state.widths&&Object.keys(widths).every(key=>Number.isFinite(state.widths[key as keyof typeof widths])&&state.widths[key as keyof typeof widths]>=140&&state.widths[key as keyof typeof widths]<=1200))setWidths(state.widths);
     }});
@@ -77,6 +83,7 @@ export default function ReservationsTab({ mode, copy, locale, canRead = true, ca
         {[...directActions].sort((a,b)=>Number(a.primary)-Number(b.primary)).map(action=><ActionButton key={action.id} primary={action.primary} onClick={action.onSelect}>{action.icon}{action.label}</ActionButton>)}
         {titleActions.length>3&&<IndiceTitleBarOverflow label={copy.actions} items={titleActions.slice(3)}/>}
       </>}/>
+    {requested.error && <Feedback error>{copy.error}</Feedback>}
     {canRead&&<>
     <IndiceWorkspaceNavigation variant="views" tone={schedulingTone} ariaLabel={copy.reservations} value={view} onValueChange={value=>{setView(value);setPage(1);}}
       items={[{id:'calendar',label:copy.calendarView,icon:<CalendarDays/>},{id:'table',label:copy.tableView,icon:<ClipboardList/>}]}/>

@@ -1,12 +1,15 @@
 import { apiClient } from '../lib/apiClient';
-import type { Audit, CareSummary, Conversation, CreateConversation, Detail, Message, MessagingContext, MessagingPortal, Page, Person, PhotoUpload } from './types';
+import type { Audit, CareSummary, Conversation, CreateConversation, Detail, Message, MessagingContext, MessagingPortal, Page, Person, PhotoUpload, TaskLink } from './types';
 
 export const messagingBase = (portal: MessagingPortal) => portal === 'member' ? '/api/v1/messaging'
   : portal === 'platform' ? '/api/v1/platform-admin/customer-care' : '/api/v1/distributor-portal/customer-care';
-export const messagingApi = (portal: MessagingPortal) => {
-  const base = messagingBase(portal);
+export type MessagingTransport = <T>(path: string, init?: RequestInit) => Promise<T>;
+export const messagingApi = (portal: MessagingPortal, transport: MessagingTransport = apiClient, base = messagingBase(portal)) => {
+  const apiClient = transport;
   return {
     context: () => apiClient<MessagingContext>(`${base}/context`),
+    taskContext: () => apiClient<{ canCreate: boolean }>(`${base}/task-context`),
+    createTask: (id: number, title: string, dueDate: string | null, requestKey: string) => apiClient<TaskLink>(`${base}/conversations/${id}/tasks`, { method: 'POST', body: JSON.stringify({ title, dueDate, requestKey }) }),
     directory: (q: string) => apiClient<Person[]>(`${base}/directory?${new URLSearchParams({ q })}`),
     list: (filter: string, q: string, offset = 0) => apiClient<Page<Conversation>>(`${base}/conversations?${new URLSearchParams({ filter, q, offset: String(offset) })}`),
     detail: (id: number, after = 0, before = 0) => apiClient<Detail>(`${base}/conversations/${id}?after=${after}&before=${before}`),

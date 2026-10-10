@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from "react";
+import { useNavigate } from "react-router";
 import { authApi } from "../../api/auth";
 import {
   canAccessModuleTab,
@@ -22,6 +23,7 @@ export default function MinutesControl({
   onNavigate: (page?: string) => void;
   learningModeActive?: boolean;
 }) {
+  const navigate = useNavigate();
   const { currentLanguage } = useLanguage(),
     copy = getMeetingCopy(currentLanguage.code);
   const auth = useMeetingQuery(
@@ -82,7 +84,7 @@ export default function MinutesControl({
               administrator={administrator}
               onAgreements={
                 allowed.includes("agreements")
-                  ? () => setActiveTab("agreements")
+                  ? (meetingId) => navigate(`/minutes-control/agreements?meeting=${meetingId}&q=&assignee=0&status=&attention=&page=1`)
                   : undefined
               }
             />

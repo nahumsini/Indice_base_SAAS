@@ -168,7 +168,10 @@ export function KioskWorkspaceTabs<Value extends string>({
   activeTextClassName,
   activeValue,
   ariaLabel,
+  density = 'compact',
+  idPrefix,
   items,
+  mobileLayout = 'two-columns',
   onChange,
   sticky = true,
   tone,
@@ -177,7 +180,10 @@ export function KioskWorkspaceTabs<Value extends string>({
   activeTextClassName?: string;
   activeValue: Value;
   ariaLabel: string;
+  density?: 'compact' | 'comfortable';
+  idPrefix?: string;
   items: ReadonlyArray<KioskWorkspaceTabItem<Value>>;
+  mobileLayout?: 'two-columns' | 'row';
   onChange: (value: Value) => void;
   sticky?: boolean;
   tone: KioskThemeTone;
@@ -190,7 +196,7 @@ export function KioskWorkspaceTabs<Value extends string>({
   return (
     <nav
       aria-label={ariaLabel}
-      className={`${sticky ? 'sticky top-0 z-20' : ''} grid gap-1.5 rounded-2xl border border-slate-200 bg-white/95 p-1.5 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-950/95`}
+      className={`${sticky ? 'sticky top-0 z-20' : ''} grid ${density === 'comfortable' ? `gap-2 rounded-[1.5rem] border border-slate-200 bg-white p-2 shadow-[0_3px_12px_-8px_rgba(20,54,117,0.2)] dark:border-slate-700 dark:bg-slate-950 ${items.length > 1 && mobileLayout === 'two-columns' ? 'max-[479px]:!grid-cols-2' : ''}` : 'gap-1.5 rounded-2xl border border-slate-200 bg-white/95 p-1.5 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-950/95'}`}
       role="tablist"
       style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
     >
@@ -199,7 +205,20 @@ export function KioskWorkspaceTabs<Value extends string>({
         return (
           <button
             aria-selected={active}
-            className={`relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-[11px] font-medium leading-tight outline-none transition focus-visible:ring-4 focus-visible:ring-slate-400/25 ${active ? `${activeTextClass} shadow-sm` : `bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 ${theme.iconHover}`}`}
+            id={idPrefix ? `${idPrefix}-tab-${item.value}` : undefined}
+            aria-controls={idPrefix ? `${idPrefix}-panel-${item.value}` : undefined}
+            tabIndex={density === 'comfortable' ? active ? 0 : -1 : undefined}
+            onKeyDown={density === 'comfortable' ? event => {
+              const index = items.findIndex(tab => tab.value === item.value);
+              const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+                : event.key === 'ArrowRight' ? (index + 1) % items.length
+                : event.key === 'ArrowLeft' ? (index + items.length - 1) % items.length : null;
+              if (next === null) return;
+              event.preventDefault();
+              (event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next])?.focus();
+              onChange(items[next].value);
+            } : undefined}
+            className={`relative flex min-w-0 items-center justify-center rounded-xl font-medium outline-none transition focus-visible:ring-4 focus-visible:ring-slate-400/25 ${density === 'comfortable' ? 'min-h-16 gap-2 px-2 py-2.5 text-sm leading-5 min-[480px]:flex-col min-[480px]:gap-1.5 [[data-kiosk-large-text=true]_&]:flex-col' : 'min-h-14 flex-col gap-1 px-1.5 py-2 text-[11px] leading-tight'} ${active ? `${activeTextClass} shadow-sm` : `${density === 'comfortable' ? 'bg-slate-50 text-[#425466] dark:bg-slate-900' : 'bg-slate-100 text-slate-600 dark:bg-slate-800'} dark:text-slate-300 ${theme.iconHover}`}`}
             key={item.value}
             onClick={() => onChange(item.value)}
             role="tab"
@@ -207,9 +226,9 @@ export function KioskWorkspaceTabs<Value extends string>({
             type="button"
           >
             {item.icon ? <span aria-hidden="true">{item.icon}</span> : null}
-            <span className="w-full truncate text-center">{item.label}</span>
+            <span className={density === 'comfortable' ? 'min-w-0 text-center [overflow-wrap:anywhere]' : 'w-full truncate text-center'}>{item.label}</span>
             {typeof item.badge === 'number' ? (
-              <span className={`absolute right-1 top-1 rounded-full px-1.5 py-0.5 text-[9px] leading-none ${active ? 'bg-white/20' : 'bg-white text-slate-500 shadow-sm dark:bg-slate-900 dark:text-slate-300'}`}>
+              <span data-kiosk-tab-badge className={`absolute right-1 top-1 rounded-full px-1.5 py-0.5 text-[9px] leading-none ${active ? 'bg-white/20' : 'bg-white text-slate-500 shadow-sm dark:bg-slate-900 dark:text-slate-300'}`}>
                 {item.badge}
               </span>
             ) : null}

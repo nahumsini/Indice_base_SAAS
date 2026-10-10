@@ -36,7 +36,7 @@ contenido y controles de las secciones 1–9, y la verificación de 24–25.
 | Geometría de módulos | Acompañante compacto y expansión bajo demanda, según 29.2 y 29.5. |
 | Título y acciones | Permanecen visibles y en su ubicación original, según 9.2–9.3 y 29.5. |
 | Progreso | Privado por usuario y empresa; visitar no significa aplicar, según 29.3–29.4. |
-| Dashboard | Conserva sus seis secciones; no adopta automáticamente la geometría de módulo. |
+| Dashboard | Conserva su recorrido de seis etapas; no adopta automáticamente la geometría de módulo. La sección independiente de módulos de IA se retira según la decisión de producto del 2026-10-09. |
 | Dos tarjetas y carrusel | Patrón anterior, conservado como referencia de contenido y migración. No se exige en nuevas réplicas. |
 
 Las descripciones de adopción de 20–23 corresponden a sus etapas originales. No certifican el
@@ -1640,4 +1640,4 @@ Los recorridos lógicos iniciales son:
 
 ### 29.8 Relación con el Dashboard
 
-El recorrido del Dashboard mantiene su estructura aprobada de seis secciones. La migración visual puede mejorar densidad, emojis, jerarquía y texto didáctico, pero no elimina, fusiona ni reordena esas seis secciones sin una nueva decisión de producto. El Dashboard explica el mapa general de Índice; los acompañantes de módulo enseñan la operación concreta.
+El recorrido del Dashboard mantiene su estructura aprobada de seis etapas. La migración visual puede mejorar densidad, emojis, jerarquía y texto didáctico, pero no elimina, fusiona ni reordena esas seis etapas sin una nueva decisión de producto. El Dashboard explica el mapa general de Índice; los acompañantes de módulo enseñan la operación concreta. La sección independiente de módulos de IA no forma parte del recorrido y se retira según la decisión de producto del 2026-10-09.

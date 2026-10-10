@@ -15,17 +15,34 @@ public class SchedulingReservationManagementService {
     private final SchedulingBookingService booking;
     private final SchedulingResourceAvailabilityService resources;
     private final Clock clock;
+    private final SchedulingNotificationService notifications;
     public SchedulingReservationManagementService(SchedulingRepository repository,SchedulingBookingService booking,
-        SchedulingResourceAvailabilityService resources,Clock clock){
-        this.repository=repository;this.booking=booking;this.resources=resources;this.clock=clock;
+        SchedulingResourceAvailabilityService resources,Clock clock,SchedulingNotificationService notifications){
+        this.repository=repository;this.booking=booking;this.resources=resources;this.clock=clock;this.notifications=notifications;
     }
     private ReservationItem current(AuthSessionUser actor,long id,long version,String reason){
         repository.lockCompany(actor.companyId());var record=repository.reservation(actor.companyId(),id);
+        booking.requireEntitlement(actor.companyId());
         var staff=repository.staff(actor.companyId()).stream().filter(t->t.id()==record.staffId()).findFirst().orElseThrow();
         SchedulingBookingService.requireOwner(actor,staff);
         if(record.archivedAt()!=null||record.version()!=version)throw new IllegalStateException("Reservation changed; reload.");
         if(reason==null||reason.isBlank()||reason.length()>500)throw new IllegalArgumentException("Reason required.");
         return record;
+    }
+    @Transactional(isolation=Isolation.READ_COMMITTED)
+    public ReservationItem reschedule(AuthSessionUser actor,long id,RescheduleRequest request){
+        var record=current(actor,id,request.version(),request.reason());long company=actor.companyId();
+        if(record.eventId()!=null||!List.of("REQUESTED","CONFIRMED","PAUSED").contains(record.status())
+            ||!request.startAt().isAfter(clock.instant()))throw new IllegalStateException("Only individual active reservations can be rescheduled.");
+        if(record.startAt().equals(request.startAt()))return record;
+        var target=record.at(request.startAt());
+        booking.validateConfirmation(company,target,booking.staff(company,record.staffId()));
+        SchedulingConfigurationService.checked(repository.jdbc().update("UPDATE scheduling_reservations SET start_at=?,reason=?,version=version+1 WHERE company_id=? AND id=? AND version=?",
+            java.sql.Timestamp.from(request.startAt()),request.reason().trim(),company,id,record.version()));
+        audit(actor,record,"RESERVATION_RESCHEDULED",request.reason(),record.staffId());
+        repository.jdbc().update("UPDATE scheduling_audit SET previous_start_at=?,next_start_at=? WHERE company_id=? AND entity_type='RESERVATION' AND entity_id=? AND action='RESERVATION_RESCHEDULED' ORDER BY id DESC LIMIT 1",
+            java.sql.Timestamp.from(record.startAt()),java.sql.Timestamp.from(request.startAt()),company,id);
+        return repository.reservation(company,id);
     }
     @Transactional(isolation=Isolation.READ_COMMITTED)
     public ReservationItem reassign(AuthSessionUser actor,long id,ReassignRequest request){
@@ -87,5 +104,6 @@ public class SchedulingReservationManagementService {
             INSERT INTO scheduling_audit(company_id,actor_user_id,entity_type,entity_id,action,reason,previous_staff_id,next_staff_id)
             VALUES(?,?,'RESERVATION',?,?,?,?,?)
             """,actor.companyId(),actor.userId(),record.id(),action,reason.trim(),record.staffId(),nextStaff);
+        notifications.dispatch(actor.companyId(),record.id(),true);
     }
 }

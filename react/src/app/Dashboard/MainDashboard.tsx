@@ -121,10 +121,6 @@ export function MainDashboard({
       availableModules.filter((module) => module.category === "complementary"),
     [availableModules],
   );
-  const aiModules = useMemo(
-    () => availableModules.filter((module) => module.category === "ai"),
-    [availableModules],
-  );
 
   const favoriteModules = getFavoriteModules(availableModules);
   const safeLearningStep = clampOperationalJourneyStep(learningStep);
@@ -249,17 +245,6 @@ export function MainDashboard({
         onToggleFavorite={toggleFavorite}
         onModuleClick={handleModuleClick}
         singleRow
-      />
-
-      <ModuleSection
-        icon="🤖"
-        title={copy.sections.aiModules}
-        label={copy.sections.aiLabel}
-        modules={aiModules}
-        favoriteIds={favorites}
-        onToggleFavorite={toggleFavorite}
-        onModuleClick={handleModuleClick}
-        className="pb-10"
       />
     </main>
   );

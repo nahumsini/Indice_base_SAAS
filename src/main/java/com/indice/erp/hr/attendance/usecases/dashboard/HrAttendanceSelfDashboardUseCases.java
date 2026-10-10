@@ -33,6 +33,39 @@ public abstract class HrAttendanceSelfDashboardUseCases extends HrAttendanceDash
         return attendanceUserLookupService.resolveLinkedAttendanceUser(companyId, userId).id();
     }
 
+    public record PersonalDay(String date, String status, String startTime, String endTime,
+            String firstCheckIn, String lastCheckOut, boolean restDay) { }
+
+    /** Minimal employee read model. User punches retain their existing persistence namespace. */
+    public PersonalDay employeeDay(long companyId, long userId, LocalDate date) {
+        var user = attendanceUserLookupService.loadAttendanceSessionUser(companyId, userId);
+        com.indice.erp.hr.attendance.models.ScheduleRule rule = null;
+        try {
+            var employee = attendanceUserLookupService.resolveLinkedAttendanceUser(companyId, user.userId());
+            rule = loadScheduleRule(companyId, employee.id(), date);
+        } catch (java.util.NoSuchElementException noLinkedEmployee) {
+            // An active company user can have a personal kiosk without an HR employee record.
+        }
+        var record = attendanceDailyRecordRepository.loadUserDailyRecord(companyId, user.userId(), date);
+        return new PersonalDay(date.toString(), resolveEffectiveStatus(record, rule, date),
+            rule == null || rule.startTime() == null ? null : rule.startTime().toString(),
+            rule == null || rule.endTime() == null ? null : rule.endTime().toString(),
+            record == null ? null : toIsoString(record.firstCheckInAt()),
+            record == null ? null : toIsoString(record.lastCheckOutAt()), rule != null && rule.isRestDay());
+    }
+
+    @Transactional
+    public Map<String, Object> employeeDashboard(long companyId, long userId, LocalDate date) {
+        var dashboard = selfDashboard(companyId, userId, date);
+        var day = employeeDay(companyId, userId, date);
+        @SuppressWarnings("unchecked")
+        var items = (List<Map<String, Object>>) dashboard.get("items");
+        items.getFirst().put("status", day.status());
+        items.getFirst().put("schedule_start", day.startTime());
+        items.getFirst().put("schedule_end", day.endTime());
+        return dashboard;
+    }
+
     protected Map<String, Object> buildUserDashboard(long companyId, AttendanceUser user, LocalDate date) {
         var dailyRecord = attendanceDailyRecordRepository.loadUserDailyRecord(companyId, user.userId(), date);
         var effectiveStatus = resolveEffectiveStatus(dailyRecord, null, date);

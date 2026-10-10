@@ -13,6 +13,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.auth.SessionCsrfService;
+import com.indice.erp.learning.LearningCatalogService;
+import com.indice.erp.learning.LearningProgressRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,6 +38,13 @@ class ConsultingAppointmentApiControllerTest {
 
     @MockBean
     private ConsultingAppointmentService service;
+
+    // The global response advice is part of the MVC slice; its persistence stays mocked.
+    @MockBean
+    private LearningProgressRepository learningProgressRepository;
+
+    @MockBean
+    private LearningCatalogService learningCatalogService;
 
     @Test
     void workspaceRequiresAnAuthenticatedSession() throws Exception {

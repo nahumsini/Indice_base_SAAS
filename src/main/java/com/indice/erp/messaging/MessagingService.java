@@ -26,7 +26,7 @@ public class MessagingService {
     @Transactional(readOnly=true)
     public Page<Conversation> list(Actor a,String filter,String query,int offset) {
         if (offset<0 || offset>100_000) throw invalid();
-        allowed(filter,Set.of("ALL","DIRECT","SUPPORT","DISTRIBUTOR","UNASSIGNED","MINE","OPEN","WAITING_CUSTOMER","RESOLVED"));
+        allowed(filter,Set.of("ALL","DIRECT","GROUP","SUPPORT","DISTRIBUTOR","UNASSIGNED","MINE","OPEN","WAITING_CUSTOMER","RESOLVED"));
         return repository.list(a,filter,text(query,100,false),offset);
     }
     @Transactional(readOnly=true)
@@ -34,17 +34,28 @@ public class MessagingService {
         if (after<0 || before<0 || (after>0 && before>0)) throw invalid();
         var c=authorized(a,id,false);
         var page=repository.messages(a,id,after,before);
-        return new Detail(c,new Page<>(attachments.decorate(c,page.items()),page.hasMore()));
+        return new Detail(c,new Page<>(attachments.decorate(c,page.items()),page.hasMore()),repository.participants(c));
     }
     @Transactional
     public Detail create(Actor a,Create raw) {
         member(a);
         if(raw==null) throw invalid();
-        var kind=allowed(raw.kind(),Set.of("DIRECT","SUPPORT","DISTRIBUTOR"));
+        var kind=allowed(raw.kind(),Set.of("DIRECT","GROUP","SUPPORT","DISTRIBUTOR"));
         if(a.supportOnly() && !"SUPPORT".equals(kind)) throw MessagingAccess.forbidden();
-        var r=new Create(kind,raw.recipientMembershipId(),text(raw.subject(),180,true),
-            allowed(raw.topic(),Set.of("CONSULTATION","FAILURE","IMPROVEMENT")),text(raw.moduleName(),120,false),
-            allowed(raw.language(),Set.of("es-MX","es-CO","en-US","en-CA","fr-CA","pt-BR","ko-CA","zh-CA")),text(raw.body(),8000,true),uuid(raw.requestKey()));
+        boolean team=Set.of("DIRECT","GROUP").contains(kind);
+        List<Long> participants=null;
+        String groupName=null;
+        if("GROUP".equals(kind)) {
+            var ids=raw.participantMembershipIds();
+            if(ids==null || ids.size()<2 || ids.size()>49 || ids.stream().anyMatch(Objects::isNull)
+                || ids.stream().distinct().count()!=ids.size()) throw invalid();
+            participants=ids.stream().sorted().toList();
+            for(var id:participants) if(id<=0 || Objects.equals(id,a.membershipId()) || !repository.activeRecipient(a,id)) throw invalid();
+            groupName=text(raw.groupName(),80,true);
+        } else if(raw.participantMembershipIds()!=null && !raw.participantMembershipIds().isEmpty()) throw invalid();
+        var r=new Create(kind,raw.recipientMembershipId(),"GROUP".equals(kind)?groupName:text(raw.subject(),180,!team),
+            team && raw.topic()==null?"CONSULTATION":allowed(raw.topic(),Set.of("CONSULTATION","FAILURE","IMPROVEMENT")),text(raw.moduleName(),120,false),
+            allowed(raw.language(),Set.of("es-MX","es-CO","en-US","en-CA","fr-CA","pt-BR","ko-CA","zh-CA")),text(raw.body(),8000,true),uuid(raw.requestKey()),participants,groupName);
         String directKey=null;
         if("DIRECT".equals(kind)) {
             if(r.recipientMembershipId()==null || Objects.equals(r.recipientMembershipId(),a.membershipId())
@@ -83,7 +94,7 @@ public class MessagingService {
                 || !result.attachments().stream().map(Attachment::id).sorted().toList().equals(ids)) throw conflict();
             return result;
         }
-        if("DIRECT".equals(c.kind())) {
+        if(Set.of("DIRECT","GROUP").contains(c.kind())) {
             // A revoked membership cannot continue receiving new employee messages.
             if(repository.hasRevokedParticipant(id,c.companyId())) throw MessagingAccess.forbidden();
         }
@@ -143,7 +154,13 @@ public class MessagingService {
     static ResponseStatusException conflict() { return new ResponseStatusException(HttpStatus.CONFLICT,"conversation_changed_or_request_reused"); }
     private static String fingerprint(Create r) {
         try {
-            var json=new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsBytes(r);
+            // Keep existing direct/care retry identities compatible across the additive rollout.
+            var value=new java.util.LinkedHashMap<String,Object>();
+            value.put("kind",r.kind());value.put("recipientMembershipId",r.recipientMembershipId());
+            value.put("subject",r.subject());value.put("topic",r.topic());value.put("moduleName",r.moduleName());
+            value.put("language",r.language());value.put("body",r.body());value.put("requestKey",r.requestKey());
+            if("GROUP".equals(r.kind())) { value.put("participantMembershipIds",r.participantMembershipIds());value.put("groupName",r.groupName()); }
+            var json=new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsBytes(value);
             return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(json));
         } catch(java.io.IOException | java.security.NoSuchAlgorithmException e) { throw new IllegalStateException("Cannot fingerprint conversation",e); }
     }

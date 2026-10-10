@@ -63,7 +63,7 @@ export default function MeetingsTab({
   locale: string;
   userId: number;
   administrator: boolean;
-  onAgreements?: () => void;
+  onAgreements?: (meetingId: number) => void;
 }) {
   const w = getMeetingWorkflowCopy(locale);
   const [params, setParams] = useSearchParams();

@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
+import { mkdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+const artifactDir=resolve(process.env.INDICE_BROWSER_ARTIFACTS || tmpdir(), 'indice-coordination');
+mkdirSync(artifactDir,{recursive:true});
 import { createServer } from 'vite';
 const { chromium } = await import(process.env.INDICE_PLAYWRIGHT_MODULE || 'playwright');
 const origin = 'http://127.0.0.1:5196';
@@ -8,7 +12,7 @@ let browser, page;
 try {
   await server.listen(); browser = await chromium.launch({ headless: true, ...(process.env.INDICE_CHROME_PATH ? { executablePath: process.env.INDICE_CHROME_PATH } : {}) });page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });page.setDefaultTimeout(20000);
   await page.addInitScript(() => localStorage.setItem('frontend-indice-language','es-MX'));
-  const errors=[], unexpected=[], calls=[], requests=[];let failOnce=true,salesEnabled=true;
+  const errors=[], unexpected=[], calls=[], requests=[], internalRequests=[];let failOnce=true,salesEnabled=true;
   page.on('pageerror',e=>errors.push(e.message));
   const service={id:1,name:'Diagnóstico empresarial',description:'Una sesión para conocer tu negocio.',durationMinutes:60,bufferMinutes:15,noticeHours:24,active:true,version:1};
   const staff={id:2,userId:42,publicName:'Consultor sintético',timezone:'America/Toronto',active:true,version:1,days:[{dayOfWeek:1,startTime:'09:00:00',endTime:'17:00:00'}]};
@@ -18,13 +22,14 @@ try {
   const services=[service], events=[event], staffList=[staff,{...staff,id:3,userId:43,publicName:'Segundo consultor sintético'}];
   const salesContacts=[{id:1,contactCode:'CLI-TEST',companyName:'Cliente maestro sintético',contactPerson:'Contacto maestro',email:'master@example.com',status:'ACTIVE'}];
   const catalog=()=>({title:savedPage.title,description:savedPage.description,appearance:savedPage.appearance,services,staff:staffList,events:events.filter(e=>e.status==='ACTIVE').map(e=>({...e,availablePlaces:e.capacity-e.confirmedCount})),csrfToken:'synthetic-csrf'});
-  let reservation={id:5,reference:'SCH-synthetic',staffId:2,serviceId:1,eventId:null,serviceName:service.name,staffName:staff.publicName,attendeeName:'Participante sintético',attendeeEmail:'participant@example.com',attendeeCompany:'Empresa sintética',startAt:instant,durationMinutes:60,status:'REQUESTED',version:1};
+  let reservation={id:5,reference:'SCH-synthetic',staffId:2,serviceId:1,eventId:null,serviceName:service.name,staffName:staff.publicName,attendeeName:'Participante sintético',attendeeEmail:'participant@example.com',attendeeCompany:'Empresa sintética',attendeePhone:'555-0100',startAt:instant,durationMinutes:60,status:'REQUESTED',version:1};
   await page.route('**/*',async route=>{
     const req=route.request(),url=new URL(req.url()),path=url.pathname;
     if(url.origin!==origin)return route.abort();
     if(!path.startsWith('/api/'))return route.continue();
     calls.push(`${req.method()} ${path}`);
     const ok=json=>route.fulfill({json});
+    if(path==='/api/v1/learning/progress')return ok({catalogVersion:'synthetic',currentChapterId:null,stages:[],chapters:[],nextMission:null});
     if(path==='/api/v1/public/scheduling/piloto')return ok({token:'synthetic-public-address'});
     if(path.endsWith('/synthetic-public-address/bootstrap'))return ok({data:catalog()});
     if(path.includes('/actions/scheduling.slots.read@1')){assert.equal(req.headers()['x-csrf-token'],'synthetic-csrf');return ok({data:{timezone:staff.timezone,starts:[instant]}});}
@@ -48,6 +53,13 @@ try {
     if(path.startsWith('/api/v1/scheduling/')){
       if(['POST','PUT'].includes(req.method()))assert.equal(req.headers()['x-csrf-token'],'synthetic-csrf');
       const tail=path.slice('/api/v1/scheduling/'.length);
+      if(tail==='reservations/5/history')return ok([]);
+      if(tail==='events/4/participants')return ok({items:[{...reservation,eventId:4}],total:1,page:1,pageSize:25});
+      if(tail==='catalog')return ok({...catalog(),clientSelectionEnabled:true});
+      if(tail==='booking-clients')return ok({items:[{id:1,companyName:'Empresa maestra',contactPerson:'Contacto maestro',email:'master@example.com',phone:'555-0110',status:'ACTIVE'}],total:1});
+      if(tail==='slots')return ok({timezone:staff.timezone,starts:[instant]});
+      if(tail==='reservations'&&req.method()==='POST'){internalRequests.push(req.postDataJSON());return ok({reference:'SCH-internal',status:'REQUESTED',submissionPolicy:'REVIEW_REQUIRED'});}
+      if(tail==='reservations/5/reschedule'){const body=req.postDataJSON();assert.equal(body.version,reservation.version);assert.ok(body.reason);reservation={...reservation,startAt:body.startAt,version:reservation.version+1};return ok(reservation);}
       if(tail==='services'&&req.method()==='POST'){services.push({...req.postDataJSON(),id:10,version:1});return route.fulfill({status:204});}
       if(tail==='page'&&req.method()==='PUT'){savedPage={...savedPage,...req.postDataJSON(),version:savedPage.version+1};return ok(savedPage);}
       if(tail==='staff/2'&&req.method()==='PUT'){staffList[0]={...staffList[0],...req.postDataJSON(),version:2};return route.fulfill({status:204});}
@@ -87,13 +99,13 @@ try {
   await page.getByLabel('Fecha',{exact:true}).fill(date);await page.getByRole('button',{name:/10:00|10:00 a/}).click();
   await page.getByRole('button',{name:'Continuar',exact:true}).click();
   await page.getByLabel('Participante',{exact:true}).fill('Participante sintético');await page.getByLabel('Correo',{exact:true}).fill('participant@example.com');
-  await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Enviar solicitud',exact:true}).click();
+  await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Continuar',exact:true}).click();await page.getByRole('heading',{name:'Revisar solicitud',exact:true}).waitFor();assert.equal(requests.length,0);await page.getByRole('button',{name:'Enviar solicitud',exact:true}).click();
   await page.getByRole('alert').waitFor();await page.getByRole('button',{name:'Enviar solicitud',exact:true}).click();await page.getByRole('heading',{name:'Solicitud recibida',exact:true}).waitFor();
   assert.equal(requests.length,2);assert.equal(requests[0].key,requests[1].key);assert.deepEqual(requests[0].body,requests[1].body);
   assert.equal('companyId' in requests[0].body,false);assert.equal(calls.some(c=>/\/auth\/|\/platform-admin\/|\/finance\//.test(c)),false);
-  await fits();await page.screenshot({path:'/tmp/indice-scheduling-public-desktop.png',fullPage:true});
-  await page.setViewportSize({width:390,height:844});await fits();await page.screenshot({path:'/tmp/indice-scheduling-public-mobile.png',fullPage:true});
-  await page.evaluate(()=>document.documentElement.classList.add('dark'));await page.screenshot({path:'/tmp/indice-scheduling-public-dark.png',fullPage:true});
+  await fits();await page.screenshot({path:resolve(artifactDir,'indice-scheduling-public-desktop.png'),fullPage:true});
+  await page.setViewportSize({width:390,height:844});await fits();await page.screenshot({path:resolve(artifactDir,'indice-scheduling-public-mobile.png'),fullPage:true});
+  await page.evaluate(()=>document.documentElement.classList.add('dark'));await page.screenshot({path:resolve(artifactDir,'indice-scheduling-public-dark.png'),fullPage:true});
   console.log('PASS public: real router, personalized consultant, slots, consent, manual-review acknowledgement, CSRF, stable retry, no ERP data providers, mobile/dark');
   await page.setViewportSize({width:1440,height:1000});
   await page.goto(`${origin}/tests/browser/scheduling.html`,{waitUntil:'domcontentloaded'});
@@ -125,11 +137,19 @@ try {
   await selectFilter('Colaborador','Segundo consultor sintético');await selectFilter('Colaborador','Todos los colaboradores');
   await page.getByRole('button',{name:'Semana',exact:true}).click();await page.getByRole('button',{name:'Día',exact:true}).click();await page.getByRole('button',{name:'Mes',exact:true}).click();
   await page.getByRole('button',{name:'Nueva solicitud',exact:true}).click();await coralModal();
-  assert.equal(await page.getByRole('tab',{name:'Servicio',exact:true}).evaluate(element=>getComputedStyle(element).backgroundColor),'rgb(255, 107, 94)');
+  assert.equal(await page.getByRole('navigation',{name:'Nueva solicitud',exact:true}).locator('[aria-current="step"] span.rounded-full').first().evaluate(element=>getComputedStyle(element).backgroundColor),'rgb(255, 107, 94)');
+  await page.getByRole('dialog').getByRole('combobox',{name:/^Servicio/}).selectOption('service:1');
   await page.getByRole('dialog').getByRole('button',{name:'Cerrar',exact:true}).last().click();
   await page.getByRole('heading',{name:'¿Descartar cambios sin guardar?',exact:true}).waitFor();assert.equal(await page.getByRole('dialog').count(),1);await coralModal();
   await page.locator('[data-slot="dialog-footer"]').getByRole('button',{name:'Cerrar',exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'hidden'});
+  await page.getByRole('button',{name:'Nueva solicitud',exact:true}).click();
+  await page.getByRole('dialog').getByRole('combobox',{name:/^Servicio/}).selectOption('service:1');await page.getByRole('dialog').getByRole('combobox',{name:/^Consultor/}).selectOption('2');await page.getByRole('dialog').getByRole('button',{name:'Continuar',exact:true}).click();
+  await page.getByLabel('Fecha',{exact:true}).fill(date);await page.getByRole('button',{name:/10:00|10:00 a/}).click();await page.getByRole('dialog').getByRole('button',{name:'Continuar',exact:true}).click();
+  await page.getByRole('button',{name:/Contacto maestro · master@example.com/}).click();assert.equal(await page.getByLabel('Correo',{exact:true}).inputValue(),'master@example.com');assert.equal(await page.getByRole('checkbox').isChecked(),false);
+  await page.getByRole('checkbox').check();await page.getByRole('dialog').getByRole('button',{name:'Continuar',exact:true}).click();assert.equal(internalRequests.length,0);
+  await page.locator('[data-slot="dialog-footer"]').getByRole('button',{name:'Enviar solicitud',exact:true}).click();await page.getByRole('heading',{name:'Solicitud recibida',exact:true}).waitFor();assert.equal(internalRequests[0].clientId,1);assert.equal(internalRequests[0].contactConsent,true);
+  await page.getByRole('dialog').getByRole('button',{name:'Cerrar',exact:true}).last().click();
   await page.getByRole('button',{name:'Agenda pública',exact:true}).click();await page.getByRole('dialog').waitFor();
   await coralModal();
   await page.getByRole('dialog').getByRole('link',{name:'Abrir página pública',exact:true}).waitFor();
@@ -150,18 +170,25 @@ try {
   await page.getByRole('button',{name:'Equipo y disponibilidad',exact:true}).click();
   await coralModal();
   await page.getByText('America/Toronto',{exact:false}).first().waitFor();
-  await page.getByRole('button',{name:'Editar: Consultor sintético',exact:true}).click();await page.getByLabel('Zona horaria',{exact:true}).fill('America/Toronto');await page.getByRole('button',{name:'Guardar',exact:true}).click();
+  await page.getByRole('button',{name:'Editar: Consultor sintético',exact:true}).click();
+  await page.getByRole('button',{name:'Agregar horario',exact:true}).first().click();await page.getByRole('dialog').getByRole('button',{name:'Cerrar',exact:true}).last().click();
+  await page.getByRole('heading',{name:'¿Descartar cambios sin guardar?',exact:true}).waitFor();await page.getByRole('button',{name:'Seguir editando',exact:true}).click();
+  assert.equal(await page.getByRole('dialog').locator('input[type="time"]').count(),4);
+  await page.getByLabel('Zona horaria',{exact:true}).fill('America/Toronto');await page.getByRole('button',{name:'Guardar',exact:true}).click();assert.equal(staffList[0].days.length,2);
   await page.getByRole('dialog').getByRole('button',{name:'Cerrar',exact:true}).last().click();
   await page.getByRole('button',{name:'Agenda pública',exact:true}).click();
   await page.getByLabel('Título de la página',{exact:true}).fill('Diagnóstico y próximos eventos');await page.getByRole('button',{name:'Guardar',exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'hidden'});
-  await page.getByRole('button',{name:'Eventos',exact:true}).click();await page.getByRole('button',{name:'Cancelar evento',exact:true}).click();
+  await page.getByRole('button',{name:'Eventos',exact:true}).click();await page.getByRole('button',{name:'Participantes',exact:true}).click();await page.getByRole('button',{name:'Revisar: Participante sintético',exact:true}).click();await page.getByText('555-0100',{exact:true}).waitFor();assert.equal(await page.getByRole('dialog').count(),1);
+  await page.getByRole('dialog').getByRole('button',{name:'Cerrar',exact:true}).last().click();await page.getByRole('dialog').getByRole('button',{name:'Cerrar',exact:true}).last().click();
+  await page.getByRole('button',{name:'Cancelar evento',exact:true}).click();
   await page.getByLabel('Motivo de cancelación',{exact:true}).fill('Cancelación sintética');await page.getByRole('button',{name:'Guardar',exact:true}).click();await page.getByText('Cancelada',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Agenda y reservas',exact:true}).click();await page.getByRole('tab',{name:'Tabla',exact:true}).click();await page.getByRole('button',{name:'Revisar: Participante sintético',exact:true}).click();
   await page.getByRole('button',{name:'Guardar',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});await page.locator('tbody').getByText('Confirmada',{exact:true}).waitFor();
   const action=async(label)=>{await page.getByRole('button',{name:'Acciones: Participante sintético',exact:true}).click();await page.getByRole('menuitem',{name:label,exact:true}).click();};
   await action('Cambiar responsable');await page.getByRole('dialog').getByLabel('Colaborador',{exact:true}).selectOption('3');await page.getByLabel('Motivo del cambio',{exact:true}).fill('Prueba de reasignación');await page.getByRole('dialog').getByRole('button',{name:'Cambiar responsable',exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'hidden'});assert.equal(reservation.staffId,3);
+  await action('Reprogramar');const changedTime=new Date(Date.parse(reservation.startAt)+86400000);const localTime=new Date(changedTime.getTime()-changedTime.getTimezoneOffset()*60000).toISOString().slice(0,16);await page.getByRole('dialog').getByLabel(/^Fecha/).fill(localTime);await page.getByLabel('Motivo del cambio',{exact:true}).fill('Reprogramación sintética');await page.getByRole('dialog').getByRole('button',{name:'Reprogramar',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});assert.equal(Date.parse(reservation.startAt),changedTime.getTime());
   await action('Apagar / pausar');await page.getByLabel('Motivo del cambio',{exact:true}).fill('Pausa de prueba');await page.getByRole('dialog').getByRole('button',{name:'Apagar / pausar',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});await page.locator('tbody').getByText('Pausada',{exact:true}).waitFor();
   await action('Reactivar');await page.getByLabel('Motivo del cambio',{exact:true}).fill('Reactivación de prueba');await page.getByRole('dialog').getByRole('button',{name:'Reactivar',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
   await action('Eliminar de la operación');await page.getByLabel('Motivo del cambio',{exact:true}).fill('Retiro de prueba');
@@ -186,9 +213,9 @@ try {
   await page.waitForFunction(() => [...document.querySelectorAll('[data-scheduling-workspace] [role="combobox"]')].some(control=>control.innerText==='Por revisar'));
   assert.equal(await page.getByRole('combobox',{name:/^Estado/}).innerText(),'Por revisar');
   await page.evaluate(()=>window.schedulingFixture.layout('left'));await page.locator('[data-workbar-position="left"]').waitFor();await fits();
-  await page.screenshot({path:'/tmp/indice-scheduling-private-desktop.png',fullPage:true});
-  await page.setViewportSize({width:390,height:844});await fits();await page.screenshot({path:'/tmp/indice-scheduling-private-mobile.png',fullPage:true});
-  await page.evaluate(()=>document.documentElement.classList.add('dark'));await page.screenshot({path:'/tmp/indice-scheduling-private-dark.png',fullPage:true});
+  await page.screenshot({path:resolve(artifactDir,'indice-scheduling-private-desktop.png'),fullPage:true});
+  await page.setViewportSize({width:390,height:844});await fits();await page.screenshot({path:resolve(artifactDir,'indice-scheduling-private-mobile.png'),fullPage:true});
+  await page.evaluate(()=>document.documentElement.classList.add('dark'));await page.screenshot({path:resolve(artifactDir,'indice-scheduling-private-dark.png'),fullPage:true});
   for(const [locale,title] of [['en-CA','Scheduling & events'],['en-US','Scheduling & events'],['es-CO','Agenda y eventos'],['fr-CA','Agenda et événements'],['pt-BR','Agenda e eventos'],['ko-CA','일정 및 이벤트'],['zh-CA','预约与活动'],['es-MX','Agenda y eventos']]){
     await page.evaluate(code=>window.schedulingFixture.language(code),locale);await page.getByText(title,{exact:true}).first().waitFor();await fits();
   }
@@ -214,11 +241,12 @@ try {
   assert.equal(await page.locator('[data-public-scheduling]').evaluate(element=>getComputedStyle(element).getPropertyValue('--scheduling-accent').trim()),'#008577');
   await page.getByRole('combobox',{name:/^Servicio \/ Eventos/}).selectOption('service:1');await page.getByRole('button',{name:'Continuar',exact:true}).click();
   await page.getByLabel('Fecha',{exact:true}).fill(date);await page.getByRole('button',{name:/10:00|10:00 a/}).click();await page.getByRole('button',{name:'Continuar',exact:true}).click();
+  await page.getByLabel('Participante',{exact:true}).fill('Cliente de prueba');await page.getByLabel('Correo',{exact:true}).fill('client@example.com');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Continuar',exact:true}).click();
   const themedButton=page.getByRole('button',{name:'Solicitar sesión',exact:true});await themedButton.waitFor();
   await themedButton.evaluate(element=>Promise.all(element.getAnimations().map(animation=>animation.finished.catch(()=>{}))));
   assert.equal(await themedButton.evaluate(element=>getComputedStyle(element).backgroundColor),'rgb(0, 133, 119)');
-  await fits();await page.screenshot({path:'/tmp/indice-scheduling-public-customized.png',fullPage:true});
+  await fits();await page.screenshot({path:resolve(artifactDir,'indice-scheduling-public-customized.png'),fullPage:true});
   assert.equal(calls.some(c=>c.includes('/platform-admin/')),false);assert.deepEqual(unexpected,[]);assert.deepEqual(errors,[]);
   console.log('PASS private: coral identity/emoji, canonical 44px filters and focus, title action hierarchy, clear/disclosure, single-frame Services/Team/Public agenda modals, shared Sales Clients, reassignment/pause/resume/archive, KPI drilldown, 8 locales, role scope, responsive/dark; public custom theme preserved');
-} catch(error){console.error(error);if(page){console.error('Failure at',page.url(),await page.locator('body').innerText());await page.screenshot({path:'/tmp/indice-scheduling-failure.png',fullPage:true,timeout:10000}).catch(()=>{});}throw error;}
+} catch(error){console.error(error);if(page){console.error('Failure at',page.url(),await page.locator('body').innerText());await page.screenshot({path:resolve(artifactDir,'indice-scheduling-failure.png'),fullPage:true,timeout:10000}).catch(()=>{});}throw error;}
 finally{await browser?.close();await server.close();}

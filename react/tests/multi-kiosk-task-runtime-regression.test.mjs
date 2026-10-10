@@ -91,7 +91,8 @@ test('native task workspace exposes agenda, explicit schedule management and a c
   assert.match(workspace, /<EmployeeTaskAgendaToolbar/);
   assert.match(workspace, /<EmployeeTaskScheduleView/);
   assert.match(workspace, /<EmployeeTaskOccasionalProcessDialog/);
-  assert.match(agenda, /role="tablist"/);
+  assert.match(agenda, /role="group"/);
+  assert.match(agenda, /aria-pressed=\{focusFilter === item.value\}/);
   assert.match(agenda, /data-task-kiosk-agenda/);
   assert.match(agenda, /data-task-kiosk-board/);
   assert.match(agenda, /overflow-x-auto pb-2 snap-x snap-mandatory/);

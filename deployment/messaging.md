@@ -68,21 +68,30 @@ recovery. Neither substitutes for a smoke flow through deployed authentication a
 ## Deployment and rollback
 
 1. Identify the release artifact and verify a database backup using the main deployment runbook.
-2. Apply additive migrations V291 and V292, validate Flyway, application readiness and existing ticket access.
+2. Apply V291, V292 and the V312 team-chat extension, validate Flyway, application readiness and existing ticket access.
 3. Deploy backend/frontend together. Exercise request, response, assignment, transfer, resolution
    and reopening using separate client, distributor and operator accounts.
 4. Verify tenant isolation, internal-note privacy, restricted-subscription support and operator MFA.
 5. Test disconnection and application restart, reload committed history, and check notification
    processing and operational alerts. Record target-environment evidence and support coverage.
 
-Application rollback preserves V291/V292 tables, messages and stored photographs. Do not reverse it with destructive SQL.
+Application rollback preserves V291/V292/V312 tables, messages, task receipts and stored photographs. Do not reverse it with destructive SQL.
 Verify the previous application's Flyway compatibility before reverting; otherwise follow the
 documented backup recovery procedure. Existing system tickets keep their original schema and APIs.
+Once groups exist, the rollback artifact must understand the `GROUP` kind. Do not route messaging
+to a pre-group version; disable the entry while restoring a compatible artifact if necessary.
 
-Scope: individual text/photo chat, customer care queues, assignments, notes, priorities, transfer,
-resolution, audit and notifications in the eight supported locale variants. Kiosk identities,
-groups, non-image attachments, external email, typing indicators and presence are outside this release.
+Scope: direct/group text/photo chat, employee PIN messaging, read receipts, personal task capture,
+customer care queues, assignments, notes, priorities, transfer, resolution, audit and notifications
+in the eight supported locale variants. Provider kiosks, non-image attachments, external email,
+typing indicators and presence are outside this release. Team groups start with a fixed roster.
 Production capacity and authenticated deployment smoke tests require target-environment evidence.
+
+For the team extension, also run `MultiKioskMessagingControllerTest` and
+`ProcessTaskMessagingContractTest`, then the messaging and employee-kiosk browser regressions.
+Confirm direct names, group isolation, read updates with no new messages, missing task permissions,
+PIN capability revocation and identical task retries. ✓ means committed; ✓✓ means read by every
+other participant, not delivery to a device. Task capture does not publish chat content to Tasks.
 
 Photo release checks: private document bucket, browser PUT/CORS access, shared storage quota,
 immutable saved objects, 60-second download links, sender/participant and internal-note isolation,

@@ -1,0 +1,16 @@
+.messaging-workspace { --chat-navy: #143675; }
+.messaging-workspace [data-chat-inbox-header] { background: linear-gradient(135deg, #eff6ff, #f8fafc); }
+.messaging-workspace [data-chat-history] { background-color: #f3f6fb; }
+.messaging-workspace [data-chat-emoji] { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-size: 1.5rem; line-height: 1; }
+.messaging-workspace [data-chat-own] { background: var(--chat-navy); border-color: var(--chat-navy); color: white; }
+.messaging-workspace [data-chat-own] [data-chat-time] { color: #dbeafe; }
+.messaging-workspace [data-chat-receipt] { display: inline-flex; align-items: center; gap: .25rem; }
+.dark .messaging-workspace [data-chat-inbox-header] { background: #1f2937; }
+.dark .messaging-workspace [data-chat-history] { background: #111827; }
+.dark .messaging-workspace [data-chat-own] { background: #1e3a70; border-color: #375785; }
+@media (max-width: 767px) {
+  .messaging-workspace [data-chat-header] { gap: .5rem; padding: .75rem; }
+  .messaging-workspace [data-chat-history] { padding: 1rem .75rem; }
+  .messaging-workspace [data-chat-message] { max-width: 92%; padding: .75rem; }
+  .messaging-workspace [data-chat-body] { font-size: 1rem; line-height: 1.55; }
+}

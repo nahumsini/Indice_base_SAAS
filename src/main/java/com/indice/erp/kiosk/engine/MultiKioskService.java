@@ -3,6 +3,7 @@ package com.indice.erp.kiosk.engine;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.auth.AuthSessionUser;
+import com.indice.erp.configcenter.ConfigCenterService;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -50,6 +51,7 @@ public class MultiKioskService {
     private final KioskProviderMultiDashboardService providerDashboard;
     private final KioskRateLimitService rateLimits;
     private final KioskPaymentCollectionGuard collectionGuard;
+    private final ConfigCenterService companyConfiguration;
     private final Duration inactivityTimeout;
     private final Duration absoluteLifetime;
 
@@ -66,6 +68,7 @@ public class MultiKioskService {
             KioskProviderMultiDashboardService providerDashboard,
             KioskRateLimitService rateLimits,
             KioskPaymentCollectionGuard collectionGuard,
+            ConfigCenterService companyConfiguration,
             @Value("${app.kiosk.multi.inactivity-timeout-seconds:28800}") int inactivitySeconds,
             @Value("${app.kiosk.multi.session-ttl-seconds:43200}") int sessionTtlSeconds) {
         this.jdbcTemplate = jdbcTemplate;
@@ -79,6 +82,7 @@ public class MultiKioskService {
         this.providerDashboard = providerDashboard;
         this.rateLimits = rateLimits;
         this.collectionGuard = collectionGuard;
+        this.companyConfiguration = companyConfiguration;
         this.inactivityTimeout = Duration.ofSeconds(Math.max(60, inactivitySeconds));
         this.absoluteLifetime = Duration.ofSeconds(Math.max(300, sessionTtlSeconds));
     }
@@ -416,6 +420,7 @@ public class MultiKioskService {
             "name", definition.name(),
             "description", definition.description() == null ? "" : definition.description(),
             "company_name", companyName(definition.companyId()),
+            "company_logo_url", string(companyConfiguration.getCompanyLogo(definition.companyId())),
             "theme_key", definition.themeKey(),
             "locale", definition.locale(),
             "audience_type", definition.audienceType(),
@@ -641,6 +646,22 @@ public class MultiKioskService {
         result.put("multi_kiosk", publicView(definition));
         result.put("expires_at", session.expiresAt().toString());
         return Map.copyOf(result);
+    }
+
+    /** Personal core capabilities use the PIN identity, never the browser's ERP identity. */
+    @Transactional
+    public AuthSessionUser requireEmployeeSession(
+            String publicToken, String sessionToken, String browserReference, boolean activity) {
+        var definition = resolve(publicToken, true);
+        return requireSession(definition, sessionToken, browserReference, activity).asUser();
+    }
+
+    public record EmployeeContext(long multiKioskId, AuthSessionUser user) { }
+    @Transactional
+    public EmployeeContext employeeContext(String publicToken, String sessionToken, String browserReference) {
+        var definition = resolve(publicToken, true);
+        return new EmployeeContext(definition.id(),
+            requireSession(definition, sessionToken, browserReference, false).asUser());
     }
 
     /**

@@ -3,19 +3,23 @@ import type { ChangeEventHandler, HTMLAttributes, InputHTMLAttributes, ReactNode
 import { MODULE_COLORS, getModulePrimaryForeground } from '../../styles/moduleColors';
 import { cn } from '../ui/utils';
 import type { KioskThemeTone } from './KioskWorkspacePrimitives';
+import './kioskPersonalWorkspace.css';
 
 export function KioskToolWorkspaceFrame({
   className,
+  personal = false,
   width = 'compact',
   ...props
 }: HTMLAttributes<HTMLDivElement> & {
   width?: 'compact' | 'catalog';
+  personal?: boolean;
 }) {
   return (
     <div
       className={cn(
         'mx-auto min-w-0 max-w-full space-y-3 overflow-x-hidden',
         width === 'compact' ? 'w-full max-w-[32rem]' : 'w-full max-w-3xl',
+        personal && 'kiosk-personal-workspace',
         className,
       )}
       {...props}
@@ -53,6 +57,7 @@ export function KioskWorkspaceContextBar({
         theme.darkBorder,
       )}
       data-kiosk-workspace-context
+      data-kiosk-tone={tone}
     >
       <div className="flex min-w-0 items-center gap-3">
         <span
@@ -89,6 +94,7 @@ export function KioskWorkspaceContextBar({
 export function KioskWorkspaceSurface({ className, ...props }: HTMLAttributes<HTMLElement>) {
   return (
     <section
+      data-kiosk-workspace-surface
       className={cn(
         'rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:p-5',
         className,
@@ -114,7 +120,7 @@ export function KioskWorkspaceSectionHeader({
   const theme = MODULE_COLORS[tone];
 
   return (
-    <header className="flex items-start justify-between gap-3">
+    <header className="flex items-start justify-between gap-3" data-kiosk-section-header>
       <div className="flex min-w-0 items-start gap-3">
         <span
           aria-hidden="true"

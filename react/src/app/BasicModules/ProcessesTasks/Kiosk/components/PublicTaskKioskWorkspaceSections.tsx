@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
 import { KioskWorkspaceEmptyState } from '../../../../components/kiosk-engine/KioskToolWorkspace';
+import { KioskModalFrame } from '../../../../components/kiosk-engine/KioskModalFrame';
 import { Button } from '../../../../components/ui/button';
 import type { PublicTaskKioskTask } from '../processTaskKioskApi';
 import type { TaskKioskTranslations } from '../translations';
@@ -142,6 +143,7 @@ export function PublicTaskKioskIdentityCard({
 
 export function PublicTaskKioskSummaryStrip({
   compact = false,
+  personal = false,
   openLabel,
   openValue,
   overdueLabel,
@@ -150,6 +152,7 @@ export function PublicTaskKioskSummaryStrip({
   resolvedValue,
 }: {
   compact?: boolean;
+  personal?: boolean;
   openLabel: string;
   openValue: number;
   overdueLabel: string;
@@ -162,6 +165,15 @@ export function PublicTaskKioskSummaryStrip({
     { icon: <CircleAlert className="h-4 w-4" />, label: overdueLabel, value: overdueValue, valueClass: overdueValue > 0 ? 'text-rose-600 dark:text-rose-300' : 'text-slate-950 dark:text-white' },
     { icon: <CheckCircle2 className="h-4 w-4" />, label: resolvedLabel, value: resolvedValue, valueClass: 'text-emerald-700 dark:text-emerald-300' },
   ];
+
+  if (personal) {
+    return <section className="grid grid-cols-3 gap-2" data-task-personal-summary>
+      {metrics.map((metric, index) => <div key={metric.label} className={`min-w-0 rounded-2xl border px-2 py-3 ${index === 1 && overdueValue > 0 ? 'border-rose-200 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/30' : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950'}`}>
+        <div className="flex flex-wrap items-center justify-center gap-2"><span aria-hidden="true" className="text-xl">{['📌', '⏳', '✅'][index]}</span><span className={`text-2xl font-medium tabular-nums ${metric.valueClass}`}>{metric.value}</span></div>
+        <p className="mt-1 text-center text-xs leading-5 text-slate-600 [overflow-wrap:anywhere] dark:text-slate-300">{metric.label}</p>
+      </div>)}
+    </section>;
+  }
 
   if (compact) {
     return (
@@ -241,33 +253,47 @@ export function PublicTaskKioskToolbar({
 
 export function PublicTaskKioskFiltersSheet({
   applyLabel,
+  closeLabel = applyLabel,
   children,
   clearLabel,
   description,
   isOpen,
   onClear,
   onClose,
+  personal = false,
   title,
 }: {
   applyLabel: string;
+  closeLabel?: string;
   children: ReactNode;
   clearLabel: string;
   description: string;
   isOpen: boolean;
   onClear: () => void;
   onClose: () => void;
+  personal?: boolean;
   title: string;
 }) {
   useEffect(() => {
-    if (!isOpen) return undefined;
+    if (!isOpen || personal) return undefined;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, personal]);
 
   if (!isOpen) return null;
+
+  if (personal) return <KioskModalFrame
+    open onOpenChange={open => { if (!open) onClose(); }} closeLabel={closeLabel}
+    contentClassName="[&_button]:min-h-11 [&_button]:min-w-11"
+    bodyClassName="[&_select]:text-base [&_input]:text-base [&_label>span]:text-sm [&_label>span]:text-slate-600 dark:[&_label>span]:text-slate-300"
+    title={title} description={description} icon={<span aria-hidden="true" className="text-2xl">🔎</span>}
+    tone="yellow" size="form" surface="public"
+    footerLeading={<Button type="button" variant="outline" className="min-h-12 rounded-xl" onClick={onClear}>{clearLabel}</Button>}
+    footer={<Button type="button" className="min-h-12 rounded-xl bg-[#143675] text-white hover:bg-[#102c60]" onClick={onClose}>{applyLabel}</Button>}
+  >{children}</KioskModalFrame>;
 
   return (
     <div className="fixed inset-0 z-[140] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="task-kiosk-filters-title">
@@ -299,6 +325,7 @@ export function PublicTaskKioskTaskCard({
   dueLabel,
   formattedDueDate,
   onOpen,
+  personal = false,
   scheduleLabel,
   statusLabelOverride,
   statusTone,
@@ -311,6 +338,7 @@ export function PublicTaskKioskTaskCard({
   dueLabel: string;
   formattedDueDate: string;
   onOpen: () => void;
+  personal?: boolean;
   scheduleLabel?: string;
   statusLabelOverride?: string;
   statusTone?: 'danger' | 'success' | 'info' | 'warning' | 'neutral';
@@ -342,6 +370,37 @@ export function PublicTaskKioskTaskCard({
     warning: 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200',
     neutral: 'bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300',
   }[resolvedTone];
+
+  if (personal) return (
+    <article className={`min-w-0 overflow-hidden rounded-[1.5rem] border bg-white shadow-[0_4px_14px_-10px_rgba(20,54,117,0.22)] dark:bg-slate-950 ${resolvedTone === 'danger' ? 'border-rose-200 dark:border-rose-900' : 'border-slate-200 dark:border-slate-700'}`} data-personal-task-card>
+      <button type="button" className="group block w-full p-4 text-left transition hover:bg-amber-50/30 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-amber-300 dark:hover:bg-slate-900" onClick={onOpen}>
+        <div className="flex items-start gap-3">
+          <span aria-hidden="true" className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-2xl ${resolvedTone === 'danger' ? 'bg-rose-50 dark:bg-rose-950/40' : 'bg-[#FFF7DC] dark:bg-amber-950/40'}`}>{task.status === 'completed' ? '✅' : task.process_id ? '🔄' : task.project_name ? '🗂️' : '📋'}</span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600 dark:text-slate-300"><span>{taskType}</span><span>{task.folio}</span></div>
+            <h3 className="mt-1 text-base font-medium leading-6 text-slate-950 [overflow-wrap:anywhere] dark:text-white">{task.title}</h3>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${statusClassName}`}><span aria-hidden="true">{{danger: '⏳', success: '✅', info: '⚡', warning: '⏸️', neutral: '📌'}[resolvedTone]}</span>{statusLabel}</span>
+          {task.priority === 'high' ? <span className="rounded-full bg-rose-50 px-2.5 py-1 text-xs text-rose-700 dark:bg-rose-950/40 dark:text-rose-200"><span aria-hidden="true">🔥 </span>{priorityLabel}</span> : null}
+        </div>
+        {task.description ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600 dark:text-slate-300 [[data-kiosk-large-text=true]_&]:line-clamp-none">{task.description}</p> : null}
+        {origin ? <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600 dark:bg-slate-900 dark:text-slate-300"><span aria-hidden="true">🔄 </span><span className="[overflow-wrap:anywhere]">{origin}{originReference ? ` · ${originReference}` : ''}</span>{processPosition ? <span className="ml-2 inline-block rounded-md bg-amber-100 px-1.5 text-amber-900 dark:bg-amber-950 dark:text-amber-200">{processPosition}</span> : null}</div> : null}
+        {location ? <p className="mt-2 flex items-start gap-1.5 text-xs leading-5 text-slate-600 dark:text-slate-300"><MapPin aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" /><span className="[overflow-wrap:anywhere]">{location}</span></p> : null}
+        {task.evidence_required ? <p className={`mt-3 flex items-center gap-2 text-xs leading-5 ${task.evidence_satisfied || task.attachments > 0 ? 'text-emerald-800 dark:text-emerald-200' : 'text-amber-900 dark:text-amber-200'}`}><span aria-hidden="true" className="text-lg">{task.evidence_satisfied || task.attachments > 0 ? '📎' : '📸'}</span>{copy.selectedTask.evidence}: {task.attachments}/1</p> : null}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+          <div className="min-w-0 text-xs leading-5 text-slate-600 dark:text-slate-300">
+            <p className="flex items-center gap-1.5"><CalendarDays aria-hidden="true" className="h-4 w-4 shrink-0" /><span>{dueLabel}: {formattedDueDate}</span></p>
+            {scheduleLabel ? <p className="mt-1 flex items-center gap-1.5"><Clock3 aria-hidden="true" className="h-4 w-4" />{scheduleLabel}</p> : null}
+            {!task.evidence_required && task.attachments > 0 ? <p className="mt-1">📎 {task.attachments} {attachmentsLabel}</p> : null}
+          </div>
+          <span className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-[#FFF3CB] px-3 text-sm font-medium text-[#684708] group-hover:bg-[#F4C84A] dark:bg-amber-950/50 dark:text-amber-200">{viewLabel}<ChevronRight aria-hidden="true" className="h-4 w-4" /></span>
+        </div>
+        {task.completion_percent > 0 ? <div className="mt-3"><div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-[#F4C84A]" style={{ width: `${Math.min(100, Math.max(0, task.completion_percent))}%` }} /></div><p className="mt-1 flex items-center justify-between gap-2 text-xs text-slate-600 dark:text-slate-300"><span>{copy.selectedTask.completion}</span><span>{task.completion_percent}%</span></p></div> : null}
+      </button>
+    </article>
+  );
 
   return (
     <article className={`overflow-hidden rounded-xl border bg-white shadow-sm transition dark:bg-slate-950 ${resolvedTone === 'danger' ? 'border-rose-200 dark:border-rose-900/60' : 'border-[#F4C84A]/35 dark:border-[#F4C84A]/20'}`}>

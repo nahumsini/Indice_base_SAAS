@@ -8,6 +8,9 @@ import {
 } from "../services/meetingApi";
 import type { MeetingCopy } from "../translations/meetingCopy";
 import { getMeetingWorkflowCopy } from "../translations/meetingWorkflowCopy";
+import { getMeetingOperationsCopy } from "../translations/meetingOperationsCopy";
+import { printMeetingMinutes } from "../utils/meetingPrintDocument";
+import { downloadCalendarExport } from "../../../shared/utils/calendarDownload";
 import {
   Action,
   Feedback,
@@ -37,7 +40,7 @@ export function MeetingDetail({
   onEdit: (detail: Detail) => void;
   onMinutes: (detail: Detail) => void;
   onTransition: (detail: Detail, status: MeetingStatus) => void;
-  onAgreements?: () => void;
+  onAgreements?: (meetingId: number) => void;
 }) {
   const query = useMeetingQuery(
       useCallback((signal) => meetingApi.detail(id, signal), [id]),
@@ -47,6 +50,7 @@ export function MeetingDetail({
   const editable = Boolean(row && (administrator || row.ownerId === userId)),
     active = Boolean(row && ["PLANNED", "IN_PROGRESS"].includes(row.status));
   const w = getMeetingWorkflowCopy(locale);
+  const op = getMeetingOperationsCopy(locale);
   const canMinutes = editable || detail?.planning?.minutesOwner.id === userId;
   return (
     <IndiceModalFrame
@@ -129,6 +133,11 @@ export function MeetingDetail({
                 )}
               </div>
             )}
+            {canMinutes && row.status === "COMPLETED" && <Action onClick={()=>onMinutes(detail)}>{op.addendum}</Action>}
+            <div className="flex flex-wrap gap-3">
+              <Action onClick={() => printMeetingMinutes(detail, copy, locale)}>{op.print}</Action>
+              <Action onClick={() => downloadCalendarExport({ uid: `meeting-${row.id}@indice`, title: row.title, startAt: row.startAt, endAt: row.endAt, location: detail.location, version: row.version, status: row.status === "CANCELLED" ? "CANCELLED" : "CONFIRMED" })}>{op.calendar}</Action>
+            </div>
             {detail.planning && (
               <section className={panel + " space-y-4"}>
                 <h3 className="text-sm font-medium">🎯 {w.peopleStep}</h3>
@@ -168,7 +177,7 @@ export function MeetingDetail({
               </section>
             )}
             {onAgreements && (
-              <Action onClick={onAgreements}>
+              <Action onClick={() => onAgreements?.(id)}>
                 <span aria-hidden>🤝</span> {w.pendingAgreements}
               </Action>
             )}
@@ -202,6 +211,10 @@ export function MeetingDetail({
                     <p>
                       {copy[item.action as keyof MeetingCopy] ??
                         {
+                          MINUTES_ADDENDUM: op.addendum,
+                          AGREEMENT_UPDATED: op.editAgreement,
+                          AGREEMENT_NOTE: op.note,
+                          AGREEMENT_TASK_LINKED: op.task,
                           PAUSE_REMINDERS: w.pause,
                           RESUME_REMINDERS: w.resume,
                         }[

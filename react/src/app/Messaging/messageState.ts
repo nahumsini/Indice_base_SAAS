@@ -1,4 +1,11 @@
-import type { Message } from './types';
+import type { Message, Participant } from './types';
+
+/** Read cursors come from the server, including polls with no new messages. Never infer delivery. */
+export function messageReceipt(message: Message, participants: Participant[]) {
+  const recipients = participants.filter(p => p.userId !== message.senderUserId);
+  const read = recipients.filter(p => p.lastReadMessageId >= message.id).length;
+  return { read, total: recipients.length, allRead: recipients.length > 0 && read === recipients.length };
+}
 
 /** Server ids define order; retries and overlapping polls must not duplicate bubbles. */
 export function mergeMessages(current: Message[], incoming: Message[]): Message[] {

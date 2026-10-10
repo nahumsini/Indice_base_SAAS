@@ -64,6 +64,7 @@ export function EmployeeTaskMultiKioskCreateDialog({
 
   return (
     <KioskModalFrame
+      contentClassName="[&_button]:min-h-11 [&_button]:min-w-11"
       busy={busy}
       closeLabel={copy.create.closeModal}
       description={copy.create.selfDescription}
@@ -73,7 +74,7 @@ export function EmployeeTaskMultiKioskCreateDialog({
           aria-busy={busy || undefined}
           type="submit"
           form={formId}
-          className="h-12 rounded-xl bg-white px-5 text-sm font-medium text-[#7A5204] hover:bg-white/90"
+          className="h-auto min-h-12 whitespace-normal rounded-xl bg-[#143675] px-5 py-3 text-base font-medium text-white hover:bg-[#102c60]"
           disabled={busy}
         >
           {busy
@@ -83,7 +84,7 @@ export function EmployeeTaskMultiKioskCreateDialog({
         </Button>
       )}
       footerLeading={closeButton}
-      icon={<ListPlus className="h-5 w-5" />}
+      icon={<span aria-hidden="true" className="text-2xl">✏️</span>}
       onOpenChange={(nextOpen) => {
         if (!nextOpen && !busy) onClose();
       }}
@@ -109,7 +110,7 @@ export function EmployeeTaskMultiKioskCreateDialog({
 
         {errorMessage ? <div id={errorId}><KioskWorkspaceNotice kind="error">{errorMessage}</KioskWorkspaceNotice></div> : null}
 
-        <p className="flex items-start gap-3 rounded-2xl border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-4 py-3 text-sm leading-5 text-slate-700 dark:border-[#F4C84A]/20 dark:bg-[#F4C84A]/10 dark:text-slate-200">
+        <p className="flex items-start gap-3 rounded-[1.5rem] border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-4 py-3 text-sm leading-5 text-slate-700 dark:border-[#F4C84A]/20 dark:bg-[#F4C84A]/10 dark:text-slate-200">
           <ShieldCheck aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-[#8A5E05] dark:text-[#FDE68A]" />
           <span>{copy.create.selfAssignment(employeeName, scopeLabel)}</span>
         </p>
@@ -122,7 +123,7 @@ export function EmployeeTaskMultiKioskCreateDialog({
             aria-describedby={errorMessage ? errorId : undefined}
             aria-invalid={Boolean(errorMessage) || undefined}
             autoFocus
-            className="mt-2 h-12 rounded-xl"
+            className="mt-2 h-12 rounded-2xl text-base"
             disabled={busy}
             id={titleId}
             maxLength={220}
@@ -138,7 +139,7 @@ export function EmployeeTaskMultiKioskCreateDialog({
             {copy.create.descriptionLabel}
           </span>
           <Textarea
-            className="mt-2 min-h-24 rounded-xl"
+            className="mt-2 min-h-28 rounded-2xl text-base"
             disabled={busy}
             maxLength={2000}
             placeholder={copy.create.descriptionPlaceholder}
@@ -153,7 +154,7 @@ export function EmployeeTaskMultiKioskCreateDialog({
               {copy.create.priorityLabel}
             </span>
             <select
-              className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition focus-visible:border-[#C38A08] focus-visible:ring-2 focus-visible:ring-[#F4C84A]/40 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-950 outline-none transition focus-visible:border-[#C38A08] focus-visible:ring-2 focus-visible:ring-[#F4C84A]/40 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
               disabled={busy}
               value={draft.priority}
               onChange={(event) => onChange(
@@ -177,7 +178,7 @@ export function EmployeeTaskMultiKioskCreateDialog({
                 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8A5E05] dark:text-[#FDE68A]"
               />
               <Input
-                className="h-12 rounded-xl pl-10"
+                className="h-12 min-w-0 rounded-2xl pl-10 text-base"
                 disabled={busy}
                 type="date"
                 value={draft.dueDate}

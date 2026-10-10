@@ -47,6 +47,11 @@ public class MessagingAccess {
             distributors.requireDistributor(user);
             return new Actor(user.userId(), user.companyId(), user.userCompanyId(), "DISTRIBUTOR");
         }
+        return memberActor(user);
+    }
+
+    /** Owner boundary for an identity already authenticated by an approved session engine. */
+    public Actor memberActor(AuthSessionUser user) {
         if (user.userCompanyId() == null) throw forbidden();
         var active = jdbc.queryForObject("""
             SELECT COUNT(*) FROM user_companies uc JOIN companies c ON c.id = uc.company_id

@@ -12,7 +12,13 @@ public class MessagingController {
     private final MessagingAccess access;
     private final MessagingService service;
     private final MessagingAttachmentService attachments;
-    public MessagingController(MessagingAccess access,MessagingService service,MessagingAttachmentService attachments) { this.access=access; this.service=service; this.attachments=attachments; }
+    private final MessagingTaskService tasks;
+    public MessagingController(MessagingAccess access,MessagingService service,MessagingAttachmentService attachments,MessagingTaskService tasks) { this.access=access; this.service=service; this.attachments=attachments; this.tasks=tasks; }
+    @GetMapping("/task-context") public MessagingTaskService.TaskContext taskContext(HttpServletRequest r) { return tasks.context(access.actor(r),false,null); }
+    @PostMapping("/conversations/{id}/tasks") @ResponseStatus(HttpStatus.CREATED)
+    public com.indice.erp.processTasks.tasks.ProcessTaskMessagingContract.TaskLink task(HttpServletRequest r,@PathVariable long id,@RequestBody MessagingTaskService.CreateTask body) {
+        return tasks.create(access.actor(r),id,body,false,null);
+    }
     @PostMapping("/conversations/{id}/attachments")
     public PhotoUploadResult upload(HttpServletRequest r,@PathVariable long id,@RequestBody PhotoUpload request) {
         return attachments.presign(access.actor(r),id,request);

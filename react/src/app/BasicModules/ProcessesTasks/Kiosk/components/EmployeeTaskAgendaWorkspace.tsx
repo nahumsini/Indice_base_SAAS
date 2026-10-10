@@ -1,16 +1,5 @@
-import {
-  CalendarDays,
-  Clock3,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  KanbanSquare,
-  ListChecks,
-  ListPlus,
-  Play,
-  Search,
-} from 'lucide-react';
-import { KioskWorkspaceSectionHeader } from '../../../../components/kiosk-engine/KioskToolWorkspace';
+import { ChevronLeft, ChevronRight, Filter, Search, X } from 'lucide-react';
+import { useRef } from 'react';
 import { Button } from '../../../../components/ui/button';
 import type { AgendaFocusFilter } from '../../Agenda/types';
 import type { EmployeeTaskAgendaCopy } from '../employeeTaskAgendaTranslations';
@@ -129,76 +118,72 @@ export function EmployeeTaskAgendaToolbar({
     { label: taskCopy.workspace.delegated, value: 'delegated' },
     { label: copy.allVisible, value: 'team' },
   ];
+  const searchInput = useRef<HTMLInputElement>(null);
   const dateTitle = formatDateTitle(selectedDate, dateRange, locale, copy.allDates);
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950" data-task-kiosk-toolbar>
-      <div className="px-3 py-3 sm:px-4">
-        <KioskWorkspaceSectionHeader
-          action={<span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] text-slate-500 dark:bg-slate-900 dark:text-slate-300">{copy.results(focusCounts[focusFilter])}</span>}
-          description={<span className="hidden min-[430px]:inline">{copy.subtitle}</span>}
-          icon={<ListChecks className="h-5 w-5" />}
-          title={copy.title}
-          tone="yellow"
-        />
-      </div>
-
-      <div className="border-t border-slate-100 p-1.5 dark:border-slate-800">
-        <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-900" aria-label={`${copy.agenda} / ${copy.scheduleUi.label} / ${copy.board}`} role="group">
-          <button type="button" aria-pressed={viewMode === 'agenda'} className={`flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-1.5 text-[11px] font-medium transition min-[390px]:text-xs ${viewMode === 'agenda' ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`} onClick={() => onViewChange('agenda')}>
-            <CalendarDays aria-hidden="true" className="h-4 w-4 shrink-0" /><span className="truncate">{copy.agenda}</span>
+    <section className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-1 shadow-[0_4px_16px_-12px_rgba(20,54,117,0.3)] dark:border-slate-700 dark:bg-slate-950" data-task-kiosk-toolbar>
+      <div className="p-2">
+        <div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-50 p-1 dark:bg-slate-900" aria-label={`${copy.agenda} / ${copy.scheduleUi.label} / ${copy.board}`} role="group">
+          <button type="button" aria-pressed={viewMode === 'agenda'} className={`flex min-h-16 min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl px-1.5 py-2 text-sm font-medium leading-5 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-300 ${viewMode === 'agenda' ? 'bg-[#F4C84A] text-[#222831] shadow-sm' : 'text-slate-600 dark:text-slate-300'}`} onClick={() => onViewChange('agenda')}>
+            <span aria-hidden="true" className="text-2xl leading-none">📋</span><span className="[overflow-wrap:anywhere]">{copy.agenda}</span>
           </button>
-          <button type="button" aria-pressed={viewMode === 'schedule'} disabled={statusFilter === 'completed'} className={`flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-1.5 text-[11px] font-medium transition disabled:opacity-40 min-[390px]:text-xs ${viewMode === 'schedule' ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`} onClick={() => onViewChange('schedule')}>
-            <Clock3 aria-hidden="true" className="h-4 w-4 shrink-0" /><span className="truncate">{copy.scheduleUi.label}</span>
+          <button type="button" aria-pressed={viewMode === 'schedule'} disabled={statusFilter === 'completed'} className={`flex min-h-16 min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl px-1.5 py-2 text-sm font-medium leading-5 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-300 disabled:opacity-40 ${viewMode === 'schedule' ? 'bg-[#F4C84A] text-[#222831] shadow-sm' : 'text-slate-600 dark:text-slate-300'}`} onClick={() => onViewChange('schedule')}>
+            <span aria-hidden="true" className="text-2xl leading-none">🕘</span><span className="[overflow-wrap:anywhere]">{copy.scheduleUi.label}</span>
           </button>
-          <button type="button" aria-pressed={viewMode === 'board'} disabled={statusFilter === 'completed'} className={`flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-1.5 text-[11px] font-medium transition disabled:opacity-40 min-[390px]:text-xs ${viewMode === 'board' ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`} onClick={() => onViewChange('board')}>
-            <KanbanSquare aria-hidden="true" className="h-4 w-4 shrink-0" /><span className="truncate">{copy.board}</span>
+          <button type="button" aria-pressed={viewMode === 'board'} disabled={statusFilter === 'completed'} className={`flex min-h-16 min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl px-1.5 py-2 text-sm font-medium leading-5 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-300 disabled:opacity-40 ${viewMode === 'board' ? 'bg-[#F4C84A] text-[#222831] shadow-sm' : 'text-slate-600 dark:text-slate-300'}`} onClick={() => onViewChange('board')}>
+            <span aria-hidden="true" className="text-2xl leading-none">🗂️</span><span className="[overflow-wrap:anywhere]">{copy.board}</span>
           </button>
         </div>
       </div>
 
+      <div className="border-t border-slate-100 p-2 dark:border-slate-800">
+        <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-1.5">
+          <button type="button" aria-label={copy.previousDate} disabled={dateRange === 'all'} className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:opacity-35 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-900" onClick={() => onMoveDate(-1)}><ChevronLeft aria-hidden="true" className="h-5 w-5" /></button>
+          <div className="min-w-0 text-center">
+            <p className="text-base font-medium capitalize text-slate-950 dark:text-white">{dateTitle}</p>
+
+          </div>
+          <button type="button" aria-label={copy.nextDate} disabled={dateRange === 'all'} className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:opacity-35 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-900" onClick={() => onMoveDate(1)}><ChevronRight aria-hidden="true" className="h-5 w-5" /></button>
+        </div>
+
+      </div>
+
+      <div className="grid grid-cols-[minmax(0,1fr)_48px] gap-2 border-t border-slate-100 p-2 dark:border-slate-800">
+        <label className="relative min-w-0">
+          <span className="sr-only">{copy.search}</span>
+          <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input ref={searchInput} type="search" value={searchQuery} placeholder={copy.searchPlaceholder} className="h-12 w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50/60 pl-10 pr-12 text-base [&::-webkit-search-cancel-button]:hidden text-slate-950 outline-none transition placeholder:text-slate-600 dark:placeholder:text-slate-400 focus:border-[#F4C84A] focus:ring-4 focus:ring-[#F4C84A]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white" onChange={event => onSearchChange(event.target.value)} />
+          {searchQuery ? <button type="button" aria-label={copy.clearSearch} className="absolute right-0.5 top-0.5 grid h-11 w-11 place-items-center rounded-xl text-slate-600 focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-slate-300" onClick={() => { onSearchChange(''); searchInput.current?.focus(); }}><X aria-hidden="true" className="h-5 w-5" /></button> : null}
+        </label>
+        <Button type="button" variant="outline" aria-label={taskCopy.workspace.filters} className="relative h-12 w-12 rounded-2xl border-slate-200 p-0 dark:border-slate-700" onClick={onOpenFilters}>
+          <Filter aria-hidden="true" className="h-4 w-4" />
+          {activeFilterCount > 0 ? <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-slate-950 px-1 text-xs text-white dark:bg-white dark:text-slate-950">{activeFilterCount}</span> : null}
+        </Button>
+      </div>
+      <details className="border-t border-slate-100 dark:border-slate-800" data-task-advanced-controls>
+        <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-2 px-3 text-sm text-slate-600 focus-visible:ring-2 focus-visible:ring-amber-400 dark:text-slate-300"><span className="flex items-center gap-2"><span aria-hidden="true">👥</span>{focusItems.find(item => item.value === focusFilter)?.label}</span><span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs dark:bg-slate-800">{copy.results(focusCounts[focusFilter])}</span></summary>
       <div className="border-t border-slate-100 px-1.5 py-1.5 dark:border-slate-800">
         <p className="sr-only">{taskCopy.workspace.focus}</p>
-        <div className="grid grid-cols-3 gap-1" role="tablist" aria-label={taskCopy.workspace.focus}>
+        <div className="grid grid-cols-3 gap-1" role="group" aria-label={taskCopy.workspace.focus}>
           {focusItems.map(item => (
-            <button key={item.value} type="button" role="tab" aria-selected={focusFilter === item.value} className={`flex min-h-10 min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 text-center text-[11px] font-medium transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#F4C84A]/25 ${focusFilter === item.value ? 'bg-[#F4C84A] text-[#5F4003]' : 'text-slate-600 hover:bg-[#F4C84A]/12 dark:text-slate-300'}`} onClick={() => onFocusChange(item.value)}>
-              <span className="truncate">{item.label}</span><span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] ${focusFilter === item.value ? 'bg-white/65' : 'bg-slate-100 dark:bg-slate-800'}`}>{focusCounts[item.value]}</span>
+            <button key={item.value} type="button" aria-pressed={focusFilter === item.value} className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-center text-sm font-medium transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#F4C84A]/25 ${focusFilter === item.value ? 'bg-[#F4C84A] text-[#5F4003]' : 'text-slate-600 hover:bg-[#F4C84A]/12 dark:text-slate-300'}`} onClick={() => onFocusChange(item.value)}>
+              <span className="[overflow-wrap:anywhere]">{item.label}</span><span className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs ${focusFilter === item.value ? 'bg-white/65' : 'bg-slate-100 dark:bg-slate-800'}`}>{focusCounts[item.value]}</span>
             </button>
           ))}
         </div>
       </div>
 
-      <div className="border-t border-slate-100 p-2 dark:border-slate-800">
-        <div className="grid grid-cols-[40px_minmax(0,1fr)_40px] items-center gap-1.5">
-          <button type="button" aria-label={copy.previousDate} disabled={dateRange === 'all'} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:opacity-35 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-900" onClick={() => onMoveDate(-1)}><ChevronLeft aria-hidden="true" className="h-5 w-5" /></button>
-          <div className="min-w-0 text-center">
-            <p className="truncate text-sm font-medium capitalize text-slate-950 dark:text-white">{dateTitle}</p>
-            <p className="truncate text-[10px] text-slate-500 dark:text-slate-400">{dateRange === 'all' ? copy.allDates : copy.date}</p>
-          </div>
-          <button type="button" aria-label={copy.nextDate} disabled={dateRange === 'all'} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:opacity-35 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-900" onClick={() => onMoveDate(1)}><ChevronRight aria-hidden="true" className="h-5 w-5" /></button>
-        </div>
         <div className="mt-1.5 grid grid-cols-3 gap-1.5">
-          <button type="button" className="min-h-9 rounded-lg bg-[#F4C84A]/14 px-2 text-[11px] font-medium text-[#7A5204] hover:bg-[#F4C84A]/22 dark:text-[#FDE68A]" onClick={onShowToday}>{taskCopy.workspace.today}</button>
-          <button type="button" className="min-h-9 rounded-lg bg-slate-50 px-2 text-[11px] font-medium text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300" onClick={onShowTomorrow}>{taskCopy.workspace.tomorrow}</button>
-          <button type="button" className="min-h-9 rounded-lg bg-slate-50 px-2 text-[11px] font-medium text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300" onClick={onShowWeek}>{taskCopy.workspace.week}</button>
+          <button type="button" className="min-h-11 rounded-xl bg-[#F4C84A]/14 px-2 text-sm font-medium text-[#7A5204] hover:bg-[#F4C84A]/22 dark:text-[#FDE68A]" onClick={onShowToday}>{taskCopy.workspace.today}</button>
+          <button type="button" className="min-h-11 rounded-xl bg-slate-50 px-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300" onClick={onShowTomorrow}>{taskCopy.workspace.tomorrow}</button>
+          <button type="button" className="min-h-11 rounded-xl bg-slate-50 px-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300" onClick={onShowWeek}>{taskCopy.workspace.week}</button>
         </div>
-      </div>
-
-      <div className="grid grid-cols-[minmax(0,1fr)_44px] gap-2 border-t border-slate-100 p-2 dark:border-slate-800">
-        <label className="relative min-w-0">
-          <span className="sr-only">{copy.search}</span>
-          <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input type="search" value={searchQuery} placeholder={copy.searchPlaceholder} className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-[#F4C84A] focus:ring-4 focus:ring-[#F4C84A]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white" onChange={event => onSearchChange(event.target.value)} />
-        </label>
-        <Button type="button" variant="outline" aria-label={taskCopy.workspace.filters} className="relative h-11 w-11 rounded-xl border-slate-200 p-0 dark:border-slate-700" onClick={onOpenFilters}>
-          <Filter aria-hidden="true" className="h-4 w-4" />
-          {activeFilterCount > 0 ? <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-slate-950 px-1 text-[9px] text-white dark:bg-white dark:text-slate-950">{activeFilterCount}</span> : null}
-        </Button>
-      </div>
+      </details>
       {canCreate || canStartProcess ? (
-        <div className={`grid gap-2 border-t border-slate-100 p-2 dark:border-slate-800 ${canCreate && canStartProcess ? 'grid-cols-2' : 'grid-cols-1'}`}>
-          {canCreate ? <Button type="button" disabled={busy} className="h-10 min-w-0 gap-1.5 rounded-xl bg-[#F4C84A] px-2 text-xs text-[#5F4003] hover:bg-[#E5B72F]" onClick={onCreate}><ListPlus aria-hidden="true" className="h-4 w-4 shrink-0" /><span className="truncate">{taskCopy.actions.createTask}</span></Button> : null}
-          {canStartProcess ? <Button type="button" variant="outline" disabled={busy} className="h-10 min-w-0 gap-1.5 rounded-xl border-amber-300 px-2 text-xs text-[#7A5204] hover:bg-amber-50 dark:border-amber-800 dark:text-[#FDE68A] dark:hover:bg-amber-950/30" onClick={onStartProcess}><Play aria-hidden="true" className="h-4 w-4 shrink-0" /><span className="truncate">{copy.processUi.action}</span></Button> : null}
+        <div className={`grid gap-2 border-t border-slate-100 p-2 dark:border-slate-800 ${canCreate && canStartProcess ? 'min-[360px]:grid-cols-2' : 'grid-cols-1'}`}>
+          {canCreate ? <Button type="button" disabled={busy} className="h-auto min-h-12 min-w-0 gap-2 whitespace-normal rounded-2xl bg-[#F4C84A] px-3 py-2 text-sm text-[#222831] hover:bg-[#E5B72F]" onClick={onCreate}><span aria-hidden="true" className="text-xl">✏️</span><span className="[overflow-wrap:anywhere]">{taskCopy.actions.createTask}</span></Button> : null}
+          {canStartProcess ? <Button type="button" variant="outline" disabled={busy} className="h-auto min-h-12 min-w-0 gap-2 whitespace-normal rounded-2xl border-amber-200 bg-amber-50/60 px-3 py-2 text-sm text-[#684708] hover:bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 dark:text-[#FDE68A] dark:hover:bg-amber-950/50" onClick={onStartProcess}><span aria-hidden="true" className="text-xl">🚀</span><span className="[overflow-wrap:anywhere]">{copy.processUi.action}</span></Button> : null}
         </div>
       ) : null}
     </section>
@@ -216,6 +201,7 @@ function AgendaTaskCard({ copy, locale, onOpen, referenceDate, task, taskCopy }:
   const status = statusPresentation(task, referenceDate, copy);
   return (
     <PublicTaskKioskTaskCard
+      personal
       attachmentsLabel={taskCopy.workspace.attachments}
       copy={taskCopy}
       dueLabel={taskCopy.task.due}
@@ -259,17 +245,17 @@ export function EmployeeTaskAgendaList({ copy, emptyBody, emptyTitle, locale, on
     ...(unscheduled.length ? [{ key: 'unscheduled', label: copy.unscheduled, tasks: unscheduled }] : []),
   ];
 
-  if (tasks.length === 0) return <PublicTaskKioskEmptyState icon={<ListChecks className="h-7 w-7" />} title={emptyTitle} body={emptyBody} />;
+  if (tasks.length === 0) return <PublicTaskKioskEmptyState icon={<span aria-hidden="true" className="text-3xl">✅</span>} title={emptyTitle} body={emptyBody} />;
   return (
     <div className="space-y-4" data-task-kiosk-agenda>
       {groups.map(group => (
         <section key={group.key} aria-labelledby={`agenda-group-${group.key}`}>
           <div className="mb-2 flex items-center gap-2 px-1">
-            <span className={`h-2.5 w-2.5 rounded-full ${group.key === 'overdue' ? 'bg-rose-500' : 'bg-[#F4C84A]'}`} />
+            <span aria-hidden="true" className="text-xl">{group.key === 'overdue' ? '⏳' : group.key === 'unscheduled' ? '📌' : '🗓️'}</span>
             <h3 id={`agenda-group-${group.key}`} className="text-sm font-medium capitalize text-slate-800 dark:text-slate-100">{group.label}</h3>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500 dark:bg-slate-800 dark:text-slate-300">{group.tasks.length}</span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">{group.tasks.length}</span>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 min-[700px]:grid-cols-2">
             {group.tasks.map(task => <AgendaTaskCard key={task.id} copy={copy} locale={locale} onOpen={() => onOpen(task)} referenceDate={referenceDate} task={task} taskCopy={taskCopy} />)}
           </div>
         </section>
@@ -288,25 +274,25 @@ export function EmployeeTaskAgendaBoard({ copy, locale, onOpen, referenceDate, t
 }) {
   const today = todayKey();
   const columns = [
-    { id: 'overdue', label: copy.overdueGroup, dot: 'bg-rose-500', tasks: tasks.filter(task => task.status === 'pending' && (task.is_overdue || Boolean(task.due_date && task.due_date < today))) },
-    { id: 'pending', label: copy.pending, dot: 'bg-slate-400', tasks: tasks.filter(task => task.status === 'pending' && !task.is_overdue && (!task.due_date || task.due_date >= today)) },
-    { id: 'in_progress', label: copy.inProgress, dot: 'bg-blue-500', tasks: tasks.filter(task => task.status === 'in_progress') },
-    { id: 'paused', label: copy.paused, dot: 'bg-amber-500', tasks: tasks.filter(task => task.status === 'paused') },
+    { id: 'overdue', label: copy.overdueGroup, emoji: '⏳', tasks: tasks.filter(task => task.status === 'pending' && (task.is_overdue || Boolean(task.due_date && task.due_date < today))) },
+    { id: 'pending', label: copy.pending, emoji: '📌', tasks: tasks.filter(task => task.status === 'pending' && !task.is_overdue && (!task.due_date || task.due_date >= today)) },
+    { id: 'in_progress', label: copy.inProgress, emoji: '⚡', tasks: tasks.filter(task => task.status === 'in_progress') },
+    { id: 'paused', label: copy.paused, emoji: '⏸️', tasks: tasks.filter(task => task.status === 'paused') },
   ];
   return (
     <section className="@container min-w-0 max-w-full overflow-hidden" data-task-kiosk-board>
-      <p className="mb-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/35 dark:text-blue-200">{copy.boardDescription}</p>
+      <p className="mb-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-sm leading-6 text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/35 dark:text-blue-200">{copy.boardDescription}</p>
       <div className="w-full min-w-0 max-w-full overflow-x-auto pb-2 snap-x snap-mandatory">
-        <div className="flex w-full gap-3 @min-[700px]:grid @min-[700px]:grid-cols-4">
+        <div className="flex w-full gap-3 @min-[700px]:grid @min-[700px]:grid-cols-2">
           {columns.map(column => (
             <section className="min-h-48 w-[82cqw] shrink-0 snap-start rounded-2xl border border-slate-200 bg-slate-50/70 p-2 dark:border-slate-800 dark:bg-slate-900/40 @min-[700px]:w-auto" key={column.id}>
               <header className="flex min-h-10 items-center gap-2 px-1.5">
-                <span className={`h-2.5 w-2.5 rounded-full ${column.dot}`} />
+                <span aria-hidden="true" className="text-xl">{column.emoji}</span>
                 <h3 className="text-sm font-medium text-slate-800 dark:text-slate-100">{column.label}</h3>
-                <span className="ml-auto rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-500 shadow-sm dark:bg-slate-800 dark:text-slate-300">{column.tasks.length}</span>
+                <span className="ml-auto rounded-full bg-white px-2 py-0.5 text-xs text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-300">{column.tasks.length}</span>
               </header>
               <div className="mt-1 grid gap-2">
-                {column.tasks.length ? column.tasks.map(task => <AgendaTaskCard key={task.id} copy={copy} locale={locale} onOpen={() => onOpen(task)} referenceDate={referenceDate} task={task} taskCopy={taskCopy} />) : <p className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-5 text-center text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-950">{copy.emptyColumn}</p>}
+                {column.tasks.length ? column.tasks.map(task => <AgendaTaskCard key={task.id} copy={copy} locale={locale} onOpen={() => onOpen(task)} referenceDate={referenceDate} task={task} taskCopy={taskCopy} />) : <p className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-5 text-center text-sm text-slate-600 dark:text-slate-300 dark:border-slate-700 dark:bg-slate-950">{copy.emptyColumn}</p>}
               </div>
             </section>
           ))}

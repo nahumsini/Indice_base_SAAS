@@ -4,9 +4,10 @@ Status: implementation contract approved by the product owner in this task.
 
 ## Ownership and scope
 
-Messaging is a core authenticated workspace capability. The first release supports individual
-conversations between active company memberships and customer care with Indice or the assigned
-distributor. Kiosk identities, groups and external email delivery are not part of this
+Messaging is a core authenticated workspace capability. The approved 2026-10-10 extension supports individual
+and group conversations between active company memberships and customer care with Indice or the assigned
+distributor. Employee PIN sessions in Multikiosk are included through the approved alternate
+boundary described below. Provider kiosks and external email delivery are outside this
 release. Existing distributor system tickets remain available and retain their contracts.
 
 `messaging` owns conversations, participants, messages, read cursors, care workflow and durable
@@ -15,7 +16,7 @@ its portfolio queue. These queues never grant access to employee direct messages
 
 ## Authority
 
-The actor comes from SessionAuthService; company members must have an active, matching membership.
+The ERP actor comes from SessionAuthService; company members must have an active, matching membership.
 Managed-company impersonation and public demo sessions cannot send messages. Platform care requires
 SYSTEM_TICKETS_MANAGE and the existing platform MFA boundary. Distributor care requires
 DistributorPortfolioAccessPolicy and a current portfolio relationship on every request.
@@ -26,9 +27,53 @@ and distributor conversations, directory and associated unread counts for restri
 Transferring a case to Indice exposes its public history to platform support and revokes distributor
 access; internal notes remain restricted to their authoring care channel.
 
-Direct chat is company scoped and participant scoped. Customer requests are visible to their
+Direct and group chat are company scoped and participant scoped. Customer requests are visible to their
 requester and the authorized care channel. Administrators do not implicitly read employee chats.
 Browser mutations require CSRF. Text is rendered as text, with size and send-rate limits.
+
+## Team conversations, read receipts and personal tasks (2026-10-10)
+
+The shared ERP/PIN workspace opens team composition first. Direct chats require a colleague and
+initial message, without subject or topic. Existing direct pairs and histories are retained; their
+display name is the other participant's current name. Care retains subject/topic and its existing
+workflow. `GROUP` creation requires a name (1–80 characters), initial message and 2–49 distinct,
+active colleagues in the same company, plus the authenticated creator (3–50 total). Memberships
+are validated by the owner; client company or sender fields are never authority. The initial
+roster is fixed for this version: changing the audience requires a new group. No participant can
+silently add someone to private history. Inactive members cannot read, and a group with a revoked
+member blocks new sends, matching the existing direct-chat revocation policy. History is retained.
+
+`Detail.participants` carries bounded, server-derived membership/name/activity/read-cursor data
+only for authorized team conversations, including empty incremental polls. Care does not expose
+staff read activity. ✓ means the server committed the message; ✓✓ means every other participant's
+read cursor covers it. Partial group reading displays “Read by n of total.” Neither icon claims
+push delivery, device delivery or online presence. The visible thread at its latest messages
+advances the read cursor; hidden tabs, older-history browsing and the task capture pane do not.
+Send acknowledgements alone cannot advance reads past the fetched history cursor.
+
+The small **Add task** action opens an inline form in the same workspace (no nested modal) with
+title and optional date. It creates a personal follow-up assigned to the authenticated collaborator,
+without copying the private conversation into task content or assigning other group members.
+`ProcessTaskMessagingContract` owns task permissions, organizational scope, creation and reading.
+ERP requires the Processes entitlement/module and `processes.calendar` permission. PIN additionally
+requires the active composed native My tasks tool and its `process-tasks.task.create@1` capability;
+the task owner uses the same native self-capture operation as its workspace. Every attempt rechecks
+authority. No task is created by merely opening a chat or receiving a message.
+
+`GET /task-context` reports availability; `POST /conversations/{id}/tasks` accepts only title,
+optional ISO due date and UUID request key. These exist under both messaging trust boundaries.
+Company/member-scoped retry receipts bind the conversation and normalized content to one task;
+creation and receipt commit together. Identical retries return that task, and changed-content
+retries conflict. Drafts and request identities stay in memory. Capture retains the message draft,
+protects unsaved navigation and blocks concurrent submission. Success identifies the task folio.
+The creator can find the resulting record in My tasks; no group membership grants task access.
+
+V312 extends the conversation kind check and adds company-owned `messaging_task_requests`;
+existing messages, attachments, participant tables and read cursors remain authoritative.
+The migration is additive to the approved data model and must precede application rollout.
+Rollback keeps the schema and records; older application versions do not support `GROUP` and
+must not serve the new team-chat surface after groups have been created. Roll back application
+traffic only to a version that understands `GROUP`, or disable messaging entry while restoring.
 
 ## Persistence and delivery
 
@@ -104,6 +149,30 @@ time or 24-hour staffing is promised. Initial response and resolution durations 
 stored timestamps. Support schedules remain an operational configuration decision.
 
 ## Verification and release
+
+### Employee Multikiosk (approved extension, 2026-10-09)
+
+`/api/v2/multi-kiosks/public/{publicToken}/messaging` uses the existing browser-bound
+`X-Multi-Kiosk-Session-Token`. Every request resolves an active company, parent definition,
+unexpired/unrevoked employee session, active membership and active personal PIN. Provider identities
+are rejected. An ERP cookie, administrator role or client-supplied membership never selects the actor.
+`MessagingAccess.memberActor` maps this verified identity to MEMBER and reuses all owner policies.
+
+This personal core surface exposes context, directory, unread, conversations, send, read and photo
+upload/download only. It does not expose operator queues, assignment, transfer, audit or internal notes.
+Existing employee conversations and cursors are shared with the ERP; there is no second chat store.
+Mutations require the browser session's CSRF token. Send/create/upload reuse the owner's validation,
+rate limits, immutable photo verification, idempotency, transactions and notification outbox.
+Read receipts and polling do not extend kiosk inactivity. All responses are private/no-store.
+The kiosk still requires operational company access; it does not expand ERP support-only recovery.
+
+The kiosk embeds the owner `MessagingWorkspace` as a full navigation destination, through a scoped
+transport context. Desktop uses list/detail panes; mobile replaces list with detail and adapts to the
+visual keyboard viewport. Team conversations are the initial compose choice; own support remains a
+separate choice. Hidden conversation panes do not poll or advance read cursors. Navigation guards
+protect drafts and sends; logout, expiry and identity changes unmount all personal state and photo
+previews. No messages, drafts, attachments or signed URLs are persisted in browser storage.
+Delivery remains incremental polling (thread 3s with error backoff, inbox/unread 15s), not push/SSE.
 
 Required: tenant/participant isolation, revoked access, internal-note isolation, CSRF, duplicate
 sends/creation, concurrent assignment, recovery from missed polling, database persistence,

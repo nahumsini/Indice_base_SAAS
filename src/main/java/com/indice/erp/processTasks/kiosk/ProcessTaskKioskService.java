@@ -254,6 +254,14 @@ public class ProcessTaskKioskService {
         return body;
     }
 
+    public record PersonalTask(long id, String title, String dueDate, String status) { }
+    public record PersonalTasks(long pending, long overdue, List<PersonalTask> items) { }
+
+    public PersonalTasks employeeDay(KioskResolvedDefinition definition, long userId, LocalDate date) {
+        var context = requireEmployeeContext(definition, userId);
+        return queries.personalDay(context.kiosk(), context.employee(), date);
+    }
+
     @Transactional
     public Map<String, Object> employeeCreateTask(
             KioskResolvedDefinition definition, long userId, Map<String, Object> payload) {

@@ -13,6 +13,7 @@ import type {
 } from './publicKioskTypes';
 
 interface PublicKioskVerificationSectionProps {
+  personal?: boolean;
   canUseFace: boolean;
   copy: KioskTranslations;
   evidenceMode: EvidenceMode;
@@ -30,6 +31,7 @@ interface PublicKioskVerificationSectionProps {
 }
 
 export function PublicKioskVerificationSection({
+  personal = false,
   canUseFace,
   copy,
   evidenceMode,
@@ -46,11 +48,11 @@ export function PublicKioskVerificationSection({
   onPhotoError,
 }: PublicKioskVerificationSectionProps) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-[#59C3A5]/30 bg-white shadow-[0_16px_40px_-34px_rgba(15,23,42,0.7)] dark:border-[#8FE0CA]/25 dark:bg-slate-950">
+    <section className={`overflow-hidden border border-[#59C3A5]/30 bg-white shadow-[0_16px_40px_-34px_rgba(15,23,42,0.7)] dark:border-[#8FE0CA]/25 dark:bg-slate-950 ${personal ? 'rounded-[1.5rem]' : 'rounded-2xl'}`}>
       <div className="px-4 pb-3 pt-4 sm:px-5 sm:pt-5">
-        <p className="text-[11px] font-medium text-[#177D66] dark:text-[#8FE0CA]">
+        {!personal ? <p className="text-[11px] font-medium text-[#177D66] dark:text-[#8FE0CA]">
           {copy.stepLabel} 2 · {copy.verificationMethod}
-        </p>
+        </p> : null}
         <h2 className="mt-1.5 text-2xl font-medium tracking-tight text-slate-950 dark:text-white">
           {copy.steps.identity}
         </h2>
@@ -58,7 +60,7 @@ export function PublicKioskVerificationSection({
           {evidenceMode === 'face' ? copy.facePending : copy.photoHint}
         </p>
 
-        <nav
+        {!personal || canUseFace ? <nav
           aria-label={copy.verificationMethod}
           className={`mt-4 grid gap-1.5 rounded-xl border border-slate-200 bg-slate-100/80 p-1.5 dark:border-slate-700 dark:bg-slate-900 ${canUseFace ? 'grid-cols-2' : 'grid-cols-1'}`}
           role="tablist"
@@ -82,10 +84,10 @@ export function PublicKioskVerificationSection({
               type="button"
             >
               <ScanFace aria-hidden="true" className="h-4 w-4" />
-              Face ID
+              {personal ? copy.faceRecognition : 'Face ID'}
             </button>
           ) : null}
-        </nav>
+        </nav> : null}
       </div>
 
       <div className="px-4 pb-4 sm:px-5 sm:pb-5">
@@ -128,16 +130,18 @@ export function PublicKioskVerificationSection({
             helperText={copy.photoHint}
             photo={fallbackPhotoUpload.photo}
             showHeader={false}
+            showHelperText={!personal}
             showGalleryUpload={false}
             showEmptyPreview
-            emptyPreviewLabel={copy.photoHint}
-            className="rounded-xl border border-slate-200 bg-slate-50/65 p-3 shadow-none dark:border-slate-700 dark:bg-slate-900/70"
+            emptyPreviewLabel={personal ? '' : copy.photoHint}
+            emptyPreviewIcon={personal ? <span aria-hidden="true" className="text-5xl" style={{ fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif' }}>📸</span> : undefined}
+            className={personal ? 'flex flex-col gap-3' : 'rounded-xl border border-slate-200 bg-slate-50/65 p-3 shadow-none dark:border-slate-700 dark:bg-slate-900/70'}
             videoClassName="h-[min(42vh,18rem)] min-h-[13rem] w-full object-cover"
             photoClassName="mb-3 h-36 w-full rounded-xl object-cover shadow-sm"
-            emptyPreviewClassName="mb-3 flex h-44 w-full flex-col items-center justify-center rounded-xl border border-dashed border-[#59C3A5]/35 bg-white px-5 text-center text-slate-500 dark:border-[#8FE0CA]/25 dark:bg-slate-950 dark:text-slate-400"
-            actionClassName="mb-3 grid grid-cols-1 gap-3 sm:mb-4"
+            emptyPreviewClassName={personal ? 'order-first flex h-32 w-full items-center justify-center rounded-2xl border border-dashed border-[#59C3A5] bg-[#EFFAF6] dark:border-emerald-800 dark:bg-emerald-950/35' : 'mb-3 flex h-44 w-full flex-col items-center justify-center rounded-xl border border-dashed border-[#59C3A5]/35 bg-white px-5 text-center text-slate-500 dark:border-[#8FE0CA]/25 dark:bg-slate-950 dark:text-slate-400'}
+            actionClassName={personal ? 'grid grid-cols-1 gap-3' : 'mb-3 grid grid-cols-1 gap-3 sm:mb-4'}
             primaryButtonClassName="h-12 rounded-xl bg-[#177D66] text-white hover:bg-[#126553]"
-            triggerButtonClassName="h-12 !border-[#177D66] !bg-[#177D66] !text-white hover:!bg-[#126553]"
+            triggerButtonClassName={personal ? 'h-14 rounded-2xl !border-[#59C3A5] !bg-[#59C3A5] !text-[#222831] text-base hover:!bg-[#3AAE90]' : 'h-12 !border-[#177D66] !bg-[#177D66] !text-white hover:!bg-[#126553]'}
             onPhotoChange={fallbackPhotoUpload.setCapturedPhoto}
             onError={onPhotoError}
             errors={{

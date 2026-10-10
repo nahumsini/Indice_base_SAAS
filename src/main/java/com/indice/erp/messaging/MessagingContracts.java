@@ -15,7 +15,7 @@ public final class MessagingContracts {
         String topic, String moduleName, String language, String status, String priority, long createdByMembershipId,
         Long distributorCompanyId, Long assignedUserId, String assigneeName, String requesterName,
         long version, Long lastMessageId, Instant firstResponseAt, Instant resolvedAt, Instant awaitingSince,
-        Instant createdAt, Instant updatedAt, long unreadCount) { }
+        Instant createdAt, Instant updatedAt, long unreadCount, String displayName) { }
     public record Message(long id, long conversationId, long senderUserId, String senderName, String senderScope,
         String visibility, String requestKey, String body, Instant createdAt, List<Attachment> attachments) {
         public Message(long id,long conversationId,long senderUserId,String senderName,String senderScope,
@@ -32,9 +32,20 @@ public final class MessagingContracts {
         @Override public String toString() { return "PhotoDownload[url=[redacted]]"; }
     }
     public record Page<T>(List<T> items, boolean hasMore) { }
-    public record Detail(Conversation conversation, Page<Message> messages) { }
+    public record Participant(long membershipId, long userId, String name, boolean active, long lastReadMessageId) {
+        @Override public String toString() { return "Participant[protected]"; }
+    }
+    public record Detail(Conversation conversation, Page<Message> messages, List<Participant> participants) {
+        public Detail(Conversation conversation, Page<Message> messages) { this(conversation,messages,List.of()); }
+        @Override public String toString() { return "Detail[protected]"; }
+    }
     public record Create(String kind, Long recipientMembershipId, String subject, String topic, String moduleName,
-        String language, String body, String requestKey) { }
+        String language, String body, String requestKey, List<Long> participantMembershipIds, String groupName) {
+        public Create(String kind,Long recipientMembershipId,String subject,String topic,String moduleName,String language,String body,String requestKey) {
+            this(kind,recipientMembershipId,subject,topic,moduleName,language,body,requestKey,null,null);
+        }
+        @Override public String toString() { return "Create[protected]"; }
+    }
     public record Send(String body, String visibility, String requestKey, List<String> attachmentIds) {
         public Send(String body,String visibility,String requestKey) { this(body,visibility,requestKey,List.of()); }
     }

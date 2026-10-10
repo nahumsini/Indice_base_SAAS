@@ -1,3 +1,4 @@
+import { useKioskNavigationState } from '../components/kiosk-engine/KioskNavigationBoundary';
 import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import {
   CalendarClock,
@@ -129,6 +130,7 @@ export function PayablesMultiKioskWorkspace({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  useKioskNavigationState({ busy, dirty: Boolean(draft.concept.trim() || draft.notes.trim() || Number(draft.amount) || attachments.length || pendingExpenseId) });
   const submitLock = useRef(false);
   const updateDraft = (change: Partial<PayableDraft>) => setDraft(current => ({ ...current, ...change }));
   const granted = workspace.session.capabilities;
@@ -247,15 +249,15 @@ export function PayablesMultiKioskWorkspace({
   };
 
   return (
-    <KioskToolWorkspaceFrame>
-      <form aria-busy={busy || undefined} onSubmit={submit} className="space-y-3" data-multi-kiosk-payables>
+    <KioskToolWorkspaceFrame personal>
+      <form aria-busy={busy || undefined} onSubmit={submit} className="space-y-4 pb-36 md:pb-0" data-multi-kiosk-payables>
 
       <div data-payables-overview>
         <KioskWorkspaceContextBar
           density="compact"
           description={bootstrap?.scope_label}
           eyebrow={copy.provider}
-          icon={<WalletCards className="h-5 w-5" />}
+          icon={<span aria-hidden="true" className="text-2xl">💰</span>}
           meta={(
             <div className="flex items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-300">
               <span>{currency}</span>
@@ -267,10 +269,10 @@ export function PayablesMultiKioskWorkspace({
         />
       </div>
 
-      <KioskWorkspaceSurface className="space-y-3" data-payables-section="primary">
+      <KioskWorkspaceSurface className="space-y-4" data-payables-section="primary">
         <KioskWorkspaceSectionHeader
           description={copy.payableDescription}
-          icon={<ReceiptText className="h-4 w-4" />}
+          icon={<span aria-hidden="true" className="text-2xl">🧾</span>}
           title={copy.payableTitle}
           tone="green"
         />
@@ -278,10 +280,10 @@ export function PayablesMultiKioskWorkspace({
         <label className="block"><span className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-300">{copy.concept} *</span><input required className={inputClass} value={draft.concept} onChange={event => updateDraft({ concept: event.target.value })} placeholder={copy.conceptPlaceholder} /></label>
       </KioskWorkspaceSurface>
 
-      <KioskWorkspaceSurface className="space-y-3" data-payables-section="amount">
+      <KioskWorkspaceSurface className="space-y-4" data-payables-section="amount">
         <KioskWorkspaceSectionHeader
           action={<span className="rounded-xl bg-[#147514]/10 px-3 py-1.5 text-sm font-medium text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300">{money(totals.total, currency)}</span>}
-          icon={<CircleDollarSign className="h-4 w-4" />}
+          icon={<span aria-hidden="true" className="text-2xl">💵</span>}
           title={copy.totalAmount}
           tone="green"
         />
@@ -293,13 +295,13 @@ export function PayablesMultiKioskWorkspace({
           <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-3 py-2 outline-none focus-visible:ring-4 focus-visible:ring-[#147514]/10 [&::-webkit-details-marker]:hidden">
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-medium text-slate-900 dark:text-white">{copy.taxAmount}</span>
-              <span className="block truncate text-xs text-slate-500">{draft.taxEnabled ? money(totals.tax, currency) : currency}</span>
+              <span className="block text-xs text-slate-600 dark:text-slate-300">{draft.taxEnabled ? money(totals.tax, currency) : currency}</span>
             </span>
             <ChevronDown className="h-4 w-4 text-slate-400 transition group-open:rotate-180" />
           </summary>
           <div className="border-t border-slate-200 p-2 dark:border-slate-700"><BudgetTaxControls compact presentation="choice" draft={draft} onDraftChange={updateDraft} /></div>
         </details>
-        <div className="grid grid-cols-3 gap-2 rounded-xl bg-[#147514]/5 p-3 dark:bg-emerald-400/5" data-payables-totals><Metric label={t.expenses.modal.summarySubtotal} value={money(totals.subtotal, currency)} /><Metric label={copy.taxAmount} value={money(totals.tax, currency)} /><Metric strong label={copy.totalAmount} value={money(totals.total, currency)} /></div>
+        <div className="grid grid-cols-1 gap-3 rounded-2xl bg-[#147514]/5 min-[430px]:grid-cols-3 p-3 dark:bg-emerald-400/5" data-payables-totals><Metric label={t.expenses.modal.summarySubtotal} value={money(totals.subtotal, currency)} /><Metric label={copy.taxAmount} value={money(totals.tax, currency)} /><Metric strong label={copy.totalAmount} value={money(totals.total, currency)} /></div>
       </KioskWorkspaceSurface>
 
       <details className="group overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950" data-payables-section="additional">
@@ -316,8 +318,8 @@ export function PayablesMultiKioskWorkspace({
 
       <KioskWorkspaceSurface data-payables-section="evidence">
         <KioskWorkspaceSectionHeader
-          action={<span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">{attachments.length}/{maxAttachments}</span>}
-          icon={<Paperclip className="h-4 w-4" />}
+          action={<span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">{attachments.length}/{maxAttachments}</span>}
+          icon={<span aria-hidden="true" className="text-2xl">📎</span>}
           title={copy.evidence}
           tone="green"
         />
@@ -332,14 +334,16 @@ export function PayablesMultiKioskWorkspace({
           title={copy.attachmentAction}
           tone="green"
         />
-        {attachments.length ? <ul className="mt-3 space-y-2">{attachments.map(file => <li key={`${file.name}-${file.lastModified}`} className="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700"><FileText className="h-4 w-4 shrink-0 text-[#147514] dark:text-emerald-300" /><span className="min-w-0 flex-1"><span className="block truncate text-sm text-slate-700 dark:text-slate-200">{file.name}</span><span className="mt-0.5 block text-[11px] text-slate-400">{Math.max(1, file.size / 1024).toFixed(0)} KB · listo para enviar</span></span><button type="button" aria-label={t.common.delete} disabled={busy || (retryingEvidence && attachments.length === 1)} onClick={() => setAttachments(current => current.filter(candidate => candidate !== file))} className="grid h-10 w-10 place-items-center rounded-xl text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-red-950/30"><Trash2 className="h-4 w-4" /></button></li>)}</ul> : null}
+        {attachments.length ? <ul className="mt-3 space-y-2">{attachments.map(file => <li key={`${file.name}-${file.lastModified}`} className="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700"><FileText className="h-4 w-4 shrink-0 text-[#147514] dark:text-emerald-300" /><span className="min-w-0 flex-1"><span className="block truncate text-sm text-slate-700 dark:text-slate-200">{file.name}</span><span className="mt-0.5 block text-xs text-slate-400">{Math.max(1, file.size / 1024).toFixed(0)} KB · listo para enviar</span></span><button type="button" aria-label={t.common.delete} disabled={busy || (retryingEvidence && attachments.length === 1)} onClick={() => setAttachments(current => current.filter(candidate => candidate !== file))} className="grid h-10 w-10 place-items-center rounded-xl text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-red-950/30"><Trash2 className="h-4 w-4" /></button></li>)}</ul> : null}
       </KioskWorkspaceSurface>
 
       {error ? <KioskWorkspaceNotice kind="error">{error}</KioskWorkspaceNotice> : null}
       {success ? <KioskWorkspaceNotice kind="success">{success}</KioskWorkspaceNotice> : null}
       <KioskStickyActionBar
+        position="contained"
+        className="fixed inset-x-3 bottom-[var(--employee-navigation-height,0px)] z-30 mx-auto max-w-[31rem] md:static md:mx-0"
         data-payables-sticky-summary
-        summary={<div className="flex items-center justify-between gap-3 text-xs text-slate-500"><span>{attachments.length ? `${copy.evidence}: ${attachments.length}` : copy.evidence}</span><span>{copy.totalAmount} <strong className="ml-1 text-sm font-medium text-slate-950 dark:text-white">{money(totals.total, currency)}</strong></span></div>}
+        summary={<div className="flex items-center justify-between gap-3 flex-wrap text-sm text-slate-600 dark:text-slate-300"><span>{attachments.length ? `${copy.evidence}: ${attachments.length}` : copy.evidence}</span><span>{copy.totalAmount} <strong className="ml-1 text-sm font-medium text-slate-950 dark:text-white">{money(totals.total, currency)}</strong></span></div>}
       >
         <Button type="submit" disabled={!canCreate} className="min-h-12 w-full rounded-xl bg-[#147514] text-base text-white shadow-lg shadow-[#147514]/15 hover:bg-[#105010]">{busy ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}{retryingEvidence ? copy.retryEvidence : copy.submitPayable}</Button>
       </KioskStickyActionBar>
@@ -349,5 +353,5 @@ export function PayablesMultiKioskWorkspace({
 }
 
 function Metric({ label, strong = false, value }: { label: string; strong?: boolean; value: string }) {
-  return <div className={`min-w-0 ${strong ? 'text-right' : ''}`}><p className="truncate text-[10px] text-slate-500">{label}</p><p className={`mt-1 truncate text-xs font-medium ${strong ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-950 dark:text-white'}`}>{value}</p></div>;
+  return <div className={`flex min-w-0 flex-wrap items-center justify-between gap-2 min-[430px]:block ${strong ? 'min-[430px]:text-right' : ''}`}><p className="text-xs text-slate-500">{label}</p><p className={`break-words text-base font-medium min-[430px]:mt-1 ${strong ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-950 dark:text-white'}`}>{value}</p></div>;
 }

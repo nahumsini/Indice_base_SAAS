@@ -79,6 +79,29 @@ Consolidate presentation into `IndiceModalFrame` plus four classified modes: con
 
 ## Acceptance criteria for every migrated modal
 
+Maintenance pilot (2026-10-09): request/asset/order editing, progress, labor, inventory consumption,
+expense linking and configuration are **Standard Forms**. Preventive creation is a three-step
+**Wizard** (asset/recurrence, procedure/closure, review). Order, request and asset dossiers are
+**Operational Workspaces**. State changes, reversals, restoration, pause/resume and dirty-draft
+decisions use **Confirmation** in the same active frame. Native modal/table gray tone is additive;
+no separate focus trap, overlay, footer or transaction state engine is introduced. Evidence uses
+explicit uploading/error/retry states and authorized downloads; print uses the existing document engine.
+
+Employee multikiosk (2026-10-09): the personal Today/Tools/Messages navigation reuses
+`IndiceConfirmationDialog` for unsaved workspace drafts. An open public `KioskModalFrame`
+blocks outer navigation; its existing close flow owns the draft decision, so a second
+confirmation is never stacked above the active form. In-flight operations also block leaving.
+Messaging keeps its owner composer and photo viewer, with the PIN-scoped transport; switching
+collaborators clears the personal workspace and drafts. No alternate modal engine is introduced.
+
+Approved coordination completion (2026-10-08): Scheduling `InternalBookingModal` uses the shared
+Wizard stepper and a stable native footer with selection/time/contact/review. `ReservationManagement`
+rescheduling and `AgreementEditor` edits are Standard Forms. `EventParticipants` and `AgreementDetail`
+are Operational Workspaces. Opening a participant or switching to edit/notes replaces the current
+frame. Progress notes and closed-minutes addenda are reasoned Standard Forms with optimistic versions.
+Shared print and calendar download actions are initiated from authorized details; no nested modal
+engine or persistent contact/minutes draft storage is introduced.
+
 - Classified as one of the four approved modal types.
 - Uses `IndiceModalFrame` directly or a thin typed adapter with no visual duplication.
 - Uses module tone in header and footer, neutral body, canonical close control, and shared footer.
