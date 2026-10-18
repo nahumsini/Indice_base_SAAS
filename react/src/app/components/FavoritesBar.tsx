@@ -86,14 +86,14 @@ export function FavoritesBar({
       <div className="relative">
         <div
           ref={scrollRef}
-          className={`${compact ? 'overflow-x-auto py-1 [scrollbar-width:none]' : '-mx-4 overflow-x-auto px-4 py-2 sm:mx-0 sm:px-0'} ${isDesktopVertical ? 'lg:overflow-visible lg:py-0' : ''}`}
+          className={`${compact ? 'snap-x snap-proximity overflow-x-auto overscroll-x-contain py-1 [scrollbar-width:none]' : '-mx-4 overflow-x-auto px-4 py-2 sm:mx-0 sm:px-0'} ${isDesktopVertical ? 'lg:overflow-visible lg:py-0' : ''}`}
         >
           <div className={`flex min-w-max items-center ${compact ? 'gap-1.5' : 'gap-2 sm:min-w-0 sm:flex-wrap'} ${isDesktopVertical ? 'lg:min-w-0 lg:flex-col lg:items-stretch lg:gap-2' : ''}`}>
             {/* Botón Dashboard - Siempre fijo */}
             <button
               onClick={() => onNavigate('dashboard')}
               type="button"
-              className={`inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:focus-visible:ring-offset-slate-900 ${compact ? 'min-h-9 px-2.5 py-1 text-xs sm:text-sm' : 'px-3 py-1.5 text-sm'} ${isDesktopVertical ? 'lg:min-h-11 lg:w-full lg:justify-start lg:px-3' : ''}`}
+              className={`inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:focus-visible:ring-offset-slate-900 ${compact ? 'min-h-11 snap-start px-2.5 py-1 text-xs md:min-h-9 sm:text-sm' : 'px-3 py-1.5 text-sm'} ${isDesktopVertical ? 'lg:min-h-11 lg:w-full lg:justify-start lg:px-3' : ''}`}
             >
               <OriginalModuleEmoji id="home-panel" className="size-5" />
               <span>Dashboard</span>
@@ -121,7 +121,7 @@ export function FavoritesBar({
                   type="button"
                   onClick={() => handleModuleClick(module)}
                   aria-current={isActive ? 'page' : undefined}
-                  className={`inline-flex items-center gap-1.5 rounded-lg border font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${compact ? 'min-h-9 px-2.5 py-1 text-xs sm:text-sm' : 'px-3 py-1.5 text-sm'} ${isDesktopVertical ? 'lg:min-h-11 lg:w-full lg:justify-start lg:px-3' : ''} ${baseClasses} ${activeClasses}`}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${compact ? 'min-h-11 snap-start px-2.5 py-1 text-xs md:min-h-9 sm:text-sm' : 'px-3 py-1.5 text-sm'} ${isDesktopVertical ? 'lg:min-h-11 lg:w-full lg:justify-start lg:px-3' : ''} ${baseClasses} ${activeClasses}`}
                 >
                   {hasOriginalModuleEmoji(route) ? (
                     <OriginalModuleEmoji id={route} className="size-5" />

@@ -3,6 +3,13 @@ export const ptBR = {
   subtitle: 'Controle oportunidades, cotações, clientes e execução comercial em um único espaço.',
   back: 'Voltar',
   more: 'Mais',
+  navigation: {
+    tools: 'Ferramentas',
+    management: 'Gestão',
+    funnelingDescription: 'Planeje funis e metas de campanha.',
+    mailingDescription: 'Prepare e envie campanhas de e-mail.',
+    whatsappingDescription: 'Em preparação: os envios ainda não estão disponíveis.',
+  },
   loading: {
     openingTitle: 'Abrindo Vendas',
     openingDescription: 'Preparando o espaço comercial selecionado.',
@@ -25,7 +32,7 @@ export const ptBR = {
     inventario: 'Inventário',
     contrato: 'Contratos',
     postventa: 'Pós-venda',
-    kpis: 'KPIs',
+    kpis: 'Indicadores',
   },
   communicationWorkspace: {
     pendingTitle: 'Espaço aguardando configuração',

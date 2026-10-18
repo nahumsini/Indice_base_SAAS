@@ -314,6 +314,17 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
+    updateContactRecord: async (contactId, patch) => {
+      const currentContact = contacts.find(contact => contact.id === contactId);
+      const backendId = backendIdFrom(currentContact);
+      if (!currentContact || backendId === undefined) {
+        throw new Error();
+      }
+      const savedContact = await salesApi.update('contacts', backendId, toBackendContact({ ...currentContact, ...patch }));
+      const persistedContact = toFrontendContact(savedContact as Record<string, unknown>);
+      setContacts(current => current.map(contact => contact.id === contactId || contact.backendId === backendId ? persistedContact : contact));
+      return persistedContact;
+    },
     updateContact: (contactId, patch) => {
       const currentContact = contacts.find((contact) => contact.id === contactId);
       setContacts((current) => current.map((contact) => (
@@ -372,7 +383,7 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
       )));
       const backendId = backendIdFrom(currentOpportunity);
       if (backendId !== undefined) {
-        void salesApi.update('opportunities', backendId, toBackendOpportunity({ ...currentOpportunity, ...patch }, contacts))
+        void salesApi.update('opportunities', backendId, toBackendOpportunityPatch(patch, contacts))
           .then((savedOpportunity) => {
             const persistedOpportunity = toFrontendOpportunity(savedOpportunity as Record<string, unknown>);
             setOpportunities((current) => current.map((opportunity) => (

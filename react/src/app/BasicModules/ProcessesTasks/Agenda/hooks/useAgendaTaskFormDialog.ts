@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import type { TaskFormValues } from '../../Tasks/components/TaskFormDialog';
 import { createProcessTask, updateProcessTask } from '../../Tasks/tasksApi';
 import type { ProcessCollaboratorOption } from '../../Processes/types';
@@ -49,6 +49,7 @@ export function useAgendaTaskFormDialog({
   const [taskDialogMode, setTaskDialogMode] = useState<'create' | 'edit'>('create');
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [taskForm, setTaskForm] = useState<TaskFormValues>(() => createDefaultTaskForm());
+  const submittingRef = useRef(false);
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
 
   const createDefaultTaskFormForCurrentUser = useCallback(() => {
@@ -120,6 +121,8 @@ export function useAgendaTaskFormDialog({
   const handleSubmitTask = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
+      if (submittingRef.current) return;
+      submittingRef.current = true;
       setIsSubmittingTask(true);
       setAgendaError(null);
 
@@ -152,6 +155,7 @@ export function useAgendaTaskFormDialog({
         }
         setAgendaError(getErrorMessage(error, agendaCopy.messages.saveTask));
       } finally {
+        submittingRef.current = false;
         setIsSubmittingTask(false);
       }
     },
@@ -196,6 +200,8 @@ export function useAgendaTaskFormDialog({
         return;
       }
 
+      if (submittingRef.current) return;
+      submittingRef.current = true;
       setIsSubmittingTask(true);
       setAgendaError(null);
 
@@ -222,6 +228,7 @@ export function useAgendaTaskFormDialog({
       } catch (error) {
         setAgendaError(getErrorMessage(error, agendaCopy.messages.saveTask));
       } finally {
+        submittingRef.current = false;
         setIsSubmittingTask(false);
       }
     },

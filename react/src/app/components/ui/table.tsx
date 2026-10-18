@@ -13,7 +13,8 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
       <div
         ref={scrollRef}
         data-slot="table-container"
-        className="relative w-full overflow-x-auto"
+        tabIndex={0}
+        className="relative w-full min-w-0 overscroll-x-contain overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--indice-brand-action)]"
       >
         <table
           data-slot="table"

@@ -21,9 +21,9 @@ export function ModuleCarousel({
   if (singleRow) {
     return (
       <div className={`relative -mx-1 ${dashboardSpacing ? '-mb-4' : ''}`}>
-        <div ref={singleRowScrollRef} className="overflow-x-auto px-1 pb-4 scrollbar-hide">
+        <div ref={singleRowScrollRef} className="snap-x snap-mandatory scroll-px-1 overscroll-x-contain overflow-x-auto px-1 pb-4 scrollbar-hide">
           <div
-            className={`grid auto-cols-[140px] grid-flow-col justify-start ${fluidGap} snap-x snap-mandatory`}
+            className={`grid auto-cols-[140px] grid-flow-col justify-start ${fluidGap}`}
           >
             {children}
           </div>
@@ -41,8 +41,8 @@ export function ModuleCarousel({
   return (
     <>
       {/* Mobile carousel (< md) */}
-      <div className={`md:hidden overflow-x-auto scrollbar-hide pb-4 -mx-4 px-4 sm:-mx-6 sm:px-6 ${dashboardSpacing ? '-mb-4' : ''}`}>
-        <div className={`grid auto-cols-[140px] grid-flow-col ${fluidGap} snap-x snap-mandatory`}>
+      <div className={`md:hidden snap-x snap-mandatory scroll-px-4 sm:scroll-px-6 overscroll-x-contain overflow-x-auto scrollbar-hide pb-4 -mx-4 px-4 sm:-mx-6 sm:px-6 ${dashboardSpacing ? '-mb-4' : ''}`}>
+        <div className={`grid auto-cols-[140px] grid-flow-col ${fluidGap}`}>
           {children}
         </div>
       </div>

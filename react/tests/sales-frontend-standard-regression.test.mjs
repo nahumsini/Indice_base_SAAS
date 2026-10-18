@@ -348,18 +348,22 @@ test('Modo aprendiz conserva las guías operativas y excluye los espacios de com
   assert.match(commissionsSource, /salesTitleBarSecondaryActionClassName/);
 });
 
-test('Ventas muestra Postventa y los espacios de comunicación junto al flujo B2B', () => {
+test('Ventas separa el flujo comercial, las herramientas y la gestión sin cambiar rutas', () => {
   const salesModuleSource = readFileSync(resolve(salesRoot, 'Ventas.tsx'), 'utf8');
   const identitySource = readFileSync(resolve(salesRoot, 'salesIdentity.tsx'), 'utf8');
   const shellSource = readFileSync(resolve(root, 'src/app/components/frontend-os/IndiceModuleShell.tsx'), 'utf8');
   const spanishSource = readFileSync(resolve(salesRoot, 'translations/es-MX.ts'), 'utf8');
 
   assert.match(identitySource, /'contacts',[\s\S]*'leads',[\s\S]*'quotes',[\s\S]*'sales',[\s\S]*'kpis'/);
-  assert.match(identitySource, /\['contacts', 'leads', 'quotes', 'sales', 'kpis', 'after-sales', 'funneling', 'mailing', 'whatsapping'\]\.includes\(tab\.id\)/);
-  assert.match(salesModuleSource, /useRoutedModuleTab<SalesWorkspaceTabId>\(\s*'contacts'/);
+  assert.match(identitySource, /\['contacts', 'leads', 'quotes', 'sales', 'after-sales', 'kpis'\]/);
+  assert.match(salesModuleSource, /useRoutedModuleTab<SalesWorkspaceTabId>\(\s*'leads'/);
   assert.match(salesModuleSource, /moreTabs=\{\[/);
   assert.match(salesModuleSource, /id: 'commissions'/);
   assert.match(salesModuleSource, /id: 'payment-accounts'/);
+  assert.match(salesModuleSource, /id: 'contracts'/);
+  assert.match(salesModuleSource, /beforeTabId: 'kpis'/);
+  assert.match(salesModuleSource, /moreLabel=\{copy\.navigation\.management\}/);
+  assert.match(salesModuleSource, /wrapTabs/);
   assert.doesNotMatch(salesModuleSource, /import\('\.\/Providers'\)|import\('\.\.\/PointOfSale\/OrdenesCompra'\)/);
   assert.doesNotMatch(salesModuleSource.match(/moreTabs=\{\[[\s\S]*?\]\}/)?.[0] ?? '', /providers|purchase-orders/);
   assert.match(salesModuleSource, /providers: '\/inventory\/providers'/);
@@ -506,7 +510,7 @@ test('la tabla compacta agrupa contacto y seguimiento y conserva secundarios en 
 
   assert.match(statusSource, /sales-opportunities-columns-v3/);
   assert.match(statusSource, /id: 'estimatedValue'.*label: 'Valor \/ forecast'.*visible: true/);
-  assert.match(statusSource, /id: 'nextAction'.*label: 'Seguimiento'.*visible: true/);
+  assert.match(statusSource, /id: 'nextAction'.*label: 'Siguiente acción'.*visible: true/);
   assert.match(statusSource, /id: 'status'.*label: 'Salud'.*visible: true/);
   for (const columnId of ['phone', 'email', 'probability', 'source', 'temperature', 'nextActionDate', 'lastContact', 'files', 'pipeline']) {
     assert.match(statusSource, new RegExp(`id: '${columnId}'.*visible: false`));
@@ -601,7 +605,10 @@ test('el detalle de venta usa el modal estándar y conserva el alta como wizard'
   assert.doesNotMatch(previewSource, /<article|PreviewMetricCard|PreviewBrandBar/);
   assert.match(notePdfSource, /export async function buildSaleNotePdf/);
   assert.match(notePdfSource, /documentType: 'sale-note'/);
-  for (const source of [notePdfSource, quotePdfSource]) {
+  assert.match(quotePdfSource, /const definition = buildQuoteWebDocument\(context\)/);
+  assert.match(quotePdfSource, /definition\.signatures/);
+  assert.match(quotePdfSource, /addStandardPdfFooters\(doc/);
+  for (const source of [notePdfSource]) {
     assert.match(source, /const left = 18/);
     assert.match(source, /autoTable\(doc/);
     assert.match(source, /0: \{ cellWidth: 44 \}/);
@@ -621,17 +628,18 @@ test('Ventas elimina con confirmación y espera la baja lógica del backend', ()
   assert.match(contextSource, /await salesApi\.delete\('sales', backendId\)/);
 });
 
-test('Oportunidades y Clientes conservan tres acciones directas y envian Columnas al overflow', () => {
+test('Oportunidades distingue el flujo activo de las acciones y conserva Columnas en el overflow', () => {
   const opportunitiesPageSource = readFileSync(resolve(salesRoot, 'Prospectos/Prospectos.tsx'), 'utf8');
   const opportunitiesHeaderSource = readFileSync(resolve(salesRoot, 'Prospectos/components/ProspectosHeader.tsx'), 'utf8');
   const contactsSource = readFileSync(resolve(salesRoot, 'Contactos/Contactos.tsx'), 'utf8');
 
   assert.match(opportunitiesPageSource, /actionsLabel=\{t\.table\.actions\}/);
-  assert.match(opportunitiesHeaderSource, /SelectTrigger aria-label=\{activeFlowLabel\}/);
+  assert.match(opportunitiesPageSource, /<ProspectosHeader[\s\S]*<OpportunityFlowBar[\s\S]*<ProspectosViewTabs/);
+  assert.doesNotMatch(opportunitiesHeaderSource, /SelectTrigger|onSelectFlow|onManageFlow/);
   assert.match(opportunitiesHeaderSource, /onClick=\{onCreateQuote\}/);
   assert.match(opportunitiesHeaderSource, /onClick=\{onCreateOpportunity\}/);
   assert.doesNotMatch(opportunitiesHeaderSource, /onClick=\{onManageFlow\}|onClick=\{onOpenColumns\}|onClick=\{onCreateSale\}/);
-  assert.match(opportunitiesHeaderSource, /id: 'manage-flow'[\s\S]*onSelect: onManageFlow/);
+  assert.match(opportunitiesPageSource, /<OpportunityFlowBar[\s\S]*onManageFlow=\{\(\) => setIsFlowManagerOpen\(true\)\}/);
   assert.match(opportunitiesHeaderSource, /id: 'columns'[\s\S]*onSelect: onOpenColumns/);
   assert.match(opportunitiesHeaderSource, /id: 'create-sale'[\s\S]*onSelect: onCreateSale/);
 

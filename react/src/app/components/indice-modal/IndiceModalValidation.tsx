@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { revealModalFeedback } from './modalFormFeedback';
 import { AlertTriangle, CircleAlert, CircleCheck, Info } from 'lucide-react';
 import { cn } from '../ui/utils';
 
@@ -36,19 +37,28 @@ export function IndiceModalValidation({
   title,
   tone = 'error',
 }: IndiceModalValidationProps) {
-  if (!messages.length) return null;
+  const feedbackRef = useRef<HTMLDivElement>(null);
+  const hasMessages = messages.length > 0;
+  useEffect(() => {
+    if (!hasMessages || tone !== 'error') return;
+    const frame = window.requestAnimationFrame(() => revealModalFeedback(feedbackRef.current));
+    return () => window.cancelAnimationFrame(frame);
+  }, [hasMessages, tone]);
+  if (!hasMessages) return null;
 
   const toneStyle = toneStyles[tone];
   const Icon = toneStyle.icon;
 
   return (
     <div
+      ref={feedbackRef}
+      aria-atomic="true"
       aria-live={tone === 'error' ? 'assertive' : 'polite'}
       className={cn('flex items-start gap-3 rounded-xl border px-4 py-3 text-sm leading-6', toneStyle.container, className)}
       role={tone === 'error' ? 'alert' : 'status'}
     >
       <Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-      <div className="min-w-0">
+      <div className="min-w-0 break-words">
         {title ? <p className="font-medium">{title}</p> : null}
         {messages.length === 1 ? (
           <p className={cn(title && 'mt-1')}>{messages[0]}</p>

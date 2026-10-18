@@ -1,4 +1,21 @@
 export const esCO = {
+  learningPresentation: {
+    title: "Tu aprendizaje",
+    saved: "Avance guardado",
+    reviewed: "capítulos revisados",
+    applied: "aplicados",
+    continueAction: "Continuar aprendiendo",
+    next: "Siguiente actividad",
+    details: "Ver avance por etapa",
+    complete: "Has revisado tus capítulos disponibles.",
+    error: "No se pudo consultar tu avance.",
+    retry: "Reintentar",
+    journeyTitle: "Tu recorrido de aprendizaje",
+    journeyDescription: "Explora las seis etapas de la Metodología Índice.",
+    stageTools: "Herramientas de esta etapa",
+    exploring: "Explorando",
+    noTools: "No tienes herramientas disponibles en esta etapa con tus permisos actuales.",
+  },
   systemTools: {
     title: "Herramientas de sistema",
     description: "Conecta y administra las herramientas de tu empresa.",
@@ -33,7 +50,7 @@ export const esCO = {
   },
   operationalJourney: {
     eyebrow: "Modo aprendiz · Metodología Índice",
-    sessionLabel: "Sesión",
+    sessionLabel: "Paso",
     goalLabel: "Lo que vas a lograr",
     title: "Haz tu operación más clara, inteligente y escalable",
     subtitle:
@@ -47,48 +64,42 @@ export const esCO = {
       locked: "Bloqueado",
     },
     stages: {
-      company_setup: {
-        title: "Define la estructura de tu empresa",
-        shortTitle: "Estructura empresarial",
-        description:
-          "Establece la información, áreas y sedes que darán contexto a toda la operación.",
-        cta: "Definir estructura",
+      "company_setup": {
+        "title": "Tu empresa",
+        "shortTitle": "Tu empresa",
+        "description": "Registra los datos de tu negocio y los lugares donde trabajas.",
+        "cta": "Revisar mi empresa"
       },
-      human_resources: {
-        title: "Organiza a tu equipo",
-        shortTitle: "Equipo",
-        description:
-          "Asigna cargos, responsabilidades, horarios y reglas para que cada persona conozca su función.",
-        cta: "Organizar equipo",
+      "human_resources": {
+        "title": "Tu equipo",
+        "shortTitle": "Tu equipo",
+        "description": "Organiza los datos de las personas y sus horarios.",
+        "cta": "Revisar mi equipo"
       },
-      operations: {
-        title: "Transforma el trabajo en procesos",
-        shortTitle: "Procesos",
-        description:
-          "Estandariza tareas, responsables y seguimiento para operar con menos errores y dependencia.",
-        cta: "Estructurar procesos",
+      "operations": {
+        "title": "Tareas y procesos",
+        "shortTitle": "Tareas y procesos",
+        "description": "Define qué hay que hacer, quién lo hará y para cuándo.",
+        "cta": "Revisar mis tareas"
       },
-      finance: {
-        title: "Da claridad al dinero",
-        shortTitle: "Claridad financiera",
-        description:
-          "Centraliza gastos, caja y cartera para comprender cómo se mueven los recursos de la empresa.",
-        cta: "Ordenar finanzas",
+      "finance": {
+        "title": "Tu dinero",
+        "shortTitle": "Tu dinero",
+        "description": "Consulta tus gastos, los pagos pendientes y lo que tus clientes te deben.",
+        "cta": "Revisar mis gastos"
       },
-      commercial: {
-        title: "Conecta productos y ventas",
-        shortTitle: "Productos y ventas",
-        description:
-          "Relaciona catálogo, inventario, clientes y ventas para proteger márgenes y atender mejor.",
-        cta: "Conectar operación comercial",
+      "commercial": {
+        "title": "Productos y ventas",
+        "shortTitle": "Productos y ventas",
+        "description": "Organiza lo que vendes y consulta tus ventas.",
+        "cta": "Revisar productos y ventas"
       },
-      analytics: {
-        title: "Dirige con inteligencia operacional",
-        shortTitle: "Inteligencia operacional",
-        description:
-          "Convierte los datos de toda la empresa en indicadores para decidir con claridad y crecer con control.",
-        cta: "Revisar indicadores",
-      },
+      "analytics": {
+        "title": "Cómo va tu negocio",
+        "shortTitle": "Cómo va tu negocio",
+        "description": "Entiende los números que te ayudan a revisar tu negocio.",
+        "cta": "Revisar mis indicadores"
+      }
     },
     characters: {
       eyebrow: "Casos empresariales",

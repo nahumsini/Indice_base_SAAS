@@ -14,7 +14,7 @@ export const enCA = {
   header: {
     title: 'Commercial opportunities',
     subtitle: 'Control active sales work linked to contacts: stage, value, probability, next action, and files.',
-    manageFlow: 'Manage flow',
+    manageFlow: 'Manage flows',
     columns: 'Columns',
     createSale: 'New sale',
     createQuote: 'Create quote',
@@ -290,7 +290,7 @@ export const enCA = {
       description: 'Target closing date.',
     },
     nextAction: {
-      label: 'Follow-up',
+      label: 'Next action',
       description: 'Next action, schedule, and last contact.',
     },
     nextActionDate: {
@@ -542,7 +542,7 @@ export const esMX: ProspectosCopy = {
   header: {
     title: 'Oportunidades comerciales',
     subtitle: 'Controla ventas activas ligadas a contactos: etapa, valor, probabilidad, siguiente acción y archivos.',
-    manageFlow: 'Gestionar flujo',
+    manageFlow: 'Administrar flujos',
     columns: 'Columnas',
     createSale: 'Nueva venta',
     createQuote: 'Crear cotización',
@@ -761,7 +761,7 @@ export const esMX: ProspectosCopy = {
     quoteSignal: { label: 'Cotizaciones', description: 'Documentos ligados, estado y descarga individual de PDF.' },
     pipeline: { label: 'Pipeline cotizado', description: 'Monto cotizado ligado a la oportunidad por divisa.' },
     expectedCloseDate: { label: 'Cierre esperado', description: 'Fecha objetivo de cierre.' },
-    nextAction: { label: 'Seguimiento', description: 'Siguiente acción, agenda y último contacto.' },
+    nextAction: { label: 'Siguiente acción', description: 'Siguiente acción, agenda y último contacto.' },
     nextActionDate: { label: 'Fecha de acción', description: 'Fecha y hora programada para el siguiente contacto.' },
     lastContact: { label: 'Último contacto', description: 'Último registro de contacto comercial.' },
     files: { label: 'Archivos', description: 'Documentos relacionados con la oportunidad.' },
@@ -999,6 +999,7 @@ export const prospectosTranslations = {
   },
   'fr-CA': {
     ...enCA,
+    columns: { ...enCA.columns, nextAction: { label: 'Prochaine action', description: 'Prochaine action, calendrier et dernier contact.' } },
     flow: {
       ...enCA.flow,
       selectFlow: 'Flux actif',
@@ -1019,7 +1020,7 @@ export const prospectosTranslations = {
       createSale: 'Nouvelle vente',
       createQuote: 'Créer un devis',
       createOpportunity: 'Créer une occasion',
-      manageFlow: 'Gérer le flux',
+      manageFlow: 'Gérer les flux',
       preferredCurrency: 'Devise préférée',
     },
     filters: {
@@ -1115,6 +1116,7 @@ export const prospectosTranslations = {
   },
   'pt-BR': {
     ...esMX,
+    columns: { ...esMX.columns, nextAction: { label: 'Próxima ação', description: 'Próxima ação, agenda e último contato.' } },
     flow: {
       ...esMX.flow,
       selectFlow: 'Fluxo ativo',
@@ -1135,7 +1137,7 @@ export const prospectosTranslations = {
       createSale: 'Nova venda',
       createQuote: 'Criar cotação',
       createOpportunity: 'Criar oportunidade',
-      manageFlow: 'Gerenciar fluxo',
+      manageFlow: 'Gerenciar fluxos',
       preferredCurrency: 'Moeda preferida',
     },
     filters: {
@@ -1205,6 +1207,7 @@ export const prospectosTranslations = {
   },
   'ko-CA': {
     ...enCA,
+    columns: { ...enCA.columns, nextAction: { label: '다음 작업', description: '다음 작업, 일정 및 최근 연락.' } },
     flow: {
       ...enCA.flow,
       selectFlow: '활성 흐름',
@@ -1236,6 +1239,7 @@ export const prospectosTranslations = {
   },
   'zh-CA': {
     ...enCA,
+    columns: { ...enCA.columns, nextAction: { label: '下一步行动', description: '下一步行动、日程和最近联系。' } },
     flow: {
       ...enCA.flow,
       selectFlow: '当前流程',

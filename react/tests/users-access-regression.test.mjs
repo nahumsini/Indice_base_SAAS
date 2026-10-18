@@ -173,7 +173,7 @@ test('rutas y navegacion ocultan y bloquean pestañas sin scope', () => {
   assert.match(appSource, /allowedModuleTabIds/);
   assert.match(appSource, /sessionTabAccess/);
   assert.match(moduleShellSource, /canAccessModuleTab/);
-  assert.match(moduleShellSource, /visibleTabs/);
+  assert.match(moduleShellSource, /resolveModuleNavigation\(tabs,[\s\S]*canAccessTab\)/);
 });
 
 test('usuarios asigna kioscos de empleado como acceso exacto e independiente', () => {
@@ -212,7 +212,11 @@ test('revocar rol o permisos refresca sesion catalogo rutas pestanas y cabecera'
   assert.doesNotMatch(appSource, /routes\.add\('material-warehouse'\)|routes\.add\('production'\)/);
   assert.match(tabScopeCatalogSource, /canAccessKioskCenter/);
   assert.match(appSource, /canAccessKioskCenter\(session\)/);
-  assert.match(headerSource, /canAccessKioskCenter\(effectiveAuthSession\)/);
+  const systemToolAccessSource = readFileSync(resolve(root, 'src/app/Dashboard/systemToolAccess.ts'), 'utf8');
+  const systemToolsSectionSource = readFileSync(resolve(root, 'src/app/Dashboard/components/SystemToolsSection.tsx'), 'utf8');
+  assert.match(systemToolAccessSource, /kioskCenter: admin && canAccessKioskCenter\(session\)/);
+  assert.match(systemToolsSectionSource, /useAuthorizationRevision\(\)/);
+  assert.match(systemToolsSectionSource, /getSystemToolVisibility\(session/);
   assert.match(headerSource, /effectiveAuthSession/);
   assert.match(kpisSource, /useAuthorizationRevision\(\)/);
 });

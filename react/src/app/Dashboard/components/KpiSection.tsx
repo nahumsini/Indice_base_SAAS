@@ -11,6 +11,9 @@ import type { MainDashboardTranslations } from '../translations';
 
 interface KpiSectionProps {
   title: string;
+  status?: 'loading' | 'ready' | 'error';
+  statusCopy?: { loading: string; failed: string; retry: string };
+  onRetry?: () => void;
   description: string;
   kpis: DashboardKpiCardData[];
   availableKPIs: KPIItem[];
@@ -25,6 +28,9 @@ interface KpiSectionProps {
 
 export function KpiSection({
   title,
+  status = 'ready',
+  statusCopy,
+  onRetry,
   description,
   kpis,
   availableKPIs,
@@ -42,8 +48,9 @@ export function KpiSection({
         title={title}
         description={description}
         icon={<IndiceEmoji name="chart" className="size-8" />}
-        count={kpis.length}
+        count={status === 'ready' ? kpis.length : undefined}
         action={
+          <fieldset disabled={status !== 'ready'} className="min-w-0">
           <KPIConfiguration
             isOpen={isConfigOpen}
             onOpen={onOpenConfig}
@@ -54,9 +61,22 @@ export function KpiSection({
             defaultKPIIds={defaultKPIIds}
             copy={copy.kpiConfiguration}
           />
+          </fieldset>
         }
       />
-      {kpis.length > 0 ? (
+      {status === 'loading' ? (
+        <div role="status" aria-busy="true" aria-label={statusCopy?.loading}>
+          <span className="sr-only">{statusCopy?.loading}</span>
+          <KPICarousel mode="carousel" compactCards dashboardSpacing>
+            {[0, 1, 2].map(index => <div key={index} aria-hidden="true" className="aspect-[11/12] w-[200px] shrink-0 snap-center rounded-2xl border border-slate-200 bg-slate-100 motion-safe:animate-pulse dark:border-slate-700 dark:bg-slate-800" />)}
+          </KPICarousel>
+        </div>
+      ) : status === 'error' ? (
+        <div role="alert" className="space-y-3 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+          <p className="text-sm text-slate-700 dark:text-slate-200">{statusCopy?.failed}</p>
+          <Button type="button" variant="outline" className="min-h-11" onClick={onRetry}>{statusCopy?.retry}</Button>
+        </div>
+      ) : kpis.length > 0 ? (
         <KPICarousel mode="carousel" compactCards dashboardSpacing>
           {kpis.map((kpi, index) => (
             <KPICard

@@ -24,6 +24,8 @@ export interface StandardDocumentSection {
 
 export interface StandardDocumentTable {
   columns: string[];
+  /** Relative column widths, applied by the HTML document adapter when supplied. */
+  columnWidths?: number[];
   numericColumnIndices?: number[];
   avoidRowSplit?: boolean;
   keepTogether?: boolean;

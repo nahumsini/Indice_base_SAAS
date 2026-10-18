@@ -12,7 +12,7 @@ export function FieldGroup({ title, description, children, className }: FieldGro
   return (
     <section
       className={cn(
-        'rounded-[22px] border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-900/45',
+        'rounded-[22px] border border-slate-200 bg-slate-50/70 p-3 sm:p-4 dark:border-slate-700 dark:bg-slate-900/45',
         className,
       )}
     >

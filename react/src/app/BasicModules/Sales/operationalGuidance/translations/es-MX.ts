@@ -1,6 +1,6 @@
 export const esMX = {
-  eyebrow: 'Modo Aprendiz',
-  title: 'Guia operativa de Ventas',
+  eyebrow: 'Modo aprendiz',
+  title: 'Ventas',
   subtitle: 'Conecta oportunidades, cotizaciones, cierre comercial, preparacion de inventario, validacion financiera y postventa.',
   controlLabel: 'Control comercial',
   functionsLabel: 'Flujo recomendado',
@@ -13,10 +13,10 @@ export const esMX = {
   expandLabel: 'Expandir guia',
   tabs: {
     leads: {
-      label: 'Prospectos',
+      label: 'Oportunidades',
       ctaLabel: 'Revisar oportunidades',
       title: 'Construye un pipeline disciplinado',
-      summary: 'Usa Prospectos para capturar demanda, calificar interes, asignar responsable y definir la siguiente accion comercial.',
+      summary: 'Usa Oportunidades para registrar una posible venta, elegir quién la atiende y anotar el siguiente paso.',
       value: 'Un pipeline limpio mantiene visible el seguimiento y evita que el ingreso dependa de la memoria.',
       steps: [
         {
@@ -34,10 +34,10 @@ export const esMX = {
       ],
     },
     contacts: {
-      label: 'Contactos',
+      label: 'Clientes',
       ctaLabel: 'Revisar contactos',
       title: 'Convierte relaciones en control comercial',
-      summary: 'Usa Contactos como base de clientes, prospectos, responsables y contexto de seguimiento.',
+      summary: 'Usa Clientes como base de clientes, prospectos, responsables y contexto de seguimiento.',
       value: 'Datos confiables facilitan cotizaciones, ventas, entrega y seguimiento para todo el equipo.',
       steps: [
         {

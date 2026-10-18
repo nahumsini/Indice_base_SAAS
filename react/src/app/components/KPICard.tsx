@@ -94,11 +94,11 @@ export function KPICard({ presentation = 'compact', moduleLabel, kpiId, title, v
         </div>
         <p title={title} className="line-clamp-2 min-h-9 shrink-0 text-sm font-medium leading-[18px] text-slate-900 dark:text-slate-100">{title}</p>
         <div className="flex min-h-11 min-w-0 flex-1 items-end pb-2">
-          <p title={String(value)} className={`${valueSize} min-w-0 font-semibold leading-none tracking-tight tabular-nums text-slate-950 dark:text-white`}>{value}</p>
+          <p title={String(value)} className={`${valueSize} min-w-0 break-words font-semibold leading-none tracking-tight tabular-nums text-slate-950 dark:text-white`}>{value}</p>
         </div>
         <div className="flex min-h-10 shrink-0 items-start gap-2 border-t border-slate-200/80 pt-2 dark:border-slate-700/80">
           <TrendIcon aria-hidden="true" className={`mt-0.5 size-4 shrink-0 ${statusClasses}`} />
-          <p className="text-[11px] leading-[14px] text-slate-600 dark:text-slate-300">{change}</p>
+          <p className="text-xs leading-4 text-slate-600 dark:text-slate-300 sm:text-[11px] sm:leading-[14px]">{change}</p>
         </div>
       </Card>
     );

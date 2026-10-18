@@ -1,4 +1,21 @@
 export const koCA = {
+  learningPresentation: {
+    title: "나의 학습",
+    saved: "저장된 진행 상황",
+    reviewed: "검토한 장",
+    applied: "적용됨",
+    continueAction: "학습 계속하기",
+    next: "다음 활동",
+    details: "단계별 진행 상황 보기",
+    complete: "사용 가능한 장을 모두 검토했습니다.",
+    error: "진행 상황을 불러올 수 없습니다.",
+    retry: "다시 시도",
+    journeyTitle: "나의 학습 여정",
+    journeyDescription: "Índice 방법론의 여섯 단계를 탐색하세요.",
+    stageTools: "이 단계의 도구",
+    exploring: "탐색 중",
+    noTools: "현재 권한으로 이 단계에서 사용할 수 있는 도구가 없습니다.",
+  },
   systemTools: {
     title: "시스템 도구",
     description: "회사의 도구를 연결하고 관리하세요.",
@@ -33,7 +50,7 @@ export const koCA = {
   },
   operationalJourney: {
     eyebrow: "학습 모드",
-    sessionLabel: "세션",
+    sessionLabel: "단계",
     goalLabel: "달성할 목표",
     title: "나의 학습 여정",
     subtitle: "회사를 체계화하고 성장시키는 방법을 단계별로 배워 보세요.",
@@ -46,42 +63,42 @@ export const koCA = {
       locked: "잠김",
     },
     stages: {
-      company_setup: {
-        title: "회사 설정",
-        shortTitle: "회사 설정",
-        description: "회사의 기본 구조 설정부터 시작하세요.",
-        cta: "계속",
+      "company_setup": {
+        "title": "내 사업",
+        "shortTitle": "내 사업",
+        "description": "사업 정보와 일하는 장소를 등록하세요.",
+        "cta": "사업 확인"
       },
-      human_resources: {
-        title: "팀 구성",
-        shortTitle: "팀",
-        description: "직원, 역할, 일상 운영을 한곳에서 관리하세요.",
-        cta: "팀 설정",
+      "human_resources": {
+        "title": "내 팀",
+        "shortTitle": "내 팀",
+        "description": "팀원의 정보와 근무 시간을 정리하세요.",
+        "cta": "팀 확인"
       },
-      operations: {
-        title: "운영 프로세스",
-        shortTitle: "프로세스",
-        description: "일관된 운영을 위해 명확한 프로세스를 정의하세요.",
-        cta: "프로세스 정의",
+      "operations": {
+        "title": "업무와 절차",
+        "shortTitle": "업무와 절차",
+        "description": "할 일, 담당자, 기한을 정하세요.",
+        "cta": "업무 확인"
       },
-      finance: {
-        title: "재무 관리",
-        shortTitle: "재무",
-        description: "비용을 기록하고 직원에게 배정된 운영 자금을 관리하세요.",
-        cta: "재무 관리",
+      "finance": {
+        "title": "사업 자금",
+        "shortTitle": "사업 자금",
+        "description": "비용, 미지급금, 고객에게 받을 금액을 확인하세요.",
+        "cta": "비용 확인"
       },
-      commercial: {
-        title: "상업 운영",
-        shortTitle: "상업",
-        description: "수익, 기회, 상업 운영을 관리하세요.",
-        cta: "판매 활성화",
+      "commercial": {
+        "title": "상품과 판매",
+        "shortTitle": "상품과 판매",
+        "description": "판매할 상품을 정리하고 매출을 확인하세요.",
+        "cta": "상품과 판매 확인"
       },
-      analytics: {
-        title: "운영 인텔리전스",
-        shortTitle: "분석",
-        description: "운영 성과를 실시간으로 분석하세요.",
-        cta: "분석 보기",
-      },
+      "analytics": {
+        "title": "사업 현황",
+        "shortTitle": "사업 현황",
+        "description": "사업을 확인하는 데 도움이 되는 수치를 이해하세요.",
+        "cta": "지표 확인"
+      }
     },
     characters: {
       eyebrow: "배우는 이야기",

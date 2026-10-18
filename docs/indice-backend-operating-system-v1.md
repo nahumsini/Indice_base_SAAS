@@ -349,6 +349,14 @@ idempotency. Store enough outcome information to return or reconcile duplicate a
 Do not hold database transactions open across slow network calls when a durable intent/outbox or a
 two-step workflow can protect consistency.
 
+Sales seller mode follows [its owner contract](sales-seller-workspace-contract.md): company/flow scripts
+with immutable published revisions and idempotent, transactional contact-result plus schedule writes.
+V322 is additive; all new endpoints inherit the existing sales/lead gates.
+
+Sales opportunity call reminders follow [their owner contract](sales-opportunity-reminders-contract.md).
+Sales derives UTC schedules, validates recipients and owns idempotence; the shared notification
+service only delivers the in-app inbox event. V321 preserves the legacy wall-clock API.
+
 ## 11. Money, Quantity, And Time
 
 - Java monetary values use `BigDecimal`; SQL uses a reviewed `DECIMAL` precision/scale, normally
@@ -577,6 +585,19 @@ quarantine/scanning policy before they become downloadable.
 Object keys, buckets/prefixes, presigned operations, background cleanup, and logs must preserve
 tenant isolation. Biometric material, payroll documents, credentials, and legal/financial evidence
 need their approved retention and access audit.
+
+Inventory movement evidence (2026-10-18) uses the existing private Sales documents
+bucket, CompanyStorageMeter reservations, sales_files references and ObjectStorageService.
+The /api/v1/sales/inventory-movements/{id}/attachments boundary requires an active
+session, inventory capability/module/tab access, CSRF on writes, company-owned
+movement lookup and persisted organization scope. Cancelled movements remain
+readable but reject new evidence. Keys are server-generated and bound to tenant,
+movement, uploading actor and approved file metadata. Registration locks the
+movement, verifies existence, exact size/type and content signature, commits quota,
+and records metadata transactionally. A repeated registration of the same object
+returns the existing file. Download performs authorization again and returns a
+short-lived URL only for that movement's private key prefix. No schema change or
+stock mutation is performed by the evidence endpoints.
 
 ## 15. Cross-Module And External Integrations
 
@@ -839,3 +860,10 @@ module/tab access, aggregation, period comparison and currency evidence. The ext
 no second sale ledger and does not change Sales/POS lifecycle, existing KPIs, accounting source
 identities, posting eligibility or Finance synchronization. Module registration is a pilot and grants
 no tenant/user access or pricing automatically.
+
+
+## Sales post-sale continuity owner
+
+Sales owns the additive post-sale workspace, tenant-scoped flows and work history. Scheduled reviews publish internal seller reminders only. Manual recovery calls the existing opportunity owner transactionally and preserves the original lost opportunity; payment, inventory, accounting and sales totals are unchanged.
+
+The adopted domain contract is [Sales post-sale continuity](sales-post-sale-continuity-contract.md).

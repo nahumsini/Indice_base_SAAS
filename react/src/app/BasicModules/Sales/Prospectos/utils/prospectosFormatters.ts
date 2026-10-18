@@ -126,6 +126,7 @@ export function parseTimeToMinutes(value: string) {
   let hours = Number(match[1]);
   const minutes = Number(match[2] ?? 0);
   const meridiem = match[3]?.toUpperCase();
+  if (hours > 23 || minutes > 59 || (meridiem && (hours < 1 || hours > 12))) return null;
 
   if (meridiem === 'PM' && hours < 12) {
     hours += 12;
@@ -152,7 +153,9 @@ export function getOpportunitySchedule(opportunity: SalesOpportunity) {
   }
 
   const isoDateMatch = rawValue.match(/\d{4}-\d{2}-\d{2}/);
-  const timeMinutes = parseTimeToMinutes(rawValue);
+  const timeMinutes = parseTimeToMinutes(isoDateMatch
+    ? rawValue.slice((isoDateMatch.index ?? 0) + isoDateMatch[0].length).replace(/^T/, '')
+    : rawValue);
   const time = timeMinutes === null
     ? ''
     : `${String(Math.floor(timeMinutes / 60)).padStart(2, '0')}:${String(timeMinutes % 60).padStart(2, '0')}`;
@@ -181,5 +184,5 @@ export function formatOpportunitySchedule(date: string, time: string) {
   if (!date && !time) {
     return '';
   }
-  return [date, time].filter(Boolean).join(' ');
+  return date ? [date, time].filter(Boolean).join(' ') : '';
 }

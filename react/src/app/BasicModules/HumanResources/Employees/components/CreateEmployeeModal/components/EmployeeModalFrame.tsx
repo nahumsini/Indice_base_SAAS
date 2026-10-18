@@ -7,6 +7,7 @@ import { User } from 'lucide-react';
 import { Button } from '../../../../../../components/ui/button';
 import {
   IndiceModalFrame,
+  IndiceModalValidation,
   IndiceModalWizardStepper,
 } from '../../../../../../components/indice-modal';
 import type { EmployeeModalTranslations } from '../../../translations/types';
@@ -15,6 +16,8 @@ import type { WizardStep } from './StepProgress';
 
 interface EmployeeModalFrameProps {
   children: ReactNode;
+  busy?: boolean;
+  submitError?: string;
   copy: EmployeeModalTranslations;
   currentStep: number;
   currentStepValid: boolean;
@@ -31,6 +34,8 @@ interface EmployeeModalFrameProps {
 }
 
 export function EmployeeModalFrame({
+  busy = false,
+  submitError,
   children,
   copy,
   currentStep,
@@ -48,16 +53,17 @@ export function EmployeeModalFrame({
 }: EmployeeModalFrameProps) {
   return (
     <IndiceModalFrame
+      busy={busy}
       bodyClassName="space-y-5"
       closeLabel={copy.buttons.closeModal}
       description={copy.subtitle}
       eyebrow={copy.stepOf(currentStep, steps.length)}
       footer={(
         <>
-          <Button type="button" variant="outline" onClick={onBack} disabled={currentStep === 1}>
+          <Button type="button" variant="outline" onClick={onBack} disabled={busy || currentStep === 1}>
             {copy.buttons.back}
           </Button>
-          <Button type="submit" form="hr-employee-wizard-form">
+          <Button disabled={busy} type="submit" form="hr-employee-wizard-form">
             {primaryButtonLabel}
           </Button>
         </>
@@ -66,6 +72,7 @@ export function EmployeeModalFrame({
         <Button
           type="button"
           variant="outline"
+          disabled={busy}
           onClick={onClose}
           className="h-11 rounded-xl border-white bg-white px-5 text-sm font-medium text-slate-600 hover:bg-white/90"
         >
@@ -87,7 +94,7 @@ export function EmployeeModalFrame({
         activeStepId={String(currentStep)}
         progressLabel={copy.stepOf(currentStep, steps.length)}
         steps={steps.map((step) => ({ id: String(step.id), label: step.label }))}
-        onStepSelect={(stepId) => {
+        onStepSelect={busy ? undefined : (stepId) => {
           const numericStepId = Number(stepId);
           if (numericStepId > currentStep && !currentStepValid) {
             onStepInvalid();
@@ -96,13 +103,16 @@ export function EmployeeModalFrame({
           onStepSelect(numericStepId);
         }}
       />
-      <form ref={formRef} id="hr-employee-wizard-form" onSubmit={onSubmit}>
+      <form ref={formRef} id="hr-employee-wizard-form" noValidate onSubmit={onSubmit}>
+        <IndiceModalValidation messages={submitError ? [submitError] : []} />
+        <fieldset disabled={busy} className="contents">
           {statusFeedback ? (
             <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 shadow-sm dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
               {statusFeedback}
             </div>
           ) : null}
           {children}
+        </fieldset>
       </form>
     </IndiceModalFrame>
   );

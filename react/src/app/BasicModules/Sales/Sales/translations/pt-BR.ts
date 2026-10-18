@@ -105,6 +105,14 @@ export const ptBR = {
   },
   modal: {
     ...enCA.modal,
+    warehouseStatus: {
+      loading: "Carregando depósitos…",
+      error: "Não foi possível carregar os depósitos. Tente novamente.",
+      unassigned: "Os depósitos ativos precisam de uma unidade e um negócio. Configure-os em Estoque → Depósitos e atualize a lista.",
+      empty: "Não há depósitos ativos disponíveis. Crie ou ative um em Estoque → Depósitos e atualize a lista.",
+      ready: "O depósito selecionado fornecerá o estoque desta venda.",
+      reload: "Atualizar depósitos",
+    },
     createTitle: 'Nova venda',
     detailTitle: 'Detalhe da venda',
     description: 'Revise o fechamento comercial e o repasse operacional.',

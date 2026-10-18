@@ -140,15 +140,16 @@ export function IndiceModalFrame({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
+        data-indice-modal={modalType}
         style={contentStyle}
         aria-busy={busy}
         className={cn(
-          'flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white p-0 shadow-[0_28px_80px_rgba(15,23,42,0.3)] dark:border-slate-700 dark:bg-slate-950',
+          'flex gap-0 max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white p-0 shadow-[0_28px_80px_rgba(15,23,42,0.3)] dark:border-slate-700 dark:bg-slate-950',
           widthStyles[modalType],
           contentClassName,
         )}
         closeButtonClassName={cn(
-          'right-5 top-5 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border opacity-100 focus:ring-white/70 disabled:cursor-not-allowed [&_svg]:h-5 [&_svg]:w-5',
+          'right-3 top-3 sm:right-5 sm:top-5 flex h-11 w-11 sm:h-10 sm:w-10 cursor-pointer items-center justify-center rounded-full border opacity-100 focus:ring-white/70 disabled:cursor-not-allowed [&_svg]:h-5 [&_svg]:w-5',
           styles.close,
           busy && 'pointer-events-none opacity-50',
         )}
@@ -158,25 +159,25 @@ export function IndiceModalFrame({
         onEscapeKeyDown={(event) => busy && event.preventDefault()}
         onPointerDownOutside={(event) => event.preventDefault()}
       >
-        <DialogHeader className={cn('shrink-0 gap-0 px-6 py-4 pr-20 text-left', styles.header)}>
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-current/10 bg-white/15 shadow-sm" aria-hidden="true">
+        <DialogHeader className={cn('shrink-0 gap-0 px-3 py-3 pr-16 sm:px-6 sm:py-4 sm:pr-20 text-left', styles.header)}>
+          <div className="flex min-w-0 items-start gap-2 sm:gap-3">
+            <span className="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-2xl border border-current/10 bg-white/15 shadow-sm" aria-hidden="true">
               {iconPresentation === 'original' ? icon : <ModalHeaderEmoji icon={icon} />}
             </span>
             <div className="min-w-0 flex-1">
               {eyebrow ? <p className={cn('mb-0.5 text-xs font-medium tracking-normal', styles.description)}>{eyebrow}</p> : null}
-              <DialogTitle className={cn('text-xl font-medium leading-7', styles.title)}>{title}</DialogTitle>
+              <DialogTitle className={cn('break-words text-lg sm:text-xl font-medium leading-6 sm:leading-7', styles.title)}>{title}</DialogTitle>
               <DialogDescription className={cn('mt-0.5 text-sm leading-5', styles.description)}>{description}</DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        <div ref={bodyRef} className={cn('min-h-0 flex-1 overflow-y-auto bg-slate-50/80 px-6 py-5 dark:bg-slate-950/70', bodyClassName)}>
+        <div ref={bodyRef} data-slot="indice-modal-body" className={cn('min-w-0 min-h-0 flex-1 overscroll-y-contain overflow-y-auto bg-slate-50/80 px-3 py-3 sm:px-6 sm:py-5 dark:bg-slate-950/70', bodyClassName)}>
           {children}
         </div>
 
         {footer || footerLeading || footerSummary ? (
-          <DialogFooter className={cn('shrink-0 px-6 py-3', styles.footer, footerClassName)}>
+          <DialogFooter className={cn('shrink-0 px-3 py-3 sm:px-6', styles.footer, footerClassName)}>
             <IndiceModalFooter actions={footer} leading={footerLeading} summary={footerSummary} tone={tone} />
           </DialogFooter>
         ) : null}

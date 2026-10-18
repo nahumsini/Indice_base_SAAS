@@ -12,6 +12,7 @@ export type SalesContextUser = {
 };
 
 export type SalesContextResponse = {
+  businessTimezone?: string;
   users: SalesContextUser[];
   units: Array<Record<string, unknown>>;
   businesses: Array<Record<string, unknown>>;

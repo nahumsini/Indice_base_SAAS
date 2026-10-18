@@ -100,7 +100,8 @@ export function IndiceModalWizardStepper<StepId extends string>({
               {onStepSelect ? (
                 <button
                   type="button"
-                  className="w-full cursor-pointer rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+                  aria-label={step.label}
+                  className="min-h-11 w-full cursor-pointer rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
                   onClick={() => onStepSelect(step.id)}
                 >
                   {content}

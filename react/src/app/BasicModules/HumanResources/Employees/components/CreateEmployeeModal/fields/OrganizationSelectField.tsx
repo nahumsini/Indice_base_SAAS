@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useId, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { cn } from '../../../../../../components/ui/utils';
@@ -76,6 +76,8 @@ export function OrganizationSelectField({
   required = false,
   value,
 }: OrganizationSelectFieldProps) {
+  const fieldId = useId();
+  const messageId = `${fieldId}-message`;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -141,11 +143,12 @@ export function OrganizationSelectField({
 
   return (
     <div ref={containerRef} className="relative">
-      <label className={modalLabelClassName}>
+      <label htmlFor={fieldId} className={modalLabelClassName}>
         {label} {required ? <span className="text-red-500">*</span> : null}
       </label>
       <input type="hidden" name={name} value={value} />
       <button
+        id={fieldId}
         type="button"
         onClick={() => {
           if (canOpen) {
@@ -156,6 +159,8 @@ export function OrganizationSelectField({
         disabled={disabled}
         aria-expanded={isOpen}
         aria-invalid={Boolean(error)}
+        aria-required={required}
+        aria-describedby={error || helperText ? messageId : undefined}
         className={cn(
           modalControlClassName,
           'flex h-auto min-h-11 items-center justify-between gap-3 text-left',
@@ -250,9 +255,9 @@ export function OrganizationSelectField({
       ) : null}
 
       {error ? (
-        <HelperText tone="error">{error}</HelperText>
+        <HelperText id={messageId} tone="error">{error}</HelperText>
       ) : helperText ? (
-        <HelperText tone={helperTone}>{helperText}</HelperText>
+        <HelperText id={messageId} tone={helperTone}>{helperText}</HelperText>
       ) : null}
     </div>
   );

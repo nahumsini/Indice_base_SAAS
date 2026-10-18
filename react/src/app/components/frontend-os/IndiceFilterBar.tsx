@@ -44,7 +44,7 @@ const segmentedActiveClasses: Record<IndiceModuleTone, string> = {
 };
 
 export const indiceFilterControlBaseClassName =
-  'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 shadow-none outline-none transition-colors placeholder:text-slate-400 focus-visible:ring-2 dark:border-slate-600 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500';
+  'h-11 min-h-11 data-[size=default]:h-11 data-[size=sm]:h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base md:text-sm font-medium text-slate-950 shadow-none outline-none transition-colors placeholder:text-slate-400 focus-visible:ring-2 dark:border-slate-600 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500';
 
 export function getIndiceFilterControlClassName(tone: IndiceModuleTone) {
   return cn(indiceFilterControlBaseClassName, focusClasses[tone]);
@@ -67,9 +67,10 @@ export function IndiceFilterBar({
 }) {
   return (
     <section
+      data-slot="indice-filter-bar"
       aria-label={typeof title === 'string' ? title : undefined}
       className={cn(
-        'rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800',
+        'max-md:[&_button]:min-h-11 max-md:[&_button]:max-w-full max-md:[&_button]:whitespace-normal max-md:[&_input]:text-base max-md:[&_select]:text-base max-md:[&_[data-slot=select-trigger]]:text-base min-w-0 rounded-[24px] border border-slate-200 bg-white p-3 sm:p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800',
         className,
       )}
     >
@@ -78,9 +79,9 @@ export function IndiceFilterBar({
           <h3 className="text-base font-medium text-slate-900 dark:text-white">{title}</h3>
           {subtitle ? <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p> : null}
         </div>
-        {summary ? <div className="shrink-0 text-sm font-medium text-slate-500 dark:text-slate-300">{summary}</div> : null}
+        {summary ? <div className="min-w-0 max-w-full text-sm font-medium text-slate-500 dark:text-slate-300">{summary}</div> : null}
       </div>
-      <div className={cn('grid grid-cols-1 gap-4 md:grid-cols-2', gridClassName)}>{children}</div>
+      <div className={cn('grid min-w-0 grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2', gridClassName)}>{children}</div>
     </section>
   );
 }
@@ -138,14 +139,14 @@ export function IndiceFilterSearch({
           value={value}
           onChange={(event) => onValueChange(event.target.value)}
           placeholder={placeholder}
-          className={cn(getIndiceFilterControlClassName(tone), 'pl-10', onClear && value ? 'pr-10' : undefined, inputClassName)}
+          className={cn(getIndiceFilterControlClassName(tone), 'pl-10', onClear && value ? 'pr-12' : undefined, inputClassName)}
         />
         {onClear && value ? (
           <button
             type="button"
             aria-label={clearLabel ?? label}
             onClick={onClear}
-            className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 dark:hover:bg-slate-800 dark:hover:text-slate-200"
           >
             <X aria-hidden="true" className="h-4 w-4" />
           </button>
@@ -187,9 +188,9 @@ export function IndiceFilterSelect({
         >
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="max-w-[calc(100vw-2rem)]">
           {validOptions.map((option) => (
-            <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
+            <SelectItem key={option.value} value={option.value} disabled={option.disabled} className="min-h-11 whitespace-normal break-words md:min-h-0">
               {option.label}
             </SelectItem>
           ))}

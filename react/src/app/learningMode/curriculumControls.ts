@@ -1,3 +1,4 @@
+import { beginnerWorkflowSummary } from './beginnerWorkflowSteps';
 import { chapterFor, learningText, learningGuideModules } from './curriculum';
 import type { LearningModeControl } from './types';
 export function curriculumControls(guideId: string, tab: string | undefined, locale: string) {
@@ -8,7 +9,7 @@ export function curriculumControls(guideId: string, tab: string | undefined, loc
     return chapter.steps.map((step, index): LearningModeControl => ({
         id: `${chapter.id}.${['prepare', 'operate', 'verify'][index]}`, emoji: ['🧭', '🛠️', '✅'][index],
         kind: english ? 'Business workflow' : 'Flujo operativo', title: english ? ['Before starting', 'Perform the operation', 'Verify the result'][index] : ['Antes de empezar', 'Realiza la operación', 'Comprueba el resultado'][index],
-        purpose: learningText(step, locale), behavior: learningText(step, locale), whenToUse: learningText(chapter.label, locale),
+        purpose: beginnerWorkflowSummary(chapter.id, index, locale) ?? learningText(step, locale), behavior: learningText(step, locale), whenToUse: learningText(chapter.label, locale),
         result: learningText(chapter.steps[2], locale),
         tipByCharacter: { emily: english ? 'Review the same workflow in each branch.' : 'Revisa el mismo flujo en cada sucursal.',
             juanito: english ? 'Use a responsible person, date and verifiable record.' : 'Usa un responsable, una fecha y un registro verificable.',

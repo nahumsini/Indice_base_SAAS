@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
+import { useLanguage } from '../../../shared/context';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -184,7 +185,8 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const t = useQuotesTranslations();
-  const { identity: companyPrintIdentity } = useCompanyPrintIdentity();
+  const { currentLanguage } = useLanguage();
+  const { identity: companyPrintIdentity, isReady: companyPrintReady } = useCompanyPrintIdentity();
   const {
     contacts,
     opportunities,
@@ -620,20 +622,24 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     quote?.opportunityId ? opportunities.find((opportunity) => opportunity.id === quote.opportunityId) ?? null : null
   );
   const printSavedQuote = (quote: SalesQuote) => {
+    if (!companyPrintReady) return;
     printQuotePdf({
       quote,
       contact: getQuoteContact(quote),
       opportunity: getQuoteOpportunity(quote),
       company: companyPrintIdentity,
+      locale: currentLanguage.code,
       copy: t,
     });
   };
   const downloadSavedQuote = (quote: SalesQuote) => {
+    if (!companyPrintReady) return;
     downloadQuotePdf({
       quote,
       contact: getQuoteContact(quote),
       opportunity: getQuoteOpportunity(quote),
       company: companyPrintIdentity,
+      locale: currentLanguage.code,
       copy: t,
     });
   };
@@ -1179,6 +1185,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
                           type="button"
                           variant="outline"
                           className="h-9 w-full gap-1.5 rounded-lg border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-2 text-xs font-medium text-[#B63B32] hover:bg-[#FF6B5E]/15 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20"
+                          disabled={!companyPrintReady}
                           onClick={() => downloadSavedQuote(quote)}
                         >
                           <Download className="h-3.5 w-3.5" />
@@ -1294,6 +1301,8 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
         contact={previewContact}
         opportunity={previewOpportunity}
         company={companyPrintIdentity}
+        companyReady={companyPrintReady}
+        locale={currentLanguage.code}
         copy={t}
         onClose={() => setPreviewQuote(null)}
       />

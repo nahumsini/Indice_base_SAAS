@@ -160,7 +160,7 @@ export function ProductCreateModal({
           </>
         )}
       >
-          <div className="mx-auto w-full max-w-[860px] p-4 sm:p-6">
+          <fieldset disabled={isSaving} className="mx-auto w-full min-w-0 max-w-[860px] p-4 sm:p-6">
               <IndiceModalValidation
                 className="mb-4"
                 messages={[stepError || saveError].filter(Boolean)}
@@ -181,7 +181,7 @@ export function ProductCreateModal({
                 onOpenLabelGenerator={() => setIsLabelGeneratorOpen(true)}
                 onQuickCreateCategory={onQuickCreateCategory}
               />
-          </div>
+          </fieldset>
       </SalesModalFrame>
 
       <ProductLabelGeneratorModal

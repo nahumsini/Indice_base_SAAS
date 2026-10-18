@@ -1,3 +1,4 @@
+import { LearningPracticeExample } from '../../learningMode/components/LearningPracticeExample';
 import { inventoryLearningEnglish } from './operationalGuidance/inventoryLearningEnglish';
 import { lazy, Suspense, useMemo, useRef, type ComponentType, type ReactNode } from 'react';
 import { IndiceModuleShell } from '../../components/frontend-os';
@@ -148,6 +149,7 @@ function InventoryWorkspace({ learningModeActive, onNavigate }: { learningModeAc
       currentModule="inventory"
       guide={learningModeActive ? (
         <SimpleModuleLearningGuide
+          introduction={activeTab === 'products' ? <LearningPracticeExample id="products" defaultOpen /> : undefined}
             englishOverview={inventoryLearningEnglish}
           activeContextLabel={activeTabConfig.label}
           activeJourneyId={activeTab}

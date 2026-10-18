@@ -340,6 +340,7 @@ export const zhCA = {
     description: '添加可用于报价、POS 和未来库存连接的可复用商业模块。',
     editDescription: '更新该项目的商业、视觉和运营信息。',
     validationMissingRequired: (fields: string) => `保存前请完成必填字段：${fields}。`,
+    savedPendingImages: "产品已保存，但图片尚未处理完成。请重试以继续处理同一个产品。",
     saveFailed: '无法保存项目。请检查必填信息后重试。',
     fields: {
       name: '产品或服务名称',

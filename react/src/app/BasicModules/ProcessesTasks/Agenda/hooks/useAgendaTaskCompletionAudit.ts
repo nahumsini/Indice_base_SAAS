@@ -7,6 +7,7 @@ import {
   getErrorMessage,
   maximumAuditWeighting,
   normalizeWeighting,
+  parseAuditWeighting,
 } from '../utils/agendaTaskStatus';
 
 type UseAgendaTaskCompletionAuditOptions = {
@@ -112,8 +113,8 @@ export function useAgendaTaskCompletionAudit({
       return;
     }
 
-    const parsedWeighting = Number(auditWeighting);
-    if (!Number.isInteger(parsedWeighting) || parsedWeighting < 0 || parsedWeighting > maximumAuditWeighting) {
+    const parsedWeighting = parseAuditWeighting(auditWeighting);
+    if (parsedWeighting === null) {
       setAgendaError(agendaCopy.messages.weightingRange(maximumAuditWeighting));
       return;
     }

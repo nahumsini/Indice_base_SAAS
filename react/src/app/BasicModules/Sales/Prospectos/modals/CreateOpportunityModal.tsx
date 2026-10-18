@@ -8,6 +8,8 @@ import {
   UsersRound,
   type LucideIcon,
 } from 'lucide-react';
+import { useLanguage } from '../../../../shared/context';
+import { getFormFeedbackCopy } from '../../../../components/indice-modal/formFeedbackCopy';
 import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
 import {
@@ -119,12 +121,20 @@ export function CreateOpportunityModal({
 }) {
   const ownerValue = form.ownerValue || defaultOwnerValue;
   const selectedContact = contacts.find((contact) => contact.id === form.contactId) ?? null;
+  const { currentLanguage } = useLanguage();
+  const feedbackCopy = getFormFeedbackCopy(currentLanguage.code);
   const canSave = Boolean(
     form.opportunityName.trim()
     && form.contactId
     && ownerValue.startsWith('user-company:'),
   );
 
+  const missingFields = [
+    !form.contactId && copy.fields.contact,
+    !form.opportunityName.trim() && copy.fields.opportunityName,
+    !ownerValue.startsWith('user-company:') && copy.fields.owner,
+  ].filter((field): field is string => Boolean(field));
+  const saveHint = missingFields.length ? feedbackCopy.missingFields(missingFields) : '';
   return (
     <SalesModalFrame
       open={isOpen}
@@ -136,9 +146,9 @@ export function CreateOpportunityModal({
       modalType="wizard"
       contentClassName="max-h-[min(92dvh,800px)]"
       bodyClassName="space-y-4 bg-slate-50/70"
-      footerSummary={selectedContact
+      footerSummary={<div className="space-y-1"><p>{selectedContact
         ? `${selectedContact.company} · ${form.opportunityName.trim() || copy.placeholders.opportunityName}`
-        : copy.summary.noContact}
+        : copy.summary.noContact}</p>{saveHint ? <p id="opportunity-form-help" className="text-xs leading-5">{saveHint}</p> : null}</div>}
       footer={(
         <>
           <Button
@@ -150,6 +160,7 @@ export function CreateOpportunityModal({
           </Button>
           <Button
             className={opportunityActionClassNames.primary}
+            aria-describedby={saveHint ? "opportunity-form-help" : undefined}
             disabled={!canSave}
             onClick={onSave}
           >

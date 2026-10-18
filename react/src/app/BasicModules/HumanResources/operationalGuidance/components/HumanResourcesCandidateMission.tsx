@@ -71,7 +71,7 @@ export function HumanResourcesCandidateMission({
     : 0;
 
   return (
-    <aside className="rounded-xl border border-emerald-200 bg-emerald-50/45 p-3 dark:border-emerald-900 dark:bg-emerald-950/20">
+    <aside className="min-w-0 [&_button]:min-h-11 sm:[&_button]:min-h-9 rounded-xl border border-emerald-200 bg-emerald-50/45 p-3 dark:border-emerald-900 dark:bg-emerald-950/20">
       <div className="grid gap-2.5">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200">
@@ -89,7 +89,7 @@ export function HumanResourcesCandidateMission({
           <label className="min-w-0 text-xs text-slate-600 dark:text-slate-300">
             <span className="sr-only">Colaborador para completar</span>
             <select
-              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+              className="h-11 w-full min-w-0 rounded-lg sm:h-9 border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
               onChange={(event) => onSelectEmployee(event.target.value ? Number(event.target.value) : null)}
               value={selectedCandidate?.id ?? ''}
             >
@@ -108,7 +108,7 @@ export function HumanResourcesCandidateMission({
 
       {selectedCandidate ? (
         <details className="group mt-2 rounded-lg border border-emerald-200 bg-white/80 dark:border-emerald-900 dark:bg-slate-950/65">
-          <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-xs text-slate-700 outline-none marker:content-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:text-slate-200 dark:ring-offset-slate-950">
+          <summary className="flex min-h-11 cursor-pointer list-none sm:min-h-0 items-center gap-2 rounded-lg px-3 py-2 text-xs text-slate-700 outline-none marker:content-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:text-slate-200 dark:ring-offset-slate-950">
             <span className="min-w-0 flex-1 truncate font-medium">{selectedCandidate.name}</span>
             <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200">
               {satisfiedCount} de {employeeLearningRequirementIds.length} listos

@@ -1,5 +1,7 @@
-import { useRef, type CSSProperties, type ReactNode, type Ref } from 'react';
-import { ChevronDown, MoreHorizontal } from 'lucide-react';
+import { useMobileModuleNavigation } from './useMobileModuleNavigation';
+import { useLanguage } from '../../shared/context';
+import { useRef, useState, type CSSProperties, type ReactNode, type Ref } from 'react';
+import { ChevronDown, MoreHorizontal, Star, Home } from 'lucide-react';
 import { FavoritesBar } from '../FavoritesBar';
 import { ModuleTabEmoji } from '../icons/ModuleTabEmoji';
 import { ModuleTabArtworkProvider } from '../icons/ModuleTabArtworkContext';
@@ -13,10 +15,12 @@ import {
 import { getModulePrimaryForeground, MODULE_COLORS, type IndiceModuleTone } from '../../styles/moduleColors';
 import { getCachedAuthSession } from '../../api/authSessionStore';
 import { canAccessModuleTab } from '../../access/tabScopeCatalog';
-import { resolvePageId, type PageId } from '../../config/navigation';
+import { resolvePageId } from '../../config/navigation';
 import { useAuthorizationRevision } from '../../hooks/useAuthorizationRevision';
 import { IndiceHorizontalScrollControls } from '../ui/horizontal-scroll-controls';
 import { useWorkbarLayout } from '../workbar/WorkbarLayoutContext';
+import { resolveModuleNavigation, type IndiceModuleTab, type IndiceModuleTabMenu } from './moduleNavigation';
+export type { IndiceModuleTab, IndiceModuleTabMenu } from './moduleNavigation';
 
 const MODULE_EMOJI_BY_ROUTE: Record<string, string> = {
   email: '✉️',
@@ -37,16 +41,6 @@ const MODULE_EMOJI_BY_ROUTE: Record<string, string> = {
   production: '🏗️',
 };
 
-export type IndiceModuleTab<TabId extends string> = {
-  id: TabId;
-  label: string;
-  icon: ReactNode;
-  access?: {
-    page: PageId;
-    tabId?: string;
-  };
-};
-
 interface IndiceModuleShellProps<TabId extends string> {
   activeTab: TabId;
   backLabel?: string;
@@ -57,6 +51,8 @@ interface IndiceModuleShellProps<TabId extends string> {
   loadingOverlay?: ReactNode;
   moreLabel?: string;
   moreTabs?: ReadonlyArray<IndiceModuleTab<TabId>>;
+  tabMenus?: ReadonlyArray<IndiceModuleTabMenu<TabId>>;
+  wrapTabs?: boolean;
   onNavigate?: (page?: string) => void;
   onTabChange: (tabId: TabId) => void;
   subtitle: string;
@@ -79,6 +75,8 @@ export function IndiceModuleShell<TabId extends string>({
   loadingOverlay,
   moreLabel = 'More',
   moreTabs = [],
+  tabMenus = [],
+  wrapTabs = false,
   onNavigate,
   onTabChange,
   subtitle,
@@ -87,6 +85,8 @@ export function IndiceModuleShell<TabId extends string>({
   tone,
 }: IndiceModuleShellProps<TabId>) {
   useAuthorizationRevision();
+  const { t } = useLanguage();
+  const [mobileFavoritesOpen, setMobileFavoritesOpen] = useState(false);
   const { isDualScreenActive, position: workbarPosition } = useWorkbarLayout();
   const isSideLayout = workbarPosition === 'left' && !isDualScreenActive;
   const theme = MODULE_COLORS[tone];
@@ -99,13 +99,18 @@ export function IndiceModuleShell<TabId extends string>({
     if (!accessPage) return true;
     return canAccessModuleTab(accessPage, tab.access?.tabId ?? tab.id, cachedSession);
   };
-  const visibleTabs = tabs.filter(canAccessTab);
-  const visibleMoreTabs = moreTabs.filter(canAccessTab);
-  const activeTabData = [...visibleTabs, ...visibleMoreTabs].find((tab) => tab.id === activeTab);
-  const isMoreActive = visibleMoreTabs.some((tab) => tab.id === activeTab);
+  const navigationEntries = resolveModuleNavigation(tabs, [
+    ...tabMenus,
+    { id: '__more', label: moreLabel, icon: <MoreHorizontal className="h-4 w-4" />, tabs: moreTabs },
+  ], canAccessTab);
+  const activeTabData = navigationEntries
+    .flatMap(entry => entry.kind === 'tab' ? [entry.tab] : entry.menu.tabs)
+    .find(tab => tab.id === activeTab);
   const moduleId = resolvedPage ?? currentModule;
   const moduleEmoji = MODULE_EMOJI_BY_ROUTE[moduleId] ?? '◈';
   const tabsScrollRef = useRef<HTMLElement>(null);
+  const bodyScrollRef = useRef<HTMLElement>(null);
+  useMobileModuleNavigation(`${currentModule}/${activeTab}`, navigationEntries.map(entry => entry.kind === 'tab' ? entry.tab.id : entry.menu.id).join('|'), tabsScrollRef, bodyScrollRef);
 
   return (
     <div
@@ -125,11 +130,11 @@ export function IndiceModuleShell<TabId extends string>({
                 ) : moduleEmoji}
               </span>
               <div className="min-w-0">
-                <div className={`flex min-w-0 items-center gap-1.5 text-lg font-medium leading-tight text-slate-950 dark:text-white sm:text-xl ${isSideLayout ? 'lg:flex-col lg:items-start lg:gap-1' : ''}`}>
-                  <span className="shrink-0">{title}</span>
-                  {activeTabData ? <span className={`text-slate-300 dark:text-slate-600 ${isSideLayout ? 'lg:hidden' : ''}`}>/</span> : null}
+                <div className={`flex min-w-0 flex-col items-start gap-y-0.5 md:flex-row md:items-center gap-1.5 text-lg font-medium leading-tight text-slate-950 dark:text-white sm:text-xl ${isSideLayout ? 'lg:flex-col lg:items-start lg:gap-1' : ''}`}>
+                  <span className="max-w-full truncate text-base md:text-xl">{title}</span>
+                  {activeTabData ? <span className={`hidden md:inline text-slate-300 dark:text-slate-600 ${isSideLayout ? 'lg:hidden' : ''}`}>/</span> : null}
                   {activeTabData ? (
-                    <span className={`flex min-w-0 items-center gap-1 ${theme.text} ${theme.darkText}`}>
+                    <span className={`flex min-w-0 items-center gap-1 text-xs md:text-xl ${theme.text} ${theme.darkText}`}>
                       <span className="shrink-0 text-base" aria-hidden="true"><ModuleTabEmoji moduleId={moduleId} tabId={activeTabData.id} fallback={activeTabData.icon} className="size-4" /></span>
                       <span className="truncate">{activeTabData.label}</span>
                     </span>
@@ -138,6 +143,11 @@ export function IndiceModuleShell<TabId extends string>({
                 <p className="hidden truncate text-xs text-slate-500 dark:text-slate-400 sm:block">{subtitle}</p>
               </div>
             </div>
+
+            {onNavigate ? <div className="ml-auto flex shrink-0 items-center gap-1 md:hidden">
+              <button type="button" aria-label="Dashboard" onClick={() => onNavigate('dashboard')} className="inline-flex size-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"><Home className="size-5" /></button>
+              <button type="button" aria-label={t.sections.favorites} aria-expanded={mobileFavoritesOpen} onClick={() => setMobileFavoritesOpen(open => !open)} className="inline-flex size-11 items-center justify-center rounded-full border border-slate-200 bg-white text-amber-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] dark:border-slate-700 dark:bg-slate-800"><Star className={`size-5 ${mobileFavoritesOpen ? 'fill-amber-400' : ''}`} /></button>
+            </div> : null}
 
             {onNavigate ? (
               <div className={`hidden min-w-0 flex-1 border-l border-slate-200 pl-3 dark:border-slate-700 md:block ${isSideLayout ? 'lg:w-full lg:border-l-0 lg:pl-0' : ''}`}>
@@ -154,7 +164,7 @@ export function IndiceModuleShell<TabId extends string>({
           </div>
 
           {onNavigate ? (
-            <div className="mt-1.5 md:hidden">
+            <div className={`${mobileFavoritesOpen ? 'block' : 'hidden'} mt-1.5 md:hidden`}>
               <FavoritesBar compact currentModule={currentModule} onNavigate={(page) => {
                 if (page !== currentModule) onNavigate(page);
               }} />
@@ -162,87 +172,95 @@ export function IndiceModuleShell<TabId extends string>({
           ) : null}
 
           <div className={`relative ${isSideLayout ? 'lg:mt-4 lg:border-t lg:border-slate-200 lg:pt-3 dark:lg:border-slate-700' : ''}`}>
-            <nav ref={tabsScrollRef} aria-label={title} className={`mt-1.5 overflow-x-auto [scrollbar-width:none] ${isSideLayout ? 'lg:overflow-visible' : ''}`}>
-              <div className={`flex min-w-max items-center gap-1.5 pb-0.5 ${isSideLayout ? 'lg:min-w-0 lg:flex-col lg:items-stretch lg:gap-1' : ''}`}>
-                {visibleTabs.map(tab => {
-                  const isActive = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      aria-current={isActive ? 'page' : undefined}
-                      onClick={() => onTabChange(tab.id)}
-                      className={`indice-workbar-tab flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 sm:text-sm ${isSideLayout ? 'lg:min-h-11 lg:w-full lg:justify-start lg:rounded-xl lg:border-l-[3px] lg:px-3 lg:py-2' : ''} ${
-                        isActive
-                          ? 'border-transparent shadow-md'
-                          : `border-transparent bg-slate-100 text-slate-600 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white ${theme.iconHover}`
-                      }`}
-                      style={isActive ? {
-                        backgroundColor: theme.primary,
-                        color: activeTextColor,
-                        boxShadow: `0 8px 18px -12px ${theme.primary}`,
-                      } : undefined}
-                    >
-                      <span aria-hidden="true" className="text-base leading-none"><ModuleTabEmoji moduleId={moduleId} tabId={tab.id} fallback={tab.icon} /></span>
-                      <span>{tab.label}</span>
-                    </button>
-                  );
-                })}
-                {visibleMoreTabs.length ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+            <nav ref={tabsScrollRef} aria-label={title} className={`mt-1.5 snap-x snap-proximity overflow-x-auto overscroll-x-contain [scrollbar-width:none] ${wrapTabs ? 'md:overflow-visible' : ''} ${isSideLayout ? 'lg:overflow-visible' : ''}`}>
+              <div className={`flex min-w-max ${wrapTabs ? 'md:min-w-0 md:flex-wrap' : ''} items-center gap-1.5 pb-0.5 ${isSideLayout ? 'lg:min-w-0 lg:flex-nowrap lg:flex-col lg:items-stretch lg:gap-1' : ''}`}>
+                {navigationEntries.map(entry => {
+                  if (entry.kind === 'tab') {
+                    const { tab } = entry;
+                    const isActive = activeTab === tab.id;
+                    return (
                       <button
+                        key={tab.id}
                         type="button"
-                        aria-current={isMoreActive ? 'page' : undefined}
-                        className={`indice-workbar-tab flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 sm:text-sm ${isSideLayout ? 'lg:min-h-11 lg:w-full lg:justify-start lg:rounded-xl lg:border-l-[3px] lg:px-3 lg:py-2' : ''} ${
-                          isMoreActive
+                        aria-current={isActive ? 'page' : undefined}
+                        onClick={() => onTabChange(tab.id)}
+                        className={`indice-workbar-tab flex min-h-11 shrink-0 snap-start items-center md:min-h-9 gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 sm:text-sm ${isSideLayout ? 'lg:min-h-11 lg:w-full lg:justify-start lg:rounded-xl lg:border-l-[3px] lg:px-3 lg:py-2' : ''} ${
+                          isActive
                             ? 'border-transparent shadow-md'
                             : `border-transparent bg-slate-100 text-slate-600 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white ${theme.iconHover}`
                         }`}
-                        style={isMoreActive ? {
+                        style={isActive ? {
                           backgroundColor: theme.primary,
                           color: activeTextColor,
                           boxShadow: `0 8px 18px -12px ${theme.primary}`,
                         } : undefined}
                       >
-                        <MoreHorizontal aria-hidden="true" className="h-4 w-4" />
-                        <span>{moreLabel}</span>
-                        <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
+                        <span aria-hidden="true" className="text-base leading-none"><ModuleTabEmoji moduleId={moduleId} tabId={tab.id} fallback={tab.icon} /></span>
+                        <span>{tab.label}</span>
                       </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-64 rounded-xl p-1.5">
-                      {visibleMoreTabs.map((tab) => {
-                        const isActive = activeTab === tab.id;
-                        return (
-                          <DropdownMenuItem
-                            key={tab.id}
-                            aria-current={isActive ? 'page' : undefined}
-                            className="min-h-10 gap-2.5 rounded-lg px-3"
-                            onSelect={() => onTabChange(tab.id)}
-                          >
-                            <span
-                              aria-hidden="true"
-                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-base"
-                              style={isActive ? { backgroundColor: theme.primary, color: activeTextColor } : undefined}
+                    );
+                  }
+                  const { menu } = entry;
+                  const isMenuActive = menu.tabs.some(tab => tab.id === activeTab);
+                  return (
+                    <DropdownMenu key={`menu:${menu.id}`}>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={isMenuActive ? 'page' : undefined}
+                          className={`indice-workbar-tab flex min-h-11 shrink-0 snap-start items-center md:min-h-9 gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 sm:text-sm ${isSideLayout ? 'lg:min-h-11 lg:w-full lg:justify-start lg:rounded-xl lg:border-l-[3px] lg:px-3 lg:py-2' : ''} ${
+                            isMenuActive
+                              ? 'border-transparent shadow-md'
+                              : `border-transparent bg-slate-100 text-slate-600 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white ${theme.iconHover}`
+                          }`}
+                          style={isMenuActive ? {
+                            backgroundColor: theme.primary,
+                            color: activeTextColor,
+                            boxShadow: `0 8px 18px -12px ${theme.primary}`,
+                          } : undefined}
+                        >
+                          <span aria-hidden="true" className="flex items-center">{menu.icon}</span>
+                          <span>{menu.label}</span>
+                          <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className={`${menu.tabs.some(tab => tab.description) ? 'w-72' : 'w-64'} max-w-[calc(100vw-2rem)] rounded-xl p-1.5`}>
+                        {menu.tabs.map((tab) => {
+                          const isActive = activeTab === tab.id;
+                          return (
+                            <DropdownMenuItem
+                              key={tab.id}
+                              aria-current={isActive ? 'page' : undefined}
+                              className="min-h-10 gap-2.5 rounded-lg px-3"
+                              onSelect={() => onTabChange(tab.id)}
                             >
-                              <ModuleTabEmoji moduleId={moduleId} tabId={tab.id} fallback={tab.icon} />
-                            </span>
-                            <span className={isActive ? `${theme.text} ${theme.darkText}` : undefined}>{tab.label}</span>
-                          </DropdownMenuItem>
-                        );
-                      })}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : null}
+                              <span
+                                aria-hidden="true"
+                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-base"
+                                style={isActive ? { backgroundColor: theme.primary, color: activeTextColor } : undefined}
+                              >
+                                <ModuleTabEmoji moduleId={moduleId} tabId={tab.id} fallback={tab.icon} />
+                              </span>
+                              <span className="min-w-0">
+                                <span className={isActive ? `${theme.text} ${theme.darkText}` : undefined}>{tab.label}</span>
+                                {tab.description ? <span className="mt-0.5 block text-xs font-normal leading-relaxed text-slate-500 dark:text-slate-400">{tab.description}</span> : null}
+                              </span>
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  );
+                })}
               </div>
             </nav>
-            <IndiceHorizontalScrollControls scrollRef={tabsScrollRef} className={isSideLayout ? 'lg:hidden' : undefined} />
+            {!wrapTabs ? <IndiceHorizontalScrollControls scrollRef={tabsScrollRef} className={isSideLayout ? 'lg:hidden' : undefined} /> : null}
           </div>
 
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <main ref={bodyScrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
           {guide ? <div className="mb-4">{guide}</div> : null}
           <div ref={contentRef} className="scroll-mt-24">

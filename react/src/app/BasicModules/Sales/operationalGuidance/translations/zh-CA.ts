@@ -13,10 +13,10 @@ export const zhCA = {
   expandLabel: '展开指南',
   tabs: {
     leads: {
-      label: '线索',
+      label: '商机',
       ctaLabel: '查看机会',
       title: '建立有纪律的机会管道',
-      summary: '用线索记录需求、确认意向、分配负责人，并设定下一步销售动作。',
+      summary: '用商机记录需求、确认意向、分配负责人，并设定下一步销售动作。',
       value: '清晰的管道让跟进可见，避免收入依赖个人记忆。',
       steps: [
         { title: '报价前先确认', description: '进入报价前确认需求、预算、时间和决策背景。' },
@@ -25,15 +25,15 @@ export const zhCA = {
       ],
     },
     contacts: {
-      label: '联系人',
-      ctaLabel: '查看联系人',
+      label: '客户',
+      ctaLabel: '查看客户',
       title: '把关系变成销售控制',
-      summary: '联系人是客户、潜在客户、负责人和跟进背景的基础。',
-      value: '可靠联系人数据让报价、销售交接、执行和客户跟进更顺畅。',
+      summary: '客户是客户、潜在客户、负责人和跟进背景的基础。',
+      value: '可靠客户数据让报价、销售交接、执行和客户跟进更顺畅。',
       steps: [
         { title: '完善关系资料', description: '保持公司、角色、电话、邮箱、税务背景和负责人清楚可见。' },
-        { title: '区分联系人和机会', description: '先创建联系人，再把机会和报价连接到正确关系。' },
-        { title: '避免无人负责', description: '未分配联系人会造成跟进遗漏和责任不清。' },
+        { title: '区分客户和机会', description: '先创建客户，再把机会和报价连接到正确关系。' },
+        { title: '避免无人负责', description: '未分配客户会造成跟进遗漏和责任不清。' },
       ],
     },
     quotes: {
@@ -80,7 +80,7 @@ export const zhCA = {
       value: '单一供应商记录可以减少重复税务数据并保持采购上下文一致。',
       steps: [
         { title: '避免重复供应商', description: '每个商业关系只创建一个供应商，并在所有模块中复用。' },
-        { title: '完善上下文', description: '税务、联系人、账户、单位、业务和状态应保存在共享供应商记录中。' },
+        { title: '完善上下文', description: '税务、客户、账户、单位、业务和状态应保存在共享供应商记录中。' },
         { title: '在费用和库存中复用', description: '费用和库存读取同一个供应商目录。' },
       ],
     },

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { User } from 'lucide-react';
 import { useLanguage } from '../../../../../shared/context';
 import { useEmployeesTranslations } from '../../hooks/useEmployeesTranslations';
@@ -8,6 +8,9 @@ import { useEmployeeCustomJobOptions } from './hooks/useEmployeeCustomJobOptions
 import { useEmployeeModalDocuments } from './hooks/useEmployeeModalDocuments';
 import { useEmployeeModalFormState } from './hooks/useEmployeeModalFormState';
 import { useEmployeeModalOptions } from './hooks/useEmployeeModalOptions';
+import { focusFirstInvalidControl } from '../../../../../components/indice-modal/modalFormFeedback';
+import { getFormFeedbackCopy } from '../../../../../components/indice-modal/formFeedbackCopy';
+import { normalizeErrorMessage } from '../../utils/employees.utils';
 import { modalStepIcons } from './model';
 import type { EmployeeModalProps } from './model';
 import { getEmployeeModalStepFields, validateEmployeeFormData } from './validation';
@@ -29,7 +32,12 @@ export function CreateEmployeeModal({
   attendanceLocations = [],
 }: EmployeeModalProps) {
   const { currentLanguage } = useLanguage();
-  const copy = useEmployeesTranslations().modal;
+  const employeeCopy = useEmployeesTranslations();
+  const copy = employeeCopy.modal;
+  const feedbackCopy = getFormFeedbackCopy(currentLanguage.code);
+  const savingRef = useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const [currentStep, setCurrentStep] = useState(1);
   const {
@@ -78,6 +86,7 @@ export function CreateEmployeeModal({
     }
 
     setCurrentStep(1);
+    setSubmitError('');
     resetDocumentErrors();
   }, [initialData, isOpen, mode, resetDocumentErrors]);
 
@@ -141,6 +150,7 @@ export function CreateEmployeeModal({
   const currentStepFields = stepFields[currentStep] ?? [];
 
   const markCurrentStepTouched = () => {
+    window.requestAnimationFrame(() => focusFirstInvalidControl(formRef.current));
     setTouchedFields((current) => {
       const next = { ...current };
       currentStepFields.forEach((field) => {
@@ -151,12 +161,16 @@ export function CreateEmployeeModal({
   };
 
   const handleClose = ({ clearDraft = true }: { clearDraft?: boolean } = {}) => {
+    if (savingRef.current) return;
     setCurrentStep(1);
+    setSubmitError('');
     resetDocumentErrors();
     closeForm({ clearDraft });
   };
 
   const handleContinue = async () => {
+    if (savingRef.current) return;
+    setSubmitError('');
     const nextFormData = syncFormDataFromDom();
     const nextValidationErrors = validateEmployeeFormData({
       copy,
@@ -183,8 +197,18 @@ export function CreateEmployeeModal({
       return;
     }
 
-    await Promise.resolve(onSave(nextFormData));
-    handleClose();
+    savingRef.current = true;
+    setIsSaving(true);
+    try {
+      await Promise.resolve(onSave(nextFormData));
+      savingRef.current = false;
+      handleClose();
+    } catch (error) {
+      setSubmitError(normalizeErrorMessage(error, employeeCopy.errorMessages.save));
+    } finally {
+      savingRef.current = false;
+      setIsSaving(false);
+    }
   };
 
   if (!isOpen) {
@@ -202,12 +226,14 @@ export function CreateEmployeeModal({
 
   return (
     <EmployeeModalFrame
+      busy={isSaving}
+      submitError={submitError}
       copy={copy}
       currentStep={currentStep}
       currentStepValid={currentStepValid}
       formRef={formRef}
       mode={mode}
-      primaryButtonLabel={primaryButtonLabel}
+      primaryButtonLabel={isSaving ? feedbackCopy.saving : primaryButtonLabel}
       statusFeedback={statusFeedback}
       steps={modalSteps}
       onBack={() => setCurrentStep((step) => Math.max(1, step - 1))}

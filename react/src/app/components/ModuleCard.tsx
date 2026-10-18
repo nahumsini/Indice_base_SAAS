@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useLanguage } from '../shared/context';
 import { LucideIcon } from 'lucide-react';
 import { Card } from './ui/card';
 import { Star } from 'lucide-react';
@@ -101,6 +102,7 @@ export function ModuleCard({
   isHighlighted,
   onboardingTarget,
 }: ModuleCardProps) {
+  const { t } = useLanguage();
   const sizeClasses = {
     small: 'p-2',
     medium: 'p-3',
@@ -151,14 +153,13 @@ export function ModuleCard({
 
   return (
     <Card 
-      onClick={onClick}
       data-onboarding-target={onboardingTarget}
       tabIndex={onboardingTarget ? -1 : undefined}
       aria-label={title}
       className={`
       ${sizeClasses[size]} 
       ${cardSizeClasses[size]}
-      hover:shadow-md hover:-translate-y-1
+      hover:shadow-md md:hover:-translate-y-1
       transition-all duration-300 
       cursor-pointer 
       relative 
@@ -171,6 +172,12 @@ export function ModuleCard({
       overflow-hidden
       focus:outline-none focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/40
     `}>
+      {onClick && <button
+        type="button"
+        onClick={onClick}
+        aria-label={title}
+        className="absolute inset-0 z-10 rounded-[inherit] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-400 active:bg-slate-900/5 dark:active:bg-white/5"
+      />}
       {/* Step Number Badge - Solo visible cuando stepNumber está presente */}
       {stepNumber !== undefined && (
         <div className={`
@@ -190,14 +197,17 @@ export function ModuleCard({
 
       {onToggleFavorite && (
         <button
+          type="button"
+          aria-label={`${t.sections.favorites}: ${title}`}
+          aria-pressed={isFavorite}
           onClick={(e) => {
             e.stopPropagation();
             onToggleFavorite();
           }}
-          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity z-10"
+          className="absolute top-0 right-0 z-20 flex size-11 items-center justify-center rounded-full opacity-100 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 md:top-1.5 md:right-1.5 md:size-5 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
         >
           <Star
-            className={`h-2.5 w-2.5 ${isFavorite ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400 hover:text-yellow-400'}`}
+            className={`size-4 md:size-2.5 ${isFavorite ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400 hover:text-yellow-400'}`}
           />
         </button>
       )}

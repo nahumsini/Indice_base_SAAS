@@ -6,6 +6,7 @@ import {
   type LazyExoticComponent,
 } from 'react';
 import { Navigate, useParams } from 'react-router';
+import { Wrench } from 'lucide-react';
 import { IndiceModuleShell } from '../../components/frontend-os';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import {
@@ -123,13 +124,19 @@ export default function Ventas({ learningModeActive = false, onNavigate }: Venta
 function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) {
   const copy = useSalesTranslations();
   const guidanceCopy = useSalesGuidanceTranslations();
+  const params = useParams();
   const moduleContentRef = useRef<HTMLDivElement | null>(null);
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<SalesWorkspaceTabId>(
-    'contacts',
+    'leads',
     salesWorkspaceTabIds,
     legacySalesTabAliases,
   );
-  const ActiveComponent = salesTabComponents[activeTab] || Contactos;
+  // Let navigation memory resolve /sales without fetching a default workspace.
+  // App validates the resulting explicit destination before it mounts here.
+  if (!params['*']?.split('/').filter(Boolean)[0]) {
+    return <SalesLoadingState isVisible title={copy.loading.openingTitle} description={copy.loading.openingDescription} />;
+  }
+  const ActiveComponent = salesTabComponents[activeTab] || Prospectos;
   const workspace = (
     <Suspense fallback={<SalesLoadingState isVisible title={copy.loading.fallbackTitle} description={copy.loading.fallbackDescription} />}>
       <ActiveComponent learningModeActive={learningModeActive} />
@@ -153,10 +160,23 @@ function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) 
           />
         ) : undefined}
         loadingOverlay={<SalesLoadingState isVisible={isTabLoading} title={copy.loading.openingTitle} description={copy.loading.openingDescription} />}
-        moreLabel={copy.more}
+        wrapTabs
+        tabMenus={[{
+          id: 'tools',
+          label: copy.navigation.tools,
+          icon: <Wrench className="h-4 w-4" />,
+          beforeTabId: 'kpis',
+          tabs: [
+            { id: 'funneling', label: copy.tabs.funneling, icon: '🔻', description: copy.navigation.funnelingDescription },
+            { id: 'mailing', label: copy.tabs.mailing, icon: '✉️', description: copy.navigation.mailingDescription },
+            { id: 'whatsapping', label: copy.tabs.whatsapping, icon: '💬', description: copy.navigation.whatsappingDescription },
+          ],
+        }]}
+        moreLabel={copy.navigation.management}
         moreTabs={[
           { id: 'commissions', label: copy.tabs.commissions, icon: '🧮' },
           { id: 'payment-accounts', label: copy.tabs.paymentAccounts, icon: '💳' },
+          { id: 'contracts', label: copy.tabs.contrato, icon: '📝' },
         ]}
         onNavigate={onNavigate}
         onTabChange={setActiveTab}

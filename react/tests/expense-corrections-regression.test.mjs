@@ -6,6 +6,7 @@ import { resolve } from 'node:path';
 import { hookRuntime, loadTypescript } from './helpers/hook-runtime.mjs';
 const root = resolve('src/app/BasicModules/Expenses');
 const load = (path, resolver = () => ({})) => loadTypescript(resolve(root, path), resolver);
+const feedbackCopy = loadTypescript(resolve('src/app/components/indice-modal/formFeedbackCopy.ts'), () => ({}));
 const stub = new Proxy({}, { get: (_, key) => key });
 const translations = load('translations/es-MX.ts', () => ({ mergeFinanceTranslations: (_locale, copy) => copy })).esMX;
 const tax = load('Budgets/budgetTaxCatalog.ts');
@@ -16,7 +17,8 @@ function formSetup(editingExpense = null, onSubmitExpense = async () => {}) {
   const runtime = hookRuntime();
   const {ExpenseFormModal} = load('components/modals/ExpenseFormModal.tsx', id => {
     if(id==='react')return runtime.hooks;if(id==='react/jsx-runtime')return jsx;
-    if(id.endsWith('useExpensesTranslations'))return {useExpensesTranslations:()=>translations};
+    if(id.endsWith('useExpensesTranslations'))return {useExpensesTranslations:()=>translations,useExpensesResolvedLocale:()=> 'es-MX'};
+    if(id.endsWith('formFeedbackCopy'))return feedbackCopy;
     if(id.endsWith('budgetTaxCatalog'))return tax;if(id.endsWith('financeCurrencyOptions'))return currency;
     if(id.endsWith('expenses.utils'))return {formatCurrency:(amount,currency)=>`${amount} ${currency}`};
     if(id.endsWith('finance-api.errors'))return {toFinanceApiErrorMessage:error=>error.message};
@@ -70,4 +72,19 @@ test('paid capture preserves explicit tax and native dates; corrections send ver
   const row=paid.body.expenses[0];assert.equal(row.settleOnCreate,true);assert.equal(row.paymentAccountId,null);
   assert.equal(row.expenseDate,'2026-08-15');assert.equal(row.customFields.paymentDate,'2026-08-15');assert.equal(row.taxAmount,16);assert.equal(row.customFields.bulkTaxIncluded,undefined);
   await expensesService.updateExpense(paidExpense);assert.match(calls[1].url,/\/55\/corrections$/);assert.equal(calls[1].body.expectedVersion,2);
+});
+
+ test('capture explains disabled save requirements and removes the hint when the existing guard is satisfied', () => {
+  const view = formSetup();
+  const help = () => nodes(view.render().props.footerSummary).filter(node => node.type === 'p').map(node => node.props.children).join(' ');
+  assert.ok(help().includes(translations.expenses.modal.concept));
+  assert.ok(help().includes(translations.expenses.modal.amount));
+  view.field('TextInput').props.onChange('Fixture only');
+  view.field('MoneyInput').props.onChange('0');
+  assert.ok(help().includes(translations.expenses.modal.amount));
+  const save = () => nodes(view.render()).find(node => node.type === 'button' && node.props.type === 'submit');
+  assert.equal(save().props.disabled, true);
+  view.field('MoneyInput').props.onChange('5.25');
+  assert.equal(save().props.disabled, false);
+  assert.equal(save().props['aria-describedby'], undefined);
 });

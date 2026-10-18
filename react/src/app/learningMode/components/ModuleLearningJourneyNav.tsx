@@ -1,3 +1,5 @@
+import { ModuleTabEmoji } from '../../components/icons/ModuleTabEmoji';
+import { LearningEmoji } from './LearningEmoji';
 import { useLanguage } from '../../shared/context';
 import { Fragment, useEffect, useRef } from 'react';
 import { IndiceHorizontalScrollControls } from '../../components/ui/horizontal-scroll-controls';
@@ -5,6 +7,7 @@ import { cn } from '../../components/ui/utils';
 import type { LearningModeGuideTheme, LearningModeJourneyStep } from '../types';
 
 interface ModuleLearningJourneyNavProps {
+  moduleId?: string;
   activeJourneyId: string;
   appliedJourneyIds: Set<string>;
   compact?: boolean;
@@ -15,6 +18,7 @@ interface ModuleLearningJourneyNavProps {
 }
 
 export function ModuleLearningJourneyNav({
+  moduleId,
   activeJourneyId,
   appliedJourneyIds,
   compact = false,
@@ -43,7 +47,7 @@ export function ModuleLearningJourneyNav({
   return (
     <div className="relative min-w-0">
       <div
-        className="overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="snap-x snap-proximity overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         ref={scrollRef}
       >
         <nav
@@ -62,9 +66,9 @@ export function ModuleLearningJourneyNav({
                   aria-current={isActive ? 'step' : undefined}
                   aria-label={`${labels.step} ${index + 1}, ${step.label}: ${stateLabel}`}
                   className={cn(
-                    'flex shrink-0 items-center border text-left transition-colors motion-reduce:transition-none disabled:cursor-default',
+                    'flex shrink-0 snap-start items-center border text-left transition-colors motion-reduce:transition-none disabled:cursor-default',
                     compact
-                      ? 'h-8 max-w-[154px] gap-1.5 rounded-full px-2'
+                      ? 'min-h-11 max-w-[180px] gap-1.5 rounded-full px-3 sm:h-8 sm:min-h-8 sm:max-w-[154px] sm:px-2'
                       : 'h-11 w-[138px] gap-2 rounded-lg px-2 sm:w-[148px]',
                     isActive
                       ? cn('bg-white text-slate-950 shadow-sm dark:bg-slate-900 dark:text-white', theme.outerClass)
@@ -76,10 +80,10 @@ export function ModuleLearningJourneyNav({
                   type="button"
                 >
                   <span aria-hidden="true" className={cn('shrink-0 leading-none', compact ? 'text-sm' : 'text-lg')}>
-                    {step.emoji}
+                    <ModuleTabEmoji moduleId={moduleId ?? ''} tabId={step.id} fallback={<LearningEmoji symbol={step.emoji} />} className={compact ? 'size-4' : 'size-5'} />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className={cn('block truncate font-medium', compact ? 'text-[11px]' : 'text-xs')}>
+                    <span className={cn('block truncate font-medium', compact ? 'text-xs sm:text-[11px]' : 'text-xs')}>
                       {step.label}
                     </span>
                     {!compact ? (

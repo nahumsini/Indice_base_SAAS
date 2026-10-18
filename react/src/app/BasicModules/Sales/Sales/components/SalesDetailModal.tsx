@@ -16,7 +16,7 @@ import { getSalesOperationalContext } from '../data/salesOperationalContext';
 import type { SalesRecordsTranslations } from '../translations';
 import type { CommissionRecord } from '../types/commissions';
 import type { SaleLifecycleSignals, SaleLine, SaleRecord, SaleRecordDraft, SalesBusinessOption, SalesCurrentSeller } from '../types/salesTypes';
-import { getSalesWarehouseScope, isSalesWarehouseReady, warehouseMatchesSaleScope } from '../utils/salesWarehouseScope';
+import { getSalesWarehouseScope, hydrateSaleWarehouse, isSalesWarehouseReady, warehouseMatchesSaleScope } from '../utils/salesWarehouseScope';
 import { formatSalesCurrency } from '../utils/salesFormatters';
 import { getSalesPaymentMethodForStorage, isSalesCreditPaymentMethod, normalizeSalesPaymentMethod } from '../utils/salesPaymentMethods';
 import { getForecastQuotesForOpportunity, isOpportunityForecastQuote } from '../../Prospectos/utils/prospectosQuoteSignals';
@@ -112,6 +112,9 @@ export function SalesDetailModal({
   quotes,
   products,
   warehouses,
+  warehouseLoading = false,
+  warehouseLoadError = false,
+  onReloadWarehouses,
   currentSeller,
   contacts,
   opportunities,
@@ -133,6 +136,9 @@ export function SalesDetailModal({
   quotes: SalesQuote[];
   products: SalesCatalogItem[];
   warehouses: InventoryWarehouse[];
+  warehouseLoading?: boolean;
+  warehouseLoadError?: boolean;
+  onReloadWarehouses?: () => void;
   currentSeller?: SalesCurrentSeller;
   contacts: SalesContact[];
   opportunities: SalesOpportunity[];
@@ -218,6 +224,17 @@ export function SalesDetailModal({
     } else {
       setIsSummaryPreviewOpen(false);
     }
+    // Initialize only on opening/record change; async catalog and seller updates preserve the draft.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, record]);
+
+  useEffect(() => {
+    if (!open || record) return;
+    setForm((current) => {
+      const next = hydrateSaleWarehouse(current, warehouses);
+      if (next.sellerUserCompanyId || !currentSeller) return next;
+      return { ...next, ...currentSeller };
+    });
   }, [currentSeller, open, record, warehouses]);
 
   const createValidation = useMemo(
@@ -230,7 +247,7 @@ export function SalesDetailModal({
   );
   const selectedWarehouse = warehouses.find((warehouse) => warehouse.id === form.warehouseId);
   const operationStepReady = Boolean(
-    form.saleDate
+    !warehouseLoading && !warehouseLoadError && form.saleDate
     && warehouseMatchesSaleScope(selectedWarehouse, form)
     && form.saleLines.length
     && form.totalAmount > 0
@@ -375,7 +392,7 @@ export function SalesDetailModal({
     // The selection handler intentionally runs once for each controlled opening.
     // Re-running it while the user chooses among linked quotes would reset the form.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSeller, open, record, requiredOpportunityId, warehouses]);
+  }, [open, record, requiredOpportunityId]);
 
   const handleQuoteSelection = (quoteId: string) => {
     if (quoteId === 'none') {
@@ -607,6 +624,9 @@ export function SalesDetailModal({
               quoteOptions={opportunityQuoteOptions}
               products={products}
               warehouses={warehouses}
+              warehouseLoading={warehouseLoading}
+              warehouseLoadError={warehouseLoadError}
+              onReloadWarehouses={onReloadWarehouses}
               contacts={contacts}
               opportunities={opportunityOptions}
               selectedQuote={selectedQuote}

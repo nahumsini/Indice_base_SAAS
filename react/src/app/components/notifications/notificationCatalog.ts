@@ -1,4 +1,5 @@
 import type { AppNotification } from '../../api/notifications';
+import { getOpportunityReminderCopy } from '../../BasicModules/Sales/Prospectos/translations/opportunityReminderCopy';
 import { messagingCopy } from '../../Messaging/copy';
 import { getSchedulingOperationsCopy } from '../../ComplementaryModules/Scheduling/translations/schedulingOperationsCopy';
 import { getSchedulingCopy } from '../../ComplementaryModules/Scheduling/translations/schedulingCopy';
@@ -414,6 +415,7 @@ export function getLocalizedNotificationPreferenceGroups(locale: string): Notifi
 }
 
 export function getNotificationDisplayTitle(notification: AppNotification, locale: string) {
+  if (notification.source_subtype === 'sales_call_reminder') return getOpportunityReminderCopy(locale).notification;
   if (notification.module_slug === 'maintenance') {
     const copy = getMaintenanceCopy(locale);
     return notification.source_subtype === 'work_overdue' ? `${copy.title} · ${copy.overdue}` : `${copy.title} · ${copy.orders}`;
@@ -443,7 +445,7 @@ export function getNotificationDisplayTitle(notification: AppNotification, local
 
 export function getNotificationPriority(notification: AppNotification): NotificationPriority {
   const subtype = notification.source_subtype;
-  if (subtype === 'urgent' || subtype === 'task_overdue') {
+  if (subtype === 'urgent' || subtype === 'task_overdue' || subtype === 'sales_call_reminder') {
     return 'high';
   }
   if (subtype.includes('overdue') || subtype.includes('due') || subtype.includes('low')) {

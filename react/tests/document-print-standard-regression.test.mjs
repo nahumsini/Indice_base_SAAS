@@ -66,7 +66,7 @@ test('active custom jsPDF generators reserve a visible format version in their f
     const contents = source(path);
     const footerCalls = [...contents.matchAll(/addStandardPdfFooters\(doc,\s*\{([\s\S]*?)\}\);/g)];
     assert.ok(footerCalls.length > 0, `Footer call not found in ${path}`);
-    footerCalls.forEach((call) => assert.match(call[1], /version:\s*'1\.0'/, `Missing format version in ${path}`));
+    footerCalls.forEach((call) => assert.match(call[1], /version:\s*(?:'1\.0'|definition\.contract\.version)/, `Missing format version in ${path}`));
   }
 });
 

@@ -1,5 +1,6 @@
 import { Badge } from '../../../../components/ui/badge';
-import { Input } from '../../../../components/ui/input';
+import { OpportunityScheduleInlineEditor } from '../components/OpportunityScheduleInlineEditor';
+import { getOpportunitySchedule } from '../utils/prospectosFormatters';
 import { cn } from '../../../../components/ui/utils';
 import type { OpportunityFlowStage, SalesOpportunity } from '../../salesCrmContext';
 import { ProspectosQuickActions } from '../components/ProspectosQuickActions';
@@ -24,7 +25,7 @@ export function ProspectosAgendaItem({
   stages: OpportunityFlowStage[];
   schedule: { date: string; time: string };
   compact?: boolean;
-  onDraftChange: (opportunity: SalesOpportunity, field: 'date' | 'time', value: string) => void;
+  onDraftChange: (opportunity: SalesOpportunity, field: 'date' | 'time', value: string) => void | Promise<void>;
   onOpenFiles: (opportunity: SalesOpportunity) => void;
   onOpenHistory: (opportunity: SalesOpportunity) => void;
   onEdit: (opportunity: SalesOpportunity) => void;
@@ -53,19 +54,11 @@ export function ProspectosAgendaItem({
           </p>
         </div>
 
-        <div className={cn('grid gap-2', compact ? 'grid-cols-1' : 'grid-cols-2')}>
-          <Input
-            type="date"
-            value={schedule.date}
-            onChange={(event) => onDraftChange(opportunity, 'date', event.target.value)}
-            className="h-9 rounded-lg border-slate-200 text-xs font-medium shadow-none"
-          />
-          <Input
-            type="time"
-            value={schedule.time}
-            onChange={(event) => onDraftChange(opportunity, 'time', event.target.value)}
-            className="h-9 rounded-lg border-slate-200 text-xs font-medium shadow-none"
-          />
+        <div className="min-w-0">
+          <OpportunityScheduleInlineEditor opportunity={opportunity} onScheduleChange={(item, date, time) => {
+            const current = getOpportunitySchedule(item);
+            return onDraftChange(item, current.date !== date ? 'date' : 'time', current.date !== date ? date : time);
+          }} />
         </div>
       </div>
 

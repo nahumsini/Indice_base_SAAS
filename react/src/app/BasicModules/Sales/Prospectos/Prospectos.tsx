@@ -33,13 +33,13 @@ import {
 import { normalizeTextKey } from '../utils/salesTextUtils';
 import { useQuotesTranslations } from '../Cotizacion/translations';
 import { downloadQuotePdf } from '../Cotizacion/quotePdf';
+import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 import { SalesDetailModal } from '../Sales/components/SalesDetailModal';
 import { useSalesRecords } from '../Sales/hooks/useSalesRecords';
 import { useSalesTranslations } from '../Sales/hooks/useSalesTranslations';
 import { useSalesTranslations as useSalesModuleTranslations } from '../hooks/useSalesTranslations';
 import type { SaleRecord, SalesCurrentSeller } from '../Sales/types/salesTypes';
-import { inventoryApi } from '../Inventory/services/inventoryApi';
-import type { InventoryWarehouse } from '../Inventory/types/inventoryTypes';
+import { useSalesWarehouses } from '../Sales/hooks/useSalesWarehouses';
 import { ProspectosHeader } from './components/ProspectosHeader';
 import { ProspectosFilters } from './components/ProspectosFilters';
 import { ProspectosKpiStrip } from './components/ProspectosKpiStrip';
@@ -53,6 +53,9 @@ import { CreateOpportunityModal } from './modals/CreateOpportunityModal';
 import { OpportunityDeleteDialog } from './modals/OpportunityDeleteDialog';
 import { OpportunityDetailModal } from './modals/OpportunityDetailModal';
 import { OpportunityFilesModal } from './modals/OpportunityFilesModal';
+import { OpportunityNextActionModal } from './modals/OpportunityNextActionModal';
+import { SellerScriptManager } from './seller/SellerScriptManager';
+import { getSellerCopy } from './seller/sellerCopy';
 import { OpportunityFlowManagerModal } from './modals/OpportunityFlowManagerModal';
 import { ProspectosColumnsModal } from './table/ProspectosColumnsModal';
 import { ProspectosTable } from './table/ProspectosTable';
@@ -80,6 +83,8 @@ import { useProspectosTranslations } from './hooks/useProspectosTranslations';
 import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import { countOpportunityFlowAssignments, resolveOpportunityWorkspaceFlowId } from './utils/prospectosFlowWorkspace';
 import { OpportunityFlowFeedback, type OpportunityFlowReassignment } from './components/OpportunityFlowFeedback';
+import { OpportunityFlowBar } from './components/OpportunityFlowBar';
+import { getOpportunityReminderCopy } from './translations/opportunityReminderCopy';
 
 interface ProspectosProps {
   learningModeActive?: boolean;
@@ -126,6 +131,7 @@ const prospectosWorkspaceUrlFields: Partial<Record<keyof ProspectosWorkspaceStat
 };
 
 export default function Prospectos({ learningModeActive = false }: ProspectosProps) {
+  const { identity: companyPrintIdentity, isReady: companyPrintReady } = useCompanyPrintIdentity();
   const { currentLanguage } = useLanguage();
   const t = useProspectosTranslations();
   const quoteCopy = useQuotesTranslations();
@@ -140,6 +146,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     addOpportunity,
     updateOpportunity,
     updateOpportunityRecord,
+    reloadAll,
     deleteOpportunity,
     updateQuoteStatus,
     isLoading: opportunitiesLoading,
@@ -148,6 +155,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   const navigate = useNavigate();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
+  const [scriptsFlowId, setScriptsFlowId] = useState<number | null>(null);
   const [isFlowManagerOpen, setIsFlowManagerOpen] = useState(false);
   const [opportunityFlows, setOpportunityFlows] = useState<OpportunityFlow[]>([]);
   const [selectedFlowId, setSelectedFlowId] = useState<number | null>(null);
@@ -167,13 +175,17 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   const [editingOpportunity, setEditingOpportunity] = useState<SalesOpportunity | null>(null);
   const [filesOpportunity, setFilesOpportunity] = useState<SalesOpportunity | null>(null);
   const [historyOpportunity, setHistoryOpportunity] = useState<SalesOpportunity | null>(null);
+  const [nextActionOpportunity, setNextActionOpportunity] = useState<SalesOpportunity | null>(null);
   const [pendingDeleteOpportunity, setPendingDeleteOpportunity] = useState<SalesOpportunity | null>(null);
+  const [businessTimezone, setBusinessTimezone] = useState('');
+  const [kanbanExpanded, setKanbanExpanded] = useState(false);
+  const reminderCopy = getOpportunityReminderCopy(currentLanguage.code);
   const [ownerOptions, setOwnerOptions] = useState<SalesOwnerOption[]>([]);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [contextCurrentUserCompanyId, setContextCurrentUserCompanyId] = useState<number | null>(null);
   const [currentUserName, setCurrentUserName] = useState('');
-  const [warehouses, setWarehouses] = useState<InventoryWarehouse[]>([]);
+  const { warehouses, loading: warehouseLoading, error: warehouseLoadError, reload: reloadWarehouses } = useSalesWarehouses(isSaleModalOpen);
   const [searchQuery, setSearchQuery] = useState('');
   const [focusFilter, setFocusFilter] = useState<OpportunityFocusFilter>('all');
   const [periodFilter, setPeriodFilter] = useState<OpportunityPeriodFilter>('all');
@@ -277,6 +289,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
 
       if (salesContextResult.status === 'fulfilled') {
         setContextCurrentUserCompanyId(salesContextResult.value.currentUserCompanyId ?? null);
+        setBusinessTimezone(salesContextResult.value.businessTimezone ?? '');
       }
 
       const ownerMap = new Map<number, SalesOwnerOption>();
@@ -377,14 +390,6 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
       });
     return () => { isMounted = false; };
   }, [opportunityBackendSignature, selectedFlowId, t.flow.loadError]);
-
-  useEffect(() => {
-    let isMounted = true;
-    void inventoryApi.loadWarehouses()
-      .then((items) => { if (isMounted) setWarehouses(items); })
-      .catch(() => { if (isMounted) setWarehouses([]); });
-    return () => { isMounted = false; };
-  }, []);
 
   const selectedFlow = useMemo(
     () => opportunityFlows.find((flow) => flow.id === selectedFlowId) ?? opportunityFlows[0] ?? null,
@@ -513,6 +518,9 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     [opportunityFlowStages, opportunityFlows, selectedFlowId],
   );
   const preferredPipelineCurrency = preferredCurrency;
+  const kanbanScopeOpportunities = useMemo(() => currentUserRole === null ? [] : opportunities.filter(opportunity =>
+    !shouldScopeOpportunitiesByOwner || opportunityBelongsToCurrentUser(opportunity, currentUserCompanyId, currentOwnerNames)),
+  [opportunities, currentUserRole, shouldScopeOpportunitiesByOwner, currentUserCompanyId, currentOwnerNames]);
   const {
     createSaleRecord,
     updateSaleRecord,
@@ -679,6 +687,17 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     navigate(`/receivables/credit-sales?candidateSaleId=${encodeURIComponent(candidateSaleId)}&openCreditSale=1`);
   };
 
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const id = Number(url.searchParams.get('opportunity'));
+    if (!id || opportunitiesLoading) return;
+    const target = opportunities.find((item) => item.backendId === id);
+    if (!target) return;
+    setHistoryOpportunity(target);
+    url.searchParams.delete('opportunity');
+    window.history.replaceState(window.history.state, '', url.pathname + url.search);
+  }, [opportunities, opportunitiesLoading]);
+
   const handleOpenEditOpportunity = (opportunity: SalesOpportunity) => {
     setEditingOpportunity(opportunity);
     setForm({
@@ -840,15 +859,18 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     handleOpportunityModalOpenChange(false);
   };
 
-  const handleScheduleChange = (opportunity: SalesOpportunity, date: string, time: string) => {
-    commitOpportunityUpdate(opportunity.id, { nextActionDate: formatOpportunitySchedule(date, time) });
+  const handleScheduleChange = async (opportunity: SalesOpportunity, date: string, time: string) => {
+    // Render confirmed server state; failed saves remain visible in the shared sync error banner.
+    await updateOpportunityRecord(opportunity.id, { nextActionDate: formatOpportunitySchedule(date, time) });
   };
 
   const handleDownloadQuote = (opportunity: SalesOpportunity, quote: SalesQuote) => {
+    if (!companyPrintReady) return;
     downloadQuotePdf({
       quote,
       contact: contacts.find((contact) => contact.id === opportunity.contactId) ?? null,
       opportunity,
+      company: companyPrintIdentity,
       copy: quoteCopy,
       locale: currentLanguage.code,
     });
@@ -967,19 +989,21 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
       <ProspectosHeader
         actionsLabel={t.table.actions}
         copy={t.header}
-        flows={opportunityFlows}
-        selectedFlowId={selectedFlowId}
-        activeFlowLabel={t.flow.selectFlow}
-        factoryLabel={t.flow.factory}
-        flowCounts={flowOpportunityCounts}
-        formatFlowCount={t.flow.opportunities}
-        flowSelectionReady={workspaceReady && flowCatalogReady}
-        onSelectFlow={handleSelectOpportunityFlow}
-        onManageFlow={() => setIsFlowManagerOpen(true)}
         onOpenColumns={() => setIsColumnsModalOpen(true)}
         onCreateSale={handleOpenCreateSale}
         onCreateQuote={handleOpenCreateQuote}
         onCreateOpportunity={handleOpenCreateOpportunity}
+      />
+
+      <OpportunityFlowBar
+        copy={t.flow}
+        flows={opportunityFlows}
+        selectedFlowId={selectedFlowId}
+        counts={flowOpportunityCounts}
+        ready={workspaceReady && flowCatalogReady}
+        managementLabel={canManageOpportunityFlow ? t.header.manageFlow : t.flow.catalogTitle}
+        onSelectFlow={handleSelectOpportunityFlow}
+        onManageFlow={() => setIsFlowManagerOpen(true)}
       />
 
       {flowLoadError ? (
@@ -987,6 +1011,10 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
           {flowLoadError}
         </div>
       ) : null}
+
+      {businessTimezone ? <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+        {reminderCopy.policy} · {businessTimezone}
+      </p> : null}
 
       <ProspectosViewTabs labels={t.views} activeView={activeView} onViewChange={setActiveView} />
 
@@ -1000,7 +1028,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         onDismiss={() => setFlowReassignment(null)}
       />
 
-      <ProspectosFilters
+      {!(activeView === 'kanban' && kanbanExpanded) ? <ProspectosFilters
         copy={t}
         searchQuery={searchQuery}
         focusFilter={focusFilter}
@@ -1020,9 +1048,9 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         onTemperatureFilterChange={changeFilter(setTemperatureFilter)}
         onSourceFilterChange={changeFilter(setSourceFilter)}
         onClearFilters={handleClearFilters}
-      />
+      /> : null}
 
-      {!learningModeActive ? <ProspectosKpiStrip
+      {!learningModeActive && !(activeView === 'kanban' && kanbanExpanded) ? <ProspectosKpiStrip
         copy={t}
         visibleCount={metrics.visibleCount}
         openCount={metrics.openCount}
@@ -1093,11 +1121,25 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
 
       {activeView === 'kanban' ? (
         <ProspectosKanban
+          key={selectedFlowId}
           copy={t}
           opportunities={periodScopedOpportunities}
+          scopeOpportunities={kanbanScopeOpportunities}
+          flowId={selectedFlowId ?? 0}
+          flowName={selectedFlow?.name ?? ''}
+          businessTimezone={businessTimezone}
+          currentOwnerId={currentUserCompanyId}
+          sellerName={currentUserOwnerName}
+          onRefresh={reloadAll}
+          expanded={kanbanExpanded}
+          onExpandedChange={setKanbanExpanded}
+          searchQuery={searchQuery}
+          onSearchChange={changeFilter(setSearchQuery)}
+          stageFilter={stageFilter}
           stages={opportunityFlowStages}
           onOpenFiles={setFilesOpportunity}
           onOpenHistory={setHistoryOpportunity}
+          onNextAction={setNextActionOpportunity}
           onEdit={handleOpenEditOpportunity}
           onStageChange={handleKanbanStageChange}
         />
@@ -1123,6 +1165,15 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         onSave={setColumns}
       />
 
+      {nextActionOpportunity ? <OpportunityNextActionModal
+        key={nextActionOpportunity.id}
+        opportunity={nextActionOpportunity}
+        businessTimezone={businessTimezone}
+        copy={t}
+        onSave={updateOpportunityRecord}
+        onClose={() => setNextActionOpportunity(null)}
+      /> : null}
+
       <OpportunityDetailModal
         copy={t.detailModal}
         opportunity={historyOpportunity}
@@ -1136,7 +1187,10 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         onClose={() => setHistoryOpportunity(null)}
       />
 
+      {scriptsFlowId ? <SellerScriptManager flowId={scriptsFlowId} flowName={opportunityFlows.find(flow => flow.id === scriptsFlowId)?.name ?? ''} stages={opportunityFlows.find(flow => flow.id === scriptsFlowId)?.stages ?? []} copy={getSellerCopy(currentLanguage.code)} onClose={() => setScriptsFlowId(null)} /> : null}
       <OpportunityFlowManagerModal
+        scriptsLabel={getSellerCopy(currentLanguage.code).scripts}
+        onScripts={(flowId) => { setIsFlowManagerOpen(false); setScriptsFlowId(flowId); }}
         open={isFlowManagerOpen}
         flows={opportunityFlowsWithCurrentCounts}
         selectedFlowId={selectedFlowId}
@@ -1169,6 +1223,8 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
       />
 
       <OpportunityFilesModal
+        company={companyPrintIdentity}
+        companyReady={companyPrintReady}
         copy={t.filesModal}
         contact={filesOpportunity ? getContactById(contacts, filesOpportunity.contactId) : null}
         locale={currentLanguage.code}
@@ -1185,6 +1241,9 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         quotes={quotes}
         products={products}
         warehouses={warehouses}
+        warehouseLoading={warehouseLoading}
+        warehouseLoadError={warehouseLoadError}
+        onReloadWarehouses={reloadWarehouses}
         currentSeller={currentSeller}
         contacts={contacts}
         opportunities={opportunities}

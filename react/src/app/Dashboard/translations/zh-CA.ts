@@ -1,4 +1,21 @@
 export const zhCA = {
+  learningPresentation: {
+    title: "我的学习",
+    saved: "已保存进度",
+    reviewed: "已查阅章节",
+    applied: "已应用",
+    continueAction: "继续学习",
+    next: "下一项活动",
+    details: "查看各阶段进度",
+    complete: "您已查阅所有可用章节。",
+    error: "无法加载学习进度。",
+    retry: "重试",
+    journeyTitle: "我的学习路径",
+    journeyDescription: "探索 Índice 方法论的六个阶段。",
+    stageTools: "此阶段的工具",
+    exploring: "正在浏览",
+    noTools: "您当前的权限无法使用此阶段的工具。",
+  },
   systemTools: {
     title: "系统工具",
     description: "连接和管理企业工具。",
@@ -33,7 +50,7 @@ export const zhCA = {
   },
   operationalJourney: {
     eyebrow: "学习模式",
-    sessionLabel: "课程",
+    sessionLabel: "步骤",
     goalLabel: "你将实现",
     title: "你的学习旅程",
     subtitle: "逐步学习如何让企业更有条理并持续成长。",
@@ -46,42 +63,42 @@ export const zhCA = {
       locked: "已锁定",
     },
     stages: {
-      company_setup: {
-        title: "企业配置",
-        shortTitle: "企业配置",
-        description: "从配置公司的核心结构开始。",
-        cta: "继续",
+      "company_setup": {
+        "title": "我的企业",
+        "shortTitle": "我的企业",
+        "description": "登记企业资料和工作地点。",
+        "cta": "查看企业"
       },
-      human_resources: {
-        title: "团队组织",
-        shortTitle: "团队",
-        description: "集中管理员工、角色和日常运营。",
-        cta: "配置团队",
+      "human_resources": {
+        "title": "我的团队",
+        "shortTitle": "我的团队",
+        "description": "整理人员资料和工作时间。",
+        "cta": "查看团队"
       },
-      operations: {
-        title: "运营流程",
-        shortTitle: "流程",
-        description: "定义清晰流程，让运营保持一致。",
-        cta: "定义流程",
+      "operations": {
+        "title": "任务和流程",
+        "shortTitle": "任务和流程",
+        "description": "明确做什么、谁来做、何时完成。",
+        "cta": "查看任务"
       },
-      finance: {
-        title: "财务控制",
-        shortTitle: "财务",
-        description: "记录费用并管理员工分配的运营资金。",
-        cta: "管理财务",
+      "finance": {
+        "title": "企业资金",
+        "shortTitle": "企业资金",
+        "description": "查看费用、待付款项和客户欠款。",
+        "cta": "查看费用"
       },
-      commercial: {
-        title: "商业运营",
-        shortTitle: "商业",
-        description: "管理收入、机会和商业运营。",
-        cta: "启用销售",
+      "commercial": {
+        "title": "产品和销售",
+        "shortTitle": "产品和销售",
+        "description": "整理销售的产品并查看销售情况。",
+        "cta": "查看产品和销售"
       },
-      analytics: {
-        title: "运营智能",
-        shortTitle: "分析",
-        description: "实时分析运营绩效。",
-        cta: "查看分析",
-      },
+      "analytics": {
+        "title": "企业经营情况",
+        "shortTitle": "企业经营情况",
+        "description": "了解帮助您查看经营情况的数据。",
+        "cta": "查看指标"
+      }
     },
     characters: {
       eyebrow: "从故事中学习",

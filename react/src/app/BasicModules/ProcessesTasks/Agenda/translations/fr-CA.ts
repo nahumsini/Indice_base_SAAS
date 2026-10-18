@@ -394,6 +394,7 @@ export const frCA: AgendaTranslations = {
     description: (folio: string) => `Revisez ${folio}, assignez une ponderation et laissez la note audit.`,
     fallbackDescription: "Auditez la tache selectionnee.",
     weightingLabel: "Ponderation",
+    weightingValidation: (max: number) => `Choisissez une note entière entre 0 et ${max} pour enregistrer l’audit.`,
     weightingHint: (max: number) => `0 signifie aucune conformite evaluable et ${max} signifie une conformite excellente.`,
     notesLabel: "Notes audit",
     notesPlaceholder: "Observations du gestionnaire ou de l auditeur",

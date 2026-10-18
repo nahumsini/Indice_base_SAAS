@@ -1,4 +1,5 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMobileModuleNavigation } from '../../components/frontend-os/useMobileModuleNavigation';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useLanguage } from '../../shared/context';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
@@ -142,6 +143,9 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
     }
   }, [activeSubTab, sessionAccess.loaded, setActiveSubTab, visibleSubTabs]);
 
+  const bodyScrollRef = useRef<HTMLDivElement>(null);
+  useMobileModuleNavigation(activeSubTab, '', undefined, bodyScrollRef);
+
   const handleTabClick = (tabId: PanelInicialTabId) => {
     if (tabId === activeSubTab) {
       return;
@@ -168,7 +172,7 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
         title={t.panelInicial.title}
       />
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div ref={bodyScrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
       {/* Main content */}
       <div className="mx-auto max-w-[1600px] px-3 py-4 sm:px-8 sm:py-8">
         <Suspense

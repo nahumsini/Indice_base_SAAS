@@ -1,3 +1,4 @@
+import { getDashboardLoadCopy } from './dashboardLoadCopy';
 import { SystemToolsSection } from './components/SystemToolsSection';
 import { IndiceEmoji } from '../components/icons/ModuleTabEmoji';
 import {LearningJourneyProgress} from '../learningMode/components/LearningJourneyProgress';
@@ -8,7 +9,7 @@ import {
   type DashboardModuleCard,
 } from "../config/moduleCatalog";
 import type { PageId } from "../config/navigation";
-import { useAccessibleModuleCatalog } from "../hooks/useAccessibleModuleCatalog";
+import { useAccessibleModuleCatalogState } from "../hooks/useAccessibleModuleCatalog";
 import { useLocalStorageState } from "../hooks/useLocalStorageState";
 import { useFavorites, useLanguage } from "../shared/context";
 import { FavoritesSection } from "./components/FavoritesSection";
@@ -58,7 +59,8 @@ export function MainDashboard({
   const copy = useMainDashboardTranslations();
   const { favorites, toggleFavorite, getFavoriteModules } = useFavorites();
   const [isKPIConfigOpen, setIsKPIConfigOpen] = useState(false);
-  const availableModules = useAccessibleModuleCatalog(t);
+  const moduleCatalog = useAccessibleModuleCatalogState(t);
+  const availableModules = moduleCatalog.modules;
   const [selectedLearningCharacter, setSelectedLearningCharacter] = useLearningCharacter();
   const [selectedKPIIds, setSelectedKPIIds] = useLocalStorageState<string[]>(
     "indice.dashboard.selectedKpis.v2",
@@ -135,19 +137,6 @@ export function MainDashboard({
     () => buildOperationalModuleGroups(mainModules),
     [mainModules],
   );
-  const operationalJourneyModules = useMemo(
-    () =>
-      operationalModuleGroups.reduce<
-        Partial<Record<OperationalJourneyStageId, DashboardModuleCard[]>>
-      >(
-        (groupsByStage, group) => ({
-          ...groupsByStage,
-          [group.stage.id]: group.modules,
-        }),
-        {},
-      ),
-    [operationalModuleGroups],
-  );
   const activeOperationalStageId = isOperationalJourneyVisible
     ? operationalJourneyStages[safeLearningStep]?.id
     : undefined;
@@ -168,15 +157,14 @@ export function MainDashboard({
 
   return (
     <main className="mx-auto max-w-[1600px] space-y-8 px-4 py-6 sm:space-y-10 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-      {isOperationalJourneyVisible && <LearningJourneyProgress onNavigate={(page,tab)=>onNavigate(page as PageId,tab)} />}
+      {isOperationalJourneyVisible && <LearningJourneyProgress copy={copy.learningPresentation} onNavigate={(page,tab)=>onNavigate(page as PageId,tab)} />}
       {isOperationalJourneyVisible && (
         <OperationalJourney
           copy={copy.operationalJourney}
           stages={operationalJourneyView}
-          stageModules={operationalJourneyModules}
           activeStageId={activeOperationalStageId}
           onStageSelect={handleOperationalStageSelect}
-          onModuleClick={handleModuleClick}
+          presentation={copy.learningPresentation}
           onDismiss={() => setLearningModeVisible(false)}
         />
       )}
@@ -186,6 +174,9 @@ export function MainDashboard({
           title={copy.sections.kpis}
           description={copy.sections.kpisDescription}
           kpis={kpiData}
+          status={moduleCatalog.status === 'error' ? 'error' : moduleCatalog.status === 'loading' || (selectedKPIIds.length > 0 && Object.keys(liveKpiDataMap).length === 0) ? 'loading' : 'ready'}
+          statusCopy={getDashboardLoadCopy(currentLanguage.code)}
+          onRetry={moduleCatalog.retry}
           availableKPIs={availableKPIs}
           defaultKPIIds={defaultDashboardKpiIds}
           copy={copy}
@@ -209,8 +200,10 @@ export function MainDashboard({
 
       {isOperationalJourneyVisible ? (
         <OperationalModulesSection
-          title={copy.operationalModules.title}
-          label={copy.operationalModules.label}
+          characterId={safeSelectedLearningCharacter}
+          title={copy.learningPresentation.stageTools}
+          noTools={copy.learningPresentation.noTools}
+          onNavigate={onNavigate}
           copy={copy.operationalJourney}
           groups={operationalModuleGroups}
           activeStageId={activeOperationalStageId}

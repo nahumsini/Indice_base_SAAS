@@ -16,6 +16,12 @@ export const safeDocumentImageUrl = (url?: string) => {
   } catch { return ''; }
 };
 
+const tableColumnGroup = (columns: string[], widths?: number[]) => {
+  if (!widths || widths.length !== columns.length || widths.some(width => !Number.isFinite(width) || width <= 0)) return '';
+  const total = widths.reduce((sum, width) => sum + width, 0);
+  return `<colgroup>${widths.map(width => `<col style="width:${width / total * 100}%">`).join('')}</colgroup>`;
+};
+
 /** Presentation adapter only: all values, scopes, snapshots and totals belong to the caller. */
 export function buildStandardDocumentHtml(definition: StandardDocumentDefinition) {
   const locale = definition.locale ?? 'es-MX';
@@ -32,7 +38,7 @@ export function buildStandardDocumentHtml(definition: StandardDocumentDefinition
     ${definition.recipient ? `<p class="document-identity">${escape(definition.recipient)}</p>` : ''}
     ${definition.metadata?.length ? fields(definition.metadata) : ''}
     ${definition.notice ? `<p class="document-notice">${escape(definition.notice)}</p>` : ''}
-    ${(definition.tables ?? []).map(table => `<section class="document-section">${table.title ? `<h2>${escape(table.title)}</h2>` : ''}<table><thead><tr>${table.columns.map((column, index) => `<th scope="col"${table.numericColumnIndices?.includes(index) ? ' class="numeric"' : ''}>${escape(column)}</th>`).join('')}</tr></thead><tbody>${table.rows.length ? table.rows.map(row => `<tr>${table.columns.map((_, index) => `<td${table.numericColumnIndices?.includes(index) ? ' class="numeric"' : ''}>${value(row[index])}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${Math.max(1, table.columns.length)}">${escape(table.emptyMessage || text.noData)}</td></tr>`}</tbody></table></section>`).join('')}
+    ${(definition.tables ?? []).map(table => `<section class="document-section">${table.title ? `<h2>${escape(table.title)}</h2>` : ''}<table>${tableColumnGroup(table.columns, table.columnWidths)}<thead><tr>${table.columns.map((column, index) => `<th scope="col"${table.numericColumnIndices?.includes(index) ? ' class="numeric"' : ''}>${escape(column)}</th>`).join('')}</tr></thead><tbody>${table.rows.length ? table.rows.map(row => `<tr>${table.columns.map((_, index) => `<td${table.numericColumnIndices?.includes(index) ? ' class="numeric"' : ''}>${value(row[index])}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${Math.max(1, table.columns.length)}">${escape(table.emptyMessage || text.noData)}</td></tr>`}</tbody></table></section>`).join('')}
     ${definition.metrics?.length ? `<div class="document-totals">${definition.metrics.map(metric => `<div class="document-total"><span>${escape(metric.label)}</span><strong>${value(metric.value)}</strong></div>`).join('')}</div>` : ''}
     ${(definition.sections ?? []).map(section => `<section class="document-section"><h2>${escape(section.title)}</h2>${section.fields?.length ? fields(section.fields) : ''}${(section.paragraphs ?? []).map(paragraph => `<p>${escape(paragraph)}</p>`).join('')}</section>`).join('')}
     ${definition.signatures?.length ? `<div class="document-signatures">${definition.signatures.map(signature => `<div class="document-signature">${escape(signature.label)}${signature.caption ? `<p>${escape(signature.caption)}</p>` : ''}</div>`).join('')}</div>` : ''}

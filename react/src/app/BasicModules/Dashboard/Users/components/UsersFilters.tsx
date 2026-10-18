@@ -34,7 +34,7 @@ interface UsersFiltersProps {
 }
 
 const controlClassName =
-  'h-10 w-full rounded-xl border border-slate-300 bg-white text-sm text-slate-900 outline-none transition-colors focus:border-[var(--indice-blue)] focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white';
+  'h-11 md:h-10 w-full rounded-xl border border-slate-300 bg-white text-base md:text-sm text-slate-900 outline-none transition-colors focus:border-[var(--indice-blue)] focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white';
 
 export function UsersFilters({
   advancedActiveLabel,
@@ -120,7 +120,7 @@ export function UsersFilters({
             size="sm"
             aria-expanded={showAdvancedFilters}
             onClick={() => setShowAdvancedFilters((visible) => !visible)}
-            className="h-10 gap-2 rounded-xl px-3"
+            className="h-11 md:h-10 gap-2 rounded-xl px-3"
           >
             <SlidersHorizontal aria-hidden="true" className="h-4 w-4" />
             {showAdvancedFilters ? hideAdvancedLabel : moreFiltersLabel}
@@ -129,7 +129,7 @@ export function UsersFilters({
             ) : null}
           </Button>
           {hasActiveFilters ? (
-            <Button type="button" variant="ghost" size="sm" onClick={onClear} className="h-10 rounded-xl px-3">
+            <Button type="button" variant="ghost" size="sm" onClick={onClear} className="h-11 md:h-10 rounded-xl px-3">
               {clearLabel}
             </Button>
           ) : null}

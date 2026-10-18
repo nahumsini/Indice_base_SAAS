@@ -3,6 +3,7 @@ import { cn } from '../../../../../../components/ui/utils';
 
 interface HelperTextProps {
   children: ReactNode;
+  id?: string;
   tone?: 'default' | 'error' | 'warning' | 'success';
   className?: string;
 }
@@ -14,9 +15,9 @@ const toneClassNames: Record<NonNullable<HelperTextProps['tone']>, string> = {
   success: 'text-emerald-700 dark:text-emerald-300',
 };
 
-export function HelperText({ children, tone = 'default', className }: HelperTextProps) {
+export function HelperText({ children, tone = 'default', className, id }: HelperTextProps) {
   return (
-    <p className={cn('mt-1.5 text-xs leading-5', toneClassNames[tone], className)}>
+    <p id={id} role={tone === 'error' ? 'alert' : undefined} className={cn('mt-1.5 break-words text-xs leading-5', toneClassNames[tone], className)}>
       {children}
     </p>
   );

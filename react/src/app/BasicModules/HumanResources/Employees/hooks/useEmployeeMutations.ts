@@ -79,6 +79,7 @@ export function useEmployeeMutations({
     try {
       let documentErrors: string[] = [];
       let scheduleAssignmentError = '';
+      let refreshError = '';
 
       await runMutation({
         title: copy.loadingTitle,
@@ -111,16 +112,19 @@ export function useEmployeeMutations({
             replaceEditingEmployeeId(savedEmployee.id);
           }
 
-          await refreshEmployees();
+          try {
+            await refreshEmployees();
+          } catch {
+            refreshError = copy.errorMessages.refreshAfterSave;
+          }
         },
       });
 
-      if (documentErrors.length > 0) {
+      const warnings = [...documentErrors, scheduleAssignmentError, refreshError].filter(Boolean);
+      if (warnings.length > 0) {
         setFailureToastMessage(
-          `${isEditing ? copy.successMessages.updated : copy.successMessages.created} ${documentErrors[0]}`,
+          `${isEditing ? copy.successMessages.updated : copy.successMessages.created} ${warnings.join(' ')}`,
         );
-      } else if (scheduleAssignmentError) {
-        setFailureToastMessage(`${copy.successMessages.created} ${scheduleAssignmentError}`);
       } else {
         setSuccessToastMessage(
           isEditing
@@ -136,8 +140,15 @@ export function useEmployeeMutations({
       }
       resetEmployeeModal();
     } catch (error) {
-      setFailureToastMessage(normalizeErrorMessage(error, copy.errorMessages.save));
-      throw error;
+      if (savedEmployeeId === null) {
+        setFailureToastMessage(normalizeErrorMessage(error, copy.errorMessages.save));
+        throw error;
+      }
+      // A confirmed write must not become another create attempt if a follow-up fails.
+      setFailureToastMessage(
+        `${isEditing ? copy.successMessages.updated : copy.successMessages.created} ${copy.errorMessages.followUpAfterSave}`,
+      );
+      resetEmployeeModal();
     }
   }, [
     copy,

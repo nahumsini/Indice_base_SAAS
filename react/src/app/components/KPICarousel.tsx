@@ -17,13 +17,13 @@ export function KPICarousel({ children, mode = 'grid', compactCards = false, das
       <div className={`relative group -mx-4 ${dashboardSpacing ? 'sm:-mx-1 -mb-4' : 'sm:mx-0'}`}>
         <div 
           ref={scrollRef}
-          className="overflow-x-auto scrollbar-hide px-4 pb-4 scroll-smooth sm:px-1"
+          className="snap-x snap-mandatory scroll-px-4 overscroll-x-contain overflow-x-auto scrollbar-hide px-4 pb-4 motion-safe:scroll-smooth sm:scroll-px-1 sm:px-1"
           style={{
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',
           }}
         >
-          <div className={`flex min-w-min snap-x snap-mandatory gap-3 [&>*]:flex-shrink-0 ${compactCards ? '[&>*]:w-[min(68vw,220px)] sm:[&>*]:w-[200px]' : '[&>*]:w-[min(78vw,280px)] sm:[&>*]:w-[227px] xl:[&>*]:w-[240px]'}`}>
+          <div className={`flex min-w-min gap-3 [&>*]:flex-shrink-0 ${compactCards ? '[&>*]:w-[min(68vw,220px)] sm:[&>*]:w-[200px]' : '[&>*]:w-[min(78vw,280px)] sm:[&>*]:w-[227px] xl:[&>*]:w-[240px]'}`}>
             {children}
           </div>
         </div>

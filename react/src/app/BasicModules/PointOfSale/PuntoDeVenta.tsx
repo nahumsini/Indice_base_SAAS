@@ -1,3 +1,4 @@
+import { LearningPracticeExample } from '../../learningMode/components/LearningPracticeExample';
 import { pointOfSaleLearningEnglish } from './operationalGuidance/pointOfSaleLearningEnglish';
 import { lazy, Suspense, useEffect, useMemo, useRef } from 'react';
 import { Navigate, useParams } from 'react-router';
@@ -60,12 +61,12 @@ const pointOfSaleLearningJourneyEmoji: Record<PointOfSaleTabId, string> = {
 };
 
 const pointOfSaleLearningSignals: Record<PointOfSaleTabId, string> = {
-  cajas: 'Prepara cajas y responsables antes de abrir turnos; una caja bien configurada hace que cada operación tenga dueño.',
+  cajas: 'Revisa las cajas disponibles y el almacén que usa cada una.',
   sale: 'La terminal queda libre de guías para que cobrar sea rápido, claro y sin distracciones.',
-  kiosks: 'Conecta cada pantalla con la caja correcta y controla cuándo puede operar.',
-  clientes: 'Identifica a quién vendes para conservar historial, datos fiscales y continuidad comercial.',
-  cortes: 'Compara lo esperado con lo declarado y encuentra diferencias por caja, turno y responsable.',
-  kpis: 'Convierte ventas y cierres en señales para decidir qué corregir o repetir.',
+  kiosks: 'Revisa a qué caja está conectado cada kiosco y si puede usarse.',
+  clientes: 'Busca al cliente antes de crear otro registro y consulta su historial.',
+  cortes: 'Compara el efectivo esperado con el contado y revisa las diferencias.',
+  kpis: 'Revisa ventas, cobros y cierres del mismo periodo para entender cómo va la operación.',
 };
 
 const legacyPointOfSaleTabAliases: Partial<Record<string, PointOfSaleTabId>> = {
@@ -180,9 +181,9 @@ function PuntoDeVentaContent({ learningModeActive = false, onNavigate }: PuntoDe
     pointOfSaleLearningJourneyOrder.map((journeyId) => ({
       emoji: pointOfSaleLearningJourneyEmoji[journeyId],
       id: journeyId,
-      label: pointOfSaleLearningLabels[journeyId],
+      label: tabs.find(tab => tab.id === journeyId)?.label ?? journeyId,
     }))
-  ), []);
+  ), [tabs]);
   const showLearningGuide = learningModeActive && activeTab !== 'sale';
 
   return (
@@ -194,8 +195,10 @@ function PuntoDeVentaContent({ learningModeActive = false, onNavigate }: PuntoDe
       currentModule="point-of-sale"
       guide={showLearningGuide ? (
         <SimpleModuleLearningGuide
+            useOwnerLabels
+            introduction={activeTab === 'cajas' ? <LearningPracticeExample id="posRegisters" defaultOpen /> : activeTab === 'cortes' ? <LearningPracticeExample id="posClosing" defaultOpen /> : undefined}
             englishOverview={pointOfSaleLearningEnglish}
-          activeContextLabel={pointOfSaleLearningLabels[activeTab]}
+          activeContextLabel={tabs.find(tab => tab.id === activeTab)?.label ?? t.title}
           activeJourneyId={activeTab}
           contextSignal={pointOfSaleLearningSignals[activeTab]}
           controls={pointOfSaleLearningControls[activeTab]}

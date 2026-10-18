@@ -1,6 +1,7 @@
 import type { DragEvent } from 'react';
 import { Badge } from '../../../../components/ui/badge';
-import { Input } from '../../../../components/ui/input';
+import { OpportunityScheduleInlineEditor } from '../components/OpportunityScheduleInlineEditor';
+import { getOpportunitySchedule } from '../utils/prospectosFormatters';
 import { cn } from '../../../../components/ui/utils';
 import type { SalesOpportunity } from '../../salesCrmContext';
 import type { ProspectosCopy } from '../translations';
@@ -17,7 +18,7 @@ export function ProspectosAgendaSidebar({
   copy: ProspectosCopy;
   unscheduledOpportunities: SalesOpportunity[];
   opportunitySchedules: Map<string, { date: string; time: string }>;
-  onDraftChange: (opportunity: SalesOpportunity, field: 'date' | 'time', value: string) => void;
+  onDraftChange: (opportunity: SalesOpportunity, field: 'date' | 'time', value: string) => void | Promise<void>;
   onScheduleDrop: (event: DragEvent<HTMLElement>, date: string, time: string) => void;
 }) {
   return (
@@ -48,19 +49,11 @@ export function ProspectosAgendaSidebar({
                 {copy.options.temperatures[opportunity.temperature]}
               </Badge>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <Input
-                type="date"
-                value={opportunitySchedules.get(opportunity.id)?.date ?? ''}
-                onChange={(event) => onDraftChange(opportunity, 'date', event.target.value)}
-                className="h-9 rounded-lg border-slate-200 bg-white text-xs font-medium shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-              />
-              <Input
-                type="time"
-                value={opportunitySchedules.get(opportunity.id)?.time ?? ''}
-                onChange={(event) => onDraftChange(opportunity, 'time', event.target.value)}
-                className="h-9 rounded-lg border-slate-200 bg-white text-xs font-medium shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-              />
+            <div className="mt-3">
+          <OpportunityScheduleInlineEditor opportunity={opportunity} onScheduleChange={(item, date, time) => {
+            const current = getOpportunitySchedule(item);
+            return onDraftChange(item, current.date !== date ? 'date' : 'time', current.date !== date ? date : time);
+          }} />
             </div>
           </article>
         )) : (

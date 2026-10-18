@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { CompanyPrintIdentity } from '../../../shared/print/useCompanyPrintIdentity';
 import { Eye, FileText, Paperclip } from 'lucide-react';
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
@@ -16,6 +17,8 @@ const filesActionClassNames = getSalesModalActionClassNames('coral');
 export function OpportunityFilesModal({
   copy,
   contact,
+  company,
+  companyReady,
   locale,
   opportunity,
   quoteCopy,
@@ -25,6 +28,8 @@ export function OpportunityFilesModal({
   copy: ProspectosCopy['filesModal'];
   contact?: SalesContact | null;
   locale?: string;
+  company?: CompanyPrintIdentity;
+  companyReady?: boolean;
   opportunity: SalesOpportunity | null;
   quoteCopy: QuotesTranslations;
   quotes: SalesQuote[];
@@ -121,6 +126,8 @@ export function OpportunityFilesModal({
             </div>
       </SalesModalFrame>
       <QuotePreviewModal
+        company={company}
+        companyReady={companyReady}
         copy={quoteCopy}
         contact={contact}
         locale={locale}

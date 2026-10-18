@@ -280,6 +280,9 @@ output for active basic documents, with unchanged data rules. The same-day v0.3 
 requires company-only branding, grayscale except the company logo, portrait unless table width
 requires landscape, and complete paragraphs flowing naturally across sheets. Prefer one sheet
 when the content fits legibly; never cut content or shrink text to illegibility.
+Quotation preview/output ownership and the operational preview modal follow
+`docs/sales-quote-document-contract.md`: one commercial definition, isolated document styling,
+internal review outside the customer document, and preserved binary sharing compatibility.
 Binary quotation sharing and external PDFs remain supported. IME/Business Diagnosis and the
 KPI maturity overview/dimensions are explicitly excluded; never apply document CSS globally.
 
@@ -419,6 +422,19 @@ Local Sales navigation decision, 2026-10-16: expose Postventa (`/sales/after-sal
 through its existing workspace, and add Mailing (`/sales/mailing`) and Whatsapping
 (`/sales/whatsapping`). Postventa retains the existing `crm.contracts` permission used by
 its backend API; Whatsapping remains an initial workspace under `crm.contacts`.
+
+Sales navigation organization decision, 2026-10-18: the primary module navigation follows
+Clients → Opportunities → Quotes → Sales → After-sales → Tools → Indicators → Management.
+Tools groups Funneling (campaign planning), Mailing (email campaigns), and Whatsapping
+(explicitly marked as pending sending functionality). Management groups the existing
+Commissions, Payment accounts, and Contracts workspaces. Indicators keeps the `kpis` route
+and commercial calculations; the complementary Sales Board retains ownership of combined
+POS/CRM analysis. Extend `IndiceModuleShell` with permission-filtered menus and opt-in
+wrapping for Sales; retain the canonical pill style, keyboard navigation, active-child
+breadcrumb, and vertical workbar support. Each destination keeps its existing route,
+permission, provider, and persistence contract. Empty menus are hidden. Opportunities is
+the initial default only when no explicit URL or remembered tab exists; existing scoped
+navigation memory continues to take precedence over that default.
 
 Email/Mailing joint remodeling, 2026-10-17: the
 [Email and Mailing integration contract](email-mailing-integration-contract-v1.md) adopts the
@@ -1527,6 +1543,23 @@ Actions menu: [Columns] [Export] [Deactivate]
 
 ---
 
+### Sales active opportunity flow (product decision, 2026-10-18)
+
+Opportunities presents its active flow in a compact coral context strip immediately below its
+standard title bar and before Table/Kanban/Agenda and filters. The selector shows the full flow
+name, wrapping on narrow screens, with a localized opportunity count alongside it. Flow management
+opens the existing workspace from this strip; users without management capability retain read-only
+catalogue access and the existing editor restrictions. The title bar retains Create quote and Create
+opportunity directly, with Columns and New sale in Actions. This is the explicit contextual
+distribution for this view; do not duplicate flow controls in Actions or the filter bar.
+
+The active flow remains part of the existing company/user-scoped `sales/prospects` workspace
+memory. Returning from another module and reloading restore the last accessible flow; an explicit
+`flow` URL parameter takes precedence. Validate restored IDs against the current catalogue and
+fall back to an accessible default when needed. Selection changes only the user's view; it must
+not reassign opportunities or change the company default. Preserve business routes, owner-visible
+counts, flow-stage semantics and the shared memory engine.
+
 ## 13. Filter Bar Standard
 
 Reference:
@@ -2016,6 +2049,27 @@ one when the current page may no longer exist.
 - fixed mobile navigation respects safe-area insets and the content reserves enough bottom space to remain fully reachable
 - dense mobile records show identity, state, the daily value and the primary action first; secondary analysis opens progressively per record
 
+### Mobile list controls (product decision, 2026-10-18)
+
+Keep the existing mobile record views and each table's single horizontal canvas.
+Shared filter inputs and selectors stay at 44px, including Radix trigger data-size
+variants; mobile input text uses 16px to avoid focus zoom. Filter cards reduce
+only mobile padding, disclosure/reset controls wrap at 44px, and search-clear
+controls reserve a separate 44px target. Long selector options wrap within the
+screen. Existing secondary-filter ownership, automatic reveal, defaults, query
+semantics and persistence do not change.
+
+On phones and tablets below md, shared pagination presents previous / current
+page of total / next, plus the existing page-size selector and record range.
+Desktop keeps numbered pages. Both presentations call the same guarded callbacks;
+disabled boundary links are removed from tab order. This prevents long page-number
+strips from widening a phone screen. Scrollable tables remain keyboard focusable,
+retain native vertical scrolling and contain horizontal overscroll. Sort targets
+are 44px on mobile. HR mobile cards place metadata and actions below their identity
+header, with readable 12px labels and independent 44px selection/action targets.
+No permissions, monetary values, column-width preferences or business mutations
+are changed by this presentation decision.
+
 ### 15.10 Shared table engine
 
 Operational tables use the shared presentation primitives:
@@ -2253,6 +2307,84 @@ Rules:
 - use skeleton rows during refresh and retain explicit error and empty states
 
 ---
+
+### Phone modal viewport (product decision, 2026-10-18)
+
+Preserve the Indice modal types, module colors, artwork, validation and action
+callbacks. The shared Dialog and AlertDialog surfaces observe the visible viewport
+only while mounted, including keyboard resize/offset changes, with frame-coalesced
+listeners cleaned up on close. Phone bounds use safe-area-aware margins and retain
+44px close/footer targets and 16px field text. Headers and body padding become
+compact without removing descriptions or fields. Footer actions wrap, keep the
+secondary action before the final primary action, and never use fixed widths that
+clip a translated label. Wizard step buttons retain accessible full step names.
+
+At a visible height below 520px (keyboard/landscape), the entire dialog scrolls,
+including its footer, rather than reducing the body to an unusable sliver. At normal
+heights, the existing independent body scroll keeps the header/footer available.
+Custom workspace bodies can retain their typed presentation overrides. Incentive
+column selection reuses IndiceModalFrame with unchanged immediate toggle behavior.
+The mobile task-detail footer participates in flex layout instead of covering the
+last record fields with a fixed overlay. Desktop modal widths and workflow ownership
+remain unchanged; viewport testing must not submit business records.
+
+### Phone form feedback (product decision, 2026-10-18)
+
+Forms retain their owning validators, payloads, persistence and permissions.
+Required controls have associated labels and readable error descriptions, including
+HR custom select controls; native shared inputs propose email, telephone or decimal
+keyboards unless the owner explicitly chooses another input mode. New shared error
+summaries reveal themselves only when clipped, without moving focus while the user
+types. RH invalid-step attempts focus the first visible, enabled control already
+marked invalid by the owning validator.
+
+Gastos, task capture and opportunity capture keep their existing disabled-save rules
+and explain their unmet requirements in the footer using localized field names.
+Amount helpers describe the existing positive/non-negative constraints rather than
+silently changing an entered amount. HR final save retains the draft on failure,
+shows the existing safe owner error inside the modal, blocks duplicate pending saves
+and conflicting navigation, and permits an explicit retry after failure. Task capture
+uses the same synchronous pending latch for its existing full and quick handlers.
+No success is displayed until the owning save operation completes. Regression tests
+must cover failure, retry, duplicate attempts and safe field retention without creating
+business records in the user's browser.
+
+### Phone module journey (product decision, 2026-10-18)
+
+Panel Inicial uses the same compact phone title, Home and expandable Favorites
+controls as the module shell, preserving desktop navigation and the horizontal
+rail. Phone tab changes reset only the module content scroll to its heading;
+filters, record state and desktop scroll behavior remain owned by the module.
+The active navigation item is revealed by scrolling only its horizontal rail,
+including direct entry and browser history changes. Do not move keyboard focus or
+scroll an ancestor page to reveal a tab. Deferred reveal frames are canceled on
+navigation or unmount. Plain modal footer buttons visibly dim when disabled, as
+shared Button controls already do. Profile fields keep 16px text and 44px targets
+on phones and expose their existing localized labels and autofill purposes.
+
+### Confirmed modal persistence (product decision, 2026-10-18)
+
+Warehouse capture exposes identity, organization assignment and review, and awaits
+its owner promise before clearing a draft. Creation/deletion callbacks use a
+synchronous pending latch and show failures inside the modal. Required scope is
+validated against the provided unit/business catalogs. Existing layout and sliders
+remain unchanged.
+
+Contact file/phone import reconciles existing server contacts before each attempt,
+awaits the existing contact creation owner sequentially, counts only acknowledged
+writes, and retains only failed drafts for retry. Confirmed or existing duplicate
+contacts are not resubmitted. Progress is visible and pending import blocks close,
+repeat submission and replacement of the selection.
+
+Inventory receipt capture retains File objects in transient component memory only.
+The stock operation commits once; private evidence is then reserved, uploaded,
+verified and registered against its first persisted movement. A partial attachment
+failure explicitly states that stock is already saved. Retrying never posts the
+stock operation again and keeps the approved upload reference for registration
+retry. File selection is limited to 10 nonempty PDF/JPEG/PNG/WebP files of 10 MiB
+each. Legacy file names are not presented as uploaded content. Movement Files
+provides authorized listing, additional uploads and fresh download URLs. No file
+body or presigned URL is stored in database JSON or workspace memory.
 
 ## 19. Modal Wizard Índice
 
@@ -3251,6 +3383,13 @@ The user should always understand:
 
 ## 27. Kanban And Agenda Standards
 
+Sales **Modo vendedor / Seller mode** extends the native fullscreen workspace with a daily contact
+queue, published flow scripts and teleprompter, conversation notes/results, actual contact history
+and transactional follow-up. Its owner contract is [Sales seller workspace](sales-seller-workspace-contract.md).
+Use the existing workspace navigation, resizable panels and Sales modal primitives. Script reading
+is an operational typography exception with a user-adjustable 18–40 px text size. Standard Kanban,
+financial ownership, stage transitions and reminder rules remain unchanged.
+
 Processes And Tasks is the approved reference.
 
 Kanban requires:
@@ -3262,6 +3401,32 @@ Kanban requires:
 - empty states
 - horizontal scroll
 - no dashboard-style Kanban
+
+Sales Opportunities applies this standard to dense portfolios: compact cards identify the
+estimated amount and next action; details and editing reuse the existing Sales modals. Desktop
+columns have stable headers and independently scrollable bodies, with the shared horizontal
+scroll controls. Mobile shows one selected stage with native page scrolling. Stage movement by
+menu and drag both use the existing domain transition, including the sale requirement for Won.
+Attention filters expose overdue and unscheduled work with visible filtered/total counts; terminal
+or paused opportunities are not presented as overdue work. Sorting by estimate groups currencies
+without inventing exchange-rate conversions. The optional full-screen workspace uses the browser
+Fullscreen API on the board itself, retaining active-flow context and search. Its columns fill the
+remaining monitor height and scroll independently, including on mobile. Escape, the exit button,
+or leaving the workspace restore the regular view; denied/unsupported requests show an inline error.
+Full-screen state follows browser events and is never inferred from a renamed button or hidden filters.
+Shared Select and DropdownMenu portals adopt the active fullscreen element, matching Dialog, so
+sorting, stage menus and existing Sales editors remain usable without a second modal system.
+Clicking a Sales card's next-action panel opens a dedicated **Standard Form Modal** using
+`SalesModalFrame`: localized action choices, company-date shortcuts, optional date/time, and a
+call-reminder explanation. Contact and owner are read-only context. The draft is ephemeral and
+Cancel discards it; only changed action/schedule fields reach the existing awaited Sales update.
+An untouched schedule retains its saved timezone/instant. No reminder is promised for incomplete,
+past, closed or on-hold calls. Pending saves block duplicate submission and closing; failed saves
+retain the draft and explain how to retry. The full opportunity editor remains a separate action.
+Board sort, attention filters and mobile stage use `useWorkspaceNavigationMemory` under the Sales
+child workspace `prospects-kanban-{flowId}`, scoped to the authenticated company and user. Full-screen
+mode is transient; per-column and horizontal positions are session-only and use the same company,
+user and flow scope. No opportunity data is cached in the position memory.
 
 Agenda requires:
 
@@ -3311,6 +3476,100 @@ Point of Sale does not render the companion inside its transactional `Sale` tab.
 `Panel Inicial` remains part of the Dashboard learning journey but does not render an internal learning guide. The Dashboard keeps its approved six-stage learning journey while its learning presentation follows the same compact, colorful, instructional language. In normal mode, it shows KPIs, favorites, basic modules, and complementary modules. Product decision (2026-10-09): remove the standalone `Inteligencia artificial / Módulos de IA` section from the Dashboard in all modes.
 
 The detailed state, content, exception, responsive, and migration rules live in `docs/learning-mode-frontend-engine-v2.md`, section 29. That specialized contract controls module learning within the repository-wide accessibility, localization, permission, and behavior-preservation rules in this document.
+
+### Dashboard learning presentation (product decision, 2026-10-18)
+
+The learning dashboard retains the same six stages and stage selection preference.
+Saved backend chapter progress is the sole visible learning-progress reference:
+a compact summary offers Continue Learning, the next mission, and optional
+per-stage details. The stage selector is a horizontal rail with the shared 3D
+artwork and an Exploring state; browsing does not imply completion and no second
+percentage is calculated from selected stages. The tools section presents only
+the selected stage's accessible module cards in the established slider, with a
+localized empty state and no fallback link to unavailable modules. Business case
+selection remains intact and collapses to a compact summary after selection.
+Complementary modules and System Tools keep their current layout and access
+rules. Chapter updates, backend persistence and module learning companions are
+unchanged.
+
+### Beginner learning examples (product decision, 2026-10-18)
+
+Dashboard stage descriptions use plain actions and everyday terms, with Step
+rather than Session. All six stages offer localized read-only See/Do/Check
+examples: company/branches, person/role/workplace, task/owner/due date,
+expense/payment, product/price/quantity, and area/signal/source/missing data.
+Each example has a short question with local corrective feedback; it never changes
+chapter completion, business records or payment state. Empty accounts can use the
+fictional example without creating test data. Dashboard entries check both module
+visibility and the destination tab permission before opening the existing route.
+Tasks, Expenses, Human Resources/Collaborators, Inventory/Products and KPIs reuse
+the example in their existing expandable companion. Panel Inicial retains its
+exception: its example appears only on the Dashboard, without an internal guide.
+The established geometry, chapter versions and authoritative evidence rules remain
+unchanged. Translations cover current locales and remain subject to language review.
+All six practice examples follow the existing user/company-scoped selected case:
+Emily/cafés (CAD), Juanito/supermarkets (MXN), Camila/auto parts (COP).
+Fictional people, stock checks, purchases, products, amounts, questions and feedback
+resolve together from localized templates and case facts. The dashboard uses its
+live case selection; module companions read the same saved preference. No separate
+case setting is introduced. With no selection, Emily remains the example fallback.
+Changing case, stage or language clears only the local practice answer; it does
+not mark a chapter understood or applied, or change business records.
+
+### Module learning clarity (product decision, 2026-10-18)
+
+The expanded companion keeps its existing horizontal journey rail. Where a beginner
+practice exists, show one lesson body at a time: Practical example (default) or
+Tab tools. The original tool slider, detailed instructions, real cases and RH
+employee mission remain available in Tab tools. Selecting a presentation never
+marks a chapter reviewed/applied or creates business records. The normal module
+header and actions remain visible. Guide decoration reuses the shared 3D artwork.
+Reviewed-topic counts describe the existing understood/applied count; opening a
+lesson does not increase it. Spanish uses “Modo aprendiz” consistently.
+Sales learning names match Customers and Opportunities in the current tabs.
+The Indicators practice follows Matrices → Diagnosis → area/signal → Sources,
+distinguishing missing data from a detected problem. Plain-language web summaries
+sit above the unchanged detailed curriculum requirements; chapter versions and
+operation evidence rules are unchanged.
+
+### Remaining basic learning modules (product decision, 2026-10-18)
+
+Petty Cash, Receivables and POS administration adopt the same beginner presentation.
+Owner tab labels remain authoritative in all locales. Funds, Accounts receivable,
+Registers and Closings provide fictional See/Do/Check practices tied to the saved
+Emily/Juanito/Camila case. Amounts are fixed examples: cash plus documented spending,
+partial customer payment, and counted versus expected cash. They never simulate
+transactions against tenant data or infer blame from a cash difference. Empty
+workspaces can practise without creating funds, credit, payments, shifts or closings.
+All administrative tabs receive plain web summaries above their unchanged detailed
+curriculum. POS Sale remains free of the companion and learning controls.
+Complementary modules are outside this change.
+
+### Mobile learning usability (product decision, 2026-10-18)
+
+On narrow screens the collapsed journey caption sits above, rather than beside,
+the horizontal rail. Journey and tool sliders remain horizontal, touch-scrollable,
+and respect reduced motion; their mobile targets and primary learning actions
+have at least 44 CSS pixels of height. Practice/tool selection uses two flexible
+columns. Practices display one See/Do/Check step at a time below the medium
+breakpoint, with the question and feedback on Check. Desktop keeps the established
+three columns and visible question. Step selection is local presentation only,
+never learning completion. Secondary decorative tool previews are hidden below
+the small breakpoint to keep the real content closer. RH retains its mission,
+selector and exceptions. POS Sale retains its no-companion exception.
+
+### Mobile header and navigation (product decision, 2026-10-18)
+
+The blue header keeps three primary mobile actions: messages, notifications and
+profile. User and active-company names remain visible. Existing company selection,
+language, appearance and learning settings are reachable from the mobile account
+menu using the same owner callbacks and permission rules. Desktop keeps its action
+row. No new navigation destinations, authority or persisted preferences are added.
+The mobile module header puts Dashboard and a favorites disclosure beside its
+two-line module/tab identity. Favorites open as the existing horizontal slider;
+the main tab rail stays horizontal and touch-scrollable, including modules that
+wrap tabs on desktop. Primary touch targets are 44px. Desktop workbar layouts,
+module colors, custom artwork, access filtering and routes are preserved.
 
 ### 28.2 Global learning settings
 
@@ -3393,6 +3652,19 @@ not add extra section spacing. Controls use the same inset, shadow, and card-cen
 position. Header actions align to the title row and supporting copy uses readable
 secondary contrast. The Favorites heading uses the custom transparent 3D star.
 
+
+### Dashboard touch interaction (product decision, 2026-10-18)
+
+Mobile retains the approved KPI portrait proportions and original module-card
+sizes, artwork, borders and horizontal sliders. Snap and scroll padding belong
+to the actual overflow viewport, so each swipe settles on a card without creating
+page-wide overflow; vertical page scrolling remains native. KPI status copy uses
+12px/16px on mobile and keeps complete authoritative comparison text. The KPI
+configuration trigger and module favorite controls have 44px mobile touch targets.
+Favorite stars are visible without hover on mobile, expose their pressed state,
+and remain separate from each module's native navigation button. Desktop card
+sizes and mouse scroll controls remain unchanged. Routes, ordering, permissions,
+metric calculations and stored selections remain owned by their existing flows.
 
 ### Dashboard system tools (product decision, 2026-10-17)
 
@@ -4063,3 +4335,50 @@ Its Overview / Trends / Origins and Channels / Sales views follow the analytical
 contract in [sales-board-contract-v1.md](./sales-board-contract-v1.md). Registered sales, collections
 and accounting revenue remain distinct. Native module and tab permission control entry; no local
 fallback module catalog or alternate authorization is introduced.
+
+### Sales next-action scheduling — 2026-10-18
+
+The opportunity column uses **Siguiente acción / Next action**. Table and Agenda share the existing
+inline date/time pattern and authoritative server persistence. Show the business timezone and the
+automatic one-hour call reminder policy without introducing a separate scheduling engine.
+Details and compatibility rules: [Sales opportunity reminders](sales-opportunity-reminders-contract.md).
+
+
+### Audit and HR modal feedback (2026-10-18)
+
+Task auditing in Agenda and Projects shares the 0–5 score parser with the audit
+dialog. Blank or whitespace input is missing, never an implicit zero; an explicit
+zero remains valid. Announcement save failures appear inside the existing modal,
+retain its draft, and permit an explicit retry. Pending submissions block duplicate
+clicks, field edits and dismissal. Employee creation/update distinguishes the
+confirmed record write from document/schedule follow-ups and list refresh: a
+refresh failure closes the saved form with a localized warning rather than asking
+the operator to create the same employee again. An actual write failure keeps the
+form open. Routes, authorization, APIs and visual composition remain unchanged.
+
+
+## Sales post-sale continuity
+
+The Postventa entry point uses Ganadas and Perdidas, configurable service stages, the shared Sales modal primitives, and existing workspace navigation memory. Customer history remains reachable. Scheduling a lost prospect is distinct from explicit manual recovery.
+
+The adopted domain contract is [Sales post-sale continuity](sales-post-sale-continuity-contract.md).
+
+
+### Mobile entry, capture and save follow-through (2026-10-18)
+
+The active shared Sales/POS contact form awaits confirmed create/update commands,
+keeps the draft and localized error visible on failure, and blocks duplicate
+submission and dismissal while pending. Labels retain their visual treatment and
+associate with their controls. Inline row notes and other existing CRM commands
+retain their separate contracts. The catalog product wizard remembers a confirmed
+product identity while image registration is pending; an explicit retry updates
+that same product, never creates another one. Successful image registration closes
+the capture form before a follow-up catalog refresh; the shared sync notice owns
+refresh failures. Existing field validations, routes and permissions are unchanged.
+
+Dashboard module loading is distinct from a confirmed empty selection and from a
+failed permissions/catalog request. The KPI section keeps its horizontal slider
+with non-numeric loading placeholders, blocks configuration until loading resolves,
+and offers a localized retry for a catalog failure. Stale authorization responses
+remain ignored and no fallback modules are admitted. Actual KPI cards, module cards,
+sliders, colors and desktop composition retain their approved design.

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { dashboardApi } from '../api/dashboard';
 import {
   buildDefaultModuleCatalog,
@@ -10,14 +10,18 @@ import { useAuthorizationRevision } from './useAuthorizationRevision';
 
 type Translator = Record<string, any>;
 
-export function useAccessibleModuleCatalog(t: Translator) {
+export function useAccessibleModuleCatalogState(t: Translator) {
   const [availableModules, setAvailableModules] = useState<DashboardModuleCard[]>([]);
   const authorizationRevision = useAuthorizationRevision();
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [retryRevision, setRetryRevision] = useState(0);
+  const retry = useCallback(() => setRetryRevision(value => value + 1), []);
 
   useEffect(() => {
     let active = true;
     const defaultModules = buildDefaultModuleCatalog(t);
     setAvailableModules([]);
+    setStatus('loading');
 
     const loadModules = async () => {
       try {
@@ -37,11 +41,13 @@ export function useAccessibleModuleCatalog(t: Translator) {
         });
 
         setAvailableModules(resolvedModules);
+        setStatus('ready');
       } catch {
         if (active) {
           // Fail closed: a stale local catalog must never resurrect a module
           // that platform administration disabled globally.
           setAvailableModules([]);
+          setStatus('error');
         }
       }
     };
@@ -51,7 +57,11 @@ export function useAccessibleModuleCatalog(t: Translator) {
     return () => {
       active = false;
     };
-  }, [authorizationRevision, t]);
+  }, [authorizationRevision, retryRevision, t]);
 
-  return availableModules;
+  return { modules: availableModules, status, retry };
+}
+
+export function useAccessibleModuleCatalog(t: Translator) {
+  return useAccessibleModuleCatalogState(t).modules;
 }

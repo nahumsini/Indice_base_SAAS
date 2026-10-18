@@ -1,3 +1,4 @@
+import { readOpportunitySchedule } from '../utils/opportunitySchedule';
 import type { DigitalContract } from '../Contrato/types/digitalContractTypes';
 import type {
   SalesCatalogItem,
@@ -295,6 +296,7 @@ export function toFrontendOpportunity(row: ApiRow): SalesOpportunity {
     id: toStringValue(row.id),
     backendId: toOptionalNumber(row.id),
     opportunityCode: toStringValue(row.opportunityCode),
+    createdAt: toStringValue(row.createdAt),
     unitId: toOptionalNumber(row.unitId) ?? null,
     businessId: toOptionalNumber(row.businessId) ?? null,
     opportunityName: toStringValue(row.opportunityName),
@@ -317,7 +319,9 @@ export function toFrontendOpportunity(row: ApiRow): SalesOpportunity {
     probability: `${toNumber(row.probabilityPercent, 10)}%` as SalesOpportunity['probability'],
     expectedCloseDate: dateOnly(row.expectedCloseDate),
     nextAction: apiLabel(row.nextAction, 'Follow up') as SalesOpportunity['nextAction'],
-    nextActionDate: dateOnly(row.nextActionAt),
+    nextActionDate: readOpportunitySchedule(row.nextActionAt, row.nextActionScheduledAt),
+    nextActionScheduledAt: row.nextActionScheduledAt ? `${toStringValue(row.nextActionScheduledAt).replace(' ', 'T')}Z` : undefined,
+    nextActionTimezone: toStringValue(row.nextActionTimezone),
     lastContact: dateOnly(row.lastContactAt),
     files: [],
     status: apiLabel(row.status, 'Active') as SalesOpportunity['status'],
@@ -349,7 +353,7 @@ export function toBackendOpportunity(opportunity: Partial<SalesOpportunity>, con
     probabilityPercent: Number.parseInt(toStringValue(opportunity.probability).replace('%', ''), 10) || undefined,
     expectedCloseDate: opportunity.expectedCloseDate || undefined,
     nextAction: toApiToken(opportunity.nextAction),
-    nextActionAt: opportunity.nextActionDate || undefined,
+    nextActionAt: opportunity.nextActionDate === undefined ? undefined : opportunity.nextActionDate || null,
     lastContactAt: opportunity.lastContact || undefined,
     notes: opportunity.notes,
   });

@@ -13,7 +13,7 @@ export const frCA = {
   expandLabel: 'Developper le guide',
   tabs: {
     leads: {
-      label: 'Prospects',
+      label: 'Occasions',
       ctaLabel: 'Reviser les occasions',
       title: 'Construire un pipeline discipline',
       summary: 'Utilisez Prospects pour capter la demande, qualifier l interet, assigner un responsable et definir la prochaine action.',
@@ -25,7 +25,7 @@ export const frCA = {
       ],
     },
     contacts: {
-      label: 'Contacts',
+      label: 'Clients',
       ctaLabel: 'Reviser les contacts',
       title: 'Transformer les relations en controle commercial',
       summary: 'Utilisez Contacts comme base des clients, prospects, responsables et contextes de suivi.',

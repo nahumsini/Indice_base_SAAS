@@ -13,10 +13,10 @@ export const enCA = {
   expandLabel: 'Expand guide',
   tabs: {
     leads: {
-      label: 'Leads',
+      label: 'Opportunities',
       ctaLabel: 'Review opportunities',
       title: 'Build a disciplined opportunity pipeline',
-      summary: 'Use Leads to capture demand, qualify interest, assign ownership, and define the next commercial action.',
+      summary: 'Use Opportunities to capture demand, qualify interest, assign ownership, and define the next commercial action.',
       value: 'A clean pipeline keeps follow-up visible and prevents revenue from depending on memory.',
       steps: [
         {
@@ -34,10 +34,10 @@ export const enCA = {
       ],
     },
     contacts: {
-      label: 'Contacts',
+      label: 'Customers',
       ctaLabel: 'Review contacts',
       title: 'Turn relationships into commercial control',
-      summary: 'Use Contacts as the relationship base for customers, prospects, owners, and follow-up context.',
+      summary: 'Use Customers as the relationship base for customers, prospects, owners, and follow-up context.',
       value: 'Reliable contact data makes quotes, sales handoff, and customer follow-up easier for the whole team.',
       steps: [
         {

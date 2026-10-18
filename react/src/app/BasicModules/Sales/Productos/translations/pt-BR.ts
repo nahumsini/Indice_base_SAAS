@@ -391,6 +391,7 @@ export const ptBR = {
     description: 'Adicione um bloco comercial reutilizavel para cotacoes, PDV e futuras conexoes de estoque.',
     editDescription: 'Atualize as informacoes comerciais, visuais e operacionais deste item.',
     validationMissingRequired: (fields: string) => `Complete os campos obrigatorios antes de salvar: ${fields}.`,
+    savedPendingImages: "O produto foi salvo, mas as imagens estão pendentes. Tente novamente para continuar no mesmo produto.",
     saveFailed: 'Nao foi possivel salvar o item. Revise as informacoes obrigatorias e tente novamente.',
     fields: {
       name: 'Nome do produto ou servico',

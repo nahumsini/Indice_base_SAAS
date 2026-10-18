@@ -1,4 +1,21 @@
 export const ptBR = {
+  learningPresentation: {
+    title: "Seu aprendizado",
+    saved: "Progresso salvo",
+    reviewed: "capítulos revisados",
+    applied: "aplicados",
+    continueAction: "Continuar aprendendo",
+    next: "Próxima atividade",
+    details: "Ver progresso por etapa",
+    complete: "Você revisou os capítulos disponíveis.",
+    error: "Não foi possível carregar seu progresso.",
+    retry: "Tentar novamente",
+    journeyTitle: "Sua jornada de aprendizado",
+    journeyDescription: "Explore as seis etapas da Metodologia Índice.",
+    stageTools: "Ferramentas desta etapa",
+    exploring: "Explorando",
+    noTools: "Nenhuma ferramenta disponível nesta etapa com suas permissões atuais.",
+  },
   systemTools: {
     title: "Ferramentas do sistema",
     description: "Conecte e gerencie as ferramentas da sua empresa.",
@@ -33,7 +50,7 @@ export const ptBR = {
   },
   operationalJourney: {
     eyebrow: "Modo aprendiz",
-    sessionLabel: "Sessão",
+    sessionLabel: "Passo",
     goalLabel: "O que você vai alcançar",
     title: "Sua jornada de aprendizagem",
     subtitle: "Aprenda a organizar e fazer sua empresa crescer passo a passo.",
@@ -46,48 +63,42 @@ export const ptBR = {
       locked: "Bloqueado",
     },
     stages: {
-      company_setup: {
-        title: "Conheça sua empresa",
-        shortTitle: "Sua empresa",
-        description:
-          "Defina a identidade e a estrutura onde sua aprendizagem começará.",
-        cta: "Conhecer minha empresa",
+      "company_setup": {
+        "title": "Seu negócio",
+        "shortTitle": "Seu negócio",
+        "description": "Registre os dados do negócio e os locais onde você trabalha.",
+        "cta": "Ver meu negócio"
       },
-      human_resources: {
-        title: "Organize as pessoas",
-        shortTitle: "Pessoas",
-        description:
-          "Esclareça funções, responsabilidades, horários e a forma de trabalhar em equipe.",
-        cta: "Organizar pessoas",
+      "human_resources": {
+        "title": "Sua equipe",
+        "shortTitle": "Sua equipe",
+        "description": "Organize os dados das pessoas e seus horários.",
+        "cta": "Ver minha equipe"
       },
-      operations: {
-        title: "Transforme o trabalho em processos",
-        shortTitle: "Processos",
-        description:
-          "Transforme atividades repetidas em uma forma clara e organizada de operar.",
-        cta: "Aprender sobre processos",
+      "operations": {
+        "title": "Tarefas e processos",
+        "shortTitle": "Tarefas e processos",
+        "description": "Defina o que fazer, quem fará e até quando.",
+        "cta": "Ver minhas tarefas"
       },
-      finance: {
-        title: "Assuma o controle do dinheiro",
-        shortTitle: "Dinheiro",
-        description:
-          "Aprenda como o dinheiro entra, sai e é usado na sua empresa.",
-        cta: "Conhecer minhas finanças",
+      "finance": {
+        "title": "Seu dinheiro",
+        "shortTitle": "Seu dinheiro",
+        "description": "Consulte gastos, pagamentos pendentes e o que seus clientes devem.",
+        "cta": "Ver meus gastos"
       },
-      commercial: {
-        title: "Organize produtos e vendas",
-        shortTitle: "Produtos e vendas",
-        description:
-          "Conecte o que você compra, armazena e vende para entender melhor seu negócio.",
-        cta: "Organizar produtos e vendas",
+      "commercial": {
+        "title": "Produtos e vendas",
+        "shortTitle": "Produtos e vendas",
+        "description": "Organize o que você vende e consulte suas vendas.",
+        "cta": "Ver produtos e vendas"
       },
-      analytics: {
-        title: "Decida com informação",
-        shortTitle: "Decisões",
-        description:
-          "Transforme os resultados de toda a empresa em decisões para crescer.",
-        cta: "Aprender com meus indicadores",
-      },
+      "analytics": {
+        "title": "Como vai seu negócio",
+        "shortTitle": "Como vai seu negócio",
+        "description": "Entenda os números que ajudam a acompanhar seu negócio.",
+        "cta": "Ver meus indicadores"
+      }
     },
     characters: {
       eyebrow: "Histórias para aprender",

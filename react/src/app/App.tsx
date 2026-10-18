@@ -459,9 +459,11 @@ export default function App() {
     && sessionTabAccess !== undefined
     && (
       allowedCurrentTabIds.length === 0
-      || !requestedTabId
-      || !currentTabScopeDefinition.tabs[requestedTabId]
-      || !allowedCurrentTabIds.includes(requestedTabId)
+      // Sales resolves its remembered destination before mounting any workspace.
+      // Explicit destinations, including the restored one, still pass this guard.
+      || (requestedTabId
+        ? !currentTabScopeDefinition.tabs[requestedTabId] || !allowedCurrentTabIds.includes(requestedTabId)
+        : currentPage !== 'sales')
     ),
   );
 

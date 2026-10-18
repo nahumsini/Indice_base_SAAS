@@ -289,7 +289,7 @@ export function IndiceResizableTableHead<ColumnId extends string>({
         <button
           type="button"
           className={cn(
-            'inline-flex min-h-9 w-full min-w-0 items-center gap-2 pr-2 font-normal leading-4 text-inherit transition-colors hover:text-slate-950 focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 dark:hover:text-white',
+            'inline-flex min-h-11 md:min-h-9 w-full min-w-0 items-center gap-2 pr-2 text-[length:inherit] font-normal leading-4 text-inherit transition-colors hover:text-slate-950 focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 dark:hover:text-white',
             toneClassNames.focus,
             alignmentJustifyClassNames[alignment],
             activeDirection && toneClassNames.active,

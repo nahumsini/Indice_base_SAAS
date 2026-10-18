@@ -33,7 +33,6 @@ export const initialOpportunityForm: OpportunityFormState = {
 
 export const opportunityColumnsStorageKey = 'sales-opportunities-columns-v3';
 export const opportunityColumnWidthsStorageKey = 'sales-opportunities-column-widths-v4';
-export const agendaScheduleStorageKey = 'sales-opportunities-agenda-schedule-v1';
 export const opportunityDragDataType = 'application/x-indice-sales-opportunity-id';
 
 export const opportunitySortCollator = new Intl.Collator('es-MX', { numeric: true, sensitivity: 'base' });
@@ -58,7 +57,7 @@ export const defaultOpportunityColumns: ColumnConfig[] = [
   { id: 'owner', label: 'Responsable', visible: true, description: 'Vendedor o ejecutivo responsable.' },
   { id: 'estimatedValue', label: 'Valor / forecast', visible: true, description: 'Total de cotizaciones vigentes y forecast ponderado por probabilidad.' },
   { id: 'quoteSignal', label: 'Cotizaciones', visible: true, description: 'Documentos ligados, estado y descarga individual de PDF.' },
-  { id: 'nextAction', label: 'Seguimiento', visible: true, description: 'Siguiente acción, agenda y último contacto.' },
+  { id: 'nextAction', label: 'Siguiente acción', visible: true, description: 'Siguiente acción, agenda y último contacto.' },
   { id: 'expectedCloseDate', label: 'Cierre esperado', visible: true, description: 'Fecha objetivo de cierre.' },
   { id: 'status', label: 'Salud', visible: true, description: 'Salud operativa de la oportunidad.' },
   { id: 'phone', label: 'Teléfono', visible: false, description: 'Teléfono principal para llamadas o WhatsApp.' },

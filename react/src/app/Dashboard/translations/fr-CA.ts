@@ -1,4 +1,21 @@
 export const frCA = {
+  learningPresentation: {
+    title: "Votre apprentissage",
+    saved: "Progression enregistrée",
+    reviewed: "chapitres consultés",
+    applied: "appliqués",
+    continueAction: "Continuer à apprendre",
+    next: "Prochaine activité",
+    details: "Voir la progression par étape",
+    complete: "Vous avez consulté les chapitres disponibles.",
+    error: "Impossible de charger votre progression.",
+    retry: "Réessayer",
+    journeyTitle: "Votre parcours d’apprentissage",
+    journeyDescription: "Explorez les six étapes de la méthodologie Índice.",
+    stageTools: "Outils de cette étape",
+    exploring: "Exploration",
+    noTools: "Aucun outil disponible pour cette étape avec vos autorisations actuelles.",
+  },
   systemTools: {
     title: "Outils système",
     description: "Connectez et gérez les outils de votre entreprise.",
@@ -33,7 +50,7 @@ export const frCA = {
   },
   operationalJourney: {
     eyebrow: "Mode apprentissage",
-    sessionLabel: "Séance",
+    sessionLabel: "Étape",
     goalLabel: "Ce que vous accomplirez",
     title: "Votre parcours d’apprentissage",
     subtitle:
@@ -47,48 +64,42 @@ export const frCA = {
       locked: "Verrouillé",
     },
     stages: {
-      company_setup: {
-        title: "Découvrez votre entreprise",
-        shortTitle: "Votre entreprise",
-        description:
-          "Définissez l’identité et la structure qui lanceront votre apprentissage.",
-        cta: "Découvrir mon entreprise",
+      "company_setup": {
+        "title": "Votre entreprise",
+        "shortTitle": "Votre entreprise",
+        "description": "Renseignez votre entreprise et vos lieux de travail.",
+        "cta": "Voir mon entreprise"
       },
-      human_resources: {
-        title: "Organisez les personnes",
-        shortTitle: "Personnes",
-        description:
-          "Clarifiez les rôles, les responsabilités, les horaires et le travail d’équipe.",
-        cta: "Organiser les personnes",
+      "human_resources": {
+        "title": "Votre équipe",
+        "shortTitle": "Votre équipe",
+        "description": "Organisez les coordonnées et les horaires de votre équipe.",
+        "cta": "Voir mon équipe"
       },
-      operations: {
-        title: "Transformez le travail en processus",
-        shortTitle: "Processus",
-        description:
-          "Transformez les activités répétées en une façon de travailler claire et ordonnée.",
-        cta: "Apprendre les processus",
+      "operations": {
+        "title": "Tâches et processus",
+        "shortTitle": "Tâches et processus",
+        "description": "Précisez le travail à faire, la personne responsable et la date prévue.",
+        "cta": "Voir mes tâches"
       },
-      finance: {
-        title: "Prenez le contrôle de l’argent",
-        shortTitle: "Argent",
-        description:
-          "Apprenez comment l’argent entre, sort et est utilisé dans votre entreprise.",
-        cta: "Découvrir mes finances",
+      "finance": {
+        "title": "Votre argent",
+        "shortTitle": "Votre argent",
+        "description": "Consultez vos dépenses, les paiements en attente et ce que vos clients vous doivent.",
+        "cta": "Voir mes dépenses"
       },
-      commercial: {
-        title: "Organisez produits et ventes",
-        shortTitle: "Produits et ventes",
-        description:
-          "Reliez ce que vous achetez, stockez et vendez pour mieux comprendre votre entreprise.",
-        cta: "Organiser produits et ventes",
+      "commercial": {
+        "title": "Produits et ventes",
+        "shortTitle": "Produits et ventes",
+        "description": "Organisez vos produits et consultez vos ventes.",
+        "cta": "Voir produits et ventes"
       },
-      analytics: {
-        title: "Décidez avec de l’information",
-        shortTitle: "Décisions",
-        description:
-          "Transformez les résultats de l’entreprise en décisions pour grandir.",
-        cta: "Apprendre de mes indicateurs",
-      },
+      "analytics": {
+        "title": "Votre entreprise en chiffres",
+        "shortTitle": "Votre entreprise en chiffres",
+        "description": "Comprenez les chiffres qui vous aident à suivre votre entreprise.",
+        "cta": "Voir mes indicateurs"
+      }
     },
     characters: {
       eyebrow: "Des histoires pour apprendre",

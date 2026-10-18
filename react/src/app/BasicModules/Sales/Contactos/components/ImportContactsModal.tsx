@@ -3,6 +3,10 @@ import { CheckCircle2, FileUp, Smartphone, UploadCloud } from 'lucide-react';
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
 import { cn } from '../../../../components/ui/utils';
+import { IndiceModalValidation } from '../../../../components/indice-modal';
+import { useLanguage } from '../../../../shared/context';
+import { getFormFeedbackCopy } from '../../../../components/indice-modal/formFeedbackCopy';
+import type { ContactImportResult } from '../utils/importContacts';
 import { SalesModalFrame } from '../../components/SalesModalFrame';
 import { getSalesModalActionClassNames } from '../../salesModalStyles';
 import type { ContactCopy } from '../translations';
@@ -12,11 +16,6 @@ import {
   type ContactImportNavigator,
   type ImportedContactDraft,
 } from '../utils/contactImportUtils';
-
-type ImportContactsResult = {
-  imported: number;
-  skipped: number;
-};
 
 const importContactsActionClassNames = getSalesModalActionClassNames('coral');
 
@@ -29,8 +28,15 @@ export function ImportContactsModal({
   copy: ContactCopy['importModal'];
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onImportContacts: (contacts: ImportedContactDraft[]) => ImportContactsResult;
+  onImportContacts: (contacts: ImportedContactDraft[], onProgress?: (processed: number, total: number) => void) => Promise<ContactImportResult>;
 }) {
+  const { currentLanguage } = useLanguage();
+  const feedback = getFormFeedbackCopy(currentLanguage.code);
+  const savingRef = useRef(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [progress, setProgress] = useState('');
+  const [importError, setImportError] = useState('');
+  const [failedNames, setFailedNames] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [drafts, setDrafts] = useState<ImportedContactDraft[]>([]);
   const [statusMessage, setStatusMessage] = useState('');
@@ -46,6 +52,8 @@ export function ImportContactsModal({
   const resetModalState = () => {
     setDrafts([]);
     setStatusMessage('');
+    setImportError('');
+    setFailedNames([]);
     setIsReadingContacts(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -53,6 +61,7 @@ export function ImportContactsModal({
   };
 
   const handleOpenChange = (open: boolean) => {
+    if (savingRef.current) return;
     onOpenChange(open);
     if (!open) {
       resetModalState();
@@ -66,13 +75,15 @@ export function ImportContactsModal({
 
     setIsReadingContacts(true);
     setStatusMessage('');
+    setImportError('');
+    setFailedNames([]);
 
     try {
       const selectedContacts = await pickNativeContacts(navigator as ContactImportNavigator);
       setDrafts(selectedContacts);
       setStatusMessage(selectedContacts.length > 0 ? copy.selectedReady(selectedContacts.length) : copy.noneSelected);
     } catch {
-      setStatusMessage(copy.nativeDenied);
+      setImportError(copy.nativeDenied);
     } finally {
       setIsReadingContacts(false);
     }
@@ -86,23 +97,45 @@ export function ImportContactsModal({
 
     setIsReadingContacts(true);
     setStatusMessage('');
+    setImportError('');
+    setFailedNames([]);
 
     try {
       const fileContent = await file.text();
       const parsedContacts = parseContactFile(file.name, fileContent);
       setDrafts(parsedContacts);
-      setStatusMessage(parsedContacts.length > 0 ? copy.fileDetected(parsedContacts.length, file.name) : copy.fileEmpty);
+      if (parsedContacts.length) setStatusMessage(copy.fileDetected(parsedContacts.length, file.name));
+      else setImportError(copy.fileEmpty);
     } catch {
-      setStatusMessage(copy.fileReadError);
+      setImportError(copy.fileReadError);
     } finally {
       setIsReadingContacts(false);
     }
   };
 
-  const handleImportContacts = () => {
-    const result = onImportContacts(drafts);
-    setStatusMessage(copy.importResult(result.imported, result.skipped));
-    setDrafts([]);
+  const handleImportContacts = async () => {
+    if (savingRef.current || isReadingContacts || drafts.length === 0) return;
+    savingRef.current = true;
+    setIsImporting(true);
+    setImportError('');
+    setFailedNames([]);
+    setStatusMessage('');
+    setProgress(`0 / ${drafts.length}`);
+    try {
+      const result = await onImportContacts(drafts, (done, total) => setProgress(`${done} / ${total}`));
+      setStatusMessage(copy.importResult(result.imported, result.skipped));
+      setDrafts(result.failed);
+      if (result.failed.length) {
+        setImportError(feedback.saveFailed);
+        setFailedNames(result.failed.map(contact => contact.contactPerson || contact.company || contact.email || contact.phone));
+      }
+    } catch {
+      setImportError(feedback.saveFailed);
+    } finally {
+      savingRef.current = false;
+      setIsImporting(false);
+      setProgress('');
+    }
   };
 
   return (
@@ -114,27 +147,30 @@ export function ImportContactsModal({
       icon={<UploadCloud className="h-5 w-5" />}
       closeLabel={copy.cancel}
       modalType="standard-form"
-      busy={isReadingContacts}
+      busy={isReadingContacts || isImporting}
+      footerSummary={isImporting ? `${feedback.saving} ${progress}` : undefined}
       bodyClassName="space-y-5 bg-slate-50/70"
       footer={(
         <>
           <Button
             variant="outline"
             className={importContactsActionClassNames.secondary}
+            disabled={isImporting || isReadingContacts}
             onClick={() => handleOpenChange(false)}
           >
             {copy.cancel}
           </Button>
           <Button
             className={importContactsActionClassNames.primary}
-            onClick={handleImportContacts}
-            disabled={drafts.length === 0 || isReadingContacts}
+            onClick={() => void handleImportContacts()}
+            disabled={drafts.length === 0 || isReadingContacts || isImporting}
           >
-            {copy.importContacts}
+            {isImporting ? feedback.saving : copy.importContacts}
           </Button>
         </>
       )}
     >
+          <IndiceModalValidation messages={importError ? [importError, ...failedNames] : []} />
           <section className="grid gap-3 md:grid-cols-2">
             <button
               type="button"
@@ -143,7 +179,7 @@ export function ImportContactsModal({
                 !canUseNativeContacts && 'opacity-70',
               )}
               onClick={handlePickNativeContacts}
-              disabled={!canUseNativeContacts || isReadingContacts}
+              disabled={!canUseNativeContacts || isReadingContacts || isImporting}
             >
               <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#FF6B5E] text-[#222831]">
                 <Smartphone className="h-5 w-5" />
@@ -161,7 +197,7 @@ export function ImportContactsModal({
               type="button"
               className="rounded-lg border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-[#FF6B5E]/35 hover:bg-slate-50"
               onClick={() => fileInputRef.current?.click()}
-              disabled={isReadingContacts}
+              disabled={isReadingContacts || isImporting}
             >
               <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32]">
                 <FileUp className="h-5 w-5" />
@@ -206,7 +242,7 @@ export function ImportContactsModal({
           {statusMessage ? (
             <div className="flex items-start gap-3 rounded-lg border border-[#59C3A5]/25 bg-[#59C3A5]/10 px-4 py-3 text-sm font-medium text-[#177D66]">
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{statusMessage}</span>
+              <span role="status" aria-live="polite">{statusMessage}</span>
             </div>
           ) : null}
     </SalesModalFrame>

@@ -529,6 +529,7 @@ export const enCA = {
     description: 'Add a reusable commercial block prepared for quotes, POS and future inventory connections.',
     editDescription: 'Update the commercial, visual and operational information for this catalog item.',
     validationMissingRequired: (fields: string) => `Complete the required fields before saving: ${fields}.`,
+    savedPendingImages: "The product was saved, but its images are still pending. Try again to continue with the same product.",
     saveFailed: 'The item could not be saved. Review the required information and try again.',
     fields: {
       name: 'Product or service name',

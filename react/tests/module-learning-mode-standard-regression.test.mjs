@@ -79,9 +79,13 @@ test('el Dashboard conserva seis etapas y las presenta como sesiones didácticas
   ];
 
   stageIds.forEach((stageId) => assert.match(journeyModel, new RegExp(`id: "${stageId}"`)));
-  assert.match(journeyView, /stageEmoji/);
+  assert.match(journeyView, /learningStageArtwork/);
+  assert.match(journeyView, /IndiceHorizontalScrollControls/);
+  assert.doesNotMatch(journeyView, /progressPercent|completedCount/);
   assert.match(journeyView, /copy\.sessionLabel/);
-  assert.match(journeyView, /copy\.goalLabel/);
-  assert.match(spanishCopy, /sessionLabel: "Sesión"/);
+  assert.match(read('src/app/Dashboard/components/OperationalModulesSection.tsx'), /copy\.goalLabel/);
+  assert.match(read('src/app/Dashboard/components/OperationalModulesSection.tsx'), /groups\.find/);
+  assert.doesNotMatch(journeyView, /onModuleClick|stage\.primaryRoute/);
+  assert.match(spanishCopy, /sessionLabel: "Paso"/);
   assert.match(spanishCopy, /goalLabel: "Lo que vas a lograr"/);
 });

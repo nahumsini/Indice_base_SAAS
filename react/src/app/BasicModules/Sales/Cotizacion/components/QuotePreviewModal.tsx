@@ -1,564 +1,139 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { applyDocumentGrayscale } from '../../../shared/print/documentGrayscale';
-import {
-  FileText,
-  Mail,
-  MessageCircle,
-  Printer,
-  Send,
-} from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { ChevronDown, FileText, Loader2, LockKeyhole, Mail, MessageCircle, Printer, Send } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
 import { getWebPrintCopy } from '../../../shared/print/webPrintCopy';
-import { cn } from '../../../../components/ui/utils';
+import { StandardDocumentPreview } from '../../../shared/print/StandardDocumentPreview';
+import { printStandardDocumentHtml } from '../../../shared/print/standardDocumentHtml';
+import type { CompanyPrintIdentity } from '../../../shared/print/useCompanyPrintIdentity';
 import type { SalesContact, SalesOpportunity, SalesQuote } from '../../types';
 import { SalesModalFrame } from '../../components/SalesModalFrame';
 import { getSalesModalActionClassNames } from '../../salesModalStyles';
-import { formatSalesCurrencyAmount } from '../../utils/salesCurrency';
 import type { QuotesTranslations } from '../translations';
-import {
-  downloadQuotePdf,
-  getQuotePdfBlob,
-  getQuotePdfFileName,
-  printQuotePdf,
-  type QuotePdfContext,
-} from '../quotePdf';
-import { getQuoteLineExchangeRateLabel } from '../utils/quoteCurrencyConversion';
-import type { CompanyPrintIdentity } from '../../../shared/print/useCompanyPrintIdentity';
+import { getQuotePreviewCopy } from '../translations/quotePreviewCopy';
+import { buildQuoteWebDocument, formatQuoteDocumentAmount, getQuotePdfBlob, getQuotePdfFileName, type QuotePdfContext } from '../quotePdf';
 
 type QuotePreviewModalProps = {
   quote: SalesQuote | null;
   contact?: SalesContact | null;
   opportunity?: SalesOpportunity | null;
   company?: CompanyPrintIdentity | null;
+  companyReady?: boolean;
   copy: QuotesTranslations;
   locale?: string;
   onClose: () => void;
 };
+const actions = getSalesModalActionClassNames('coral');
 
-const previewActionClassNames = getSalesModalActionClassNames('coral');
-
-function formatCurrency(value: number, currency?: string | null) {
-  return formatSalesCurrencyAmount(value, currency);
+/** The modal session resets zoom, scroll and async feedback for each opened quotation. */
+export function QuotePreviewModal(props: QuotePreviewModalProps) {
+  return props.quote ? <QuotePreviewSession key={props.quote.id} {...props} quote={props.quote} /> : null;
 }
-
-function getLineTotal(item: SalesQuote['items'][number]) {
-  const subtotal = item.quantity * item.unitPrice;
-  const discount = subtotal * (item.discountPercent / 100);
-  const taxable = subtotal - discount;
-  const tax = taxable * (item.taxPercent / 100);
-  return taxable + tax;
-}
-
-function hasCurrencyConversion(item: SalesQuote['items'][number], quoteCurrency?: string | null) {
-  const originalCurrency = item.originalCurrency ?? item.quoteCurrency ?? quoteCurrency;
-  const targetCurrency = item.quoteCurrency ?? quoteCurrency;
-
-  return Boolean(originalCurrency && targetCurrency && originalCurrency.toUpperCase() !== targetCurrency.toUpperCase());
-}
-
-function getWhatsAppHref(phone: string, message: string) {
-  return `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
-}
-
-function getMailToHref(email: string, subject: string, body: string) {
-  return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-}
-
-function formatPercent(value: number) {
-  return `${Number.isFinite(value) ? value : 0}%`;
-}
-
-function getTaxSummary(quote: SalesQuote, copy: QuotesTranslations) {
-  return quote.items
-    .map((item) => item.taxLabel ? `${item.taxLabel} ${item.taxPercent}%` : `${item.taxPercent}%`)
-    .filter((value, index, list) => list.indexOf(value) === index)
-    .join(' / ') || copy.common.unassigned;
-}
-
-function PreviewInsightCard({
-  accentClassName,
-  body,
-  title,
-}: {
-  accentClassName: string;
-  body: string;
-  title: string;
-}) {
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white p-5">
-      <div className="flex items-center gap-3">
-        <span className={cn('h-3 w-3 rounded-full', accentClassName)} aria-hidden="true" />
-        <h3 className="text-base font-medium text-slate-950">{title}</h3>
-      </div>
-      <p className="mt-5 text-sm font-normal leading-6 text-slate-500">{body}</p>
-    </div>
-  );
-}
-
-function PreviewMetricCard({
-  accentClassName,
-  label,
-  value,
-}: {
-  accentClassName: string;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-      <div className="flex min-h-[92px]">
-        <span className={cn('w-2 shrink-0', accentClassName)} aria-hidden="true" />
-        <div className="flex min-w-0 flex-1 flex-col justify-between p-4">
-          <p className="text-xs font-medium text-slate-500">{label}</p>
-          <p className="truncate text-xl font-medium text-slate-950">{value}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export function QuotePreviewModal({
-  quote,
-  contact,
-  opportunity,
-  company,
-  copy,
-  locale = 'es-MX',
-  onClose,
-}: QuotePreviewModalProps) {
+function QuotePreviewSession({ quote, contact, opportunity, company, companyReady = true, copy, locale = 'es-MX', onClose }: QuotePreviewModalProps & { quote: SalesQuote }) {
   const [isSharing, setIsSharing] = useState(false);
-  const documentRef = useRef<HTMLElement>(null);
-  useLayoutEffect(() => {
-    if (documentRef.current) applyDocumentGrayscale(documentRef.current);
-  }, [quote, company, locale]);
-  const pdfContext = useMemo<QuotePdfContext | null>(() => (
-    quote ? { quote, contact, opportunity, company, copy, locale } : null
-  ), [company, contact, copy, locale, opportunity, quote]);
-
-  if (!quote || !pdfContext) {
-    return null;
-  }
-
-  const quoteCurrency = quote.currency ?? 'MXN';
-  const unitCount = quote.items.reduce((total, item) => total + item.quantity, 0);
-  const countLabels = locale.toLowerCase().startsWith('es')
-    ? { lineItems: 'Partidas', units: 'Unidades' }
-    : locale.toLowerCase().startsWith('fr')
-      ? { lineItems: 'Lignes', units: 'Unités' }
-      : { lineItems: 'Line items', units: 'Units' };
-  const fiscalAddress = [contact?.fiscalAddressLine1, contact?.fiscalAddressLine2, contact?.fiscalCity, contact?.fiscalState, contact?.fiscalPostalCode, contact?.fiscalCountry]
-    .map((part) => part?.trim()).filter(Boolean).join(', ');
-  const estimatedCost = quote.items.reduce((total, item) => (
-    total + item.quantity * (item.convertedUnitCost ?? item.unitCost ?? item.originalUnitCost ?? 0)
-  ), 0);
-  const estimatedProfit = quote.total - estimatedCost;
-  const estimatedMargin = quote.total > 0 ? Math.round((estimatedProfit / quote.total) * 100) : 0;
-  const taxSummary = getTaxSummary(quote, copy);
-  const isExpired = new Date(quote.expirationDate).getTime() < new Date().setHours(0, 0, 0, 0);
-  const hasLowMargin = estimatedMargin < 20;
-  const hasMissingCosts = quote.items.some((item) => !item.unitCost && !item.convertedUnitCost && !item.originalUnitCost);
-  const mainRecommendation = quote.items.length === 0
-    ? copy.builder.emptyItems
-    : isExpired
-      ? `${copy.labels.expirationDate}: ${quote.expirationDate}. ${copy.previewModal.defaultTerms}`
-      : hasLowMargin
-        ? copy.marginGuidance.messages.warning
-        : copy.marginGuidance.messages.success;
-  const documentInsights = copy.previewModal.documentInsights;
-  const intelligenceLabels = {
-    happened: documentInsights.happened,
-    matters: documentInsights.matters,
-    next: documentInsights.next,
-    decisionSignal: documentInsights.decisionSignal,
-    happenedBody: documentInsights.happenedBody(
-      quote.clientName,
-      formatCurrency(quote.total, quoteCurrency),
-      quote.items.length,
-    ),
-    mattersBody: documentInsights.mattersBody(
-      copy.labels.expirationDate,
-      quote.expirationDate,
-      copy.labels.taxTotal,
-      formatCurrency(quote.taxTotal, quoteCurrency),
-      copy.labels.currency,
-      quoteCurrency,
-    ),
-  };
-  const metricCards = [
-    { label: copy.labels.total, value: formatCurrency(quote.total, quoteCurrency), accent: 'bg-[#FF6B5E]' },
-    { label: copy.labels.currency, value: quoteCurrency, accent: 'bg-[#2563EB]' },
-    { label: countLabels.lineItems, value: String(quote.items.length), accent: 'bg-[#2563EB]' },
-    { label: countLabels.units, value: String(unitCount), accent: 'bg-[#59C3A5]' },
-    {
-      label: copy.pricing.estimatedMargin,
-      value: formatPercent(estimatedMargin),
-      accent: hasLowMargin ? 'bg-[#FF6B5E]' : 'bg-[#59C3A5]',
-    },
-    { label: copy.labels.subtotal, value: formatCurrency(quote.subtotal, quoteCurrency), accent: 'bg-[#F4C84A]' },
-    { label: copy.labels.taxTotal, value: formatCurrency(quote.taxTotal, quoteCurrency), accent: 'bg-[#F4C84A]' },
-    {
-      label: copy.pricing.estimatedProfit,
-      value: formatCurrency(estimatedProfit, quoteCurrency),
-      accent: estimatedProfit < 0 ? 'bg-[#FF6B5E]' : 'bg-[#59C3A5]',
-    },
-    {
-      label: copy.labels.expirationDate,
-      value: quote.expirationDate,
-      accent: isExpired ? 'bg-[#FF6B5E]' : 'bg-[#2563EB]',
-    },
-  ];
-
-  const whatsappMessage = copy.previewModal.whatsappMessage(
-    quote.clientName,
-    quote.quoteNumber,
-    formatCurrency(quote.total, quoteCurrency),
-    quote.expirationDate,
-  );
-  const emailSubject = copy.previewModal.emailSubject(quote.quoteNumber);
-  const emailBody = copy.previewModal.emailBody(
-    quote.clientName,
-    quote.quoteNumber,
-    formatCurrency(quote.total, quoteCurrency),
-    quote.expirationDate,
-  );
-  const whatsappHref = contact?.phone ? getWhatsAppHref(contact.phone, whatsappMessage) : undefined;
-  const emailHref = contact?.email ? getMailToHref(contact.email, emailSubject, emailBody) : undefined;
-
-  const handlePrint = () => {
-    void printQuotePdf(pdfContext);
-  };
-
-  const handleDownload = () => {
-    void downloadQuotePdf(pdfContext);
-  };
-
-  const handleSharePdf = async () => {
-    if (!navigator.share) {
-      handleDownload();
-      return;
-    }
-
+  const sharingRef = useRef(false);
+  const [shareError, setShareError] = useState('');
+  const [zoom, setZoom] = useState('fit');
+  const ui = getQuotePreviewCopy(locale);
+  const pdfContext = useMemo<QuotePdfContext>(() => ({ quote, contact, opportunity, company, copy, locale, generatedAt: new Date() }), [quote, contact, opportunity, company, copy, locale]);
+  const definition = useMemo(() => buildQuoteWebDocument(pdfContext), [pdfContext]);
+  const currency = quote.currency ?? 'MXN';
+  const amount = (value: number) => formatQuoteDocumentAmount(value, currency);
+  // These existing estimates are internal review only, never part of the customer document.
+  const cost = quote.items.reduce((total, item) => total + item.quantity * (item.convertedUnitCost ?? item.unitCost ?? item.originalUnitCost ?? 0), 0);
+  const profit = quote.total - cost;
+  const margin = quote.total > 0 ? Math.round(profit / quote.total * 100) : 0;
+  const missingCosts = quote.items.some(item => !item.unitCost && !item.convertedUnitCost && !item.originalUnitCost);
+  const expired = new Date(quote.expirationDate).getTime() < new Date().setHours(0, 0, 0, 0);
+  const guidance = quote.items.length === 0 ? copy.builder.emptyItems : missingCosts ? copy.marginGuidance.messages.missingCost : margin < 20 ? copy.marginGuidance.messages.warning : copy.marginGuidance.messages.success;
+  const message = copy.previewModal.whatsappMessage(quote.clientName, quote.quoteNumber, amount(quote.total), quote.expirationDate);
+  const subject = copy.previewModal.emailSubject(quote.quoteNumber);
+  const emailBody = copy.previewModal.emailBody(quote.clientName, quote.quoteNumber, amount(quote.total), quote.expirationDate);
+  const whatsappHref = contact?.phone ? `https://wa.me/${contact.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}` : undefined;
+  const emailHref = contact?.email ? `mailto:${contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}` : undefined;
+  const print = () => { if (companyReady) printStandardDocumentHtml(definition); };
+  const share = async () => {
+    if (!companyReady || sharingRef.current) return;
+    if (!navigator.share) { print(); return; }
+    sharingRef.current = true;
     setIsSharing(true);
+    setShareError('');
     try {
       const blob = await getQuotePdfBlob(pdfContext);
       const file = new File([blob], getQuotePdfFileName(quote), { type: 'application/pdf' });
-      const sharePayload = {
-        title: emailSubject,
-        text: whatsappMessage,
-        files: [file],
-      };
-
-      if ('canShare' in navigator && !navigator.canShare(sharePayload)) {
-        handleDownload();
-        return;
-      }
-
-      await navigator.share(sharePayload);
-    } finally {
-      setIsSharing(false);
-    }
+      const payload = { title: subject, text: message, files: [file] };
+      if (navigator.canShare && !navigator.canShare(payload)) { setShareError(ui.shareError); return; }
+      await navigator.share(payload);
+    } catch (error) {
+      if (!(error instanceof Error && error.name === 'AbortError')) setShareError(ui.shareError);
+    } finally { sharingRef.current = false; setIsSharing(false); }
   };
-
   return (
-    <SalesModalFrame
-      open={Boolean(quote)}
-      onOpenChange={(open) => !open && onClose()}
-      busy={isSharing}
-      closeLabel={copy.common.close}
-      title={copy.previewModal.title}
-      description={copy.previewModal.description}
-      icon={<FileText className="h-6 w-6" />}
-      modalType="large-workspace"
-      contentClassName="h-[92dvh] max-h-[920px]"
-      bodyClassName="!max-h-none min-h-0 flex-1 overflow-auto bg-slate-100 px-4 py-5 dark:bg-slate-950"
-      footerClassName="flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-      footerSummary={copy.previewModal.shareHint}
-      footer={(
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className={cn('h-10 gap-2 px-4 text-sm font-medium', previewActionClassNames.secondary)}
-              onClick={onClose}
-              disabled={isSharing}
-            >
-              {copy.common.close}
-            </Button>
-            <Button
-              variant="outline"
-              className={cn('h-10 gap-2 px-4 text-sm font-medium', previewActionClassNames.secondary)}
-              onClick={handlePrint}
-            >
-              <Printer className="h-4 w-4" />
-              {getWebPrintCopy(locale).action}
-            </Button>
-            <Button
-              variant="outline"
-              className={cn('h-10 gap-2 px-4 text-sm font-medium', previewActionClassNames.secondary)}
-              asChild={Boolean(whatsappHref)}
-              disabled={!whatsappHref}
-              title={!whatsappHref ? copy.previewModal.noPhone : undefined}
-            >
-              {whatsappHref ? (
-                <a href={whatsappHref} target="_blank" rel="noreferrer">
-                  <MessageCircle className="h-4 w-4" />
-                  {copy.previewModal.whatsapp}
-                </a>
-              ) : (
-                <>
-                  <MessageCircle className="h-4 w-4" />
-                  {copy.previewModal.whatsapp}
-                </>
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              className={cn('h-10 gap-2 px-4 text-sm font-medium', previewActionClassNames.secondary)}
-              asChild={Boolean(emailHref)}
-              disabled={!emailHref}
-              title={!emailHref ? copy.previewModal.noEmail : undefined}
-            >
-              {emailHref ? (
-                <a href={emailHref}>
-                  <Mail className="h-4 w-4" />
-                  {copy.previewModal.emailAction}
-                </a>
-              ) : (
-                <>
-                  <Mail className="h-4 w-4" />
-                  {copy.previewModal.emailAction}
-                </>
-              )}
-            </Button>
-            <Button
-              className={cn('h-10 gap-2 px-4 text-sm font-medium', previewActionClassNames.primary)}
-              onClick={handleSharePdf}
-              disabled={isSharing}
-            >
-              <Send className="h-4 w-4" />
-              {copy.previewModal.sharePdf}
-            </Button>
-          </div>
-      )}
+    <SalesModalFrame open onOpenChange={open => !open && onClose()} busy={isSharing} closeLabel={copy.common.close}
+      title={copy.previewModal.title} description={`${quote.quoteNumber} · ${quote.clientName}`}
+      icon={<FileText className="h-6 w-6" />} modalType="operational-workspace"
+      contentClassName="h-[92dvh]" bodyClassName="!max-h-none min-h-0 flex-1 overflow-y-auto !p-0 xl:overflow-hidden"
+      footerLeading={<Button variant="outline" className={actions.secondary} onClick={onClose} disabled={isSharing}>{copy.common.close}</Button>}
+      footerSummary={`${quote.quoteNumber} · ${amount(quote.total)} ${currency}`}
+      footer={<Button className={actions.primary} onClick={print} disabled={!companyReady || isSharing}><Printer className="mr-2 h-4 w-4" />{getWebPrintCopy(locale).action}</Button>}
     >
-          <article ref={documentRef} className="mx-auto min-h-[980px] w-full max-w-[880px] bg-white px-10 py-9 shadow-xl ring-1 ring-slate-200 sm:px-12">
-            <header className="border-b border-slate-200 pb-7">
-              <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-start">
-                <div>
-                  <p className="text-xs font-medium text-slate-500">{copy.table.columns.number}</p>
-                  <p className="mt-1 text-lg font-medium text-slate-950">{quote.quoteNumber}</p>
-                </div>
-                <div className="text-left md:text-center">
-                  <p className="text-2xl font-medium text-slate-950">{copy.previewModal.documentTitle}</p>
-                  <p className="mt-1 text-xs font-medium text-slate-500">
-                    {copy.previewModal.documentEyebrow}
-                  </p>
-                </div>
-                <div className="text-left text-sm font-normal text-slate-500 md:text-right">
-                  <p>{copy.labels.createdDate}: {quote.createdDate}</p>
-                  <p className="mt-1">{copy.labels.expirationDate}: {quote.expirationDate}</p>
-                </div>
-              </div>
-
-              <div className="mt-5">
-                {company?.logoUrl ? <img data-company-logo src={company.logoUrl} alt="" className="max-h-12 max-w-40 object-contain" /> : null}
-                {company?.name ? <p className="mt-2 text-sm font-medium">{company.name}</p> : null}
-              </div>
-
-              <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-end">
-                <div>
-                  <p className="text-xs font-medium text-[#B63B32]">
-                    {copy.previewModal.documentLabel}
-                  </p>
-                  <h1 className="mt-3 text-5xl font-medium leading-[0.95] text-slate-950">
-                    {copy.previewModal.documentTitle}
-                  </h1>
-                  <p className="mt-4 max-w-xl text-base leading-7 text-slate-600">
-                    {copy.previewModal.documentSubtitle}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-[#FF6B5E]/25 bg-[#FFF3F1] p-5 text-right">
-                  <p className="text-xs font-medium text-[#B63B32]">
-                    {copy.labels.total} · {quoteCurrency}
-                  </p>
-                  <p className="mt-2 text-3xl font-medium text-slate-950">{formatCurrency(quote.total, quoteCurrency)}</p>
-                </div>
-              </div>
-            </header>
-
-            <section className="grid gap-4 border-b border-slate-200 py-7 lg:grid-cols-3">
-              <PreviewInsightCard
-                accentClassName="bg-[#FF6B5E]"
-                title={intelligenceLabels.happened}
-                body={intelligenceLabels.happenedBody}
-              />
-              <PreviewInsightCard
-                accentClassName="bg-[#F4C84A]"
-                title={intelligenceLabels.matters}
-                body={intelligenceLabels.mattersBody}
-              />
-              <PreviewInsightCard
-                accentClassName={hasLowMargin || isExpired ? 'bg-[#FF6B5E]' : 'bg-[#59C3A5]'}
-                title={intelligenceLabels.next}
-                body={mainRecommendation}
-              />
-            </section>
-
-            <section className="grid gap-4 border-b border-slate-200 py-7 sm:grid-cols-2 lg:grid-cols-4">
-              {metricCards.map((card) => (
-                <PreviewMetricCard
-                  key={card.label}
-                  accentClassName={card.accent}
-                  label={card.label}
-                  value={card.value}
-                />
-              ))}
-            </section>
-
-            <section className="grid gap-4 border-b border-slate-200 py-7 md:grid-cols-2">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
-                <p className="text-xs font-medium text-slate-500">{copy.previewModal.clientBlock}</p>
-                <h2 className="mt-3 text-xl font-medium text-slate-950">{quote.clientName}</h2>
-                <p className="mt-1 font-medium text-slate-600">{quote.contactPerson}</p>
-                <div className="mt-4 space-y-1 text-sm font-medium text-slate-500">
-                  <p>{copy.previewModal.phone}: {contact?.phone ?? copy.common.unassigned}</p>
-                  <p>{copy.previewModal.email}: {contact?.email ?? copy.common.unassigned}</p>
-                  <p>{contact?.fiscalLegalName || quote.clientName}</p>
-                  <p>{contact?.fiscalTaxId || copy.common.unassigned}</p>
-                  {fiscalAddress ? <p>{fiscalAddress}</p> : null}
-                </div>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
-                <p className="text-xs font-medium text-slate-500">{copy.previewModal.commercialBlock}</p>
-                <h2 className="mt-3 text-xl font-medium text-slate-950">{company?.name || quote.assignedSeller}</h2>
-                <div className="mt-4 grid gap-2 text-sm font-medium text-slate-500">
-                  <p>{copy.labels.seller}: {quote.assignedSeller}</p>
-                  {company?.address ? <p>{company.address}</p> : null}
-                  {company?.phone ? <p>{copy.previewModal.phone}: {company.phone}</p> : null}
-                  {company?.email ? <p>{copy.previewModal.email}: {company.email}</p> : null}
-                  <p>{copy.labels.opportunity}: {opportunity?.opportunityName ?? copy.common.unassigned}</p>
-                  <p>{copy.labels.status}: {copy.statusLabels[quote.status]}</p>
-                  <p>{copy.labels.currency}: {quoteCurrency}</p>
-                  <p>{copy.taxBuilder.taxPreset}: {taxSummary}</p>
-                </div>
-              </div>
-            </section>
-
-            <section className="py-7">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-                <h2 className="text-xl font-medium text-slate-950">{copy.previewModal.itemsTitle}</h2>
-                <span className="rounded-full border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-3 py-1 text-xs font-medium text-[#B63B32]">
-                  {copy.statusLabels[quote.status]}
-                </span>
-              </div>
-
-              <div className="overflow-hidden rounded-lg border border-slate-200">
-                <table className="w-full border-collapse text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-700">
-                    <tr>
-                      <th className="px-3 py-3 font-medium">{copy.labels.product}</th>
-                      <th className="px-3 py-3 font-medium">{copy.labels.section}</th>
-                      <th className="px-3 py-3 text-center font-medium">{copy.labels.quantity}</th>
-                      <th className="px-3 py-3 text-right font-medium">{copy.labels.unitPrice}</th>
-                      <th className="px-3 py-3 text-center font-medium">{copy.labels.discount}</th>
-                      <th className="px-3 py-3 text-center font-medium">{copy.labels.tax}</th>
-                      <th className="px-3 py-3 text-right font-medium">{copy.previewModal.lineTotal}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {quote.items.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="px-4 py-8 text-center text-sm font-medium text-slate-500">
-                          {copy.builder.emptyItems}
-                        </td>
-                      </tr>
-                    ) : quote.items.map((item) => (
-                      <tr key={item.id} className="border-t border-slate-200 odd:bg-white even:bg-slate-50">
-                        <td className="max-w-[240px] px-3 py-4">
-                          <p className="font-medium text-slate-950">{item.productName}</p>
-                          <p className="mt-1 font-medium text-slate-500">{item.sku}</p>
-                          {item.notes ? <p className="mt-2 font-normal leading-5 text-slate-600">{item.notes}</p> : null}
-                          {hasCurrencyConversion(item, quoteCurrency) ? (
-                            <p className="mt-1 font-medium leading-5 text-[#7C5604]">
-                              {copy.pricing.catalogPrice}: {formatCurrency(item.originalUnitPrice ?? item.unitPrice, item.originalCurrency)} · {copy.pricing.exchangeRate}: 1 {item.originalCurrency} = {getQuoteLineExchangeRateLabel(item.exchangeRate)} {item.quoteCurrency ?? quoteCurrency} · {item.exchangeRateDate}
-                            </p>
-                          ) : null}
-                        </td>
-                        <td className="px-3 py-4 font-medium text-slate-600">{item.section || copy.common.unassigned}</td>
-                        <td className="px-3 py-4 text-center font-medium text-slate-700">{item.quantity}</td>
-                        <td className="px-3 py-4 text-right font-medium text-slate-700">{formatCurrency(item.unitPrice, quoteCurrency)}</td>
-                        <td className="px-3 py-4 text-center font-medium text-slate-700">{item.discountPercent}%</td>
-                        <td className="px-3 py-4 text-center font-medium text-slate-700">
-                          {item.taxLabel ? `${item.taxLabel} ${item.taxPercent}%` : `${item.taxPercent}%`}
-                        </td>
-                        <td className="px-3 py-4 text-right font-medium text-slate-950">{formatCurrency(getLineTotal(item), quoteCurrency)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="mt-6 grid gap-4 md:grid-cols-[1fr_300px]">
-                <div className="rounded-lg border border-slate-200 bg-white p-5">
-                  <h3 className="text-sm font-medium text-slate-600">{copy.labels.notes}</h3>
-                  <p className="mt-3 text-sm leading-6 text-slate-600">{quote.notes || copy.previewModal.noNotes}</p>
-                </div>
-                <div className="rounded-lg border border-[#FF6B5E]/25 bg-[#FFF3F1] p-5">
-                  <p className="mb-2 text-xs font-medium text-[#B63B32]">{copy.labels.currency}: {quoteCurrency}</p>
-                  {[
-                    [copy.labels.subtotal, quote.subtotal],
-                    [copy.labels.discountTotal, quote.discountTotal],
-                    [copy.labels.taxTotal, quote.taxTotal],
-                    [copy.labels.total, quote.total],
-                  ].map(([label, value], index, rows) => (
-                    <div
-                      key={label}
-                      className={cn(
-                        'flex items-center justify-between py-2 text-sm',
-                        index === rows.length - 1 && 'mt-2 border-t border-[#FF6B5E]/25 pt-4 text-lg text-slate-950',
-                      )}
-                    >
-                      <span className={cn(index === rows.length - 1 ? 'font-medium text-slate-950' : 'font-medium text-slate-600')}>{label}</span>
-                      <span className={cn(index === rows.length - 1 ? 'font-medium' : 'font-medium', 'text-slate-950')}>{formatCurrency(Number(value), quoteCurrency)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-5">
-                <h3 className="text-sm font-medium text-slate-600">{copy.labels.terms}</h3>
-                <p className="mt-3 text-sm leading-6 text-slate-600">{quote.terms || copy.previewModal.defaultTerms}</p>
-              </div>
-
-              <div className="mt-5 rounded-lg border border-slate-200 bg-white p-5">
-                <h3 className="text-sm font-medium text-slate-700">
-                  {locale.toLowerCase().startsWith('es') ? 'Aceptación de la propuesta' : 'Commercial acceptance'}
-                </h3>
-                <div className="mt-10 grid gap-8 text-xs font-medium text-slate-500 sm:grid-cols-3">
-                  {[
-                    locale.toLowerCase().startsWith('es') ? 'Nombre y firma del cliente' : 'Customer name and signature',
-                    locale.toLowerCase().startsWith('es') ? 'Fecha' : 'Date',
-                    locale.toLowerCase().startsWith('es') ? 'Responsable comercial' : 'Commercial representative',
-                  ].map((label) => <div key={label} className="border-t border-slate-400 pt-2">{label}</div>)}
-                </div>
-              </div>
-
-              <div className={cn(
-                'mt-5 rounded-lg border p-5',
-                hasMissingCosts || hasLowMargin
-                  ? 'border-[#FF6B5E]/25 bg-[#FFF3F1]'
-                  : 'border-[#59C3A5]/30 bg-[#F3FCF8]',
-              )}
-              >
-                <h3 className="text-sm font-medium text-slate-700">{intelligenceLabels.decisionSignal}</h3>
-                <p className="mt-3 text-sm font-normal leading-6 text-slate-600">
-                  {hasMissingCosts
-                    ? copy.marginGuidance.messages.missingCost
-                    : `${copy.pricing.estimatedMargin}: ${formatPercent(estimatedMargin)}. ${mainRecommendation}`}
-                </p>
-              </div>
-            </section>
-          </article>
+      <div className="grid min-h-0 xl:h-full xl:grid-cols-[minmax(0,1fr)_300px]">
+        <section className="flex min-h-0 min-w-0 flex-col bg-slate-100 dark:bg-slate-950" aria-label={ui.document}>
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3 dark:border-slate-800 dark:bg-slate-900">
+            <div className="min-w-0">
+              <h3 className="flex items-center gap-2 text-sm font-medium"><FileText className="h-4 w-4 text-[#B63B32] dark:text-[#FFB0AA]" />{ui.document}</h3>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{ui.documentHint}</p>
+            </div>
+            <Select value={zoom} onValueChange={setZoom}>
+              <SelectTrigger className="h-9 w-[160px] text-xs" aria-label={ui.zoom}><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="fit">{ui.fit}</SelectItem>{['75', '100', '125', '150'].map(value => <SelectItem key={value} value={value}>{value}%</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          {companyReady ? <StandardDocumentPreview definition={definition} paperPreview zoom={zoom === 'fit' ? undefined : Number(zoom) / 100}
+            className="h-[60dvh] min-h-[360px] w-full flex-1 border-0 bg-slate-100 xl:h-full xl:min-h-0" /> :
+            <div role="status" className="flex min-h-[360px] flex-1 items-center justify-center gap-2 p-6 text-sm"><Loader2 className="h-4 w-4 animate-spin" />{ui.loading}</div>}
+        </section>
+        <aside className="min-w-0 space-y-5 border-t border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 xl:overflow-y-auto xl:border-l xl:border-t-0">
+          <div>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{copy.previewModal.clientBlock}</p>
+            <p className="mt-1 break-words text-base font-medium">{quote.clientName}</p>
+            <p className="mt-1 break-words text-sm text-slate-500 dark:text-slate-400">{quote.contactPerson}</p>
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
+              <p className="text-xs text-slate-500 dark:text-slate-400">{copy.labels.total} · {currency}</p>
+              <p className="mt-1 break-words text-2xl font-medium tabular-nums">{amount(quote.total)}</p>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs"><span>{copy.statusLabels[quote.status]}</span><span className={expired ? 'text-amber-700 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400'}>{quote.expirationDate}</span></div>
+              {expired && <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">{ui.review}</p>}
+            </div>
+          </div>
+          <details className="group rounded-xl border border-slate-200 dark:border-slate-700">
+            <summary className="flex cursor-pointer list-none items-center gap-2 p-4 text-sm font-medium [&::-webkit-details-marker]:hidden"><LockKeyhole className="h-4 w-4 text-slate-500" />{ui.internal}<ChevronDown className="ml-auto h-4 w-4 group-open:rotate-180" /></summary>
+            <div className="space-y-3 border-t border-slate-200 p-4 dark:border-slate-700">
+              <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{ui.internalHint}</p>
+              <dl className="space-y-2 text-sm">
+                {[[copy.pricing.estimatedMargin, missingCosts ? ui.unavailable : `${margin}%`], [copy.pricing.estimatedProfit, missingCosts ? ui.unavailable : amount(profit)]].map(([label, value]) => <div key={label} className="flex flex-wrap justify-between gap-2"><dt className="text-slate-500 dark:text-slate-400">{label}</dt><dd className="font-medium tabular-nums">{value}</dd></div>)}
+              </dl>
+              <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">{guidance}</p>
+            </div>
+          </details>
+          <section className="space-y-3" aria-label={ui.contact}>
+            <h3 className="text-sm font-medium">{ui.contact}</h3>
+            <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{ui.contactHint}</p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" className="gap-2" asChild={Boolean(whatsappHref)} disabled={!whatsappHref || isSharing} title={!whatsappHref ? copy.previewModal.noPhone : undefined}>
+                {whatsappHref ? <a href={whatsappHref} target="_blank" rel="noreferrer"><MessageCircle className="h-4 w-4" />{copy.previewModal.whatsapp}</a> : <><MessageCircle className="h-4 w-4" />{copy.previewModal.whatsapp}</>}
+              </Button>
+              <Button variant="outline" className="gap-2" asChild={Boolean(emailHref)} disabled={!emailHref || isSharing} title={!emailHref ? copy.previewModal.noEmail : undefined}>
+                {emailHref ? <a href={emailHref}><Mail className="h-4 w-4" />{copy.previewModal.emailAction}</a> : <><Mail className="h-4 w-4" />{copy.previewModal.emailAction}</>}
+              </Button>
+            </div>
+          </section>
+          <section className="space-y-2 border-t border-slate-200 pt-4 dark:border-slate-700">
+            <Button variant="outline" className="w-full gap-2" onClick={share} disabled={!companyReady || isSharing}>{isSharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}{copy.previewModal.sharePdf}</Button>
+            <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{ui.shareHint}</p>
+            {shareError && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{shareError}</p>}
+          </section>
+        </aside>
+      </div>
     </SalesModalFrame>
   );
 }

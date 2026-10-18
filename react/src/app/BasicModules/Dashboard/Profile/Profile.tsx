@@ -25,7 +25,7 @@ import {
 import { useProfileTranslations } from './hooks/useProfileTranslations';
 
 const inputClassName =
-  'w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all';
+  'w-full min-h-11 md:min-h-0 px-3 py-2 text-base md:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all';
 
 const DEFAULT_PREFERRED_LANGUAGE = languages[0]?.code ?? 'es-MX';
 const LEGACY_PREFERRED_LANGUAGE_ALIASES: Record<string, string> = {
@@ -760,7 +760,7 @@ export default function Profile() {
                   type="button"
                   disabled={isLoading || isSaving || isUploadingAvatar}
                   onClick={() => avatarInputRef.current?.click()}
-                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-600/60"
+                  className="inline-flex min-h-11 md:min-h-0 items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-600/60"
                 >
                   {isUploadingAvatar ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -782,11 +782,13 @@ export default function Profile() {
             </label>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-[11px] font-medium text-gray-600 dark:text-gray-400">
+                <label htmlFor="profile-first-name" className="mb-1.5 block text-[11px] font-medium text-gray-600 dark:text-gray-400">
                   {profileCopy.fields.firstNames}
                 </label>
                 <input
                   type="text"
+                  id="profile-first-name"
+                  autoComplete="given-name"
                   value={formValues.firstName}
                   onChange={(event) => updateFormValue('firstName', event.target.value)}
                   className={inputClassName}
@@ -796,11 +798,13 @@ export default function Profile() {
                 </p>
               </div>
               <div>
-                <label className="mb-1.5 block text-[11px] font-medium text-gray-600 dark:text-gray-400">
+                <label htmlFor="profile-last-name" className="mb-1.5 block text-[11px] font-medium text-gray-600 dark:text-gray-400">
                   {profileCopy.fields.lastNames}
                 </label>
                 <input
                   type="text"
+                  id="profile-last-name"
+                  autoComplete="family-name"
                   value={formValues.lastName}
                   onChange={(event) => updateFormValue('lastName', event.target.value)}
                   className={inputClassName}
@@ -813,10 +817,12 @@ export default function Profile() {
 
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-[11px] font-medium text-gray-600 dark:text-gray-400">
+                <label htmlFor="profile-country" className="mb-1.5 block text-[11px] font-medium text-gray-600 dark:text-gray-400">
                   {profileCopy.fields.country}
                 </label>
                 <select
+                  id="profile-country"
+                  autoComplete="country"
                   value={formValues.country}
                   onChange={(event) => handleCountryChange(event.target.value)}
                   className={`${inputClassName} appearance-none cursor-pointer`}
@@ -874,7 +880,7 @@ export default function Profile() {
                       <button
                         type="button"
                         onClick={() => handleRemovePhoneNumber(phone.key)}
-                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-900/20"
+                        className="inline-flex min-h-11 md:min-h-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-900/20"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                         {phoneCopy.remove}
@@ -883,6 +889,7 @@ export default function Profile() {
                   </div>
                   <div className="grid grid-cols-1 gap-2 xl:grid-cols-[minmax(180px,260px)_minmax(0,1fr)]">
                     <select
+                      aria-label={`${profileCopy.fields.country} · ${index + 1}`}
                       value={phone.country}
                       onChange={(event) => handlePhoneCountryChange(phone.key, event.target.value)}
                       className={`${inputClassName} appearance-none cursor-pointer`}
@@ -895,6 +902,7 @@ export default function Profile() {
                     </select>
                     <input
                       type="tel"
+                      aria-label={`${phoneCopy.number} · ${index + 1}`}
                       value={phone.number}
                       onChange={(event) => handlePhoneNumberChange(phone.key, event.target.value)}
                       className={inputClassName}
@@ -954,7 +962,7 @@ export default function Profile() {
                     aria-invalid={hasPasswordMinLengthError}
                     className={`${inputClassName} min-h-11 pr-12 ${hasPasswordMinLengthError ? 'border-red-300 focus:ring-red-500' : isPasswordReady ? 'border-emerald-300' : ''}`}
                   />
-                  <button type="button" onClick={() => setShowNewPassword((current) => !current)} className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-600" aria-label={showNewPassword ? profileCopy.accessibility.hidePassword : profileCopy.accessibility.showPassword}>
+                  <button type="button" onClick={() => setShowNewPassword((current) => !current)} className="absolute right-2 top-1/2 flex h-11 w-11 md:h-9 md:w-9 -translate-y-1/2 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-600" aria-label={showNewPassword ? profileCopy.accessibility.hidePassword : profileCopy.accessibility.showPassword}>
                     {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
@@ -975,7 +983,7 @@ export default function Profile() {
                     aria-invalid={hasPasswordMismatch}
                     className={`${inputClassName} min-h-11 pr-12 ${hasPasswordMismatch ? 'border-red-300 focus:ring-red-500' : isPasswordReady ? 'border-emerald-300' : ''}`}
                   />
-                  <button type="button" onClick={() => setShowConfirmPassword((current) => !current)} className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-600" aria-label={showConfirmPassword ? profileCopy.accessibility.hidePassword : profileCopy.accessibility.showPassword}>
+                  <button type="button" onClick={() => setShowConfirmPassword((current) => !current)} className="absolute right-2 top-1/2 flex h-11 w-11 md:h-9 md:w-9 -translate-y-1/2 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-600" aria-label={showConfirmPassword ? profileCopy.accessibility.hidePassword : profileCopy.accessibility.showPassword}>
                     {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>

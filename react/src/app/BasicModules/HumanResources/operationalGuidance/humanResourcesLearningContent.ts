@@ -49,7 +49,7 @@ export function getHumanResourcesLearningContextSignal(
       signals.missingContractCount,
     );
     return incompleteCoreCount > 0
-      ? `${incompleteCoreCount} expedientes todavía tienen datos clave pendientes. Completar uno es un buen primer ejercicio.`
+      ? `${incompleteCoreCount === 1 ? 'Hay un expediente con datos pendientes' : `Hay ${incompleteCoreCount} expedientes con datos pendientes`}. Revisar uno es un buen primer ejercicio.`
       : `Ya tienes ${signals.activeEmployeeCount} expedientes base listos. El siguiente paso es revisar horarios y accesos.`;
   }
   if (activeTabId === 'control') {

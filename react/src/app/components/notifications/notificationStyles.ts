@@ -60,6 +60,8 @@ export const getNotificationStyle = (notification: AppNotification) => {
         priority: 'medium',
         type: 'info',
       };
+    case 'sales_call_reminder':
+      return { emoji: '☎', color: 'coral', priority: 'high', type: 'warning' };
     case 'task_audited':
     case 'expense_paid':
     case 'pos_shift_opened':

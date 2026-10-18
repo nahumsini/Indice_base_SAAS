@@ -110,7 +110,7 @@ export const enCA = {
   },
   importModal: {
     title: 'Import contacts',
-    description: 'Bring contacts from Android, iPhone, or an exported file. Everything is processed locally in the browser.',
+    description: 'Choose contacts from your phone or a file, review them, then confirm to save them in your company.',
     fromPhone: 'From phone',
     fromPhoneDescription: 'Available when the browser can open the native contacts picker.',
     available: 'Available',
@@ -378,7 +378,7 @@ export const esMX: ContactCopy = {
   },
   importModal: {
     title: 'Importar contactos',
-    description: 'Trae contactos desde Android, iPhone o un archivo exportado. Todo se procesa localmente en el navegador.',
+    description: 'Elige contactos del teléfono o de un archivo, revísalos y confirma para guardarlos en tu empresa.',
     fromPhone: 'Desde teléfono',
     fromPhoneDescription: 'Disponible si el navegador permite abrir el selector nativo de contactos.',
     available: 'Disponible',

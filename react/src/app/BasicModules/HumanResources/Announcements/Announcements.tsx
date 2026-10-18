@@ -535,6 +535,7 @@ export default function Announcements() {
         {canManage && isModalOpen ? (
           <LazyCreateAnnouncementModal
             copy={copy.modal}
+            saveErrorFallback={copy.feedback.saveAnnouncementFailed}
             departments={departmentOptions}
             employees={employees}
             initialData={editingAnnouncement?.editData}

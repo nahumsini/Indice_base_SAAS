@@ -13,10 +13,10 @@ export const ptBR = {
   expandLabel: 'Expandir guia',
   tabs: {
     leads: {
-      label: 'Prospectos',
+      label: 'Oportunidades',
       ctaLabel: 'Revisar oportunidades',
       title: 'Construa um pipeline disciplinado',
-      summary: 'Use Prospectos para captar demanda, qualificar interesse, atribuir responsavel e definir a proxima acao.',
+      summary: 'Use Oportunidades para captar demanda, qualificar interesse, atribuir responsavel e definir a proxima acao.',
       value: 'Um pipeline limpo deixa o acompanhamento visivel e evita receita dependente da memoria.',
       steps: [
         { title: 'Qualifique antes de cotar', description: 'Confirme necessidade, orcamento, prazo e contexto de decisao antes da cotacao.' },
@@ -25,15 +25,15 @@ export const ptBR = {
       ],
     },
     contacts: {
-      label: 'Contatos',
+      label: 'Clientes',
       ctaLabel: 'Revisar contatos',
       title: 'Transforme relacionamentos em controle comercial',
-      summary: 'Use Contatos como base de clientes, prospectos, responsaveis e contexto de acompanhamento.',
+      summary: 'Use Clientes como base de clientes, prospectos, responsaveis e contexto de acompanhamento.',
       value: 'Dados confiaveis facilitam cotacoes, vendas, entrega e pos-venda para toda a equipe.',
       steps: [
         { title: 'Complete o perfil de relacionamento', description: 'Mantenha empresa, papel, telefone, email, dados fiscais e responsavel visiveis.' },
         { title: 'Separe contato de oportunidade', description: 'Crie o contato primeiro e conecte oportunidades e cotacoes a relacao correta.' },
-        { title: 'Evite responsaveis vazios', description: 'Contatos sem dono geram acompanhamentos perdidos e responsabilidade confusa.' },
+        { title: 'Evite responsaveis vazios', description: 'Clientes sem dono geram acompanhamentos perdidos e responsabilidade confusa.' },
       ],
     },
     quotes: {

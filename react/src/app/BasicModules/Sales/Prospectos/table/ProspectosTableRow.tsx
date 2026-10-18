@@ -1,4 +1,5 @@
 import { Paperclip } from 'lucide-react';
+import { OpportunityScheduleInlineEditor } from '../components/OpportunityScheduleInlineEditor';
 import {
   opportunityNextActions,
   opportunityProbabilities,
@@ -33,7 +34,6 @@ import { OpportunityQuoteSignalBadge } from '../components/OpportunityQuoteSigna
 import type { ProspectosCopy } from '../translations';
 import type { OpportunityColumnId } from '../types/prospectosTypes';
 import { opportunityActionsColumnWidth } from '../utils/prospectosStatus';
-import { getOpportunitySchedule } from '../utils/prospectosFormatters';
 import {
   getOpportunityStageBadgeClass,
   getOpportunityStageConfig,
@@ -115,33 +115,6 @@ function OpportunityOwnerSelect({
   );
 }
 
-function OpportunityScheduleInlineEditor({
-  opportunity,
-  onScheduleChange,
-}: {
-  opportunity: SalesOpportunity;
-  onScheduleChange: (opportunity: SalesOpportunity, date: string, time: string) => void;
-}) {
-  const schedule = getOpportunitySchedule(opportunity);
-
-  return (
-    <div className="flex max-w-full min-w-0 flex-wrap gap-2">
-      <Input
-        type="date"
-        value={schedule.date}
-        onChange={(event) => onScheduleChange(opportunity, event.target.value, schedule.time)}
-        className="h-9 min-w-0 flex-[1_1_132px] rounded-full border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 shadow-none focus:border-[#2563EB] focus:ring-[#2563EB]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-      />
-      <Input
-        type="time"
-        value={schedule.time}
-        onChange={(event) => onScheduleChange(opportunity, schedule.date, event.target.value)}
-        className="h-9 min-w-0 flex-[1_1_104px] rounded-full border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 shadow-none focus:border-[#2563EB] focus:ring-[#2563EB]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-      />
-    </div>
-  );
-}
-
 export function ProspectosTableRow({
   copy,
   opportunity,
@@ -182,7 +155,7 @@ export function ProspectosTableRow({
   onOpenHistory: (opportunity: SalesOpportunity) => void;
   onEdit: (opportunity: SalesOpportunity) => void;
   onDelete: (opportunity: SalesOpportunity) => void;
-  onScheduleChange: (opportunity: SalesOpportunity, date: string, time: string) => void;
+  onScheduleChange: (opportunity: SalesOpportunity, date: string, time: string) => void | Promise<void>;
   onDownloadQuote: (opportunity: SalesOpportunity, quote: SalesQuote) => void;
 }) {
   const linkedQuotes = getLinkedQuotesForOpportunity(opportunity, quotes);

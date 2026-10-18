@@ -3,6 +3,13 @@ export const zhCA = {
   subtitle: '在一个工作区中管控机会、报价、客户和商业执行。',
   back: '返回',
   more: '更多',
+  navigation: {
+    tools: '工具',
+    management: '管理',
+    funnelingDescription: '规划营销漏斗和活动目标。',
+    mailingDescription: '准备并发送电子邮件营销活动。',
+    whatsappingDescription: '筹备中：暂不支持发送。',
+  },
   loading: {
     openingTitle: '正在打开销售',
     openingDescription: '正在准备所选商业工作区。',
@@ -25,7 +32,7 @@ export const zhCA = {
     inventario: '库存',
     contrato: '合同',
     postventa: '售后',
-    kpis: '关键指标',
+    kpis: '指标',
   },
   communicationWorkspace: {
     pendingTitle: '工作区等待配置',

@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
-import { AlertCircle, BriefcaseBusiness, FileText, UsersRound } from 'lucide-react';
+import { IndiceModalValidation } from '../../../../components/indice-modal';
+import { BriefcaseBusiness, FileText, UsersRound } from 'lucide-react';
 
 import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
@@ -27,6 +28,7 @@ type ContactFormModalProps = {
   ownerSelectOptions: ContactOwnerSelectOption[];
   defaultOwnerValue: string;
   formError?: string;
+  isSaving?: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: () => void;
   onOwnerChange: (value: string) => void;
@@ -42,6 +44,7 @@ export function ContactFormModal({
   ownerSelectOptions,
   defaultOwnerValue,
   formError,
+  isSaving = false,
   onOpenChange,
   onSave,
   onOwnerChange,
@@ -53,6 +56,7 @@ export function ContactFormModal({
 
   return (
     <SalesModalFrame
+      busy={isSaving}
       open={open}
       onOpenChange={onOpenChange}
       icon={<UsersRound className="h-5 w-5" />}
@@ -66,22 +70,19 @@ export function ContactFormModal({
           <Button
             variant="outline"
             className={contactModalActionClassNames.secondary}
+            disabled={isSaving}
             onClick={() => onOpenChange(false)}
           >
             {copy.modal.cancel}
           </Button>
-          <Button className={contactModalActionClassNames.primary} onClick={onSave}>
+          <Button disabled={isSaving} className={contactModalActionClassNames.primary} onClick={() => void onSave()}>
             {editingContact ? copy.modal.saveChanges : copy.modal.saveContact}
           </Button>
         </>
       }
     >
-      {formError ? (
-        <div className="flex items-start gap-3 rounded-lg border border-[#FF6B5E]/30 bg-[#FF6B5E]/10 px-4 py-3 text-sm font-medium text-[#B63B32]">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>{formError}</p>
-        </div>
-      ) : null}
+      <IndiceModalValidation messages={formError ? [formError] : []} />
+      <fieldset disabled={isSaving} className="min-w-0 space-y-5">
 
       <ContactFormSection
         icon={BriefcaseBusiness}
@@ -285,6 +286,7 @@ export function ContactFormModal({
           </ContactFormField>
         </div>
       </ContactFormSection>
+      </fieldset>
     </SalesModalFrame>
   );
 }

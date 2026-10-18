@@ -298,7 +298,7 @@ export default function Inventory({ warehouseManagementMode = false }: { warehou
       fromWarehouseId: SUPPLIER_SOURCE_ID,
       toWarehouseId: warehouse.id,
       supplierName: draft.supplierName,
-      attachments: draft.attachments,
+      attachments: [],
       reason: draft.reason,
       reference: draft.reference,
       date: draft.date,
@@ -314,6 +314,9 @@ export default function Inventory({ warehouseManagementMode = false }: { warehou
     setStockRows(syncInventoryStockRows(products, receipt.stockRows));
     setMovements((current) => [...receipt.movements, ...current]);
     setActiveView('movements');
+    const movementId = receipt.movements[0]?.id;
+    if (!movementId) throw new Error('No se pudo identificar el movimiento guardado.');
+    return { movementId };
   };
 
   const handleTransferStock = async (draft: TransferStockDraft) => {
@@ -650,6 +653,9 @@ export default function Inventory({ warehouseManagementMode = false }: { warehou
           }
         }}
         onSubmit={handleAddInventory}
+        onAttachmentSaved={(movementId, file) => setMovements(current => current.map(movement => movement.id === movementId
+          ? { ...movement, attachments: [...(movement.attachments ?? []).filter(item => item.id !== file.id), file] }
+          : movement))}
       />
       <TransferStockModal
         open={isTransferOpen || Boolean(editingMovement)}

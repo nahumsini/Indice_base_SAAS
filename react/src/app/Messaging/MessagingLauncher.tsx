@@ -35,7 +35,7 @@ function Launcher({ userId, locale }: { userId: number; locale: string }) {
   };
   return <>
     <button type="button" onClick={() => setOpen(true)} title={copy.title} aria-label={`${copy.title}${unread ? ` (${unread})` : ''}`}
-      className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-white/10 text-current transition-colors hover:border-white/35 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70">
+      className="relative inline-flex h-11 w-11 sm:h-10 sm:w-10 items-center justify-center rounded-full border border-transparent bg-white/10 text-current transition-colors hover:border-white/35 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70">
       <HeaderEmoji name="messages" />{unread > 0 && <span className="absolute -right-1 -top-1 rounded-full bg-blue-600 px-1.5 text-[10px] text-white">{unread > 99 ? '99+' : unread}</span>}
     </button>
     {open && <MessagingModal userId={userId} locale={locale} initialId={requested} onClose={close} />}

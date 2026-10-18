@@ -25,7 +25,7 @@ export function ProspectosAgenda({
   onOpenFiles: (opportunity: SalesOpportunity) => void;
   onOpenHistory: (opportunity: SalesOpportunity) => void;
   onEdit: (opportunity: SalesOpportunity) => void;
-  onScheduleChange: (opportunity: SalesOpportunity, date: string, time: string) => void;
+  onScheduleChange: (opportunity: SalesOpportunity, date: string, time: string) => void | Promise<void>;
 }) {
   const agenda = useProspectosAgenda(opportunities, onScheduleChange);
 

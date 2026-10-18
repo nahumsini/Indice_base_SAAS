@@ -394,6 +394,7 @@ export const esCO: AgendaTranslations = {
     description: (folio: string) => `Revisa ${folio}, asigna ponderacion y deja la nota de auditoria.`,
     fallbackDescription: 'Audita la tarea seleccionada.',
     weightingLabel: 'Ponderacion',
+    weightingValidation: (max: number) => `Elige una calificación entera entre 0 y ${max} para guardar la auditoría.`,
     weightingHint: (max: number) => `0 significa sin cumplimiento evaluable y ${max} significa cumplimiento excelente.`,
     notesLabel: 'Notas de auditoria',
     notesPlaceholder: 'Observaciones del jefe o auditor',

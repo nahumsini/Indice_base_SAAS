@@ -12,10 +12,10 @@ export function ContactFormField({
   children: ReactNode;
 }) {
   return (
-    <div className={cn('space-y-2', className)}>
-      <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{label}</label>
+    <label className={cn('block space-y-2', className)}>
+      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{label}</span>
       {children}
-    </div>
+    </label>
   );
 }
 

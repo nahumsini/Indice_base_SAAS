@@ -107,6 +107,8 @@ export type InventoryWarehouseDistribution = {
 
 export type InventoryMovementAttachment = {
   id: string;
+  movementId?: string;
+  registered?: boolean;
   name: string;
   size: number;
   type: string;

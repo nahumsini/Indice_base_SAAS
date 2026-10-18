@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useLanguage } from '../../../shared/context';
+import { getFormFeedbackCopy } from '../../../components/indice-modal/formFeedbackCopy';
+import { importContactDrafts } from './utils/importContacts';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CloudDownload,
   Columns3,
@@ -156,8 +159,12 @@ const contactosWorkspaceUrlFields: Partial<Record<keyof ContactosWorkspaceState,
 
 export default function Contactos({ learningModeActive = false, titleBarTitle }: ContactosProps) {
   const t = useContactosTranslations();
+  const { currentLanguage } = useLanguage();
+  const feedback = getFormFeedbackCopy(currentLanguage.code);
+  const savingContactRef = useRef(false);
+  const [isSavingContact, setIsSavingContact] = useState(false);
   const learningCopy = useContactosLearningTranslations();
-  const { contacts, opportunities, quotes, addContact, updateContact, deleteContact, reloadAll } = useSalesCrm();
+  const { contacts, opportunities, quotes, createContactRecord, updateContactRecord, updateContact, deleteContact, reloadAll } = useSalesCrm();
   const [searchQuery, setSearchQuery] = useState('');
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -290,10 +297,10 @@ export default function Contactos({ learningModeActive = false, titleBarTitle }:
   ].some((value) => value.trim());
 
   useEffect(() => {
-    if (contactFormError && hasContactIdentity(form)) {
+    if (contactFormError === t.modal.validation.identityRequired && hasContactIdentity(form)) {
       setContactFormError('');
     }
-  }, [contactFormError, form]);
+  }, [contactFormError, form, t.modal.validation.identityRequired]);
 
   const filteredContacts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -456,6 +463,7 @@ export default function Contactos({ learningModeActive = false, titleBarTitle }:
   };
 
   const handleContactModalOpenChange = (open: boolean) => {
+    if (savingContactRef.current) return;
     setIsContactModalOpen(open);
     if (!open) {
       setContactFormError('');
@@ -498,44 +506,13 @@ export default function Contactos({ learningModeActive = false, titleBarTitle }:
     }));
   };
 
-  const handleImportContacts = (drafts: ImportedContactDraft[]) => {
+  const handleImportContacts = async (drafts: ImportedContactDraft[], onProgress?: (processed: number, total: number) => void) => {
     const ownerPayload = getOwnerPayloadFromValue(defaultOwnerValue);
-    const knownContactKeys = new Set<string>();
-    let skipped = 0;
-
-    contacts.forEach((contact) => {
-      if (contact.email.trim()) {
-        knownContactKeys.add(`email:${normalizeTextKey(contact.email)}`);
-      }
-
-      const phoneKey = normalizePhoneImportKey(contact.phone);
-      if (phoneKey) {
-        knownContactKeys.add(`phone:${phoneKey}`);
-      }
-    });
-
-    drafts.forEach((draft) => {
-      const emailKey = draft.email.trim() ? `email:${normalizeTextKey(draft.email)}` : '';
-      const phoneKey = normalizePhoneImportKey(draft.phone);
-      const normalizedPhoneKey = phoneKey ? `phone:${phoneKey}` : '';
-      const isDuplicate = Boolean(
-        (emailKey && knownContactKeys.has(emailKey))
-        || (normalizedPhoneKey && knownContactKeys.has(normalizedPhoneKey)),
-      );
-
-      if (isDuplicate) {
-        skipped += 1;
-        return;
-      }
-
-      if (emailKey) {
-        knownContactKeys.add(emailKey);
-      }
-      if (normalizedPhoneKey) {
-        knownContactKeys.add(normalizedPhoneKey);
-      }
-
-      addContact({
+    // Reconcile before each attempt, including a previous write whose response was lost.
+    const persisted = await salesApi.list<{ email?: string; phone?: string }>('contacts');
+    const knownContacts = persisted.items.map(contact => ({ email: contact.email ?? '', phone: contact.phone ?? '' }));
+    return importContactDrafts(drafts, knownContacts, async draft => {
+      await createContactRecord({
         company: draft.company.trim() || t.defaults.importedCompany,
         contactPerson: draft.contactPerson.trim() || draft.company.trim() || t.defaults.importedPerson,
         role: draft.role.trim() || t.defaults.commercialContact,
@@ -559,15 +536,11 @@ export default function Contactos({ learningModeActive = false, titleBarTitle }:
         fiscalRegime: '',
         fiscalNotes: '',
       });
-    });
-
-    return {
-      imported: drafts.length - skipped,
-      skipped,
-    };
+    }, normalizeTextKey, normalizePhoneImportKey, onProgress);
   };
 
-  const handleSaveContact = () => {
+  const handleSaveContact = async () => {
+    if (savingContactRef.current) return;
     if (!hasContactIdentity(form)) {
       setContactFormError(t.modal.validation.identityRequired);
       return;
@@ -613,16 +586,24 @@ export default function Contactos({ learningModeActive = false, titleBarTitle }:
       fiscalNotes: form.fiscalNotes.trim(),
     };
 
-    if (editingContact) {
-      updateContact(editingContact.id, contactPayload);
-    } else {
-      addContact(contactPayload);
-    }
-
+    savingContactRef.current = true;
+    setIsSavingContact(true);
     setContactFormError('');
-    setForm(buildInitialForm());
-    setEditingContact(null);
-    setIsContactModalOpen(false);
+    try {
+      if (editingContact) {
+        await updateContactRecord(editingContact.id, contactPayload);
+      } else {
+        await createContactRecord(contactPayload);
+      }
+      setForm(buildInitialForm());
+      setEditingContact(null);
+      setIsContactModalOpen(false);
+    } catch (error) {
+      setContactFormError(error instanceof Error && error.message ? error.message : feedback.saveFailed);
+    } finally {
+      savingContactRef.current = false;
+      setIsSavingContact(false);
+    }
   };
 
   return (
@@ -828,6 +809,7 @@ export default function Contactos({ learningModeActive = false, titleBarTitle }:
         ownerSelectOptions={ownerSelectOptions}
         defaultOwnerValue={defaultOwnerValue}
         formError={contactFormError}
+        isSaving={isSavingContact}
         onOpenChange={handleContactModalOpenChange}
         onSave={handleSaveContact}
         onOwnerChange={handleFormOwnerChange}

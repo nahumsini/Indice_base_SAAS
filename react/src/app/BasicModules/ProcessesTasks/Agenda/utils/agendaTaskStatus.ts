@@ -11,6 +11,12 @@ import type {
 
 export const maximumAuditWeighting = 5;
 
+export function parseAuditWeighting(value: string): number | null {
+  if (!value.trim()) return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= maximumAuditWeighting ? parsed : null;
+}
+
 export function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
 }

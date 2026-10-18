@@ -27,6 +27,8 @@ function load(relative) {
       useExpensesTranslations: () => load('../src/app/BasicModules/Expenses/translations/index.ts').getFinanceTranslations(locale),
       useExpensesResolvedLocale: () => locale,
     };
+    // Carryover rendering uses the inactive learning context; do not load its unrelated artwork.
+    if (full.endsWith('/learningMode/index.ts')) return { useLearningModeHeaderActions: () => null };
     if (cache.has(full)) return cache.get(full).exports;
     const module = { exports: {} }; cache.set(full, module);
     const code = ts.transpileModule(readFileSync(full, 'utf8').replaceAll('import.meta.env', '({DEV:false})'), {

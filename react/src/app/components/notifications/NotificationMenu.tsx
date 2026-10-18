@@ -52,7 +52,7 @@ export function NotificationMenu({
         <Button
           variant="ghost"
           size="icon"
-          className={`relative h-10 w-10 rounded-full border text-slate-50/85 transition-all hover:border-white/35 hover:bg-white/15 hover:text-slate-50 dark:text-slate-50/85 dark:hover:border-white/35 dark:hover:bg-white/15 dark:hover:text-slate-50 ${open ? 'border-white/50 bg-white/20 dark:bg-white/20' : 'border-transparent'}`}
+          className={`relative h-11 w-11 sm:h-10 sm:w-10 rounded-full border text-slate-50/85 transition-all hover:border-white/35 hover:bg-white/15 hover:text-slate-50 dark:text-slate-50/85 dark:hover:border-white/35 dark:hover:bg-white/15 dark:hover:text-slate-50 ${open ? 'border-white/50 bg-white/20 dark:bg-white/20' : 'border-transparent'}`}
           aria-label={copy.previewTitle}
           aria-expanded={open}
           title={copy.previewTitle}

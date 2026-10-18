@@ -9,7 +9,7 @@ import {
 } from '../../../../components/indice-modal';
 import { defaultAgendaTranslations, type AgendaTranslations } from '../../Agenda/translations';
 
-const maximumAuditWeighting = 5;
+import { maximumAuditWeighting, parseAuditWeighting } from '../../Agenda/utils/agendaTaskStatus';
 const auditWeightingOptions = [0, 1, 2, 3, 4, 5];
 
 interface AuditableTask {
@@ -45,8 +45,8 @@ export function TaskAuditDialog({
   task,
   weighting,
 }: TaskAuditDialogProps) {
-  const parsedWeighting = Number(weighting);
-  const isWeightingValid = Number.isInteger(parsedWeighting) && parsedWeighting >= 0 && parsedWeighting <= maximumAuditWeighting;
+  const parsedWeighting = parseAuditWeighting(weighting);
+  const isWeightingValid = parsedWeighting !== null;
 
   return (
     <IndiceModalFrame
@@ -68,7 +68,7 @@ export function TaskAuditDialog({
           </Button>
         </>
       )}
-      footerSummary={task ? `${task.folio} · ${weighting || 0}/${maximumAuditWeighting}` : undefined}
+      footerSummary={task ? `${task.folio} · ${parsedWeighting ?? "—"}/${maximumAuditWeighting}` : undefined}
       icon={<ClipboardCheck className="h-5 w-5" />}
       modalType="standard-form"
       onOpenChange={onOpenChange}
@@ -79,7 +79,7 @@ export function TaskAuditDialog({
       <div className="space-y-5">
         <IndiceModalValidation messages={error ? [error] : []} />
         {!isWeightingValid ? (
-          <IndiceModalValidation messages={[copy.weightingHint(maximumAuditWeighting)]} />
+          <IndiceModalValidation messages={[copy.weightingValidation(maximumAuditWeighting)]} />
         ) : null}
 
         {task ? (
@@ -93,11 +93,13 @@ export function TaskAuditDialog({
         ) : null}
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.weightingLabel}</label>
+          <label htmlFor="task-audit-weighting" className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.weightingLabel}</label>
           <div className="grid grid-cols-6 gap-2">
             {auditWeightingOptions.map((score) => (
               <button
                 key={score}
+                aria-pressed={parsedWeighting === score}
+                disabled={isSubmitting}
                 type="button"
                 className={`h-10 rounded-xl border text-sm font-medium transition-colors ${
                   weighting === String(score)
@@ -111,6 +113,10 @@ export function TaskAuditDialog({
             ))}
           </div>
           <Input
+            id="task-audit-weighting"
+            aria-invalid={!isWeightingValid}
+            aria-describedby="task-audit-weighting-hint"
+            disabled={isSubmitting}
             type="number"
             min="0"
             max={maximumAuditWeighting}
@@ -119,7 +125,7 @@ export function TaskAuditDialog({
             placeholder={`0-${maximumAuditWeighting}`}
             className="h-11 rounded-xl border-slate-200 bg-white shadow-none dark:border-slate-600 dark:bg-slate-800"
           />
-          <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{copy.weightingHint(maximumAuditWeighting)}</p>
+          <p id="task-audit-weighting-hint" className="text-xs leading-5 text-slate-500 dark:text-slate-400">{copy.weightingHint(maximumAuditWeighting)}</p>
         </div>
 
         <div className="space-y-2">

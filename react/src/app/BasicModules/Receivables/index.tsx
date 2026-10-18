@@ -1,3 +1,4 @@
+import { LearningPracticeExample } from '../../learningMode/components/LearningPracticeExample';
 import { receivablesLearningEnglish } from './operationalGuidance/receivablesLearningEnglish';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
@@ -66,11 +67,11 @@ const receivablesLearningJourneyEmoji: Record<ReceivablesTabId, string> = {
 };
 
 const receivablesLearningSignals: Record<ReceivablesTabId, string> = {
-  kpis: 'Distingue saldos actuales, cuotas vencidas y cobros del periodo antes de priorizar el seguimiento.',
-  'credit-customers': 'Define quién puede comprar a crédito, cuánto y bajo qué condiciones antes de comprometer dinero.',
-  'credit-sales': 'Convierte una venta aprobada en un plan de cobro con fechas, saldo y responsable claros.',
-  'accounts-receivable': 'Vigila lo pendiente por cliente y vencimiento para priorizar la cobranza correcta.',
-  payments: 'Aplica cada abono a su cuenta y conserva referencia y comprobante para que el saldo sea explicable.',
+  kpis: 'Revisa cuánto falta cobrar y qué pagos ya vencieron.',
+  'credit-customers': 'Consulta las condiciones de crédito de cada cliente antes de ofrecerle pagar después.',
+  'credit-sales': 'Revisa qué compró el cliente, cuánto debe y cuándo pagará.',
+  'accounts-receivable': 'Consulta cuánto debe cada cliente y qué fecha tiene para pagar.',
+  payments: 'Relaciona cada pago recibido con la cuenta correcta y comprueba cuánto falta cobrar.',
 };
 
 const receivablesErrorMessage = (error: unknown, fallback: string) => (
@@ -297,8 +298,10 @@ function ReceivablesWorkspace({
         currentModule="receivables"
         guide={learningModeActive ? (
           <SimpleModuleLearningGuide
+            useOwnerLabels
+            introduction={activeTab === 'accounts-receivable' ? <LearningPracticeExample id="receivables" defaultOpen /> : undefined}
             englishOverview={receivablesLearningEnglish}
-            activeContextLabel={receivablesLearningLabels[activeTab]}
+            activeContextLabel={copy.tabs[activeTab]}
             activeJourneyId={activeTab}
             contextSignal={receivablesLearningSignals[activeTab]}
             controls={receivablesLearningControls[activeTab]}

@@ -37,7 +37,7 @@ export function ProspectosAgendaCalendar({
   weekOpportunities: SalesOpportunity[];
   opportunitySchedules: Map<string, { date: string; time: string }>;
   opportunitiesForDate: (date: string) => SalesOpportunity[];
-  onDraftChange: (opportunity: SalesOpportunity, field: 'date' | 'time', value: string) => void;
+  onDraftChange: (opportunity: SalesOpportunity, field: 'date' | 'time', value: string) => void | Promise<void>;
   onScheduleDrop: (event: DragEvent<HTMLElement>, date: string, time: string) => void;
   onDateDrop: (event: DragEvent<HTMLElement>, date: string) => void;
   onOpenFiles: (opportunity: SalesOpportunity) => void;

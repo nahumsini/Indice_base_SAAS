@@ -105,6 +105,14 @@ export const zhCA = {
   },
   modal: {
     ...enCA.modal,
+    warehouseStatus: {
+      loading: "正在加载仓库…",
+      error: "无法加载仓库，请重试。",
+      unassigned: "活动仓库需要指定业务单位和业务。请在库存 → 仓库中完成配置，然后刷新列表。",
+      empty: "没有可用的活动仓库。请在库存 → 仓库中创建或启用仓库，然后刷新列表。",
+      ready: "所选仓库将为此销售提供库存。",
+      reload: "刷新仓库",
+    },
     createTitle: '新销售',
     detailTitle: '销售详情',
     description: '复核商业成交和运营交接。',

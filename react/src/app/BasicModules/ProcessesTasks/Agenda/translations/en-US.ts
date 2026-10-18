@@ -394,6 +394,7 @@ export const enUS: AgendaTranslations = {
     description: (folio: string) => `Review ${folio}, assign weighting, and leave the audit note.`,
     fallbackDescription: 'Audit the selected task.',
     weightingLabel: 'Weighting',
+    weightingValidation: (max: number) => `Choose a whole-number score from 0 to ${max} to save the audit.`,
     weightingHint: (max: number) => `0 means no evaluable compliance and ${max} means excellent compliance.`,
     notesLabel: 'Audit notes',
     notesPlaceholder: 'Manager or auditor observations',

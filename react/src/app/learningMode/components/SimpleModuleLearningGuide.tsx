@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useLanguage } from '../../shared/context';
 import { createEnglishOverviewControl, type EnglishLearningOverview } from '../englishOverview';
 import type {
@@ -8,6 +9,8 @@ import type {
 import { ModuleLearningGuide } from './ModuleLearningGuide';
 
 interface SimpleModuleLearningGuideProps {
+  introduction?: ReactNode;
+  useOwnerLabels?: boolean;
   englishOverview?: Record<string, EnglishLearningOverview>;
   englishModuleTitle?: string;
   activeContextLabel: string;
@@ -25,6 +28,8 @@ interface SimpleModuleLearningGuideProps {
 }
 
 export function SimpleModuleLearningGuide({
+  introduction,
+  useOwnerLabels = false,
   englishOverview, englishModuleTitle,
   activeContextLabel,
   activeJourneyId,
@@ -42,11 +47,12 @@ export function SimpleModuleLearningGuide({
   const { currentLanguage } = useLanguage();
   const isEnglish = currentLanguage.code.toLowerCase().startsWith('en');
   const overview = isEnglish && activeJourneyId ? englishOverview?.[activeJourneyId] : undefined;
-  const resolvedJourney = isEnglish && englishOverview
+  const resolvedJourney = !useOwnerLabels && isEnglish && englishOverview
     ? journey?.map(step => ({ ...step, label: englishOverview[step.id]?.label ?? step.label })) : journey;
   return (
     <ModuleLearningGuide
-      activeContextLabel={overview?.label ?? activeContextLabel}
+      introduction={introduction}
+      activeContextLabel={useOwnerLabels ? activeContextLabel : overview?.label ?? activeContextLabel}
       activeJourneyId={activeJourneyId}
       appliedJourneyIds={appliedJourneyIds}
       contextSignal={overview?.objective ?? contextSignal}

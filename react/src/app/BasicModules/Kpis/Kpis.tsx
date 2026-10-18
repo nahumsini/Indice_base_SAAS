@@ -1,3 +1,4 @@
+import { LearningPracticeExample } from '../../learningMode/components/LearningPracticeExample';
 import { kpisLearningEnglish } from './operationalGuidance/kpisLearningEnglish';
 import { lazy, Suspense, useRef, type ComponentType, type ReactNode } from 'react';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
@@ -42,7 +43,7 @@ const kpisLearningJourneyEmoji: Record<KpiTabId, string> = {
 };
 
 const kpisLearningSignals: Record<KpiTabId, string> = {
-  kpis: 'Elige indicadores que respondan una pregunta del negocio; medir todo no significa entender mejor.',
+  kpis: 'Elige un área, revisa sus señales y consulta qué datos las explican.',
   'accounting-reports': 'Convierte los registros contables en una lectura consistente de resultados, posición y movimientos.',
   'automated-reports': 'Programa la entrega de una lectura ya validada para que llegue a la persona correcta en el momento correcto.',
 };
@@ -110,6 +111,7 @@ export default function Kpis({ learningModeActive = false, onNavigate }: KpisPro
         currentModule="kpis"
         guide={learningModeActive ? (
             <SimpleModuleLearningGuide
+          introduction={activeTab === 'kpis' ? <LearningPracticeExample id="indicators" defaultOpen /> : undefined}
             englishOverview={kpisLearningEnglish}
               activeContextLabel={kpisLearningLabels[activeTab]}
               activeJourneyId={activeTab}
@@ -118,7 +120,7 @@ export default function Kpis({ learningModeActive = false, onNavigate }: KpisPro
               guideId="kpis-learning-guide"
               journey={learningJourney}
               englishModuleTitle="Turn information into decisions"
-              moduleTitle="Guía para convertir información en decisiones"
+              moduleTitle="Indicadores"
               onJourneyChange={(journeyId) => setActiveTab(journeyId as KpiTabId)}
               onPrimaryAction={() => mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
               scopeId={`kpis-${activeTab}`}

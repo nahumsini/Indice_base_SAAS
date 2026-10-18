@@ -90,6 +90,7 @@ public class SalesService {
         body.put("units", salesRepository.contextUnits(companyId));
         body.put("businesses", salesRepository.contextBusinesses(companyId));
         body.put("currentUserCompanyId", currentUserCompanyId(users, userId));
+        body.put("businessTimezone", businessTimeZoneResolver.resolve(companyId).getId());
         body.put("dictionaries", dictionaries(companyId));
         return body;
     }
@@ -823,6 +824,7 @@ public class SalesService {
         }
 
         if ("opportunities".equals(collection)) {
+            OpportunitySchedule.normalize(normalized, businessTimeZoneResolver.resolve(companyId));
             hydrateOpportunityFromContact(companyId, normalized);
         }
         if ("quotes".equals(collection)) {

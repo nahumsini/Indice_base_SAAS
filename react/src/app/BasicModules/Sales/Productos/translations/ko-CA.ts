@@ -340,6 +340,7 @@ export const koCA = {
     description: '견적, POS, 향후 재고 연결에 사용할 수 있는 재사용 상업 블록을 추가합니다.',
     editDescription: '이 항목의 상업, 시각, 운영 정보를 업데이트합니다.',
     validationMissingRequired: (fields: string) => `저장하기 전에 필수 필드를 입력하세요: ${fields}.`,
+    savedPendingImages: "상품은 저장되었지만 이미지 처리가 남아 있습니다. 다시 시도하면 같은 상품에서 계속 진행됩니다.",
     saveFailed: '항목을 저장할 수 없습니다. 필수 정보를 확인하고 다시 시도하세요.',
     fields: {
       name: '제품 또는 서비스 이름',

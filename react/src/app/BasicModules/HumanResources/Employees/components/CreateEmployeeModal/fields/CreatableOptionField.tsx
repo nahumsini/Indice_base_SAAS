@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useId, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { Check, ChevronDown, Plus } from 'lucide-react';
 import { cn } from '../../../../../../components/ui/utils';
@@ -34,6 +34,8 @@ export function CreatableOptionField({
   required = false,
   value,
 }: CreatableOptionFieldProps) {
+  const fieldId = useId();
+  const messageId = `${fieldId}-message`;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [feedback, setFeedback] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -131,11 +133,12 @@ export function CreatableOptionField({
 
   return (
     <div ref={containerRef} className="relative">
-      <label className={modalLabelClassName}>
+      <label htmlFor={fieldId} className={modalLabelClassName}>
         {label} {required ? <span className="text-red-500">*</span> : null}
       </label>
       <div className="relative">
         <input
+        id={fieldId}
           name={name}
           value={value}
           onChange={(event) => {
@@ -148,6 +151,8 @@ export function CreatableOptionField({
           placeholder={placeholder}
           aria-expanded={isOpen}
           aria-invalid={Boolean(error)}
+        aria-required={required}
+        aria-describedby={error || helperText ? messageId : undefined}
           autoComplete="off"
           className={cn(
             modalControlClassName,
@@ -213,11 +218,11 @@ export function CreatableOptionField({
       ) : null}
 
       {error ? (
-        <HelperText tone="error">{error}</HelperText>
+        <HelperText id={messageId} tone="error">{error}</HelperText>
       ) : feedback ? (
-        <HelperText tone="success">{feedback}</HelperText>
+        <HelperText id={messageId} tone="success">{feedback}</HelperText>
       ) : helperText ? (
-        <HelperText>{helperText}</HelperText>
+        <HelperText id={messageId}>{helperText}</HelperText>
       ) : (
         <HelperText>{copy.helper}</HelperText>
       )}

@@ -1,3 +1,7 @@
+import { ModuleTabEmoji } from '../../../../components/icons/ModuleTabEmoji';
+import { LearningGuideActivities } from '../../../../learningMode/components/LearningGuideActivities';
+import { LearningEmoji } from '../../../../learningMode/components/LearningEmoji';
+import { LearningPracticeExample } from '../../../../learningMode/components/LearningPracticeExample';
 import {useLearningCharacter} from '../../../../learningMode/useLearningCharacter';
 import { useMemo } from 'react';
 import { ChevronDown } from 'lucide-react';
@@ -98,32 +102,33 @@ export function HumanResourcesLearningCompanion({
   return (
     <Collapsible onOpenChange={onSetExpanded} open={progress.expanded}>
       <section
+        data-learning-guide
         aria-labelledby="human-resources-learning-companion-title"
-        className="rounded-xl border border-sky-200 bg-white shadow-sm dark:border-sky-900 dark:bg-slate-950"
+        className="min-w-0 rounded-xl border border-sky-200 bg-white shadow-sm dark:border-sky-900 dark:bg-slate-950"
       >
         <div className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center">
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-200">
-              <span aria-hidden="true" className="text-lg leading-none">💡</span>
+              <span aria-hidden="true" className="text-lg leading-none"><LearningEmoji symbol="💡" /></span>
             </span>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <h2 id="human-resources-learning-companion-title" className="text-sm font-medium text-slate-950 dark:text-white">
-                  Modo Aprendiz
+                  Modo aprendiz
                 </h2>
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                  <span aria-hidden="true">{humanResourcesLearningAreaEmoji[activeTabId]} </span>{activeGuide.label}
+                  <span aria-hidden="true" className="mr-1 inline-flex align-middle"><ModuleTabEmoji moduleId="human-resources" tabId={activeTabId} className="size-4" /></span>{activeGuide.label}
                 </span>
               </div>
               <p className="mt-0.5 line-clamp-2 text-xs leading-4 text-slate-600 sm:truncate dark:text-slate-300">{signal}</p>
             </div>
           </div>
-          <div className="flex items-center justify-between gap-2 sm:justify-end">
-            <span className="whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
-              {reviewedAreaCount}/{journey.length} exploradas
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 sm:justify-end">
+            <span className="text-xs text-slate-500 dark:text-slate-400 sm:whitespace-nowrap">
+              {reviewedAreaCount} de {journey.length} temas revisados
             </span>
             <CollapsibleTrigger asChild>
-              <Button size="sm" type="button" variant="outline">
+              <Button size="sm" type="button" variant="outline" className="min-h-11 sm:min-h-9">
                 {progress.expanded ? 'Ocultar guía' : 'Aprender más'}
                 <ChevronDown className={cn(
                   'h-4 w-4 transition-transform motion-reduce:transition-none',
@@ -135,9 +140,9 @@ export function HumanResourcesLearningCompanion({
         </div>
 
         {!progress.expanded ? (
-          <div className="flex min-w-0 items-center gap-2 border-t border-sky-100 px-2.5 py-1.5 dark:border-sky-950">
+          <div className="flex min-w-0 flex-col items-stretch gap-1 border-t sm:flex-row sm:items-center sm:gap-2 border-sky-100 px-2.5 py-1.5 dark:border-sky-950">
             <span className="shrink-0 text-[11px] font-medium text-sky-700 dark:text-sky-300">Tu flujo RH</span>
-            <div className="min-w-0 flex-1">
+            <div className="w-full min-w-0 flex-1 sm:w-auto">
               <HumanResourcesJourneyNav
                 activeTabId={activeTabId}
                 appliedAreaIds={appliedAreaIds}
@@ -156,20 +161,20 @@ export function HumanResourcesLearningCompanion({
             <div className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-2.5 py-2 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/95">
               <div className="mb-1.5 flex items-center justify-between gap-2 px-0.5">
                 <p className="min-w-0 truncate text-xs text-slate-600 dark:text-slate-300">
-                  <span className="font-medium text-slate-900 dark:text-slate-100"><span aria-hidden="true">🗺️ </span>Ruta RH</span>
+                  <span className="font-medium text-slate-900 dark:text-slate-100"><span aria-hidden="true"><LearningEmoji symbol="🗺️" /> </span>Ruta RH</span>
                   <span aria-hidden="true"> · </span>
                   Paso {activeJourneyIndex + 1} de {journey.length}
                 </p>
                 <Button
                   aria-label="Reiniciar vista del recorrido"
-                  className="h-7 w-7"
+                  className="h-11 w-11 sm:h-7 sm:w-7"
                   onClick={() => onRestartJourney(firstJourneyArea)}
                   size="icon"
                   title="Reiniciar vista"
                   type="button"
                   variant="ghost"
                 >
-                  <span aria-hidden="true" className="text-sm leading-none">🔄</span>
+                  <span aria-hidden="true" className="text-sm leading-none"><LearningEmoji symbol="🔄" /></span>
                 </Button>
               </div>
 
@@ -183,6 +188,7 @@ export function HumanResourcesLearningCompanion({
               />
             </div>
 
+            <LearningGuideActivities key={activeTabId} introduction={activeTabId === 'collaborators' ? <LearningPracticeExample id="team" defaultOpen /> : undefined}>
             <div className="grid gap-3 p-3 lg:grid-cols-[minmax(320px,0.78fr)_minmax(0,1.22fr)] lg:items-start">
               <HumanResourcesCandidateMission
                 onCreateEmployee={onCreateEmployee}
@@ -198,7 +204,7 @@ export function HumanResourcesLearningCompanion({
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_164px] sm:items-start">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-xs font-medium text-sky-700 dark:text-sky-300"><span aria-hidden="true">🎯 </span>Objetivo de este paso</p>
+                      <p className="text-xs font-medium text-sky-700 dark:text-sky-300"><span aria-hidden="true"><LearningEmoji symbol="🎯" /> </span>Objetivo de este paso</p>
                       <span className={cn(
                         'rounded-full px-2 py-0.5 text-[10px]',
                         isApplied
@@ -215,10 +221,10 @@ export function HumanResourcesLearningCompanion({
                     <p className="mt-1 text-sm leading-5 text-slate-700 dark:text-slate-200">{activeGuide.summary}</p>
                     <LearningWorkflowDetails module="human_resources" tab={activeTabId}/>
                     <div className="mt-2 flex items-start gap-1.5 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                      <span aria-hidden="true" className="shrink-0">🧰</span>
+                      <span aria-hidden="true" className="shrink-0"><LearningEmoji symbol="🧰" /></span>
                       <p><span className="font-medium text-slate-800 dark:text-slate-100">Aquí vas a usar:</span> {humanResourcesLearningToolNames[activeTabId]}</p>
                     </div>
-                    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <div className="mt-3 flex flex-col gap-2 [&_button]:min-h-11 sm:flex-row sm:items-center sm:[&_button]:min-h-9">
                       <Button onClick={onPrimaryAction} size="sm" type="button">
                         {activeGuide.ctaLabel}<span aria-hidden="true">👇</span>
                       </Button>
@@ -228,15 +234,15 @@ export function HumanResourcesLearningCompanion({
                       </Button>
                     </div>
                   </div>
-                  <div className="justify-self-center sm:justify-self-end">
+                  <div className="hidden sm:block sm:justify-self-end">
                     <HumanResourcesLearningToolPreview areaId={activeTabId} />
                   </div>
                 </div>
 
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <details className="rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-800 dark:bg-slate-950">
-                    <summary className="cursor-pointer rounded-sm text-xs font-medium text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:text-slate-200 dark:ring-offset-slate-950">
-                      <span aria-hidden="true">🧭 </span>Cómo usar esta parte
+                    <summary className="inline-flex min-h-11 cursor-pointer items-center rounded-sm text-sm font-medium sm:min-h-0 sm:text-xs text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:text-slate-200 dark:ring-offset-slate-950">
+                      <span aria-hidden="true"><LearningEmoji symbol="🧭" /> </span>Cómo usar esta parte
                     </summary>
                     <ol className="mt-2 grid gap-2">
                       {activeGuide.steps.map((step, index) => (
@@ -249,8 +255,8 @@ export function HumanResourcesLearningCompanion({
                   </details>
 
                   <details className="rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-800 dark:bg-slate-950">
-                    <summary className="cursor-pointer rounded-sm text-xs font-medium text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:text-slate-200 dark:ring-offset-slate-950">
-                      <span aria-hidden="true">💬 </span>Ver caso real{safeCharacterId ? ` · ${humanResourcesLearningCharacterLabels[safeCharacterId]}` : ''}
+                    <summary className="inline-flex min-h-11 cursor-pointer items-center rounded-sm text-sm font-medium sm:min-h-0 sm:text-xs text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:text-slate-200 dark:ring-offset-slate-950">
+                      <span aria-hidden="true"><LearningEmoji symbol="💬" /> </span>Ver caso real{safeCharacterId ? ` · ${humanResourcesLearningCharacterLabels[safeCharacterId]}` : ''}
                     </summary>
                     <div className="mt-2 flex gap-2.5">
                       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-200">
@@ -266,6 +272,7 @@ export function HumanResourcesLearningCompanion({
                 </div>
               </article>
             </div>
+            </LearningGuideActivities>
           </div>
         </CollapsibleContent>
       </section>

@@ -36,6 +36,7 @@ export type SalesOpportunity = {
   id: string;
   backendId?: number;
   opportunityCode?: string;
+  createdAt?: string;
   unitId?: number | null;
   businessId?: number | null;
   opportunityName: string;
@@ -57,6 +58,8 @@ export type SalesOpportunity = {
   expectedCloseDate: string;
   nextAction: OpportunityNextAction;
   nextActionDate: string;
+  nextActionScheduledAt?: string;
+  nextActionTimezone?: string;
   lastContact: string;
   files: string[];
   status: OpportunityStatus;

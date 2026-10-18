@@ -1,3 +1,4 @@
+import { ModuleTabEmoji } from '../../../../components/icons/ModuleTabEmoji';
 import { Fragment, useEffect, useRef } from 'react';
 import { IndiceHorizontalScrollControls } from '../../../../components/ui/horizontal-scroll-controls';
 import { cn } from '../../../../components/ui/utils';
@@ -39,7 +40,7 @@ export function HumanResourcesJourneyNav({
   return (
     <div className="relative min-w-0">
       <div
-        className="overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="snap-x snap-proximity overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         ref={scrollRef}
       >
         <nav
@@ -58,9 +59,9 @@ export function HumanResourcesJourneyNav({
                   aria-current={isActive ? 'step' : undefined}
                   aria-label={`Paso ${index + 1}, ${areaCopy.label}: ${stateLabel}`}
                   className={cn(
-                    'flex shrink-0 items-center border text-left transition-colors motion-reduce:transition-none',
+                    'flex shrink-0 snap-start items-center border text-left transition-colors motion-reduce:transition-none',
                     compact
-                      ? 'h-8 max-w-[154px] gap-1.5 rounded-full px-2'
+                      ? 'min-h-11 max-w-[180px] gap-1.5 rounded-full px-3 sm:h-8 sm:min-h-8 sm:max-w-[154px] sm:px-2'
                       : 'h-11 w-[138px] gap-2 rounded-lg px-2 sm:w-[148px]',
                     isActive
                       ? 'border-sky-400 bg-sky-50 text-sky-950 shadow-sm dark:border-sky-700 dark:bg-sky-950/45 dark:text-sky-100'
@@ -71,10 +72,10 @@ export function HumanResourcesJourneyNav({
                   type="button"
                 >
                   <span aria-hidden="true" className={cn('shrink-0 leading-none', compact ? 'text-sm' : 'text-lg')}>
-                    {humanResourcesLearningAreaEmoji[areaId]}
+                    <ModuleTabEmoji moduleId="human-resources" tabId={areaId} fallback={humanResourcesLearningAreaEmoji[areaId]} className={compact ? 'size-4' : 'size-5'} />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className={cn('block truncate font-medium', compact ? 'text-[11px]' : 'text-xs')}>
+                    <span className={cn('block truncate font-medium', compact ? 'text-xs sm:text-[11px]' : 'text-xs')}>
                       {areaCopy.label}
                     </span>
                     {!compact ? (

@@ -425,6 +425,7 @@ export const frCA = {
     description: 'Ajoutez un bloc commercial reutilisable pour devis, PDV et futures connexions d inventaire.',
     editDescription: 'Mettez a jour l information commerciale, visuelle et operationnelle de cet article.',
     validationMissingRequired: (fields: string) => `Completez les champs obligatoires avant d enregistrer : ${fields}.`,
+    savedPendingImages: "Le produit a été enregistré, mais ses images sont en attente. Réessayez pour continuer avec le même produit.",
     saveFailed: 'Impossible d enregistrer l article. Revisez les informations requises et reessayez.',
     fields: {
       name: 'Nom du produit ou service',

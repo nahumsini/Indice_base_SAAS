@@ -531,6 +531,7 @@ export const esMX: ProductsTranslations = {
     description: 'Agrega un bloque comercial reutilizable preparado para cotizaciones, POS y futuras conexiones de inventario.',
     editDescription: 'Actualiza la información comercial, visual y operativa de este item de catálogo.',
     validationMissingRequired: (fields: string) => `Completa los campos obligatorios antes de guardar: ${fields}.`,
+    savedPendingImages: "El producto ya se guardó, pero falta completar sus imágenes. Intenta de nuevo para continuar sobre el mismo producto.",
     saveFailed: 'No se pudo guardar el item. Revisa la información requerida e intenta de nuevo.',
     fields: {
       name: 'Nombre del producto o servicio',

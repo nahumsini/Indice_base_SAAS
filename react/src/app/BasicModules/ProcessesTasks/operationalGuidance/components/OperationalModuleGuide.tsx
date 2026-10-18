@@ -1,3 +1,4 @@
+import { LearningPracticeExample } from '../../../../learningMode/components/LearningPracticeExample';
 import { useMemo } from 'react';
 import {
   learningModeGuideThemes,
@@ -88,6 +89,7 @@ export function OperationalModuleGuide({
 
   return (
     <ModuleLearningGuide
+      introduction={activeTabId === 'calendar' ? <LearningPracticeExample id="tasks" defaultOpen /> : undefined}
       activeContextLabel={activeGuide.label}
       activeJourneyId={activeTabId}
       contextSignal={activeGuide.summary}

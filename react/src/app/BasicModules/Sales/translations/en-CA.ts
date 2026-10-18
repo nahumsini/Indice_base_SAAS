@@ -3,6 +3,13 @@ export const enCA = {
   subtitle: 'Control opportunities, quotes, customers, and commercial execution from one workspace.',
   back: 'Back',
   more: 'More',
+  navigation: {
+    tools: 'Tools',
+    management: 'Management',
+    funnelingDescription: 'Plan campaign funnels and goals.',
+    mailingDescription: 'Prepare and send email campaigns.',
+    whatsappingDescription: 'In preparation: sending is not yet available.',
+  },
   loading: {
     openingTitle: 'Opening Sales',
     openingDescription: 'Preparing the selected commercial workspace.',
@@ -25,7 +32,7 @@ export const enCA = {
     inventario: 'Inventory',
     contrato: 'Contracts',
     postventa: 'After-sales',
-    kpis: 'KPIs',
+    kpis: 'Indicators',
   },
   communicationWorkspace: {
     pendingTitle: 'Workspace awaiting configuration',

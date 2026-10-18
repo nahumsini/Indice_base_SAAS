@@ -77,7 +77,7 @@ export function IndiceModalSummary({
         {items.map((item, index) => (
           <div key={item.id ?? index} className="min-w-0 px-1 py-1">
             <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{item.label}</dt>
-              <dd className={cn('mt-1 truncate text-sm text-slate-950 dark:text-white', item.emphasized ? 'font-medium' : 'font-normal')}>
+              <dd className={cn('mt-1 truncate max-md:whitespace-normal max-md:break-words max-md:overflow-visible text-sm text-slate-950 dark:text-white', item.emphasized ? 'font-medium' : 'font-normal')}>
               {item.value}
             </dd>
           </div>

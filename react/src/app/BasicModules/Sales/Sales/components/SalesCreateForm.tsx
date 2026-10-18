@@ -3,6 +3,7 @@ import {
   IndiceModalSummary,
   IndiceModalValidation,
 } from '../../../../components/indice-modal';
+import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
 import {
   Select,
@@ -41,6 +42,9 @@ type SalesCreateFormProps = {
   selectedQuote: SalesQuote | null;
   products: SalesCatalogItem[];
   warehouses: InventoryWarehouse[];
+  warehouseLoading?: boolean;
+  warehouseLoadError?: boolean;
+  onReloadWarehouses?: () => void;
   businessOptions: SalesBusinessOption[];
   isReady: boolean;
   stepError?: string;
@@ -208,6 +212,9 @@ function OperationStep({
   businessOptions,
   products,
   warehouses,
+  warehouseLoading = false,
+  warehouseLoadError = false,
+  onReloadWarehouses,
   t,
   onFormChange,
 }: Pick<
@@ -216,6 +223,9 @@ function OperationStep({
   | 'businessOptions'
   | 'products'
   | 'warehouses'
+  | 'warehouseLoading'
+  | 'warehouseLoadError'
+  | 'onReloadWarehouses'
   | 't'
   | 'onFormChange'
 > & { mode: 'operation' | 'payment' }) {
@@ -236,9 +246,24 @@ function OperationStep({
     <div className="space-y-4">
       {mode === 'operation' ? <>
       <SectionCard title={t.modal.wizard.operationTitle} description={t.modal.wizard.operationDescription}>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3" aria-live="polite" aria-busy={warehouseLoading}>
+          <p className="min-w-0 flex-1 text-sm text-slate-600 dark:text-slate-300" role={warehouseLoadError ? 'alert' : 'status'}>
+            {warehouseLoading ? t.modal.warehouseStatus.loading
+              : warehouseLoadError ? t.modal.warehouseStatus.error
+              : !availableWarehouses.length
+                ? warehouses.some((warehouse) => warehouse.status === 'active')
+                  ? t.modal.warehouseStatus.unassigned
+                  : t.modal.warehouseStatus.empty
+                : t.modal.warehouseStatus.ready}
+          </p>
+          {onReloadWarehouses ? <Button type="button" variant="outline" size="sm" onClick={onReloadWarehouses} disabled={warehouseLoading}>
+            {t.modal.warehouseStatus.reload}
+          </Button> : null}
+        </div>
         <section className="grid gap-4 md:grid-cols-2">
           <FormField label={`${t.modal.fields.warehouse} *`}>
             <Select
+              disabled={warehouseLoading || warehouseLoadError || !availableWarehouses.length}
               value={form.warehouseId || 'none'}
               onValueChange={(warehouseId) => {
                 const warehouse = availableWarehouses.find((item) => item.id === warehouseId);
@@ -279,7 +304,7 @@ function OperationStep({
             { id: 'unit', label: t.modal.fields.businessUnit, value: form.businessUnitName || t.common.notAvailable },
             { id: 'business', label: t.modal.fields.business, value: form.businessName || t.common.notAvailable },
             { id: 'legal-name', label: t.modal.operationalContext.legalName, value: operationalContext.legalName || t.common.notAvailable },
-            { id: 'warehouse', label: t.modal.operationalContext.defaultWarehouse, value: form.warehouseName || operationalContext.defaultWarehouse || t.common.notAvailable },
+            { id: 'warehouse', label: t.modal.operationalContext.defaultWarehouse, value: form.warehouseName || t.common.notAvailable },
             { id: 'items', label: t.modal.workspace.itemsLabel, value: String(form.saleLines.length) },
             { id: 'seller', label: t.modal.fields.sellerName, value: form.sellerName || t.common.notAvailable },
           ]}
@@ -409,7 +434,7 @@ function ReviewStep({
             { id: 'date', label: t.modal.fields.saleDate, value: formatSalesDate(form.saleDate) },
             { id: 'unit', label: t.modal.fields.businessUnit, value: form.businessUnitName || t.common.notAvailable },
             { id: 'business', label: t.modal.fields.business, value: form.businessName || t.common.notAvailable },
-            { id: 'warehouse', label: t.modal.operationalContext.defaultWarehouse, value: form.warehouseName || operationalContext.defaultWarehouse || t.common.notAvailable },
+            { id: 'warehouse', label: t.modal.operationalContext.defaultWarehouse, value: form.warehouseName || t.common.notAvailable },
             { id: 'payment-method', label: t.modal.fields.paymentMethod, value: selectedPaymentMethod ? t.modal.paymentMethods[selectedPaymentMethod] : t.common.notAvailable },
             { id: 'payment-reference', label: t.modal.fields.paymentReference, value: form.paymentReference || t.common.notAvailable },
             { id: 'payment-account', label: t.modal.fields.paymentAccount, value: form.paymentAccountName || t.common.notAvailable },
@@ -450,6 +475,9 @@ export function SalesCreateForm({
   selectedQuote,
   products,
   warehouses,
+  warehouseLoading = false,
+  warehouseLoadError = false,
+  onReloadWarehouses,
   businessOptions,
   isReady,
   stepError,
@@ -494,6 +522,9 @@ export function SalesCreateForm({
           businessOptions={businessOptions}
           products={products}
           warehouses={warehouses}
+          warehouseLoading={warehouseLoading}
+          warehouseLoadError={warehouseLoadError}
+          onReloadWarehouses={onReloadWarehouses}
           t={t}
           onFormChange={onFormChange}
         />
@@ -506,6 +537,9 @@ export function SalesCreateForm({
           businessOptions={businessOptions}
           products={products}
           warehouses={warehouses}
+          warehouseLoading={warehouseLoading}
+          warehouseLoadError={warehouseLoadError}
+          onReloadWarehouses={onReloadWarehouses}
           t={t}
           onFormChange={onFormChange}
         />

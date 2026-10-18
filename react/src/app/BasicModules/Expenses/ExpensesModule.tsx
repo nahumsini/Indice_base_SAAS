@@ -1,3 +1,4 @@
+import { LearningPracticeExample } from '../../learningMode/components/LearningPracticeExample';
 import { expensesLearningEnglish } from './operationalGuidance/expensesLearningEnglish';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { FailureToast } from '../../components/FailureToast';
@@ -73,7 +74,7 @@ const expensesLearningSignals: Record<TabId, string> = {
   providers: 'Formaliza a quién pagas y conserva contacto, condiciones y datos fiscales en una sola ficha.',
   payment_accounts: 'Configura de dónde sale el dinero para poder rastrear y conciliar cada pago.',
   budgets: 'Pon un límite y una intención antes de gastar; después podrás comparar plan contra realidad.',
-  expenses: 'Registra qué se compró, quién lo autorizó, a quién se pagó y con qué evidencia.',
+  expenses: 'Revisa qué se compró, cuánto costó y si el pago está pendiente o realizado.',
   kpis: 'Lee desviaciones, concentración y tendencias para decidir dónde ajustar el gasto.',
 };
 
@@ -316,6 +317,7 @@ export default function ExpensesModule({ learningModeActive = false, onNavigate 
         currentModule="expenses"
         guide={learningModeActive ? (
           <SimpleModuleLearningGuide
+            introduction={activeTab === 'expenses' ? <LearningPracticeExample id="expenses" defaultOpen /> : undefined}
             englishOverview={expensesLearningEnglish}
             activeContextLabel={expensesLearningLabels[activeTab]}
             activeJourneyId={activeTab}

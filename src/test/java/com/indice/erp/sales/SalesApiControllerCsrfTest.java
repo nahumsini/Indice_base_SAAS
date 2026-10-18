@@ -43,6 +43,9 @@ class SalesApiControllerCsrfTest {
     private MockMvc mockMvc;
 
     @MockBean
+    private com.indice.erp.learning.LearningAppliedAdvice learningAppliedAdvice;
+
+    @MockBean
     private SessionAuthService sessionAuthService;
 
     @MockBean

@@ -1,3 +1,4 @@
+import { LearningPracticeExample } from '../../../../learningMode/components/LearningPracticeExample';
 import { useMemo } from 'react';
 import { useLanguage } from '../../../../shared/context';
 import {
@@ -145,6 +146,7 @@ export function OperationalModuleGuide({
 
   return (
     <ModuleLearningGuide
+      introduction={activeTabId === 'collaborators' ? <LearningPracticeExample id="team" defaultOpen /> : undefined}
       activeContextLabel={activeGuide.label}
       activeJourneyId={activeTabId}
       journey={(availableTabIds ?? [activeTabId]).map(id => ({ id, label: copy.tabs[id].label, emoji: tabEmojiMap[id] }))}

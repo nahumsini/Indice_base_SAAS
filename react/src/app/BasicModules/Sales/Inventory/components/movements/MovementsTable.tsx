@@ -1,3 +1,4 @@
+import { MovementFilesModal } from './MovementFilesModal';
 import { useMemo, useState } from 'react';
 import { Paperclip } from 'lucide-react';
 import { DataTablePagination } from '../../../../../components/table/DataTablePagination';
@@ -94,6 +95,8 @@ export function MovementsTable({
     resetKey: movementGroups.map((group) => group.id).join('|'),
     rows: movementGroups,
   });
+  const [fileCounts, setFileCounts] = useState<Record<string, number>>({});
+  const [filesMovement, setFilesMovement] = useState<InventoryOperationalMovement | null>(null);
   const [movementPendingCancellation, setMovementPendingCancellation] = useState<InventoryOperationalMovement | null>(null);
 
   const requestCancellation = (movement: InventoryOperationalMovement) => {
@@ -109,7 +112,7 @@ export function MovementsTable({
   return (
     <>
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="overflow-x-auto">
+        <div className="min-w-0">
           <Table className="min-w-[1300px]">
             <TableHeader className="bg-slate-50/90 dark:bg-slate-900">
               <TableRow className="border-slate-200 dark:border-slate-700">
@@ -129,7 +132,8 @@ export function MovementsTable({
                 const movement = group.primary;
                 const movementValue = group.lines.reduce((total, line) => total + Math.abs(line.quantity) * (line.unitCost ?? 0), 0);
                 const totalQuantity = group.lines.reduce((total, line) => total + line.quantity, 0);
-                const attachmentCount = movement.attachments?.length ?? 0;
+                const filesTarget = group.lines.find(line => line.attachments?.some(file => file.registered)) ?? movement;
+                const attachmentCount = fileCounts[filesTarget.id] ?? filesTarget.attachments?.filter(file => file.registered).length ?? 0;
 
                 return (
                   <TableRow key={group.id} className="border-slate-100 hover:bg-[#FF6B5E]/5 dark:border-slate-700 dark:hover:bg-slate-700/40">
@@ -174,17 +178,9 @@ export function MovementsTable({
                       ) : null}
                     </TableCell>
                     <TableCell className="min-w-[150px] px-4 py-4 align-top">
-                      {attachmentCount ? (
-                        <div className="flex flex-col gap-1">
-                          <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-[#2563EB]/25 bg-[#2563EB]/10 px-2.5 py-1 text-xs font-medium text-[#1D4ED8]">
-                            <Paperclip className="h-3.5 w-3.5" />
-                            {attachmentCount}
-                          </span>
-                          <span className="max-w-[150px] truncate text-xs font-medium text-slate-500">{movement.attachments[0]?.name}</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs font-medium text-slate-400">{t.common.none}</span>
-                      )}
+                      <button type="button" onClick={() => setFilesMovement(filesTarget)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-blue-200 px-3 text-sm text-blue-700 dark:border-blue-800 dark:text-blue-300" aria-label={`${t.operational.modals.files}: ${movement.movementNumber}`}>
+                        <Paperclip className="h-4 w-4" />{t.operational.modals.files} {attachmentCount || ''}
+                      </button>
                     </TableCell>
                     <TableCell className="px-4 py-4 align-top">
                       <MovementActions movement={movement} t={t} onEdit={onEdit} onPrint={onPrint} onTrack={onTrack} onCancel={requestCancellation} />
@@ -209,6 +205,7 @@ export function MovementsTable({
         />
       </div>
 
+      {filesMovement ? <MovementFilesModal movement={filesMovement} onClose={() => setFilesMovement(null)} onFileCountChange={count => setFileCounts(current => ({ ...current, [filesMovement.id]: count }))} /> : null}
       <CancelMovementDialog movement={movementPendingCancellation} t={t} onClose={() => setMovementPendingCancellation(null)} onConfirm={confirmCancellation} />
     </>
   );
@@ -229,7 +226,7 @@ function MovementStatusSelector({
         value={movement.status}
         disabled={movement.status === 'cancelled'}
         onChange={(event) => onStatusChange(movement, event.target.value as InventoryOperationalMovement['status'])}
-        className={`h-9 w-full rounded-full border px-3 text-xs font-medium shadow-none outline-none transition focus:ring-2 focus:ring-[#FF6B5E]/25 disabled:cursor-not-allowed ${movementStatusTone[movement.status]}`}
+        className={`h-11 md:h-9 w-full rounded-full border px-3 text-xs font-medium shadow-none outline-none transition focus:ring-2 focus:ring-[#FF6B5E]/25 disabled:cursor-not-allowed ${movementStatusTone[movement.status]}`}
       >
         {selectableStatuses.map((status) => (
           <option key={status} value={status}>

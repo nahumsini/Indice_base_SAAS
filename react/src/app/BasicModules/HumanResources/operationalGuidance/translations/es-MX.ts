@@ -1,5 +1,5 @@
 export const esMX = {
-  eyebrow: 'Modo Aprendiz',
+  eyebrow: 'Modo aprendiz',
   title: 'Aprende RH con tu operación real',
   subtitle: 'Recorre el ciclo del equipo con ejemplos claros y aplica cada herramienta cuando tu negocio la necesite.',
   controlLabel: 'Control del personal',
@@ -14,7 +14,7 @@ export const esMX = {
       label: 'Colaboradores',
       ctaLabel: 'Ir a colaboradores',
       title: 'Crea una base confiable para cada persona',
-      summary: 'Aquí reúnes identidad, contacto, puesto y condiciones laborales. Un expediente completo alimenta correctamente el resto de RH.',
+      summary: 'Aquí consultas los datos de cada persona, su puesto y sus condiciones de trabajo.',
       value: 'Una base confiable mejora responsabilidad, nómina, asistencia y visibilidad del equipo.',
       steps: [
         {
@@ -22,7 +22,7 @@ export const esMX = {
           description: 'Usa datos personales, de contacto, puesto y documentos consistentes para reducir seguimiento manual.',
         },
         {
-          title: 'Segmenta por unidad y departamento',
+          title: 'Organiza al equipo por área',
           description: 'Conecta colaboradores con sus áreas reales para que filtros, reportes y responsabilidades tengan sentido.',
         },
         {

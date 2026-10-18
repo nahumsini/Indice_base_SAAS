@@ -35,6 +35,7 @@ export type QuotePdfContext = {
   company?: CompanyPrintIdentity | null;
   copy: QuotesTranslations;
   locale?: string;
+  generatedAt?: Date;
 };
 
 const commercialLabelsFor = (locale: string) => {
@@ -90,10 +91,6 @@ function rgb(color: readonly number[]): [number, number, number] {
   return [color[0], color[1], color[2]];
 }
 
-function setFill(doc: jsPDF, color: readonly number[]) {
-  doc.setFillColor(color[0], color[1], color[2]);
-}
-
 function setDraw(doc: jsPDF, color: readonly number[]) {
   doc.setDrawColor(color[0], color[1], color[2]);
 }
@@ -106,8 +103,8 @@ function tableEndY(doc: jsPDF, fallback: number) {
   return (doc as PdfDocumentWithTable).lastAutoTable?.finalY ?? fallback;
 }
 
-function formatCurrency(value: number, currency?: string | null) {
-  return formatSalesCurrencyAmount(value, currency);
+export function formatQuoteDocumentAmount(value: number, currency?: string | null) {
+  return formatSalesCurrencyAmount(value, currency, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function getLineTotal(item: SalesQuote['items'][number]) {
@@ -130,266 +127,97 @@ function getQuoteLinePdfLabel(item: SalesQuote['items'][number], copy: QuotesTra
 
   return [
     baseLabel,
-    `${copy.pricing.catalogPrice}: ${formatCurrency(item.originalUnitPrice ?? item.unitPrice, originalCurrency)}`,
+    `${copy.pricing.catalogPrice}: ${formatQuoteDocumentAmount(item.originalUnitPrice ?? item.unitPrice, originalCurrency)}`,
     `${copy.pricing.exchangeRate}: 1 ${originalCurrency} = ${getQuoteLineExchangeRateLabel(item.exchangeRate)} ${targetCurrency} · ${item.exchangeRateDate}`,
   ].join('\n');
 }
 
-export async function buildQuotePdf({ quote, contact, opportunity, company, copy, locale = 'es-MX' }: QuotePdfContext) {
+/** Binary sharing adapter: consumes the same commercial definition as preview/print. */
+export async function buildQuotePdf(context: QuotePdfContext) {
+  const { quote, company, copy, locale = 'es-MX' } = context;
+  const definition = buildQuoteWebDocument(context);
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const left = 18;
-  const right = pageWidth - 18;
+  const left = 10;
+  const right = pageWidth - 10;
   const contentWidth = right - left;
-  const generatedAt = new Date();
-  const generatedDate = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(generatedAt);
-  const generatedTime = new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).format(generatedAt);
-  const quoteCurrency = quote.currency ?? 'MXN';
-  const labels = commercialLabelsFor(locale);
-  const contactFiscalAddress = [
-    contact?.fiscalAddressLine1,
-    contact?.fiscalAddressLine2,
-    contact?.fiscalCity,
-    contact?.fiscalState,
-    contact?.fiscalPostalCode,
-    contact?.fiscalCountry,
-  ].map((part) => part?.trim()).filter(Boolean).join(', ');
-  const taxSummary = quote.items
-    .map((item) => item.taxLabel ? `${item.taxLabel} ${item.taxPercent}%` : `${item.taxPercent}%`)
-    .filter((value, index, list) => list.indexOf(value) === index)
-    .join(' / ') || copy.common.unassigned;
   const companyLogoDataUrl = await loadLogoDataUrl(company?.logoUrl || '');
-
-  const ensureSpace = (currentY: number, neededHeight: number) => {
-    if (currentY + neededHeight <= pageHeight - 22) {
-      return currentY;
-    }
-
+  const ensureSpace = (currentY: number, height: number) => {
+    if (currentY + height <= pageHeight - 22) return currentY;
     doc.addPage();
-    return 24;
+    return 16;
   };
-
-  const drawSectionTitle = (title: string, y: number) => {
-    setText(doc, brand.graphite);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.text(title, left, y);
-    setDraw(doc, brand.border);
-    doc.line(left, y + 3, right, y + 3);
-  };
-
-  const drawCommercialParties = (currentY: number) => {
-    const blockY = ensureSpace(currentY, 54);
-    const gap = 4;
-    const columnWidth = (contentWidth - gap * 2) / 3;
-    setFill(doc, brand.light);
-    setDraw(doc, brand.border);
-    doc.roundedRect(left, blockY, contentWidth, 46, 3, 3, 'FD');
-    doc.line(left + columnWidth + gap / 2, blockY + 5, left + columnWidth + gap / 2, blockY + 41);
-    doc.line(left + (columnWidth + gap) * 2 - gap / 2, blockY + 5, left + (columnWidth + gap) * 2 - gap / 2, blockY + 41);
-
-    const columns = [left + 5, left + columnWidth + gap + 3, left + (columnWidth + gap) * 2 + 3];
-    const textWidth = columnWidth - 8;
-
-    setText(doc, brand.slate);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7);
-    doc.text(copy.previewModal.clientBlock.toUpperCase(), columns[0], blockY + 7);
-    doc.text(labels.fiscalData.toUpperCase(), columns[1], blockY + 7);
-    doc.text(labels.issuer.toUpperCase(), columns[2], blockY + 7);
-
-    setText(doc, brand.graphite);
-    doc.setFontSize(11);
-    doc.text(fitSingleLine(doc, quote.clientName, textWidth), columns[0], blockY + 15);
-    doc.text(fitSingleLine(doc, contact?.fiscalLegalName || quote.clientName, textWidth), columns[1], blockY + 15);
-    doc.text(fitSingleLine(doc, company?.name || quote.assignedSeller, textWidth), columns[2], blockY + 15);
-
-    setText(doc, brand.slate);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    const clientRows = [
-      `${copy.labels.contact}: ${quote.contactPerson}`,
-      contact?.phone ? `${copy.previewModal.phone}: ${contact.phone}` : '',
-      contact?.email ? `${copy.previewModal.email}: ${contact.email}` : '',
-    ].filter(Boolean);
-    const fiscalRows = [
-      contact?.fiscalTaxId ? `${labels.taxId}: ${contact.fiscalTaxId}` : '',
-      contact?.fiscalRegime ? `${labels.fiscalRegime}: ${contact.fiscalRegime}` : '',
-      contactFiscalAddress ? `${labels.fiscalAddress}: ${contactFiscalAddress}` : '',
-    ].filter(Boolean);
-    const issuerRows = [
-      `${copy.labels.seller}: ${quote.assignedSeller}`,
-      company?.phone ? `${copy.previewModal.phone}: ${company.phone}` : '',
-      company?.email ? `${copy.previewModal.email}: ${company.email}` : '',
-      company?.address || '',
-      `${copy.labels.createdDate}: ${quote.createdDate}`,
-      `${copy.labels.expirationDate}: ${quote.expirationDate}`,
-      opportunity?.opportunityName ? `${copy.labels.opportunity}: ${opportunity.opportunityName}` : '',
-      `${copy.labels.status}: ${copy.statusLabels[quote.status]} · ${taxSummary}`,
-    ].filter(Boolean);
-    clientRows.slice(0, 4).forEach((row, index) => {
-      doc.text(fitSingleLine(doc, row, textWidth), columns[0], blockY + 22 + index * 5.3);
-    });
-    fiscalRows.slice(0, 4).forEach((row, index) => {
-      doc.text(fitSingleLine(doc, row, textWidth), columns[1], blockY + 22 + index * 5.3);
-    });
-    issuerRows.slice(0, 4).forEach((row, index) => {
-      doc.text(fitSingleLine(doc, row, textWidth), columns[2], blockY + 22 + index * 5.3);
-    });
-
-    return blockY + 54;
-  };
-
-  applyStandardPdfMetadata(doc, {
-    author: company?.name,
-    title: `${copy.previewModal.documentTitle} ${quote.quoteNumber}`,
-    subject: copy.header.title,
-  });
-
-  let y = 16;
+  applyStandardPdfMetadata(doc, { author: definition.issuer, title: `${definition.title} ${quote.quoteNumber}`, subject: copy.header.title });
   setText(doc, brand.graphite);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(16);
-  doc.text(copy.previewModal.documentTitle, pageWidth / 2, y + 2, { align: 'center' });
-
+  doc.text(definition.title, pageWidth / 2, 18, { align: 'center' });
   doc.setFontSize(8);
-  const companyName = company?.name || `${copy.table.columns.number}: ${quote.quoteNumber}`;
-  const companyHeaderWidth = 60;
-  const companyHeaderCenter = left + companyHeaderWidth / 2;
-  const fittedCompanyName = fitSingleLine(doc, companyName, companyHeaderWidth);
+  const companyHeaderCenter = left + 29;
+  const fittedCompanyName = fitSingleLine(doc, company?.name || '', 58);
   if (companyLogoDataUrl) {
-    try {
-      const imageProperties = doc.getImageProperties(companyLogoDataUrl);
-      const maxLogoWidth = 34;
-      const maxLogoHeight = 8;
-      const ratio = Math.min(maxLogoWidth / imageProperties.width, maxLogoHeight / imageProperties.height);
-      const logoWidth = imageProperties.width * ratio;
-      const logoHeight = imageProperties.height * ratio;
-      const logoX = companyHeaderCenter - logoWidth / 2;
-      doc.addImage(companyLogoDataUrl, 'PNG', logoX, 5, logoWidth, logoHeight, undefined, 'FAST');
-      doc.text(fittedCompanyName, companyHeaderCenter, y + 5, { align: 'center' });
-    } catch {
-      doc.text(fittedCompanyName, companyHeaderCenter, y + 2, { align: 'center' });
-    }
+    const imageProperties = doc.getImageProperties(companyLogoDataUrl);
+    const ratio = Math.min(32 / imageProperties.width, 10 / imageProperties.height);
+    const logoWidth = imageProperties.width * ratio;
+    const logoHeight = imageProperties.height * ratio;
+    const logoX = companyHeaderCenter - logoWidth / 2;
+    doc.addImage(companyLogoDataUrl, 'PNG', logoX, 7, logoWidth, logoHeight, undefined, 'FAST');
+    doc.text(fittedCompanyName, companyHeaderCenter, 22, { align: 'center' });
   } else {
-    doc.text(fittedCompanyName, companyHeaderCenter, y + 2, { align: 'center' });
+    doc.text(fittedCompanyName, companyHeaderCenter, 18, { align: 'center' });
   }
-
-  setText(doc, brand.slate);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.text(`${copy.labels.createdDate}: ${generatedDate}`, right, y - 2, { align: 'right' });
-  doc.text(`${generatedTime} · ${quote.quoteNumber}`, right, y + 4, { align: 'right' });
-
-  y += 14;
-  y = drawCommercialParties(y);
-  y = ensureSpace(y, 70);
-  drawSectionTitle(copy.previewModal.itemsTitle, y);
-
-  autoTable(doc, {
-    startY: y + 9,
-    head: [[
-      copy.labels.product,
-      copy.labels.section,
-      labels.quantity,
-      copy.labels.unitPrice,
-      labels.discountShort,
-      labels.taxShort,
-      copy.previewModal.lineTotal,
-    ]],
-    body: quote.items.map((item) => [
-      getQuoteLinePdfLabel(item, copy, quoteCurrency),
-      item.section,
-      String(item.quantity),
-      formatCurrency(item.unitPrice, quoteCurrency),
-      `${item.discountPercent}%`,
-      item.taxLabel ? `${item.taxLabel} ${item.taxPercent}%` : `${item.taxPercent}%`,
-      formatCurrency(getLineTotal(item), quoteCurrency),
-    ]),
-    theme: 'grid',
-    margin: { left, right: pageWidth - right },
-    styles: {
-      font: 'helvetica',
-      fontSize: 8,
-      cellPadding: 2.6,
-      textColor: rgb(brand.graphite),
-      lineColor: rgb(brand.border),
-      lineWidth: 0.1,
-      overflow: 'linebreak',
-    },
-    headStyles: {
-      fillColor: rgb(brand.light),
-      textColor: rgb(brand.graphite),
-      fontStyle: 'bold',
-      fontSize: 7.2,
-    },
-    alternateRowStyles: {
-      fillColor: rgb(brand.light),
-    },
-    columnStyles: {
-      0: { cellWidth: 44 },
-      1: { cellWidth: 30 },
-      2: { halign: 'center', cellWidth: 16 },
-      3: { halign: 'right', cellWidth: 24 },
-      4: { halign: 'center', cellWidth: 17 },
-      5: { halign: 'center', cellWidth: 17 },
-      6: { halign: 'right', cellWidth: 26 },
-    },
-  });
-
-  y = tableEndY(doc, y + 48) + 10;
-  y = ensureSpace(y, 82);
-
-  const totalsX = right - 70;
-  setFill(doc, brand.coralLight);
-  setDraw(doc, [210, 210, 210]);
-  doc.roundedRect(totalsX, y, 70, 30, 3, 3, 'FD');
-  const totalRows = [
-    [copy.labels.subtotal, quote.subtotal],
-    [copy.labels.discountTotal, quote.discountTotal],
-    [copy.labels.taxTotal, quote.taxTotal],
-    [copy.labels.total, quote.total],
-  ] as const;
-
-  totalRows.forEach(([label, value], index) => {
-    const rowY = y + 6 + index * 6.2;
-    setText(doc, index === totalRows.length - 1 ? brand.graphite : brand.slate);
-    doc.setFont('helvetica', index === totalRows.length - 1 ? 'bold' : 'normal');
-    doc.setFontSize(index === totalRows.length - 1 ? 10 : 8);
-    doc.text(label, totalsX + 5, rowY);
-    doc.text(formatCurrency(value, quoteCurrency), totalsX + 65, rowY, { align: 'right' });
-  });
-
-  const notesWidth = contentWidth - 80;
-  if (quote.notes.trim()) {
-    setText(doc, brand.graphite);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text(copy.labels.notes, left, y + 5);
-    setText(doc, brand.slate);
-    doc.setFont('helvetica', 'normal');
+  doc.text(quote.quoteNumber, right, 15, { align: 'right' });
+  doc.text(definition.status || '', right, 20, { align: 'right' });
+  let y = 30;
+  const tableStyles = { font: 'helvetica', fontSize: 8, cellPadding: 2.4, textColor: rgb(brand.graphite), lineColor: rgb(brand.border), lineWidth: 0.1, overflow: 'linebreak' as const };
+  const tableMargin = { left, right: 10, top: 16, bottom: 22 };
+  // Auto-sized rows keep complete names, fiscal details and issuer data without truncation.
+  const fields = [{ label: copy.previewModal.clientBlock, value: definition.recipient }, ...(definition.metadata ?? [])];
+  const fieldRows = Array.from({ length: Math.ceil(fields.length / 3) }, (_, row) => Array.from({ length: 3 }, (_, column) => {
+    const field = fields[row * 3 + column];
+    return field ? `${field.label}\n${field.value ?? ''}` : '';
+  }));
+  autoTable(doc, { startY: y, body: fieldRows, theme: 'grid', margin: tableMargin, styles: { ...tableStyles, fillColor: rgb(brand.light) }, rowPageBreak: 'avoid' });
+  y = tableEndY(doc, y) + 6;
+  for (const table of definition.tables ?? []) {
+    y = ensureSpace(y, 24);
+    doc.setFontSize(11);
+    doc.text(table.title || '', left, y);
+    autoTable(doc, {
+      startY: y + 4, head: [table.columns],
+      body: table.rows.length ? table.rows.map(row => row.map(value => String(value ?? ''))) : [[{ content: table.emptyMessage || '', colSpan: table.columns.length }]],
+      theme: 'grid', margin: tableMargin, styles: tableStyles, rowPageBreak: 'avoid',
+      headStyles: { fillColor: rgb(brand.light), textColor: rgb(brand.graphite), fontStyle: 'normal' },
+      alternateRowStyles: { fillColor: rgb(brand.light) },
+      columnStyles: Object.fromEntries((table.columnWidths ?? []).map((width, index) => [index, { cellWidth: width / (table.columnWidths ?? []).reduce((sum, item) => sum + item, 0) * contentWidth, halign: table.numericColumnIndices?.includes(index) ? 'right' as const : 'left' as const }])),
+    });
+    y = tableEndY(doc, y) + 6;
+  }
+  y = ensureSpace(y, 32);
+  autoTable(doc, { startY: y, body: (definition.metrics ?? []).map(metric => [metric.label, String(metric.value ?? '')]),
+    theme: 'grid', margin: { ...tableMargin, left: right - 90 }, tableWidth: 90,
+    styles: { ...tableStyles, fillColor: rgb(brand.coralLight) }, columnStyles: { 1: { halign: 'right' } }, pageBreak: 'avoid' });
+  y = tableEndY(doc, y) + 7;
+  for (const section of definition.sections ?? []) {
+    y = ensureSpace(y, 16);
+    // A paragraph taller than a sheet continues through the existing table pagination engine.
+    autoTable(doc, { startY: y, head: [[section.title]], body: (section.paragraphs ?? []).map(text => [text]),
+      theme: 'plain', margin: tableMargin, styles: { ...tableStyles, fontSize: 9, cellPadding: 1.2, lineWidth: 0 },
+      headStyles: { fontStyle: 'normal', fontSize: 10, textColor: rgb(brand.graphite) }, rowPageBreak: 'avoid' });
+    y = tableEndY(doc, y) + 3;
+  }
+  y = ensureSpace(y, 26);
+  const signatures = definition.signatures ?? [];
+  const signatureWidth = (contentWidth - 12 * (signatures.length - 1)) / Math.max(1, signatures.length);
+  signatures.forEach((signature, index) => {
+    const x = left + index * (signatureWidth + 12);
+    setDraw(doc, brand.slate);
+    doc.line(x, y + 10, x + signatureWidth, y + 10);
     doc.setFontSize(8);
-    doc.text(quote.notes, left, y + 12, { maxWidth: notesWidth });
-  }
-
-  y += 36;
-  y = ensureSpace(y, 42);
-  setText(doc, brand.graphite);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.text(copy.labels.terms, left, y);
-  setText(doc, brand.slate);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.text(quote.terms || copy.previewModal.defaultTerms, left, y + 7, { maxWidth: contentWidth });
-
-  addStandardPdfFooters(doc, {
-    folio: quote.quoteNumber,
-    locale,
-    updatedAt: generatedAt,
-    version: '1.0',
+    doc.text(signature.label, x, y + 15, { maxWidth: signatureWidth });
   });
+  addStandardPdfFooters(doc, { folio: quote.quoteNumber, locale, updatedAt: definition.generatedAt, version: definition.contract.version });
   return doc;
 }
 
@@ -401,23 +229,24 @@ export async function getQuotePdfBlob(context: QuotePdfContext) {
   return (await buildQuotePdf(context)).output('blob');
 }
 
-export function buildQuoteWebDocument({ quote, contact, opportunity, company, copy, locale = 'es-MX' }: QuotePdfContext): StandardDocumentDefinition {
+export function buildQuoteWebDocument({ quote, contact, opportunity, company, copy, locale = 'es-MX', generatedAt = new Date() }: QuotePdfContext): StandardDocumentDefinition {
   const labels = commercialLabelsFor(locale);
   const currency = quote.currency ?? 'MXN';
-  const fiscalAddress = [contact?.fiscalAddressLine1, contact?.fiscalAddressLine2, contact?.fiscalCity, contact?.fiscalState, contact?.fiscalPostalCode, contact?.fiscalCountry].filter(Boolean).join(', ');
+  const contactFiscalAddress = [contact?.fiscalAddressLine1, contact?.fiscalAddressLine2, contact?.fiscalCity, contact?.fiscalState, contact?.fiscalPostalCode, contact?.fiscalCountry].filter(Boolean).join(', ');
   return {
     contract: { category: 'transaction-document', modifiers: ['customer-facing', 'multi-currency'], pageSize: 'a4', orientation: 'portrait', version: '1.0' },
     fileName: { documentType: 'quotation', identifier: quote.quoteNumber },
     title: copy.previewModal.documentTitle, folio: quote.quoteNumber, status: copy.statusLabels[quote.status],
-    issuer: company?.name, logoUrl: company?.logoUrl, recipient: quote.clientName, locale,
+    issuer: company?.name, logoUrl: company?.logoUrl, recipient: quote.clientName, locale, generatedAt,
     metadata: [
+      { label: copy.labels.currency, value: currency },
       { label: copy.labels.contact, value: quote.contactPerson },
       { label: copy.previewModal.phone, value: contact?.phone },
       { label: copy.previewModal.email, value: contact?.email },
       { label: labels.fiscalName, value: contact?.fiscalLegalName || quote.clientName },
       { label: labels.taxId, value: contact?.fiscalTaxId },
       { label: labels.fiscalRegime, value: contact?.fiscalRegime },
-      { label: labels.fiscalAddress, value: fiscalAddress },
+      { label: labels.fiscalAddress, value: contactFiscalAddress },
       { label: copy.labels.seller, value: quote.assignedSeller },
       { label: labels.issuer, value: [company?.phone, company?.email, company?.address].filter(Boolean).join('\n') },
       { label: copy.labels.createdDate, value: quote.createdDate },
@@ -427,19 +256,23 @@ export function buildQuoteWebDocument({ quote, contact, opportunity, company, co
     tables: [{
       title: copy.previewModal.itemsTitle,
       columns: [copy.labels.product, copy.labels.section, labels.quantity, copy.labels.unitPrice, labels.discountShort, labels.taxShort, copy.previewModal.lineTotal],
+      columnWidths: [49, 28, 18, 26, 17, 22, 30],
       numericColumnIndices: [2, 3, 4, 5, 6],
-      rows: quote.items.map(item => [getQuoteLinePdfLabel(item, copy, currency), item.section, String(item.quantity), formatCurrency(item.unitPrice, currency), `${item.discountPercent}%`, item.taxLabel ? `${item.taxLabel} ${item.taxPercent}%` : `${item.taxPercent}%`, formatCurrency(getLineTotal(item), currency)]),
+      emptyMessage: copy.builder.emptyItems,
+      rows: quote.items.map(item => [getQuoteLinePdfLabel(item, copy, currency), item.section, String(item.quantity), formatQuoteDocumentAmount(item.unitPrice, currency), `${item.discountPercent}%`, item.taxLabel ? `${item.taxLabel} ${item.taxPercent}%` : `${item.taxPercent}%`, formatQuoteDocumentAmount(getLineTotal(item), currency)]),
     }],
     metrics: [
-      { label: copy.labels.subtotal, value: formatCurrency(quote.subtotal, currency) },
-      { label: copy.labels.discountTotal, value: formatCurrency(quote.discountTotal, currency) },
-      { label: copy.labels.taxTotal, value: formatCurrency(quote.taxTotal, currency) },
-      { label: copy.labels.total, value: formatCurrency(quote.total, currency) },
+      { label: copy.labels.subtotal, value: formatQuoteDocumentAmount(quote.subtotal, currency) },
+      { label: copy.labels.discountTotal, value: formatQuoteDocumentAmount(quote.discountTotal, currency) },
+      { label: copy.labels.taxTotal, value: formatQuoteDocumentAmount(quote.taxTotal, currency) },
+      { label: copy.labels.total, value: formatQuoteDocumentAmount(quote.total, currency) },
     ],
     sections: [
       ...(quote.notes.trim() ? [{ title: copy.labels.notes, paragraphs: [quote.notes] }] : []),
       { title: copy.labels.terms, paragraphs: [quote.terms || copy.previewModal.defaultTerms] },
+      { title: labels.acceptance, paragraphs: [labels.acceptanceNotice] },
     ],
+    signatures: [{ label: labels.customerSignature }, { label: labels.date }, { label: labels.sellerSignature }],
   };
 }
 

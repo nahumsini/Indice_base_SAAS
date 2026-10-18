@@ -24,7 +24,7 @@ function CharacterPortrait({
   if (character.imagePath) {
     return (
       <div
-        className={`relative h-48 w-32 shrink-0 overflow-hidden rounded-xl ${className}`}
+        className={`relative shrink-0 overflow-hidden rounded-xl ${className || 'h-48 w-32'}`}
       >
         <img
           src={character.imagePath}
@@ -94,7 +94,7 @@ export function LearningCharacterSection({
             <div
               className={`rounded-2xl bg-gradient-to-br p-1 ${selectedCharacter.accentClass}`}
             >
-              <CharacterPortrait character={selectedCharacter} />
+              <CharacterPortrait character={selectedCharacter} className="h-24 w-20" />
             </div>
 
             <div className="min-w-0">
@@ -104,7 +104,7 @@ export function LearningCharacterSection({
               </div>
               <h2
                 id="learning-character-title"
-                className="mt-3 text-xl font-semibold text-slate-950 dark:text-white"
+                className="mt-2 text-xl font-semibold text-slate-950 dark:text-white"
               >
                 {characterCopy.name} · {characterCopy.business}
               </h2>

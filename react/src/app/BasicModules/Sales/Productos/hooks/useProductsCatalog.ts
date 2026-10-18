@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type SetStateAction } from 'react';
+import { useCallback, useMemo, useRef, useState, type SetStateAction } from 'react';
 import {
   productStatuses,
   productTypes,
@@ -67,6 +67,8 @@ export function useProductsCatalog(t: ProductsTranslations) {
     reloadProducts,
   } = useSalesCrm();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const savingProductRef = useRef(false);
+  const savedProductIdRef = useRef<string | null>(null);
   const [isPublicCatalogOpen, setIsPublicCatalogOpen] = useState(false);
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const [isColumnsOpen, setIsColumnsOpen] = useState(false);
@@ -182,11 +184,13 @@ export function useProductsCatalog(t: ProductsTranslations) {
   };
 
   const resetProductModal = () => {
+    savedProductIdRef.current = null;
     setEditingProductId(null);
     setForm({ ...initialProductForm, category: defaultCategoryValue });
   };
 
   const handleProductModalOpenChange = (open: boolean) => {
+    if (savingProductRef.current) return;
     setIsCreateOpen(open);
 
     if (!open) {
@@ -202,6 +206,7 @@ export function useProductsCatalog(t: ProductsTranslations) {
   };
 
   const handleEditProduct = (product: SalesCatalogItem) => {
+    savedProductIdRef.current = null;
     setEditingProductId(product.id);
     setForm(buildProductForm(product));
     setProductSaveError(null);
@@ -359,12 +364,15 @@ export function useProductsCatalog(t: ProductsTranslations) {
   };
 
   const handleSaveProduct = async () => {
+    if (savingProductRef.current) return;
     if (!validateProductForm()) {
       return;
     }
 
+    savingProductRef.current = true;
     setIsSavingProduct(true);
     setProductSaveError(null);
+    let savedThisAttempt = false;
 
     try {
       const uploadedImages = await persistProductImageDrafts(form.uploadedImages);
@@ -373,24 +381,27 @@ export function useProductsCatalog(t: ProductsTranslations) {
         { ...form, uploadedImages },
         editingProduct?.thumbnailTone ?? 'coral',
       );
-      const savedProduct = editingProductId
-        ? await updateProductRecord(editingProductId, productInput)
+      const targetProductId = editingProductId ?? savedProductIdRef.current;
+      const savedProduct = targetProductId
+        ? await updateProductRecord(targetProductId, productInput)
         : await createProductRecord(productInput);
+      savedProductIdRef.current = savedProduct.id;
+      savedThisAttempt = true;
       const persistedProductId = savedProduct.backendId ?? Number(savedProduct.id);
 
       const hasNewUploads = uploadedImages.some((image) => image.source === 'upload' && image.objectKey);
       if (Number.isFinite(persistedProductId)) {
         await registerPersistedProductImages(persistedProductId, uploadedImages);
-        if (hasNewUploads) {
-          await reloadProducts();
-        }
       }
 
+      savingProductRef.current = false;
       handleProductModalOpenChange(false);
-    } catch (error) {
-      console.warn('[Sales] product image save failed', error);
-      setProductSaveError(t.form.saveFailed);
+      // The shared reload adapter reports its own sync failure. The record is saved.
+      if (hasNewUploads) await reloadProducts().catch(() => undefined);
+    } catch {
+      setProductSaveError(savedThisAttempt ? t.form.savedPendingImages : t.form.saveFailed);
     } finally {
+      savingProductRef.current = false;
       setIsSavingProduct(false);
     }
   };
@@ -469,6 +480,7 @@ export function useProductsCatalog(t: ProductsTranslations) {
   };
 
   const handleProductFormChange = (nextValue: SetStateAction<ProductFormState>) => {
+    if (savingProductRef.current) return;
     if (productSaveError) {
       setProductSaveError(null);
     }

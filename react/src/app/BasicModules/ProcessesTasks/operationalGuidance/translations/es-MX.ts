@@ -1,6 +1,6 @@
 export const esMX = {
-  eyebrow: 'Modo Aprendiz',
-  title: 'Guía de ejecución operativa',
+  eyebrow: 'Modo aprendiz',
+  title: 'Tareas y procesos',
   subtitle: 'Usa Procesos y Tareas para convertir prioridades en trabajo visible, rutinas repetibles y ejecución medible.',
   controlLabel: 'Control de ejecución',
   functionsLabel: 'Funciones de la pestaña',
@@ -14,16 +14,16 @@ export const esMX = {
       label: 'Agenda',
       ctaLabel: 'Revisar agenda',
       title: 'Opera el trabajo diario desde un tablero',
-      summary: 'Usa Agenda para crear, asignar, priorizar, completar, auditar y dar seguimiento a tareas sin perder contexto.',
+      summary: 'Organiza qué hay que hacer, quién lo hará y para cuándo.',
       value: 'Una agenda disciplinada reduce olvidos, hace visible la responsabilidad y ayuda a cerrar el día con evidencia clara.',
       steps: [
         {
-          title: 'Mantén tareas accionables',
+          title: 'Escribe tareas claras',
           description: 'Escribe tareas con título claro, responsable, vencimiento, prioridad y contexto de negocio.',
         },
         {
           title: 'Usa la vista correcta',
-          description: 'Usa tabla para control, kanban para flujo y diagrama para tiempos; es el mismo trabajo visto desde distintos ángulos.',
+          description: 'Elige Tabla para ver la lista, Kanban para ver los estados o Agenda para revisar las fechas.',
         },
         {
           title: 'Cierra con evidencia',

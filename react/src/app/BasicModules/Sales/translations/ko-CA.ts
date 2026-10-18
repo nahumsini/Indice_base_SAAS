@@ -3,6 +3,13 @@ export const koCA = {
   subtitle: '기회, 견적, 고객, 상업 실행을 하나의 작업 공간에서 관리합니다.',
   back: '뒤로',
   more: '더보기',
+  navigation: {
+    tools: '도구',
+    management: '관리',
+    funnelingDescription: '캠페인 퍼널과 목표를 계획하세요.',
+    mailingDescription: '이메일 캠페인을 준비하고 보내세요.',
+    whatsappingDescription: '준비 중: 아직 메시지를 보낼 수 없습니다.',
+  },
   loading: {
     openingTitle: '영업 열기',
     openingDescription: '선택한 상업 작업 공간을 준비하고 있습니다.',
@@ -25,7 +32,7 @@ export const koCA = {
     inventario: '재고',
     contrato: '계약',
     postventa: '애프터서비스',
-    kpis: 'KPI',
+    kpis: '지표',
   },
   communicationWorkspace: {
     pendingTitle: '설정 대기 중인 작업 공간',

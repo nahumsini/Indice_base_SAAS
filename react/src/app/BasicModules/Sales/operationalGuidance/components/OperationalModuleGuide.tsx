@@ -1,3 +1,5 @@
+import { salesModuleTabs } from '../../salesIdentity';
+import { useVentasTranslations } from '../../../../hooks/useVentasTranslations';
 import { useMemo } from 'react';
 import { useLanguage } from '../../../../shared/context';
 import {
@@ -49,6 +51,11 @@ export function OperationalModuleGuide({
   onPrimaryAction,
 }: OperationalModuleGuideProps) {
   const { currentLanguage } = useLanguage();
+  const salesCopy = useVentasTranslations();
+  const tabLabel = (id: SalesGuidanceTabId) => {
+    const tab = salesModuleTabs.find(tab => tab.id === id);
+    return tab ? salesCopy.tabs[tab.translationKey] : copy.tabs[id].label;
+  };
   const activeGuide = copy.tabs[activeTabId];
   const isSpanish = currentLanguage.code.toLowerCase().startsWith('es');
   const controls = useMemo<readonly LearningModeControl[]>(() => {
@@ -94,12 +101,12 @@ export function OperationalModuleGuide({
   const journey = useMemo<readonly LearningModeJourneyStep[]>(() => journeyOrder.map((journeyId) => ({
     emoji: tabEmojiMap[journeyId],
     id: journeyId,
-    label: copy.tabs[journeyId].label,
-  })), [copy]);
+    label: tabLabel(journeyId),
+  })), [copy, salesCopy]);
 
   return (
     <ModuleLearningGuide
-      activeContextLabel={activeGuide.label}
+      activeContextLabel={tabLabel(activeTabId)}
       activeJourneyId={activeTabId}
       contextSignal={activeGuide.summary}
       controls={controls}

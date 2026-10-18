@@ -3,6 +3,13 @@ export const frCA = {
   subtitle: 'Contrôlez les occasions, les devis, les clients et l’exécution commerciale dans un seul espace.',
   back: 'Retour',
   more: 'Plus',
+  navigation: {
+    tools: 'Outils',
+    management: 'Gestion',
+    funnelingDescription: 'Planifiez les tunnels et les objectifs de campagne.',
+    mailingDescription: 'Préparez et envoyez des campagnes par courriel.',
+    whatsappingDescription: 'En préparation : les envois ne sont pas encore disponibles.',
+  },
   loading: {
     openingTitle: 'Ouverture des ventes',
     openingDescription: 'Préparation de l’espace commercial sélectionné.',
@@ -25,7 +32,7 @@ export const frCA = {
     inventario: 'Inventaire',
     contrato: 'Contrats',
     postventa: 'Service après-vente',
-    kpis: 'ICP',
+    kpis: 'Indicateurs',
   },
   communicationWorkspace: {
     pendingTitle: 'Espace en attente de configuration',

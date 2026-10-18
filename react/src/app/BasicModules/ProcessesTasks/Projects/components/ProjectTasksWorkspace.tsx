@@ -60,6 +60,7 @@ import type {
   ProcessUnitOption,
 } from '../../Processes/types';
 import type { AgendaTaskItem } from '../../Agenda/agendaApi';
+import { parseAuditWeighting } from '../../Agenda/utils/agendaTaskStatus';
 import { useAgendaTranslations, type AgendaTranslations } from '../../Agenda/translations';
 import { TaskAttachmentsDialog } from '../../Agenda/components/TaskAttachmentsDialog';
 import { AgendaReportDialog } from '../../Agenda/components/AgendaReportDialog';
@@ -1910,8 +1911,8 @@ export function ProjectTasksWorkspace({
       return;
     }
 
-    const parsedWeighting = Number(auditWeighting);
-    if (!Number.isInteger(parsedWeighting) || parsedWeighting < 0 || parsedWeighting > 5) {
+    const parsedWeighting = parseAuditWeighting(auditWeighting);
+    if (parsedWeighting === null) {
       setTasksError(copy.messages.invalidWeighting);
       return;
     }

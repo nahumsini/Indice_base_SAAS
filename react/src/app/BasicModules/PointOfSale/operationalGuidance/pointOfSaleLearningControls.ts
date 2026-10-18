@@ -16,8 +16,8 @@ export const pointOfSaleLearningLabels: Record<PointOfSaleLearningTabId, string>
 export const pointOfSaleLearningControls: Record<PointOfSaleLearningTabId, readonly LearningModeControl[]> = {
   cajas: [
     control({
-      id: 'pos-register-management', emoji: '🏪', kind: 'Administración operativa', title: 'Administrar cajas por almacén',
-      purpose: 'Asegura que cada almacén tenga capacidad de abrir turnos y permite agregar cajas para operación simultánea.',
+      id: 'pos-register-management', emoji: '🏪', kind: 'Administración operativa', title: 'Revisar cajas y almacenes',
+      purpose: 'Consulta las cajas de cada almacén y agrega otra solo cuando la operación lo necesite.',
       behavior: 'Muestra almacenes, cajas, disponibilidad y responsables con turno abierto sin perder la trazabilidad de inventario.',
       whenToUse: 'Úsalo al inaugurar una sucursal, agregar una terminal o corregir la asignación de una caja.',
       result: 'Cada usuario abre una sola caja a la vez y cada caja conserva un único responsable activo.', focus: 'la capacidad operativa por almacén',
@@ -31,7 +31,7 @@ export const pointOfSaleLearningControls: Record<PointOfSaleLearningTabId, reado
   kiosks: [
     control({
       id: 'pos-kiosk-management', emoji: '🖥️', kind: 'Administración de extensiones', title: 'Configurar kioscos POS',
-      purpose: 'Vincula pantallas de cliente y autoservicio con una caja y alcance operativo concretos.',
+      purpose: 'Conecta cada pantalla de cliente o autoservicio con la caja que debe atenderla.',
       behavior: 'Crea enlaces de una sola exhibición, permite rotarlos y controla activación o revocación con auditoría.',
       whenToUse: 'Úsalo al instalar una pantalla, publicar autoservicio o retirar un dispositivo.',
       result: 'Mantiene cada extensión vinculada a la caja correcta y evita enlaces permanentes fuera de control.',
@@ -144,7 +144,7 @@ export const pointOfSaleLearningControls: Record<PointOfSaleLearningTabId, reado
     }),
     control({
       id: 'closing-filters-views', emoji: '🔎', kind: 'Filtros y vistas', title: 'Filtrar, ver tabla o agrupar por día',
-      purpose: 'Acota cierres y cambia entre detalle tabular y lectura diaria.',
+      purpose: 'Filtra los cierres y elige ver la tabla o el resumen por día.',
       behavior: 'Aplica periodo, caja, almacén, responsable y estado sin duplicar datos.',
       whenToUse: 'Usa tabla para expediente y vista diaria para tendencia.',
       result: 'Distingue una diferencia aislada de un patrón repetido.', focus: 'la investigación de diferencias',
@@ -220,7 +220,7 @@ export const pointOfSaleLearningControls: Record<PointOfSaleLearningTabId, reado
     }),
     control({
       id: 'pos-kpi-sales', emoji: '📈', kind: 'Lectura ejecutiva', title: 'Ventas, tickets y métodos de pago',
-      purpose: 'Resume ingreso, volumen, ticket promedio y mezcla de cobro.',
+      purpose: 'Muestra cuánto se vendió, cuántos tickets hubo y cómo se pagaron.',
       behavior: 'Conecta indicadores con el contexto filtrado y señala cambios relevantes.',
       whenToUse: 'Úsalo para revisar desempeño y comportamiento del cliente.',
       result: 'Convierte transacciones en preguntas comerciales accionables.', focus: 'las señales de venta',

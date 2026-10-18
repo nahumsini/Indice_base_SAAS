@@ -39,7 +39,7 @@ export const pettyCashLearningControls: Record<PettyCashLearningTabId, readonly 
     }),
     control({
       id: 'fund-actions', emoji: '🛠️', kind: 'Acciones del registro', title: 'Ver, fondear, editar y cerrar',
-      purpose: 'Administra el ciclo de vida y el saldo de cada fondo.',
+      purpose: 'Consulta el saldo de cada fondo y revisa si sigue en uso.',
       behavior: 'Las acciones permiten consultar recibos, ingresar dinero, cambiar configuración o cerrar según el estado.',
       whenToUse: 'Úsalas cuando cambie el responsable, necesites reponer saldo o termine la operación del fondo.',
       result: 'Conserva trazabilidad sin crear fondos duplicados por cada cambio.', focus: 'el ciclo de vida del fondo',
@@ -52,7 +52,7 @@ export const pettyCashLearningControls: Record<PettyCashLearningTabId, readonly 
     control({
       id: 'fund-filters', emoji: '🔎', kind: 'Filtros y consulta', title: 'Buscar y revisar fondos',
       purpose: 'Encuentra fondos por unidad, negocio, responsable, moneda o estado.',
-      behavior: 'Acota la lista y mantiene disponibles las acciones correspondientes a cada fondo.',
+      behavior: 'Limita la lista y mantiene disponibles las acciones correspondientes a cada fondo.',
       whenToUse: 'Úsalo antes de fondear, auditar o depurar.',
       result: 'Distingue un problema específico de una situación general de caja.', focus: 'la revisión enfocada de fondos',
       stories: {
@@ -65,7 +65,7 @@ export const pettyCashLearningControls: Record<PettyCashLearningTabId, readonly 
   control: [
     control({
       id: 'receipt-upload', emoji: '🧾', kind: 'Botón de acción', title: 'Subir comprobante',
-      purpose: 'Registra un gasto con proveedor, fecha, concepto, importe y evidencia.',
+      purpose: 'Registra qué se compró, a quién, cuándo y cuánto costó, junto con su comprobante.',
       behavior: 'Abre la captura y vincula el comprobante al fondo y periodo correctos.',
       whenToUse: 'Úsalo inmediatamente después del gasto o al recibir el ticket.',
       result: 'Evita que el efectivo salga sin una explicación verificable.', focus: 'la evidencia de cada gasto',
@@ -77,7 +77,7 @@ export const pettyCashLearningControls: Record<PettyCashLearningTabId, readonly 
     }),
     control({
       id: 'deposit-create', emoji: '💵', kind: 'Botón de acción', title: 'Registrar ingreso',
-      purpose: 'Documenta reposiciones, devoluciones u otras entradas al fondo.',
+      purpose: 'Registra el dinero que vuelve o se agrega al fondo.',
       behavior: 'Crea el movimiento con origen, destino, referencia, fecha e importe.',
       whenToUse: 'Úsalo cada vez que entre dinero, aunque sea una devolución pequeña.',
       result: 'Evita saldos mayores al esperado sin origen identificable.', focus: 'el origen de cada ingreso',
@@ -116,7 +116,7 @@ export const pettyCashLearningControls: Record<PettyCashLearningTabId, readonly 
     control({
       id: 'statement-filters', emoji: '🔎', kind: 'Filtros', title: 'Buscar estados de cuenta',
       purpose: 'Localiza cierres por fondo, periodo, estado o texto.',
-      behavior: 'Acota la tabla sin modificar movimientos ni saldos.',
+      behavior: 'Limita la tabla sin modificar movimientos ni saldos.',
       whenToUse: 'Úsalo para revisar un periodo o responsable específico.',
       result: 'Permite comparar cierres equivalentes y encontrar diferencias pendientes.', focus: 'la búsqueda de cierres',
       stories: {
@@ -165,7 +165,7 @@ export const pettyCashLearningControls: Record<PettyCashLearningTabId, readonly 
   kpis: [
     control({
       id: 'petty-kpi-filters', emoji: '📅', kind: 'Filtros ejecutivos', title: 'Periodo, fondo, unidad y moneda',
-      purpose: 'Define el alcance de indicadores y tablas financieras.',
+      purpose: 'Elige qué fondo, periodo y moneda muestran los indicadores.',
       behavior: 'Recalcula la vista con los fondos y periodos seleccionados.',
       whenToUse: 'Úsalo antes de comparar salud, comprobación o faltantes.',
       result: 'Evita sumar fondos que no son comparables.', focus: 'el alcance de la vista financiera',

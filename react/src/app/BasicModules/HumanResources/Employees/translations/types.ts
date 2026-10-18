@@ -342,6 +342,8 @@ export interface EmployeesTranslations {
     detail: string;
     save: string;
     scheduleAssign: string;
+    refreshAfterSave: string;
+    followUpAfterSave: string;
     delete: string;
     terminate: string;
   };

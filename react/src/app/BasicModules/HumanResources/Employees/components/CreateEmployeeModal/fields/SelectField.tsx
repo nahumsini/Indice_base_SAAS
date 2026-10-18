@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { cn } from '../../../../../../components/ui/utils';
 import { HelperText } from '../components/HelperText';
 import { modalControlClassName, modalLabelClassName } from '../styles';
@@ -23,17 +24,22 @@ export function SelectField({
   required = false,
   value,
 }: SelectFieldProps) {
+  const fieldId = useId();
+  const messageId = `${fieldId}-message`;
   return (
     <div>
-      <label className={modalLabelClassName}>
+      <label htmlFor={fieldId} className={modalLabelClassName}>
         {label} {required ? <span className="text-red-500">*</span> : null}
       </label>
       <select
+        id={fieldId}
         name={name}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onBlur={(event) => onChange(event.target.value)}
         aria-invalid={Boolean(error)}
+        aria-required={required}
+        aria-describedby={error ? messageId : undefined}
         className={cn(
           modalControlClassName,
           'cursor-pointer appearance-none',
@@ -47,7 +53,7 @@ export function SelectField({
           </option>
         ))}
       </select>
-      {error ? <HelperText tone="error">{error}</HelperText> : null}
+      {error ? <HelperText id={messageId} tone="error">{error}</HelperText> : null}
     </div>
   );
 }

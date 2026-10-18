@@ -394,6 +394,7 @@ export const ptBR: AgendaTranslations = {
     description: (folio: string) => `Revise ${folio}, atribua ponderação e deixe a nota de auditoria.`,
     fallbackDescription: 'Audite a tarefa selecionada.',
     weightingLabel: 'Ponderação',
+    weightingValidation: (max: number) => `Escolha uma nota inteira entre 0 e ${max} para salvar a auditoria.`,
     weightingHint: (max: number) => `0 significa sem conformidade avaliável e ${max} significa conformidade excelente.`,
     notesLabel: 'Notas de auditoria',
     notesPlaceholder: 'Observações do gestor ou auditor',

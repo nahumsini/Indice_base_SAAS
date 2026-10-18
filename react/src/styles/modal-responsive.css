@@ -1,0 +1,57 @@
+/* Keep phone dialogs within the visible viewport, including keyboard resize. */
+@media (max-width: 767px) {
+  :is([data-slot="dialog-content"], [data-slot="alert-dialog-content"]) {
+    top: calc(var(--indice-dialog-viewport-top, 0px) + var(--indice-dialog-viewport-height, 100dvh) / 2) !important;
+    max-height: calc(var(--indice-dialog-viewport-height, 100dvh) - 1rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    max-width: calc(100vw - 1rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) !important;
+    min-width: 0;
+    overflow-y: auto;
+    scroll-padding-block: 1rem;
+  }
+  [data-indice-modal] { overflow-y: hidden; }
+  :is([data-slot="dialog-content"], [data-slot="alert-dialog-content"]) :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea, [role="combobox"]) {
+    min-width: 0;
+    max-width: 100%;
+    font-size: 16px;
+    min-height: 44px;
+  }
+  :is([data-slot="dialog-content"], [data-slot="alert-dialog-content"]) :is([data-slot="dialog-title"], [data-slot="dialog-description"], [data-slot="dialog-footer"]) {
+    overflow-wrap: anywhere;
+  }
+  :is([data-slot="dialog-footer"], [data-slot="alert-dialog-footer"]) {
+    min-width: 0;
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  }
+  :is([data-slot="dialog-footer"], [data-slot="alert-dialog-footer"]) button {
+    min-height: 44px;
+    height: auto;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  [data-indice-modal] > [data-slot="dialog-footer"] { display: block; }
+  [data-slot="indice-modal-actions"] > div:has(> button) {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  [data-slot="indice-modal-actions"] > div > button {
+    flex: 1 1 7rem;
+    min-width: 0;
+    height: auto;
+  }
+}
+/* Short viewports can occur in landscape even above the phone width breakpoint. */
+[data-dialog-compact-viewport="true"] {
+  top: calc(var(--indice-dialog-viewport-top, 0px) + var(--indice-dialog-viewport-height, 100dvh) / 2) !important;
+  max-height: calc(var(--indice-dialog-viewport-height, 100dvh) - 1rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+  overflow-y: auto !important;
+  scroll-padding-block: 1rem;
+}
+[data-dialog-compact-viewport="true"] [data-slot="indice-modal-body"] {
+  flex: 0 0 auto;
+  overflow-y: visible;
+}

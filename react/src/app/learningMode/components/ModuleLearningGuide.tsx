@@ -1,3 +1,8 @@
+import { ModuleTabEmoji } from '../../components/icons/ModuleTabEmoji';
+import { LearningGuideActivities } from './LearningGuideActivities';
+import { LearningEmoji } from './LearningEmoji';
+import { learningGuideModules } from '../curriculum';
+import type { ReactNode } from 'react';
 import {useLearningCharacter} from '../useLearningCharacter';
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -26,6 +31,7 @@ import { ModuleLearningJourneyNav } from './ModuleLearningJourneyNav';
 import {curriculumControls} from '../curriculumControls';
 
 interface ModuleLearningGuideProps {
+  introduction?: ReactNode;
   activeContextLabel: string;
   activeJourneyId?: string;
   appliedJourneyIds?: readonly string[];
@@ -50,6 +56,7 @@ const characterEmojiMap: Record<LearningCharacterId, string> = {
 };
 
 export function ModuleLearningGuide({
+  introduction,
   activeContextLabel,
   activeJourneyId: requestedJourneyId,
   appliedJourneyIds = [],
@@ -69,6 +76,7 @@ export function ModuleLearningGuide({
   const { currentLanguage } = useLanguage();
   const controls=useMemo(()=>[...curriculumControls(guideId,requestedJourneyId,currentLanguage.code),...interfaceControls],
     [guideId,requestedJourneyId,currentLanguage.code,interfaceControls]);
+  const artworkModule = ({human_resources:'human-resources',processes:'processes-tasks',crm:'sales',pos:'point-of-sale',petty_cash:'petty-cash'}[learningGuideModules[guideId]] ?? learningGuideModules[guideId]);
   const dashboardCopy = useMainDashboardTranslations();
   const [selectedCharacterId] = useLearningCharacter();
   const {
@@ -122,8 +130,8 @@ export function ModuleLearningGuide({
         chooseCase: 'Elige un caso empresarial en el Panel Inicial para relacionar este paso con una operación real.',
         contextualSignal: contextSignal ?? `Descubre para qué sirve ${activeContextLabel} y úsalo con confianza en tu operación.`,
         currentTool: 'Herramienta actual',
-        explored: 'exploradas',
-        flow: `Tu flujo de ${title}`,
+        explored: 'temas revisados',
+        flow: 'Recorrido del módulo',
         hideGuide: 'Ocultar guía',
         howTo: 'Cómo usar esta parte',
         learnMore: 'Aprender más',
@@ -132,7 +140,7 @@ export function ModuleLearningGuide({
         previous: 'Herramienta anterior',
         reset: 'Reiniciar vista del recorrido',
         resetTitle: 'Reiniciar vista',
-        route: `Ruta de ${title}`,
+        route: 'Recorrido del módulo',
         statusApplied: 'Aplicado',
         statusPending: 'Por revisar',
         statusUnderstood: 'Entendido',
@@ -147,7 +155,7 @@ export function ModuleLearningGuide({
         chooseCase: 'Choose a business case on the Dashboard to connect this step to a real operation.',
         contextualSignal: contextSignal ?? `Learn what ${activeContextLabel} is for and use it confidently in your operation.`,
         currentTool: 'Current tool',
-        explored: 'explored',
+        explored: 'topics reviewed',
         flow: `Your ${title} flow`,
         hideGuide: 'Hide guide',
         howTo: 'How to use this section',
@@ -212,21 +220,22 @@ export function ModuleLearningGuide({
   return (
     <Collapsible onOpenChange={handleExpandedChange} open={progress.expanded}>
       <section
+        data-learning-guide
         aria-labelledby={`${guideId}-title`}
-        className={cn('rounded-xl border bg-white shadow-sm dark:bg-slate-950', theme.outerClass)}
+        className={cn('min-w-0 rounded-xl border bg-white shadow-sm dark:bg-slate-950', theme.outerClass)}
       >
         <div className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center">
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', theme.tipClass)}>
-              <span aria-hidden="true" className="text-lg leading-none">💡</span>
+              <span aria-hidden="true" className="text-lg leading-none"><LearningEmoji symbol="💡" /></span>
             </span>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <h2 id={`${guideId}-title`} className="text-sm font-medium text-slate-950 dark:text-white">
-                  {eyebrow}
+                  {isSpanish ? 'Modo aprendiz' : eyebrow}
                 </h2>
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                  <span aria-hidden="true">{journeySteps[activeJourneyIndex]?.emoji ?? activeControl.emoji} </span>
+                  <span aria-hidden="true" className="mr-1 inline-flex align-middle"><ModuleTabEmoji moduleId={artworkModule} tabId={activeJourneyId} fallback={<LearningEmoji symbol={activeControl.emoji} />} className="size-4" /></span>
                   {activeContextLabel}
                 </span>
               </div>
@@ -239,12 +248,12 @@ export function ModuleLearningGuide({
               </p>:null}
             </div>
           </div>
-          <div className="flex items-center justify-between gap-2 sm:justify-end">
-            <span className="whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
-              {reviewedJourneyCount}/{journeySteps.length} {labels.explored}
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 sm:justify-end">
+            <span className="text-xs text-slate-500 dark:text-slate-400 sm:whitespace-nowrap">
+              {reviewedJourneyCount} {isSpanish ? 'de' : 'of'} {journeySteps.length} {labels.explored}
             </span>
             <CollapsibleTrigger asChild>
-              <Button size="sm" type="button" variant="outline">
+              <Button size="sm" type="button" variant="outline" className="min-h-11 sm:min-h-9">
                 {progress.expanded ? labels.hideGuide : labels.learnMore}
                 <ChevronDown className={cn(
                   'h-4 w-4 transition-transform motion-reduce:transition-none',
@@ -256,10 +265,11 @@ export function ModuleLearningGuide({
         </div>
 
         {!progress.expanded ? (
-          <div className="flex min-w-0 items-center gap-2 border-t border-slate-200 px-2.5 py-1.5 dark:border-slate-800">
+          <div className="flex min-w-0 flex-col items-stretch gap-1 border-t sm:flex-row sm:items-center sm:gap-2 border-slate-200 px-2.5 py-1.5 dark:border-slate-800">
             <span className={cn('shrink-0 text-[11px] font-medium', theme.eyebrowClass)}>{labels.flow}</span>
-            <div className="min-w-0 flex-1">
+            <div className="w-full min-w-0 flex-1 sm:w-auto">
               <ModuleLearningJourneyNav
+                moduleId={artworkModule}
                 activeJourneyId={activeJourneyId}
                 appliedJourneyIds={appliedJourneyIdSet}
                 compact
@@ -277,24 +287,25 @@ export function ModuleLearningGuide({
             <div className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-2.5 py-2 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/95">
               <div className="mb-1.5 flex items-center justify-between gap-2 px-0.5">
                 <p className="min-w-0 truncate text-xs text-slate-600 dark:text-slate-300">
-                  <span className="font-medium text-slate-900 dark:text-slate-100"><span aria-hidden="true">🗺️ </span>{labels.route}</span>
+                  <span className="font-medium text-slate-900 dark:text-slate-100"><span aria-hidden="true"><LearningEmoji symbol="🗺️" /> </span>{labels.route}</span>
                   <span aria-hidden="true"> · </span>
                   {isSpanish ? 'Paso' : 'Step'} {activeJourneyIndex + 1} {isSpanish ? 'de' : 'of'} {journeySteps.length}
                 </p>
                 <Button
                   aria-label={labels.reset}
-                  className="h-7 w-7"
+                  className="h-11 w-11 sm:h-7 sm:w-7"
                   onClick={restartJourneyView}
                   size="icon"
                   title={labels.resetTitle}
                   type="button"
                   variant="ghost"
                 >
-                  <span aria-hidden="true" className="text-sm leading-none">🔄</span>
+                  <span aria-hidden="true" className="text-sm leading-none"><LearningEmoji symbol="🔄" /></span>
                 </Button>
               </div>
 
               <ModuleLearningJourneyNav
+                moduleId={artworkModule}
                 activeJourneyId={activeJourneyId}
                 appliedJourneyIds={appliedJourneyIdSet}
                 journey={journeySteps}
@@ -304,17 +315,18 @@ export function ModuleLearningGuide({
               />
             </div>
 
+            <LearningGuideActivities key={scopeId} introduction={introduction}>
             <div className="p-3">
               {controls.length > 1 ? (
-                <div className="mb-2.5 flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="mb-2.5 flex snap-x snap-proximity items-center gap-2 overflow-x-auto overscroll-x-contain pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   <span className="shrink-0 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                    <span aria-hidden="true">🧰 </span>{isSpanish ? 'Herramientas' : 'Tools'}
+                    <span aria-hidden="true"><LearningEmoji symbol="🧰" /> </span>{isSpanish ? 'Herramientas' : 'Tools'}
                   </span>
                   {controls.map((control, index) => (
                     <button
                       aria-current={index === activeSlideIndex ? 'true' : undefined}
                       className={cn(
-                        'flex h-8 max-w-[190px] shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[11px] transition-colors motion-reduce:transition-none',
+                        'flex min-h-11 max-w-[220px] shrink-0 sm:min-h-8 sm:max-w-[190px] items-center gap-1.5 snap-start rounded-full border px-2.5 text-xs transition-colors sm:text-[11px] motion-reduce:transition-none',
                         index === activeSlideIndex
                           ? cn('font-medium', theme.leftCardClass, theme.eyebrowClass)
                           : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900',
@@ -323,7 +335,7 @@ export function ModuleLearningGuide({
                       onClick={() => setSlideState({ scopeId, index })}
                       type="button"
                     >
-                      <span aria-hidden="true">{control.emoji}</span>
+                      <span aria-hidden="true"><LearningEmoji symbol={control.emoji} /></span>
                       <span className="truncate">{control.title}</span>
                     </button>
                   ))}
@@ -334,7 +346,7 @@ export function ModuleLearningGuide({
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_148px] sm:items-start">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className={cn('text-xs font-medium', theme.eyebrowClass)}><span aria-hidden="true">🎯 </span>{labels.objective}</p>
+                      <p className={cn('text-xs font-medium', theme.eyebrowClass)}><span aria-hidden="true"><LearningEmoji symbol="🎯" /> </span>{labels.objective}</p>
                       <span className={cn(
                         'rounded-full px-2 py-0.5 text-[10px]',
                         isApplied
@@ -349,10 +361,10 @@ export function ModuleLearningGuide({
                     <h3 className="mt-1 text-base font-medium text-slate-950 dark:text-white">{activeControl.title}</h3>
                     <p className="mt-1 text-sm leading-5 text-slate-700 dark:text-slate-200">{activeControl.purpose}</p>
                     <div className="mt-2 flex items-start gap-1.5 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                      <span aria-hidden="true" className="shrink-0">🧰</span>
+                      <span aria-hidden="true" className="shrink-0"><LearningEmoji symbol="🧰" /></span>
                       <p><span className="font-medium text-slate-800 dark:text-slate-100">{labels.useNow}:</span> {activeControl.kind} · {activeControl.title}</p>
                     </div>
-                    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <div className="mt-3 flex flex-col gap-2 [&_button]:min-h-11 sm:flex-row sm:items-center sm:[&_button]:min-h-9">
                       {onPrimaryAction && ctaLabel ? (
                         <Button className={theme.ctaClass} onClick={onPrimaryAction} size="sm" type="button" variant="outline">
                           {ctaLabel}<span aria-hidden="true">👇</span>
@@ -365,11 +377,11 @@ export function ModuleLearningGuide({
                     </div>
                   </div>
 
-                  <div aria-label={`${labels.currentTool}: ${activeControl.title}`} className="justify-self-center sm:justify-self-end">
+                  <div aria-label={`${labels.currentTool}: ${activeControl.title}`} className="hidden sm:block sm:justify-self-end">
                     <div className="w-[148px] rounded-xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-950">
                       <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 dark:border-slate-900">
                         <span className="text-[9px] font-medium text-slate-500">Índice</span>
-                        <span aria-hidden="true" className="text-base leading-none">{activeControl.emoji}</span>
+                        <span aria-hidden="true" className="text-base leading-none"><LearningEmoji symbol={activeControl.emoji} /></span>
                       </div>
                       <div className="mt-2 h-3 rounded bg-slate-100 dark:bg-slate-900" />
                       <div className="mt-1.5 grid grid-cols-[34px_1fr] gap-1.5">
@@ -386,8 +398,8 @@ export function ModuleLearningGuide({
 
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <details className="rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-800 dark:bg-slate-950">
-                    <summary className={cn('cursor-pointer rounded-sm text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:ring-offset-slate-950', theme.eyebrowClass)}>
-                      <span aria-hidden="true">🧭 </span>{labels.howTo}
+                    <summary className={cn('inline-flex min-h-11 cursor-pointer items-center rounded-sm text-sm font-medium sm:min-h-0 sm:text-xs outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:ring-offset-slate-950', theme.eyebrowClass)}>
+                      <span aria-hidden="true"><LearningEmoji symbol="🧭" /> </span>{labels.howTo}
                     </summary>
                     <div className="mt-2 grid gap-2">
                       <div className="flex gap-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
@@ -399,15 +411,15 @@ export function ModuleLearningGuide({
                         <p><span className="font-medium text-slate-800 dark:text-slate-100">{labels.whenToUse}.</span> {activeControl.whenToUse}</p>
                       </div>
                       <div className="flex gap-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                        <span aria-hidden="true" className="shrink-0">💡</span>
+                        <span aria-hidden="true" className="shrink-0"><LearningEmoji symbol="💡" /></span>
                         <p>{personalizedTip}</p>
                       </div>
                     </div>
                   </details>
 
                   <details className="rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-800 dark:bg-slate-950">
-                    <summary className={cn('cursor-pointer rounded-sm text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:ring-offset-slate-950', theme.eyebrowClass)}>
-                      <span aria-hidden="true">💬 </span>{labels.businessExample}{selectedCharacterCopy ? ` · ${selectedCharacterCopy.name}` : ''}
+                    <summary className={cn('inline-flex min-h-11 cursor-pointer items-center rounded-sm text-sm font-medium sm:min-h-0 sm:text-xs outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:ring-offset-slate-950', theme.eyebrowClass)}>
+                      <span aria-hidden="true"><LearningEmoji symbol="💬" /> </span>{labels.businessExample}{selectedCharacterCopy ? ` · ${selectedCharacterCopy.name}` : ''}
                     </summary>
                     <div className="mt-2 flex gap-2.5">
                       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-950">
@@ -427,7 +439,7 @@ export function ModuleLearningGuide({
                   <div className="mt-2.5 flex items-center justify-center gap-2 border-t border-slate-200/70 pt-2.5 dark:border-slate-800">
                     <button
                       aria-label={labels.previous}
-                      className={cn('flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300', theme.navigationButtonClass)}
+                      className={cn('flex h-11 w-11 items-center justify-center rounded-full border sm:h-8 sm:w-8 border-slate-200 bg-white text-slate-500 transition dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300', theme.navigationButtonClass)}
                       onClick={showPreviousSlide}
                       type="button"
                     >
@@ -438,7 +450,7 @@ export function ModuleLearningGuide({
                     </span>
                     <button
                       aria-label={labels.next}
-                      className={cn('flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300', theme.navigationButtonClass)}
+                      className={cn('flex h-11 w-11 items-center justify-center rounded-full border sm:h-8 sm:w-8 border-slate-200 bg-white text-slate-500 transition dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300', theme.navigationButtonClass)}
                       onClick={showNextSlide}
                       type="button"
                     >
@@ -448,6 +460,7 @@ export function ModuleLearningGuide({
                 ) : null}
               </article>
             </div>
+            </LearningGuideActivities>
           </div>
         </CollapsibleContent>
       </section>

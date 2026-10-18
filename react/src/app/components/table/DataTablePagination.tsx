@@ -126,7 +126,7 @@ export function DataTablePagination({
   return (
     <div
       className={cn(
-        'flex flex-col gap-4 bg-white px-6 py-4 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300 md:flex-row md:items-center md:justify-between',
+        'flex flex-col gap-4 min-w-0 bg-white px-3 sm:px-6 py-4 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300 md:flex-row md:items-center md:justify-between',
         attached ? 'border-t border-slate-200 dark:border-slate-700' : 'rounded-2xl border border-slate-200 shadow-sm dark:border-slate-700',
         className,
       )}
@@ -135,18 +135,18 @@ export function DataTablePagination({
         {resolvedLabels.showing(pageStart, pageEnd, totalCount, resolvedItemLabel)}
       </p>
 
-      <div className="flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:items-center md:justify-end">
+      <div className="flex w-full min-w-0 flex-col items-start gap-3 md:w-auto sm:flex-row sm:flex-wrap sm:items-center md:justify-end">
         <div className="flex items-center gap-3">
           <span className="font-semibold text-slate-600 dark:text-slate-300">
             {resolvedLabels.rowsPerPage}
           </span>
           <Select value={String(pageSize)} onValueChange={(value) => onPageSizeChange(Number(value))}>
-            <SelectTrigger className="h-11 w-[104px] rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+            <SelectTrigger aria-label={resolvedLabels.rowsPerPage} className="data-[size=default]:h-11 h-11 w-[104px] rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
               <SelectValue />
             </SelectTrigger>
             <SelectContent align="end">
               {pageSizeOptions.map((option) => (
-                <SelectItem key={option} value={String(option)}>
+                <SelectItem key={option} value={String(option)} className="min-h-11 md:min-h-0">
                   {option}
                 </SelectItem>
               ))}
@@ -154,12 +154,12 @@ export function DataTablePagination({
           </Select>
         </div>
 
-        <p className="whitespace-nowrap font-semibold text-slate-600 dark:text-slate-300">
+        <p className="hidden whitespace-nowrap md:block font-semibold text-slate-600 dark:text-slate-300">
           {resolvedLabels.page(currentPage, totalPages)}
         </p>
 
-        <Pagination className="mx-0 w-auto justify-start md:justify-end">
-          <PaginationContent>
+        <Pagination className="mx-0 w-full justify-start md:w-auto md:justify-end">
+          <PaginationContent className="w-full justify-between md:w-auto md:justify-start">
             <PaginationItem>
               <PaginationPrevious
                 href="#"
@@ -169,17 +169,22 @@ export function DataTablePagination({
                   changePage(currentPage - 1);
                 }}
                 aria-disabled={currentPage === 1}
-                className={currentPage === 1 ? 'pointer-events-none opacity-50' : undefined}
+                tabIndex={currentPage === 1 ? -1 : undefined}
+                className={cn('size-11 [&_span]:hidden md:h-9 md:w-auto md:[&_span]:block', currentPage === 1 && 'pointer-events-none opacity-50')}
               />
+            </PaginationItem>
+
+            <PaginationItem className="min-w-0 px-2 text-center font-semibold md:hidden">
+              {resolvedLabels.page(currentPage, totalPages)}
             </PaginationItem>
 
             {paginationItems.map((item, index) => (
               item === 'ellipsis' ? (
-                <PaginationItem key={`ellipsis-${index}`}>
+                <PaginationItem key={`ellipsis-${index}`} className="hidden md:block">
                   <PaginationEllipsis />
                 </PaginationItem>
               ) : (
-                <PaginationItem key={item}>
+                <PaginationItem key={item} className="hidden md:block">
                   <PaginationLink
                     href="#"
                     isActive={item === currentPage}
@@ -203,7 +208,8 @@ export function DataTablePagination({
                   changePage(currentPage + 1);
                 }}
                 aria-disabled={currentPage === totalPages}
-                className={currentPage === totalPages ? 'pointer-events-none opacity-50' : undefined}
+                tabIndex={currentPage === totalPages ? -1 : undefined}
+                className={cn('size-11 [&_span]:hidden md:h-9 md:w-auto md:[&_span]:block', currentPage === totalPages && 'pointer-events-none opacity-50')}
               />
             </PaginationItem>
           </PaginationContent>

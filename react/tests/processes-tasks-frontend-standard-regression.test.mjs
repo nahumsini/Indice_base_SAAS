@@ -245,7 +245,8 @@ test('la creación rápida de tareas explica el flujo y resume la decisión ante
   assert.match(dialogSource, /formCopy\.quickCreate\.sections\.work/);
   assert.match(dialogSource, /formCopy\.quickCreate\.sections\.planning/);
   assert.match(dialogSource, /formCopy\.quickCreate\.sections\.assignment/);
-  assert.match(dialogSource, /footerSummary=\{isQuickCreate \? quickCreateSummary : undefined\}/);
+  assert.match(dialogSource, /isQuickCreate \? <p>\{quickCreateSummary\}<\/p>/);
+  assert.match(dialogSource, /aria-describedby=\{saveHint \? "task-form-help"/);
   assert.match(dialogSource, /autoFocus=\{isQuickCreate\}/);
   assert.match(dialogSource, /formCopy\.quickCreate\.hints\.titleRequired/);
   assert.match(translationSource, /eyebrow: 'Nueva tarea · Agenda'/);

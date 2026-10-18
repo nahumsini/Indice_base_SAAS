@@ -3,6 +3,13 @@ export const esMX = {
   subtitle: 'Controla oportunidades, cotizaciones, clientes y ejecución comercial desde un solo espacio.',
   back: 'Regresar',
   more: 'Más',
+  navigation: {
+    tools: 'Herramientas',
+    management: 'Gestión',
+    funnelingDescription: 'Planifica embudos y metas de campaña.',
+    mailingDescription: 'Prepara y envía campañas de correo.',
+    whatsappingDescription: 'En preparación: los envíos aún no están disponibles.',
+  },
   loading: {
     openingTitle: 'Abriendo Ventas',
     openingDescription: 'Preparando el espacio comercial seleccionado.',
@@ -25,7 +32,7 @@ export const esMX = {
     inventario: 'Inventario',
     contrato: 'Contratos',
     postventa: 'Postventa',
-    kpis: 'KPIs',
+    kpis: 'Indicadores',
   },
   communicationWorkspace: {
     pendingTitle: 'Espacio pendiente de configuración',

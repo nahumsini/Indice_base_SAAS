@@ -1,6 +1,6 @@
 import { ExpenseAccountSelect } from '../table/ExpenseAccountSelect';
 import { Camera, Check, ChevronDown, File, Pencil, Plus, SlidersHorizontal, Trash2, Upload } from 'lucide-react';
-import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useId, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { IndiceModalFrame, IndiceModalSummary, IndiceModalValidation } from '../../../../components/indice-modal';
 import {
   getBudgetTaxProfile,
@@ -20,7 +20,8 @@ import type { Expense, ExpenseStatus, PaymentMethod, Provider } from '../../type
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import { formatCurrency } from '../../utils/expenses.utils';
 import { BudgetTaxControls, type TaxControlDraft } from './BudgetTaxControls';
-import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
+import { getFormFeedbackCopy } from '../../../../components/indice-modal/formFeedbackCopy';
+import { useExpensesResolvedLocale, useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
 import {
   FinanceFieldLabel,
   FinanceModalSection,
@@ -105,6 +106,7 @@ export function ExpenseFormModal({
   onReverseExpensePayment,
 }: ExpenseFormModalProps) {
   const t = useExpensesTranslations();
+  const feedbackCopy = getFormFeedbackCopy(useExpensesResolvedLocale());
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
@@ -133,6 +135,13 @@ export function ExpenseFormModal({
     && !attachmentError
     && !isReversing
     && !isSaving;
+  const missingFields = [
+    !draft.expenseDate.trim() && t.expenses.modal.date,
+    !draft.concept.trim() && t.expenses.modal.concept,
+    !(amount > 0) && t.expenses.modal.amount,
+    !draft.budgetCurrencyCode.trim() && t.expenses.modal.currency,
+  ].filter((field): field is string => Boolean(field));
+  const saveHint = attachmentError || (missingFields.length ? feedbackCopy.missingFields(missingFields) : '');
   const scopedBusinessOptions = filterBusinessesForUnit(businessOptions, draft.businessUnit);
   const accountingOptions = accountingAccountOptions.length > 0
     ? accountingAccountOptions
@@ -253,13 +262,13 @@ export function ExpenseFormModal({
       footer={(
         <>
           <button type="button" className={financeModalSecondaryButtonClass} disabled={isSaving || isReversing} onClick={onClose}>{t.common.cancel}</button>
-          <button type="submit" form={formId} disabled={!canSubmit} className={financeModalPrimaryButtonClass}>
+          <button type="submit" form={formId} aria-describedby={saveHint ? `${formId}-help` : undefined} disabled={!canSubmit} className={financeModalPrimaryButtonClass}>
             <Check className="h-4 w-4" />
-            {isSaving ? 'Guardando…' : isEditMode ? t.common.saveChanges : t.expenses.modal.register}
+            {isSaving ? feedbackCopy.saving : isEditMode ? t.common.saveChanges : t.expenses.modal.register}
           </button>
         </>
       )}
-      footerSummary={`${draft.concept.trim() || t.expenses.modal.emptyConcept} · ${formatCurrency(total, draft.budgetCurrencyCode)}${isEditMode ? '' : ` · ${formatDateSummary(draft.expenseDate)}`}`}
+      footerSummary={<div className="space-y-1"><p>{`${draft.concept.trim() || t.expenses.modal.emptyConcept} · ${formatCurrency(total, draft.budgetCurrencyCode)}${isEditMode ? '' : ` · ${formatDateSummary(draft.expenseDate)}`}`}</p>{saveHint ? <p id={`${formId}-help`} className="text-xs leading-5">{saveHint}</p> : null}</div>}
       icon={isEditMode ? <Pencil className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
       onOpenChange={(open) => !open && onClose()}
       open
@@ -267,7 +276,7 @@ export function ExpenseFormModal({
       tone="green"
     >
       <form id={formId} className="space-y-4" onSubmit={handleSubmit}>
-        <IndiceModalValidation messages={errorMessage ? [errorMessage] : []} title="No se pudo guardar" />
+        <IndiceModalValidation messages={errorMessage ? [errorMessage] : []} title={feedbackCopy.saveFailed} />
         <FinanceModalSection title={t.expenses.modal.mainTitle} description={t.expenses.modal.description}>
           <DateInput label={t.expenses.modal.date} required value={draft.expenseDate} onChange={(expenseDate) => updateDraft({ expenseDate })} />
           <TextInput label={t.expenses.modal.concept} required value={draft.concept} onChange={(concept) => updateDraft({ concept })} placeholder={t.expenses.modal.placeholderConcept} />
@@ -421,7 +430,7 @@ export function ExpenseFormModal({
                 ))}
               </div>
             ) : null}
-            {attachmentError ? <p className="mt-3 text-sm font-medium text-red-600">{attachmentError}</p> : null}
+            {attachmentError ? <p role="alert" className="mt-3 break-words text-sm font-medium text-red-600">{attachmentError}</p> : null}
           </div>
             </FinanceModalSection>
           </div>
@@ -436,20 +445,31 @@ function FieldLabel({ label, required }: { label: string; required?: boolean }) 
 }
 
 function TextInput({ label, onChange, placeholder, required, value }: { label: string; onChange: (value: string) => void; placeholder?: string; required?: boolean; value: string }) {
+  const id = useId();
+  const [touched, setTouched] = useState(false);
+  const copy = getFormFeedbackCopy(useExpensesResolvedLocale());
+  const error = touched && required && !value.trim() ? copy.required : '';
   return (
-    <label>
-      <FieldLabel label={label} required={required} />
-      <input required={required} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={financeModalInputClass} />
-    </label>
+    <div>
+      <label htmlFor={id}><FieldLabel label={label} required={required} /></label>
+      <input id={id} required={required} aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined} value={value} onBlur={() => setTouched(true)} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={financeModalInputClass} />
+      {error ? <p id={`${id}-error`} role="alert" className="mt-1.5 text-xs leading-5 text-red-600 dark:text-red-400">{error}</p> : null}
+    </div>
   );
 }
 
 function MoneyInput({ label, onChange, placeholder, required, value }: { label: string; onChange: (value: string) => void; placeholder?: string; required?: boolean; value: string }) {
+  const id = useId();
+  const [touched, setTouched] = useState(false);
+  const copy = getFormFeedbackCopy(useExpensesResolvedLocale());
+  const amount = toMoneyNumber(value);
+  const error = !touched ? '' : required && !value.trim() ? copy.required : required && amount <= 0 ? copy.positiveAmount : !required && amount < 0 ? copy.nonNegativeAmount : '';
   return (
-    <label>
-      <FieldLabel label={label} required={required} />
-      <input required={required} min={required ? 0.01 : 0} step="0.01" type="number" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={financeModalInputClass} />
-    </label>
+    <div>
+      <label htmlFor={id}><FieldLabel label={label} required={required} /></label>
+      <input id={id} required={required} inputMode="decimal" aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined} min={required ? 0.01 : 0} step="0.01" type="number" value={value} onBlur={() => setTouched(true)} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={financeModalInputClass} />
+      {error ? <p id={`${id}-error`} role="alert" className="mt-1.5 text-xs leading-5 text-red-600 dark:text-red-400">{error}</p> : null}
+    </div>
   );
 }
 

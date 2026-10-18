@@ -11,7 +11,7 @@ import { formatInventoryCurrency, formatInventoryNumber } from '../../utils/inve
 import { WarehouseInventoryProducts } from './WarehouseInventoryProducts';
 
 const headerClass = 'h-12 px-5 text-sm font-medium text-slate-500 dark:text-slate-300';
-const actionButtonClass = 'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/30';
+const actionButtonClass = 'inline-flex h-11 w-11 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/30';
 const healthTone = {
   healthy: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200',
   needsReview: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/35 dark:bg-blue-500/15 dark:text-blue-200',
@@ -105,7 +105,7 @@ export function WarehousesTable({
 
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="overflow-x-auto">
+      <div className="min-w-0">
         <Table className="min-w-[1280px]">
           <TableHeader className="bg-slate-50/90 dark:bg-slate-900">
             <TableRow className="dark:border-slate-700">

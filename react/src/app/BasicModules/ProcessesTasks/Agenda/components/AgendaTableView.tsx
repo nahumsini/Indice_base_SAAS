@@ -186,17 +186,17 @@ export function AgendaTableView({
       </div>
 
       {mobileDetailTask ? (
-        <div className="fixed inset-0 z-[170] flex flex-col bg-white dark:bg-slate-950 md:hidden" role="dialog" aria-modal="true" aria-label={agendaCopy.actions.viewDetails}>
+        <div className="fixed inset-0 z-[170] flex max-h-dvh flex-col bg-white dark:bg-slate-950 md:hidden" role="dialog" aria-modal="true" aria-label={agendaCopy.actions.viewDetails}>
           <header className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
             <div className="min-w-0">
               <p className="text-xs font-medium text-[#9A6B05]">{mobileDetailTask.folio}</p>
               <h2 className="mt-1 text-lg font-medium leading-tight text-slate-950 dark:text-white">{mobileDetailTask.title}</h2>
             </div>
-            <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0 rounded-xl" aria-label={agendaCopy.actions.closeDetails} onClick={() => setMobileDetailTask(null)}>
+            <Button type="button" variant="outline" size="icon" className="h-11 w-11 shrink-0 rounded-xl" aria-label={agendaCopy.actions.closeDetails} onClick={() => setMobileDetailTask(null)}>
               <X className="h-5 w-5" />
             </Button>
           </header>
-          <div className="flex-1 overflow-y-auto px-4 py-4 pb-28">
+          <div className="min-h-0 flex-1 overscroll-y-contain overflow-y-auto px-4 py-4">
             <div className="grid gap-3">
               {[primaryMobileColumn, ...secondaryMobileColumns].filter(Boolean).map((column) => column ? (
                 <section key={`${mobileDetailTask.taskId}-detail-${column.id}`} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-900/60">
@@ -206,7 +206,7 @@ export function AgendaTableView({
               ) : null)}
             </div>
           </div>
-          <footer className="fixed inset-x-0 bottom-0 border-t border-slate-200 bg-white/95 p-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
+          <footer className="shrink-0 border-t border-slate-200 bg-white/95 p-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
             <p className="mb-2 text-[10px] font-medium text-slate-500">{actionsMobileLabel}</p>
             {renderTaskActions(mobileDetailTask)}
           </footer>

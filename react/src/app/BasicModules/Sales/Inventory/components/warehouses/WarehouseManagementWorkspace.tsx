@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { AlertTriangle, ArrowLeft, ArrowRight, Columns3, Plus, Trash2, Warehouse } from 'lucide-react';
 import { IndiceModalValidation, IndiceModalWizardStepper } from '../../../../../components/indice-modal';
 import { Button } from '../../../../../components/ui/button';
@@ -40,6 +40,8 @@ export function WarehouseManagementWorkspace({
   onTransferAndDeleteWarehouse: (sourceWarehouseId: string, targetWarehouseId: string) => Promise<void>;
   onViewInventory: (warehouseId: string) => void;
 }) {
+  const creatingRef = useRef(false);
+  const deletingRef = useRef(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createView, setCreateView] = useState<'form' | 'discard'>('form');
   const [activeCreateStep, setActiveCreateStep] = useState<WarehouseWizardStep>('identity');
@@ -105,12 +107,12 @@ export function WarehouseManagementWorkspace({
     setIsCreateOpen(true);
   };
   const requestCreateClose = () => {
-    if (isCreating) return;
+    if (creatingRef.current) return;
     if (createView === 'form' && hasDraftChanges) setCreateView('discard');
     else resetCreateModal();
   };
   const closeDeleteModal = () => {
-    if (isDeleting) return;
+    if (deletingRef.current) return;
     setSelectedWarehouse(null);
     setTargetWarehouseId('');
     setDeleteError(null);
@@ -128,7 +130,8 @@ export function WarehouseManagementWorkspace({
     setActiveCreateStep((current) => current === 'review' ? 'assignment' : 'identity');
   };
   const createWarehouse = async () => {
-    if (!canCreate || isCreating) return;
+    if (!canCreate || creatingRef.current) return;
+    creatingRef.current = true;
     setIsCreating(true);
     setCreateError(null);
     try {
@@ -146,11 +149,13 @@ export function WarehouseManagementWorkspace({
     } catch (error) {
       setCreateError(getOperationErrorMessage(error, t.common.operationFailed));
     } finally {
+      creatingRef.current = false;
       setIsCreating(false);
     }
   };
   const deleteWarehouse = async () => {
-    if (!selectedWarehouse || !canDelete || isDeleting) return;
+    if (!selectedWarehouse || !canDelete || deletingRef.current) return;
+    deletingRef.current = true;
     setIsDeleting(true);
     setDeleteError(null);
     try {
@@ -161,6 +166,7 @@ export function WarehouseManagementWorkspace({
     } catch (error) {
       setDeleteError(getOperationErrorMessage(error, t.common.operationFailed));
     } finally {
+      deletingRef.current = false;
       setIsDeleting(false);
     }
   };
@@ -191,6 +197,7 @@ export function WarehouseManagementWorkspace({
       <WarehouseColumnsModal open={isColumnsOpen} visibleColumns={visibleColumns} t={t} onOpenChange={setIsColumnsOpen} onVisibleColumnsChange={setVisibleColumns} />
 
       <SalesModalFrame
+        closeLabel={t.common.close}
         open={isCreateOpen}
         onOpenChange={(open) => { if (!open) requestCreateClose(); }}
         busy={isCreating}
@@ -237,11 +244,12 @@ export function WarehouseManagementWorkspace({
             <IndiceModalValidation tone="warning" messages={[t.operational.modals.organizationRequired]} />
           ) : null}
           <IndiceModalWizardStepper accent="coral" activeStepId={activeCreateStep} progressLabel={editingWarehouse ? t.operational.modals.editWarehouseTitle : t.operational.modals.createWarehouseTitle} steps={createSteps} />
-          <WarehouseFormView activeStep={activeCreateStep} draft={draft} businessUnits={businessUnits} businesses={businesses} responsibleOptions={responsibleOptions} t={t} onChange={setDraft} />
+          <fieldset disabled={isCreating} className="min-w-0"><WarehouseFormView activeStep={activeCreateStep} draft={draft} businessUnits={businessUnits} businesses={businesses} responsibleOptions={responsibleOptions} t={t} onChange={setDraft} /></fieldset>
         </div>}
       </SalesModalFrame>
 
       <SalesModalFrame
+        closeLabel={t.common.close}
         open={Boolean(selectedWarehouse)}
         onOpenChange={(open) => { if (!open) closeDeleteModal(); }}
         busy={isDeleting}

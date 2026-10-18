@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { cn } from '../../../../../../components/ui/utils';
 import { HelperText } from '../components/HelperText';
 import { modalControlClassName, modalLabelClassName } from '../styles';
@@ -29,14 +30,19 @@ export function TextField({
   type = 'text',
   value,
 }: TextFieldProps) {
+  const fieldId = useId();
+  const messageId = `${fieldId}-message`;
   return (
     <div>
-      <label className={modalLabelClassName}>
+      <label htmlFor={fieldId} className={modalLabelClassName}>
         {label} {required ? <span className="text-red-500">*</span> : null}
       </label>
       <input
+        id={fieldId}
         name={name}
         type={type}
+        inputMode={type === 'email' ? 'email' : type === 'tel' ? 'tel' : type === 'number' ? 'decimal' : undefined}
+        autoCapitalize={type === 'email' ? 'none' : undefined}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onBlur={(event) => onChange(event.target.value)}
@@ -44,6 +50,8 @@ export function TextField({
         autoComplete={autoComplete}
         readOnly={readOnly}
         aria-invalid={Boolean(error)}
+        aria-required={required}
+        aria-describedby={error || helperText ? messageId : undefined}
         className={cn(
           modalControlClassName,
           readOnly && 'bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-300',
@@ -51,9 +59,9 @@ export function TextField({
         )}
       />
       {error ? (
-        <HelperText tone="error">{error}</HelperText>
+        <HelperText id={messageId} tone="error">{error}</HelperText>
       ) : helperText ? (
-        <HelperText>{helperText}</HelperText>
+        <HelperText id={messageId}>{helperText}</HelperText>
       ) : null}
     </div>
   );

@@ -117,9 +117,8 @@ export const salesModuleTabs: Array<{
   { id: 'whatsapping', translationKey: 'whatsapping', emoji: '💬', icon: MessageCircle, tone: 'coral' },
 ];
 
-export const visibleSalesModuleTabs = salesModuleTabs.filter(
-  (tab) => ['contacts', 'leads', 'quotes', 'sales', 'kpis', 'after-sales', 'funneling', 'mailing', 'whatsapping'].includes(tab.id),
-);
+export const visibleSalesModuleTabs = ['contacts', 'leads', 'quotes', 'sales', 'after-sales', 'kpis']
+  .flatMap(id => salesModuleTabs.filter(tab => tab.id === id));
 
 const toneClasses: Record<SalesTone, {
   accent: string;

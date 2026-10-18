@@ -1,7 +1,7 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar, Megaphone, Search } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import { IndiceModalFrame } from '../../../../components/indice-modal';
+import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
 import type {
   AnnouncementDepartmentOption,
   AnnouncementEmployeeOption,
@@ -16,6 +16,7 @@ interface CreateAnnouncementModalProps {
   isEdit?: boolean;
   isSubmitting?: boolean;
   isOpen: boolean;
+  saveErrorFallback: string;
   onClose: () => void;
   onSave: (data: CreateAnnouncementFormData) => Promise<void> | void;
   departments?: AnnouncementDepartmentOption[];
@@ -55,6 +56,7 @@ export function CreateAnnouncementModal({
   isEdit = false,
   isSubmitting = false,
   isOpen,
+  saveErrorFallback,
   onClose,
   onSave,
   departments = [],
@@ -63,6 +65,10 @@ export function CreateAnnouncementModal({
 }: CreateAnnouncementModalProps) {
   const [formData, setFormData] = useState<FormState>(initialState);
   const [employeeSearch, setEmployeeSearch] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const busy = isSubmitting || saving;
 
   useEffect(() => {
     if (!isOpen) {
@@ -70,6 +76,7 @@ export function CreateAnnouncementModal({
     }
     setFormData(initialData ? fromInitialData(initialData) : initialState);
     setEmployeeSearch('');
+    setSubmitError('');
   }, [initialData, isOpen]);
 
   const unitOptions = useMemo(() => {
@@ -120,7 +127,7 @@ export function CreateAnnouncementModal({
   };
 
   const resetAndClose = () => {
-    if (isSubmitting) {
+    if (savingRef.current || isSubmitting) {
       return;
     }
     setFormData(initialState);
@@ -129,6 +136,10 @@ export function CreateAnnouncementModal({
   };
 
   const submitAnnouncement = async (status: CreateAnnouncementFormData['status']) => {
+    if (savingRef.current || isSubmitting || !(status === 'draft' ? canSaveDraft : canPublish)) return;
+    savingRef.current = true;
+    setSaving(true);
+    setSubmitError('');
     try {
       await onSave({
         title: formData.title.trim(),
@@ -144,8 +155,11 @@ export function CreateAnnouncementModal({
       });
       setFormData(initialState);
       setEmployeeSearch('');
-    } catch {
-      // The parent renders the API error. Keep the draft in place for correction.
+    } catch (error) {
+      setSubmitError(error instanceof Error && error.message.trim() ? error.message : saveErrorFallback);
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
   };
 
@@ -181,7 +195,7 @@ export function CreateAnnouncementModal({
   return (
     <IndiceModalFrame
       bodyClassName="bg-white dark:bg-gray-950"
-      busy={isSubmitting}
+      busy={busy}
       closeLabel={copy.close}
       contentClassName="sm:max-w-4xl"
       description={copy.subtitle}
@@ -189,13 +203,13 @@ export function CreateAnnouncementModal({
         <>
           <Button
             variant="outline"
-            disabled={isSubmitting || !canSaveDraft}
+            disabled={busy || !canSaveDraft}
             onClick={() => void submitAnnouncement('draft')}
           >
             {copy.buttons.saveDraft}
           </Button>
           <Button
-            disabled={isSubmitting || !canPublish}
+            disabled={busy || !canPublish}
             onClick={() => void submitAnnouncement(formData.publishMode === 'now' ? 'published' : 'scheduled')}
           >
             {isEdit ? copy.buttons.saveChanges : formData.publishMode === 'now' ? copy.buttons.publishNow : copy.buttons.schedulePublication}
@@ -203,7 +217,7 @@ export function CreateAnnouncementModal({
         </>
       )}
       footerLeading={(
-        <Button variant="outline" onClick={resetAndClose} disabled={isSubmitting}>
+        <Button variant="outline" onClick={resetAndClose} disabled={busy}>
           {copy.buttons.cancel}
         </Button>
       )}
@@ -216,7 +230,8 @@ export function CreateAnnouncementModal({
       title={copy.title}
       tone="aqua"
     >
-          <div className="space-y-5">
+          <IndiceModalValidation messages={submitError ? [submitError] : []} />
+          <fieldset disabled={busy} className="min-w-0 space-y-5">
             <section className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
               <div>
                 <h3 className="text-base font-medium text-gray-900 dark:text-white">{copy.basicInformation.title}</h3>
@@ -412,7 +427,7 @@ export function CreateAnnouncementModal({
                 </div>
               ) : null}
             </section>
-          </div>
+          </fieldset>
     </IndiceModalFrame>
   );
 }

@@ -252,6 +252,14 @@ export const enCA = {
     description: 'Choose which operational fields appear in the sales table.',
   },
   modal: {
+    warehouseStatus: {
+      loading: "Loading warehouses…",
+      error: "Warehouses could not be loaded. Try again.",
+      unassigned: "Active warehouses need a business unit and business assignment. Complete their configuration in Inventory → Warehouses, then update this list.",
+      empty: "No active warehouses are available. Create or activate one in Inventory → Warehouses, then update this list.",
+      ready: "The selected warehouse supplies inventory for this sale.",
+      reload: "Update warehouses",
+    },
     createTitle: 'New Sale',
     detailTitle: 'Sale detail',
     description: 'Review the commercial closure and the operational handoff.',

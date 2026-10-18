@@ -33,7 +33,7 @@ interface JobStepProps {
 
 export function JobStep({ title, description, groups, fields }: JobStepProps) {
   return (
-    <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="rounded-[24px] border border-slate-200 bg-white p-3 sm:p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <StepHeader icon={Briefcase} title={title} description={description} />
       <div className="space-y-4">
         <FieldGroup title={groups.role}>

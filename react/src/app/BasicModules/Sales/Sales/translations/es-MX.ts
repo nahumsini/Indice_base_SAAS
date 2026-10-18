@@ -245,6 +245,14 @@ export const esMX = {
   },
   modal: {
     ...enCA.modal,
+    warehouseStatus: {
+      loading: "Cargando almacenes…",
+      error: "No se pudieron cargar los almacenes. Intenta actualizar la lista.",
+      unassigned: "Los almacenes activos no tienen una unidad y un negocio completos. Configúralos en Inventarios → Almacenes y actualiza esta lista.",
+      empty: "No hay almacenes activos disponibles. Crea o activa uno en Inventarios → Almacenes y actualiza esta lista.",
+      ready: "El almacén seleccionado surtirá el inventario de esta venta.",
+      reload: "Actualizar almacenes",
+    },
     createTitle: 'Nueva venta',
     detailTitle: 'Detalle de venta',
     description: 'Revisa el cierre comercial y el traspaso operativo.',

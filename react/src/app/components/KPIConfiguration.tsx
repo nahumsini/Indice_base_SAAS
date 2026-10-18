@@ -300,7 +300,7 @@ export function KPIConfiguration({
         variant="outline"
         size="sm"
         onClick={onOpen}
-        className="w-full justify-center rounded-xl border-[var(--indice-brand-primary)] bg-[var(--indice-brand-soft)] px-4 font-semibold text-[var(--indice-brand-text)] shadow-[0_4px_14px_var(--indice-brand-shadow-soft)] transition-all duration-200 hover:-translate-y-px hover:border-[var(--indice-brand-primary)] hover:bg-[var(--indice-brand-primary)] hover:text-white hover:shadow-[0_8px_20px_var(--indice-brand-shadow)] focus-visible:ring-[var(--indice-brand-primary)]/40 dark:border-[var(--indice-brand-primary)]/60 dark:bg-[var(--indice-brand-primary)]/10 dark:text-[var(--indice-brand-text-dark)] dark:hover:bg-[var(--indice-brand-primary)] dark:hover:text-white sm:w-auto"
+        className="min-h-11 sm:min-h-8 w-full justify-center rounded-xl border-[var(--indice-brand-primary)] bg-[var(--indice-brand-soft)] px-4 font-semibold text-[var(--indice-brand-text)] shadow-[0_4px_14px_var(--indice-brand-shadow-soft)] transition-all duration-200 hover:-translate-y-px hover:border-[var(--indice-brand-primary)] hover:bg-[var(--indice-brand-primary)] hover:text-white hover:shadow-[0_8px_20px_var(--indice-brand-shadow)] focus-visible:ring-[var(--indice-brand-primary)]/40 dark:border-[var(--indice-brand-primary)]/60 dark:bg-[var(--indice-brand-primary)]/10 dark:text-[var(--indice-brand-text-dark)] dark:hover:bg-[var(--indice-brand-primary)] dark:hover:text-white sm:w-auto"
       >
         <Settings className="mr-2 h-4 w-4" />
         {resolvedCopy.triggerLabel}

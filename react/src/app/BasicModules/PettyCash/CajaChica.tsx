@@ -1,3 +1,4 @@
+import { LearningPracticeExample } from '../../learningMode/components/LearningPracticeExample';
 import { pettyCashLearningEnglish } from './operationalGuidance/pettyCashLearningEnglish';
 import { useSearchParams } from 'react-router';
 import { useRef, useState, type ReactNode } from 'react';
@@ -44,10 +45,10 @@ const pettyCashLearningJourneyEmoji: Record<PettyCashTabId, string> = {
 };
 
 const pettyCashLearningSignals: Record<PettyCashTabId, string> = {
-  cash: 'Crea el fondo, define responsable y límite; así el efectivo pequeño también tiene reglas claras.',
-  control: 'Registra entregas, comprobantes y devoluciones para explicar cuánto efectivo sigue disponible.',
-  statements: 'Cierra periodos con una declaración verificable y conserva la evidencia de cada movimiento.',
-  kpis: 'Detecta fondos sin comprobar, diferencias y hábitos de gasto antes de que se vuelvan recurrentes.',
+  cash: 'Revisa para qué sirve cada fondo, quién lo cuida y cuánto dinero tiene disponible.',
+  control: 'Consulta cuánto recibió cada persona, qué comprobó y cuánto tiene pendiente.',
+  statements: 'Revisa los cortes guardados y los movimientos que explican sus saldos.',
+  kpis: 'Encuentra saldos pendientes y diferencias que necesitan revisión.',
 };
 
 const legacyPettyCashTabAliases: Partial<Record<string, PettyCashTabId>> = {
@@ -164,8 +165,10 @@ export default function CajaChica({ learningModeActive = false, onNavigate }: Ca
         currentModule="petty-cash"
         guide={learningModeActive ? (
           <SimpleModuleLearningGuide
+            useOwnerLabels
+            introduction={activeTab === 'cash' ? <LearningPracticeExample id="pettyCash" defaultOpen /> : undefined}
             englishOverview={pettyCashLearningEnglish}
-            activeContextLabel={pettyCashLearningLabels[activeTab]}
+            activeContextLabel={copy.shell.tabs[activeTab]}
             activeJourneyId={activeTab}
             contextSignal={pettyCashLearningSignals[activeTab]}
             controls={pettyCashLearningControls[activeTab]}

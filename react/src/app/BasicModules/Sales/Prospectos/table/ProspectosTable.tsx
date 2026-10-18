@@ -82,7 +82,7 @@ export function ProspectosTable({
   onOpenHistory: (opportunity: SalesOpportunity) => void;
   onEdit: (opportunity: SalesOpportunity) => void;
   onDelete: (opportunity: SalesOpportunity) => void;
-  onScheduleChange: (opportunity: SalesOpportunity, date: string, time: string) => void;
+  onScheduleChange: (opportunity: SalesOpportunity, date: string, time: string) => void | Promise<void>;
   onDownloadQuote: (opportunity: SalesOpportunity, quote: SalesQuote) => void;
   onResizeColumn: (columnId: OpportunityColumnId, width: number) => void;
   paginationState?: { currentPage: number; pageSize: number };

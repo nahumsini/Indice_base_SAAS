@@ -156,12 +156,12 @@ function ExpenseMobileCard({
         <button
           type="button"
           onClick={onView}
-          className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-700 hover:border-[#147514]/30 hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:text-slate-200"
+          className="inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-700 hover:border-[#147514]/30 hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:text-slate-200"
         >
           <Eye className="h-4 w-4" />
           {copy.title}
         </button>
-        <div className="min-w-0 flex-1 overflow-x-auto">
+        <div className="min-w-0 flex-1 overscroll-x-contain overflow-x-auto [&_button]:min-h-11 [&_button]:min-w-11">
           <ExpenseRowActions
             expenseId={expense.id}
             onAudit={onAudit}

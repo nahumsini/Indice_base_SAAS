@@ -16,7 +16,7 @@ export const receivablesLearningControls: Record<ReceivablesTabId, readonly Lear
   'credit-sales': [
     control({
       id: 'credit-sale-create', emoji: '➕', kind: 'Botón de acción', title: 'Nueva venta a crédito',
-      purpose: 'Convierte una venta elegible en un plan de pago con monto, plazo, tasa y vencimientos.',
+      purpose: 'Registra cuánto debe el cliente y las fechas y condiciones acordadas para pagar.',
       behavior: 'Abre el simulador, valida la política del cliente y crea la cuenta por cobrar al confirmar.',
       whenToUse: 'Úsalo después de acordar condiciones y comprobar que el cliente tiene crédito disponible.',
       result: 'Evita promesas de pago que no tienen calendario, límite ni responsable.', focus: 'las condiciones de cada crédito',
@@ -28,7 +28,7 @@ export const receivablesLearningControls: Record<ReceivablesTabId, readonly Lear
     }),
     control({
       id: 'credit-sale-columns', emoji: '🧩', kind: 'Botón de configuración', title: 'Columnas',
-      purpose: 'Selecciona los datos visibles de ventas financiadas.',
+      purpose: 'Elige qué datos de las ventas a crédito aparecen en la tabla.',
       behavior: 'Muestra, oculta y ordena cliente, monto, plazo, tasa, responsable y estado.',
       whenToUse: 'Úsalo antes de revisar exposición, vencimientos o responsables.',
       result: 'Hace visibles los factores que explican el riesgo del crédito.', focus: 'la lectura de ventas a crédito',
@@ -90,7 +90,7 @@ export const receivablesLearningControls: Record<ReceivablesTabId, readonly Lear
     }),
     control({
       id: 'receivable-register-payment', emoji: '💵', kind: 'Acción del registro', title: 'Registrar pago',
-      purpose: 'Aplica un ingreso a la cuenta y parcialidades correspondientes.',
+      purpose: 'Relaciona un ingreso a la cuenta y parcialidades correspondientes.',
       behavior: 'Abre el formulario, valida importe y referencia, adjunta evidencia y recalcula saldos.',
       whenToUse: 'Úsalo cuando el dinero haya sido recibido y pueda identificarse.',
       result: 'Evita cobrar saldos ya pagados o esconder diferencias con ajustes manuales.', focus: 'la aplicación correcta del cobro',

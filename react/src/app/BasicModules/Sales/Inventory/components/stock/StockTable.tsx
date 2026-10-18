@@ -36,7 +36,7 @@ const actionButtonClasses = [
   'border-[#F4C84A]/35 bg-[#F4C84A]/15 text-[#9a6b05] hover:bg-[#F4C84A]/25 dark:border-[#F4C84A]/35 dark:bg-[#F4C84A]/10 dark:text-[#F9E7A0] dark:hover:bg-[#F4C84A]/20',
   'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15 dark:border-[#2563EB]/35 dark:bg-[#2563EB]/15 dark:text-blue-200 dark:hover:bg-[#2563EB]/20',
 ];
-const actionButtonBase = 'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/30 disabled:pointer-events-none disabled:opacity-50';
+const actionButtonBase = 'inline-flex h-11 w-11 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/30 disabled:pointer-events-none disabled:opacity-50';
 
 function getSortValue(row: InventoryStockRow, column: SortColumn) {
   const totals = getStockTotals(row);
@@ -86,7 +86,7 @@ function SortableHead({
 
   return (
     <TableHead className={`${headerClass} ${align === 'right' ? 'text-right' : ''}`}>
-      <button type="button" className={`inline-flex items-center gap-1.5 ${align === 'right' ? 'justify-end' : ''}`} onClick={() => onSort(column)}>
+      <button type="button" className={`inline-flex min-h-11 md:min-h-0 items-center gap-1.5 ${align === 'right' ? 'justify-end' : ''}`} onClick={() => onSort(column)}>
         {label}
         <Icon className={`h-4 w-4 ${isActive ? 'text-[#FF6B5E]' : 'text-slate-400 dark:text-slate-500'}`} />
       </button>
@@ -160,12 +160,13 @@ export function StockTable({
 
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="overflow-x-auto">
+      <div className="min-w-0">
         <Table>
           <TableHeader className="bg-slate-50/90 dark:bg-slate-900">
             <TableRow className="border-slate-200 dark:border-slate-700">
               <TableHead className="h-10 w-12 px-4">
                 <Checkbox
+                  aria-label={t.common.all}
                   checked={allPageRowsSelected ? true : somePageRowsSelected ? 'indeterminate' : false}
                   onCheckedChange={(checked) => {
                     pageRowIds.forEach((id) => onToggleRow(id, Boolean(checked)));
@@ -197,7 +198,7 @@ export function StockTable({
               return (
                 <TableRow key={row.id} className={`border-slate-100 dark:border-slate-700 ${selected ? 'bg-[#FF6B5E]/5 dark:bg-[#FF6B5E]/10' : 'hover:bg-slate-50/80 dark:hover:bg-slate-700/40'}`}>
                   <TableCell className="px-4">
-                    <Checkbox checked={selected} onCheckedChange={(checked) => onToggleRow(row.id, Boolean(checked))} />
+                    <Checkbox aria-label={row.name} checked={selected} onCheckedChange={(checked) => onToggleRow(row.id, Boolean(checked))} />
                   </TableCell>
                   {canShow('photo') ? <TableCell className="px-3 py-2"><ProductPhoto row={row} t={t} /></TableCell> : null}
                   {canShow('product') ? <TableCell className="min-w-[260px] px-3 py-2"><div className="text-sm font-medium leading-5 text-slate-950 dark:text-white">{row.name}</div><div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-300"><span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-600 dark:bg-slate-900 dark:text-slate-300">{row.sku}</span><span className="max-w-[240px] truncate">{row.description}</span></div></TableCell> : null}
@@ -225,10 +226,10 @@ export function StockTable({
                   {canShow('lastMovement') ? <TableCell className="px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-300">{row.lastMovementAt ?? t.common.notAvailable}</TableCell> : null}
                   <TableCell className="px-3 py-2">
                     <div className="flex justify-end gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                      <Button size="icon" variant="ghost" className={`${actionButtonBase} ${actionButtonClasses[0]}`} title={t.operational.actions.addStock} onClick={() => onAddStock(row)}><PackagePlus className="h-4 w-4" /></Button>
-                      <Button size="icon" variant="ghost" className={`${actionButtonBase} ${actionButtonClasses[1]}`} title={t.operational.actions.transfer} onClick={() => onTransfer(row)}><ArrowRightLeft className="h-4 w-4" /></Button>
-                      <Button size="icon" variant="ghost" className={`${actionButtonBase} ${actionButtonClasses[2]}`} title={t.operational.actions.adjust} onClick={() => onAdjust(row)}><SlidersHorizontal className="h-4 w-4" /></Button>
-                      <Button size="icon" variant="ghost" className={`${actionButtonBase} ${actionButtonClasses[3]}`} title={t.operational.actions.viewMovements} onClick={() => onViewMovements(row)}><History className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" className={`${actionButtonBase} ${actionButtonClasses[0]}`} aria-label={t.operational.actions.addStock} title={t.operational.actions.addStock} onClick={() => onAddStock(row)}><PackagePlus className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" className={`${actionButtonBase} ${actionButtonClasses[1]}`} aria-label={t.operational.actions.transfer} title={t.operational.actions.transfer} onClick={() => onTransfer(row)}><ArrowRightLeft className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" className={`${actionButtonBase} ${actionButtonClasses[2]}`} aria-label={t.operational.actions.adjust} title={t.operational.actions.adjust} onClick={() => onAdjust(row)}><SlidersHorizontal className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" className={`${actionButtonBase} ${actionButtonClasses[3]}`} aria-label={t.operational.actions.viewMovements} title={t.operational.actions.viewMovements} onClick={() => onViewMovements(row)}><History className="h-4 w-4" /></Button>
                     </div>
                   </TableCell>
                 </TableRow>

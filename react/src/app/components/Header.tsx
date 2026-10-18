@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, Building2, Check, Coins, GraduationCap, LayoutPanelTop, LoaderCircle, User, Settings, ShieldCheck, MonitorSmartphone, Search } from 'lucide-react';
+import { BriefcaseBusiness, Building2, Check, Coins, GraduationCap, LayoutPanelTop, LoaderCircle, User, Settings, ShieldCheck, MonitorSmartphone, Search, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import { HeaderEmoji } from './icons/HeaderEmoji';
@@ -45,7 +45,7 @@ interface HeaderProps {
 }
 
 const USER_PROFILE_UPDATED_EVENT = 'indice:user-profile-updated';
-const HEADER_ACTION_BUTTON_CLASSES = 'h-10 w-10 rounded-full border border-transparent text-slate-50/85 transition-all hover:border-white/35 hover:bg-white/15 hover:text-slate-50 dark:text-slate-50/85 dark:hover:border-white/35 dark:hover:bg-white/15 dark:hover:text-slate-50';
+const HEADER_ACTION_BUTTON_CLASSES = 'h-11 w-11 rounded-full border border-transparent text-slate-50/85 sm:h-10 sm:w-10 transition-all hover:border-white/35 hover:bg-white/15 hover:text-slate-50 dark:text-slate-50/85 dark:hover:border-white/35 dark:hover:bg-white/15 dark:hover:text-slate-50';
 
 const getProfileDisplayName = (user: ConfigCenterCurrentUser) => {
   return [
@@ -71,6 +71,12 @@ export function Header({
   const { copy } = useHeaderTranslations();
   const { preferredCurrency } = usePreferredBusinessCurrency();
   const currencyCopy = getPreferredCurrencyCopy(currentLanguage.code);
+  const [mobileAccountView, setMobileAccountView] = useState<'account' | 'company' | 'language'>('account');
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => profileMenuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [mobileAccountView]);
   const [isCurrencySettingsOpen, setIsCurrencySettingsOpen] = useState(false);
   const currentHour = new Date().getHours();
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false);
@@ -176,7 +182,7 @@ export function Header({
       window.removeEventListener(USER_PROFILE_UPDATED_EVENT, handleProfileUpdate);
     };
   }, [setCurrentLanguage]);
-  
+
   const getGreeting = () => {
     if (currentHour >= 6 && currentHour < 12) {
       return copy.greetings.morning;
@@ -186,7 +192,7 @@ export function Header({
       return copy.greetings.evening;
     }
   };
-  
+
   const getGreetingIcon = () => {
     if (currentHour >= 6 && currentHour < 12) {
       return (
@@ -208,7 +214,7 @@ export function Header({
       );
     }
   };
-  
+
   const unreadCount = notifications.summary?.unread_count ?? 0;
   const currentUserInitials = currentUserName
     .split(/\s+/)
@@ -349,55 +355,8 @@ export function Header({
     void notifications.markAllRead();
   };
 
-  return (
-    <header className="border-b border-[var(--indice-brand-shell-hover)] bg-[var(--indice-brand-shell)] px-4 py-3 text-[var(--indice-brand-shell-foreground)] shadow-sm transition-colors dark:border-[var(--indice-brand-shell-dark)] dark:bg-[var(--indice-brand-shell-dark)] sm:px-8">
-      <div className="max-w-[1600px] mx-auto">
-        {/* Layout móvil y desktop */}
-        <div className="flex items-center justify-between gap-3">
-          {/* Sección izquierda - Saludo */}
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="min-w-0 flex-1">
-              <h1 className="flex items-center gap-2 text-lg font-semibold text-[var(--indice-brand-shell-foreground)] sm:text-2xl">
-                <span className="hidden sm:inline">{getGreetingIcon()}</span>
-                <span className="truncate">{getGreeting()}, {currentUserPrimaryName}</span>
-              </h1>
-            </div>
-          </div>
+  const companyMenuItems = <>
 
-          {/* Sección derecha - Acciones */}
-          <div className="flex flex-shrink-0 items-center gap-2">
-            {isPublicDemoSession ? (
-              <div
-                className="hidden items-center gap-2 rounded-full border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 shadow-sm sm:flex dark:border-amber-500/35 dark:bg-amber-500/10 dark:text-amber-200"
-                title={currentLanguage.code.startsWith('es')
-                  ? 'Sesión temporal con datos ficticios'
-                  : 'Temporary session with fictitious data'}
-              >
-                <MonitorSmartphone className="h-4 w-4" />
-                {currentLanguage.code.startsWith('es') ? 'Modo demo' : 'Demo mode'}
-              </div>
-            ) : null}
-            {canSelectCompany ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="h-10 max-w-48 gap-2 rounded-full border border-white/25 bg-white/10 px-3 text-[var(--indice-brand-shell-foreground)] shadow-none hover:bg-white/20 hover:text-[var(--indice-brand-shell-foreground)] dark:border-white/25 dark:bg-white/10 dark:text-[var(--indice-brand-shell-foreground)] dark:hover:bg-white/20"
-                    aria-label={`${copy.actions.company}: ${visibleCompanyName}`}
-                    title={copy.actions.switchCompany}
-                    disabled={switchingCompanyId !== null}
-                  >
-                    {switchingCompanyId !== null ? (
-                      <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
-                    ) : (
-                      <HeaderEmoji name="company" />
-                    )}
-                    <span className="hidden max-w-32 truncate text-sm font-medium xl:inline">
-                      {switchingCompanyId !== null ? copy.actions.switchingCompany : visibleCompanyName}
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="max-h-[min(36rem,80vh)] w-80 overflow-y-auto rounded-2xl p-2">
                   <div className="px-2 pb-2 pt-1 text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">
                     {currentLanguage.code.startsWith('es') ? 'Tus empresas' : 'Your companies'}
                   </div>
@@ -518,10 +477,84 @@ export function Header({
                   {companySwitchError ? (
                     <p className="px-3 py-2 text-xs font-medium text-red-600">{companySwitchError}</p>
                   ) : null}
-                </DropdownMenuContent>
+
+  </>;
+  const languageMenuItems = <>
+
+                {languages.map((language) => (
+                  <DropdownMenuItem
+                    key={language.code}
+                    onClick={() => setCurrentLanguage(language)}
+                    className={`flex cursor-pointer items-center gap-2 ${currentLanguage.code === language.code ? 'bg-[var(--indice-brand-soft)] focus:bg-[var(--indice-brand-soft)] dark:bg-[var(--indice-brand-primary)]/15 dark:focus:bg-[var(--indice-brand-primary)]/20' : ''}`}
+                  >
+                    <span className="text-xl" aria-hidden="true">{language.flag}</span>
+                    <span className="min-w-0 flex-1">{language.name}</span>
+                    {currentLanguage.code === language.code ? (
+                      <Check className="h-4 w-4 shrink-0 text-[var(--indice-brand-primary)]" aria-hidden="true" />
+                    ) : null}
+                  </DropdownMenuItem>
+                ))}
+
+  </>;
+
+  return (
+    <header className="border-b border-[var(--indice-brand-shell-hover)] bg-[var(--indice-brand-shell)] px-3 py-2.5 sm:py-3 text-[var(--indice-brand-shell-foreground)] shadow-sm transition-colors dark:border-[var(--indice-brand-shell-dark)] dark:bg-[var(--indice-brand-shell-dark)] sm:px-8">
+      <div className="max-w-[1600px] mx-auto">
+        {/* Layout móvil y desktop */}
+        <div className="flex items-center justify-between gap-2 sm:gap-3">
+          {/* Sección izquierda - Saludo */}
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="min-w-0 flex-1">
+              <h1 className="flex items-center gap-2 text-lg font-semibold text-[var(--indice-brand-shell-foreground)] sm:text-2xl">
+                <span className="hidden sm:inline">{getGreetingIcon()}</span>
+                <span className="flex min-w-0 flex-col sm:hidden">
+                  <span className="truncate text-base font-semibold leading-5">{currentUserPrimaryName}</span>
+                  <span className="truncate text-[11px] font-normal leading-4 text-white/80" title={visibleCompanyName}>{visibleCompanyName}</span>
+                </span>
+                <span className="hidden truncate sm:inline">{getGreeting()}, {currentUserPrimaryName}</span>
+              </h1>
+            </div>
+          </div>
+
+          {/* Sección derecha - Acciones */}
+          <div className="flex flex-shrink-0 items-center gap-1 sm:gap-2">
+            {isPublicDemoSession ? (
+              <div
+                className="hidden items-center gap-2 rounded-full border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 shadow-sm sm:flex dark:border-amber-500/35 dark:bg-amber-500/10 dark:text-amber-200"
+                title={currentLanguage.code.startsWith('es')
+                  ? 'Sesión temporal con datos ficticios'
+                  : 'Temporary session with fictitious data'}
+              >
+                <MonitorSmartphone className="h-4 w-4" />
+                {currentLanguage.code.startsWith('es') ? 'Modo demo' : 'Demo mode'}
+              </div>
+            ) : null}
+            <div className="hidden sm:block">
+            {canSelectCompany ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="h-10 max-w-48 gap-2 rounded-full border border-white/25 bg-white/10 px-3 text-[var(--indice-brand-shell-foreground)] shadow-none hover:bg-white/20 hover:text-[var(--indice-brand-shell-foreground)] dark:border-white/25 dark:bg-white/10 dark:text-[var(--indice-brand-shell-foreground)] dark:hover:bg-white/20"
+                    aria-label={`${copy.actions.company}: ${visibleCompanyName}`}
+                    title={copy.actions.switchCompany}
+                    disabled={switchingCompanyId !== null}
+                  >
+                    {switchingCompanyId !== null ? (
+                      <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
+                    ) : (
+                      <HeaderEmoji name="company" />
+                    )}
+                    <span className="hidden max-w-32 truncate text-sm font-medium xl:inline">
+                      {switchingCompanyId !== null ? copy.actions.switchingCompany : visibleCompanyName}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="max-h-[min(36rem,80vh)] w-80 overflow-y-auto rounded-2xl p-2">{companyMenuItems}</DropdownMenuContent>
               </DropdownMenu>
             ) : null}
 
+            </div>
             <MessagingLauncher session={effectiveAuthSession} locale={currentLanguage.code} />
 
             {/* Notificaciones */}
@@ -536,6 +569,7 @@ export function Header({
               onOpenItem={openNotificationItem}
             />
 
+            <div className="hidden sm:block">
             {/* Selector de idioma */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -549,28 +583,16 @@ export function Header({
                   <span className="text-lg leading-none" aria-hidden="true">{currentLanguage.flag}</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                {languages.map((language) => (
-                  <DropdownMenuItem
-                    key={language.code}
-                    onClick={() => setCurrentLanguage(language)}
-                    className={`flex cursor-pointer items-center gap-2 ${currentLanguage.code === language.code ? 'bg-[var(--indice-brand-soft)] focus:bg-[var(--indice-brand-soft)] dark:bg-[var(--indice-brand-primary)]/15 dark:focus:bg-[var(--indice-brand-primary)]/20' : ''}`}
-                  >
-                    <span className="text-xl" aria-hidden="true">{language.flag}</span>
-                    <span className="min-w-0 flex-1">{language.name}</span>
-                    {currentLanguage.code === language.code ? (
-                      <Check className="h-4 w-4 shrink-0 text-[var(--indice-brand-primary)]" aria-hidden="true" />
-                    ) : null}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
+              <DropdownMenuContent align="end" className="w-56">{languageMenuItems}</DropdownMenuContent>
             </DropdownMenu>
 
+            </div>
+
             {/* Dark mode */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className={`${HEADER_ACTION_BUTTON_CLASSES} ${darkMode ? 'border-white/50 bg-white/20 dark:bg-white/20' : ''}`}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`hidden sm:inline-flex ${HEADER_ACTION_BUTTON_CLASSES} ${darkMode ? 'border-white/50 bg-white/20 dark:bg-white/20' : ''}`}
               onClick={onToggleDarkMode}
               aria-pressed={darkMode}
               aria-label={darkMode ? copy.actions.lightMode : copy.actions.darkMode}
@@ -584,9 +606,9 @@ export function Header({
             </Button>
 
             {/* Learning mode settings - desktop only */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               className={`hidden sm:flex ${HEADER_ACTION_BUTTON_CLASSES} ${learningModeActive ? 'border-white/50 bg-white/20 dark:bg-white/20' : ''}`}
               onClick={() => setIsLearningModeSettingsOpen(true)}
               aria-label={copy.actions.learningMode}
@@ -597,7 +619,7 @@ export function Header({
             </Button>
 
             {/* User profile */}
-            <DropdownMenu>
+            <DropdownMenu onOpenChange={(open) => { if (!open) setMobileAccountView('account'); }}>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
@@ -621,8 +643,9 @@ export function Header({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
+                ref={profileMenuRef}
                 align="end"
-                className="w-64 overflow-hidden rounded-2xl border border-[var(--indice-brand-primary)]/35 bg-white p-0 shadow-[0_24px_60px_rgba(34,40,49,0.18)] dark:border-[var(--indice-brand-primary)]/30 dark:bg-[#222831]"
+                className="max-h-[calc(100dvh-5rem)] w-[min(22rem,calc(100vw-1.5rem))] overflow-x-hidden overflow-y-auto rounded-2xl border sm:w-64 border-[var(--indice-brand-primary)]/35 bg-white p-0 shadow-[0_24px_60px_rgba(34,40,49,0.18)] dark:border-[var(--indice-brand-primary)]/30 dark:bg-[#222831]"
               >
                 {/* Profile header */}
                 <div className="border-b border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] p-4">
@@ -649,7 +672,25 @@ export function Header({
                     </div>
                   </div>
                 </div>
-                
+
+                {mobileAccountView !== 'account' ? <div className="py-1 sm:hidden">
+                  <DropdownMenuItem onSelect={(event) => { event.preventDefault(); setMobileAccountView('account'); }} className="min-h-11 gap-3 px-4 py-3"><ChevronLeft className="size-4" /><span>{copy.actions.profile}</span></DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {mobileAccountView === 'company' ? companyMenuItems : languageMenuItems}
+                </div> : null}
+                <div className={mobileAccountView !== 'account' ? 'hidden sm:block' : undefined}>
+                <div className="border-b border-[var(--indice-brand-primary)]/15 py-1 sm:hidden">
+                  {canSelectCompany ? <DropdownMenuItem onSelect={(event) => { event.preventDefault(); setMobileAccountView('company'); }} className="min-h-11 gap-3 px-4 py-3">
+                    <HeaderEmoji name="company" />
+                    <span className="min-w-0 flex-1"><span className="block text-sm">{copy.actions.company}</span><span className="block truncate text-xs text-slate-500 dark:text-slate-300">{visibleCompanyName}</span></span>
+                  </DropdownMenuItem> : null}
+                  <DropdownMenuItem onSelect={(event) => { event.preventDefault(); setMobileAccountView('language'); }} className="min-h-11 gap-3 px-4 py-3">
+                    <HeaderEmoji name="language" />
+                    <span className="min-w-0 flex-1"><span className="block text-sm">{copy.actions.language}</span><span className="block truncate text-xs text-slate-500 dark:text-slate-300">{currentLanguage.name}</span></span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={onToggleDarkMode} className="min-h-11 gap-3 px-4 py-3"><HeaderEmoji name={darkMode ? 'sun' : 'moon'} /><span className="text-sm">{darkMode ? copy.actions.lightMode : copy.actions.darkMode}</span></DropdownMenuItem>
+                </div>
+
                 {/* Menu options */}
                 <div className="bg-white py-1 dark:bg-[#222831]">
                   {isPublicDemoSession ? (
@@ -706,7 +747,7 @@ export function Header({
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="my-0 bg-[var(--indice-brand-primary)]/15 dark:bg-[var(--indice-brand-primary)]/20 sm:hidden" />
                   {/* Learning mode settings on mobile - menu only */}
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10 sm:hidden"
                     onSelect={() => setIsLearningModeSettingsOpen(true)}
                   >
@@ -723,6 +764,7 @@ export function Header({
                   >
                     <span className="text-sm font-semibold text-red-600 dark:text-red-400">{isLoggingOut ? copy.actions.loggingOut : copy.actions.logout}</span>
                   </DropdownMenuItem>
+                </div>
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -767,7 +809,7 @@ export function Header({
 
       {/* Centro de Notificaciones Modal */}
       {isCurrencySettingsOpen && <PreferredCurrencyControl onClose={() => setIsCurrencySettingsOpen(false)} />}
-      <NotificationCenter 
+      <NotificationCenter
         isOpen={isNotificationCenterOpen}
         items={notifications.items}
         summary={notifications.summary}

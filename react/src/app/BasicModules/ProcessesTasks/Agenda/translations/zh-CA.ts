@@ -394,6 +394,7 @@ export const zhCA: AgendaTranslations = {
     description: (folio: string) => `复核 ${folio}，分配权重并留下审核备注。`,
     fallbackDescription: '审核所选任务。',
     weightingLabel: '权重',
+    weightingValidation: (max: number) => `请选择 0 到 ${max} 之间的整数评分以保存审核。`,
     weightingHint: (max: number) => `0 表示无可评估合规性，${max} 表示优秀合规性。`,
     notesLabel: '审核备注',
     notesPlaceholder: '经理或审核人意见',

@@ -110,6 +110,8 @@ final class SalesDefinitions {
                         f("expectedCloseDate", "expected_close_date", SalesFieldType.DATE),
                         f("nextAction", "next_action", SalesFieldType.STRING),
                         f("nextActionAt", "next_action_at", SalesFieldType.DATETIME),
+                        f("nextActionScheduledAt", "next_action_scheduled_at", SalesFieldType.DATETIME),
+                        f("nextActionTimezone", "next_action_timezone", SalesFieldType.STRING),
                         f("lastContactAt", "last_contact_at", SalesFieldType.DATETIME),
                         f("notes", "notes", SalesFieldType.STRING),
                         f("customFields", "custom_fields_json", SalesFieldType.JSON),

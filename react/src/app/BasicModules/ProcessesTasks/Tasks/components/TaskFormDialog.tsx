@@ -1,4 +1,4 @@
-import type { Dispatch, FormEvent, ReactNode, SetStateAction } from 'react';
+import { useId, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from 'react';
 import { CalendarDays, ClipboardList, Pencil, Plus, Save, UserRound } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
@@ -13,6 +13,7 @@ import {
 import { Textarea } from '../../../../components/ui/textarea';
 import { useLanguage } from '../../../../shared/context';
 import { defaultAgendaTranslations, type AgendaTranslations } from '../../Agenda/translations';
+import { getFormFeedbackCopy } from '../../../../components/indice-modal/formFeedbackCopy';
 import { ProgressSlider } from '../../shared/ProgressSlider';
 import {
   TaskAssigneeSelector,
@@ -137,11 +138,12 @@ function SelectField<T extends string>({
   options: Array<{ label: string; value: T }>;
   value: T;
 }) {
+  const fieldId = useId();
   return (
     <div className={`space-y-2 ${className ?? ''}`}>
-      <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</label>
+      <label htmlFor={fieldId} className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</label>
       <Select value={value} onValueChange={(nextValue) => onChange(nextValue as T)}>
-        <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+        <SelectTrigger id={fieldId} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -190,6 +192,9 @@ export function TaskFormDialog({
   const selectedAssignedUserCompanyId = numericFormValue(form.assignedUserCompanyId);
   const hasResponsible = selectedAssignedUserCompanyId != null;
   const isFormValid = Boolean(form.title.trim()) && hasValidDateRange && hasResponsible;
+  const feedbackCopy = getFormFeedbackCopy(currentLanguage.code);
+  const missingFields = [!form.title.trim() && formCopy.labels.title, !hasResponsible && formCopy.labels.responsible].filter((field): field is string => Boolean(field));
+  const saveHint = !hasValidDateRange ? formCopy.quickCreate.hints.invalidDateRange : missingFields.length ? feedbackCopy.missingFields(missingFields) : '';
   const selectedProjectId = numericFormValue(form.projectId);
   const selectedProcessId = numericFormValue(form.processId);
   const selectedProjectValue =
@@ -454,7 +459,7 @@ export function TaskFormDialog({
       eyebrow={isQuickCreate ? formCopy.quickCreate.eyebrow : undefined}
       contentClassName={isQuickCreate ? 'h-[min(88vh,800px)]' : 'h-[min(88vh,820px)]'}
       bodyClassName={isQuickCreate ? 'py-4' : undefined}
-      footerSummary={isQuickCreate ? quickCreateSummary : undefined}
+      footerSummary={<div className="space-y-1">{isQuickCreate ? <p>{quickCreateSummary}</p> : null}{saveHint ? <p id="task-form-help" className="text-xs leading-5">{saveHint}</p> : null}</div>}
       footer={(
         <>
           <Button
@@ -470,6 +475,7 @@ export function TaskFormDialog({
             type="submit"
             form="process-task-form"
             className="w-full sm:w-auto"
+            aria-describedby={saveHint ? "task-form-help" : undefined}
             disabled={!isFormValid || isSubmitting}
           >
             {mode === 'create' ? <Plus className="h-4 w-4" /> : <Save className="h-4 w-4" />}

@@ -394,6 +394,7 @@ export const koCA: AgendaTranslations = {
     description: (folio: string) => `${folio} 작업을 검토하고 가중치와 감사 메모를 입력합니다.`,
     fallbackDescription: '선택한 작업을 감사합니다.',
     weightingLabel: '가중치',
+    weightingValidation: (max: number) => `감사를 저장하려면 0에서 ${max} 사이의 정수 점수를 선택하세요.`,
     weightingHint: (max: number) => `0은 평가 가능한 준수가 없음을 의미하고 ${max}는 우수한 준수를 의미합니다.`,
     notesLabel: '감사 메모',
     notesPlaceholder: '관리자 또는 감사자 의견',

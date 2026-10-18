@@ -17,11 +17,9 @@ import type { SaleRecord } from './types/salesTypes';
 import { calculateCommissionRecords } from './utils/commissionRules';
 import { commissionRulesService } from './services/commissionRulesService';
 import { useSalesCrm } from '../salesCrmContext';
-import { inventoryApi } from '../Inventory/services/inventoryApi';
-import type { InventoryWarehouse } from '../Inventory/types/inventoryTypes';
+import { useSalesWarehouses } from './hooks/useSalesWarehouses';
 import { salesApi } from '../salesApi';
 import type { SalesCurrentSeller } from './types/salesTypes';
-import { isSalesWarehouseReady } from './utils/salesWarehouseScope';
 import { receivablesApi } from '../../Receivables/services/receivablesApi';
 import type { ReceivableAccount, ReceivablePayment } from '../../Receivables/types';
 import { downloadQuotePdf } from '../Cotizacion/quotePdf';
@@ -126,7 +124,7 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
   const [pendingCancelRecord, setPendingCancelRecord] = useState<SaleRecord | null>(null);
   const [pendingDeleteRecord, setPendingDeleteRecord] = useState<SaleRecord | null>(null);
   const [deleteError, setDeleteError] = useState('');
-  const [warehouses, setWarehouses] = useState<InventoryWarehouse[]>([]);
+  const { warehouses, loading: warehouseLoading, error: warehouseLoadError, reload: reloadWarehouses } = useSalesWarehouses(isDetailModalOpen);
   const [currentSeller, setCurrentSeller] = useState<SalesCurrentSeller>();
   const [receivableAccounts, setReceivableAccounts] = useState<ReceivableAccount[]>([]);
   const [receivablePayments, setReceivablePayments] = useState<ReceivablePayment[]>([]);
@@ -162,17 +160,11 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
   useEffect(() => {
     let cancelled = false;
 
-    void Promise.allSettled([inventoryApi.loadWarehouses(), salesApi.context()])
-      .then(([warehousesResult, contextResult]) => {
+    void salesApi.context()
+      .then((context) => {
         if (cancelled) return;
-        setWarehouses(
-          warehousesResult.status === 'fulfilled'
-            ? warehousesResult.value.filter(isSalesWarehouseReady)
-            : [],
-        );
-        if (contextResult.status !== 'fulfilled') return;
-        const currentUser = contextResult.value.users.find(
-          (user) => user.userCompanyId === contextResult.value.currentUserCompanyId,
+        const currentUser = context.users.find(
+          (user) => user.userCompanyId === context.currentUserCompanyId,
         );
         if (currentUser) {
           setCurrentSeller({
@@ -181,7 +173,7 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
             sellerName: currentUser.name || currentUser.email,
           });
         }
-      });
+      }).catch(() => { /* The sale remains blocked without an authenticated seller. */ });
 
     return () => { cancelled = true; };
   }, []);
@@ -248,7 +240,7 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
       ? opportunities.find((item) => item.id === quote.opportunityId) ?? null
       : null;
 
-    downloadQuotePdf({ quote, contact, opportunity, copy: quotesCopy });
+    downloadQuotePdf({ quote, contact, opportunity, company: companyPrintIdentity, locale: currentLanguage.code, copy: quotesCopy });
   };
 
   const handleDownloadInvoice = (record: SaleRecord) => {
@@ -377,6 +369,9 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
         quotes={quotes}
         products={products}
         warehouses={warehouses}
+        warehouseLoading={warehouseLoading}
+        warehouseLoadError={warehouseLoadError}
+        onReloadWarehouses={reloadWarehouses}
         currentSeller={currentSeller}
         contacts={contacts}
         opportunities={opportunities}

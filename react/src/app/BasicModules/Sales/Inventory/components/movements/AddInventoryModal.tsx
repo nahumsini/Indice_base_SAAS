@@ -1,3 +1,7 @@
+import { useLanguage } from '../../../../../shared/context';
+import { getFormFeedbackCopy } from '../../../../../components/indice-modal/formFeedbackCopy';
+import { getMovementFileCopy } from '../../translations/movementFileCopy';
+import { inventoryMovementFiles, movementFileError, movementFileAccept, validMovementFile, type MovementFileUploadState } from '../../services/inventoryMovementFiles';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, FileUp, PackagePlus, Trash2 } from 'lucide-react';
 import { IndiceModalSummary, IndiceModalValidation, IndiceModalWizardStepper } from '../../../../../components/indice-modal';
@@ -20,7 +24,7 @@ export type AddInventoryDraft = {
   reason: string;
   reference: string;
   date: string;
-  attachments: InventoryMovementAttachment[];
+  attachments: Array<InventoryMovementAttachment & { file?: File }>;
 };
 
 type SupplierOption = { id: string; name: string };
@@ -33,7 +37,7 @@ const newDraft = (reason: string): AddInventoryDraft => ({
   date: new Date().toISOString().slice(0, 10), attachments: [],
 });
 
-export function AddInventoryModal({ open, rows, warehouses, suppliers, t, initialProductId, initialWarehouseId, onOpenChange, onSubmit }: {
+export function AddInventoryModal({ open, rows, warehouses, suppliers, t, initialProductId, initialWarehouseId, onOpenChange, onSubmit, onAttachmentSaved }: {
   open: boolean;
   rows: InventoryStockRow[];
   warehouses: InventoryWarehouse[];
@@ -42,8 +46,19 @@ export function AddInventoryModal({ open, rows, warehouses, suppliers, t, initia
   initialProductId?: string;
   initialWarehouseId?: string;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (draft: AddInventoryDraft) => Promise<void>;
+  onSubmit: (draft: AddInventoryDraft) => Promise<{ movementId: string }>;
+  onAttachmentSaved?: (movementId: string, file: InventoryMovementAttachment) => void;
 }) {
+  const { currentLanguage } = useLanguage();
+  const fileCopy = getMovementFileCopy(currentLanguage.code);
+  const feedback = getFormFeedbackCopy(currentLanguage.code);
+  const savedMovementRef = useRef<string | null>(null);
+  const [savedMovementId, setSavedMovementId] = useState<string | null>(null);
+  const busyRef = useRef(false);
+  const initializedRef = useRef(false);
+  const uploadedRef = useRef(new Set<string>());
+  const uploadStatesRef = useRef(new Map<string, MovementFileUploadState>());
+  const [savedFiles, setSavedFiles] = useState<string[]>([]);
   const activeWarehouses = useMemo(() => [...warehouses].filter((warehouse) => warehouse.status === 'active').sort((a, b) => a.name.localeCompare(b.name)), [warehouses]);
   const supplierOptions = useMemo(() => [...suppliers].filter((supplier) => supplier.name.trim()).sort((a, b) => a.name.localeCompare(b.name)), [suppliers]);
   const [draft, setDraft] = useState<AddInventoryDraft>(() => newDraft(t.operational.movementTypes.supplierReceipt));
@@ -55,7 +70,14 @@ export function AddInventoryModal({ open, rows, warehouses, suppliers, t, initia
   const baselineRef = useRef('');
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) { initializedRef.current = false; return; }
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+    savedMovementRef.current = null;
+    setSavedMovementId(null);
+    uploadedRef.current.clear();
+    uploadStatesRef.current.clear();
+    setSavedFiles([]);
     const warehouse = activeWarehouses.find((item) => item.id === initialWarehouseId) ?? activeWarehouses[0];
     const nextDraft: AddInventoryDraft = {
       ...newDraft(t.operational.movementTypes.supplierReceipt),
@@ -96,24 +118,44 @@ export function AddInventoryModal({ open, rows, warehouses, suppliers, t, initia
     onOpenChange(false);
   };
   const requestClose = () => {
-    if (isSaving) return;
+    if (busyRef.current) return;
     if (view === 'workspace' && hasChanges) setView('discard');
     else resetAndClose();
   };
   const submit = async () => {
-    if (!canSubmit || isSaving) return;
+    if ((!savedMovementRef.current && !canSubmit) || busyRef.current) return;
+    busyRef.current = true;
     setIsSaving(true);
     setSaveError(null);
     try {
-      await onSubmit(draft);
+      if (!savedMovementRef.current) {
+        const receipt = await onSubmit({ ...draft, attachments: [] });
+        savedMovementRef.current = receipt.movementId;
+        setSavedMovementId(receipt.movementId);
+      }
+      const failed: string[] = [];
+      for (const attachment of draft.attachments) {
+        if (uploadedRef.current.has(attachment.id) || !attachment.file) continue;
+        const state = uploadStatesRef.current.get(attachment.id) ?? {};
+        uploadStatesRef.current.set(attachment.id, state);
+        try {
+          const saved = await inventoryMovementFiles.upload(savedMovementRef.current, attachment.file, state);
+          onAttachmentSaved?.(savedMovementRef.current, saved);
+          uploadedRef.current.add(attachment.id);
+          setSavedFiles([...uploadedRef.current]);
+        } catch (error) { failed.push(`${attachment.name}: ${movementFileError(error, fileCopy.failed)}`); }
+      }
+      if (failed.length) { setSaveError(`${fileCopy.pending} ${failed.join(', ')}`); return; }
       resetAndClose();
     } catch (error) {
       setSaveError(getOperationErrorMessage(error, t.common.operationFailed));
     } finally {
+      busyRef.current = false;
       setIsSaving(false);
     }
   };
   const continueWizard = () => {
+    if (savedMovementRef.current || busyRef.current) return;
     if (activeStep === 'receipt') {
       if (!receiptStepValid) { setShowStepError(true); return; }
       setActiveStep('products');
@@ -127,13 +169,16 @@ export function AddInventoryModal({ open, rows, warehouses, suppliers, t, initia
     }
   };
   const goBack = () => {
+    if (savedMovementRef.current || busyRef.current) return;
     setShowStepError(false);
     setActiveStep((current) => current === 'review' ? 'products' : 'receipt');
   };
   const handleFilesChange = (files: FileList | null) => {
-    if (!files) return;
-    const attachments = Array.from(files).map((file) => ({ id: `file-${Date.now()}-${file.name}`, name: file.name, size: file.size, type: file.type || 'application/octet-stream' }));
-    setDraft((current) => ({ ...current, attachments: [...current.attachments, ...attachments] }));
+    if (!files || busyRef.current || savedMovementRef.current) return;
+    if (draft.attachments.length + files.length > 10 || Array.from(files).some(file => !validMovementFile(file))) { setSaveError(fileCopy.invalid); return; }
+    const attachments = Array.from(files).map(file => ({ id: crypto.randomUUID(), name: file.name, size: file.size, type: file.type, file }));
+    setDraft(current => ({ ...current, attachments: [...current.attachments, ...attachments] }));
+    setSaveError(null);
   };
 
   return (
@@ -141,14 +186,14 @@ export function AddInventoryModal({ open, rows, warehouses, suppliers, t, initia
       open={open}
       onOpenChange={(nextOpen) => { if (!nextOpen) requestClose(); }}
       busy={isSaving}
-      title={view === 'discard' ? t.common.unsavedChanges : t.operational.modals.addInventoryTitle}
-      description={view === 'discard' ? t.common.unsavedChanges : t.operational.modals.addInventorySubtitle}
+      title={view === 'discard' ? savedMovementId ? fileCopy.title : t.common.unsavedChanges : t.operational.modals.addInventoryTitle}
+      description={view === 'discard' ? savedMovementId ? fileCopy.leave : t.common.unsavedChanges : t.operational.modals.addInventorySubtitle}
       icon={view === 'discard' ? <AlertTriangle className="h-5 w-5" /> : <PackagePlus className="h-5 w-5" />}
       modalType={view === 'discard' ? 'confirmation' : 'wizard'}
       contentClassName="flex max-h-[calc(100dvh-2rem)] flex-col sm:!w-[min(96vw,68rem)] sm:!max-w-[68rem]"
       bodyClassName="!max-h-none flex-1 overflow-y-auto bg-slate-50/70 px-4 py-4 sm:px-6 sm:py-5"
       footerClassName="[&_[aria-live=polite]]:!overflow-visible [&_[aria-live=polite]]:!whitespace-normal"
-      footerLeading={<div className="flex items-center gap-2"><Button type="button" variant="outline" className={actions.secondary} disabled={isSaving} onClick={view === 'discard' ? () => setView('workspace') : requestClose}>{view === 'discard' ? t.common.continueEditing : t.common.cancel}</Button>{view === 'workspace' && activeStep !== 'receipt' ? <Button type="button" variant="outline" className={actions.secondary} disabled={isSaving} onClick={goBack}>{t.common.back}</Button> : null}</div>}
+      footerLeading={<div className="flex items-center gap-2"><Button type="button" variant="outline" className={actions.secondary} disabled={isSaving} onClick={view === 'discard' ? () => setView('workspace') : requestClose}>{view === 'discard' ? t.common.continueEditing : savedMovementId ? fileCopy.close : t.common.cancel}</Button>{view === 'workspace' && activeStep !== 'receipt' && !savedMovementId ? <Button type="button" variant="outline" className={actions.secondary} disabled={isSaving} onClick={goBack}>{t.common.back}</Button> : null}</div>}
       footerSummary={view === 'workspace' ? <InventoryReceiptFooterSummary
         productsLabel={t.operational.modals.products}
         productsValue={draft.items.length}
@@ -158,9 +203,9 @@ export function AddInventoryModal({ open, rows, warehouses, suppliers, t, initia
         warehouseValue={destinationWarehouse?.name ?? t.common.notAvailable}
       /> : undefined}
       footer={view === 'discard' ? (
-        <Button type="button" className="h-11 gap-2 rounded-lg bg-red-600 px-5 font-normal text-white hover:bg-red-700" onClick={resetAndClose}><Trash2 className="h-4 w-4" />{t.common.discardChanges}</Button>
+        <Button type="button" className="h-11 gap-2 rounded-lg bg-red-600 px-5 font-normal text-white hover:bg-red-700" onClick={resetAndClose}><Trash2 className="h-4 w-4" />{savedMovementId ? fileCopy.close : t.common.discardChanges}</Button>
       ) : activeStep === 'review' ? (
-        <Button type="button" className={actions.primary} disabled={!canSubmit || isSaving} onClick={() => void submit()}>{saveError ? t.common.retry : t.operational.modals.addStock}</Button>
+        <Button type="button" className={actions.primary} disabled={(!savedMovementId && !canSubmit) || isSaving} onClick={() => void submit()}>{isSaving ? feedback.saving : savedMovementId ? fileCopy.retry : saveError ? t.common.retry : t.operational.modals.addStock}</Button>
       ) : (
         <Button type="button" className={actions.primary} disabled={isSaving} onClick={continueWizard}>{t.common.continue}</Button>
       )}
@@ -172,6 +217,7 @@ export function AddInventoryModal({ open, rows, warehouses, suppliers, t, initia
           {showStepError ? <IndiceModalValidation messages={[activeStep === 'receipt' ? t.common.completeMovementData : t.common.reviewProductQuantities]} /> : null}
           {activeStep === 'receipt' && !supplierIsValid ? <IndiceModalValidation messages={[t.common.selectValidSupplier]} /> : null}
 
+          {savedMovementId ? <IndiceModalValidation tone="info" messages={[fileCopy.pending]} /> : null}
           {activeStep === 'receipt' ? <InventoryModalSection title={t.operational.movementTypes.supplierReceipt}>
             <div className="grid gap-x-5 gap-y-4 md:grid-cols-2">
               <SelectField label={t.operational.modals.supplier} value={draft.supplierName || 'none'} options={[{ value: 'none', label: t.common.none }, ...sortInventoryOptions(supplierOptions.map((supplier) => ({ value: supplier.name, label: supplier.name })))]} invalid={!supplierIsValid} onValueChange={(supplierName) => setDraft({ ...draft, supplierName: supplierName === 'none' ? '' : supplierName })} />
@@ -196,8 +242,9 @@ export function AddInventoryModal({ open, rows, warehouses, suppliers, t, initia
                 <div className="divide-y divide-slate-200 dark:divide-slate-700">{draft.items.map((item) => { const product = rows.find((row) => row.productId === item.productId); return <div key={item.id} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"><div className="min-w-0"><p className="truncate text-sm font-medium text-slate-900 dark:text-white">{product?.name ?? t.common.notAvailable}</p><p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{product?.sku ?? t.common.notAvailable}</p></div><span className="shrink-0 rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium tabular-nums text-slate-900 dark:bg-slate-800 dark:text-white">{t.operational.modals.quantity}: {item.quantity}</span></div>; })}</div>
               </InventoryModalSection>
               <InventoryModalSection title={t.operational.modals.files} description={`${draft.attachments.length} ${t.operational.modals.files.toLocaleLowerCase()}`}>
-                <label className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-[#FF6B5E]/35 bg-[#FF6B5E]/5 px-3 text-sm font-medium text-[#B63B32] transition hover:bg-[#FF6B5E]/10"><FileUp className="h-4 w-4" />{t.operational.modals.addFiles}<input type="file" multiple className="hidden" onChange={(event) => handleFilesChange(event.target.files)} /></label>
-                {draft.attachments.length > 0 ? <div className="mt-3 grid gap-2">{draft.attachments.map((file) => <span key={file.id} className="truncate rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">{file.name}</span>)}</div> : null}
+                <label className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-[#FF6B5E]/35 bg-[#FF6B5E]/5 px-3 text-sm font-medium text-[#B63B32] transition hover:bg-[#FF6B5E]/10"><FileUp className="h-4 w-4" />{t.operational.modals.addFiles}<input type="file" disabled={isSaving || Boolean(savedMovementId)} accept={movementFileAccept} multiple className="hidden" onChange={(event) => handleFilesChange(event.target.files)} /></label>
+                <p className="mt-2 text-xs text-slate-500">{fileCopy.help}</p>
+                {draft.attachments.length > 0 ? <div className="mt-3 grid gap-2">{draft.attachments.map(file => <div key={file.id} className="flex min-w-0 items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs"><span className="min-w-0 flex-1 break-all">{file.name}</span>{savedFiles.includes(file.id) ? <span>{fileCopy.saved}</span> : <Button type="button" variant="ghost" disabled={isSaving} aria-label={`${fileCopy.remove}: ${file.name}`} onClick={() => setDraft(current => ({ ...current, attachments: current.attachments.filter(item => item.id !== file.id) }))}>{fileCopy.remove}</Button>}</div>)}</div> : null}
               </InventoryModalSection>
             </div>
           </div> : null}

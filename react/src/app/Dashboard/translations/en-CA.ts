@@ -1,4 +1,21 @@
 export const enCA = {
+  learningPresentation: {
+    title: "Your learning",
+    saved: "Saved progress",
+    reviewed: "chapters reviewed",
+    applied: "applied",
+    continueAction: "Continue learning",
+    next: "Next activity",
+    details: "View progress by stage",
+    complete: "You have reviewed your available chapters.",
+    error: "Your progress could not be loaded.",
+    retry: "Retry",
+    journeyTitle: "Your learning journey",
+    journeyDescription: "Explore the six stages of the Índice Methodology.",
+    stageTools: "Tools for this stage",
+    exploring: "Exploring",
+    noTools: "No tools are available for this stage with your current permissions.",
+  },
   systemTools: {
     title: "System tools",
     description: "Connect and manage your company’s tools.",
@@ -33,7 +50,7 @@ export const enCA = {
   },
   operationalJourney: {
     eyebrow: "Learning mode",
-    sessionLabel: "Session",
+    sessionLabel: "Step",
     goalLabel: "What you will achieve",
     title: "Your learning journey",
     subtitle: "Learn how to organize and grow your company step by step.",
@@ -46,48 +63,42 @@ export const enCA = {
       locked: "Locked",
     },
     stages: {
-      company_setup: {
-        title: "Get to know your company",
-        shortTitle: "Your company",
-        description:
-          "Define the identity and structure where your learning journey begins.",
-        cta: "Explore my company",
+      "company_setup": {
+        "title": "Your business",
+        "shortTitle": "Your business",
+        "description": "Set up your business details and the places where you work.",
+        "cta": "Review my business"
       },
-      human_resources: {
-        title: "Organize your people",
-        shortTitle: "People",
-        description:
-          "Clarify roles, responsibilities, schedules, and how the team works together.",
-        cta: "Organize people",
+      "human_resources": {
+        "title": "Your team",
+        "shortTitle": "Your team",
+        "description": "Organize people’s details and work schedules.",
+        "cta": "Review my team"
       },
-      operations: {
-        title: "Turn work into processes",
-        shortTitle: "Processes",
-        description:
-          "Turn repeated activities into a clear and organized way of working.",
-        cta: "Learn about processes",
+      "operations": {
+        "title": "Tasks and processes",
+        "shortTitle": "Tasks and processes",
+        "description": "Define what needs doing, who will do it, and by when.",
+        "cta": "Review my tasks"
       },
-      finance: {
-        title: "Take control of your money",
-        shortTitle: "Money",
-        description:
-          "Learn how money enters, leaves, and is used across your company.",
-        cta: "Explore my finances",
+      "finance": {
+        "title": "Your money",
+        "shortTitle": "Your money",
+        "description": "Review expenses, outstanding payments, and what customers owe you.",
+        "cta": "Review my expenses"
       },
-      commercial: {
-        title: "Organize products and sales",
-        shortTitle: "Products and sales",
-        description:
-          "Connect what you buy, store, and sell to understand your business better.",
-        cta: "Organize products and sales",
+      "commercial": {
+        "title": "Products and sales",
+        "shortTitle": "Products and sales",
+        "description": "Organize what you sell and review your sales.",
+        "cta": "Review products and sales"
       },
-      analytics: {
-        title: "Make informed decisions",
-        shortTitle: "Decisions",
-        description:
-          "Turn company-wide results into better decisions for growth.",
-        cta: "Learn from my indicators",
-      },
+      "analytics": {
+        "title": "How your business is doing",
+        "shortTitle": "Business overview",
+        "description": "Understand the numbers that help you review your business.",
+        "cta": "Review my indicators"
+      }
     },
     characters: {
       eyebrow: "Stories to learn from",

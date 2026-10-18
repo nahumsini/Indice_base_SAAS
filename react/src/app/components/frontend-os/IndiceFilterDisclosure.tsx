@@ -58,13 +58,13 @@ export function IndiceFilterDisclosureActions({
   tone: IndiceModuleTone;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
+    <div className="flex max-w-full flex-wrap items-center justify-start gap-2 sm:justify-end">
       {resultSummary ? <span>{resultSummary}</span> : null}
       {showAdvancedToggle ? (
         <Button
           type="button"
           variant="outline"
-          className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-3 text-slate-700 shadow-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+          className="min-h-11 h-auto whitespace-normal py-2 sm:h-10 sm:min-h-10 gap-2 rounded-xl border-slate-200 bg-white px-3 text-slate-700 shadow-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
           aria-expanded={isAdvancedOpen}
           onClick={onToggleAdvanced}
         >
@@ -84,7 +84,7 @@ export function IndiceFilterDisclosureActions({
         <Button
           type="button"
           variant="outline"
-          className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-3 text-slate-700 shadow-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+          className="min-h-11 h-auto whitespace-normal py-2 sm:h-10 sm:min-h-10 gap-2 rounded-xl border-slate-200 bg-white px-3 text-slate-700 shadow-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
           onClick={onClear}
         >
           <RotateCcw aria-hidden="true" className="h-4 w-4" />

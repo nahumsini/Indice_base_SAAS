@@ -19,7 +19,7 @@ export function WarehouseFormView({
   t,
   onChange,
 }: {
-  activeStep: 'identity' | 'assignment' | 'review';
+  activeStep: 'identity' | 'assignment' | 'review' | 'all';
   draft: CreateWarehouseDraft;
   businessUnits: InventoryBusinessUnit[];
   businesses: InventoryBusiness[];
@@ -35,13 +35,13 @@ export function WarehouseFormView({
 
   return (
     <section className="mx-auto w-full max-w-3xl">
-      {activeStep === 'identity' ? (
+      {activeStep === 'identity' || activeStep === 'all' ? (
           <FormSection step="1" icon={<Warehouse className="h-4 w-4" />} title={t.operational.modals.warehouseIdentitySection} description={t.operational.modals.warehouseNameHelp}>
             <InputField autoFocus label={`${t.operational.modals.warehouseName} *`} value={draft.name} onChange={(name) => onChange({ ...draft, name })} />
           </FormSection>
       ) : null}
 
-      {activeStep === 'assignment' ? (
+      {activeStep === 'assignment' || activeStep === 'all' ? (
           <FormSection step="2" icon={<Building2 className="h-4 w-4" />} title={t.operational.modals.warehouseAssignmentSection} description={t.operational.modals.warehouseAssignmentHelp}>
             <SelectField label={`${t.operational.modals.businessUnit} *`} value={draft.businessUnitId || 'none'} options={[{ value: 'none', label: t.locationModal.validation.businessUnit }, ...sortInventoryOptions(businessUnits.map((unit) => ({ value: unit.id, label: unit.name })))]} onValueChange={(businessUnitId) => {
               if (businessUnitId === 'none') {
@@ -76,7 +76,7 @@ export function WarehouseFormView({
           </FormSection>
       ) : null}
 
-      {activeStep === 'review' ? (
+      {activeStep === 'review' || activeStep === 'all' ? (
           <FormSection step="3" icon={<UserRound className="h-4 w-4" />} title={t.operational.modals.warehouseOperationSection} description={t.operational.modals.warehouseOperationHelp}>
             <SelectField
               label={t.operational.modals.responsiblePerson}

@@ -32,6 +32,8 @@ function localizedStages(
 
 export function OpportunityFlowManagerModal({
   open,
+  scriptsLabel,
+  onScripts,
   flows,
   selectedFlowId,
   canManage,
@@ -45,6 +47,8 @@ export function OpportunityFlowManagerModal({
   onUpdate,
 }: {
   open: boolean;
+  scriptsLabel?: string;
+  onScripts?: (flowId: number) => void;
   flows: OpportunityFlow[];
   selectedFlowId: number | null;
   canManage: boolean;
@@ -172,7 +176,7 @@ export function OpportunityFlowManagerModal({
         <Button type="button" variant="outline" className={flowActionClassNames.secondary} disabled={isSaving} onClick={restoreDefault}>
           <RotateCcw className="h-4 w-4" />{copy.restoreDefault}
         </Button>
-      ) : undefined}
+      ) : selectedFlow && onScripts ? <Button variant="outline" onClick={() => onScripts(selectedFlow.id)}>{scriptsLabel} · {selectedFlow.name}</Button> : undefined}
       footerSummary={view === 'editor'
         ? copy.editorSummary(draftStages.length, openStagesCount)
         : copy.managerSummary(flows.length, selectedFlow?.name ?? copy.notAvailable)}

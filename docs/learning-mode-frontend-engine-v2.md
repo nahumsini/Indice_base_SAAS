@@ -1600,6 +1600,18 @@ La interfaz puede advertir riesgos directamente, por ejemplo colaboradores sin h
 - El texto enseña hablando directamente con la persona: explica qué encontrará, cómo usarlo y qué decisión empresarial mejora. El tono es cercano y ligero, pero conserva riesgos, consecuencias y vocabulario real de negocio.
 - El estado se comunica con texto además de color, el movimiento respeta `prefers-reduced-motion` y todos los controles mantienen nombre accesible y foco visible.
 
+#### Ajuste de claridad aprobado (2026-10-18)
+
+En las pestañas con ejemplo práctico, el riel de pasos permanece visible y debajo
+se elige una sola vista: `Ejemplo práctico` o `Herramientas de la pestaña`.
+La primera muestra Ver/Hacer/Comprobar; la segunda conserva el carrusel de
+herramientas, instrucciones y casos existentes. La misión real de RH permanece
+en Herramientas. No se mezclan el ejercicio ficticio y la captura real como si
+fueran una sola actividad. Cambiar de vista no acredita avance. Se mantienen las
+acciones de los módulos, los permisos y la versión del currículo detallado.
+Los nombres educativos deben coincidir con las pestañas actuales y los emojis
+reutilizan las ilustraciones compartidas de Índice.
+
 ### 29.6 Implementación inicial
 
 - El guardado exitoso de un colaborador, una carga documental compatible o una configuración de acceso compatible pueden marcar el área correspondiente como `Aplicado`.

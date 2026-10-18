@@ -105,6 +105,14 @@ export const frCA = {
   },
   modal: {
     ...enCA.modal,
+    warehouseStatus: {
+      loading: "Chargement des entrepôts…",
+      error: "Impossible de charger les entrepôts. Réessayez.",
+      unassigned: "Les entrepôts actifs doivent être associés à une unité et à un établissement. Complétez leur configuration dans Inventaire → Entrepôts, puis actualisez la liste.",
+      empty: "Aucun entrepôt actif disponible. Créez ou activez un entrepôt dans Inventaire → Entrepôts, puis actualisez la liste.",
+      ready: "L’entrepôt sélectionné fournit le stock de cette vente.",
+      reload: "Actualiser les entrepôts",
+    },
     createTitle: 'Nouvelle vente',
     detailTitle: 'Détail de la vente',
     description: 'Révisez la clôture commerciale et le transfert opérationnel.',

@@ -176,18 +176,19 @@ export function PosModalFrame({
   return (
     <Dialog open onOpenChange={handleOpenChange}>
       <DialogContent
+        data-indice-modal="pos"
         aria-busy={isCloseDisabled}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
         onEscapeKeyDown={(event) => isCloseDisabled && event.preventDefault()}
         onPointerDownOutside={(event) => isCloseDisabled && event.preventDefault()}
         className={cn(
-          'flex max-h-[94vh] w-full flex-col overflow-hidden rounded-lg border border-white/10 bg-white p-0 shadow-xl dark:bg-gray-950',
+          'flex gap-0 max-h-[94vh] w-full flex-col overflow-hidden rounded-lg border border-white/10 bg-white p-0 shadow-xl dark:bg-gray-950',
           widthClassName,
           zIndexClassName,
           contentClassName,
         )}
-        closeButtonClassName={cn('right-5 top-5 z-10 flex h-10 w-10 items-center justify-center rounded-full border p-0 opacity-100 [&_svg]:h-5 [&_svg]:w-5', toneClasses.close)}
+        closeButtonClassName={cn('right-3 top-3 sm:right-5 sm:top-5 z-10 flex h-11 w-11 sm:h-10 sm:w-10 items-center justify-center rounded-full border p-0 opacity-100 [&_svg]:h-5 [&_svg]:w-5', toneClasses.close)}
         closeButtonDisabled={isCloseDisabled}
         closeButtonLabel={closeLabel}
         overlayClassName={cn('bg-[#111827]/70 backdrop-blur-sm', zIndexClassName)}
@@ -207,8 +208,8 @@ export function PosModalFrame({
             </div>
           </DialogHeader>
 
-          <div className={cn(
-            'min-h-0 flex-1 overflow-y-auto bg-[#F7F8FA] p-4 dark:bg-[#111827] sm:p-5',
+          <div data-slot="indice-modal-body" className={cn(
+            'min-w-0 min-h-0 flex-1 overflow-y-auto bg-[#F7F8FA] p-4 dark:bg-[#111827] sm:p-5',
             bodyClassName,
           )}>
             {children}

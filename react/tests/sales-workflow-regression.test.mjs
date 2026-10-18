@@ -44,7 +44,7 @@ test('Kanban normaliza todas las etapas operativas entregadas por la API', () =>
 
 test('los flujos de oportunidades son seleccionables y alimentan Kanban y filtros', () => {
   const page = read('src/app/BasicModules/Sales/Prospectos/Prospectos.tsx');
-  const header = read('src/app/BasicModules/Sales/Prospectos/components/ProspectosHeader.tsx');
+  const flowBar = read('src/app/BasicModules/Sales/Prospectos/components/OpportunityFlowBar.tsx');
   const filters = read('src/app/BasicModules/Sales/Prospectos/components/ProspectosFilters.tsx');
   const kanban = read('src/app/BasicModules/Sales/Prospectos/kanban/ProspectosKanban.tsx');
   const manager = read('src/app/BasicModules/Sales/Prospectos/modals/OpportunityFlowManagerModal.tsx');
@@ -52,9 +52,9 @@ test('los flujos de oportunidades son seleccionables y alimentan Kanban y filtro
   const tableRow = read('src/app/BasicModules/Sales/Prospectos/table/ProspectosTableRow.tsx');
   const context = read('src/app/BasicModules/Sales/salesCrmContext.tsx');
 
-  assert.match(header, /copy\.manageFlow/);
-  assert.match(header, /SelectTrigger aria-label=\{activeFlowLabel\}/);
-  assert.match(header, /onSelectFlow\(Number\(value\)\)/);
+  assert.match(page, /managementLabel=\{canManageOpportunityFlow \? t\.header\.manageFlow : t\.flow\.catalogTitle\}/);
+  assert.match(flowBar, /aria-labelledby=\{labelId\}/);
+  assert.match(flowBar, /onSelectFlow\(Number\(value\)\)/);
   assert.match(page, /salesApi\.getOpportunityFlows\(\)/);
   assert.match(page, /salesApi\.getOpportunityFlowPositions\(selectedFlowId\)/);
   assert.match(page, /salesApi\.createOpportunityFlow/);
@@ -287,7 +287,7 @@ test('Ventas sólo utiliza almacenes activos con asignación organizacional real
   const form = read('src/app/BasicModules/Sales/Sales/components/SalesCreateForm.tsx');
   const scope = read('src/app/BasicModules/Sales/Sales/utils/salesWarehouseScope.ts');
 
-  assert.match(page, /warehousesResult\.value\.filter\(isSalesWarehouseReady\)/);
+  assert.match(page, /useSalesWarehouses\(isDetailModalOpen\)/);
   assert.match(scope, /warehouse\.status === 'active'/);
   assert.match(scope, /isDatabaseId\(warehouse\.businessUnitId\)/);
   assert.match(scope, /isDatabaseId\(warehouse\.businessId\)/);

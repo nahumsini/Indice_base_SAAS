@@ -77,7 +77,7 @@ export function ExpensesFilters({ businessOptions, businessUnitOptions, filtered
       )}
       title={t.filters.title}
     >
-        <SearchFilter filters={filters} placeholder={t.expenses.searchPlaceholder} searchLabel={t.common.search} onFiltersChange={onFiltersChange} />
+        <SearchFilter filters={filters} placeholder={t.expenses.searchPlaceholder} searchLabel={t.common.search} clearLabel={t.common.clearFilters} onFiltersChange={onFiltersChange} />
         <SelectFilter
           label={t.filters.period}
           value={filters.periodFilter}
@@ -136,7 +136,8 @@ function SearchFilter({
   onFiltersChange,
   placeholder,
   searchLabel,
-}: Pick<ExpensesFiltersProps, 'filters' | 'onFiltersChange'> & { placeholder: string; searchLabel: string }) {
+  clearLabel,
+}: Pick<ExpensesFiltersProps, 'filters' | 'onFiltersChange'> & { placeholder: string; searchLabel: string; clearLabel: string }) {
   return (
     <label className="min-w-0">
       <span className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">{searchLabel}</span>
@@ -147,12 +148,13 @@ function SearchFilter({
           value={filters.searchTerm}
           onChange={(event) => onFiltersChange(updateFilter(filters, 'searchTerm', event.target.value))}
           placeholder={placeholder}
-          className={`${filterInputClass} py-2 pl-10 pr-10`}
+          className={`${filterInputClass} py-2 pl-10 pr-12`}
         />
         {filters.searchTerm && (
           <button
+            aria-label={clearLabel}
             onClick={() => onFiltersChange(updateFilter(filters, 'searchTerm', ''))}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-300"
+            className="absolute right-0 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-lg focus-visible:ring-2 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-300"
             type="button"
           >
             <X className="w-4 h-4" />

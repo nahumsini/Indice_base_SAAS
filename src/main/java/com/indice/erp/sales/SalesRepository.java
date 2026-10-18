@@ -186,6 +186,9 @@ class SalesRepository {
             statement.setLong(values.size() + 2, id);
             return statement;
         });
+        if ("opportunities".equals(definition.collectionName())) {
+            OpportunityReminderService.cancelObsolete(jdbcTemplate, companyId, id);
+        }
     }
 
     void softDelete(long companyId, SalesEntityDefinition definition, long id) {
@@ -194,6 +197,9 @@ class SalesRepository {
                 "UPDATE " + definition.tableName() + " SET deleted_at = CURRENT_TIMESTAMP WHERE company_id = ? AND id = ?",
                 companyId,
                 id);
+        if ("opportunities".equals(definition.collectionName())) {
+            OpportunityReminderService.cancelObsolete(jdbcTemplate, companyId, id);
+        }
     }
 
     void removeProductFromPublicCatalogs(long companyId, long productId) {
@@ -1437,6 +1443,11 @@ class SalesRepository {
                 yield date == null ? null : date.toLocalDate().toString();
             }
             case DATETIME -> {
+                // Scheduling DATETIMEs are explicit wall/UTC values, independent of the JVM zone.
+                if ("next_action_at".equals(columnName) || "next_action_scheduled_at".equals(columnName)) {
+                    var dateTime = rs.getObject(columnName, LocalDateTime.class);
+                    yield dateTime == null ? null : dateTime.toString();
+                }
                 var timestamp = rs.getTimestamp(columnName);
                 yield timestamp == null ? null : timestamp.toLocalDateTime().toString();
             }

@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { AlertTriangle, ArrowLeft, Plus, Trash2, Warehouse } from 'lucide-react';
+import { IndiceModalValidation } from '../../../../../components/indice-modal';
 import { Button } from '../../../../../components/ui/button';
 import { SalesModalFrame } from '../../../components/SalesModalFrame';
 import { getSalesModalActionClassNames } from '../../../salesModalStyles';
@@ -58,11 +59,14 @@ export function CreateWarehouseModal({
   businesses: InventoryBusiness[];
   responsibleOptions: WarehouseResponsibleOption[];
   t: InventoryTranslations;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: (draft: CreateWarehouseDraft) => void;
-  onDeleteWarehouse: (warehouseId: string) => void;
-  onTransferAndDeleteWarehouse: (sourceWarehouseId: string, targetWarehouseId: string) => void;
+  onOpenChange: (open: boolean) => void | Promise<void>;
+  onSubmit: (draft: CreateWarehouseDraft) => void | Promise<void>;
+  onDeleteWarehouse: (warehouseId: string) => void | Promise<void>;
+  onTransferAndDeleteWarehouse: (sourceWarehouseId: string, targetWarehouseId: string) => void | Promise<void>;
 }) {
+  const busyRef = useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [view, setView] = useState<WarehouseModalView>('manager');
   const [draft, setDraft] = useState<CreateWarehouseDraft>(() => createEmptyDraft());
   const [selectedWarehouse, setSelectedWarehouse] = useState<InventoryWarehouse | null>(null);
@@ -73,17 +77,22 @@ export function CreateWarehouseModal({
   ])), [rows, warehouses]);
   const warehouseMetrics = useMemo(() => getWarehouseMetrics(warehouses, rows), [rows, warehouses]);
   const selectedSummary = selectedWarehouse ? summaries.get(selectedWarehouse.id) : undefined;
-  const canCreateWarehouse = draft.name.trim().length > 0;
+  const canCreateWarehouse = draft.name.trim().length > 0
+    && businessUnits.some(unit => unit.id === draft.businessUnitId)
+    && businesses.some(business => business.id === draft.businessId && business.businessUnitId === draft.businessUnitId);
   const canConfirmDeletion = Boolean(selectedWarehouse)
     && ((selectedSummary?.totalUnits ?? 0) === 0 || Boolean(targetWarehouseId));
 
   const resetToManager = () => {
+    if (busyRef.current) return;
+    setSaveError('');
     setView('manager');
     setSelectedWarehouse(null);
     setTargetWarehouseId('');
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
+    if (busyRef.current) return;
     if (!nextOpen) {
       resetToManager();
       setDraft(createEmptyDraft());
@@ -91,27 +100,32 @@ export function CreateWarehouseModal({
     onOpenChange(nextOpen);
   };
 
+  const runSave = async (operation: () => void | Promise<void>, created = false) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setIsSaving(true);
+    setSaveError('');
+    try {
+      await operation();
+      if (created) setDraft(createEmptyDraft());
+      busyRef.current = false;
+      resetToManager();
+    } catch (error) {
+      setSaveError(error instanceof Error && error.message ? error.message : t.common.operationFailed);
+    } finally {
+      busyRef.current = false;
+      setIsSaving(false);
+    }
+  };
   const handleCreateWarehouse = () => {
     if (!canCreateWarehouse) return;
-    onSubmit({
-      ...draft,
-      name: draft.name.trim(),
-      responsibleName: draft.responsibleName || t.common.notAvailable,
-      jurisdiction: draft.jurisdiction || t.common.notAvailable,
-      status: 'active',
-    });
-    setDraft(createEmptyDraft());
-    resetToManager();
+    void runSave(() => onSubmit({ ...draft, name: draft.name.trim(), status: 'active' }), true);
   };
-
   const handleConfirmDeletion = () => {
     if (!selectedWarehouse || !canConfirmDeletion) return;
-    if ((selectedSummary?.totalUnits ?? 0) > 0) {
-      onTransferAndDeleteWarehouse(selectedWarehouse.id, targetWarehouseId);
-    } else {
-      onDeleteWarehouse(selectedWarehouse.id);
-    }
-    resetToManager();
+    void runSave(() => (selectedSummary?.totalUnits ?? 0) > 0
+      ? onTransferAndDeleteWarehouse(selectedWarehouse.id, targetWarehouseId)
+      : onDeleteWarehouse(selectedWarehouse.id));
   };
 
   const title = view === 'manager'
@@ -127,6 +141,7 @@ export function CreateWarehouseModal({
 
   return (
     <SalesModalFrame
+      busy={isSaving}
       open={open}
       onOpenChange={handleOpenChange}
       title={title}
@@ -141,6 +156,7 @@ export function CreateWarehouseModal({
           type="button"
           variant="outline"
           className={warehouseActionClassNames.secondary}
+          disabled={isSaving}
           onClick={view === 'manager' ? () => handleOpenChange(false) : resetToManager}
         >
           {view === 'manager' ? null : <ArrowLeft className="h-4 w-4" />}
@@ -153,12 +169,12 @@ export function CreateWarehouseModal({
         warehouseMetrics.attentionWarehouses,
       ) : undefined}
       footer={view === 'create' ? (
-        <Button type="button" className={warehouseActionClassNames.primary} disabled={!canCreateWarehouse} onClick={handleCreateWarehouse}>
+        <Button type="button" className={warehouseActionClassNames.primary} disabled={!canCreateWarehouse || isSaving} onClick={handleCreateWarehouse}>
           <Plus className="h-4 w-4" />
           {t.operational.actions.createWarehouse}
         </Button>
       ) : view === 'delete' ? (
-        <Button type="button" className="h-11 gap-2 rounded-lg bg-red-600 px-5 font-normal text-white shadow-sm hover:bg-red-700" disabled={!canConfirmDeletion} onClick={handleConfirmDeletion}>
+        <Button type="button" className="h-11 gap-2 rounded-lg bg-red-600 px-5 font-normal text-white shadow-sm hover:bg-red-700" disabled={!canConfirmDeletion || isSaving} onClick={handleConfirmDeletion}>
           <Trash2 className="h-4 w-4" />
           {(selectedSummary?.totalUnits ?? 0) > 0
             ? t.operational.modals.transferAndDeleteWarehouse
@@ -166,6 +182,8 @@ export function CreateWarehouseModal({
         </Button>
       ) : undefined}
     >
+      <IndiceModalValidation messages={saveError ? [saveError] : []} />
+      <fieldset disabled={isSaving} className="min-w-0 space-y-4">
       {view === 'manager' ? (
         <WarehouseManagerView
           warehouses={warehouses}
@@ -181,7 +199,7 @@ export function CreateWarehouseModal({
       ) : null}
       {view === 'create' ? (
         <WarehouseFormView
-          activeStep="identity"
+          activeStep="all"
           draft={draft}
           businessUnits={businessUnits}
           businesses={businesses}
@@ -202,6 +220,7 @@ export function CreateWarehouseModal({
           onTargetChange={setTargetWarehouseId}
         />
       ) : null}
+      </fieldset>
     </SalesModalFrame>
   );
 }

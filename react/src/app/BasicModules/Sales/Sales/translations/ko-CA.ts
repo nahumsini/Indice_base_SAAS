@@ -105,6 +105,14 @@ export const koCA = {
   },
   modal: {
     ...enCA.modal,
+    warehouseStatus: {
+      loading: "창고를 불러오는 중…",
+      error: "창고를 불러오지 못했습니다. 다시 시도하세요.",
+      unassigned: "활성 창고에 사업부와 사업장이 지정되어야 합니다. 재고 → 창고에서 설정한 후 목록을 새로 고치세요.",
+      empty: "사용 가능한 활성 창고가 없습니다. 재고 → 창고에서 창고를 만들거나 활성화한 후 목록을 새로 고치세요.",
+      ready: "선택한 창고에서 이 판매의 재고를 공급합니다.",
+      reload: "창고 새로 고침",
+    },
     createTitle: '새 판매',
     detailTitle: '판매 상세',
     description: '상업적 마감과 운영 인계를 검토합니다.',
