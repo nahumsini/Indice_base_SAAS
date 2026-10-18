@@ -1,3 +1,5 @@
+import { DashboardSectionHeading } from './DashboardSectionHeading';
+import { IndiceEmoji } from '../../components/icons/ModuleTabEmoji';
 import { Settings } from 'lucide-react';
 import { KPIConfiguration } from '../../components/KPIConfiguration';
 import { KPICard } from '../../components/KPICard';
@@ -9,6 +11,7 @@ import type { MainDashboardTranslations } from '../translations';
 
 interface KpiSectionProps {
   title: string;
+  description: string;
   kpis: DashboardKpiCardData[];
   availableKPIs: KPIItem[];
   defaultKPIIds: readonly string[];
@@ -22,6 +25,7 @@ interface KpiSectionProps {
 
 export function KpiSection({
   title,
+  description,
   kpis,
   availableKPIs,
   defaultKPIIds,
@@ -34,33 +38,34 @@ export function KpiSection({
 }: KpiSectionProps) {
   return (
     <section>
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-          <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">
-            <span className="text-lg leading-none" aria-hidden="true">📊</span>
-            <span>{title}</span>
-          </h2>
-          {kpis.length > 0 && (
-            <span className="bg-[#2563EB] text-white text-sm font-medium px-3 py-1 rounded-full">
-              {kpis.length}
-            </span>
-          )}
-        </div>
-        <KPIConfiguration
-          isOpen={isConfigOpen}
-          onOpen={onOpenConfig}
-          onClose={onCloseConfig}
-          selectedKPIIds={selectedKPIIds}
-          onSave={onSave}
-          availableKPIs={availableKPIs}
-          defaultKPIIds={defaultKPIIds}
-          copy={copy.kpiConfiguration}
-        />
-      </div>
+      <DashboardSectionHeading
+        title={title}
+        description={description}
+        icon={<IndiceEmoji name="chart" className="size-8" />}
+        count={kpis.length}
+        action={
+          <KPIConfiguration
+            isOpen={isConfigOpen}
+            onOpen={onOpenConfig}
+            onClose={onCloseConfig}
+            selectedKPIIds={selectedKPIIds}
+            onSave={onSave}
+            availableKPIs={availableKPIs}
+            defaultKPIIds={defaultKPIIds}
+            copy={copy.kpiConfiguration}
+          />
+        }
+      />
       {kpis.length > 0 ? (
-        <KPICarousel mode="carousel">
+        <KPICarousel mode="carousel" compactCards dashboardSpacing>
           {kpis.map((kpi, index) => (
-            <KPICard key={kpi.id ?? index} {...kpi} kpiId={kpi.id} />
+            <KPICard
+              key={kpi.id ?? index}
+              {...kpi}
+              kpiId={kpi.id}
+              presentation="portrait"
+              moduleLabel={availableKPIs.find((item) => item.id === kpi.id)?.module}
+            />
           ))}
         </KPICarousel>
       ) : (

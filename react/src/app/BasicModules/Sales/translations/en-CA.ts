@@ -10,6 +10,9 @@ export const enCA = {
     fallbackDescription: 'Downloading only the selected sales workspace.',
   },
   tabs: {
+    funneling: 'Funneling',
+    mailing: 'Mailing',
+    whatsapping: 'Whatsapping',
     prospectos: 'Opportunities',
     contactos: 'Customers',
     cotizacion: 'Quotes',
@@ -23,6 +26,12 @@ export const enCA = {
     contrato: 'Contracts',
     postventa: 'After-sales',
     kpis: 'KPIs',
+  },
+  communicationWorkspace: {
+    pendingTitle: 'Workspace awaiting configuration',
+    mailingSubtitle: 'Organize customer email campaigns and follow-up.',
+    whatsappingSubtitle: 'Organize customer follow-up through WhatsApp.',
+    pendingDescription: 'Campaign creation and sending are not enabled in this workspace yet.',
   },
   paymentAccountsWorkspace: {
     title: 'Sales payment accounts',

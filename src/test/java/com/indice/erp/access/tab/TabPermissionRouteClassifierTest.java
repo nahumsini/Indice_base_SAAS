@@ -12,6 +12,19 @@ class TabPermissionRouteClassifierTest {
 
     private final TabPermissionRouteClassifier classifier = new TabPermissionRouteClassifier();
 
+    @Test void salesBoardUsesItsIndependentReadPermission() {
+        assertRequirement("GET", "/api/v1/sales-board", "sales_board.overview");
+        assertRequirement("GET", "/api/v1/sales-board/unknown", "sales_board.overview");
+    }
+
+    @Test void funnelPlanningUsesItsOwnPermissionAndDoesNotGrantOperationalSalesAccess() {
+        assertRequirement("GET", "/api/v1/sales/funnels", "crm.funneling");
+        assertRequirement("GET", "/api/v1/sales/funnels/synthetic", "crm.funneling");
+        assertRequirement("PUT", "/api/v1/sales/funnels/synthetic", "crm.funneling");
+        assertRequirement("GET", "/api/v1/mailing/campaigns", "crm.mailing");
+        assertRequirement("POST", "/api/v1/sales/quotes", "crm.quotes");
+    }
+
     @Test void meetingControlScopesAreIndependentAndUnknownPrivateRoutesFailClosed() {
         assertRequirement("GET","/api/v1/meetings","control_minutas.meetings");
         assertRequirement("PUT","/api/v1/meetings/1/minutes","control_minutas.meetings");

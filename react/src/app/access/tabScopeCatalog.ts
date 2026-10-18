@@ -7,6 +7,8 @@ type TabScopeDefinition = {
 };
 
 export const MODULE_TAB_SCOPE_CATALOG: Partial<Record<PageId, TabScopeDefinition>> = {
+  'sales-board': { moduleSlug: 'sales_board', tabs: { overview: 'overview' } },
+  email: { moduleSlug: 'correo', tabs: { mail: 'mail', accounts: 'accounts' } },
   'minutes-control': { moduleSlug: 'control_minutas', tabs: { meetings: 'meetings', agreements: 'agreements', indicators: 'indicators' } },
   maintenance: { moduleSlug: 'maintenance', tabs: { requests: 'requests', orders: 'orders', assets: 'assets', preventive: 'preventive', indicators: 'indicators', configuration: 'configuration' } },
   scheduling: { moduleSlug: 'scheduling', tabs: { calendar: 'calendar', reservations: 'reservations', clients: 'clients', events: 'events', indicators: 'indicators', configuration: 'configuration' } },
@@ -65,6 +67,10 @@ export const MODULE_TAB_SCOPE_CATALOG: Partial<Record<PageId, TabScopeDefinition
       commissions: 'sales',
       'payment-accounts': 'sales',
       contracts: 'contracts',
+      'after-sales': 'contracts',
+      funneling: 'funneling',
+      mailing: 'mailing',
+      whatsapping: 'contacts',
       kpis: 'kpis',
     },
   },
@@ -148,6 +154,7 @@ export function canAccessModuleTab(
     return true;
   }
   const role = normalizeTabScopeRole(session?.user.role);
+  if (page === 'sales-board' && !HR_MANAGEMENT_ROLES.has(role)) return false;
   if (page === 'maintenance' && tabId === 'configuration' && !ADMIN_ROLES.has(role)) return false;
   if (page === 'maintenance' && ['preventive','indicators'].includes(tabId) && !HR_MANAGEMENT_ROLES.has(role)) return false;
   if (page === 'scheduling' && ['configuration','clients'].includes(tabId) && !ADMIN_ROLES.has(role)) return false;
@@ -199,6 +206,7 @@ export function isTabScopeAssignableToRole(permissionKey: string, role: string |
   if (permissionKey === 'config_center.plan') {
     return false;
   }
+  if (permissionKey === 'sales_board.overview' && !HR_MANAGEMENT_ROLES.has(normalizedRole)) return false;
   if (permissionKey === 'maintenance.configuration' && !ADMIN_ROLES.has(normalizedRole)) return false;
   if (['maintenance.preventive','maintenance.indicators'].includes(permissionKey) && !HR_MANAGEMENT_ROLES.has(normalizedRole)) return false;
   if (normalizedRole !== 'user') {

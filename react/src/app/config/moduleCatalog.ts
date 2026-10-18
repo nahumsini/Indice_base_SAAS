@@ -56,6 +56,7 @@ const moduleMetaBySlug: Record<
     title: (t: Translator, fallbackName: string) => string;
   }
 > = {
+  sales_board: { route: 'sales-board', emoji: '📈', color: 'coral', category: 'complementary', title: (t, fallbackName) => t.modules.salesBoard ?? fallbackName },
   scheduling: { route: 'scheduling', emoji: '📅', color: 'coral', category: 'complementary', title: (t, fallbackName) => t.modules.scheduling ?? fallbackName },
   config_center: {
     route: 'home-panel',
@@ -222,14 +223,14 @@ const moduleMetaBySlug: Record<
   correo: {
     route: 'email',
     emoji: '✉️',
-    color: 'gray',
+    color: 'blue',
     category: 'complementary',
     title: (t) => t.modules.correoElectronico,
   },
   correo_electronico: {
     route: 'email',
     emoji: '✉️',
-    color: 'gray',
+    color: 'blue',
     category: 'complementary',
     title: (t) => t.modules.correoElectronico,
   },

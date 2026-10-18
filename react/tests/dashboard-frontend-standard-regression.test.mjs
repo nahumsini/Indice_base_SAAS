@@ -233,7 +233,7 @@ test('el shell conserva header y navegación contextual mientras el contenido se
   assert.match(panelInicialSource, /min-h-0 flex-1 overflow-y-auto overscroll-contain/);
   assert.match(panelInicialHeaderSource, /<FavoritesBar[\s\S]*compact/);
   assert.match(panelInicialHeaderSource, /nav className=\{`mt-1\.5 overflow-x-auto/);
-  assert.match(panelInicialHeaderSource, />\s*🏠\s*</);
+  assert.match(panelInicialHeaderSource, /<OriginalModuleEmoji id="home-panel"/);
   assert.match(panelInicialHeaderSource, /activeTab\.emoji/);
   assert.doesNotMatch(panelInicialHeaderSource, /sm:py-6/);
   assert.match(favoritesBarSource, /fill-amber-400 text-amber-500/);

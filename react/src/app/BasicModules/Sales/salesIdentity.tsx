@@ -9,7 +9,10 @@ import {
   CreditCard,
   ClipboardCheck,
   FileSignature,
+  Filter,
   Handshake,
+  Mail,
+  MessageCircle,
   PackageCheck,
   Quote,
   ShieldCheck,
@@ -35,15 +38,18 @@ export const salesTabIds = [
   'inventory',
   'contracts',
   'after-sales',
+  'funneling',
+  'mailing',
+  'whatsapping',
 ] as const;
 
 export type SalesTabId = (typeof salesTabIds)[number];
 
 export const routedSalesTabIds = salesTabIds.filter(
-  (tabId): tabId is SalesTabId => !['products', 'providers', 'inventory', 'after-sales'].includes(tabId),
+  (tabId): tabId is SalesTabId => !['products', 'providers', 'inventory'].includes(tabId),
 );
 
-type SalesTranslationKey = 'prospectos' | 'contactos' | 'cotizacion' | 'sales' | 'commissions' | 'paymentAccounts' | 'productos' | 'proveedores' | 'inventario' | 'postventa' | 'contrato' | 'kpis';
+type SalesTranslationKey = 'prospectos' | 'contactos' | 'cotizacion' | 'sales' | 'commissions' | 'paymentAccounts' | 'productos' | 'proveedores' | 'inventario' | 'postventa' | 'contrato' | 'kpis' | 'mailing' | 'whatsapping' | 'funneling';
 
 type SalesTone = 'blue' | 'aqua' | 'yellow' | 'coral' | 'graphite';
 
@@ -74,7 +80,7 @@ type SalesWorkspaceCopy = {
     value: string;
     tone: SalesTone;
   }>;
-  tabs: Record<SalesTabId, {
+  tabs: Record<Exclude<SalesTabId, 'mailing' | 'whatsapping' | 'funneling'>, {
     eyebrow: string;
     title: string;
     description: string;
@@ -106,10 +112,13 @@ export const salesModuleTabs: Array<{
   { id: 'inventory', translationKey: 'inventario', emoji: '🏬', icon: Warehouse, tone: 'coral' },
   { id: 'contracts', translationKey: 'contrato', emoji: '📝', icon: FileSignature, tone: 'graphite' },
   { id: 'after-sales', translationKey: 'postventa', emoji: '🤝', icon: Handshake, tone: 'coral' },
+  { id: 'funneling', translationKey: 'funneling', emoji: '🔻', icon: Filter, tone: 'coral' },
+  { id: 'mailing', translationKey: 'mailing', emoji: '✉️', icon: Mail, tone: 'coral' },
+  { id: 'whatsapping', translationKey: 'whatsapping', emoji: '💬', icon: MessageCircle, tone: 'coral' },
 ];
 
 export const visibleSalesModuleTabs = salesModuleTabs.filter(
-  (tab) => ['contacts', 'leads', 'quotes', 'sales', 'kpis'].includes(tab.id),
+  (tab) => ['contacts', 'leads', 'quotes', 'sales', 'kpis', 'after-sales', 'funneling', 'mailing', 'whatsapping'].includes(tab.id),
 );
 
 const toneClasses: Record<SalesTone, {
@@ -451,7 +460,7 @@ export function toneClass(tone: SalesTone) {
   return toneClasses[tone];
 }
 
-export function SalesWorkspacePlaceholder({ section }: { section: SalesTabId }) {
+export function SalesWorkspacePlaceholder({ section }: { section: Exclude<SalesTabId, 'mailing' | 'whatsapping' | 'funneling'> }) {
   const t = useVentasTranslations();
   const copy = getSalesIdentityCopy(t.title);
   const blueprint = copy.tabs[section];

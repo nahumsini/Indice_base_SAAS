@@ -72,6 +72,7 @@ export function KioskModalFrame({
   return (
     <IndiceModalFrame
       {...props}
+      iconPresentation={surface === 'public' ? 'original' : props.iconPresentation}
       bodyClassName={cn('overscroll-contain scroll-pb-32 !px-4 !py-4 [scrollbar-gutter:stable] sm:!px-6 sm:!py-5', bodyClassName)}
       contentClassName={cn(
         '!h-dvh !max-h-dvh !w-full !max-w-none !rounded-none overscroll-none sm:!h-auto sm:!max-h-[92dvh] sm:!rounded-[28px]',

@@ -10,6 +10,7 @@ import { LocalizedLoadingBarOverlay } from './components/LocalizedLoadingBarOver
 import { WorkbarLayoutProvider } from './components/workbar/WorkbarLayoutContext';
 import { getLegacyTrainingDestination, requireTrainingSession } from './Training/trainingAccess';
 
+const MailingUnsubscribePage = lazy(() => import('./BasicModules/Sales/Mailing/UnsubscribePage'));
 const App = lazy(() => import('./App'));
 const InvestmentPage = lazy(() => import('./Public/Investment/InvestmentPage'));
 const HumanResourcesKiosk = lazy(() => import('./BasicModules/HumanResources/Kiosk/Kiosk'));
@@ -480,6 +481,7 @@ const allowPublicDemoOrDistributorSession = async () => {
 };
 
 export const router = createBrowserRouter([
+  {path:"/mailing/unsubscribe",element:<Suspense fallback={<LocalizedLoadingBarOverlay isVisible variant="moduleNavigation"/>}><MailingUnsubscribePage/></Suspense>},
   {
     // Public editorial page, intentionally absent from product navigation.
     id: 'investment',

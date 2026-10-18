@@ -26,6 +26,9 @@ public final class ConfigCenterTabPermissionCatalog {
     );
 
     private static final List<TabDefinition> CATALOG = List.of(
+        tab("sales_board", "overview", "Sales analysis", "Análisis de ventas"),
+        tab("correo", "mail", "Mailbox", "Buzón"),
+        tab("correo", "accounts", "Connected accounts", "Cuentas conectadas"),
         tab(CONFIG_CENTER_MODULE, "profile", "Profile", "Perfil"),
         tab(CONFIG_CENTER_MODULE, "business-structure", "Business Structure", "Estructura empresarial"),
         tab(CONFIG_CENTER_MODULE, "business-profile", "Business Profile", "Perfil empresarial"),
@@ -68,6 +71,9 @@ public final class ConfigCenterTabPermissionCatalog {
         tab("crm", "sales", "Sales", "Ventas"),
         tab("crm", "contracts", "Contracts", "Contratos"),
         tab("crm", "kpis", "KPIs", "KPIs"),
+        tab("crm", "funneling", "Funneling", "Funneling"),
+        tab("crm", "mailing", "Mailing", "Mailing"),
+        tab("crm", "mailing_send", "Send campaigns", "Enviar campañas"),
 
         tab("pos", "sale", "Sale", "Venta"),
         tab("pos", "cortes", "Cash Closings", "Cortes de caja"),
@@ -173,6 +179,7 @@ public final class ConfigCenterTabPermissionCatalog {
         if (isProtectedScope(permissionKey)) {
             return false;
         }
+        if (permissionKey.equals("sales_board.overview") && !Set.of("admin","owner","dueno","manager","approver").contains(normalizedRole)) return false;
         if (permissionKey.equals("maintenance.configuration") && !Set.of("admin","owner","dueno").contains(normalizedRole)) return false;
         if (Set.of("maintenance.preventive","maintenance.indicators").contains(permissionKey) && !Set.of("admin","owner","dueno","manager","approver").contains(normalizedRole)) return false;
         if (!"user".equals(normalizedRole)) {
@@ -216,7 +223,7 @@ public final class ConfigCenterTabPermissionCatalog {
         if (CONFIG_CENTER_MODULE.equals(tab.moduleSlug()) || HR_MODULE.equals(tab.moduleSlug())) {
             return "management";
         }
-        if ("scheduling.configuration".equals(key)) return "management";
+        if ("scheduling.configuration".equals(key) || "sales_board.overview".equals(key)) return "management";
         return "operational";
     }
 
@@ -310,6 +317,7 @@ public final class ConfigCenterTabPermissionCatalog {
 
     private static LocalizedDescription descriptionFor(String permissionKey) {
         return switch (permissionKey) {
+            case "sales_board.overview" -> description("Analyze CRM and POS sales in your assigned organization, including limited posting evidence.","Analizar ventas CRM y POS de tu alcance organizacional, con evidencia contable limitada.");
             case "scheduling.calendar" -> description("View sessions in your scheduling scope.","Consultar las sesiones de tu alcance.");
             case "scheduling.reservations" -> description("Review, confirm and follow up on your reservations.","Revisar, confirmar y dar seguimiento a tus reservas.");
             case "scheduling.clients" -> description("Administrators can read the company master client directory.","Los administradores consultan el directorio maestro de clientes de la empresa.");
@@ -352,6 +360,9 @@ public final class ConfigCenterTabPermissionCatalog {
             case "crm.quotes" -> description("Prepare and follow up commercial quotes and proposals.", "Preparar y dar seguimiento a cotizaciones y propuestas comerciales.");
             case "crm.sales" -> description("Register and monitor sales opportunities and completed sales.", "Registrar y monitorear oportunidades y ventas realizadas.");
             case "crm.contracts" -> description("Manage commercial contracts, terms and related documents.", "Administrar contratos comerciales, condiciones y documentos relacionados.");
+            case "crm.mailing_send" -> description("Launch, schedule and control email campaigns.", "Lanzar, programar y controlar campañas de correo.");
+            case "crm.funneling" -> description("Design sales funnel plans, stages and estimated targets.", "Diseñar planes de embudos de venta, etapas y metas estimadas.");
+            case "crm.mailing" -> description("Prepare customer email campaign drafts.", "Preparar borradores de campañas de correo a clientes.");
             case "crm.kpis" -> description("Review pipeline, conversion and commercial performance indicators.", "Consultar indicadores de embudo, conversión y desempeño comercial.");
             case "pos.sale" -> description("Run point-of-sale transactions and collect customer payments.", "Realizar ventas en punto de venta y cobrar pagos de clientes.");
             case "pos.cortes" -> description("Perform and review cash register closings and differences.", "Realizar y revisar cortes de caja y diferencias.");

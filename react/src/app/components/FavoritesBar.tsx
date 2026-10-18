@@ -4,6 +4,7 @@ import { useFavorites } from '../shared/context';
 import { useAccessibleModuleCatalog } from '../hooks/useAccessibleModuleCatalog';
 import { resolvePageId } from '../config/navigation';
 import { Star } from 'lucide-react';
+import { hasOriginalModuleEmoji, OriginalModuleEmoji } from './icons/OriginalModuleEmoji';
 import { IndiceHorizontalScrollControls } from './ui/horizontal-scroll-controls';
 
 interface FavoritesBarProps {
@@ -94,7 +95,7 @@ export function FavoritesBar({
               type="button"
               className={`inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:focus-visible:ring-offset-slate-900 ${compact ? 'min-h-9 px-2.5 py-1 text-xs sm:text-sm' : 'px-3 py-1.5 text-sm'} ${isDesktopVertical ? 'lg:min-h-11 lg:w-full lg:justify-start lg:px-3' : ''}`}
             >
-              <span>🏠</span>
+              <OriginalModuleEmoji id="home-panel" className="size-5" />
               <span>Dashboard</span>
             </button>
 
@@ -122,7 +123,11 @@ export function FavoritesBar({
                   aria-current={isActive ? 'page' : undefined}
                   className={`inline-flex items-center gap-1.5 rounded-lg border font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${compact ? 'min-h-9 px-2.5 py-1 text-xs sm:text-sm' : 'px-3 py-1.5 text-sm'} ${isDesktopVertical ? 'lg:min-h-11 lg:w-full lg:justify-start lg:px-3' : ''} ${baseClasses} ${activeClasses}`}
                 >
-                  <span>{module.emoji}</span>
+                  {hasOriginalModuleEmoji(route) ? (
+                    <OriginalModuleEmoji id={route} className="size-5" />
+                  ) : (
+                    <span aria-hidden="true">{module.emoji}</span>
+                  )}
                   <span>{module.title}</span>
                 </button>
               );

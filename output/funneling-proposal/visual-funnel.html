@@ -1,0 +1,135 @@
+<div id="indice-funnel-proposal" class="viz-dotted-background">
+  <style>
+    #indice-funnel-proposal { padding:16px 0; }
+    #indice-funnel-proposal .fp-app { --fp-bg:light-dark(#f8fafc,#0b1220); --fp-panel:light-dark(#ffffff,#141d2d); --fp-text:light-dark(#222831,#f1f5f9); --fp-muted:light-dark(#536174,#b8c5d8); --fp-line:light-dark(#e2e8f0,#334155); --fp-soft:light-dark(#fff3f1,#382624); --fp-coral:light-dark(#ff6b5e,#ff9a8f); --fp-ink:light-dark(#873027,#ffcdc7); background:var(--fp-bg); color:var(--fp-text); font-family:Inter,Arial,sans-serif; font-size:14px; line-height:1.5; border:1px solid var(--fp-line); border-radius:18px; overflow:hidden; }
+    #indice-funnel-proposal .fp-app * { box-sizing:border-box; }
+    #indice-funnel-proposal .fp-top { padding:15px 20px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; border-bottom:1px solid var(--fp-line); background:var(--fp-panel); }
+    #indice-funnel-proposal .fp-breadcrumb { font-weight:500; }
+    #indice-funnel-proposal .fp-proposal { color:var(--fp-muted); font-size:12px; }
+    #indice-funnel-proposal .fp-content { padding:20px; }
+    #indice-funnel-proposal .fp-titlebar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:14px; padding:14px 16px; background:var(--fp-soft); border:1px solid var(--fp-line); border-radius:12px; margin-bottom:20px; }
+    #indice-funnel-proposal h2 { font-size:20px; font-weight:500; margin:0; }
+    #indice-funnel-proposal h3 { font-size:16px; font-weight:500; margin:0; }
+    #indice-funnel-proposal p { margin:0; }
+    #indice-funnel-proposal .fp-tabs { display:flex; border:1px solid var(--fp-line); border-radius:10px; padding:3px; background:var(--fp-panel); }
+    #indice-funnel-proposal button { font:inherit; color:inherit; }
+    #indice-funnel-proposal .fp-tab { display:flex; align-items:center; gap:6px; border:0; border-radius:7px; padding:8px 12px; background:transparent; }
+    #indice-funnel-proposal .fp-tab[aria-pressed="true"] { background:var(--fp-coral); color:#222831; font-weight:500; }
+    #indice-funnel-proposal .fp-meta { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px; align-items:flex-start; margin-bottom:20px; }
+    #indice-funnel-proposal .fp-sub { margin-top:4px; color:var(--fp-muted); }
+    #indice-funnel-proposal .fp-badge { border-radius:20px; padding:4px 10px; background:var(--fp-panel); border:1px solid var(--fp-line); font-size:12px; }
+    #indice-funnel-proposal .fp-grid { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(210px,.85fr); gap:24px; align-items:start; }
+    #indice-funnel-proposal .fp-funnel { min-width:0; }
+    #indice-funnel-proposal .fp-stage { position:relative; display:flex; width:100%; min-height:74px; flex-direction:column; align-items:center; justify-content:center; margin:0 auto; border:0; background:transparent; padding:10px 6px; isolation:isolate; }
+    #indice-funnel-proposal .fp-stage::before { content:""; position:absolute; inset:0; z-index:-1; background:var(--fp-soft); clip-path:polygon(0 0,100% 0,91% 100%,9% 100%); }
+    #indice-funnel-proposal .fp-stage[aria-pressed="true"]::before { background:var(--fp-coral); }
+    #indice-funnel-proposal .fp-stage[aria-pressed="true"] { color:#222831; }
+    #indice-funnel-proposal .fp-stage-name { font-weight:500; }
+    #indice-funnel-proposal .fp-stage-value { font-variant-numeric:tabular-nums; }
+    #indice-funnel-proposal .fp-stage[data-stage="1"] { width:84%; }
+    #indice-funnel-proposal .fp-stage[data-stage="2"] { width:68%; }
+    #indice-funnel-proposal .fp-stage[data-stage="3"] { width:53%; }
+    #indice-funnel-proposal .fp-transition { text-align:center; padding:6px 0; color:var(--fp-muted); font-size:12px; font-variant-numeric:tabular-nums; }
+    #indice-funnel-proposal .fp-legend { text-align:center; margin-top:12px; color:var(--fp-muted); font-size:12px; }
+    #indice-funnel-proposal .fp-detail { min-width:0; padding:18px; border:1px solid var(--fp-line); border-radius:12px; background:var(--fp-panel); }
+    #indice-funnel-proposal .fp-detail-label { color:var(--fp-muted); font-size:12px; margin-bottom:3px; }
+    #indice-funnel-proposal .fp-detail h3 { margin-bottom:16px; }
+    #indice-funnel-proposal dl { margin:0; }
+    #indice-funnel-proposal dt { color:var(--fp-muted); font-size:12px; margin-top:14px; }
+    #indice-funnel-proposal dd { margin:4px 0 0; }
+    #indice-funnel-proposal .fp-metric { border-top:1px solid var(--fp-line); margin-top:20px; padding-top:14px; }
+    #indice-funnel-proposal .fp-metric strong { display:block; font-weight:500; font-size:24px; font-variant-numeric:tabular-nums; }
+    #indice-funnel-proposal .fp-table { width:100%; border-collapse:collapse; background:var(--fp-panel); }
+    #indice-funnel-proposal .fp-table th,#indice-funnel-proposal .fp-table td { padding:12px 10px; text-align:left; border-bottom:1px solid var(--fp-line); font-weight:400; }
+    #indice-funnel-proposal .fp-table th { color:var(--fp-muted); font-size:12px; }
+    #indice-funnel-proposal .fp-open { background:transparent; border:0; padding:0; text-align:left; color:var(--fp-ink); text-decoration:underline; text-underline-offset:3px; }
+    #indice-funnel-proposal [hidden] { display:none!important; }
+    @media(max-width:560px) {
+      #indice-funnel-proposal .fp-content { padding:14px; }
+      #indice-funnel-proposal .fp-grid { grid-template-columns:1fr; gap:20px; }
+      #indice-funnel-proposal .fp-stage { min-height:78px; }
+      #indice-funnel-proposal .fp-top { padding:12px 14px; }
+      #indice-funnel-proposal .fp-table th,#indice-funnel-proposal .fp-table td { padding:10px 5px; }
+    }
+  </style>
+  <section class="fp-app" aria-label="Propuesta de vista Funnel para Ventas">
+    <div class="fp-top"><span class="fp-breadcrumb">💼 Ventas / Funneling</span><span class="fp-proposal">Propuesta · Ejemplo de Horizonte</span></div>
+    <div class="fp-content">
+      <div class="fp-titlebar">
+        <h2>Funneling</h2>
+        <div class="fp-tabs" role="group" aria-label="Vista de planes">
+          <button type="button" class="fp-tab cursor-interaction" data-view="list" aria-pressed="false"><i data-lucide="list" aria-hidden="true"></i>Lista</button>
+          <button type="button" class="fp-tab cursor-interaction" data-view="funnel" aria-pressed="true"><i data-lucide="filter" aria-hidden="true"></i>Funnel</button>
+        </div>
+      </div>
+      <section data-panel="list" hidden aria-label="Planes guardados">
+        <table class="fp-table"><thead><tr><th>Plan</th><th>Estado</th><th>Meta final</th></tr></thead><tbody><tr><td><button type="button" class="fp-open cursor-interaction">Horizonte — chequeo preventivo</button></td><td>Definido</td><td>20 solicitudes</td></tr></tbody></table>
+      </section>
+      <section data-panel="funnel" aria-label="Embudo de chequeo preventivo">
+        <div class="fp-meta"><div><h3>Horizonte — chequeo preventivo</h3><p class="fp-sub">Objetivo: 20 solicitudes de cita · Correo electrónico</p></div><span class="fp-badge">Definido</span></div>
+        <div class="fp-grid">
+          <div class="fp-funnel" role="group" aria-label="Etapas del embudo, selecciona una para ver sus detalles">
+            <button type="button" class="fp-stage cursor-interaction" data-stage="0" aria-pressed="false"><span class="fp-stage-name">Atracción</span><span class="fp-stage-value">500 personas</span></button>
+            <div class="fp-transition">↓ 25% de avance esperado</div>
+            <button type="button" class="fp-stage cursor-interaction" data-stage="1" aria-pressed="true"><span class="fp-stage-name">Interés</span><span class="fp-stage-value">125 personas</span></button>
+            <div class="fp-transition">↓ 32% de avance esperado</div>
+            <button type="button" class="fp-stage cursor-interaction" data-stage="2" aria-pressed="false"><span class="fp-stage-name">Decisión</span><span class="fp-stage-value">40 personas</span></button>
+            <div class="fp-transition">↓ 50% de avance esperado</div>
+            <button type="button" class="fp-stage cursor-interaction" data-stage="3" aria-pressed="false"><span class="fp-stage-name">Conversión</span><span class="fp-stage-value">20 personas</span></button>
+            <p class="fp-legend">Embudo esquemático · Metas estimadas</p>
+          </div>
+          <aside class="fp-detail" aria-label="Detalle de la etapa" aria-live="polite">
+            <p class="fp-detail-label">Etapa seleccionada</p>
+            <h3 data-detail="name">Interés</h3>
+            <dl>
+              <dt>Acción prevista</dt><dd data-detail="action">Explicar los beneficios y resolver dudas generales.</dd>
+              <dt>Cómo medir el avance</dt><dd data-detail="measure">Personas que solicitan más información</dd>
+              <dt>Meta de la etapa</dt><dd data-detail="target">125 personas</dd>
+            </dl>
+            <div class="fp-metric"><span class="fp-detail-label">Conversión total estimada</span><strong>4%</strong><span class="fp-detail-label">20 solicitudes de 500 personas</span></div>
+          </aside>
+        </div>
+      </section>
+    </div>
+  </section>
+  <script>
+    (() => {
+      const root = document.getElementById('indice-funnel-proposal');
+      const stages = [
+        { name:'Atracción', target:500, action:'Preparar contenido educativo y una invitación a conocer los servicios.', measure:'Personas que reciben la información' },
+        { name:'Interés', target:125, action:'Explicar los beneficios y resolver dudas generales.', measure:'Personas que solicitan más información' },
+        { name:'Decisión', target:40, action:'Presentar opciones de consulta y disponibilidad.', measure:'Personas que consideran agendar' },
+        { name:'Conversión', target:20, action:'Facilitar la solicitud de cita y confirmar el siguiente paso.', measure:'Solicitudes de cita esperadas' }
+      ];
+      let view = 'funnel';
+      let selected = 1;
+      function render() {
+        root.querySelectorAll('[data-view]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
+        root.querySelectorAll('[data-panel]').forEach(panel => { panel.hidden = panel.dataset.panel !== view; });
+        root.querySelectorAll('[data-stage]').forEach(button => button.setAttribute('aria-pressed', String(Number(button.dataset.stage) === selected)));
+        const stage = stages[selected];
+        root.querySelector('[data-detail="name"]').textContent = stage.name;
+        root.querySelector('[data-detail="action"]').textContent = stage.action;
+        root.querySelector('[data-detail="measure"]').textContent = stage.measure;
+        root.querySelector('[data-detail="target"]').textContent = `${stage.target} personas`;
+      }
+      function restore(snapshot) {
+        const data = snapshot?.privateContent;
+        if (data?.view === 'list' || data?.view === 'funnel') view = data.view;
+        if (Number.isInteger(data?.selected) && data.selected >= 0 && data.selected < stages.length) selected = data.selected;
+        render();
+      }
+      function persist() {
+        if (window.openai?.setWidgetState) window.openai.setWidgetState({
+          modelContent:{ proposal:'Vista gráfica de Funneling en Ventas', selectedStage:stages[selected].name, view },
+          privateContent:{ selected, view }
+        }).catch(() => {});
+      }
+      root.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => { view = button.dataset.view; render(); persist(); }));
+      root.querySelectorAll('[data-stage]').forEach(button => button.addEventListener('click', () => { selected = Number(button.dataset.stage); render(); persist(); }));
+      root.querySelector('.fp-open').addEventListener('click', () => { view = 'funnel'; render(); persist(); });
+      window.addEventListener('openai:set_globals', event => { if (event.detail?.globals?.widgetState) restore(event.detail.globals.widgetState); });
+      restore(window.openai?.widgetState);
+    })();
+  </script>
+</div>

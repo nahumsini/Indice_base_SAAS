@@ -10,6 +10,9 @@ export const ptBR = {
     fallbackDescription: 'Baixando apenas a aba comercial selecionada.',
   },
   tabs: {
+    funneling: 'Funneling',
+    mailing: 'Mailing',
+    whatsapping: 'Whatsapping',
     prospectos: 'Oportunidades',
     contactos: 'Clientes',
     cotizacion: 'Cotações',
@@ -23,6 +26,12 @@ export const ptBR = {
     contrato: 'Contratos',
     postventa: 'Pós-venda',
     kpis: 'KPIs',
+  },
+  communicationWorkspace: {
+    pendingTitle: 'Espaço aguardando configuração',
+    mailingSubtitle: 'Organize campanhas de e-mail e acompanhamento de clientes.',
+    whatsappingSubtitle: 'Organize o acompanhamento de clientes pelo WhatsApp.',
+    pendingDescription: 'A criação e o envio de campanhas ainda não estão habilitados neste espaço.',
   },
   paymentAccountsWorkspace: {
     title: 'Contas de pagamento de vendas',

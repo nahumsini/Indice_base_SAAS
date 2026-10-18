@@ -14,11 +14,13 @@ class ConfigCenterTabPermissionCatalogTest {
         var tabs = ConfigCenterTabPermissionCatalog.catalogTabs();
         var permissionKeys = tabs.stream().map(row -> (String) row.get("permission_key")).toList();
 
-        assertEquals(65, tabs.size());
-        assertEquals(65, new HashSet<>(permissionKeys).size());
-        assertEquals(12, ConfigCenterTabPermissionCatalog.moduleSlugsWithTabs().size());
+        assertEquals(77, tabs.size());
+        assertEquals(77, new HashSet<>(permissionKeys).size());
+        assertEquals(15, ConfigCenterTabPermissionCatalog.moduleSlugsWithTabs().size());
         assertTrue(permissionKeys.containsAll(java.util.List.of("control_minutas.meetings","control_minutas.agreements","control_minutas.indicators")));
         assertTrue(permissionKeys.contains("inventory.purchase-orders"));
+        assertTrue(permissionKeys.contains("crm.funneling"));
+        assertTrue(permissionKeys.contains("sales_board.overview"));
         assertTrue(permissionKeys.contains("receivables.kpis"));
         assertTrue(permissionKeys.contains("expenses.payment-accounts"));
         assertTrue(permissionKeys.contains("pos.kiosks"));
@@ -43,11 +45,15 @@ class ConfigCenterTabPermissionCatalogTest {
 
     @Test
     void exposesTheSameRoleCompatibilityUsedByMutationGuards() {
+        assertFalse(ConfigCenterTabPermissionCatalog.isRoleCompatible("sales_board.overview", "User"));
+        assertTrue(ConfigCenterTabPermissionCatalog.isRoleCompatible("sales_board.overview", "Admin"));
+        assertTrue(ConfigCenterTabPermissionCatalog.isRoleCompatible("sales_board.overview", "Manager"));
         assertFalse(ConfigCenterTabPermissionCatalog.isRoleCompatible("scheduling.configuration", "User"));
         assertFalse(ConfigCenterTabPermissionCatalog.isRoleCompatible("scheduling.clients", "User"));
         assertTrue(ConfigCenterTabPermissionCatalog.isRoleCompatible("scheduling.reservations", "User"));
         assertTrue(ConfigCenterTabPermissionCatalog.isRoleCompatible("config_center.profile", "User"));
         assertTrue(ConfigCenterTabPermissionCatalog.isRoleCompatible("processes.calendar", "User"));
+        assertTrue(ConfigCenterTabPermissionCatalog.isRoleCompatible("crm.funneling", "User"));
         assertFalse(ConfigCenterTabPermissionCatalog.isRoleCompatible("config_center.users", "User"));
         assertFalse(ConfigCenterTabPermissionCatalog.isRoleCompatible("config_center.consulting", "User"));
         assertFalse(ConfigCenterTabPermissionCatalog.isRoleCompatible("config_center.integrations", "User"));

@@ -10,6 +10,9 @@ export const esCO = {
     fallbackDescription: 'Descargando solo la pestaña comercial seleccionada.',
   },
   tabs: {
+    funneling: 'Funneling',
+    mailing: 'Mailing',
+    whatsapping: 'Whatsapping',
     prospectos: 'Oportunidades',
     contactos: 'Clientes',
     cotizacion: 'Cotizaciones',
@@ -23,6 +26,12 @@ export const esCO = {
     contrato: 'Contratos',
     postventa: 'Posventa',
     kpis: 'KPIs',
+  },
+  communicationWorkspace: {
+    pendingTitle: 'Espacio pendiente de configuración',
+    mailingSubtitle: 'Organiza campañas de correo y seguimiento a clientes.',
+    whatsappingSubtitle: 'Organiza el seguimiento a clientes por WhatsApp.',
+    pendingDescription: 'La creación de campañas y los envíos todavía no están habilitados en este espacio.',
   },
   paymentAccountsWorkspace: {
     title: 'Cuentas de pago de ventas',

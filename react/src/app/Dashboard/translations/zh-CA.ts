@@ -1,5 +1,14 @@
 export const zhCA = {
+  systemTools: {
+    title: "系统工具",
+    description: "连接和管理企业工具。",
+    connectAi: "连接 AI",
+    kioskCenter: "自助终端中心",
+  },
   sections: {
+    kpisDescription: "一眼掌握业务动态。",
+    basicDescription: "日常运营所需的工具。",
+    complementaryDescription: "更多工具，助您连接和管理业务。",
     kpis: "您的 KPI",
     favorites: "收藏",
     quickAccess: "快捷访问",

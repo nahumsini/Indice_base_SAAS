@@ -74,6 +74,7 @@ const Inmuebles = lazy(() => import('./ComplementaryModules/Properties'));
 const Formularios = lazy(() => import('./ComplementaryModules/Forms'));
 const FacturacionComplementaria = lazy(() => import('./ComplementaryModules/Invoicing'));
 const CorreoElectronico = lazy(() => import('./ComplementaryModules/Email'));
+const SalesBoard = lazy(() => import('./ComplementaryModules/SalesBoard/SalesBoard'));
 const ClimaLaboral = lazy(() => import('./ComplementaryModules/WorkClimate'));
 const Afiliados = lazy(() => import('./ComplementaryModules/Affiliates'));
 const AgenteVentas = lazy(() => import('./AIModules/SalesAgent'));
@@ -724,7 +725,6 @@ export default function App() {
     properties: Inmuebles,
     forms: Formularios,
     invoicing: FacturacionComplementaria,
-    email: CorreoElectronico,
     'sales-agent': AgenteVentas,
     analytics: Analitica,
     training: Capacitacion,
@@ -764,6 +764,10 @@ export default function App() {
       <CajaChica learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'point-of-sale' ? (
       <PuntoVenta learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
+    ) : currentPage === 'email' ? (
+      <CorreoElectronico onNavigate={handleModuleNavigation} />
+    ) : currentPage === 'sales-board' ? (
+      <SalesBoard onNavigate={handleModuleNavigation} />
     ) : currentPage === 'sales' ? (
       <Ventas learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'receivables' ? (

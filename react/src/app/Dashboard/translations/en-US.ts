@@ -1,5 +1,14 @@
 export const enUS = {
+  systemTools: {
+    title: "System tools",
+    description: "Connect and manage your company’s tools.",
+    connectAi: "Connect AI",
+    kioskCenter: "Kiosk Center",
+  },
   sections: {
+    kpisDescription: "Your business at a glance.",
+    basicDescription: "The tools for your daily operations.",
+    complementaryDescription: "More tools to connect and organize your business.",
     kpis: "Your KPIs",
     favorites: "Your favorites",
     quickAccess: "Quick access",

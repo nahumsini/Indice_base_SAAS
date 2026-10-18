@@ -1,5 +1,14 @@
 export const esCO = {
+  systemTools: {
+    title: "Herramientas de sistema",
+    description: "Conecta y administra las herramientas de tu empresa.",
+    connectAi: "Conectar IA",
+    kioskCenter: "Centro de kioscos",
+  },
   sections: {
+    kpisDescription: "El pulso de tu negocio, en un solo lugar.",
+    basicDescription: "Las herramientas para tu operación diaria.",
+    complementaryDescription: "Más herramientas para conectar y organizar tu negocio.",
     kpis: "Tus indicadores",
     favorites: "Tus favoritos",
     quickAccess: "Accesos rápidos",

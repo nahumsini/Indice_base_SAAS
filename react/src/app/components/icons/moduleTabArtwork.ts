@@ -1,0 +1,20 @@
+/** Presentation-only identities. Tab IDs, labels, access checks and routing stay with their owners. */
+export const moduleTabArtwork = {
+  'home-panel': { profile: 'person', 'business-structure': 'company', 'business-profile': 'chart', consulting: 'handshake', integrations: 'robot', users: 'people' },
+  'human-resources': { collaborators: 'people', attendance: 'calendar', control: 'stopwatch', payroll: 'coins', announcements: 'megaphone', assets: 'briefcase', records: 'clipboard', permissions: 'check', incentives: 'gift', kpis: 'chart' },
+  'processes-tasks': { calendar: 'calendar', projects: 'folder', processes: 'checklist', kpis: 'chart' },
+  expenses: { expenses: 'expense', budgets: 'clipboard', providers: 'company', accounting: 'books', payment_accounts: 'card', kpis: 'chart' },
+  'petty-cash': { cash: 'cashbox', control: 'receipt', statements: 'clipboard', kpis: 'chart' },
+  sales: { contacts: 'people', leads: 'target', quotes: 'clipboard', sales: 'briefcase', kpis: 'chart', commissions: 'calculator', 'payment-accounts': 'card', products: 'package', providers: 'company', inventory: 'warehouse', contracts: 'minutes', 'after-sales': 'handshake', funneling: 'funnel', mailing: 'mail', whatsapping: 'messages' },
+  'point-of-sale': { cajas: 'terminal', sale: 'receipt', cortes: 'coins', kiosks: 'kiosk', clientes: 'people', kpis: 'chart' },
+  inventory: { products: 'package', warehouses: 'warehouse', inventory: 'warehouse', providers: 'company', 'purchase-orders': 'clipboard', discounts: 'tag' },
+  receivables: { 'credit-sales': 'card', 'accounts-receivable': 'receipt', payments: 'coins', 'credit-customers': 'people', kpis: 'chart' },
+  kpis: { kpis: 'chart', 'accounting-reports': 'books', 'automated-reports': 'gear' },
+  maintenance: { requests: 'clipboard', orders: 'wrench', assets: 'package', preventive: 'arrows', indicators: 'chart', configuration: 'gear' },
+  scheduling: { calendar: 'calendar', clients: 'people', events: 'calendar', indicators: 'chart', services: 'wrench', team: 'people', publicAgenda: 'globe' },
+  'minutes-control': { meetings: 'calendar', agreements: 'handshake', indicators: 'chart' },
+  email: { mail: 'mail', accounts: 'gear' },
+  'sales-board': { overview: 'chart' },
+  'material-warehouse': { materials: 'package', receipts: 'inbox', providers: 'company', requests: 'clipboard', fulfillments: 'truck', movements: 'arrows', kpis: 'chart' },
+  production: { prototypes: 'flask', recipes: 'ruler', 'batch-planning': 'calendar', 'material-requests': 'clipboard', 'material-receipts': 'inbox', transformation: 'gear', 'quality-closure': 'check', kpis: 'chart' },
+} satisfies Record<string, Record<string, string>>;

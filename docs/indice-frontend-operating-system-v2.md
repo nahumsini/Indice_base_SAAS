@@ -367,6 +367,10 @@ records actual remaining-balance payments, while pending/overdue explicitly chan
 
 ### Sales, POS, Inventory, And Receivables
 
+Sales Funneling follows `docs/sales-funneling-contract-v1.md`: an independent planning tab with
+estimated targets, the shared Sales table and an Operational Workspace Modal for ordered stages
+and funnel preview. Defining a plan does not execute campaigns or change the opportunity pipeline.
+
 Sales, Point of Sale, Inventory, and Receivables must feel like sibling modules.
 
 They share the commercial operating language:
@@ -410,6 +414,27 @@ Sales owns:
 - quotes
 - sales records
 - customer-facing commercial flows
+
+Local Sales navigation decision, 2026-10-16: expose Postventa (`/sales/after-sales`)
+through its existing workspace, and add Mailing (`/sales/mailing`) and Whatsapping
+(`/sales/whatsapping`). Postventa retains the existing `crm.contracts` permission used by
+its backend API; Whatsapping remains an initial workspace under `crm.contacts`.
+
+Email/Mailing joint remodeling, 2026-10-17: the
+[Email and Mailing integration contract](email-mailing-integration-contract-v1.md) adopts the
+shared blue Email shell, routed Mailbox/Accounts tabs, Standard Form account setup and the coral
+Mailing sender picker with save/configure/return navigation. It supersedes the standalone Email
+mock layout. The individual-mail extension adds a persistent SMTP/IMAP workspace, safe text reading,
+versioned drafts and same-frame send review/result recovery. The approved completion extension adds
+private attachments, safe formatted reading, background preferences and campaign delivery/results.
+Cancel/Back remains left, progression/save right; template preview uses a responsive workspace.
+
+Mailing draft-pilot decision, 2026-10-17: use the dedicated `crm.mailing` permission,
+with `crm.contacts` additionally required for audience selection and campaign detail.
+The [draft-pilot contract](sales-mailing-contract-v1.md) governs persistent drafts, the
+four-step campaign wizard and plain-text preview. The Email/Mailing integration contract now extends
+it with explicit consent, test review, launch/scheduling, pause/cancel and recipient results. Existing Sales APIs and transaction-email services keep their permissions
+and behavior.
 
 Point of Sale owns:
 
@@ -3346,6 +3371,45 @@ Rules:
 - no overlapping controls
 - fixed-format UI elements must have stable dimensions
 
+### Dashboard section headings (product decision, 2026-10-17)
+
+The main Dashboard retains its horizontal KPI and module carousels, original
+module-card dimensions and borders. Product decision (2026-10-17): main Dashboard
+KPI cards adopt the approved slightly portrait 11:12 proportion at compact
+slider widths (200px on desktop, up to 220px on mobile; reduced padding and
+artwork retain readable titles and complete status text), white/dark neutral surfaces, a pale module-colour wash, floating
+3D artwork, a localized module label, a prominent value, and a separated status
+footer. Existing metric values, availability, comparison text, and trend/tone
+semantics remain authoritative; no decorative charts or invented trends. Other
+compact KPI consumers keep their existing presentation. All
+sections share aligned margins and a common title treatment: a 32px artwork
+slot, a restrained count, a short localized description, and aligned actions.
+The approved Dashboard section-title exception uses semibold up to 28px;
+module workspaces keep the canonical typography scale. Selection, ordering,
+access filtering, navigation, and the stage-based learning journey remain
+unchanged. Do not replace the Dashboard sliders with desktop grids. Dashboard
+slider viewports share the same desktop gutters; bottom shadow clearance does
+not add extra section spacing. Controls use the same inset, shadow, and card-centred
+position. Header actions align to the title row and supporting copy uses readable
+secondary contrast. The Favorites heading uses the custom transparent 3D star.
+
+
+### Dashboard system tools (product decision, 2026-10-17)
+
+The Dashboard ends with a localized System Tools section containing Connect AI,
+Kiosk Centre, Manage Subscription, Platform Administration and Training Centre
+in the established module-card slider. These shortcuts move out of the profile
+menu without changing their routes or authorization. Non-demo admin sessions
+may discover billing; integrations and kiosks retain their existing tab/centre
+checks. Platform Administration retains the previous admin-plus-root rule
+(PLATFORM_ROOT context or root session role). Training retains its independent
+canDiscoverTraining contract, including distributor admins and platform viewers.
+Platform context resolves asynchronously and is tied to the authorization
+revision so old-company or old-session responses cannot expose shortcuts.
+The section disappears when no tool is allowed. These are shortcuts, not entries
+added to the backend module registry or favourites. Backend route and API guards
+remain authoritative. Other profile actions remain unchanged.
+
 ### 30.1 Discoverable horizontal scrolling
 
 Horizontal overflow must remain usable with a standard mouse that has no
@@ -3990,3 +4054,12 @@ reuse `IndiceConfirmationDialog`; forms retain `KioskModalFrame` / `IndiceModalF
 The new navigation and Today copy cover all supported language families, with existing accessible
 large-text, contrast and reduced-motion preferences. Verify with `test:kiosk-employee-browser` plus
 the kiosk/messaging regressions, TypeScript and build.
+
+### Sales Board analytical pilot — 2026-10-17
+
+The complementary `sales_board` module adopts the shared coral module shell, title, internal view
+navigation, progressive filters, table, pagination, modal and scoped workspace-memory engines.
+Its Overview / Trends / Origins and Channels / Sales views follow the analytical composition
+contract in [sales-board-contract-v1.md](./sales-board-contract-v1.md). Registered sales, collections
+and accounting revenue remain distinct. Native module and tab permission control entry; no local
+fallback module catalog or alternate authorization is introduced.

@@ -1,3 +1,5 @@
+import { SystemToolsSection } from './components/SystemToolsSection';
+import { IndiceEmoji } from '../components/icons/ModuleTabEmoji';
 import {LearningJourneyProgress} from '../learningMode/components/LearningJourneyProgress';
 import {useLearningCharacter} from '../learningMode/useLearningCharacter';
 import { useMemo, useState } from "react";
@@ -182,6 +184,7 @@ export function MainDashboard({
       {!isOperationalJourneyVisible && (
         <KpiSection
           title={copy.sections.kpis}
+          description={copy.sections.kpisDescription}
           kpis={kpiData}
           availableKPIs={availableKPIs}
           defaultKPIIds={defaultDashboardKpiIds}
@@ -217,9 +220,9 @@ export function MainDashboard({
         />
       ) : (
         <ModuleSection
-          icon="⚙️"
+          icon={<IndiceEmoji name="gear" className="size-8" />}
           title={copy.sections.basicModules}
-          label={copy.sections.main}
+          label={copy.sections.basicDescription}
           modules={standardBasicModules}
           favoriteIds={favorites}
           onToggleFavorite={toggleFavorite}
@@ -237,15 +240,16 @@ export function MainDashboard({
       )}
 
       <ModuleSection
-        icon="🧰"
+        icon={<IndiceEmoji name="wrench" className="size-8" />}
         title={copy.sections.complementaryModules}
-        label={copy.sections.additional}
+        label={copy.sections.complementaryDescription}
         modules={complementaryModules}
         favoriteIds={favorites}
         onToggleFavorite={toggleFavorite}
         onModuleClick={handleModuleClick}
         singleRow
       />
+      <SystemToolsSection copy={copy.systemTools} onNavigate={onNavigate} />
     </main>
   );
 }

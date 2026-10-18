@@ -90,6 +90,9 @@ public class ModuleEntitlementInterceptor implements HandlerInterceptor {
         if (isSalesInventoryPath(path)) {
             return one("inventory");
         }
+        if (isPathOrDescendant(path, "/api/v1/sales-board")) {
+            return one("sales_board");
+        }
         if (path.startsWith("/api/v1/sales")) {
             return one("crm");
         }

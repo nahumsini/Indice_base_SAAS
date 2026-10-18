@@ -1,5 +1,14 @@
 export const koCA = {
+  systemTools: {
+    title: "시스템 도구",
+    description: "회사의 도구를 연결하고 관리하세요.",
+    connectAi: "AI 연결",
+    kioskCenter: "키오스크 센터",
+  },
   sections: {
+    kpisDescription: "비즈니스 현황을 한눈에 확인하세요.",
+    basicDescription: "일상 업무에 필요한 도구입니다.",
+    complementaryDescription: "비즈니스를 연결하고 정리하는 추가 도구입니다.",
     kpis: "내 KPI",
     favorites: "즐겨찾기",
     quickAccess: "빠른 접근",

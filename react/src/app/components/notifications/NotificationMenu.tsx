@@ -1,4 +1,4 @@
-import { Bell } from 'lucide-react';
+import { HeaderEmoji } from '../icons/HeaderEmoji';
 import type { ReactNode } from 'react';
 import type { AppNotification } from '../../api/notifications';
 import { useLanguage } from '../../shared/context';
@@ -57,7 +57,7 @@ export function NotificationMenu({
           aria-expanded={open}
           title={copy.previewTitle}
         >
-          <Bell className="h-5 w-5" />
+          <HeaderEmoji name="notifications" />
           {unreadCount > 0 && (
             <Badge className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center bg-red-500 p-0 text-[10px] hover:bg-red-500 sm:h-5 sm:w-5 sm:text-xs">
               {unreadCount}

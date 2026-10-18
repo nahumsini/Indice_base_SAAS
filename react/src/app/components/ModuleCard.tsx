@@ -1,13 +1,16 @@
+import type { ReactNode } from 'react';
 import { LucideIcon } from 'lucide-react';
 import { Card } from './ui/card';
 import { Star } from 'lucide-react';
 import { FlatIcon } from './icons/FlatIcon';
+import { hasOriginalModuleEmoji, OriginalModuleEmoji } from './icons/OriginalModuleEmoji';
 
 interface ModuleCardProps {
   id?: string;
   icon?: LucideIcon;
   iconType?: string;
   emoji?: string;
+  artwork?: ReactNode;
   title: string;
   color: 'aqua' | 'blue' | 'coral' | 'yellow' | 'orange' | 'green' | 'gray' | 'purple' | 'red' | 'gold';
   isFavorite?: boolean;
@@ -87,6 +90,7 @@ export function ModuleCard({
   icon: Icon, 
   iconType,
   emoji,
+  artwork,
   title, 
   color, 
   isFavorite = false, 
@@ -190,7 +194,7 @@ export function ModuleCard({
             e.stopPropagation();
             onToggleFavorite();
           }}
-          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity z-10"
         >
           <Star
             className={`h-2.5 w-2.5 ${isFavorite ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400 hover:text-yellow-400'}`}
@@ -199,7 +203,15 @@ export function ModuleCard({
       )}
       
       <div className="flex h-full min-h-0 flex-col items-center justify-center text-center">
-        {emoji ? (
+        {artwork ? (
+          <div className={`transition-transform motion-safe:group-hover:scale-110 flex ${iconAreaClasses[size]} flex-none items-center justify-center mb-1`}>
+            {artwork}
+          </div>
+        ) : hasOriginalModuleEmoji(id) ? (
+          <div className={`transition-transform motion-safe:group-hover:scale-110 flex ${iconAreaClasses[size]} flex-none items-center justify-center mb-1`}>
+            <OriginalModuleEmoji id={id!} />
+          </div>
+        ) : emoji ? (
           <div className={`transition-transform group-hover:scale-110 flex ${iconAreaClasses[size]} flex-none items-center justify-center mb-1`}>
             <span className={`${emojiSizeClasses[size]} group-hover:animate-bounce-subtle`}>{emoji}</span>
           </div>

@@ -1,0 +1,17 @@
+import { useEffect,useRef,useState } from 'react';
+import { Paperclip } from 'lucide-react';
+import { Button } from '../../components/ui/button';
+import { mailboxApi,type MailboxMessage,type MailAttachment } from './mailboxApi';
+import { useMailCompletionCopy } from './completionCopy';
+export function MailAttachments({account,messageId,version,accountVersion,onPrepare,onSaved,onBusy}: {account:string;messageId:string;version:number;accountVersion:number;onPrepare?:()=>Promise<MailboxMessage|null|undefined>;onSaved?:(message:MailboxMessage)=>void;onBusy?:(busy:boolean)=>void}){
+  const copy=useMailCompletionCopy();const [files,setFiles]=useState<MailAttachment[]>([]);const [busy,setBusy]=useState(false);const [error,setError]=useState('');const alive=useRef(true);
+  useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
+  useEffect(()=>{if(!version)return;const abort=new AbortController();mailboxApi.attachments(account,messageId,abort.signal).then(v=>{if(!abort.signal.aborted)setFiles(v);}).catch(()=>{if(!abort.signal.aborted)setError(copy.fileError);});return()=>abort.abort();},[account,messageId,version]);
+  function working(value:boolean){if(alive.current){setBusy(value);onBusy?.(value);}}
+  async function upload(file:File){working(true);setError('');try{const message=await onPrepare?.();if(!message)return;const request=await mailboxApi.upload(account,messageId,{filename:file.name,contentType:file.type||'text/plain',sizeBytes:file.size,version:message.version,accountVersion});const headers={...request.headers};delete headers['Content-Length'];const response=await fetch(request.url,{method:'PUT',headers,body:file,credentials:'omit'});if(!response.ok)throw new Error();const saved=await mailboxApi.register(account,messageId,request.id,message.version,accountVersion);if(alive.current)onSaved?.(saved);}catch{if(alive.current)setError(copy.fileError);}finally{working(false);}}
+  async function remove(file:MailAttachment){working(true);setError('');try{const saved=await mailboxApi.removeAttachment(account,messageId,file.id,version,accountVersion);if(alive.current)onSaved?.(saved);}catch{if(alive.current)setError(copy.fileError);}finally{working(false);}}
+  return <section className="space-y-3 border-t border-slate-200 pt-4 dark:border-slate-700"><h4 className="flex items-center gap-2 text-sm font-medium"><Paperclip className="h-4 w-4"/>{copy.files}</h4>{error&&<p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}
+    {files.map(file=><div key={file.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 p-2 text-sm dark:bg-slate-900"><span className="min-w-0 flex-1 break-all">{file.filename} {file.sizeBytes>0?`· ${Math.ceil(file.sizeBytes/1024)} KB`:''}</span><a className="inline-flex min-h-11 items-center px-3 text-blue-600 dark:text-blue-300" href={mailboxApi.downloadUrl(account,messageId,file.id)} download>{copy.download}</a>{onPrepare&&<Button variant="ghost" disabled={busy} onClick={()=>void remove(file)}>{copy.remove}</Button>}</div>)}
+    {onPrepare&&<><label className="inline-flex min-h-11 cursor-pointer items-center rounded-xl border px-4 text-sm">{copy.addFile}<input type="file" className="sr-only" disabled={busy||files.length>=5} accept=".pdf,.png,.jpg,.jpeg,.txt" onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file)void upload(file);}}/></label><p className="text-xs text-slate-500 dark:text-slate-400">{copy.fileHint}</p></>}
+  </section>;
+}

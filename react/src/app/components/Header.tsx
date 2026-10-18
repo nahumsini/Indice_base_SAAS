@@ -1,6 +1,7 @@
-import { BriefcaseBusiness, Building2, Bot, Check, Coins, CreditCard, Globe, GraduationCap, LayoutPanelTop, LoaderCircle, User, Sun, Moon, Sunrise, Settings, ShieldCheck, MonitorSmartphone, Search } from 'lucide-react';
+import { BriefcaseBusiness, Building2, Check, Coins, GraduationCap, LayoutPanelTop, LoaderCircle, User, Settings, ShieldCheck, MonitorSmartphone, Search } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
+import { HeaderEmoji } from './icons/HeaderEmoji';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +15,6 @@ import { MessagingLauncher } from '../Messaging/MessagingLauncher';
 import { useEffect, useRef, useState } from 'react';
 import { authApi, type PublicDemoCompany } from '../api/auth';
 import type { AuthSessionResponse } from '../api/auth.types';
-import { platformAdminApi } from '../api/platformAdmin';
 import { configCenterApi, type ConfigCenterCurrentUser } from '../api/configCenter';
 import type { AppNotification } from '../api/notifications';
 import { NotificationMenu } from './notifications/NotificationMenu';
@@ -23,13 +23,10 @@ import { PreferredCurrencyControl } from '../BasicModules/shared/PreferredCurren
 import { usePreferredBusinessCurrency } from '../BasicModules/shared/BusinessCurrencyContext';
 import { getPreferredCurrencyCopy } from '../BasicModules/shared/preferredCurrencyCopy';
 import { useHeaderTranslations } from './header/hooks/useHeaderTranslations';
-import { isAdminAccessRole, normalizeAccessRole } from '../access/accessRules';
-import { canDiscoverTraining } from '../Training/trainingAccess';
-import { getTrainingWorkspaceCopy } from '../Training/translations/workspace';
+import { isAdminAccessRole } from '../access/accessRules';
 import { managedCompanyApi, type ManagedCompanyContext } from '../api/managedCompanies';
 import { getCachedAuthSession } from '../api/authSessionStore';
 import { useAuthorizationRevision } from '../hooks/useAuthorizationRevision';
-import { canAccessKioskCenter, canAccessModuleTab } from '../access/tabScopeCatalog';
 import { WorkbarLayoutModal } from './workbar/WorkbarLayoutModal';
 import { LearningModeSettingsModal } from '../learningMode/components/LearningModeSettingsModal';
 import { getLearningModeSettingsCopy } from '../learningMode/settingsCopy';
@@ -85,7 +82,6 @@ export function Header({
   const [currentUserEmail, setCurrentUserEmail] = useState('');
   const [currentUserAvatarUrl, setCurrentUserAvatarUrl] = useState('');
   const [authSession, setAuthSession] = useState<AuthSessionResponse | null>(null);
-  const [platformAdminRole, setPlatformAdminRole] = useState('');
   const [switchingCompanyId, setSwitchingCompanyId] = useState<number | null>(null);
   const [companySwitchError, setCompanySwitchError] = useState('');
   const [managedContext, setManagedContext] = useState<ManagedCompanyContext | null>(null);
@@ -148,17 +144,7 @@ export function Header({
           .catch(() => {
             if (active) setManagedContext(null);
           });
-        platformAdminApi.getContext()
-          .then((context) => {
-            if (active) {
-              setPlatformAdminRole(context.role);
-            }
-          })
-          .catch(() => {
-            if (active) {
-              setPlatformAdminRole('');
-            }
-          });
+
       })
       .catch(() => {
         // Profile loading still provides a safe header fallback.
@@ -205,19 +191,19 @@ export function Header({
     if (currentHour >= 6 && currentHour < 12) {
       return (
         <div className="rounded-lg border border-white/20 bg-white/15 p-1.5">
-          <Sunrise className="h-5 w-5 text-orange-300" />
+          <HeaderEmoji name="sun" className="size-6" />
         </div>
       );
     } else if (currentHour >= 12 && currentHour < 19) {
       return (
         <div className="rounded-lg border border-white/20 bg-white/15 p-1.5">
-          <Sun className="h-5 w-5 text-amber-300" />
+          <HeaderEmoji name="sun" className="size-6" />
         </div>
       );
     } else {
       return (
         <div className="rounded-lg border border-white/20 bg-white/15 p-1.5">
-          <Moon className="h-5 w-5 text-violet-200" />
+          <HeaderEmoji name="moon" className="size-6" />
         </div>
       );
     }
@@ -233,8 +219,6 @@ export function Header({
     .toUpperCase() || 'U';
   const currentUserPrimaryName = currentUserName.trim().split(/\s+/)[0] || 'User';
   const isPublicDemoSession = effectiveAuthSession?.demoMode === true;
-  const isRootAccount = !isPublicDemoSession && (platformAdminRole === 'PLATFORM_ROOT'
-    || normalizeAccessRole(effectiveAuthSession?.user.role) === 'root');
   const isDistributorAccount = !isPublicDemoSession
     && effectiveAuthSession?.company.commercial_account_type === 'DISTRIBUTOR';
   const directCompanyIds = new Set((effectiveAuthSession?.companies ?? []).map((company) => company.id));
@@ -406,7 +390,7 @@ export function Header({
                     {switchingCompanyId !== null ? (
                       <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
                     ) : (
-                      <Building2 className="h-4 w-4 shrink-0 text-white" />
+                      <HeaderEmoji name="company" />
                     )}
                     <span className="hidden max-w-32 truncate text-sm font-medium xl:inline">
                       {switchingCompanyId !== null ? copy.actions.switchingCompany : visibleCompanyName}
@@ -561,7 +545,7 @@ export function Header({
                   aria-label={`${copy.actions.language}: ${currentLanguage.name}`}
                   title={currentLanguage.name}
                 >
-                  <Globe className="h-[18px] w-[18px]" />
+                  <HeaderEmoji name="language" />
                   <span className="text-lg leading-none" aria-hidden="true">{currentLanguage.flag}</span>
                 </Button>
               </DropdownMenuTrigger>
@@ -593,9 +577,9 @@ export function Header({
               title={darkMode ? copy.actions.lightMode : copy.actions.darkMode}
             >
               {darkMode ? (
-                <Sun className="h-5 w-5" />
+                <HeaderEmoji name="sun" />
               ) : (
-                <Moon className="h-5 w-5" />
+                <HeaderEmoji name="moon" />
               )}
             </Button>
 
@@ -609,7 +593,7 @@ export function Header({
               aria-haspopup="dialog"
               title={copy.actions.learningMode}
             >
-              <GraduationCap className="h-5 w-5" />
+              <HeaderEmoji name="learning" />
             </Button>
 
             {/* User profile */}
@@ -683,51 +667,13 @@ export function Header({
                       <DropdownMenuSeparator className="my-0 bg-[var(--indice-brand-primary)]/15 dark:bg-[var(--indice-brand-primary)]/20" />
                     </>
                   )}
-                  {canDiscoverTraining(effectiveAuthSession, platformAdminRole) ? (
-                    <DropdownMenuItem onClick={() => navigate('/training')} className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10">
-                      <GraduationCap className="mr-3 h-4 w-4 text-[var(--indice-brand-primary)]" />
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        {getTrainingWorkspaceCopy(currentLanguage.code).title}
-                      </span>
-                    </DropdownMenuItem>
-                  ) : null}
                   {isAdminAccessRole(effectiveAuthSession?.user.role) && !isPublicDemoSession ? (
                     <>
-                      {canAccessModuleTab('home-panel', 'integrations', effectiveAuthSession) ? (
-                        <DropdownMenuItem onClick={() => navigate('/home-panel/integrations')} className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10">
-                          <Bot className="h-4 w-4 mr-3 text-[var(--indice-brand-primary)]" />
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {copy.actions.connectAi}
-                          </span>
-                        </DropdownMenuItem>
-                      ) : null}
-                      {canAccessKioskCenter(effectiveAuthSession) ? (
-                        <DropdownMenuItem onClick={() => navigate('/kiosk-center')} className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10">
-                          <MonitorSmartphone className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {currentLanguage.code.startsWith('es') ? 'Centro de kioscos' : 'Kiosk Center'}
-                          </span>
-                        </DropdownMenuItem>
-                      ) : null}
-                      <DropdownMenuItem onClick={() => navigate('/billing')} className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10">
-                        <CreditCard className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          {copy.actions.subscription}
-                        </span>
-                      </DropdownMenuItem>
                       {isDistributorAccount ? (
                         <DropdownMenuItem onClick={() => navigate('/distributor-portal')} className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10">
                           <BriefcaseBusiness className="h-4 w-4 mr-3 text-[var(--indice-brand-primary)]" />
                           <span className="text-sm font-medium text-gray-900 dark:text-white">
                             {copy.actions.distributorPortal}
-                          </span>
-                        </DropdownMenuItem>
-                      ) : null}
-                      {isRootAccount ? (
-                        <DropdownMenuItem onClick={() => navigate('/platform-admin')} className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10">
-                          <ShieldCheck className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {copy.actions.platformAdmin}
                           </span>
                         </DropdownMenuItem>
                       ) : null}

@@ -10,6 +10,9 @@ export const zhCA = {
     fallbackDescription: '仅加载所选销售工作区。',
   },
   tabs: {
+    funneling: 'Funneling',
+    mailing: 'Mailing',
+    whatsapping: 'Whatsapping',
     prospectos: '商机',
     contactos: '客户',
     cotizacion: '报价',
@@ -23,6 +26,12 @@ export const zhCA = {
     contrato: '合同',
     postventa: '售后',
     kpis: '关键指标',
+  },
+  communicationWorkspace: {
+    pendingTitle: '工作区等待配置',
+    mailingSubtitle: '组织客户电子邮件营销和后续跟进。',
+    whatsappingSubtitle: '通过 WhatsApp 组织客户跟进。',
+    pendingDescription: '此工作区尚未启用活动创建和发送功能。',
   },
   paymentAccountsWorkspace: {
     title: '销售收款账户',

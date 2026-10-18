@@ -36,6 +36,10 @@ const Sales = lazy(() => import('./Sales/Sales')) as SalesTabLazyComponent;
 const SalesCommissions = lazy(() => import('./SalesCommissions')) as SalesTabLazyComponent;
 const SalesPaymentAccounts = lazy(() => import('./SalesPaymentAccounts')) as SalesTabLazyComponent;
 const Contrato = lazy(() => import('./Contrato')) as SalesTabLazyComponent;
+const Postventa = lazy(() => import('./Postventa')) as SalesTabLazyComponent;
+const Funneling = lazy(() => import('./Funneling/Funneling')) as SalesTabLazyComponent;
+const Mailing = lazy(() => import('./Mailing/Mailing')) as SalesTabLazyComponent;
+const Whatsapping = lazy(() => import('./SalesCommunicationWorkspace').then(module => ({ default: module.Whatsapping }))) as SalesTabLazyComponent;
 const KPIs = lazy(() => import('./KPIs')) as SalesTabLazyComponent;
 
 const salesWorkspaceTabIds = routedSalesTabIds;
@@ -51,6 +55,10 @@ const salesTabComponents: Partial<Record<SalesWorkspaceTabId, SalesTabLazyCompon
   'payment-accounts': SalesPaymentAccounts,
   contracts: Contrato,
   kpis: KPIs,
+  'after-sales': Postventa,
+  funneling: Funneling,
+  mailing: Mailing,
+  whatsapping: Whatsapping,
 };
 
 interface VentasProps {
@@ -122,6 +130,12 @@ function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) 
     legacySalesTabAliases,
   );
   const ActiveComponent = salesTabComponents[activeTab] || Contactos;
+  const workspace = (
+    <Suspense fallback={<SalesLoadingState isVisible title={copy.loading.fallbackTitle} description={copy.loading.fallbackDescription} />}>
+      <ActiveComponent learningModeActive={learningModeActive} />
+    </Suspense>
+  );
+
 
   return (
     <LearningModeHeaderActionsProvider active={learningModeActive}>
@@ -130,7 +144,7 @@ function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) 
         backLabel={copy.back}
         contentRef={moduleContentRef}
         currentModule="sales"
-        guide={learningModeActive ? (
+        guide={learningModeActive && activeTab !== 'mailing' && activeTab !== 'whatsapping' && activeTab !== 'funneling' ? (
           <OperationalModuleGuide
             activeTabId={activeTab}
             copy={guidanceCopy}
@@ -151,21 +165,11 @@ function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) 
         title={copy.title}
         tone="coral"
       >
-        <SalesCrmProvider>
-          <SalesDataStateBoundary>
-            <Suspense
-              fallback={(
-                <SalesLoadingState
-                  isVisible
-                  title={copy.loading.fallbackTitle}
-                  description={copy.loading.fallbackDescription}
-                />
-              )}
-            >
-              <ActiveComponent learningModeActive={learningModeActive} />
-            </Suspense>
-          </SalesDataStateBoundary>
-        </SalesCrmProvider>
+        {activeTab === 'mailing' || activeTab === 'funneling' ? workspace : (
+          <SalesCrmProvider>
+            <SalesDataStateBoundary>{workspace}</SalesDataStateBoundary>
+          </SalesCrmProvider>
+        )}
       </IndiceModuleShell>
     </LearningModeHeaderActionsProvider>
   );

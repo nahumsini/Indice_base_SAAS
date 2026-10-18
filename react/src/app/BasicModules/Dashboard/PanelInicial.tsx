@@ -7,6 +7,7 @@ import { canAccessHomePanelTab, type HomePanelTabId } from '../../access/accessR
 import type { PanelInicialGuidanceTabId } from './operationalGuidance';
 import { PanelInicialErrorBoundary } from './components/PanelInicialErrorBoundary';
 import { PanelInicialHeader } from './components/PanelInicialHeader';
+import { ModuleTabArtworkProvider } from '../../components/icons/ModuleTabArtworkContext';
 import { PanelInicialState } from './components/PanelInicialState';
 import { usePanelInicialTranslations } from './hooks/usePanelInicialTranslations';
 import { useAuthorizationRevision } from '../../hooks/useAuthorizationRevision';
@@ -181,7 +182,9 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
         >
           {ActiveComponent ? (
             <PanelInicialErrorBoundary key={activeSubTab} copy={shellCopy}>
-              <ActiveComponent />
+              <ModuleTabArtworkProvider moduleId="home-panel" tabId={activeSubTab}>
+                <ActiveComponent />
+              </ModuleTabArtworkProvider>
             </PanelInicialErrorBoundary>
           ) : null}
           {sessionAccess.loaded && sessionAccess.loadError ? (

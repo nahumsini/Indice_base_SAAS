@@ -1,0 +1,81 @@
+import { fr, pt, ko, zh } from './translations.extra';
+import { useLanguage } from '../../shared/context';
+
+const en = {
+  archiveMessage: "Archive",
+  loading: "Loading…",
+  discardDescription: "Unsaved changes will be discarded. Saved information will stay unchanged.",
+  lastTest: "Last test",
+  title: 'Email', subtitle: 'Your accounts and conversations in one place.', mailbox: 'Mailbox', accounts: 'Connected accounts',
+  accountsDescription: 'Configure your private accounts and choose which ones to use in Sales Mailing.',
+  connect: 'Connect account', edit: 'Edit', refresh: 'Refresh', actions: 'Actions', cancel: 'Cancel', save: 'Save account', saving: 'Saving…',
+  accountForm: 'Email account', formDescription: 'Save your settings, then test sending and receiving separately.',
+  identity: 'Account identity', label: 'Account name', address: 'Email address', displayName: 'Sender name',
+  outgoing: 'Outgoing mail · SMTP', incoming: 'Incoming mail', host: 'Server', port: 'Port', security: 'Security', username: 'Username', password: 'Password or app password',
+  passwordHint: 'Leave blank to keep the saved password.', receiveProtocol: 'Receive messages with', none: 'Do not connect receiving',
+  receiveHint: 'IMAP keeps folders on your mail server. POP3 connection can be verified; message import is not enabled yet.',
+  mailingEnabled: 'Make this account available in Sales Mailing', mailingHint: 'Only you can select this sender. This does not share your inbox.',
+  credentialsHint: 'Use the credentials provided by your email administrator. Gmail or Microsoft may require an app password or OAuth; OAuth connection is not available in this version.',
+  noAccounts: 'Connect your first email account', noAccountsDescription: 'Add your SMTP settings to prepare a sender for your campaigns.',
+  setupUnavailable: 'Account configuration is unavailable', setupUnavailableDescription: 'The environment needs its mail credential encryption key before accounts can be saved.',
+  loadError: 'Unable to load accounts.', saveError: 'Unable to save. Your changes remain here.', conflict: 'This account changed. Close and reopen it to load the current settings.',
+  required: 'Complete the required fields and enter a valid email and server.', saved: 'Account saved. Test the connections to verify these settings.',
+  testSmtp: 'Test SMTP', testReceive: 'Test receiving', testing: 'Testing…', verified: 'Connection verified', untested: 'Not tested', failed: 'Connection failed',
+  testFailure: 'Check your server, credentials and the authentication methods allowed by your provider.', rateLimited: 'Wait 30 seconds before testing this account again.',
+  disconnect: 'Disconnect', disconnectTitle: 'Disconnect this account?', disconnectDescription: 'Its credentials will be removed and it will no longer be available in Mailing. Campaign drafts will be preserved.',
+  disconnected: 'Account disconnected.', discardTitle: 'Discard unsaved changes?', keepEditing: 'Keep editing', discard: 'Discard changes',
+  returnMailing: 'Return to Mailing', saveAndConfigure: 'Save and configure account', senderAccount: 'Sender account', chooseSender: 'Choose an account',
+  noSenders: 'No accounts are available for Mailing. Connect one in Email and enable it for Mailing.', senderUnavailable: 'The saved account is unavailable. Select another account or clear this selection.',
+  senderHint: 'Accounts are managed in Email. Connection verification does not authorize a campaign send.',
+  senderLoadError: 'Unable to load sender accounts.', configureAccounts: 'Email accounts', sending: 'Sending', receiving: 'Receiving', disabled: 'Not connected',
+  search: 'Search mail', searchPlaceholder: 'Sender, subject or message', folders: 'Mail folders', inbox: 'Inbox', sent: 'Sent', drafts: 'Drafts', archive: 'Archive', trash: 'Trash',
+  emptyFolder: 'No messages in this folder.', noResults: 'No messages match your search.', selectMessage: 'Select a message',
+  mailboxPending: 'Prepare your email account', mailboxDescription: 'You can save and verify connections in Connected accounts. Mailbox synchronization and message sending are the next integration step.',
+  previewNotice: 'Preview · fictional messages · changes reset on reload. No emails are sent.', compose: 'Compose', composeTitle: 'Preview email',
+  composeDescription: 'Save a draft to review the interface. This preview does not send messages.', to: 'To', subject: 'Subject', message: 'Message', saveDraft: 'Save draft', draftSaved: 'Preview draft saved for this session.',
+  back: 'Back', star: 'Star', unstar: 'Remove star', unread: 'Mark unread', moveInbox: 'Move to inbox', moveTrash: 'Move to trash', reply: 'Reply', forward: 'Forward', editCopy: 'Edit copy',
+  noSubject: 'No subject', me: 'Me', starred: 'Starred', notRead: 'Unread', original: 'Original message', privateAccount: 'Private account',
+};
+const es: typeof en = {
+  archiveMessage: "Archivar",
+  loading: "Cargando…",
+  discardDescription: "Se descartarán los cambios pendientes. La información guardada se conservará.",
+  lastTest: "Última prueba",
+  title: 'Correo electrónico', subtitle: 'Tus cuentas y conversaciones en un solo lugar.', mailbox: 'Buzón', accounts: 'Cuentas conectadas',
+  accountsDescription: 'Configura tus cuentas privadas y elige cuáles usar en Mailing de Ventas.',
+  connect: 'Conectar cuenta', edit: 'Editar', refresh: 'Actualizar', actions: 'Acciones', cancel: 'Cancelar', save: 'Guardar cuenta', saving: 'Guardando…',
+  accountForm: 'Cuenta de correo', formDescription: 'Guarda la configuración y prueba por separado el envío y la recepción.',
+  identity: 'Identidad de la cuenta', label: 'Nombre de la cuenta', address: 'Correo electrónico', displayName: 'Nombre del remitente',
+  outgoing: 'Correo de salida · SMTP', incoming: 'Correo de entrada', host: 'Servidor', port: 'Puerto', security: 'Seguridad', username: 'Usuario', password: 'Contraseña o contraseña de aplicación',
+  passwordHint: 'Deja este campo vacío para conservar la contraseña guardada.', receiveProtocol: 'Recibir mensajes con', none: 'No conectar recepción',
+  receiveHint: 'IMAP conserva las carpetas en tu servidor. Puedes verificar la conexión POP3; la importación de mensajes aún no está habilitada.',
+  mailingEnabled: 'Usar esta cuenta en Mailing de Ventas', mailingHint: 'Solo tú podrás elegir este remitente. Esto no comparte tu buzón.',
+  credentialsHint: 'Usa los datos de tu administrador de correo. Gmail o Microsoft pueden requerir una contraseña de aplicación u OAuth; la conexión OAuth aún no está disponible en esta versión.',
+  noAccounts: 'Conecta tu primera cuenta de correo', noAccountsDescription: 'Agrega la configuración SMTP para preparar un remitente para tus campañas.',
+  setupUnavailable: 'La configuración de cuentas no está disponible', setupUnavailableDescription: 'El entorno necesita su clave de cifrado de credenciales antes de guardar cuentas.',
+  loadError: 'No se pudieron cargar las cuentas.', saveError: 'No se pudo guardar. Tus cambios siguen aquí.', conflict: 'Esta cuenta cambió. Cierra y vuelve a abrirla para cargar la configuración actual.',
+  required: 'Completa los campos obligatorios e ingresa un correo y servidor válidos.', saved: 'Cuenta guardada. Prueba las conexiones para verificar la configuración.',
+  testSmtp: 'Probar SMTP', testReceive: 'Probar recepción', testing: 'Probando…', verified: 'Conexión verificada', untested: 'Sin probar', failed: 'Error de conexión',
+  testFailure: 'Revisa el servidor, las credenciales y los métodos de autenticación permitidos por tu proveedor.', rateLimited: 'Espera 30 segundos antes de volver a probar esta cuenta.',
+  disconnect: 'Desconectar', disconnectTitle: '¿Desconectar esta cuenta?', disconnectDescription: 'Se eliminarán sus credenciales y dejará de estar disponible en Mailing. Los borradores de campaña se conservarán.',
+  disconnected: 'Cuenta desconectada.', discardTitle: '¿Descartar los cambios sin guardar?', keepEditing: 'Seguir editando', discard: 'Descartar cambios',
+  returnMailing: 'Volver a Mailing', saveAndConfigure: 'Guardar y configurar cuenta', senderAccount: 'Cuenta remitente', chooseSender: 'Elige una cuenta',
+  noSenders: 'No hay cuentas disponibles para Mailing. Conecta una en Correo y habilítala para Mailing.', senderUnavailable: 'La cuenta guardada ya no está disponible. Elige otra cuenta o limpia la selección.',
+  senderHint: 'Las cuentas se administran en Correo. Verificar la conexión no autoriza el envío de una campaña.',
+  senderLoadError: 'No se pudieron cargar las cuentas remitentes.', configureAccounts: 'Cuentas de correo', sending: 'Envío', receiving: 'Recepción', disabled: 'Sin conectar',
+  search: 'Buscar correo', searchPlaceholder: 'Remitente, asunto o mensaje', folders: 'Carpetas de correo', inbox: 'Bandeja de entrada', sent: 'Enviados', drafts: 'Borradores', archive: 'Archivados', trash: 'Papelera',
+  emptyFolder: 'No hay mensajes en esta carpeta.', noResults: 'No hay mensajes para esta búsqueda.', selectMessage: 'Selecciona un mensaje',
+  mailboxPending: 'Prepara tu cuenta de correo', mailboxDescription: 'Ya puedes guardar y verificar conexiones en Cuentas conectadas. La sincronización del buzón y el envío de mensajes son el siguiente paso de integración.',
+  previewNotice: 'Vista de prueba · mensajes ficticios · los cambios se borran al recargar. No se envían correos.', compose: 'Redactar', composeTitle: 'Correo de prueba',
+  composeDescription: 'Guarda un borrador para revisar la interfaz. Esta vista no envía mensajes.', to: 'Para', subject: 'Asunto', message: 'Mensaje', saveDraft: 'Guardar borrador', draftSaved: 'Borrador de prueba guardado en esta sesión.',
+  back: 'Volver', star: 'Destacar', unstar: 'Quitar destacado', unread: 'Marcar no leído', moveInbox: 'Mover a entrada', moveTrash: 'A papelera', reply: 'Responder', forward: 'Reenviar', editCopy: 'Editar copia',
+  noSubject: 'Sin asunto', me: 'Yo', starred: 'Destacado', notRead: 'No leído', original: 'Mensaje original', privateAccount: 'Cuenta privada',
+};
+
+// All eight runtime locales resolve through their language dictionary.
+export type EmailCopy = typeof en;
+const translations: Record<string, EmailCopy> = { en, es, fr, pt, ko, zh };
+export function useEmailCopy() {
+  const { currentLanguage } = useLanguage();
+  return { copy: translations[currentLanguage.code.split('-')[0]] ?? en, locale: currentLanguage.code };
+}

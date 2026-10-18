@@ -10,6 +10,9 @@ export const frCA = {
     fallbackDescription: 'Téléchargement seulement de l’onglet commercial sélectionné.',
   },
   tabs: {
+    funneling: 'Funneling',
+    mailing: 'Mailing',
+    whatsapping: 'Whatsapping',
     prospectos: 'Occasions',
     contactos: 'Clients',
     cotizacion: 'Devis',
@@ -23,6 +26,12 @@ export const frCA = {
     contrato: 'Contrats',
     postventa: 'Service après-vente',
     kpis: 'ICP',
+  },
+  communicationWorkspace: {
+    pendingTitle: 'Espace en attente de configuration',
+    mailingSubtitle: 'Organisez les campagnes de courriel et le suivi des clients.',
+    whatsappingSubtitle: 'Organisez le suivi des clients par WhatsApp.',
+    pendingDescription: 'La création et l’envoi de campagnes ne sont pas encore activés dans cet espace.',
   },
   paymentAccountsWorkspace: {
     title: 'Comptes de paiement des ventes',

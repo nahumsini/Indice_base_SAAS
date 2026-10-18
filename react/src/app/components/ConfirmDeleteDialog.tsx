@@ -1,3 +1,4 @@
+import { ModalHeaderEmoji } from './icons/ModalHeaderEmoji';
 import { useRef, type ReactNode } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { Button } from './ui/button';
@@ -61,7 +62,7 @@ export function ConfirmDeleteDialog({
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white">
-                <AlertTriangle className="h-5 w-5" />
+                <ModalHeaderEmoji icon={<AlertTriangle className="h-5 w-5" />} />
               </span>
               <DialogHeader className="min-w-0 gap-1 text-left">
                 <DialogTitle className="text-lg font-semibold leading-6 text-white">

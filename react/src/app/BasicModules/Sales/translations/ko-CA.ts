@@ -10,6 +10,9 @@ export const koCA = {
     fallbackDescription: '선택한 영업 작업 공간만 불러오고 있습니다.',
   },
   tabs: {
+    funneling: 'Funneling',
+    mailing: 'Mailing',
+    whatsapping: 'Whatsapping',
     prospectos: '영업 기회',
     contactos: '고객',
     cotizacion: '견적',
@@ -23,6 +26,12 @@ export const koCA = {
     contrato: '계약',
     postventa: '애프터서비스',
     kpis: 'KPI',
+  },
+  communicationWorkspace: {
+    pendingTitle: '설정 대기 중인 작업 공간',
+    mailingSubtitle: '고객 이메일 캠페인과 후속 관리를 구성하세요.',
+    whatsappingSubtitle: 'WhatsApp을 통한 고객 후속 관리를 구성하세요.',
+    pendingDescription: '이 작업 공간에서는 아직 캠페인 생성 및 전송이 활성화되지 않았습니다.',
   },
   paymentAccountsWorkspace: {
     title: '영업 결제 계정',

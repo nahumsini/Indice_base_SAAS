@@ -1,5 +1,14 @@
 export const frCA = {
+  systemTools: {
+    title: "Outils système",
+    description: "Connectez et gérez les outils de votre entreprise.",
+    connectAi: "Connecter l’IA",
+    kioskCenter: "Centre de kiosques",
+  },
   sections: {
+    kpisDescription: "Votre entreprise en un coup d’œil.",
+    basicDescription: "Les outils pour vos activités quotidiennes.",
+    complementaryDescription: "Plus d’outils pour connecter et organiser votre entreprise.",
     kpis: "Vos indicateurs",
     favorites: "Vos favoris",
     quickAccess: "Accès rapides",

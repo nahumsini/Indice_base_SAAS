@@ -4,15 +4,17 @@ import { IndiceHorizontalScrollControls } from './ui/horizontal-scroll-controls'
 interface KPICarouselProps {
   children: ReactNode;
   mode?: 'grid' | 'carousel';
+  compactCards?: boolean;
+  dashboardSpacing?: boolean;
 }
 
-export function KPICarousel({ children, mode = 'grid' }: KPICarouselProps) {
+export function KPICarousel({ children, mode = 'grid', compactCards = false, dashboardSpacing = false }: KPICarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Carousel mode: always horizontal with controls.
   if (mode === 'carousel') {
     return (
-      <div className="relative group -mx-4 sm:mx-0">
+      <div className={`relative group -mx-4 ${dashboardSpacing ? 'sm:-mx-1 -mb-4' : 'sm:mx-0'}`}>
         <div 
           ref={scrollRef}
           className="overflow-x-auto scrollbar-hide px-4 pb-4 scroll-smooth sm:px-1"
@@ -21,11 +23,15 @@ export function KPICarousel({ children, mode = 'grid' }: KPICarouselProps) {
             msOverflowStyle: 'none',
           }}
         >
-          <div className="flex min-w-min snap-x snap-mandatory gap-3 [&>*]:w-[min(78vw,280px)] [&>*]:flex-shrink-0 sm:[&>*]:w-[227px] xl:[&>*]:w-[240px]">
+          <div className={`flex min-w-min snap-x snap-mandatory gap-3 [&>*]:flex-shrink-0 ${compactCards ? '[&>*]:w-[min(68vw,220px)] sm:[&>*]:w-[200px]' : '[&>*]:w-[min(78vw,280px)] sm:[&>*]:w-[227px] xl:[&>*]:w-[240px]'}`}>
             {children}
           </div>
         </div>
-        <IndiceHorizontalScrollControls scrollRef={scrollRef} />
+        <IndiceHorizontalScrollControls
+          scrollRef={scrollRef}
+          className={dashboardSpacing ? 'bottom-4' : undefined}
+          buttonClassName={dashboardSpacing ? 'shadow-md' : undefined}
+        />
       </div>
     );
   }

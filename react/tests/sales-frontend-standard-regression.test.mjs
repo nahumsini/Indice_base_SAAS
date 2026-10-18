@@ -332,15 +332,15 @@ test('Productos permite integración masiva pegando filas desde Excel sin duplic
   assert.match(contextSource, /-TMP-\$\{Date\.now\(\)\}/);
 });
 
-test('Modo aprendiz cubre todas las pestañas visibles de Ventas y Comisiones usa la barra compartida', () => {
+test('Modo aprendiz conserva las guías operativas y excluye los espacios de comunicación pendientes', () => {
   const salesModuleSource = readFileSync(resolve(salesRoot, 'Ventas.tsx'), 'utf8');
   const guidanceTypeSource = readFileSync(resolve(salesRoot, 'operationalGuidance/types.ts'), 'utf8');
   const guidanceSource = readFileSync(resolve(salesRoot, 'operationalGuidance/translations/en-CA.ts'), 'utf8');
   const commissionsSource = readFileSync(resolve(salesRoot, 'SalesCommissions.tsx'), 'utf8');
 
-  assert.match(salesModuleSource, /guide=\{learningModeActive \? \(/);
+  assert.match(salesModuleSource, /guide=\{learningModeActive && activeTab !== 'mailing' && activeTab !== 'whatsapping' && activeTab !== 'funneling' \? \(/);
   assert.doesNotMatch(salesModuleSource, /activeTab !== 'payment-accounts'|activeTab !== 'commissions'/);
-  assert.match(guidanceTypeSource, /SalesGuidanceTabId = SalesTabId/);
+  assert.match(guidanceTypeSource, /SalesGuidanceTabId = Exclude<SalesTabId, 'mailing' \| 'whatsapping' \| 'funneling'>/);
   assert.match(guidanceSource, /commissions:/);
   assert.match(guidanceSource, /'payment-accounts':/);
   assert.match(commissionsSource, /<SalesTitleBar/);
@@ -348,14 +348,14 @@ test('Modo aprendiz cubre todas las pestañas visibles de Ventas y Comisiones us
   assert.match(commissionsSource, /salesTitleBarSecondaryActionClassName/);
 });
 
-test('Ventas presenta el flujo B2B principal y deja en Más solo sus herramientas comerciales', () => {
+test('Ventas muestra Postventa y los espacios de comunicación junto al flujo B2B', () => {
   const salesModuleSource = readFileSync(resolve(salesRoot, 'Ventas.tsx'), 'utf8');
   const identitySource = readFileSync(resolve(salesRoot, 'salesIdentity.tsx'), 'utf8');
   const shellSource = readFileSync(resolve(root, 'src/app/components/frontend-os/IndiceModuleShell.tsx'), 'utf8');
   const spanishSource = readFileSync(resolve(salesRoot, 'translations/es-MX.ts'), 'utf8');
 
   assert.match(identitySource, /'contacts',[\s\S]*'leads',[\s\S]*'quotes',[\s\S]*'sales',[\s\S]*'kpis'/);
-  assert.match(identitySource, /\['contacts', 'leads', 'quotes', 'sales', 'kpis'\]\.includes\(tab\.id\)/);
+  assert.match(identitySource, /\['contacts', 'leads', 'quotes', 'sales', 'kpis', 'after-sales', 'funneling', 'mailing', 'whatsapping'\]\.includes\(tab\.id\)/);
   assert.match(salesModuleSource, /useRoutedModuleTab<SalesWorkspaceTabId>\(\s*'contacts'/);
   assert.match(salesModuleSource, /moreTabs=\{\[/);
   assert.match(salesModuleSource, /id: 'commissions'/);

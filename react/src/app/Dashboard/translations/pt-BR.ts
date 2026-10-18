@@ -1,5 +1,14 @@
 export const ptBR = {
+  systemTools: {
+    title: "Ferramentas do sistema",
+    description: "Conecte e gerencie as ferramentas da sua empresa.",
+    connectAi: "Conectar IA",
+    kioskCenter: "Central de quiosques",
+  },
   sections: {
+    kpisDescription: "Seu negócio em um só lugar.",
+    basicDescription: "As ferramentas para sua operação diária.",
+    complementaryDescription: "Mais ferramentas para conectar e organizar seu negócio.",
     kpis: "Seus KPIs",
     favorites: "Seus favoritos",
     quickAccess: "Acessos rápidos",

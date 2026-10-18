@@ -270,6 +270,7 @@ type TranslationDictionary = {
       formularios: string;
       facturacion: string;
       correoElectronico: string;
+      salesBoard: string;
       climaLaboral: string;
       afiliados: string;
       indiceAgenteVentas: string;
@@ -1788,6 +1789,7 @@ const translations: Translations = {
       formularios: 'Formularios',
       facturacion: 'Facturación',
       correoElectronico: 'Correo electrónico',
+      salesBoard: 'Tablero de ventas',
       climaLaboral: 'Clima laboral',
       afiliados: 'Afiliados',
       indiceAgenteVentas: 'Índice Agente de Ventas',
@@ -2673,6 +2675,7 @@ const translations: Translations = {
       formularios: 'Formularios',
       facturacion: 'Facturación',
       correoElectronico: 'Correo electrónico',
+      salesBoard: 'Tablero de ventas',
       climaLaboral: 'Clima laboral',
       afiliados: 'Afiliados',
       indiceAgenteVentas: 'Índice Agente de Ventas',
@@ -3558,6 +3561,7 @@ const translations: Translations = {
       formularios: 'Forms',
       facturacion: 'Billing',
       correoElectronico: 'Email',
+      salesBoard: 'Sales board',
       climaLaboral: 'Work climate',
       afiliados: 'Affiliates',
       indiceAgenteVentas: 'Sales Agent Index',
@@ -4443,6 +4447,7 @@ const translations: Translations = {
       formularios: 'Forms',
       facturacion: 'Billing',
       correoElectronico: 'Email',
+      salesBoard: 'Sales board',
       climaLaboral: 'Work climate',
       afiliados: 'Affiliates',
       indiceAgenteVentas: 'Sales Agent Index',
@@ -5328,6 +5333,7 @@ const translations: Translations = {
       formularios: 'Formulaires',
       facturacion: 'Facturation',
       correoElectronico: 'Courriel',
+      salesBoard: 'Tableau des ventes',
       climaLaboral: 'Climat de travail',
       afiliados: 'Affiliés',
       indiceAgenteVentas: 'Index Agent de Ventes',
@@ -6213,6 +6219,7 @@ const translations: Translations = {
       formularios: 'Formulários',
       facturacion: 'Faturamento',
       correoElectronico: 'E-mail',
+      salesBoard: 'Painel de vendas',
       climaLaboral: 'Clima de trabalho',
       afiliados: 'Afiliados',
       indiceAgenteVentas: 'Índice Agente de Vendas',
@@ -7098,6 +7105,7 @@ const translations: Translations = {
       formularios: '양식',
       facturacion: '청구',
       correoElectronico: '이메일',
+      salesBoard: '판매 분석',
       climaLaboral: '근무 환경',
       afiliados: '제휴 회원',
       indiceAgenteVentas: '판매 에이전트 지수',
@@ -7983,6 +7991,7 @@ const translations: Translations = {
       formularios: '表格',
       facturacion: '计费',
       correoElectronico: '电子邮件',
+      salesBoard: '销售看板',
       climaLaboral: '工作环境',
       afiliados: '关联会员',
       indiceAgenteVentas: '销售代理指数',

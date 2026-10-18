@@ -92,7 +92,8 @@ test('the dedicated route is protected and legacy redirects happen before admin 
   assert.match(page, /TrainingWorkspace portal=\{portal\}/);
   assert.doesNotMatch(page, /platformAdminApi|distributorPortalApi|commercial_account_type|useSearchParams/);
   assert.doesNotMatch(read('PlatformAdmin/PlatformAdminPage.tsx'), /TrainingWorkspace|id: "training"/);
-  assert.match(read('components/Header.tsx'), /navigate\('\/training'\)/);
+  assert.match(read('Dashboard/components/SystemToolsSection.tsx'), /navigate\('\/training'\)/);
+  assert.doesNotMatch(read('components/Header.tsx'), /navigate\('\/training'\)/);
   assert.match(read('DistributorPortal/DistributorPortalPage.tsx'), /to="\/training"/);
   const entrypoint = readFileSync(resolve(root, '../main.tsx'), 'utf8');
   assert.match(routes, /id: 'training-centre',[\s\S]*?path: '\/training'/);
@@ -111,4 +112,37 @@ test('standalone training identity is localized in all supported languages', () 
       assert.ok(getTrainingWorkspaceCopy(locale)[key]?.trim(), `${locale}: ${key}`);
     }
   }
+});
+
+test('system tool cards preserve individual role and portal boundaries', () => {
+  const load = createTypeScriptLoader({
+    '../api/auth': { authApi: {} },
+    '../lib/apiClient': { ApiClientError, apiClient: async () => { throw new Error('Unexpected transport'); } },
+    'react-router': { redirect: location => ({ location }) },
+  });
+  const { getSystemToolVisibility } = load(resolve(root, 'Dashboard/systemToolAccess.ts'));
+  for (const actor of [null, { ...session(), demoMode: true }]) {
+    assert.equal(Object.values(getSystemToolVisibility(actor, 'PLATFORM_ROOT')).some(Boolean), false);
+  }
+  const member = getSystemToolVisibility(session('CUSTOMER', 'user'));
+  assert.equal(Object.values(member).some(Boolean), false);
+  const admin = getSystemToolVisibility(session('CUSTOMER', 'admin'));
+  assert.equal(admin.subscription, true);
+  assert.equal(admin.platformAdmin, false);
+  assert.equal(admin.training, false);
+  const distributor = getSystemToolVisibility(session('DISTRIBUTOR', 'admin'));
+  assert.equal(distributor.subscription, true);
+  assert.equal(distributor.training, true);
+  assert.equal(distributor.platformAdmin, false);
+  const rootAccess = getSystemToolVisibility(session('SUPER_ADMIN', 'root'));
+  assert.equal(rootAccess.subscription, true);
+  assert.equal(rootAccess.platformAdmin, true);
+  assert.equal(rootAccess.training, true);
+  const viewer = getSystemToolVisibility(session('CUSTOMER', 'user'), 'PLATFORM_SUPPORT');
+  assert.equal(viewer.training, true);
+  assert.equal(viewer.subscription, false);
+  assert.equal(viewer.platformAdmin, false);
+  const platformRoot = getSystemToolVisibility(session('SUPER_ADMIN', 'admin'), 'PLATFORM_ROOT');
+  assert.equal(platformRoot.platformAdmin, true);
+  assert.equal(getSystemToolVisibility(session('SUPER_ADMIN', 'user'), 'PLATFORM_ROOT').platformAdmin, false);
 });

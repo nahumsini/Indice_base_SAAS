@@ -1,6 +1,9 @@
 import { useRef, type CSSProperties, type ReactNode, type Ref } from 'react';
 import { ChevronDown, MoreHorizontal } from 'lucide-react';
 import { FavoritesBar } from '../FavoritesBar';
+import { ModuleTabEmoji } from '../icons/ModuleTabEmoji';
+import { ModuleTabArtworkProvider } from '../icons/ModuleTabArtworkContext';
+import { hasOriginalModuleEmoji, OriginalModuleEmoji } from '../icons/OriginalModuleEmoji';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +19,8 @@ import { IndiceHorizontalScrollControls } from '../ui/horizontal-scroll-controls
 import { useWorkbarLayout } from '../workbar/WorkbarLayoutContext';
 
 const MODULE_EMOJI_BY_ROUTE: Record<string, string> = {
+  email: '✉️',
+  'sales-board': '📈',
   maintenance: '🔧',
   'minutes-control': '📝',
   scheduling: '📅',
@@ -98,7 +103,8 @@ export function IndiceModuleShell<TabId extends string>({
   const visibleMoreTabs = moreTabs.filter(canAccessTab);
   const activeTabData = [...visibleTabs, ...visibleMoreTabs].find((tab) => tab.id === activeTab);
   const isMoreActive = visibleMoreTabs.some((tab) => tab.id === activeTab);
-  const moduleEmoji = MODULE_EMOJI_BY_ROUTE[resolvedPage ?? currentModule] ?? '◈';
+  const moduleId = resolvedPage ?? currentModule;
+  const moduleEmoji = MODULE_EMOJI_BY_ROUTE[moduleId] ?? '◈';
   const tabsScrollRef = useRef<HTMLElement>(null);
 
   return (
@@ -114,7 +120,9 @@ export function IndiceModuleShell<TabId extends string>({
           <div className={`flex items-center gap-3 ${isSideLayout ? 'lg:flex-col lg:items-stretch' : ''}`}>
             <div className={`flex min-w-0 flex-1 items-center gap-2.5 md:max-w-[420px] md:flex-none ${isSideLayout ? 'lg:max-w-none lg:items-start' : ''}`}>
               <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-lg ring-1 ${theme.lightBg} ${theme.darkBg} ${theme.border} ${theme.darkBorder}`} aria-hidden="true">
-                {moduleEmoji}
+                {hasOriginalModuleEmoji(moduleId) ? (
+                  <OriginalModuleEmoji id={moduleId} className="size-7" />
+                ) : moduleEmoji}
               </span>
               <div className="min-w-0">
                 <div className={`flex min-w-0 items-center gap-1.5 text-lg font-medium leading-tight text-slate-950 dark:text-white sm:text-xl ${isSideLayout ? 'lg:flex-col lg:items-start lg:gap-1' : ''}`}>
@@ -122,7 +130,7 @@ export function IndiceModuleShell<TabId extends string>({
                   {activeTabData ? <span className={`text-slate-300 dark:text-slate-600 ${isSideLayout ? 'lg:hidden' : ''}`}>/</span> : null}
                   {activeTabData ? (
                     <span className={`flex min-w-0 items-center gap-1 ${theme.text} ${theme.darkText}`}>
-                      <span className="shrink-0 text-base" aria-hidden="true">{activeTabData.icon}</span>
+                      <span className="shrink-0 text-base" aria-hidden="true"><ModuleTabEmoji moduleId={moduleId} tabId={activeTabData.id} fallback={activeTabData.icon} className="size-4" /></span>
                       <span className="truncate">{activeTabData.label}</span>
                     </span>
                   ) : null}
@@ -175,7 +183,7 @@ export function IndiceModuleShell<TabId extends string>({
                         boxShadow: `0 8px 18px -12px ${theme.primary}`,
                       } : undefined}
                     >
-                      <span aria-hidden="true" className="text-base leading-none">{tab.icon}</span>
+                      <span aria-hidden="true" className="text-base leading-none"><ModuleTabEmoji moduleId={moduleId} tabId={tab.id} fallback={tab.icon} /></span>
                       <span>{tab.label}</span>
                     </button>
                   );
@@ -217,7 +225,7 @@ export function IndiceModuleShell<TabId extends string>({
                               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-base"
                               style={isActive ? { backgroundColor: theme.primary, color: activeTextColor } : undefined}
                             >
-                              {tab.icon}
+                              <ModuleTabEmoji moduleId={moduleId} tabId={tab.id} fallback={tab.icon} />
                             </span>
                             <span className={isActive ? `${theme.text} ${theme.darkText}` : undefined}>{tab.label}</span>
                           </DropdownMenuItem>
@@ -238,7 +246,9 @@ export function IndiceModuleShell<TabId extends string>({
         <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
           {guide ? <div className="mb-4">{guide}</div> : null}
           <div ref={contentRef} className="scroll-mt-24">
-            {children}
+            <ModuleTabArtworkProvider moduleId={moduleId} tabId={activeTab}>
+              {children}
+            </ModuleTabArtworkProvider>
           </div>
         </div>
       </main>

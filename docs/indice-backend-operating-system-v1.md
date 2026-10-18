@@ -23,6 +23,9 @@ This document governs general backend engineering. More specific approved contra
 
 - `docs/INDICE_PREMIUM_MULTITENANT_BILLING_ARCHITECTURE.md` for commercial multitenancy and billing;
 - `docs/kiosk-standard-engine-v2.md` for kiosks and public operational channels;
+- `docs/email-mailing-integration-contract-v1.md` for private Email accounts, SMTP/IMAP mailbox operations, individual send idempotency and the Sales sender owner projection;
+- `docs/sales-mailing-contract-v1.md` for the Sales Mailing draft pilot and its dedicated access boundary;
+- `docs/sales-funneling-contract-v1.md` for company-owned funnel planning, estimates and its isolated Sales permission;
 - `docs/messaging-and-customer-care-contract.md` for core messaging, participant isolation,
   customer care, durable notifications and support-only billing recovery;
 - `docs/sales-pos-ownership-and-retry-contract-v1.md` for Sales/POS ownership, checkout
@@ -814,3 +817,25 @@ idempotency, send/upload limits, audit and durable outbox remain there. No opera
 provider access are added. Responses use no-store and retain appropriate owner HTTP failure statuses.
 This extension requires no schema migration. Its authoritative domain contracts are
 `kiosk-standard-engine-v2.md` §34 and `messaging-and-customer-care-contract.md`.
+
+
+### Adopted SMTP/IMAP and Mailing completion owner extension — 2026-10-17
+
+The current section of [Email/Mailing integration](email-mailing-integration-contract-v1.md) owns
+V317/V318, private attachment intake, safe HTML, server Sent reconciliation, bounded background
+mail synchronization and CRM campaign dispatch. Sales uses CampaignEmailGateway; it never receives
+credentials. Native mailing_send permission, current owner/tenant access, versioned launch review,
+consent/suppression and durable send intent precede transport. The only public exception is POST
+`/api/public/mailing/unsubscribe`, authenticated by a narrow recipient HMAC capability, with durable
+rate limits, idempotency and audit. GET never unsubscribes. Public HTTPS configuration is mandatory
+for campaigns. SMTP/APPEND uncertainty is retained and never blindly retried.
+
+### Sales Board reporting owner extension — 2026-10-17
+
+The complementary `sales_board` read workspace consumes the typed Sales-owned projection of
+`sales_records` and its unique POS link, plus a narrow Finance-owned posting-evidence reader.
+The [Sales Board contract](./sales-board-contract-v1.md) defines tenant/organizational scope, native
+module/tab access, aggregation, period comparison and currency evidence. The extension creates
+no second sale ledger and does not change Sales/POS lifecycle, existing KPIs, accounting source
+identities, posting eligibility or Finance synchronization. Module registration is a pilot and grants
+no tenant/user access or pricing automatically.

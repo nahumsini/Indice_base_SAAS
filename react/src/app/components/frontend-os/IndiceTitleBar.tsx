@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { useModuleTabArtwork } from '../icons/ModuleTabArtworkContext';
+import { ModuleTabEmoji } from '../icons/ModuleTabEmoji';
 import { LearningModeTitleBarBridge } from '../../learningMode';
 import { MODULE_COLORS, type IndiceModuleTone } from '../../styles/moduleColors';
 import { cn } from '../ui/utils';
@@ -24,6 +26,7 @@ export function IndiceTitleBar({
   tone,
 }: IndiceTitleBarProps) {
   const theme = MODULE_COLORS[tone];
+  const tabArtwork = useModuleTabArtwork();
   const actionLayout = actions ? (
     <div className="grid w-full grid-cols-1 gap-3 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end">
       {actions}
@@ -49,7 +52,9 @@ export function IndiceTitleBar({
               theme.text,
               theme.darkText,
             )} aria-hidden="true">
-              {icon}
+              {tabArtwork ? (
+                <ModuleTabEmoji moduleId={tabArtwork.moduleId} tabId={tabArtwork.tabId} fallback={icon} className="size-8" />
+              ) : icon}
             </span>
             <div className="min-w-0">
               {eyebrow ? (

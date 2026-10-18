@@ -30,7 +30,8 @@ const signup = read("src/app/Auth/SignupPage.tsx");
 test("billing es una pantalla real del ERP y no una ruta paralela", () => {
   assert.match(app, /currentPage === ['"]billing['"]/);
   assert.match(app, /<SubscriptionManagementPage/);
-  assert.match(header, /navigate\(['"]\/billing['"]\)/);
+  assert.match(read("src/app/Dashboard/components/SystemToolsSection.tsx"), /navigate\(['"]\/billing['"]\)/);
+  assert.doesNotMatch(header, /navigate\(['"]\/billing['"]\)/);
   assert.match(page, /BillingHero/);
 });
 

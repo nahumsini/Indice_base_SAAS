@@ -1,3 +1,4 @@
+import { ModalHeaderEmoji } from '../../../../components/icons/ModalHeaderEmoji';
 import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
 import {
   CalendarDays,
@@ -375,7 +376,7 @@ export function ProcessFormDialog({
           <div className="flex items-center justify-between gap-4">
             <div className="pr-4">
               <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-white sm:text-[1.4rem]">
-                {mode === 'create' ? <Plus className="h-5 w-5" /> : <Save className="h-5 w-5" />}
+                <ModalHeaderEmoji icon={mode === 'create' ? <Plus className="h-5 w-5" /> : <Save className="h-5 w-5" />} className="size-6" />
                 {title}
               </DialogTitle>
             </div>

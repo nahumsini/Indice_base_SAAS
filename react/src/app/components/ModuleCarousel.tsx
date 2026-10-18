@@ -5,12 +5,14 @@ interface ModuleCarouselProps {
   children: ReactNode;
   gridClasses?: string;
   singleRow?: boolean;
+  dashboardSpacing?: boolean;
 }
 
 export function ModuleCarousel({
   children,
   gridClasses = 'grid-cols-[repeat(auto-fit,140px)]',
   singleRow = false,
+  dashboardSpacing = false,
 }: ModuleCarouselProps) {
   const fluidGap = 'gap-[clamp(1rem,1.7vw,1.75rem)]';
   const singleRowScrollRef = useRef<HTMLDivElement>(null);
@@ -18,7 +20,7 @@ export function ModuleCarousel({
   // Single-row mode: horizontal carousel on every viewport.
   if (singleRow) {
     return (
-      <div className="relative -mx-1">
+      <div className={`relative -mx-1 ${dashboardSpacing ? '-mb-4' : ''}`}>
         <div ref={singleRowScrollRef} className="overflow-x-auto px-1 pb-4 scrollbar-hide">
           <div
             className={`grid auto-cols-[140px] grid-flow-col justify-start ${fluidGap} snap-x snap-mandatory`}
@@ -26,7 +28,11 @@ export function ModuleCarousel({
             {children}
           </div>
         </div>
-        <IndiceHorizontalScrollControls scrollRef={singleRowScrollRef} />
+        <IndiceHorizontalScrollControls
+          scrollRef={singleRowScrollRef}
+          className={dashboardSpacing ? 'bottom-4' : undefined}
+          buttonClassName={dashboardSpacing ? 'shadow-md' : undefined}
+        />
       </div>
     );
   }
@@ -35,7 +41,7 @@ export function ModuleCarousel({
   return (
     <>
       {/* Mobile carousel (< md) */}
-      <div className="md:hidden overflow-x-auto scrollbar-hide pb-4 -mx-4 px-4 sm:-mx-6 sm:px-6">
+      <div className={`md:hidden overflow-x-auto scrollbar-hide pb-4 -mx-4 px-4 sm:-mx-6 sm:px-6 ${dashboardSpacing ? '-mb-4' : ''}`}>
         <div className={`grid auto-cols-[140px] grid-flow-col ${fluidGap} snap-x snap-mandatory`}>
           {children}
         </div>

@@ -1,3 +1,4 @@
+import { ModalHeaderEmoji } from '../icons/ModalHeaderEmoji';
 import { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../shared/context';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
@@ -474,7 +475,7 @@ export function ColumnasConfigModal({
                     ? 'border border-[#222831]/15 bg-white/25 text-[#222831]'
                     : 'bg-white/15 text-white',
               )}>
-                <Columns3 className="h-5 w-5" />
+                <ModalHeaderEmoji icon={<Columns3 className="h-5 w-5" />} />
               </span>
               <div className="min-w-0">
                 <h2 className={cn('pr-4 text-xl font-semibold leading-tight tracking-tight', usesDarkHeaderText ? 'text-[#222831]' : 'text-white')} aria-hidden="true">

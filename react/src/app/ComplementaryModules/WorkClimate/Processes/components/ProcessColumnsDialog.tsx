@@ -1,3 +1,4 @@
+import { ModalHeaderEmoji } from '../../../../components/icons/ModalHeaderEmoji';
 import { Columns3, Eye, EyeOff, X } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { Checkbox } from '../../../../components/ui/checkbox';
@@ -66,7 +67,7 @@ export function ProcessColumnsDialog({
           <div className="flex items-center justify-between gap-4">
             <div className="pr-4">
               <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-white">
-                <Columns3 className="h-5 w-5" />
+                <ModalHeaderEmoji icon={<Columns3 className="h-5 w-5" />} />
                 Manage Columns
               </DialogTitle>
             </div>

@@ -1,5 +1,7 @@
 import { useRef, type CSSProperties } from 'react';
 import { FavoritesBar } from '../../../components/FavoritesBar';
+import { OriginalModuleEmoji } from '../../../components/icons/OriginalModuleEmoji';
+import { ModuleTabEmoji } from '../../../components/icons/ModuleTabEmoji';
 import { IndiceHorizontalScrollControls } from '../../../components/ui/horizontal-scroll-controls';
 import { useWorkbarLayout } from '../../../components/workbar/WorkbarLayoutContext';
 
@@ -45,7 +47,7 @@ export function PanelInicialHeader({
           <div className={`flex min-w-0 flex-1 items-center justify-between gap-3 md:max-w-[420px] md:flex-none ${isSideLayout ? 'lg:max-w-none lg:items-start' : ''}`}>
             <div className="flex min-w-0 items-center gap-2.5">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-lg ring-1 ring-blue-100 dark:bg-blue-900/30 dark:ring-blue-800" aria-hidden="true">
-                🏠
+                <OriginalModuleEmoji id="home-panel" className="size-7" />
               </span>
               <div className="min-w-0">
                 <div className={`flex min-w-0 items-center gap-1.5 text-lg font-medium leading-tight text-[var(--indice-graphite)] dark:text-white sm:text-xl ${isSideLayout ? 'lg:flex-col lg:items-start lg:gap-1' : ''}`}>
@@ -53,7 +55,7 @@ export function PanelInicialHeader({
                   {activeTab ? <span className={`text-slate-300 dark:text-slate-600 ${isSideLayout ? 'lg:hidden' : ''}`}>/</span> : null}
                   {activeTab ? (
                     <span className="flex min-w-0 items-center gap-1 text-[var(--indice-blue)]">
-                      <span className="shrink-0 text-base" aria-hidden="true">{activeTab.emoji}</span>
+                      <span className="shrink-0 text-base" aria-hidden="true"><ModuleTabEmoji moduleId="home-panel" tabId={activeTab.id} fallback={activeTab.emoji} className="size-4" /></span>
                       <span className="truncate">{activeTab.label}</span>
                     </span>
                   ) : null}
@@ -105,7 +107,7 @@ export function PanelInicialHeader({
                     }`}
                     onClick={() => onTabSelect(tab.id)}
                   >
-                    <span aria-hidden="true">{tab.emoji}</span>
+                    <span aria-hidden="true"><ModuleTabEmoji moduleId="home-panel" tabId={tab.id} fallback={tab.emoji} /></span>
                     <span>{tab.label}</span>
                   </button>
                 );

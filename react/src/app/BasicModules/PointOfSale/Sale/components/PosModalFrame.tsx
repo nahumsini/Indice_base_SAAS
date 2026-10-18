@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { X } from 'lucide-react';
+import { ModalHeaderEmoji } from '../../../../components/icons/ModalHeaderEmoji';
 import { IndiceModalFooter } from '../../../../components/indice-modal';
 import {
   Dialog,
@@ -132,7 +133,7 @@ export function PosModalFrame({
         <header className={cn('flex shrink-0 items-center justify-between gap-3 px-5 py-3 text-left', toneClasses.header)}>
           <div className="flex min-w-0 items-center gap-3">
             <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border shadow-sm', toneClasses.icon)} aria-hidden="true">
-              {icon}
+              <ModalHeaderEmoji icon={icon} />
             </span>
             <div className="min-w-0 flex-1">
               {eyebrow ? <p className={cn('text-[11px] font-medium leading-4', toneClasses.eyebrow)}>{eyebrow}</p> : null}
@@ -195,7 +196,7 @@ export function PosModalFrame({
           <DialogHeader className={cn('shrink-0 px-5 py-4 text-left sm:px-6', toneClasses.header)}>
             <div className="flex min-w-0 items-start gap-3 pr-14">
               <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border shadow-sm', toneClasses.icon)} aria-hidden="true">
-                {icon}
+                <ModalHeaderEmoji icon={icon} />
               </span>
               <div className="min-w-0 flex-1">
                 {eyebrow ? <p className={cn('mb-1 text-xs font-medium leading-5 tracking-normal', toneClasses.eyebrow)}>{eyebrow}</p> : null}

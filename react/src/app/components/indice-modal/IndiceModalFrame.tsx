@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from '../ui/dialog';
 import { cn } from '../ui/utils';
+import { ModalHeaderEmoji } from '../icons/ModalHeaderEmoji';
 import { IndiceModalFooter, type IndiceModalFooterTone } from './IndiceModalFooter';
 import { useLanguage } from '../../shared/context';
 
@@ -29,6 +30,7 @@ export type IndiceModalFrameProps = {
   footerLeading?: ReactNode;
   footerSummary?: ReactNode;
   icon: ReactNode;
+  iconPresentation?: 'emoji' | 'original';
   modalType?: IndiceModalType;
   onOpenChange: (open: boolean) => void;
   open: boolean;
@@ -110,6 +112,7 @@ export function IndiceModalFrame({
   footerLeading,
   footerSummary,
   icon,
+  iconPresentation = 'emoji',
   modalType = 'standard-form',
   onOpenChange,
   open,
@@ -158,7 +161,7 @@ export function IndiceModalFrame({
         <DialogHeader className={cn('shrink-0 gap-0 px-6 py-4 pr-20 text-left', styles.header)}>
           <div className="flex min-w-0 items-start gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-current/10 bg-white/15 shadow-sm" aria-hidden="true">
-              {icon}
+              {iconPresentation === 'original' ? icon : <ModalHeaderEmoji icon={icon} />}
             </span>
             <div className="min-w-0 flex-1">
               {eyebrow ? <p className={cn('mb-0.5 text-xs font-medium tracking-normal', styles.description)}>{eyebrow}</p> : null}

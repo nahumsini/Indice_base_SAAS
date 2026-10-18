@@ -20,6 +20,14 @@ class ModuleEntitlementInterceptorTest {
     private final ModuleEntitlementInterceptor interceptor =
         new ModuleEntitlementInterceptor(entitlementService, new ObjectMapper());
 
+    @Test void salesBoardHasItsOwnEntitlementInsteadOfMatchingTheCrmPrefix() throws Exception {
+        var request = new MockHttpServletRequest("GET", "/api/v1/sales-board");
+        request.getSession(true).setAttribute(SessionAuthService.SESSION_COMPANY_ID, 20L);
+        given(entitlementService.hasActiveEntitlement(20L, "sales_board")).willReturn(true);
+        assertTrue(interceptor.preHandle(request, new MockHttpServletResponse(), new Object()));
+        verify(entitlementService, never()).hasActiveEntitlement(20L, "crm");
+    }
+
     @Test
     void blocksModuleApiWhenCompanyDoesNotHaveEntitlement() throws Exception {
         var request = new MockHttpServletRequest("GET", "/api/v1/hr/users");
