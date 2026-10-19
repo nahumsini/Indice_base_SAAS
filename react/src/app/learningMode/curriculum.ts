@@ -24,7 +24,9 @@ const definitions: Record<string, readonly [string, number]> = {
 };
 function chapter(module: string, tab: string, label: LearningText, steps: readonly LearningText[], evidenceTools: readonly string[] = []): LearningChapter {
   const [pageId, stage] = definitions[module];
-  return { id: `${module}.${tab}`, module, tab, version: ["expenses","petty_cash"].includes(module) ? 3 : 2, pageId, stage, label, steps, evidenceTools,
+  const version = ["expenses", "petty_cash"].includes(module)
+    || (module === 'human_resources' && ['control', 'attendance'].includes(tab)) ? 3 : 2;
+  return { id: `${module}.${tab}`, module, tab, version, pageId, stage, label, steps, evidenceTools,
     companion: module !== 'config_center' && !(module === 'pos' && tab === 'sale'),
     journey: !(module === 'pos' && tab === 'sale') };
 }
@@ -191,12 +193,12 @@ export const learningChapters: readonly LearningChapter[] = [
   ], ['create_employee', 'update_employee', 'import_employees', 'attach_employee_document']),
   chapter('human_resources', 'control', ['Horarios, ubicaciones y acceso', 'Schedules, locations and access'], [
     ['Define horarios, descansos, ubicaciones y el alcance del kiosco antes de asignar personas.', 'Define schedules, rest days, locations and kiosk scope before assigning people.'],
-    ['Asigna horarios y sitios con sus fechas vigentes; configura kiosco individual o multikiosco según la operación y prepara el acceso desde RH.', 'Assign schedules and work sites with effective dates; configure individual or multiuser kiosks for the operation and prepare access in HR.'],
+    ['Asigna horarios y sitios con sus fechas vigentes; configura kiosco individual o multikiosco según la operación. El kiosco personal respeta esas asignaciones: un horario abierto sin sitio obligatorio conserva la política de ubicación configurada.', 'Assign schedules and work sites with effective dates; configure individual or multiuser kiosks for the operation. The personal kiosk respects those assignments: an open schedule without a required site retains the configured location policy.'],
     ['Comprueba el calendario y las asignaciones. Los cambios no reescriben marcaciones previas; PIN, biometría y credenciales físicas se administran en sus pantallas autorizadas, no en el chat.', 'Check the calendar and assignments. Changes do not rewrite previous attendance events; PINs, biometrics and physical credentials are managed in authorized screens, not in chat.'],
   ], ['create_hr_schedule', 'assign_hr_schedule', 'assign_hr_work_site', 'assign_hr_rest_days']),
   chapter('human_resources', 'attendance', ['Asistencia y calendario', 'Attendance and calendar'], [
     ['Elige fecha y alcance permitido. Distingue registros propios de la administración de asistencia.', 'Choose a date and authorized scope. Distinguish personal records from attendance administration.'],
-    ['Consulta calendario, marcaciones e incidencias. Revisa horario, descanso y permiso antes de interpretar una ausencia.', 'Review calendar, attendance events and exceptions. Check schedule, rest days and leave before interpreting an absence.'],
+    ['Consulta calendario, marcaciones e incidencias; revisa horario, descanso y permiso antes de interpretar una ausencia. Para registrar asistencia personal, completa foto y GPS: obtener la ubicación no confirma que esté permitida; el servidor aplica el horario y sitio vigentes.', 'Review calendar, attendance events and exceptions; check schedule, rest days and leave before interpreting an absence. To record personal attendance, complete photo and GPS: obtaining a location does not confirm it is allowed; the server applies the effective schedule and work site.'],
     ['Corrige solo desde la función autorizada y conserva motivo y evidencia. Pendiente o sin horario no equivale a ausencia; el agente no obtiene fotografías biométricas ni coordenadas.', 'Correct only through the authorized function and preserve reason and evidence. Pending or unscheduled does not mean absent; the agent does not obtain biometric photos or coordinates.'],
   ]),
   chapter('human_resources', 'permissions', ['Solicitudes y permisos laborales', 'Leave requests and approvals'], [

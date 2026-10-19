@@ -61,6 +61,8 @@ Changed areas:
 - `KioskPublicV2ExceptionHandler` and its controller regression tests.
 - Attendance location and personal-punch integration regressions.
 - Kiosk GPS status translations and the canonical kiosk contract.
+- Reviewed bilingual RH learning chapters and their generated catalog, explaining
+  the effective location policy and the difference between GPS acquisition and approval.
 
 Preserved: routes, tenant and actor authority, owner policy and allowed-site sources, photo upload
 validation, explicit-site restrictions, check-in/check-out persistence, and public
@@ -83,6 +85,14 @@ response envelope. Schema changes: N/A. Production configuration changes: N/A.
 - 81 frontend kiosk regressions pass; TypeScript and production frontend build pass.
   The build retains its existing large-chunk warning.
 - `git diff --check` passes.
+- 35 learning regressions and a fresh TypeScript check pass. The learning catalog
+  owner-digest check initially detected the changed attendance owner; the affected
+  chapters were reviewed, versioned, regenerated and the check now passes.
+- All 16 deployment recovery regressions pass after reclaiming only unmounted,
+  regenerable dependency directories. The first remote preflight correctly stopped
+  below its minimum free-disk threshold. No business data, backups or runtime images
+  were removed. A superseded preflight was stopped before backend tests to validate
+  the final catalog-bearing candidate instead; its disposable database was removed.
 
 An initial test fixture tried to mock a final dependency record and failed before
 testing the resolver. The fixture now constructs that record; subsequent runs pass.

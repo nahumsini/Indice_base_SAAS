@@ -36,8 +36,8 @@ Generated from the reviewed bilingual curriculum. Domain owners remain authorita
 | config_center.consulting | 1 | home-panel/consulting | 2 | Understanding only until an owner completion is integrated |
 | config_center.integrations | 1 | home-panel/integrations | 2 | Understanding only until an owner completion is integrated |
 | human_resources.collaborators | 2 | human-resources/collaborators | 2 | create_employee, update_employee, import_employees, attach_employee_document |
-| human_resources.control | 2 | human-resources/control | 2 | create_hr_schedule, assign_hr_schedule, assign_hr_work_site, assign_hr_rest_days |
-| human_resources.attendance | 2 | human-resources/attendance | 2 | Understanding only until an owner completion is integrated |
+| human_resources.control | 2 | human-resources/control | 3 | create_hr_schedule, assign_hr_schedule, assign_hr_work_site, assign_hr_rest_days |
+| human_resources.attendance | 2 | human-resources/attendance | 3 | Understanding only until an owner completion is integrated |
 | human_resources.permissions | 2 | human-resources/permissions | 2 | create_my_hr_permission, approve_hr_permission, reject_hr_permission |
 | human_resources.payroll | 2 | human-resources/payroll | 2 | prepare_hr_payroll, approve_hr_payroll |
 | human_resources.announcements | 2 | human-resources/announcements | 2 | create_announcement, update_announcement, mark_announcement_read |
