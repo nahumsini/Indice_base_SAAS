@@ -78,7 +78,7 @@ export const koCA = {
   photoHint: '얼굴을 중앙에 선명하게 맞추세요.',
   captureLocation: 'GPS 위치 캡처',
   refreshLocation: '위치 새로고침',
-  locationReady: '위치 준비됨',
+  locationReady: 'GPS 위치 수신됨',
   locationPending: 'GPS 위치가 필요합니다.',
   locationRequiredHint: '출근 또는 퇴근 등록 전에 이 기기에서 GPS 위치를 허용하세요.',
   readyToPunch: '기록 준비됨.',

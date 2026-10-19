@@ -80,7 +80,7 @@ export const esMX = {
   photoHint: 'Mantén el rostro centrado y con buena iluminación.',
   captureLocation: 'Permitir ubicación',
   refreshLocation: 'Actualizar ubicación',
-  locationReady: 'Ubicación confirmada',
+  locationReady: 'Ubicación GPS obtenida',
   locationPending: 'Ubicación GPS requerida.',
   locationRequiredHint: 'Permite la ubicación GPS en este dispositivo antes de registrar entrada o salida.',
   readyToPunch: 'Listo para registrar.',

@@ -1,10 +1,15 @@
 package com.indice.erp.hr.attendance.usecases.events;
 
 import com.indice.erp.hr.attendance.models.AttendanceUser;
+import com.indice.erp.hr.attendance.models.AttendanceHrUser;
+import com.indice.erp.hr.attendance.models.LocationRow;
 import com.indice.erp.hr.attendance.usecases.support.AttendanceDependencies;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import org.springframework.transaction.annotation.Transactional;
 
 import static com.indice.erp.hr.attendance.AttendanceSchedulePolicy.resolveEffectiveStatus;
@@ -44,7 +49,8 @@ public abstract class HrAttendanceSelfKioskEventUseCases extends HrAttendanceAdm
         var requestedLocationId = parseLong(payload, "location_id");
         var photoObjectKey = attendancePhotoService.normalizeUserAttendancePhotoObjectKey(companyId, user.userId(), stringValue(payload, "photo_url"));
         var attendanceDate = resolveUserOperationalAttendanceDate(companyId, user.userId(), eventTimestamp, eventKind);
-        var location = resolveUserAttendanceLocation(companyId, requestedLocationId, latitude, longitude);
+        var location = resolvePersonalAttendanceLocation(
+            companyId, user, attendanceDate, eventKind, requestedLocationId, latitude, longitude);
         validateUserOperationalEventTransition(companyId, user.userId(), attendanceDate, eventTimestamp, eventKind);
 
         var metadataJson = mergeMetadataJson(
@@ -63,7 +69,7 @@ public abstract class HrAttendanceSelfKioskEventUseCases extends HrAttendanceAdm
             eventType,
             eventTimestamp,
             attendanceDate,
-            location.id(),
+            location == null ? null : location.id(),
             null,
             latitude,
             longitude,
@@ -94,5 +100,24 @@ public abstract class HrAttendanceSelfKioskEventUseCases extends HrAttendanceAdm
         result.put("active_work_site", null);
         result.put("photo_object_key", photoObjectKey);
         return result;
+    }
+
+    private LocationRow resolvePersonalAttendanceLocation(
+            long companyId, AttendanceUser user, LocalDate date, String eventKind,
+            Long requestedLocationId, BigDecimal latitude, BigDecimal longitude) {
+        AttendanceHrUser employee;
+        try {
+            employee = attendanceUserLookupService.resolveLinkedAttendanceUser(companyId, user.userId());
+        } catch (NoSuchElementException noLinkedEmployee) {
+            return resolveUserAttendanceLocation(companyId, requestedLocationId, latitude, longitude);
+        }
+        var scheduleRule = loadScheduleRule(companyId, employee.id(), date);
+        var workSite = loadActiveWorkSiteAssignment(companyId, employee.id(), date);
+        if (scheduleRule == null && workSite == null) {
+            return resolveUserAttendanceLocation(companyId, requestedLocationId, latitude, longitude);
+        }
+        // Use RH's server-owned policy; client fields never grant open attendance.
+        return resolveScheduleRegistrationLocation(companyId, employee, scheduleRule, eventKind,
+            requestedLocationId, latitude, longitude, workSite);
     }
 }

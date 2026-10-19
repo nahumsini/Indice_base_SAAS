@@ -78,7 +78,7 @@ export const frCA = {
   photoHint: 'Gardez le visage centre et clair.',
   captureLocation: 'Capturer la localisation GPS',
   refreshLocation: 'Actualiser la localisation',
-  locationReady: 'Localisation prete',
+  locationReady: 'Position GPS obtenue',
   locationPending: 'Localisation GPS requise.',
   locationRequiredHint: 'Autorisez la localisation GPS sur cet appareil avant d enregistrer l entree ou la sortie.',
   readyToPunch: 'Pret a enregistrer.',
