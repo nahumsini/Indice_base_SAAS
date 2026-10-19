@@ -475,6 +475,14 @@ Dev override adds:
 
 Some VPS/cPanel environments cannot reliably reach Docker bridge published ports from Apache/Nginx on the host. In that case, run the public web container, backend, and MinIO with host networking while still reading the environment dedicated to that deployment.
 
+The active 2026-10-19 production and APPTEST releases have separate protected environment
+files, source directories and compatible recovery images. Use the exact operational paths in
+the [production activation record](../docs/validation/2026-10-19-production-activation.md) or
+[APPTEST refresh record](../docs/validation/2026-10-19-apptest-refresh.md) for subsequent
+operations. Older path examples and the historical APPTEST Compose setup describe
+deployment patterns; they are not the current runtime configuration. Never replace either
+environment with the other's file or regenerate its mail-account encryption key.
+
 Before running the command, build or pull images tagged with the exact Git commit. Production rejects mutable application tags such as `latest`:
 
 ```bash
