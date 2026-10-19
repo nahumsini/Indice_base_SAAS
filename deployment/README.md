@@ -477,7 +477,7 @@ Some VPS/cPanel environments cannot reliably reach Docker bridge published ports
 
 The active 2026-10-19 production and APPTEST releases have separate protected environment
 files, source directories and compatible recovery images. Use the exact operational paths in
-the [production activation record](../docs/validation/2026-10-19-production-activation.md) or
+the [attendance hotfix activation record](../docs/validation/2026-10-19-attendance-activation.md) or
 [APPTEST refresh record](../docs/validation/2026-10-19-apptest-refresh.md) for subsequent
 operations. Older path examples and the historical APPTEST Compose setup describe
 deployment patterns; they are not the current runtime configuration. Never replace either

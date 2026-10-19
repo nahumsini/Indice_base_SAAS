@@ -75,6 +75,13 @@ The finding remains unresolved; the exception does not change provider authority
 cover other secrets/incidents or waive any other gate. It expires with this release
 attempt and its observation window.
 
+For attendance hotfix `aaa23d66ac735b271605ee5632f2b16dae4c4b55`, the owner separately
+authorized publication while keeping that historical Stripe TEST-key revocation
+pending, under [the attendance hotfix decision](decisions/2026-10-19-attendance-hotfix-stripe-deferral.md).
+This replaces only that blocker for this hotfix activation and observation; it does
+not resolve the finding, alter provider authority, waive another gate or authorize
+a subsequent release.
+
 For the 2026-10-06 release, the owner's later explicit instruction to review directly in production
 replaces only the human-UAT location/timing, as recorded in the
 [bounded production-acceptance decision](decisions/2026-10-06-owner-production-acceptance.md).

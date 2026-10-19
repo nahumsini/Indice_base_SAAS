@@ -1,7 +1,7 @@
 # Multikiosk attendance investigation — 2026-10-19
 
-Status: cause identified; focused candidate validation passed; not deployed. This report does
-not replace production acceptance or authorize a release.
+Status: deployed in production; post-activation checks and five-minute observation passed.
+The owner's real attendance retry remains pending. See the [activation record](2026-10-19-attendance-activation.md).
 
 ## Report and evidence
 
@@ -97,10 +97,44 @@ response envelope. Schema changes: N/A. Production configuration changes: N/A.
 An initial test fixture tried to mock a final dependency record and failed before
 testing the resolver. The fixture now constructs that record; subsequent runs pass.
 The baseline regression failure above is intentional evidence of the fixed defect.
+A learning-copy draft initially exceeded the existing three-step chapter contract;
+its regression rejected it. The wording now fits the three existing steps, and all
+35 learning tests pass without changing that contract.
 
 ## Remaining work
 
-Complete candidate verification and the release checks, then verify the owner's
-real production flow after activation. No release, agent-generated real punch,
-customer notification, or production incident resolution is claimed. Any deployment must independently
-follow the current release and rollback requirements.
+Verify the owner's real attendance flow after activation. No agent-generated real punch or customer notification was performed.
+Automated verification does not establish acceptance of the physical photo/GPS flow.
+
+## Prepared production candidate
+
+- Application source: `aaa23d66ac735b271605ee5632f2b16dae4c4b55`, pushed as
+  `fix/multikiosk-attendance-20261019`. The original dirty workspace remains intact.
+- CI: https://github.com/nahumsini/Indice_base_SAAS/actions/runs/39317963496 (PASS).
+- Full preflight with the real protected production environment passed. The isolated
+  backend suite completed 3,714 tests: zero failures/errors and one existing optional
+  skip. Its disposable MySQL container and volume were removed.
+- Immutable backend: `indice-erp-backend:aaa23d66ac73`,
+  `sha256:20b5d655820781a6fb1e7ad9d7a73ecdca883caa3a20064537e26c45faaa5c42`.
+- Immutable web: `indice-erp-web:aaa23d66ac73`,
+  `sha256:c123b5c9a7287d3fe90c0b28f46580096fe44bac4407a4ea3de9d5c171961648`.
+- Source and both images have zero secret findings. Web has no HIGH/CRITICAL
+  dependency findings. Backend retains the same two conditional Spring MVC findings
+  assessed in the prior release; the XSLT/Spring SSE rendering preconditions remain
+  absent, dependencies are unchanged, and `MvcViewExposureRegressionTest` passes.
+  These findings are triaged, not claimed patched.
+- A fresh SQL/object/environment backup was verified at
+  `/root/indice-attendance-release-20261019/backups/production-20261019T201920Z`.
+  All checksums and both archive integrity checks pass.
+- The exact production dry run passed without replacing containers. The prepared
+  environment changes only backend/web image references. Schema V331 and all
+  provider settings remain unchanged; the current `3df8e17dd380` backend is compatible
+  recovery, with its existing web/MCP/MinIO containers retained by the release wrapper.
+- Private evidence is under `/root/indice-attendance-release-20261019`. Only unused
+  regenerable build cache and unmounted dependency directories were reclaimed for
+  capacity; no runtime image, database/object volume, or backup was removed.
+
+The owner separately authorized this exact attendance hotfix while retaining the
+historical Stripe TEST-key revocation as pending. The [new bounded decision](../decisions/2026-10-19-attendance-hotfix-stripe-deferral.md)
+does not reopen the prior expired exception or resolve the finding. Activation and
+remaining acceptance are recorded in the linked deployment report.
