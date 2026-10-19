@@ -26,7 +26,31 @@ export interface NotificationsResponse {
   summary: NotificationsSummary;
 }
 
+export interface NotificationPreference {
+  module: string;
+  eventType: string;
+  enabled: boolean;
+}
+export interface NotificationPreferences {
+  version: number;
+  quietMode: boolean;
+  items: NotificationPreference[];
+}
+export interface NotificationPreferenceChange {
+  version: number;
+  quietMode?: boolean;
+  items?: NotificationPreference[];
+}
+
 export const notificationsApi = {
+  preferences() {
+    return apiClient<NotificationPreferences>(`${endpoints.notifications.list}/preferences`);
+  },
+  savePreferences(change: NotificationPreferenceChange) {
+    return apiClient<NotificationPreferences>(`${endpoints.notifications.list}/preferences`, {
+      method: 'PUT', body: JSON.stringify(change),
+    });
+  },
   list() {
     return apiClient<NotificationsResponse>(endpoints.notifications.list);
   },

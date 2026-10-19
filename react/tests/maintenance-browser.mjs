@@ -165,7 +165,7 @@ try {
         },
       ]);
     if (path.startsWith("/api/v1/workspace-state/"))
-      return ok({ state: {}, schemaVersion: 1 });
+      return ok({state:req.method()==='PUT'?req.postDataJSON().state:{},schemaVersion:1});
     if (path === "/api/v1/learning/progress")
       return ok({
         catalogVersion: "synthetic",

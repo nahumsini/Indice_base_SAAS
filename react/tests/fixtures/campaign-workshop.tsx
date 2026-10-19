@@ -1,0 +1,23 @@
+import { useEffect, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { BrowserRouter } from 'react-router';
+import { LanguageProvider } from '../../src/app/context/LanguageContext';
+import '../../src/styles/index.css';
+import Funneling from '../../src/app/BasicModules/Sales/Funneling/Funneling';
+import { funnelApi } from '../../src/app/BasicModules/Sales/Funneling/funnelApi';
+import { newCampaignIdea } from '../../src/app/BasicModules/Sales/Funneling/campaignModel';
+import { previewConversion, type FunnelPlan } from '../../src/app/BasicModules/Sales/Funneling/funnelModel';
+import { ApiClientError } from '../../src/app/lib/apiClient';
+import { authApi } from '../../src/app/api/auth';
+import { workspaceStateApi } from '../../src/app/api/workspaceState';
+authApi.getSessionOrNull=async()=>({company:{id:-7},user:{id:-7}} as never);
+workspaceStateApi.get=async()=>({state:{},schemaVersion:1} as never);workspaceStateApi.save=async(_m,_t,state)=>({state,schemaVersion:1});
+const initial=newCampaignIdea();initial.name='Servicio de consultoría · ejemplo';initial.workshop!.idea='Quiero explicar mis servicios y recibir solicitudes de información.';
+let rows:FunnelPlan[]=[{...initial,id:'00000000-0000-4000-8000-000000000001',version:1,updatedAt:new Date().toISOString(),estimatedConversion:null,stageEstimates:[]}];
+rows.push({...initial,id:'00000000-0000-4000-8000-000000000002',name:'Funnel anterior · ejemplo',workshop:null,objective:'Solicitar una asesoría',audience:'Empresas de servicios',channel:'SOCIAL',version:4,updatedAt:new Date().toISOString(),estimatedConversion:10,stageEstimates:[{estimatedAdvance:null},{estimatedAdvance:20},{estimatedAdvance:50}],stages:[{name:'Descubrir',action:'Ver publicaciones',measure:'Personas alcanzadas',target:1000},{name:'Conversar',action:'Pedir información',measure:'Conversaciones',target:200},{name:'Agendar',action:'Reservar una cita',measure:'Reservas',target:100}]});
+let fail=false;
+funnelApi.list=async query=>{const search=(query.get('search')??'').toLowerCase(),status=query.get('status');const items=rows.filter(row=>(!status||status==='ALL'||row.status===status)&&[row.name,row.objective,row.workshop?.idea].some(s=>s?.toLowerCase().includes(search)));return structuredClone({items,total:items.length,page:1,pageSize:Number(query.get('pageSize'))||25});};
+funnelApi.save=async(id,input)=>{if(fail){fail=false;throw new Error('Synthetic save failure');}const existing=rows.find(row=>row.id===id);if(existing&&existing.version!==input.version)throw new ApiClientError('conflict',409);const value={...structuredClone(input),id,version:input.version+1,updatedAt:new Date().toISOString(),estimatedConversion:previewConversion(input.stages),stageEstimates:input.stages.map(()=>({estimatedAdvance:null}))};rows=[value,...rows.filter(row=>row.id!==id)];return structuredClone(value);};
+funnelApi.get=async id=>structuredClone(rows.find(row=>row.id===id)!);
+function Fixture(){const [dark,setDark]=useState(false);useEffect(()=>{document.documentElement.classList.toggle('dark',dark);return()=>document.documentElement.classList.remove('dark');},[dark]);return <div><div className="min-h-dvh bg-slate-50 p-4 text-slate-900 dark:bg-slate-950 dark:text-slate-100"><header className="mb-4 flex flex-wrap justify-between gap-3 text-sm"><span>Prueba aislada · datos sintéticos en memoria</span><div className="flex gap-4"><button onClick={()=>setDark(!dark)}>Cambiar tema</button><button onClick={()=>{fail=true;}}>Simular error de guardado</button></div></header><Funneling/></div></div>;}
+createRoot(document.getElementById('root')!).render(<BrowserRouter><LanguageProvider><Fixture/></LanguageProvider></BrowserRouter>);

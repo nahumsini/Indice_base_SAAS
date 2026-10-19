@@ -20,6 +20,12 @@ public class NotificationApiExceptionHandler {
         return ResponseEntity.status(404).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<?> handleStatus(org.springframework.web.server.ResponseStatusException ex) {
+        var code = ex.getReason() == null ? "notification_request_failed" : ex.getReason();
+        return ResponseEntity.status(ex.getStatusCode()).body(Map.of("code", code, "message", code));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<?> handleBadRequest(IllegalArgumentException ex) {
         return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));

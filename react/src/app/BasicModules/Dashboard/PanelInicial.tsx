@@ -1,6 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMobileModuleNavigation } from '../../components/frontend-os/useMobileModuleNavigation';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
+import { useIntegrationSection } from './Integrations/useIntegrationSection';
+import { getIntegrationsTranslations } from './Integrations/translations';
+import { IndiceEmoji } from '../../components/icons/ModuleTabEmoji';
 import { useLanguage } from '../../shared/context';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { authApi } from '../../api/auth';
@@ -47,7 +50,9 @@ const legacySubTabAliases: Partial<Record<string, PanelInicialTabId>> = {
 };
 
 export default function PanelInicial({ onNavigate }: PanelInicialProps) {
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
+  const aiCopy = getIntegrationsTranslations(currentLanguage.code);
+  const aiNavigation = useIntegrationSection();
   const { isDualScreenActive, position: workbarPosition } = useWorkbarLayout();
   const shellCopy = usePanelInicialTranslations();
   const authorizationRevision = useAuthorizationRevision();
@@ -144,7 +149,7 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
   }, [activeSubTab, sessionAccess.loaded, setActiveSubTab, visibleSubTabs]);
 
   const bodyScrollRef = useRef<HTMLDivElement>(null);
-  useMobileModuleNavigation(activeSubTab, '', undefined, bodyScrollRef);
+  useMobileModuleNavigation(activeSubTab === 'integrations' ? `integrations/${aiNavigation.section}` : activeSubTab, '', undefined, bodyScrollRef);
 
   const handleTabClick = (tabId: PanelInicialTabId) => {
     if (tabId === activeSubTab) {
@@ -163,13 +168,18 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
       />
 
       <PanelInicialHeader
-        activeTabId={activeSubTab}
-        navigationLabel={shellCopy.navigationLabel}
+        activeTabId={activeSubTab === 'integrations' ? aiNavigation.section : activeSubTab}
+        navigationLabel={activeSubTab === 'integrations' ? aiCopy.navigation.ariaLabel : shellCopy.navigationLabel}
         onNavigate={onNavigate}
-        onTabSelect={(tabId) => handleTabClick(tabId as PanelInicialTabId)}
+        onTabSelect={(tabId) => activeSubTab === 'integrations' ? aiNavigation.setSection(tabId as typeof aiNavigation.section) : handleTabClick(tabId as PanelInicialTabId)}
         subtitle={shellCopy.subtitle}
-        tabs={visibleSubTabs}
-        title={t.panelInicial.title}
+        tabs={activeSubTab === 'integrations' && visibleSubTabs.some(tab => tab.id === 'integrations') ? [
+          { id: 'connections', label: aiCopy.navigation.connections, emoji: '🤖', helper: aiCopy.subtitle },
+          { id: 'guide', label: aiCopy.navigation.guide, emoji: '🎓', helper: aiCopy.subtitle },
+          { id: 'ideas', label: aiCopy.navigation.ideas, emoji: '💡', helper: aiCopy.subtitle },
+        ] : visibleSubTabs}
+        title={activeSubTab === 'integrations' ? shellCopy.integrationsLabel : t.panelInicial.title}
+        artwork={activeSubTab === 'integrations' ? <IndiceEmoji name="robot" className="size-7" /> : undefined}
       />
 
       <div ref={bodyScrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
@@ -187,7 +197,7 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
           {ActiveComponent ? (
             <PanelInicialErrorBoundary key={activeSubTab} copy={shellCopy}>
               <ModuleTabArtworkProvider moduleId="home-panel" tabId={activeSubTab}>
-                <ActiveComponent />
+                {activeSubTab === 'integrations' ? <Integrations navigationInHeader /> : <ActiveComponent />}
               </ModuleTabArtworkProvider>
             </PanelInicialErrorBoundary>
           ) : null}

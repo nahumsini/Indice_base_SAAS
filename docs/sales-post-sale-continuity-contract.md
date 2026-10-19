@@ -47,7 +47,57 @@ counts across the full filtered result. Column counts explicitly refer to the
 current page. Search, selected view/flow, owner and page use the existing workspace
 navigation memory; unsaved forms are not persisted as navigation state.
 
+Won also offers **Board / Table**. The table compares customer/contact, sale reference,
+service stage, responsible seller and next action with its date and urgency. Opening
+the customer, next action or primary row action uses the same follow-up modal; call
+and email links keep their existing behavior. Switching layout preserves filters,
+the active flow and current server page without refetching or mutating a record.
+`wonView` (`board` by default) and page size use the existing scoped navigation memory.
+Lost offers its own **Cards / Table** selector while preserving manual recovery.
+
+The table uses the shared operational table, resizable headers, action group and
+pagination. Page sizes are 10/25/50/100, respecting this domain's existing API maximum
+of 100 (200 is not offered). The server owns ordering across the entire filtered result;
+no page-local sorting or second pagination layer misrepresents the full result.
+An invalidated last page returns to the last valid server page. Column widths are
+versioned browser presentation preferences; horizontal overflow stays inside the table.
+
+## Table ordering
+
+Both tables use the shared sortable headers with the Sales coral tone, visible active
+direction and `aria-sort`. Clicking a new column starts ascending; clicking it again
+switches direction and returns to page one. Won and Lost remember their column and
+direction independently in the existing company/user-scoped workspace memory.
+
+The existing workspace GET accepts optional `sort` and `direction` parameters. Omission
+retains the previous `nextAction` / `asc` ordering and unchanged response DTO. Allowed
+columns are `client`, `sale`, `stage`, `owner`, `nextAction`, and Lost-only `lossReason`;
+directions are strictly `asc` / `desc`. Unsupported values return the existing 422
+validation response after authentication and tab authorization. Tenant/owner/flow/search
+filters, counts, permissions and page-size limits retain their existing meaning.
+
+- Client sorts by displayed customer name, falling back to the opportunity title/reference.
+- Sale/opportunity sorts by the reference shown in its cell; owner and loss reason sort
+  by their displayed text under the database collation.
+- Won stage sorts by each configured flow's stage position, including the initial flow.
+  Lost recovery sorts Unscheduled → Scheduled → Paused → Recovered, reversed for descending.
+- Next action sorts by its follow-up/review calendar date. Missing dates and blank text
+  remain last in both directions. Source ID descending is the deterministic tie breaker.
+
+Sorting executes in the tenant-scoped SQL query **before** LIMIT/OFFSET. SQL expressions
+and directions are allow-listed; user-authored flow keys are bound values. Reads do not
+modify a sale, work record, recovery state, reminder or financial result. A failed read
+shows retry feedback instead of presenting old rows under a newly selected ordering.
+
 ## Lost review and reactivation
+
+The lost table uses the same operational table and pagination primitives as Won.
+It shows customer/contact, opportunity, recovery status, responsible seller, loss
+reason, next action and review date. Paused and recovered records retain their own
+labels and are never shown as completed sales or overdue work. Opening a row or
+its next action opens the existing lost follow-up modal; it does not reactivate
+the prospect. `lostView` and column widths are remembered independently from Won.
+Layout switches preserve the filtered server page and perform no business writes.
 
 The seller records the loss reason, review date, next action and notes, or pauses
 review. Calendar shortcuts offer 7/15/30/60/90 days from the company's current date.
@@ -126,3 +176,29 @@ explicit recovery, theme contrast, and retry after a committed response is lost.
 No functional sale, loss, payment or inventory record was created or modified for
 these checks. The new flows and mutations exercised in the browser fixture are
 in-memory only. External deployment: N/A.
+
+Won table extension, 2026-10-18: 73 focused/frontend regression checks passed, including
+view restoration/switching, server pagination and page-size reset, invalid saved state,
+follow-up actions, completed urgency and empty state. TypeScript and production build
+passed. Browser verification covered the existing local workspace plus synthetic
+30-sale pagination, modal opening, reload persistence and contained mobile overflow.
+Backend/schema changes: N/A; no financial or operational records were modified.
+
+Lost table extension, 2026-10-18: 76 focused/frontend regression checks passed,
+including independent layout restoration, preserved recovery filters, server paging,
+paused/recovered labels and opening the original lost record. TypeScript and the
+production build passed with the existing bundle-size advisory. Browser checks
+verified the local lost table, review modal, reload persistence and contained mobile
+overflow. Backend/schema changes and business-record mutations: N/A.
+
+Table ordering extension, 2026-10-18: 80 focused/frontend regression checks and
+50 backend checks passed. Coverage includes independent saved sorting, page reset,
+ordering before pagination, configured stages, null-last dates, deterministic ties,
+tenant isolation, rejected sort input, and preserving an open follow-up modal after
+a refresh failure. TypeScript and the production build passed; the existing Vite
+bundle-size advisory remains. Browser checks covered synthetic multi-page sorting,
+keyboard toggling, independent table preferences and reload persistence, followed
+by the existing local records against the updated backend. Shared header arrows and
+`aria-sort` were verified. No business records were changed. Schema changes and
+external deployment: N/A. The isolated test database was stopped after validation;
+the functional local backend and frontend remain running.

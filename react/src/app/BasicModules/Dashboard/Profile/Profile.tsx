@@ -1,6 +1,6 @@
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Camera, CheckCircle2, ChevronDown, CircleAlert, Eye, EyeOff, Loader2, Plus, Save, ShieldCheck, Trash2 } from 'lucide-react';
-import { configCenterApi, type ConfigCenterCurrentUser, type ConfigCenterPhoneNumber } from '../../../api/configCenter';
+import { configCenterApi, currentProfileActor, type ConfigCenterCurrentUser, type ConfigCenterPhoneNumber } from '../../../api/configCenter';
 import { languages, useLanguage } from '../../../shared/context';
 import { DashboardTitleBar } from '../components/DashboardTitleBar';
 import {
@@ -23,6 +23,9 @@ import {
   type ProfilePhoneFormValue,
 } from './profilePhones';
 import { useProfileTranslations } from './hooks/useProfileTranslations';
+import { getProfileFeedback } from './profileFeedback';
+import { useAuthorizationRevision } from '../../../hooks/useAuthorizationRevision';
+import { ApiClientError } from '../../../lib/apiClient';
 
 const inputClassName =
   'w-full min-h-11 md:min-h-0 px-3 py-2 text-base md:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all';
@@ -242,7 +245,7 @@ const createProfileFormValues = (user?: ConfigCenterCurrentUser | null): Profile
     };
   }
 
-  const profileCountry = user.country ?? DEFAULT_PROFILE_COUNTRY;
+  const profileCountry = user.country && isProfileCountry(user.country) ? user.country : DEFAULT_PROFILE_COUNTRY;
 
   return {
     firstName: user.primer_nombre ?? user.nombres ?? '',
@@ -273,8 +276,37 @@ const areProfileFormValuesEqual = (
 );
 
 export default function Profile() {
-  const { currentLanguage, setCurrentLanguage } = useLanguage();
+  useAuthorizationRevision();
+  const actor = currentProfileActor();
+  return <ProfileEditor key={actor} actor={actor} />;
+}
+
+function ProfileEditor({ actor }: { actor: string | null }) {
+  const { currentLanguage } = useLanguage();
   const profileCopy = useProfileTranslations();
+  const feedback = getProfileFeedback(currentLanguage.code);
+  const alive = useRef(true);
+  const savingRef = useRef(false);
+  const uploadingRef = useRef(false);
+  const errorRef = useRef<HTMLDivElement>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const isCurrent = () => alive.current && actor !== null && currentProfileActor() === actor;
+  const readableError = (error: unknown, fallback: string) => {
+    if (error instanceof ApiClientError) {
+      if (error.code === 'profile_actor_changed') return feedback.sessionChanged;
+      if (error.status === 401 || error.status === 403) return feedback.permission;
+      const messages: Record<string, string> = {
+        STORAGE_QUOTA_EXCEEDED: feedback.photoQuota,
+        profile_name_required: feedback.nameRequired, profile_name_too_long: feedback.nameTooLong,
+        profile_invalid_phone: profileCopy.messages.invalidPhone, profile_duplicate_phone: feedback.duplicatePhone,
+        profile_phone_limit: feedback.phoneLimit, profile_password_mismatch: profileCopy.messages.passwordMismatch,
+        profile_password_short: profileCopy.messages.passwordMinLength, profile_password_long: feedback.passwordTooLong,
+      };
+      if (error.code && messages[error.code]) return messages[error.code];
+    }
+    return fallback;
+  };
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const avatarPreviewRef = useRef('');
   const [user, setUser] = useState<ConfigCenterCurrentUser | null>(null);
@@ -300,37 +332,25 @@ export default function Profile() {
   };
 
   useEffect(() => {
-    let active = true;
-
-    configCenterApi.getCurrentUser()
-      .then((response) => {
-        if (!active) {
-          return;
-        }
-
-        const nextValues = createProfileFormValues(response);
-
-        setUser(response);
-        setBaselineValues(nextValues);
-        setFormValues(nextValues);
-      })
-      .catch((error) => {
-        if (!active) {
-          return;
-        }
-
-        setErrorMessage(error instanceof Error ? error.message : profileCopy.messages.loadError);
-      })
-      .finally(() => {
-        if (active) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
+    alive.current = true;
+    return () => { alive.current = false; };
   }, []);
+  useEffect(() => {
+    let active = true;
+    setIsLoading(true); setErrorMessage('');
+    if (!actor) { setIsLoading(false); return; }
+    configCenterApi.getCurrentUser().then(response => {
+      if (!active || !isCurrent()) return;
+      if (String(response.id) !== actor.split(':')[1]) throw new Error('Unexpected profile identity.');
+      const nextValues = createProfileFormValues(response);
+      setUser(response); setBaselineValues(nextValues); setFormValues(nextValues);
+    }).catch(error => { if (active && isCurrent()) setErrorMessage(readableError(error, profileCopy.messages.loadError)); })
+      .finally(() => { if (active && isCurrent()) setIsLoading(false); });
+    return () => { active = false; };
+  }, [actor, loadAttempt]);
+  useEffect(() => {
+    if (errorMessage && Object.keys(fieldErrors).length === 0) errorRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [errorMessage, fieldErrors]);
 
   useEffect(() => {
     formValuesRef.current = formValues;
@@ -364,6 +384,8 @@ export default function Profile() {
 
   const initials = ((firstNames[0] ?? '') + (lastNames[0] ?? '')).trim().toUpperCase() || 'U';
   const avatarDisplayUrl = avatarPreviewUrl || user?.avatar_url || '';
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  useEffect(() => setAvatarFailed(false), [avatarDisplayUrl]);
   const uploadPhotoLabel = profileCopy.actions.uploadingPhoto;
   const hasUnsavedChanges = baselineValues !== null && !areProfileFormValuesEqual(formValues, baselineValues);
   const completedEssentialFields = [
@@ -376,8 +398,8 @@ export default function Profile() {
   ].filter(Boolean).length;
   const profileCompletion = Math.round((completedEssentialFields / 4) * 100);
   const expressCopy = profileCopy.progress;
-  const trimmedNewPassword = formValues.newPassword.trim();
-  const trimmedPasswordConfirmation = formValues.confirmNewPassword.trim();
+  const trimmedNewPassword = formValues.newPassword;
+  const trimmedPasswordConfirmation = formValues.confirmNewPassword;
   const hasPasswordChangeInProgress = trimmedNewPassword.length > 0 || trimmedPasswordConfirmation.length > 0;
   const hasPasswordMinLengthError = trimmedNewPassword.length > 0 && trimmedNewPassword.length < 8;
   const hasPasswordMismatch = useMemo(() => {
@@ -391,21 +413,25 @@ export default function Profile() {
     && trimmedPasswordConfirmation.length > 0
     && trimmedNewPassword === trimmedPasswordConfirmation
   );
-  const isSaveDisabled = isUploadingAvatar
-    || hasPasswordMinLengthError
-    || (
-      hasPasswordChangeInProgress
-      && (
-        trimmedNewPassword.length === 0
-        || trimmedPasswordConfirmation.length === 0
-        || trimmedNewPassword !== trimmedPasswordConfirmation
-      )
-    );
+  const isSaveDisabled = isUploadingAvatar || !user || !baselineValues;
+  const fieldsDisabled = isLoading || isSaving || isUploadingAvatar || !user;
+  useEffect(() => {
+    if (!hasUnsavedChanges && !isUploadingAvatar && !isSaving) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [hasUnsavedChanges, isUploadingAvatar, isSaving]);
 
   const updateFormValue = <Key extends keyof ProfileFormValues>(
     field: Key,
     value: ProfileFormValues[Key],
   ) => {
+    setFieldErrors(current => {
+      const next = { ...current }; delete next[field];
+      if (field === 'firstName' || field === 'lastName') delete next.firstName;
+      if (field === 'newPassword' || field === 'confirmNewPassword') { delete next.newPassword; delete next.confirmNewPassword; }
+      return next;
+    });
     setFormValues((currentValues) => {
       if (currentValues[field] === value) {
         return currentValues;
@@ -434,9 +460,6 @@ export default function Profile() {
     setFormValues((currentValues) => ({
       ...currentValues,
       country: value,
-      phoneNumbers: currentValues.phoneNumbers.map((phone) => (
-        updatePhoneCountry(phone, value)
-      )),
     }));
 
     if (errorMessage) {
@@ -449,6 +472,7 @@ export default function Profile() {
   };
 
   const updatePhoneNumbers = (updater: (phones: ProfilePhoneFormValue[]) => ProfilePhoneFormValue[]) => {
+    setFieldErrors(current => Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith('phone-'))));
     setFormValues((currentValues) => ({
       ...currentValues,
       phoneNumbers: updater(currentValues.phoneNumbers),
@@ -482,6 +506,7 @@ export default function Profile() {
   };
 
   const handleAddPhoneNumber = () => {
+    if (formValues.phoneNumbers.length >= 10) return;
     updatePhoneNumbers((phoneNumbers) => [
       ...phoneNumbers,
       createProfilePhoneValue(phoneNumbers.length, { country: formValues.country }),
@@ -501,13 +526,13 @@ export default function Profile() {
     const file = event.target.files?.[0];
     event.target.value = '';
 
-    if (!file || isSaving || isUploadingAvatar) {
+    if (!file || savingRef.current || uploadingRef.current || !isCurrent() || !user) {
       return;
     }
 
     const sourceContentType = normalizeAvatarSourceContentType(file);
     if (!sourceContentType) {
-      setErrorMessage('Profile photos must be JPG, PNG, WebP, HEIC, or AVIF images.');
+      setErrorMessage(feedback.photoType);
       setSaveMessage('');
       return;
     }
@@ -518,21 +543,21 @@ export default function Profile() {
       return;
     }
 
+    uploadingRef.current = true;
     setIsUploadingAvatar(true);
     setErrorMessage('');
     setSaveMessage('');
 
     try {
       const compressedAvatar = await compressProfileAvatar(file);
-      const previewUrl = URL.createObjectURL(compressedAvatar.blob);
-      replaceAvatarPreview(previewUrl);
-
+      if (!isCurrent()) return;
       const presign = await configCenterApi.presignCurrentUserAvatarUpload({
         file_name: compressedAvatar.fileName,
         content_type: compressedAvatar.contentType,
         size_bytes: compressedAvatar.blob.size,
       });
 
+      if (!isCurrent()) return;
       await configCenterApi.uploadCurrentUserAvatar(
         presign.upload_url,
         compressedAvatar.blob,
@@ -540,25 +565,30 @@ export default function Profile() {
         presign.upload_headers ?? {},
       );
 
+      if (!isCurrent()) return;
+      replaceAvatarPreview(URL.createObjectURL(compressedAvatar.blob));
+      setSaveMessage(feedback.photoReady);
       setFormValues((currentValues) => ({
         ...currentValues,
         avatarObjectKey: presign.object_key,
         avatarContentType: presign.content_type || compressedAvatar.contentType,
       }));
     } catch (error) {
-      replaceAvatarPreview('');
-      setErrorMessage(error instanceof Error ? error.message : profileCopy.messages.saveError);
+      if (isCurrent()) setErrorMessage(readableError(error, feedback.photoError));
     } finally {
-      setIsUploadingAvatar(false);
+      uploadingRef.current = false;
+      if (isCurrent()) setIsUploadingAvatar(false);
     }
   };
 
   const handleDiscardChanges = () => {
-    if (!baselineValues || isSaving) {
+    if (!baselineValues || savingRef.current || uploadingRef.current) {
       return;
     }
 
     setFormValues({ ...baselineValues });
+    setFieldErrors({});
+    setShowNewPassword(false); setShowConfirmPassword(false);
     replaceAvatarPreview('');
     setErrorMessage('');
     setSaveMessage('');
@@ -569,7 +599,7 @@ export default function Profile() {
     baselineToSave = baselineValues,
   ) => {
     if (
-      !user
+      !isCurrent() || savingRef.current || uploadingRef.current || !user
       || !baselineToSave
       || isUploadingAvatar
       || areProfileFormValuesEqual(valuesToSave, baselineToSave)
@@ -577,58 +607,52 @@ export default function Profile() {
       return;
     }
 
-    const nextPassword = valuesToSave.newPassword.trim();
-    const nextPasswordConfirmation = valuesToSave.confirmNewPassword.trim();
+    const nextPassword = valuesToSave.newPassword;
+    const nextPasswordConfirmation = valuesToSave.confirmNewPassword;
     const hasPasswordChange = nextPassword.length > 0 || nextPasswordConfirmation.length > 0;
 
-    if (hasPasswordChange && nextPassword !== nextPasswordConfirmation) {
-      setErrorMessage(profileCopy.messages.passwordMismatch);
-      setSaveMessage('');
+    const errors: Record<string, string> = {};
+    const fullName = [valuesToSave.firstName.trim(), valuesToSave.lastName.trim()].filter(Boolean).join(' ');
+    if (!fullName) errors.firstName = feedback.nameRequired;
+    else if ([...fullName].length > 100) errors.firstName = feedback.nameTooLong;
+    if (hasPasswordChange) {
+      if (!nextPassword.trim() || nextPassword.length < 8) errors.newPassword = profileCopy.messages.passwordMinLength;
+      else if (new TextEncoder().encode(nextPassword).length > 72) errors.newPassword = feedback.passwordTooLong;
+      if (nextPassword !== nextPasswordConfirmation) errors.confirmNewPassword = profileCopy.messages.passwordMismatch;
+    }
+    const formattedPhones: ConfigCenterPhoneNumber[] = [];
+    const seen = new Set<string>();
+    valuesToSave.phoneNumbers.forEach((phone, index) => {
+      const number = phone.number.trim();
+      if (!number || isPhoneInputDialCodeOnly(number, phone.country)) return;
+      const validation = validatePhoneForProfileCountry(number, phone.country);
+      if (!validation.ok) { errors[`phone-${index}`] = profileCopy.messages.invalidPhone; return; }
+      if (seen.has(validation.e164)) { errors[`phone-${index}`] = feedback.duplicatePhone; return; }
+      seen.add(validation.e164);
+      formattedPhones.push({ id: phone.id, label: phone.label.trim() || `Phone ${index + 1}`,
+        phone: validation.e164, country: phone.country, is_primary: formattedPhones.length === 0 });
+    });
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) {
+      setErrorMessage(Object.values(errors)[0]); setSaveMessage('');
+      const firstKey = Object.keys(errors)[0];
+      const target = firstKey === 'firstName' ? 'profile-first-name' : firstKey.startsWith('phone-')
+        ? `profile-${firstKey}` : firstKey === 'newPassword' ? 'profile-new-password' : 'profile-confirm-password';
+      const control = document.getElementById(target);
+      const security = control?.closest('details'); if (security) security.open = true;
+      control?.focus();
       return;
     }
-
-    if (nextPassword.length > 0 && nextPassword.length < 8) {
-      setErrorMessage(profileCopy.messages.passwordMinLength);
-      setSaveMessage('');
-      return;
-    }
-
-    setIsSaving(true);
-    setErrorMessage('');
-    setSaveMessage('');
-
+    savingRef.current = true;
+    setIsSaving(true); setErrorMessage(''); setSaveMessage('');
     try {
-      const formattedPhones: ConfigCenterPhoneNumber[] = [];
-      for (const phone of valuesToSave.phoneNumbers) {
-        const trimmedPhoneNumber = phone.number.trim();
-        if (!trimmedPhoneNumber || isPhoneInputDialCodeOnly(trimmedPhoneNumber, phone.country)) {
-          continue;
-        }
-
-        const validation = validatePhoneForProfileCountry(trimmedPhoneNumber, phone.country);
-
-        if (!validation.ok) {
-          setErrorMessage(profileCopy.messages.invalidPhone);
-          setSaveMessage('');
-          return;
-        }
-
-        formattedPhones.push({
-          id: phone.id,
-          label: phone.label.trim() || `Phone ${formattedPhones.length + 1}`,
-          phone: validation.e164,
-          country: phone.country,
-          is_primary: formattedPhones.length === 0,
-        });
-      }
-
       const response = await configCenterApi.saveCurrentUser({
-        primer_nombre: valuesToSave.firstName,
-        apellido_paterno: valuesToSave.lastName,
+        primer_nombre: valuesToSave.firstName.trim(),
+        apellido_paterno: valuesToSave.lastName.trim(),
         telefono: formattedPhones[0]?.phone ?? '',
         phone_numbers: formattedPhones,
         country: valuesToSave.country,
-        preferred_language: valuesToSave.preferredLanguage,
+        preferred_language: currentLanguage.code,
         ...(valuesToSave.avatarObjectKey !== baselineToSave.avatarObjectKey
           ? {
               avatar_object_key: valuesToSave.avatarObjectKey,
@@ -643,6 +667,8 @@ export default function Profile() {
           : {}),
       });
 
+      if (!isCurrent()) return;
+      if (String(response.id) !== actor?.split(':')[1]) throw new Error('Unexpected profile identity.');
       const nextValues = createProfileFormValues(response);
 
       setUser(response);
@@ -651,26 +677,21 @@ export default function Profile() {
         setFormValues(nextValues);
         replaceAvatarPreview('');
       }
+      setShowNewPassword(false); setShowConfirmPassword(false);
       setSaveMessage(profileCopy.messages.saveSuccess);
-      const savedLanguage = languages.find((language) => language.code === nextValues.preferredLanguage);
-      if (savedLanguage) setCurrentLanguage(savedLanguage);
-      window.dispatchEvent(new CustomEvent(USER_PROFILE_UPDATED_EVENT, { detail: { user: response } }));
+      window.dispatchEvent(new CustomEvent(USER_PROFILE_UPDATED_EVENT, { detail: { user: response, actor } }));
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : profileCopy.messages.saveError);
+      if (isCurrent()) setErrorMessage(readableError(error, profileCopy.messages.saveError));
     } finally {
-      setIsSaving(false);
+      savingRef.current = false;
+      if (isCurrent()) setIsSaving(false);
     }
   };
 
-  return (
-    <>
-      <div>
-        <div className="mb-6">
-          <DashboardTitleBar
-            actions={(
-              <div className="flex items-center gap-2 sm:justify-end">
+  const renderActions = () => (
+              <div className="flex min-w-0 items-center gap-2 sm:justify-end">
                 {hasUnsavedChanges ? (
-                  <button type="button" onClick={handleDiscardChanges} disabled={isSaving} className="min-h-11 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200">
+                  <button type="button" onClick={handleDiscardChanges} disabled={isSaving || isUploadingAvatar} className="min-h-11 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200">
                     {profileCopy.actions.discard}
                   </button>
                 ) : null}
@@ -679,7 +700,14 @@ export default function Profile() {
                   {isSaving ? profileCopy.actions.saving : profileCopy.actions.save}
                 </button>
               </div>
-            )}
+  );
+
+  return (
+    <>
+      <div className="min-w-0" data-profile-editor aria-busy={isSaving || isUploadingAvatar}>
+        <div className="mb-6">
+          <DashboardTitleBar
+            actions={<div className="hidden sm:block">{renderActions()}</div>}
             emoji="👤"
             subtitle={profileCopy.subtitle}
             title={profileCopy.title}
@@ -687,19 +715,20 @@ export default function Profile() {
         </div>
 
         {isLoading ? (
-          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-700/30 dark:bg-blue-900/20 dark:text-blue-300">
+          <div role="status" className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-700/30 dark:bg-blue-900/20 dark:text-blue-300">
             {profileCopy.messages.loading}
           </div>
         ) : null}
 
         {errorMessage ? (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700/30 dark:bg-red-900/20 dark:text-red-300">
+          <div ref={errorRef} role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700/30 dark:bg-red-900/20 dark:text-red-300">
             {errorMessage}
+            {!user && !isLoading ? <button type="button" onClick={() => setLoadAttempt(value => value + 1)} className="ml-2 min-h-11 px-3 font-medium underline">{feedback.retry}</button> : null}
           </div>
         ) : null}
 
         {saveMessage ? (
-          <div className="mb-4 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700/30 dark:bg-emerald-900/20 dark:text-emerald-300">
+          <div role="status" className="mb-4 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700/30 dark:bg-emerald-900/20 dark:text-emerald-300">
             <CheckCircle2 className="h-4 w-4" />
             {saveMessage}
           </div>
@@ -720,7 +749,8 @@ export default function Profile() {
           </div>
         </section>
 
-        <div className="grid gap-4 xl:grid-cols-2">
+        <fieldset disabled={fieldsDisabled} className="min-w-0">
+        <div className="grid min-w-0 gap-4 xl:grid-cols-2">
         <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 sm:p-5">
           <div className="mb-5 border-b border-gray-200 pb-4 dark:border-gray-700">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white">
@@ -736,9 +766,10 @@ export default function Profile() {
               {profileCopy.fields.profilePhoto}
             </label>
             <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-              {avatarDisplayUrl ? (
+              {avatarDisplayUrl && !avatarFailed ? (
                 <img
                   src={avatarDisplayUrl}
+                  onError={() => setAvatarFailed(true)}
                   alt={profileCopy.fields.profilePhoto}
                   className="h-16 w-16 rounded-full border-2 border-blue-200 object-cover shadow-md dark:border-blue-700/50"
                 />
@@ -780,6 +811,7 @@ export default function Profile() {
             <label className="mb-3 block text-sm font-medium text-gray-700 dark:text-gray-300">
               {profileCopy.sections.nameGroup}
             </label>
+            {fieldErrors.firstName ? <p id="profile-name-error" className="mb-2 text-sm text-red-600 dark:text-red-300">{fieldErrors.firstName}</p> : null}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label htmlFor="profile-first-name" className="mb-1.5 block text-[11px] font-medium text-gray-600 dark:text-gray-400">
@@ -788,6 +820,9 @@ export default function Profile() {
                 <input
                   type="text"
                   id="profile-first-name"
+                  maxLength={100}
+                  aria-invalid={Boolean(fieldErrors.firstName)}
+                  aria-describedby={fieldErrors.firstName ? 'profile-name-error' : undefined}
                   autoComplete="given-name"
                   value={formValues.firstName}
                   onChange={(event) => updateFormValue('firstName', event.target.value)}
@@ -804,6 +839,7 @@ export default function Profile() {
                 <input
                   type="text"
                   id="profile-last-name"
+                  maxLength={100}
                   autoComplete="family-name"
                   value={formValues.lastName}
                   onChange={(event) => updateFormValue('lastName', event.target.value)}
@@ -852,7 +888,8 @@ export default function Profile() {
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
               {profileCopy.fields.email}
             </label>
-            <p className="truncate text-sm text-slate-700 dark:text-slate-200">{user?.email ?? '—'}</p>
+            <p className="break-all text-sm text-slate-700 dark:text-slate-200">{user?.email ?? '—'}</p>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{feedback.emailReadOnly}</p>
           </div>
 
           <div className="space-y-3">
@@ -863,13 +900,15 @@ export default function Profile() {
               <button
                 type="button"
                 onClick={handleAddPhoneNumber}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-50 dark:border-blue-700/40 dark:text-blue-200 dark:hover:bg-blue-900/20"
+                disabled={formValues.phoneNumbers.length >= 10}
+                className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-50 dark:border-blue-700/40 dark:text-blue-200 dark:hover:bg-blue-900/20"
               >
                 <Plus className="h-3.5 w-3.5" />
                 {phoneCopy.add}
               </button>
             </div>
 
+            {formValues.phoneNumbers.length >= 10 ? <p className="text-xs text-gray-500 dark:text-gray-400">{feedback.phoneLimit}</p> : null}
             {formValues.phoneNumbers.map((phone, index) => (
                 <div key={phone.key} className="rounded-xl border border-gray-200 p-3 dark:border-gray-700">
                   <div className="mb-2 flex items-center justify-between gap-2">
@@ -902,6 +941,10 @@ export default function Profile() {
                     </select>
                     <input
                       type="tel"
+                      id={`profile-phone-${index}`}
+                      maxLength={40}
+                      aria-invalid={Boolean(fieldErrors[`phone-${index}`])}
+                      aria-describedby={fieldErrors[`phone-${index}`] ? `profile-phone-error-${index}` : undefined}
                       aria-label={`${phoneCopy.number} · ${index + 1}`}
                       value={phone.number}
                       onChange={(event) => handlePhoneNumberChange(phone.key, event.target.value)}
@@ -911,6 +954,7 @@ export default function Profile() {
                       placeholder={phoneCopy.number}
                     />
                   </div>
+                  {fieldErrors[`phone-${index}`] ? <p id={`profile-phone-error-${index}`} className="mt-2 text-sm text-red-600 dark:text-red-300">{fieldErrors[`phone-${index}`]}</p> : null}
                   <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
                     {phoneCopy.formatHint(getPhoneExampleForCountry(phone.country))}
                   </p>
@@ -949,17 +993,19 @@ export default function Profile() {
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="profile-new-password" className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   {profileCopy.fields.newPassword}
                 </label>
                 <div className="relative">
                   <input
+                    id="profile-new-password"
+                    aria-describedby="profile-password-error"
                     type={showNewPassword ? 'text' : 'password'}
                     value={formValues.newPassword}
                     onChange={(event) => updateFormValue('newPassword', event.target.value)}
                     placeholder="••••••••"
                     autoComplete="new-password"
-                    aria-invalid={hasPasswordMinLengthError}
+                    aria-invalid={hasPasswordMinLengthError || Boolean(fieldErrors.newPassword)}
                     className={`${inputClassName} min-h-11 pr-12 ${hasPasswordMinLengthError ? 'border-red-300 focus:ring-red-500' : isPasswordReady ? 'border-emerald-300' : ''}`}
                   />
                   <button type="button" onClick={() => setShowNewPassword((current) => !current)} className="absolute right-2 top-1/2 flex h-11 w-11 md:h-9 md:w-9 -translate-y-1/2 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-600" aria-label={showNewPassword ? profileCopy.accessibility.hidePassword : profileCopy.accessibility.showPassword}>
@@ -969,18 +1015,20 @@ export default function Profile() {
               </div>
 
               <div>
-                <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="profile-confirm-password" className="mb-1.5 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                   {profileCopy.fields.confirmNewPassword}
                   {isPasswordReady ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : null}
                 </label>
                 <div className="relative">
                   <input
+                    id="profile-confirm-password"
+                    aria-describedby="profile-password-error"
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={formValues.confirmNewPassword}
                     onChange={(event) => updateFormValue('confirmNewPassword', event.target.value)}
                     placeholder="••••••••"
                     autoComplete="new-password"
-                    aria-invalid={hasPasswordMismatch}
+                    aria-invalid={hasPasswordMismatch || Boolean(fieldErrors.confirmNewPassword)}
                     className={`${inputClassName} min-h-11 pr-12 ${hasPasswordMismatch ? 'border-red-300 focus:ring-red-500' : isPasswordReady ? 'border-emerald-300' : ''}`}
                   />
                   <button type="button" onClick={() => setShowConfirmPassword((current) => !current)} className="absolute right-2 top-1/2 flex h-11 w-11 md:h-9 md:w-9 -translate-y-1/2 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-600" aria-label={showConfirmPassword ? profileCopy.accessibility.hidePassword : profileCopy.accessibility.showPassword}>
@@ -990,15 +1038,19 @@ export default function Profile() {
               </div>
             </div>
 
-            {hasPasswordMismatch || hasPasswordMinLengthError ? (
-              <div className="mt-3 flex items-center gap-2 text-sm text-red-600 dark:text-red-300">
+            {hasPasswordMismatch || hasPasswordMinLengthError || fieldErrors.newPassword || fieldErrors.confirmNewPassword ? (
+              <div id="profile-password-error" className="mt-3 flex items-center gap-2 text-sm text-red-600 dark:text-red-300">
                 <CircleAlert className="h-4 w-4 flex-shrink-0" />
-                {hasPasswordMinLengthError ? profileCopy.messages.passwordMinLength : profileCopy.messages.passwordMismatch}
+                {fieldErrors.newPassword || fieldErrors.confirmNewPassword || (hasPasswordMinLengthError ? profileCopy.messages.passwordMinLength : profileCopy.messages.passwordMismatch)}
               </div>
             ) : null}
           </div>
         </details>
-
+        </fieldset>
+        <div className="sticky bottom-0 z-20 -mx-1 rounded-xl border border-blue-100 bg-white/95 p-3 shadow-sm backdrop-blur sm:hidden dark:border-slate-700 dark:bg-slate-900/95" data-profile-mobile-actions>
+          {saveMessage ? <p aria-live="polite" className="mb-2 text-xs text-emerald-700 dark:text-emerald-300">{saveMessage}</p> : hasUnsavedChanges ? <p className="mb-2 text-xs text-slate-600 dark:text-slate-300">{profileCopy.messages.unsavedChanges}</p> : null}
+          {renderActions()}
+        </div>
       </div>
 
     </>

@@ -18,7 +18,7 @@ export default function SubscriptionManagementPage() {
   const paymentMethod = useBillingPaymentMethod(!billing.loading && Boolean(billing.selection), billing.readOnly);
 
   return (
-    <main className="min-h-[calc(100vh-4rem)] bg-[radial-gradient(circle_at_8%_0%,rgba(37,99,235,0.09),transparent_28rem),radial-gradient(circle_at_92%_12%,rgba(96,165,250,0.08),transparent_30rem)] px-4 pb-10 text-slate-900 dark:bg-slate-950 dark:text-white sm:px-6 lg:px-8">
+    <main className="min-h-[calc(100vh-4rem)] bg-[#F7F8FA] px-4 pb-10 text-slate-900 dark:bg-slate-950 dark:text-white sm:px-6 lg:px-8">
       <div className="mx-auto max-w-[1600px]">
         <div data-billing-sticky-header className="sticky top-0 z-30 -mx-4 border-b border-slate-200/80 bg-slate-50/90 px-4 py-3 shadow-[0_16px_32px_-28px_rgba(15,23,42,0.75)] backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/90 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <BillingHero
@@ -49,7 +49,7 @@ export default function SubscriptionManagementPage() {
               <ShieldCheck className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-semibold">
+              <p className="text-sm font-medium">
                 {billing.managedContext.authority_mode === 'PLATFORM_ROOT'
                   ? copy.rootReview
                   : copy.portfolioClient}

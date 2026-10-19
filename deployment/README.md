@@ -704,3 +704,107 @@ smoke y aceptación con datos sintéticos. La validación local de Compose no ej
 en el VPS. Mantener apagadas las acciones financieras hasta aceptar merchant/hardware y el
 consentimiento del operador. Restaurar backend/MCP/web compatibles juntos si se necesita rollback;
 no borrar volúmenes ni intentar revertir V294–V299.
+
+
+### Notification preferences — 2026-10-18
+
+Deploy additive V328 `notification_preferences` before serving the new settings client. It creates
+no grants and changes no existing delivery or business record. Coordinate backend/frontend rollout:
+the client needs GET/PUT `/api/v1/notifications/preferences` and the backend must filter list/read/
+dismiss by current source permission. Validate company/user isolation, missing/invalid CSRF, denied
+module/tab, persisted reload, identical retry and conflicting version. Keep the new table/choices
+on rollback; never drop them or rewrite an applied migration. A rollback must retain the corrected
+inbox authorization boundary; an older client may display inert local switches and should not serve
+the settings surface until the matching client is restored. External channels and new module
+event generators are outside this rollout.
+
+
+### Basic module notification completion — 2026-10-18
+
+Deploy the matching backend/frontend catalogue from
+[`basic-module-notifications-contract-v1.md`](../docs/basic-module-notifications-contract-v1.md).
+This extension requires the existing V328 preferences table and no additional migration/grants.
+The active-membership dispatcher uses `app.notifications.basic.initial-delay-ms` (15000) and
+`app.notifications.basic.delay-ms` (30000), with fifty recipients per traversal batch. Test profiles
+delay it and invoke delivery explicitly on isolated fixtures. Validate no duplicate or resurrected
+dismissal, native tenant/tab/organization/recipient checks, private report ownership, company-local
+collection dates and persisted switches. A failing owner is isolated and logged by module and
+exception class without private payloads. Rollback keeps preferences and delivered history, stops
+new-source delivery and restores the coordinated catalogue while retaining source authorization.
+
+
+### Personal profile contact-list update (2026-10-19)
+
+Mi perfil requires forward-only migration `V330__personal_profile_phone_numbers.sql` before using
+the updated owner service. It adds one nullable JSON column and leaves existing personal data and
+the primary-phone projection intact. Deploy through the existing Flyway startup flow.
+
+Verify migration-version uniqueness, profile validation/controller regressions and the isolated
+`PersonalProfilePersistenceTest` before activation. Tests must use `indice_test_db`; do not edit
+functional profiles to verify deployment. Local read/invalid-request checks can confirm expected
+actor and CSRF rejection without changing a profile.
+
+Rollback restores the prior application classes/build while keeping V330 and its data; never
+remove the applied migration or drop the new column. The prior application can still read the
+maintained primary-phone field. A prior version does not manage additional phones; retain the
+JSON data for a subsequent forward repair.
+
+
+### Users and permissions local update (2026-10-19)
+
+This correction has no schema migration. Deploy the matching Config Center controller, user
+access/invitation services, seat coordinators and React client together. Keep the existing
+company/profile classes and storage/billing owners. Verify actor mismatch and invalid CSRF
+rejection without modifying functional memberships. Mutation/concurrency tests use only
+`indice_test_db`; browser tests use synthetic requests and send no email.
+
+The focused checks are `UsersFlowControllerTest`, `UserAccessInputTest`, the existing Config Center
+access/seat/invitation regressions and `UsersFlowPersistenceTest`, plus frontend typecheck/build
+and `test:users-permissions-browser`. Verify cancelled-token rejection and preservation of the
+last active administrator. Local development keeps outbound email settings unchanged.
+
+Retain the prior application classes/build for rollback; no database rollback or data deletion is
+needed. A prior version lacks these corrected access/invitation boundaries, so keep administration
+and invitation acceptance unavailable if restoring it until a corrected version is active.
+
+
+### Invitation-to-session correction (2026-10-19)
+
+No migration is required. Ship the matching invitation owner and public React page, plus the
+shared log sanitizer that redacts token-bearing invitation paths. Validate
+`InvitationEntryFlowIntegrationTest`, invitation/user persistence regressions and `LogSanitizerTest`
+on the isolated test database, then typecheck/build and `test:invitation-entry-browser`.
+The browser flow uses synthetic requests with the real public/login/private routes. Mobile checks
+cover form feedback, the explicit session handoff and module/tab filtering. Outbound email and
+production MFA settings stay unchanged. Keep the prior local classes/build for rollback and retain
+the corrected pending-token, access and token-redaction boundaries in any replacement version.
+
+
+### Password recovery correction (2026-10-19)
+
+Deploy the coordinated password-reset owner, SessionAuthService, log sanitizer and React recovery
+client. Existing reset tables are sufficient; no new migration is required. Keep used-token history
+as the session revocation marker and retain existing MFA/email configuration. New recovery does
+not grant a session automatically or change memberships/roles.
+
+Validate PasswordRecoveryFlowIntegrationTest, PasswordResetServiceTest, PasswordResetEmailServiceTest,
+PasswordResetApiControllerTest, SessionAuthServiceTest and LogSanitizerTest on indice_test_db. Run
+frontend typecheck/build, recovery/auth regressions and test:password-recovery-browser. Email tests
+use a simulator; do not change a functional password to verify startup. Keep the prior local
+application classes/build for rollback. A replacement must preserve single-use reset, session
+revocation and token redaction; never drop existing reset/audit history during rollback.
+
+
+### Local login and OTP verification check (2026-10-19)
+
+Run `npm run test:auth`, `npm run test:login-verification-browser`, the password-recovery browser
+regression, TypeScript and the production frontend build. The browser fixture uses synthetic
+accounts and mocked API delivery; it must not send messages or change functional users. Backend
+login/MFA, lockout, controller and password-recovery tests use only the isolated indice_test_db.
+Mobile checks emulate browser dimensions, touch and reduced height; they do not certify physical
+iOS/Android mail autofill.
+
+Activate local classes by preserving the running service's configuration/resources and overlaying
+only AuthApiController and LoginMfaChallengeService compiled classes. Retain the previous runtime
+for rollback. Preserve the existing local MFA/email exception and all production defaults; enabling
+real email requires the separate explicit configuration documented above. No database migration.

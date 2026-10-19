@@ -30,25 +30,45 @@ public class MessagingAttachmentService {
         this.conversations=conversations; this.access=access; this.repository=repository; this.storage=storage; this.properties=properties; this.meter=meter;
     }
     @Transactional
+    public PhotoUploadResult presignDraft(Actor a,PhotoUpload raw) {
+        if(!a.member() || a.supportOnly()) throw MessagingAccess.forbidden();
+        return prepare(a,null,raw);
+    }
+    @Transactional
     public PhotoUploadResult presign(Actor a,long conversationId,PhotoUpload raw) {
-        var c=authorized(a,conversationId,true);
+        return prepare(a,authorized(a,conversationId,true),raw);
+    }
+    private PhotoUploadResult prepare(Actor a,Conversation c,PhotoUpload raw) {
         requireStorage();
         if(raw==null || raw.sizeBytes()<=0 || raw.sizeBytes()>MAX_BYTES) throw MessagingService.invalid();
-        if("DIRECT".equals(c.kind()) && conversations.hasRevokedParticipant(c.id(),c.companyId())) throw MessagingAccess.forbidden();
+        if(c!=null && "DIRECT".equals(c.kind()) && conversations.hasRevokedParticipant(c.id(),c.companyId())) throw MessagingAccess.forbidden();
         var r=new PhotoUpload(MessagingService.text(raw.fileName(),255,true).replaceAll("[\\r\\n\\t]"," "),
-            MessagingService.allowed(raw.contentType(),Set.of("image/jpeg","image/png","image/webp")),raw.sizeBytes(),MessagingService.uuid(raw.requestKey()));
+            MessagingService.allowed(raw.contentType(),Set.copyOf(MessagingFileRules.TYPES.values())),raw.sizeBytes(),MessagingService.uuid(raw.requestKey()));
+        if(!MessagingFileRules.accepts(r.fileName(),r.contentType())) throw MessagingService.invalid();
         var existing=repository.retry(a,c,r.requestKey());
         if(existing!=null) {
             if(!existing.fileName().equals(r.fileName()) || !existing.contentType().equals(r.contentType()) || existing.size()!=r.sizeBytes()
-                || existing.messageId()!=null || !existing.expiresAt().isAfter(Instant.now())) throw MessagingService.conflict();
+                || existing.messageId()!=null || (c==null && existing.conversationId()!=null)) throw MessagingService.conflict();
+            if(!existing.expiresAt().isAfter(Instant.now().plusSeconds(10))) {
+                repository.capacity(a);
+                // Keep the attachment ID stable. Never renew objects already bound to a message.
+                storage.deleteObject(bucket(),existing.uploadKey());
+                meter.release(existing.companyId(),existing.uploadKey(),"messaging_upload_renewed");
+                var nextKey="messaging/"+existing.companyId()+"/pending/"+existing.id()+"/"+UUID.randomUUID();
+                var expires=Instant.now().plusSeconds(Math.min(900,meter.reservationTtl().toSeconds()));
+                var next=meter.presign(existing.companyId(),"MESSAGING",bucket(),nextKey,r.contentType(),r.sizeBytes(),remainingSeconds(expires));
+                repository.renewed(existing,nextKey,expires);
+                return new PhotoUploadResult(existing.id(),next.uploadUrl(),next.uploadHeaders(),expires);
+            }
             var upload=storage.presignUpload(bucket(),existing.uploadKey(),r.contentType(),r.sizeBytes(),remainingSeconds(existing.expiresAt()));
             return new PhotoUploadResult(existing.id(),upload.uploadUrl(),upload.uploadHeaders(),existing.expiresAt());
         }
         repository.capacity(a);
         var id=UUID.randomUUID().toString();
-        var key="messaging/"+c.companyId()+"/"+c.id()+"/pending/"+id;
+        long companyId=c==null?a.companyId():c.companyId();
+        var key="messaging/"+companyId+"/"+(c==null?"draft":c.id())+"/pending/"+id;
         var expires=Instant.now().plusSeconds(Math.min(900,meter.reservationTtl().toSeconds()));
-        var upload=meter.presign(c.companyId(),"MESSAGING",bucket(),key,r.contentType(),r.sizeBytes(),remainingSeconds(expires));
+        var upload=meter.presign(companyId,"MESSAGING",bucket(),key,r.contentType(),r.sizeBytes(),remainingSeconds(expires));
         repository.insert(a,c,r,id,key,expires);
         return new PhotoUploadResult(id,upload.uploadUrl(),upload.uploadHeaders(),expires);
     }
@@ -61,7 +81,7 @@ public class MessagingAttachmentService {
     void bind(Actor a,Conversation c,Message message,List<String> ids) {
         for(var id:ids) {
             requireStorage();
-            var row=repository.find(c,id);
+            var row=repository.pending(a,c,id);
             if(row.senderId()!=a.userId() || !row.senderScope().equals(a.scope())) throw MessagingAccess.forbidden();
             if(row.messageId()!=null || !row.expiresAt().isAfter(Instant.now())) throw MessagingService.conflict();
             var target="messaging/"+c.companyId()+"/"+c.id()+"/photos/"+id;
@@ -76,7 +96,8 @@ public class MessagingAttachmentService {
             });
             var metadata=storage.objectMetadata(bucket(),target);
             if(metadata.sizeBytes()!=row.size() || !row.contentType().equalsIgnoreCase(metadata.contentType())
-                || !isImage(row.contentType(),storage.readObjectPrefix(bucket(),target,32))) throw MessagingService.invalid();
+                || !MessagingFileRules.matches(row.contentType(),row.contentType().contains("openxmlformats")
+                    ? storage.readObject(bucket(),target,(int)MAX_BYTES) : storage.readObjectPrefix(bucket(),target,32))) throw MessagingService.invalid();
             meter.commitMoved(c.companyId(),bucket(),row.uploadKey(),target,row.size());
             repository.bind(c,row,message.id(),target);
         }
@@ -93,7 +114,7 @@ public class MessagingAttachmentService {
         var row=repository.find(c,MessagingService.uuid(id));
         if(!repository.visible(a,c,row)) throw MessagingAccess.notFound();
         requireStorage();
-        return new PhotoDownload(storage.presignDownload(bucket(),row.storedKey(),60));
+        return new PhotoDownload(storage.presignDownload(bucket(),row.storedKey(),60,row.fileName()));
     }
     @org.springframework.scheduling.annotation.Scheduled(fixedDelayString="${app.messaging.photo-cleanup-delay-ms:60000}",initialDelayString="${app.messaging.photo-cleanup-initial-delay-ms:60000}")
     @Transactional
@@ -103,7 +124,7 @@ public class MessagingAttachmentService {
             try {
                 storage.deleteObject(bucket(),row.uploadKey());
                 if(row.messageId()==null) {
-                    storage.deleteObject(bucket(),"messaging/"+row.companyId()+"/"+row.conversationId()+"/photos/"+row.id());
+                    if(row.conversationId()!=null) storage.deleteObject(bucket(),"messaging/"+row.companyId()+"/"+row.conversationId()+"/photos/"+row.id());
                     meter.release(row.companyId(),row.uploadKey(),"messaging_photo_expired");
                 }
                 repository.cleaned(row);

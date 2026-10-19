@@ -6,6 +6,7 @@ import { useDeferredTabChange } from './useDeferredTabChange';
 
 interface RoutedModuleTabOptions {
   minimumLoadingDurationMs?: number;
+  preserveSearch?: boolean;
 }
 
 export function useRoutedModuleTab<T extends string>(
@@ -33,7 +34,7 @@ export function useRoutedModuleTab<T extends string>(
     activeTab,
     (nextTab) => {
       if (pageId) {
-        navigate(`/${pageId}/${nextTab}`);
+        navigate(`/${pageId}/${nextTab}${options.preserveSearch ? window.location.search : ''}`);
       }
     },
     options.minimumLoadingDurationMs,
@@ -98,8 +99,8 @@ export function useRoutedModuleTab<T extends string>(
       return;
     }
 
-    navigate(`/${pageId}/${activeTab}`, { replace: true });
-  }, [activeTab, navigate, pageId, shouldRedirect]);
+    navigate(`/${pageId}/${activeTab}${options.preserveSearch ? window.location.search : ''}`, { replace: true });
+  }, [activeTab, navigate, pageId, shouldRedirect, options.preserveSearch]);
 
   const setActiveTab = (nextTab: T) => {
     if (!pageId || nextTab === activeTab) {

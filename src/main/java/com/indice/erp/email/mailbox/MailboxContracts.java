@@ -30,6 +30,7 @@ public final class MailboxContracts {
     public record UploadInput(@NotBlank @Size(max=180) String filename,@NotBlank @Size(max=100) String contentType,@Min(1) @Max(5242880) long sizeBytes,@Min(1) long version,@Min(1) long accountVersion) { }
     public record Upload(String id,String url,java.util.Map<String,String> headers) { }
     public record Version(@Min(1) long version,@Min(1) long accountVersion) { }
+    public record FolderInput(@NotBlank @Size(max=80) String name,@Min(1) long accountVersion) { }
     public record SyncInput(@Pattern(regexp="[0-9a-f-]{36}") String folderId,boolean older) { }
     public record ActionInput(@Min(1) long version,@Min(1) long accountVersion,
         @NotNull @Pattern(regexp="READ|UNREAD|STAR|UNSTAR|MOVE") String action,

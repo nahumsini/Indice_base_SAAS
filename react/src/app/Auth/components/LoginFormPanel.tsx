@@ -8,7 +8,7 @@ import {
   Mail,
   type LucideIcon,
 } from 'lucide-react';
-import type { FormEvent, ReactNode } from 'react';
+import { useId, type FormEvent, type ReactNode } from 'react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import type { LoginPageCopy } from './loginTypes';
@@ -73,7 +73,8 @@ export function LoginFormPanel({
           </p>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={onSubmit} aria-busy={isSubmitting} className="space-y-4">
+          <fieldset disabled={isSubmitting} className="min-w-0 space-y-4">
           {sessionMessage ? (
             <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
               {sessionMessage}
@@ -118,6 +119,7 @@ export function LoginFormPanel({
             action={(
               <button
                 type="button"
+                aria-label={copy.forgotPassword}
                 onClick={onOpenResetModal}
                 className="text-sm font-bold text-[var(--indice-structural-blue)] underline-offset-4 transition hover:text-[var(--indice-structural-blue-hover)] hover:underline"
               >
@@ -142,6 +144,7 @@ export function LoginFormPanel({
               </>
             )}
           </Button>
+          </fieldset>
         </form>
 
         <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-sm text-slate-600">
@@ -221,15 +224,17 @@ function PasswordInput({
   onTogglePassword: () => void;
   action?: ReactNode;
 }) {
+  const inputId=useId();
   return (
-    <label className="block space-y-2">
-      <span className="flex items-center justify-between gap-3">
-        <span className="text-sm font-semibold text-slate-700">{label}</span>
+    <div className="block space-y-2">
+      <span className="flex items-center justify-between gap-3 flex-wrap">
+        <label htmlFor={inputId} className="text-sm font-semibold text-slate-700">{label}</label>
         {action}
       </span>
       <span className="relative block">
         <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <Input
+          id={inputId}
           type={showPassword ? 'text' : 'password'}
           value={value}
           onChange={(event) => onChange(event.target.value)}
@@ -241,19 +246,19 @@ function PasswordInput({
         <button
           type="button"
           onClick={onTogglePassword}
-          className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+          className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
           aria-label={showPassword ? copy.hidePassword : copy.showPassword}
         >
           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
       </span>
-    </label>
+    </div>
   );
 }
 
 function ErrorBox({ message }: { message: string }) {
   return (
-    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+    <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
       {message}
     </div>
   );

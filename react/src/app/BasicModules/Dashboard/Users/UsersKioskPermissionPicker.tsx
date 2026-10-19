@@ -77,6 +77,7 @@ export function UsersKioskPermissionPicker({
                 key={kiosk.id}
                 type="button"
                 disabled={!allowed}
+                aria-pressed={active}
                 onClick={() => toggle(kiosk.id, allowed)}
                 className={cn(
                   'flex min-h-16 items-center gap-3 rounded-xl border p-3 text-left transition',

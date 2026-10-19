@@ -106,6 +106,9 @@ test("generic meeting notification signals keep localized identity without busin
   const catalog = loadTypescript(
     resolve("src/app/components/notifications/notificationCatalog.ts"),
     (name) => {
+      if (name === "./basicNotificationCatalog") return loadTypescript(resolve("src/app/components/notifications/basicNotificationCatalog.ts"));
+      if (name.endsWith("opportunityReminderCopy"))
+        return loadTypescript(resolve("src/app/BasicModules/Sales/Prospectos/translations/opportunityReminderCopy.ts"));
       if (name.endsWith("Messaging/copy"))
         return { messagingCopy: () => ({ title: "Messages" }) };
       if (name.endsWith("meetingCopy"))
@@ -227,4 +230,18 @@ test("operational tables use the native engine and retain scoped safe presentati
       readFileSync(resolve(base + file), "utf8"),
       /useWorkspaceNavigationMemory/,
     );
+});
+
+test('meeting calendar shortcuts respect Monday weeks, leap years and year boundaries',()=>{
+  const {meetingCalendarPeriod}=load('utils/dateScope.ts');
+  assert.deepEqual(meetingCalendarPeriod('2028-02-29','month'),{from:'2028-02-01',to:'2028-02-29'});
+  assert.deepEqual(meetingCalendarPeriod('2026-01-01','week'),{from:'2025-12-29',to:'2026-01-04'});
+  assert.deepEqual(meetingCalendarPeriod('2026-03-08','day'),{from:'2026-03-08',to:'2026-03-08'});
+  assert.throws(()=>meetingCalendarPeriod('2026-02-30','month'));
+});
+test('meeting workspace copy is complete in every supported locale',()=>{
+  const {meetingWorkspaceCopyLocales:copies,getMeetingWorkspaceCopy:get}=load('translations/meetingWorkspaceCopy.ts');
+  assert.equal(Object.keys(copies).length,8);
+  for(const copy of Object.values(copies)){assert.deepEqual(Object.keys(copy),Object.keys(copies['en-CA']));assert.ok(Object.values(copy).every(value=>typeof value==='string'&&value.trim()));}
+  assert.equal(get('unknown'),copies['en-CA']);
 });

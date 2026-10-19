@@ -165,10 +165,11 @@ export function UsersTabPermissionPicker({
           <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             type="search"
+            aria-label={copy.search}
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             placeholder={copy.search}
-            className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-base sm:text-sm text-slate-800 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
           />
         </label>
       </div>

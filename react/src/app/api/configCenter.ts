@@ -1,5 +1,11 @@
 import { apiClient } from '../lib/apiClient';
 import { endpoints } from './endpoints';
+import { getCachedAuthSession } from './authSessionStore';
+
+export const currentProfileActor = () => { const session = getCachedAuthSession(); return session ? `${session.company.id}:${session.user.id}` : null; };
+const companyActorHeaders = (actor = currentProfileActor()): Record<string, string> => actor ? { 'X-Company-Actor': actor } : {};
+const usersActorHeaders = (actor?: string | null): Record<string, string> => actor ? { 'X-Users-Actor': actor } : {};
+const profileActorHeaders = () => ({ 'X-Profile-Actor': currentProfileActor() ?? '' });
 
 export interface ConfigCenterCurrentUser {
   id: number;
@@ -334,11 +340,13 @@ interface ConfigResponse {
     estructura?: 'simple' | 'multi';
     colaboradores?: number;
     empresa_template?: Record<string, unknown>;
+    can_edit?: boolean;
     map?: ConfigCenterEmpresaMapUnit[];
   } | null;
 }
 
 export interface SaveStructureResponse {
+  company?: ConfigCenterEmpresa;
   modo?: 'simple' | 'multi';
   estructura?: 'simple' | 'multi';
   colaboradores?: number;
@@ -347,6 +355,7 @@ export interface SaveStructureResponse {
 }
 
 export interface SaveStructurePayload {
+  company?: SaveEmpresaPayload;
   estructura: 'simple' | 'multi';
   map: Array<{
     name: string;
@@ -427,11 +436,12 @@ export interface ConfigCenterCoordinateExtractionResponse {
 
 export const configCenterApi = {
   getCurrentUser() {
-    return apiClient<ConfigCenterCurrentUser>(endpoints.configCenter.currentUser);
+    return apiClient<ConfigCenterCurrentUser>(endpoints.configCenter.currentUser, { headers: profileActorHeaders() });
   },
 
   saveCurrentUser(payload: SaveCurrentUserPayload) {
     return apiClient<ConfigCenterCurrentUser>(endpoints.configCenter.saveCurrentUser, {
+      headers: profileActorHeaders(),
       method: 'PUT',
       body: JSON.stringify(payload),
     });
@@ -439,6 +449,7 @@ export const configCenterApi = {
 
   presignCurrentUserAvatarUpload(payload: CurrentUserAvatarPresignPayload) {
     return apiClient<CurrentUserAvatarPresignResponse>(endpoints.configCenter.currentUserAvatarPresignUpload, {
+      headers: profileActorHeaders(),
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -467,46 +478,52 @@ export const configCenterApi = {
     }
   },
 
-  getUsers() {
-    return apiClient<UsersResponse>(endpoints.configCenter.users);
+  getUsers(actor?: string | null) {
+    return apiClient<UsersResponse>(endpoints.configCenter.users, { headers: usersActorHeaders(actor) });
   },
 
-  updateUser(id: number, payload: UpdateConfigCenterUserPayload) {
+  updateUser(id: number, payload: UpdateConfigCenterUserPayload, actor?: string | null) {
     return apiClient<{ success: boolean }>(`${endpoints.configCenter.updateUser}/${id}`, {
       method: 'PUT',
+      headers: usersActorHeaders(actor),
       body: JSON.stringify(payload),
     });
   },
 
-  deleteUser(id: number) {
+  deleteUser(id: number, actor?: string | null) {
     return apiClient<{ success: boolean; deleted: boolean }>(`${endpoints.configCenter.updateUser}/${id}`, {
       method: 'DELETE',
+      headers: usersActorHeaders(actor),
     });
   },
 
-  activateUser(id: number) {
+  activateUser(id: number, actor?: string | null) {
     return apiClient<{ success: boolean; active: boolean }>(`${endpoints.configCenter.updateUser}/${id}/activate`, {
       method: 'POST',
+      headers: usersActorHeaders(actor),
     });
   },
 
-  inviteUser(payload: InviteConfigCenterUserPayload) {
+  inviteUser(payload: InviteConfigCenterUserPayload, actor?: string | null) {
     return apiClient<ConfigCenterInviteResponse>(endpoints.configCenter.inviteUser, {
       method: 'POST',
+      headers: usersActorHeaders(actor),
       body: JSON.stringify(payload),
     });
   },
 
-  resendInvitation(id: number, email?: string) {
+  resendInvitation(id: number, email?: string, actor?: string | null) {
     return apiClient<ConfigCenterInviteResponse>(`${endpoints.configCenter.resendInvitation}/${id}/resend`, {
       method: 'POST',
+      headers: usersActorHeaders(actor),
       body: JSON.stringify(email ? { email } : {}),
     });
   },
 
-  deleteInvitation(id: number) {
+  deleteInvitation(id: number, actor?: string | null) {
     return apiClient<{ success: boolean; deleted: boolean }>(`${endpoints.configCenter.resendInvitation}/${id}`, {
       method: 'DELETE',
+      headers: usersActorHeaders(actor),
     });
   },
 
@@ -521,33 +538,36 @@ export const configCenterApi = {
     });
   },
 
-  getEmpresa() {
-    return apiClient<ConfigCenterEmpresa>(endpoints.configCenter.empresa);
+  getEmpresa(actor?: string | null) {
+    return apiClient<ConfigCenterEmpresa>(endpoints.configCenter.empresa, { headers: companyActorHeaders(actor) });
   },
 
-  getConfig() {
-    return apiClient<ConfigResponse['data']>(endpoints.configCenter.config);
+  getConfig(actor?: string | null) {
+    return apiClient<ConfigResponse['data']>(endpoints.configCenter.config, { headers: companyActorHeaders(actor) });
   },
 
-  saveConfig(payload: SaveStructurePayload) {
+  saveConfig(payload: SaveStructurePayload, actor?: string | null) {
     return apiClient<SaveStructureResponse>(endpoints.configCenter.saveConfig, {
       method: 'PUT',
+      headers: companyActorHeaders(actor),
       body: JSON.stringify(payload),
     });
   },
 
-  saveEmpresa(payload: SaveEmpresaPayload) {
+  saveEmpresa(payload: SaveEmpresaPayload, actor?: string | null) {
     return apiClient<SaveEmpresaResponse>(endpoints.configCenter.saveEmpresa, {
       method: 'PUT',
+      headers: companyActorHeaders(actor),
       body: JSON.stringify(payload),
     });
   },
 
-  extractLocationCoordinates(payload: ConfigCenterCoordinateExtractionPayload) {
+  extractLocationCoordinates(payload: ConfigCenterCoordinateExtractionPayload, actor?: string | null) {
     return apiClient<ConfigCenterCoordinateExtractionResponse>(
       endpoints.configCenter.locationCoordinateExtraction,
       {
         method: 'POST',
+        headers: companyActorHeaders(actor),
         body: JSON.stringify(payload),
       },
     );

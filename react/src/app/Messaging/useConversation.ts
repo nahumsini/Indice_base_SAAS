@@ -16,6 +16,7 @@ export function useConversation(portal: MessagingPortal, id: number, onChanged: 
   const [revision, setRevision] = useState(0);
   const [hasOlder, setHasOlder] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const [sendError, setSendError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState('');
@@ -88,19 +89,26 @@ export function useConversation(portal: MessagingPortal, id: number, onChanged: 
 
   const send = async () => {
     if ((!draft.trim() && !photos.photos.length) || sendingRef.current || revoked.current) return;
-    sendingRef.current = true; setSending(true); setError(null);
+    sendingRef.current = true; setSending(true); setSendError(null);
     const body = draft.trim();
     try {
       const attachmentIds = await photos.upload(api, id);
       if (!mounted.current || revoked.current) return;
       request.current = requestIdentity(request.current, JSON.stringify([id, body, visibility, attachmentIds]));
-      const message = await api.send(id, body, visibility, request.current.key, attachmentIds);
+      let message: Message;
+      try { message = await api.send(id, body, visibility, request.current.key, attachmentIds); }
+      catch (failure) {
+        if (!(failure instanceof ApiClientError) || failure.status !== 409 || !photos.expired()) throw failure;
+        const renewed = await photos.upload(api, id, true);
+        // Renewal retains IDs, so the original send identity remains authoritative.
+        message = await api.send(id, body, visibility, request.current.key, renewed);
+      }
       if (!mounted.current) return;
       // Do not advance the polling cursor here: concurrent incoming messages may precede this id.
       setMessages(current => mergeMessages(current, [message]));
       setDraft(''); photos.clear(); request.current = null;
       await refresh(); changed.current();
-    } catch (failure) { fail(failure); }
+    } catch (failure) { if (mounted.current) setSendError(failure); fail(failure); }
     finally { sendingRef.current = false; if (mounted.current) setSending(false); }
   };
   const older = async () => {
@@ -121,5 +129,5 @@ export function useConversation(portal: MessagingPortal, id: number, onChanged: 
     } catch (failure) { await refresh(); fail(failure); return false; }
     finally { sendingRef.current = false; if (mounted.current) setSending(false); }
   };
-  return { conversation, messages, participants, revision, markRead, hasOlder, error, loading, sending, draft, setDraft, visibility, setVisibility, send, older, refresh, change, photos };
+  return { conversation, messages, participants, revision, markRead, hasOlder, error, sendError, loading, sending, draft, setDraft, visibility, setVisibility, send, older, refresh, change, photos };
 }

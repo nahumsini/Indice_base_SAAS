@@ -9,14 +9,17 @@ import org.springframework.stereotype.Service;
 class SalesNotificationSyncService {
 
     private final JdbcTemplate jdbcTemplate;
+    private final NotificationAccessService access;
 
-    SalesNotificationSyncService(JdbcTemplate jdbcTemplate) {
+    SalesNotificationSyncService(JdbcTemplate jdbcTemplate, NotificationAccessService access) {
         this.jdbcTemplate = jdbcTemplate;
+        this.access = access;
     }
 
     void sync(HrAnnouncementActor actor) {
-        insertQuoteFollowUps(actor);
-        insertPostSaleFollowUps(actor);
+        var scope=access.scope(actor);
+        if (scope.allowed("sales", "sales_quote_follow_up")) insertQuoteFollowUps(actor);
+        if (scope.allowed("sales", "sales_customer_activity")) insertPostSaleFollowUps(actor);
     }
 
     private void insertQuoteFollowUps(HrAnnouncementActor actor) {
@@ -37,7 +40,7 @@ class SalesNotificationSyncService {
               AND LOWER(COALESCE(quote.status, 'draft')) NOT IN ('accepted', 'won', 'rejected', 'lost', 'cancelled')
               AND (quote.assigned_seller_user_company_id = ? OR (? = TRUE AND quote.assigned_seller_user_company_id IS NULL))
             ON DUPLICATE KEY UPDATE title = VALUES(title), description = VALUES(description),
-              action_url = VALUES(action_url), dismissed_at = NULL, dismissed_by = NULL
+              action_url = VALUES(action_url)
             """,
             actor.userCompanyId(), actor.companyId(), java.sql.Date.valueOf(LocalDate.now()),
             actor.userCompanyId(), actor.managementAccess());
@@ -61,7 +64,7 @@ class SalesNotificationSyncService {
               AND LOWER(COALESCE(post_sale.status, 'active')) NOT IN ('closed', 'cancelled', 'lost')
               AND (post_sale.owner_user_company_id = ? OR (? = TRUE AND post_sale.owner_user_company_id IS NULL))
             ON DUPLICATE KEY UPDATE title = VALUES(title), description = VALUES(description),
-              action_url = VALUES(action_url), dismissed_at = NULL, dismissed_by = NULL
+              action_url = VALUES(action_url)
             """,
             actor.userCompanyId(), actor.companyId(), java.sql.Date.valueOf(LocalDate.now()),
             actor.userCompanyId(), actor.managementAccess());

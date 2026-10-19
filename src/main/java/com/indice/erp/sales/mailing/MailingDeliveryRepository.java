@@ -11,9 +11,9 @@ public class MailingDeliveryRepository {
     private final JdbcTemplate db;
     public MailingDeliveryRepository(JdbcTemplate db){this.db=db;}
     List<Audience> audience(long company,String campaign){return db.query("""
-        SELECT s.id,s.company_name,LOWER(TRIM(s.email)) AS email,
+        SELECT s.id,COALESCE(NULLIF(TRIM(s.contact_person),''),s.company_name),LOWER(TRIM(s.email)) AS email,
             CASE WHEN s.deleted_at IS NOT NULL OR s.status<>'active' OR s.email IS NULL OR s.email NOT REGEXP '^[^[:space:]@]+@[^[:space:]@]+[.][^[:space:]@]+$' THEN 'INVALID'
-            WHEN p.status='SUPPRESSED' THEN 'SUPPRESSED' WHEN p.status='CONSENTED' THEN 'READY' ELSE 'CONSENT_REQUIRED' END AS eligibility
+            WHEN p.status='SUPPRESSED' THEN 'SUPPRESSED' ELSE 'READY' END AS eligibility
         FROM sales_mailing_recipients r JOIN sales_contacts s ON s.company_id=r.company_id AND s.id=r.contact_id
         LEFT JOIN sales_mailing_permissions p ON p.company_id=s.company_id AND p.email=LOWER(TRIM(s.email))
         WHERE r.company_id=? AND r.campaign_id=? ORDER BY s.id
@@ -23,7 +23,7 @@ public class MailingDeliveryRepository {
         db.update("INSERT INTO sales_mailing_permissions(company_id,email,status,evidence,recorded_by,recorded_at) VALUES(?,?,'CONSENTED',?,?,?) ON DUPLICATE KEY UPDATE evidence=IF(status='SUPPRESSED',evidence,VALUES(evidence)),recorded_at=IF(status='SUPPRESSED',recorded_at,VALUES(recorded_at)),recorded_by=IF(status='SUPPRESSED',recorded_by,VALUES(recorded_by)),updated_at=CURRENT_TIMESTAMP(6)",actor.companyId(),email,evidence,actor.userId(),Timestamp.from(at));
         db.update("INSERT INTO sales_mailing_permission_events(company_id,email,action,actor_user_id,evidence) VALUES(?,?,?,?,?)",actor.companyId(),email,eligible(actor.companyId(),email)?"CONSENT_RECORDED":"CONSENT_IGNORED",actor.userId(),evidence);
     }
-    boolean eligible(long company,String email){return Boolean.TRUE.equals(db.queryForObject("SELECT EXISTS(SELECT 1 FROM sales_mailing_permissions WHERE company_id=? AND email=? AND status='CONSENTED')",Boolean.class,company,email));}
+    boolean eligible(long company,String email){return Boolean.TRUE.equals(db.queryForObject("SELECT NOT EXISTS(SELECT 1 FROM sales_mailing_permissions WHERE company_id=? AND email=? AND status='SUPPRESSED')",Boolean.class,company,email));}
     void launch(AuthSessionUser a,MailingContracts.Campaign c,long accountVersion,Instant scheduled,String footer,List<Audience> audience){
         db.update("INSERT INTO sales_mailing_runs(company_id,campaign_id,actor_user_id,account_id,account_version,scheduled_at,footer) VALUES(?,?,?,?,?,?,?)",a.companyId(),c.id(),a.userId(),c.senderAccountId(),accountVersion,Timestamp.from(scheduled),footer);
         for(var person:audience)db.update("INSERT INTO sales_mailing_deliveries(company_id,campaign_id,id,contact_id,email,name) VALUES(?,?,?,?,?,?)",a.companyId(),c.id(),UUID.randomUUID().toString(),person.contactId(),person.email(),person.name());
@@ -45,7 +45,10 @@ public class MailingDeliveryRepository {
         var rows=db.query("SELECT company_id,email FROM sales_mailing_deliveries WHERE id=?",(r,n)->new Object[]{r.getLong(1),r.getString(2)},id);
         if(rows.isEmpty())return;long company=(long)rows.getFirst()[0];String email=(String)rows.getFirst()[1];
         db.queryForObject("SELECT id FROM companies WHERE id=? FOR UPDATE",Long.class,company);
-        int changed=db.update("UPDATE sales_mailing_permissions SET status='SUPPRESSED',updated_at=CURRENT_TIMESTAMP(6) WHERE company_id=? AND email=? AND status<>'SUPPRESSED'",company,email);
-        if(changed>0)db.update("INSERT INTO sales_mailing_permission_events(company_id,email,action) VALUES(?,?,'UNSUBSCRIBED')",company,email);
+        if(!eligible(company,email))return;
+        // A recipient may now unsubscribe without a prior consent row. Zero denotes the system
+        // recorder for this capability-authorized action; the event has no authenticated actor.
+        db.update("INSERT INTO sales_mailing_permissions(company_id,email,status,evidence,recorded_by,recorded_at) VALUES(?,?,'SUPPRESSED','Recipient unsubscribe link',0,CURRENT_TIMESTAMP(6)) ON DUPLICATE KEY UPDATE status='SUPPRESSED',updated_at=CURRENT_TIMESTAMP(6)",company,email);
+        db.update("INSERT INTO sales_mailing_permission_events(company_id,email,action) VALUES(?,?,'UNSUBSCRIBED')",company,email);
     }
 }

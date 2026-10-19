@@ -55,3 +55,13 @@
   flex: 0 0 auto;
   overflow-y: visible;
 }
+
+/* Account preferences retain their actions while a short screen scrolls the body. */
+[data-dialog-compact-viewport="true"].indice-account-preferences {
+  overflow-y: hidden !important;
+}
+[data-dialog-compact-viewport="true"].indice-account-preferences [data-slot="indice-modal-body"] {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
+}

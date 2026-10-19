@@ -35,19 +35,22 @@ class MailTransportTest {
     }
     @Test void smtpEnvelopeIncludesBccButMessageHeadersNeverDiscloseIt()throws Exception {smtp(false);}
     @Test void missingDataAcknowledgementIsUncertainAndNotAutomaticallyRepeated()throws Exception {smtp(true);}
-    void smtp(boolean dropAcknowledgement)throws Exception {
+    @Test void smtpRecipientRejectionIsDefiniteAndDoesNotTransmitBody()throws Exception {smtp(false,"RCPT");}
+    @Test void smtpContentRejectionIsDefiniteEvenAfterData()throws Exception {smtp(false,"END");}
+    void smtp(boolean dropAcknowledgement)throws Exception {smtp(dropAcknowledgement,"");}
+    void smtp(boolean dropAcknowledgement,String reject)throws Exception {
         try(var server=new ServerSocket(0,1,InetAddress.getByName("127.0.0.1"));var executor=Executors.newSingleThreadExecutor()) {
             server.setSoTimeout(5000);
             var transcript=executor.submit(()->{
                 try(var socket=server.accept()){socket.setSoTimeout(4000);var in=new BufferedReader(new InputStreamReader(socket.getInputStream(),StandardCharsets.UTF_8));var out=new PrintWriter(socket.getOutputStream(),true,StandardCharsets.UTF_8);var lines=new ArrayList<String>();
                     out.print("220 synthetic ESMTP\r\n");out.flush();String line;boolean data=false;int login=0;
                     while((line=in.readLine())!=null){
-                        if(data){if(line.equals(".")){data=false;if(dropAcknowledgement)break;out.print("250 accepted\r\n");out.flush();}else lines.add("DATA "+line);continue;}
+                        if(data){if(line.equals(".")){data=false;if(dropAcknowledgement)break;out.print(reject.equals("END")?"554 policy rejected\r\n":"250 accepted\r\n");out.flush();}else lines.add("DATA "+line);continue;}
                         if(login>0){login++;out.print(login==2?"334 UGFzc3dvcmQ6\r\n":"235 authenticated\r\n");if(login==3)login=0;}
                         else if(line.startsWith("EHLO"))out.print("250-synthetic\r\n250 AUTH LOGIN PLAIN\r\n");
                         else if(line.equals("AUTH LOGIN")){login=1;out.print("334 VXNlcm5hbWU6\r\n");}
                         else if(line.startsWith("AUTH PLAIN"))out.print("235 authenticated\r\n");
-                        else if(line.startsWith("RCPT")){lines.add(line);out.print("250 recipient\r\n");}
+                        else if(line.startsWith("RCPT")){lines.add(line);out.print(reject.equals("RCPT")?"550 invalid recipient\r\n":"250 recipient\r\n");}
                         else if(line.equals("DATA")){data=true;out.print("354 continue\r\n");}
                         else if(line.equals("QUIT")){out.print("221 bye\r\n");out.flush();break;}
                         else out.print("250 ok\r\n");out.flush();
@@ -58,11 +61,32 @@ class MailTransportTest {
             {
                 var connections=new JakartaMailboxTransport.Connections(){@Override Session smtp(EmailAccountService.ConnectionMaterial m){return Session.getInstance(props);}};
                 var outgoing=new MailboxTransport.Outgoing("<fixed-id@example.com>","Hello","Synthetic body",List.of("to@example.com"),List.of("cc@example.com"),List.of("secret@example.com"),"<parent@example.com>","<parent@example.com>");
-                var result=new JakartaMailboxTransport(connections).send(material(server.getLocalPort()),outgoing);
-                assertThat(result).isEqualTo(dropAcknowledgement?MailboxTransport.Outcome.UNKNOWN:MailboxTransport.Outcome.ACCEPTED);
-                String wire=String.join("\n",transcript.get(5,TimeUnit.SECONDS));assertThat(wire).contains("RCPT TO:<secret@example.com>","DATA Message-ID: <fixed-id@example.com>","DATA In-Reply-To: <parent@example.com>","Synthetic body").doesNotContain("DATA Bcc:","DATA secret@example.com");
+                if(!reject.isEmpty()) {
+                    assertThatThrownBy(()->new JakartaMailboxTransport(connections).send(material(server.getLocalPort()),outgoing))
+                        .isInstanceOf(MailSendRejection.class).hasMessage(reject.equals("RCPT")?"email_send_recipient_rejected":"email_send_content_rejected");
+                    var wire=String.join("\n",transcript.get(5,TimeUnit.SECONDS));
+                    if(reject.equals("RCPT"))assertThat(wire).doesNotContain("DATA ");
+                } else {
+                    var result=new JakartaMailboxTransport(connections).send(material(server.getLocalPort()),outgoing);
+                    assertThat(result).isEqualTo(dropAcknowledgement?MailboxTransport.Outcome.UNKNOWN:MailboxTransport.Outcome.ACCEPTED);
+                    String wire=String.join("\n",transcript.get(5,TimeUnit.SECONDS));assertThat(wire).contains("RCPT TO:<secret@example.com>","DATA Message-ID: <fixed-id@example.com>","DATA In-Reply-To: <parent@example.com>","Synthetic body").doesNotContain("DATA Bcc:","DATA secret@example.com");
+                }
             }
         }
+    }
+    @Test void partialDeliveryAndMissingAcknowledgementRemainUnknown()throws Exception {
+        var smtp=new org.eclipse.angus.mail.smtp.SMTPSendFailedException(".",554,"private provider details",null,new Address[]{new InternetAddress("delivered@example.com")},null,null);
+        assertThat(MailSendRejection.classify(smtp,true)).isNull();
+        assertThat(MailSendRejection.classify(new java.net.SocketTimeoutException("private host"),true)).isNull();
+        assertThat(MailSendRejection.classify(new AuthenticationFailedException("secret"),false)).hasMessage("email_send_authentication_failed");
+    }
+    @Test void folderCreationUsesPersonalNamespaceAndIsIdempotent()throws Exception {
+        var connections=mock(JakartaMailboxTransport.Connections.class);var store=mock(Store.class);var root=mock(Folder.class);var folder=mock(Folder.class);
+        when(connections.receive(any())).thenReturn(store);when(store.getPersonalNamespaces()).thenReturn(new Folder[]{root});when(root.getFolder("Clientes")).thenReturn(folder);
+        when(folder.exists()).thenReturn(false,true);when(folder.create(Folder.HOLDS_MESSAGES)).thenReturn(true);when(folder.getType()).thenReturn(Folder.HOLDS_MESSAGES);when(folder.getFullName()).thenReturn("INBOX.Clientes");
+        var transport=new JakartaMailboxTransport(connections);
+        assertThat(transport.createFolder(material(465),"Clientes").name()).isEqualTo("INBOX.Clientes");
+        transport.createFolder(material(465),"Clientes");verify(folder,times(1)).create(Folder.HOLDS_MESSAGES);
     }
     @Test void imapOpenMarksSeenAndClosesWithoutExpungingOtherMessages()throws Exception {
         var connections=mock(JakartaMailboxTransport.Connections.class);var store=mock(Store.class);var folder=mock(IMAPFolder.class);

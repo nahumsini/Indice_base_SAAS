@@ -8,7 +8,7 @@ export const zhCA = {
     management: '管理',
     funnelingDescription: '规划营销漏斗和活动目标。',
     mailingDescription: '准备并发送电子邮件营销活动。',
-    whatsappingDescription: '筹备中：暂不支持发送。',
+    whatsappingDescription: '准备活动并通过 WhatsApp 跟进客户。',
   },
   loading: {
     openingTitle: '正在打开销售',

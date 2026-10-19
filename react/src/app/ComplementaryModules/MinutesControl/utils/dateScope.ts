@@ -38,3 +38,22 @@ export function calendarDates(from: string, to: string) {
     return date;
   });
 }
+
+export type MeetingCalendarPeriod = "day" | "week" | "month";
+export function meetingCalendarPeriod(
+  anchor: string,
+  period: MeetingCalendarPeriod,
+) {
+  const from = localDate(anchor),
+    to = new Date(from);
+  if (period === "week") {
+    from.setDate(from.getDate() - ((from.getDay() + 6) % 7));
+    to.setTime(from.getTime());
+    to.setDate(to.getDate() + 6);
+  }
+  if (period === "month") {
+    from.setDate(1);
+    to.setMonth(to.getMonth() + 1, 0);
+  }
+  return { from: dateInput(from), to: dateInput(to) };
+}

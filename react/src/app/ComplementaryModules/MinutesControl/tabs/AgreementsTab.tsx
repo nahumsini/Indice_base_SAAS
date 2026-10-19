@@ -1,6 +1,10 @@
+import { getMeetingWorkspaceCopy } from "../translations/meetingWorkspaceCopy";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
-import { AgreementDetail, FollowupEditor } from "../components/AgreementEditors";
+import {
+  AgreementDetail,
+  FollowupEditor,
+} from "../components/AgreementEditors";
 import { getMeetingOperationsCopy } from "../translations/meetingOperationsCopy";
 import { Plus, RotateCw, Check, X } from "lucide-react";
 import { IndiceTitleBar } from "../../../components/frontend-os/IndiceTitleBar";
@@ -47,10 +51,14 @@ export default function AgreementsTab({
 }) {
   const [params, setParams] = useSearchParams();
   const rawMeetingId = Number(params.get("meeting"));
-  const meetingId = Number.isSafeInteger(rawMeetingId) && rawMeetingId > 0 ? rawMeetingId : 0;
+  const meetingId =
+    Number.isSafeInteger(rawMeetingId) && rawMeetingId > 0 ? rawMeetingId : 0;
   const [includePrevious, setIncludePrevious] = useState(false);
   const op = getMeetingOperationsCopy(locale);
-  const [detailId, setDetailId] = useState<number | null>(null), [editing, setEditing] = useState<Agreement | null>(null), [note, setNote] = useState<Agreement | null>(null);
+  const [detailId, setDetailId] = useState<number | null>(null),
+    [editing, setEditing] = useState<Agreement | null>(null),
+    [note, setNote] = useState<Agreement | null>(null);
+  const workspace = getMeetingWorkspaceCopy(locale);
   const now = new Date(),
     defaults: ListScope = {
       from: dateInput(new Date(now.getFullYear(), now.getMonth(), 1)),
@@ -99,7 +107,8 @@ export default function AgreementsTab({
         valid
           ? meetingApi.agreements(
               {
-                meetingId, includePrevious: String(Boolean(meetingId && includePrevious)),
+                meetingId,
+                includePrevious: String(Boolean(meetingId && includePrevious)),
                 from: scope.from,
                 to: dateEnd(scope.to),
                 search,
@@ -116,7 +125,8 @@ export default function AgreementsTab({
             )
           : Promise.resolve(undefined),
       [
-        meetingId, includePrevious,
+        meetingId,
+        includePrevious,
         valid,
         scope.from,
         scope.to,
@@ -150,7 +160,9 @@ export default function AgreementsTab({
   });
   const close = () => {
       setCreate(false);
-      setDetailId(null); setEditing(null); setNote(null);
+      setDetailId(null);
+      setEditing(null);
+      setNote(null);
       setTransition(null);
     },
     saved = () => {
@@ -163,7 +175,7 @@ export default function AgreementsTab({
       <IndiceTitleBar
         tone="blue"
         title={copy.agreements}
-        subtitle={copy.metricsHint}
+        subtitle={workspace.agreementsHint}
         icon="🤝"
         actions={
           <>
@@ -178,12 +190,43 @@ export default function AgreementsTab({
           </>
         }
       />
-      <div className="flex flex-wrap items-center gap-2">
-        {meetingId ? <><span className="text-sm">{op.meetingScope}</span><Action primary={includePrevious} onClick={() => { setIncludePrevious(!includePrevious); setScope({ ...scope, page: 1 }); }}>{op.carryover}</Action><Action onClick={() => { const next = new URLSearchParams(params); next.delete("meeting"); setParams(next); }}>{op.removeScope}</Action></> : [ ["allOpen", op.allOpen], ["allOverdue", op.allOverdue], ["", op.period] ].map(([value, label]) => <Action key={value} primary={scope.attention === value} onClick={() => setScope({ ...scope, attention: value, status: "", page: 1 })}>{label}</Action>)}
+      <div
+        className={meetingId ? "flex flex-wrap items-center gap-2" : "hidden"}
+      >
+        {meetingId ? (
+          <>
+            <span className="text-sm">{op.meetingScope}</span>
+            <Action
+              primary={includePrevious}
+              onClick={() => {
+                setIncludePrevious(!includePrevious);
+                setScope({ ...scope, page: 1 });
+              }}
+            >
+              {op.carryover}
+            </Action>
+            <Action
+              onClick={() => {
+                const next = new URLSearchParams(params);
+                next.delete("meeting");
+                setParams(next);
+              }}
+            >
+              {op.removeScope}
+            </Action>
+          </>
+        ) : null}
       </div>
       <ScopeFilters
+        locale={locale}
+        agreements
+        meetingScoped={Boolean(meetingId)}
         scope={scope}
-        hideDates={Boolean(meetingId) || scope.attention === "allOpen" || scope.attention === "allOverdue"}
+        hideDates={
+          Boolean(meetingId) ||
+          scope.attention === "allOpen" ||
+          scope.attention === "allOverdue"
+        }
         defaults={defaults}
         copy={copy}
         statuses={statuses}
@@ -197,7 +240,10 @@ export default function AgreementsTab({
       ) : query.loading ? (
         <Feedback>{copy.loading}</Feedback>
       ) : query.error ? (
-        <Feedback error>{copy.error}</Feedback>
+        <Feedback error>
+          {copy.error}
+          <Action onClick={query.reload}>{copy.refresh}</Action>
+        </Feedback>
       ) : (
         query.data && (
           <MeetingList<Agreement>
@@ -219,7 +265,12 @@ export default function AgreementsTab({
               return (
                 <>
                   <TableCell className="px-5 py-4">
-                    <button type="button" className="min-h-11 max-w-full truncate text-left font-medium text-blue-700 underline-offset-4 hover:underline dark:text-blue-300" title={row.title} onClick={() => setDetailId(row.id)}>
+                    <button
+                      type="button"
+                      className="min-h-11 max-w-full truncate text-left font-medium text-blue-700 underline-offset-4 hover:underline dark:text-blue-300"
+                      title={row.title}
+                      onClick={() => setDetailId(row.id)}
+                    >
                       {row.title}
                     </button>
                     {row.resolution && (
@@ -245,6 +296,12 @@ export default function AgreementsTab({
                     </span>
                   </TableCell>
                   <TableCell className="px-5 py-4 text-sm">
+                    {row.status === "OPEN" &&
+                      row.dueDate < dateInput(new Date()) && (
+                        <span className="mb-2 block w-fit rounded-full bg-amber-50 px-2 py-1 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                          {workspace.overdue}
+                        </span>
+                      )}
                     {new Intl.DateTimeFormat(locale, {
                       dateStyle: "medium",
                     }).format(new Date(row.dueDate + "T12:00:00"))}
@@ -289,11 +346,47 @@ export default function AgreementsTab({
         )
       )}
       {create && (
-        <AgreementEditor copy={copy} meetingId={meetingId} onClose={close} onSaved={saved} />
+        <AgreementEditor
+          copy={copy}
+          meetingId={meetingId}
+          onClose={close}
+          onSaved={saved}
+        />
       )}
-      {detailId && <AgreementDetail id={detailId} copy={copy} locale={locale} userId={userId} administrator={administrator} onClose={close} onEdit={row => { setDetailId(null); setEditing(row); }} onNote={row => { setDetailId(null); setNote(row); }} />}
-      {editing && <AgreementEditor record={editing} copy={copy} onClose={close} onSaved={saved} />}
-      {note && <FollowupEditor agreement={note} copy={copy} onClose={close} onSaved={saved} />}
+      {detailId && (
+        <AgreementDetail
+          id={detailId}
+          copy={copy}
+          locale={locale}
+          userId={userId}
+          administrator={administrator}
+          onClose={close}
+          onEdit={(row) => {
+            setDetailId(null);
+            setEditing(row);
+          }}
+          onNote={(row) => {
+            setDetailId(null);
+            setNote(row);
+          }}
+        />
+      )}
+      {editing && (
+        <AgreementEditor
+          record={editing}
+          copy={copy}
+          onClose={close}
+          onSaved={saved}
+        />
+      )}
+      {note && (
+        <FollowupEditor
+          agreement={note}
+          copy={copy}
+          onClose={close}
+          onSaved={saved}
+        />
+      )}
       {transition && (
         <TransitionEditor
           copy={copy}

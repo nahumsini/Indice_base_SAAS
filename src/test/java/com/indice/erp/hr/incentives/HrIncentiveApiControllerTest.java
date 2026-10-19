@@ -34,6 +34,9 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(HrIncentiveApiController.class)
 class HrIncentiveApiControllerTest {
 
+    @org.springframework.boot.test.mock.mockito.MockBean
+    private com.indice.erp.learning.LearningAppliedAdvice learningAppliedAdvice;
+
     private static final AuthSessionUser CURRENT_USER = new AuthSessionUser(4L, 7L, "HR Manager", "admin");
 
     @Autowired

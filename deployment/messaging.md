@@ -99,3 +99,27 @@ failed-upload and lost-acknowledgement retries, five-photo/8-MiB limits, mobile 
 cleanup. Confirm the cleanup scheduler runs and storage errors are monitored. Schema and API tests
 alone do not certify storage/proxy configuration in a deployment. Text chat remains available when
 photo storage is disabled. The frontend shows a recoverable error and retains the unsent photos.
+
+
+## Photos/documents and ERP initial attachments (2026-10-18)
+
+Apply V326 and V327 before serving the updated application. They widen MIME metadata and add
+private sender-owned staging without dropping existing records. The first-message route is ERP-only;
+no kiosk or subscription recovery permissions are expanded. Rollback keeps the additive schema.
+Verify real private storage PUT/download and CORS in the target environment; browser regression
+uses synthetic storage while owner integration uses the isolated test database. Mobile verification
+covers 320/390/768/1440 widths, reduced height, draft guards, action menus and dark mode; physical
+iOS/Android keyboard behavior still requires the target-device smoke check.
+
+
+### Mobile Messages flow validation (2026-10-18)
+
+`npm run test:messaging-mobile-browser --prefix react` runs the touch flow with synthetic files and
+conversations. Set `INDICE_MESSAGING_ENGINES=chromium,webkit` to cover both installed engines;
+`INDICE_PLAYWRIGHT_MODULE`, `INDICE_CHROME_PATH` and optional `INDICE_WEBKIT_PATH` select the local
+test runtime. Coverage includes native file chooser invocation, directory recovery, direct/group
+creation, initial photos/documents, failed PUT/acknowledgement retries, photo expansion, PDF/Word/Excel
+opening, blocked-window fallback, retained drafts, long filename errors and phone/landscape layouts.
+Use `INDICE_MESSAGING_SCREENSHOTS` for fixture screenshots. WebKit emulation does not replace a
+physical iOS/Android keyboard and native file-handler check. No schema or authorization change is
+required for this refinement.

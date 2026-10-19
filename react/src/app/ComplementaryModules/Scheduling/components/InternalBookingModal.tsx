@@ -16,7 +16,10 @@ export function InternalBookingModal({ copy, locale, onClose }: { copy: Scheduli
   const submit = useCallback((request: BookingRequest, key: string) => schedulingApi.request(request, key), []);
   const close = () => received || !dirty ? onClose() : setDiscard(true);
   return <IndiceModalFrame open busy={busy} onOpenChange={open => { if (!open) close(); }} tone={schedulingTone} modalType={discard ? 'confirmation' : 'wizard'}
-    title={discard ? copy.discard : copy.newReservation} description={copy.reservationsHint} icon={<span className="text-xl leading-none">{schedulingEmoji.calendar}</span>} footer={discard ? <>
+    contentClassName="group/agenda-booking data-[dialog-compact-viewport=true]:!overflow-hidden"
+    bodyClassName="group-data-[dialog-compact-viewport=true]/agenda-booking:!flex-[1_1_0%] group-data-[dialog-compact-viewport=true]/agenda-booking:!overflow-y-auto"
+    footerClassName="max-md:[&_[data-slot=indice-modal-actions]]:!flex-nowrap max-md:[&_[data-slot=indice-modal-actions]>button]:!basis-0 max-md:[&_[data-slot=indice-modal-actions]>div]:!w-auto max-md:[&_[data-slot=indice-modal-actions]>div]:!flex-[2_1_0%] max-md:[&_[data-slot=indice-modal-actions]_button]:!px-3 max-md:[&_[data-slot=indice-modal-actions]>div>button]:!basis-0"
+    title={discard ? copy.discard : copy.newReservation} description={<span className="group-data-[dialog-compact-viewport=true]/agenda-booking:sr-only">{copy.reservationsHint}</span>} icon={<span className="text-xl leading-none">{schedulingEmoji.calendar}</span>} footer={discard ? <>
       <ActionButton onClick={() => setDiscard(false)}>{copy.keepEditing}</ActionButton><ActionButton onClick={onClose}>{copy.close}</ActionButton>
     </> : <><ActionButton disabled={busy} onClick={close}>{received?copy.close:copy.cancel}</ActionButton><div ref={setFooterTarget} className="ml-auto flex flex-wrap gap-3"/></>}>
     <div className={discard ? 'hidden' : ''}>{query.loading ? <Feedback>{copy.loading}</Feedback> : query.error ? <Feedback error>{copy.error}</Feedback> : query.data &&

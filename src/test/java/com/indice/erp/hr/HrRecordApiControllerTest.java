@@ -40,6 +40,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(HrRecordApiController.class)
 class HrRecordApiControllerTest {
 
+    @org.springframework.boot.test.mock.mockito.MockBean
+    private com.indice.erp.learning.LearningAppliedAdvice learningAppliedAdvice;
+
     @Autowired
     private MockMvc mockMvc;
 

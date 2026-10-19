@@ -7,7 +7,7 @@ type TabScopeDefinition = {
 };
 
 export const MODULE_TAB_SCOPE_CATALOG: Partial<Record<PageId, TabScopeDefinition>> = {
-  'sales-board': { moduleSlug: 'sales_board', tabs: { overview: 'overview' } },
+  'sales-board': { moduleSlug: 'sales_board', tabs: { overview: 'overview', trends: 'overview', channels: 'overview', sales: 'overview' } },
   email: { moduleSlug: 'correo', tabs: { mail: 'mail', accounts: 'accounts' } },
   'minutes-control': { moduleSlug: 'control_minutas', tabs: { meetings: 'meetings', agreements: 'agreements', indicators: 'indicators' } },
   maintenance: { moduleSlug: 'maintenance', tabs: { requests: 'requests', orders: 'orders', assets: 'assets', preventive: 'preventive', indicators: 'indicators', configuration: 'configuration' } },
@@ -135,9 +135,22 @@ export function normalizeTabScopeRole(role: string | null | undefined) {
   return normalized === 'super admin' ? 'superadmin' : normalized;
 }
 
+// Canonicalize historical URLs before both the route guard and role-specific checks.
+// Scheduling reservation/configuration scopes intentionally remain independent.
+export const MODULE_TAB_ROUTE_ALIASES = {
+  'minutes-control': { reuniones: 'meetings', acuerdos: 'agreements', seguimientos: 'agreements', kpis: 'indicators' },
+  maintenance: { reportes: 'requests', ordenes: 'orders', equipos: 'assets', preventivos: 'preventive', kpis: 'indicators' },
+} as const;
+
+export function resolveModuleTabId(page: PageId, tabId: string) {
+  const aliases: Partial<Record<PageId, Readonly<Record<string, string>>>> = MODULE_TAB_ROUTE_ALIASES;
+  const entries = aliases[page];
+  return entries && Object.prototype.hasOwnProperty.call(entries, tabId) ? entries[tabId] : tabId;
+}
+
 export function tabPermissionKey(page: PageId, tabId: string) {
   const definition = MODULE_TAB_SCOPE_CATALOG[page];
-  const tabKey = definition?.tabs[tabId];
+  const tabKey = definition?.tabs[resolveModuleTabId(page, tabId)];
   return definition && tabKey ? `${definition.moduleSlug}.${tabKey}` : null;
 }
 
@@ -146,6 +159,7 @@ export function canAccessModuleTab(
   tabId: string,
   session: AuthSessionResponse | null | undefined,
 ) {
+  tabId = resolveModuleTabId(page, tabId);
   const permissionKey = tabPermissionKey(page, tabId);
   if (!permissionKey) {
     return true;

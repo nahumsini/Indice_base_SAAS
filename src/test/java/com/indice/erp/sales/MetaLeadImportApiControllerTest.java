@@ -25,6 +25,9 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(MetaLeadImportApiController.class)
 class MetaLeadImportApiControllerTest {
 
+    @org.springframework.boot.test.mock.mockito.MockBean
+    private com.indice.erp.learning.LearningAppliedAdvice learningAppliedAdvice;
+
     private static final AuthSessionUser CURRENT_USER = new AuthSessionUser(5L, 7L, 9L, "Owner", "admin");
 
     @Autowired MockMvc mockMvc;

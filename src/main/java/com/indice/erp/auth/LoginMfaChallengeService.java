@@ -102,7 +102,7 @@ public class LoginMfaChallengeService {
             );
             audit(login, "MFA_CHALLENGE", "MFA", "FAILURE", AuthFailureReason.MFA_EMAIL_FAILED,
                 "Unable to send verification code.", context, null, rateLimit.attemptsUsed());
-            return MfaStartResult.failure("We could not send the verification code. Please try again.");
+            return MfaStartResult.failure("We could not send the verification code. Please try again.", AuthFailureReason.MFA_EMAIL_FAILED);
         }
         audit(login, "MFA_CHALLENGE", "MFA", "SUCCESS", AuthFailureReason.MFA_REQUIRED,
             "Verification code sent.", context, null, rateLimit.attemptsUsed());
@@ -137,7 +137,14 @@ public class LoginMfaChallengeService {
             markExpired(challenge.id());
             audit(challenge.login(), "MFA_RESEND", "MFA", "FAILURE", AuthFailureReason.MFA_OTP_EXPIRED,
                 "Verification code expired.", context, null, challenge.resendCount());
-            return MfaStartResult.failure("This verification code expired. Start again from the login screen.");
+            return MfaStartResult.failure("This verification code expired. Start again from the login screen.", AuthFailureReason.MFA_OTP_EXPIRED);
+        }
+        var activeLogin = activeLogin(challenge.login());
+        if (activeLogin == null) {
+            markExpired(challenge.id());
+            audit(challenge.login(), "MFA_RESEND", "MFA", "FAILURE", AuthFailureReason.MEMBERSHIP_INACTIVE,
+                "Verification access is no longer available.", context, null, challenge.attemptCount());
+            return MfaStartResult.failure(GENERIC_FAILURE);
         }
         var cooldownUntil = challenge.lastSentAt() == null
             ? now
@@ -146,7 +153,8 @@ public class LoginMfaChallengeService {
             return MfaStartResult.cooldown(
                 challenge.challengeReference(),
                 challenge.destinationHint(),
-                Math.max(1, (int) Duration.between(now, cooldownUntil).getSeconds())
+                Math.max(1, (int) Math.ceil(Duration.between(now, cooldownUntil).toMillis() / 1000.0)),
+                Math.max(1, (int) Math.ceil(Duration.between(now, challenge.expiresAt()).toMillis() / 1000.0))
             );
         }
         var rateLimit = lockoutService.consumeOtpSend(challenge.login());
@@ -159,27 +167,22 @@ public class LoginMfaChallengeService {
 
         var code = generateOtp();
         var expiresAt = now.plus(Duration.ofSeconds(properties.getMfaOtpTtlSeconds()));
+        var delivery = emailService.sendOtp(activeLogin, code, properties.getMfaOtpTtlSeconds());
+        if (!delivery.sent()) {
+            audit(challenge.login(), "MFA_RESEND", "MFA", "FAILURE", AuthFailureReason.MFA_EMAIL_FAILED,
+                "Unable to send verification code.", context, null, rateLimit.attemptsUsed());
+            return MfaStartResult.failure("We could not send the verification code. Please try again.", AuthFailureReason.MFA_EMAIL_FAILED);
+        }
         jdbcTemplate.update(
             """
                 UPDATE auth_mfa_challenges
                 SET otp_hash = ?, expires_at = ?, last_sent_at = ?,
-                    resend_count = resend_count + 1, attempt_count = 0,
-                    status = ?
+                    resend_count = resend_count + 1, status = ?
                 WHERE id = ?
                 """,
-            otpHash(challenge.challengeReference(), code),
-            timestamp(expiresAt),
-            timestamp(now),
-            STATUS_PENDING,
-            challenge.id()
+            otpHash(challenge.challengeReference(), code), timestamp(expiresAt), timestamp(now),
+            STATUS_PENDING, challenge.id()
         );
-        var delivery = emailService.sendOtp(challenge.login(), code, properties.getMfaOtpTtlSeconds());
-        if (!delivery.sent()) {
-            jdbcTemplate.update("UPDATE auth_mfa_challenges SET status = ? WHERE id = ?", STATUS_EMAIL_FAILED, challenge.id());
-            audit(challenge.login(), "MFA_RESEND", "MFA", "FAILURE", AuthFailureReason.MFA_EMAIL_FAILED,
-                "Unable to send verification code.", context, null, rateLimit.attemptsUsed());
-            return MfaStartResult.failure("We could not send the verification code. Please try again.");
-        }
         audit(challenge.login(), "MFA_RESEND", "MFA", "SUCCESS", AuthFailureReason.MFA_REQUIRED,
             "Verification code resent.", context, null, rateLimit.attemptsUsed());
         return MfaStartResult.started(
@@ -213,11 +216,29 @@ public class LoginMfaChallengeService {
                 "Verification challenge is locked.", context, null, challenge.attemptCount());
             return MfaVerifyResult.failure(GENERIC_FAILURE, true, null);
         }
+        if (!STATUS_PENDING.equals(status(challenge.status()))) {
+            audit(challenge.login(), "MFA_VERIFY", "MFA", "FAILURE", AuthFailureReason.MFA_OTP_EXPIRED,
+                "Verification challenge is no longer active.", context, null, challenge.attemptCount());
+            return MfaVerifyResult.failure(GENERIC_FAILURE, false, null, "MFA_CHALLENGE_UNAVAILABLE");
+        }
         if (!challenge.expiresAt().isAfter(now)) {
             markExpired(challenge.id());
             audit(challenge.login(), "MFA_VERIFY", "MFA", "FAILURE", AuthFailureReason.MFA_OTP_EXPIRED,
                 "Verification code expired.", context, null, challenge.attemptCount());
-            return MfaVerifyResult.failure("This verification code expired. Start again from the login screen.", false, null);
+            return MfaVerifyResult.failure("This verification code expired. Start again from the login screen.", false, null, AuthFailureReason.MFA_OTP_EXPIRED);
+        }
+        var activeLogin = activeLogin(challenge.login());
+        if (activeLogin == null) {
+            markExpired(challenge.id());
+            audit(challenge.login(), "MFA_VERIFY", "MFA", "FAILURE", AuthFailureReason.MEMBERSHIP_INACTIVE,
+                "Verification access is no longer available.", context, null, challenge.attemptCount());
+            return MfaVerifyResult.failure(GENERIC_FAILURE, false, null, "MFA_CHALLENGE_UNAVAILABLE");
+        }
+        var accountLockout = lockoutService.passwordLockout(activeLogin.email(), activeLogin.companyName());
+        if (accountLockout.locked()) {
+            audit(challenge.login(), "MFA_VERIFY", "MFA", "BLOCKED", AuthFailureReason.ACCOUNT_LOCKED,
+                "Account is temporarily locked.", context, accountLockout.lockedUntil(), challenge.attemptCount());
+            return MfaVerifyResult.failure(GENERIC_FAILURE, true, accountLockout.lockedUntil());
         }
         if (!matchesOtp(challenge, otpCode)) {
             var nextAttempts = challenge.attemptCount() + 1;
@@ -239,7 +260,8 @@ public class LoginMfaChallengeService {
                 locked ? AuthFailureReason.MFA_OTP_LOCKED : AuthFailureReason.MFA_OTP_INVALID,
                 locked ? "Too many verification code attempts." : "Invalid verification code.",
                 context, lockedUntil, nextAttempts);
-            return MfaVerifyResult.failure(GENERIC_FAILURE, locked, lockedUntil);
+            return MfaVerifyResult.failure(GENERIC_FAILURE, locked, lockedUntil,
+                locked ? AuthFailureReason.MFA_OTP_LOCKED : AuthFailureReason.MFA_OTP_INVALID);
         }
 
         jdbcTemplate.update(
@@ -252,7 +274,7 @@ public class LoginMfaChallengeService {
         lockoutService.clearPasswordFailures(challenge.login());
         audit(challenge.login(), "MFA_VERIFY", "MFA", "SUCCESS", null,
             null, context, null, challenge.attemptCount());
-        return MfaVerifyResult.success(challenge.login());
+        return MfaVerifyResult.success(activeLogin);
     }
 
     private MfaChallenge findChallengeForUpdate(String challengeReference) {
@@ -294,6 +316,25 @@ public class LoginMfaChallengeService {
                 instant(rs.getTimestamp("locked_at"))
             ),
             challengeReference
+        );
+        return rows.isEmpty() ? null : rows.getFirst();
+    }
+
+    private AuthenticatedLogin activeLogin(AuthenticatedLogin original) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT COALESCE(u.full_name, u.email) AS full_name, u.email, c.name, uc.role
+                FROM user_companies uc
+                JOIN users u ON u.id = uc.user_id
+                JOIN companies c ON c.id = uc.company_id
+                WHERE uc.id = ? AND uc.user_id = ? AND uc.company_id = ?
+                  AND c.platform_status = 'ACTIVE'
+                  AND LOWER(COALESCE(uc.status, 'active')) IN ('active', 'activo')
+                  AND LOWER(TRIM(u.email)) = ?
+                """,
+            (rs, row) -> new AuthenticatedLogin(original.userId(), original.companyId(), original.userCompanyId(),
+                rs.getString("full_name"), rs.getString("email"), rs.getString("name"), rs.getString("role")),
+            original.userCompanyId(), original.userId(), original.companyId(), normalize(original.email())
         );
         return rows.isEmpty() ? null : rows.getFirst();
     }
@@ -421,7 +462,8 @@ public class LoginMfaChallengeService {
         String maskedDestination,
         int expiresInSeconds,
         int resendAvailableInSeconds,
-        Instant lockoutUntil
+        Instant lockoutUntil,
+        String code
     ) {
         static MfaStartResult started(
             String challengeReference,
@@ -430,20 +472,24 @@ public class LoginMfaChallengeService {
             int resendAvailableInSeconds
         ) {
             return new MfaStartResult(true, false, "", challengeReference, maskedDestination,
-                expiresInSeconds, resendAvailableInSeconds, null);
+                expiresInSeconds, resendAvailableInSeconds, null, "");
         }
 
-        static MfaStartResult cooldown(String challengeReference, String maskedDestination, int resendAvailableInSeconds) {
+        static MfaStartResult cooldown(String challengeReference, String maskedDestination, int resendAvailableInSeconds, int expiresInSeconds) {
             return new MfaStartResult(true, false, "", challengeReference, maskedDestination,
-                0, resendAvailableInSeconds, null);
+                expiresInSeconds, resendAvailableInSeconds, null, "MFA_RESEND_COOLDOWN");
         }
 
         static MfaStartResult blocked(String message, Instant lockoutUntil) {
-            return new MfaStartResult(false, true, message, "", "", 0, 0, lockoutUntil);
+            return new MfaStartResult(false, true, message, "", "", 0, 0, lockoutUntil, AuthFailureReason.MFA_OTP_LOCKED);
         }
 
         static MfaStartResult failure(String message) {
-            return new MfaStartResult(false, false, message, "", "", 0, 0, null);
+            return failure(message, "MFA_CHALLENGE_UNAVAILABLE");
+        }
+
+        static MfaStartResult failure(String message, String code) {
+            return new MfaStartResult(false, false, message, "", "", 0, 0, null, code);
         }
     }
 
@@ -452,14 +498,19 @@ public class LoginMfaChallengeService {
         String message,
         boolean blocked,
         Instant lockoutUntil,
-        AuthenticatedLogin login
+        AuthenticatedLogin login,
+        String code
     ) {
         static MfaVerifyResult success(AuthenticatedLogin login) {
-            return new MfaVerifyResult(true, "", false, null, login);
+            return new MfaVerifyResult(true, "", false, null, login, "");
         }
 
         static MfaVerifyResult failure(String message, boolean blocked, Instant lockoutUntil) {
-            return new MfaVerifyResult(false, message, blocked, lockoutUntil, null);
+            return failure(message, blocked, lockoutUntil, blocked ? AuthFailureReason.MFA_OTP_LOCKED : "MFA_CHALLENGE_UNAVAILABLE");
+        }
+
+        static MfaVerifyResult failure(String message, boolean blocked, Instant lockoutUntil, String code) {
+            return new MfaVerifyResult(false, message, blocked, lockoutUntil, null, code);
         }
     }
 }

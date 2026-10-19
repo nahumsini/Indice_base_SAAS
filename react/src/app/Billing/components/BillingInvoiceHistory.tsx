@@ -26,7 +26,7 @@ export function BillingInvoiceHistory(props: Props) {
   const canOpenPortal = props.selection.payment_management_available;
 
   return (
-    <section className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_46px_-40px_rgba(37,99,235,0.45)] dark:border-slate-800 dark:bg-slate-900">
+    <section id="billing-history" tabIndex={-1} className="scroll-mt-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_46px_-40px_rgba(37,99,235,0.45)] dark:border-slate-800 dark:bg-slate-900">
       <header className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
         <div className="flex items-start gap-3">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">

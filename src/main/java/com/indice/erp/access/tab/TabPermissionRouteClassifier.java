@@ -54,6 +54,7 @@ public class TabPermissionRouteClassifier {
         if (path.equals("/api/v1/sales-board") || path.startsWith("/api/v1/sales-board/")) return one("sales_board.overview");
         if (path.startsWith("/api/v1/email/accounts")) return one("correo.accounts");
         if (path.startsWith("/api/v1/email")) return one("correo.mail");
+        if (path.equals("/api/v1/sales/whatsapping") || path.startsWith("/api/v1/sales/whatsapping/")) return one("crm.contacts");
         if (path.equals("/api/v1/sales/funnels") || path.startsWith("/api/v1/sales/funnels/")) return one("crm.funneling");
         if (path.startsWith("/api/v1/mailing")) return one("crm.mailing");
         if (path.startsWith("/api/v1/maintenance")) {

@@ -64,6 +64,21 @@ public class MessagingAccess {
         return new Actor(user.userId(), user.companyId(), user.userCompanyId(), "MEMBER",supportOnly);
     }
 
+    /** Inbox owner projection: no message text or private participant data leaves Messaging. */
+    public boolean canReadNotification(AuthSessionUser user, long conversationId) {
+        try {
+            var actor=memberActor(user);
+            var count=jdbc.queryForObject("""
+                SELECT COUNT(*) FROM messaging_conversations c
+                JOIN messaging_participants p ON p.conversation_id=c.id AND p.membership_id=?
+                WHERE c.id=? AND c.company_id=? AND (?=FALSE OR c.kind='SUPPORT')
+                """, Integer.class,actor.membershipId(),conversationId,actor.companyId(),actor.supportOnly());
+            return count != null && count == 1;
+        } catch (ResponseStatusException denied) {
+            return false;
+        }
+    }
+
     public void conversation(Actor actor, Conversation conversation) {
         if (actor.member()) {
             if(actor.supportOnly() && !"SUPPORT".equals(conversation.kind())) throw forbidden();

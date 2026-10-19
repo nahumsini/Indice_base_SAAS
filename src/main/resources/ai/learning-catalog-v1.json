@@ -1,7 +1,759 @@
 {
-  "version": "2026-10-07.v4",
-  "sourceDigest": "34a9e2b8f5b0d01ed274a32e69f4ea9779eb58be0265c6c60faa684f23c549fc",
+  "version": "2026-10-19.v5",
+  "sourceDigest": "ff63e0cdb8fd4193909cd62b68cdd8a83fcc003fc65aeee62135d5f9e21bd6f7",
   "modules": [
+    {
+      "module": "sales_board",
+      "pageId": "sales-board",
+      "locale": "es-MX",
+      "stage": 5,
+      "purpose": "Indicadores",
+      "tabs": [
+        {
+          "tab": "overview",
+          "label": "Resumen de ventas",
+          "title": "Resumen de ventas",
+          "purpose": "Elige periodo, origen y alcance autorizado para revisar las ventas de CRM y POS.",
+          "effect": "Distingue venta registrada, cobro y asiento contable. El tablero consulta los propietarios y no duplica ventas ni registra ingresos.",
+          "chapterId": "sales_board.overview",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Elige periodo, origen y alcance autorizado para revisar las ventas de CRM y POS."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Consulta los totales consolidados y abre el detalle desde sus indicadores. Los filtros se conservan entre vistas."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Distingue venta registrada, cobro y asiento contable. El tablero consulta los propietarios y no duplica ventas ni registra ingresos."
+            }
+          ]
+        },
+        {
+          "tab": "trends",
+          "label": "Tendencias de ventas",
+          "title": "Tendencias de ventas",
+          "purpose": "Selecciona un periodo y revisa la moneda y la disponibilidad de datos.",
+          "effect": "Comprueba el tamaño de la muestra y las conversiones incompletas; una tendencia descriptiva no garantiza ventas futuras.",
+          "chapterId": "sales_board.trends",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Selecciona un periodo y revisa la moneda y la disponibilidad de datos."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Cambia la agrupación temporal y abre un punto de la gráfica para consultar las ventas de ese intervalo."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Comprueba el tamaño de la muestra y las conversiones incompletas; una tendencia descriptiva no garantiza ventas futuras."
+            }
+          ]
+        },
+        {
+          "tab": "channels",
+          "label": "Orígenes y canales",
+          "title": "Orígenes y canales",
+          "purpose": "Distingue el origen CRM o POS del canal registrado de la venta.",
+          "effect": "Conserva Sin clasificar cuando no hay canal registrado; no conviertas la fuente del contacto en un canal financiero.",
+          "chapterId": "sales_board.channels",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Distingue el origen CRM o POS del canal registrado de la venta."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Compara importes y participación por origen y canal dentro de los filtros actuales."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Conserva Sin clasificar cuando no hay canal registrado; no conviertas la fuente del contacto en un canal financiero."
+            }
+          ]
+        },
+        {
+          "tab": "sales",
+          "label": "Detalle de ventas",
+          "title": "Detalle de ventas",
+          "purpose": "Busca folio o cliente y revisa periodo, origen y estado antes de interpretar los resultados.",
+          "effect": "Comprueba moneda original y evidencia contable; las correcciones, entregas y cobros se gestionan en sus módulos propietarios.",
+          "chapterId": "sales_board.sales",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Busca folio o cliente y revisa periodo, origen y estado antes de interpretar los resultados."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Ordena y configura columnas y abre el detalle autorizado de cada venta."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Comprueba moneda original y evidencia contable; las correcciones, entregas y cobros se gestionan en sus módulos propietarios."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "correo",
+      "pageId": "email",
+      "locale": "es-MX",
+      "stage": 4,
+      "purpose": "Productos y ventas",
+      "tabs": [
+        {
+          "tab": "accounts",
+          "label": "Cuentas de correo",
+          "title": "Cuentas de correo",
+          "purpose": "Obtén del proveedor el servidor, puerto y seguridad de SMTP e IMAP o POP3. Captura las contraseñas dentro del formulario.",
+          "effect": "Revisa el resultado de cada conexión. Compartir disponibilidad como remitente no comparte el buzón; una conexión verificada no demuestra que un mensaje fue entregado.",
+          "chapterId": "correo.accounts",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Obtén del proveedor el servidor, puerto y seguridad de SMTP e IMAP o POP3. Captura las contraseñas dentro del formulario."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Guarda la cuenta y prueba envío y recepción por separado. Habilita su uso como remitente de Mailing solo si corresponde."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Revisa el resultado de cada conexión. Compartir disponibilidad como remitente no comparte el buzón; una conexión verificada no demuestra que un mensaje fue entregado."
+            }
+          ]
+        },
+        {
+          "tab": "mail",
+          "label": "Buzón y mensajes",
+          "title": "Buzón y mensajes",
+          "purpose": "Selecciona tu cuenta conectada y carpeta y busca al cliente, remitente, destinatario o asunto.",
+          "effect": "Comprueba Enviados y el estado de envío. Distingue carpetas del servidor, borradores locales y resultados sin confirmar antes de reintentar.",
+          "chapterId": "correo.mail",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Selecciona tu cuenta conectada y carpeta y busca al cliente, remitente, destinatario o asunto."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Sincroniza, consulta, responde o prepara un correo y revisa sus destinatarios y adjuntos antes de enviarlo."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Comprueba Enviados y el estado de envío. Distingue carpetas del servidor, borradores locales y resultados sin confirmar antes de reintentar."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "maintenance",
+      "pageId": "maintenance",
+      "locale": "es-MX",
+      "stage": 2,
+      "purpose": "Procesos y tareas",
+      "tabs": [
+        {
+          "tab": "requests",
+          "label": "Solicitudes técnicas",
+          "title": "Solicitudes técnicas",
+          "purpose": "Identifica el equipo o ubicación, falla y evidencia dentro de tu alcance.",
+          "effect": "Comprueba la orden vinculada al aceptar; no dupliques la solicitud por un reintento y conserva el historial.",
+          "chapterId": "maintenance.requests",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Identifica el equipo o ubicación, falla y evidencia dentro de tu alcance."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Registra la solicitud y revisa su atención. Un responsable autorizado puede aceptarla o rechazarla con motivo."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Comprueba la orden vinculada al aceptar; no dupliques la solicitud por un reintento y conserva el historial."
+            }
+          ]
+        },
+        {
+          "tab": "orders",
+          "label": "Órdenes de trabajo",
+          "title": "Órdenes de trabajo",
+          "purpose": "Revisa responsable, prioridad, fecha, activo y procedimiento antes de ejecutar.",
+          "effect": "Comprueba el cierre validado y la restauración explícita del activo. Cerrar una orden no registra un pago ni cambia la custodia de RH.",
+          "chapterId": "maintenance.orders",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Revisa responsable, prioridad, fecha, activo y procedimiento antes de ejecutar."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Registra diagnóstico, avances, evidencias y costos autorizados; solicita validación al terminar."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Comprueba el cierre validado y la restauración explícita del activo. Cerrar una orden no registra un pago ni cambia la custodia de RH."
+            }
+          ]
+        },
+        {
+          "tab": "assets",
+          "label": "Activos y expedientes técnicos",
+          "title": "Activos y expedientes técnicos",
+          "purpose": "Busca el activo o ubicación y revisa el vínculo con el equipo de RH cuando exista.",
+          "effect": "Distingue estado técnico y custodia; el QR abre una ruta autenticada y no concede acceso.",
+          "chapterId": "maintenance.assets",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Busca el activo o ubicación y revisa el vínculo con el equipo de RH cuando exista."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Consulta el expediente, órdenes, evidencia e intervalos de indisponibilidad autorizados."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Distingue estado técnico y custodia; el QR abre una ruta autenticada y no concede acceso."
+            }
+          ]
+        },
+        {
+          "tab": "preventive",
+          "label": "Planes preventivos",
+          "title": "Planes preventivos",
+          "purpose": "Define activo, procedimiento, fecha inicial, zona horaria y recurrencia.",
+          "effect": "Comprueba la fecha límite original y el seguimiento. Una fecha límite no equivale a una cita confirmada con el técnico.",
+          "chapterId": "maintenance.preventive",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Define activo, procedimiento, fecha inicial, zona horaria y recurrencia."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Guarda el plan y revisa los ciclos y órdenes generadas; asigna el trabajo desde la operación autorizada."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Comprueba la fecha límite original y el seguimiento. Una fecha límite no equivale a una cita confirmada con el técnico."
+            }
+          ]
+        },
+        {
+          "tab": "indicators",
+          "label": "Indicadores de mantenimiento",
+          "title": "Indicadores de mantenimiento",
+          "purpose": "Elige periodo y alcance y distingue trabajo pendiente de órdenes cerradas en el periodo.",
+          "effect": "Comprueba denominadores, moneda y fuentes incompletas; no interpretes ausencia de datos como costo o desempeño cero.",
+          "chapterId": "maintenance.indicators",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Elige periodo y alcance y distingue trabajo pendiente de órdenes cerradas en el periodo."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Consulta tiempos, cumplimiento, indisponibilidad y costos, y abre los registros de respaldo."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Comprueba denominadores, moneda y fuentes incompletas; no interpretes ausencia de datos como costo o desempeño cero."
+            }
+          ]
+        },
+        {
+          "tab": "configuration",
+          "label": "Configuración técnica",
+          "title": "Configuración técnica",
+          "purpose": "Comprueba tu permiso administrativo y la estructura del equipo de mantenimiento.",
+          "effect": "Verifica la configuración guardada. Los cambios no conceden permisos de Inventarios o Finanzas ni reescriben el procedimiento de órdenes existentes.",
+          "chapterId": "maintenance.configuration",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Comprueba tu permiso administrativo y la estructura del equipo de mantenimiento."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Configura procedimientos, requisitos de evidencia y perfiles técnicos desde sus formularios autorizados."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Verifica la configuración guardada. Los cambios no conceden permisos de Inventarios o Finanzas ni reescriben el procedimiento de órdenes existentes."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "crm",
+      "pageId": "sales",
+      "locale": "es-MX",
+      "stage": 4,
+      "purpose": "Productos y ventas",
+      "tabs": [
+        {
+          "tab": "after-sales",
+          "label": "Postventa y recuperación",
+          "title": "Postventa y recuperación",
+          "purpose": "Elige Ganadas para continuidad del servicio o Perdidas para preparar una recuperación futura.",
+          "effect": "Comprueba seguimiento e historial. La fecha de recuperación avisa al vendedor para revisar y reactivar manualmente; no crea una nueva venta.",
+          "chapterId": "crm.after-sales",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Elige Ganadas para continuidad del servicio o Perdidas para preparar una recuperación futura."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Asigna flujo, etapa, responsable y siguiente acción en Ganadas; programa la revisión de recuperación en Perdidas."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Comprueba seguimiento e historial. La fecha de recuperación avisa al vendedor para revisar y reactivar manualmente; no crea una nueva venta."
+            }
+          ]
+        },
+        {
+          "tab": "funneling",
+          "label": "Campañas y embudo",
+          "title": "Campañas y embudo",
+          "purpose": "Define oferta, público, objetivo y canales con las opciones guiadas del taller.",
+          "effect": "Guarda el plan y distingue metas de resultados reales. El taller no publica anuncios ni activa campañas de Google Ads o Meta.",
+          "chapterId": "crm.funneling",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Define oferta, público, objetivo y canales con las opciones guiadas del taller."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Revisa el embudo visual, ajusta mensajes y metas por etapa y prepara el prompt de contenido para tu modelo de IA."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Guarda el plan y distingue metas de resultados reales. El taller no publica anuncios ni activa campañas de Google Ads o Meta."
+            }
+          ]
+        },
+        {
+          "tab": "mailing",
+          "label": "Campañas de correo",
+          "title": "Campañas de correo",
+          "purpose": "Selecciona una cuenta remitente verificada y los contactos o listas de Ventas para la campaña.",
+          "effect": "Consulta resultados por destinatario y respeta las bajas. Aceptado por SMTP no significa leído o entregado; una prueba no lanza la campaña.",
+          "chapterId": "crm.mailing",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Selecciona una cuenta remitente verificada y los contactos o listas de Ventas para la campaña."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Prepara asunto, contenido y variables; revisa destinatarios habilitados, exclusiones y configuración antes de confirmar el lanzamiento o programación."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Consulta resultados por destinatario y respeta las bajas. Aceptado por SMTP no significa leído o entregado; una prueba no lanza la campaña."
+            }
+          ]
+        },
+        {
+          "tab": "whatsapping",
+          "label": "Campañas asistidas de WhatsApp",
+          "title": "Campañas asistidas de WhatsApp",
+          "purpose": "Selecciona contactos y prepara plantilla, variables, enlaces y pasos de seguimiento.",
+          "effect": "Consulta pendientes y próximas acciones. Preparar el enlace no envía el mensaje; los resultados son confirmaciones manuales y una respuesta o exclusión detiene el seguimiento.",
+          "chapterId": "crm.whatsapping",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Selecciona contactos y prepara plantilla, variables, enlaces y pasos de seguimiento."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Revisa el mensaje individual, abre WhatsApp y envíalo desde la cuenta que elegiste en esa aplicación. Registra el resultado en Índice."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Consulta pendientes y próximas acciones. Preparar el enlace no envía el mensaje; los resultados son confirmaciones manuales y una respuesta o exclusión detiene el seguimiento."
+            }
+          ]
+        },
+        {
+          "tab": "contacts",
+          "label": "Contactos y clientes",
+          "title": "Contactos y clientes",
+          "purpose": "Busca primero al cliente; revisa contacto, empresa, responsable y alcance.",
+          "effect": "Relaciona oportunidades y cotizaciones con la misma identidad; un contacto no es una venta ni un ingreso.",
+          "chapterId": "crm.contacts",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [
+            "create_customer",
+            "update_customer"
+          ],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Busca primero al cliente; revisa contacto, empresa, responsable y alcance."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Crea, edita o importa contactos y usa los canales de comunicación disponibles."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Relaciona oportunidades y cotizaciones con la misma identidad; un contacto no es una venta ni un ingreso."
+            }
+          ]
+        },
+        {
+          "tab": "leads",
+          "label": "Oportunidades y flujos comerciales",
+          "title": "Oportunidades y flujos comerciales",
+          "purpose": "Selecciona el flujo de venta correcto, cliente, responsable, valor, moneda y siguiente acción.",
+          "effect": "Una etapa ganada requiere el cierre comercial compatible, no un cambio de etiqueta aislado. Revisa historial y próxima actividad; el valor potencial no es dinero cobrado.",
+          "chapterId": "crm.leads",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [
+            "create_opportunity",
+            "update_opportunity"
+          ],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Selecciona el flujo de venta correcto, cliente, responsable, valor, moneda y siguiente acción."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Crea o edita oportunidades; administra flujos y etapas desde la función autorizada. Tabla, embudo y agenda muestran el mismo trabajo."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Una etapa ganada requiere el cierre comercial compatible, no un cambio de etiqueta aislado. Revisa historial y próxima actividad; el valor potencial no es dinero cobrado."
+            }
+          ]
+        },
+        {
+          "tab": "quotes",
+          "label": "Cotizaciones y conversión",
+          "title": "Cotizaciones y conversión",
+          "purpose": "Revisa cliente, moneda, partidas, impuestos, margen, descuentos y vigencia.",
+          "effect": "Comprueba la venta vinculada antes de reintentar la conversión; no dupliques el cierre. Aceptada no significa pagada ni entregada.",
+          "chapterId": "crm.quotes",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [
+            "create_quote",
+            "update_quote",
+            "create_commercial_sale"
+          ],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Revisa cliente, moneda, partidas, impuestos, margen, descuentos y vigencia."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Crea o edita, imprime y registra la aceptación desde las acciones autorizadas; convierte una cotización elegible a venta."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Comprueba la venta vinculada antes de reintentar la conversión; no dupliques el cierre. Aceptada no significa pagada ni entregada."
+            }
+          ]
+        },
+        {
+          "tab": "sales",
+          "label": "Venta, entrega y cobro",
+          "title": "Venta, entrega y cobro",
+          "purpose": "Revisa cliente, origen, moneda, partidas y stock. Los tickets POS se consultan desde Ventas sin adquirir autoridad para modificarlos.",
+          "effect": "Confirmar cobro exige evidencia financiera; registrar entrega no prueba pago. Cancelar conserva historia mediante compensaciones y respeta inventario, comisiones y obligaciones existentes.",
+          "chapterId": "crm.sales",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [
+            "create_commercial_sale",
+            "update_commercial_sale",
+            "confirm_sale_collection"
+          ],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Revisa cliente, origen, moneda, partidas y stock. Los tickets POS se consultan desde Ventas sin adquirir autoridad para modificarlos."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Registra o edita una venta elegible y revisa por separado inventario, entrega, aprobación financiera, crédito y cobro."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Confirmar cobro exige evidencia financiera; registrar entrega no prueba pago. Cancelar conserva historia mediante compensaciones y respeta inventario, comisiones y obligaciones existentes."
+            }
+          ]
+        },
+        {
+          "tab": "contracts",
+          "label": "Contratos y seguimiento",
+          "title": "Contratos y seguimiento",
+          "purpose": "Relaciona cliente, venta o cotización, fechas, alcance y plantilla.",
+          "effect": "El agente registra estados internos; no envía correos ni ejecuta una firma legal por describir esa función. Confirma las acciones externas en su canal real.",
+          "chapterId": "crm.contracts",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [
+            "create_sales_contract",
+            "update_sales_contract"
+          ],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Relaciona cliente, venta o cotización, fechas, alcance y plantilla."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Crea o edita el contrato y registra seguimiento, vigencia o renovación desde su pantalla autorizada."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "El agente registra estados internos; no envía correos ni ejecuta una firma legal por describir esa función. Confirma las acciones externas en su canal real."
+            }
+          ]
+        },
+        {
+          "tab": "commissions",
+          "label": "Comisiones y cortes",
+          "title": "Comisiones y cortes",
+          "purpose": "Revisa política, rol autorizado, moneda y ventas elegibles.",
+          "effect": "Conserva la regla aplicada y el historial. Generar un corte no equivale a efectuar su pago.",
+          "chapterId": "crm.commissions",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [
+            "create_sales_commission_cut",
+            "create_sales_commission_schedule"
+          ],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Revisa política, rol autorizado, moneda y ventas elegibles."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Consulta comisiones generadas y crea un corte o programación desde la función disponible."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Conserva la regla aplicada y el historial. Generar un corte no equivale a efectuar su pago."
+            }
+          ]
+        },
+        {
+          "tab": "payment-accounts",
+          "label": "Cuentas de pago comerciales",
+          "title": "Cuentas de pago comerciales",
+          "purpose": "Revisa moneda, estructura y origen de la cuenta antes de usarla.",
+          "effect": "Comprueba estado y destino del cobro. Agregar una cuenta no mueve dinero ni duplica un fondo de Caja chica.",
+          "chapterId": "crm.payment-accounts",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Revisa moneda, estructura y origen de la cuenta antes de usarla."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Crea o edita únicamente cuentas disponibles para tu rol; una cuenta proveniente de otro propietario se administra en su módulo."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Comprueba estado y destino del cobro. Agregar una cuenta no mueve dinero ni duplica un fondo de Caja chica."
+            }
+          ]
+        },
+        {
+          "tab": "kpis",
+          "label": "Indicadores comerciales",
+          "title": "Indicadores comerciales",
+          "purpose": "Filtra periodo, unidad, negocio, responsable y moneda.",
+          "effect": "Distingue valor potencial, venta registrada y cobro confirmado. Los tipos de cambio usados para presentación no cambian los importes originales.",
+          "chapterId": "crm.kpis",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Filtra periodo, unidad, negocio, responsable y moneda."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Revisa conversión, flujo, margen y ejecución; consulta los registros incluidos y ranking."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Distingue valor potencial, venta registrada y cobro confirmado. Los tipos de cambio usados para presentación no cambian los importes originales."
+            }
+          ]
+        }
+      ]
+    },
     {
       "module": "control_minutas",
       "pageId": "minutes-control",
@@ -1666,267 +2418,6 @@
       ]
     },
     {
-      "module": "crm",
-      "pageId": "sales",
-      "locale": "es-MX",
-      "stage": 4,
-      "purpose": "Productos y ventas",
-      "tabs": [
-        {
-          "tab": "contacts",
-          "label": "Contactos y clientes",
-          "title": "Contactos y clientes",
-          "purpose": "Busca primero al cliente; revisa contacto, empresa, responsable y alcance.",
-          "effect": "Relaciona oportunidades y cotizaciones con la misma identidad; un contacto no es una venta ni un ingreso.",
-          "chapterId": "crm.contacts",
-          "version": 2,
-          "journey": true,
-          "companion": true,
-          "evidenceTools": [
-            "create_customer",
-            "update_customer"
-          ],
-          "steps": [
-            {
-              "id": "prepare",
-              "title": "Antes de empezar",
-              "description": "Busca primero al cliente; revisa contacto, empresa, responsable y alcance."
-            },
-            {
-              "id": "operate",
-              "title": "Realiza la operación",
-              "description": "Crea, edita o importa contactos y usa los canales de comunicación disponibles."
-            },
-            {
-              "id": "verify",
-              "title": "Comprueba el resultado",
-              "description": "Relaciona oportunidades y cotizaciones con la misma identidad; un contacto no es una venta ni un ingreso."
-            }
-          ]
-        },
-        {
-          "tab": "leads",
-          "label": "Oportunidades y flujos comerciales",
-          "title": "Oportunidades y flujos comerciales",
-          "purpose": "Selecciona el flujo de venta correcto, cliente, responsable, valor, moneda y siguiente acción.",
-          "effect": "Una etapa ganada requiere el cierre comercial compatible, no un cambio de etiqueta aislado. Revisa historial y próxima actividad; el valor potencial no es dinero cobrado.",
-          "chapterId": "crm.leads",
-          "version": 2,
-          "journey": true,
-          "companion": true,
-          "evidenceTools": [
-            "create_opportunity",
-            "update_opportunity"
-          ],
-          "steps": [
-            {
-              "id": "prepare",
-              "title": "Antes de empezar",
-              "description": "Selecciona el flujo de venta correcto, cliente, responsable, valor, moneda y siguiente acción."
-            },
-            {
-              "id": "operate",
-              "title": "Realiza la operación",
-              "description": "Crea o edita oportunidades; administra flujos y etapas desde la función autorizada. Tabla, embudo y agenda muestran el mismo trabajo."
-            },
-            {
-              "id": "verify",
-              "title": "Comprueba el resultado",
-              "description": "Una etapa ganada requiere el cierre comercial compatible, no un cambio de etiqueta aislado. Revisa historial y próxima actividad; el valor potencial no es dinero cobrado."
-            }
-          ]
-        },
-        {
-          "tab": "quotes",
-          "label": "Cotizaciones y conversión",
-          "title": "Cotizaciones y conversión",
-          "purpose": "Revisa cliente, moneda, partidas, impuestos, margen, descuentos y vigencia.",
-          "effect": "Comprueba la venta vinculada antes de reintentar la conversión; no dupliques el cierre. Aceptada no significa pagada ni entregada.",
-          "chapterId": "crm.quotes",
-          "version": 2,
-          "journey": true,
-          "companion": true,
-          "evidenceTools": [
-            "create_quote",
-            "update_quote",
-            "create_commercial_sale"
-          ],
-          "steps": [
-            {
-              "id": "prepare",
-              "title": "Antes de empezar",
-              "description": "Revisa cliente, moneda, partidas, impuestos, margen, descuentos y vigencia."
-            },
-            {
-              "id": "operate",
-              "title": "Realiza la operación",
-              "description": "Crea o edita, imprime y registra la aceptación desde las acciones autorizadas; convierte una cotización elegible a venta."
-            },
-            {
-              "id": "verify",
-              "title": "Comprueba el resultado",
-              "description": "Comprueba la venta vinculada antes de reintentar la conversión; no dupliques el cierre. Aceptada no significa pagada ni entregada."
-            }
-          ]
-        },
-        {
-          "tab": "sales",
-          "label": "Venta, entrega y cobro",
-          "title": "Venta, entrega y cobro",
-          "purpose": "Revisa cliente, origen, moneda, partidas y stock. Los tickets POS se consultan desde Ventas sin adquirir autoridad para modificarlos.",
-          "effect": "Confirmar cobro exige evidencia financiera; registrar entrega no prueba pago. Cancelar conserva historia mediante compensaciones y respeta inventario, comisiones y obligaciones existentes.",
-          "chapterId": "crm.sales",
-          "version": 2,
-          "journey": true,
-          "companion": true,
-          "evidenceTools": [
-            "create_commercial_sale",
-            "update_commercial_sale",
-            "confirm_sale_collection"
-          ],
-          "steps": [
-            {
-              "id": "prepare",
-              "title": "Antes de empezar",
-              "description": "Revisa cliente, origen, moneda, partidas y stock. Los tickets POS se consultan desde Ventas sin adquirir autoridad para modificarlos."
-            },
-            {
-              "id": "operate",
-              "title": "Realiza la operación",
-              "description": "Registra o edita una venta elegible y revisa por separado inventario, entrega, aprobación financiera, crédito y cobro."
-            },
-            {
-              "id": "verify",
-              "title": "Comprueba el resultado",
-              "description": "Confirmar cobro exige evidencia financiera; registrar entrega no prueba pago. Cancelar conserva historia mediante compensaciones y respeta inventario, comisiones y obligaciones existentes."
-            }
-          ]
-        },
-        {
-          "tab": "contracts",
-          "label": "Contratos y seguimiento",
-          "title": "Contratos y seguimiento",
-          "purpose": "Relaciona cliente, venta o cotización, fechas, alcance y plantilla.",
-          "effect": "El agente registra estados internos; no envía correos ni ejecuta una firma legal por describir esa función. Confirma las acciones externas en su canal real.",
-          "chapterId": "crm.contracts",
-          "version": 2,
-          "journey": true,
-          "companion": true,
-          "evidenceTools": [
-            "create_sales_contract",
-            "update_sales_contract"
-          ],
-          "steps": [
-            {
-              "id": "prepare",
-              "title": "Antes de empezar",
-              "description": "Relaciona cliente, venta o cotización, fechas, alcance y plantilla."
-            },
-            {
-              "id": "operate",
-              "title": "Realiza la operación",
-              "description": "Crea o edita el contrato y registra seguimiento, vigencia o renovación desde su pantalla autorizada."
-            },
-            {
-              "id": "verify",
-              "title": "Comprueba el resultado",
-              "description": "El agente registra estados internos; no envía correos ni ejecuta una firma legal por describir esa función. Confirma las acciones externas en su canal real."
-            }
-          ]
-        },
-        {
-          "tab": "commissions",
-          "label": "Comisiones y cortes",
-          "title": "Comisiones y cortes",
-          "purpose": "Revisa política, rol autorizado, moneda y ventas elegibles.",
-          "effect": "Conserva la regla aplicada y el historial. Generar un corte no equivale a efectuar su pago.",
-          "chapterId": "crm.commissions",
-          "version": 2,
-          "journey": true,
-          "companion": true,
-          "evidenceTools": [
-            "create_sales_commission_cut",
-            "create_sales_commission_schedule"
-          ],
-          "steps": [
-            {
-              "id": "prepare",
-              "title": "Antes de empezar",
-              "description": "Revisa política, rol autorizado, moneda y ventas elegibles."
-            },
-            {
-              "id": "operate",
-              "title": "Realiza la operación",
-              "description": "Consulta comisiones generadas y crea un corte o programación desde la función disponible."
-            },
-            {
-              "id": "verify",
-              "title": "Comprueba el resultado",
-              "description": "Conserva la regla aplicada y el historial. Generar un corte no equivale a efectuar su pago."
-            }
-          ]
-        },
-        {
-          "tab": "payment-accounts",
-          "label": "Cuentas de pago comerciales",
-          "title": "Cuentas de pago comerciales",
-          "purpose": "Revisa moneda, estructura y origen de la cuenta antes de usarla.",
-          "effect": "Comprueba estado y destino del cobro. Agregar una cuenta no mueve dinero ni duplica un fondo de Caja chica.",
-          "chapterId": "crm.payment-accounts",
-          "version": 2,
-          "journey": true,
-          "companion": true,
-          "evidenceTools": [],
-          "steps": [
-            {
-              "id": "prepare",
-              "title": "Antes de empezar",
-              "description": "Revisa moneda, estructura y origen de la cuenta antes de usarla."
-            },
-            {
-              "id": "operate",
-              "title": "Realiza la operación",
-              "description": "Crea o edita únicamente cuentas disponibles para tu rol; una cuenta proveniente de otro propietario se administra en su módulo."
-            },
-            {
-              "id": "verify",
-              "title": "Comprueba el resultado",
-              "description": "Comprueba estado y destino del cobro. Agregar una cuenta no mueve dinero ni duplica un fondo de Caja chica."
-            }
-          ]
-        },
-        {
-          "tab": "kpis",
-          "label": "Indicadores comerciales",
-          "title": "Indicadores comerciales",
-          "purpose": "Filtra periodo, unidad, negocio, responsable y moneda.",
-          "effect": "Distingue valor potencial, venta registrada y cobro confirmado. Los tipos de cambio usados para presentación no cambian los importes originales.",
-          "chapterId": "crm.kpis",
-          "version": 2,
-          "journey": true,
-          "companion": true,
-          "evidenceTools": [],
-          "steps": [
-            {
-              "id": "prepare",
-              "title": "Antes de empezar",
-              "description": "Filtra periodo, unidad, negocio, responsable y moneda."
-            },
-            {
-              "id": "operate",
-              "title": "Realiza la operación",
-              "description": "Revisa conversión, flujo, margen y ejecución; consulta los registros incluidos y ranking."
-            },
-            {
-              "id": "verify",
-              "title": "Comprueba el resultado",
-              "description": "Distingue valor potencial, venta registrada y cobro confirmado. Los tipos de cambio usados para presentación no cambian los importes originales."
-            }
-          ]
-        }
-      ]
-    },
-    {
       "module": "pos",
       "pageId": "point-of-sale",
       "locale": "es-MX",
@@ -2209,6 +2700,758 @@
               "id": "verify",
               "title": "Comprueba el resultado",
               "description": "Consulta historial de ejecuciones y entregas. Programar no demuestra envío exitoso; el agente no inventa destinatarios ni entrega externa."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "sales_board",
+      "pageId": "sales-board",
+      "locale": "en-CA",
+      "stage": 5,
+      "purpose": "Indicators",
+      "tabs": [
+        {
+          "tab": "overview",
+          "label": "Sales overview",
+          "title": "Sales overview",
+          "purpose": "Choose period, origin and authorized scope to review CRM and POS sales.",
+          "effect": "Distinguish recorded sales, collections and journal entries. The board reads owner records without duplicating sales or posting revenue.",
+          "chapterId": "sales_board.overview",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Choose period, origin and authorized scope to review CRM and POS sales."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Review consolidated totals and open detail from the indicators. Filters persist across views."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Distinguish recorded sales, collections and journal entries. The board reads owner records without duplicating sales or posting revenue."
+            }
+          ]
+        },
+        {
+          "tab": "trends",
+          "label": "Sales trends",
+          "title": "Sales trends",
+          "purpose": "Select a period and check currency and data availability.",
+          "effect": "Check sample size and incomplete currency conversions; a descriptive trend does not guarantee future sales.",
+          "chapterId": "sales_board.trends",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Select a period and check currency and data availability."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Change time grouping and open a chart point to review sales in that interval."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Check sample size and incomplete currency conversions; a descriptive trend does not guarantee future sales."
+            }
+          ]
+        },
+        {
+          "tab": "channels",
+          "label": "Origins and channels",
+          "title": "Origins and channels",
+          "purpose": "Distinguish the CRM or POS source from the sale’s recorded channel.",
+          "effect": "Keep Unclassified when no channel is recorded; do not turn a contact acquisition source into a financial channel.",
+          "chapterId": "sales_board.channels",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Distinguish the CRM or POS source from the sale’s recorded channel."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Compare amounts and shares by source and channel within the current filters."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Keep Unclassified when no channel is recorded; do not turn a contact acquisition source into a financial channel."
+            }
+          ]
+        },
+        {
+          "tab": "sales",
+          "label": "Sales detail",
+          "title": "Sales detail",
+          "purpose": "Search folio or customer and review period, source and status before interpreting results.",
+          "effect": "Check original currency and accounting evidence; corrections, deliveries and collections belong to their owner modules.",
+          "chapterId": "sales_board.sales",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Search folio or customer and review period, source and status before interpreting results."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Sort and configure columns and open each authorized sale’s detail."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Check original currency and accounting evidence; corrections, deliveries and collections belong to their owner modules."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "correo",
+      "pageId": "email",
+      "locale": "en-CA",
+      "stage": 4,
+      "purpose": "Products and sales",
+      "tabs": [
+        {
+          "tab": "accounts",
+          "label": "Email accounts",
+          "title": "Email accounts",
+          "purpose": "Obtain SMTP and IMAP or POP3 server, port and security settings from the provider. Enter passwords inside the form.",
+          "effect": "Review each connection result. Sender availability does not share the mailbox; a verified connection does not prove message delivery.",
+          "chapterId": "correo.accounts",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Obtain SMTP and IMAP or POP3 server, port and security settings from the provider. Enter passwords inside the form."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Save the account and test sending and receiving separately. Enable its use as a Mailing sender when appropriate."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Review each connection result. Sender availability does not share the mailbox; a verified connection does not prove message delivery."
+            }
+          ]
+        },
+        {
+          "tab": "mail",
+          "label": "Mailbox and messages",
+          "title": "Mailbox and messages",
+          "purpose": "Select your connected account and folder and search by customer, sender, recipient or subject.",
+          "effect": "Check Sent and delivery status. Distinguish server folders, local drafts and unconfirmed outcomes before retrying.",
+          "chapterId": "correo.mail",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Select your connected account and folder and search by customer, sender, recipient or subject."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Sync, read, reply or prepare an email and review recipients and attachments before sending."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Check Sent and delivery status. Distinguish server folders, local drafts and unconfirmed outcomes before retrying."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "maintenance",
+      "pageId": "maintenance",
+      "locale": "en-CA",
+      "stage": 2,
+      "purpose": "Processes and tasks",
+      "tabs": [
+        {
+          "tab": "requests",
+          "label": "Technical requests",
+          "title": "Technical requests",
+          "purpose": "Identify the asset or location, fault and evidence within your scope.",
+          "effect": "Check the linked order after acceptance; do not duplicate the request on retry and preserve history.",
+          "chapterId": "maintenance.requests",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Identify the asset or location, fault and evidence within your scope."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Record the request and review its handling. An authorized manager can accept it or reject it with a reason."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Check the linked order after acceptance; do not duplicate the request on retry and preserve history."
+            }
+          ]
+        },
+        {
+          "tab": "orders",
+          "label": "Work orders",
+          "title": "Work orders",
+          "purpose": "Review assignee, priority, date, asset and procedure before execution.",
+          "effect": "Check validated closure and explicit asset restoration. Closing an order neither records payment nor changes HR custody.",
+          "chapterId": "maintenance.orders",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Review assignee, priority, date, asset and procedure before execution."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Record diagnosis, progress, evidence and authorized costs; request validation when finished."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Check validated closure and explicit asset restoration. Closing an order neither records payment nor changes HR custody."
+            }
+          ]
+        },
+        {
+          "tab": "assets",
+          "label": "Assets and technical files",
+          "title": "Assets and technical files",
+          "purpose": "Search the asset or location and review its HR equipment link when present.",
+          "effect": "Distinguish technical status from custody; the QR opens an authenticated route without granting access.",
+          "chapterId": "maintenance.assets",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Search the asset or location and review its HR equipment link when present."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Review the authorized technical file, orders, evidence and outage intervals."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Distinguish technical status from custody; the QR opens an authenticated route without granting access."
+            }
+          ]
+        },
+        {
+          "tab": "preventive",
+          "label": "Preventive plans",
+          "title": "Preventive plans",
+          "purpose": "Define asset, procedure, anchor date, time zone and recurrence.",
+          "effect": "Check the original deadline and follow-up. A deadline is not a confirmed technician appointment.",
+          "chapterId": "maintenance.preventive",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Define asset, procedure, anchor date, time zone and recurrence."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Save the plan and review generated cycles and orders; assign work through the authorized workflow."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Check the original deadline and follow-up. A deadline is not a confirmed technician appointment."
+            }
+          ]
+        },
+        {
+          "tab": "indicators",
+          "label": "Maintenance indicators",
+          "title": "Maintenance indicators",
+          "purpose": "Choose period and scope and distinguish backlog from orders closed in the period.",
+          "effect": "Check denominators, currency and incomplete sources; do not interpret missing data as zero cost or performance.",
+          "chapterId": "maintenance.indicators",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Choose period and scope and distinguish backlog from orders closed in the period."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Review time, compliance, outages and costs, and open supporting records."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Check denominators, currency and incomplete sources; do not interpret missing data as zero cost or performance."
+            }
+          ]
+        },
+        {
+          "tab": "configuration",
+          "label": "Technical configuration",
+          "title": "Technical configuration",
+          "purpose": "Check your administrative permission and maintenance team structure.",
+          "effect": "Verify saved settings. Changes neither grant Inventory or Finance permissions nor rewrite existing orders’ procedure snapshots.",
+          "chapterId": "maintenance.configuration",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Check your administrative permission and maintenance team structure."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Configure procedures, evidence requirements and technician profiles through their authorized forms."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Verify saved settings. Changes neither grant Inventory or Finance permissions nor rewrite existing orders’ procedure snapshots."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "crm",
+      "pageId": "sales",
+      "locale": "en-CA",
+      "stage": 4,
+      "purpose": "Products and sales",
+      "tabs": [
+        {
+          "tab": "after-sales",
+          "label": "After-sales and recovery",
+          "title": "After-sales and recovery",
+          "purpose": "Choose Won for service continuity or Lost to prepare future recovery.",
+          "effect": "Check follow-up and history. The recovery date notifies the salesperson to review and reactivate manually; it does not create a new sale.",
+          "chapterId": "crm.after-sales",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Choose Won for service continuity or Lost to prepare future recovery."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Assign flow, stage, owner and next action in Won; schedule recovery review in Lost."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Check follow-up and history. The recovery date notifies the salesperson to review and reactivate manually; it does not create a new sale."
+            }
+          ]
+        },
+        {
+          "tab": "funneling",
+          "label": "Campaigns and funnel",
+          "title": "Campaigns and funnel",
+          "purpose": "Define offer, audience, goal and channels with the workshop’s guided choices.",
+          "effect": "Save the plan and distinguish targets from actual results. The workshop does not publish ads or activate Google Ads or Meta campaigns.",
+          "chapterId": "crm.funneling",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Define offer, audience, goal and channels with the workshop’s guided choices."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Review the visual funnel, adjust messages and stage goals and prepare a content prompt for your AI model."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Save the plan and distinguish targets from actual results. The workshop does not publish ads or activate Google Ads or Meta campaigns."
+            }
+          ]
+        },
+        {
+          "tab": "mailing",
+          "label": "Email campaigns",
+          "title": "Email campaigns",
+          "purpose": "Select a verified sender account and Sales contacts or lists for the campaign.",
+          "effect": "Review per-recipient outcomes and respect opt-outs. SMTP acceptance does not mean read or delivered; a test does not launch the campaign.",
+          "chapterId": "crm.mailing",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Select a verified sender account and Sales contacts or lists for the campaign."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Prepare subject, content and variables; review eligible recipients, exclusions and configuration before confirming launch or scheduling."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Review per-recipient outcomes and respect opt-outs. SMTP acceptance does not mean read or delivered; a test does not launch the campaign."
+            }
+          ]
+        },
+        {
+          "tab": "whatsapping",
+          "label": "Assisted WhatsApp campaigns",
+          "title": "Assisted WhatsApp campaigns",
+          "purpose": "Select contacts and prepare a template, variables, links and follow-up steps.",
+          "effect": "Review pending and next actions. Preparing the link does not send the message; outcomes are manual confirmations and a reply or exclusion stops follow-up.",
+          "chapterId": "crm.whatsapping",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Select contacts and prepare a template, variables, links and follow-up steps."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Review the individual message, open WhatsApp and send it from the account you selected in that application. Record the result in Índice."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Review pending and next actions. Preparing the link does not send the message; outcomes are manual confirmations and a reply or exclusion stops follow-up."
+            }
+          ]
+        },
+        {
+          "tab": "contacts",
+          "label": "Contacts and customers",
+          "title": "Contacts and customers",
+          "purpose": "Search for the customer first; review contact details, company, owner and scope.",
+          "effect": "Link opportunities and quotations to the same identity; a contact is neither a sale nor revenue.",
+          "chapterId": "crm.contacts",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [
+            "create_customer",
+            "update_customer"
+          ],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Search for the customer first; review contact details, company, owner and scope."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Create, edit or import contacts and use available communication channels."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Link opportunities and quotations to the same identity; a contact is neither a sale nor revenue."
+            }
+          ]
+        },
+        {
+          "tab": "leads",
+          "label": "Opportunities and commercial flows",
+          "title": "Opportunities and commercial flows",
+          "purpose": "Select the correct sales flow, customer, owner, value, currency and next action.",
+          "effect": "A won stage requires the compatible commercial close, not an isolated label change. Review history and next activity; potential value is not collected money.",
+          "chapterId": "crm.leads",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [
+            "create_opportunity",
+            "update_opportunity"
+          ],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Select the correct sales flow, customer, owner, value, currency and next action."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Create or edit opportunities; manage flows and stages through the authorized function. Table, funnel and agenda display the same work."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "A won stage requires the compatible commercial close, not an isolated label change. Review history and next activity; potential value is not collected money."
+            }
+          ]
+        },
+        {
+          "tab": "quotes",
+          "label": "Quotations and conversion",
+          "title": "Quotations and conversion",
+          "purpose": "Review customer, currency, lines, taxes, margin, discounts and validity.",
+          "effect": "Check the linked sale before retrying conversion; do not duplicate the close. Accepted does not mean paid or delivered.",
+          "chapterId": "crm.quotes",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [
+            "create_quote",
+            "update_quote",
+            "create_commercial_sale"
+          ],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Review customer, currency, lines, taxes, margin, discounts and validity."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Create or edit, print and record acceptance through authorized actions; convert an eligible quotation to a sale."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Check the linked sale before retrying conversion; do not duplicate the close. Accepted does not mean paid or delivered."
+            }
+          ]
+        },
+        {
+          "tab": "sales",
+          "label": "Sale, delivery and collection",
+          "title": "Sale, delivery and collection",
+          "purpose": "Review customer, source, currency, lines and stock. POS tickets can be read in Sales without gaining authority to modify them.",
+          "effect": "Confirming collection requires financial evidence; recording delivery is not proof of payment. Cancellation preserves history through compensating records and respects inventory, commissions and existing obligations.",
+          "chapterId": "crm.sales",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [
+            "create_commercial_sale",
+            "update_commercial_sale",
+            "confirm_sale_collection"
+          ],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Review customer, source, currency, lines and stock. POS tickets can be read in Sales without gaining authority to modify them."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Record or edit an eligible sale and review inventory, delivery, financial approval, credit and collection separately."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Confirming collection requires financial evidence; recording delivery is not proof of payment. Cancellation preserves history through compensating records and respects inventory, commissions and existing obligations."
+            }
+          ]
+        },
+        {
+          "tab": "contracts",
+          "label": "Contracts and follow-up",
+          "title": "Contracts and follow-up",
+          "purpose": "Link customer, sale or quotation, dates, scope and template.",
+          "effect": "The agent records internal states; describing a function does not send emails or execute a legal signature. Confirm external actions in their actual channel.",
+          "chapterId": "crm.contracts",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [
+            "create_sales_contract",
+            "update_sales_contract"
+          ],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Link customer, sale or quotation, dates, scope and template."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Create or edit the contract and record follow-up, validity or renewal in its authorized screen."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "The agent records internal states; describing a function does not send emails or execute a legal signature. Confirm external actions in their actual channel."
+            }
+          ]
+        },
+        {
+          "tab": "commissions",
+          "label": "Commissions and cuts",
+          "title": "Commissions and cuts",
+          "purpose": "Review policy, authorized role, currency and eligible sales.",
+          "effect": "Preserve the applied rule and history. Creating a cut does not mean paying it.",
+          "chapterId": "crm.commissions",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [
+            "create_sales_commission_cut",
+            "create_sales_commission_schedule"
+          ],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Review policy, authorized role, currency and eligible sales."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Review generated commissions and create a cut or schedule through the available function."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Preserve the applied rule and history. Creating a cut does not mean paying it."
+            }
+          ]
+        },
+        {
+          "tab": "payment-accounts",
+          "label": "Commercial payment accounts",
+          "title": "Commercial payment accounts",
+          "purpose": "Review account currency, organization and source before using it.",
+          "effect": "Check status and collection destination. Adding an account does not move money or duplicate a petty cash fund.",
+          "chapterId": "crm.payment-accounts",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Review account currency, organization and source before using it."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Create or edit only accounts available to your role; an account belonging to another owner is managed in that owner’s module."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Check status and collection destination. Adding an account does not move money or duplicate a petty cash fund."
+            }
+          ]
+        },
+        {
+          "tab": "kpis",
+          "label": "Commercial indicators",
+          "title": "Commercial indicators",
+          "purpose": "Filter by period, unit, business, owner and currency.",
+          "effect": "Distinguish potential value, recorded sales and confirmed collections. Display exchange rates do not change original amounts.",
+          "chapterId": "crm.kpis",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Filter by period, unit, business, owner and currency."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Review conversion, pipeline, margin and execution; inspect included records and rankings."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Distinguish potential value, recorded sales and confirmed collections. Display exchange rates do not change original amounts."
             }
           ]
         }
@@ -3872,267 +5115,6 @@
               "id": "verify",
               "title": "Verify the result",
               "description": "Verify eligibility and approval when applying it. The backend calculates the discount and rejects incompatible rules."
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "module": "crm",
-      "pageId": "sales",
-      "locale": "en-CA",
-      "stage": 4,
-      "purpose": "Products and sales",
-      "tabs": [
-        {
-          "tab": "contacts",
-          "label": "Contacts and customers",
-          "title": "Contacts and customers",
-          "purpose": "Search for the customer first; review contact details, company, owner and scope.",
-          "effect": "Link opportunities and quotations to the same identity; a contact is neither a sale nor revenue.",
-          "chapterId": "crm.contacts",
-          "version": 2,
-          "journey": true,
-          "companion": true,
-          "evidenceTools": [
-            "create_customer",
-            "update_customer"
-          ],
-          "steps": [
-            {
-              "id": "prepare",
-              "title": "Before starting",
-              "description": "Search for the customer first; review contact details, company, owner and scope."
-            },
-            {
-              "id": "operate",
-              "title": "Perform the operation",
-              "description": "Create, edit or import contacts and use available communication channels."
-            },
-            {
-              "id": "verify",
-              "title": "Verify the result",
-              "description": "Link opportunities and quotations to the same identity; a contact is neither a sale nor revenue."
-            }
-          ]
-        },
-        {
-          "tab": "leads",
-          "label": "Opportunities and commercial flows",
-          "title": "Opportunities and commercial flows",
-          "purpose": "Select the correct sales flow, customer, owner, value, currency and next action.",
-          "effect": "A won stage requires the compatible commercial close, not an isolated label change. Review history and next activity; potential value is not collected money.",
-          "chapterId": "crm.leads",
-          "version": 2,
-          "journey": true,
-          "companion": true,
-          "evidenceTools": [
-            "create_opportunity",
-            "update_opportunity"
-          ],
-          "steps": [
-            {
-              "id": "prepare",
-              "title": "Before starting",
-              "description": "Select the correct sales flow, customer, owner, value, currency and next action."
-            },
-            {
-              "id": "operate",
-              "title": "Perform the operation",
-              "description": "Create or edit opportunities; manage flows and stages through the authorized function. Table, funnel and agenda display the same work."
-            },
-            {
-              "id": "verify",
-              "title": "Verify the result",
-              "description": "A won stage requires the compatible commercial close, not an isolated label change. Review history and next activity; potential value is not collected money."
-            }
-          ]
-        },
-        {
-          "tab": "quotes",
-          "label": "Quotations and conversion",
-          "title": "Quotations and conversion",
-          "purpose": "Review customer, currency, lines, taxes, margin, discounts and validity.",
-          "effect": "Check the linked sale before retrying conversion; do not duplicate the close. Accepted does not mean paid or delivered.",
-          "chapterId": "crm.quotes",
-          "version": 2,
-          "journey": true,
-          "companion": true,
-          "evidenceTools": [
-            "create_quote",
-            "update_quote",
-            "create_commercial_sale"
-          ],
-          "steps": [
-            {
-              "id": "prepare",
-              "title": "Before starting",
-              "description": "Review customer, currency, lines, taxes, margin, discounts and validity."
-            },
-            {
-              "id": "operate",
-              "title": "Perform the operation",
-              "description": "Create or edit, print and record acceptance through authorized actions; convert an eligible quotation to a sale."
-            },
-            {
-              "id": "verify",
-              "title": "Verify the result",
-              "description": "Check the linked sale before retrying conversion; do not duplicate the close. Accepted does not mean paid or delivered."
-            }
-          ]
-        },
-        {
-          "tab": "sales",
-          "label": "Sale, delivery and collection",
-          "title": "Sale, delivery and collection",
-          "purpose": "Review customer, source, currency, lines and stock. POS tickets can be read in Sales without gaining authority to modify them.",
-          "effect": "Confirming collection requires financial evidence; recording delivery is not proof of payment. Cancellation preserves history through compensating records and respects inventory, commissions and existing obligations.",
-          "chapterId": "crm.sales",
-          "version": 2,
-          "journey": true,
-          "companion": true,
-          "evidenceTools": [
-            "create_commercial_sale",
-            "update_commercial_sale",
-            "confirm_sale_collection"
-          ],
-          "steps": [
-            {
-              "id": "prepare",
-              "title": "Before starting",
-              "description": "Review customer, source, currency, lines and stock. POS tickets can be read in Sales without gaining authority to modify them."
-            },
-            {
-              "id": "operate",
-              "title": "Perform the operation",
-              "description": "Record or edit an eligible sale and review inventory, delivery, financial approval, credit and collection separately."
-            },
-            {
-              "id": "verify",
-              "title": "Verify the result",
-              "description": "Confirming collection requires financial evidence; recording delivery is not proof of payment. Cancellation preserves history through compensating records and respects inventory, commissions and existing obligations."
-            }
-          ]
-        },
-        {
-          "tab": "contracts",
-          "label": "Contracts and follow-up",
-          "title": "Contracts and follow-up",
-          "purpose": "Link customer, sale or quotation, dates, scope and template.",
-          "effect": "The agent records internal states; describing a function does not send emails or execute a legal signature. Confirm external actions in their actual channel.",
-          "chapterId": "crm.contracts",
-          "version": 2,
-          "journey": true,
-          "companion": true,
-          "evidenceTools": [
-            "create_sales_contract",
-            "update_sales_contract"
-          ],
-          "steps": [
-            {
-              "id": "prepare",
-              "title": "Before starting",
-              "description": "Link customer, sale or quotation, dates, scope and template."
-            },
-            {
-              "id": "operate",
-              "title": "Perform the operation",
-              "description": "Create or edit the contract and record follow-up, validity or renewal in its authorized screen."
-            },
-            {
-              "id": "verify",
-              "title": "Verify the result",
-              "description": "The agent records internal states; describing a function does not send emails or execute a legal signature. Confirm external actions in their actual channel."
-            }
-          ]
-        },
-        {
-          "tab": "commissions",
-          "label": "Commissions and cuts",
-          "title": "Commissions and cuts",
-          "purpose": "Review policy, authorized role, currency and eligible sales.",
-          "effect": "Preserve the applied rule and history. Creating a cut does not mean paying it.",
-          "chapterId": "crm.commissions",
-          "version": 2,
-          "journey": true,
-          "companion": true,
-          "evidenceTools": [
-            "create_sales_commission_cut",
-            "create_sales_commission_schedule"
-          ],
-          "steps": [
-            {
-              "id": "prepare",
-              "title": "Before starting",
-              "description": "Review policy, authorized role, currency and eligible sales."
-            },
-            {
-              "id": "operate",
-              "title": "Perform the operation",
-              "description": "Review generated commissions and create a cut or schedule through the available function."
-            },
-            {
-              "id": "verify",
-              "title": "Verify the result",
-              "description": "Preserve the applied rule and history. Creating a cut does not mean paying it."
-            }
-          ]
-        },
-        {
-          "tab": "payment-accounts",
-          "label": "Commercial payment accounts",
-          "title": "Commercial payment accounts",
-          "purpose": "Review account currency, organization and source before using it.",
-          "effect": "Check status and collection destination. Adding an account does not move money or duplicate a petty cash fund.",
-          "chapterId": "crm.payment-accounts",
-          "version": 2,
-          "journey": true,
-          "companion": true,
-          "evidenceTools": [],
-          "steps": [
-            {
-              "id": "prepare",
-              "title": "Before starting",
-              "description": "Review account currency, organization and source before using it."
-            },
-            {
-              "id": "operate",
-              "title": "Perform the operation",
-              "description": "Create or edit only accounts available to your role; an account belonging to another owner is managed in that owner’s module."
-            },
-            {
-              "id": "verify",
-              "title": "Verify the result",
-              "description": "Check status and collection destination. Adding an account does not move money or duplicate a petty cash fund."
-            }
-          ]
-        },
-        {
-          "tab": "kpis",
-          "label": "Commercial indicators",
-          "title": "Commercial indicators",
-          "purpose": "Filter by period, unit, business, owner and currency.",
-          "effect": "Distinguish potential value, recorded sales and confirmed collections. Display exchange rates do not change original amounts.",
-          "chapterId": "crm.kpis",
-          "version": 2,
-          "journey": true,
-          "companion": true,
-          "evidenceTools": [],
-          "steps": [
-            {
-              "id": "prepare",
-              "title": "Before starting",
-              "description": "Filter by period, unit, business, owner and currency."
-            },
-            {
-              "id": "operate",
-              "title": "Perform the operation",
-              "description": "Review conversion, pipeline, margin and execution; inspect included records and rankings."
-            },
-            {
-              "id": "verify",
-              "title": "Verify the result",
-              "description": "Distinguish potential value, recorded sales and confirmed collections. Display exchange rates do not change original amounts."
             }
           ]
         }

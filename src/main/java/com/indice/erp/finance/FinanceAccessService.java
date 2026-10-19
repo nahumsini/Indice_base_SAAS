@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 public class FinanceAccessService {
 
     private static final Set<String> FINANCE_MODULE_SLUGS = Set.of(
+        "petty_cash",
         "cartera",
         "expenses",
         "finance",

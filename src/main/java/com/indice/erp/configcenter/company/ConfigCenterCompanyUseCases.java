@@ -150,7 +150,10 @@ public abstract class ConfigCenterCompanyUseCases extends ConfigCenterInvitation
             || normalized.equals(normalizeKey(LEGACY_HEADQUARTERS_UNIT_NAME));
     }
 
+    @Transactional
     public Map<String, Object> saveEmpresa(long companyId, long userId, Map<String, Object> payload) {
+        CompanySettingsInput.company(payload);
+        if (hasHeadquartersLocationPayload(payload)) normalizeHeadquartersLocationInput(payload);
         var name = value(payload, "nombre_empresa");
         if (!name.isBlank()) {
             jdbcTemplate.update("UPDATE companies SET name = ? WHERE id = ?", name, companyId);
@@ -163,12 +166,12 @@ public abstract class ConfigCenterCompanyUseCases extends ConfigCenterInvitation
         if (hasAnyKey(payload, "logo_url", "logoUrl", "logo")) {
             empresaTemplateNode.put("logo", value(payload, "logo_url", "logoUrl", "logo"));
         }
-        empresaTemplateNode.put("industria", value(payload, "industria"));
-        empresaTemplateNode.put("modelo_negocio", value(payload, "modelo_negocio"));
-        empresaTemplateNode.put("descripcion", value(payload, "descripcion"));
-        empresaTemplateNode.put("currency", value(payload, "moneda"));
-        empresaTemplateNode.put("timezone", value(payload, "zona_horaria", "tz"));
-        empresaTemplateNode.put("tamano_empresa", value(payload, "tamano_empresa"));
+        if (hasAnyKey(payload, "industria")) empresaTemplateNode.put("industria", value(payload, "industria"));
+        if (hasAnyKey(payload, "modelo_negocio")) empresaTemplateNode.put("modelo_negocio", value(payload, "modelo_negocio"));
+        if (hasAnyKey(payload, "descripcion")) empresaTemplateNode.put("descripcion", value(payload, "descripcion"));
+        if (hasAnyKey(payload, "moneda")) empresaTemplateNode.put("currency", value(payload, "moneda"));
+        if (hasAnyKey(payload, "zona_horaria", "tz")) empresaTemplateNode.put("timezone", value(payload, "zona_horaria", "tz"));
+        if (hasAnyKey(payload, "tamano_empresa")) empresaTemplateNode.put("tamano_empresa", value(payload, "tamano_empresa"));
         if (!name.isBlank()) {
             empresaTemplateNode.put("display_name", name);
         }
@@ -188,7 +191,7 @@ public abstract class ConfigCenterCompanyUseCases extends ConfigCenterInvitation
         if (!configCenterNode.has("map")) {
             configCenterNode.set("map", objectMapper.valueToTree(buildStructureMap(companyId)));
         }
-        configCenterNode.put("tamano_empresa", value(payload, "tamano_empresa"));
+        if (payload.containsKey("tamano_empresa")) configCenterNode.put("tamano_empresa", value(payload, "tamano_empresa"));
 
         upsertSettingsRoot(companyId, settingsRoot);
         if (hasCompanyCoordinatePayload) {
@@ -643,10 +646,9 @@ public abstract class ConfigCenterCompanyUseCases extends ConfigCenterInvitation
                 return objectNode.deepCopy();
             }
         } catch (JsonProcessingException ignored) {
-            // fall through to empty object
+            throw CompanySettingsInput.error("company_settings_unavailable", "Company settings could not be read safely.");
         }
-
-        return objectMapper.createObjectNode();
+        throw CompanySettingsInput.error("company_settings_unavailable", "Company settings could not be read safely.");
     }
 
     protected ObjectNode ensureConfigCenterNode(ObjectNode settingsRoot) {

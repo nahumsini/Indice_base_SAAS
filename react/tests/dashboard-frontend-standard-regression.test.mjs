@@ -292,7 +292,7 @@ test('Estructura Empresarial espera confirmación antes de ocultar unidades o ne
   assert.match(businessStructureSource, /const handleConfirmDelete = async \(\) =>/);
   assert.match(businessStructureSource, /await persistStructureConfig\(estructuraType, nextUnidades\)/);
   assert.match(businessStructureSource, /setUnidades\(committedUnidades\)/);
-  assert.match(businessStructureSource, /confirmDisabled=\{isSaving\}/);
+  assert.match(businessStructureSource, /confirmDisabled=\{isMutationBusy\}/);
   assert.doesNotMatch(businessStructureSource, /const applyDeleteUnidad/);
 });
 

@@ -8,9 +8,13 @@ import { SuccessToast } from '../../../components/SuccessToast';
 import { useLanguage } from '../../../shared/context';
 import { DashboardTitleBar } from '../components/DashboardTitleBar';
 import { PROFILE_COUNTRY_OPTIONS } from '../../../shared/profileCountries';
-import { hasUnrestrictedTabAccess } from '../../../access/accessRules';
-import { authApi } from '../../../api/auth';
-import { configCenterApi, type ConfigCenterEmpresaMapUnit } from '../../../api/configCenter';
+import { canOpenAccountTab } from '../../../access/headerMenuAccess';
+import { useAuthorizationRevision } from '../../../hooks/useAuthorizationRevision';
+import { getCachedAuthSession, setCachedAuthSession } from '../../../api/authSessionStore';
+import { ApiClientError } from '../../../lib/apiClient';
+import { getCompanySettingsFeedback, getCompanyPostalFeedback } from './companySettingsFeedback';
+import { readCompanyLogo } from './companyLogo';
+import { configCenterApi, currentProfileActor, type ConfigCenterEmpresaMapUnit } from '../../../api/configCenter';
 import { validateOptionalEmail } from '../../../shared/validation/email';
 import { inputClassName } from './constants';
 import { BusinessIdentitySection } from './components/BusinessIdentitySection';
@@ -32,22 +36,6 @@ import type {
   Unidad,
 } from './types';
 import { useBusinessStructureTranslations } from './hooks/useBusinessStructureTranslations';
-
-const readImageAsPreview = (
-  event: ChangeEvent<HTMLInputElement>,
-  onLoad: (preview: string) => void,
-) => {
-  const file = event.target.files?.[0];
-  if (!file) {
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onloadend = () => {
-    onLoad(String(reader.result ?? ''));
-  };
-  reader.readAsDataURL(file);
-};
 
 type BusinessStructureSnapshot = {
   estructuraType: EstructuraType;
@@ -756,8 +744,40 @@ const buildConfigMap = (_estructuraType: EstructuraType, unidades: Unidad[]) => 
 );
 
 export default function BusinessStructure() {
+  const revision = useAuthorizationRevision();
+  const actor = currentProfileActor();
+  return <CompanySettingsEditor key={`${actor}:${revision}`} actor={actor} />;
+}
+
+function CompanySettingsEditor({ actor }: { actor: string | null }) {
   const { currentLanguage } = useLanguage();
   const structure = useBusinessStructureTranslations();
+  const feedback = getCompanySettingsFeedback(currentLanguage.code);
+  const alive = useRef(true);
+  const mutationRef = useRef(false);
+  const savedReceiptRef = useRef<BusinessStructureSnapshot | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [coordinateBusy, setCoordinateBusy] = useState(false);
+  const errorRef = useRef<HTMLDivElement>(null);
+  const modalErrorRef = useRef<HTMLDivElement>(null);
+  const isCurrent = () => alive.current && actor !== null && currentProfileActor() === actor;
+  const readableError = (error: unknown, fallback = feedback.save) => {
+    const code = error instanceof ApiClientError ? error.code : error instanceof Error ? error.message : '';
+    const messages: Record<string, string> = {
+      company_actor_changed: feedback.changed, company_name_required: feedback.name,
+      company_name_too_long: feedback.longName, company_logo_size: feedback.logoSize,
+      company_invalid_logo: feedback.logo, company_duplicate_name: feedback.organization,
+      company_invalid_organization: feedback.organization, company_organization_changed: feedback.changed,
+      company_invalid_email: structure.validation.invalidEmail, company_address_too_long: feedback.address,
+    };
+    if (error instanceof ApiClientError && (error.status === 401 || error.status === 403)) return feedback.permission;
+    if (code && messages[code]) return messages[code];
+    if (code?.startsWith('Latitude') || code?.startsWith('Longitude')) return feedback.coordinates;
+    if (code?.startsWith('Radius')) return feedback.radius;
+    return fallback;
+  };
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const [estructuraType, setEstructuraType] = useState<EstructuraType>('simple');
   const [unidades, setUnidades] = useState<Unidad[]>(createDefaultUnidades);
   const [companyName, setCompanyName] = useState('');
@@ -791,7 +811,8 @@ export default function BusinessStructure() {
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const currentSnapshotRef = useRef<BusinessStructureSnapshot | null>(null);
   const failedAutoSaveKeyRef = useRef('');
-  const isStructureReadOnly = !canEditStructure || loadingOverlay.isVisible;
+  const isStructureReadOnly = !canEditStructure || isLoading || !baselineSnapshot || loadingOverlay.isVisible || logoBusy;
+  const isMutationBusy = isSaving || loadingOverlay.isVisible || logoBusy || coordinateBusy;
 
   const hideLoadingOverlay = () => {
     setLoadingOverlay({
@@ -819,9 +840,11 @@ export default function BusinessStructure() {
     [companyAddress, companyLocation, companyLogo, companyName, description, estructuraType, industry, unidades],
   );
 
+  currentSnapshotRef.current = currentSnapshot;
+
   useEffect(() => {
-    currentSnapshotRef.current = currentSnapshot;
-  }, [currentSnapshot]);
+    if (loadError) (showUnidadModal || showNegocioModal ? modalErrorRef : errorRef).current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [loadError, showUnidadModal, showNegocioModal]);
 
   const hasUnsavedChanges = useMemo(
     () => baselineSnapshot !== null
@@ -881,21 +904,19 @@ export default function BusinessStructure() {
       : structure.options.businessIdentityIndustries;
   };
 
-  const syncSavedStructure = (nextEstructuraType: EstructuraType, nextUnidades: Unidad[]) => {
-    setBaselineSnapshot((previousSnapshot) =>
-      cloneSnapshot(
-        createBusinessStructureSnapshot({
-          estructuraType: nextEstructuraType,
-          unidades: nextUnidades,
-          companyName: previousSnapshot?.companyName ?? currentSnapshot.companyName,
-          companyLogo: previousSnapshot?.companyLogo ?? currentSnapshot.companyLogo,
-          industry: previousSnapshot?.industry ?? currentSnapshot.industry,
-          description: previousSnapshot?.description ?? currentSnapshot.description,
-          companyAddress: previousSnapshot?.companyAddress ?? currentSnapshot.companyAddress,
-          companyLocation: previousSnapshot?.companyLocation ?? currentSnapshot.companyLocation,
-        }),
-      ),
-    );
+  const syncSavedStructure = (_nextType: EstructuraType, _nextUnits: Unidad[]) => {
+    if (isCurrent() && savedReceiptRef.current) setBaselineSnapshot(cloneSnapshot(savedReceiptRef.current));
+  };
+
+  const readImageAsPreview = async (event: ChangeEvent<HTMLInputElement>, onLoad: (preview: string) => void) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || isMutationBusy || mutationRef.current || !isCurrent()) return;
+    setLogoBusy(true);
+    setLoadError('');
+    try { const preview = await readCompanyLogo(file); if (isCurrent()) onLoad(preview); }
+    catch (error) { if (isCurrent()) setLoadError(readableError(error)); }
+    finally { if (isCurrent()) setLogoBusy(false); }
   };
 
   const getCurrentCorporateOfficeCoordinates = () => {
@@ -916,16 +937,49 @@ export default function BusinessStructure() {
   });
 
   const persistStructureConfig = async (nextEstructuraType: EstructuraType, nextUnidades: Unidad[]) => {
+    if (!isCurrent() || !canEditStructure || !baselineSnapshot || mutationRef.current || logoBusy || coordinateBusy)
+      throw new Error('company_actor_changed');
+    const before = cloneSnapshot(currentSnapshotRef.current!);
+    if (!before.companyName.trim()) throw new Error('company_name_required');
+    if ([...before.companyName.trim()].length > 120) throw new Error('company_name_too_long');
+    const coordinates = buildCoordinateSaveValues(before.companyLocation);
+    if (coordinates.ok === false) throw new Error(coordinates.message);
+    const postal = validatePostalCodeForCountry(before.companyAddress.country, before.companyAddress.zip);
+    if ('message' in postal) throw new Error('company_postal_invalid');
     const normalizedUnidades = normalizeUnidadesForPersistence(nextEstructuraType, nextUnidades);
-    const response = await configCenterApi.saveConfig({
-      estructura: nextEstructuraType,
-      map: buildConfigMap(nextEstructuraType, normalizedUnidades),
-    });
-
-    return {
-      response,
-      normalizedUnidades,
-    };
+    mutationRef.current = true;
+    setIsSaving(true);
+    setLoadError('');
+    try {
+      const response = await configCenterApi.saveConfig({
+        estructura: nextEstructuraType, map: buildConfigMap(nextEstructuraType, normalizedUnidades),
+        company: {
+          nombre_empresa: before.companyName.trim(), logo_url: before.companyLogo || null,
+          industria: before.industry, descripcion: before.description, address: before.companyAddress,
+          latitude: coordinates.values.latitude ?? null, longitude: coordinates.values.longitude ?? null,
+          radius_meters: coordinates.values.radiusMeters ?? null, coordinate_source: coordinates.values.coordinateSource ?? null,
+          google_maps_url: coordinates.values.googleMapsUrl ?? null, sync_company_location: false,
+        },
+      }, actor);
+      if (!isCurrent()) throw new Error('company_actor_changed');
+      if (!Array.isArray(response.map) || !response.map.length || String(response.company?.id) !== actor?.split(':')[0]) throw new Error('company_invalid_receipt');
+      const savedUnits = mapConfigUnitsToState(response.map);
+      const savedSnapshot = cloneSnapshot({ ...before, companyName: response.company!.nombre_empresa, estructuraType: nextEstructuraType, unidades: savedUnits });
+      savedReceiptRef.current = savedSnapshot;
+      setBaselineSnapshot(savedSnapshot);
+      if (JSON.stringify(currentSnapshotRef.current?.unidades) === JSON.stringify(before.unidades)) setUnidades(savedUnits);
+      if (currentSnapshotRef.current?.companyName === before.companyName) setCompanyName(savedSnapshot.companyName);
+      failedAutoSaveKeyRef.current = '';
+      const session = getCachedAuthSession();
+      if (session && currentProfileActor() === actor) {
+        setCachedAuthSession({ ...session, company: { ...session.company, name: savedSnapshot.companyName }, companies: session.companies?.map((company) => company.id === session.company.id ? { ...company, name: savedSnapshot.companyName } : company) });
+        window.dispatchEvent(new CustomEvent('indice:company-settings-saved', { detail: { actor, name: savedSnapshot.companyName } }));
+      }
+      return { response, normalizedUnidades: savedUnits };
+    } finally {
+      mutationRef.current = false;
+      if (isCurrent()) setIsSaving(false);
+    }
   };
 
   const runStructureFeedbackTask = async ({
@@ -949,33 +1003,33 @@ export default function BusinessStructure() {
 
     try {
       await runWithMinimumDuration(task(), minimumDurationMs);
-      showSuccessToast(successMessage);
+      if (isCurrent()) showSuccessToast(successMessage);
+    } catch (error) {
+      if (isCurrent()) {
+        const postal = validatePostalCodeForCountry(companyAddress.country, companyAddress.zip);
+        setLoadError(error instanceof Error && error.message === 'company_postal_invalid' && 'message' in postal ? getCompanyPostalFeedback(currentLanguage.code, companyAddress.country) : readableError(error));
+      }
     } finally {
-      hideLoadingOverlay();
+      if (isCurrent()) hideLoadingOverlay();
     }
   };
 
   useEffect(() => {
     let active = true;
 
-    runWithMinimumDuration(Promise.allSettled([
-      configCenterApi.getEmpresa(),
-      configCenterApi.getConfig(),
-      authApi.getSessionOrNull(),
+    setIsLoading(true);
+    setLoadError('');
+    runWithMinimumDuration(Promise.all([
+      configCenterApi.getEmpresa(actor),
+      configCenterApi.getConfig(actor),
     ]))
-      .then((results) => {
-        if (!active) {
+      .then(([empresa, config]) => {
+        if (!active || !isCurrent()) {
           return;
         }
 
-        const empresaResult = results[0];
-        const configResult = results[1];
-        const sessionResult = results[2];
-
-        const empresa = empresaResult.status === 'fulfilled' ? empresaResult.value : null;
-        const config = configResult.status === 'fulfilled' ? configResult.value : null;
-        const session = sessionResult.status === 'fulfilled' ? sessionResult.value : null;
-
+        if (!empresa || String(empresa.id) !== actor?.split(':')[0] || !config || !Array.isArray(config.map)) throw new Error('company_load_incomplete');
+        const session = getCachedAuthSession();
         const resolvedStructure = (config?.estructura ?? empresa?.estructura ?? 'simple') as EstructuraType;
         const resolvedMap = config?.map ?? empresa?.map ?? [];
         const loadedUnidades = mapConfigUnitsToState(resolvedMap);
@@ -1002,7 +1056,7 @@ export default function BusinessStructure() {
         setCompanyAddress(loadedCompanyAddress);
         setCompanyLocation(loadedCompanyLocation);
         setUnidades(loadedUnidades);
-        setCanEditStructure(hasUnrestrictedTabAccess(session?.user.role));
+        setCanEditStructure(canOpenAccountTab(session, 'business-structure') && config.can_edit === true);
         setBaselineSnapshot(
           cloneSnapshot(
             createBusinessStructureSnapshot({
@@ -1019,13 +1073,11 @@ export default function BusinessStructure() {
         );
       })
       .catch((error) => {
-        if (!active) {
-          return;
-        }
-        setLoadError(error instanceof Error ? error.message : structure.messages.loadError);
+        if (!active || !isCurrent()) return;
+        setLoadError(readableError(error, feedback.load));
       })
       .finally(() => {
-        if (active) {
+        if (active && isCurrent()) {
           setIsLoading(false);
         }
       });
@@ -1033,16 +1085,20 @@ export default function BusinessStructure() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [loadAttempt]);
 
-  const closeUnidadModal = () => {
+  const closeUnidadModal = (confirmed = false) => {
+    if (!confirmed && (mutationRef.current || isMutationBusy)) return;
+    setLoadError('');
     setShowUnidadModal(false);
     setEditingUnidad(null);
     setUnidadFormValues(DEFAULT_UNIDAD_FORM_VALUES);
     setUnidadInitialValues(DEFAULT_UNIDAD_FORM_VALUES);
   };
 
-  const closeNegocioModal = () => {
+  const closeNegocioModal = (confirmed = false) => {
+    if (!confirmed && (mutationRef.current || isMutationBusy)) return;
+    setLoadError('');
     setShowNegocioModal(false);
     setEditingNegocio(null);
     setNegocioFormValues(DEFAULT_NEGOCIO_FORM_VALUES);
@@ -1050,7 +1106,7 @@ export default function BusinessStructure() {
   };
 
   const handleEstructuraTypeChange = (nextType: EstructuraType) => {
-    if (!canEditStructure) {
+    if (!canEditStructure || !isCurrent() || isMutationBusy || mutationRef.current) {
       return;
     }
 
@@ -1063,7 +1119,7 @@ export default function BusinessStructure() {
   };
 
   const handleRequestDeleteUnidad = (unidadId: string) => {
-    if (!canEditStructure) {
+    if (!canEditStructure || !isCurrent() || isMutationBusy || mutationRef.current) {
       return;
     }
 
@@ -1080,7 +1136,7 @@ export default function BusinessStructure() {
   };
 
   const handleRequestDeleteNegocio = (unidadId: string, negocioId: string) => {
-    if (!canEditStructure) {
+    if (!canEditStructure || !isCurrent() || isMutationBusy || mutationRef.current) {
       return;
     }
 
@@ -1100,11 +1156,13 @@ export default function BusinessStructure() {
   };
 
   const handleCancelDelete = () => {
+    if (isMutationBusy || mutationRef.current) return;
+    setLoadError('');
     setPendingDeleteTarget(null);
   };
 
   const handleConfirmDelete = async () => {
-    if (!canEditStructure || !pendingDeleteTarget || isSaving) {
+    if (!canEditStructure || !isCurrent() || !pendingDeleteTarget || isMutationBusy || mutationRef.current) {
       return;
     }
 
@@ -1129,15 +1187,15 @@ export default function BusinessStructure() {
       failedAutoSaveKeyRef.current = '';
       showSuccessToast(structure.messages.saveSuccess);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : structure.messages.saveError);
+      if (isCurrent()) setLoadError(readableError(error));
     } finally {
-      setIsSaving(false);
+      if (isCurrent()) setIsSaving(false);
     }
   };
 
   const handleSaveUnidad = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!canEditStructure) {
+    if (!canEditStructure || !isCurrent() || isMutationBusy || mutationRef.current) {
       return;
     }
 
@@ -1149,20 +1207,21 @@ export default function BusinessStructure() {
 
     const coordinateValidation = buildCoordinateSaveValues(unidadFormValues);
     if (coordinateValidation.ok === false) {
-      setLoadError(coordinateValidation.message);
+      setLoadError(readableError(new Error(coordinateValidation.message)));
       return;
     }
 
     const manualLocationValidation = buildManualLocationSaveValues(unidadFormValues);
     if (manualLocationValidation.ok === false) {
-      setLoadError(manualLocationValidation.message);
+      setLoadError(getCompanyPostalFeedback(currentLanguage.code, unidadFormValues.pais));
       return;
     }
 
     const newUnidad: Unidad = {
-      id: editingUnidad?.id || String(Date.now()),
+      id: editingUnidad?.id || crypto.randomUUID(),
+      legacyUnitId: editingUnidad?.legacyUnitId,
       name: unidadFormValues.name.trim(),
-      isCorporateOffice: editingUnidad?.isCorporateOffice ?? unidades.length === 0,
+      isCorporateOffice: editingUnidad?.isCorporateOffice ?? false,
       logo: unidadFormValues.logo,
       industria: unidadFormValues.industria,
       direccion: unidadFormValues.direccion,
@@ -1177,7 +1236,9 @@ export default function BusinessStructure() {
       radiusMeters: coordinateValidation.values.radiusMeters ?? undefined,
       coordinateSource: coordinateValidation.values.coordinateSource ?? undefined,
       googleMapsUrl: coordinateValidation.values.googleMapsUrl ?? undefined,
-      negocios: editingUnidad?.negocios || [],
+      negocios: editingUnidad?.negocios.map((negocio, index) => isUnitHeadquartersBusiness(negocio, editingUnidad.name, index)
+        ? { ...negocio, name: getUnitHeadquartersBusinessName(unidadFormValues.name.trim()) }
+        : negocio) || [],
     };
 
     void runStructureFeedbackTask({
@@ -1189,21 +1250,22 @@ export default function BusinessStructure() {
       task: async () => {
         const nextUnidades = editingUnidad
           ? unidades.map((unidad) => (unidad.id === editingUnidad.id ? newUnidad : unidad))
-          : [...unidades, newUnidad];
+          : [...normalizeUnidadesForPersistence(estructuraType, unidades), newUnidad];
 
         const { response, normalizedUnidades } = await persistStructureConfig(estructuraType, nextUnidades);
         const savedUnidades = mapConfigUnitsToState(response.map);
         const committedUnidades = savedUnidades.length > 0 ? savedUnidades : normalizedUnidades;
+        if (!isCurrent()) return;
         setUnidades(committedUnidades);
         syncSavedStructure(estructuraType, committedUnidades);
-        closeUnidadModal();
+        closeUnidadModal(true);
       },
     });
   };
 
   const handleSaveNegocio = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!canEditStructure || !editingNegocio?.unidadId) {
+    if (!canEditStructure || !isCurrent() || isMutationBusy || mutationRef.current || !editingNegocio?.unidadId) {
       return;
     }
 
@@ -1215,18 +1277,19 @@ export default function BusinessStructure() {
 
     const coordinateValidation = buildCoordinateSaveValues(negocioFormValues);
     if (coordinateValidation.ok === false) {
-      setLoadError(coordinateValidation.message);
+      setLoadError(readableError(new Error(coordinateValidation.message)));
       return;
     }
 
     const manualLocationValidation = buildManualLocationSaveValues(negocioFormValues);
     if (manualLocationValidation.ok === false) {
-      setLoadError(manualLocationValidation.message);
+      setLoadError(getCompanyPostalFeedback(currentLanguage.code, negocioFormValues.pais));
       return;
     }
 
     const newNegocio: Negocio = {
-      id: editingNegocio.id || String(Date.now()),
+      id: editingNegocio.id || crypto.randomUUID(),
+      legacyBusinessId: editingNegocio.legacyBusinessId,
       name: negocioFormValues.name.trim(),
       logo: negocioFormValues.logo,
       industria: negocioFormValues.industria,
@@ -1276,18 +1339,20 @@ export default function BusinessStructure() {
         const { response, normalizedUnidades } = await persistStructureConfig(estructuraType, nextUnidades);
         const savedUnidades = mapConfigUnitsToState(response.map);
         const committedUnidades = savedUnidades.length > 0 ? savedUnidades : normalizedUnidades;
+        if (!isCurrent()) return;
         setUnidades(committedUnidades);
         syncSavedStructure(estructuraType, committedUnidades);
-        closeNegocioModal();
+        closeNegocioModal(true);
       },
     });
   };
 
   const handleEditUnidad = (unidad: Unidad) => {
-    if (!canEditStructure) {
+    if (!canEditStructure || !isCurrent() || isMutationBusy || mutationRef.current) {
       return;
     }
 
+    setLoadError('');
     setEditingUnidad(unidad);
     const nextFormValues = createUnidadFormValues(unidad);
     setUnidadFormValues(nextFormValues);
@@ -1296,10 +1361,11 @@ export default function BusinessStructure() {
   };
 
   const handleCreateUnidad = () => {
-    if (!canEditStructure) {
+    if (!canEditStructure || !isCurrent() || isMutationBusy || mutationRef.current) {
       return;
     }
 
+    setLoadError('');
     setEditingUnidad(null);
     setUnidadFormValues(DEFAULT_UNIDAD_FORM_VALUES);
     setUnidadInitialValues(DEFAULT_UNIDAD_FORM_VALUES);
@@ -1307,10 +1373,11 @@ export default function BusinessStructure() {
   };
 
   const handleEditNegocio = (negocio: Negocio, unidadId: string) => {
-    if (!canEditStructure) {
+    if (!canEditStructure || !isCurrent() || isMutationBusy || mutationRef.current) {
       return;
     }
 
+    setLoadError('');
     setEditingNegocio({ ...negocio, unidadId });
     const nextFormValues = createNegocioFormValues(negocio);
     setNegocioFormValues(nextFormValues);
@@ -1319,109 +1386,34 @@ export default function BusinessStructure() {
   };
 
   const handleCreateNegocio = (unidadId: string) => {
-    if (!canEditStructure) {
+    if (!canEditStructure || !isCurrent() || isMutationBusy || mutationRef.current) {
       return;
     }
 
+    setLoadError('');
     setEditingNegocio({ unidadId });
     setNegocioFormValues(DEFAULT_NEGOCIO_FORM_VALUES);
     setNegocioInitialValues(DEFAULT_NEGOCIO_FORM_VALUES);
     setShowNegocioModal(true);
   };
 
-  const handlePersistBusinessStructure = async ({ silent = false }: { silent?: boolean } = {}) => {
-    if (!canEditStructure) {
-      return;
-    }
-
-    setIsSaving(true);
+  const handlePersistBusinessStructure = async (_options: { silent?: boolean } = {}) => {
+    if (!canEditStructure || !isCurrent() || mutationRef.current || isMutationBusy) return;
+    const snapshotToPersist = cloneSnapshot(currentSnapshotRef.current!);
     setLoadError('');
-
-    const snapshotToPersist = cloneSnapshot(currentSnapshot);
-    const companyCoordinateValidation = buildCoordinateSaveValues(companyLocation);
-    if (companyCoordinateValidation.ok === false) {
-      setLoadError(companyCoordinateValidation.message);
-      setIsSaving(false);
-      return;
-    }
-
-    try {
-      const task = async () => {
-        const nextUnidades = buildUnidadesWithCorporateOffice({
-          existingUnidades: unidades,
-          companyName,
-          companyLogo,
-          industry,
-          coordinates: companyCoordinateValidation.values,
-          includeOtherUnits: estructuraType === 'multi',
-        });
-
-        const { response, normalizedUnidades } = await persistStructureConfig(estructuraType, nextUnidades);
-        const savedUnidades = mapConfigUnitsToState(response.map);
-        const committedUnidades = savedUnidades.length > 0 ? savedUnidades : normalizedUnidades;
-
-        await configCenterApi.saveEmpresa({
-          nombre_empresa: companyName,
-          logo_url: companyLogo || null,
-          industria: industry,
-          descripcion: description,
-          address: companyAddress,
-          latitude: companyCoordinateValidation.values.latitude ?? null,
-          longitude: companyCoordinateValidation.values.longitude ?? null,
-          radius_meters: companyCoordinateValidation.values.radiusMeters ?? null,
-          coordinate_source: companyCoordinateValidation.values.coordinateSource ?? null,
-          google_maps_url: companyCoordinateValidation.values.googleMapsUrl ?? null,
-          sync_company_location: false,
-        });
-
-        const savedSnapshot = cloneSnapshot(
-          createBusinessStructureSnapshot({
-            estructuraType,
-            unidades: committedUnidades,
-            companyName,
-            companyLogo,
-            industry,
-            description,
-            companyAddress,
-            companyLocation,
-          }),
-        );
-
-        const latestSnapshot = currentSnapshotRef.current;
-        const canApplyCommittedUnits = latestSnapshot
-          ? JSON.stringify(latestSnapshot.unidades) === JSON.stringify(snapshotToPersist.unidades)
-          : true;
-
-        if (canApplyCommittedUnits) {
-          setUnidades(committedUnidades);
-        }
-        setBaselineSnapshot(savedSnapshot);
-        failedAutoSaveKeyRef.current = '';
-      };
-
-      if (silent) {
-        await task();
-      } else {
-        await runStructureFeedbackTask({
-          title: structure.messages.saveOverlay,
-          description: structure.messages.saveOverlayDescription,
-          successMessage: structure.messages.saveSuccess,
-          minimumDurationMs: 2500,
-          task,
-        });
-      }
-    } catch (error) {
+    try { await persistStructureConfig(estructuraType, unidades); }
+    catch (error) {
+      if (!isCurrent()) return;
       failedAutoSaveKeyRef.current = JSON.stringify(snapshotToPersist);
-      setLoadError(error instanceof Error ? error.message : structure.messages.saveError);
-    } finally {
-      setIsSaving(false);
+      const postal = validatePostalCodeForCountry(companyAddress.country, companyAddress.zip);
+      setLoadError(error instanceof Error && error.message === 'company_postal_invalid' && 'message' in postal ? getCompanyPostalFeedback(currentLanguage.code, companyAddress.country) : readableError(error));
     }
   };
 
   useEffect(() => {
     if (
       isLoading
-      || isSaving
+      || isMutationBusy
       || !canEditStructure
       || loadingOverlay.isVisible
       || showUnidadModal
@@ -1434,9 +1426,7 @@ export default function BusinessStructure() {
     }
 
     const coordinateValidation = buildCoordinateSaveValues(companyLocation);
-    if (coordinateValidation.ok === false) {
-      return undefined;
-    }
+    if (coordinateValidation.ok === false || !companyName.trim() || [...companyName.trim()].length > 120 || 'message' in validatePostalCodeForCountry(companyAddress.country, companyAddress.zip)) return undefined;
 
     const autoSaveKey = JSON.stringify(currentSnapshot);
     if (failedAutoSaveKeyRef.current === autoSaveKey) {
@@ -1458,6 +1448,8 @@ export default function BusinessStructure() {
     hasUnsavedChanges,
     isLoading,
     isSaving,
+    logoBusy,
+    coordinateBusy,
     loadingOverlay.isVisible,
     pendingDeleteTarget,
     showNegocioModal,
@@ -1465,7 +1457,7 @@ export default function BusinessStructure() {
   ]);
 
   const handleDiscardChanges = () => {
-    if (!baselineSnapshot || isSaving) {
+    if (!baselineSnapshot || isMutationBusy || mutationRef.current) {
       return;
     }
 
@@ -1482,6 +1474,14 @@ export default function BusinessStructure() {
     setCompanyLocation(baselineSnapshot.companyLocation);
   };
 
+  useEffect(() => {
+    if (!hasUnsavedChanges && !isUnidadModalDirty && !isNegocioModalDirty && !isMutationBusy) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [hasUnsavedChanges, isUnidadModalDirty, isNegocioModalDirty, isMutationBusy]);
+
+  const errorBanner = loadError ? <div ref={showUnidadModal || showNegocioModal ? modalErrorRef : errorRef} role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700/30 dark:bg-red-900/20 dark:text-red-300">{loadError}</div> : null;
   const presentationUnidades = normalizeUnidadesForPersistence(estructuraType, unidades);
 
   return (
@@ -1498,17 +1498,15 @@ export default function BusinessStructure() {
         </div>
       ) : null}
 
-      {loadError ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700/30 dark:bg-red-900/20 dark:text-red-300">
-          {loadError}
-        </div>
-      ) : null}
+      {!showUnidadModal && !showNegocioModal && !pendingDeleteTarget ? errorBanner : null}
+      {!isLoading && !baselineSnapshot ? <Button className="min-h-11" onClick={() => setLoadAttempt((value) => value + 1)}>{feedback.retry}</Button> : null}
+      {!isLoading && baselineSnapshot && !canEditStructure ? <p className="text-sm text-slate-600 dark:text-slate-300">{feedback.permission}</p> : null}
 
       <OperationTypeSection
         estructuraType={estructuraType}
         structure={structure}
         isSimpleDisabled={isSimpleModeDisabled}
-        disabled={isStructureReadOnly}
+        disabled={isStructureReadOnly || isSaving || coordinateBusy}
         onEstructuraTypeChange={handleEstructuraTypeChange}
       />
 
@@ -1523,6 +1521,8 @@ export default function BusinessStructure() {
         locationCoordinateValues={companyLocation}
         onCompanyNameChange={setCompanyName}
         onLogoChange={setCompanyLogo}
+        onLogoFileChange={(event) => { void readImageAsPreview(event, setCompanyLogo); }}
+        onCoordinateBusyChange={setCoordinateBusy}
         onIndustryChange={setIndustry}
         onDescriptionChange={setDescription}
         onBusinessAddressChange={(updates) => setCompanyAddress((current) => ({
@@ -1546,18 +1546,28 @@ export default function BusinessStructure() {
         onDeleteNegocio={handleRequestDeleteNegocio}
         onCreateNegocio={handleCreateNegocio}
         onCreateUnidad={handleCreateUnidad}
-        disabled={isStructureReadOnly}
+        disabled={isStructureReadOnly || isSaving || coordinateBusy}
       />
+
+      {baselineSnapshot && canEditStructure ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3 dark:border-blue-900 dark:bg-blue-950/30 sm:flex-row sm:items-center sm:justify-between">
+          <p role="status" aria-live="polite" className="text-sm text-slate-600 dark:text-slate-300">{isSaving ? structure.actions.saving : hasUnsavedChanges ? feedback.pending : feedback.saved}</p>
+          {hasUnsavedChanges ? <div className="flex flex-wrap gap-2">
+            <Button variant="outline" className="min-h-11" disabled={isMutationBusy} onClick={handleDiscardChanges}>{feedback.discard}</Button>
+            <Button className="min-h-11" disabled={isMutationBusy} onClick={() => { void handlePersistBusinessStructure(); }}>{loadError ? feedback.retry : structure.modal.save}</Button>
+          </div> : null}
+        </div>
+      ) : null}
 
       {showUnidadModal && (
         <IndiceModalFrame
-          busy={loadingOverlay.isVisible}
+          busy={isMutationBusy}
           description={editingUnidad ? structure.modal.editUnitDescription : structure.modal.newUnitDescription}
           footer={(
             <Button
               type="submit"
               form="dashboard-business-unit-form"
-              disabled={!isUnidadModalDirty || unidadFormValues.name.trim().length === 0 || loadingOverlay.isVisible}
+              disabled={!isUnidadModalDirty || unidadFormValues.name.trim().length === 0 || isMutationBusy}
             >
               {structure.modal.save}
             </Button>
@@ -1566,7 +1576,8 @@ export default function BusinessStructure() {
             <Button
               type="button"
               variant="outline"
-              onClick={closeUnidadModal}
+              onClick={() => closeUnidadModal()}
+              disabled={isMutationBusy}
               className="h-11 rounded-xl border-white bg-white px-5 text-sm font-medium text-slate-600 hover:bg-white/90"
             >
               {structure.modal.cancel}
@@ -1587,7 +1598,8 @@ export default function BusinessStructure() {
               onSubmit={handleSaveUnidad}
               className="space-y-5"
             >
-              <div className="space-y-5">
+              {errorBanner}
+              <fieldset disabled={isMutationBusy} className="min-w-0 space-y-5">
                 <div>
                   <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
                     {structure.fields.basicInfo}
@@ -1600,6 +1612,8 @@ export default function BusinessStructure() {
                       <input
                         type="text"
                         name="name"
+                        aria-label={structure.units.unitName}
+                        maxLength={160}
                         value={unidadFormValues.name}
                         onChange={(event) => setUnidadFormValues((current) => ({
                           ...current,
@@ -1671,6 +1685,7 @@ export default function BusinessStructure() {
                       </label>
                       <select
                         name="industria"
+                        aria-label={structure.fields.industry}
                         value={unidadFormValues.industria}
                         onChange={(event) => setUnidadFormValues((current) => ({
                           ...current,
@@ -1701,6 +1716,8 @@ export default function BusinessStructure() {
                       <input
                         type="text"
                         name="direccion"
+                        aria-label={structure.fields.address}
+                        maxLength={255}
                         value={unidadFormValues.direccion}
                         onChange={(event) => setUnidadFormValues((current) => ({
                           ...current,
@@ -1731,7 +1748,8 @@ export default function BusinessStructure() {
                         ...updates,
                       }))}
                       stateDropdownCountryCodes={MODAL_STATE_DROPDOWN_COUNTRY_CODES}
-                      disabled={loadingOverlay.isVisible}
+                      disabled={loadingOverlay.isVisible || isSaving || logoBusy}
+                      controlClassName={inputClassName}
                     />
 
                       <div>
@@ -1744,7 +1762,8 @@ export default function BusinessStructure() {
                             ...current,
                             ...updates,
                           }))}
-                          disabled={loadingOverlay.isVisible}
+                          disabled={loadingOverlay.isVisible || isSaving || logoBusy}
+                          onBusyChange={setCoordinateBusy}
                         />
                       </div>
                     </div>
@@ -1765,6 +1784,7 @@ export default function BusinessStructure() {
                       <input
                         type="tel"
                         name="telefono"
+                        aria-label={structure.fields.phone}
                         value={unidadFormValues.telefono}
                         onChange={(event) => setUnidadFormValues((current) => ({
                           ...current,
@@ -1781,6 +1801,8 @@ export default function BusinessStructure() {
                       <input
                         type="email"
                         name="email"
+                        aria-label={structure.fields.email}
+                        maxLength={254}
                         value={unidadFormValues.email}
                         onChange={(event) => setUnidadFormValues((current) => ({
                           ...current,
@@ -1792,7 +1814,7 @@ export default function BusinessStructure() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </fieldset>
 
             </form>
         </IndiceModalFrame>
@@ -1800,13 +1822,13 @@ export default function BusinessStructure() {
 
       {showNegocioModal && editingNegocio && (
         <IndiceModalFrame
-          busy={loadingOverlay.isVisible}
+          busy={isMutationBusy}
           description={editingNegocio.id ? structure.modal.editBusinessDescription : structure.modal.newBusinessDescription}
           footer={(
             <Button
               type="submit"
               form="dashboard-business-form"
-              disabled={!isNegocioModalDirty || negocioFormValues.name.trim().length === 0 || loadingOverlay.isVisible}
+              disabled={!isNegocioModalDirty || negocioFormValues.name.trim().length === 0 || isMutationBusy}
             >
               {editingNegocio.id ? structure.modal.save : structure.modal.createBusiness}
             </Button>
@@ -1815,7 +1837,8 @@ export default function BusinessStructure() {
             <Button
               type="button"
               variant="outline"
-              onClick={closeNegocioModal}
+              onClick={() => closeNegocioModal()}
+              disabled={isMutationBusy}
               className="h-11 rounded-xl border-white bg-white px-5 text-sm font-medium text-slate-600 hover:bg-white/90"
             >
               {structure.modal.cancel}
@@ -1836,7 +1859,8 @@ export default function BusinessStructure() {
               onSubmit={handleSaveNegocio}
               className="space-y-5"
             >
-              <div className="space-y-5">
+              {errorBanner}
+              <fieldset disabled={isMutationBusy} className="min-w-0 space-y-5">
                 <div>
                   <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
                     {structure.fields.basicInfo}
@@ -1849,6 +1873,8 @@ export default function BusinessStructure() {
                       <input
                         type="text"
                         name="name"
+                        aria-label={structure.units.businessName}
+                        maxLength={160}
                         value={negocioFormValues.name}
                         onChange={(event) => setNegocioFormValues((current) => ({
                           ...current,
@@ -1920,6 +1946,7 @@ export default function BusinessStructure() {
                       </label>
                       <select
                         name="industria"
+                        aria-label={structure.fields.industry}
                         value={negocioFormValues.industria}
                         onChange={(event) => setNegocioFormValues((current) => ({
                           ...current,
@@ -1950,6 +1977,8 @@ export default function BusinessStructure() {
                       <input
                         type="text"
                         name="direccion"
+                        aria-label={structure.fields.address}
+                        maxLength={255}
                         value={negocioFormValues.direccion}
                         onChange={(event) => setNegocioFormValues((current) => ({
                           ...current,
@@ -1980,7 +2009,8 @@ export default function BusinessStructure() {
                         ...updates,
                       }))}
                       stateDropdownCountryCodes={MODAL_STATE_DROPDOWN_COUNTRY_CODES}
-                      disabled={loadingOverlay.isVisible}
+                      disabled={loadingOverlay.isVisible || isSaving || logoBusy}
+                      controlClassName={inputClassName}
                     />
 
                       <div>
@@ -1993,7 +2023,8 @@ export default function BusinessStructure() {
                             ...current,
                             ...updates,
                           }))}
-                          disabled={loadingOverlay.isVisible}
+                          disabled={loadingOverlay.isVisible || isSaving || logoBusy}
+                          onBusyChange={setCoordinateBusy}
                         />
                       </div>
                     </div>
@@ -2015,6 +2046,7 @@ export default function BusinessStructure() {
                         <input
                           type="tel"
                           name="telefono"
+                          aria-label={structure.fields.phone}
                           value={negocioFormValues.telefono}
                           onChange={(event) => setNegocioFormValues((current) => ({
                             ...current,
@@ -2031,6 +2063,8 @@ export default function BusinessStructure() {
                         <input
                           type="email"
                           name="email"
+                          aria-label={structure.fields.email}
+                          maxLength={254}
                           value={negocioFormValues.email}
                           onChange={(event) => setNegocioFormValues((current) => ({
                             ...current,
@@ -2050,6 +2084,7 @@ export default function BusinessStructure() {
                         <input
                           type="text"
                           name="gerente"
+                          aria-label={structure.fields.manager}
                           value={negocioFormValues.gerente}
                           onChange={(event) => setNegocioFormValues((current) => ({
                             ...current,
@@ -2066,6 +2101,7 @@ export default function BusinessStructure() {
                         <input
                           type="text"
                           name="horario"
+                          aria-label={structure.fields.schedule}
                           value={negocioFormValues.horario}
                           onChange={(event) => setNegocioFormValues((current) => ({
                             ...current,
@@ -2078,7 +2114,7 @@ export default function BusinessStructure() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </fieldset>
 
             </form>
         </IndiceModalFrame>
@@ -2104,10 +2140,10 @@ export default function BusinessStructure() {
         itemName={pendingDeleteTarget?.name}
         confirmLabel={structure.modal.delete}
         cancelLabel={structure.modal.cancel}
-        confirmDisabled={isSaving}
+        confirmDisabled={isMutationBusy}
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
-      />
+      >{errorBanner}</ConfirmDeleteDialog>
 
     </div>
   );

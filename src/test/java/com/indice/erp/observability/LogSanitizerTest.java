@@ -74,4 +74,22 @@ class LogSanitizerTest {
             .isEqualTo("/api/v1/pos/customer-displays/public/[redacted]/state")
             .doesNotContain("DISPLAY-SECRET");
     }
+    @Test
+    void redactsInvitationSecretsWithoutHidingAdministrativeIdentifiers() {
+        assertThat(LogSanitizer.sanitizePath("/api/v1/invitations/synthetic-private-token/accept"))
+            .isEqualTo("/api/v1/invitations/[redacted]/accept");
+        assertThat(LogSanitizer.sanitizePath("/invite/synthetic-private-token?example=value"))
+            .isEqualTo("/invite/[redacted]");
+        assertThat(LogSanitizer.sanitizePath("/api/v1/config-center/users/invitations/42/resend"))
+            .isEqualTo("/api/v1/config-center/users/invitations/42/resend");
+    }
+    @Test
+    void redactsRecoveryLinksAndPreservesTheRequestAction() {
+        assertThat(LogSanitizer.sanitizePath("/api/v1/auth/password-reset/synthetic-secret/complete"))
+            .isEqualTo("/api/v1/auth/password-reset/[redacted]/complete");
+        assertThat(LogSanitizer.sanitizePath("/reset-password/synthetic-secret"))
+            .isEqualTo("/reset-password/[redacted]");
+        assertThat(LogSanitizer.sanitizePath("/api/v1/auth/password-reset/request"))
+            .isEqualTo("/api/v1/auth/password-reset/request");
+    }
 }

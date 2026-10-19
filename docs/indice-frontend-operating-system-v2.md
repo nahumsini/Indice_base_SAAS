@@ -370,9 +370,14 @@ records actual remaining-balance payments, while pending/overdue explicitly chan
 
 ### Sales, POS, Inventory, And Receivables
 
-Sales Funneling follows `docs/sales-funneling-contract-v1.md`: an independent planning tab with
-estimated targets, the shared Sales table and an Operational Workspace Modal for ordered stages
-and funnel preview. Defining a plan does not execute campaigns or change the opportunity pipeline.
+Sales Funneling follows `docs/sales-funneling-contract-v1.md`: one **Create campaign** entry
+captures a title and idea in a Standard Form Modal, then opens an Operational Workspace Modal
+with one shared draft for the visual funnel, campaign selectors and AI prompt. Stage selection
+opens its editor; action/content presets retain custom text. Suggested journey replacement needs
+an explicit current/proposed review. Numeric targets are optional and existing plans retain their
+texts, targets and estimates. Prompt copy/download/print reflect the same draft. Dirty-close and
+stage removal use replacement Confirmation Modals. Defining a plan does not execute campaigns
+or change the opportunity pipeline.
 
 Sales, Point of Sale, Inventory, and Receivables must feel like sibling modules.
 
@@ -423,6 +428,13 @@ through its existing workspace, and add Mailing (`/sales/mailing`) and Whatsappi
 (`/sales/whatsapping`). Postventa retains the existing `crm.contracts` permission used by
 its backend API; Whatsapping remains an initial workspace under `crm.contacts`.
 
+Whatsapping assisted-campaign decision, 2026-10-19: the
+[Sales Whatsapping contract](sales-whatsapping-contract-v1.md) replaces the initial workspace with
+a durable campaign wizard, company templates/lists and a contact queue for individual WhatsApp
+handoffs. Retain `crm.contacts`, the Sales coral shell and shared filters/tables/modals. Prepared,
+manually confirmed sends and reported replies are distinct. The owner notification contract
+provides due follow-up reminders; no automatic sending or receipt is implied.
+
 Sales navigation organization decision, 2026-10-18: the primary module navigation follows
 Clients → Opportunities → Quotes → Sales → After-sales → Tools → Indicators → Management.
 Tools groups Funneling (campaign planning), Mailing (email campaigns), and Whatsapping
@@ -445,11 +457,61 @@ versioned drafts and same-frame send review/result recovery. The approved comple
 private attachments, safe formatted reading, background preferences and campaign delivery/results.
 Cancel/Back remains left, progression/save right; template preview uses a responsive workspace.
 
+Email reading-space decision, 2026-10-18: the folder rail may collapse to named, keyboard-accessible
+icons using the existing workspace-navigation primitive's optional vertical/icon-only presentation.
+Its `foldersCollapsed` layout preference is approved in company/user-scoped `email/mail` workspace
+memory; it is retained when changing accounts or filters. This narrow layout preference does not
+authorize persisting open drawers, menus, message selection or expanded reading. On phones, folders
+open in the existing Sheet primitive and return focus to their trigger. Expanded reading temporarily
+hides both navigation and the message list, preserves the selected message and list position, and
+returns through an explicit control or Escape when no dialog/menu owns that key. Folder navigation,
+message filters and message actions use distinct visual treatments while preserving owner APIs.
+
+Email soft-accent refinement, 2026-10-18: blue remains the mailbox identity and selected state.
+The user-approved supporting palette allows restrained lavender and brand aqua on folder icons,
+correspondent avatars and secondary organization controls. Small amber accents retain their spam
+and starred meanings. These are presentation accents, never delivery/authorization indicators.
+Avatars use a stable correspondent-derived tint without persistence. Keep the message document
+white, preserve light/dark contrast, and retain labels/icons alongside every color distinction.
+
+Email module-composition alignment, 2026-10-18: the live Mailbox follows Sections 12 and 13 with
+an unmodified shared title-bar anatomy, a descriptive subtitle, Compose as the primary action,
+Refresh and Preferences as direct secondary actions, and authorized account navigation in the
+neutral Actions overflow. A separate shared Filter Bar places search first, then mailbox account
+and All/Unread/Starred. Clearing filters resets search/status and pagination while retaining the
+account, folder and layout context. The account selector is context, not an active-filter count.
+This replaces the earlier compact-title/account-search-action-toolbar composition; it retains
+the approved accents, collapsible folder rail, mobile drawer and focused reading. The mailbox
+remains a WorkspaceView, with its existing fixed-size API pagination and explicit current-page
+count; do not invent a global total, page-size choices or business/unit filters without an owner
+contract. On phones, opening a message hides the filter card until returning to the message list.
+
+Mailing operational workspace, 2026-10-19: the [campaign workspace contract](sales-mailing-contract-v1.md#campaign-operating-workspace--2026-10-19)
+adopts the standard title/filter/status/table composition for the campaign list. Keep recipient lists,
+templates and new campaign directly accessible, with administrative actions in the final overflow.
+Status counts cover the searched/account-filtered dataset across pages. Draft selection counts and
+launched delivery counts must remain visibly distinct; never label SMTP acceptance as confirmed
+delivery. The existing four-step wizard hands its persisted draft to delivery review when requested.
+Standalone recipient-list management reuses the existing shared modal and audience selection owner.
+
+Mailing direct recipient selection, 2026-10-19: the [current delivery decision](sales-mailing-contract-v1.md#direct-recipient-selection--2026-10-19)
+replaces the manual consent gate. Delivery review offers Select all across every page and individual
+selection of currently eligible contacts. Checkboxes govern the actual launch audience. Show selected,
+unselected and excluded counts before the explicit send/schedule confirmation. Invalid/duplicate
+addresses and recorded unsubscribes remain excluded. Do not create consent evidence from selection.
+
+Mailing contact audiences, 2026-10-18: the [audience extension](sales-mailing-contract-v1.md#contact-audiences-and-campaign-history--2026-10-18)
+keeps the four-step campaign wizard. Its recipient stage uses shared filters, the canonical table,
+server sorting/pagination, explicit all-results selection, eligibility counts and reusable static
+lists. Search and eligibility are primary; source, salesperson and tag use progressive disclosure.
+List forms and archive confirmation stay inline in the same frame. Contact forms expose a lazy,
+permission-gated campaign-history section. Campaign execution remains an explicit action. The current direct-recipient-selection decision above removes the separate consent-recording step.
+
 Mailing draft-pilot decision, 2026-10-17: use the dedicated `crm.mailing` permission,
 with `crm.contacts` additionally required for audience selection and campaign detail.
 The [draft-pilot contract](sales-mailing-contract-v1.md) governs persistent drafts, the
 four-step campaign wizard and plain-text preview. The Email/Mailing integration contract now extends
-it with explicit consent, test review, launch/scheduling, pause/cancel and recipient results. Existing Sales APIs and transaction-email services keep their permissions
+it with test review, launch/scheduling, pause/cancel and recipient results. Existing Sales APIs and transaction-email services keep their permissions
 and behavior.
 
 Point of Sale owns:
@@ -1119,8 +1181,7 @@ presentation preference only and never grants authority.
 ### 9.2 Dual Workspace Mode
 
 The authenticated desktop shell may present two independent Indice workspaces
-inside the same browser window. Users enable this mode from the Configure
-workbar modal. It is available from `1280px` upward and opens the secondary
+inside the same browser window. Users enable this mode from the Personalize navigation modal. It is available from `1280px` upward and opens the secondary
 workspace on Dashboard so the user explicitly chooses its module and tab.
 
 Runtime and security rules:
@@ -1147,8 +1208,8 @@ restores the selected workbar position.
 
 The modal may enable dual workspace but must not disable it. Once active, the
 only product control that closes the mode is the visible `Close dual screen`
-button in the secondary workspace toolbar. Closing updates the same scoped
-workspace-state preference used by the workbar. The toolbar and frame require
+button in the secondary workspace toolbar. Closing waits for confirmation from the same scoped
+workspace-state preference used by the workbar; failures keep the workspace open with a retryable error. The toolbar and frame require
 localized accessible names, visible keyboard focus, and a loading state.
 
 ---
@@ -1269,6 +1330,29 @@ usage/audit and internal development). This is navigation order, not a new busin
 status, entitlement or automated handoff. Preserve the existing landing section,
 URL memory and permission gates for each section.
 
+### Administrative workspace refinement (2026-10-19)
+
+The five system tools retain their existing routes, owner permissions and navigation order.
+Use a compact shared administrative identity, clear tab-specific titles, restrained blue surfaces,
+and 44px actions. The customer account workspace retains its approved aqua identity.
+
+- AI connections owns its refresh/connect title actions and a name/status filter bar. Filtering
+  never revokes access; an empty search is distinct from having no connections.
+- Multi-kiosks exposes refresh/create in the title bar. A quick status selection clears the
+  conflicting detailed status; clear filters restores the whole list. Lifecycle failures stay
+  inside their open confirmation, with retry and busy-close protection.
+- Subscription keeps one draft across Plan, People, Payment and Invoices/receipts navigation.
+  These controls scroll to and focus the owning section; filtering the catalog never removes
+  selected products or recalculates charges in the browser.
+- Platform Customers follows the three-direct-action rule, with Columns in overflow only when
+  needed. Simple account forms keep their existing validation and show required-reason guidance.
+- Training uses the current view title, one refresh action and an activity search/status bar
+  within the selected stage. Progress totals and exams use the full curriculum, regardless of
+  visible activities. No zero-progress summary is shown before the first successful load.
+
+Recoverable connection, kiosk, catalog and training filters use the existing scoped workspace
+memory; they store presentation preferences only. Training also remembers the selected stage.
+
 ### Training: independent learning centre
 
 `/training` owns the learning presentation outside `/platform-admin`. The ERP profile
@@ -1344,6 +1428,18 @@ status and available navigation items. The containing page owns sticky positioni
 dual-workspace contexts can disable persistence without creating another header engine. Kiosk Center
 and `Plan, people and payments` are the reference implementations: both use the same compact anatomy,
 while their domain content, actions and authorization remain independent.
+
+System-tool navigation alignment decision, 2026-10-18: administrative primary sections use
+`IndiceWorkspaceNavigation` with `variant="workbar"`: the same pill geometry, module emoji
+artwork, selected accent, horizontal slider controls and mobile touch targets as module tabs.
+Keep this navigation in the owning administrative header. Kiosk and Platform Administration
+retain their specialized headers, scopes and role filters; Platform retains its desktop sidebar.
+Training's four primary sections move into its learning-centre header; curriculum and exams stay
+inside their owning sections. Conectar IA promotes Connections, Guide and Ideas to its existing
+Home Panel workbar while retaining `config_center.integrations` authority. Billing's Plan,
+People and Payment pills remain anchors within the same draft, so navigation never saves or
+executes a commercial action. Existing deep links remain valid. Section URL parameters describe
+presentation only and never select a training portal, tenant, role or entitlement.
 
 ### 10.3 Tab And Workspace Memory Standard
 
@@ -2284,6 +2380,14 @@ Avoid visual noise.
 Global Messages and Platform/Distributor Customer Care follow
 `docs/messaging-and-customer-care-contract.md`. Messages uses the shared blue Operational Workspace
 Modal, responsive list/detail navigation, localized labels and explicit send/retry states.
+The 2026-10-18 Messages refinement retains that shared modal engine, with a compact inbox,
+actor-visible last-message previews, an actions popover and one blue conversation header on phones.
+The repeated footer is omitted. Its module-scoped compact-viewport rule keeps only the history
+scrolling, so the composer remains visible when the keyboard reduces height. Photos and private
+PDF/Word/Excel documents share removable drafts, clear upload states and expiry-aware retries;
+ERP first-message attachments follow the owner contract and advertised context capability.
+No attachment or draft content is persisted in browser storage.
+
 The messaging workspace must be remounted on account/company changes. Customer Care preserves
 existing system tickets and distinguishes internal notes from customer replies.
 
@@ -2305,6 +2409,27 @@ Rules:
 - secondary row actions may appear on hover for pointer devices but must remain visible on touch,
   keyboard focus and narrow screens
 - use skeleton rows during refresh and retain explicit error and empty states
+
+
+The 2026-10-18 mobile notification refinement retains this Operational Workspace Modal and
+all owner-generated routes, query parameters, permissions and APIs. Phone summary metrics use
+two compact columns; progressive filters scroll with the content on phones instead of covering
+notification rows. Row controls and menu actions have 44px touch targets. The preview menu is
+bounded by its available viewport, with independently scrolling rows and a reachable footer.
+
+Notification lists refresh while visible and on return/focus/reconnection. Background refresh
+keeps the current inbox, counters and filters; a recoverable failure shows a localized retry
+without erasing the last successful list. Mutation failures retain the row and open surface,
+prevent duplicate taps, and allow retry. Opening an unread item waits for its read acknowledgement;
+only then does it close the notification surface and follow the owner destination. Mark-read,
+mark-all-read and dismiss do not navigate. Dismiss does not bubble to the row's Open action.
+A retried dismiss that returns 404 is reconciled as already absent, so a lost acknowledgement
+does not trap the user in a permanent retry state.
+Missing or non-ERP destinations show the notice details without silently marking them read.
+
+The launcher remounts per authenticated user/company/membership. Late list/mutation responses
+cannot restore another account's notifications or navigate the new workspace. This is an in-app
+inbox, not an OS push-notification implementation. Personal preference persistence is defined below.
 
 ---
 
@@ -3153,6 +3278,7 @@ Classification follows the existing Modal System. `KioskModalFrame` is a special
 | Public confirmation | Bottom-aligned or centered safe sheet; width `100%` | Centered, approximately `max-w-[28rem]` |
 | Public standard form or record detail | Full safe width and, when needed, `100dvh` | Centered, approximately `max-w-[30rem]`, `max-h-[92dvh]` |
 | Public wizard | Full safe width and height | Centered, at most `max-w-[48rem]` unless the workflow proves it needs more |
+| Administration confirmation | Centered safe sheet sized to content, with 16px margins | Existing confirmation width, approximately `max-w-md` |
 | Administration standard form | Full safe width and height | Existing `standard-form` width, approximately `max-w-[48rem]` |
 | Administration operational workspace | Full safe width and height | Existing workspace width, at most `96vw` and `92dvh` |
 
@@ -4176,7 +4302,7 @@ while returning `COMMERCE_UNAVAILABLE` from its workspace APIs is not a valid lo
 The native ERP `scheduling` pilot lives under `react/src/app/ComplementaryModules/Scheduling`,
 not the dormant modules scaffold and not PlatformAdmin. Follow
 [Scheduling module contract v1](scheduling-module-contract-v1.md): one Agenda/reservations tab,
-Clients, Events and Indicators. Services, Team/availability and Public agenda are title-bar modal
+Events, Clients and Indicators. Services, Team/availability and Public agenda are title-bar modal
 actions, not separate configuration tabs. It reuses the
 canonical configurable module shell, title/filter/table/modal and workspace-navigation primitives,
 eight locales, coral identity (`#FF6B5E`, graphite foreground on primary actions), colored identity
@@ -4382,3 +4508,213 @@ with non-numeric loading placeholders, blocks configuration until loading resolv
 and offers a localized retry for a catalog failure. Stale authorization responses
 remain ignored and no fallback modules are admitted. Actual KPI cards, module cards,
 sliders, colors and desktop composition retain their approved design.
+
+
+### Persisted personal notification settings — 2026-10-18
+
+Notification settings retain the existing cards, switches and shared Operational Workspace Modal.
+The server returns allowed event keys and saved choices for the authenticated user/company;
+the browser has no localStorage authority for preferences. Inventory stock and purchase switches
+appear in their owner's group. Loading failures do not create enabled defaults; a localized retry
+is available. Each switch saves with the confirmed version, shows saving/confirmed/error state,
+and blocks overlapping edits. An uncertain save retains the intended choice and exact retry;
+reloading fetches server authority. Conflicts require reloading rather than overwriting another
+window. Acknowledged changes refresh the inbox and bell count. User/company remount boundaries
+discard late requests. Quiet mode explains its actual informational-only filtering. This changes
+neither source workflows nor the dashboard's sliders, card layouts or navigation design.
+
+
+The approved [basic notification catalogue](basic-module-notifications-contract-v1.md) extends
+the same settings and notice components with actual owner event keys for the operational basic
+modules. New groups are Funds, Receivables and KPIs; HR permission, task/process, cash-closing and
+Sales call switches use the existing per-user/company save flow. Each unavailable setting is
+filtered by the server, and new Spanish copy states the next action plainly. Existing cards,
+sliders, colors, modal shell and touch targets retain their design. Inert expense-submission and
+sales-order/invoice switches are no longer offered; collections use Receivables authority.
+
+
+### Account preferences and menu clarity (2026-10-18)
+
+- Preferred display currency and informational/manual reference rates use the existing private
+  workspace-state owner: `moduleKey=system`, `tabKey=business-currency`. They are stored together
+  after server acknowledgement, scoped to the authenticated user and company, with no expiry.
+- Old global browser currency/rate keys cannot establish ownership and must not seed another
+  account. A missing account preference starts with MXN and the existing daily reference; loading
+  failures or unsupported remote data block writes and expose retry, without overwriting defaults.
+- The expected `X-Workspace-Actor` is a race guard, never authority; the server derives user/company
+  from its authenticated session and rejects mismatches. Daily refresh is staged until Save;
+  automatic daily reference updates never replace a manual selection or a newer explicit save.
+- `Company settings` / `Configuración de empresa` points to the existing business structure tab.
+  Account menu destinations honor the existing role, module and tab permissions. Personal currency
+  and navigation preferences remain personal, and do not grant company configuration rights.
+- `Personalize navigation` / `Personalizar navegación` retains top/left previews, mobile horizontal
+  navigation, dual-screen rules and the existing modal engine.
+- Learning settings show dependent journey controls off and disabled while guidance is off, without
+  deleting the saved journey choice. The six-stage position is labelled Current stage, not completed
+  work. Saving, cancellation and private learning progress keep their existing contracts.
+- The blue modal design, emojis, sliders and shared mobile footer/body scrolling are preserved.
+
+
+### Durable navigation and adaptive dual workspace (2026-10-18)
+
+- `system/workbar-layout` is a non-expiring explicit preference for the authenticated user and
+  company. Apply saves top/left and dual-screen choice together and only updates the shell after
+  server acknowledgement. Cancel discards the modal draft. Load/save errors are visible and retryable.
+- The expected `X-Workspace-Actor` prevents pending requests crossing a session switch. It never
+  selects authority. User/company still come from the server session; mutations require CSRF.
+- Confirmed server state takes precedence over local timestamps. A valid legacy value, either the
+  old unversioned server record or a cache for this exact user/company, is migrated once. Unscoped
+  browser values are ignored. Failed reads and unsupported data cannot overwrite account defaults.
+- The scoped cache may keep the bar presentation available offline; Apply and opening a secondary
+  workspace wait for a successful account load. The frame never reads/writes the parent's preference.
+- Dual screen starts at 1280 px. A fresh small-screen session never preloads it. Once opened, a
+  temporary resize pauses and hides the existing frame without deleting its route or unfinished
+  input. Returning to desktop restores it. This does not change the user's saved top/left choice.
+- Disabling dual screen from its visible Close button waits for a durable acknowledgement. The
+  modal retains the existing enable-only rule. On mobile, a saved desktop choice is labelled as saved
+  for a larger window rather than active. Closing restores the saved bar position.
+- User/company changes, closing, and collection/subscription/billing restrictions destroy the old
+  frame. Each new frame starts at the fixed same-origin Dashboard route, with its own history and
+  scrolling. It never renders a recursive dual workspace or a second global product header.
+- Secondary loading failures provide Reload and keep Close accessible. The existing blue modal,
+  preview cards, emojis and horizontal sliders remain unchanged.
+
+
+Legacy workbar records also expose the optional `expiresAt` workspace response metadata. An old
+navigation expiry, including an elapsed one, does not erase an explicit user/company preference:
+the owner returns only that actor's record and the client confirms it once with non-expiring
+retention. Other workspace expiry rules remain unchanged.
+
+
+### Confirmed personal-profile editing (2026-10-19)
+
+Mi perfil keeps the existing blue title, identity/contact cards, security disclosure and module sliders.
+The personal identity remains user-owned across company memberships. Residence and each phone's
+country are separate choices; editing residence never rewrites existing international numbers.
+The global header retains ownership of the visible language selector. Profile saves use the current
+UI language and never restore an older stored language over a newer header choice.
+The sign-in email remains read-only and is labelled accordingly.
+
+- The existing Config Center owner API loads and saves names, residence, language, photo metadata
+  and up to ten normalized phones. The first non-empty phone remains the legacy primary projection.
+  Explicit removal is durable; optional dial-code-only placeholders are not sent as contacts.
+- Account/company changes remount the form. Reads, writes and photo processing ignore late results
+  from a former scope. `X-Profile-Actor` binds each browser request to its expected account; it never
+  selects authority. Header updates accept only the current user's acknowledged profile.
+- A synchronous pending latch blocks duplicate saves. Fields and discard are disabled during a save
+  or upload. Load failures expose Retry; save failures retain the draft. No raw infrastructure error
+  is shown. Field feedback identifies and focuses the invalid name, phone or password, revealing the
+  security disclosure when needed. Password values are not trimmed or written to browser storage.
+- Photo upload success creates a staged preview; Save links it to the profile. Failed replacement
+  uploads preserve an earlier staged photo, and Discard restores the confirmed photo. Stale uploads
+  cannot publish into another account. Missing images fall back to initials.
+- On phones, the same Save/Discard controls and confirmed result appear at the bottom of the form;
+  desktop keeps its existing title actions. Controls retain 44px targets and 16px field text on phones.
+  Long email addresses wrap. Browser refresh/close warns about unfinished edits.
+- Flow tests exercise the real Header/Profile components in Chromium and WebKit, mobile, landscape,
+  desktop, dark mode, all eight UI locales, storage failures, account changes, and persistence retries.
+
+
+### Company settings editing and confirmed saves (2026-10-19)
+
+The existing `home-panel/business-structure` screen preserves its operation-type, identity,
+corporate-office and units layout. Both company and structure reads must succeed before editing;
+a failed or incomplete load exposes retry and cannot seed a writable empty form. Editing honors
+the existing account-tab permission and the server's corporate-scope `can_edit` capability.
+
+The existing debounced auto-save submits identity and organization together to the structure
+owner. Only an acknowledged receipt establishes the baseline and updates company branding.
+Typing during a pending save survives; failures retain the draft, show localized errors and allow
+retry/discard. Unit/business edits preserve their database identifiers, including automatic unit
+headquarters when their unit is renamed. Modals show their own errors and block cancellation
+while saving. Logos validate their format, readability and 1 MB limit before replacing a preview.
+Coordinate lookups cannot overwrite newer input or another account's screen. Mobile controls use
+readable input sizes and touch targets, with the shared modal's scrolling body and visible footer.
+
+
+### Confirmed user administration and invitations (2026-10-19)
+
+Users preserves its existing cards, blue wizard, module/tab picker, kiosk picker and shared
+scrolling modal. The initial users/catalog and current-profile reads must succeed before editing;
+a failed load exposes Retry. Administrative actions rely on server capabilities and never infer
+grants from missing metadata. User/company or authorization changes remount this editor; stale
+responses cannot publish into another account. `X-Users-Actor` binds requests to the expected
+session actor without selecting authority.
+
+Role, organization, modules, tabs and exact kiosk assignments save together. Explicit null scope
+clears the former business/unit. Existing Root and grandfathered module/tab grants are preserved
+when unchanged. A synchronous pending latch blocks repeated submissions and closing during a
+mutation. Errors remain inside the active modal with the draft; raw provider/database messages
+are replaced with localized feedback. Name/email limits match their existing database columns.
+
+A confirmed invitation link remains visible even if email delivery is unavailable or the later
+list refresh fails. An uncertain acknowledgement requires refreshing before repeating creation;
+a matching pending invitation opens the resend action without sending automatically. Committed
+mutations and refresh failures have separate feedback. Deactivation/cancellation close only after
+acknowledgement. Phones retain readable fields, touch targets and visible modal actions.
+
+The public invitation page accepts only pending links. Cancelled/unknown links expose no password
+form. Existing accounts use their exact current password; new accounts use the existing minimum
+length. Submission locks fields, blocks duplicates and ignores late results after a token change.
+No new navigation, modal engine, entitlement or invitation-delivery channel is introduced.
+
+
+### Invitation acceptance to authenticated workspace (2026-10-19)
+
+The existing `/invite/:token` page distinguishes an unavailable link from a temporary loading
+failure; temporary failures expose Reload. Password fields show readable, associated validation
+after blur, retain exact characters and reject oversized new passwords before submission. Unknown
+errors use safe localized copy. An uncertain acknowledgement checks the token status without
+automatically accepting again; a consumed link offers sign-in.
+
+On the explicit sign-in action after acceptance, confirm logout before navigating so a pre-existing
+account cannot redirect the invitee into another company/account. A failed logout stays on the
+confirmation and allows retry. The existing Login page receives company/email through navigation
+state, never a URL query; no password or invitation token is carried to sign-in. Password entry,
+MFA policy, company authentication and backend-derived module/tab/scope grants remain unchanged.
+The existing public layout, modal design, brand and sliders remain in place.
+
+
+### Password recovery through confirmed sign-in (2026-10-19)
+
+The existing Login recovery action uses the shared dialog primitive while preserving its brand
+header and form. It has labelled inputs, focus containment, safe localized generic request feedback
+and a synchronous submission latch. Pending requests disable edit/close; a confirmed request is
+not submitted again until the email changes or the user deliberately opens a new request. The
+body scrolls, actions remain available, and short keyboard viewports compact the heading.
+
+The existing `/reset-password/:token` page retains its blue/white layout and uses all eight UI
+locales. Validity must explicitly be true; a network failure offers retry instead of claiming the
+link is invalid. New-password validation preserves exact characters, enforces minimum length and
+BCrypt capacity, and presents associated field errors. Saving locks the form and cannot double
+submit. Token changes remount the editor; late results cannot publish into another link.
+
+Only an acknowledged success shows completion. A lost acknowledgement checks link usability:
+a still-valid link permits retry; an unavailable/uncheckable link shows uncertainty and offers
+sign-in or a new request without claiming the password changed. The explicit sign-in action first
+ends any prior session; failure remains visible and retryable. An invalid link can open the existing
+Login recovery dialog directly. No password or reset token is transferred to login or browser storage.
+
+
+### Login and verification-code interaction (2026-10-19)
+
+Keep the public login card, brand panels, site header/footer and existing password/reset contract.
+The existing OTP step uses the selected language for all guidance and errors, one numeric text
+input with `one-time-code` autocomplete, six-digit paste normalization, and touch targets of at
+least 44 px. Focus moves to the verification heading without opening the mobile keyboard.
+
+Login, verify and resend share a synchronous pending latch. Pending controls and account changes
+are disabled; results after leaving the page do not navigate or replace its state. Deadlines use
+elapsed time and refresh on focus/visibility, including after backgrounding a mobile browser.
+Expired or unavailable challenges offer the existing return-to-login path. Wrong-code, expired,
+locked, delivery-failed and uncertain-response feedback stays localized and excludes provider
+messages. A cooldown acknowledgement preserves the entered code and never claims a new send.
+An uncertain sign-in offers a full reload through the existing authenticated-session loader; it
+does not assume that a timed-out verification succeeded or automatically reuse a consumed code.
+
+Authentication destinations must be internal absolute paths without a leading double slash,
+backslash or control/space character. Valid OAuth authorization continuations remain supported.
+The adapter retains typed API errors. No new session, permission or browser-storage mechanism is
+introduced. `test:login-verification-browser` exercises real LoginPage/auth adapter rendering with
+synthetic HTTP responses, mobile/landscape sizes, the eight supported locales, resend outcomes,
+single submission, lost acknowledgement and OAuth continuation.

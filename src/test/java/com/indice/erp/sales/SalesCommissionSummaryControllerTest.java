@@ -20,6 +20,9 @@ import static org.assertj.core.api.Assertions.*;
 
 @WebMvcTest(SalesCommissionSummaryController.class)
 class SalesCommissionSummaryControllerTest {
+
+    @org.springframework.boot.test.mock.mockito.MockBean
+    private com.indice.erp.learning.LearningAppliedAdvice learningAppliedAdvice;
     @Autowired MockMvc mvc;
     @MockBean SessionAuthService auth;
     @MockBean KpiRequestAccessService access;

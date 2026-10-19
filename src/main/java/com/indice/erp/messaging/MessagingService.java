@@ -43,6 +43,7 @@ public class MessagingService {
         var kind=allowed(raw.kind(),Set.of("DIRECT","GROUP","SUPPORT","DISTRIBUTOR"));
         if(a.supportOnly() && !"SUPPORT".equals(kind)) throw MessagingAccess.forbidden();
         boolean team=Set.of("DIRECT","GROUP").contains(kind);
+        var attachmentIds=MessagingAttachmentService.ids(raw.attachmentIds());
         List<Long> participants=null;
         String groupName=null;
         if("GROUP".equals(kind)) {
@@ -55,7 +56,7 @@ public class MessagingService {
         } else if(raw.participantMembershipIds()!=null && !raw.participantMembershipIds().isEmpty()) throw invalid();
         var r=new Create(kind,raw.recipientMembershipId(),"GROUP".equals(kind)?groupName:text(raw.subject(),180,!team),
             team && raw.topic()==null?"CONSULTATION":allowed(raw.topic(),Set.of("CONSULTATION","FAILURE","IMPROVEMENT")),text(raw.moduleName(),120,false),
-            allowed(raw.language(),Set.of("es-MX","es-CO","en-US","en-CA","fr-CA","pt-BR","ko-CA","zh-CA")),text(raw.body(),8000,true),uuid(raw.requestKey()),participants,groupName);
+            allowed(raw.language(),Set.of("es-MX","es-CO","en-US","en-CA","fr-CA","pt-BR","ko-CA","zh-CA")),text(raw.body(),8000,attachmentIds.isEmpty()),uuid(raw.requestKey()),participants,groupName,attachmentIds);
         String directKey=null;
         if("DIRECT".equals(kind)) {
             if(r.recipientMembershipId()==null || Objects.equals(r.recipientMembershipId(),a.membershipId())
@@ -69,14 +70,14 @@ public class MessagingService {
         if(existing!=null) {
             authorized(a,existing,true);
             if(!fingerprint.equals(repository.creationFingerprint(a,r.requestKey()))) throw conflict();
-            send(a,existing,new Send(r.body(),"PUBLIC",r.requestKey()));
+            send(a,existing,new Send(r.body(),"PUBLIC",r.requestKey(),r.attachmentIds()));
             return detail(a,existing,0,0);
         }
         long id=repository.create(a,r,distributor==null?null:distributor.id(),directKey,fingerprint);
         var stored=repository.creationFingerprint(a,r.requestKey());
         if(stored!=null && !stored.equals(fingerprint)) throw conflict();
         var previous=repository.duplicate(a,id,r.requestKey());
-        send(a,id,new Send(r.body(),"PUBLIC",r.requestKey()));
+        send(a,id,new Send(r.body(),"PUBLIC",r.requestKey(),r.attachmentIds()));
         if(previous==null) repository.audit(a,id,"CREATED","Conversation opened");
         return detail(a,id,0,0);
     }
@@ -159,6 +160,7 @@ public class MessagingService {
             value.put("kind",r.kind());value.put("recipientMembershipId",r.recipientMembershipId());
             value.put("subject",r.subject());value.put("topic",r.topic());value.put("moduleName",r.moduleName());
             value.put("language",r.language());value.put("body",r.body());value.put("requestKey",r.requestKey());
+            if(!r.attachmentIds().isEmpty()) value.put("attachmentIds",r.attachmentIds());
             if("GROUP".equals(r.kind())) { value.put("participantMembershipIds",r.participantMembershipIds());value.put("groupName",r.groupName()); }
             var json=new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsBytes(value);
             return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(json));

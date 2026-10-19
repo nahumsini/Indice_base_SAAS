@@ -182,6 +182,8 @@ class SessionAuthServiceTest {
             null
         )));
 
+        org.mockito.Mockito.doReturn(0L).when(jdbcTemplate).queryForObject(
+            contains("FROM user_password_reset_tokens"), eq(Long.class), eq(5L));
         var current = service.currentSession(session);
 
         assertTrue(current.isPresent());
@@ -510,6 +512,25 @@ class SessionAuthServiceTest {
             properties,
             clock
         );
+    }
+
+    @Test
+    void aCompletedPasswordResetRevokesAnOlderSession() {
+        var now=Instant.parse("2026-10-19T05:00:00Z");
+        var service=serviceWith(LoginAuditService.noop(),new AuthSecurityProperties(),new MutableClock(now));
+        var session=activeSession("user",now);
+        when(jdbcTemplate.queryForObject(contains("FROM user_password_reset_tokens"),eq(Long.class),eq(5L))).thenReturn(12L);
+        assertFalse(service.enforceSessionTimeout(session,LoginAuditContext.empty()));
+    }
+
+    @Test
+    void signingInAfterAResetUsesTheNewResetBaseline() {
+        var now=Instant.parse("2026-10-19T05:00:00Z");
+        var service=serviceWith(LoginAuditService.noop(),new AuthSecurityProperties(),new MutableClock(now));
+        var session=new MockHttpSession();
+        when(jdbcTemplate.queryForObject(contains("FROM user_password_reset_tokens"),eq(Long.class),eq(5L))).thenReturn(12L);
+        service.storeAuthenticatedSession(session,loginWithRole("user"));
+        assertTrue(service.enforceSessionTimeout(session,LoginAuditContext.empty()));
     }
 
     private AuthenticatedLogin loginWithRole(String role) {

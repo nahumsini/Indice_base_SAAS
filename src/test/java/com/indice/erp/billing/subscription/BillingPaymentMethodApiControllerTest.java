@@ -27,6 +27,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(BillingPaymentMethodApiController.class)
 class BillingPaymentMethodApiControllerTest {
+
+    @org.springframework.boot.test.mock.mockito.MockBean
+    private com.indice.erp.learning.LearningAppliedAdvice learningAppliedAdvice;
     private static final String PATH = "/api/v1/billing/subscription/payment-method";
     @Autowired private MockMvc mvc;
     @MockBean private SessionAuthService auth;

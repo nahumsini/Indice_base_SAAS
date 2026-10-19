@@ -11,6 +11,8 @@ const appSource = readSource('src/app/App.tsx');
 const headerSource = readSource('src/app/components/Header.tsx');
 const headerTranslationsSource = readSource('src/app/components/header/translations/index.ts');
 const contextSource = readSource('src/app/components/workbar/WorkbarLayoutContext.tsx');
+const preferencesSource = readSource('src/app/components/workbar/workbarPreferences.ts');
+const hostSource = readSource('src/app/components/workbar/DualWorkspaceHost.tsx');
 const modalSource = readSource('src/app/components/workbar/WorkbarLayoutModal.tsx');
 const dualPaneSource = readSource('src/app/components/workbar/DualWorkspacePane.tsx');
 const modalTranslationsSource = readSource('src/app/components/workbar/translations.ts');
@@ -23,32 +25,32 @@ const operatingSystemSource = readSource('../docs/indice-frontend-operating-syst
 
 test('la preferencia de barra se limita a arriba o izquierda y se guarda por usuario y empresa', () => {
   assert.match(routesSource, /<WorkbarLayoutProvider>/);
-  assert.match(contextSource, /value === 'top' \|\| value === 'left'/);
-  assert.match(contextSource, /WORKBAR_MODULE_KEY = 'system'/);
-  assert.match(contextSource, /WORKBAR_TAB_KEY = 'workbar-layout'/);
-  assert.match(contextSource, /useWorkspaceNavigationMemory<WorkbarLayoutState>/);
-  assert.match(contextSource, /session\.company\.id/);
-  assert.match(contextSource, /session\.user\.id/);
-  assert.match(contextSource, /dualScreenEnabled: boolean/);
+  assert.match(preferencesSource, /value === 'top' \|\| value === 'left'/);
+  assert.match(preferencesSource, /WORKBAR_MODULE_KEY = 'system'/);
+  assert.match(preferencesSource, /WORKBAR_TAB_KEY = 'workbar-layout'/);
+  assert.match(contextSource, /await workspaceStateApi\.save/);
+  assert.match(preferencesSource, /session\.company\.id/);
+  assert.match(preferencesSource, /session\.user\.id/);
+  assert.match(preferencesSource, /dualScreenEnabled: boolean/);
   assert.match(contextSource, /DUAL_SCREEN_MEDIA_QUERY = '\(min-width: 1280px\)'/);
-  assert.match(contextSource, /dualScreenEnabled: envelope\?\.state\?\.dualScreenEnabled === true/);
+  assert.match(preferencesSource, /parseWorkbarPreferences/);
   assert.match(contextSource, /window\.self !== window\.top/);
-  assert.match(contextSource, /enabled: !isEmbeddedWorkspacePane/);
-  assert.match(contextSource, /isDualScreenActive = isEmbeddedWorkspacePane \|\| \(dualScreenEnabled && dualScreenAvailable\)/);
+  assert.match(contextSource, /!actor \|\| isEmbeddedWorkspacePane/);
+  assert.match(contextSource, /isDualScreenActive: isEmbeddedWorkspacePane/);
 });
 
 test('el menú de cuenta abre un modal azul con elección explícita y sin aplicar al cancelar', () => {
   assert.match(headerSource, /copy\.actions\.workbarLayout/);
   assert.match(headerSource, /<WorkbarLayoutModal/);
-  assert.match(headerTranslationsSource, /workbarLayout: 'Configurar barra de trabajo'/);
+  assert.match(headerTranslationsSource, /workbarLayout: 'Personalizar navegación'/);
   assert.match(modalSource, /modalType="standard-form"/);
   assert.match(modalSource, /tone="blue"/);
   assert.match(modalSource, /type="radio"/);
-  assert.match(modalSource, /setPosition\(selectedPosition\)/);
+  assert.match(modalSource, /await savePreferences\(\{ position: selectedPosition/);
   assert.match(modalSource, /copy\.dualScreenTitle/);
   assert.match(modalSource, /type="checkbox"/);
   assert.match(modalSource, /disabled=\{dualScreenEnabled \|\| !dualScreenAvailable\}/);
-  assert.match(modalSource, /setDualScreenEnabled\(true\)/);
+  assert.match(modalSource, /dualScreenEnabled: dualScreenEnabled \|\| enableDualScreen/);
   assert.match(modalSource, /onClick=\{\(\) => onOpenChange\(false\)\}/);
   assert.match(modalTranslationsSource, /'en-CA'/);
   assert.match(modalTranslationsSource, /'es-MX'/);
@@ -87,13 +89,15 @@ test('las pantallas pequeñas conservan la barra superior y los módulos canóni
 
 test('pantalla doble monta dos rutas independientes y solo se cierra desde el panel secundario', () => {
   assert.match(appSource, /window\.self !== window\.top/);
-  assert.match(appSource, /showDualWorkspace = isDualScreenActive/);
-  assert.match(appSource, /&& !isEmbeddedWorkspacePane/);
-  assert.match(appSource, /<DualWorkspacePane \/>/);
+  assert.match(appSource, /allowDualWorkspace = !isEmbeddedWorkspacePane/);
+  assert.match(appSource, /&& !isSubscriptionBlocked/);
+  assert.match(appSource, /<DualWorkspaceHost enabled=\{allowDualWorkspace\}/);
   assert.match(appSource, /!isEmbeddedWorkspacePane && !collectionBlocked \? <ProductAnalyticsTracker/);
   assert.match(dualPaneSource, /<iframe/);
   assert.match(dualPaneSource, /src="\/dashboard\?workspacePane=secondary"/);
-  assert.match(dualPaneSource, /setDualScreenEnabled\(false\)/);
+  assert.match(dualPaneSource, /await closeDualScreen\(\)/);
+  assert.match(hostSource, /openedScope !== preferenceScope/);
+  assert.match(hostSource, /visible=\{visible\}/);
   assert.match(dualPaneSource, /copy\.closeDualScreen/);
   assert.doesNotMatch(modalSource, /setDualScreenEnabled\(false\)/);
   assert.match(operatingSystemSource, /### 9\.2 Dual Workspace Mode/);

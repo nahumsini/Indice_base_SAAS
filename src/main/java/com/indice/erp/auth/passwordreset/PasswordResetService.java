@@ -43,6 +43,7 @@ public class PasswordResetService {
         this.clock = clock;
     }
 
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public PasswordResetRequestResult requestReset(
         String email,
         String resetBaseUrl,
@@ -76,7 +77,11 @@ public class PasswordResetService {
             return PasswordResetRequestResult.generic();
         }
 
-        repository.invalidateActiveTokensForUser(user.get().id(), now);
+        repository.lockUser(user.get().id());
+        if (repository.countRequestsByEmailHashSince(emailHash, windowStart) >= MAX_EMAIL_REQUESTS_PER_WINDOW) {
+            repository.recordRequest(emailHash, ipHash, userAgentHash, false, false, "email_rate_limited");
+            return PasswordResetRequestResult.generic();
+        }
 
         var rawToken = generateToken();
         repository.insertToken(
@@ -92,6 +97,12 @@ public class PasswordResetService {
             user.get().fullName(),
             buildResetLink(resetBaseUrl, rawToken)
         );
+        if (emailResult.sent()) {
+            repository.invalidateOtherTokensByHash(user.get().id(), sha256Hex(rawToken), now);
+        } else {
+            // A delivery failure must not revoke a link the user already received.
+            repository.invalidateTokenByHash(sha256Hex(rawToken), now);
+        }
         repository.recordRequest(
             emailHash,
             ipHash,
@@ -123,8 +134,13 @@ public class PasswordResetService {
             throw new IllegalArgumentException(INVALID_RESET_LINK_MESSAGE);
         }
 
+        var tokenHash = sha256Hex(rawToken);
+        var candidate = repository.findTokenByHash(tokenHash)
+            .orElseThrow(() -> new IllegalArgumentException(INVALID_RESET_LINK_MESSAGE));
+        // Requests and completion use the same user -> token lock order.
+        repository.lockUser(candidate.userId());
         var now = clock.instant();
-        var token = repository.findTokenByHashForUpdate(sha256Hex(rawToken))
+        var token = repository.findTokenByHashForUpdate(tokenHash)
             .filter(record -> isUsable(record, now))
             .orElseThrow(() -> new IllegalArgumentException(INVALID_RESET_LINK_MESSAGE));
 
@@ -135,6 +151,8 @@ public class PasswordResetService {
 
         repository.markTokenUsed(token.id(), now);
         repository.invalidateOtherActiveTokens(token.userId(), token.id(), now);
+        repository.expirePendingLoginChallenges(token.userId(), now);
+        repository.clearPasswordLockouts(token.userId());
     }
 
     private boolean isUsable(PasswordResetTokenRecord token, java.time.Instant now) {
@@ -157,6 +175,9 @@ public class PasswordResetService {
             throw new IllegalArgumentException("Password and confirmation must match.");
         }
 
+        if (nextPassword.getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new IllegalArgumentException("Password is too long.");
+        }
         if (nextPassword.length() < 8) {
             throw new IllegalArgumentException("Password must be at least 8 characters long.");
         }

@@ -1,4 +1,4 @@
-import { Bot, ChevronRight, LoaderCircle, RefreshCw } from 'lucide-react';
+import { Bot, ChevronRight, LoaderCircle } from 'lucide-react';
 import type { AiConnection } from '../../../../api/aiConnections';
 import type { IntegrationsTranslations } from '../translations';
 import { formatConnectionDate, getConnectionStatus } from '../utils';
@@ -9,7 +9,9 @@ type ConnectionListProps = {
   isLoading: boolean;
   locale: string;
   onCreate: () => void;
-  onRefresh: () => void;
+  filtered?: boolean;
+  emptyLabel?: string;
+  emptyHelp?: string;
   onSelect: (connectionId: number) => void;
   selectedId: number | null;
 };
@@ -20,7 +22,9 @@ export function ConnectionList({
   isLoading,
   locale,
   onCreate,
-  onRefresh,
+  filtered = false,
+  emptyLabel,
+  emptyHelp,
   onSelect,
   selectedId,
 }: ConnectionListProps) {
@@ -31,15 +35,7 @@ export function ConnectionList({
           <h3 className="text-base font-medium text-slate-950 dark:text-white">{copy.connections.title}</h3>
           <p className="mt-0.5 text-xs leading-5 text-slate-500">{copy.connections.description}</p>
         </div>
-        <button
-          type="button"
-          onClick={onRefresh}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] dark:hover:bg-slate-800"
-          aria-label={copy.connections.refresh}
-          title={copy.connections.refresh}
-        >
-          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-        </button>
+
       </div>
 
       <div className="mt-2 space-y-2">
@@ -48,11 +44,11 @@ export function ConnectionList({
         ) : connections.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-300 px-4 py-10 text-center dark:border-slate-700">
             <Bot className="mx-auto h-8 w-8 text-[#2563EB]" />
-            <p className="mt-3 text-sm font-medium text-slate-900 dark:text-white">{copy.connections.emptyTitle}</p>
-            <p className="mt-1 text-xs leading-5 text-slate-500">{copy.connections.emptyDescription}</p>
-            <button type="button" onClick={onCreate} className="mt-4 text-sm font-medium text-[#2563EB] hover:text-[#1D4ED8]">
+            <p className="mt-3 text-sm font-medium text-slate-900 dark:text-white">{filtered ? emptyLabel : copy.connections.emptyTitle}</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">{filtered ? emptyHelp : copy.connections.emptyDescription}</p>
+            {!filtered && <button type="button" onClick={onCreate} className="mt-4 inline-flex min-h-11 items-center text-sm font-medium text-[#2563EB] hover:text-[#1D4ED8]">
               {copy.connections.emptyAction}
-            </button>
+            </button>}
           </div>
         ) : connections.map((connection) => {
           const status = getConnectionStatus(connection);
@@ -60,6 +56,7 @@ export function ConnectionList({
           return (
             <button
               type="button"
+              aria-pressed={selected}
               key={connection.id}
               onClick={() => onSelect(connection.id)}
               className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] ${selected ? 'border-[#2563EB]/45 bg-[#2563EB]/5 dark:bg-[#2563EB]/10' : 'border-transparent bg-slate-50 hover:border-slate-200 dark:bg-slate-800/60 dark:hover:border-slate-700'}`}

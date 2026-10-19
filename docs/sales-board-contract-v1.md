@@ -46,8 +46,13 @@ that scope. Administrative/management roles use that resolver; ordinary `user` r
 assigned this analytical permission. Public demo sessions are denied. Registration grants no company or user access and
 creates no billing price; synthetic local access is a separate test-environment setup.
 
-The coral shared module shell exposes one workspace with Overview, Trends, Origins and Channels,
-and Sales views. This complementary analytics pilot adopts the KPI standard’s view separation;
+The coral shared module shell exposes Overview, Trends, Origins and Channels, and Sales Detail as
+primary pill tabs in its workbar, matching the basic modules. Their canonical paths are
+`/sales-board/overview`, `/sales-board/trends`, `/sales-board/channels`, and `/sales-board/sales`.
+All four retain the existing `sales_board.overview` owner permission; no additional backend grant
+is introduced. The shared filter workspace persists across these sections; the route owns the
+selected section. Legacy `?view=` bookmarks redirect to the matching path while preserving filters.
+This complementary analytics pilot adopts the KPI standard’s view separation;
 channel composition replaces its default organizational ranking view. Organization remains a
 shared filter. Three primary metrics are used instead of inventing eight unsupported metrics.
 Use shared title/filter/table/pagination/modal/navigation engines, scoped navigation memory,
@@ -55,6 +60,38 @@ localized copy and responsive light/dark presentation. View/filter state is reco
 records and selected rows are not persisted. All summary/group totals cover the full filtered
 result, not merely the visible page. Native row currency is retained. Analytical totals use the
 existing backend currency engine and explicitly preserve incomplete conversion evidence.
+
+## Analytical workspace refinement (2026-10-19)
+
+The approved tab order is Overview, Trends, Origins and Channels, and Sales Detail. The last
+label changes, but `/sales-board/sales` and its permission remain stable. Each section has its
+own purpose in the title bar. Search comes first, followed by period and origin. Today, current
+week (Monday through today), and current month (through today) use the company date returned by
+the server. Custom intervals expose both dates. Channel, status, unit, and business remain in
+More filters. Trend granularity belongs beside its chart, not in every view's filters.
+
+The three supported summary metrics remain authoritative backend projections. The count is
+labelled Number of sales and explains its cancelled/rejected exclusions. Metric links open active
+sales; the period's general detail link preserves the chosen status. A small-sample cue is shown
+below ten active sales; this is a reading aid, not a statistical significance threshold. The
+largest recorded origin/channel is descriptive only. Channel shares use complete, positive
+preferred-currency totals; incomplete or zero-denominator shares remain unknown. Trend points
+open their exact interval, with the series-detail list providing the keyboard alternative.
+
+Sales Detail reuses the shared configurable-column, sortable/resizable table, pagination and
+modal engines. Folio and actions stay visible; column visibility/order/widths store presentation
+preferences only. Native amount sorting is server-side: currency code A–Z first, amount in the
+requested direction within each currency, and record id as stable tiebreaker. It does not compare
+unconverted currencies as equivalent. The modal separates commercial data, native amounts,
+collection/fulfillment states, and Finance-owned accounting evidence.
+
+CSV export reads all matching pages through the same authorized owner endpoint (200 per request),
+with explicit dates and filters captured at the start, capped at 10,000 records. It refuses an
+oversized result rather than truncating; aborts on scope/view/filter disposal, changed counts,
+empty intermediate pages or duplicate ids; and escapes spreadsheet formulas in text fields.
+Exports retain native currencies and localized statuses. This is a live paginated report, not
+an immutable cross-request snapshot: concurrent updates that keep the count and ids unchanged
+can appear in later pages. No new endpoint, business mutation, grant, posting or migration is added.
 
 ## Analytical definitions
 

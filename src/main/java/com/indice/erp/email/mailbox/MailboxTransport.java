@@ -27,6 +27,7 @@ public interface MailboxTransport {
         @Override public String toString(){return "Outgoing[redacted]";}
     }
     enum Outcome { ACCEPTED, FAILED, UNKNOWN }
+    default FolderInfo createFolder(ConnectionMaterial material,String name){throw new Failure("email_folder_create_failed");}
     List<FolderInfo> folders(ConnectionMaterial material);
     Batch sync(ConnectionMaterial material,Cursor cursor,boolean older,long[] knownUids);
     Body open(ConnectionMaterial material,Cursor cursor,long uid);

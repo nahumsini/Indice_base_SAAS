@@ -23,6 +23,8 @@ class PasswordResetApiControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+    @MockBean private com.indice.erp.learning.LearningProgressRepository learningProgressRepository;
+    @MockBean private com.indice.erp.learning.LearningCatalogService learningCatalogService;
 
     @MockBean
     private PasswordResetService passwordResetService;

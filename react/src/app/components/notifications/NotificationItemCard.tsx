@@ -1,3 +1,4 @@
+import { basicNotificationDescription } from './basicNotificationCatalog';
 import { ArrowUpRight, Check, MoreHorizontal, Trash2 } from 'lucide-react';
 import type { AppNotification } from '../../api/notifications';
 import { Badge } from '../ui/badge';
@@ -21,6 +22,7 @@ interface NotificationItemCardProps {
   onOpen: (notification: AppNotification) => void;
   onMarkRead: (notificationId: number) => void;
   onDismiss: (notificationId: number) => void;
+  busy?: boolean;
 }
 
 const priorityTone: Record<NotificationPriority, string> = {
@@ -35,7 +37,7 @@ export function NotificationItemCard({
   copy,
   onOpen,
   onMarkRead,
-  onDismiss,
+  onDismiss, busy = false,
 }: NotificationItemCardProps) {
   const moduleMeta = getNotificationModule(notification, locale);
   const colorClasses = getModuleColorClasses(moduleMeta.color);
@@ -45,6 +47,8 @@ export function NotificationItemCard({
 
   return (
     <article
+      data-notification-id={notification.id}
+      aria-disabled={busy}
       className={`group relative cursor-pointer overflow-hidden rounded-2xl border bg-white p-4 shadow-sm transition-[border-color,box-shadow,background-color] duration-200 hover:border-[var(--indice-brand-border)] hover:shadow-md focus-within:border-[var(--indice-brand-border)] dark:bg-slate-900 ${
         notification.is_unread
           ? 'border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)]/35 before:absolute before:inset-y-3 before:left-0 before:w-1 before:rounded-r-full before:bg-[var(--indice-brand-action)] dark:bg-[var(--indice-brand-primary)]/10'
@@ -52,9 +56,9 @@ export function NotificationItemCard({
       }`}
       role="button"
       tabIndex={0}
-      onClick={() => onOpen(notification)}
+      onClick={() => { if (!busy) onOpen(notification); }}
       onKeyDown={(event) => {
-        if (event.target !== event.currentTarget) return;
+        if (busy || event.target !== event.currentTarget) return;
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           onOpen(notification);
@@ -69,15 +73,15 @@ export function NotificationItemCard({
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
-                <h3 className={`min-w-0 break-words text-[15px] font-semibold leading-5 ${notification.is_unread ? 'text-slate-950 dark:text-white' : 'text-slate-700 dark:text-slate-300'}`}>
+                <h3 className={`min-w-0 break-words [overflow-wrap:anywhere] text-[15px] font-semibold leading-5 ${notification.is_unread ? 'text-slate-950 dark:text-white' : 'text-slate-700 dark:text-slate-300'}`}>
                   {displayTitle}
                 </h3>
                 {notification.is_unread ? (
                   <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--indice-brand-action)] shadow-[0_0_0_3px_var(--indice-brand-soft)]" aria-label={copy.unread} />
                 ) : null}
               </div>
-              <p className="mt-1 line-clamp-2 break-words text-sm leading-5 text-slate-600 dark:text-slate-400">
-                {notification.module_slug === 'messaging' ? messagingCopy(locale).subtitle : notification.description}
+              <p className="mt-1 line-clamp-2 break-words [overflow-wrap:anywhere] text-sm leading-5 text-slate-600 dark:text-slate-400">
+                {notification.module_slug === 'messaging' ? messagingCopy(locale).subtitle : basicNotificationDescription(notification, locale)}
               </p>
             </div>
             <div className="flex shrink-0 flex-wrap gap-1.5">
@@ -94,26 +98,28 @@ export function NotificationItemCard({
             </span>
             <div className="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
               <Button
+                disabled={busy}
                 variant="ghost"
                 size="sm"
                 onClick={(event) => {
                   event.stopPropagation();
                   onOpen(notification);
                 }}
-                className="h-8 rounded-lg px-2.5 text-xs font-medium text-[var(--indice-brand-text)] hover:bg-[var(--indice-brand-soft)] dark:text-[var(--indice-brand-text-dark)] dark:hover:bg-[var(--indice-brand-primary)]/15"
+                className="min-h-11 sm:min-h-8 rounded-lg px-2.5 text-xs font-medium text-[var(--indice-brand-text)] hover:bg-[var(--indice-brand-soft)] dark:text-[var(--indice-brand-text-dark)] dark:hover:bg-[var(--indice-brand-primary)]/15"
               >
                 {copy.open}
                 <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
               </Button>
               {notification.is_unread ? (
                 <Button
+                disabled={busy}
                   variant="ghost"
                   size="sm"
                   onClick={(event) => {
                     event.stopPropagation();
                     onMarkRead(notification.id);
                   }}
-                  className="h-8 rounded-lg px-2.5 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                  className="min-h-11 sm:min-h-8 rounded-lg px-2.5 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   <Check className="h-3.5 w-3.5" aria-hidden="true" />
                   {copy.markRead}
@@ -122,21 +128,22 @@ export function NotificationItemCard({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
+                disabled={busy}
                     type="button"
                     variant="ghost"
                     size="icon"
                     onClick={(event) => event.stopPropagation()}
-                    className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+                    className="h-11 w-11 sm:h-8 sm:w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                     aria-label={copy.moreActions}
                   >
                     <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="z-[230] min-w-40 rounded-xl p-1.5">
+                <DropdownMenuContent onClick={event => event.stopPropagation()} align="end" className="z-[230] min-w-40 rounded-xl p-1.5">
                   <DropdownMenuItem
                     variant="destructive"
                     onSelect={() => onDismiss(notification.id)}
-                    className="cursor-pointer rounded-lg"
+                    className="min-h-11 cursor-pointer rounded-lg"
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
                     {copy.dismiss}

@@ -29,8 +29,8 @@ public class EmailAccountController {
     @PutMapping("/{id}") public Account save(HttpSession session,@RequestHeader(name="X-CSRF-Token",required=false) String token,@PathVariable String id,@Valid @RequestBody AccountInput input) {
         return accounts.save(actor(session,token,true),id,input);
     }
-    @PostMapping("/{id}/test") public Account test(HttpSession session,@RequestHeader(name="X-CSRF-Token",required=false) String token,@PathVariable String id,@Valid @RequestBody ConnectionTest input) {
-        return accounts.test(actor(session,token,true),id,input);
+    @PostMapping("/{id}/test") public ConnectionTestResult test(HttpSession session,@RequestHeader(name="X-CSRF-Token",required=false) String token,@PathVariable String id,@Valid @RequestBody ConnectionTest input) {
+        return accounts.testWithDiagnostic(actor(session,token,true),id,input);
     }
     @PostMapping("/{id}/disconnect") public void disconnect(HttpSession session,@RequestHeader(name="X-CSRF-Token",required=false) String token,@PathVariable String id,@Valid @RequestBody Version input) {
         accounts.disconnect(actor(session,token,true),id,input.version());

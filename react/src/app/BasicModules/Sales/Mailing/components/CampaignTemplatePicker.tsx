@@ -4,6 +4,7 @@ import { Button } from "../../../../components/ui/button";
 import { templateApi, type EmailTemplate } from "../mailingApi";
 import type { MailingCopy } from "../translations";
 import { TemplatePreview } from "./TemplateForm";
+import { campaignFieldClassName } from "./CampaignEditorField";
 
 export function CampaignTemplatePicker({
   copy,
@@ -117,11 +118,13 @@ export function CampaignTemplatePicker({
     }
   }
   return (
-    <div className="space-y-3 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+    <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
       <label className="block space-y-2 text-sm">
-        <span>{copy.templates}</span>
+        <span className="font-medium text-slate-700 dark:text-slate-200">
+          {copy.templates}
+        </span>
         <Input
-          className="h-11"
+          className={campaignFieldClassName}
           maxLength={180}
           value={search}
           placeholder={copy.templateSearch}
@@ -130,9 +133,11 @@ export function CampaignTemplatePicker({
         />
       </label>
       <label className="block space-y-2 text-sm">
-        <span>{copy.template}</span>
+        <span className="font-medium text-slate-700 dark:text-slate-200">
+          {copy.template}
+        </span>
         <select
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 dark:border-slate-700 dark:bg-slate-900"
+          className={`${campaignFieldClassName} border px-3 outline-none focus-visible:ring-2`}
           value={selected}
           disabled={disabled || loading || busy}
           onChange={(e) => setSelected(e.target.value)}

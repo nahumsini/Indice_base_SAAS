@@ -1,3 +1,4 @@
+import { basicNotificationModules, basicNotificationText, basicNotificationPriority, basicPreferenceItems } from './basicNotificationCatalog';
 import type { AppNotification } from '../../api/notifications';
 import { getOpportunityReminderCopy } from '../../BasicModules/Sales/Prospectos/translations/opportunityReminderCopy';
 import { messagingCopy } from '../../Messaging/copy';
@@ -66,6 +67,7 @@ const moduleCatalog: Record<string, NotificationModuleMeta> = {
     emoji: '💼',
     color: 'coral',
   },
+  inventory: { slug: 'inventory', label: 'Inventory', shortLabel: 'Inventory', emoji: '📦', color: 'green' },
   point_of_sale: {
     slug: 'point_of_sale',
     label: 'Point of Sale',
@@ -96,7 +98,7 @@ export const notificationPreferenceGroups: NotificationPreferenceGroup[] = [
       {
         eventType: 'reminder',
         label: 'HR reminders',
-        description: 'Attendance, records, payroll, or document reminders.',
+        description: 'Announcements marked as reminders.',
         priority: 'medium',
         defaultEnabled: true,
       },
@@ -199,10 +201,15 @@ export const notificationPreferenceGroups: NotificationPreferenceGroup[] = [
         priority: 'medium',
         defaultEnabled: true,
       },
+    ],
+  },
+  {
+    module: moduleCatalog.inventory,
+    items: [
       {
         eventType: 'pos_stock_low',
         label: 'Low stock',
-        description: 'A POS product or warehouse needs replenishment.',
+        description: 'A product or warehouse needs replenishment.',
         priority: 'high',
         defaultEnabled: true,
       },
@@ -251,6 +258,8 @@ export const notificationPreferenceGroups: NotificationPreferenceGroup[] = [
 ];
 
 export function getNotificationModule(notification: AppNotification, locale = 'en-CA'): NotificationModuleMeta {
+  const basicModule = basicNotificationModules(locale).find(module => module.slug === notification.module_slug);
+  if (basicModule) return basicModule;
   if (notification.module_slug === 'scheduling') {
     const label = getSchedulingCopy(locale).title;
     return { slug: 'scheduling', label, shortLabel: label, emoji: '📅', color: 'coral' };
@@ -338,6 +347,7 @@ const notificationTitles = {
 } as const;
 
 const spanishModuleLabels: Record<string, { label: string; shortLabel: string }> = {
+  inventory: { label: 'Inventarios', shortLabel: 'Inventarios' },
   human_resources: { label: 'Recursos Humanos', shortLabel: 'RH' },
   processes_tasks: { label: 'Procesos y tareas', shortLabel: 'Tareas' },
   finance: { label: 'Finanzas', shortLabel: 'Finanzas' },
@@ -348,10 +358,10 @@ const spanishModuleLabels: Record<string, { label: string; shortLabel: string }>
 
 const localizedModuleLabels: Record<string, Record<string, { label: string; shortLabel: string }>> = {
   es: spanishModuleLabels,
-  fr: { human_resources: { label: 'Ressources humaines', shortLabel: 'RH' }, processes_tasks: { label: 'Processus et tâches', shortLabel: 'Tâches' }, finance: { label: 'Finances', shortLabel: 'Finances' }, expenses: { label: 'Dépenses', shortLabel: 'Dépenses' }, sales: { label: 'Ventes', shortLabel: 'Ventes' }, point_of_sale: { label: 'Point de vente', shortLabel: 'PDV' } },
-  pt: { human_resources: { label: 'Recursos Humanos', shortLabel: 'RH' }, processes_tasks: { label: 'Processos e tarefas', shortLabel: 'Tarefas' }, finance: { label: 'Finanças', shortLabel: 'Finanças' }, expenses: { label: 'Despesas', shortLabel: 'Despesas' }, sales: { label: 'Vendas', shortLabel: 'Vendas' }, point_of_sale: { label: 'Ponto de venda', shortLabel: 'PDV' } },
-  ko: { human_resources: { label: '인사 관리', shortLabel: '인사' }, processes_tasks: { label: '프로세스 및 작업', shortLabel: '작업' }, finance: { label: '재무', shortLabel: '재무' }, expenses: { label: '비용', shortLabel: '비용' }, sales: { label: '영업', shortLabel: '영업' }, point_of_sale: { label: '판매 시점', shortLabel: 'POS' } },
-  zh: { human_resources: { label: '人力资源', shortLabel: '人力' }, processes_tasks: { label: '流程和任务', shortLabel: '任务' }, finance: { label: '财务', shortLabel: '财务' }, expenses: { label: '费用', shortLabel: '费用' }, sales: { label: '销售', shortLabel: '销售' }, point_of_sale: { label: '销售点', shortLabel: 'POS' } },
+  fr: { inventory: { label: 'Stocks', shortLabel: 'Stocks' }, human_resources: { label: 'Ressources humaines', shortLabel: 'RH' }, processes_tasks: { label: 'Processus et tâches', shortLabel: 'Tâches' }, finance: { label: 'Finances', shortLabel: 'Finances' }, expenses: { label: 'Dépenses', shortLabel: 'Dépenses' }, sales: { label: 'Ventes', shortLabel: 'Ventes' }, point_of_sale: { label: 'Point de vente', shortLabel: 'PDV' } },
+  pt: { inventory: { label: 'Estoques', shortLabel: 'Estoques' }, human_resources: { label: 'Recursos Humanos', shortLabel: 'RH' }, processes_tasks: { label: 'Processos e tarefas', shortLabel: 'Tarefas' }, finance: { label: 'Finanças', shortLabel: 'Finanças' }, expenses: { label: 'Despesas', shortLabel: 'Despesas' }, sales: { label: 'Vendas', shortLabel: 'Vendas' }, point_of_sale: { label: 'Ponto de venda', shortLabel: 'PDV' } },
+  ko: { inventory: { label: '재고', shortLabel: '재고' }, human_resources: { label: '인사 관리', shortLabel: '인사' }, processes_tasks: { label: '프로세스 및 작업', shortLabel: '작업' }, finance: { label: '재무', shortLabel: '재무' }, expenses: { label: '비용', shortLabel: '비용' }, sales: { label: '영업', shortLabel: '영업' }, point_of_sale: { label: '판매 시점', shortLabel: 'POS' } },
+  zh: { inventory: { label: '库存', shortLabel: '库存' }, human_resources: { label: '人力资源', shortLabel: '人力' }, processes_tasks: { label: '流程和任务', shortLabel: '任务' }, finance: { label: '财务', shortLabel: '财务' }, expenses: { label: '费用', shortLabel: '费用' }, sales: { label: '销售', shortLabel: '销售' }, point_of_sale: { label: '销售点', shortLabel: 'POS' } },
 };
 
 function notificationLanguage(locale: string): keyof typeof notificationTitles {
@@ -366,7 +376,7 @@ function notificationLanguage(locale: string): keyof typeof notificationTitles {
 const spanishPreferenceDescriptions: Record<string, string> = {
   general: 'Comunicados dirigidos a la empresa, unidad, departamento o colaborador.',
   urgent: 'Comunicaciones críticas de RH que requieren revisión inmediata.',
-  reminder: 'Recordatorios de asistencia, expedientes, nómina o documentos.',
+  reminder: 'Comunicados marcados como recordatorio.',
   task_assigned: 'Se te asignó una nueva tarea.',
   task_reassigned: 'Cambió la responsabilidad de una tarea que debes seguir.',
   task_due_today: 'Una tarea llega hoy a su fecha de vencimiento.',
@@ -402,19 +412,25 @@ export function localizeNotificationModule(moduleMeta: NotificationModuleMeta, l
 export function getLocalizedNotificationPreferenceGroups(locale: string): NotificationPreferenceGroup[] {
   const language = notificationLanguage(locale);
 
-  return notificationPreferenceGroups.map((group) => ({
-    module: localizeNotificationModule(group.module, locale),
-    items: group.items.map((item) => ({
-      ...item,
-      label: notificationTitles[language][item.eventType as keyof typeof notificationTitles.en] ?? item.label,
-      description: language === 'es'
-        ? spanishPreferenceDescriptions[item.eventType] ?? item.description
-        : preferenceDescriptionFallbacks[language] ?? item.description,
-    })),
-  }));
+  const placeholders = new Set(['expense_submitted', 'sales_order_ready', 'sales_invoice_overdue']);
+  const groups = [...notificationPreferenceGroups, ...basicNotificationModules(locale).map(module => ({ module, items: [] }))];
+  return groups.map(group => {
+    const additions = basicPreferenceItems(group.module.slug, locale);
+    const replaced = new Set(additions.map(item => item.eventType));
+    return {
+      module: localizeNotificationModule(group.module, locale),
+      items: [...group.items.filter(item => !placeholders.has(item.eventType) && !replaced.has(item.eventType)).map(item => ({
+        ...item,
+        label: notificationTitles[language][item.eventType as keyof typeof notificationTitles.en] ?? item.label,
+        description: language === 'es' ? spanishPreferenceDescriptions[item.eventType] ?? item.description : preferenceDescriptionFallbacks[language] ?? item.description,
+      })), ...additions],
+    };
+  });
 }
 
 export function getNotificationDisplayTitle(notification: AppNotification, locale: string) {
+  const basicCopy = basicNotificationText(notification.source_subtype, locale);
+  if (basicCopy) return basicCopy.label;
   if (notification.source_subtype === 'sales_call_reminder') return getOpportunityReminderCopy(locale).notification;
   if (notification.module_slug === 'maintenance') {
     const copy = getMaintenanceCopy(locale);
@@ -445,6 +461,8 @@ export function getNotificationDisplayTitle(notification: AppNotification, local
 
 export function getNotificationPriority(notification: AppNotification): NotificationPriority {
   const subtype = notification.source_subtype;
+  const basicPriority = basicNotificationPriority(subtype);
+  if (basicPriority) return basicPriority;
   if (subtype === 'urgent' || subtype === 'task_overdue' || subtype === 'sales_call_reminder') {
     return 'high';
   }

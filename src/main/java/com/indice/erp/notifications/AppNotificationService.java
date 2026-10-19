@@ -50,6 +50,19 @@ public class AppNotificationService {
         );
     }
 
+    /** Recurring observations are inserted once. Reading or dismissing them survives later scans. */
+    @Transactional
+    public void publishOnce(AppNotificationEvent event) {
+        if (event == null || event.recipientUserCompanyId() <= 0 || isBlank(event.eventKey()) || isBlank(event.title())) return;
+        jdbcTemplate.update("""
+            INSERT INTO app_notifications
+            (company_id,recipient_user_company_id,source_module,source_type,source_id,event_type,event_key,title,description,action_url)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+            ON DUPLICATE KEY UPDATE id=id
+            """,event.companyId(),event.recipientUserCompanyId(),event.sourceModule(),event.sourceType(),event.sourceId(),
+            event.eventType(),event.eventKey(),event.title(),event.description(),event.actionUrl());
+    }
+
     public Long userCompanyIdForUser(long companyId, Long userId) {
         if (userId == null || userId <= 0) {
             return null;

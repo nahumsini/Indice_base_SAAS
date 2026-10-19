@@ -28,6 +28,7 @@ public class SessionAuthService {
     public static final String SESSION_USER_COMPANY_ID = "auth.user_company.id";
     public static final String SESSION_USER_NAME = "auth.user.name";
     public static final String SESSION_ROLE = "auth.user.role";
+    private static final String SESSION_PASSWORD_RESET_ID = "auth.password_reset.id";
     public static final String SESSION_LOGIN_CSRF = "auth.login.csrf";
     public static final String SESSION_CREATED_AT = "auth.session.created_at";
     public static final String SESSION_LAST_SEEN_AT = "auth.session.last_seen_at";
@@ -299,6 +300,7 @@ public class SessionAuthService {
         session.setAttribute(SESSION_CREATED_AT, now);
         session.setAttribute(SESSION_LAST_SEEN_AT, now);
         session.setAttribute(SESSION_MFA_VERIFIED, mfaVerified);
+        session.setAttribute(SESSION_PASSWORD_RESET_ID, latestPasswordReset(login.userId()));
         var platformRole = activePlatformRole(login.userId());
         if (platformRole.isBlank()) {
             session.removeAttribute(SESSION_PLATFORM_ROLE);
@@ -383,9 +385,22 @@ public class SessionAuthService {
             logout(session);
             return false;
         }
+        var baseline = session.getAttribute(SESSION_PASSWORD_RESET_ID);
+        var resetId = baseline instanceof Number number ? number.longValue() : 0L;
+        if (latestPasswordReset(userIdNumber.longValue()) > resetId) {
+            logout(session);
+            return false;
+        }
         session.setAttribute(SESSION_CREATED_AT, createdAt);
         session.setAttribute(SESSION_LAST_SEEN_AT, now);
         return true;
+    }
+
+    private long latestPasswordReset(long userId) {
+        var id = jdbcTemplate.queryForObject(
+            "SELECT COALESCE(MAX(id), 0) FROM user_password_reset_tokens WHERE user_id = ? AND status = 'used' AND used_at IS NOT NULL",
+            Long.class, userId);
+        return id == null ? 0L : id;
     }
 
     public boolean requiresStrongMfa(long userId) {

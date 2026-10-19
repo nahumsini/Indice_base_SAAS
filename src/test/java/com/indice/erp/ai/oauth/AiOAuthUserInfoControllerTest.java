@@ -22,6 +22,9 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(AiOAuthUserInfoController.class)
 class AiOAuthUserInfoControllerTest {
 
+    @org.springframework.boot.test.mock.mockito.MockBean
+    private com.indice.erp.learning.LearningAppliedAdvice learningAppliedAdvice;
+
     private static final String AUTHORIZATION = "Bearer idx_ai_abcdefghijklmnopqrstuvwxyz1234567890";
     private static final AuthSessionUser USER = new AuthSessionUser(10L, 20L, 30L, "Owner", "superadmin");
 

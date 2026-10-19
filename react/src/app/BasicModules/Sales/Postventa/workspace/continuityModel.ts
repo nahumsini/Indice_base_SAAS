@@ -1,4 +1,9 @@
-import type { ContinuityItem, SaveContinuityWork } from './postSaleWorkspaceApi';
+import type { ContinuityItem, ContinuityKind, ContinuitySort, SaveContinuityWork } from './postSaleWorkspaceApi';
+export function normalizeContinuitySort(column: unknown, direction: unknown, kind: ContinuityKind): ContinuitySort {
+  const allowed = ['client', 'sale', 'stage', 'owner', 'nextAction', ...(kind === 'lost' ? ['lossReason'] : [])];
+  return { columnId: typeof column === 'string' && allowed.includes(column) ? column as ContinuitySort['columnId'] : 'nextAction',
+    direction: direction === 'desc' ? 'desc' : 'asc' };
+}
 export function workDraft(item: ContinuityItem): Omit<SaveContinuityWork, 'requestKey'> {
   return { version: item.version, flowId: item.flowId, stageKey: item.kind === 'won' ? item.stageKey : 'pending',
     ownerId: item.ownerId, nextAction: item.nextAction, nextActionDate: item.nextActionDate,

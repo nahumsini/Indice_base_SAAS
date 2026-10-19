@@ -160,6 +160,104 @@ class LoginMfaChallengeServiceIntegrationTest {
         assertThat(latestChallengeStatus(login.email())).isEqualTo("EMAIL_FAILED");
     }
 
+    @Test
+    void failedResendKeepsTheDeliveredCodeAndItsExpiryUsable() {
+        var login = insertLogin(UUID.randomUUID().toString());
+        var start = service.startChallenge(login, "browser-session", CONTEXT);
+        var delivered = lastOtp.get();
+        var oldHash = otpHashFor(start.challengeReference());
+        clock.advance(Duration.ofSeconds(31));
+        given(emailService.sendOtp(any(AuthenticatedLogin.class), anyString(), anyInt()))
+            .willReturn(LoginOtpEmailService.DeliveryResult.failed("Synthetic delivery failure"));
+        var resend = service.resendChallenge(start.challengeReference(), "browser-session", CONTEXT);
+        assertThat(resend.started()).isFalse();
+        assertThat(resend.code()).isEqualTo(AuthFailureReason.MFA_EMAIL_FAILED);
+        assertThat(otpHashFor(start.challengeReference()).equals(oldHash)).isTrue();
+        assertThat(challengeStatus(start.challengeReference())).isEqualTo("PENDING");
+        assertThat(service.verify(start.challengeReference(), delivered, "browser-session", CONTEXT).success()).isTrue();
+    }
+
+    @Test
+    void resendDoesNotResetFailedAttemptsAndCooldownReportsRemainingLifetime() {
+        var login = insertLogin(UUID.randomUUID().toString());
+        var start = service.startChallenge(login, "browser-session", CONTEXT);
+        var wrong = lastOtp.get().equals("111111") ? "222222" : "111111";
+        for (int i = 0; i < 4; i++) service.verify(start.challengeReference(), wrong, "browser-session", CONTEXT);
+        clock.advance(Duration.ofSeconds(10));
+        var cooldown = service.resendChallenge(start.challengeReference(), "browser-session", CONTEXT);
+        assertThat(cooldown.expiresInSeconds()).isEqualTo(50);
+        assertThat(cooldown.resendAvailableInSeconds()).isEqualTo(20);
+        clock.advance(Duration.ofSeconds(21));
+        assertThat(service.resendChallenge(start.challengeReference(), "browser-session", CONTEXT).started()).isTrue();
+        wrong = lastOtp.get().equals("111111") ? "222222" : "111111";
+        assertThat(service.verify(start.challengeReference(), wrong, "browser-session", CONTEXT).blocked()).isTrue();
+    }
+
+    @Test
+    void resendReplacesOldCodeAndAcceptsOnlyTheNewOne() {
+        var login = insertLogin(UUID.randomUUID().toString());
+        var start = service.startChallenge(login, "browser-session", CONTEXT);
+        var first = lastOtp.get();
+        clock.advance(Duration.ofSeconds(31));
+        service.resendChallenge(start.challengeReference(), "browser-session", CONTEXT);
+        // Extremely rarely random codes repeat; do not assume they are different.
+        if (!first.equals(lastOtp.get())) {
+            assertThat(service.verify(start.challengeReference(), first, "browser-session", CONTEXT).success()).isFalse();
+        }
+        assertThat(service.verify(start.challengeReference(), lastOtp.get(), "browser-session", CONTEXT).success()).isTrue();
+    }
+
+    @Test
+    void anotherBrowserCannotVerifyOrResendTheChallenge() {
+        var login = insertLogin(UUID.randomUUID().toString());
+        var start = service.startChallenge(login, "browser-session", CONTEXT);
+        assertThat(service.verify(start.challengeReference(), lastOtp.get(), "foreign-browser", CONTEXT).success()).isFalse();
+        clock.advance(Duration.ofSeconds(31));
+        assertThat(service.resendChallenge(start.challengeReference(), "foreign-browser", CONTEXT).started()).isFalse();
+        assertThat(service.verify(start.challengeReference(), lastOtp.get(), "browser-session", CONTEXT).success()).isTrue();
+    }
+
+    @Test
+    void revokedMembershipCannotFinishVerification() {
+        var login = insertLogin(UUID.randomUUID().toString());
+        var start = service.startChallenge(login, "browser-session", CONTEXT);
+        jdbc.update("UPDATE user_companies SET status = 'inactive' WHERE id = ?", login.userCompanyId());
+        var result = service.verify(start.challengeReference(), lastOtp.get(), "browser-session", CONTEXT);
+        assertThat(result.success()).isFalse();
+        assertThat(result.code()).isEqualTo("MFA_CHALLENGE_UNAVAILABLE");
+        assertThat(challengeStatus(start.challengeReference())).isEqualTo("EXPIRED");
+    }
+
+    @Test
+    void roleChangesAreAppliedWhenVerificationCompletes() {
+        var login = insertLogin(UUID.randomUUID().toString());
+        var start = service.startChallenge(login, "browser-session", CONTEXT);
+        jdbc.update("UPDATE user_companies SET role = 'viewer' WHERE id = ?", login.userCompanyId());
+        var result = service.verify(start.challengeReference(), lastOtp.get(), "browser-session", CONTEXT);
+        assertThat(result.success()).isTrue();
+        assertThat(result.login().role()).isEqualTo("viewer");
+    }
+
+    @Test
+    void expiredStatusCannotBeUsedEvenIfItsTimestampIsInTheFuture() {
+        var login = insertLogin(UUID.randomUUID().toString());
+        var start = service.startChallenge(login, "browser-session", CONTEXT);
+        jdbc.update("UPDATE auth_mfa_challenges SET status = 'EXPIRED' WHERE challenge_reference = ?", start.challengeReference());
+        assertThat(service.verify(start.challengeReference(), lastOtp.get(), "browser-session", CONTEXT).success()).isFalse();
+    }
+
+    @Test
+    void failedInitialDeliveryCannotBeVerified() {
+        var login = insertLogin(UUID.randomUUID().toString());
+        given(emailService.sendOtp(any(AuthenticatedLogin.class), anyString(), anyInt())).willAnswer(invocation -> {
+            lastOtp.set(invocation.getArgument(1));
+            return LoginOtpEmailService.DeliveryResult.failed("Synthetic failure");
+        });
+        service.startChallenge(login, "browser-session", CONTEXT);
+        var reference = jdbc.queryForObject("SELECT challenge_reference FROM auth_mfa_challenges WHERE user_id = ?", String.class, login.userId());
+        assertThat(service.verify(reference, lastOtp.get(), "browser-session", CONTEXT).success()).isFalse();
+    }
+
     private AuthenticatedLogin insertLogin(String discriminator) {
         var email = EMAIL_PREFIX + discriminator + "@example.com";
         var company = COMPANY_PREFIX + discriminator;

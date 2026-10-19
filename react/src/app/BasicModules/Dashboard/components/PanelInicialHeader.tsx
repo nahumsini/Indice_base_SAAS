@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties } from 'react';
+import { useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Home, Star } from 'lucide-react';
 import { useLanguage } from '../../../shared/context';
 import { useMobileModuleNavigation } from '../../../components/frontend-os/useMobileModuleNavigation';
@@ -16,6 +16,7 @@ export interface PanelInicialHeaderTab {
 }
 
 interface PanelInicialHeaderProps {
+  artwork?: ReactNode;
   activeTabId: string;
   navigationLabel: string;
   onNavigate: (page: string) => void;
@@ -26,6 +27,7 @@ interface PanelInicialHeaderProps {
 }
 
 export function PanelInicialHeader({
+  artwork,
   activeTabId,
   navigationLabel,
   onNavigate,
@@ -53,7 +55,7 @@ export function PanelInicialHeader({
           <div className={`flex min-w-0 flex-1 items-center justify-between gap-3 md:max-w-[420px] md:flex-none ${isSideLayout ? 'lg:max-w-none lg:items-start' : ''}`}>
             <div className="flex min-w-0 items-center gap-2.5">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-lg ring-1 ring-blue-100 dark:bg-blue-900/30 dark:ring-blue-800" aria-hidden="true">
-                <OriginalModuleEmoji id="home-panel" className="size-7" />
+                {artwork ?? <OriginalModuleEmoji id="home-panel" className="size-7" />}
               </span>
               <div className="min-w-0">
                 <div className={`flex min-w-0 flex-col items-start gap-0.5 md:flex-row md:items-center md:gap-1.5 text-lg font-medium leading-tight text-[var(--indice-graphite)] dark:text-white sm:text-xl ${isSideLayout ? 'lg:flex-col lg:items-start lg:gap-1' : ''}`}>

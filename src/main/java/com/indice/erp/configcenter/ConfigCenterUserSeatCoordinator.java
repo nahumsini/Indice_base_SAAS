@@ -19,6 +19,7 @@ public class ConfigCenterUserSeatCoordinator {
     @Transactional
     public Map<String, Object> activate(long companyId, long actorUserId, String actorRole, long userId) {
         users.requireCanActivateUser(companyId, actorUserId, actorRole, userId);
+        users.lockUserAdministration(companyId);
         seats.requireAvailableSeatForActivation(companyId, userId);
         return users.activateUser(companyId, actorUserId, actorRole, userId);
     }

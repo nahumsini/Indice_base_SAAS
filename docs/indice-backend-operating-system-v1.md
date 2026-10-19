@@ -25,6 +25,7 @@ This document governs general backend engineering. More specific approved contra
 - `docs/kiosk-standard-engine-v2.md` for kiosks and public operational channels;
 - `docs/email-mailing-integration-contract-v1.md` for private Email accounts, SMTP/IMAP mailbox operations, individual send idempotency and the Sales sender owner projection;
 - `docs/sales-mailing-contract-v1.md` for the Sales Mailing draft pilot and its dedicated access boundary;
+- `docs/sales-whatsapping-contract-v1.md` for assisted WhatsApp campaigns, contact-owner projections, manual outcomes and owner reminders;
 - `docs/sales-funneling-contract-v1.md` for company-owned funnel planning, estimates and its isolated Sales permission;
 - `docs/messaging-and-customer-care-contract.md` for core messaging, participant isolation,
   customer care, durable notifications and support-only billing recovery;
@@ -846,7 +847,9 @@ The current section of [Email/Mailing integration](email-mailing-integration-con
 V317/V318, private attachment intake, safe HTML, server Sent reconciliation, bounded background
 mail synchronization and CRM campaign dispatch. Sales uses CampaignEmailGateway; it never receives
 credentials. Native mailing_send permission, current owner/tenant access, versioned launch review,
-consent/suppression and durable send intent precede transport. The only public exception is POST
+recipient selection, suppression checks and durable send intent precede transport. The
+[current Mailing decision](sales-mailing-contract-v1.md#direct-recipient-selection--2026-10-19)
+removes the manual consent gate without changing unsubscribe enforcement or creating consent evidence. The only public exception is POST
 `/api/public/mailing/unsubscribe`, authenticated by a narrow recipient HMAC capability, with durable
 rate limits, idempotency and audit. GET never unsubscribes. Public HTTPS configuration is mandatory
 for campaigns. SMTP/APPEND uncertainty is retained and never blindly retried.
@@ -867,3 +870,198 @@ no tenant/user access or pricing automatically.
 Sales owns the additive post-sale workspace, tenant-scoped flows and work history. Scheduled reviews publish internal seller reminders only. Manual recovery calls the existing opportunity owner transactionally and preserves the original lost opportunity; payment, inventory, accounting and sales totals are unchanged.
 
 The adopted domain contract is [Sales post-sale continuity](sales-post-sale-continuity-contract.md).
+
+
+### Personal notification preferences and inbox authority — 2026-10-18
+
+The authenticated global inbox is an active company-membership surface; it does not require HR
+announcement permission. `NotificationAccessService` obtains database-derived identity and applies
+native current module entitlement and tab permissions per source. HR audience visibility remains
+owned by AnnVisSvc; Messaging exposes only a boolean current participant/tenant/recovery projection.
+Unknown sources fail closed. Billing and distributor notices retain their targeted administrative
+authority. Operational synchronization no longer interprets an empty module list as unrestricted,
+and HR management permission is not authority for Expenses, Inventory or Sales management.
+
+GET/PUT `/api/v1/notifications/preferences` use typed server-owned event keys; PUT requires session
+CSRF, an active membership and current source permission. V328 stores personal choices keyed by
+authenticated company/user, with membership provenance, a version and event settings. No identity
+from the body is authority. Membership/row locking serializes saves; stale conflicting versions
+return 409, while an already-applied identical retry returns current state. Missing settings retain
+the previous default of enabled. Permission revocation hides the option and its notices without
+erasing the saved choice or historical deliveries.
+
+Preferences filter inbox rows and counts before the existing fifty-item response limit. Muting
+does not dismiss, read, cancel or change the source record. Quiet mode suppresses only explicitly
+listed informational events, preserving urgent/pending work. Individual read/dismiss recheck
+source access before mutation; mark-all-read touches only currently visible authorized notices.
+Legacy POS stock/purchase notices belong to Inventory permissions/preferences. Existing event
+producers and source destinations remain owned by their modules; this extension creates no new
+business event producer or external notification channel.
+
+
+### Basic module notification coverage — 2026-10-18
+
+[Basic module notifications](basic-module-notifications-contract-v1.md) owns the approved
+operational completion: native owner projections for permission decisions/review, Funds,
+Receivables installments, cash shifts and private automatic reports, alongside configurable
+existing task/process and Sales signals. New delivery uses an isolated, fair membership worker,
+not a GET mutation. Permission and active-source visibility are enforced by the owner; repeated
+observations preserve read/dismiss state. No new grants, business mutations or outbound channels
+are introduced. Native Finance context now recognizes an assigned `petty_cash` module so a Funds
+user does not need an unrelated Expenses grant; endpoint module/tab gates remain independent.
+
+
+### Personal currency workspace preference (2026-10-18)
+
+`system/business-currency` reuses `UserWorkspaceStateService` and its user/company SQL isolation.
+It is an explicit non-expiring personal display/reference preference, not financial authority or a
+company exchange-rate configuration. GET/PUT/DELETE require the current expected workspace actor;
+PUT/DELETE also require the existing session CSRF token. The actor header only prevents stale
+requests crossing a session switch and never selects an arbitrary user/company. Other workspace
+contracts remain unchanged. No schema migration is required.
+
+
+### Durable personal navigation preference (2026-10-18)
+
+`system/workbar-layout` uses the existing private workspace-state owner and non-expiring retention,
+like the display currency preference. GET/PUT/DELETE require the current expected workspace actor;
+PUT/DELETE require session CSRF. Its actor mismatch code is `workbar_actor_changed`; the existing
+currency mismatch code is preserved. The server always derives user/company from authentication.
+No schema migration, entitlement, business authority or other workspace lifetime changes are added.
+
+
+Workspace responses may include optional `expiresAt` metadata (null for permanent state). The
+workbar owner can read its own historical navigation preference even when its former cache expiry
+elapsed, then resave the same choice without expiry. This exception does not apply to other
+workspace keys and does not widen the authenticated company/user query.
+
+
+### Personal profile owner and contact-list persistence (2026-10-19)
+
+Config Center's existing `/current-user` owner remains the authenticated user's global personal
+identity, including across company memberships. Role and email authority remain unchanged. The
+server derives actor/company from the session; client IDs never select the profile to update.
+`X-Profile-Actor` is an optional backward-compatible stale-session guard for GET, PUT and avatar
+presign; the application always sends it. Mismatch returns `409 profile_actor_changed`. Browser
+mutations retain CSRF checks and existing authorization.
+
+Migration V330 adds nullable `user_profiles.phone_numbers_json`. A NULL legacy list projects the
+old phone; editing a list normalizes every entry with its own country, enforces unique numbers and
+a maximum of ten, and updates the legacy primary phone in the same transaction. Omitted phones
+preserve the stored list/primary; an explicit empty list removes them. Legacy `telefono` updates
+remain supported. Existing profile columns, routes and responses remain compatible; `phone_numbers`
+is additive.
+
+The complete name must be present and fit the existing 100-character database limit. Supported
+profile language/country and every phone are validated before mutation. New passwords preserve
+exact input, require confirmation and at least eight characters, reject blank-only values and
+respect BCrypt's 72-byte limit. Password changes remain optional. Stable `profile_*` validation
+codes let the UI provide localized feedback. Email/role changes through profile payloads are ignored.
+
+Avatar registration validates the authenticated upload prefix, object existence, actual size
+and content type before quota commit. Replacement releases the old object's quota inside the same
+transaction using the company in its trusted stored key. Physical deletion waits until transaction
+commit, so a failed save cannot remove the previously linked photo. Upload reservations continue
+to follow the existing storage-meter lifecycle.
+
+
+### Config Center company identity and organization (2026-10-19)
+
+The existing structure PUT accepts an optional `company` object, using the existing company and
+structure owners inside one service transaction with a company-row lock. Its additive `company`
+receipt and resolved unit/business identifiers acknowledge what was saved. Bundled requests must
+include the complete organization and business lists. Invalid names, duplicate identifiers/names,
+foreign-company organization IDs and malformed settings cannot silently clear existing data.
+Renaming a unit preserves its generated headquarters identity. Removal retains the established
+inactive lifecycle. Standalone company writes preserve omitted settings and validate coordinates
+before mutation. Both write paths require the business-structure permission, corporate scope and
+CSRF. Optional `X-Company-Actor` is a session-race guard, never user/company authority. Reads keep
+existing business-profile access and scoped structure behavior. No schema migration is required.
+
+
+### Atomic user access administration and pending-only invitations (2026-10-19)
+
+The existing Config Center owner validates invitation name/email and access payloads before
+changing memberships or reserving seats. Stable `user_*` codes support localized field feedback.
+The session remains authoritative; optional `X-Users-Actor` rejects stale account/company browser
+requests before mutation. Existing module/tab gates, tenant scope and CSRF remain mandatory.
+
+User access writes validate both the target's current grants and the requested grants against the
+actor's established ceiling. A company-row lock serializes administrative writes and seat
+coordination; demotion or deactivation cannot remove the final active administrator, including
+concurrent requests. Explicit null organization clears prior assignments. Root remains Root on
+an unchanged edit. Membership, work scope, modules, tabs, kiosk assignments and access audit
+remain in one transaction. Deactivation preserves history and is safe to repeat.
+
+Invitation creation/resend/cancellation retain the billing seat owner and transaction. Creation
+for the same company/email cannot produce duplicate pending invitations concurrently. Acceptance
+requires a pending, unexpired, locked invitation; cancelled links cannot grant access. Resend
+updates only a still-pending company-scoped record and rotates its token, preserving accepted
+state during a race. Passwords are passed exactly to the existing password encoder, without
+trimming; joining with an existing global account does not overwrite its identity/password.
+No schema migration, role model, authentication mechanism or public token redesign is introduced.
+
+
+### Invitation entry revalidation (2026-10-19)
+
+Pending invitation acceptance revalidates company availability and stored unit/business scope
+through the existing membership owner before creating any identity or membership. An archived
+scope/company leaves the invitation pending and creates no partial user. New passwords retain
+exact input and respect BCrypt's 72-byte capacity, returning a recoverable validation error rather
+than an encoder failure. Existing-account verification keeps its existing password contract.
+Public invitation token segments are redacted by the shared request-path sanitizer, including the
+accept route; administrative invitation numeric IDs remain observable. No schema/role redesign
+or MFA bypass is introduced by this correction.
+
+`InvitationEntryFlowIntegrationTest` exercises invitation creation, public acceptance, actual
+credential sign-in, session module/tab/scope projection, module listing, denied administration,
+existing-account isolation and session invalidation after deactivation on `indice_test_db`.
+
+
+### Password recovery transactions and session revocation (2026-10-19)
+
+The existing password-reset owner keeps hashed tokens, ten-minute lifetime, single use, generic
+request responses and email/IP limits. Requests serialize on the global user row, recheck the
+email limit under that lock and keep token/audit changes in one READ_COMMITTED transaction.
+A confirmed email replacement supersedes older links; disabled/failed delivery invalidates only
+the undelivered new token and preserves a previously received link. Completion uses the same
+user-then-token lock order, reads the current locked token and updates the password/consumption
+atomically. Blank/mismatched/oversized UTF-8 passwords fail without consuming the link.
+
+Successful recovery expires pending MFA challenges and clears password lockouts while retaining
+their audit rows. SessionAuthService records the latest consumed recovery ID when authenticating
+and compares it in the existing session enforcement path. A later consumed reset invalidates the
+older session across companies; signing in again keeps the new baseline. Legacy sessions without
+a baseline fail conservatively when a prior reset exists. Preserve used-token history because it
+provides this revocation marker. MFA requirements, memberships, company scope and grants are not
+changed. No schema migration, alternate session engine or automatic recovery login is added.
+
+The shared path sanitizer redacts public reset-token path segments while retaining the static
+request action. PasswordRecoveryFlowIntegrationTest covers request/change/login, old-password
+rejection, session/MFA invalidation, preserved grants, lockout recovery, expiry, delivery failures,
+request limits and concurrent single use on the isolated test database.
+
+
+### Login OTP delivery and active access (2026-10-19)
+
+LoginMfaChallengeService remains the owner of session-bound, hashed, expiring, single-use codes.
+It rejects every non-pending challenge before comparing a code, including EMAIL_FAILED and
+explicitly EXPIRED records. Verify/resend recheck the original active membership, active company
+and current email; successful verification returns the current name/role. Verify also respects
+an account lockout created by another challenge. Denials retain sanitized audit events. The
+normal session projection remains authoritative for current modules, tabs, roles and scope.
+
+A resend replaces the stored code only after delivery succeeds. Failed delivery preserves the
+previous delivered code, its expiry and attempts; a successful resend does not reset failed
+attempts. Provider calls and challenge changes retain the existing transactional row lock and
+rate limits. The delivery is not a distributed transaction: an acknowledgement lost after a
+provider accepts email is still an uncertain network outcome, not a proof of delivery.
+
+Existing message fields/routes/statuses remain, with additive safe `code` categories on MFA
+failures. Resend delivery failure uses 503; invalid/unavailable verification uses 401 and account
+lockout uses 423. Cooldown success includes its actual remaining `expiresInSeconds` and
+`codeSent=false`; confirmed initial/resend delivery returns `codeSent=true`. Codes, challenge
+references and credentials stay out of frontend persistent storage and user-visible errors.
+AuthLoginSecurityIntegrationTest, LoginMfaChallengeServiceIntegrationTest, AuthApiControllerTest
+and lockout/property tests cover the flow on indice_test_db with mocked email, plus the existing
+password-recovery integration regression. No schema migration or MFA-policy relaxation.

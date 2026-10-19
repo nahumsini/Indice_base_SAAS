@@ -30,6 +30,9 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(OpportunityFlowApiController.class)
 class OpportunityFlowApiControllerTest {
 
+    @org.springframework.boot.test.mock.mockito.MockBean
+    private com.indice.erp.learning.LearningAppliedAdvice learningAppliedAdvice;
+
     private static final AuthSessionUser CURRENT_USER = new AuthSessionUser(1L, 7L, "Admin", "admin");
 
     @Autowired MockMvc mockMvc;

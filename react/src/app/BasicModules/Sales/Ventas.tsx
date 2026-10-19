@@ -40,7 +40,7 @@ const Contrato = lazy(() => import('./Contrato')) as SalesTabLazyComponent;
 const Postventa = lazy(() => import('./Postventa')) as SalesTabLazyComponent;
 const Funneling = lazy(() => import('./Funneling/Funneling')) as SalesTabLazyComponent;
 const Mailing = lazy(() => import('./Mailing/Mailing')) as SalesTabLazyComponent;
-const Whatsapping = lazy(() => import('./SalesCommunicationWorkspace').then(module => ({ default: module.Whatsapping }))) as SalesTabLazyComponent;
+const Whatsapping = lazy(() => import('./Whatsapping/Whatsapping')) as SalesTabLazyComponent;
 const KPIs = lazy(() => import('./KPIs')) as SalesTabLazyComponent;
 
 const salesWorkspaceTabIds = routedSalesTabIds;

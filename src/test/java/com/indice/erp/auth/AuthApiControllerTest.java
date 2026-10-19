@@ -27,10 +27,14 @@ import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(AuthApiController.class)
+@org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc(print = org.springframework.boot.test.autoconfigure.web.servlet.MockMvcPrint.NONE)
 class AuthApiControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @MockBean
+    private com.indice.erp.learning.LearningAppliedAdvice learningAppliedAdvice;
 
     @MockBean
     private SessionAuthService sessionAuthService;

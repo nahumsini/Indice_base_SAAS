@@ -1,0 +1,37 @@
+.mail-folder-nav { flex-direction: column; align-items: stretch; gap: 4px; overflow: visible; }
+.mail-folder-nav .indice-workbar-tab {
+  width: 100%; min-height: 44px; justify-content: flex-start; gap: 10px;
+  border-radius: 8px; border-left: 3px solid transparent;
+  background: transparent; padding: 8px 10px; box-shadow: none; text-align: left;
+}
+.mail-folder-nav .indice-workbar-tab > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+.mail-folder-nav .indice-workbar-tab[data-state='active'] {
+  background: #dbeafe !important; color: #1d4ed8 !important; border-left-color: #2563eb; font-weight: 600;
+}
+.mail-folder-nav .indice-workbar-tab:not([data-state='active']):hover { background: #e2e8f0; }
+.mail-folder-nav > [role='presentation'] { margin-top: 12px; }
+.mail-folder-rail--compact .indice-workbar-tab { width: 44px; padding: 8px 0; justify-content: center; }
+.mail-folder-rail--compact .mail-folder-nav > [role='presentation'] { margin: 12px 4px 6px; }
+.dark .mail-folder-nav .indice-workbar-tab[data-state='active'] { background: #1e3a5f !important; color: #bfdbfe !important; border-left-color: #60a5fa; }
+.dark .mail-folder-nav .indice-workbar-tab:not([data-state='active']):hover { background: #334155; }
+.mail-folder-sheet > button:last-child { display: none; }
+
+/* Small category accents; selection always retains the module's blue marker. */
+.mail-folder-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 8px;
+  background: #ede9fe; color: #6d28d9;
+}
+.mail-folder-icon[data-mail-kind='INBOX'] { background: #dbeafe; color: #1d4ed8; }
+.mail-folder-icon[data-mail-kind='SENT'],
+.mail-folder-icon[data-mail-kind='ARCHIVE'] { background: #59c3a526; color: #257b68; }
+.mail-folder-icon[data-mail-kind='JUNK'] { background: #fef3c7; color: #92400e; }
+.mail-folder-icon[data-mail-kind='TRASH'],
+.mail-folder-icon[data-mail-kind='OUTBOX'] { background: #e2e8f0; color: #475569; }
+.dark .mail-folder-icon { background: #4c1d954d; color: #ddd6fe; }
+.dark .mail-folder-icon[data-mail-kind='INBOX'] { background: #1e3a8a80; color: #bfdbfe; }
+.dark .mail-folder-icon[data-mail-kind='SENT'],
+.dark .mail-folder-icon[data-mail-kind='ARCHIVE'] { background: #59c3a526; color: #8fe0ca; }
+.dark .mail-folder-icon[data-mail-kind='JUNK'] { background: #78350f66; color: #fde68a; }
+.dark .mail-folder-icon[data-mail-kind='TRASH'],
+.dark .mail-folder-icon[data-mail-kind='OUTBOX'] { background: #334155; color: #cbd5e1; }

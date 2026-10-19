@@ -55,14 +55,23 @@ class NotificationResponseFactory {
         item.put("source_id", row.sourceId());
         item.put("title", safe(row.title()));
         item.put("description", safe(row.description()));
-        item.put("module_slug", normalize(row.sourceModule(), "general"));
+        item.put("module_slug", NotificationPreferenceCatalog.module(row.sourceModule(), row.eventType()));
         item.put("source_subtype", normalize(row.eventType(), "general"));
         item.put("status", normalize(row.status(), "delivered"));
         item.put("is_unread", row.readAt() == null);
         item.put("read_at", iso(row.readAt()));
         item.put("created_at", iso(row.createdAt()));
-        item.put("action_url", row.actionUrl());
+        item.put("action_url", actionUrl(row));
         return item;
+    }
+
+    private String actionUrl(AppNotificationRow row) {
+        var value=row.actionUrl();
+        if (value==null) return null;
+        // Existing Inventory notices must not pass through the separately protected POS module.
+        if ("pos_stock_low".equals(row.eventType())) return value.replaceFirst("^/point-of-sale/inventario(?=[?#]|$)", "/inventory/inventory");
+        if ("pos_purchase_pending".equals(row.eventType())) return value.replaceFirst("^/point-of-sale/ordenesCompra(?=[?#]|$)", "/inventory/purchase-orders");
+        return value;
     }
 
     private LocalDateTime first(LocalDateTime... values) {

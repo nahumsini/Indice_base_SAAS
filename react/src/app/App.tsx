@@ -28,7 +28,7 @@ import type { AuthSessionResponse } from './api/auth.types';
 import { routeForBackendSlug } from './config/moduleCatalog';
 import { useAccessibleModuleCatalog } from './hooks/useAccessibleModuleCatalog';
 import { canAccessModulePage } from './access/accessRules';
-import { allowedModuleTabIds, canAccessKioskCenter, MODULE_TAB_SCOPE_CATALOG } from './access/tabScopeCatalog';
+import { allowedModuleTabIds, canAccessKioskCenter, MODULE_TAB_SCOPE_CATALOG, resolveModuleTabId } from './access/tabScopeCatalog';
 import { useAuthorizationRevision } from './hooks/useAuthorizationRevision';
 import { ProductAnalyticsTracker } from './analytics/ProductAnalyticsTracker';
 import { usePaymentRequest } from './Billing/hooks/usePaymentRequest';
@@ -36,8 +36,7 @@ import { PaymentRequestBanner } from './Billing/components/PaymentRequestBanner'
 import { PaymentRequestRecovery } from './Billing/components/PaymentRequestRecovery';
 import { MessagingLauncher } from './Messaging/MessagingLauncher';
 import { isCollectionBlocked, PAYMENT_REQUEST_OVERDUE } from './Billing/paymentRequestPresentation';
-import { DualWorkspacePane } from './components/workbar/DualWorkspacePane';
-import { useWorkbarLayout } from './components/workbar/WorkbarLayoutContext';
+import { DualWorkspaceHost } from './components/workbar/DualWorkspaceHost';
 
 const getNavigationSuccessToast = (state: unknown) => {
   if (!state || typeof state !== 'object' || !('successToast' in state)) {
@@ -404,7 +403,6 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const { t, currentLanguage } = useLanguage();
-  const { isDualScreenActive } = useWorkbarLayout();
   const english = currentLanguage.code.startsWith('en');
   const { pathname, state } = location;
   const { pageId, '*': wildcardPath } = useParams();
@@ -447,7 +445,8 @@ export default function App() {
   );
   const isSubscriptionBlocked = Boolean(subscriptionInfo && !subscriptionInfo.access_allowed && !isBillingPage);
   const currentTabScopeDefinition = currentPage ? MODULE_TAB_SCOPE_CATALOG[currentPage] : undefined;
-  const requestedTabId = wildcardPath?.split('/').filter(Boolean)[0];
+  const rawRequestedTabId = wildcardPath?.split('/').filter(Boolean)[0];
+  const requestedTabId = currentPage && rawRequestedTabId ? resolveModuleTabId(currentPage, rawRequestedTabId) : rawRequestedTabId;
   const allowedCurrentTabIds = currentPage && currentTabScopeDefinition && sessionTabAccess !== undefined
     ? allowedModuleTabIds(currentPage, Object.keys(currentTabScopeDefinition.tabs), sessionTabAccess)
     : [];
@@ -819,10 +818,10 @@ export default function App() {
       onManageBilling={() => navigate('/billing')}
     />
   ) : pageContent;
-  const showDualWorkspace = isDualScreenActive
-    && !isEmbeddedWorkspacePane
+  const allowDualWorkspace = !isEmbeddedWorkspacePane
     && !collectionBlocked
-    && !isBillingPage;
+    && !isBillingPage
+    && !isSubscriptionBlocked;
 
   return (
     <div
@@ -878,7 +877,7 @@ export default function App() {
             {renderedPageContent}
           </Suspense>
         </section>
-        {showDualWorkspace ? <DualWorkspacePane /> : null}
+        <DualWorkspaceHost enabled={allowDualWorkspace} />
       </main>
       <SuccessToast
         isVisible={Boolean(successToastMessage)}

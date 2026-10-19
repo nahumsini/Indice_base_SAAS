@@ -8,7 +8,7 @@ export const enUS = {
     management: 'Management',
     funnelingDescription: 'Plan campaign funnels and goals.',
     mailingDescription: 'Prepare and send email campaigns.',
-    whatsappingDescription: 'In preparation: sending is not yet available.',
+    whatsappingDescription: 'Prepare campaigns and follow up through WhatsApp.',
   },
   loading: {
     openingTitle: 'Opening Sales',

@@ -53,7 +53,7 @@ function Fixture() {
         onJourneyChange={setGuideTab} onPrimaryAction={() => {}} /></section>
       <section data-testid="hr-guide"><HumanResourcesGuide copy={humanResourcesEnglish} activeTabId={hrTab as never}
         availableTabIds={['collaborators', 'attendance', 'payroll']} onNavigateArea={setHrTab} onPrimaryAction={() => {}} /></section>
-      <section data-testid="dashboard-guide"><OperationalJourney copy={copy.operationalJourney}
+      <section data-testid="dashboard-guide"><OperationalJourney copy={copy.operationalJourney} presentation={copy.learningPresentation}
         stages={buildOperationalJourneyView(preferences.learningStep)} stageModules={{}}
         activeStageId={buildOperationalJourneyView(preferences.learningStep)[preferences.learningStep]?.id}
         onStageSelect={() => {}} onModuleClick={() => {}} onDismiss={() => preferences.setLearningModeVisible(false)} /></section>

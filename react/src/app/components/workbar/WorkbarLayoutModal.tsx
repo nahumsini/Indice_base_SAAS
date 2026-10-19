@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, Columns2, LayoutPanelTop, LoaderCircle, PanelLeft } from 'lucide-react';
 import { useLanguage } from '../../shared/context';
 import { IndiceModalFrame } from '../indice-modal';
@@ -49,40 +49,46 @@ export function WorkbarLayoutModal({ onOpenChange, open }: WorkbarLayoutModalPro
     dualScreenAvailable,
     dualScreenEnabled,
     position,
-    setDualScreenEnabled,
-    setPosition,
+    preferenceScope, preferencesReady, preferenceError, retryPreferences, savePreferences,
   } = useWorkbarLayout();
   const [selectedPosition, setSelectedPosition] = useState<WorkbarPosition>(position);
   const [enableDualScreen, setEnableDualScreen] = useState(dualScreenEnabled);
   const [applying, setApplying] = useState(false);
+  const applyingRef = useRef(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const copy = getWorkbarLayoutCopy(currentLanguage.code);
 
   useEffect(() => {
     if (open) {
       setSelectedPosition(position);
       setEnableDualScreen(dualScreenEnabled);
+      setSaveFailed(false);
     }
-  }, [dualScreenEnabled, open, position]);
+  }, [open, preferenceScope, preferencesReady]);
+  useEffect(() => { if (saveFailed || preferenceError) bodyRef.current?.scrollTo({ top: 0 }); }, [saveFailed, preferenceError]);
 
-  const applySelection = () => {
+  const applySelection = async () => {
+    if (applyingRef.current || !preferencesReady) return;
+    applyingRef.current = true;
     setApplying(true);
-    setPosition(selectedPosition);
-    if (!dualScreenEnabled && enableDualScreen && dualScreenAvailable) {
-      setDualScreenEnabled(true);
-    }
-    window.requestAnimationFrame(() => {
-      setApplying(false);
+    setSaveFailed(false);
+    try {
+      await savePreferences({ position: selectedPosition, dualScreenEnabled: dualScreenEnabled || enableDualScreen });
       onOpenChange(false);
-    });
+    } catch { setSaveFailed(true); }
+    finally { applyingRef.current = false; setApplying(false); }
   };
 
   return (
     <IndiceModalFrame
       open={open}
       busy={applying}
+      bodyRef={bodyRef}
+      footerSummary={copy.scopeSummary}
       onOpenChange={onOpenChange}
       modalType="standard-form"
-      contentClassName="sm:max-w-2xl"
+      contentClassName="sm:max-w-2xl indice-account-preferences"
       tone="blue"
       icon={<PanelLeft className="h-5 w-5" />}
       eyebrow={copy.eyebrow}
@@ -93,13 +99,18 @@ export function WorkbarLayoutModal({ onOpenChange, open }: WorkbarLayoutModalPro
           <button type="button" onClick={() => onOpenChange(false)} disabled={applying}>
             {copy.cancel}
           </button>
-          <button type="button" onClick={applySelection} disabled={applying} className="inline-flex items-center justify-center gap-2">
+          <button type="button" onClick={() => void applySelection()} disabled={applying || !preferencesReady} className="inline-flex items-center justify-center gap-2">
             {applying ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
             {applying ? copy.applying : copy.apply}
           </button>
         </>
       )}
     >
+      {!preferencesReady || preferenceError || saveFailed ? <div role={preferenceError || saveFailed ? 'alert' : 'status'} className="mb-4 rounded-xl border border-slate-300 p-3 text-sm dark:border-slate-600 dark:text-slate-200">
+        {saveFailed ? copy.saveError : preferenceError ? copy.loadError : copy.loadingPreferences}
+        {preferenceError ? <button type="button" onClick={retryPreferences} className="ml-2 min-h-11 px-2 font-medium underline">{copy.retry}</button> : null}
+      </div> : null}
+      <fieldset disabled={applying || !preferencesReady} className="min-w-0">
       <fieldset>
         <legend className="sr-only">{copy.description}</legend>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -175,7 +186,7 @@ export function WorkbarLayoutModal({ onOpenChange, open }: WorkbarLayoutModalPro
         )}>
           <span className="min-w-0">
             <span className="block text-sm font-medium text-slate-900 dark:text-white">
-              {dualScreenEnabled ? copy.dualScreenActive : copy.dualScreenEnable}
+              {dualScreenEnabled ? (dualScreenAvailable ? copy.dualScreenActive : copy.dualScreenSaved) : copy.dualScreenEnable}
             </span>
             <span className="mt-0.5 block text-xs leading-5 text-slate-500 dark:text-slate-400">
               {dualScreenAvailable ? copy.dualScreenCloseHint : copy.dualScreenUnavailable}
@@ -183,24 +194,26 @@ export function WorkbarLayoutModal({ onOpenChange, open }: WorkbarLayoutModalPro
           </span>
           <span className={cn(
             'relative h-7 w-12 shrink-0 rounded-full border transition',
-            enableDualScreen
+            enableDualScreen && dualScreenAvailable
               ? 'border-[var(--indice-brand-action)] bg-[var(--indice-brand-action)]'
               : 'border-slate-300 bg-slate-200 dark:border-slate-600 dark:bg-slate-700',
           )}>
             <span className={cn(
               'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition',
-              enableDualScreen ? 'left-[22px]' : 'left-0.5',
+              enableDualScreen && dualScreenAvailable ? 'left-[22px]' : 'left-0.5',
             )} />
           </span>
           <input
             type="checkbox"
-            checked={enableDualScreen}
+            checked={enableDualScreen && dualScreenAvailable}
             disabled={dualScreenEnabled || !dualScreenAvailable}
             onChange={(event) => setEnableDualScreen(event.target.checked)}
             className="sr-only"
           />
         </label>
+        {dualScreenEnabled || enableDualScreen ? <p className="mt-3 text-xs leading-5 text-slate-600 dark:text-slate-300">{copy.dualLayoutHint}</p> : null}
       </section>
+      </fieldset>
     </IndiceModalFrame>
   );
 }

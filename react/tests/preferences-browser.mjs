@@ -8,7 +8,7 @@ try {
   await server.listen();
   browser = await chromium.launch({ headless: true, ...(process.env.INDICE_CHROME_PATH ? { executablePath: process.env.INDICE_CHROME_PATH } : {}) });
   const page = await browser.newPage();
-  const errors = [], saved = new Map();
+  const errors = [], saved = new Map(), views = new Map(), chapters = new Map();
   let identity = '9001:9001', failSave = false, failLoad = false, delayLoad = 0, delaySave = 0, writes = 0;
   page.on('pageerror', error => errors.push(error.message));
   await page.route('**/*', async route => {
@@ -29,6 +29,29 @@ try {
       }
       return route.fulfill({ json: { state: saved.get(scope) ?? {}, schemaVersion: 1 } });
     }
+    if (url.pathname.startsWith('/api/v1/workspace-state/system/learning-view-')) {
+      const scope = identity;
+      assert.equal(request.headers()['x-learning-actor'], scope.split(':').reverse().join(':'));
+      const key = `${scope}:${url.pathname}`;
+      if (request.method() === 'PUT') views.set(key, request.postDataJSON().state);
+      return route.fulfill({json:{state:views.get(key)??{},schemaVersion:1}});
+    }
+    if (url.pathname === '/api/v1/learning/progress') {
+      if (!chapters.has(identity)) chapters.set(identity, {
+        catalogVersion:'synthetic',currentChapterId:null,stages:[],nextMission:null,
+        chapters:[['expenses','budgets'],['human_resources','attendance'],['human_resources','collaborators']].map(([module,tab])=>({
+          chapterId:`${module}.${tab}`,version:module==='expenses'?3:2,module,tab,stage:1,pageId:module,
+          label:tab,status:'pending',understoodAt:null,appliedAt:null,journey:true,companion:true,steps:[],
+        })),
+      });
+      const progress=chapters.get(identity);
+      if(request.method()==='POST') {
+        const change=request.postDataJSON();const chapter=progress.chapters.find(item=>item.chapterId===change.chapterId);
+        assert.ok(chapter,'the fixture must declare every exercised chapter');
+        if(change.operation==='understood'){chapter.status='understood';chapter.understoodAt=new Date().toISOString();}
+      }
+      return route.fulfill({json:progress});
+    }
     return route.fulfill({ status: 500, json: { message: `Unexpected ${url.pathname}` } });
   });
   await page.addInitScript(() => localStorage.setItem('frontend-indice-language', new URL(location.href).searchParams.get('language') ?? 'en-US'));
@@ -36,7 +59,7 @@ try {
   await page.goto('http://127.0.0.1:5191/tests/browser/preferences.html');
   await active(true);
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page.getByRole('checkbox', { name: 'Guidance throughout Índice' }).locator('..').click();
+  await page.getByRole('checkbox', { name: 'Help inside modules' }).locator('..').click();
   await page.getByRole('button', { name: 'Save changes' }).click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   await active(false);
@@ -47,7 +70,7 @@ try {
   assert.equal(saved.get(identity)?.active, false, 'disabled mode must survive logout/local storage cleanup');
   console.log('PASS: English settings, durable opt-out after logout');
   const openSettings = () => page.getByRole('button', { name: 'Settings', exact: true }).click();
-  const toggleLearning = () => page.getByRole('checkbox', { name: 'Guidance throughout Índice' }).locator('..').click();
+  const toggleLearning = () => page.getByRole('checkbox', { name: 'Help inside modules' }).locator('..').click();
   const saveButton = () => page.getByRole('button', { name: 'Save changes', exact: true });
   const ready = () => page.waitForFunction(() => document.querySelector('[data-testid="ready"]')?.textContent === 'true');
   await openSettings(); await toggleLearning();
@@ -108,7 +131,7 @@ try {
   failLoad = false;
   await page.getByRole('button', { name: 'Retry', exact: true }).click();
   await ready();
-  assert.equal(await page.getByRole('checkbox', { name: 'Guidance throughout Índice' }).isChecked(), true);
+  assert.equal(await page.getByRole('checkbox', { name: 'Help inside modules' }).isChecked(), true);
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   console.log('PASS: load failures block changes and preserve the account preference');
   const confirmed = saved.get(identity);
@@ -143,7 +166,8 @@ try {
   const expenses = page.getByTestId('expenses-guide');
   await expenses.getByRole('button', { name: 'Learn more', exact: true }).click();
   await expenses.getByRole('button', { name: 'Step 2, Budgets: To review' }).click();
-  await expenses.getByRole('heading', { name: 'Budgets', exact: true }).waitFor();
+  assert.equal(await expenses.getByRole('button', { name: 'Step 2, Budgets: To review' }).getAttribute('aria-current'), 'step');
+  await expenses.locator('h3').first().waitFor();
   await expenses.getByRole('button', { name: 'I understand', exact: true }).click();
   assert.doesNotMatch(await expenses.innerText(), /Modo aprendiz|Presupuestos|Por revisar|Ir a las funciones/);
   const hr = page.getByTestId('hr-guide');
@@ -151,7 +175,7 @@ try {
   await hr.getByRole('button', { name: 'Learn more', exact: true }).click();
   await hr.getByRole('button', { name: 'Review attendance', exact: true }).waitFor();
   assert.doesNotMatch(await hr.innerText(), /Paso |Por revisar|Recorrido lógico/);
-  assert.ok((await page.getByTestId('dashboard-guide').innerText()).includes('Session'));
+  assert.equal(await page.getByTestId('dashboard-guide').locator('button[aria-pressed]').count(), 6);
   console.log('PASS: English module flow, HR area navigation, understood state and six-stage dashboard');
   await page.addInitScript(() => {
     const get = Storage.prototype.getItem, set = Storage.prototype.setItem;

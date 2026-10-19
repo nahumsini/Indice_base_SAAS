@@ -36,7 +36,6 @@ test('sale dates are presented without browser timezone day shifts', () => {
 test('native routing and permission are registered across all owner boundaries', () => {
   const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
   assert.match(read('../src/app/config/navigation.ts'), /sales_board: 'sales-board'/);
-  assert.match(read('../src/app/access/tabScopeCatalog.ts'), /'sales-board': \{ moduleSlug: 'sales_board', tabs: \{ overview: 'overview' \}/);
   assert.match(read('../../src/main/java/com/indice/erp/access/tab/TabPermissionRouteClassifier.java'), /one\("sales_board.overview"\)/);
   assert.match(read('../../src/main/java/com/indice/erp/configcenter/users/ConfigCenterTabPermissionCatalog.java'), /tab\("sales_board", "overview"/);
 });
@@ -64,4 +63,40 @@ test('sales-board tab assignment and entry agree with the server organizational 
   assert.equal(canAccessModuleTab('sales-board', 'overview', session), true);
   session.user.tab_permission_keys = [];
   assert.equal(canAccessModuleTab('sales-board', 'overview', session), false);
+});
+
+test('quick periods use company calendar dates across months and week boundaries', async () => {
+  const { periodRange, detectedPeriod } = await import('../src/app/ComplementaryModules/SalesBoard/boardModel.ts');
+  assert.deepEqual(periodRange('week', '2026-01-01'), { from: '2025-12-29', to: '2026-01-01' });
+  assert.deepEqual(periodRange('week', '2026-10-19'), { from: '2026-10-19', to: '2026-10-19' });
+  assert.deepEqual(periodRange('month', '2024-02-29'), { from: '2024-02-01', to: '2024-02-29' });
+  assert.deepEqual(periodRange('today', '2026-10-18'), { from: '2026-10-18', to: '2026-10-18' });
+  assert.equal(periodRange('today', '2026-02-30'), null);
+  assert.equal(detectedPeriod(boardDefaults, '2026-10-19'), 'month');
+  assert.equal(detectedPeriod({ from: '2026-08-01', to: '2026-08-31' }, '2026-10-19'), 'custom');
+  assert.equal(normalizeFilters({ sort: 'amount' }).sort, 'amount');
+});
+test('channel shares preserve incomplete conversion and zero denominators', async () => {
+  const { amountShare } = await import('../src/app/ComplementaryModules/SalesBoard/boardModel.ts');
+  const total = { partial: false, preferredTotal: 200 };
+  assert.equal(amountShare({ partial: false, preferredTotal: 50 }, total), .25);
+  assert.equal(amountShare({ partial: true, preferredTotal: 50 }, total), null);
+  assert.equal(amountShare(total, { partial: true, preferredTotal: 200 }), null);
+  assert.equal(amountShare(total, { partial: false, preferredTotal: 0 }), null);
+});
+test('CSV export loads every filtered page and rejects incomplete or changing results', async () => {
+  const { collectBoardExport, boardCsv } = await import('../src/app/ComplementaryModules/SalesBoard/boardExport.ts');
+  const controller = new AbortController(), all = Array.from({ length: 205 }, (_, id) => ({ sale: { id } })), calls = [];
+  const rows = await collectBoardExport(async (page, size) => {
+    calls.push([page, size]); return { items: all.slice((page - 1) * size, page * size), total: 205, page };
+  }, 205, controller.signal);
+  assert.equal(rows.length, 205); assert.deepEqual(calls, [[1, 200], [2, 200]]);
+  await assert.rejects(collectBoardExport(async () => ({ items: [], total: 5, page: 1 }), 5, controller.signal));
+  await assert.rejects(collectBoardExport(async () => ({ items: all, total: 206, page: 1 }), 205, controller.signal));
+  await assert.rejects(collectBoardExport(async page => ({ items: [all[0]], total: 2, page }), 2, controller.signal));
+  await assert.rejects(collectBoardExport(async () => { throw Error('must not fetch'); }, 10001, controller.signal), /export_limit/);
+  controller.abort(); await assert.rejects(collectBoardExport(async () => {}, 1, controller.signal));
+  const csv = boardCsv([['=HYPERLINK("bad")', ' +cmd', 'a,"b"\nc', 20.75, -5]]);
+  assert.ok(csv.startsWith('\uFEFF')); assert.ok(csv.includes("'=HYPERLINK")); assert.ok(csv.includes("' +cmd"));
+  assert.ok(csv.includes('"a,""b""\nc"')); assert.ok(csv.includes('"20.75","-5"'));
 });

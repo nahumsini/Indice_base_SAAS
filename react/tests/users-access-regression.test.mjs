@@ -74,7 +74,7 @@ test('acciones y modulos visibles provienen de capacidades del backend', () => {
   assert.doesNotMatch(usersSource, /buildAvailableModules/);
   assert.doesNotMatch(usersSource, /buildDefaultModuleCatalog/);
   assert.doesNotMatch(usersSource, /mergeAvailableModules/);
-  assert.match(configCenterApiSource, /activateUser\(id: number\)[\s\S]*?\/activate/);
+  assert.match(configCenterApiSource, /activateUser\(id: number, actor\?: string \| null\)[\s\S]*?\/activate/);
 });
 
 test('usuarios conserva operacion movil y errores estructurados de licencias', () => {

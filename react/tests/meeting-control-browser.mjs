@@ -5,25 +5,25 @@ import { tmpdir } from "node:os";
 const artifactDir=resolve(process.env.INDICE_BROWSER_ARTIFACTS || tmpdir(), "indice-coordination");
 mkdirSync(artifactDir,{recursive:true});
 import { createServer } from "vite";
-const { chromium } = await import(
+const { chromium, webkit } = await import(
   process.env.INDICE_PLAYWRIGHT_MODULE || "playwright"
 );
-const origin = "http://127.0.0.1:5196";
+const origin = "http://127.0.0.1:5197";
 const server = await createServer({
   root: resolve(import.meta.dirname, ".."),
   cacheDir: resolve(
     import.meta.dirname,
     "../node_modules/.vite-meeting-browser",
   ),
-  server: { host: "127.0.0.1", port: 5196, strictPort: true },
+  server: { host: "127.0.0.1", port: 5197, strictPort: true, hmr: false, watch: null },
   define: { "import.meta.env.VITE_API_BASE_URL": '""' },
 });
 let browser;
 try {
   await server.listen();
-  browser = await chromium.launch({
+  browser = await (process.env.INDICE_BROWSER === "webkit" ? webkit : chromium).launch({
     headless: true,
-    ...(process.env.INDICE_CHROME_PATH
+    ...(process.env.INDICE_BROWSER !== "webkit" && process.env.INDICE_CHROME_PATH
       ? { executablePath: process.env.INDICE_CHROME_PATH }
       : {}),
   });
@@ -143,7 +143,7 @@ try {
       });
     if (path === "/api/v1/learning/progress") return ok({catalogVersion:"synthetic",currentChapterId:null,stages:[],chapters:[],nextMission:null});
     if (path.startsWith("/api/v1/workspace-state/"))
-      return ok({ state: {}, schemaVersion: 1 });
+      return ok({state:req.method()==='PUT'?req.postDataJSON().state:{},schemaVersion:1});
     if (path === "/api/v1/modules")
       return ok([
         {
@@ -455,7 +455,7 @@ try {
       ),
     );
   await page.goto(origin + "/tests/browser/meeting-control.html", { waitUntil: 'domcontentloaded', timeout: 120000 });
-  await page.getByText("Junta de estrategia", { exact: true }).waitFor();
+  await page.getByText("Junta de estrategia", { exact: true }).first().waitFor();
   await fits();
   assert.equal(
     await page
@@ -814,7 +814,20 @@ try {
     .waitFor();
   await fits();
   await page.getByRole("tab", { name: "Calendario", exact: true }).click();
-  await page.getByText("Junta de estrategia", { exact: true }).waitFor();
+  await page.getByRole('button',{name:'Hoy',exact:true}).click();
+  await page.getByRole('button',{name:'Día',exact:true}).click();
+  assert.equal(await page.getByLabel('Desde',{exact:true}).inputValue(),await page.getByLabel('Hasta',{exact:true}).inputValue());
+  await page.getByRole('button',{name:'Semana',exact:true}).click();
+  const weekStart=await page.getByLabel('Desde',{exact:true}).inputValue();assert.equal(new Date(weekStart+'T12:00:00').getDay(),1);
+  await page.getByRole('button',{name:'Mes',exact:true}).click();
+  const originalCount=meetings.length;
+  for(let i=0;i<30;i++)meetings.push({...meetings[0],id:1000+i,title:'Junta de estrategia '+i});
+  await page.getByRole('button',{name:'Actualizar',exact:true}).click();
+  await page.getByRole('button',{name:/Ver juntas del día/}).click();
+  assert.equal(await page.getByRole('region',{name:'Día seleccionado',exact:true}).getByRole('button').count(),31);
+  await page.screenshot({path:resolve(artifactDir,'indice-meeting-busy-day.png'),animations:'disabled',timeout:10000});
+  meetings.splice(originalCount);await page.getByRole('button',{name:'Actualizar',exact:true}).click();
+  await page.getByText("Junta de estrategia", { exact: true }).first().waitFor();
   await settle();
   await page.screenshot({ path: resolve(artifactDir,"indice-meeting-control-dark.png") });
   await page.evaluate(() => document.documentElement.classList.remove("dark"));
@@ -909,5 +922,5 @@ try {
   throw error;
 } finally {
   await browser?.close();
-  await server.close();
+  server.httpServer?.closeAllConnections();await server.close();
 }

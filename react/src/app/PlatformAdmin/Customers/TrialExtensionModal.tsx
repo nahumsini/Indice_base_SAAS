@@ -36,6 +36,7 @@ export function TrialExtensionModal({
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (saving || !consultationConfirmed) return;
     void onConfirm(days);
   };
 
@@ -45,7 +46,6 @@ export function TrialExtensionModal({
       busy={saving}
       onOpenChange={(open) => !open && onClose()}
       modalType="standard-form"
-      contentClassName="sm:max-w-2xl"
       tone="aqua"
       icon={<CalendarPlus className="h-5 w-5" />}
       eyebrow={t("controlledTrial")}
@@ -79,13 +79,13 @@ export function TrialExtensionModal({
         <IndiceModalValidation messages={error ? [error] : []} />
 
         <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-800/60">
-          <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div className="flex flex-col items-start gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#e8f5f2] text-[#177D66]">
                 <CalendarClock className="h-5 w-5" />
               </span>
               <div className="min-w-0">
-                <p className="truncate font-medium text-slate-900 dark:text-white">{company.name}</p>
+                <p className="break-words font-medium text-slate-900 dark:text-white">{company.name}</p>
                 <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                   {company.trial_ends_at
                     ? `${t("currentEnd")}: ${formatDate(company.trial_ends_at, locale)}`
@@ -109,6 +109,7 @@ export function TrialExtensionModal({
 
           <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
             <input
+              disabled={saving}
               type="checkbox"
               checked={consultationConfirmed}
               onChange={(event) => setConsultationConfirmed(event.target.checked)}

@@ -9,6 +9,7 @@ export type EmailAccount = {
   smtpStatus: ConnectionStatus; receiveStatus: ConnectionStatus;
   smtpCheckedAt: string | null; receiveCheckedAt: string | null; version: number;
 };
+export type ConnectionTestResult = EmailAccount & { failureCode?: string | null };
 export type AccountInput = Pick<EmailAccount, 'label' | 'email' | 'displayName' | 'smtpHost' | 'smtpPort' |
   'smtpSecurity' | 'smtpUsername' | 'receiveProtocol' | 'receiveHost' | 'receivePort' | 'receiveUsername' |
   'mailingEnabled' | 'version'> & { smtpPassword: string; receivePassword: string };
@@ -16,7 +17,7 @@ const base = '/api/v1/email/accounts';
 export const emailAccountsApi = {
   list: (signal?: AbortSignal) => apiClient<{ items: EmailAccount[]; configurationAvailable: boolean }>(base, { signal }),
   save: (id: string, input: AccountInput) => apiClient<EmailAccount>(`${base}/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
-  test: (account: EmailAccount, channel: 'SMTP' | 'RECEIVE') => apiClient<EmailAccount>(`${base}/${account.id}/test`, {
+  test: (account: EmailAccount, channel: 'SMTP' | 'RECEIVE') => apiClient<ConnectionTestResult>(`${base}/${account.id}/test`, {
     method: 'POST', body: JSON.stringify({ version: account.version, channel }),
   }),
   disconnect: (account: EmailAccount) => apiClient<void>(`${base}/${account.id}/disconnect`, {

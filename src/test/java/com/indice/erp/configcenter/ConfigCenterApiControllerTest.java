@@ -42,6 +42,12 @@ class ConfigCenterApiControllerTest {
     private SessionAuthService sessionAuthService;
 
     @MockBean
+    private com.indice.erp.learning.LearningProgressRepository learningProgressRepository;
+
+    @MockBean
+    private com.indice.erp.learning.LearningCatalogService learningCatalogService;
+
+    @MockBean
     private SessionCsrfService sessionCsrfService;
 
     @MockBean
@@ -153,7 +159,7 @@ class ConfigCenterApiControllerTest {
         );
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(configCenterService.saveEmpresa(org.mockito.ArgumentMatchers.eq(7L), org.mockito.ArgumentMatchers.eq(1L), anyMap()))
+        given(configCenterService.saveCompany(org.mockito.ArgumentMatchers.eq(currentUser), anyMap()))
             .willReturn(savedPayload);
 
         mockMvc.perform(put("/api/v1/config-center/company")

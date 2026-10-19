@@ -12,7 +12,7 @@ import { getSchedulingOperationsCopy } from '../translations/schedulingOperation
 import { schedulingEmoji, schedulingTone } from '../utils/schedulingIdentity';
 
 export const panelClass = 'rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900';
-export const controlClass = cn(getIndiceFilterControlClassName(schedulingTone), 'rounded-[12px] [color-scheme:light] dark:[color-scheme:dark]');
+export const controlClass = cn(getIndiceFilterControlClassName(schedulingTone), 'rounded-[12px] [color-scheme:light] dark:[color-scheme:dark] focus-within:border-[#FF6B5E] focus-within:ring-2 focus-within:ring-[#FF6B5E]/20');
 export function ActionButton({ primary = false, className = '', ...props }: ComponentProps<typeof Button> & { primary?: boolean }) {
   return <Button type="button" variant={primary ? 'default' : 'outline'} className={`min-h-11 rounded-xl px-4 font-medium focus-visible:border-[var(--scheduling-accent,#FF6B5E)] focus-visible:ring-[var(--scheduling-accent,#FF6B5E)]/25 ${primary ? 'bg-[var(--scheduling-accent,#FF6B5E)] text-[var(--scheduling-accent-foreground,#222831)] hover:bg-[var(--scheduling-accent,#FF6B5E)] hover:brightness-95' : 'border-slate-200 bg-white text-slate-700 shadow-none hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'} ${className}`} {...props} />;
 }
@@ -53,7 +53,9 @@ export function EditorFrame({ title, description, copy, children, onSave, onClos
   const close = () => dirty || hasChanges ? setDiscard(true) : onClose();
   return <IndiceModalFrame open onOpenChange={open => { if (!open) close(); }} busy={busy} tone={schedulingTone} closeLabel={copy.close}
     modalType={discard ? 'confirmation' : modalType} title={discard ? copy.discard : title}
-    description={description} icon={<span className="text-xl leading-none">{icon}</span>} footer={discard ? <>
+    contentClassName="group/agenda-editor data-[dialog-compact-viewport=true]:!overflow-hidden"
+    bodyClassName="group-data-[dialog-compact-viewport=true]/agenda-editor:!flex-[1_1_0%] group-data-[dialog-compact-viewport=true]/agenda-editor:!overflow-y-auto"
+    description={<span className="group-data-[dialog-compact-viewport=true]/agenda-editor:sr-only">{description}</span>} icon={<span className="text-xl leading-none">{icon}</span>} footer={discard ? <>
       <ActionButton onClick={() => setDiscard(false)}>{copy.keepEditing}</ActionButton><ActionButton onClick={onClose}>{copy.close}</ActionButton>
     </> : <><ActionButton disabled={busy} onClick={close}>{copy.cancel}</ActionButton><ActionButton primary disabled={busy} type="submit" form={formId} data-modal-destructive={destructive||undefined} style={destructive?{'--scheduling-accent':'#DC2626','--scheduling-accent-foreground':'#FFFFFF'} as React.CSSProperties:undefined}>{busy ? copy.loading : saveLabel??copy.save}</ActionButton></>}>
     {!discard && <form id={formId} className="space-y-5" onChange={() => setDirty(true)} onSubmit={async event => {

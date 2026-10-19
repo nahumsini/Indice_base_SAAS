@@ -1,3 +1,4 @@
+import { IndiceModalValidation } from '../components/indice-modal';
 import { Ban, LoaderCircle, MoreHorizontal, Power, RefreshCw } from 'lucide-react';
 import type { MultiKioskSummary } from '../api/multiKiosks';
 import { KioskModalFrame } from '../components/kiosk-engine/KioskModalFrame';
@@ -70,12 +71,14 @@ export function MultiKioskOptionsModal({
 }
 
 export function MultiKioskCommandConfirmationModal({
+  error,
   busy,
   command,
   copy,
   onCancel,
   onConfirm,
 }: {
+  error?: string;
   busy: boolean;
   command: MultiKioskPendingCommand;
   copy: KioskCenterWorkspaceCopy;
@@ -96,7 +99,7 @@ export function MultiKioskCommandConfirmationModal({
       busy={busy}
       size="compact"
       surface="administration"
-      tone={content.tone}
+      tone="blue"
       icon={content.icon}
       title={content.title}
       description={content.description}
@@ -104,14 +107,15 @@ export function MultiKioskCommandConfirmationModal({
       footer={(
         <>
           <Button type="button" variant="outline" onClick={onCancel} disabled={busy}>{copy.confirmation.cancel}</Button>
-          <Button type="button" onClick={onConfirm} disabled={busy} data-modal-destructive={command.action === 'revoke' ? true : undefined}>
+          <Button type="button" onClick={onConfirm} disabled={busy} data-modal-destructive={command.action === 'revoke' || command.action === 'disable' ? true : undefined}>
             {busy ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : null}
             {busy ? copy.confirmation.processing : content.action}
           </Button>
         </>
       )}
     >
-      <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white">{command.item.name}</div>
+      <IndiceModalValidation messages={error ? [error] : []} />
+      <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-slate-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-white">{command.item.name}</div>
     </KioskModalFrame>
   );
 }

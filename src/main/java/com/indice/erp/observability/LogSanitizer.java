@@ -18,6 +18,12 @@ final class LogSanitizer {
             + "public-catalog|pos-self-service|pos-display|customer-displays/public|"
             + "(?:pos/public/)?supplier-portal)/)([^/?#\\s]+)"
     );
+    private static final Pattern INVITATION_TOKEN_PATH = Pattern.compile(
+        "(?i)(/(?:api/v1/invitations|invite)/)([^/?#\\s]+)"
+    );
+    private static final Pattern PASSWORD_RESET_TOKEN_PATH = Pattern.compile(
+        "(?i)(/api/v1/auth/password-reset/)(?!request(?:/|$))([^/?#\\s]+)|(?i)(/reset-password/)([^/?#\\s]+)"
+    );
     private static final Pattern VALID_REQUEST_ID = Pattern.compile("[A-Za-z0-9._:-]{1,128}");
     private static final Pattern SAFE_CLIENT_IP = Pattern.compile("[^0-9a-fA-F:., ]");
 
@@ -55,6 +61,9 @@ final class LogSanitizer {
             sanitized = sanitized.substring(0, queryStart);
         }
         sanitized = KIOSK_ACCESS_PATH_SEGMENT.matcher(sanitized).replaceAll("$1[redacted]");
+        sanitized = INVITATION_TOKEN_PATH.matcher(sanitized).replaceAll("$1[redacted]");
+        sanitized = PASSWORD_RESET_TOKEN_PATH.matcher(sanitized).replaceAll(match ->
+            (match.group(1) != null ? match.group(1) : match.group(3)) + "[redacted]");
         return truncate(sanitized, MAX_PATH_LENGTH);
     }
 

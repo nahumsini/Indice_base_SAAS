@@ -28,10 +28,14 @@ type Props = {
   onToggle: () => void;
 };
 
+export function getBillingProductName(product: BillingCatalogProduct, copy: BillingCopy) {
+  return copy.moduleNames[resolveProductIdentity(product.capabilities).key] || product.display_name;
+}
+
 export function BillingProductCard(props: Props) {
   const identity = resolveProductIdentity(props.product.capabilities);
   const Icon = identity.icon;
-  const name = props.copy.moduleNames[identity.key] || props.product.display_name;
+  const name = getBillingProductName(props.product, props.copy);
   const capabilities = props.product.capabilities
     .slice(0, 3)
     .map((capability) => props.copy.capabilityNames[capability] || humanize(capability));

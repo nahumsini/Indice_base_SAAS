@@ -14,7 +14,8 @@ test('el Centro de kioscos conserva su header contextual durante el desplazamien
   assert.match(center, /backdrop-blur-xl/);
   assert.match(center, /IndiceAdminWorkspaceHeader/);
   assert.match(center, /backLabel=\{workspaceCopy\.backToDashboard\}/);
-  assert.match(center, /className="min-w-max flex-nowrap"/);
+  assert.match(center, /variant="workbar"/);
+  assert.match(center, /moduleId="kiosk-center"/);
   assert.match(center, /activeViewCopy\.description/);
   assert.match(center, /tone="blue"/);
   assert.doesNotMatch(center, /tone="aqua"/);

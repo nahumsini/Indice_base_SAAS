@@ -23,6 +23,11 @@ public class MessagingRepository {
             JOIN user_companies uc ON uc.id=p.membership_id JOIN users u ON u.id=uc.user_id
             WHERE p.conversation_id=c.id AND uc.company_id=c.company_id AND p.membership_id<>:membershipId LIMIT 1),'User')
             ELSE c.subject END display_name,
+          (SELECT LEFT(m.body,120) FROM messaging_messages m WHERE m.conversation_id=c.id
+            AND (m.visibility='PUBLIC' OR (m.visibility='INTERNAL' AND m.sender_scope=:scope AND :scope<>'MEMBER')) ORDER BY m.id DESC LIMIT 1) last_message_preview,
+          COALESCE((SELECT EXISTS(SELECT 1 FROM messaging_attachments att WHERE att.message_id=m.id AND att.company_id=c.company_id)
+            FROM messaging_messages m WHERE m.conversation_id=c.id
+            AND (m.visibility='PUBLIC' OR (m.visibility='INTERNAL' AND m.sender_scope=:scope AND :scope<>'MEMBER')) ORDER BY m.id DESC LIMIT 1),0) last_message_has_attachments,
           (SELECT COUNT(*) FROM messaging_messages m
            WHERE m.conversation_id = c.id AND m.visibility = 'PUBLIC'
              AND m.sender_user_id <> :userId AND m.id > COALESCE(
@@ -268,7 +273,7 @@ public class MessagingRepository {
             r.getString("topic"),r.getString("module_name"),r.getString("language"),r.getString("status"),r.getString("priority"),r.getLong("created_by_membership_id"),
             r.getObject("distributor_company_id",Long.class),r.getObject("assigned_user_id",Long.class),r.getString("assignee_name"),r.getString("requester_name"),
             r.getLong("version"),r.getObject("last_message_id",Long.class),instant(r,"first_response_at"),instant(r,"resolved_at"),instant(r,"awaiting_since"),
-            instant(r,"created_at"),instant(r,"updated_at"),r.getLong("unread_count"),r.getString("display_name"));
+            instant(r,"created_at"),instant(r,"updated_at"),r.getLong("unread_count"),r.getString("display_name"),r.getString("last_message_preview"),r.getBoolean("last_message_has_attachments"));
     }
     private Message message(ResultSet r, int n) throws SQLException {
         return new Message(r.getLong("id"),r.getLong("conversation_id"),r.getLong("sender_user_id"),r.getString("sender_name"),r.getString("sender_scope"),

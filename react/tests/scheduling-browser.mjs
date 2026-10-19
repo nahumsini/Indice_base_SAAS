@@ -5,12 +5,13 @@ import { tmpdir } from 'node:os';
 const artifactDir=resolve(process.env.INDICE_BROWSER_ARTIFACTS || tmpdir(), 'indice-coordination');
 mkdirSync(artifactDir,{recursive:true});
 import { createServer } from 'vite';
-const { chromium } = await import(process.env.INDICE_PLAYWRIGHT_MODULE || 'playwright');
-const origin = 'http://127.0.0.1:5196';
-const server = await createServer({ root: resolve(import.meta.dirname, '..'),cacheDir:resolve(import.meta.dirname,'../node_modules/.vite-scheduling-browser'), server: { host: '127.0.0.1', port: 5196, strictPort: true }, define: { 'import.meta.env.VITE_API_BASE_URL': '""' } });
+const { chromium, webkit } = await import(process.env.INDICE_PLAYWRIGHT_MODULE || 'playwright');
+const testPort = Number(process.env.INDICE_SCHEDULING_TEST_PORT || 5196);
+const origin = `http://127.0.0.1:${testPort}`;
+const server = await createServer({ root: resolve(import.meta.dirname, '..'),cacheDir:resolve(tmpdir(),`indice-scheduling-browser-${testPort}`), server: { host: '127.0.0.1', port: testPort, strictPort: true, hmr: false, watch: null }, define: { 'import.meta.env.VITE_API_BASE_URL': '""' } });
 let browser, page;
 try {
-  await server.listen(); browser = await chromium.launch({ headless: true, ...(process.env.INDICE_CHROME_PATH ? { executablePath: process.env.INDICE_CHROME_PATH } : {}) });page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });page.setDefaultTimeout(20000);
+  await server.listen(); browser = await (process.env.INDICE_BROWSER === "webkit" ? webkit : chromium).launch({ headless: true, ...(process.env.INDICE_BROWSER !== "webkit" && process.env.INDICE_CHROME_PATH ? { executablePath: process.env.INDICE_CHROME_PATH } : {}) });page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, hasTouch: true });page.setDefaultTimeout(20000);
   await page.addInitScript(() => localStorage.setItem('frontend-indice-language','es-MX'));
   const errors=[], unexpected=[], calls=[], requests=[], internalRequests=[];let failOnce=true,salesEnabled=true;
   page.on('pageerror',e=>errors.push(e.message));
@@ -38,7 +39,7 @@ try {
       if(failOnce){failOnce=false;return route.fulfill({status:503,json:{message:'Synthetic retry'}});}return ok({data:{status:'REQUESTED',submissionPolicy:'REVIEW_REQUIRED'}});
     }
     if(path==='/api/v1/auth/me')return ok({user:{id:42,name:'Consultor sintético',role:'superadmin'},company:{id:8,name:'Empresa sintética',role:'superadmin',active:true},csrfToken:'synthetic-csrf'});
-    if(path.startsWith('/api/v1/workspace-state/'))return ok({state:{},schemaVersion:1});
+    if(path.startsWith('/api/v1/workspace-state/'))return ok({state:req.method()==='PUT'?req.postDataJSON().state:{},schemaVersion:1});
     if(path==='/api/v1/modules')return ok([{slug:'scheduling',name:'Agenda y eventos'},...(salesEnabled?[{slug:'crm',name:'Ventas',locked:false}]:[])]);
     if(path==='/api/v1/sales/context')return ok({users:[],units:[],businesses:[]});
     if(path==='/api/v1/hr/users')return ok({items:[]});
@@ -98,7 +99,7 @@ try {
   await page.getByRole('combobox',{name:/^Servicio \/ Eventos/}).selectOption('service:1');await page.getByRole('button',{name:'Continuar',exact:true}).click();
   await page.getByLabel('Fecha',{exact:true}).fill(date);await page.getByRole('button',{name:/10:00|10:00 a/}).click();
   await page.getByRole('button',{name:'Continuar',exact:true}).click();
-  await page.getByLabel('Participante',{exact:true}).fill('Participante sintético');await page.getByLabel('Correo',{exact:true}).fill('participant@example.com');
+  await page.getByRole('textbox',{name:'Participante',exact:true}).fill('Participante sintético');await page.getByLabel('Correo',{exact:true}).fill('participant@example.com');
   await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Continuar',exact:true}).click();await page.getByRole('heading',{name:'Revisar solicitud',exact:true}).waitFor();assert.equal(requests.length,0);await page.getByRole('button',{name:'Enviar solicitud',exact:true}).click();
   await page.getByRole('alert').waitFor();await page.getByRole('button',{name:'Enviar solicitud',exact:true}).click();await page.getByRole('heading',{name:'Solicitud recibida',exact:true}).waitFor();
   assert.equal(requests.length,2);assert.equal(requests[0].key,requests[1].key);assert.deepEqual(requests[0].body,requests[1].body);
@@ -120,13 +121,14 @@ try {
   const agendaHeading=page.getByRole('heading',{name:'Agenda y reservas',exact:true});
   assert.equal(await agendaHeading.evaluate(element=>element.closest('section').querySelectorAll('button').length),4);
   assert.ok(await agendaHeading.evaluate(element=>element.closest('section').classList.contains('bg-[#FF6B5E]/5')));
-  assert.ok(await agendaHeading.evaluate(element=>element.closest('section').innerText.includes('📅')));
+  assert.ok(await agendaHeading.evaluate(element=>Boolean(element.closest('section').querySelector('span[aria-hidden="true"] svg, span[aria-hidden="true"] img'))));
   const filterCard=page.getByRole('region',{name:'Filtros',exact:true});
   assert.equal(await filterCard.getByRole('combobox').count(),2);
   for(const field of [page.getByLabel('Desde',{exact:true}),page.getByLabel('Hasta',{exact:true}),page.getByRole('combobox',{name:'Estado',exact:true}),page.getByRole('combobox',{name:'Colaborador',exact:true})]){
     assert.equal(await field.evaluate(element=>getComputedStyle(element).height),'44px');
     assert.equal(await field.evaluate(element=>getComputedStyle(element).borderRadius),'12px');
   }
+  await page.keyboard.press('Tab');
   await page.getByLabel('Desde',{exact:true}).focus();
   await page.waitForFunction(()=>getComputedStyle(document.activeElement).borderColor==='rgb(255, 107, 94)');
   await selectFilter('Colaborador','Segundo consultor sintético');
@@ -179,9 +181,28 @@ try {
   await page.getByRole('button',{name:'Agenda pública',exact:true}).click();
   await page.getByLabel('Título de la página',{exact:true}).fill('Diagnóstico y próximos eventos');await page.getByRole('button',{name:'Guardar',exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'hidden'});
-  await page.getByRole('button',{name:'Eventos',exact:true}).click();await page.getByRole('button',{name:'Participantes',exact:true}).click();await page.getByRole('button',{name:'Revisar: Participante sintético',exact:true}).click();await page.getByText('555-0100',{exact:true}).waitFor();assert.equal(await page.getByRole('dialog').count(),1);
+  await page.getByRole('button',{name:'Eventos',exact:true}).click();
+  await page.getByLabel('Buscar eventos',{exact:true}).fill('no existe');await page.getByText('No hay registros en esta vista.',{exact:true}).waitFor();
+  await page.getByRole('region',{name:'Filtros',exact:true}).getByRole('button',{name:'Limpiar filtros',exact:true}).first().click();
+  await page.getByRole('button',{name:'Participantes',exact:true}).waitFor();
+  events.push({...event,id:8,title:'Alfa taller',confirmedCount:9});await page.getByRole('button',{name:'Actualizar',exact:true}).click();
+  await page.getByRole('heading',{name:'Alfa taller',exact:true}).waitFor();
+  await page.screenshot({path:resolve(artifactDir,'indice-events-cards.png'),animations:'disabled',timeout:10000});
+  await page.getByRole('tab',{name:'Tabla',exact:true}).click();
+  await page.locator('thead').getByRole('button',{name:'Eventos',exact:true}).click();
+  assert.match(await page.locator('tbody tr').first().innerText(),/Alfa taller/);
+  await page.locator('thead').getByRole('button',{name:'Eventos',exact:true}).click();
+  assert.match(await page.locator('tbody tr').first().innerText(),/Webinar de prueba/);
+  await selectFilter('Estado','Sin publicar');await page.getByText('No hay registros en esta vista.',{exact:true}).waitFor();await selectFilter('Estado','Todos los estados');
+  await page.getByLabel('Buscar eventos',{exact:true}).fill('Webinar');
+  await page.getByRole('tab',{name:'Tarjetas',exact:true}).click();assert.equal(await page.getByRole('heading',{name:'Alfa taller',exact:true}).count(),0);
+  await page.setViewportSize({width:390,height:844});await fits();await page.screenshot({path:resolve(artifactDir,'indice-events-mobile.png'),animations:'disabled',timeout:10000});
+  await page.evaluate(()=>document.documentElement.classList.add('dark'));await page.screenshot({path:resolve(artifactDir,'indice-events-dark.png'),animations:'disabled',timeout:10000});
+  await page.evaluate(()=>document.documentElement.classList.remove('dark'));await page.setViewportSize({width:1440,height:1000});
+  events.pop();await page.getByLabel('Buscar eventos',{exact:true}).fill('');await page.getByRole('button',{name:'Actualizar',exact:true}).click();
+  await page.getByRole('button',{name:'Participantes',exact:true}).click();await page.getByRole('button',{name:'Revisar: Participante sintético',exact:true}).click();await page.getByText('555-0100',{exact:true}).waitFor();assert.equal(await page.getByRole('dialog').count(),1);
   await page.getByRole('dialog').getByRole('button',{name:'Cerrar',exact:true}).last().click();await page.getByRole('dialog').getByRole('button',{name:'Cerrar',exact:true}).last().click();
-  await page.getByRole('button',{name:'Cancelar evento',exact:true}).click();
+  await page.getByRole('button',{name:'Acciones: Webinar de prueba',exact:true}).click();await page.getByRole('menuitem',{name:'Cancelar evento',exact:true}).click();
   await page.getByLabel('Motivo de cancelación',{exact:true}).fill('Cancelación sintética');await page.getByRole('button',{name:'Guardar',exact:true}).click();await page.getByText('Cancelada',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Agenda y reservas',exact:true}).click();await page.getByRole('tab',{name:'Tabla',exact:true}).click();await page.getByRole('button',{name:'Revisar: Participante sintético',exact:true}).click();
   await page.getByRole('button',{name:'Guardar',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});await page.locator('tbody').getByText('Confirmada',{exact:true}).waitFor();
@@ -236,12 +257,73 @@ try {
   assert.equal(await page.getByRole('button',{name:'Nueva solicitud',exact:true}).count(),0);
   await page.getByRole('button',{name:'Servicios',exact:true}).click();await page.getByRole('button',{name:'Nuevo servicio',exact:true}).waitFor();
   await page.getByRole('dialog').getByRole('button',{name:'Cerrar',exact:true}).last().click();
+  await page.evaluate(()=>{window.schedulingFixture.role('superadmin');document.documentElement.classList.remove('dark');});
+  const footerFits=async()=>{
+    const dialog=page.getByRole('dialog');await dialog.waitFor();
+    await dialog.evaluate(el=>Promise.all(el.getAnimations({subtree:true}).filter(a=>a.effect.getTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{}))));
+    const rect=await dialog.boundingBox(),viewport=page.viewportSize();
+    assert(rect.x>=-1&&rect.y>=-1&&rect.x+rect.width<=viewport.width+1&&rect.y+rect.height<=viewport.height+1,'Agenda modal must fit the viewport');
+    for(const button of await page.locator('[data-slot="dialog-footer"] button').all()){
+      const box=await button.boundingBox();assert(box&&box.y>=-1&&box.x>=-1&&box.y+box.height<=viewport.height+1&&box.x+box.width<=viewport.width+1,`Agenda footer actions must stay reachable: ${JSON.stringify({box,viewport,label:await button.innerText()})}`);
+      assert(box.height>=43,'Agenda footer needs touch-sized actions');
+    }
+  };
+  for(const viewport of [{width:320,height:360},{width:360,height:740},{width:390,height:844},{width:844,height:390}]){
+    await page.setViewportSize(viewport);
+    await page.getByRole('button',{name:'Agenda y reservas',exact:true}).click();
+    await page.getByRole('tab',{name:'Calendario',exact:true}).click();
+    const clear=page.getByRole('region',{name:'Filtros',exact:true}).getByRole('button',{name:'Limpiar filtros',exact:true});
+    if(await clear.isVisible())await clear.click();
+    await page.getByRole('button',{name:'Día',exact:true}).click();await fits();
+    const from=await page.getByLabel('Desde',{exact:true}).inputValue();
+    assert.equal(await page.getByLabel('Hasta',{exact:true}).inputValue(),from);
+    await page.getByRole('button',{name:'Semana',exact:true}).click();await fits();
+    await page.getByRole('button',{name:'Mes',exact:true}).click();
+    const calendar=page.locator('[data-scheduling-workspace] section[aria-label] > div.overflow-x-auto');
+    await calendar.waitFor();assert(await calendar.evaluate(el=>el.scrollWidth>el.clientWidth));
+    await calendar.evaluate(el=>{el.scrollLeft=180;});assert(await calendar.evaluate(el=>el.scrollLeft>0));await fits();
+    for(const field of [page.getByLabel('Desde',{exact:true}),page.getByLabel('Hasta',{exact:true})]){
+      assert.equal(await field.evaluate(el=>getComputedStyle(el).height),'44px');
+      if(viewport.width<768)assert.equal(await field.evaluate(el=>getComputedStyle(el).fontSize),'16px');
+    }
+    await page.getByRole('tab',{name:'Tabla',exact:true}).click();
+    const tableCanvas=page.locator('[data-slot="table-container"]');await tableCanvas.waitFor();
+    assert(await tableCanvas.evaluate(el=>el.scrollWidth>el.clientWidth));await tableCanvas.evaluate(el=>{el.scrollLeft=180;});assert(await tableCanvas.evaluate(el=>el.scrollLeft>0));await fits();
+    await page.getByRole('button',{name:'Nueva solicitud',exact:true}).click();await footerFits();
+    const dialog=page.getByRole('dialog');
+    await dialog.getByRole('combobox',{name:/^Servicio/}).selectOption('service:1');
+    await dialog.getByRole('combobox',{name:/^Consultor/}).selectOption('2');
+    await dialog.getByRole('button',{name:'Continuar',exact:true}).click();await footerFits();
+    await page.getByLabel('Fecha',{exact:true}).fill(date);await page.getByRole('button',{name:/10:00|10:00 a/}).click();
+    await dialog.getByRole('button',{name:'Continuar',exact:true}).click();await footerFits();
+    await page.getByRole('button',{name:/Contacto maestro · master@example.com/}).click();await page.getByRole('checkbox').check();
+    const before=internalRequests.length;
+    await dialog.getByRole('button',{name:'Continuar',exact:true}).click();await footerFits();assert.equal(internalRequests.length,before);
+    await dialog.getByRole('button',{name:/^(Enviar solicitud|Solicitar sesión)$/}).click();
+    await page.getByRole('heading',{name:'Solicitud recibida',exact:true}).waitFor();assert.equal(internalRequests.length,before+1);await footerFits();
+    await dialog.getByRole('button',{name:'Cerrar',exact:true}).last().click();
+    await page.getByRole('button',{name:'Eventos',exact:true}).click();
+    await page.getByRole('tab',{name:'Tabla',exact:true}).click();await page.locator('thead').waitFor();
+    assert.equal(await page.locator('thead th').nth(3).evaluate(el=>getComputedStyle(el).textAlign),'right');
+    const resize=page.locator('thead').getByRole('separator');assert.equal(await resize.count(),5);
+    assert.equal(new Set(await resize.evaluateAll(elements=>elements.map(el=>el.getAttribute('aria-label')))).size,5);
+    await page.getByRole('tab',{name:'Tarjetas',exact:true}).click();await fits();
+    await page.getByRole('button',{name:'Nuevo evento',exact:true}).click();await footerFits();
+    await page.getByRole('dialog').getByRole('button',{name:'Cerrar',exact:true}).first().click();
+    await page.getByRole('dialog').waitFor({state:'hidden'});
+    await page.evaluate(()=>document.documentElement.classList.add('dark'));await fits();
+    await page.screenshot({path:resolve(artifactDir,`agenda-mobile-${viewport.width}x${viewport.height}.png`),animations:'disabled'});
+    await page.evaluate(()=>document.documentElement.classList.remove('dark'));
+    console.log(`PASS mobile ${viewport.width}x${viewport.height}: day/week/month, contained calendar/table scrolling, filters, reservation selection/contact/review/save, reachable modal actions, event cards/table alignment and dark mode`);
+  }
+  await page.setViewportSize({width:1440,height:1000});
+
   await page.goto(`${origin}/book/piloto?consultant=3`,{waitUntil:'domcontentloaded'});
   await page.getByText('Negocio sintético',{exact:true}).waitFor();await page.getByRole('heading',{name:'Diagnóstico y próximos eventos',exact:true}).waitFor();
   assert.equal(await page.locator('[data-public-scheduling]').evaluate(element=>getComputedStyle(element).getPropertyValue('--scheduling-accent').trim()),'#008577');
   await page.getByRole('combobox',{name:/^Servicio \/ Eventos/}).selectOption('service:1');await page.getByRole('button',{name:'Continuar',exact:true}).click();
   await page.getByLabel('Fecha',{exact:true}).fill(date);await page.getByRole('button',{name:/10:00|10:00 a/}).click();await page.getByRole('button',{name:'Continuar',exact:true}).click();
-  await page.getByLabel('Participante',{exact:true}).fill('Cliente de prueba');await page.getByLabel('Correo',{exact:true}).fill('client@example.com');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Continuar',exact:true}).click();
+  await page.getByRole('textbox',{name:'Participante',exact:true}).fill('Cliente de prueba');await page.getByLabel('Correo',{exact:true}).fill('client@example.com');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Continuar',exact:true}).click();
   const themedButton=page.getByRole('button',{name:'Solicitar sesión',exact:true});await themedButton.waitFor();
   await themedButton.evaluate(element=>Promise.all(element.getAnimations().map(animation=>animation.finished.catch(()=>{}))));
   assert.equal(await themedButton.evaluate(element=>getComputedStyle(element).backgroundColor),'rgb(0, 133, 119)');
@@ -249,4 +331,8 @@ try {
   assert.equal(calls.some(c=>c.includes('/platform-admin/')),false);assert.deepEqual(unexpected,[]);assert.deepEqual(errors,[]);
   console.log('PASS private: coral identity/emoji, canonical 44px filters and focus, title action hierarchy, clear/disclosure, single-frame Services/Team/Public agenda modals, shared Sales Clients, reassignment/pause/resume/archive, KPI drilldown, 8 locales, role scope, responsive/dark; public custom theme preserved');
 } catch(error){console.error(error);if(page){console.error('Failure at',page.url(),await page.locator('body').innerText());await page.screenshot({path:resolve(artifactDir,'indice-scheduling-failure.png'),fullPage:true,timeout:10000}).catch(()=>{});}throw error;}
-finally{await browser?.close();await server.close();}
+finally{
+  // The public fixture deliberately ends with an unsent request; discard only this synthetic page.
+  await page?.close({runBeforeUnload:false}).catch(()=>{});
+  await browser?.close();server.httpServer?.closeAllConnections();await server.close();
+}

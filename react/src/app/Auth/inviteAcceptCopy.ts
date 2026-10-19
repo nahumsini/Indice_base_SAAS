@@ -27,6 +27,14 @@ export type InviteAcceptCopy = {
   goToLogin: string;
   passwordMismatch: string;
   passwordLength: string;
+  passwordTooLong: string;
+  passwordRequired: string;
+  currentPasswordIncorrect: string;
+  companyUnavailable: string;
+  retry: string;
+  retryLoad: string;
+  loginPreparing: string;
+  loginPreparationError: string;
   loadFallback: string;
   acceptFallback: string;
   scopeError: string;
@@ -82,6 +90,14 @@ const spanish: InviteAcceptCopy = {
   goToLogin: 'Ir a iniciar sesión',
   passwordMismatch: 'La contraseña y su confirmación deben coincidir.',
   passwordLength: 'La contraseña debe tener al menos 8 caracteres.',
+  passwordTooLong: 'La contraseña es demasiado larga. Usa una más corta.',
+  passwordRequired: 'Escribe tu contraseña y confírmala.',
+  currentPasswordIncorrect: 'La contraseña actual no es correcta. Usa la que ya tienes en Índice.',
+  companyUnavailable: 'La empresa no está disponible. Consulta con quien te invitó.',
+  retry: 'Volver a cargar',
+  retryLoad: 'No pudimos consultar el enlace. Comprueba tu conexión y vuelve a cargar.',
+  loginPreparing: 'Preparando inicio de sesión…',
+  loginPreparationError: 'No pudimos preparar el inicio de sesión. Intenta de nuevo.',
   loadFallback: 'No pudimos cargar la invitación.',
   acceptFallback: 'No pudimos aceptar la invitación.',
   scopeError: 'La invitación no tiene un alcance de acceso válido. Pide al administrador que la reenvíe.',
@@ -144,6 +160,14 @@ const english: InviteAcceptCopy = {
   goToLogin: 'Go to login',
   passwordMismatch: 'Password and confirmation must match.',
   passwordLength: 'Password must be at least 8 characters long.',
+  passwordTooLong: 'The password is too long. Use a shorter one.',
+  passwordRequired: 'Enter your password and confirm it.',
+  currentPasswordIncorrect: 'The current password is incorrect. Use your existing Indice password.',
+  companyUnavailable: 'The company is unavailable. Contact the person who invited you.',
+  retry: 'Reload invitation',
+  retryLoad: 'We could not check this link. Check your connection and reload.',
+  loginPreparing: 'Preparing sign-in…',
+  loginPreparationError: 'We could not prepare sign-in. Please try again.',
   loadFallback: 'Invitation could not be loaded.',
   acceptFallback: 'Invitation could not be accepted.',
   scopeError: 'The invitation does not have a valid access scope. Ask an administrator to resend it.',
@@ -183,6 +207,15 @@ export function getInviteAcceptCopy(languageCode: string): InviteAcceptCopy {
 
 export function localizeInvitationError(message: string, copy: InviteAcceptCopy): string {
   const normalized = message.toLowerCase();
+  if (normalized.includes('existing account password is incorrect')) return copy.currentPasswordIncorrect;
+  if (normalized.includes('password is too long')) return copy.passwordTooLong;
+  if (normalized.includes('password and confirmation are required')) return copy.passwordRequired;
+  if (normalized.includes('invited company is not available')) return copy.companyUnavailable;
+  if (normalized.includes('selected business')) return copy.scopeError;
+  if (normalized.includes('already been accepted')) return copy.descriptions.accepted;
+  if (normalized.includes('has expired')) return copy.descriptions.expired;
+  if (normalized.includes('invitation not found')) return copy.descriptions.invalid;
+  if (normalized.includes('no longer available')) return copy.descriptions.invalid;
   if (normalized.includes('business unit or business access')) {
     return copy.scopeError;
   }
@@ -198,5 +231,5 @@ export function localizeInvitationError(message: string, copy: InviteAcceptCopy)
   if (normalized.includes('password must be at least')) {
     return copy.passwordLength;
   }
-  return message;
+  return copy.acceptFallback;
 }

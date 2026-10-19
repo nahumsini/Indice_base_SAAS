@@ -3,6 +3,7 @@ package com.indice.erp.configcenter.structure;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.configcenter.company.ConfigCenterCompanyUseCases;
+import com.indice.erp.configcenter.company.CompanySettingsInput;
 import com.indice.erp.configcenter.support.BusinessInput;
 import com.indice.erp.configcenter.support.CoordinateInput;
 import com.indice.erp.configcenter.support.ExistingBusiness;
@@ -44,7 +45,7 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
 
         var map = normalizeCorporateOfficeStructure(companyId, normalizeMap(payload));
 
-        persistStructure(companyId, userId, map);
+        map = persistStructure(companyId, userId, map);
 
         var settingsRoot = loadSettingsRoot(companyId);
         var configCenterNode = ensureConfigCenterNode(settingsRoot);
@@ -66,6 +67,9 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
             return desiredUnits;
         }
 
+        var priorNames = new LinkedHashMap<Long,String>();
+        if (desiredUnits.stream().anyMatch(unit -> unit.legacyUnitId()!=null))
+            for (var existing : loadExistingUnits(companyId)) priorNames.put(existing.id(),existing.name());
         var normalizedUnits = new ArrayList<>(desiredUnits);
         var selectedCorporateIndex = -1;
         for (var index = 0; index < desiredUnits.size(); index++) {
@@ -109,6 +113,10 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
                     normalizedUnit.name(),
                     unitHeadquartersBusinessName
                 );
+                if (unitHeadquartersBusinessIndex < 0 && unit.legacyUnitId()!=null && priorNames.containsKey(unit.legacyUnitId())) {
+                    var priorName = priorNames.get(unit.legacyUnitId());
+                    unitHeadquartersBusinessIndex = findUnitHeadquartersBusinessIndex(normalizedBusinesses,priorName,unitHeadquartersBusinessName(priorName));
+                }
                 var existingUnitHeadquartersBusiness = unitHeadquartersBusinessIndex >= 0
                     ? normalizedBusinesses.remove(unitHeadquartersBusinessIndex)
                     : null;
@@ -238,7 +246,7 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
             && normalizeKey(first).equals(normalizeKey(second));
     }
 
-    protected void persistStructure(long companyId, long userId, List<UnitInput> desiredUnits) {
+    protected List<UnitInput> persistStructure(long companyId, long userId, List<UnitInput> desiredUnits) {
         var existingUnits = loadExistingUnits(companyId);
         var existingBusinesses = loadExistingBusinesses(companyId);
 
@@ -259,6 +267,25 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
             );
         }
 
+        var resolvedUnits = new ArrayList<UnitInput>();
+        var requestedUnitIds = new LinkedHashSet<Long>();
+        var requestedBusinessIds = new LinkedHashSet<Long>();
+        var requestedUnitNames = new LinkedHashSet<String>();
+        for (var unit : desiredUnits) {
+            CompanySettingsInput.name(unit.name(), 160);
+            if (!requestedUnitNames.add(normalizeKey(unit.name())) || (unit.legacyUnitId()!=null && !requestedUnitIds.add(unit.legacyUnitId())))
+                throw CompanySettingsInput.error("company_duplicate_name", "Each unit must have its own name and identifier.");
+            if (unit.legacyUnitId()!=null && !existingUnitsById.containsKey(unit.legacyUnitId()))
+                throw CompanySettingsInput.error("company_invalid_organization", "This unit is not in the active company.");
+            var names = new LinkedHashSet<String>();
+            for (var business : unit.businesses()) {
+                CompanySettingsInput.name(business.name(),160);
+                if (!names.add(normalizeKey(business.name())) || (business.legacyBusinessId()!=null && !requestedBusinessIds.add(business.legacyBusinessId())))
+                    throw CompanySettingsInput.error("company_duplicate_name", "Each business must have its own name and identifier.");
+                if (business.legacyBusinessId()!=null && !existingBusinessesById.containsKey(business.legacyBusinessId()))
+                    throw CompanySettingsInput.error("company_invalid_organization", "This business is not in the active company.");
+            }
+        }
         var keptUnitIds = new LinkedHashSet<Long>();
         var keptBusinessIds = new LinkedHashSet<Long>();
 
@@ -282,6 +309,7 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
 
             keptUnitIds.add(unitId);
 
+            var resolvedBusinesses = new ArrayList<BusinessInput>();
             var businessIndex = 0;
             for (var desiredBusiness : desiredUnit.businesses()) {
                 var businessId = matchBusinessId(desiredBusiness, unitId, existingBusinessesById, existingBusinessesByKey);
@@ -332,6 +360,9 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
                     );
                 }
 
+                resolvedBusinesses.add(new BusinessInput(desiredBusiness.name(),businessId,desiredBusiness.logo(),desiredBusiness.industria(),
+                    desiredBusiness.direccion(),desiredBusiness.ciudad(),desiredBusiness.estado(),desiredBusiness.pais(),desiredBusiness.cp(),
+                    desiredBusiness.telefono(),desiredBusiness.email(),desiredBusiness.gerente(),desiredBusiness.horario(),desiredBusiness.coordinates()));
                 keptBusinessIds.add(businessId);
                 var attendanceLocationName = namesMatch(desiredBusiness.name(), CORPORATE_OFFICE_BUSINESS_FALLBACK_NAME)
                     ? CORPORATE_OFFICE_UNIT_NAME
@@ -346,6 +377,8 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
                 );
                 businessIndex++;
             }
+            resolvedUnits.add(new UnitInput(desiredUnit.name(),unitId,desiredUnit.corporateOffice(),desiredUnit.logo(),desiredUnit.industria(),
+                desiredUnit.direccion(),desiredUnit.ciudad(),desiredUnit.estado(),desiredUnit.pais(),desiredUnit.cp(),desiredUnit.telefono(),desiredUnit.email(),desiredUnit.coordinates(),resolvedBusinesses));
         }
 
         for (var business : existingBusinesses) {
@@ -374,6 +407,7 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
                 );
             }
         }
+        return resolvedUnits;
     }
 
     protected List<ExistingUnit> loadExistingUnits(long companyId) {
@@ -678,12 +712,13 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
 
     protected List<UnitInput> normalizeMap(Map<String, Object> payload) {
         var result = new ArrayList<UnitInput>();
-
+        if (payload.containsKey("map") && !(payload.get("map") instanceof List<?>))
+            throw CompanySettingsInput.error("company_invalid_organization", "Send the complete organization list.");
         var rawMap = payload.get("map");
         if (rawMap instanceof List<?> mapList) {
             for (var unitCandidate : mapList) {
                 if (!(unitCandidate instanceof Map<?, ?> unitMap)) {
-                    continue;
+                    throw CompanySettingsInput.error("company_invalid_organization", "A unit is invalid.");
                 }
 
                 var unit = normalizeUnitMap(unitMap);
@@ -701,7 +736,7 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
         if (rawUnits instanceof List<?> unitsList) {
             for (var unitCandidate : unitsList) {
                 if (!(unitCandidate instanceof Map<?, ?> unitMap)) {
-                    continue;
+                    throw CompanySettingsInput.error("company_invalid_organization", "A unit is invalid.");
                 }
 
                 var normalizedUnitMap = new LinkedHashMap<String, Object>();
@@ -744,11 +779,11 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
             safe(objectString(unitMap.get("name"))),
             safe(objectString(unitMap.get("nombre")))
         );
-        if (name.isBlank()) {
-            return null;
-        }
+        CompanySettingsInput.contact(unitMap);
 
         var businesses = new ArrayList<BusinessInput>();
+        if (unitMap.containsKey("businesses") && !(unitMap.get("businesses") instanceof List<?>))
+            throw CompanySettingsInput.error("company_invalid_organization", "Send the complete business list.");
         var rawBusinesses = unitMap.get("businesses");
         if (!(rawBusinesses instanceof List<?>)) {
             rawBusinesses = unitMap.get("negocios");
@@ -787,9 +822,7 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
                 safe(objectString(businessMap.get("name"))),
                 safe(objectString(businessMap.get("nombre")))
             );
-            if (name.isBlank()) {
-                return null;
-            }
+            CompanySettingsInput.contact(businessMap);
 
             return new BusinessInput(
                 name,
@@ -810,9 +843,7 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
         }
 
         var businessName = safe(objectString(businessCandidate));
-        if (businessName.isBlank()) {
-            return null;
-        }
+        CompanySettingsInput.name(businessName,160);
 
         return new BusinessInput(
             businessName,

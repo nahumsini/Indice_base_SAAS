@@ -8,6 +8,7 @@ import { SalesModalFrame } from '../components/SalesModalFrame';
 import { getSalesModalActionClassNames } from '../salesModalStyles';
 import { funnelApi } from './funnelApi';
 import { type FunnelInput, type FunnelStage, type FunnelChannel, type FunnelStatus, moveStage, validateFunnel } from './funnelModel';
+import { campaignCopy } from './campaignCopy';
 import { FunnelPreview } from './FunnelPreview';
 import type { FunnelCopy } from './funnelCopy';
 
@@ -49,7 +50,7 @@ export function FunnelEditor({ id, initial, copy, locale, onClose, onSaved }: {
   async function save() {
     if (inFlight.current || conflict) return;
     const invalid = validateFunnel(draft);
-    if (invalid) { setError(copy[invalid]); return; }
+    if (invalid) { setError(invalid === 'ideaRequired' || invalid === 'briefIncomplete' ? campaignCopy(locale)[invalid] : copy[invalid]); return; }
     inFlight.current = true; setBusy(true); setError('');
     try { await funnelApi.save(id, draft); onSaved(); }
     catch (failure) {

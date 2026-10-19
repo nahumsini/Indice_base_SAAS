@@ -10,12 +10,16 @@ public final class MessagingContracts {
         public boolean member() { return "MEMBER".equals(scope); }
     }
     public record Person(long id, String name) { }
-    public record Context(long userId, long companyId, Long membershipId, Person distributor, boolean supportOnly) { }
+    public record Context(long userId, long companyId, Long membershipId, Person distributor, boolean supportOnly, boolean initialAttachments) {
+        public Context(long userId,long companyId,Long membershipId,Person distributor,boolean supportOnly) {
+            this(userId,companyId,membershipId,distributor,supportOnly,false);
+        }
+    }
     public record Conversation(long id, long companyId, String companyName, String kind, String subject,
         String topic, String moduleName, String language, String status, String priority, long createdByMembershipId,
         Long distributorCompanyId, Long assignedUserId, String assigneeName, String requesterName,
         long version, Long lastMessageId, Instant firstResponseAt, Instant resolvedAt, Instant awaitingSince,
-        Instant createdAt, Instant updatedAt, long unreadCount, String displayName) { }
+        Instant createdAt, Instant updatedAt, long unreadCount, String displayName, String lastMessagePreview, boolean lastMessageHasAttachments) { }
     public record Message(long id, long conversationId, long senderUserId, String senderName, String senderScope,
         String visibility, String requestKey, String body, Instant createdAt, List<Attachment> attachments) {
         public Message(long id,long conversationId,long senderUserId,String senderName,String senderScope,
@@ -40,9 +44,12 @@ public final class MessagingContracts {
         @Override public String toString() { return "Detail[protected]"; }
     }
     public record Create(String kind, Long recipientMembershipId, String subject, String topic, String moduleName,
-        String language, String body, String requestKey, List<Long> participantMembershipIds, String groupName) {
+        String language, String body, String requestKey, List<Long> participantMembershipIds, String groupName, List<String> attachmentIds) {
+        public Create(String kind,Long recipientMembershipId,String subject,String topic,String moduleName,String language,String body,String requestKey,List<Long> participantMembershipIds,String groupName) {
+            this(kind,recipientMembershipId,subject,topic,moduleName,language,body,requestKey,participantMembershipIds,groupName,List.of());
+        }
         public Create(String kind,Long recipientMembershipId,String subject,String topic,String moduleName,String language,String body,String requestKey) {
-            this(kind,recipientMembershipId,subject,topic,moduleName,language,body,requestKey,null,null);
+            this(kind,recipientMembershipId,subject,topic,moduleName,language,body,requestKey,null,null,List.of());
         }
         @Override public String toString() { return "Create[protected]"; }
     }

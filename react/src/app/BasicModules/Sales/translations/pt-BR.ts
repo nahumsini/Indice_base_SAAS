@@ -8,7 +8,7 @@ export const ptBR = {
     management: 'Gestão',
     funnelingDescription: 'Planeje funis e metas de campanha.',
     mailingDescription: 'Prepare e envie campanhas de e-mail.',
-    whatsappingDescription: 'Em preparação: os envios ainda não estão disponíveis.',
+    whatsappingDescription: 'Prepare campanhas e acompanhe contatos pelo WhatsApp.',
   },
   loading: {
     openingTitle: 'Abrindo Vendas',

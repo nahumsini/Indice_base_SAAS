@@ -1,11 +1,11 @@
 # Sales Funneling planning workspace
 
-Status: local implementation, 2026-10-17. Owner: Sales (`crm`).
+Status: local implementation, updated 2026-10-18. Owner: Sales (`crm`).
 
 ## Purpose and boundary
 
-`/sales/funneling` helps users outline campaign objectives, audiences, channels, ordered stages,
-planned actions and success measures. It is a planning tool, independent of the operational
+`/sales/funneling` helps beginners save campaign ideas and optionally outline objectives,
+audiences, channels, ordered stages, planned actions and success measures. It is a planning tool, independent of the operational
 opportunity pipeline. Saving or defining a plan never creates contacts, leads, sales, tasks,
 Mailing campaigns or email deliveries. No scheduler or execution port consumes these records.
 Existing Sales, Mailing, Email and opportunity-flow behavior remains unchanged.
@@ -18,28 +18,28 @@ The local synthetic review company may receive this one tab grant separately.
 
 ## Plan lifecycle and estimates
 
-Plans contain a name, optional objective/audience/notes, a main channel and 2–12 ordered stages.
-Each stage has a required name and optional action, measurement description and target people.
+Legacy plans contain a name, optional objective/audience/notes, a main channel and 2–12 ordered stages.
+Each stage has a required name and optional action, content to prepare (up to 1,000 characters), measurement description and target people.
 Targets refer to the same cohort: whole numbers from 0 to 10,000,000, non-increasing across known
 stages. Missing targets mean unknown, never zero. There are no money calculations.
 
 - `DRAFT`: ideas may remain incomplete.
-- `PLANNED`: objective, audience and every stage's action, measurement and target are complete.
+- `PLANNED` for legacy plans: objective, audience and every stage's action and measurement are complete.
+  Numeric targets are optional for both legacy and workshop plans.
   The visible label is “Definido”; it does not imply launch, approval or actual results.
 - `ARCHIVED`: retained and searchable; users can restore it by changing its status.
 
 All states remain editable with optimistic version checks. Duplication opens an independent draft
 with a new stable UUID and version zero; only Save creates it. It does not copy audit identity.
 The backend derives estimated conversion as final target / entry target × 100, rounded half-up
-to two decimals. Any unknown stage or zero entry target produces null. The editor's live estimate
-uses the same formula for unsaved planning only. Every projection is labeled as estimated.
+to two decimals. Any unknown stage or zero entry target produces null. The local preview helper uses the same formula for unsaved planning only; saved figures come from the backend. Every projection is labeled as estimated.
 
 Saved plans also expose `stageEstimates`, aligned one-to-one with `stages`. Each item contains
 `estimatedAdvance`: current target / immediately preceding target × 100, rounded half-up to
 two decimals by the backend. The first stage, either missing adjacent target, or a zero preceding
 target produces null. A current target of zero with a positive preceding target produces 0%.
 Unknown stages are never bridged to calculate a transition. This is an additive read projection;
-the saved stage/input shape and persistence remain unchanged.
+it does not change targets or stage order.
 
 ## Persistence and API
 
@@ -71,22 +71,167 @@ buttons. Removing a stage only changes the unsaved form. Closing a dirty editor 
 the shared **Confirmation Modal**, with a return-to-edit action. Saving blocks repeated submits,
 editing and dismissal. Light/dark and all eight supported locales follow the shared components.
 
-The title bar offers **List / Funnel** through `IndiceWorkspaceNavigation` (`views`, coral).
-Both views share the same tenant-scoped search, status filter, page and page size. The selected
-view is normalized and remembered with the existing workspace hook, with explicit `?view=funnel`
-taking precedence on navigation. Plan selection remains transient and is revalidated against the
-current filtered page; it never stores fetched records or authority in navigation memory.
+The title bar offers **My ideas / List / Funnel** through `IndiceWorkspaceNavigation` (`views`,
+coral). Views share the same tenant-scoped search, status filter, page and page size. View memory
+uses the existing workspace hook, with explicit `?view=funnel` taking precedence. Plan selection
+is transient and revalidated against the current filtered page; no fetched records or authority
+are persisted in navigation memory. Clicking an idea or list name selects its diagram. Shared
+pagination reaches the full result set.
 
-The Funnel view selects among plans on the current page and retains the shared pagination for
-the full result. Clicking a plan name in the list opens that plan's diagram. Ordered, tapered
-stage buttons display target people; connectors display the server's adjacent estimates. Widths
-are deliberately schematic and explicitly labeled as not representing quantities. The header
-shows entry/final targets and overall estimated conversion. Selecting a stage shows its action,
-measurement, target and preceding-stage context, with access to the existing plan editor.
-Stage selection resets when changing plans or loading a new saved version. Unknown values remain
-visibly undefined; estimates are never presented as measured results. Native stage buttons and
-the shared view selector support keyboard interaction. The diagram and detail stack on small
-screens and use the existing light/dark and localization systems.
+The shared tapered diagram is schematic and labeled accordingly. Known targets and saved adjacent
+estimates are shown without substituting missing values with zero. Clicking a stage opens the same
+workspace at that stage. Its action, preparation content and success measure appear together.
+Stage selection resets when changing records or saved versions. Buttons and selectors are keyboard
+accessible; the diagram/editor stack on small screens.
+
+## Campaign workshop — 2026-10-18
+
+The single primary entry is **Create campaign**. A title and plain-language idea suffice to save
+a `DRAFT`; **Configure campaign** expands to the unified workspace without saving or losing input.
+Existing records open directly there. Stage, campaign and prompt panels share one draft while the
+visual journey stays beside them on desktop. Initial capture remains a Standard Form Modal; the
+editor is an Operational Workspace, not a gated wizard or separate advanced tool.
+
+Goal, channels, destination, audience type, stage action and preparation content use selectors;
+custom choices preserve free text. Stage names, measures, optional numeric targets and add/remove/
+reorder controls live in an expandable section. Untouched ideas retain zero saved stages: the
+diagram clearly identifies its suggestion. Editing a suggested stage or choosing **Use this
+journey** adopts the complete 2–12-stage journey. One stage remains invalid. Legacy plans use the
+same stage editor and prompt while retaining their main channel, custom objective/audience and
+numbers; opening them does not manufacture or convert a campaign brief.
+
+The additive nullable `workshop` DTO stores the idea, offer, location, goal, selected channels,
+materials, destination and detail, timing, budget note, pasted AI response and deferred suggestion
+IDs. All strings and enum collections have server-side bounds; repeated enum values are rejected.
+Channels are `ORGANIC`, `META_ADS`, `GOOGLE_SEARCH`; goals distinguish awareness, inquiries,
+appointments, purchases, quotation requests and renewals; the undecided choice is explicit. The budget is a planning note,
+not a monetary total, bid or spending instruction. No credentials or ad-account authority is stored.
+
+For workshop plans, `PLANNED` means the idea, offer, objective, audience, goal, at least one channel
+and destination type are defined. It neither requires numerical guesses nor means ready to publish.
+Missing supporting details still generate suggestions. All other lifecycle, optimistic version,
+target-order and authorization rules above remain in effect. A legacy client omitting `workshop`
+preserves an existing brief and is validated against it; omission cannot erase it or bypass readiness.
+
+V324 adds company-owned `sales_funnel_briefs`, keyed by company and funnel with a composite foreign
+key. Stable fields have explicit columns; bounded enum collections use JSON. The existing plan,
+optional brief and audit write share one transaction. Reads join using both company and funnel ID.
+Search also matches idea text. Existing routes, legacy records and numeric projections are preserved. Rollback uses the previous application artifact and retains this additive table;
+do not reverse or edit the migration. The old application does not consume the new brief.
+
+### Recommendations and output
+
+Recommendations are deterministic rules, not generated AI advice. Missing context, materials,
+timing and budget notes generate up to three contextual suggestions with defer/restore controls.
+The proposed journey depends on the selected goal (awareness, inquiries, appointments, purchases,
+quotation requests or renewals), channel, destination and available video. All suggested numeric
+targets remain null. A Search landing-page reminder and WhatsApp response-owner reminder appear
+in relevant stages.
+
+Changing goal, channels or destination on a configured journey preserves existing stages and
+opens a comparison of current/proposed stages, content and targets. **Keep my stages** dismisses
+it; **Apply proposed journey** explicitly replaces the unsaved stages and targets. Nothing
+persisted changes until Save. Proposals never silently overwrite historical/custom stages.
+
+**Prepare for AI** builds a localized prompt from the current shared draft, including stage content.
+It explicitly asks the model to use the configured journey and list suggested adjustments separately. Copy, UTF-8 text download and
+print/save-PDF use the same text through the shared standard-document engine. Instructions reflect
+only selected channels: organic content, Facebook/Instagram ad planning, and Google Search ad
+planning. They request a content plan, message/creative ideas, next action, measurements and
+explicit open questions, without inventing prices, testimonials or performance figures. Context
+is clearly separated from instructions. The saved AI response is not fed back as instructions.
+No model is invoked and no prompt is transmitted automatically. Users may paste an external
+model's answer as editable plain text (20,000 characters) and save it with the plan.
+
+### Workshop interaction contract
+
+- **My ideas / List / Funnel** reuse shared workspace memory, filters and pagination. Existing
+  saved preferences remain valid; new sessions default to My ideas.
+- **Create campaign** is the only entry for new work. Capture expands into the shared Operational
+  Workspace. There is no separate advanced-funnel creation or nested prompt modal.
+- Stage, campaign and AI prompt panels edit/export one draft. Copy/download/print share exactly
+  the same text; pasted AI responses remain plain text and are excluded from exported instructions.
+- Dirty-close and stage removal replace the workspace with the existing Confirmation Modal;
+  cancellation returns to the unchanged draft. Reorder carries the complete stage including content.
+- Busy saves block edits, repeated submission and dismissal. Errors preserve input; 409 requires
+  reopening the latest version. Access-context changes clear open workspaces.
+
+### Unified journey persistence — 2026-10-18
+
+V325 expands the campaign-goal check to `QUOTES` and `RENEWALS`. Applied V324 is unchanged.
+Stage `content` is an optional, bounded field in the existing ordered JSON; old JSON remains readable.
+The new editor normalizes missing content to an explicit empty string. If saved stages already
+contain content, a stale client omitting any content field receives 409 instead of dropping it.
+Explicit empty strings can clear content. Content validation and version failures are atomic.
+
+The backend retains tenant scope, CSRF, tab/module gates, route shapes and transactional writes.
+Legacy `PLANNED` targets become optional; required objective, audience, action and measure stay.
+Known target ordering, range checks and server estimates are unchanged. No CRM, Mailing, Email,
+financial or ad-provider execution is introduced.
+
+Rollback retains the additive schema. Preserve the immutable previous application artifact.
+Do not use an older application to edit newly enriched journeys during rollback: older servers
+cannot enforce the new content compatibility guard.
+
+### Unified workspace acceptance — 2026-10-18
+
+- 21 `FunnelIntegrationTest` cases and 2 migration uniqueness cases passed in an isolated build
+  against **only `indice_test_db`**. This includes stage content, QUOTES/RENEWALS, null targets,
+  old JSON preservation, stale-client rejection, content length, atomic clearing, tenant isolation,
+  CSRF, optimistic versions and absence of cross-module effects.
+- 91 frontend cases passed across campaign workshop, Funneling flow, Sales UI/workflow/navigation
+  and shared document regressions. TypeScript and the production build passed. Existing Vite
+  large-chunk warnings remain. An initial shared-output compilation failed in unrelated Messaging
+  classes; a clean isolated build compiled successfully without modifying that work.
+- Synthetic browser fixture: new idea, selectors, live suggestions, stage customization, decline/
+  apply replacement, defined save without numeric targets, save failure/retry, reopen with saved
+  AI response, legacy editing with 1,000→200→100 targets, and copy/download from the same draft.
+  The final 4,145-character download exactly matched the copied prompt. No functional business
+  records were used for these UI tests.
+- Dark/mobile review at 390 CSS pixels: document width 390, modal about 374, no horizontal
+  overflow and accessible footer controls. Viewport and theme restored. PDF visual pagination
+  remains unverified; shared document/export-content regressions passed (prior print-window
+  inspection was blocked by browser blob-URL policy).
+- Functional backend 8083 applied V325 and reported zero pending/failed migrations. Its new
+  immutable artifact overlays only the tested Funneling package and V325 onto the previous
+  runtime; unrelated local modules retain their existing runtime versions. Previous artifact
+  preserved for rollback. Authenticated functional-browser acceptance still needs local sign-in.
+- Changed areas: native Funneling workspace/model/prompt/locales; FunnelContracts and FunnelService;
+  V325; focused tests and synthetic fixture; this contract and canonical frontend adoption.
+  Other local work preserved. Commit/push and production deployment: N/A.
+- Evidence: `/tmp/indice-unified-campaign-workspace.png` and
+  `/tmp/indice-unified-campaign-mobile-dark.png` on this workstation.
+
+### Workshop acceptance evidence — 2026-10-18
+
+- Backend: 17 `FunnelIntegrationTest` cases and 2 migration uniqueness cases passed. Flyway
+  startup, brief persistence/search, incomplete/defined plans, legacy-client preservation,
+  tenant isolation, optimistic versions, DTO limits, CSRF and absence of cross-module side
+  effects were checked against **only `indice_test_db`**.
+- Frontend: 83 cases passed across `campaign-workshop`, `sales-funneling-flow`,
+  `sales-frontend-standard-regression`, `sales-workflow-regression`, `sales-navigation-flow`
+  and `document-print-standard-regression`. TypeScript and production build passed. The existing
+  bundle-size warning remains; no unresolved test failures.
+- Browser testing used the isolated in-memory fixture, not functional business mutations:
+  minimal idea capture, five-question navigation, three selected channels, applying a journey,
+  editing notes, saving a pasted response and a defined plan, and generating/copying/downloading
+  the resulting prompt. The downloaded UTF-8 text contained the same 3,932-character prompt.
+- The print action opened the standard document window. Browser security prevented inspecting
+  its blob URL; visual PDF pagination remains unverified. The shared document regression and
+  equality of prompt/export content passed. No alternate browser access was attempted.
+- Mobile at 390 CSS pixels had document width 390 and modal width 374, with no horizontal
+  overflow. Dark/light presentation and accessible footer actions were reviewed; the temporary
+  viewport and fixture theme were restored. Final fixture console had no warnings/errors.
+- Local backend 8083 successfully applied V324 and started from an immutable compiled artifact;
+  the previous artifact was retained for rollback. Restart expired the browser session, so
+  authenticated functional UI acceptance requires signing in again. No production rollout.
+- Screenshots on this workstation: `/tmp/indice-campaign-workshop.png` and
+  `/tmp/indice-campaign-mobile-dark.png` (synthetic fixture).
+
+Changed areas: native `Sales/Funneling` components/model/prompt/locales, the three backend
+Funneling contract/repository/service files, V324, focused integration/frontend tests and fixture,
+this owner contract and its canonical frontend adoption paragraph. Existing local Postventa and
+other unrelated work was preserved. No commit or push was performed for this extension.
 
 ## Verification
 

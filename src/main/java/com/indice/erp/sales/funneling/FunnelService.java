@@ -47,6 +47,24 @@ public class FunnelService {
         require(input != null && validator.validate(input).isEmpty(), HttpStatus.BAD_REQUEST, "funnel_input_invalid");
         try { require(UUID.fromString(id).toString().equals(id), HttpStatus.BAD_REQUEST, "funnel_id_invalid"); }
         catch (IllegalArgumentException invalid) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "funnel_id_invalid"); }
+        // Lock and resolve the current aggregate before validating backward-compatible edits.
+        repository.lockCompany(actor.companyId());
+        require(modules.companyCanAccessForMutation(actor.companyId(), "crm"), HttpStatus.FORBIDDEN, "funnel_module_unavailable");
+        var current = repository.find(actor.companyId(), id);
+        require(current.isEmpty() ? input.version() == 0 : current.get().version() == input.version(),
+            HttpStatus.CONFLICT, "funnel_version_conflict");
+        // A client predating stage content must refresh instead of silently dropping it.
+        if (current.stream().flatMap(p -> p.stages().stream()).anyMatch(s -> s.content() != null && !s.content().isBlank())) {
+            require(input.stages().stream().allMatch(s -> s.content() != null), HttpStatus.CONFLICT, "funnel_content_update_required");
+        }
+        Workshop brief = input.workshop() != null ? input.workshop() : current.map(Plan::workshop).orElse(null);
+        require(input.stages().size() >= 2 || (brief != null && input.stages().isEmpty()), HttpStatus.BAD_REQUEST, "funnel_input_invalid");
+        if (brief != null) {
+            require(Set.copyOf(brief.channels()).size() == brief.channels().size()
+                && Set.copyOf(brief.materials()).size() == brief.materials().size()
+                && Set.copyOf(brief.deferredRecommendations()).size() == brief.deferredRecommendations().size(),
+                HttpStatus.BAD_REQUEST, "funnel_input_invalid");
+        }
         BigDecimal previous = null;
         for (Stage stage : input.stages()) {
             if (stage.target() != null) {
@@ -55,16 +73,12 @@ public class FunnelService {
             }
         }
         if (input.status().equals("PLANNED")) {
-            require(!input.objective().isBlank() && !input.audience().isBlank() && input.stages().stream()
-                .allMatch(s -> s.target() != null && !s.action().isBlank() && !s.measure().isBlank()),
+            boolean complete = brief == null
+                ? input.stages().stream().allMatch(s -> !s.action().isBlank() && !s.measure().isBlank())
+                : !brief.offer().isBlank() && !brief.goal().equals("UNDECIDED") && !brief.channels().isEmpty() && !brief.destination().equals("UNDECIDED");
+            require(!input.objective().isBlank() && !input.audience().isBlank() && complete,
                 HttpStatus.BAD_REQUEST, "funnel_plan_incomplete");
         }
-        // The same stable client UUID and version make retries safe and prevent lost updates.
-        repository.lockCompany(actor.companyId());
-        require(modules.companyCanAccessForMutation(actor.companyId(), "crm"), HttpStatus.FORBIDDEN, "funnel_module_unavailable");
-        var current = repository.find(actor.companyId(), id);
-        require(current.isEmpty() ? input.version() == 0 : current.get().version() == input.version(),
-            HttpStatus.CONFLICT, "funnel_version_conflict");
         repository.save(actor.companyId(), actor.userId(), id, input);
         return get(actor, id);
     }
@@ -77,7 +91,7 @@ public class FunnelService {
 
     private static Plan project(Plan plan) {
         return new Plan(plan.id(), plan.name(), plan.objective(), plan.audience(), plan.channel(), plan.notes(),
-            plan.stages(), plan.status(), plan.version(), plan.updatedAt(), conversion(plan.stages()), stageEstimates(plan.stages()));
+            plan.stages(), plan.status(), plan.version(), plan.updatedAt(), conversion(plan.stages()), stageEstimates(plan.stages()), plan.workshop());
     }
 
     static List<StageEstimate> stageEstimates(List<Stage> stages) {

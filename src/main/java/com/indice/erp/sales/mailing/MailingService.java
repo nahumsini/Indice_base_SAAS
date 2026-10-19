@@ -52,7 +52,7 @@ public class MailingService {
     }
     private List<Contact> recipients(long company,String id) {
         return db.query("""
-            SELECT s.id,s.company_name,s.email FROM sales_mailing_recipients r
+            SELECT s.id,COALESCE(NULLIF(TRIM(s.contact_person),''),s.company_name),s.email FROM sales_mailing_recipients r
             JOIN sales_contacts s ON s.id=r.contact_id AND s.company_id=r.company_id
             WHERE r.company_id=? AND r.campaign_id=? AND s.deleted_at IS NULL ORDER BY s.company_name,s.id
             """,(r,n)->new Contact(r.getLong(1),r.getString(2),Objects.toString(r.getString(3),"")),company,id);

@@ -8,7 +8,7 @@ export const esMX = {
     management: 'Gestión',
     funnelingDescription: 'Planifica embudos y metas de campaña.',
     mailingDescription: 'Prepara y envía campañas de correo.',
-    whatsappingDescription: 'En preparación: los envíos aún no están disponibles.',
+    whatsappingDescription: 'Prepara campañas y da seguimiento por WhatsApp.',
   },
   loading: {
     openingTitle: 'Abriendo Ventas',

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { authApi } from "../../api/auth";
 import {
   canAccessModuleTab,
+  MODULE_TAB_ROUTE_ALIASES,
   normalizeTabScopeRole,
 } from "../../access/tabScopeCatalog";
 import { IndiceModuleShell } from "../../components/frontend-os/IndiceModuleShell";
@@ -29,12 +30,7 @@ export default function MinutesControl({
   const auth = useMeetingQuery(
     useCallback(() => authApi.getSessionOrNull(), []),
   );
-  const { activeTab, setActiveTab } = useRoutedModuleTab("meetings", tabs, {
-    reuniones: "meetings",
-    acuerdos: "agreements",
-    seguimientos: "agreements",
-    kpis: "indicators",
-  });
+  const { activeTab, setActiveTab } = useRoutedModuleTab("meetings", tabs, MODULE_TAB_ROUTE_ALIASES['minutes-control']);
   const allowed = auth.data
     ? tabs.filter((id) => canAccessModuleTab("minutes-control", id, auth.data))
     : [];

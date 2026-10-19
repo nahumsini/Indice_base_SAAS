@@ -43,10 +43,16 @@ class PostSaleWorkspaceService {
     Flow flow(long company,long id) { return flows(company).stream().filter(f->f.id()==id).findFirst().orElseThrow(NoSuchElementException::new); }
     @Transactional(readOnly=true)
     Workspace workspace(long company,String kind,String search,Long owner,Long flow,String stage,int page,int size,boolean canReactivate) {
+        return workspace(company,kind,search,owner,flow,stage,page,size,canReactivate,new WorkspaceSort("nextAction","asc"));
+    }
+    @Transactional(readOnly=true)
+    Workspace workspace(long company,String kind,String search,Long owner,Long flow,String stage,int page,int size,boolean canReactivate,WorkspaceSort sort) {
         kind(kind);if(page<1||page>100000||size<1||size>100||search!=null&&search.length()>200)throw new IllegalArgumentException();
+        if(sort==null||kind.equals("won")&&sort.column().equals("lossReason"))throw new IllegalArgumentException();
         var today=LocalDate.now(clock.withZone(zones.resolve(company)));
         var q=repo.source(company,kind,search,owner,flow,stage);
-        return new Workspace(repo.items(q,kind,page,size),repo.counts(q,kind,today),page,size,flows(company),repo.owners(company),today.toString(),zones.resolve(company).getId(),canReactivate);
+        var availableFlows=flows(company);
+        return new Workspace(repo.items(q,kind,page,size,sort,availableFlows),repo.counts(q,kind,today),page,size,availableFlows,repo.owners(company),today.toString(),zones.resolve(company).getId(),canReactivate);
     }
     Detail detail(long company,String kind,long source) {
         var item=repo.item(company,kind(kind),source);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   CheckCircle2,
@@ -16,6 +16,8 @@ import {
   configCenterApi,
   type InvitationDetails,
 } from '../api/configCenter';
+import { authApi } from '../api/auth';
+import { ApiClientError } from '../lib/apiClient';
 import { Button } from '../components/ui/button';
 import {
   DropdownMenu,
@@ -32,13 +34,19 @@ import {
   type InviteAcceptCopy,
 } from './inviteAcceptCopy';
 
-type PageState = 'loading' | 'ready' | 'accepted' | 'expired' | 'invalid' | 'complete';
+type PageState = 'loading' | 'ready' | 'accepted' | 'expired' | 'invalid' | 'complete' | 'loadError';
 
 export default function InviteAcceptPage() {
   const navigate = useNavigate();
   const { token = '' } = useParams();
   const { currentLanguage, setCurrentLanguage } = useLanguage();
   const copy = getInviteAcceptCopy(currentLanguage.code);
+  const alive = useRef(true);
+  const submittingRef = useRef(false);
+  const latestToken = useRef(token);
+  latestToken.current = token;
+  useEffect(() => { alive.current=true; return () => { alive.current=false; }; }, []);
+  useEffect(() => { submittingRef.current=false; setIsSubmitting(false); setPassword(''); setConfirmPassword(''); setPasswordTouched(false); setConfirmationTouched(false); setLoginError(''); }, [token]);
   const [pageState, setPageState] = useState<PageState>('loading');
   const [invitation, setInvitation] = useState<InvitationDetails | null>(null);
   const [password, setPassword] = useState('');
@@ -47,6 +55,12 @@ export default function InviteAcceptPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [loadRevision, setLoadRevision] = useState(0);
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [confirmationTouched, setConfirmationTouched] = useState(false);
+  const [isPreparingLogin, setIsPreparingLogin] = useState(false);
+  const loginPending = useRef(false);
+  const [loginError, setLoginError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -70,16 +84,22 @@ export default function InviteAcceptPage() {
           setPageState('accepted');
         } else if (details.status === 'expired') {
           setPageState('expired');
-        } else {
+        } else if (details.status === 'pending') {
           setPageState('ready');
+        } else {
+          setPageState('invalid');
         }
       } catch (error) {
         if (!active) {
           return;
         }
-        const message = error instanceof Error ? error.message : copy.loadFallback;
-        setErrorMessage(localizeInvitationError(message, copy));
-        setPageState('invalid');
+        if (error instanceof ApiClientError && error.status === 404) {
+          setErrorMessage(copy.descriptions.invalid);
+          setPageState('invalid');
+        } else {
+          setErrorMessage(copy.retryLoad);
+          setPageState('loadError');
+        }
       }
     };
 
@@ -88,33 +108,87 @@ export default function InviteAcceptPage() {
     return () => {
       active = false;
     };
-  }, [copy, token]);
+  }, [copy, token, loadRevision]);
 
-  const canSubmit = useMemo(
-    () => password.length >= 8 && confirmPassword.length >= 8 && password === confirmPassword && !isSubmitting,
-    [confirmPassword, isSubmitting, password],
-  );
+  const passwordError = useMemo(() => {
+    if (!password.trim()) return copy.passwordRequired;
+    if (invitation?.existing_user) return '';
+    if (password.length < 8) return copy.passwordLength;
+    if (new TextEncoder().encode(password).length > 72) return copy.passwordTooLong;
+    return '';
+  }, [copy, invitation?.existing_user, password]);
+  const confirmationError = password !== confirmPassword ? copy.passwordMismatch : '';
+  const visiblePasswordError = passwordTouched ? passwordError : '';
+  const visibleConfirmationError = confirmationTouched ? confirmationError : '';
+  const canSubmit = pageState === 'ready' && !passwordError && !confirmationError && !isSubmitting;
+
+  const handleGoToLogin = async () => {
+    if (loginPending.current) return;
+    loginPending.current = true;
+    setIsPreparingLogin(true);
+    setLoginError('');
+    const requestedToken = token;
+    try {
+      // A pre-existing session must not redirect the invitee into another account/company.
+      await authApi.logout();
+      if (!alive.current || latestToken.current !== requestedToken) return;
+      navigate('/login', {
+        replace: true,
+        state: { companyName: invitation?.company_name ?? '', email: invitation?.email ?? '' },
+      });
+    } catch {
+      if (alive.current && latestToken.current === requestedToken) setLoginError(copy.loginPreparationError);
+    } finally {
+      loginPending.current = false;
+      if (alive.current && latestToken.current === requestedToken) setIsPreparingLogin(false);
+    }
+  };
 
   const handleAcceptInvitation = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (submittingRef.current || pageState !== 'ready') return;
     if (!canSubmit) {
-      setErrorMessage(password !== confirmPassword ? copy.passwordMismatch : copy.passwordLength);
+      setPasswordTouched(true);
+      setConfirmationTouched(true);
+      setErrorMessage(passwordError || confirmationError);
       return;
     }
 
+    const requestedToken=token;
+    submittingRef.current=true;
     try {
       setIsSubmitting(true);
       setErrorMessage('');
-      await configCenterApi.acceptInvitation(token, {
+      const receipt=await configCenterApi.acceptInvitation(token, {
         password,
         confirm_password: confirmPassword,
       });
+      if (!alive.current || latestToken.current !== requestedToken) return;
+      if (!receipt.accepted) throw new Error(copy.acceptFallback);
+      setPassword(''); setConfirmPassword('');
       setPageState('complete');
     } catch (error) {
+      if (!alive.current || latestToken.current !== requestedToken) return;
       const message = error instanceof Error ? error.message : copy.acceptFallback;
+      // An acknowledgement can be lost after commit. Check status without sending twice.
+      if (!(error instanceof ApiClientError) || error.status >= 500) {
+        try {
+          const latest = await configCenterApi.getInvitation(requestedToken);
+          if (!alive.current || latestToken.current !== requestedToken) return;
+          if (latest.status === 'accepted') {
+            setInvitation(latest);
+            setPassword(''); setConfirmPassword(''); setPageState('accepted');
+            return;
+          }
+        } catch { /* Keep the draft and allow a deliberate retry after a failed status read. */ }
+        if (!alive.current || latestToken.current !== requestedToken) return;
+      }
+      if (message.includes('already been accepted')) { setPageState('accepted'); setPassword(''); setConfirmPassword(''); }
+      if (message.includes('has expired')) { setPageState('expired'); setPassword(''); setConfirmPassword(''); }
+      if (message.includes('no longer available')) { setPageState('invalid'); setPassword(''); setConfirmPassword(''); }
       setErrorMessage(localizeInvitationError(message, copy));
     } finally {
-      setIsSubmitting(false);
+      if (alive.current && latestToken.current === requestedToken) { submittingRef.current=false; setIsSubmitting(false); }
     }
   };
 
@@ -126,6 +200,7 @@ export default function InviteAcceptPage() {
         ? copy.titles.expired
         : pageState === 'invalid'
           ? copy.titles.invalid
+          : pageState === 'loadError' ? copy.loadFallback
           : (invitation?.existing_user ? copy.titles.existing : copy.titles.ready);
 
   const description = pageState === 'complete'
@@ -136,6 +211,7 @@ export default function InviteAcceptPage() {
         ? copy.descriptions.expired
         : pageState === 'invalid'
           ? (errorMessage || copy.descriptions.invalid)
+          : pageState === 'loadError' ? copy.retryLoad
           : (invitation?.existing_user ? copy.descriptions.existing : copy.descriptions.ready);
 
   const companyName = invitation?.company_name || copy.workspaceFallback;
@@ -222,8 +298,11 @@ export default function InviteAcceptPage() {
 
                 <PasswordField
                   label={invitation.existing_user ? copy.currentPassword : copy.createPassword}
-                  hint={copy.passwordHint}
+                  hint={invitation.existing_user ? undefined : copy.passwordHint}
+                  disabled={isSubmitting}
                   value={password}
+                  error={visiblePasswordError}
+                  onBlur={() => setPasswordTouched(true)}
                   onChange={setPassword}
                   show={showPassword}
                   onToggleShow={() => setShowPassword((current) => !current)}
@@ -232,7 +311,10 @@ export default function InviteAcceptPage() {
                 />
                 <PasswordField
                   label={invitation.existing_user ? copy.confirmCurrentPassword : copy.confirmPassword}
+                  disabled={isSubmitting}
                   value={confirmPassword}
+                  error={visibleConfirmationError}
+                  onBlur={() => setConfirmationTouched(true)}
                   onChange={setConfirmPassword}
                   show={showConfirmPassword}
                   onToggleShow={() => setShowConfirmPassword((current) => !current)}
@@ -241,7 +323,7 @@ export default function InviteAcceptPage() {
                 />
 
                 {errorMessage ? (
-                  <div className="flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-700">
+                  <div role="alert" className="flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-700">
                     <TriangleAlert className="mt-1 h-4 w-4 shrink-0" />
                     <span>{errorMessage}</span>
                   </div>
@@ -262,7 +344,7 @@ export default function InviteAcceptPage() {
               </form>
             ) : null}
 
-            {['accepted', 'expired', 'invalid', 'complete'].includes(pageState) ? (
+            {['accepted', 'expired', 'invalid', 'complete', 'loadError'].includes(pageState) ? (
               <div className="space-y-5">
                 <div className={`flex items-start gap-3 rounded-2xl border px-4 py-4 text-sm leading-6 ${
                   pageState === 'complete'
@@ -278,12 +360,14 @@ export default function InviteAcceptPage() {
                   <span>{description}</span>
                 </div>
 
+                {loginError ? <p role="alert" className="text-sm text-red-700">{loginError}</p> : null}
                 <Button
                   type="button"
-                  onClick={() => navigate('/login')}
+                  disabled={isPreparingLogin}
+                  onClick={pageState === 'loadError' ? () => setLoadRevision((current) => current + 1) : handleGoToLogin}
                   className="h-12 w-full rounded-xl bg-[#15866B] font-medium text-white hover:bg-[#10735B]"
                 >
-                  {copy.goToLogin}
+                  {isPreparingLogin ? copy.loginPreparing : pageState === 'loadError' ? copy.retry : copy.goToLogin}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -324,6 +408,9 @@ function PasswordField({
   onToggleShow,
   autoComplete = 'new-password',
   copy,
+  disabled = false,
+  error,
+  onBlur,
 }: {
   label: string;
   hint?: string;
@@ -333,24 +420,34 @@ function PasswordField({
   onToggleShow: () => void;
   autoComplete?: string;
   copy: InviteAcceptCopy;
+  disabled?: boolean;
+  error?: string;
+  onBlur?: () => void;
 }) {
+  const id = useId();
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3">
-        <label className="text-sm font-medium text-slate-700">{label}</label>
+        <label htmlFor={id} className="text-sm font-medium text-slate-700">{label}</label>
         {hint ? <span className="text-xs text-slate-500">{hint}</span> : null}
       </div>
       <div className="relative">
         <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <Input
+          id={id}
+          disabled={disabled}
+          onBlur={onBlur}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : undefined}
           type={show ? 'text' : 'password'}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="h-12 rounded-xl border-slate-200 bg-white pl-10 pr-12 text-sm shadow-sm focus-visible:border-[var(--indice-brand-action)] focus-visible:ring-[var(--indice-brand-action)]/25"
+          className="h-12 rounded-xl border-slate-200 bg-white pl-10 pr-12 text-base sm:text-sm shadow-sm focus-visible:border-[var(--indice-brand-action)] focus-visible:ring-[var(--indice-brand-action)]/25"
           autoComplete={autoComplete}
         />
         <button
           type="button"
+          disabled={disabled}
           onClick={onToggleShow}
           className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
           aria-label={show ? copy.hidePassword : copy.showPassword}
@@ -358,6 +455,7 @@ function PasswordField({
           {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
       </div>
+      {error ? <p id={`${id}-error`} role="alert" className="text-sm text-red-700">{error}</p> : null}
     </div>
   );
 }

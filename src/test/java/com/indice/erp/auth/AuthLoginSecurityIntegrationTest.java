@@ -44,7 +44,7 @@ import org.springframework.test.web.servlet.MockMvc;
     "app.entitlements.enforcement-enabled=false",
     "app.entitlements.projection-enabled=false"
 })
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(print = org.springframework.boot.test.autoconfigure.web.servlet.MockMvcPrint.NONE)
 class AuthLoginSecurityIntegrationTest {
 
     private static final String EMAIL_PREFIX = "auth-login-security-";
@@ -242,6 +242,64 @@ class AuthLoginSecurityIntegrationTest {
         assertThat(lockoutUntilIsSet(account.email())).isTrue();
         assertThat(auditReasonCount(account.email(), AuthFailureReason.MFA_OTP_INVALID)).isEqualTo(4);
         assertThat(auditReasonCount(account.email(), AuthFailureReason.MFA_OTP_LOCKED)).isGreaterThanOrEqualTo(1);
+    }
+
+    @Test
+    void otpRequiresCsrfAndOriginalBrowserAndCannotBeReplayed() throws Exception {
+        var account = createAccount();
+        var csrf = csrf();
+        var response = mockMvc.perform(post("/api/v1/auth/login").session(csrf.session())
+                .header("X-CSRF-Token", csrf.token()).contentType(APPLICATION_JSON)
+                .content(loginPayload(account.companyName(), account.email(), PASSWORD)))
+            .andExpect(status().isOk()).andReturn();
+        var challenge = objectMapper.readTree(response.getResponse().getContentAsString()).get("challengeId").asText();
+        var code = deliveredOtp.get();
+        mockMvc.perform(get("/api/v1/auth/me").session(csrf.session())).andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/v1/auth/login/otp/verify").session(csrf.session())
+                .header("X-CSRF-Token", "synthetic-invalid").contentType(APPLICATION_JSON).content(otpPayload(challenge, code)))
+            .andExpect(status().isForbidden());
+        var foreign = csrf();
+        mockMvc.perform(post("/api/v1/auth/login/otp/verify").session(foreign.session())
+                .header("X-CSRF-Token", foreign.token()).contentType(APPLICATION_JSON).content(otpPayload(challenge, code)))
+            .andExpect(status().isUnauthorized());
+        var oldId = csrf.session().getId();
+        var verified = mockMvc.perform(post("/api/v1/auth/login/otp/verify").session(csrf.session())
+                .header("X-CSRF-Token", csrf.token()).contentType(APPLICATION_JSON).content(otpPayload(challenge, code)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.user.id").value(account.userId()))
+            .andExpect(jsonPath("$.company.id").value(account.companyId())).andReturn();
+        assertThat(csrf.session().getId().equals(oldId)).isFalse();
+        var rotated = objectMapper.readTree(verified.getResponse().getContentAsString()).get("csrfToken").asText();
+        mockMvc.perform(post("/api/v1/auth/login/otp/verify").session(csrf.session())
+                .header("X-CSRF-Token", rotated).contentType(APPLICATION_JSON).content(otpPayload(challenge, code)))
+            .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/auth/me").session(csrf.session())).andExpect(status().isOk())
+            .andExpect(jsonPath("$.company.id").value(account.companyId()));
+    }
+
+    @Test
+    void resendCooldownKeepsLifetimeAndDeliveryFailureKeepsOriginalCode() throws Exception {
+        var account = createAccount();
+        var csrf = csrf();
+        var response = mockMvc.perform(post("/api/v1/auth/login").session(csrf.session())
+                .header("X-CSRF-Token", csrf.token()).contentType(APPLICATION_JSON)
+                .content(loginPayload(account.companyName(), account.email(), PASSWORD)))
+            .andExpect(status().isOk()).andReturn();
+        var challenge = objectMapper.readTree(response.getResponse().getContentAsString()).get("challengeId").asText();
+        var original = deliveredOtp.get();
+        var payload = objectMapper.writeValueAsString(Map.of("challengeId", challenge));
+        mockMvc.perform(post("/api/v1/auth/login/otp/resend").session(csrf.session())
+                .header("X-CSRF-Token", csrf.token()).contentType(APPLICATION_JSON).content(payload))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.codeSent").value(false))
+            .andExpect(jsonPath("$.expiresInSeconds").value(org.hamcrest.Matchers.greaterThan(0)));
+        jdbc.update("UPDATE auth_mfa_challenges SET last_sent_at = DATE_SUB(UTC_TIMESTAMP(), INTERVAL 40 SECOND) WHERE challenge_reference = ?", challenge);
+        given(emailService.sendOtp(any(AuthenticatedLogin.class), anyString(), anyInt()))
+            .willReturn(LoginOtpEmailService.DeliveryResult.failed("Synthetic failure"));
+        mockMvc.perform(post("/api/v1/auth/login/otp/resend").session(csrf.session())
+                .header("X-CSRF-Token", csrf.token()).contentType(APPLICATION_JSON).content(payload))
+            .andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.code").value("MFA_EMAIL_FAILED"));
+        mockMvc.perform(post("/api/v1/auth/login/otp/verify").session(csrf.session())
+                .header("X-CSRF-Token", csrf.token()).contentType(APPLICATION_JSON).content(otpPayload(challenge, original)))
+            .andExpect(status().isOk());
     }
 
     private CsrfState csrf() throws Exception {

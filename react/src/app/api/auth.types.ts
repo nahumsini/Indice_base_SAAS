@@ -38,6 +38,7 @@ export interface MfaRequiredResponse {
   maskedDestination: string;
   expiresInSeconds: number;
   resendAvailableInSeconds: number;
+  codeSent?: boolean;
 }
 
 export type LoginResponse = AuthSessionResponse | MfaRequiredResponse;

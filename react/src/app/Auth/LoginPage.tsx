@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, KeyRound, RefreshCw, ShieldCheck } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { authApi } from '../api/auth';
 import type { MfaRequiredResponse } from '../api/auth.types';
@@ -8,8 +7,9 @@ import {
   runWithMinimumDuration,
 } from '../components/LoadingBarOverlay';
 import { getLoadingBarCopy } from '../components/loadingTranslations';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
+import { ApiClientError } from '../lib/apiClient';
+import { OtpVerificationPanel } from './components/OtpVerificationPanel';
+import { getLoginVerificationCopy } from './loginVerificationCopy';
 import { useLanguage } from '../shared/context';
 import { isValidEmail, normalizeEmail } from '../shared/validation/email';
 import { LoginBrandPanel } from './components/LoginBrandPanel';
@@ -30,6 +30,7 @@ export default function LoginPage() {
     returnTo?: string;
     companyName?: string;
     email?: string;
+    openPasswordReset?: boolean;
   } | null;
   const { currentLanguage, t } = useLanguage();
   const [companyName, setCompanyName] = useState(
@@ -40,26 +41,38 @@ export default function LoginPage() {
   );
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [mfaChallenge, setMfaChallenge] = useState<MfaRequiredResponse | null>(null);
+  const [mfaChallenge, setMfaChallenge] = useState<(MfaRequiredResponse & { receivedAt: number }) | null>(null);
   const [otpCode, setOtpCode] = useState('');
   const [isOtpSubmitting, setIsOtpSubmitting] = useState(false);
   const [isOtpResending, setIsOtpResending] = useState(false);
-  const [resendAvailableIn, setResendAvailableIn] = useState(0);
+  const [now, setNow] = useState(Date.now);
+  const authPending = useRef(false);
+  const [otpUnavailable, setOtpUnavailable] = useState(false);
+  const [otpStatus, setOtpStatus] = useState('');
+  const [uncertain, setUncertain] = useState(false);
+  const remaining = (seconds: number) => mfaChallenge ? Math.max(0, Math.ceil((mfaChallenge.receivedAt + seconds * 1000 - now) / 1000)) : 0;
+  const resendAvailableIn = remaining(mfaChallenge?.resendAvailableInSeconds ?? 0);
+  const expiresIn = remaining(mfaChallenge?.expiresInSeconds ?? 0);
   const [errorMessage, setErrorMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [companyNameTouched, setCompanyNameTouched] = useState(false);
   const [emailTouched, setEmailTouched] = useState(false);
-  const [showResetModal, setShowResetModal] = useState(false);
-  const [resetEmail, setResetEmail] = useState('');
+  const [showResetModal, setShowResetModal] = useState(locationState?.openPasswordReset === true);
+  const resetPending = useRef(false);
+  const alive = useRef(true);
+  useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
+  const [resetEmail, setResetEmail] = useState(typeof locationState?.email==='string'?locationState.email:'');
   const [resetEmailTouched, setResetEmailTouched] = useState(false);
   const [resetMessage, setResetMessage] = useState('');
   const [resetErrorMessage, setResetErrorMessage] = useState('');
   const [isResetSubmitting, setIsResetSubmitting] = useState(false);
   const copy = t.loginPage;
   const shellCopy = getLoginShellCopy(currentLanguage.code);
+  const verificationCopy = getLoginVerificationCopy(currentLanguage.code);
   const otpLoadingCopy = getLoadingBarCopy(currentLanguage.code, 'verifyingCode');
   const safeReturnTo = locationState?.returnTo?.startsWith('/')
     && !locationState.returnTo.startsWith('//')
+    && !/[\\\u0000-\u0020]/.test(locationState.returnTo)
     ? locationState.returnTo
     : '/dashboard';
   const isOAuthContinuation = safeReturnTo.startsWith('/oauth/authorize')
@@ -81,117 +94,134 @@ export default function LoginPage() {
   );
 
   const canSubmitReset = useMemo(
-    () => normalizedResetEmail.length > 0 && resetEmailIsValid && !isResetSubmitting,
-    [isResetSubmitting, normalizedResetEmail, resetEmailIsValid],
+    () => normalizedResetEmail.length > 0 && resetEmailIsValid && !isResetSubmitting && !resetMessage,
+    [isResetSubmitting, normalizedResetEmail, resetEmailIsValid, resetMessage],
   );
   const canSubmitOtp = useMemo(
-    () => Boolean(mfaChallenge?.challengeId) && otpCode.replace(/\D/g, '').length === 6 && !isOtpSubmitting,
-    [isOtpSubmitting, mfaChallenge?.challengeId, otpCode],
+    () => Boolean(mfaChallenge?.challengeId) && otpCode.replace(/\D/g, '').length === 6 && !isOtpSubmitting && !isOtpResending && expiresIn > 0 && !otpUnavailable,
+    [isOtpSubmitting, isOtpResending, expiresIn, otpUnavailable, mfaChallenge?.challengeId, otpCode],
   );
 
   useEffect(() => {
-    if (!mfaChallenge) {
-      setResendAvailableIn(0);
-      return undefined;
-    }
-    setResendAvailableIn(Math.max(0, mfaChallenge.resendAvailableInSeconds));
-    const timer = window.setInterval(() => {
-      setResendAvailableIn((current) => Math.max(0, current - 1));
-    }, 1000);
-    return () => window.clearInterval(timer);
+    if (!mfaChallenge) return;
+    const update = () => setNow(Date.now());
+    update();
+    const timer = window.setInterval(update, 1000);
+    window.addEventListener('focus', update);
+    document.addEventListener('visibilitychange', update);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', update);
+      document.removeEventListener('visibilitychange', update);
+    };
   }, [mfaChallenge]);
+
+  const enterChallenge = (response: MfaRequiredResponse) => {
+    setNow(Date.now());
+    setMfaChallenge({ ...response, receivedAt: Date.now() });
+    setOtpUnavailable(false);
+  };
+  const finishSignIn = () => navigate(safeReturnTo, { replace: true, state: { successToast: copy.successToast } });
+  const showAuthError = (error: unknown, step: 'login' | 'verify' | 'resend') => {
+    const code = error instanceof ApiClientError ? error.code : undefined;
+    const status = error instanceof ApiClientError ? error.status : 0;
+    const unavailable = status === 423 || ['MFA_OTP_EXPIRED', 'MFA_CHALLENGE_UNAVAILABLE'].includes(code ?? '');
+    if (step !== 'login' && unavailable) setOtpUnavailable(true);
+    const unconfirmed = !status || status >= 500;
+    setUncertain(step !== 'resend' && unconfirmed && code !== 'MFA_EMAIL_FAILED');
+    setErrorMessage(status === 423 ? verificationCopy.locked
+      : code === 'MFA_OTP_EXPIRED' ? verificationCopy.expired
+      : code === 'MFA_OTP_INVALID' ? verificationCopy.invalid
+      : code === 'MFA_CHALLENGE_UNAVAILABLE' || (step !== 'login' && status === 401) ? verificationCopy.unavailable
+      : code === 'MFA_EMAIL_FAILED' ? (step === 'login' ? verificationCopy.initialSendFailed : verificationCopy.sendFailed)
+      : step === 'resend' ? verificationCopy.resendUncertain
+      : unconfirmed ? verificationCopy.network
+      : step === 'login' ? verificationCopy.loginFailed : verificationCopy.unavailable);
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
     setCompanyNameTouched(true);
     setEmailTouched(true);
-
-    if (!canSubmit) {
-      return;
-    }
-
+    if (!canSubmit || authPending.current) return;
+    authPending.current = true;
     setIsSubmitting(true);
     setErrorMessage('');
-
+    setUncertain(false);
     try {
-      const response = await runWithMinimumDuration(
-        authApi.login({
-          companyName: normalizedCompanyName,
-          email: normalizedEmail,
-          // Passwords are secrets, not display text: preserve every character
-          // exactly as it was supplied during account creation.
-          password,
-        }),
-        LOGIN_MINIMUM_LOADING_MS,
-      );
-
-      setIsSubmitting(false);
+      // Preserve the exact password, including intentional spaces.
+      const response = await runWithMinimumDuration(authApi.login({
+        companyName: normalizedCompanyName,
+        email: normalizedEmail,
+        password,
+      }), LOGIN_MINIMUM_LOADING_MS);
+      if (!alive.current) return;
+      setPassword('');
+      setShowPassword(false);
       if ('mfaRequired' in response && response.mfaRequired) {
-        setMfaChallenge(response);
-        setPassword('');
+        enterChallenge(response);
         setOtpCode('');
-        return;
-      }
-      navigate(safeReturnTo, {
-        replace: true,
-        state: {
-          successToast: copy.successToast,
-        },
-      });
+        setOtpStatus('');
+      } else finishSignIn();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : copy.errorFallback);
-      setIsSubmitting(false);
+      if (alive.current) showAuthError(error, 'login');
+    } finally {
+      authPending.current = false;
+      if (alive.current) setIsSubmitting(false);
     }
   };
 
   const handleOtpSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!mfaChallenge || !canSubmitOtp) {
-      return;
-    }
+    if (!mfaChallenge || !canSubmitOtp || authPending.current) return;
+    authPending.current = true;
+    setIsOtpSubmitting(true);
+    setErrorMessage('');
+    setOtpStatus('');
+    setUncertain(false);
     try {
-      setIsOtpSubmitting(true);
-      setErrorMessage('');
-      await authApi.verifyLoginOtp({
-        challengeId: mfaChallenge.challengeId,
-        otpCode: otpCode.replace(/\D/g, ''),
-      });
-      navigate(safeReturnTo, {
-        replace: true,
-        state: {
-          successToast: copy.successToast,
-        },
-      });
+      await authApi.verifyLoginOtp({ challengeId: mfaChallenge.challengeId, otpCode: otpCode.replace(/\D/g, '') });
+      if (alive.current) { setOtpCode(''); finishSignIn(); }
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : copy.errorFallback);
+      if (alive.current) showAuthError(error, 'verify');
     } finally {
-      setIsOtpSubmitting(false);
+      authPending.current = false;
+      if (alive.current) setIsOtpSubmitting(false);
     }
   };
 
   const handleOtpResend = async () => {
-    if (!mfaChallenge || resendAvailableIn > 0 || isOtpResending) {
-      return;
-    }
+    if (!mfaChallenge || resendAvailableIn > 0 || expiresIn <= 0 || otpUnavailable || authPending.current) return;
+    authPending.current = true;
+    setIsOtpResending(true);
+    setErrorMessage('');
+    setOtpStatus('');
+    setUncertain(false);
     try {
-      setIsOtpResending(true);
-      setErrorMessage('');
       const response = await authApi.resendLoginOtp({ challengeId: mfaChallenge.challengeId });
-      setMfaChallenge(response);
-      setOtpCode('');
+      if (!alive.current) return;
+      enterChallenge(response);
+      if (response.codeSent !== false) {
+        setOtpCode('');
+        setOtpStatus(verificationCopy.resent);
+      }
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : copy.errorFallback);
+      if (alive.current) showAuthError(error, 'resend');
     } finally {
-      setIsOtpResending(false);
+      authPending.current = false;
+      if (alive.current) setIsOtpResending(false);
     }
   };
 
   const returnToPasswordStep = () => {
+    if (authPending.current) return;
     setMfaChallenge(null);
     setOtpCode('');
     setPassword('');
+    setOtpUnavailable(false);
     setErrorMessage('');
+    setOtpStatus('');
+    setUncertain(false);
   };
 
   const updateCompanyName = (value: string) => {
@@ -210,6 +240,7 @@ export default function LoginPage() {
   };
 
   const openResetModal = () => {
+    if (authPending.current) return;
     setResetEmail(emailIsValid ? normalizedEmail : '');
     setResetEmailTouched(false);
     setResetMessage('');
@@ -227,20 +258,22 @@ export default function LoginPage() {
     event.preventDefault();
     setResetEmailTouched(true);
 
-    if (!canSubmitReset) {
+    if (resetPending.current || !canSubmitReset) {
       return;
     }
 
+    resetPending.current=true;
     try {
       setIsResetSubmitting(true);
       setResetMessage('');
       setResetErrorMessage('');
-      const response = await authApi.requestPasswordReset({ email: normalizedResetEmail });
-      setResetMessage(response.message || copy.resetSuccessFallback);
+      await authApi.requestPasswordReset({ email: normalizedResetEmail });
+      if(alive.current) setResetMessage(copy.resetSuccessFallback);
     } catch (error) {
-      setResetErrorMessage(error instanceof Error ? error.message : copy.resetErrorFallback);
+      if(alive.current) setResetErrorMessage(copy.resetErrorFallback);
     } finally {
-      setIsResetSubmitting(false);
+      resetPending.current=false;
+      if(alive.current) setIsResetSubmitting(false);
     }
   };
 
@@ -257,6 +290,11 @@ export default function LoginPage() {
             )}
             {mfaChallenge ? (
               <OtpVerificationPanel
+                copy={verificationCopy}
+                expiresIn={expiresIn}
+                unavailable={otpUnavailable}
+                uncertain={uncertain}
+                statusMessage={otpStatus}
                 maskedDestination={mfaChallenge.maskedDestination}
                 otpCode={otpCode}
                 isSubmitting={isOtpSubmitting}
@@ -265,6 +303,8 @@ export default function LoginPage() {
                 resendAvailableIn={resendAvailableIn}
                 errorMessage={errorMessage}
                 onOtpChange={(value) => {
+                  if (authPending.current) return;
+                  setOtpStatus('');
                   setOtpCode(value.replace(/\D/g, '').slice(0, 6));
                   setErrorMessage('');
                 }}
@@ -273,6 +313,7 @@ export default function LoginPage() {
                 onBack={returnToPasswordStep}
               />
             ) : (
+              <div className="order-1 min-w-0 lg:order-2">
               <LoginFormPanel
                 copy={copy}
                 email={email}
@@ -294,6 +335,8 @@ export default function LoginPage() {
                 onOpenResetModal={openResetModal}
                 onSubmit={handleSubmit}
               />
+              {uncertain ? <button type="button" disabled={isSubmitting} onClick={()=>window.location.reload()} className="mt-3 min-h-11 w-full text-sm font-bold text-[var(--indice-structural-blue)] underline">{verificationCopy.reload}</button> : null}
+              </div>
             )}
           </div>
         </main>
@@ -326,108 +369,5 @@ export default function LoginPage() {
         />
       ) : null}
     </>
-  );
-}
-
-function OtpVerificationPanel({
-  maskedDestination,
-  otpCode,
-  isSubmitting,
-  isResending,
-  canSubmit,
-  resendAvailableIn,
-  errorMessage,
-  onOtpChange,
-  onSubmit,
-  onResend,
-  onBack,
-}: {
-  maskedDestination: string;
-  otpCode: string;
-  isSubmitting: boolean;
-  isResending: boolean;
-  canSubmit: boolean;
-  resendAvailableIn: number;
-  errorMessage: string;
-  onOtpChange: (value: string) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  onResend: () => void;
-  onBack: () => void;
-}) {
-  return (
-    <section className="order-1 flex items-start lg:order-2 lg:items-center">
-      <div className="w-full rounded-[24px] border border-white/90 bg-white/95 p-5 shadow-[0_24px_70px_-42px_rgba(34,40,49,0.42)] backdrop-blur sm:p-6 lg:rounded-[28px] xl:p-7">
-        <button
-          type="button"
-          onClick={onBack}
-          className="mb-5 inline-flex items-center gap-2 text-sm font-bold text-[var(--indice-structural-blue)] underline-offset-4 transition hover:text-[var(--indice-structural-blue-hover)] hover:underline"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Use different account
-        </button>
-
-        <div className="mb-5 space-y-2.5">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] px-3 py-1 text-sm font-bold text-[var(--indice-brand-action)]">
-            <ShieldCheck className="h-4 w-4" />
-            Secure verification
-          </div>
-          <h2 className="text-2xl font-bold tracking-tight text-[#222831] sm:text-3xl">
-            Enter your verification code
-          </h2>
-          <p className="max-w-xl text-sm leading-6 text-slate-600">
-            We sent a 6-digit code to {maskedDestination}.
-          </p>
-        </div>
-
-        <form onSubmit={onSubmit} className="space-y-4">
-          <label className="block space-y-2">
-            <span className="text-sm font-semibold text-slate-700">Verification code</span>
-            <span className="relative block">
-              <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                value={otpCode}
-                onChange={(event) => onOtpChange(event.target.value)}
-                placeholder="000000"
-                className="h-12 rounded-xl border-slate-200 bg-white pl-10 text-center text-lg font-bold tracking-[0.35em] shadow-sm focus-visible:border-[var(--indice-brand-aqua)] focus-visible:ring-[var(--indice-brand-aqua)]/25"
-                required
-              />
-            </span>
-          </label>
-
-          {errorMessage ? (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-              {errorMessage}
-            </div>
-          ) : null}
-
-          <Button
-            type="submit"
-            disabled={!canSubmit}
-            className="h-12 w-full rounded-xl bg-[var(--indice-brand-action)] text-white shadow-sm shadow-emerald-950/15 hover:bg-[var(--indice-brand-action-hover)]"
-          >
-            {isSubmitting ? 'Verifying...' : (
-              <>
-                Verify and sign in
-                <ArrowRight className="h-4 w-4" />
-              </>
-            )}
-          </Button>
-        </form>
-
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-3 text-sm text-slate-600">
-          <button
-            type="button"
-            onClick={onResend}
-            disabled={resendAvailableIn > 0 || isResending}
-            className="inline-flex items-center gap-2 font-bold text-[var(--indice-structural-blue)] underline-offset-4 transition hover:text-[var(--indice-structural-blue-hover)] hover:underline disabled:cursor-not-allowed disabled:text-slate-400 disabled:no-underline"
-          >
-            <RefreshCw className={`h-4 w-4 ${isResending ? 'animate-spin' : ''}`} />
-            {resendAvailableIn > 0 ? `Resend in ${resendAvailableIn}s` : 'Resend code'}
-          </button>
-        </div>
-      </div>
-    </section>
   );
 }
