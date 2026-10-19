@@ -55,18 +55,4 @@ class PostSaleWorkspaceControllerTest {
         assertThat(PostSaleWorkspaceController.class.getAnnotation(RequiresCapability.class).value()).contains("sales");
         for(String path:List.of("","/flows","/items/won/4","/items/lost/4/reactivate"))assertThat(new TabPermissionRouteClassifier().classify(new MockHttpServletRequest("GET",BASE+path)).orElseThrow().toString()).contains("crm.contracts");
     }
-    @Test void sortingDefaultsAndExplicitOrderKeepSessionAuthority() throws Exception {
-        mvc.perform(get(BASE).param("companyId","999")).andExpect(status().isOk());
-        verify(service).workspace(eq(7L),eq("won"),isNull(),isNull(),isNull(),isNull(),eq(1),eq(50),eq(true),
-            eq(new PostSaleWorkspaceDtos.WorkspaceSort("nextAction","asc")));
-        mvc.perform(get(BASE).param("kind","lost").param("sort","stage").param("direction","desc").param("page","2").param("pageSize","10")).andExpect(status().isOk());
-        verify(service).workspace(eq(7L),eq("lost"),isNull(),isNull(),isNull(),isNull(),eq(2),eq(10),eq(true),
-            eq(new PostSaleWorkspaceDtos.WorkspaceSort("stage","desc")));
-    }
-    @Test void unknownSortAndDirectionAreRejectedBeforeBusinessQueries() throws Exception {
-        for(String column:List.of("company_id","client DESC; DROP TABLE users","totalAmount"))
-            mvc.perform(get(BASE).param("sort",column)).andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.code").value("post_sale_validation"));
-        mvc.perform(get(BASE).param("direction","asc; SELECT 1")).andExpect(status().isUnprocessableEntity());
-        verifyNoInteractions(service);
-    }
 }

@@ -23,12 +23,12 @@ class SalesReportingRepository {
     Page read(long company, HrOperationalScope scope, Filter filter, Options options) {
         var query = where(company, scope, filter);
         long count = db.queryForObject("SELECT COUNT(*) " + FROM + query.sql, Long.class, query.args.toArray());
-        String sort = switch (filter.sort()) { case "amount" -> "s.total_amount"; case "number" -> "s.sale_number"; case "customer" -> "s.customer_name"; default -> "s.sale_date"; };
+        String sort = switch (filter.sort()) { case "number" -> "s.sale_number"; case "customer" -> "s.customer_name"; default -> "s.sale_date"; };
         String direction = "asc".equals(filter.direction()) ? "ASC" : "DESC";
         var args = new ArrayList<>(query.args); args.add(filter.pageSize()); args.add((filter.page() - 1L) * filter.pageSize());
         var rows = db.query("SELECT s.*, " + ORIGIN + " origin, " + CHANNEL + " channel, t.id ticket_id, t.ticket_number, u.name unit_name, b.name business_name "
             + FROM + " LEFT JOIN units u ON u.id=s.unit_id AND u.company_id=s.company_id LEFT JOIN businesses b ON b.id=s.business_id AND b.company_id=s.company_id "
-            + query.sql + " ORDER BY " + ("amount".equals(filter.sort()) ? "UPPER(TRIM(s.currency)) ASC, " : "") + sort + " " + direction + ", s.id " + direction + " LIMIT ? OFFSET ?",
+            + query.sql + " ORDER BY " + sort + " " + direction + ", s.id " + direction + " LIMIT ? OFFSET ?",
             (r,n) -> new Sale(r.getLong("id"),r.getString("sale_number"),r.getObject("sale_date",java.time.LocalDate.class),r.getString("origin"),r.getString("channel"),
                 r.getString("customer_name"),r.getString("seller_name"),r.getObject("unit_id",Long.class),r.getString("unit_name"),r.getObject("business_id",Long.class),r.getString("business_name"),
                 r.getString("currency"),r.getBigDecimal("total_amount"),r.getBigDecimal("tax_total"),r.getBigDecimal("discount_total"),

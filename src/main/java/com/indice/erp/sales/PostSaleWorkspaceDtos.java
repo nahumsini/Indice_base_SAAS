@@ -3,7 +3,6 @@ package com.indice.erp.sales;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 
 public final class PostSaleWorkspaceDtos {
     private PostSaleWorkspaceDtos() { }
@@ -11,14 +10,6 @@ public final class PostSaleWorkspaceDtos {
     public record Flow(long id, String name, int version, boolean archived, List<Stage> stages) { }
     public record SaveFlow(String requestKey, Integer version, String name, boolean archived, List<Stage> stages) { }
     public record Owner(long id, String name) { }
-    public record WorkspaceSort(String column, String direction) {
-        public WorkspaceSort {
-            if (column == null || !Set.of("client", "sale", "stage", "owner", "lossReason", "nextAction").contains(column)
-                    || direction == null || !Set.of("asc", "desc").contains(direction)) {
-                throw new IllegalArgumentException("Invalid post-sale sort.");
-            }
-        }
-    }
     public record SaveWork(String requestKey, int version, Long flowId, String stageKey, Long ownerId,
             String nextAction, LocalDate nextActionDate, String notes, String lossReason, boolean paused) { }
     public record Reactivate(String requestKey, int version, String opportunityName, Long flowId) { }

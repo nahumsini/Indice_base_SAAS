@@ -27,9 +27,8 @@ public class PostSaleWorkspaceController {
     @GetMapping
     public ResponseEntity<?> workspace(HttpSession session,@RequestParam(defaultValue="won") String kind,@RequestParam(required=false) String search,
             @RequestParam(required=false) Long owner,@RequestParam(required=false) Long flow,@RequestParam(required=false) String stage,
-            @RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="50") int pageSize,
-            @RequestParam(defaultValue="nextAction") String sort,@RequestParam(defaultValue="asc") String direction) {
-        return run(session,false,null,false,user->service.workspace(user.companyId(),kind,search,owner,flow,stage,page,pageSize,canReactivate(user),new WorkspaceSort(sort,direction)));
+            @RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="50") int pageSize) {
+        return run(session,false,null,false,user->service.workspace(user.companyId(),kind,search,owner,flow,stage,page,pageSize,canReactivate(user)));
     }
     @GetMapping("/items/{kind}/{id}")
     public ResponseEntity<?> detail(HttpSession session,@PathVariable String kind,@PathVariable long id) {

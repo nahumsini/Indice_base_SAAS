@@ -40,7 +40,7 @@ public class SalesBoardService {
         require(!end.isBefore(start) && start.getYear()>=1011 && end.getYear()<=9999 && ChronoUnit.DAYS.between(start,end)<=3660);
         require(search.length()<=180 && channel.length()<=40 && Set.of("ALL","SALES","POS","UNKNOWN").contains(origin)
             && Set.of("ALL","ACTIVE","CANCELLED").contains(status) && page>=1 && page<=1000000
-            && Set.of(10,25,50,100,200).contains(pageSize) && Set.of("date","number","customer","amount").contains(sort)
+            && Set.of(10,25,50,100,200).contains(pageSize) && Set.of("date","number","customer").contains(sort)
             && Set.of("asc","desc").contains(direction) && currency.matches("[A-Z]{3}")
             && (unit==null || unit>0) && (business==null || business>0) && Set.of("auto","day","week","month").contains(granularity));
         var data=sales.read(actor.companyId(),scopes.resolve(actor),new Filter(start,end,search.trim(),origin,channel,status,unit,business,page,pageSize,sort,direction));
