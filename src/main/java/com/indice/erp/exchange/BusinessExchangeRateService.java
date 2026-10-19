@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -92,12 +93,14 @@ public class BusinessExchangeRateService {
         return snapshotRepository.find(LocalDate.now(BUSINESS_ZONE));
     }
 
-    @Transactional
+    // Reporting callers retain their read-only transaction; the shared daily
+    // cache owns its refresh and commit independently, including on a cold day.
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public BusinessExchangeRatesResponse loadDailyRates() {
         return loadDailyRates(false);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public BusinessExchangeRatesResponse loadDailyRates(boolean forceRefresh) {
         var rateDate = LocalDate.now(BUSINESS_ZONE);
         var cachedResponse = snapshotRepository.find(rateDate);
