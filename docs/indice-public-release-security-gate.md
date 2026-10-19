@@ -68,7 +68,14 @@ It leaves the historical TEST-secret finding unresolved, expires as documented,
 and does not waive any other gate or authorize billing activation. It is not a
 general residual-risk waiver or a precedent for future releases.
 
-For that same release, the owner's later explicit instruction to review directly in production
+For the 2026-10-19 production candidate only, the owner's explicit "ignora stripe y
+continua" instruction narrowly replaces the historical TEST-key revocation blocker
+under [the current release decision](decisions/2026-10-19-production-stripe-deferral.md).
+The finding remains unresolved; the exception does not change provider authority,
+cover other secrets/incidents or waive any other gate. It expires with this release
+attempt and its observation window.
+
+For the 2026-10-06 release, the owner's later explicit instruction to review directly in production
 replaces only the human-UAT location/timing, as recorded in the
 [bounded production-acceptance decision](decisions/2026-10-06-owner-production-acceptance.md).
 Manual evidence remains UNKNOWN and the sequencing risk is ACCEPTED, not PASS. All technical,
