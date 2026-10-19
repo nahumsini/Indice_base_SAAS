@@ -22,7 +22,14 @@ class AiLearningServiceTest {
             var guide=service.guide(token,new AiLearningContracts.Request(null,null,locale));assertThat(guide.modules()).hasSize(3);
             var inventory=guide.modules().stream().filter(m->m.module().equals("inventory")).findFirst().orElseThrow();assertThat(inventory.tabs()).hasSize(6);
             assertThat(inventory.tabs().stream().filter(t->t.tab().equals("inventory")).findFirst().orElseThrow().availableTools()).containsExactly("list_inventory_balances","preview_transfer_inventory_stock","transfer_inventory_stock");
-            var crm=guide.modules().stream().filter(m->m.module().equals("crm")).findFirst().orElseThrow();assertThat(crm.tabs()).hasSize(8);assertThat(crm.tabs()).extracting(AiLearningContracts.TabGuide::tab).doesNotContain("products","providers","inventory","after-sales");
+            var crm=guide.modules().stream().filter(m->m.module().equals("crm")).findFirst().orElseThrow();
+            assertThat(crm.tabs()).hasSize(12);
+            assertThat(crm.tabs()).extracting(AiLearningContracts.TabGuide::tab)
+                .contains("after-sales","funneling","mailing","whatsapping")
+                .doesNotContain("products","providers","inventory");
+            assertThat(crm.tabs().stream()
+                .filter(t->Set.of("after-sales","funneling","mailing","whatsapping").contains(t.tab()))
+                .flatMap(t->t.availableTools().stream())).isEmpty();
             var pos=guide.modules().stream().filter(m->m.module().equals("pos")).findFirst().orElseThrow();assertThat(pos.pageId()).isEqualTo("point-of-sale");assertThat(pos.tabs()).hasSize(6);
             assertThat(guide.modules().stream().flatMap(m->m.tabs().stream()).flatMap(t->t.availableTools().stream())).doesNotContain("get_hr_kpis");
         }
