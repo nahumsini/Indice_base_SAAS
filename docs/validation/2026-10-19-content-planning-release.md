@@ -1,8 +1,9 @@
 # Content planning production release — 2026-10-19
 
-Status: NOT ACTIVATED. Application source is pushed; production activation is blocked
-by loss of VPS access during the target preflight and an outstanding release decision.
-The last verified production runtime was `aaa23d66`; no activation command was run.
+Status: TECHNICAL PREPARATION PASSED; NOT ACTIVATED. Source is pushed, target
+validation and recovery are complete. The historical Stripe TEST-key release
+decision remains outstanding. Production is healthy on `aaa23d66`; no activation
+command was run.
 
 ## Source and scope
 
@@ -68,11 +69,18 @@ only after verifying original archives and absence of container mounts.
 - Primary CI: https://github.com/nahumsini/Indice_base_SAAS/actions/runs/39364582715
 - Recovery CI: https://github.com/nahumsini/Indice_base_SAAS/actions/runs/39364585067
 - Both exact-source GitHub CI runs completed successfully, including the complete
-  backend suite, frontend typecheck/build/regressions, MCP checks, image builds and
-  runtime smoke tests.
-- Target preflight: frontend, MCP and recovery wrapper checks passed; the last
-  observed backend suite was running without failures. Completion is UNKNOWN
-  because the VPS stopped responding before the result could be retrieved.
+  backend suite (candidate: 3,739 tests, zero failures/errors, one skipped), frontend
+  typecheck/build/regressions, MCP checks, image builds and runtime smoke tests.
+- Target preflight completed at 2026-10-20 04:17:38 UTC with the verified checkpoint
+  resume described below: 16 deployment/recovery checks, 158 MCP checks, TypeScript,
+  frontend build and 3,739 backend tests (zero failures/errors, one skipped).
+  `preflight-complete.json` binds the unchanged source/environment to the original
+  and resumed logs. The disposable database was removed; the bounded service exited
+  successfully and the production health monitor completed without stopping it.
+- Final backup manifest verification, production configuration dry run and runtime
+  preservation guard passed after the tests. Public API health is HTTP 200; available
+  disk space is 14 GiB. APPTEST, production image/configuration and schema V331 remain
+  unchanged. Actual activation and its five-minute observation are still pending.
 
 ## Failures investigated before activation
 
@@ -99,21 +107,48 @@ stock, currency, idempotency and reversal checks remain in their existing owner.
 At approximately 2026-10-20 03:46 UTC, new SSH connections stopped completing banner
 exchange, public HTTPS stopped completing TLS, and HTTP stopped returning a response.
 The independent connected MCP client also reported connection failure. TCP connection
-establishment still succeeded. The cause is not established; resource pressure from
-the temporary validation workload is a hypothesis, not a confirmed diagnosis.
+establishment still succeeded. After access recovered, the host reported a load
+average above 400 and almost
+all 4 GiB of swap in use. The temporary Surefire JVM exited 137. These observations
+are consistent with resource exhaustion; no kernel OOM record was obtained.
 
 The new application was not activated. A narrowly scoped attempt to terminate only
 the release directory's Surefire test JVM could not connect and therefore did not
 execute. No production container was stopped, recreated or deliberately restarted.
-Provider console access was requested from the owner to inspect/recover the host.
-Before continuing, verify host health, inspect the actual preflight result and temporary
-workload, preserve evidence, then rerun missing checks with explicit resource limits.
+SSH and HTTPS recovered without a deliberate production restart. Backend and web
+retained zero restarts and the original image; API health returned 200. No matching
+Surefire JVM remained when the narrow stop command could finally execute.
+
+The initial preflight also exposed four attendance fixture assertions caused by a
+local JVM day differing from the isolated MySQL UTC day. The rerun uses UTC for its
+test JVM, matching CI and application containers, without changing host, customer
+or production settings. Assertions and application source remain unchanged.
+
+The rerun is isolated by a transient systemd service with 3 GiB memory maximum,
+2.5 GiB memory high, zero swap, 150% CPU quota and 384 tasks maximum. Maven uses
+512 MiB heap; forked Java tests use 1 GiB heap, 384 MiB metaspace and eight cached
+Spring contexts. Node heap is bounded to 2 GiB; its initial 1 GiB budget was insufficient for
+TypeScript, and that isolated attempt stopped without affecting production. Core
+dumps are disabled for the bounded validation process. The disposable MySQL remains in
+its separate 1 GiB container. A temporary monitor stops only this validation unit
+if production health fails or available host memory stays below 1.5 GiB for two
+consecutive samples. Original logs remain protected for investigation.
+The protected rerun completed all 16 deployment/recovery checks, 158 MCP checks,
+TypeScript and the production frontend build. Its backend launch then stopped before
+running tests because the transient service lacked the normal user home environment.
+The service now explicitly uses `User=root`; a direct probe verified the standard
+login environment. Only the remaining canonical `./mvnw clean test` step was resumed,
+with a fresh isolated database and the same resource limits. Before and after this
+step, the checkpoint verifier checked the exact source revision, clean worktree,
+unchanged protected-environment hash and successful preceding commands. Original
+failure logs are preserved; the combined result identifies this checkpoint resume.
 The current backups and compatible recovery image remain the planned release fallback.
 
 ## Outstanding release decision
 
 Historical Stripe TEST-key revocation remains FAIL: the read-only authentication
-check still returned HTTP 200. No credential was printed or copied into source.
+check still returned HTTP 200 at 2026-10-20 04:04:54 UTC. No credential was
+printed or copied into source.
 The prior attendance exception explicitly expired. A new, specific owner replacement
 decision or verified revocation is required under the canonical public release gate
 before activation. This preparation record grants no exception.
@@ -121,3 +156,19 @@ before activation. This preparation record grants no exception.
 Real social publication/payment/email send acceptance: N/A, not part of this change.
 Human production UI acceptance follows activation; no agent-created real business
 record, attendance event, email or payment is claimed.
+
+## Prepared rollback command
+
+After activation only, the retained backend is the tested V334-compatible recovery
+image, with the previous web, MCP and MinIO images. The repository helper preserves
+the current schema and live object data:
+
+```sh
+CONFIRM_ROLLBACK=true HOST_BACKEND_PORT=8083 HOST_WEB_PORT=8080 \
+HOST_MINIO_API_PORT=9000 MCP_ENABLED=true HOST_MCP_PORT=3011 \
+ROLLBACK_HEALTH_WAIT_SECONDS=60 \
+bash /root/indice-calendar-release-20261019/source/deployment/scripts/rollback-host-network.sh
+```
+
+Repeat public health, MCP authorization, retained-image and unchanged-provider checks
+after recovery. This prepared command has not been run against production.

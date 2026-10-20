@@ -166,6 +166,16 @@ las credenciales. Para comprobar solamente el repositorio con la plantilla:
 ./deployment/scripts/preflight.sh --example
 ```
 
+Si el host también sirve producción, asigna un presupuesto de recursos al proceso
+completo de validación y a su base desechable antes de iniciarlos. Usa límites de
+memoria, CPU y swap del sistema operativo, conserva capacidad para los servicios
+activos y vigila su salud durante la ejecución. `MAVEN_OPTS` limita Maven, pero no
+limita por sí solo la JVM de pruebas que inicia Surefire; configura también esa JVM.
+El entorno de pruebas debe usar una zona horaria consistente entre Java y MySQL,
+sin modificar la zona del host ni las preferencias de las empresas.
+El [registro de validación del calendario](../docs/validation/2026-10-19-content-planning-release.md)
+documenta el incidente y los límites utilizados en este VPS.
+
 La validación del backend comienza con `mvnw clean test`; esta limpieza es obligatoria para que un
 recurso Flyway renombrado en una integración no permanezca en `target/classes` simulando una versión
 duplicada que ya no existe en el árbol fuente.
