@@ -80,12 +80,13 @@ const offerColumnMaximums: Record<OfferColumnId, number> = {
 
 const offerActionsWidth = 168;
 
-const money = (cents?: number | null, languageCode = "en-CA") =>
+const money = (cents?: number | null, languageCode = "en-CA", currencyCode = "USD") =>
   cents == null
     ? (getCatalogCopy(languageCode).pricePending)
     : new Intl.NumberFormat(languageCode, {
         style: "currency",
-        currency: "USD",
+        currency: currencyCode,
+        currencyDisplay: "code",
         maximumFractionDigits: 2,
       }).format(cents / 100);
 
@@ -458,8 +459,8 @@ export function CommercialOfferWorkspace({
                     </div>
                   </TableCell>
                   <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-200" style={{ width: columnWidths.type }}>{kindLabel(product.commercial_kind, languageCode)}</TableCell>
-                  <TableCell className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white" style={{ width: columnWidths.monthly }}>{money(monthlyPrice(product)?.unit_amount_cents, languageCode)}</TableCell>
-                  <TableCell className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white" style={{ width: columnWidths.annual }}>{money(annualPrice(product)?.unit_amount_cents, languageCode)}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white" style={{ width: columnWidths.monthly }}>{money(monthlyPrice(product)?.unit_amount_cents, languageCode, monthlyPrice(product)?.currency)}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white" style={{ width: columnWidths.annual }}>{money(annualPrice(product)?.unit_amount_cents, languageCode, annualPrice(product)?.currency)}</TableCell>
                   <TableCell className="px-4 py-3" style={{ width: columnWidths.configuration }}><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${configurationClassName(configurationState)}`}>{configurationLabel(configurationState)}</span></TableCell>
                   <TableCell className="px-4 py-3" style={{ width: columnWidths.availability }}><span className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium ${product.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}><span className={`h-2 w-2 rounded-full ${product.active ? "bg-emerald-500" : "bg-slate-400"}`} />{product.active ? (getCatalogCopy(languageCode).available) : (getCatalogCopy(languageCode).unavailable)}</span></TableCell>
                   <TableCell className="sticky right-0 z-10 border-l border-slate-100 bg-white px-4 py-3 text-right group-hover:bg-[#F7FCFA] dark:border-slate-800 dark:bg-slate-900" style={{ width: offerActionsWidth }}>{renderActions(target, catalogProductLabel(product, languageCode))}</TableCell>

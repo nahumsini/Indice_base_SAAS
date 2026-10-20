@@ -81,7 +81,7 @@ public class PlatformCatalogPublicationService {
                    COUNT(price.id)
             FROM billing_catalog_products product
             LEFT JOIN billing_catalog_prices price ON price.catalog_product_id = product.id
-              AND price.currency = 'USD' AND price.billing_interval IN ('MONTH', 'YEAR')
+              AND price.billing_interval IN ('MONTH', 'YEAR')
             WHERE product.catalog_version_id = ? AND product.active = 1
               AND product.commercial_kind IN ('MODULE', 'PACKAGE', 'SEAT', 'VOLUME', 'STORAGE')
             GROUP BY product.id ORDER BY product.id
@@ -107,7 +107,7 @@ public class PlatformCatalogPublicationService {
         void requireValid() {
             if (priceCount != 2 || monthly == null || annual == null || monthly <= 0 || annual <= 0
                 || monthly > 100_000_000L || annual > 100_000_000L) {
-                throw new IllegalStateException("Completa las tarifas mensual y anual en USD antes de publicar la oferta.");
+                throw new IllegalStateException("Completa las tarifas mensual y anual antes de publicar la oferta.");
             }
         }
     }

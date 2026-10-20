@@ -128,6 +128,24 @@ public class BillingActivationService {
         if (publicTrial != null) publicTrial.requireLegacyPaidFlowAllowed(companyId);
     }
 
+    /** Regional owner contract: reuse the native existing-company intent without granting paid access. */
+    public long prepareRegionalIntent(long companyId, long actorUserId, String key,
+        CommercialOfferSelection selection, java.util.function.LongConsumer freezeConsent) {
+        stripeSecrets.requireEnabled();
+        requireCollectionRoute(companyId, null);
+        var cleanKey = requireIdempotencyKey(key);
+        var owner = owner(companyId, actorUserId);
+        requireCapacity(companyId, selection);
+        var idempotencyHash = BillingHashing.sha256("billing-activation:" + companyId + ":" + cleanKey);
+        var intentId = transactions.execute(status -> {
+            var id = createOrLoadIntent(companyId, owner, selection, idempotencyHash, fingerprint(companyId, selection), null);
+            freezeConsent.accept(id);
+            return id;
+        });
+        if (intentId == null) throw new IllegalStateException("Regional activation could not be prepared.");
+        return intentId;
+    }
+
     private BillingActivationResponse createSelectedCheckout(long companyId, long actorUserId,
         String cleanKey, CommercialOfferSelection selection, Long paymentRequestId) {
         var owner = owner(companyId, actorUserId);

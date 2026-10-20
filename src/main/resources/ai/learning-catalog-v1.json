@@ -1,7 +1,103 @@
 {
-  "version": "2026-10-19.v7",
-  "sourceDigest": "48a5f2c6e3ce6843721ced5eb8f621078a7b64c4a63f5f2b94b1e91c1a6bef91",
+  "version": "2026-10-20.v8",
+  "sourceDigest": "1ae31b7b05ecb4f4335340070e8b762cfc6d185a620606551bf15d12bee992cd",
   "modules": [
+    {
+      "module": "ideas_board",
+      "pageId": "ideas-board",
+      "locale": "es-MX",
+      "stage": 0,
+      "purpose": "Estructura de la empresa",
+      "tabs": [
+        {
+          "tab": "canvas",
+          "label": "Mi pizarra",
+          "title": "Mi pizarra",
+          "purpose": "Revisa la empresa activa: esta pizarra es privada para tu usuario y empresa.",
+          "effect": "Guarda un proyecto con nombre para conservar una copia. Si hay un conflicto, revisa la versión guardada antes de descartar cambios.",
+          "chapterId": "ideas_board.canvas",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Revisa la empresa activa: esta pizarra es privada para tu usuario y empresa."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Organiza notas, imágenes y conexiones; ajusta su formato y comprueba el guardado automático."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Guarda un proyecto con nombre para conservar una copia. Si hay un conflicto, revisa la versión guardada antes de descartar cambios."
+            }
+          ]
+        },
+        {
+          "tab": "system",
+          "label": "Tablero Índice",
+          "title": "Tablero Índice",
+          "purpose": "Prepara un mapa de Personas, Procesos, Productos y Finanzas dentro de tu espacio privado.",
+          "effect": "Comprueba el guardado y conserva un proyecto. El mapa ordena ideas; no crea empleados, tareas, productos ni registros contables.",
+          "chapterId": "ideas_board.system",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Prepara un mapa de Personas, Procesos, Productos y Finanzas dentro de tu espacio privado."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Agrega elementos en su área, enlaza sus relaciones y usa el minimapa para recorrer el diagnóstico."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Comprueba el guardado y conserva un proyecto. El mapa ordena ideas; no crea empleados, tareas, productos ni registros contables."
+            }
+          ]
+        },
+        {
+          "tab": "projects",
+          "label": "Mis proyectos",
+          "title": "Mis proyectos",
+          "purpose": "Busca por nombre los proyectos guardados para tu usuario y empresa activa.",
+          "effect": "La consulta conserva el contenido original: acercar o mover la vista no cambia el proyecto ni tus borradores.",
+          "chapterId": "ideas_board.projects",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Busca por nombre los proyectos guardados para tu usuario y empresa activa."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Abre una copia de Mi pizarra o del Tablero Índice para consultar sus elementos y relaciones."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "La consulta conserva el contenido original: acercar o mover la vista no cambia el proyecto ni tus borradores."
+            }
+          ]
+        }
+      ]
+    },
     {
       "module": "sales_board",
       "pageId": "sales-board",
@@ -2700,6 +2796,102 @@
               "id": "verify",
               "title": "Comprueba el resultado",
               "description": "Consulta historial de ejecuciones y entregas. Programar no demuestra envío exitoso; el agente no inventa destinatarios ni entrega externa."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "ideas_board",
+      "pageId": "ideas-board",
+      "locale": "en-CA",
+      "stage": 0,
+      "purpose": "Company structure",
+      "tabs": [
+        {
+          "tab": "canvas",
+          "label": "My board",
+          "title": "My board",
+          "purpose": "Check the active company: this board is private to your user and company.",
+          "effect": "Save a named project to retain a snapshot. If a conflict occurs, review the saved version before discarding changes.",
+          "chapterId": "ideas_board.canvas",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Check the active company: this board is private to your user and company."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Arrange notes, images and connections; adjust their appearance and check autosave."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Save a named project to retain a snapshot. If a conflict occurs, review the saved version before discarding changes."
+            }
+          ]
+        },
+        {
+          "tab": "system",
+          "label": "Indice system board",
+          "title": "Indice system board",
+          "purpose": "Prepare a map of People, Processes, Products and Finance within your private workspace.",
+          "effect": "Check the saved state and retain a project. The map organizes ideas; it does not create employees, tasks, products or accounting records.",
+          "chapterId": "ideas_board.system",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Prepare a map of People, Processes, Products and Finance within your private workspace."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Add elements in their area, connect their relationships and use the minimap to navigate the diagnosis."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Check the saved state and retain a project. The map organizes ideas; it does not create employees, tasks, products or accounting records."
+            }
+          ]
+        },
+        {
+          "tab": "projects",
+          "label": "My projects",
+          "title": "My projects",
+          "purpose": "Search by name for projects saved for your user and active company.",
+          "effect": "Consultation preserves the original content: zooming or panning does not change the project or your drafts.",
+          "chapterId": "ideas_board.projects",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Search by name for projects saved for your user and active company."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Open a My board or Indice system board snapshot to inspect its elements and relationships."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Consultation preserves the original content: zooming or panning does not change the project or your drafts."
             }
           ]
         }

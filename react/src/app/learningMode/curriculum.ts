@@ -21,6 +21,7 @@ const definitions: Record<string, readonly [string, number]> = {
   pos: ['point-of-sale', 4], kpis: ['kpis', 5],
   control_minutas: ['minutes-control', 2], scheduling: ['scheduling', 2],
   sales_board: ['sales-board', 5], correo: ['email', 4], maintenance: ['maintenance', 2],
+  ideas_board: ['ideas-board', 0],
 };
 function chapter(module: string, tab: string, label: LearningText, steps: readonly LearningText[], evidenceTools: readonly string[] = []): LearningChapter {
   const [pageId, stage] = definitions[module];
@@ -32,6 +33,21 @@ function chapter(module: string, tab: string, label: LearningText, steps: readon
     journey: !(module === 'pos' && tab === 'sale') };
 }
 export const learningChapters: readonly LearningChapter[] = [
+  chapter("ideas_board", "canvas", ["Mi pizarra", "My board"], [
+    ["Revisa la empresa activa: esta pizarra es privada para tu usuario y empresa.", "Check the active company: this board is private to your user and company."],
+    ["Organiza notas, imágenes y conexiones; ajusta su formato y comprueba el guardado automático.", "Arrange notes, images and connections; adjust their appearance and check autosave."],
+    ["Guarda un proyecto con nombre para conservar una copia. Si hay un conflicto, revisa la versión guardada antes de descartar cambios.", "Save a named project to retain a snapshot. If a conflict occurs, review the saved version before discarding changes."],
+  ]),
+  chapter("ideas_board", "system", ["Tablero Índice", "Indice system board"], [
+    ["Prepara un mapa de Personas, Procesos, Productos y Finanzas dentro de tu espacio privado.", "Prepare a map of People, Processes, Products and Finance within your private workspace."],
+    ["Agrega elementos en su área, enlaza sus relaciones y usa el minimapa para recorrer el diagnóstico.", "Add elements in their area, connect their relationships and use the minimap to navigate the diagnosis."],
+    ["Comprueba el guardado y conserva un proyecto. El mapa ordena ideas; no crea empleados, tareas, productos ni registros contables.", "Check the saved state and retain a project. The map organizes ideas; it does not create employees, tasks, products or accounting records."],
+  ]),
+  chapter("ideas_board", "projects", ["Mis proyectos", "My projects"], [
+    ["Busca por nombre los proyectos guardados para tu usuario y empresa activa.", "Search by name for projects saved for your user and active company."],
+    ["Abre una copia de Mi pizarra o del Tablero Índice para consultar sus elementos y relaciones.", "Open a My board or Indice system board snapshot to inspect its elements and relationships."],
+    ["La consulta conserva el contenido original: acercar o mover la vista no cambia el proyecto ni tus borradores.", "Consultation preserves the original content: zooming or panning does not change the project or your drafts."],
+  ]),
   chapter("sales_board", "overview", ["Resumen de ventas","Sales overview"], [
     ["Elige periodo, origen y alcance autorizado para revisar las ventas de CRM y POS.","Choose period, origin and authorized scope to review CRM and POS sales."],
     ["Consulta los totales consolidados y abre el detalle desde sus indicadores. Los filtros se conservan entre vistas.","Review consolidated totals and open detail from the indicators. Filters persist across views."],

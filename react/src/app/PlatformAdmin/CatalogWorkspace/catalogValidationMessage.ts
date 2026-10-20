@@ -6,6 +6,7 @@ type CatalogValidationBlocker = PlatformCatalogValidation['blockers'][number];
 /** Backend validation codes are stable; backend/provider prose is not a localized UI contract. */
 export const catalogValidationMessageKeys = {
   MISSING_BILLING_RATES: 'validationMissingRates',
+  INVALID_RECURRING_RATES: 'validationMissingRates',
   EMPTY_OFFER: 'validationEmptyOffer',
   MISSING_EXTRA_USER: 'validationMissingExtraUser',
   DUPLICATE_COMMERCIAL_NAME: 'validationDuplicateName',

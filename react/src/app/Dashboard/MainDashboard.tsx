@@ -3,7 +3,7 @@ import { SystemToolsSection } from './components/SystemToolsSection';
 import { IndiceEmoji } from '../components/icons/ModuleTabEmoji';
 import {LearningJourneyProgress} from '../learningMode/components/LearningJourneyProgress';
 import {useLearningCharacter} from '../learningMode/useLearningCharacter';
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   sortBasicModulesForOperationalLauncher,
   type DashboardModuleCard,
@@ -45,6 +45,7 @@ export interface MainDashboardProps {
   learningStep: number;
   setLearningStep: (step: number) => void;
   onNavigate: (page: PageId, tab?: string) => void;
+  accountNotice?: ReactNode;
 }
 
 export function MainDashboard({
@@ -54,6 +55,7 @@ export function MainDashboard({
   learningStep,
   setLearningStep,
   onNavigate,
+  accountNotice,
 }: MainDashboardProps) {
   const { currentLanguage, t } = useLanguage();
   const copy = useMainDashboardTranslations();
@@ -157,6 +159,7 @@ export function MainDashboard({
 
   return (
     <main className="mx-auto max-w-[1600px] space-y-8 px-4 py-6 sm:space-y-10 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+      {accountNotice}
       {isOperationalJourneyVisible && <LearningJourneyProgress copy={copy.learningPresentation} onNavigate={(page,tab)=>onNavigate(page as PageId,tab)} />}
       {isOperationalJourneyVisible && (
         <OperationalJourney

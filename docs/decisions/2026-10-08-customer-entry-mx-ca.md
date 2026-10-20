@@ -1,6 +1,7 @@
 # Customer entry MX/CA and basic module coordination
 
-Status: accepted product policy; initial entry implementation only, no public-release approval.
+Status: accepted product policy; entry/regional payment code locally implemented,
+provider certification pending, no public-release approval.
 
 ## Owner decisions
 
@@ -75,3 +76,23 @@ not waive the public release/security gates, publish a paid catalog, deploy eith
 enable public entry, create a payment mandate or authorize charges. The five remaining release
 blockers above remain in force. Further entry/payment work and the separate module delivery
 should branch from this updated checkpoint and coordinate migration numbering before merging.
+
+## Regional payment execution checkpoint — 2026-10-08
+
+The owner instructed executing the next increment. Branch
+`codex/regional-trial-payments-20261008` starts from main `25fd637a`, leaving the other agent's
+modules untouched. V307 adds regional product metadata, V308 immutable payment receipts and
+conversion, V309 durable provider-attempt deadline; inspect the combined directory before
+allocating further migrations. These are forward-only after isolated application.
+
+The [owner contract](../public-customer-entry-mx-ca-contract-v1.md) now describes the local
+regional draft, quote/mandate, hosted setup and paid-invoice conversion. Marketing main CTAs
+have independent default-off routing to ERP `/start`, with ten-language copy and legacy
+intake preserved. No real Stripe/catalog/deployment operation was performed. See
+[local validation and open gates](../validation/2026-10-08-regional-trial-payments.md).
+
+This supersedes the earlier “not implemented” blocker only for local code: provider/real-session
+certification, legal/tax, exposed-credential remediation evidence, exact-SHA CI, separate module
+release and marketing dirty-candidate coordination remain required before enabling the public
+flow. Regional extra people/storage, reminders and reconciliation tooling are not certified or
+advertised as purchasable. The Mexico implementation fee is not added to payment consent.

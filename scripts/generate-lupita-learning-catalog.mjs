@@ -25,6 +25,7 @@ for (const scope of Object.values(scopes)) for (const tab of Object.keys(scope.t
   if (!ids.has(`${scope.moduleSlug}.${tab}`)) throw new Error(`Current tab lacks a reviewed chapter: ${scope.moduleSlug}.${tab}`);
 // Changes to an owner, its active screens, or reviewed guides invalidate the generated catalog.
 const trackedRoots = ['react/src/app/BasicModules', 'react/src/app/ComplementaryModules/Inventory',
+  'react/src/app/ComplementaryModules/IdeasBoard', 'src/main/java/com/indice/erp/ideasboard',
   'react/src/app/ComplementaryModules/MinutesControl', 'react/src/app/ComplementaryModules/Scheduling',
   'react/src/app/learningMode', 'react/src/app/Messaging', 'react/src/app/components/Header.tsx',
   'react/src/app/App.tsx', 'react/src/app/Dashboard',
@@ -60,7 +61,7 @@ for (const locale of ['es-MX','en-CA']) {
       }))});
   }
 }
-const serialized = JSON.stringify({version:'2026-10-19.v7', sourceDigest:sourceDigest.digest('hex'), modules},null,2)+'\n';
+const serialized = JSON.stringify({version:'2026-10-20.v8', sourceDigest:sourceDigest.digest('hex'), modules},null,2)+'\n';
 const output = new URL('src/main/resources/ai/learning-catalog-v1.json',root);
 const matrix = '# Learning function coverage\n\nGenerated from the reviewed bilingual curriculum. Domain owners remain authoritative.\n\n| Chapter | Stage | Page/tab | Version | Evidence actions |\n| --- | --- | --- | --- | --- |\n'
   + learningChapters.map(c=>`| ${c.id} | ${c.stage+1} | ${c.pageId}/${c.tab} | ${c.version} | ${c.evidenceTools.join(', ') || 'Understanding only until an owner completion is integrated'} |`).join('\n')+'\n';

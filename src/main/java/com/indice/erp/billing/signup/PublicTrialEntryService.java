@@ -37,23 +37,36 @@ public class PublicTrialEntryService {
     private final ObjectMapper mapper;
     private final Clock clock;
     private final TransactionTemplate transaction;
+    private final PublicTrialPaymentService payments;
 
-    public PublicTrialEntryService(@Value("${app.billing.signup.public-trial-enabled:false}") boolean enabled,
+    public PublicTrialEntryService(boolean enabled,
         PublicTrialEntryRepository entries, PlatformLeadService leads, CommercialOfferSelectionService offers,
         BillingSignupIntentRepository intents, BillingTenantProvisioningService provisioning,
         BillingSignupEmailVerificationService verification, BillingSignupEmailVerificationProperties verificationProperties,
         BCryptPasswordEncoder passwords, BillingAuditService audit, ObjectMapper mapper, Clock clock,
         PlatformTransactionManager transactionManager) {
+        this(enabled, entries, leads, offers, intents, provisioning, verification, verificationProperties,
+            passwords, audit, mapper, clock, transactionManager, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public PublicTrialEntryService(@Value("${app.billing.signup.public-trial-enabled:false}") boolean enabled,
+        PublicTrialEntryRepository entries, PlatformLeadService leads, CommercialOfferSelectionService offers,
+        BillingSignupIntentRepository intents, BillingTenantProvisioningService provisioning,
+        BillingSignupEmailVerificationService verification, BillingSignupEmailVerificationProperties verificationProperties,
+        BCryptPasswordEncoder passwords, BillingAuditService audit, ObjectMapper mapper, Clock clock,
+        PlatformTransactionManager transactionManager, PublicTrialPaymentService payments) {
         this.enabled = enabled; this.entries = entries; this.leads = leads; this.offers = offers;
         this.intents = intents; this.provisioning = provisioning; this.verification = verification;
         this.verificationProperties = verificationProperties; this.passwords = passwords;
         this.audit = audit; this.mapper = mapper; this.clock = clock;
         this.transaction = new TransactionTemplate(transactionManager);
+        this.payments = payments;
     }
 
     public PublicTrialEntryContracts.Config config() {
-        // Automatic conversion is approved, but the regional payment implementation is not ready.
-        return new PublicTrialEntryContracts.Config(ready(), 15, 10, false, false, List.of("MX", "CA"));
+        return new PublicTrialEntryContracts.Config(ready(), 15, 10, false,
+            payments != null && payments.publicReady(), List.of("MX", "CA"));
     }
 
     private boolean ready() { return enabled && provisioning.enabled() && verificationProperties.isEnabled(); }

@@ -4411,6 +4411,26 @@ keeps the pending challenge for retry; account retries cannot restart the demo o
 The demo checkbox is not payment consent. Public-disabled and payment-not-ready states are
 explicit; no price, payment readiness, diagnosis completion or paid access is invented by UI.
 
+Native `/billing` routes the regional cohort to its quoted plan/mandate workspace while keeping
+historical and delegated account review in the existing workspace. It uses the shared institutional
+header, blue identity, eight-language copy, native CSRF/API client, mobile/dark layouts and an
+unchecked payment checkbox. Quote changes reset consent. AFTER_TRIAL and post-expiry IMMEDIATE
+mandates are distinct; pending setup and saved method never render as paid access. Redirects
+require the exact HTTPS Stripe host. Invoice/portal recovery remains native. Backend errors
+fail closed rather than falling back to USD or treating callback query parameters as financial proof.
+
+The primary Dashboard has a Billing-owned account notice outside its six operational sections,
+only for the server-verified owner of an unconverted regional trial. It shows the original deadline,
+display-only remaining days and a native `/billing` action. It makes no payment mutation, chooses no
+plan and accepts no mandate. Pending setup and saved methods remain review-only, not paid access.
+Unknown/non-owner/delegated/historical/converted contexts hide the notice; authorization and network
+failures discard its snapshot. Company, user and authorization revision scope all async responses.
+The embedded workspace renders no second notice. Native `trial_expired` denial can use the same
+owner-confirmed recovery presentation; other restrictions keep their existing screen. The blocked
+ERP uses a single workspace. Browser countdowns never grant, deny or extend access, and unavailable
+payment is explicit in active and expired states. Eight-language, mobile and neutral-dark copy/UI
+are required. See the customer entry owner contract for the financial and release boundaries.
+
 ### Maintenance operational pilot (2026-10-09)
 
 The active `/maintenance` runtime follows

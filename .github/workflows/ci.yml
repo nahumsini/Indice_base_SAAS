@@ -124,6 +124,7 @@ jobs:
           npm run test:inventory-ui
           npm run test:sales-ui
           npm run test:sales-workflow
+          node --test tests/personal-ideas-board.test.mjs tests/system-board-model.test.mjs tests/node-appearance.test.mjs
           npm run test:pos-ui
           npm run test:platform-admin
           npm run test:billing-flow

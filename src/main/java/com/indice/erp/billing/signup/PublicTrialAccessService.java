@@ -24,9 +24,14 @@ public class PublicTrialAccessService {
 
     /** The legacy USD flow has neither this cohort's regional price nor payment consent contract. */
     public void requireLegacyPaidFlowAllowed(long companyId) {
-        if (deadline(companyId).isPresent()) {
+        if (isRegionalCohort(companyId)) {
             throw new IllegalStateException("Regional trial payment activation is not available yet.");
         }
+    }
+
+    public boolean isRegionalCohort(long companyId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM billing_trial_entries WHERE company_id = ?)",
+            Boolean.class, companyId));
     }
 
     public java.util.Optional<java.time.Instant> deadline(long companyId) {

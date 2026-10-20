@@ -120,7 +120,7 @@ test('every backend catalog publication blocker has a localized message contract
     ...Array.from(localValidation.matchAll(/"code"\s*,\s*"([A-Z_]+)"/g), match => match[1]),
     ...Array.from(stripeValidation.matchAll(/blocker\(\s*"([A-Z_]+)"/g), match => match[1]),
   ]);
-  assert.equal(codes.size, 12);
+  assert.equal(codes.size, 13);
   assert.deepEqual([...codes].sort(), Object.keys(catalogValidationMessageKeys).sort());
 });
 

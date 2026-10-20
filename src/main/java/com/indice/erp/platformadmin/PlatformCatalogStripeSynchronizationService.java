@@ -74,6 +74,10 @@ public class PlatformCatalogStripeSynchronizationService {
         var prices = prices(productId);
         var monthly = interval(prices, "MONTH");
         var annual = interval(prices, "YEAR");
+        if (prices.size() != 2 || !monthly.currency().equals(annual.currency())
+            || !List.of("USD", "CAD", "MXN").contains(monthly.currency())) {
+            throw new IllegalStateException("The product must have two recurring rates in one supported currency.");
+        }
         var taxCode = normalizedTaxCode();
         var account = stripe.account();
         if (account.accountId() == null || account.accountId().isBlank()) {
@@ -187,7 +191,7 @@ public class PlatformCatalogStripeSynchronizationService {
         result.put("stripe_mode", stripeMode);
         result.put("stripe_account_id", account.accountId());
         result.put("operation_id", operationKey);
-        result.put("currency", "USD");
+        result.put("currency", monthly.currency());
         result.put("tax_behavior", TAX_BEHAVIOR);
         result.put("tax_code", taxCode);
         result.put("automatic_tax_enabled", properties.isAutomaticTaxEnabled());
@@ -307,7 +311,7 @@ public class PlatformCatalogStripeSynchronizationService {
                 SELECT id, billing_interval, currency, unit_amount_cents, external_price_id,
                        stripe_tax_behavior, stripe_synced_at, status, stripe_mode, stripe_account_id
                 FROM billing_catalog_prices
-                WHERE catalog_product_id = ? AND billing_interval IN ('MONTH', 'YEAR') AND currency = 'USD'
+                WHERE catalog_product_id = ? AND billing_interval IN ('MONTH', 'YEAR')
                 """,
             (rs, rowNum) -> new PriceRow(
                 rs.getLong(1), rs.getString(2), rs.getString(3),
@@ -513,7 +517,7 @@ public class PlatformCatalogStripeSynchronizationService {
                        stripe_tax_behavior, stripe_synced_at, status, stripe_mode, stripe_account_id
                 FROM billing_catalog_prices
                 WHERE catalog_product_id = ? AND billing_interval IN ('MONTH', 'YEAR')
-                  AND currency = 'USD' FOR UPDATE
+                  FOR UPDATE
                 """,
             (rs, rowNum) -> new PriceRow(
                 rs.getLong(1), rs.getString(2), rs.getString(3), rs.getObject(4, Long.class),

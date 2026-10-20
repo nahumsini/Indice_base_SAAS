@@ -1,6 +1,8 @@
 import type { CatalogCopy } from "./en-CA";
 
 export const frCA: CatalogCopy = {
+  "regionalDraft": "Préparer Mexique / Canada",
+  "regionalDraftDescription": "Ajoute les forfaits régionaux à la version de travail, sans publier de prix ni effectuer de paiement.",
   "publishOfferInStripe": "Publier l’offre dans Stripe {0}",
   "savedPricesWillBeSynchronizedAndVerifiedBefore": "Les prix enregistrés seront synchronisés et vérifiés avant la mise en vente. Les abonnements existants conservent leurs prix convenus.",
   "cancel": "Annuler",

@@ -34,6 +34,7 @@ import { ProductAnalyticsTracker } from './analytics/ProductAnalyticsTracker';
 import { usePaymentRequest } from './Billing/hooks/usePaymentRequest';
 import { PaymentRequestBanner } from './Billing/components/PaymentRequestBanner';
 import { PaymentRequestRecovery } from './Billing/components/PaymentRequestRecovery';
+import { TrialAccountNotice } from './Billing/components/TrialAccountNotice';
 import { MessagingLauncher } from './Messaging/MessagingLauncher';
 import { isCollectionBlocked, PAYMENT_REQUEST_OVERDUE } from './Billing/paymentRequestPresentation';
 import { DualWorkspaceHost } from './components/workbar/DualWorkspaceHost';
@@ -741,6 +742,7 @@ export default function App() {
       <SubscriptionManagementPage />
     ) : currentPage === 'dashboard' ? (
       <MainDashboard
+        accountNotice={!isEmbeddedWorkspacePane ? <TrialAccountNotice session={sessionTabAccess} authorizationRevision={authorizationRevision} /> : null}
         learningModeActive={learningModeActive}
         learningModeVisible={learningModeVisible}
         setLearningModeVisible={setLearningModeVisible}
@@ -816,9 +818,8 @@ export default function App() {
       onSnapshot={paymentRequest.acceptSnapshot}
     />
   ) : isSubscriptionBlocked ? (
-    <SubscriptionRequiredScreen
-      subscription={subscriptionInfo}
-      onManageBilling={() => navigate('/billing')}
+    <TrialAccountNotice session={sessionTabAccess} authorizationRevision={authorizationRevision} recovery
+      fallback={<SubscriptionRequiredScreen subscription={subscriptionInfo} onManageBilling={() => navigate('/billing')} />}
     />
   ) : pageContent;
   const allowDualWorkspace = !isEmbeddedWorkspacePane

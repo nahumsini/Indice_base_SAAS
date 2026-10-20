@@ -1,6 +1,8 @@
 import type { CatalogCopy } from "./en-CA";
 
 export const zhCA: CatalogCopy = {
+  "regionalDraft": "准备墨西哥 / 加拿大方案",
+  "regionalDraftDescription": "将地区方案加入工作版本，不发布价格或进行扣款。",
   "publishOfferInStripe": "在 Stripe {0} 中发布销售方案",
   "savedPricesWillBeSynchronizedAndVerifiedBefore": "销售方案上线前将同步并验证已保存的价格。现有订阅保留已约定的价格。",
   "cancel": "取消",

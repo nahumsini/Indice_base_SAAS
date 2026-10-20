@@ -4,6 +4,9 @@ Generated from the reviewed bilingual curriculum. Domain owners remain authorita
 
 | Chapter | Stage | Page/tab | Version | Evidence actions |
 | --- | --- | --- | --- | --- |
+| ideas_board.canvas | 1 | ideas-board/canvas | 2 | Understanding only until an owner completion is integrated |
+| ideas_board.system | 1 | ideas-board/system | 2 | Understanding only until an owner completion is integrated |
+| ideas_board.projects | 1 | ideas-board/projects | 2 | Understanding only until an owner completion is integrated |
 | sales_board.overview | 6 | sales-board/overview | 2 | Understanding only until an owner completion is integrated |
 | sales_board.trends | 6 | sales-board/trends | 2 | Understanding only until an owner completion is integrated |
 | sales_board.channels | 6 | sales-board/channels | 2 | Understanding only until an owner completion is integrated |

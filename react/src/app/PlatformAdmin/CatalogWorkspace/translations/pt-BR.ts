@@ -1,6 +1,8 @@
 import type { CatalogCopy } from "./en-CA";
 
 export const ptBR: CatalogCopy = {
+  "regionalDraft": "Preparar México / Canadá",
+  "regionalDraftDescription": "Adiciona planos regionais à versão de trabalho. Não publica preços nem efetua cobranças.",
   "publishOfferInStripe": "Publicar oferta no Stripe {0}",
   "savedPricesWillBeSynchronizedAndVerifiedBefore": "Os preços salvos serão sincronizados e verificados antes da publicação da oferta. As assinaturas existentes mantêm os preços acordados.",
   "cancel": "Cancelar",

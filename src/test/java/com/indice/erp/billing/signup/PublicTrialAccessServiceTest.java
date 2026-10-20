@@ -21,6 +21,7 @@ class PublicTrialAccessServiceTest {
     @Test @SuppressWarnings("unchecked")
     void deadlineIsExclusiveAndCannotBeExtendedByLegacyPaymentSetup() {
         when(jdbc.query(anyString(), any(RowMapper.class), eq(9L))).thenReturn(List.of(now));
+        when(jdbc.queryForObject(anyString(), eq(Boolean.class), eq(9L))).thenReturn(true);
         assertThatThrownBy(() -> service.requireActive(9)).isInstanceOf(CommercialAccessRestrictedException.class);
         assertThatThrownBy(() -> service.requireLegacyPaidFlowAllowed(9)).isInstanceOf(IllegalStateException.class);
     }
@@ -28,6 +29,7 @@ class PublicTrialAccessServiceTest {
     @Test @SuppressWarnings("unchecked")
     void unexpiredTrialAllowsOperationsButNotAnUnapprovedFinancialConversion() {
         when(jdbc.query(anyString(), any(RowMapper.class), eq(9L))).thenReturn(List.of(now.plusSeconds(1)));
+        when(jdbc.queryForObject(anyString(), eq(Boolean.class), eq(9L))).thenReturn(true);
         assertThatCode(() -> service.requireActive(9)).doesNotThrowAnyException();
         assertThatThrownBy(() -> service.requireLegacyPaidFlowAllowed(9)).isInstanceOf(IllegalStateException.class);
     }
@@ -37,5 +39,13 @@ class PublicTrialAccessServiceTest {
         when(jdbc.query(anyString(), any(RowMapper.class), eq(9L))).thenReturn(List.of());
         assertThatCode(() -> service.requireActive(9)).doesNotThrowAnyException();
         assertThatCode(() -> service.requireLegacyPaidFlowAllowed(9)).doesNotThrowAnyException();
+    }
+
+    @Test @SuppressWarnings("unchecked")
+    void paidRegionalCohortKeepsLegacyUsdConversionBlockedWithoutTheExpiredTrialGuard() {
+        when(jdbc.query(anyString(), any(RowMapper.class), eq(9L))).thenReturn(List.of());
+        when(jdbc.queryForObject(anyString(), eq(Boolean.class), eq(9L))).thenReturn(true);
+        assertThatCode(() -> service.requireActive(9)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> service.requireLegacyPaidFlowAllowed(9)).isInstanceOf(IllegalStateException.class);
     }
 }
