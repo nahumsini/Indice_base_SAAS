@@ -4777,3 +4777,32 @@ current-view rectangle and scoped pointer/touch/keyboard camera navigation. It r
 surface, not a global navigation engine. Camera-only conflicts may recover conservatively against
 known identical idea content; real content conflicts still retain the local draft and require
 explicit recovery. The owner contract records the comparison rules and action/mobile evidence.
+
+
+### Complementary personal ideas board — 2026-10-20
+
+The approved [personal ideas board contract](personal-ideas-board-contract-v1.md) exposes the
+existing creative canvas as an independently authorized complementary pilot. Technical canvas
+reuse is bounded by fixed API ports and server-controlled owner scopes; Sales business ownership,
+data, routes and existing permissions remain intact. The new owner has separate user/company
+records, private photos, audit, entitlement and tab permission. No company or billing grants are
+created by the registry migration.
+
+
+### Personal diagnostic workspace and saved projects — 2026-10-20
+
+The adopted extension in [personal ideas board contract](personal-ideas-board-contract-v1.md)
+adds the clockwise four-area system map and immutable named snapshot consultation. Both remain
+private to the authenticated user/company and use the existing personal workspace permission.
+Technical canvas validation, save-queue comparisons and decorative minimap bounds are explicitly
+exported without transferring Sales ownership or changing its routes, payloads or workflows.
+
+
+### Personal canvas formatting exception — 2026-10-20
+
+The [personal ideas board contract](personal-ideas-board-contract-v1.md) authorizes seven bounded
+local font stacks, 8–96 px sizes and optional bold/italic/underline only for user-authored personal
+canvas content. UI chrome retains canonical typography. Native per-element color pickers and
+independent-axis resizing extend Mi pizarra and Tablero Índice, including images and saved-project
+consultation. Existing modal frames, 44 px targets, inner mobile scrolling, history and autosave
+conflict protection remain authoritative. The original Sales canvas controls stay unchanged.

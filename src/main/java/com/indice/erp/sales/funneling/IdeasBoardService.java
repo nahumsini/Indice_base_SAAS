@@ -26,29 +26,42 @@ public class IdeasBoardService {
         this.repository=repository;this.modules=modules;this.validator=validator;this.storage=storage;this.properties=properties;this.meter=meter;
     }
     @Transactional(readOnly=true)
-    public Board get(AuthSessionUser actor) { return repository.find(actor).map(IdeasBoardRepository.Row::board).orElseGet(()->new Board(empty(),0,null,IdeasBoardRepository.key(actor))); }
-    private void mutation(AuthSessionUser a,String expectedActor) {
-        require(IdeasBoardRepository.key(a).equals(expectedActor),HttpStatus.CONFLICT,"ideas_board_actor_changed");
-        repository.lock(a);require(modules.companyCanAccessForMutation(a.companyId(),"crm"),HttpStatus.FORBIDDEN,"ideas_board_unavailable");
+    public Board get(AuthSessionUser actor) { return get(actor,IdeasBoardScope.FUNNEL); }
+    @Transactional(readOnly=true)
+    public Board get(AuthSessionUser actor,IdeasBoardScope scope) { return repository.find(actor,scope).map(IdeasBoardRepository.Row::board).orElseGet(()->new Board(empty(),0,null,IdeasBoardRepository.key(actor,scope))); }
+    private void mutation(AuthSessionUser a,String expectedActor,IdeasBoardScope scope) {
+        require(IdeasBoardRepository.key(a,scope).equals(expectedActor),HttpStatus.CONFLICT,"ideas_board_actor_changed");
+        repository.lock(a);require(modules.companyCanAccessForMutation(a.companyId(),scope.module()),HttpStatus.FORBIDDEN,"ideas_board_unavailable");
     }
     @Transactional
-    public Board save(AuthSessionUser a,String expectedActor,Input input) {
+    public Board save(AuthSessionUser a,String expectedActor,Input input) { return save(a,expectedActor,input,IdeasBoardScope.FUNNEL); }
+    @Transactional
+    public Board save(AuthSessionUser a,String expectedActor,Input input,IdeasBoardScope scope) {
         require(input!=null && validator.validate(input).isEmpty(),HttpStatus.BAD_REQUEST,"ideas_board_invalid");uuid(input.mutationId());
-        mutation(a,expectedActor);validate(a,input.content());
+        mutation(a,expectedActor,scope);validate(a,input.content(),scope);
         String json=repository.encode(input.content());require(json.getBytes(StandardCharsets.UTF_8).length<=512*1024,HttpStatus.BAD_REQUEST,"ideas_board_invalid");
-        String digest=digest(json.getBytes(StandardCharsets.UTF_8));var current=repository.find(a);
+        String digest=digest(json.getBytes(StandardCharsets.UTF_8));var current=repository.find(a,scope);
         if(current.isPresent() && input.mutationId().equals(current.get().mutationId())) {
             require(current.get().digest().equals(digest) && current.get().board().version()==input.version()+1,HttpStatus.CONFLICT,"ideas_board_conflict");return current.get().board();
         }
         require(current.map(r->r.board().version()).orElse(0L)==input.version(),HttpStatus.CONFLICT,"ideas_board_conflict");
-        repository.save(a,input,digest);return get(a);
+        repository.save(a,input,digest,scope);return get(a,scope);
     }
-    private void validate(AuthSessionUser a,Document content) {
+    /** Read-only technical validation exported to immutable idea-workspace snapshots. */
+    @Transactional(readOnly=true)
+    public void validateSnapshot(AuthSessionUser a,Document content,IdeasBoardScope scope) {
+        require(content!=null && validator.validate(content).isEmpty(),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
+        validate(a,content,scope);
+        require(repository.encode(content).getBytes(StandardCharsets.UTF_8).length<=512*1024,HttpStatus.BAD_REQUEST,"ideas_board_invalid");
+    }
+    private void validate(AuthSessionUser a,Document content,IdeasBoardScope scope) {
         var ids=new HashSet<String>();
         for(var n:content.nodes()) {
             uuid(n.id());require(ids.add(n.id()) && finite(n.x(),n.y(),n.width(),n.height()),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
+            if(scope==IdeasBoardScope.FUNNEL) require(n.width()>=120&&n.height()>=80&&n.appearance()==null,HttpStatus.BAD_REQUEST,"ideas_board_invalid");
+            if(n.appearance()!=null) require(finite(n.appearance().fontSize(),n.appearance().borderWidth()),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
             if("IMAGE".equals(n.kind())) {
-                uuid(n.assetId());require(repository.asset(a,n.assetId()).isPresent(),HttpStatus.BAD_REQUEST,"ideas_board_photo_invalid");
+                uuid(n.assetId());require(repository.asset(a,n.assetId(),scope).isPresent(),HttpStatus.BAD_REQUEST,"ideas_board_photo_invalid");
             } else require(n.assetId()==null,HttpStatus.BAD_REQUEST,"ideas_board_invalid");
         }
         var links=new HashSet<String>();var pairs=new HashSet<String>();
@@ -58,27 +71,32 @@ public class IdeasBoardService {
         require(finite(content.viewport().x(),content.viewport().y(),content.viewport().zoom()),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
     }
     @Transactional
-    public Asset upload(AuthSessionUser a,String expectedActor,String id,String name,String mime,byte[] bytes) {
-        mutation(a,expectedActor);uuid(id);
+    public Asset upload(AuthSessionUser a,String expectedActor,String id,String name,String mime,byte[] bytes) { return upload(a,expectedActor,id,name,mime,bytes,IdeasBoardScope.FUNNEL); }
+    @Transactional
+    public Asset upload(AuthSessionUser a,String expectedActor,String id,String name,String mime,byte[] bytes,IdeasBoardScope scope) {
+        mutation(a,expectedActor,scope);uuid(id);
         require(bytes!=null && bytes.length>0 && bytes.length<=MAX_BYTES && mime!=null && Set.of("image/png","image/jpeg","image/webp").contains(mime),HttpStatus.BAD_REQUEST,"ideas_board_photo_invalid");
         require(name!=null && !name.isBlank() && name.length()<=180 && name.chars().noneMatch(c->c<32 || c==127 || c=='/' || c=='\\'),HttpStatus.BAD_REQUEST,"ideas_board_photo_invalid");
         require(signature(mime,bytes),HttpStatus.BAD_REQUEST,"ideas_board_photo_invalid");String hash=digest(bytes);
-        var existing=repository.asset(a,id);if(existing.isPresent()) {
+        var existing=repository.asset(a,id,scope);if(existing.isPresent()) {
             var row=existing.get();require(row.digest().equals(hash) && row.asset().name().equals(name) && row.asset().contentType().equals(mime),HttpStatus.CONFLICT,"ideas_board_conflict");return row.asset();
         }
-        require(repository.assetCount(a)<50,HttpStatus.BAD_REQUEST,"ideas_board_photo_limit");enabled();
-        String bucket=bucket(),key="funneling/ideas/"+a.companyId()+"/"+a.userId()+"/"+id;
-        meter.reserve(a.companyId(),"SALES",bucket,key,bytes.length);
+        require(repository.assetCount(a,scope)<50,HttpStatus.BAD_REQUEST,"ideas_board_photo_limit");enabled();
+        String bucket=bucket(scope),key=scope.storagePrefix()+"/"+a.companyId()+"/"+a.userId()+"/"+id;
+        meter.reserve(a.companyId(),scope.storageOwner(),bucket,key,bytes.length);
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization(){@Override public void afterCompletion(int status){if(status==STATUS_ROLLED_BACK)try{storage.deleteObject(bucket,key);}catch(RuntimeException ignored){/* The private orphan can be reclaimed by storage reconciliation. */}}});
         storage.ensureBucketExists(bucket);
         storage.writeObject(bucket,key,mime,bytes);meter.commit(a.companyId(),bucket,key,bytes.length);
-        var asset=new Asset(id,name,mime,bytes.length);repository.insertAsset(a,new StoredAsset(asset,key,hash));return asset;
+        var asset=new Asset(id,name,mime,bytes.length);repository.insertAsset(a,new StoredAsset(asset,key,hash),scope);return asset;
     }
     @Transactional(readOnly=true)
-    public StoredAsset asset(AuthSessionUser a,String id) { uuid(id);return repository.asset(a,id).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"ideas_board_photo_not_found")); }
-    public byte[] bytes(StoredAsset asset) { enabled();return storage.readObject(bucket(),asset.objectKey(),MAX_BYTES); }
+    public StoredAsset asset(AuthSessionUser a,String id) { return asset(a,id,IdeasBoardScope.FUNNEL); }
+    @Transactional(readOnly=true)
+    public StoredAsset asset(AuthSessionUser a,String id,IdeasBoardScope scope) { uuid(id);return repository.asset(a,id,scope).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"ideas_board_photo_not_found")); }
+    public byte[] bytes(StoredAsset asset) { return bytes(asset,IdeasBoardScope.FUNNEL); }
+    public byte[] bytes(StoredAsset asset,IdeasBoardScope scope) { enabled();return storage.readObject(bucket(scope),asset.objectKey(),MAX_BYTES); }
     private void enabled(){require(storage.isEnabled(),HttpStatus.SERVICE_UNAVAILABLE,"ideas_board_storage_unavailable");}
-    private String bucket(){return properties.getMinio().getBucketSalesDocuments();}
+    private String bucket(IdeasBoardScope scope){return scope==IdeasBoardScope.FUNNEL ? properties.getMinio().getBucketSalesDocuments() : properties.getMinio().getBucketIdeasBoard();}
     static boolean signature(String mime, byte[] bytes) {
         if ("image/webp".equals(mime)) return webp(bytes);
         if (bytes.length < 24) return false;

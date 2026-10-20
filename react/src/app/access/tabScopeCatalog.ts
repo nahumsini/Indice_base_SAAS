@@ -7,6 +7,7 @@ type TabScopeDefinition = {
 };
 
 export const MODULE_TAB_SCOPE_CATALOG: Partial<Record<PageId, TabScopeDefinition>> = {
+  'ideas-board': { moduleSlug: 'ideas_board', tabs: { canvas: 'canvas', projects: 'canvas', system: 'canvas' } },
   'sales-board': { moduleSlug: 'sales_board', tabs: { overview: 'overview', trends: 'overview', channels: 'overview', sales: 'overview' } },
   email: { moduleSlug: 'correo', tabs: { mail: 'mail', accounts: 'accounts' } },
   'minutes-control': { moduleSlug: 'control_minutas', tabs: { meetings: 'meetings', agreements: 'agreements', indicators: 'indicators' } },

@@ -5,12 +5,12 @@ export interface MinimapGeometry { left: number; top: number; scale: number; off
 export function visibleBoardBox(view: BoardViewport, canvas: CanvasSize): MinimapBox {
   return { x: -view.x / view.zoom, y: -view.y / view.zoom, width: canvas.width / view.zoom, height: canvas.height / view.zoom };
 }
-export function minimapGeometry(nodes: IdeaNode[], view: BoardViewport, canvas: CanvasSize, map: CanvasSize): MinimapGeometry {
+export function minimapGeometry(nodes: IdeaNode[], view: BoardViewport, canvas: CanvasSize, map: CanvasSize, bounds?: MinimapBox): MinimapGeometry {
   const visible = visibleBoardBox(view, canvas);
-  const left = Math.min(0, visible.x, ...nodes.map(n => n.x)) - 80;
-  const top = Math.min(0, visible.y, ...nodes.map(n => n.y)) - 80;
-  const right = Math.max(1000, visible.x + visible.width, ...nodes.map(n => n.x + n.width)) + 80;
-  const bottom = Math.max(700, visible.y + visible.height, ...nodes.map(n => n.y + n.height)) + 80;
+  const left = Math.min(bounds?.x ?? 0, visible.x, ...nodes.map(n => n.x)) - 80;
+  const top = Math.min(bounds?.y ?? 0, visible.y, ...nodes.map(n => n.y)) - 80;
+  const right = Math.max(bounds ? bounds.x+bounds.width : 1000, visible.x + visible.width, ...nodes.map(n => n.x + n.width)) + 80;
+  const bottom = Math.max(bounds ? bounds.y+bounds.height : 700, visible.y + visible.height, ...nodes.map(n => n.y + n.height)) + 80;
   const scale = Math.min(Math.max(1, map.width - 8) / (right - left), Math.max(1, map.height - 8) / (bottom - top));
   return { left, top, scale, offsetX: (map.width - (right - left) * scale) / 2, offsetY: (map.height - (bottom - top) * scale) / 2, visible };
 }

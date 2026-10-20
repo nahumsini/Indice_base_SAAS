@@ -90,6 +90,7 @@ public class ModuleEntitlementInterceptor implements HandlerInterceptor {
         if (isSalesInventoryPath(path)) {
             return one("inventory");
         }
+        if (isPathOrDescendant(path, "/api/v1/ideas-board")) return one("ideas_board");
         if (isPathOrDescendant(path, "/api/v1/sales-board")) {
             return one("sales_board");
         }

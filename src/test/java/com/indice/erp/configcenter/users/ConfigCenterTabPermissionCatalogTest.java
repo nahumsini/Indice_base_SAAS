@@ -14,12 +14,14 @@ class ConfigCenterTabPermissionCatalogTest {
         var tabs = ConfigCenterTabPermissionCatalog.catalogTabs();
         var permissionKeys = tabs.stream().map(row -> (String) row.get("permission_key")).toList();
 
-        assertEquals(77, tabs.size());
-        assertEquals(77, new HashSet<>(permissionKeys).size());
-        assertEquals(15, ConfigCenterTabPermissionCatalog.moduleSlugsWithTabs().size());
+        assertEquals(78, tabs.size());
+        assertEquals(78, new HashSet<>(permissionKeys).size());
+        assertEquals(16, ConfigCenterTabPermissionCatalog.moduleSlugsWithTabs().size());
         assertTrue(permissionKeys.containsAll(java.util.List.of("control_minutas.meetings","control_minutas.agreements","control_minutas.indicators")));
         assertTrue(permissionKeys.contains("inventory.purchase-orders"));
         assertTrue(permissionKeys.contains("crm.funneling"));
+        assertTrue(permissionKeys.contains("ideas_board.canvas"));
+        assertTrue(ConfigCenterTabPermissionCatalog.isRoleCompatible("ideas_board.canvas", "User"));
         assertTrue(permissionKeys.contains("sales_board.overview"));
         assertTrue(permissionKeys.contains("receivables.kpis"));
         assertTrue(permissionKeys.contains("expenses.payment-accounts"));

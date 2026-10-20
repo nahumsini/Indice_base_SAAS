@@ -1,0 +1,58 @@
+import assert from 'node:assert/strict';
+import {mkdirSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {tmpdir} from 'node:os';
+import {createServer} from 'vite';
+const {chromium}=await import(process.env.INDICE_PLAYWRIGHT_MODULE||'playwright');
+const dir=resolve(process.env.INDICE_BROWSER_ARTIFACTS||tmpdir(),'indice-system-board');mkdirSync(dir,{recursive:true});
+const server=await createServer({root:resolve(import.meta.dirname,'..'),cacheDir:resolve(tmpdir(),'indice-system-board-vite'),server:{host:'127.0.0.1',port:5217,strictPort:true,hmr:false,watch:null}});let browser;
+try{
+ await server.listen();browser=await chromium.launch({headless:true,...(process.env.INDICE_CHROME_PATH?{executablePath:process.env.INDICE_CHROME_PATH}:{})});
+ const context=await browser.newContext({viewport:{width:1450,height:1100},hasTouch:true});await context.addInitScript(()=>localStorage.setItem('frontend-indice-language','es-MX'));
+ const page=await context.newPage();page.setDefaultTimeout(14000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('http://127.0.0.1:5217/tests/fixtures/personal-ideas-board.html');await page.getByRole('button',{name:'Pizarra de ideas',exact:true}).click();
+ const module=page.locator('[data-module="ideas-board"]'),nav=module.locator('.indice-workbar'),system=module.locator('[data-system-board]');
+ const stats=()=>page.evaluate(()=>window.workspaceFixture.stats());
+ const saved=()=>page.waitForFunction(()=>document.querySelector('[data-system-board] .idea-board-status')?.textContent==='Guardado');
+ await nav.getByRole('button',{name:'Tablero Índice',exact:true}).click();await system.waitFor();await saved();
+ assert.equal(await system.locator('[data-area]').count(),4);assert.equal(await system.locator('[data-minimap-region]').count(),4);
+ async function add(area,name,extra){
+  await system.getByRole('button',{name:`Agregar: ${area}`,exact:true}).click();const dialog=page.getByRole('dialog');
+  if(area==='Personas'){await dialog.getByRole('button',{name:'Guardar',exact:true}).click();await dialog.getByRole('alert').waitFor();}
+  await dialog.getByRole('textbox',{name:'Nombre',exact:true}).fill(name);
+  if(extra)await extra(dialog);
+  await dialog.getByRole('button',{name:'Guardar',exact:true}).click();await dialog.waitFor({state:'hidden'});await saved();
+ }
+ await add('Personas','Ana · ventas',async dialog=>{await dialog.locator('input[type=file]').setInputFiles({name:'person.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aJ1sAAAAASUVORK5CYII=','base64')});});
+ await add('Procesos','Atender un pedido');await add('Productos','Asesoría empresarial',async dialog=>dialog.getByRole('button',{name:'Servicio',exact:true}).click());
+ await add('Finanzas','Balance general',async dialog=>{await dialog.getByRole('button',{name:'Estado de resultados',exact:true}).click();assert.equal(await dialog.getByRole('textbox',{name:'Nombre',exact:true}).inputValue(),'Estado de resultados');});
+ await system.getByRole('button',{name:'Ver sistema completo',exact:true}).click();await saved();
+ const nodes=system.locator('[data-workspace-node]');assert.equal(await nodes.count(),4);assert.equal((await stats()).system.content.nodes[0].kind,'IMAGE');await nodes.first().locator('img').evaluate(img=>img.decode());
+ for(const [from,to] of [[0,1],[1,2],[2,3],[3,0],[0,2]]){
+  await nodes.nth(from).click();await system.getByRole('button',{name:'Conectar',exact:true}).click();await nodes.nth(to).evaluate(el=>el.focus({preventScroll:true}));await page.keyboard.press('Enter');await saved();
+ }
+ assert.equal(await system.locator('[data-workspace-line]').count(),5);
+ await system.getByRole('button',{name:'Nombre de la conexión',exact:true}).first().click();await page.getByRole('dialog').getByRole('textbox',{name:'Nombre de la conexión',exact:true}).fill('Coordina');await page.getByRole('dialog').getByRole('button',{name:'Guardar',exact:true}).click();await saved();
+ await nodes.nth(2).click();await system.getByRole('button',{name:'Duplicar',exact:true}).click();await saved();assert.equal(await nodes.count(),5);await system.getByRole('button',{name:'Quitar',exact:true}).click();await saved();assert.equal(await nodes.count(),4);await system.getByRole('button',{name:'Deshacer',exact:true}).click();await saved();assert.equal(await nodes.count(),5);await system.getByRole('button',{name:'Rehacer',exact:true}).click();await saved();assert.equal(await nodes.count(),4);
+ await system.getByRole('button',{name:'Guardar proyecto',exact:true}).click();let dialog=page.getByRole('dialog');await dialog.getByRole('button',{name:'Guardar proyecto',exact:true}).click();await dialog.getByRole('alert').waitFor();await dialog.getByRole('textbox',{name:'Nombre del proyecto',exact:true}).fill('Diagnóstico · Café Luna');
+ await page.evaluate(()=>window.workspaceFixture.failProject('lost'));await dialog.getByRole('button',{name:'Guardar proyecto',exact:true}).click();await dialog.getByRole('alert').waitFor();assert.equal((await stats()).projectSaves,1);await dialog.getByRole('button',{name:'Guardar proyecto',exact:true}).click();await dialog.waitFor({state:'hidden'});assert.equal((await stats()).projectSaves,1);
+ await nav.getByRole('button',{name:'Mis proyectos',exact:true}).click();const projects=module.locator('[data-idea-projects]');await projects.getByRole('button',{name:'Consultar proyecto: Diagnóstico · Café Luna',exact:true}).click();await projects.locator('[data-readonly=true]').waitFor();assert.equal(await projects.locator('[data-workspace-node]').count(),4);assert.equal(await projects.locator('[data-workspace-line]').count(),5);
+ const before=await stats(),surface=projects.locator('[data-workspace-surface]'),rect=await surface.boundingBox();await page.mouse.move(rect.x+25,rect.y+30);await page.mouse.down();await page.mouse.move(rect.x+80,rect.y+70,{steps:5});await page.mouse.up();assert.deepEqual((await stats()).system,before.system);assert.equal(await projects.getByRole('button',{name:'Editar',exact:true}).count(),0);
+ await projects.getByRole('button',{name:'Ver todo',exact:true}).click();await page.screenshot({path:dir+'/proyecto-consulta.png'});
+ await projects.getByRole('button',{name:'Volver a mis proyectos',exact:true}).click();await projects.getByRole('textbox',{name:'Buscar proyecto',exact:true}).fill('No existe');await projects.getByText('No encontramos proyectos con ese nombre.',{exact:true}).waitFor();await projects.getByRole('textbox',{name:'Buscar proyecto',exact:true}).fill('');await projects.getByRole('button',{name:'Consultar proyecto: Diagnóstico · Café Luna',exact:true}).waitFor();
+ await nav.getByRole('button',{name:'Mi pizarra',exact:true}).click();const free=module.locator('[data-idea-board]');await free.getByRole('button',{name:'Mi primera idea',exact:true}).click();dialog=page.getByRole('dialog');await dialog.getByRole('textbox',{name:'Tu idea',exact:true}).fill('Idea libre separada');await dialog.getByRole('button',{name:'Guardar idea',exact:true}).click();await page.waitForFunction(()=>document.querySelector('[data-idea-board] .idea-board-status')?.textContent==='Guardado');await free.getByRole('button',{name:'Guardar proyecto',exact:true}).click();dialog=page.getByRole('dialog');await dialog.getByRole('textbox',{name:'Nombre del proyecto',exact:true}).fill('Ideas del negocio');await dialog.getByRole('button',{name:'Guardar proyecto',exact:true}).click();await dialog.waitFor({state:'hidden'});assert.equal(Object.keys((await stats()).projects).length,2);
+ await nav.getByRole('button',{name:'Tablero Índice',exact:true}).click();await saved();assert.equal(await nodes.count(),4);await system.getByRole('button',{name:'Ver sistema completo',exact:true}).click();await saved();
+ // A remote icon change must be protected even when the displayed name is unchanged.
+ await page.evaluate(()=>window.workspaceFixture.remoteIcon());await nodes.first().click();await system.getByRole('button',{name:'Editar',exact:true}).click();dialog=page.getByRole('dialog');await dialog.getByRole('textbox',{name:'Nombre',exact:true}).fill('Ana · dirección');await dialog.getByRole('button',{name:'Guardar',exact:true}).click();await system.getByRole('button',{name:'Abrir versión guardada',exact:true}).waitFor();assert.equal((await stats()).system.content.nodes[0].text,'Ana · ventas');await system.getByRole('button',{name:'Abrir versión guardada',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Descartar cambios y abrir',exact:true}).click();await saved();
+ await system.getByRole('button',{name:'Ver sistema completo',exact:true}).click();await saved();await module.screenshot({path:dir+'/tablero-indice-escritorio.png'});
+ for(const size of [{width:390,height:844},{width:320,height:568},{width:844,height:390}]){
+  await page.setViewportSize(size);await page.waitForTimeout(100);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  await system.getByRole('button',{name:'Agregar: Personas',exact:true}).click();dialog=page.getByRole('dialog');await dialog.getByRole('textbox',{name:'Nombre',exact:true}).fill('Persona móvil');const save=dialog.getByRole('button',{name:'Guardar',exact:true}),button=await save.boundingBox();assert.ok(button.y>=0&&button.y+button.height<=size.height+1,JSON.stringify({size,button}));await dialog.getByRole('button',{name:'Cancelar',exact:true}).first().click();
+  await system.getByRole('button',{name:'Ampliar pizarra',exact:true}).click();const canvas=system.locator('[data-workspace-canvas]');await canvas.getByRole('button',{name:'Agregar: Personas',exact:true}).waitFor();await canvas.getByRole('button',{name:'Conectar',exact:true}).waitFor();await canvas.getByRole('button',{name:'Ver todo',exact:true}).click();await saved();
+  const map=canvas.getByRole('button',{name:'Navegar por el minimapa',exact:true}),mb=await map.boundingBox();assert.ok(mb.width>=44&&mb.height>=44);const count=await nodes.count();await map.click({position:{x:mb.width/3,y:mb.height/3}});await saved();assert.equal(await nodes.count(),count);
+  if(size.width===390){await page.evaluate(()=>document.documentElement.classList.add('dark'));await canvas.getByRole('button',{name:'Ver todo',exact:true}).click();await saved();await page.screenshot({path:dir+'/tablero-indice-celular.png'});await page.evaluate(()=>document.documentElement.classList.remove('dark'));}
+  await canvas.getByRole('button',{name:'Salir de vista ampliada',exact:true}).click();
+ }
+ await page.reload();await page.getByRole('button',{name:'Pizarra de ideas',exact:true}).click();await module.locator('.indice-workbar').getByRole('button',{name:'Mis proyectos',exact:true}).click();await projects.getByRole('button',{name:'Consultar proyecto: Diagnóstico · Café Luna',exact:true}).waitFor();await projects.getByRole('button',{name:'Consultar proyecto: Ideas del negocio',exact:true}).waitFor();assert.equal(await page.evaluate(()=>window.personalFixture.salesRequests()),0);assert.deepEqual(errors,[]);
+ console.log('Native three-tab flow passed: typed elements/photo/names, clockwise and cross-area links/labels, history, immutable named system/freeform snapshots, lost-response retry, read-only consultation, search, metadata conflict protection, reload and Sales isolation. Mobile 390/320/landscape controls, modal footer, minimap, expanded view and dark mode passed without browser errors.');
+}catch(error){const p=browser?.contexts()[0]?.pages()[0];if(p)await p.screenshot({path:dir+'/failure.png'});throw error;}finally{await browser?.close();await server.close();}

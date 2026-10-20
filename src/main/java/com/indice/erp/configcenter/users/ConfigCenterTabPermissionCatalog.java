@@ -22,10 +22,12 @@ public final class ConfigCenterTabPermissionCatalog {
         "human_resources.permissions"
     );
     private static final Set<String> PERSONAL_SCOPES = Set.of(
-        "config_center.profile"
+        "config_center.profile",
+        "ideas_board.canvas"
     );
 
     private static final List<TabDefinition> CATALOG = List.of(
+        tab("ideas_board", "canvas", "My idea board", "Mi pizarra de ideas"),
         tab("sales_board", "overview", "Sales analysis", "Análisis de ventas"),
         tab("correo", "mail", "Mailbox", "Buzón"),
         tab("correo", "accounts", "Connected accounts", "Cuentas conectadas"),

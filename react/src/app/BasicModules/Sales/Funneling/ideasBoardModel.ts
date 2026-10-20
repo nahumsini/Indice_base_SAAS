@@ -1,6 +1,7 @@
+import type { NodeAppearance } from './nodeAppearance';
 export type BoardShape = 'NOTE' | 'RECTANGLE' | 'ELLIPSE' | 'PLAIN';
 export type BoardColor = 'YELLOW' | 'CORAL' | 'BLUE' | 'MINT' | 'LAVENDER' | 'WHITE';
-export interface IdeaNode { id: string; kind: 'TEXT' | 'IMAGE'; text: string; x: number; y: number; width: number; height: number; shape: BoardShape; color: BoardColor; assetId: string | null }
+export interface IdeaNode { id: string; kind: 'TEXT' | 'IMAGE'; text: string; x: number; y: number; width: number; height: number; shape: BoardShape; color: BoardColor; assetId: string | null; appearance?: NodeAppearance | null }
 export interface IdeaConnection { id: string; from: string; to: string; label: string }
 export interface BoardViewport { x: number; y: number; zoom: number }
 export interface BoardContent { nodes: IdeaNode[]; connections: IdeaConnection[]; viewport: BoardViewport }
@@ -49,6 +50,6 @@ export function stepHistory(history: BoardHistory, direction: 'undo' | 'redo'): 
 
 // Ignore each window's camera while comparing the actual ideas and their stacking order.
 export function sameBoardIdeas(a: BoardContent, b: BoardContent): boolean {
-  const key = (value: BoardContent) => JSON.stringify({ nodes: value.nodes.map(n => [n.id,n.kind,n.text,n.x,n.y,n.width,n.height,n.shape,n.color,n.assetId ?? null]), connections: value.connections.map(c => [c.id,c.from,c.to,c.label]) });
+  const key = (value: BoardContent) => JSON.stringify({ nodes: value.nodes.map(n => [n.id,n.kind,n.text,n.x,n.y,n.width,n.height,n.shape,n.color,n.assetId ?? null,n.appearance ?? null]), connections: value.connections.map(c => [c.id,c.from,c.to,c.label]) });
   return key(a) === key(b);
 }

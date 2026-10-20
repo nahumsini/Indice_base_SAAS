@@ -1,0 +1,30 @@
+import {useEffect,useState} from 'react';
+import {Bold,Italic,RotateCcw,Underline} from 'lucide-react';
+import type {IdeaNode} from './ideasBoardModel';
+import {defaultAppearance,fontFamilies,nodeTextStyle,resizeNode,type NodeAppearance,type NodeFont,type ResizeBounds,type ResizeEdge} from './nodeAppearance';
+import {nodeAppearanceCopy} from './nodeAppearanceCopy';
+import './nodeAppearance.css';
+function NumberField({label,value,min,max,onChange}:{label:string;value:number;min:number;max:number;onChange:(n:number)=>void}) {
+ const [text,setText]=useState(String(Math.round(value*10)/10));useEffect(()=>setText(String(Math.round(value*10)/10)),[value]);
+ const finish=()=>{const n=Number(text),next=Number.isFinite(n)&&text.trim()?Math.max(min,Math.min(max,n)):value;setText(String(Math.round(next*10)/10));onChange(next);};
+ return <label className="node-format-field">{label}<input type="number" inputMode="decimal" min={min} max={max} step="any" aria-label={label} value={text} onChange={e=>{setText(e.target.value);const n=Number(e.target.value);if(e.target.value&&Number.isFinite(n)&&n>=min&&n<=max)onChange(n);}} onBlur={finish}/></label>;
+}
+export function NodeAppearanceControls({node,onChange,locale,system=false,bounds}:{node:IdeaNode;onChange:(node:IdeaNode)=>void;locale:string;system?:boolean;bounds?:ResizeBounds}) {
+ const c=nodeAppearanceCopy(locale),dark=typeof document!=='undefined'&&document.documentElement.classList.contains('dark');
+ const a=node.appearance??defaultAppearance(node,system,dark),families=Object.keys(fontFamilies) as NodeFont[];
+ const appearance=(change:Partial<NodeAppearance>)=>onChange({...node,appearance:{...a,...change}});
+ const color=(field:'textColor'|'fillColor'|'borderColor',label:string)=><label className="node-format-field">{label}<span className="node-color-field"><input type="color" aria-label={label} value={a[field]} onChange={e=>appearance({[field]:e.target.value,...(field==='fillColor'?{transparentFill:false}: {})})}/><span>{a[field].toUpperCase()}</span></span></label>;
+ return <div className="node-format" data-node-format>
+  <fieldset><legend>{c.typography}</legend><div className="node-format-grid"><label className="node-format-field">{c.fontFamily}<select aria-label={c.fontFamily} value={a.fontFamily} onChange={e=>appearance({fontFamily:e.target.value as NodeFont})}>{families.map((id,i)=><option key={id} value={id}>{c.fonts[i]}</option>)}</select></label><NumberField label={c.fontSize} value={a.fontSize} min={8} max={96} onChange={fontSize=>appearance({fontSize})}/>{color('textColor',c.textColor)}</div>
+   <div className="node-format-toggles">{([['bold',c.bold,Bold],['italic',c.italic,Italic],['underline',c.underline,Underline]] as const).map(([key,label,Icon])=><button type="button" key={key} aria-label={label} title={label} aria-pressed={a[key]} onClick={()=>appearance({[key]:!a[key]})}><Icon size={18}/><span>{label}</span></button>)}</div>
+   <div className="node-format-preview" style={{...nodeTextStyle({...node,appearance:a}),backgroundColor:a.transparentFill?(dark?'#25374d':'#f7faff'):a.fillColor,borderColor:a.borderColor}}>{node.text||c.preview}</div>
+  </fieldset>
+  <fieldset><legend>{c.fillColor} / {c.borderColor}</legend><div className="node-format-grid">{color('fillColor',c.fillColor)}{color('borderColor',c.borderColor)}<NumberField label={c.borderWidth} value={a.borderWidth} min={0} max={12} onChange={borderWidth=>appearance({borderWidth})}/></div><label className="node-format-check"><input type="checkbox" checked={a.transparentFill} onChange={e=>appearance({transparentFill:e.target.checked})}/>{c.transparentFill}</label></fieldset>
+  <fieldset><legend>{c.dimensions}</legend><div className="node-format-grid"><NumberField label={c.width} value={node.width} min={40} max={Math.min(1000,(bounds?.right??11000)-node.x)} onChange={width=>onChange(resizeNode(node,'se',width-node.width,0,bounds))}/><NumberField label={c.height} value={node.height} min={40} max={Math.min(800,(bounds?.bottom??10800)-node.y)} onChange={height=>onChange(resizeNode(node,'se',0,height-node.height,bounds))}/>{node.kind==='IMAGE'&&<label className="node-format-field">{c.imageFit}<select aria-label={c.imageFit} value={a.imageFit} onChange={e=>appearance({imageFit:e.target.value as NodeAppearance['imageFit']})}><option value="CONTAIN">{c.contain}</option><option value="COVER">{c.cover}</option><option value="STRETCH">{c.stretch}</option></select></label>}</div></fieldset>
+  <button type="button" className="idea-board-button idea-board-secondary" onClick={()=>{const{appearance:_,...plain}=node;onChange(plain);}}><RotateCcw size={16}/>{c.reset}</button>
+ </div>;
+}
+const edges:ResizeEdge[]=['n','ne','e','se','s','sw','w','nw'];
+export function NodeResizeHandles({node,zoom,label,onResize,bounds}:{node:IdeaNode;zoom:number;label:string;onResize:(node:IdeaNode)=>void;bounds?:ResizeBounds}) {
+ return <>{edges.map(edge=><button key={edge} type="button" data-resize={edge} className="node-resize-handle" aria-label={`${label}: ${edge.toUpperCase()}`} title={label} style={{left:edge.includes('w')?'0':edge.includes('e')?'100%':'50%',top:edge.includes('n')?'0':edge.includes('s')?'100%':'50%',transform:`translate(-50%,-50%) scale(${1/zoom})`,cursor:`${edge}-resize`}} onClick={e=>e.stopPropagation()} onDoubleClick={e=>e.stopPropagation()} onKeyDown={e=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key))return;e.preventDefault();e.stopPropagation();const d=e.shiftKey?10:2;onResize(resizeNode(node,edge,e.key==='ArrowLeft'?-d:e.key==='ArrowRight'?d:0,e.key==='ArrowUp'?-d:e.key==='ArrowDown'?d:0,bounds));}}><span aria-hidden="true"/></button>)}</>;
+}

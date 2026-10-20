@@ -1,7 +1,7 @@
 import { sameBoardIdeas } from './ideasBoardModel';
 import type { BoardContent, BoardInput, SavedBoard } from './ideasBoardModel';
 export type BoardSaveState = 'saved' | 'saving' | 'error' | 'conflict';
-type BoardRecovery = { content: BoardContent; latest: () => Promise<SavedBoard> };
+type BoardRecovery = { content: BoardContent; latest: () => Promise<SavedBoard>; sameIdeas?: (a: BoardContent,b: BoardContent) => boolean };
 // One in-flight mutation, with a stable identity for uncertain retries and the latest queued edit.
 export class BoardSaveQueue {
   private pending: BoardContent | null = null;
@@ -20,7 +20,7 @@ export class BoardSaveQueue {
     catch (error) {
       if ((error as { status?: number }).status !== 409 || !this.recovery || !this.acknowledged) throw error;
       let latest: SavedBoard; try { latest = await this.recovery.latest(); } catch { throw error; }
-      if (latest.actorKey !== this.actorKey || latest.version <= request.version || (!sameBoardIdeas(latest.content, this.acknowledged) && !sameBoardIdeas(latest.content, request.content))) throw error;
+      if (latest.actorKey !== this.actorKey || latest.version <= request.version || (!(this.recovery.sameIdeas ?? sameBoardIdeas)(latest.content, this.acknowledged) && !(this.recovery.sameIdeas ?? sameBoardIdeas)(latest.content, request.content))) throw error;
       // Recheck the server's current version once. A second conflict is never forced through.
       const rebased = { ...request, version: latest.version, mutationId: crypto.randomUUID() };
       this.failed = rebased;

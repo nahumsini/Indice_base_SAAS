@@ -56,6 +56,7 @@ const moduleMetaBySlug: Record<
     title: (t: Translator, fallbackName: string) => string;
   }
 > = {
+  ideas_board: { route: 'ideas-board', emoji: '💡', color: 'coral', category: 'complementary', title: (t, fallbackName) => t.modules.ideasBoard ?? fallbackName },
   sales_board: { route: 'sales-board', emoji: '📈', color: 'coral', category: 'complementary', title: (t, fallbackName) => t.modules.salesBoard ?? fallbackName },
   scheduling: { route: 'scheduling', emoji: '📅', color: 'coral', category: 'complementary', title: (t, fallbackName) => t.modules.scheduling ?? fallbackName },
   config_center: {

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { ideasBoardApi } from './ideasBoardApi';
+import { ideasBoardApi, type IdeasBoardApi } from './ideasBoardApi';
 import { BoardSaveQueue, type BoardSaveState } from './boardSaveQueue';
 import { emptyBoard, record, sameBoardIdeas, stepHistory, type BoardContent, type BoardHistory, type SavedBoard } from './ideasBoardModel';
-export function useIdeasBoard() {
+export function useIdeasBoard(api: IdeasBoardApi = ideasBoardApi, compareIdeas = sameBoardIdeas) {
   const [history, setHistory] = useState<BoardHistory>({ past: [], current: emptyBoard(), future: [] });
   const historyRef = useRef(history), queue = useRef<BoardSaveQueue | null>(null), actor = useRef(''), mounted = useRef(true);
   const [loading, setLoading] = useState(true), [loadError, setLoadError] = useState(false), [state, setState] = useState<BoardSaveState>('saved');
@@ -11,7 +11,7 @@ export function useIdeasBoard() {
   const [checking, setChecking] = useState(false);
   function ownQueue(saved: SavedBoard) {
     actor.current = saved.actorKey;
-    const ownedQueue: BoardSaveQueue = new BoardSaveQueue(saved.version, saved.actorKey, ideasBoardApi.save, state => { if (mounted.current && queue.current === ownedQueue) setState(state); }, { content: saved.content, latest: () => ideasBoardApi.get() });
+    const ownedQueue: BoardSaveQueue = new BoardSaveQueue(saved.version, saved.actorKey, api.save, state => { if (mounted.current && queue.current === ownedQueue) setState(state); }, { content: saved.content, latest: () => api.get(), sameIdeas: compareIdeas });
     queue.current = ownedQueue;
   }
   useEffect(() => {
@@ -20,13 +20,13 @@ export function useIdeasBoard() {
     if (queue.current?.dirty() && !resetRequested.current) return () => { mounted.current = false; };
     resetRequested.current = false;
     const controller = new AbortController(); setLoading(true); setLoadError(false);
-    ideasBoardApi.get(controller.signal).then(saved => {
+    api.get(controller.signal).then(saved => {
       if (controller.signal.aborted) return;
       ownQueue(saved);
       const value = { past: [], current: saved.content, future: [] }; historyRef.current = value; setHistory(value); setState('saved');
     }).catch(() => { if (!controller.signal.aborted) setLoadError(true); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => { controller.abort(); mounted.current = false; };
-  }, [reload]);
+  }, [reload, api, compareIdeas]);
   useEffect(() => { const warn = (event: BeforeUnloadEvent) => { if (queue.current?.dirty()) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, []);
   function commit(next: BoardContent) { if (!queue.current) return; const value = record(historyRef.current, next); if (value === historyRef.current) return; historyRef.current = value; setHistory(value); queue.current.enqueue(next); }
   function travel(direction: 'undo' | 'redo') { const value = stepHistory(historyRef.current, direction); if (value === historyRef.current) return; historyRef.current = value; setHistory(value); queue.current?.enqueue(value.current); }
@@ -36,8 +36,8 @@ export function useIdeasBoard() {
     const previous = queue.current, snapshot = historyRef.current.current;
     checkingRef.current = true; setChecking(true);
     try {
-      const latest = await ideasBoardApi.get();
-      if (!mounted.current || queue.current !== previous || historyRef.current.current !== snapshot || latest.actorKey !== actor.current || !sameBoardIdeas(latest.content, snapshot)) return;
+      const latest = await api.get();
+      if (!mounted.current || queue.current !== previous || historyRef.current.current !== snapshot || latest.actorKey !== actor.current || !compareIdeas(latest.content, snapshot)) return;
       // Already-saved ideas can resume with this window's camera; different ideas stay protected.
       ownQueue(latest); setState('saved');
       if (JSON.stringify(latest.content.viewport) !== JSON.stringify(snapshot.viewport)) queue.current?.enqueue(snapshot);

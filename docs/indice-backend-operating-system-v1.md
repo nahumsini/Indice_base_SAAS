@@ -1076,3 +1076,33 @@ idempotent saves, metadata-only revision audit and existing storage metering. V3
 empty reads do not create records. These routes do not introduce cross-module or shared-board
 permissions. Provider I/O is not performed inside campaign planning saves. See the owner contract
 for exact bounds, isolated test evidence, local activation and compatible application rollback.
+
+
+### Complementary personal ideas board — 2026-10-20
+
+The approved [personal ideas board contract](personal-ideas-board-contract-v1.md) exposes the
+existing creative canvas as an independently authorized complementary pilot. Technical canvas
+reuse is bounded by fixed API ports and server-controlled owner scopes; Sales business ownership,
+data, routes and existing permissions remain intact. The new owner has separate user/company
+records, private photos, audit, entitlement and tab permission. No company or billing grants are
+created by the registry migration.
+
+
+### Personal diagnostic workspace and saved projects — 2026-10-20
+
+The adopted extension in [personal ideas board contract](personal-ideas-board-contract-v1.md)
+adds the clockwise four-area system map and immutable named snapshot consultation. Both remain
+private to the authenticated user/company and use the existing personal workspace permission.
+Technical canvas validation, save-queue comparisons and decorative minimap bounds are explicitly
+exported without transferring Sales ownership or changing its routes, payloads or workflows.
+
+
+### Personal canvas appearance extension — 2026-10-20
+
+The [personal ideas board contract](personal-ideas-board-contract-v1.md) permits an optional fully
+validated typed appearance object on personal nodes and immutable project snapshots. Only fixed
+font tokens, hex colors, bounded finite numbers, booleans and image-fit tokens are stored. Absent
+appearance is omitted from legacy JSON; no schema migration is required. Personal geometry may
+reach 40×40 px while retaining maximum limits and system-quadrant ownership. Sales rejects custom
+appearance and retains its legacy minimum geometry. Tenant/user/asset isolation, CAS digests,
+idempotent retry, CSRF, entitlement and tab permissions remain unchanged.

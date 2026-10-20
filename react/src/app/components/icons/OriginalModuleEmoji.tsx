@@ -1,3 +1,4 @@
+import actionFamily from '../../../assets/module-emojis/modal-action-family-v1.png';
 import { useId } from 'react';
 import originalFamily from '../../../assets/module-emojis/original-family-transparent-v1.png';
 import communicationFamily from '../../../assets/module-emojis/meetings-email-v1.png';
@@ -15,6 +16,7 @@ const frames: Record<string, string> = {
   receivables: '35 745 285 255',
   kpis: '425 750 280 245',
   'sales-board': '425 750 280 245',
+  'ideas-board': '445 845 370 365',
   scheduling: '780 755 245 245',
   maintenance: '1110 745 300 255',
   'minutes-control': '35 330 590 630',
@@ -29,6 +31,7 @@ export function OriginalModuleEmoji({ id, className = 'h-full w-[72px]' }: { id:
   const [x, y, width, height] = frames[id].split(' ').map(Number);
   const clipId = useId();
   const isCommunication = id === 'minutes-control' || id === 'email';
+  const isIdeasBoard = id === 'ideas-board';
   return (
     <svg
       viewBox={frames[id]}
@@ -45,9 +48,9 @@ export function OriginalModuleEmoji({ id, className = 'h-full w-[72px]' }: { id:
       </defs>
       <image
         clipPath={`url(#${clipId})`}
-        href={isCommunication ? communicationFamily : originalFamily}
-        width={isCommunication ? 1280 : 1448}
-        height={isCommunication ? 1280 : 1086}
+        href={isIdeasBoard ? actionFamily : isCommunication ? communicationFamily : originalFamily}
+        width={isIdeasBoard ? 1254 : isCommunication ? 1280 : 1448}
+        height={isIdeasBoard ? 1254 : isCommunication ? 1280 : 1086}
       />
     </svg>
   );

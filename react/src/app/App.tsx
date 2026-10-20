@@ -74,6 +74,7 @@ const Formularios = lazy(() => import('./ComplementaryModules/Forms'));
 const FacturacionComplementaria = lazy(() => import('./ComplementaryModules/Invoicing'));
 const CorreoElectronico = lazy(() => import('./ComplementaryModules/Email'));
 const SalesBoard = lazy(() => import('./ComplementaryModules/SalesBoard/SalesBoard'));
+const PersonalIdeasBoard = lazy(() => import('./ComplementaryModules/IdeasBoard/PersonalIdeasBoard'));
 const ClimaLaboral = lazy(() => import('./ComplementaryModules/WorkClimate'));
 const Afiliados = lazy(() => import('./ComplementaryModules/Affiliates'));
 const AgenteVentas = lazy(() => import('./AIModules/SalesAgent'));
@@ -767,6 +768,8 @@ export default function App() {
       <PuntoVenta learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'email' ? (
       <CorreoElectronico onNavigate={handleModuleNavigation} />
+    ) : currentPage === 'ideas-board' ? (
+      <PersonalIdeasBoard onNavigate={handleModuleNavigation} />
     ) : currentPage === 'sales-board' ? (
       <SalesBoard onNavigate={handleModuleNavigation} />
     ) : currentPage === 'sales' ? (

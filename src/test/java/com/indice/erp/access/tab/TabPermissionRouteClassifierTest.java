@@ -12,6 +12,13 @@ class TabPermissionRouteClassifierTest {
 
     private final TabPermissionRouteClassifier classifier = new TabPermissionRouteClassifier();
 
+    @Test void personalIdeasBoardUsesItsOwnPermissionForDocumentsAndPhotos() {
+        assertRequirement("GET", "/api/v1/ideas-board", "ideas_board.canvas");
+        assertRequirement("PUT", "/api/v1/ideas-board", "ideas_board.canvas");
+        assertRequirement("POST", "/api/v1/ideas-board/assets/synthetic", "ideas_board.canvas");
+        assertRequirement("GET", "/api/v1/ideas-board/assets/synthetic", "ideas_board.canvas");
+    }
+
     @Test void salesBoardUsesItsIndependentReadPermission() {
         assertRequirement("GET", "/api/v1/sales-board", "sales_board.overview");
         assertRequirement("GET", "/api/v1/sales-board/unknown", "sales_board.overview");

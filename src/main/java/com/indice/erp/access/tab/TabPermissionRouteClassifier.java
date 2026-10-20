@@ -51,6 +51,7 @@ public class TabPermissionRouteClassifier {
             return Optional.empty();
         }
 
+        if (path.equals("/api/v1/ideas-board") || path.startsWith("/api/v1/ideas-board/")) return one("ideas_board.canvas");
         if (path.equals("/api/v1/sales-board") || path.startsWith("/api/v1/sales-board/")) return one("sales_board.overview");
         if (path.startsWith("/api/v1/email/accounts")) return one("correo.accounts");
         if (path.startsWith("/api/v1/email")) return one("correo.mail");
