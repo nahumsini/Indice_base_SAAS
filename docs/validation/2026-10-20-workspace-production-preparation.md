@@ -1,9 +1,10 @@
 # Personal workspace / main production preparation — 2026-10-20
 
-Status: TECHNICAL PREPARATION PASSED; ACTIVATION AUTHORIZED. The working branch
-and main are updated. The owner granted the narrow historical Stripe TEST-key
-deferral in the [release decision](../decisions/2026-10-20-workspace-release-stripe-deferral.md).
-This preparation report does not itself claim production activation.
+Status: TECHNICAL PREPARATION PASSED; subsequently ACTIVATED AND VERIFIED.
+The [activation report](2026-10-20-workspace-production-activation.md) records the
+fresh authorized backup, published artifacts and completed five-minute observation.
+The historical Stripe TEST-key revocation remains pending under the now-completed
+[release decision](../decisions/2026-10-20-workspace-release-stripe-deferral.md).
 
 The owner requested publishing local work to the working branch and main, then
 deploying production. SSH access works with the existing protected deploy key;
@@ -127,9 +128,9 @@ MCP health/readiness returned 200 and unauthenticated protocol access returned 4
 Disposable containers and the unmounted extracted object copy were removed after
 validation. Original backup archives, compatible immutable images and test reports
 remain available. Canonical real-environment deployment dry run, backup re-verification
-and the before-activation preservation guard all passed. Available disk space is
-12 GiB; APPTEST and production remain unchanged and healthy. Activation and the
-five-minute production observation have not run.
+and the before-activation preservation guard all passed. At the end of preparation,
+available disk space was 12 GiB and APPTEST/production remained unchanged and healthy.
+Subsequent activation and observation are recorded in the linked activation report.
 
 ## Final image vulnerability review
 
@@ -152,7 +153,7 @@ waiver or a claim that the dependency has been fixed.
 The protected `activate-final.sh` verifies exact-source CI/preflight, image findings,
 restore results, real-environment dry run, backup integrity and unchanged runtime.
 It requires a release decision explicitly bound to 04f127a9. The owner has now
-provided that decision; activation results will be recorded separately.
+provided that decision; completed activation results are recorded separately.
 
 After an authorized activation only, use the retained V339-compatible recovery
 backend together with the prior web/MCP/MinIO containers. The canonical helper

@@ -25,3 +25,9 @@ This exception expires when this release attempt and its five-minute observation
 finish. It cannot authorize a later release. Actual activation, verification and
 the unresolved revocation must be recorded separately; this decision alone is not
 evidence of deployment.
+
+Activation and observation completed successfully at **2026-10-20 16:18:22 EDT**
+(20:18:22 UTC), as recorded in the
+[activation report](../validation/2026-10-20-workspace-production-activation.md).
+This exception window is closed and does not authorize a later release.
+The historical Stripe TEST-key revocation remains unresolved.
