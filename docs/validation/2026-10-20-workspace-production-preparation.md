@@ -1,8 +1,9 @@
 # Personal workspace / main production preparation — 2026-10-20
 
-Status: TECHNICAL PREPARATION PASSED; NOT ACTIVATED. The working branch and main
-are updated. Production remains on `aaa23d66` with schema V331; the historical
-Stripe TEST-key release decision is outstanding.
+Status: TECHNICAL PREPARATION PASSED; ACTIVATION AUTHORIZED. The working branch
+and main are updated. The owner granted the narrow historical Stripe TEST-key
+deferral in the [release decision](../decisions/2026-10-20-workspace-release-stripe-deferral.md).
+This preparation report does not itself claim production activation.
 
 The owner requested publishing local work to the working branch and main, then
 deploying production. SSH access works with the existing protected deploy key;
@@ -82,12 +83,12 @@ Only this release's reproducible target/node_modules/build cache may be removed.
 Test reports are archived; original backups, immutable images, rollback images
 and live data are retained.
 
-## Remaining release decision
+## Historical release finding
 
 The historical Stripe TEST-key revocation is unresolved: this preparation's
 read-only authentication check returned HTTP 200. No credential was displayed.
-The previous attendance exception expired and does not authorize this version.
-This record grants no exception.
+The previous attendance exception expired. The owner's new explicit authorization
+is recorded separately for this exact version; this preparation record grants no exception.
 
 Human production UI acceptance follows activation. Real outbound mail/social
 publication/payment execution: N/A for this deployment smoke.
@@ -150,8 +151,8 @@ waiver or a claim that the dependency has been fixed.
 
 The protected `activate-final.sh` verifies exact-source CI/preflight, image findings,
 restore results, real-environment dry run, backup integrity and unchanged runtime.
-It requires a release decision explicitly bound to 04f127a9; that decision is absent.
-The helper has not activated production.
+It requires a release decision explicitly bound to 04f127a9. The owner has now
+provided that decision; activation results will be recorded separately.
 
 After an authorized activation only, use the retained V339-compatible recovery
 backend together with the prior web/MCP/MinIO containers. The canonical helper
