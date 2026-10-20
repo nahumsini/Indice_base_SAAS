@@ -29,6 +29,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Transactional
 class AiInventoryIntegrationTest {
     @Autowired JdbcTemplate jdbc;
+    @Autowired com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver timeZones;
     @Autowired AiInventoryActionService actions;
     @Autowired InventoryAssistantService owner;
     @Autowired AiAccessTokenRepository tokens;
@@ -130,7 +131,7 @@ class AiInventoryIntegrationTest {
         assertThatThrownBy(()->movement("count_inventory_stock",product,a,null,"3",null)).isInstanceOf(IllegalArgumentException.class);
         var foreign=company();var foreignActor=person(foreign);var other=new AuthSessionUser(foreignActor[0],foreign,foreignActor[1],"Foreign","root");
         assertThatThrownBy(()->owner.read(other,"get_inventory_product",query(Map.of("id",product)))).isInstanceOf(NoSuchElementException.class);
-        assertThatThrownBy(()->actions.preview(token,"transfer_inventory_stock",change(Map.of("movement",Map.of("fromWarehouseId",a,"toWarehouseId",b,"date",LocalDate.now().toString(),"reason","Duplicates","items",List.of(Map.of("productId",product,"quantity",1),Map.of("productId",product,"quantity",1))))))).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(()->actions.preview(token,"transfer_inventory_stock",change(Map.of("movement",Map.of("fromWarehouseId",a,"toWarehouseId",b,"date",LocalDate.now(timeZones.resolve(company)).toString(),"reason","Duplicates","items",List.of(Map.of("productId",product,"quantity",1),Map.of("productId",product,"quantity",1))))))).isInstanceOf(IllegalArgumentException.class);
         assertThat(stock(product,a)).isEqualByComparingTo("5");assertThat(stock(product,b)).isZero();
     }
     @Test void staleStockProductAndWarehouseRollbackConfirmationAndEveryOwnerEffect() {
@@ -178,7 +179,7 @@ class AiInventoryIntegrationTest {
     private long warehouse(String name) {return save("create_inventory_warehouse",Map.of("warehouse",Map.of("name",name,"unitId",unit,"businessId",business))).records().warehouses().getFirst().id();}
     private void configure(long product,long warehouse) {save("configure_inventory_stock",Map.of("stock",Map.of("productId",product,"warehouseId",warehouse,"minimumQuantity",1,"usesInventory",true)));}
     private Result movement(String action,long product,Long from,Long to,String quantity,String cost) {var payload=movementPayload(product,from,to,quantity,cost);if(action.startsWith("receive_"))((Map<String,Object>)payload.get("movement")).put("providerId",provider);return save(action,payload);}
-    private Map<String,Object> movementPayload(long product,Long from,Long to,String quantity,String cost) {var m=new LinkedHashMap<String,Object>();if(from!=null)m.put("fromWarehouseId",from);if(to!=null)m.put("toWarehouseId",to);m.put("date",LocalDate.now().toString());m.put("reason","Synthetic movement");var line=new LinkedHashMap<String,Object>();line.put("productId",product);line.put("quantity",quantity);if(cost!=null)line.put("unitCost",cost);m.put("items",List.of(line));return new HashMap<>(Map.of("movement",m));}
+    private Map<String,Object> movementPayload(long product,Long from,Long to,String quantity,String cost) {var m=new LinkedHashMap<String,Object>();if(from!=null)m.put("fromWarehouseId",from);if(to!=null)m.put("toWarehouseId",to);m.put("date",LocalDate.now(timeZones.resolve(company)).toString());m.put("reason","Synthetic movement");var line=new LinkedHashMap<String,Object>();line.put("productId",product);line.put("quantity",quantity);if(cost!=null)line.put("unitCost",cost);m.put("items",List.of(line));return new HashMap<>(Map.of("movement",m));}
     private Result save(String action,Map<String,Object> args) {var p=actions.preview(token,action,change(args));return actions.commit(token,action,new CommitRequest(p.confirmationToken(),UUID.randomUUID().toString())).result();}
     private Change change(Map<String,Object> args){return mapper.convertValue(args,Change.class);}private Query query(Map<String,Object> args){return mapper.convertValue(args,Query.class);}
     private BigDecimal stock(long product,long warehouse){return jdbc.queryForObject("SELECT available_quantity FROM sales_inventory_balances WHERE company_id=? AND product_id=? AND warehouse_id=?",BigDecimal.class,company,product,warehouse);}

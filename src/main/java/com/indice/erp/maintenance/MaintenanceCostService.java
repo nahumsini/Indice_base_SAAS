@@ -8,6 +8,7 @@ import com.indice.erp.finance.FinanceAccessService;
 import com.indice.erp.finance.expenses.ExpenseService;
 import com.indice.erp.finance.expenses.dto.ExpenseResponse;
 import com.indice.erp.finance.shared.FinanceContext;
+import com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver;
 import java.math.*;
 import java.time.*;
 import java.util.*;
@@ -21,8 +22,9 @@ public class MaintenanceCostService {
     private final MaintenanceRepository db;private final MaintenanceAccess access;private final MaintenanceService service;
     private final InventoryAssistantService inventory;private final ExpenseService expenses;private final FinanceAccessService finance;
     private final ModuleAccessService modules;
+    private final FinanceBusinessTimeZoneResolver timeZones;
     public MaintenanceCostService(MaintenanceRepository db,MaintenanceAccess access,MaintenanceService service,
-        InventoryAssistantService inventory,ExpenseService expenses,FinanceAccessService finance,ModuleAccessService modules){this.db=db;this.access=access;this.service=service;this.inventory=inventory;this.expenses=expenses;this.finance=finance;this.modules=modules;}
+        InventoryAssistantService inventory,ExpenseService expenses,FinanceAccessService finance,ModuleAccessService modules,FinanceBusinessTimeZoneResolver timeZones){this.db=db;this.access=access;this.service=service;this.inventory=inventory;this.expenses=expenses;this.finance=finance;this.modules=modules;this.timeZones=timeZones;}
     private void owner(AuthSessionUser actor,String module,String tab,boolean mutation){MaintenanceAccess.manage(actor);if(!access.ownerAccess(actor,module,tab)||mutation&&!modules.companyCanAccessForMutation(actor.companyId(),module))throw new SecurityException();}
     private FinanceContext context(AuthSessionUser actor){owner(actor,"expenses","expenses",false);return finance.resolveAssistantContext(actor,"expenses").orElseThrow(SecurityException::new);}
     private Order mutable(AuthSessionUser actor,long id,long expected){var order=db.order(actor,id);version(order.version(),expected);require(!TERMINAL.contains(order.status()),"maintenance_order_closed");return order;}
@@ -40,7 +42,7 @@ public class MaintenanceCostService {
     }
     @Transactional public OrderDetail part(AuthSessionUser actor,long id,PartInput input,String key){
         actor=access.lock(actor,"orders");owner(actor,"inventory","inventory",true);Long prior=service.replay(actor,"PART_"+id,key,input);if(prior!=null)return db.detail(actor,id);var order=mutable(actor,id,input.expectedVersion());
-        var movement=new InventoryAssistantContracts.MovementInput(input.warehouseId(),null,LocalDate.now(ZoneId.of(order.timezone())),null,"Maintenance order #"+id,"MAINTENANCE-"+id,List.of(new InventoryAssistantContracts.MovementLine(input.productId(),input.quantity(),null)));
+        var movement=new InventoryAssistantContracts.MovementInput(input.warehouseId(),null,LocalDate.now(timeZones.resolve(actor.companyId())),null,"Maintenance order #"+id,"MAINTENANCE-"+id,List.of(new InventoryAssistantContracts.MovementLine(input.productId(),input.quantity(),null)));
         var change=new InventoryAssistantContracts.Change(null,null,null,null,movement,null);var prepared=inventory.prepare(actor,"issue_inventory_stock",change);
         var balance=prepared.before().balances().stream().filter(b->b.productId()==input.productId()&&b.warehouseId()==input.warehouseId()).findFirst().orElseThrow();require(order.currency().equals(balance.currency()),"maintenance_currency_mismatch");
         var result=inventory.executeMaintenance(actor,prepared,UUID.randomUUID().toString());var saved=result.records().movements().getFirst();

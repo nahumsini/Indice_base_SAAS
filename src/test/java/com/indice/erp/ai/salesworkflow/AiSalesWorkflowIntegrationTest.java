@@ -29,6 +29,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 class AiSalesWorkflowIntegrationTest {
     @Autowired com.indice.erp.sales.SalesService nativeSales;
     @Autowired JdbcTemplate jdbc;
+    @Autowired com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver timeZones;
     @Autowired AiSalesWorkflowActionService actions;
     @Autowired SalesWorkflowService owner;
     @Autowired AiAccessTokenRepository tokens;
@@ -102,7 +103,7 @@ class AiSalesWorkflowIntegrationTest {
         long contract=save("create_sales_contract",Map.of("contract",Map.of("customerId",customer,"title","Synthetic service","contractType","service_agreement","country","CA"))).records().contracts().getFirst().id();
         var reviewed=save("review_sales_contract",Map.of("id",contract)).records().contracts().getFirst();assertThat(reviewed.status()).isEqualTo("internal_review");assertThat(reviewed.signatureStatus()).isEqualTo("not_requested");
         save("cancel_sales_contract",Map.of("id",contract,"reason","Synthetic reviewed cancellation"));
-        long follow=save("create_sales_follow_up",Map.of("followUp",Map.of("customerId",customer,"relationType","recurrent_customer","postSaleType","support","nextFollowUpDate",LocalDate.now().plusDays(2).toString()))).records().followUps().getFirst().id();
+        long follow=save("create_sales_follow_up",Map.of("followUp",Map.of("customerId",customer,"relationType","recurrent_customer","postSaleType","support","nextFollowUpDate",LocalDate.now(timeZones.resolve(company)).plusDays(2).toString()))).records().followUps().getFirst().id();
         assertThat(save("set_sales_follow_up_status",Map.of("id",follow,"status","completed")).records().followUps().getFirst().status()).isEqualTo("completed");
         long rule=save("create_commission_rule",Map.of("rule",Map.of("name","Synthetic commission","type","percentage_of_sale","value",5,"userCompanyIds",List.of(member),"productIds",List.of(product)))).records().rules().getFirst().id();
         assertThat(save("set_commission_rule_status",Map.of("id",rule,"status","inactive")).records().rules().getFirst().status()).isEqualTo("inactive");
@@ -115,7 +116,7 @@ class AiSalesWorkflowIntegrationTest {
         var scoped=new AuthSessionUser(user,company,member,"Restricted","manager");
         assertThatThrownBy(()->owner.read(scoped,"get_commercial_sale",new Query(id,null,null,null,null,null,null))).isInstanceOf(SecurityException.class);
     }
-    private Map<String,Object> saleInput(int qty) {return Map.of("customerId",customer,"warehouseId",warehouse,"date",LocalDate.now().toString(),"currency","CAD","items",List.of(Map.of("productId",product,"quantity",qty,"unitPrice",100,"discountPercent",10,"taxPercent",16)));}
+    private Map<String,Object> saleInput(int qty) {return Map.of("customerId",customer,"warehouseId",warehouse,"date",LocalDate.now(timeZones.resolve(company)).toString(),"currency","CAD","items",List.of(Map.of("productId",product,"quantity",qty,"unitPrice",100,"discountPercent",10,"taxPercent",16)));}
     private Result save(String action,Map<String,Object> args) {var p=actions.preview(token,action,change(args));return actions.commit(token,action,new CommitRequest(p.confirmationToken(),UUID.randomUUID().toString())).result();}
     private Change change(Map<String,Object> args) {return mapper.convertValue(args,Change.class);}
     private BigDecimal stock() {return jdbc.queryForObject("SELECT available_quantity FROM sales_inventory_balances WHERE company_id=?",BigDecimal.class,company);}
