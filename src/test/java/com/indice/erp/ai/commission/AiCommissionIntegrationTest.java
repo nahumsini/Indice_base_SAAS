@@ -30,6 +30,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Transactional
 class AiCommissionIntegrationTest {
     @Autowired JdbcTemplate jdbc;
+    @Autowired com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver timeZones;
     @Autowired AiCommissionActionService actions;
     @Autowired SalesCommissionAssistantService owner;
     @Autowired AiAccessTokenRepository tokens;
@@ -56,7 +57,7 @@ class AiCommissionIntegrationTest {
         SalesCommissionAssistantService.READS.forEach(t->consent.add(AiCommissionAccess.scope(t)));SalesCommissionAssistantService.ACTIONS.forEach(t->consent.add(AiCommissionAccess.scope(t)));consent.add("hr.incentives.manage");
         long tid=tokens.insert(actor,"generic_mcp","Isolated sales regression","test",key.replace("-","").repeat(2),Instant.now().plusSeconds(3600),consent);token=new StoredToken(tid,actor,Set.copyOf(consent));
         when(permissions.canUseCommissionTool(any(),anyString())).thenReturn(true);when(permissions.canReadGuideTab(any(),eq("human_resources"),eq("incentives"))).thenReturn(true);
-        when(exchange.cachedDailyRates()).thenReturn(Optional.of(new BusinessExchangeRatesResponse("USD",Map.of("USD",BigDecimal.ONE,"CAD",new BigDecimal("1.36"),"MXN",new BigDecimal("18.45")),new BusinessExchangeRateMetadataResponse("snapshot","test",java.time.LocalDate.now().toString(),Instant.now().toString(),"Synthetic isolated evidence",null,null,null),List.of(),List.of())));
+        when(exchange.cachedDailyRates()).thenReturn(Optional.of(new BusinessExchangeRatesResponse("USD",Map.of("USD",BigDecimal.ONE,"CAD",new BigDecimal("1.36"),"MXN",new BigDecimal("18.45")),new BusinessExchangeRateMetadataResponse("snapshot","test",java.time.LocalDate.now(timeZones.resolve(company)).toString(),Instant.now().toString(),"Synthetic isolated evidence",null,null,null),List.of(),List.of())));
     }
 
     @Test void cutReviewsNativeAmountsThenCreatesOnePayrollApplicationWithoutPayment() {
@@ -74,8 +75,8 @@ class AiCommissionIntegrationTest {
         var tx=new TransactionTemplate(transactions);tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_NESTED);assertThatThrownBy(()->tx.execute(s->actions.commit(token,"create_sales_commission_cut",new CommitRequest(p.confirmationToken(),"commission-stale-001")))).isInstanceOf(IllegalStateException.class);assertThat(count("sales_commission_cuts")).isZero();
         var limited=new StoredToken(token.id(),token.user(),Set.of("sales.commissions.cut"));assertThatThrownBy(()->actions.preview(limited,"create_sales_commission_cut",change(Map.of("cut",cutInput())))).isInstanceOf(SecurityException.class);jdbc.update("UPDATE sales_records SET commercial_status='cancelled' WHERE company_id=? AND id=?",company,sale);assertThatThrownBy(()->actions.preview(token,"create_sales_commission_cut",change(Map.of("cut",cutInput())))).isInstanceOf(IllegalArgumentException.class);
     }
-    private Map<String,Object> cutInput(){String date=java.time.LocalDate.now().toString();return Map.of("periodStart",date,"periodEnd",date,"preferredCurrency","CAD");}
-    private long seedSale(){var input=mapper.convertValue(Map.of("sale",Map.of("customerId",customer,"warehouseId",warehouse,"date",java.time.LocalDate.now().toString(),"currency","CAD","items",List.of(Map.of("productId",product,"quantity",1,"unitPrice",100,"discountPercent",0,"taxPercent",0)))),com.indice.erp.sales.SalesWorkflowContracts.Change.class);long id=sales.execute(token.user(),sales.prepare(token.user(),"create_commercial_sale",input),UUID.randomUUID().toString()).records().sales().getFirst().id();jdbc.update("UPDATE sales_records SET commission_amount=10.25,commission_status='calculated',seller_user_company_id=? WHERE company_id=? AND id=?",member,company,id);return id;}
+    private Map<String,Object> cutInput(){String date=java.time.LocalDate.now(timeZones.resolve(company)).toString();return Map.of("periodStart",date,"periodEnd",date,"preferredCurrency","CAD");}
+    private long seedSale(){var input=mapper.convertValue(Map.of("sale",Map.of("customerId",customer,"warehouseId",warehouse,"date",java.time.LocalDate.now(timeZones.resolve(company)).toString(),"currency","CAD","items",List.of(Map.of("productId",product,"quantity",1,"unitPrice",100,"discountPercent",0,"taxPercent",0)))),com.indice.erp.sales.SalesWorkflowContracts.Change.class);long id=sales.execute(token.user(),sales.prepare(token.user(),"create_commercial_sale",input),UUID.randomUUID().toString()).records().sales().getFirst().id();jdbc.update("UPDATE sales_records SET commission_amount=10.25,commission_status='calculated',seller_user_company_id=? WHERE company_id=? AND id=?",member,company,id);return id;}
     private Change change(Map<String,Object> v){return mapper.convertValue(v,Change.class);}
     private int count(String table){return jdbc.queryForObject("SELECT COUNT(*) FROM "+table+" WHERE company_id=?",Integer.class,company);}
 }

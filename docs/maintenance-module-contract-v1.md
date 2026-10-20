@@ -101,3 +101,14 @@ Meetings, HR, Inventory and Finance regressions. Local preview is functional dat
 Release status remains pilot. Public deployment, external messaging/calendar synchronization,
 sensors, offline operation and predictive AI: N/A for this implementation. Public release
 certification remains governed by the repository release gate.
+
+
+## Inventory business date boundary (2026-10-19)
+
+Maintenance part consumption resolves its movement date with the inventory owner's
+`FinanceBusinessTimeZoneResolver` for the authenticated company. The order's scheduling
+timezone continues to govern its appointments, but cannot supply a future inventory
+business date. Native stock/currency checks, retry deduplication, reversal and audit
+remain owned by Inventory. The integration regression exercises an order in
+Pacific/Kiritimati and a company in Etc/GMT+12, with the issue recorded on the company
+date and exactly one stock effect before reversal.
