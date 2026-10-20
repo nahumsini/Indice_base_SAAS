@@ -1,5 +1,9 @@
 # Content planning production release — 2026-10-19
 
+This unactivated preparation is superseded by the
+[2026-10-20 integrated workspace release](2026-10-20-workspace-production-preparation.md),
+which includes the calendar and requires a V339-compatible recovery image.
+
 Status: TECHNICAL PREPARATION PASSED; NOT ACTIVATED. Source is pushed, target
 validation and recovery are complete. The historical Stripe TEST-key release
 decision remains outstanding. Production is healthy on `aaa23d66`; no activation
