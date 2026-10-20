@@ -43,14 +43,16 @@ public class MailboxRepository {
         var status=db.query("SELECT last_sync_at,last_error FROM email_mailboxes WHERE company_id=? AND account_id=?",(r,n)->new Workspace(folders(actor,account,version),instant(r,"last_sync_at"),r.getString("last_error")),actor.companyId(),account);
         return status.isEmpty()?new Workspace(folders(actor,account,version),null,null):status.getFirst();
     }
-    Page list(AuthSessionUser actor,String account,long accountVersion,String folder,String query,int offset) {
+    Page list(AuthSessionUser actor,String account,long accountVersion,String folder,String query,int offset,String filter) {
         var args=new ArrayList<Object>(List.of(actor.companyId(),account));String where;
         if(folder.equals("DRAFTS"))where="m.state='DRAFT'";
         else if(folder.equals("OUTBOX"))where="m.state IN ('SUBMITTING','UNKNOWN','FAILED')";
-        else if(folder.equals("SENT")){where="(m.state='ACCEPTED' OR (f.kind='SENT' AND f.account_version=? AND m.uid_validity=f.uid_validity AND m.remote_present=TRUE))";args.add(accountVersion);}
+        else if(folder.equals("SENT")){where="((m.state='ACCEPTED' AND m.remote_uid IS NULL) OR (f.kind='SENT' AND f.account_version=? AND m.uid_validity=f.uid_validity AND m.remote_present=TRUE))";args.add(accountVersion);}
         else {where="m.folder_id=? AND f.account_version=? AND m.uid_validity=f.uid_validity AND m.remote_present=TRUE";args.add(folder);args.add(accountVersion);}
-        if(!query.isBlank()){where+=" AND (LOWER(m.subject) LIKE ? ESCAPE '!' OR LOWER(m.from_address) LIKE ? ESCAPE '!' OR LOWER(m.from_name) LIKE ? ESCAPE '!')";
-            String term="%"+query.toLowerCase(Locale.ROOT).replace("!","!!").replace("%","!%").replace("_","!_")+"%";args.add(term);args.add(term);args.add(term);}
+        if(filter.equals("UNREAD"))where+=" AND m.is_read=FALSE";
+        if(filter.equals("STARRED"))where+=" AND m.is_starred=TRUE";
+        if(!query.isBlank()){where+=" AND (LOWER(m.subject) LIKE ? ESCAPE '!' OR LOWER(m.from_address) LIKE ? ESCAPE '!' OR LOWER(m.from_name) LIKE ? ESCAPE '!' OR LOWER(m.to_json) LIKE ? ESCAPE '!' OR LOWER(m.cc_json) LIKE ? ESCAPE '!')";
+            String term="%"+query.toLowerCase(Locale.ROOT).replace("!","!!").replace("%","!%").replace("_","!_")+"%";args.add(term);args.add(term);args.add(term);args.add(term);args.add(term);}
         args.add(offset);
         var rows=db.query("SELECT m.* FROM email_messages m LEFT JOIN email_folders f ON f.company_id=m.company_id AND f.account_id=m.account_id AND f.id=m.folder_id WHERE m.company_id=? AND m.account_id=? AND "+where+" ORDER BY m.occurred_at DESC,m.id DESC LIMIT 26 OFFSET ?",this::row,args.toArray());
         return new Page(rows.stream().limit(25).map(Row::view).map(m->new Message(m.id(),m.folderId(),m.state(),m.subject(),m.fromAddress(),m.fromName(),m.to(),m.cc(),m.bcc(),m.replyTo(),null,m.bodyTruncated(),m.hasAttachments(),m.read(),m.starred(),m.occurredAt(),m.version(),m.failureCode())).toList(),rows.size()>25);
@@ -107,8 +109,8 @@ public class MailboxRepository {
         db.update("UPDATE email_messages SET state='SUBMITTING',message_id=?,send_started_at=CURRENT_TIMESTAMP(6),version=version+1 WHERE company_id=? AND account_id=? AND id=?",messageId,actor.companyId(),account,id);
         db.update("INSERT INTO email_send_attempts(company_id,account_id,message_id,id,actor_user_id,outcome) VALUES(?,?,?,?,?,'SUBMITTING')",actor.companyId(),account,id,attempt,actor.userId());
     }
-    void outcome(AuthSessionUser actor,String account,String id,String attempt,String state){
-        db.update("UPDATE email_messages SET state=?,failure_code=?,sent_copy_state=IF(?='ACCEPTED','PENDING','NONE'),version=version+1,occurred_at=CURRENT_TIMESTAMP(6),updated_at=CURRENT_TIMESTAMP(6) WHERE company_id=? AND account_id=? AND id=? AND state='SUBMITTING'",state,state.equals("ACCEPTED")?null:"email_send_"+state.toLowerCase(Locale.ROOT),state,actor.companyId(),account,id);
+    void outcome(AuthSessionUser actor,String account,String id,String attempt,String state,String failure){
+        db.update("UPDATE email_messages SET state=?,failure_code=?,sent_copy_state=IF(?='ACCEPTED','PENDING','NONE'),version=version+1,occurred_at=CURRENT_TIMESTAMP(6),updated_at=CURRENT_TIMESTAMP(6) WHERE company_id=? AND account_id=? AND id=? AND state='SUBMITTING'",state,state.equals("ACCEPTED")?null:failure!=null?failure:"email_send_"+state.toLowerCase(Locale.ROOT),state,actor.companyId(),account,id);
         db.update("UPDATE email_send_attempts SET outcome=?,completed_at=CURRENT_TIMESTAMP(6) WHERE company_id=? AND account_id=? AND id=?",state,actor.companyId(),account,attempt);
     }
     void campaignReplyTo(AuthSessionUser actor,String account,String id,String replyTo,String displayName){db.update("UPDATE email_messages SET from_name=?,reply_to_json=? WHERE company_id=? AND account_id=? AND id=? AND state='DRAFT'",displayName,json(replyTo==null||replyTo.isBlank()?List.of():List.of(replyTo)),actor.companyId(),account,id);}

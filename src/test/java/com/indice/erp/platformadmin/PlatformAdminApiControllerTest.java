@@ -35,6 +35,9 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(PlatformAdminApiController.class)
 class PlatformAdminApiControllerTest {
 
+    @org.springframework.boot.test.mock.mockito.MockBean
+    private com.indice.erp.learning.LearningAppliedAdvice learningAppliedAdvice;
+
     @Autowired
     private MockMvc mockMvc;
 

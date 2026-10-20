@@ -17,6 +17,13 @@ import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import com.indice.erp.hr.attendance.locations.AttendanceLocationValidationException;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import static org.mockito.ArgumentMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class MultiKioskPublicV2ControllerTest {
 
@@ -25,6 +32,37 @@ class MultiKioskPublicV2ControllerTest {
     private final MultiKioskService multiKiosks = mock(MultiKioskService.class);
     private final HttpSession session = mock(HttpSession.class);
     private MultiKioskPublicV2Controller controller;
+
+    @ParameterizedTest
+    @EnumSource(AttendanceLocationValidationException.Reason.class)
+    void attendanceLocationRejectionsExplainTheNextStepWithoutExposingPrivateDetails(
+            AttendanceLocationValidationException.Reason reason) throws Exception {
+        when(multiKiosks.childAction(anyString(), anyString(), anyString(), anyLong(),
+                anyString(), anyString(), anyMap(), anyString()))
+            .thenThrow(new AttendanceLocationValidationException(reason, "private location details"));
+        var mvc = MockMvcBuilders.standaloneSetup(controller)
+            .setControllerAdvice(new KioskPublicV2ExceptionHandler()).build();
+        mvc.perform(post("/api/v2/multi-kiosks/public/synthetic-token/kiosks/17/actions/attendance.punch.create@1")
+                .header("X-CSRF-Token", "synthetic-csrf")
+                .header("X-Multi-Kiosk-Session-Token", "synthetic-parent")
+                .header("X-Kiosk-Session-Token", "synthetic-child")
+                .header("Idempotency-Key", "synthetic-attempt")
+                .contentType("application/json").content("{\"event_type\":\"check_in\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.code").value("ATTENDANCE_LOCATION_" + reason.name()))
+            .andExpect(jsonPath("$.error.message").value(org.hamcrest.Matchers.containsString("Recursos Humanos")))
+            .andExpect(jsonPath("$.error.retryable").value(false))
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("private location details"))));
+    }
+
+    @Test
+    void unknownValidationStillDoesNotDiscloseInternalMessages() {
+        var response = new KioskPublicV2ExceptionHandler()
+            .invalid(new IllegalArgumentException("secret-token and private details"));
+        assertThat(response.getBody().toString())
+            .contains("KIOSK_VALIDATION_ERROR", "Revisa la información enviada.")
+            .doesNotContain("secret-token", "private details");
+    }
 
     @BeforeEach
     void setUp() {

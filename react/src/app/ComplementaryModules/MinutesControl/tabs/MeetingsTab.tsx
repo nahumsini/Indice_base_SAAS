@@ -1,16 +1,10 @@
+import { getMeetingWorkspaceCopy } from "../translations/meetingWorkspaceCopy";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
-import {
-  Plus,
-  RotateCw,
-  CalendarDays,
-  List,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { Plus, RotateCw, CalendarDays, List } from "lucide-react";
 import { IndiceTitleBar } from "../../../components/frontend-os/IndiceTitleBar";
 import { IndiceWorkspaceNavigation } from "../../../components/frontend-os/IndiceWorkspaceNavigation";
-import { IndiceCalendarSurface } from "../../../components/frontend-os/IndiceCalendarSurface";
+import { MeetingCalendar } from "../components/MeetingCalendar";
 import { IndiceTableActionGroup } from "../../../components/table/IndiceTableEngine";
 import { TableCell } from "../../../components/ui/table";
 import { useWorkspaceNavigationMemory } from "../../../hooks/useWorkspaceNavigationMemory";
@@ -65,7 +59,8 @@ export default function MeetingsTab({
   administrator: boolean;
   onAgreements?: (meetingId: number) => void;
 }) {
-  const w = getMeetingWorkflowCopy(locale);
+  const w = getMeetingWorkflowCopy(locale),
+    workspace = getMeetingWorkspaceCopy(locale);
   const [params, setParams] = useSearchParams();
   const requested = params.get("meeting");
   const opened = useRef("");
@@ -174,10 +169,6 @@ export default function MeetingsTab({
     },
     onRestore: (state) => setScope(restoreScope(state, defaults, statuses)),
   });
-  const dates =
-    valid && scope.view === "calendar"
-      ? calendarDates(scope.from, scope.to)
-      : [];
   const close = () => {
       setDialog(null);
       if (requested)
@@ -194,22 +185,12 @@ export default function MeetingsTab({
       close();
       query.reload();
     };
-  const move = (offset: number) => {
-    const date = new Date(scope.from + "T12:00:00");
-    date.setMonth(date.getMonth() + offset, 1);
-    setScope({
-      ...scope,
-      from: dateInput(date),
-      to: dateInput(new Date(date.getFullYear(), date.getMonth() + 1, 0)),
-      page: 1,
-    });
-  };
   return (
     <>
       <IndiceTitleBar
         tone="blue"
         title={copy.meetings}
-        subtitle={copy.subtitle}
+        subtitle={workspace.meetingsHint}
         icon="📅"
         actions={
           <>
@@ -248,6 +229,7 @@ export default function MeetingsTab({
         ]}
       />
       <ScopeFilters
+        locale={locale}
         scope={scope}
         defaults={defaults}
         copy={copy}
@@ -262,60 +244,27 @@ export default function MeetingsTab({
       ) : query.loading ? (
         <Feedback>{copy.loading}</Feedback>
       ) : query.error ? (
-        <Feedback error>{copy.error}</Feedback>
+        <Feedback error>
+          {copy.error}
+          <Action onClick={query.reload}>{copy.refresh}</Action>
+        </Feedback>
       ) : (
         query.data && (
           <>
             {query.data.total > query.data.items.length &&
               scope.view === "calendar" && <Feedback>{copy.partial}</Feedback>}
             {scope.view === "calendar" ? (
-              <>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm text-slate-500">{copy.localTime}</p>
-                  <div className="flex gap-2">
-                    <Action aria-label={copy.previous} onClick={() => move(-1)}>
-                      <ChevronLeft className="h-4 w-4" />
-                    </Action>
-                    <Action aria-label={copy.next} onClick={() => move(1)}>
-                      <ChevronRight className="h-4 w-4" />
-                    </Action>
-                  </div>
-                </div>
-                <IndiceCalendarSurface
-                  tone="blue"
-                  dates={dates}
-                  locale={locale}
-                  selectedDate={selected}
-                  onSelectDate={setSelected}
-                  label={copy.calendar}
-                  renderDay={(date) =>
-                    query
-                      .data!.items.filter(
-                        (m) => dateInput(new Date(m.startAt)) === date,
-                      )
-                      .map((m) => (
-                        <button
-                          type="button"
-                          key={m.id}
-                          className="block w-full rounded-xl border border-blue-100 bg-blue-50 p-2.5 text-left text-xs text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100"
-                          onClick={() =>
-                            setDialog({ kind: "detail", id: m.id })
-                          }
-                        >
-                          <p className="mb-1 font-medium">
-                            {new Intl.DateTimeFormat(locale, {
-                              timeStyle: "short",
-                            }).format(new Date(m.startAt))}
-                          </p>
-                          <p className="break-words">{m.title}</p>
-                          <p className="mt-1 text-xs opacity-75">
-                            {copy[m.status]}
-                          </p>
-                        </button>
-                      ))
-                  }
-                />
-              </>
+              <MeetingCalendar
+                items={query.data.items}
+                from={scope.from}
+                to={scope.to}
+                selectedDate={selected}
+                onSelectDate={setSelected}
+                onRange={(range) => setScope({ ...scope, ...range, page: 1 })}
+                onOpen={(id) => setDialog({ kind: "detail", id })}
+                copy={copy}
+                locale={locale}
+              />
             ) : (
               <MeetingList<MeetingItem>
                 items={query.data.items}
@@ -338,9 +287,16 @@ export default function MeetingsTab({
                 render={(row) => (
                   <>
                     <TableCell className="px-5 py-4">
-                      <p className="truncate font-medium" title={row.title}>
+                      <button
+                        type="button"
+                        className="min-h-11 w-full truncate text-left font-medium text-blue-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:text-blue-300"
+                        title={row.title}
+                        onClick={() =>
+                          setDialog({ kind: "detail", id: row.id })
+                        }
+                      >
                         {row.title}
-                      </p>
+                      </button>
                       <p className="mt-1 text-xs text-slate-500">
                         {copy[row.meetingType]}
                       </p>

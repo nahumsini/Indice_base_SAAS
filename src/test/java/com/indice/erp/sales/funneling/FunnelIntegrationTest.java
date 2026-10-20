@@ -123,7 +123,7 @@ class FunnelIntegrationTest {
     @Test void invalidStageTargetsAndIncompletePlansAreRejectedAtomically() {
         String id = UUID.randomUUID().toString();
         service.save(actor, id, input(0, "DRAFT", 100, 10));
-        for (var bad : List.of(input(1, "PLANNED", 10, 100), input(1, "PLANNED", null, 10), input(1, "DRAFT", -1, 0), input(1, "DRAFT", 10000001, 0))) {
+        for (var bad : List.of(input(1, "PLANNED", 10, 100), input(1, "DRAFT", -1, 0), input(1, "DRAFT", 10000001, 0))) {
             assertThatThrownBy(() -> service.save(actor, id, bad)).isInstanceOf(ResponseStatusException.class);
         }
         var bad = new PlanInput("Name", "", "", "OTHER", "", List.of(new Stage("One", "", "", null)), "DRAFT", 1);
@@ -172,4 +172,180 @@ class FunnelIntegrationTest {
         mvc.perform(put("/api/v1/sales/funnels/" + UUID.randomUUID()).session(session()).header("X-CSRF-Token", "synthetic-csrf")
             .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isBadRequest());
     }
+    Workshop brief(String goal, List<String> channels) {
+        return new Workshop("Introduce a new consultation service", "Consultation package", "Local area", goal, channels,
+            List.of("PHOTOS"), "WHATSAPP", "Synthetic contact instructions", "Two weeks", "Undecided", "Synthetic AI response <script>not executed</script>", List.of("timing"));
+    }
+    PlanInput idea(long version, String status, Workshop brief) {
+        return new PlanInput("Campaign idea", "Request appointments", "Local customers", "MIXED", "Planning only", List.of(), status, version, brief);
+    }
+    @Test void savesAnIdeaWithoutStagesAndRestoresItsBriefWithoutInventingNumbers() {
+        var saved = service.save(actor, UUID.randomUUID().toString(), idea(0, "DRAFT", brief("UNDECIDED", List.of())));
+        assertThat(saved.stages()).isEmpty(); assertThat(saved.estimatedConversion()).isNull(); assertThat(saved.stageEstimates()).isEmpty();
+        var read = service.get(actor, saved.id());
+        assertThat(read.workshop().aiResponse()).contains("<script>");
+        assertThat(read.workshop().deferredRecommendations()).containsExactly("timing");
+        assertThat(service.list(actor, "new consultation", "ALL", 1, 25, "name", "asc").items()).hasSize(1);
+        assertThat(service.list(actor, "%", "ALL", 1, 25, "name", "asc").items()).isEmpty();
+    }
+    @Test void aDefinedWorkshopNeedsAnActionableBriefButNotNumericalGuesses() {
+        var id = UUID.randomUUID().toString();
+        assertThatThrownBy(() -> service.save(actor,id,idea(0,"PLANNED",brief("UNDECIDED",List.of())))).isInstanceOf(ResponseStatusException.class);
+        var saved = service.save(actor,id,idea(0,"PLANNED",brief("APPOINTMENTS",List.of("META_ADS","GOOGLE_SEARCH"))));
+        assertThat(saved.status()).isEqualTo("PLANNED");assertThat(saved.estimatedConversion()).isNull();
+        assertThatThrownBy(() -> service.save(actor,id,idea(1,"PLANNED",brief("APPOINTMENTS",List.of())))).isInstanceOf(ResponseStatusException.class);
+        assertThat(service.get(actor,id).version()).isEqualTo(1);
+        assertThat(service.save(actor,UUID.randomUUID().toString(),input(0,"PLANNED",null,null)).estimatedConversion()).isNull();
+    }
+    @Test void oldClientsCannotEraseABriefOrBypassItsReadinessByOmittingIt() {
+        var id = UUID.randomUUID().toString();
+        service.save(actor,id,idea(0,"DRAFT",brief("UNDECIDED",List.of())));
+        assertThatThrownBy(() -> service.save(actor,id,input(1,"PLANNED",100,10))).isInstanceOf(ResponseStatusException.class);
+        var saved=service.save(actor,id,input(1,"ARCHIVED",100,10));
+        assertThat(saved.workshop()).isNotNull();assertThat(saved.workshop().goal()).isEqualTo("UNDECIDED");
+        assertThat(saved.workshop().aiResponse()).contains("Synthetic AI response");
+        assertThat(service.save(actor,id,input(2,"DRAFT",100,10)).workshop()).isEqualTo(saved.workshop());
+    }
+    @Test void workshopWritesRetainTenantVersionAndOperationalBoundaries() {
+        long campaigns=db.queryForObject("SELECT COUNT(*) FROM sales_mailing_campaigns WHERE company_id=?",Long.class,company);
+        long leads=db.queryForObject("SELECT COUNT(*) FROM sales_opportunities WHERE company_id=?",Long.class,company);
+        var id=UUID.randomUUID().toString();var data=idea(0,"DRAFT",brief("INQUIRIES",List.of("ORGANIC")));
+        service.save(actor,id,data);
+        assertThatThrownBy(() -> service.save(actor,id,data)).isInstanceOf(ResponseStatusException.class);
+        db.update("INSERT INTO company_module_entitlements(company_id,module_slug,status,source) VALUES(?,'crm','active','test')",other);
+        var outsider=new AuthSessionUser(user,other,"Other","user");
+        assertThatThrownBy(() -> service.get(outsider,id)).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(() -> service.save(outsider,id,idea(1,"DRAFT",brief("INQUIRIES",List.of("META_ADS"))))).isInstanceOf(ResponseStatusException.class);
+        assertThat(service.list(outsider,"","ALL",1,25,"name","asc").items()).isEmpty();
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM sales_funnel_audit WHERE company_id=?",Long.class,company)).isEqualTo(1);
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM sales_mailing_campaigns WHERE company_id=?",Long.class,company)).isEqualTo(campaigns);
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM sales_opportunities WHERE company_id=?",Long.class,company)).isEqualTo(leads);
+    }
+    @Test void workshopEndpointsRejectInvalidEnumsAndOversizedContentAndKeepCsrf() throws Exception {
+        var id=UUID.randomUUID().toString();var data=idea(0,"DRAFT",brief("INQUIRIES",List.of("META_ADS")));
+        String body=mapper.writeValueAsString(data);
+        mvc.perform(put("/api/v1/sales/funnels/"+id).session(session()).contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isForbidden());
+        for(String invalid:List.of(body.replace("META_ADS","UNSUPPORTED"),body.replace("INQUIRIES","INVALID"),
+            body.replace("Introduce a new consultation service","x".repeat(4001)))) {
+            mvc.perform(put("/api/v1/sales/funnels/"+id).session(session()).header("X-CSRF-Token","synthetic-csrf")
+                .contentType(MediaType.APPLICATION_JSON).content(invalid)).andExpect(status().isBadRequest());
+        }
+        assertThatThrownBy(() -> service.save(actor,id,idea(0,"DRAFT",brief("INQUIRIES",List.of("META_ADS","META_ADS"))))).isInstanceOf(ResponseStatusException.class);
+        mvc.perform(put("/api/v1/sales/funnels/"+id).session(session()).header("X-CSRF-Token","synthetic-csrf")
+            .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isOk()).andExpect(jsonPath("$.workshop.channels[0]").value("META_ADS"));
+    }
+
+
+    @Test void unifiedJourneyPersistsContentTogetherWithBriefAndKeepsTargetsOptional() throws Exception {
+        var source = idea(0, "PLANNED", brief("QUOTES", List.of("GOOGLE_SEARCH")));
+        var stages = List.of(new Stage("Discover", "Learn", "People reached", null, "Search ad"),
+            new Stage("Quote", "Request a quote", "Requests", null, "Proposal page"));
+        var saved = service.save(actor, UUID.randomUUID().toString(), new PlanInput(source.name(), source.objective(),
+            source.audience(), source.channel(), source.notes(), stages, source.status(), 0, source.workshop()));
+        assertThat(saved.workshop().goal()).isEqualTo("QUOTES");
+        assertThat(service.get(actor,saved.id()).stages()).extracting(Stage::content).containsExactly("Search ad","Proposal page");
+        assertThat(saved.estimatedConversion()).isNull();
+        assertThat(saved.stageEstimates()).allMatch(item -> item.estimatedAdvance() == null);
+        mvc.perform(get("/api/v1/sales/funnels/"+saved.id()).session(session()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.stages[1].content").value("Proposal page"));
+    }
+    @Test void olderStageSnapshotsRemainReadableAndNumericEstimatesArePreserved() {
+        var saved = service.save(actor, UUID.randomUUID().toString(), input(0,"PLANNED",100,20));
+        db.update("UPDATE sales_funnels SET stages_json=JSON_REMOVE(stages_json,'$[0].content','$[1].content') WHERE company_id=? AND id=?",company,saved.id());
+        var original=service.get(actor,saved.id());
+        assertThat(original.stages()).allMatch(s -> s.content()==null);
+        var stages=original.stages().stream().map(s -> new Stage(s.name(),s.action(),s.measure(),s.target(),"Custom content")).toList();
+        var updated=service.save(actor,saved.id(),new PlanInput(original.name(),original.objective(),original.audience(),
+            original.channel(),original.notes(),stages,original.status(),original.version()));
+        assertThat(updated.estimatedConversion()).isEqualByComparingTo("20");
+        assertThat(updated.workshop()).isNull();
+        assertThatThrownBy(() -> service.save(actor,saved.id(),input(updated.version(),"PLANNED",100,20)))
+            .isInstanceOf(ResponseStatusException.class).hasMessageContaining("409");
+        assertThat(service.get(actor,saved.id()).stages()).extracting(Stage::content).containsOnly("Custom content");
+        assertThat(service.get(actor,saved.id()).version()).isEqualTo(updated.version());
+    }
+    @Test void newGoalsRespectPersistenceAndCannotEscapeTheValidatedCatalog() {
+        for (String goal:List.of("QUOTES","RENEWALS")) {
+            var saved=service.save(actor,UUID.randomUUID().toString(),idea(0,"PLANNED",brief(goal,List.of("ORGANIC"))));
+            assertThat(service.get(actor,saved.id()).workshop().goal()).isEqualTo(goal);
+        }
+        assertThatThrownBy(() -> service.save(actor,UUID.randomUUID().toString(),idea(0,"PLANNED",brief("UNKNOWN",List.of("ORGANIC")))))
+            .isInstanceOf(ResponseStatusException.class);
+    }
+    @Test void stageContentLimitsAndClearAreExplicitAndAtomic() throws Exception {
+        var source=input(0,"DRAFT",100,10);
+        var stages=List.of(new Stage("Attract","Invite","People",null,"x".repeat(1001)),new Stage("Convert","Contact","Contacts",null,""));
+        String id=UUID.randomUUID().toString();
+        var request=new PlanInput(source.name(),source.objective(),source.audience(),source.channel(),source.notes(),stages,"DRAFT",0);
+        mvc.perform(put("/api/v1/sales/funnels/"+id).session(session()).header("X-CSRF-Token","synthetic-csrf")
+            .contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(request))).andExpect(status().isBadRequest());
+        assertThat(service.list(actor,"","ALL",1,25,"name","asc").total()).isZero();
+        var valid=stages.stream().map(s -> new Stage(s.name(),s.action(),s.measure(),s.target(),"Valid")).toList();
+        var saved=service.save(actor,id,new PlanInput(source.name(),source.objective(),source.audience(),source.channel(),source.notes(),valid,"DRAFT",0));
+        var cleared=valid.stream().map(s -> new Stage(s.name(),s.action(),s.measure(),s.target(),"")).toList();
+        assertThat(service.save(actor,id,new PlanInput(source.name(),source.objective(),source.audience(),source.channel(),source.notes(),cleared,"DRAFT",saved.version())).stages())
+            .extracting(Stage::content).containsOnly("");
+    }
+
+    ContentGuide guide() {
+        return new ContentGuide("TUTORIAL", "SHORT_VIDEO", "TRUST", "CUSTOM", "How to choose [service]", "Consultation", "HOOKS", 3);
+    }
+    PlanInput withGuide(PlanInput source, ContentGuide guide) {
+        return new PlanInput(source.name(),source.objective(),source.audience(),source.channel(),source.notes(),source.stages(),source.status(),source.version(),source.workshop(),guide);
+    }
+    @Test void contentGuidePersistsInTheSameCampaignAndTenantScopedList() {
+        var saved=service.save(actor,UUID.randomUUID().toString(),withGuide(idea(0,"DRAFT",brief("APPOINTMENTS",List.of("ORGANIC"))),guide()));
+        assertThat(saved.contentGuide()).isEqualTo(guide());
+        assertThat(service.get(actor,saved.id()).contentGuide()).isEqualTo(guide());
+        assertThat(service.list(actor,"","ALL",1,25,"name","asc").items()).extracting(Plan::contentGuide).containsExactly(guide());
+        assertThat(saved.stages()).isEmpty();assertThat(saved.estimatedConversion()).isNull();
+        assertThat(service.list(new AuthSessionUser(user,other,"Synthetic","user"),"","ALL",1,25,"name","asc").items()).isEmpty();
+        assertThatThrownBy(()->service.get(new AuthSessionUser(user,other,"Synthetic","user"),saved.id())).isInstanceOf(ResponseStatusException.class).hasMessageContaining("404");
+    }
+    @Test void anOldClientOmittingOrNullingGuidePreservesItAndExplicitAutoResetsChoices() {
+        var id=UUID.randomUUID().toString();service.save(actor,id,withGuide(input(0,"DRAFT",100,10),guide()));
+        var saved=service.save(actor,id,input(1,"DRAFT",100,20));
+        assertThat(saved.contentGuide()).isEqualTo(guide());assertThat(saved.workshop()).isNull();
+        var auto=new ContentGuide("AUTO","AUTO","AUTO","AUTO","","","NONE",3);
+        assertThat(service.save(actor,id,withGuide(input(2,"DRAFT",100,30),auto)).contentGuide()).isEqualTo(auto);
+        assertThat(service.get(actor,id).estimatedConversion()).isEqualByComparingTo("30");
+    }
+    @Test void aStaleContentGuideNeverOverwritesNewerChoices() {
+        var id=UUID.randomUUID().toString();service.save(actor,id,withGuide(input(0,"DRAFT",100,10),guide()));
+        service.save(actor,id,withGuide(input(1,"DRAFT",100,20),new ContentGuide("TIPS","CAROUSEL","EDUCATION","TEACH","","Another topic","FORMATS",2)));
+        assertThatThrownBy(()->service.save(actor,id,withGuide(input(1,"DRAFT",100,30),guide()))).isInstanceOf(ResponseStatusException.class).hasMessageContaining("409");
+        assertThat(service.get(actor,id).contentGuide().topic()).isEqualTo("Another topic");
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM sales_funnel_audit WHERE company_id=?",Long.class,company)).isEqualTo(2);
+    }
+    @Test void invalidContentGuideFieldsAreRejectedAtomicallyAtTheApi() throws Exception {
+        var valid=mapper.valueToTree(withGuide(input(0,"DRAFT",100,10),guide()));
+        for (var invalid:List.of(Map.entry("contentType","UNKNOWN"),Map.entry("format","TIKTOK"),Map.entry("pieceGoal","FAKE"),Map.entry("hook","FAKE"),Map.entry("variation","EXECUTE"),Map.entry("customHook","x".repeat(1001)),Map.entry("topic","x".repeat(501)))) {
+            var body=valid.deepCopy();((com.fasterxml.jackson.databind.node.ObjectNode)body.get("contentGuide")).put(invalid.getKey(),invalid.getValue());
+            mvc.perform(put("/api/v1/sales/funnels/"+UUID.randomUUID()).session(session()).header("X-CSRF-Token","synthetic-csrf").contentType(MediaType.APPLICATION_JSON).content(body.toString())).andExpect(status().isBadRequest());
+        }
+        for (int count:List.of(0,1,6)) {
+            var body=valid.deepCopy();((com.fasterxml.jackson.databind.node.ObjectNode)body.get("contentGuide")).put("variationCount",count);
+            mvc.perform(put("/api/v1/sales/funnels/"+UUID.randomUUID()).session(session()).header("X-CSRF-Token","synthetic-csrf").contentType(MediaType.APPLICATION_JSON).content(body.toString())).andExpect(status().isBadRequest());
+        }
+        var missing=valid.deepCopy();((com.fasterxml.jackson.databind.node.ObjectNode)missing.get("contentGuide")).remove("format");
+        mvc.perform(put("/api/v1/sales/funnels/"+UUID.randomUUID()).session(session()).header("X-CSRF-Token","synthetic-csrf").contentType(MediaType.APPLICATION_JSON).content(missing.toString())).andExpect(status().isBadRequest());
+        assertThat(service.list(actor,"","ALL",1,25,"name","asc").items()).isEmpty();
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM sales_funnel_audit WHERE company_id=?",Long.class,company)).isZero();
+    }
+    @Test void contentGuideUsesExistingCsrfAndFunnelingWritePermissions() throws Exception {
+        String url="/api/v1/sales/funnels/"+UUID.randomUUID();String body=mapper.writeValueAsString(withGuide(input(0,"DRAFT",100,10),guide()));
+        mvc.perform(put(url).session(session()).contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isForbidden());
+        db.update("DELETE FROM user_company_tab_permissions WHERE user_company_id=? AND tab_key='funneling'",membership);
+        mvc.perform(put(url).session(session()).header("X-CSRF-Token","synthetic-csrf").contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isForbidden());
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM sales_funnels WHERE company_id=?",Long.class,company)).isZero();
+    }
+    @Test void guidePlanningDoesNotExecuteCampaignsOrAlterBusinessCounts() {
+        long campaigns=db.queryForObject("SELECT COUNT(*) FROM sales_mailing_campaigns WHERE company_id=?",Long.class,company);
+        long opportunities=db.queryForObject("SELECT COUNT(*) FROM sales_opportunities WHERE company_id=?",Long.class,company);
+        var saved=service.save(actor,UUID.randomUUID().toString(),withGuide(input(0,"PLANNED",100,10),guide()));
+        assertThat(saved.contentGuide()).isEqualTo(guide());
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM sales_mailing_campaigns WHERE company_id=?",Long.class,company)).isEqualTo(campaigns);
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM sales_opportunities WHERE company_id=?",Long.class,company)).isEqualTo(opportunities);
+    }
+
 }

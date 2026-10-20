@@ -91,6 +91,29 @@ public class PasswordResetRepository {
         return users.stream().findFirst();
     }
 
+    public void lockUser(long userId) {
+        jdbcTemplate.queryForObject("SELECT id FROM users WHERE id = ? FOR UPDATE", Long.class, userId);
+    }
+
+    public void invalidateTokenByHash(String tokenHash, Instant now) {
+        jdbcTemplate.update("UPDATE user_password_reset_tokens SET status = 'superseded', invalidated_at = ? WHERE token_hash = ? AND status = 'active'",
+            Timestamp.from(now), tokenHash);
+    }
+
+    public void invalidateOtherTokensByHash(long userId, String tokenHash, Instant now) {
+        jdbcTemplate.update("UPDATE user_password_reset_tokens SET status = 'superseded', invalidated_at = ? WHERE user_id = ? AND token_hash <> ? AND status = 'active' AND used_at IS NULL AND invalidated_at IS NULL",
+            Timestamp.from(now), userId, tokenHash);
+    }
+
+    public void clearPasswordLockouts(long userId) {
+        jdbcTemplate.update("UPDATE auth_login_lockouts SET failure_count = 0, locked_until = NULL, last_failure_reason_code = NULL WHERE user_id = ?", userId);
+    }
+
+    public void expirePendingLoginChallenges(long userId, Instant now) {
+        jdbcTemplate.update("UPDATE auth_mfa_challenges SET status = 'EXPIRED', expires_at = ? WHERE user_id = ? AND LOWER(status) = 'pending' AND used_at IS NULL",
+            Timestamp.from(now), userId);
+    }
+
     public void invalidateActiveTokensForUser(long userId, Instant now) {
         jdbcTemplate.update(
             """

@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class JakartaMailConnectionProbe implements MailConnectionProbe {
+    private static final org.slf4j.Logger LOG=org.slf4j.LoggerFactory.getLogger(JakartaMailConnectionProbe.class);
     @Override public boolean verify(String protocol,String host,int port,String security,String username,String password) {
         try {
             String provider=switch(protocol){case "SMTP"->"smtp";case "IMAP"->"imap";case "POP3"->"pop3";default->throw new IllegalArgumentException();};
@@ -16,7 +17,9 @@ public class JakartaMailConnectionProbe implements MailConnectionProbe {
             return true;
         } catch(Exception rejected) {
             // Provider errors may contain credentials, addresses or server internals. Never expose/log them.
-            return false;
+            var failure=MailConnectionFailure.classify(rejected);
+            LOG.info("Email connection test rejected category={}",failure.code());
+            throw failure;
         }
     }
 }

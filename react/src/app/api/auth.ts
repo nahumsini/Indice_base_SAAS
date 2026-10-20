@@ -146,7 +146,7 @@ export const authApi = {
     } catch (error) {
       if (error instanceof ApiClientError && [401, 423].includes(error.status)) {
         cacheSession(null);
-        throw new Error(error.message || 'Invalid login or account temporarily locked.');
+        throw error;
       }
 
       throw error;

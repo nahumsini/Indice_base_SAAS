@@ -20,14 +20,98 @@ const definitions: Record<string, readonly [string, number]> = {
   receivables: ['receivables', 3], inventory: ['inventory', 4], crm: ['sales', 4],
   pos: ['point-of-sale', 4], kpis: ['kpis', 5],
   control_minutas: ['minutes-control', 2], scheduling: ['scheduling', 2],
+  sales_board: ['sales-board', 5], correo: ['email', 4], maintenance: ['maintenance', 2],
 };
 function chapter(module: string, tab: string, label: LearningText, steps: readonly LearningText[], evidenceTools: readonly string[] = []): LearningChapter {
   const [pageId, stage] = definitions[module];
-  return { id: `${module}.${tab}`, module, tab, version: ["expenses","petty_cash"].includes(module) ? 3 : 2, pageId, stage, label, steps, evidenceTools,
+  const version = ["expenses", "petty_cash"].includes(module)
+    || (module === 'crm' && tab === 'funneling')
+    || (module === 'human_resources' && ['control', 'attendance'].includes(tab)) ? 3 : 2;
+  return { id: `${module}.${tab}`, module, tab, version, pageId, stage, label, steps, evidenceTools,
     companion: module !== 'config_center' && !(module === 'pos' && tab === 'sale'),
     journey: !(module === 'pos' && tab === 'sale') };
 }
 export const learningChapters: readonly LearningChapter[] = [
+  chapter("sales_board", "overview", ["Resumen de ventas","Sales overview"], [
+    ["Elige periodo, origen y alcance autorizado para revisar las ventas de CRM y POS.","Choose period, origin and authorized scope to review CRM and POS sales."],
+    ["Consulta los totales consolidados y abre el detalle desde sus indicadores. Los filtros se conservan entre vistas.","Review consolidated totals and open detail from the indicators. Filters persist across views."],
+    ["Distingue venta registrada, cobro y asiento contable. El tablero consulta los propietarios y no duplica ventas ni registra ingresos.","Distinguish recorded sales, collections and journal entries. The board reads owner records without duplicating sales or posting revenue."],
+  ]),
+  chapter("sales_board", "trends", ["Tendencias de ventas","Sales trends"], [
+    ["Selecciona un periodo y revisa la moneda y la disponibilidad de datos.","Select a period and check currency and data availability."],
+    ["Cambia la agrupación temporal y abre un punto de la gráfica para consultar las ventas de ese intervalo.","Change time grouping and open a chart point to review sales in that interval."],
+    ["Comprueba el tamaño de la muestra y las conversiones incompletas; una tendencia descriptiva no garantiza ventas futuras.","Check sample size and incomplete currency conversions; a descriptive trend does not guarantee future sales."],
+  ]),
+  chapter("sales_board", "channels", ["Orígenes y canales","Origins and channels"], [
+    ["Distingue el origen CRM o POS del canal registrado de la venta.","Distinguish the CRM or POS source from the sale’s recorded channel."],
+    ["Compara importes y participación por origen y canal dentro de los filtros actuales.","Compare amounts and shares by source and channel within the current filters."],
+    ["Conserva Sin clasificar cuando no hay canal registrado; no conviertas la fuente del contacto en un canal financiero.","Keep Unclassified when no channel is recorded; do not turn a contact acquisition source into a financial channel."],
+  ]),
+  chapter("sales_board", "sales", ["Detalle de ventas","Sales detail"], [
+    ["Busca folio o cliente y revisa periodo, origen y estado antes de interpretar los resultados.","Search folio or customer and review period, source and status before interpreting results."],
+    ["Ordena y configura columnas y abre el detalle autorizado de cada venta.","Sort and configure columns and open each authorized sale’s detail."],
+    ["Comprueba moneda original y evidencia contable; las correcciones, entregas y cobros se gestionan en sus módulos propietarios.","Check original currency and accounting evidence; corrections, deliveries and collections belong to their owner modules."],
+  ]),
+  chapter("correo", "accounts", ["Cuentas de correo","Email accounts"], [
+    ["Obtén del proveedor el servidor, puerto y seguridad de SMTP e IMAP o POP3. Captura las contraseñas dentro del formulario.","Obtain SMTP and IMAP or POP3 server, port and security settings from the provider. Enter passwords inside the form."],
+    ["Guarda la cuenta y prueba envío y recepción por separado. Habilita su uso como remitente de Mailing solo si corresponde.","Save the account and test sending and receiving separately. Enable its use as a Mailing sender when appropriate."],
+    ["Revisa el resultado de cada conexión. Compartir disponibilidad como remitente no comparte el buzón; una conexión verificada no demuestra que un mensaje fue entregado.","Review each connection result. Sender availability does not share the mailbox; a verified connection does not prove message delivery."],
+  ]),
+  chapter("correo", "mail", ["Buzón y mensajes","Mailbox and messages"], [
+    ["Selecciona tu cuenta conectada y carpeta y busca al cliente, remitente, destinatario o asunto.","Select your connected account and folder and search by customer, sender, recipient or subject."],
+    ["Sincroniza, consulta, responde o prepara un correo y revisa sus destinatarios y adjuntos antes de enviarlo.","Sync, read, reply or prepare an email and review recipients and attachments before sending."],
+    ["Comprueba Enviados y el estado de envío. Distingue carpetas del servidor, borradores locales y resultados sin confirmar antes de reintentar.","Check Sent and delivery status. Distinguish server folders, local drafts and unconfirmed outcomes before retrying."],
+  ]),
+  chapter("maintenance", "requests", ["Solicitudes técnicas","Technical requests"], [
+    ["Identifica el equipo o ubicación, falla y evidencia dentro de tu alcance.","Identify the asset or location, fault and evidence within your scope."],
+    ["Registra la solicitud y revisa su atención. Un responsable autorizado puede aceptarla o rechazarla con motivo.","Record the request and review its handling. An authorized manager can accept it or reject it with a reason."],
+    ["Comprueba la orden vinculada al aceptar; no dupliques la solicitud por un reintento y conserva el historial.","Check the linked order after acceptance; do not duplicate the request on retry and preserve history."],
+  ]),
+  chapter("maintenance", "orders", ["Órdenes de trabajo","Work orders"], [
+    ["Revisa responsable, prioridad, fecha, activo y procedimiento antes de ejecutar.","Review assignee, priority, date, asset and procedure before execution."],
+    ["Registra diagnóstico, avances, evidencias y costos autorizados; solicita validación al terminar.","Record diagnosis, progress, evidence and authorized costs; request validation when finished."],
+    ["Comprueba el cierre validado y la restauración explícita del activo. Cerrar una orden no registra un pago ni cambia la custodia de RH.","Check validated closure and explicit asset restoration. Closing an order neither records payment nor changes HR custody."],
+  ]),
+  chapter("maintenance", "assets", ["Activos y expedientes técnicos","Assets and technical files"], [
+    ["Busca el activo o ubicación y revisa el vínculo con el equipo de RH cuando exista.","Search the asset or location and review its HR equipment link when present."],
+    ["Consulta el expediente, órdenes, evidencia e intervalos de indisponibilidad autorizados.","Review the authorized technical file, orders, evidence and outage intervals."],
+    ["Distingue estado técnico y custodia; el QR abre una ruta autenticada y no concede acceso.","Distinguish technical status from custody; the QR opens an authenticated route without granting access."],
+  ]),
+  chapter("maintenance", "preventive", ["Planes preventivos","Preventive plans"], [
+    ["Define activo, procedimiento, fecha inicial, zona horaria y recurrencia.","Define asset, procedure, anchor date, time zone and recurrence."],
+    ["Guarda el plan y revisa los ciclos y órdenes generadas; asigna el trabajo desde la operación autorizada.","Save the plan and review generated cycles and orders; assign work through the authorized workflow."],
+    ["Comprueba la fecha límite original y el seguimiento. Una fecha límite no equivale a una cita confirmada con el técnico.","Check the original deadline and follow-up. A deadline is not a confirmed technician appointment."],
+  ]),
+  chapter("maintenance", "indicators", ["Indicadores de mantenimiento","Maintenance indicators"], [
+    ["Elige periodo y alcance y distingue trabajo pendiente de órdenes cerradas en el periodo.","Choose period and scope and distinguish backlog from orders closed in the period."],
+    ["Consulta tiempos, cumplimiento, indisponibilidad y costos, y abre los registros de respaldo.","Review time, compliance, outages and costs, and open supporting records."],
+    ["Comprueba denominadores, moneda y fuentes incompletas; no interpretes ausencia de datos como costo o desempeño cero.","Check denominators, currency and incomplete sources; do not interpret missing data as zero cost or performance."],
+  ]),
+  chapter("maintenance", "configuration", ["Configuración técnica","Technical configuration"], [
+    ["Comprueba tu permiso administrativo y la estructura del equipo de mantenimiento.","Check your administrative permission and maintenance team structure."],
+    ["Configura procedimientos, requisitos de evidencia y perfiles técnicos desde sus formularios autorizados.","Configure procedures, evidence requirements and technician profiles through their authorized forms."],
+    ["Verifica la configuración guardada. Los cambios no conceden permisos de Inventarios o Finanzas ni reescriben el procedimiento de órdenes existentes.","Verify saved settings. Changes neither grant Inventory or Finance permissions nor rewrite existing orders’ procedure snapshots."],
+  ]),
+  chapter("crm", "after-sales", ["Postventa y recuperación","After-sales and recovery"], [
+    ["Elige Ganadas para continuidad del servicio o Perdidas para preparar una recuperación futura.","Choose Won for service continuity or Lost to prepare future recovery."],
+    ["Asigna flujo, etapa, responsable y siguiente acción en Ganadas; programa la revisión de recuperación en Perdidas.","Assign flow, stage, owner and next action in Won; schedule recovery review in Lost."],
+    ["Comprueba seguimiento e historial. La fecha de recuperación avisa al vendedor para revisar y reactivar manualmente; no crea una nueva venta.","Check follow-up and history. The recovery date notifies the salesperson to review and reactivate manually; it does not create a new sale."],
+  ]),
+  chapter("crm", "funneling", ["Campañas y embudo","Campaigns and funnel"], [
+    ["Organiza notas y fotos en Mis ideas; define oferta, público, objetivo y canales de cada campaña con las opciones guiadas del taller.","Organize notes and photos in My ideas; define each campaign’s offer, audience, goal and channels with the workshop’s guided choices."],
+    ["Revisa el embudo y prepara el prompt en Generación de contenido. En Calendario de contenido elige campaña, agenda piezas o revisa Contenido sugerido y guarda las seleccionadas. Consulta Mes, Semana o Agenda.","Review the funnel and prepare the prompt in Content generation. In Content calendar choose a campaign, schedule pieces or review Suggested content and save selected items. Browse Month, Week or Agenda."],
+    ["Guarda el plan y el calendario y comprueba fechas, zona horaria y estados. Las sugerencias son propuestas editables; marcar Publicado es manual. El taller no publica anuncios ni activa campañas de Google Ads o Meta, y las metas no son resultados reales.","Save the plan and calendar and check dates, time zone and statuses. Suggestions are editable proposals; Published is a manual status. The workshop does not publish ads or activate Google Ads or Meta campaigns, and targets are not actual results."],
+  ]),
+  chapter("crm", "mailing", ["Campañas de correo","Email campaigns"], [
+    ["Selecciona una cuenta remitente verificada y los contactos o listas de Ventas para la campaña.","Select a verified sender account and Sales contacts or lists for the campaign."],
+    ["Prepara asunto, contenido y variables; revisa destinatarios habilitados, exclusiones y configuración antes de confirmar el lanzamiento o programación.","Prepare subject, content and variables; review eligible recipients, exclusions and configuration before confirming launch or scheduling."],
+    ["Consulta resultados por destinatario y respeta las bajas. Aceptado por SMTP no significa leído o entregado; una prueba no lanza la campaña.","Review per-recipient outcomes and respect opt-outs. SMTP acceptance does not mean read or delivered; a test does not launch the campaign."],
+  ]),
+  chapter("crm", "whatsapping", ["Campañas asistidas de WhatsApp","Assisted WhatsApp campaigns"], [
+    ["Selecciona contactos y prepara plantilla, variables, enlaces y pasos de seguimiento.","Select contacts and prepare a template, variables, links and follow-up steps."],
+    ["Revisa el mensaje individual, abre WhatsApp y envíalo desde la cuenta que elegiste en esa aplicación. Registra el resultado en Índice.","Review the individual message, open WhatsApp and send it from the account you selected in that application. Record the result in Índice."],
+    ["Consulta pendientes y próximas acciones. Preparar el enlace no envía el mensaje; los resultados son confirmaciones manuales y una respuesta o exclusión detiene el seguimiento.","Review pending and next actions. Preparing the link does not send the message; outcomes are manual confirmations and a reply or exclusion stops follow-up."],
+  ]),
   chapter('control_minutas', 'meetings', ['Juntas y minutas', 'Meetings and minutes'], [
     ['Revisa participantes, responsable, horario y permisos antes de planear una junta o serie finita.', 'Review participants, owner, time and permissions before planning a meeting or finite series.'],
     ['Planea la junta y registra su minuta y decisiones desde Control de juntas.', 'Plan the meeting and record its minutes and decisions in Meeting control.'],
@@ -110,12 +194,12 @@ export const learningChapters: readonly LearningChapter[] = [
   ], ['create_employee', 'update_employee', 'import_employees', 'attach_employee_document']),
   chapter('human_resources', 'control', ['Horarios, ubicaciones y acceso', 'Schedules, locations and access'], [
     ['Define horarios, descansos, ubicaciones y el alcance del kiosco antes de asignar personas.', 'Define schedules, rest days, locations and kiosk scope before assigning people.'],
-    ['Asigna horarios y sitios con sus fechas vigentes; configura kiosco individual o multikiosco según la operación y prepara el acceso desde RH.', 'Assign schedules and work sites with effective dates; configure individual or multiuser kiosks for the operation and prepare access in HR.'],
+    ['Asigna horarios y sitios con sus fechas vigentes; configura kiosco individual o multikiosco según la operación. El kiosco personal respeta esas asignaciones: un horario abierto sin sitio obligatorio conserva la política de ubicación configurada.', 'Assign schedules and work sites with effective dates; configure individual or multiuser kiosks for the operation. The personal kiosk respects those assignments: an open schedule without a required site retains the configured location policy.'],
     ['Comprueba el calendario y las asignaciones. Los cambios no reescriben marcaciones previas; PIN, biometría y credenciales físicas se administran en sus pantallas autorizadas, no en el chat.', 'Check the calendar and assignments. Changes do not rewrite previous attendance events; PINs, biometrics and physical credentials are managed in authorized screens, not in chat.'],
   ], ['create_hr_schedule', 'assign_hr_schedule', 'assign_hr_work_site', 'assign_hr_rest_days']),
   chapter('human_resources', 'attendance', ['Asistencia y calendario', 'Attendance and calendar'], [
     ['Elige fecha y alcance permitido. Distingue registros propios de la administración de asistencia.', 'Choose a date and authorized scope. Distinguish personal records from attendance administration.'],
-    ['Consulta calendario, marcaciones e incidencias. Revisa horario, descanso y permiso antes de interpretar una ausencia.', 'Review calendar, attendance events and exceptions. Check schedule, rest days and leave before interpreting an absence.'],
+    ['Consulta calendario, marcaciones e incidencias; revisa horario, descanso y permiso antes de interpretar una ausencia. Para registrar asistencia personal, completa foto y GPS: obtener la ubicación no confirma que esté permitida; el servidor aplica el horario y sitio vigentes.', 'Review calendar, attendance events and exceptions; check schedule, rest days and leave before interpreting an absence. To record personal attendance, complete photo and GPS: obtaining a location does not confirm it is allowed; the server applies the effective schedule and work site.'],
     ['Corrige solo desde la función autorizada y conserva motivo y evidencia. Pendiente o sin horario no equivale a ausencia; el agente no obtiene fotografías biométricas ni coordenadas.', 'Correct only through the authorized function and preserve reason and evidence. Pending or unscheduled does not mean absent; the agent does not obtain biometric photos or coordinates.'],
   ]),
   chapter('human_resources', 'permissions', ['Solicitudes y permisos laborales', 'Leave requests and approvals'], [

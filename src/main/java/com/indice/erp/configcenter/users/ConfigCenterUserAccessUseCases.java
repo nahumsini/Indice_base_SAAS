@@ -279,6 +279,8 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         long userId,
         Map<String, Object> payload
     ) {
+        UserAccessInput.access(payload);
+        lockUserAdministration(companyId);
         var role = normalizeRole(value(payload, "role"));
         var status = normalizeStatus(value(payload, "status"));
         var moduleSlugs = normalizeModuleSlugs(payload.get("module_slugs"));
@@ -304,7 +306,7 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
             (rs, rowNum) -> new TargetUser(
                 rs.getLong("user_id"),
                 rs.getLong("user_company_id"),
-                normalizeRole(rs.getString("role"))
+                safe(rs.getString("role")).trim().toLowerCase(java.util.Locale.ROOT)
             ),
             userId,
             companyId
@@ -315,7 +317,11 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         }
 
         var target = rows.get(0);
+        if ("root".equals(target.role()) && "root".equalsIgnoreCase(value(payload,"role"))) role="root";
         var before = loadUserAccessSnapshot(companyId, target.userCompanyId());
+        userMutationGuard.validateExistingAccess(actor,target,before.modules(),before.tabPermissions(),new AccessScope(before.unitId(),before.businessId()));
+        if (ADMIN_ROLES.contains(before.role()) && !ADMIN_ROLES.contains(role) && "active".equals(before.status()))
+            requireAnotherAdministrator(companyId,target.userCompanyId());
         moduleAccessRegistry.ensureAssignableToCompany(companyId, moduleSlugs, before.modules());
         if (!before.status().equals(status)) {
             throw new IllegalArgumentException("Use the dedicated activate or deactivate action to change user status.");
@@ -337,10 +343,11 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         var userCompanyId = target.userCompanyId();
 
         jdbcTemplate.update(
-            "UPDATE user_companies SET role = ?, status = ? WHERE id = ?",
+            "UPDATE user_companies SET role = ?, status = ? WHERE id = ? AND company_id = ?",
             role,
             status,
-            userCompanyId
+            userCompanyId,
+            companyId
         );
         upsertUserMembership(companyId, userCompanyId, userId, status, membership, null);
 
@@ -481,6 +488,7 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         if (userId == actorUserId) {
             throw new IllegalArgumentException("You cannot deactivate your own user.");
         }
+        lockUserAdministration(companyId);
         var actor = loadActorAccess(companyId, actorUserId, actorRole);
 
         var rows = jdbcTemplate.query(
@@ -520,26 +528,10 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         var tabPermissionKeys = tabPermissionAccess.listUserTabPermissionKeys(userCompanyId);
         userDeactivationGuard.validate(actor, target.target(), moduleSlugs, tabPermissionKeys, target.scope());
 
-        if (ADMIN_ROLES.contains(target.target().role())) {
-            var adminCount = jdbcTemplate.queryForObject(
-                """
-                    SELECT COUNT(*)
-                    FROM user_companies
-                    WHERE company_id = ?
-                      AND id <> ?
-                      AND LOWER(COALESCE(role, 'user')) IN ('root', 'superadmin', 'admin')
-                      AND LOWER(COALESCE(status, 'active')) IN ('active', 'activo')
-                    """,
-                Integer.class,
-                companyId,
-                userCompanyId
-            );
-            if (adminCount == null || adminCount < 1) {
-                throw new IllegalArgumentException("At least one administrator must remain.");
-            }
-        }
-
         var before = loadUserAccessSnapshot(companyId, userCompanyId);
+        if ("inactive".equals(before.status())) return Map.of("success",true,"deleted",true,"archived",true,"inactive",true);
+        if (ADMIN_ROLES.contains(target.target().role())) requireAnotherAdministrator(companyId,userCompanyId);
+
         jdbcTemplate.update(
             "UPDATE user_companies SET status = 'inactive' WHERE id = ? AND company_id = ?",
             userCompanyId,
@@ -583,6 +575,20 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         result.put("archived", true);
         result.put("inactive", true);
         return result;
+    }
+
+    public void lockUserAdministration(long companyId) {
+        jdbcTemplate.queryForObject("SELECT id FROM companies WHERE id = ? FOR UPDATE",Long.class,companyId);
+    }
+
+    private void requireAnotherAdministrator(long companyId,long targetMembership) {
+        var count=jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM user_companies
+            WHERE company_id = ? AND id <> ?
+              AND LOWER(COALESCE(role, 'user')) IN ('root', 'superadmin', 'admin')
+              AND LOWER(COALESCE(status, 'active')) IN ('active', 'activo')
+            """,Integer.class,companyId,targetMembership);
+        if(count==null||count<1)throw UserAccessInput.error("user_last_administrator","At least one administrator must remain.");
     }
 
     protected UserMembership resolveInvitationMembership(long companyId, Map<String, Object> payload) {

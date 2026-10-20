@@ -18,7 +18,7 @@ try {
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aNioAAAAASUVORK5CYII=', 'base64');
   let failUpload = false, uploadCount = 0;
   let company = 1, failSend = false, loseCreateResponse = false, duplicateCreateKey;
-  let readBy = 0, failTask = true;
+  let readBy = 0, failTask = true, denyNextSend = false;
   const taskKeys = [], tasks = [];
   page.on('pageerror', e => { errors.push(e.message); console.error('Browser error:', e.message); });
   await page.route('**/*', async route => {
@@ -35,10 +35,15 @@ try {
     }
     if (!url.pathname.startsWith('/api/')) return route.continue();
     const reply = data => route.fulfill({ json: data });
+    if (url.pathname === '/api/v1/auth/me') return route.fulfill({status:401,json:{}});
     const operator = url.pathname.includes('platform-admin');
     const path = url.pathname.replace(/^\/api\/v1\/(messaging|platform-admin\/customer-care)/, '');
     if (req.method() !== 'GET') assert.equal(req.headers()['x-csrf-token'], 'synthetic-csrf');
-    if (path === '/context') return reply({ userId: company, companyId: company, membershipId: company, distributor: null, supportOnly: false });
+    if (path === '/context') return reply({ userId: company, companyId: company, membershipId: company, distributor: null, supportOnly: false, initialAttachments: true });
+    if (path === '/attachments') {
+      const body=req.postDataJSON(); const attachment={id:body.requestKey,...body}; photos.set(attachment.id,attachment);
+      return reply({id:attachment.id,uploadUrl:`${url.origin}/synthetic-storage/${attachment.id}`,uploadHeaders:{'Content-Type':body.contentType},expiresAt:new Date(Date.now()+900000).toISOString()});
+    }
     if (path === '/directory') return reply([{ id: 2, name: 'Compañero' }, { id: 3, name: 'Lucía Operaciones' }]);
     if (path === '/task-context') return reply({ canCreate: true });
     if (path === '/assignees') return reply([{ id: 9, name: 'Operador' }]);
@@ -50,7 +55,7 @@ try {
       if (!c) {
         c = { id: conversations.length + 1, companyId: company, companyName: 'Empresa de prueba', requesterName: 'Cliente', assignedUserId: null, assigneeName: '',
           status: 'OPEN', priority: 'MEDIUM', version: 1, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), awaitingSince: new Date().toISOString(), unreadCount: 0, ...body };
-        conversations.push(c); messages.push({ id: messages.length + 1, conversationId: c.id, senderUserId: company, senderName: 'Cliente', senderScope: 'MEMBER', visibility: 'PUBLIC', body: body.body, requestKey: body.requestKey, createdAt: c.createdAt });
+        conversations.push(c); messages.push({ id: messages.length + 1, conversationId: c.id, senderUserId: company, senderName: 'Cliente', senderScope: 'MEMBER', visibility: 'PUBLIC', body: body.body, attachments: (body.attachmentIds || []).map(id=>photos.get(id)), requestKey: body.requestKey, createdAt: c.createdAt });
         if (c.kind === 'GROUP') { assert.equal(body.subject, ''); c.displayName = body.groupName; assert.deepEqual(body.participantMembershipIds,[2,3]); }
         if (c.kind === 'DIRECT') { assert.equal(body.subject, ''); c.displayName = 'Compañero'; }
       } else assert.equal(body.requestKey, duplicateCreateKey);
@@ -87,6 +92,7 @@ try {
         return route.fulfill({ status: 204 });
       }
       if (suffix === '/messages') {
+        if (denyNextSend) { denyNextSend=false; return route.fulfill({status:403,json:{}}); }
         const body = req.postDataJSON(); sendKeys.push(body.requestKey);
         let message = messages.find(m => m.requestKey === body.requestKey);
         if (!message) { message = { id: messages.length + 1, conversationId: id, senderUserId: operator ? 9 : company, senderName: operator ? 'Operador' : 'Cliente', senderScope: operator ? 'PLATFORM' : 'MEMBER', ...body, attachments: (body.attachmentIds || []).map(id => photos.get(id)), createdAt: new Date().toISOString() }; messages.push(message); c.version++; }
@@ -97,7 +103,7 @@ try {
     unexpected.push(`${req.method()} ${url.pathname}`); return route.fulfill({ status: 500, json: {} });
   });
   await page.goto('http://127.0.0.1:5193/tests/browser/messaging.html', { timeout: 120000 });
-  await page.getByRole('button', { name: 'Nueva conversación', exact: true }).click();
+  await page.getByRole('button', { name: 'Nueva conversación', exact: true }).first().click();
   await page.getByRole('button', { name: 'Soporte Índice', exact: true }).click();
   assert.equal(await page.getByRole('button', { name: /Mi consultor/ }).count(), 0);
   await page.getByLabel('Asunto', { exact: true }).fill('Consulta Canadá');
@@ -124,22 +130,22 @@ try {
   assert.equal(await page.getByRole('log').locator('img').count(), 0);
   assert.equal(await page.getByRole('log').getByText('<img src=x onerror=alert(1)> Texto seguro', { exact: true }).count(), 1);
   console.log('PASS: lost send acknowledgement retries without duplicate bubbles; text is escaped');
-  const picker = page.locator('input[type=file]');
+  const picker = page.locator('input[type=file]').first();
   await picker.setInputFiles({ name: 'unsafe.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg/>') });
-  await page.getByText('Selecciona hasta 5 fotografías JPG, PNG o WebP de máximo 8 MB.', { exact: true }).waitFor();
+  await page.getByRole('alert').filter({ hasText: 'unsafe.svg' }).waitFor();
   await picker.setInputFiles({ name: 'evidencia.png', mimeType: 'image/png', buffer: png });
-  await page.getByRole('button', { name: 'Quitar fotografía: evidencia.png', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Quitar adjunto: evidencia.png', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Cerrar', exact: true }).click();
   await page.getByRole('button', { name: 'Seguir escribiendo', exact: true }).click();
   failUpload = true;
   await page.getByRole('button', { name: 'Enviar', exact: true }).click();
-  await page.getByText(/No se pudieron enviar las fotografías/).waitFor();
+  await page.getByText(/No se pudo subir “evidencia.png”/).waitFor();
   assert.equal(photos.size, 1);
   failSend = true;
   await page.getByRole('button', { name: 'Enviar', exact: true }).click();
-  await page.getByText(/No se pudieron enviar las fotografías/).waitFor();
+  await page.getByRole('alert').filter({ hasText: 'Tu mensaje sigue aquí' }).waitFor();
   await page.getByRole('button', { name: 'Enviar', exact: true }).click();
-  await page.waitForFunction(() => !document.querySelector('button[aria-label="Quitar fotografía: evidencia.png"]'));
+  await page.waitForFunction(() => !document.querySelector('button[aria-label="Quitar adjunto: evidencia.png"]'));
   const sentPhoto = page.getByRole('log').getByRole('img', { name: 'evidencia.png', exact: true });
   await sentPhoto.waitFor();
   await page.waitForFunction(() => Array.from(document.querySelectorAll('[role=log] img')).every(img => img.complete && img.naturalWidth > 0));
@@ -150,6 +156,16 @@ try {
   await page.getByRole('button', { name: 'Ampliar fotografía: evidencia.png', exact: true }).click();
   await page.getByRole('button', { name: 'Reducir fotografía: evidencia.png', exact: true }).waitFor();
   console.log('PASS: photo selection, unsafe type rejection, draft guard, upload retry, lost acknowledgement, inline image and zoom');
+  await page.locator('input[type=file]').last().setInputFiles({ name:'reporte.pdf', mimeType:'application/pdf', buffer:Buffer.from('%PDF-1.7\nSynthetic private test') });
+  await page.getByRole('button',{name:'Quitar adjunto: reporte.pdf',exact:true}).waitFor();
+  failSend=true;
+  await page.getByRole('button',{name:'Enviar',exact:true}).click();
+  await page.getByRole('alert').filter({hasText:'Tu mensaje sigue aquí'}).waitFor();
+  await page.getByRole('button',{name:'Enviar',exact:true}).click();
+  await page.getByRole('button',{name:'Abrir archivo: reporte.pdf',exact:true}).waitFor();
+  assert.equal(messages.filter(m=>m.attachments?.some(a=>a.fileName==='reporte.pdf')).length,1);
+  assert.equal(photos.size,2);
+  console.log('PASS: private document cards, file-only messages and lost acknowledgement without duplicates');
   if (process.env.INDICE_MESSAGING_SCREENSHOTS) await page.screenshot({ path: resolve(process.env.INDICE_MESSAGING_SCREENSHOTS, 'messaging-desktop.png') });
   await page.setViewportSize({ width: 390, height: 844 });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
@@ -191,7 +207,7 @@ try {
   await page.getByRole('button',{name:'Enviar',exact:true}).click();
   await page.getByRole('heading',{name:'Compañero',exact:true}).waitFor();
   await page.getByRole('button',{name:'Volver',exact:true}).click();
-  await page.getByRole('button',{name:'Nueva conversación',exact:true}).click();
+  await page.getByRole('button',{name:'Nueva conversación',exact:true}).first().click();
   await page.getByRole('button',{name:'Chat grupal',exact:true}).click();
   await page.getByLabel('Nombre del grupo',{exact:true}).fill('Equipo de apertura');
   await page.getByRole('checkbox',{name:'Compañero',exact:true}).check();
@@ -206,6 +222,7 @@ try {
   await page.locator('[data-chat-receipt]').getByText('Leído',{exact:true}).waitFor();
   assert.equal(await page.locator('[data-chat-receipt] .lucide-check-check').count(),1);
   await page.getByLabel('Mensaje',{exact:true}).fill('Borrador del grupo');
+  await page.getByRole('button',{name:'Acciones de la conversación',exact:true}).click();
   await page.getByRole('button',{name:'Agregar tarea',exact:true}).click();
   await page.getByLabel('¿Qué hay que hacer?',{exact:true}).fill('Revisar apertura');
   await page.getByLabel('Fecha límite (opcional)',{exact:true}).fill('2026-10-12');
@@ -221,7 +238,7 @@ try {
   for (const width of [320,390,768,1440]) {
     await page.setViewportSize({width,height:844}); await page.waitForTimeout(200);
     await assertComposerVisible();
-    const taskButton=await page.getByRole('button',{name:'Agregar tarea',exact:true}).boundingBox();
+    const taskButton=await page.getByRole('button',{name:'Acciones de la conversación',exact:true}).boundingBox();
     assert.ok(taskButton.height>=44 && taskButton.width>=44);
   }
   await page.setViewportSize({width:390,height:650});
@@ -236,6 +253,20 @@ try {
   await page.evaluate(()=>document.documentElement.classList.remove('dark'));
   await page.getByRole('button',{name:'Cerrar',exact:true}).click();
   console.log('PASS: direct chat without subject, groups, incremental read receipts, personal task retry, preserved draft, mobile/desktop/dark');
+  await page.getByRole('button', { name: 'Client view', exact: true }).click();
+  await page.getByRole('button', { name: 'Nueva conversación', exact: true }).first().click();
+  await page.getByRole('button',{name:'Soporte Índice',exact:true}).click();
+  await page.getByLabel('Asunto',{exact:true}).fill('Consulta con archivo inicial');
+  await page.locator('input[type=file]').last().setInputFiles({name:'inicial.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.7\nInitial attachment')});
+  loseCreateResponse=true;
+  await page.getByRole('button',{name:'Enviar',exact:true}).click();
+  await page.getByRole('alert').waitFor();
+  await page.getByRole('button',{name:'Quitar adjunto: inicial.pdf',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Enviar',exact:true}).click();
+  await page.getByRole('button',{name:'Abrir archivo: inicial.pdf',exact:true}).waitFor();
+  assert.equal(messages.filter(m=>m.attachments?.some(a=>a.fileName==='inicial.pdf')).length,1);
+  await page.getByRole('button',{name:'Cerrar',exact:true}).click();
+  console.log('PASS: initial document without text, retained draft and creation retry without duplicate message');
   await page.getByRole('button', { name: 'Operator view', exact: true }).click();
   await page.getByRole('button', { name: /Consulta Canadá/ }).click();
   await page.getByRole('button', { name: 'Asignarme', exact: true }).click();
@@ -246,6 +277,13 @@ try {
   console.log('PASS: operator takes and resolves a customer case');
   await page.getByRole('button', { name: 'Client view', exact: true }).click();
   await page.getByRole('button', { name: /Consulta Canadá/ }).click();
+  await page.getByLabel('Mensaje',{exact:true}).fill('Synthetic revoked send');
+  denyNextSend=true;
+  await page.getByRole('button',{name:'Enviar',exact:true}).click();
+  await page.getByRole('alert').filter({hasText:'Esta conversación ya no está disponible'}).waitFor();
+  assert.equal(await page.getByLabel('Mensaje',{exact:true}).count(),0);
+  assert.equal(await page.getByRole('log').getByText('Necesito ayuda para empezar.',{exact:true}).count(),0);
+  console.log('PASS: revoked send clears private state and keeps an actionable access error visible');
   company = 2;
   // Simulate the parent account switch while the modal is open (background controls are inert).
   await page.getByRole('button', { name: 'Switch company', exact: true, includeHidden: true }).evaluate(button => button.click());
@@ -254,6 +292,8 @@ try {
   assert.deepEqual(errors, []); assert.deepEqual(unexpected, []);
   console.log('PASS: company switch clears the conversation and history');
 } catch (error) {
+  console.error(JSON.stringify(await page?.evaluate(() => ({ viewport:[innerWidth,innerHeight], boxes:['[role=dialog]','[data-messaging-detail]','[data-chat-history]','[data-chat-composer]','button[aria-label="Enviar"]'].map(selector=>{const el=document.querySelector(selector);return [selector,el ? {x:el.getBoundingClientRect().x,y:el.getBoundingClientRect().y,height:el.getBoundingClientRect().height,bottom:el.getBoundingClientRect().bottom,display:getComputedStyle(el).display}:null];}) }))));
+  if (process.env.INDICE_MESSAGING_SCREENSHOTS) await page?.screenshot({path:resolve(process.env.INDICE_MESSAGING_SCREENSHOTS,'messaging-diagnostic.png')});
   console.error((await page?.locator('body').innerText())?.slice(0,4000));
   throw error;
 } finally { await browser?.close(); await server.close(); }

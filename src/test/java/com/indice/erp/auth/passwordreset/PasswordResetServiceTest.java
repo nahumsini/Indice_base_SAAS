@@ -99,7 +99,7 @@ class PasswordResetServiceTest {
         );
 
         var linkCaptor = ArgumentCaptor.forClass(String.class);
-        verify(repository).invalidateActiveTokensForUser(eq(7L), eq(NOW));
+        verify(repository).invalidateOtherTokensByHash(eq(7L), anyString(), eq(NOW));
         verify(repository).insertToken(eq(7L), anyString(), eq(NOW.plusSeconds(600)), anyString(), anyString());
         verify(emailService).sendPasswordReset(eq("ada@example.com"), eq("Ada Demo"), linkCaptor.capture());
         verify(repository).recordRequest(anyString(), anyString(), anyString(), eq(true), eq(true), eq(null));
@@ -109,6 +109,7 @@ class PasswordResetServiceTest {
 
     @Test
     void completeResetRejectsExpiredToken() {
+        when(repository.findTokenByHash(anyString())).thenReturn(Optional.of(new PasswordResetTokenRecord(11L,7L,"active",NOW.plusSeconds(600),null,null)));
         when(repository.findTokenByHashForUpdate(anyString()))
             .thenReturn(Optional.of(new PasswordResetTokenRecord(
                 11L,
@@ -130,6 +131,7 @@ class PasswordResetServiceTest {
 
     @Test
     void completeResetRejectsUsedToken() {
+        when(repository.findTokenByHash(anyString())).thenReturn(Optional.of(new PasswordResetTokenRecord(11L,7L,"active",NOW.plusSeconds(600),null,null)));
         when(repository.findTokenByHashForUpdate(anyString()))
             .thenReturn(Optional.of(new PasswordResetTokenRecord(
                 11L,
@@ -151,6 +153,7 @@ class PasswordResetServiceTest {
 
     @Test
     void completeResetUpdatesPasswordAndConsumesToken() {
+        when(repository.findTokenByHash(anyString())).thenReturn(Optional.of(new PasswordResetTokenRecord(11L,7L,"active",NOW.plusSeconds(600),null,null)));
         when(repository.findTokenByHashForUpdate(anyString()))
             .thenReturn(Optional.of(new PasswordResetTokenRecord(
                 11L,
@@ -179,5 +182,16 @@ class PasswordResetServiceTest {
 
         assertEquals("Password and confirmation must match.", error.getMessage());
         verify(repository, never()).findTokenByHashForUpdate(anyString());
+    }
+    @Test void failedDeliveryPreservesEarlierReceivedLinks() {
+        when(repository.findUserByEmail(anyString())).thenReturn(Optional.of(new PasswordResetUser(7L,"synthetic@example.invalid","Synthetic")));
+        when(emailService.sendPasswordReset(anyString(),anyString(),anyString())).thenReturn(EmailDeliveryResult.disabled());
+        service.requestReset("synthetic@example.invalid","http://localhost","127.0.0.1","JUnit");
+        verify(repository).invalidateTokenByHash(anyString(),eq(NOW));
+        verify(repository,never()).invalidateOtherTokensByHash(org.mockito.ArgumentMatchers.anyLong(),anyString(),any());
+    }
+    @Test void rejectsOversizedUnicodeBeforeLookingUpToken() {
+        assertThrows(IllegalArgumentException.class,()->service.completeReset("synthetic","🙂".repeat(25),"🙂".repeat(25)));
+        verify(repository,never()).findTokenByHash(anyString());
     }
 }

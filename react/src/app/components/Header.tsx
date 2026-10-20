@@ -1,3 +1,4 @@
+import { NotificationLauncher } from './notifications/NotificationLauncher';
 import { BriefcaseBusiness, Building2, Check, Coins, GraduationCap, LayoutPanelTop, LoaderCircle, User, Settings, ShieldCheck, MonitorSmartphone, Search, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
@@ -10,24 +11,22 @@ import {
   DropdownMenuSeparator,
 } from './ui/dropdown-menu';
 import { getStoredLanguagePreference, useLanguage, languages } from '../shared/context';
-import { NotificationCenter } from './NotificationCenter';
 import { MessagingLauncher } from '../Messaging/MessagingLauncher';
 import { useEffect, useRef, useState } from 'react';
 import { authApi, type PublicDemoCompany } from '../api/auth';
 import type { AuthSessionResponse } from '../api/auth.types';
 import { configCenterApi, type ConfigCenterCurrentUser } from '../api/configCenter';
-import type { AppNotification } from '../api/notifications';
-import { NotificationMenu } from './notifications/NotificationMenu';
-import { useNotifications } from './notifications/useNotifications';
 import { PreferredCurrencyControl } from '../BasicModules/shared/PreferredCurrencyControl';
 import { usePreferredBusinessCurrency } from '../BasicModules/shared/BusinessCurrencyContext';
 import { getPreferredCurrencyCopy } from '../BasicModules/shared/preferredCurrencyCopy';
 import { useHeaderTranslations } from './header/hooks/useHeaderTranslations';
 import { isAdminAccessRole } from '../access/accessRules';
+import { canOpenAccountTab } from '../access/headerMenuAccess';
 import { managedCompanyApi, type ManagedCompanyContext } from '../api/managedCompanies';
 import { getCachedAuthSession } from '../api/authSessionStore';
 import { useAuthorizationRevision } from '../hooks/useAuthorizationRevision';
 import { WorkbarLayoutModal } from './workbar/WorkbarLayoutModal';
+import { useWorkbarLayout } from './workbar/WorkbarLayoutContext';
 import { LearningModeSettingsModal } from '../learningMode/components/LearningModeSettingsModal';
 import { getLearningModeSettingsCopy } from '../learningMode/settingsCopy';
 import type { LearningModeSettings } from '../learningMode/preferences';
@@ -69,7 +68,8 @@ export function Header({
   const navigate = useNavigate();
   const { currentLanguage, setCurrentLanguage } = useLanguage();
   const { copy } = useHeaderTranslations();
-  const { preferredCurrency } = usePreferredBusinessCurrency();
+  const { preferredCurrency, preferenceScope } = usePreferredBusinessCurrency();
+  const { preferenceScope: navigationPreferenceScope } = useWorkbarLayout();
   const currencyCopy = getPreferredCurrencyCopy(currentLanguage.code);
   const [mobileAccountView, setMobileAccountView] = useState<'account' | 'company' | 'language'>('account');
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -79,8 +79,6 @@ export function Header({
   }, [mobileAccountView]);
   const [isCurrencySettingsOpen, setIsCurrencySettingsOpen] = useState(false);
   const currentHour = new Date().getHours();
-  const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false);
-  const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
   const [isWorkbarLayoutOpen, setIsWorkbarLayoutOpen] = useState(false);
   const [isLearningModeSettingsOpen, setIsLearningModeSettingsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -93,17 +91,33 @@ export function Header({
   const [managedContext, setManagedContext] = useState<ManagedCompanyContext | null>(null);
   const [managedSearch, setManagedSearch] = useState('');
   const [publicDemoCompanies, setPublicDemoCompanies] = useState<PublicDemoCompany[]>([]);
-  const notifications = useNotifications();
   useAuthorizationRevision();
   const cachedAuthorizationSession = getCachedAuthSession();
   const effectiveAuthSession = cachedAuthorizationSession === undefined
     ? authSession
     : cachedAuthorizationSession;
+  const canOpenCompanySettings = canOpenAccountTab(effectiveAuthSession, 'business-structure');
+  const canOpenProfile = canOpenAccountTab(effectiveAuthSession, 'profile');
+  const profileScope = effectiveAuthSession ? `${effectiveAuthSession.company.id}:${effectiveAuthSession.user.id}` : null;
+  useEffect(() => {
+    const refreshCompany = (event: Event) => {
+      const detail = (event as CustomEvent<{ actor?: string }>).detail;
+      const session = getCachedAuthSession();
+      if (session && detail?.actor === `${session.company.id}:${session.user.id}`) setAuthSession({ ...session });
+    };
+    window.addEventListener('indice:company-settings-saved', refreshCompany);
+    return () => window.removeEventListener('indice:company-settings-saved', refreshCompany);
+  }, []);
+
   const shouldRestoreLanguageFromProfile = useRef(!getStoredLanguagePreference());
 
   useEffect(() => {
     let active = true;
+    setCurrentUserName(effectiveAuthSession?.user.name || 'User');
+    setCurrentUserEmail(''); setCurrentUserAvatarUrl('');
     const applyUserProfile = (user: ConfigCenterCurrentUser) => {
+      const current = getCachedAuthSession();
+      if (!active || !current || `${current.company.id}:${current.user.id}` !== profileScope || user.id !== current.user.id) return;
       setCurrentUserName(getProfileDisplayName(user));
       setCurrentUserEmail(user.email || '');
       setCurrentUserAvatarUrl(user.avatar_url || '');
@@ -181,7 +195,7 @@ export function Header({
       active = false;
       window.removeEventListener(USER_PROFILE_UPDATED_EVENT, handleProfileUpdate);
     };
-  }, [setCurrentLanguage]);
+  }, [setCurrentLanguage, profileScope]);
 
   const getGreeting = () => {
     if (currentHour >= 6 && currentHour < 12) {
@@ -215,7 +229,6 @@ export function Header({
     }
   };
 
-  const unreadCount = notifications.summary?.unread_count ?? 0;
   const currentUserInitials = currentUserName
     .split(/\s+/)
     .filter(Boolean)
@@ -317,43 +330,6 @@ export function Header({
     window.location.assign(`/demo?companyId=${encodeURIComponent(companyId)}`);
   };
 
-  const openNotificationCenter = () => {
-    setIsNotificationMenuOpen(false);
-    setIsNotificationCenterOpen(true);
-    void notifications.refresh();
-  };
-
-  const handleNotificationMenuOpenChange = (open: boolean) => {
-    setIsNotificationMenuOpen(open);
-    if (open) {
-      void notifications.refresh();
-    }
-  };
-
-  const openNotificationItem = (notification: AppNotification) => {
-    setIsNotificationMenuOpen(false);
-    setIsNotificationCenterOpen(false);
-    void (async () => {
-      if (notification.is_unread) {
-        await notifications.markRead(notification.id);
-      }
-      if (notification.action_url) {
-        navigate(notification.action_url);
-      }
-    })();
-  };
-
-  const markNotificationRead = (notificationId: number) => {
-    void notifications.markRead(notificationId);
-  };
-
-  const dismissNotification = (notificationId: number) => {
-    void notifications.dismiss(notificationId);
-  };
-
-  const markAllNotificationsRead = () => {
-    void notifications.markAllRead();
-  };
 
   const companyMenuItems = <>
 
@@ -558,16 +534,8 @@ export function Header({
             <MessagingLauncher session={effectiveAuthSession} locale={currentLanguage.code} />
 
             {/* Notificaciones */}
-            <NotificationMenu
-              open={isNotificationMenuOpen}
-              items={notifications.items}
-              unreadCount={unreadCount}
-              loading={notifications.loading}
-              error={notifications.error}
-              onOpenChange={handleNotificationMenuOpenChange}
-              onOpenAll={openNotificationCenter}
-              onOpenItem={openNotificationItem}
-            />
+            <NotificationLauncher scopeKey={effectiveAuthSession && !effectiveAuthSession.demoMode
+              ? `${effectiveAuthSession.user.id}:${effectiveAuthSession.company.id}:${effectiveAuthSession.company.user_company_id}` : null} />
 
             <div className="hidden sm:block">
             {/* Selector de idioma */}
@@ -663,10 +631,10 @@ export function Header({
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <h3 className="truncate text-base font-semibold text-[#222831]">
+                      <h3 className="truncate text-base font-semibold text-[#222831] dark:text-white">
                         {currentUserName}
                       </h3>
-                      <p className="truncate text-xs text-slate-600">
+                      <p className="truncate text-xs text-slate-600 dark:text-slate-300">
                         {currentUserEmail}
                       </p>
                     </div>
@@ -699,7 +667,7 @@ export function Header({
                         ? 'Estás explorando datos ficticios. La administración de la cuenta está protegida.'
                         : 'You are exploring fictitious data. Account administration is protected.'}
                     </div>
-                  ) : (
+                  ) : canOpenProfile ? (
                     <>
                       <DropdownMenuItem onClick={() => navigate('/home-panel/profile')} className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10">
                         <User className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
@@ -707,8 +675,8 @@ export function Header({
                       </DropdownMenuItem>
                       <DropdownMenuSeparator className="my-0 bg-[var(--indice-brand-primary)]/15 dark:bg-[var(--indice-brand-primary)]/20" />
                     </>
-                  )}
-                  {isAdminAccessRole(effectiveAuthSession?.user.role) && !isPublicDemoSession ? (
+                  ) : null}
+                  {isAdminAccessRole(effectiveAuthSession?.user.role) && isDistributorAccount && !isPublicDemoSession ? (
                     <>
                       {isDistributorAccount ? (
                         <DropdownMenuItem onClick={() => navigate('/distributor-portal')} className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10">
@@ -723,10 +691,10 @@ export function Header({
                   ) : null}
                   {!isPublicDemoSession ? (
                     <>
-                      <DropdownMenuItem onClick={() => navigate('/home-panel/business-structure')} className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10">
+                      {canOpenCompanySettings ? <DropdownMenuItem onClick={() => navigate('/home-panel/business-structure')} className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10">
                         <Settings className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
                         <span className="text-sm font-medium text-gray-900 dark:text-white">{copy.actions.settings}</span>
-                      </DropdownMenuItem>
+                      </DropdownMenuItem> : null}
                       <DropdownMenuItem
                         onSelect={() => setIsWorkbarLayoutOpen(true)}
                         className="cursor-pointer px-4 py-3 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10"
@@ -808,21 +776,10 @@ export function Header({
       </div>
 
       {/* Centro de Notificaciones Modal */}
-      {isCurrencySettingsOpen && <PreferredCurrencyControl onClose={() => setIsCurrencySettingsOpen(false)} />}
-      <NotificationCenter
-        isOpen={isNotificationCenterOpen}
-        items={notifications.items}
-        summary={notifications.summary}
-        loading={notifications.loading}
-        error={notifications.error}
-        onClose={() => setIsNotificationCenterOpen(false)}
-        onRefresh={() => void notifications.refresh()}
-        onOpenItem={openNotificationItem}
-        onMarkRead={markNotificationRead}
-        onMarkAllRead={markAllNotificationsRead}
-        onDismiss={dismissNotification}
-      />
+      {isCurrencySettingsOpen && <PreferredCurrencyControl key={preferenceScope} onClose={() => setIsCurrencySettingsOpen(false)} />}
+
       <WorkbarLayoutModal
+        key={`navigation:${navigationPreferenceScope}`}
         open={isWorkbarLayoutOpen}
         onOpenChange={setIsWorkbarLayoutOpen}
       />

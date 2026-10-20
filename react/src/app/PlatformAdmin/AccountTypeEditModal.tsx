@@ -1,3 +1,4 @@
+import { getAdminWorkspaceCopy } from '../components/frontend-os/adminWorkspaceCopy';
 import { useCustomerAccountCopy } from "./Customers/useCustomerAccountCopy";
 import { useState, type FormEvent } from "react";
 import { Building2, LoaderCircle, PencilLine, ShieldCheck } from "lucide-react";
@@ -36,6 +37,7 @@ export default function AccountTypeEditModal({
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (saving || accountType === company.user_type || reason.trim().length < 5) return;
     void onSave(accountType, reason.trim());
   };
 
@@ -45,12 +47,12 @@ export default function AccountTypeEditModal({
       busy={saving}
       onOpenChange={(open) => !open && onClose()}
       modalType="standard-form"
-      contentClassName="sm:max-w-xl"
       tone="aqua"
       icon={<PencilLine className="h-5 w-5" />}
       eyebrow={t("customerAccount")}
       title={t("editType")}
       description={company.name}
+      footerSummary={reason.trim().length < 5 ? getAdminWorkspaceCopy(locale).reasonHelp : company.name}
       footer={
         <>
           <button type="button" onClick={onClose} disabled={saving}>
@@ -91,6 +93,7 @@ export default function AccountTypeEditModal({
           <label className="mt-5 block space-y-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
             <span>{t("workspaceAccountType")}</span>
             <select
+              disabled={saving}
               autoFocus
               value={accountType}
               onChange={(event) =>
@@ -105,6 +108,7 @@ export default function AccountTypeEditModal({
           <label className="mt-4 block space-y-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
             <span>{t("operationalReason")}</span>
             <textarea
+              disabled={saving}
               required
               minLength={5}
               maxLength={500}

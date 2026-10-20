@@ -11,21 +11,27 @@ import static com.indice.erp.messaging.MessagingContracts.*;
 public class MessagingAttachmentRepository {
     private final JdbcTemplate jdbc;
     public MessagingAttachmentRepository(JdbcTemplate jdbc) { this.jdbc=jdbc; }
-    record Row(String id,long companyId,long conversationId,long senderId,String senderScope,String fileName,
+    record Row(String id,long companyId,Long conversationId,long senderId,String senderScope,String fileName,
         String contentType,long size,String uploadKey,String storedKey,Long messageId,Instant expiresAt) {
         Attachment metadata() { return new Attachment(id,fileName,contentType,size); }
     }
     private Row row(java.sql.ResultSet r,int n) throws java.sql.SQLException {
-        return new Row(r.getString("id"),r.getLong("company_id"),r.getLong("conversation_id"),r.getLong("sender_user_id"),
+        return new Row(r.getString("id"),r.getLong("company_id"),r.getObject("conversation_id",Long.class),r.getLong("sender_user_id"),
             r.getString("sender_scope"),r.getString("file_name"),r.getString("content_type"),r.getLong("size_bytes"),
             r.getString("upload_key"),r.getString("stored_key"),r.getObject("message_id",Long.class),r.getTimestamp("expires_at").toInstant());
+    }
+    Row pending(Actor a,Conversation c,String id) {
+        return jdbc.query("SELECT * FROM messaging_attachments WHERE company_id=? AND id=? AND (conversation_id=? OR (conversation_id IS NULL AND sender_user_id=? AND sender_scope=?)) FOR UPDATE",
+            this::row,c.companyId(),id,c.id(),a.userId(),a.scope()).stream().findFirst().orElseThrow(MessagingAccess::notFound);
     }
     Row find(Conversation c,String id) {
         return jdbc.query("SELECT * FROM messaging_attachments WHERE company_id=? AND conversation_id=? AND id=?",this::row,c.companyId(),c.id(),id)
             .stream().findFirst().orElseThrow(MessagingAccess::notFound);
     }
     Row retry(Actor a,Conversation c,String key) {
-        return jdbc.query("SELECT * FROM messaging_attachments WHERE company_id=? AND conversation_id=? AND sender_user_id=? AND sender_scope=? AND request_key=?",
+        if(c==null) return jdbc.query("SELECT * FROM messaging_attachments WHERE company_id=? AND sender_user_id=? AND sender_scope=? AND draft_key=? FOR UPDATE",
+            this::row,a.companyId(),a.userId(),a.scope(),key).stream().findFirst().orElse(null);
+        return jdbc.query("SELECT * FROM messaging_attachments WHERE company_id=? AND conversation_id=? AND sender_user_id=? AND sender_scope=? AND request_key=? FOR UPDATE",
             this::row,c.companyId(),c.id(),a.userId(),a.scope(),key).stream().findFirst().orElse(null);
     }
     void capacity(Actor a) {
@@ -36,12 +42,17 @@ public class MessagingAttachmentRepository {
     void insert(Actor a,Conversation c,PhotoUpload r,String id,String key,Instant expires) {
         jdbc.update("""
             INSERT INTO messaging_attachments(id,company_id,conversation_id,sender_user_id,sender_scope,request_key,
-                file_name,content_type,size_bytes,upload_key,expires_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)
-            """,id,c.companyId(),c.id(),a.userId(),a.scope(),r.requestKey(),r.fileName(),r.contentType(),r.sizeBytes(),key,Timestamp.from(expires));
+                file_name,content_type,size_bytes,upload_key,expires_at,draft_key) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+            """,id,c==null?a.companyId():c.companyId(),c==null?null:c.id(),a.userId(),a.scope(),r.requestKey(),r.fileName(),r.contentType(),r.sizeBytes(),key,Timestamp.from(expires),c==null?r.requestKey():null);
+    }
+    void renewed(Row row,String key,Instant expires) {
+        int changed=jdbc.update("UPDATE messaging_attachments SET upload_key=?,expires_at=?,staging_cleaned_at=NULL WHERE company_id=? AND id=? AND message_id IS NULL",
+            key,Timestamp.from(expires),row.companyId(),row.id());
+        if(changed!=1) throw MessagingService.conflict();
     }
     void bind(Conversation c,Row row,long messageId,String storedKey) {
-        int changed=jdbc.update("UPDATE messaging_attachments SET message_id=?,stored_key=? WHERE company_id=? AND conversation_id=? AND id=? AND message_id IS NULL",
-            messageId,storedKey,c.companyId(),c.id(),row.id());
+        int changed=jdbc.update("UPDATE messaging_attachments SET message_id=?,stored_key=?,conversation_id=? WHERE company_id=? AND (conversation_id=? OR conversation_id IS NULL) AND id=? AND message_id IS NULL",
+            messageId,storedKey,c.id(),c.companyId(),c.id(),row.id());
         if(changed!=1) throw MessagingService.conflict();
     }
     List<Row> forMessages(Conversation c,List<Long> ids) {

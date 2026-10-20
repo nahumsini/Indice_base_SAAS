@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.function.Consumer;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -20,38 +21,38 @@ class NotificationQueryService {
     private final NotificationSyncSvc syncSvc;
     private final OperationalNotificationSyncService operationalSyncService;
     private final NotificationResponseFactory responseFactory;
+    private final NotificationAccessService access;
+    private final NotificationPreferencesService preferences;
 
     NotificationQueryService(
         JdbcTemplate jdbcTemplate,
         HrAnnouncementPublisher publisher,
         NotificationSyncSvc syncSvc,
         OperationalNotificationSyncService operationalSyncService,
-        NotificationResponseFactory responseFactory
+        NotificationResponseFactory responseFactory,
+        NotificationAccessService access,
+        NotificationPreferencesService preferences
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.publisher = publisher;
         this.syncSvc = syncSvc;
         this.operationalSyncService = operationalSyncService;
         this.responseFactory = responseFactory;
+        this.access = access;
+        this.preferences = preferences;
     }
 
     Map<String, Object> list(HrAnnouncementActor actor) {
-        publisher.publishDueAnnouncements();
-        syncSvc.syncVisible(actor);
-        syncSvc.syncProcessTaskSignals(actor);
+        var scope = access.scope(actor);
+        if (scope.allowed("human_resources", "general")) {
+            publisher.publishDueAnnouncements();
+            syncSvc.syncVisible(actor);
+        }
+        if (scope.allowed("processes_tasks", "task_due_today")) syncSvc.syncProcessTaskSignals(actor);
         operationalSyncService.sync(actor);
 
         var items = new ArrayList<Map<String, Object>>();
-        items.addAll(jdbcTemplate.query(sql() + " ORDER BY d.delivered_at DESC, d.id DESC LIMIT 50",
-            (rs, rowNum) -> NotificationRows.map(rs),
-            actor.companyId(),
-            actor.userCompanyId()
-        ).stream().map(responseFactory::item).toList());
-        items.addAll(jdbcTemplate.query(appSql() + " ORDER BY created_at DESC, id DESC LIMIT 50",
-            (rs, rowNum) -> mapAppNotification(rs),
-            actor.companyId(),
-            actor.userCompanyId()
-        ).stream().map(responseFactory::appItem).toList());
+        visitVisible(actor, 50, items::add);
 
         var sortedItems = items.stream()
             .sorted(Comparator.comparing(
@@ -64,6 +65,34 @@ class NotificationQueryService {
         return responseFactory.combinedListBody(sortedItems);
     }
 
+    /** Filter before the display limit, so muted or revoked rows cannot hide older allowed notices. */
+    void visitVisible(HrAnnouncementActor actor, int perSourceLimit, Consumer<Map<String,Object>> visitor) {
+        var scope = access.scope(actor);
+        var saved = preferences.saved(actor);
+        if (scope.allowed("human_resources", "general")) {
+            int accepted=0;
+            for (int offset=0; accepted<perSourceLimit; offset+=100) {
+                var rows=jdbcTemplate.query(sql()+" ORDER BY d.delivered_at DESC, d.id DESC LIMIT 100 OFFSET ?",
+                    (rs,n)->NotificationRows.map(rs),actor.companyId(),actor.userCompanyId(),offset);
+                for (var row:rows) if (scope.announcement(row) && saved.shows("human_resources",row.announcementType())) {
+                    visitor.accept(responseFactory.item(row));
+                    if (++accepted==perSourceLimit) break;
+                }
+                if (rows.size()<100) break;
+            }
+        }
+        int accepted=0;
+        for (int offset=0; accepted<perSourceLimit; offset+=100) {
+            var rows=jdbcTemplate.query(appSql()+" ORDER BY created_at DESC, id DESC LIMIT 100 OFFSET ?",
+                (rs,n)->mapAppNotification(rs),actor.companyId(),actor.userCompanyId(),offset);
+            for (var row:rows) if (scope.app(row) && saved.shows(row.sourceModule(),row.eventType())) {
+                visitor.accept(responseFactory.appItem(row));
+                if (++accepted==perSourceLimit) break;
+            }
+            if (rows.size()<100) break;
+        }
+    }
+
     Map<String, Object> loadOne(HrAnnouncementActor actor, long notificationId) {
         var rows = jdbcTemplate.query(sql() + " AND d.id = ?",
             (rs, rowNum) -> NotificationRows.map(rs),
@@ -71,7 +100,7 @@ class NotificationQueryService {
             actor.userCompanyId(),
             notificationId
         );
-        if (rows.isEmpty()) {
+        if (rows.isEmpty() || !access.scope(actor).announcement(rows.getFirst())) {
             throw new NoSuchElementException("Notification not found.");
         }
         return responseFactory.item(rows.getFirst());
@@ -84,7 +113,7 @@ class NotificationQueryService {
             actor.userCompanyId(),
             appNotificationId
         );
-        if (rows.isEmpty()) {
+        if (rows.isEmpty() || !access.scope(actor).app(rows.getFirst())) {
             throw new NoSuchElementException("Notification not found.");
         }
         return responseFactory.appItem(rows.getFirst());

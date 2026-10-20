@@ -78,7 +78,7 @@ export const ptBR = {
   photoHint: 'Mantenha o rosto centralizado e claro.',
   captureLocation: 'Capturar localizacao GPS',
   refreshLocation: 'Atualizar localizacao',
-  locationReady: 'Localizacao pronta',
+  locationReady: 'Localização GPS obtida',
   locationPending: 'Localizacao GPS obrigatoria.',
   locationRequiredHint: 'Permita a localizacao GPS neste dispositivo antes de registrar entrada ou saida.',
   readyToPunch: 'Pronto para registrar.',

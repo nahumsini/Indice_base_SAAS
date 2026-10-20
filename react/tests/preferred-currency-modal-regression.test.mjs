@@ -10,13 +10,13 @@ test('preferred currency uses a staged standard-form modal with attributed sourc
   const header = await read('../src/app/components/Header.tsx');
   assert.match(header, /onSelect=\{\(\) => setIsCurrencySettingsOpen\(true\)\}\s+aria-haspopup="dialog"/);
   assert.match(header, /currencyCopy\.preferredCurrency/);
-  assert.match(header, /isCurrencySettingsOpen && <PreferredCurrencyControl onClose=/);
+  assert.match(header, /isCurrencySettingsOpen && <PreferredCurrencyControl key=/);
   assert.doesNotMatch(header, /<PreferredCurrencyControl\s*\/>/);
   assert.match(control, /<IndiceModalFrame/);
   assert.match(control, /modalType="standard-form"/);
   assert.match(control, /tone="blue"/);
   assert.match(control, /draftPreferredCurrency/);
-  assert.match(control, /setPreferredCurrency\(draftPreferredCurrency\)/);
+  assert.match(control, /await savePreferences\(\{/);
   assert.match(control, /<details/);
   assert.match(control, /href=\{source\.sourceUrl\}/);
   assert.match(control, /target="_blank"/);

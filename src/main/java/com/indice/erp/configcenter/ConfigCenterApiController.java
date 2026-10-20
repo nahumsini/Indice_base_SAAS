@@ -5,6 +5,9 @@ import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.billing.seats.SeatCapacityExceededException;
 import com.indice.erp.config.AppWebProperties;
 import com.indice.erp.configcenter.ConfigCenterAccessService.ConfigCenterTab;
+import com.indice.erp.configcenter.profile.ProfileInputException;
+import com.indice.erp.configcenter.company.CompanySettingsException;
+import com.indice.erp.configcenter.users.UserAccessException;
 import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.location.GoogleMapsCoordinateExtractor;
 import com.indice.erp.storage.ObjectStorageDisabledException;
@@ -64,11 +67,14 @@ public class ConfigCenterApiController {
     }
 
     @GetMapping("/current-user")
-    public ResponseEntity<?> getCurrentUser(HttpSession session) {
+    public ResponseEntity<?> getCurrentUser(HttpSession session,
+        @RequestHeader(name = "X-Profile-Actor", required = false) String expectedActor) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if (expectedActor != null && !expectedActor.equals(current.get().companyId() + ":" + current.get().userId()))
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code", "profile_actor_changed", "message", "The active account changed. Reload your profile."));
 
         return ResponseEntity.ok(configCenterService.getCurrentUser(current.get().userId(), current.get().role()));
     }
@@ -77,12 +83,15 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> saveCurrentUser(
         HttpSession session,
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestHeader(name = "X-Profile-Actor", required = false) String expectedActor,
         @RequestBody Map<String, Object> payload
     ) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if (expectedActor != null && !expectedActor.equals(current.get().companyId() + ":" + current.get().userId()))
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code", "profile_actor_changed", "message", "The active account changed. Reload your profile."));
         var csrfFailure = requireCsrf(session, csrfToken);
         if (csrfFailure != null) {
             return csrfFailure;
@@ -100,6 +109,8 @@ public class ConfigCenterApiController {
                 session.setAttribute(SessionAuthService.SESSION_USER_NAME, displayName);
             }
             return ResponseEntity.ok(savedUser);
+        } catch (ProfileInputException ex) {
+            return ResponseEntity.badRequest().body(Map.of("code", ex.code(), "message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
@@ -109,12 +120,15 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> createCurrentUserAvatarUpload(
         HttpSession session,
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestHeader(name = "X-Profile-Actor", required = false) String expectedActor,
         @RequestBody Map<String, Object> payload
     ) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if (expectedActor != null && !expectedActor.equals(current.get().companyId() + ":" + current.get().userId()))
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code", "profile_actor_changed", "message", "The active account changed. Reload your profile."));
         var csrfFailure = requireCsrf(session, csrfToken);
         if (csrfFailure != null) {
             return csrfFailure;
@@ -128,17 +142,21 @@ public class ConfigCenterApiController {
             ));
         } catch (ObjectStorageDisabledException ex) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(messageBody(ex.getMessage()));
+        } catch (ProfileInputException ex) {
+            return ResponseEntity.badRequest().body(Map.of("code", ex.code(), "message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
     }
 
     @GetMapping("/users")
-    public ResponseEntity<?> getUsers(HttpSession session) {
+    public ResponseEntity<?> getUsers(HttpSession session, @RequestHeader(name = "X-Users-Actor", required = false) String expectedActor) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if(expectedActor!=null&&!expectedActor.equals(current.get().companyId()+":"+current.get().userId()))
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code","users_actor_changed","message","The active account changed. Reload users."));
         if (!accessService.canAccess(current.get(), ConfigCenterTab.USERS)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
@@ -150,6 +168,7 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> updateUser(
         HttpSession session,
         @PathVariable long userId,
+        @RequestHeader(name = "X-Users-Actor", required = false) String expectedActor,
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
@@ -157,6 +176,8 @@ public class ConfigCenterApiController {
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if(expectedActor!=null&&!expectedActor.equals(current.get().companyId()+":"+current.get().userId()))
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code","users_actor_changed","message","The active account changed. Reload users."));
         if (!accessService.canAccess(current.get(), ConfigCenterTab.USERS)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
@@ -178,6 +199,8 @@ public class ConfigCenterApiController {
             ));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(messageBody(ex.getMessage()));
+        } catch (UserAccessException ex) {
+            return ResponseEntity.badRequest().body(Map.of("code",ex.code(),"message",ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
@@ -187,12 +210,15 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> deleteUser(
         HttpSession session,
         @PathVariable long userId,
+        @RequestHeader(name = "X-Users-Actor", required = false) String expectedActor,
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
     ) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if(expectedActor!=null&&!expectedActor.equals(current.get().companyId()+":"+current.get().userId()))
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code","users_actor_changed","message","The active account changed. Reload users."));
         if (!accessService.canAccess(current.get(), ConfigCenterTab.USERS)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
@@ -213,6 +239,8 @@ public class ConfigCenterApiController {
             ));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(messageBody(ex.getMessage()));
+        } catch (UserAccessException ex) {
+            return ResponseEntity.badRequest().body(Map.of("code",ex.code(),"message",ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
@@ -222,12 +250,15 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> activateUser(
         HttpSession session,
         @PathVariable long userId,
+        @RequestHeader(name = "X-Users-Actor", required = false) String expectedActor,
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
     ) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if(expectedActor!=null&&!expectedActor.equals(current.get().companyId()+":"+current.get().userId()))
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code","users_actor_changed","message","The active account changed. Reload users."));
         if (!accessService.canAccess(current.get(), ConfigCenterTab.USERS) || !canMutateUsers(current.get())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
@@ -247,6 +278,8 @@ public class ConfigCenterApiController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(seatCapacityBody(ex));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(messageBody(ex.getMessage()));
+        } catch (UserAccessException ex) {
+            return ResponseEntity.badRequest().body(Map.of("code",ex.code(),"message",ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
@@ -256,6 +289,7 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> inviteUser(
         HttpSession session,
         HttpServletRequest request,
+        @RequestHeader(name = "X-Users-Actor", required = false) String expectedActor,
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
@@ -263,6 +297,8 @@ public class ConfigCenterApiController {
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if(expectedActor!=null&&!expectedActor.equals(current.get().companyId()+":"+current.get().userId()))
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code","users_actor_changed","message","The active account changed. Reload users."));
         if (!accessService.canAccess(current.get(), ConfigCenterTab.USERS)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
@@ -290,6 +326,8 @@ public class ConfigCenterApiController {
             return ResponseEntity.status(HttpStatus.CREATED).body(invitationResponse(result, inviteLink, emailResult));
         } catch (SeatCapacityExceededException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(seatCapacityBody(ex));
+        } catch (UserAccessException ex) {
+            return ResponseEntity.badRequest().body(Map.of("code",ex.code(),"message",ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
@@ -299,12 +337,15 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> deleteInvitation(
         HttpSession session,
         @PathVariable long invitationId,
+        @RequestHeader(name = "X-Users-Actor", required = false) String expectedActor,
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
     ) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if(expectedActor!=null&&!expectedActor.equals(current.get().companyId()+":"+current.get().userId()))
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code","users_actor_changed","message","The active account changed. Reload users."));
         if (!accessService.canAccess(current.get(), ConfigCenterTab.USERS)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
@@ -325,6 +366,8 @@ public class ConfigCenterApiController {
             ));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(messageBody(ex.getMessage()));
+        } catch (UserAccessException ex) {
+            return ResponseEntity.badRequest().body(Map.of("code",ex.code(),"message",ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
@@ -335,6 +378,7 @@ public class ConfigCenterApiController {
         HttpSession session,
         HttpServletRequest request,
         @PathVariable long invitationId,
+        @RequestHeader(name = "X-Users-Actor", required = false) String expectedActor,
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody(required = false) Map<String, Object> payload
     ) {
@@ -342,6 +386,8 @@ public class ConfigCenterApiController {
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if(expectedActor!=null&&!expectedActor.equals(current.get().companyId()+":"+current.get().userId()))
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code","users_actor_changed","message","The active account changed. Reload users."));
         if (!accessService.canAccess(current.get(), ConfigCenterTab.USERS)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
@@ -373,17 +419,21 @@ public class ConfigCenterApiController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(seatCapacityBody(ex));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(messageBody(ex.getMessage()));
+        } catch (UserAccessException ex) {
+            return ResponseEntity.badRequest().body(Map.of("code",ex.code(),"message",ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
     }
 
     @GetMapping("/company")
-    public ResponseEntity<?> getEmpresa(HttpSession session) {
+    public ResponseEntity<?> getEmpresa(HttpSession session, @RequestHeader(name = "X-Company-Actor", required = false) String expectedActor) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if (expectedActor != null && !expectedActor.equals(current.get().companyId() + ":" + current.get().userId()))
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code","company_actor_changed","message","The active company changed. Reload its settings."));
         if (!accessService.canAccessAny(
             current.get(),
             ConfigCenterTab.BUSINESS_STRUCTURE,
@@ -396,11 +446,13 @@ public class ConfigCenterApiController {
     }
 
     @GetMapping("/config")
-    public ResponseEntity<?> getConfig(HttpSession session) {
+    public ResponseEntity<?> getConfig(HttpSession session, @RequestHeader(name = "X-Company-Actor", required = false) String expectedActor) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if (expectedActor != null && !expectedActor.equals(current.get().companyId() + ":" + current.get().userId()))
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code","company_actor_changed","message","The active company changed. Reload its settings."));
         if (!accessService.canAccess(current.get(), ConfigCenterTab.BUSINESS_STRUCTURE)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
@@ -412,12 +464,15 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> saveConfig(
         HttpSession session,
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestHeader(name = "X-Company-Actor", required = false) String expectedActor,
         @RequestBody Map<String, Object> payload
     ) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if (expectedActor != null && !expectedActor.equals(current.get().companyId() + ":" + current.get().userId()))
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code","company_actor_changed","message","The active company changed. Reload its settings."));
         if (!accessService.canAccess(current.get(), ConfigCenterTab.BUSINESS_STRUCTURE)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
@@ -430,6 +485,8 @@ public class ConfigCenterApiController {
             return ResponseEntity.ok(configCenterService.saveStructure(current.get(), payload));
         } catch (HrAccessDeniedException ex) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody(ex.getMessage()));
+        } catch (CompanySettingsException ex) {
+            return ResponseEntity.badRequest().body(Map.of("code",ex.code(),"message",ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
@@ -439,12 +496,15 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> extractCoordinates(
         HttpSession session,
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestHeader(name = "X-Company-Actor", required = false) String expectedActor,
         @RequestBody Map<String, Object> payload
     ) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
+        if (expectedActor != null && !expectedActor.equals(current.get().companyId() + ":" + current.get().userId()))
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code","company_actor_changed","message","The active company changed. Reload its settings."));
         if (!accessService.canAccess(current.get(), ConfigCenterTab.BUSINESS_STRUCTURE)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
@@ -464,19 +524,17 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> saveEmpresa(
         HttpSession session,
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestHeader(name = "X-Company-Actor", required = false) String expectedActor,
         @RequestBody Map<String, Object> payload
     ) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
-        if (!accessService.canAccessAny(
-            current.get(),
-            ConfigCenterTab.BUSINESS_STRUCTURE,
-            ConfigCenterTab.BUSINESS_PROFILE
-        )) {
+        if (expectedActor != null && !expectedActor.equals(current.get().companyId() + ":" + current.get().userId()))
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code","company_actor_changed","message","The active company changed. Reload its settings."));
+        if (!accessService.canAccess(current.get(), ConfigCenterTab.BUSINESS_STRUCTURE))
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
-        }
         var csrfFailure = requireCsrf(session, csrfToken);
         if (csrfFailure != null) {
             return csrfFailure;
@@ -485,9 +543,13 @@ public class ConfigCenterApiController {
         try {
             var result = new LinkedHashMap<String, Object>();
             result.put("logo", null);
-            result.put("data", configCenterService.saveEmpresa(current.get().companyId(), current.get().userId(), payload));
+            result.put("data", configCenterService.saveCompany(current.get(), payload));
             result.put("message", "Company data saved");
             return ResponseEntity.ok(result);
+        } catch (HrAccessDeniedException ex) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody(ex.getMessage()));
+        } catch (CompanySettingsException ex) {
+            return ResponseEntity.badRequest().body(Map.of("code",ex.code(),"message",ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }

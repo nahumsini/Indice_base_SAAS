@@ -2,7 +2,7 @@ import type { AuthSessionResponse } from '../../../api/auth.types';
 import { canAccessModuleTab } from '../../../access/tabScopeCatalog';
 import type { BackendDashboardModule } from '../../../api/dashboard';
 
-export const schedulingTabIds = ['calendar', 'clients', 'events', 'indicators'] as const;
+export const schedulingTabIds = ['calendar', 'events', 'clients', 'indicators'] as const;
 export const schedulingLegacyTabs = { reservations: 'calendar', configuration: 'calendar' } as const;
 
 /** Presentation is unified; the existing backend permission scopes stay independent. */

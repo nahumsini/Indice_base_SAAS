@@ -86,10 +86,37 @@ class PostSaleWorkspaceRepository {
         var q=source(company,kind,null,null,null,null);var args=new ArrayList<>(q.args());args.add(id);
         return db.query(q.select()+q.from()+q.where()+" AND s.id=?",(rs,n)->map(rs,kind),args.toArray()).stream().findFirst().orElseThrow(NoSuchElementException::new);
     }
-    List<Item> items(SourceQuery q,String kind,int page,int size) {
-        var args=new ArrayList<>(q.args());args.add(size);args.add((page-1)*size);
-        return db.query(q.select()+q.from()+q.where()+" ORDER BY (w.next_action_date IS NULL),w.next_action_date,s.id DESC LIMIT ? OFFSET ?",
+    List<Item> items(SourceQuery q,String kind,int page,int size,WorkspaceSort sort,List<Flow> flows) {
+        var args=new ArrayList<Object>();
+        String expression=switch(sort.column()) {
+            case "client" -> "COALESCE(NULLIF(TRIM(source.client_name),''),NULLIF(TRIM(source.title),''))";
+            case "sale" -> "NULLIF(TRIM(source.reference),'')";
+            case "owner" -> "NULLIF(TRIM(source.owner_name),'')";
+            case "lossReason" -> "NULLIF(TRIM(source.loss_reason),'')";
+            case "nextAction" -> "source.next_action_date";
+            case "stage" -> stageOrder(kind,flows,args);
+            default -> throw new IllegalArgumentException();
+        };
+        // Only fixed SQL expressions/directions are interpolated. Flow identifiers and
+        // user-authored stage keys stay bound parameters, as does the tenant scope.
+        args.addAll(q.args());args.add(size);args.add((page-1)*size);
+        String direction=sort.direction().equals("desc")?"DESC":"ASC";
+        String sql="SELECT source.*,"+expression+" AS post_sale_sort_value FROM ("+q.select()+q.from()+q.where()+") source"
+            +" ORDER BY (post_sale_sort_value IS NULL),post_sale_sort_value "+direction+",source.source_id DESC LIMIT ? OFFSET ?";
+        return db.query(sql,
             (rs,n)->map(rs,kind),args.toArray());
+    }
+    private String stageOrder(String kind,List<Flow> flows,List<Object> args) {
+        if(kind.equals("lost"))return "CASE source.recovery_status WHEN 'unscheduled' THEN 0 WHEN 'scheduled' THEN 1 WHEN 'paused' THEN 2 WHEN 'recovered' THEN 3 ELSE NULL END";
+        var expression=new StringBuilder("CASE source.flow_id");
+        for(var flow:flows) {
+            expression.append(" WHEN ? THEN CASE source.stage_key");args.add(flow.id());
+            for(int index=0;index<flow.stages().size();index++) {
+                expression.append(" WHEN ? THEN ?");args.add(flow.stages().get(index).key());args.add(index);
+            }
+            expression.append(" ELSE NULL END");
+        }
+        return expression.append(" ELSE NULL END").toString();
     }
     Counts counts(SourceQuery q,String kind,LocalDate today) {
         String active=kind.equals("won")?"COALESCE(w.stage_key,'pending')<>'completed'":"COALESCE(w.recovery_status,'unscheduled') NOT IN ('recovered','paused')";

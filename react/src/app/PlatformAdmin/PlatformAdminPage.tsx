@@ -1,3 +1,4 @@
+import { getAdminWorkspaceCopy } from '../components/frontend-os/adminWorkspaceCopy';
 import { benefitRevocationImpact, type BenefitRevocationImpact } from "./CompanyAccount/companyBenefitPresentation";
 import { getCustomerAccountCopy } from "./Customers/customerAccountTranslations";
 import { catalogProductLabel } from "./CatalogWorkspace/catalogLabels";
@@ -69,6 +70,7 @@ import {
   IndiceTitleBar,
   IndiceWorkspaceNavigation,
 } from "../components/frontend-os";
+import { usePlatformNavigation } from "./usePlatformNavigation";
 import { useWorkspaceNavigationMemory } from "../hooks/useWorkspaceNavigationMemory";
 import { useWorkbarLayout } from "../components/workbar/WorkbarLayoutContext";
 import { WorkbarLayoutModal } from "../components/workbar/WorkbarLayoutModal";
@@ -314,32 +316,10 @@ export default function PlatformAdminPage() {
       })),
     [t, currentLanguage.code],
   );
-  const [activeTab, setActiveTab] = useState<AdminTab>("customers");
+  const { activeTab, setActiveTab } = usePlatformNavigation<AdminTab>('customers', isAdminTab);
   const [careQuery, setCareQuery] = useState("");
   const [consultingQuery, setConsultingQuery] = useState("");
   const [focusedLeadId, setFocusedLeadId] = useState<number | null>(null);
-  const adminNavigationState = useMemo(
-    () => ({ section: activeTab }),
-    [activeTab],
-  );
-  const restoreAdminNavigation = useCallback(
-    (restored: { section?: unknown }) => {
-      const section = restored.section === "users" || restored.section === "activities"
-        ? "companies"
-        : restored.section === "training" ? "customers" : restored.section;
-      if (isAdminTab(section)) setActiveTab(section);
-    },
-    [],
-  );
-  useWorkspaceNavigationMemory({
-    moduleKey: "platform-admin",
-    tabKey: "primary-navigation",
-    state: adminNavigationState,
-    defaults: { section: "customers" as AdminTab },
-    urlFields: { section: "section" },
-    onRestore: restoreAdminNavigation,
-    rememberScroll: false,
-  });
   const [context, setContext] = useState<PlatformAdminContext | null>(null);
   const canCreateAccounts = context?.can_create_accounts
     ?? Boolean(context?.can_manage_accounts && context.can_manage_benefits);
@@ -352,12 +332,15 @@ export default function PlatformAdminPage() {
     }),
     [context?.can_manage_system_tickets, context?.permissions, context?.role, tabs],
   );
+  const selectAdminTab = (section: AdminTab) => {
+    if (visibleTabs.some(tab => tab.id === section)) setActiveTab(section);
+  };
   useEffect(() => {
     if (
       context &&
       !visibleTabs.some((tab) => tab.id === activeTab)
     ) {
-      setActiveTab("customers");
+      setActiveTab("customers", { replace: true });
     }
   }, [activeTab, context, visibleTabs]);
   const [overview, setOverview] = useState<PlatformOverview | null>(null);
@@ -990,10 +973,10 @@ export default function PlatformAdminPage() {
               actions={
                 <>
                   <PlatformAdminLanguageSelect />
-                  <button type="button" onClick={() => setWorkbarSettingsOpen(true)} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" aria-label={english ? "Configure workbar" : "Configurar barra de trabajo"} title={english ? "Configure workbar" : "Configurar barra de trabajo"}>
+                  <button type="button" onClick={() => setWorkbarSettingsOpen(true)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" aria-label={english ? "Configure workbar" : "Configurar barra de trabajo"} title={english ? "Configure workbar" : "Configurar barra de trabajo"}>
                     <Settings2 className="h-4 w-4" />
                   </button>
-                  <button type="button" onClick={() => void loadAll()} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" aria-label={t("Refresh data")}>
+                  <button type="button" onClick={() => void loadAll()} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" aria-label={t("Refresh data")}>
                     <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
                   </button>
                 </>
@@ -1003,15 +986,16 @@ export default function PlatformAdminPage() {
           <div className={`mx-auto max-w-[1600px] overflow-x-auto px-4 pb-3 lg:px-6 ${sidebarWorkbar ? "lg:overflow-visible lg:px-3" : ""}`}>
             <IndiceWorkspaceNavigation<AdminTab>
               ariaLabel={t("Administration sections")}
-              className={sidebarWorkbar ? "min-w-max flex-nowrap lg:min-w-0 lg:flex-col lg:items-stretch lg:[&>button]:w-full lg:[&>button]:justify-start lg:[&>button]:rounded-xl lg:[&>span]:pt-3" : "min-w-max flex-nowrap"}
+              moduleId="platform-admin"
+              orientation={sidebarWorkbar ? 'desktop-vertical' : 'horizontal'}
               items={visibleTabs.map((tab) => {
                 const Icon = tab.icon;
                 return { id: tab.id, label: tab.label, group: phaseLabels[tab.phase], icon: <Icon /> };
               })}
-              onValueChange={setActiveTab}
+              onValueChange={selectAdminTab}
               tone="blue"
               value={activeTab}
-              variant="sections"
+              variant="workbar"
             />
           </div>
           <div className="h-1 bg-[#2563EB]" aria-hidden="true" />
@@ -1513,56 +1497,22 @@ function CustomersTab({
         }
         actions={
           <div className="flex flex-wrap justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setColumnsOpen(true)}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-medium text-blue-700 transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-300"
-            >
-              <Columns3 className="h-4 w-4" />
-              {copy.columns}
-            </button>
-            {canCreate || canManageCourtesy ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-medium text-blue-700 transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-300"
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                    {copy.more}
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-64 rounded-xl border-blue-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-900">
-                  {canManageCourtesy ? (
-                    <DropdownMenuItem onSelect={onOpenCourtesy} className="rounded-lg py-2.5">
-                      <Gift className="h-4 w-4 text-blue-700" />
-                      {t("Promotional access")}
-                    </DropdownMenuItem>
-                  ) : null}
-                  {canCreate ? (
-                    <DropdownMenuItem onSelect={onQuickCreate} className="rounded-lg py-2.5">
-                      <Sparkles className="h-4 w-4 text-blue-700" />
-                      {t("Quick test account")}
-                    </DropdownMenuItem>
-                  ) : null}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
-            {canCreate ? (
-              <button
-                type="button"
-                onClick={onCreate}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
-              >
-                <Plus className="h-4 w-4" />
-                {t("Add account")}
-              </button>
-            ) : null}
+            {!(canCreate && canManageCourtesy) && <button type="button" onClick={() => setColumnsOpen(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-medium text-blue-700 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-300"><Columns3 className="h-4 w-4" />{copy.columns}</button>}
+            {canManageCourtesy && <button type="button" onClick={onOpenCourtesy} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"><Gift className="h-4 w-4" />{t("Promotional access")}</button>}
+            {canCreate && <>
+              <button type="button" onClick={onQuickCreate} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"><Sparkles className="h-4 w-4" />{t("Quick test account")}</button>
+              <button type="button" onClick={onCreate} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"><Plus className="h-4 w-4" />{t("Add account")}</button>
+            </>}
+            {canCreate && canManageCourtesy && <DropdownMenu>
+              <DropdownMenuTrigger asChild><button type="button" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"><MoreHorizontal className="h-4 w-4" />{copy.more}</button></DropdownMenuTrigger>
+              <DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => setColumnsOpen(true)}><Columns3 className="h-4 w-4" />{copy.columns}</DropdownMenuItem></DropdownMenuContent>
+            </DropdownMenu>}
           </div>
         }
       />
       <IndiceFilterBar
-        title={t("Customer portfolio")}
+        title={t("Filters")}
+        summary={query || userTypeFilter !== "all" || statusFilter !== "all" ? <button type="button" onClick={() => { onQuery(""); onUserType("all"); onStatus("all"); }} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">{getAdminWorkspaceCopy(locale).clear}</button> : undefined}
         gridClassName="lg:grid-cols-[minmax(0,1fr)_220px_260px]"
       >
         <IndiceFilterSearch

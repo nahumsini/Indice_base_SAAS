@@ -11,7 +11,7 @@ test('notification center uses the shared blue operational workspace', async () 
   assert.match(center, /modalType="operational-workspace"/);
   assert.match(center, /tone="blue"/);
   assert.match(center, /sticky top-0/);
-  assert.match(center, /sticky top-\[65px\]/);
+  assert.match(center, /sm:sticky sm:top-\[65px\]/);
   assert.match(center, /getNotificationDateGroup/);
   assert.match(center, /copy\.today/);
   assert.match(center, /copy\.yesterday/);

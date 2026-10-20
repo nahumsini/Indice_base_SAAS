@@ -2,17 +2,17 @@ import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import { createServer } from 'vite';
 
-const { chromium } = await import(process.env.INDICE_PLAYWRIGHT_MODULE || 'playwright');
+const { chromium, webkit } = await import(process.env.INDICE_PLAYWRIGHT_MODULE || 'playwright');
 const origin = 'http://127.0.0.1:5194';
 const server = await createServer({
   root: resolve(import.meta.dirname, '..'),
-  server: { host: '127.0.0.1', port: 5194, strictPort: true },
+  server: { host: '127.0.0.1', port: 5194, strictPort: true, hmr: false, watch: null },
   define: { 'import.meta.env.VITE_API_BASE_URL': '""' },
 });
 let browser;
 try {
   await server.listen();
-  browser = await chromium.launch({ headless: true, ...(process.env.INDICE_CHROME_PATH ? { executablePath: process.env.INDICE_CHROME_PATH } : {}) });
+  browser = await (process.env.INDICE_BROWSER === 'webkit' ? webkit : chromium).launch({ headless: true, ...(process.env.INDICE_BROWSER !== 'webkit' && process.env.INDICE_CHROME_PATH ? { executablePath: process.env.INDICE_CHROME_PATH } : {}) });
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -26,6 +26,9 @@ try {
     const request = route.request(), url = new URL(request.url());
     if (url.origin !== origin) return route.abort();
     if (!url.pathname.startsWith('/api/')) return route.continue();
+    if (url.pathname.startsWith('/api/v1/workspace-state/')) return route.fulfill({ json: { state: {}, schemaVersion: 1 } });
+    if (url.pathname === '/api/v1/auth/me') return route.fulfill({ json: { user: { id: 901, name: 'Fixture', role: 'root' }, company: { id: 901, name: 'Fixture', role: 'root', user_company_id: 901, active: true }, companies: [], csrfToken: 'synthetic-csrf' } });
+
     if (url.pathname === '/api/v1/ai/connections' && request.method() === 'GET') {
       listCalls++;
       return route.fulfill(failList ? { status: 503, json: { message: 'Synthetic failure' } } : { json: { connections } });
@@ -47,6 +50,10 @@ try {
   assert.equal(listCalls, 0, 'setup guide must not query account connections');
   await page.getByRole('tab', { name: 'My connections', exact: true }).click();
   await page.getByRole('heading', { name: 'Test assistant 1', exact: true }).waitFor();
+  await page.getByRole('searchbox', { name: 'Search', exact: true }).fill('no matches');
+  await page.getByText('No results for these filters', { exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
+  await page.getByRole('button', { name: /Test assistant 1/ }).click();
   const closeAccess = () => page.getByRole('button', { name: 'Close access', exact: true });
   await closeAccess().click();
   await page.getByRole('dialog').waitFor();
@@ -83,10 +90,11 @@ try {
   connections = [];
   await page.getByRole('button', { name: 'Actualizar conexiones', exact: true }).click();
   await page.getByRole('button', { name: 'Crear mi primera conexión', exact: true }).click();
-  assert.equal(await page.getByRole('tab', { name: 'Cómo conectar', exact: true }).getAttribute('aria-selected'), 'true');
+  await page.waitForFunction(() => document.querySelector('[role=tab][aria-selected=true]')?.textContent?.includes('Cómo conectar'));
   assert.deepEqual(errors, []);
   console.log('PASS: connections tab, cancellation, CSRF, failed revoke/retry, history, refresh/error recovery, Spanish mobile layout and OAuth guide navigation');
 } finally {
   await browser?.close();
+  server.httpServer?.closeAllConnections();
   await server.close();
 }

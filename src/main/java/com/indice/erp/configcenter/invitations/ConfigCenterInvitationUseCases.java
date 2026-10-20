@@ -3,6 +3,7 @@ package com.indice.erp.configcenter.invitations;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.configcenter.users.ConfigCenterUserAccessUseCases;
+import com.indice.erp.configcenter.users.UserAccessInput;
 import com.indice.erp.configcenter.users.ConfigCenterTabPermissionCatalog;
 import com.indice.erp.configcenter.users.ConfigCenterUserAccessAudit.Snapshot;
 import com.indice.erp.configcenter.users.ConfigCenterUserMutationGuard.AccessScope;
@@ -34,7 +35,9 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         super(jdbcTemplate, objectMapper, passwordEncoder, objectStorageService, objectStorageProperties, storageMeter);
     }
 
+    @Transactional
     public Map<String, Object> deleteInvitation(long companyId, long actorUserId, String actorRole, long invitationId) {
+        lockUserAdministration(companyId);
         var before = loadInvitationAccessSnapshot(companyId, actorUserId, actorRole, invitationId);
         var updated = jdbcTemplate.update(
             """
@@ -73,6 +76,8 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         String actorRole,
         Map<String, Object> payload
     ) {
+        UserAccessInput.invitation(payload);
+        lockUserAdministration(companyId);
         var fullName = value(payload, "name", "full_name", "nombre");
         var email = normalizeEmail(value(payload, "email"));
         var role = normalizeRole(value(payload, "role"));
@@ -176,11 +181,23 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         if ("expired".equals(invitationStatus)) {
             throw new IllegalArgumentException("This invitation has expired.");
         }
+        if (!"pending".equals(invitationStatus)) throw new IllegalArgumentException("This invitation is no longer available.");
+        var activeCompany = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM companies WHERE id = ? AND platform_status = 'ACTIVE'",
+            Integer.class, invitation.companyId());
+        if (activeCompany == null || activeCompany == 0) {
+            throw new IllegalArgumentException("The invited company is not available.");
+        }
+        var requestedScope = new LinkedHashMap<String, Object>();
+        requestedScope.put("unit_id", invitation.unitId());
+        requestedScope.put("business_id", invitation.businessId());
+        // Revalidate stored scope: an administrator may have archived it after inviting.
+        var membership = resolveRequestedMembership(invitation.companyId(), requestedScope, new UserMembership(null, null));
         ensureInvitationHasRequiredAccess(invitation);
         moduleAccessRegistry.ensureAssignableToCompany(invitation.companyId(), invitation.moduleSlugs());
 
-        var password = value(payload, "password", "new_password");
-        var confirmPassword = value(payload, "confirm_password", "confirm_new_password", "password_confirmation");
+        var password = rawInvitationPassword(payload, "password", "new_password");
+        var confirmPassword = rawInvitationPassword(payload, "confirm_password", "confirm_new_password", "password_confirmation");
         if (password.isBlank() || confirmPassword.isBlank()) {
             throw new IllegalArgumentException("Password and confirmation are required.");
         }
@@ -195,6 +212,9 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         );
         final long userId;
         if (existingUsers.isEmpty()) {
+            if (password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) {
+                throw new IllegalArgumentException("Password is too long.");
+            }
             if (password.length() < 8) {
                 throw new IllegalArgumentException("Password must be at least 8 characters long.");
             }
@@ -245,7 +265,7 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
             userCompanyId,
             userId,
             "active",
-            new UserMembership(invitation.unitId(), invitation.businessId()),
+            membership,
             null
         );
 
@@ -310,6 +330,8 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         long invitationId,
         Map<String, Object> payload
     ) {
+        if(payload!=null && !value(payload,"email").isBlank()) UserAccessInput.email(value(payload,"email"));
+        lockUserAdministration(companyId);
         var before = loadInvitationAccessSnapshot(companyId, actorUserId, actorRole, invitationId);
         var rows = jdbcTemplate.query(
             """
@@ -344,11 +366,11 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         var token = UUID.randomUUID().toString().replace("-", "");
         var expiresAt = LocalDateTime.now().plusDays(7);
 
-        jdbcTemplate.update(
+        var updated=jdbcTemplate.update(
             """
                 UPDATE user_invitations
                 SET email = ?, token = ?, expires_at = ?, status = 'pending'
-                WHERE id = ? AND company_id = ?
+                WHERE id = ? AND company_id = ? AND COALESCE(status, 'pending') = 'pending'
                 """,
             finalEmail,
             token,
@@ -357,6 +379,7 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
             companyId
         );
 
+        if(updated==0)throw new NoSuchElementException("Invitation not found.");
         var result = new LinkedHashMap<String, Object>();
         result.put("email", finalEmail);
         result.put("full_name", String.valueOf(stored.get("full_name")));
@@ -408,6 +431,11 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
             new AccessScope(snapshot.unitId(), snapshot.businessId())
         );
         return snapshot;
+    }
+
+    private String rawInvitationPassword(Map<String,Object> payload,String... keys) {
+        for(var key:keys)if(payload.get(key) instanceof String value)return value;
+        return "";
     }
 
     private record ExistingUser(long id, String passwordHash) {

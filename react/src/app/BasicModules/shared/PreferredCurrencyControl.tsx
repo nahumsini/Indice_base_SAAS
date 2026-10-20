@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { BadgeDollarSign, Check, ExternalLink, LoaderCircle, RefreshCw, RotateCcw } from 'lucide-react';
 import { IndiceModalFrame } from '../../components/indice-modal';
 import { Button } from '../../components/ui/button';
@@ -39,8 +39,7 @@ export function PreferredCurrencyControl({ onClose }: { onClose: () => void }) {
     isLoadingDailyExchangeRates,
     preferredCurrency,
     refreshDailyExchangeRateSettings,
-    setExchangeRateSettings,
-    setPreferredCurrency,
+    preferencesReady, preferenceError, retryPreferences, savePreferences,
   } = usePreferredBusinessCurrency();
   const [draftPreferredCurrency, setDraftPreferredCurrency] = useState<BusinessCurrencyCode>(
     preferredCurrency as BusinessCurrencyCode,
@@ -50,6 +49,16 @@ export function PreferredCurrencyControl({ onClose }: { onClose: () => void }) {
     () => toRateDraft(exchangeRateSettings),
   );
   const [ratesEdited, setRatesEdited] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  useEffect(() => {
+    if (!preferencesReady) return;
+    setDraftPreferredCurrency(preferredCurrency as BusinessCurrencyCode);
+    setDraftSettings(exchangeRateSettings);
+    setDraftExchangeRates(toRateDraft(exchangeRateSettings));
+    setRatesEdited(false);
+  }, [preferencesReady]);
   const [exchangeRateError, setExchangeRateError] = useState('');
   const editableCurrencyOptions = useMemo(
     () => businessCurrencyOptions.filter((option) => option.code !== businessExchangeBaseCurrency),
@@ -64,10 +73,11 @@ export function PreferredCurrencyControl({ onClose }: { onClose: () => void }) {
       ? copy.officialSources
       : copy.internalReference;
   const closeModal = () => {
-    if (!isLoadingDailyExchangeRates) onClose();
+    if (!savingRef.current && !isLoadingDailyExchangeRates) onClose();
   };
 
-  const handleApplyConfiguration = () => {
+  const handleApplyConfiguration = async () => {
+    if (savingRef.current || !preferencesReady || isLoadingDailyExchangeRates) return;
     const nextExchangeRates: BusinessExchangeRatesPerUsd = {
       ...draftSettings.ratesPerUsd,
       USD: 1,
@@ -82,12 +92,17 @@ export function PreferredCurrencyControl({ onClose }: { onClose: () => void }) {
       nextExchangeRates[option.code as BusinessCurrencyCode] = parsedRate;
     }
 
-    setPreferredCurrency(draftPreferredCurrency);
-    setExchangeRateSettings(ratesEdited
-      ? createBusinessManualExchangeRateSettings(nextExchangeRates)
-      : draftSettings);
-    setExchangeRateError('');
-    onClose();
+    savingRef.current = true;
+    setSaving(true);
+    setSaveFailed(false);
+    try {
+      await savePreferences({
+        version: 1, preferredCurrency: draftPreferredCurrency,
+        exchangeRateSettings: ratesEdited ? createBusinessManualExchangeRateSettings(nextExchangeRates) : draftSettings,
+      });
+      onClose();
+    } catch { setSaveFailed(true); }
+    finally { savingRef.current = false; setSaving(false); }
   };
 
   const handleRefreshDailyExchangeRates = async () => {
@@ -112,30 +127,37 @@ export function PreferredCurrencyControl({ onClose }: { onClose: () => void }) {
     <>
       <IndiceModalFrame
         open
-        busy={isLoadingDailyExchangeRates}
+        busy={saving || isLoadingDailyExchangeRates}
         onOpenChange={(open) => {
           if (!open) closeModal();
         }}
         modalType="standard-form"
-        contentClassName="sm:max-w-3xl"
+        contentClassName="sm:max-w-3xl indice-account-preferences"
         tone="blue"
         icon={<BadgeDollarSign className="h-5 w-5" />}
         eyebrow={copy.currencySettings}
-        title={copy.exchangeRate}
-        description={copy.operationalReference}
-        footerSummary={`${copy.preferredCurrency}: ${draftPreferredCurrency} · ${copy.source}: ${ratesEdited ? copy.manual : exchangeRateSourceLabel}`}
+        title={copy.preferredCurrency}
+        description={copy.personalDescription}
+        footerSummary={`${draftPreferredCurrency} · ${copy.personalScope}`}
         footer={(
           <>
-            <Button type="button" variant="outline" disabled={isLoadingDailyExchangeRates} onClick={closeModal}>
+            <Button type="button" variant="outline" disabled={saving || isLoadingDailyExchangeRates} onClick={closeModal}>
               {copy.cancel}
             </Button>
-            <Button type="button" disabled={isLoadingDailyExchangeRates} onClick={handleApplyConfiguration}>
-              <Check className="h-4 w-4" aria-hidden="true" />
-              {copy.save}
+            <Button type="button" disabled={saving || isLoadingDailyExchangeRates || !preferencesReady} onClick={() => void handleApplyConfiguration()}>
+              {saving ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Check className="h-4 w-4" aria-hidden="true" />}
+              {saving ? copy.savingPreferences : copy.save}
             </Button>
           </>
         )}
       >
+        {!preferencesReady || preferenceError || saveFailed ? (
+          <div role={preferenceError || saveFailed ? 'alert' : 'status'} className="mb-4 rounded-xl border border-slate-300 p-3 text-sm dark:border-slate-600 dark:text-slate-200">
+            {saveFailed ? copy.savePreferencesError : preferenceError ? copy.loadPreferencesError : copy.loadingPreferences}
+            {preferenceError ? <button type="button" onClick={retryPreferences} className="ml-2 min-h-11 px-2 font-medium underline">{copy.retry}</button> : null}
+          </div>
+        ) : null}
+        <fieldset disabled={saving || isLoadingDailyExchangeRates || !preferencesReady} className="min-w-0">
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
           <section className="rounded-2xl border border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] p-4 dark:border-blue-800 dark:bg-blue-950/30">
             <p className="text-sm font-medium text-slate-950 dark:text-white">{copy.preferredCurrency}</p>
@@ -195,8 +217,8 @@ export function PreferredCurrencyControl({ onClose }: { onClose: () => void }) {
         ) : null}
 
         {sourceDetails.length > 0 ? (
-          <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <h3 className="text-sm font-medium text-slate-950 dark:text-white">{copy.appliedSources}</h3>
+          <details className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <summary className="min-h-11 cursor-pointer text-sm font-medium text-slate-950 dark:text-white">{copy.appliedSources}</summary>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               {sourceDetails.map((source) => (
                 <article key={`${source.currencyCode}-${source.institution}`} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800">
@@ -225,7 +247,7 @@ export function PreferredCurrencyControl({ onClose }: { onClose: () => void }) {
                 </article>
               ))}
             </div>
-          </section>
+          </details>
         ) : null}
 
         <details className="group mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -277,6 +299,7 @@ export function PreferredCurrencyControl({ onClose }: { onClose: () => void }) {
         ) : null}
 
         <p className="mt-4 text-xs leading-5 text-slate-500 dark:text-slate-400">{copy.disclaimer}</p>
+        </fieldset>
       </IndiceModalFrame>
     </>
   );

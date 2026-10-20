@@ -22,7 +22,7 @@ public class MailingDeliveryService {
     public Review review(AuthSessionUser actor,String id){var a=access.read(actor);var c=campaigns.get(a,id);CampaignEmailGateway.Sender sender=null;
         if(c.senderAccountId()!=null)try{sender=email.sender(a,c.senderAccountId());if(!c.senderName().isBlank())sender=new CampaignEmailGateway.Sender(sender.id(),sender.email(),c.senderName(),sender.version(),sender.verified());}catch(ResponseStatusException ignored){ }
         var seen=new HashSet<String>();var audience=repository.audience(a.companyId(),id).stream().map(p->new Audience(p.contactId(),p.name(),p.email(),!address(p.email())?"INVALID":!seen.add(p.email())?"DUPLICATE":p.eligibility())).toList();
-        String digest=BillingHashing.sha256(c.id()+":"+c.version()+":"+(sender==null?"":sender.id()+":"+sender.version())+":"+audience.stream().map(p->p.contactId()+":"+p.email()+":"+p.eligibility()).reduce("",(x,y)->x+"|"+y));
+        String digest=BillingHashing.sha256(c.id()+":"+c.version()+":"+(sender==null?"":sender.id()+":"+sender.version())+":"+audience.stream().map(p->p.contactId()+":"+p.name()+":"+p.email()+":"+p.eligibility()).reduce("",(x,y)->x+"|"+y));
         return new Review(id,c.version(),c.status(),c.subject(),content(c),c.replyTo(),sender,audience,digest,access.canSend(a),unsubscribe.available());
     }
     public void consent(AuthSessionUser actor,Consent input){tx.executeWithoutResult(s->{var a=access.write(actor);require(!input.consentedAt().isAfter(Instant.now().plusSeconds(60)),BAD_REQUEST,"mailing_consent_date_invalid");for(long id:new HashSet<>(input.contactIds())){var address=repository.contactEmail(a.companyId(),id);require(address(address),BAD_REQUEST,"mailing_contact_unavailable");repository.consent(a,address,input.evidence().trim(),input.consentedAt());}});}
@@ -33,7 +33,14 @@ public class MailingDeliveryService {
         require(!c.subject().isBlank()&&!c.bodyText().isBlank()&&!c.subject().contains("\r")&&!c.subject().contains("\n")&&c.bodyText().length()<=18000,BAD_REQUEST,"mailing_content_required");
         require(!c.senderName().contains("\r")&&!c.senderName().contains("\n"),BAD_REQUEST,"mailing_sender_invalid");
         require(c.replyTo().isBlank()||address(c.replyTo()),BAD_REQUEST,"mailing_reply_to_invalid");
-        var eligible=review.audience().stream().filter(p->p.eligibility().equals("READY")).toList();require(!eligible.isEmpty(),CONFLICT,"mailing_no_consented_recipients");
+        var eligible=review.audience().stream().filter(p->p.eligibility().equals("READY")).toList();
+        if(input.contactIds()!=null){
+            require(input.contactIds().size()<=500&&input.contactIds().stream().allMatch(value->value!=null&&value>0),BAD_REQUEST,"mailing_selection_invalid");
+            var selected=new HashSet<>(input.contactIds());
+            eligible=eligible.stream().filter(person->selected.contains(person.contactId())).toList();
+            require(eligible.size()==selected.size(),CONFLICT,"mailing_recipient_unavailable");
+        }
+        require(!eligible.isEmpty(),CONFLICT,"mailing_no_recipients");
         for(var person:eligible){require(personalize(content(c),person.name()).length()+input.footer().length()+250<=20000&&personalize(c.subject(),person.name().replaceAll("[\\r\\n]"," ")).length()<=240,BAD_REQUEST,"mailing_content_too_long");}
         Instant when=input.scheduledAt()==null?Instant.now():input.scheduledAt();require(!when.isBefore(Instant.now().minusSeconds(60))&&!when.isAfter(Instant.now().plusSeconds(365*86400L)),BAD_REQUEST,"mailing_schedule_invalid");
         repository.launch(a,c,input.accountVersion(),when,input.footer().trim(),eligible);return results(a,id);

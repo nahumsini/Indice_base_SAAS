@@ -49,41 +49,41 @@ class MailingDeliveryIntegrationTest {
     void due(String id){db.update("UPDATE sales_mailing_runs SET scheduled_at=CURRENT_TIMESTAMP(6)-INTERVAL 1 MINUTE,next_attempt_at=CURRENT_TIMESTAMP(6)-INTERVAL 1 MINUTE WHERE company_id=? AND campaign_id=?",company,id);}
     MockHttpSession session(){var s=new MockHttpSession();s.setAttribute(SessionAuthService.SESSION_USER_ID,user);s.setAttribute(SessionAuthService.SESSION_COMPANY_ID,company);s.setAttribute(SessionAuthService.SESSION_USER_NAME,"Synthetic");s.setAttribute(SessionAuthService.SESSION_LOGIN_CSRF,"synthetic-csrf");return s;}
     @Test void launchSnapshotsRecipientsPersonalizesAndRepeatedRequestsNeverResend(){
-        String id=campaign(List.of(contact));consent(contact);var input=launchInput(id,null);delivery.launch(actor,id,input);delivery.launch(actor,id,input);
+        String id=campaign(List.of(contact));var input=launchInput(id,null);delivery.launch(actor,id,input);delivery.launch(actor,id,input);
         db.update("UPDATE sales_contacts SET email='changed@example.com',company_name='Changed' WHERE company_id=? AND id=?",company,contact);
         when(transport.send(any(),any())).thenAnswer(call->{MailboxTransport.Outgoing m=call.getArgument(1);assertThat(m.to()).containsExactly("customer@example.com");assertThat(m.text()).contains("Hello Synthetic customer","/mailing/unsubscribe#","123 Test Street");assertThat(m.replyTo()).isEqualTo("reply@example.com");assertThat(m.displayName()).isEqualTo("Campaign clinic");assertThat(m.text()).startsWith("Preview\n\n");return MailboxTransport.Outcome.ACCEPTED;});
         delivery.tick();due(id);delivery.tick();due(id);delivery.tick();assertThat(delivery.results(actor,id).status()).isEqualTo("COMPLETED");assertThat(delivery.results(actor,id).items()).extracting(Delivery::state).containsExactly("ACCEPTED");verify(transport,times(1)).send(any(),any());
         assertThatThrownBy(()->campaigns.save(actor,id,new MailingContracts.DraftInput("Changed","X","Sender","","","X",List.of(contact),campaigns.get(actor,id).version(),account))).hasMessageContaining("mailing_campaign_locked");
     }
-    @Test void reviewDigestRejectsChangedAudienceAndNoConsentCannotLaunch(){
-        String id=campaign(List.of(contact));assertThatThrownBy(()->delivery.launch(actor,id,launchInput(id,null))).hasMessageContaining("mailing_no_consented_recipients");consent(contact);var input=launchInput(id,null);
+    @Test void reviewAcceptsContactsWithoutConsentAndRejectsChangedAudience(){
+        String id=campaign(List.of(contact));assertThat(delivery.review(actor,id).audience().getFirst().eligibility()).isEqualTo("READY");var input=launchInput(id,null);
         db.update("UPDATE sales_contacts SET email='changed@example.com' WHERE company_id=? AND id=?",company,contact);
         assertThatThrownBy(()->delivery.launch(actor,id,input)).hasMessageContaining("mailing_review_changed");verifyNoInteractions(transport);
     }
     @Test void schedulePauseResumeCancelAndCurrentPermissionGateAreDurable(){
-        String id=campaign(List.of(contact));consent(contact);delivery.launch(actor,id,launchInput(id,Instant.now().plusSeconds(3600)));delivery.tick();verifyNoInteractions(transport);
+        String id=campaign(List.of(contact));delivery.launch(actor,id,launchInput(id,Instant.now().plusSeconds(3600)));delivery.tick();verifyNoInteractions(transport);
         var result=delivery.results(actor,id);result=delivery.control(actor,id,new Control(result.version(),"PAUSE"));due(id);delivery.tick();verifyNoInteractions(transport);
         result=delivery.control(actor,id,new Control(result.version(),"RESUME"));assertThat(result.status()).isEqualTo("RUNNING");result=delivery.control(actor,id,new Control(result.version(),"CANCEL"));delivery.tick();verifyNoInteractions(transport);assertThat(result.items()).extracting(Delivery::state).containsExactly("CANCELLED");
     }
     @Test void unsubscribeIsAuthenticatedIdempotentAndOverridesLaterConsent(){
-        String id=campaign(List.of(contact));consent(contact);delivery.launch(actor,id,launchInput(id,null));String recipient=delivery.results(actor,id).items().getFirst().id();String token=unsubscribe.link(recipient).split("#")[1];
+        String id=campaign(List.of(contact));delivery.launch(actor,id,launchInput(id,null));String recipient=delivery.results(actor,id).items().getFirst().id();String token=unsubscribe.link(recipient).split("#")[1];
         unsubscribe.unsubscribe(token.substring(0,token.length()-1)+"x","synthetic-a");assertThat(delivery.review(actor,id).audience().getFirst().eligibility()).isEqualTo("READY");
         unsubscribe.unsubscribe(token,"synthetic-b");unsubscribe.unsubscribe(token,"synthetic-b");consent(contact);delivery.tick();assertThat(delivery.results(actor,id).items().getFirst().state()).isEqualTo("SUPPRESSED");verifyNoInteractions(transport);
         assertThat(db.queryForObject("SELECT COUNT(*) FROM sales_mailing_permission_events WHERE company_id=? AND action='UNSUBSCRIBED'",Long.class,company)).isEqualTo(1);
     }
     @Test void lostSmtpAckAndRecoveredWorkerNeverAutomaticallyRepeatTransport(){
-        String id=campaign(List.of(contact));consent(contact);delivery.launch(actor,id,launchInput(id,null));when(transport.send(any(),any())).thenReturn(MailboxTransport.Outcome.UNKNOWN);
+        String id=campaign(List.of(contact));delivery.launch(actor,id,launchInput(id,null));when(transport.send(any(),any())).thenReturn(MailboxTransport.Outcome.UNKNOWN);
         delivery.tick();due(id);delivery.tick();assertThat(delivery.results(actor,id).items().getFirst().state()).isEqualTo("UNKNOWN");verify(transport,times(1)).send(any(),any());
     }
     @Test void interruptedWorkerReconcilesEmailLedgerBeforeAnyRetry(){
-        String id=campaign(List.of(contact));consent(contact);delivery.launch(actor,id,launchInput(id,null));delivery.tick();
+        String id=campaign(List.of(contact));delivery.launch(actor,id,launchInput(id,null));delivery.tick();
         db.update("UPDATE sales_mailing_deliveries SET state='SUBMITTING' WHERE company_id=? AND campaign_id=?",company,id);due(id);delivery.tick();assertThat(delivery.results(actor,id).items().getFirst().state()).isEqualTo("ACCEPTED");verify(transport,times(1)).send(any(),any());
     }
     @Test void workerStopsWhenSenderOrSendPermissionChanges(){
-        String id=campaign(List.of(contact));consent(contact);delivery.launch(actor,id,launchInput(id,null));db.update("DELETE FROM user_company_tab_permissions WHERE user_company_id=? AND tab_key='mailing_send'",membership);delivery.tick();assertThat(delivery.results(actor,id).status()).isEqualTo("PAUSED");verifyNoInteractions(transport);
+        String id=campaign(List.of(contact));delivery.launch(actor,id,launchInput(id,null));db.update("DELETE FROM user_company_tab_permissions WHERE user_company_id=? AND tab_key='mailing_send'",membership);delivery.tick();assertThat(delivery.results(actor,id).status()).isEqualTo("PAUSED");verifyNoInteractions(transport);
     }
     @Test void duplicatesAreExcludedAndTestSendIsIdempotentWithoutCampaignLaunch(){
-        long duplicate=insert("INSERT INTO sales_contacts(company_id,contact_code,company_name,email) VALUES(?,'CAM-2','Duplicate','CUSTOMER@example.com')",company);String id=campaign(List.of(contact,duplicate));consent(contact);assertThat(delivery.review(actor,id).audience()).extracting(Audience::eligibility).containsExactly("READY","DUPLICATE");
+        long duplicate=insert("INSERT INTO sales_contacts(company_id,contact_code,company_name,email) VALUES(?,'CAM-2','Duplicate','CUSTOMER@example.com')",company);String id=campaign(List.of(contact,duplicate));assertThat(delivery.review(actor,id).audience()).extracting(Audience::eligibility).containsExactly("READY","DUPLICATE");
         var input=new TestInput(1,"test@example.com",UUID.randomUUID().toString());assertThat(delivery.test(actor,id,input).state()).isEqualTo("ACCEPTED");delivery.test(actor,id,input);verify(transport,times(1)).send(any(),any());assertThat(delivery.results(actor,id).status()).isEqualTo("DRAFT");
     }
     @Test void nativeSendPermissionCsrfAndTenantIsolationProtectNewEndpoints() throws Exception {
@@ -95,4 +95,62 @@ class MailingDeliveryIntegrationTest {
         mvc.perform(post("/api/public/mailing/unsubscribe").contentType(MediaType.APPLICATION_JSON).content("{\"token\":\"invalid\"}")).andExpect(status().isOk()).andExpect(jsonPath("$.received").value(true));
         mvc.perform(get("/api/public/mailing/unsubscribe")).andExpect(status().isMethodNotAllowed());
     }
+    @Test void personNamePersonalizesNewCampaignsAndChangesInvalidateReview() {
+        db.update("UPDATE sales_contacts SET contact_person='Ricardo' WHERE company_id=? AND id=?",company,contact);
+        String id=campaign(List.of(contact));var old=launchInput(id,null);
+        assertThat(delivery.review(actor,id).audience().getFirst().name()).isEqualTo("Ricardo");
+        db.update("UPDATE sales_contacts SET contact_person='Ana' WHERE company_id=? AND id=?",company,contact);
+        assertThatThrownBy(()->delivery.launch(actor,id,old)).hasMessageContaining("mailing_review_changed");
+        delivery.launch(actor,id,launchInput(id,null));
+        when(transport.send(any(),any())).thenAnswer(call->{MailboxTransport.Outgoing message=call.getArgument(1);assertThat(message.text()).contains("Hello Ana");return MailboxTransport.Outcome.ACCEPTED;});
+        delivery.tick();verify(transport,times(1)).send(any(),any());
+    }
+
+
+    Launch selection(String id,List<Long> ids){var r=delivery.review(actor,id);return new Launch(r.version(),r.sender().version(),r.digest(),null,"Synthetic Clinic — 123 Test Street",ids);}
+    @Test void selectedSubsetIsTheDurableAudienceAndReplayCannotAddRecipients() {
+        long second=insert("INSERT INTO sales_contacts(company_id,contact_code,company_name,email) VALUES(?,'SECOND','Second','second@example.com')",company);
+        String id=campaign(List.of(contact,second));
+        var result=delivery.launch(actor,id,selection(id,List.of(second,second)));
+        assertThat(result.items()).extracting(Delivery::email).containsExactly("second@example.com");
+        delivery.launch(actor,id,selection(id,List.of(contact,second)));
+        delivery.tick();due(id);delivery.tick();
+        var capture=org.mockito.ArgumentCaptor.forClass(MailboxTransport.Outgoing.class);
+        verify(transport,times(1)).send(any(),capture.capture());assertThat(capture.getValue().to()).containsExactly("second@example.com");
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM sales_mailing_permissions WHERE company_id=?",Long.class,company)).isZero();
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM sales_mailing_permission_events WHERE company_id=?",Long.class,company)).isZero();
+    }
+    @Test void emptyOrUnavailableSelectionNeverFallsBackToSendingEverybody() {
+        long foreign=insert("INSERT INTO sales_contacts(company_id,contact_code,company_name,email) VALUES(?,'FOREIGN','Foreign','foreign@example.com')",other);
+        long outside=insert("INSERT INTO sales_contacts(company_id,contact_code,company_name,email) VALUES(?,'OUTSIDE','Outside','outside@example.com')",company);
+        String id=campaign(List.of(contact));
+        assertThatThrownBy(()->delivery.launch(actor,id,selection(id,List.of()))).hasMessageContaining("mailing_no_recipients");
+        for(long unavailable:List.of(foreign,outside))assertThatThrownBy(()->delivery.launch(actor,id,selection(id,List.of(contact,unavailable)))).hasMessageContaining("mailing_recipient_unavailable");
+        assertThat(delivery.results(actor,id).status()).isEqualTo("DRAFT");assertThat(delivery.results(actor,id).items()).isEmpty();verifyNoInteractions(transport);
+    }
+    @Test void unsubscribesAndInvalidAddressesRemainExcludedAndTenantScoped() {
+        long suppressed=insert("INSERT INTO sales_contacts(company_id,contact_code,company_name,email) VALUES(?,'STOP','Unsubscribed','stop@example.com')",company);
+        long invalid=insert("INSERT INTO sales_contacts(company_id,contact_code,company_name,email) VALUES(?,'BAD','Invalid','broken')",company);
+        long duplicate=insert("INSERT INTO sales_contacts(company_id,contact_code,company_name,email) VALUES(?,'DUP','Duplicate','CUSTOMER@example.com')",company);
+        db.update("INSERT INTO sales_mailing_permissions(company_id,email,status,evidence,recorded_by,recorded_at) VALUES(?,'stop@example.com','SUPPRESSED','Synthetic unsubscribe',?,NOW()),(?,'customer@example.com','SUPPRESSED','Other tenant',?,NOW())",company,user,other,user);
+        String id=campaign(List.of(contact,suppressed,invalid,duplicate));
+        assertThat(delivery.review(actor,id).audience()).extracting(Audience::eligibility).containsExactly("READY","SUPPRESSED","INVALID","DUPLICATE");
+        for(long unavailable:List.of(suppressed,invalid,duplicate))assertThatThrownBy(()->delivery.launch(actor,id,selection(id,List.of(contact,unavailable)))).hasMessageContaining("mailing_recipient_unavailable");
+        // The compatible request with no selection includes all and only eligible recipients.
+        assertThat(delivery.launch(actor,id,launchInput(id,null)).items()).extracting(Delivery::email).containsExactly("customer@example.com");
+        delivery.tick();verify(transport,times(1)).send(any(),any());
+    }
+    @Test void launchSelectionRequiresCsrfNativeSendPermissionAndValidIds() throws Exception {
+        String id=campaign(List.of(contact)),url="/api/v1/mailing/campaigns/"+id+"/launch";
+        String body=json.writeValueAsString(selection(id,List.of(contact)));
+        mvc.perform(post(url).session(session()).contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isForbidden());
+        String bad=json.writeValueAsString(selection(id,Arrays.asList(contact,null)));
+        mvc.perform(post(url).session(session()).header("X-CSRF-Token","synthetic-csrf").contentType(MediaType.APPLICATION_JSON).content(bad)).andExpect(status().isBadRequest());
+        db.update("DELETE FROM user_company_tab_permissions WHERE user_company_id=? AND tab_key='mailing_send'",membership);
+        mvc.perform(post(url).session(session()).header("X-CSRF-Token","synthetic-csrf").contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isForbidden());
+        db.update("INSERT INTO user_company_tab_permissions(user_company_id,module_slug,tab_key) VALUES(?,'crm','mailing_send')",membership);
+        mvc.perform(post(url).session(session()).header("X-CSRF-Token","synthetic-csrf").contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(1));
+        verifyNoInteractions(transport);
+    }
+
 }

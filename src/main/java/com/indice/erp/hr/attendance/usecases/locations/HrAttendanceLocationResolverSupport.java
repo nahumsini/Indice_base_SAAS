@@ -1,6 +1,7 @@
 package com.indice.erp.hr.attendance.usecases.locations;
 
 import com.indice.erp.hr.attendance.models.AttendanceHrUser;
+import com.indice.erp.hr.attendance.locations.AttendanceLocationValidationException;
 import com.indice.erp.hr.attendance.models.LocationRow;
 import com.indice.erp.hr.attendance.models.ScheduleRule;
 import com.indice.erp.hr.attendance.models.WorkSiteAssignmentRow;
@@ -13,6 +14,7 @@ import java.util.Set;
 
 import static com.indice.erp.hr.attendance.AttendanceSchedulePolicy.isOpenSchedule;
 import static com.indice.erp.hr.attendance.support.AttendanceGeo.distanceMeters;
+import static com.indice.erp.hr.attendance.locations.AttendanceLocationValidationException.Reason.*;
 
 
 public abstract class HrAttendanceLocationResolverSupport extends HrAttendanceLocationRepositorySupport {
@@ -123,7 +125,7 @@ public abstract class HrAttendanceLocationResolverSupport extends HrAttendanceLo
         String restrictedMessage
     ) {
         if (allowedLocations.isEmpty()) {
-            throw new IllegalArgumentException(emptyMessage);
+            throw new AttendanceLocationValidationException(NOT_CONFIGURED, emptyMessage);
         }
 
         LocationRow location;
@@ -131,11 +133,14 @@ public abstract class HrAttendanceLocationResolverSupport extends HrAttendanceLo
             location = allowedLocations.stream()
                 .filter(item -> Objects.equals(item.id(), requestedLocationId))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException(restrictedMessage));
+                .orElseThrow(() -> new AttendanceLocationValidationException(NOT_ALLOWED, restrictedMessage));
         } else {
             location = allowedLocations.stream()
+                .filter(item -> distanceMeters(item.latitude(), item.longitude(), latitude, longitude)
+                    <= item.radiusMeters())
                 .min(Comparator.comparing(item -> distanceMeters(item.latitude(), item.longitude(), latitude, longitude)))
-                .orElseThrow(() -> new IllegalArgumentException(emptyMessage));
+                .orElseThrow(() -> new AttendanceLocationValidationException(OUTSIDE_RADIUS,
+                    "The device is outside the allowed attendance location radius."));
         }
 
         validateLocationRadius(location, latitude, longitude);
@@ -145,7 +150,8 @@ public abstract class HrAttendanceLocationResolverSupport extends HrAttendanceLo
     protected void validateLocationRadius(LocationRow location, BigDecimal latitude, BigDecimal longitude) {
         var distance = distanceMeters(location.latitude(), location.longitude(), latitude, longitude);
         if (distance > location.radiusMeters()) {
-            throw new IllegalArgumentException("The device is outside the allowed attendance location radius.");
+            throw new AttendanceLocationValidationException(OUTSIDE_RADIUS,
+                "The device is outside the allowed attendance location radius.");
         }
     }
 }

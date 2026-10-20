@@ -64,13 +64,15 @@ public class MailDraftService {
             return new Submission(material,row,lease,attempt,new MailboxTransport.Outgoing(messageId,m.subject(),m.bodyText(),m.to(),m.cc(),m.bcc(),row.inReplyTo(),row.references(),m.bodyHtml(),attachments.outgoing(actor,account,id),m.replyTo().isEmpty()?null:m.replyTo().getFirst(),null,m.fromName()));
         });
         if(submission.material==null)return submission.row.view();
-        MailboxTransport.Outcome outcome;
-        try{outcome=transport.send(submission.material,submission.outgoing);}catch(RuntimeException ambiguous){outcome=MailboxTransport.Outcome.UNKNOWN;}
-        String state=outcome.name();
+        MailboxTransport.Outcome outcome;String failure=null;
+        try{outcome=transport.send(submission.material,submission.outgoing);}
+        catch(MailSendRejection rejected){outcome=MailboxTransport.Outcome.FAILED;failure=rejected.code();}
+        catch(RuntimeException ambiguous){outcome=MailboxTransport.Outcome.UNKNOWN;}
+        String state=outcome.name(),failureCode=failure;
         try{
             // Always persist transport truth even if access was revoked during the already-authorized operation.
             access.tx.executeWithoutResult(s->{
-                repository.outcome(actor,account,id,submission.attempt,state);repository.audit(actor,account,submission.material.account().version(),"SEND_"+state);
+                repository.outcome(actor,account,id,submission.attempt,state,failureCode);repository.audit(actor,account,submission.material.account().version(),"SEND_"+state);
             });
             access.read(actor,account);return repository.get(actor,account,id).view();
         }finally{access.release(actor,account,submission.lease);}

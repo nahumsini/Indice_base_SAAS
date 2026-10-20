@@ -1559,6 +1559,25 @@ secciones autorizadas. Esta app de campo no incorpora administración de colabor
 publicación de comunicados, creación de actas, revisión de permisos, nómina ni configuración de RH.
 Las demás cards del Multikiosco permanecen independientes.
 
+La herramienta personal obtiene del servidor el horario vigente y la asignación de sede del
+colaborador vinculado y utiliza la misma resolución de ubicación que RH. Un horario abierto sin
+restricción de ubicación no se convierte en asistencia limitada a sedes por entrar desde el
+Multikiosco; conserva la política global existente. Una sede contractual vigente tiene prioridad,
+y los horarios que exigen una ubicación conservan esa restricción. Sin horario ni asignación
+vigentes se conserva la validación de ubicaciones activas de la compañía. El cliente no puede
+elegir ni alterar estas reglas mediante el payload. Se conservan foto, GPS e identidad de sesión,
+y los registros personales permanecen en su almacenamiento y proyección actuales.
+
+La captura del GPS no equivale a la aprobación del lugar de asistencia. La interfaz indica que
+obtuvo la ubicación; RH valida el radio cuando la política efectiva lo requiere. Cuando hay varias ubicaciones autorizadas y
+no se solicitó una específica, RH elige la más cercana **entre aquellas cuyo radio contiene al
+dispositivo**. La cercanía a otra sede de radio menor no debe impedir una asistencia válida. Una
+ubicación solicitada explícitamente conserva su restricción y no permite sustituirla por otra.
+Los rechazos por ubicación sin configurar, no permitida o fuera de radio utilizan códigos
+`ATTENDANCE_LOCATION_*` y mensajes de recuperación sin nombres internos, coordenadas ni tokens.
+Esta integración respeta la modalidad configurada por RH; no habilita asistencia abierta a
+usuarios sin esa regla ni amplía el conjunto de sedes autorizadas en modalidades restringidas.
+
 ### 24.4 Catálogo efectivo
 
 Una card aparece únicamente por la intersección de:

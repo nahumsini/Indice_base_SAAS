@@ -70,9 +70,9 @@ test('the authenticated top bar uses the solid blue product surface and white fo
   assert.match(headerSource, /<h1 className="[^"]*text-\[var\(--indice-brand-shell-foreground\)\]/);
   assert.match(headerSource, /HEADER_ACTION_BUTTON_CLASSES = '[^']*text-slate-50\/85/);
   assert.doesNotMatch(headerSource, hardcodedProductPalette);
-  assert.match(headerSource, /Sunrise className="[^"]*text-orange-300/);
-  assert.match(headerSource, /Sun className="[^"]*text-amber-300/);
-  assert.match(headerSource, /Moon className="[^"]*text-violet-200/);
+  // The approved header now uses the shared custom emoji artwork.
+  assert.match(headerSource, /<HeaderEmoji name="sun" className="size-6"/);
+  assert.match(headerSource, /<HeaderEmoji name="moon" className="size-6"/);
 });
 
 test('module-owned colors remain stable while system KPI controls use blue', () => {

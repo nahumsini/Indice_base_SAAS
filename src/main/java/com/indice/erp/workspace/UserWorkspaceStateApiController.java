@@ -36,7 +36,8 @@ public class UserWorkspaceStateApiController {
 
     @GetMapping("/{moduleKey}/{tabKey}")
     public ResponseEntity<?> get(HttpSession session, @PathVariable String moduleKey, @PathVariable String tabKey,
-        @RequestHeader(value="X-Learning-Actor",required=false) String expectedLearningActor) {
+        @RequestHeader(value="X-Learning-Actor",required=false) String expectedLearningActor,
+        @RequestHeader(value="X-Workspace-Actor",required=false) String expectedWorkspaceActor) {
         var context = tenantContextResolver.resolve(session);
         if (context.isEmpty()) {
             return unauthorized();
@@ -44,6 +45,7 @@ public class UserWorkspaceStateApiController {
         try {
             var actor = context.get();
             if(learningActorChanged(moduleKey,tabKey,expectedLearningActor,actor.company_id(),actor.user_id()))return learningActorConflict();
+            if(preferenceActorChanged(moduleKey,tabKey,expectedWorkspaceActor,actor.company_id(),actor.user_id()))return preferenceActorConflict(tabKey);
             return ResponseEntity.ok(workspaceStateService.get(actor.company_id(), actor.user_id(), moduleKey, tabKey));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
@@ -57,6 +59,7 @@ public class UserWorkspaceStateApiController {
         @PathVariable String moduleKey,
         @PathVariable String tabKey,
         @RequestHeader(value="X-Learning-Actor",required=false) String expectedLearningActor,
+        @RequestHeader(value="X-Workspace-Actor",required=false) String expectedWorkspaceActor,
         @RequestBody WorkspaceStateRequest request
     ) {
         var context = tenantContextResolver.resolve(session);
@@ -67,6 +70,7 @@ public class UserWorkspaceStateApiController {
             sessionCsrfService.requireCsrf(session, csrfToken);
             var actor = context.get();
             if(learningActorChanged(moduleKey,tabKey,expectedLearningActor,actor.company_id(),actor.user_id()))return learningActorConflict();
+            if(preferenceActorChanged(moduleKey,tabKey,expectedWorkspaceActor,actor.company_id(),actor.user_id()))return preferenceActorConflict(tabKey);
             return ResponseEntity.ok(workspaceStateService.save(
                 actor.company_id(), actor.user_id(), moduleKey, tabKey,
                 request == null ? null : request.state(),
@@ -75,6 +79,20 @@ public class UserWorkspaceStateApiController {
         } catch (IllegalArgumentException ex) {
             return invalidWrite(moduleKey,tabKey,ex);
         }
+    }
+
+    private boolean isActorScopedPreference(String module, String tab) {
+        return "system".equalsIgnoreCase(module.trim())
+            && ("business-currency".equalsIgnoreCase(tab.trim()) || "workbar-layout".equalsIgnoreCase(tab.trim()));
+    }
+
+    private boolean preferenceActorChanged(String module, String tab, String expected, long company, long user) {
+        return isActorScopedPreference(module, tab) && !(company + ":" + user).equals(expected);
+    }
+
+    private ResponseEntity<?> preferenceActorConflict(String tab) {
+        var code = "business-currency".equalsIgnoreCase(tab.trim()) ? "currency_actor_changed" : "workbar_actor_changed";
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code", code));
     }
 
     private boolean learningActorChanged(String module,String tab,String expected,long company,long user) {
@@ -90,7 +108,8 @@ public class UserWorkspaceStateApiController {
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @PathVariable String moduleKey,
         @PathVariable String tabKey,
-        @RequestHeader(value="X-Learning-Actor",required=false) String expectedLearningActor
+        @RequestHeader(value="X-Learning-Actor",required=false) String expectedLearningActor,
+        @RequestHeader(value="X-Workspace-Actor",required=false) String expectedWorkspaceActor
     ) {
         var context = tenantContextResolver.resolve(session);
         if (context.isEmpty()) {
@@ -100,6 +119,7 @@ public class UserWorkspaceStateApiController {
             sessionCsrfService.requireCsrf(session, csrfToken);
             var actor = context.get();
             if(learningActorChanged(moduleKey,tabKey,expectedLearningActor,actor.company_id(),actor.user_id()))return learningActorConflict();
+            if(preferenceActorChanged(moduleKey,tabKey,expectedWorkspaceActor,actor.company_id(),actor.user_id()))return preferenceActorConflict(tabKey);
             workspaceStateService.delete(actor.company_id(), actor.user_id(), moduleKey, tabKey);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
@@ -108,7 +128,7 @@ public class UserWorkspaceStateApiController {
     }
 
     private ResponseEntity<?> invalidWrite(String module,String tab,IllegalArgumentException failure) {
-        var status="system".equals(module)&&tab.startsWith("learning-view-")&&"Invalid CSRF token.".equals(failure.getMessage())
+        var status=(("system".equals(module)&&tab.startsWith("learning-view-")) || isActorScopedPreference(module, tab))&&"Invalid CSRF token.".equals(failure.getMessage())
             ? HttpStatus.FORBIDDEN : HttpStatus.BAD_REQUEST;
         return ResponseEntity.status(status).body(Map.of("message",failure.getMessage()));
     }

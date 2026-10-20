@@ -8,7 +8,7 @@ export const frCA = {
     management: 'Gestion',
     funnelingDescription: 'Planifiez les tunnels et les objectifs de campagne.',
     mailingDescription: 'Préparez et envoyez des campagnes par courriel.',
-    whatsappingDescription: 'En préparation : les envois ne sont pas encore disponibles.',
+    whatsappingDescription: 'Préparez des campagnes et assurez le suivi sur WhatsApp.',
   },
   loading: {
     openingTitle: 'Ouverture des ventes',

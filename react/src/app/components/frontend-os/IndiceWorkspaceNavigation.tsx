@@ -1,5 +1,8 @@
-import { Fragment, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { Fragment, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { Check } from 'lucide-react';
+import { ModuleTabEmoji } from '../icons/ModuleTabEmoji';
+import { IndiceHorizontalScrollControls } from '../ui/horizontal-scroll-controls';
+import { useMobileModuleNavigation } from './useMobileModuleNavigation';
 import {
   getModulePrimaryForeground,
   MODULE_COLORS,
@@ -22,7 +25,11 @@ type IndiceWorkspaceNavigationProps<TabId extends string> = {
   onValueChange: (value: TabId) => void;
   tone?: IndiceModuleTone;
   value: TabId;
-  variant?: 'sections' | 'views' | 'workflow';
+  variant?: 'sections' | 'views' | 'workflow' | 'workbar';
+  moduleId?: string;
+  orientation?: 'horizontal' | 'desktop-vertical' | 'vertical';
+  /** Compact rail for a workspace with an explicit expand control. Keeps accessible labels. */
+  iconOnly?: boolean;
 };
 
 const navigationKeyByDirection: Record<string, number> = {
@@ -33,12 +40,13 @@ const navigationKeyByDirection: Record<string, number> = {
 };
 
 /**
- * Canonical internal navigation for Indice workspaces.
+ * Canonical navigation for Indice workspaces.
  *
  * `sections` is the compact pill navigation used to move between sibling
  * views. `views` groups alternate views in an Agenda-style selector.
  * `workflow` makes sequence and context explicit without becoming a
  * wizard: every available step remains directly accessible.
+ * `workbar` places primary system sections in the shared pill slider.
  */
 export function IndiceWorkspaceNavigation<TabId extends string>({
   ariaLabel,
@@ -48,10 +56,16 @@ export function IndiceWorkspaceNavigation<TabId extends string>({
   tone = 'blue',
   value,
   variant = 'sections',
+  moduleId = '',
+  orientation = 'horizontal',
+  iconOnly = false,
 }: IndiceWorkspaceNavigationProps<TabId>) {
   const theme = MODULE_COLORS[tone];
   const activeForeground = getModulePrimaryForeground(tone);
   const activeIndex = items.findIndex((item) => item.id === value);
+  const railRef = useRef<HTMLElement>(null);
+  useMobileModuleNavigation(value, items.map(item => item.id).join('|'), variant === 'workbar' ? railRef : undefined);
+  const vertical = orientation === 'desktop-vertical';
 
   const handleKeyboardNavigation = (event: KeyboardEvent<HTMLElement>) => {
     const direction = navigationKeyByDirection[event.key];
@@ -138,6 +152,33 @@ export function IndiceWorkspaceNavigation<TabId extends string>({
           );
         })}
       </nav>
+    );
+  }
+
+  if (variant === 'workbar') {
+    return (
+      <div className="relative min-w-0 max-w-full" data-indice-workbar-navigation>
+        <nav ref={railRef} role="tablist" aria-label={ariaLabel} aria-orientation={orientation === 'vertical' ? 'vertical' : 'horizontal'}
+          data-indice-workspace-navigation="workbar" onKeyDown={handleKeyboardNavigation}
+          className={`flex flex-nowrap items-center gap-1.5 overflow-x-auto overscroll-x-contain snap-x snap-proximity pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${orientation === 'vertical' ? 'flex-col items-stretch overflow-visible' : vertical ? 'lg:flex-col lg:items-stretch lg:overflow-visible' : ''} ${className}`}>
+          {items.map((item, index) => {
+            const active = value === item.id;
+            return <Fragment key={item.id}>
+              {item.group && item.group !== items[index - 1]?.group ? <span role="presentation" className={iconOnly ? 'my-2 border-t border-slate-200 dark:border-slate-700' : `shrink-0 px-2 text-xs font-medium text-slate-400 dark:text-slate-500 ${vertical ? 'lg:pt-3' : ''}`}><span className={iconOnly ? 'sr-only' : undefined}>{item.group}</span></span> : null}
+              <button type="button" role="tab" aria-selected={active} aria-current={active ? 'page' : undefined}
+                aria-label={iconOnly ? item.label : undefined} title={iconOnly ? item.description ? `${item.label} · ${item.description}` : item.label : item.description}
+                tabIndex={active ? 0 : -1} disabled={item.disabled} data-state={active ? 'active' : 'inactive'}
+                onClick={() => onValueChange(item.id)}
+                className={`indice-workbar-tab inline-flex min-h-11 shrink-0 snap-start items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-45 md:min-h-9 sm:text-sm ${vertical ? 'lg:min-h-11 lg:w-full lg:justify-start lg:rounded-xl' : ''} ${active ? 'border-transparent shadow-sm' : `border-transparent bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 ${theme.iconHover}`}`}
+                style={active ? { backgroundColor: theme.primary, color: activeForeground } : undefined}>
+                <span aria-hidden="true" className="shrink-0"><ModuleTabEmoji moduleId={moduleId} tabId={item.id} fallback={item.icon} /></span>
+                <span className={iconOnly ? 'sr-only' : undefined}>{item.label}</span>
+              </button>
+            </Fragment>;
+          })}
+        </nav>
+        {orientation !== 'vertical' && <IndiceHorizontalScrollControls scrollRef={railRef} className={vertical ? 'lg:hidden' : undefined} />}
+      </div>
     );
   }
 

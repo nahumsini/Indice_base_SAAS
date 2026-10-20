@@ -1,3 +1,4 @@
+import { useWorkspaceNavigationMemory } from '../hooks/useWorkspaceNavigationMemory';
 import { useTrainingProgramCopy, trainingProgramText, trainingProgramNumber, type TrainingProgramCopy } from "./translations/program";
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -20,7 +21,10 @@ import {
   Workflow,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { IndiceTitleBar, IndiceWorkspaceNavigation } from '../components/frontend-os';
+import type { TrainingView } from './TrainingNavigation';
+import { getAdminWorkspaceCopy } from '../components/frontend-os/adminWorkspaceCopy';
+import { Button } from '../components/ui/button';
+import { IndiceTitleBar, IndiceFilterBar, IndiceFilterSearch, IndiceFilterSelect } from '../components/frontend-os';
 import { apiClient } from '../lib/apiClient';
 import { IndiceInduction } from './IndiceInduction';
 import { SalesProcess } from './SalesProcess';
@@ -300,9 +304,13 @@ export const getTrainingSessions = (copy: TrainingProgramCopy): TrainingSession[
   },
 ];
 
-export function TrainingWorkspace({ portal, locale: _locale }: { portal: TrainingPortal; locale?: string }) {
+export function TrainingWorkspace({ portal, locale: _locale, view, onViewChange: setView }: { portal: TrainingPortal; locale?: string; view: TrainingView; onViewChange: (view: TrainingView) => void }) {
   const navigate = useNavigate();
   const { copy, locale } = useTrainingProgramCopy();
+  const labels = getAdminWorkspaceCopy(locale);
+  const [query, setQuery] = useState('');
+  const [activityStatus, setActivityStatus] = useState('all');
+  const [loading, setLoading] = useState(true);
   const sessions = useMemo(() => getTrainingSessions(copy), [copy]);
   const basePath = portal === 'root' ? '/api/v1/platform-admin/training' : '/api/v1/distributor-portal/training';
   const [workspace, setWorkspace] = useState<TrainingWorkspaceResponse | null>(null);
@@ -310,9 +318,17 @@ export function TrainingWorkspace({ portal, locale: _locale }: { portal: Trainin
   const [activeSessionId, setActiveSessionId] = useState(sessions[0].id);
   const [savingItem, setSavingItem] = useState('');
   const [error, setError] = useState('');
-  const [view, setView] = useState<'home' | 'induction' | 'program' | 'sales'>('home');
 
+  useWorkspaceNavigationMemory({ moduleKey: 'training', tabKey: 'program',
+    state: { query, activityStatus, activeSessionId }, defaults: { query: '', activityStatus: 'all', activeSessionId: sessions[0].id }, rememberScroll: false,
+    onRestore: value => {
+      setQuery(typeof value.query === 'string' ? value.query : '');
+      setActivityStatus(['all', 'pending', 'completed'].includes(value.activityStatus) ? value.activityStatus : 'all');
+      setActiveSessionId(sessions.some(session => session.id === value.activeSessionId) ? value.activeSessionId : sessions[0].id);
+    },
+  });
   const load = async () => {
+    setLoading(true);
     setError('');
     try {
       const [nextWorkspace, nextExams] = await Promise.all([
@@ -323,6 +339,7 @@ export function TrainingWorkspace({ portal, locale: _locale }: { portal: Trainin
       setExamSummary(nextExams);
     }
     catch (reason) { setError(reason instanceof Error ? reason.message : copy.trainingCouldNotBeLoaded); }
+    finally { setLoading(false); }
   };
   const loadExamSummary = async () => setExamSummary(await apiClient<ExamSummaryResponse>(`${basePath}/exams`));
   useEffect(() => { void load(); }, [basePath]);
@@ -337,6 +354,10 @@ export function TrainingWorkspace({ portal, locale: _locale }: { portal: Trainin
   const totalCompleted = completedTasks + completedAssessments + (finalExamPassed ? 1 : 0);
   const totalRequirements = allItems.length + sessions.length + 1;
   const sessionCompleted = activeItems.filter((trainingItem) => completed.has(trainingItem.id)).length;
+  const visibleGroups = activeSession.groups.map(group => ({ ...group, items: group.items.filter(item =>
+    (activityStatus === 'all' || (activityStatus === 'completed' ? completed.has(item.id) : !completed.has(item.id))) &&
+    `${item.title} ${item.description}`.toLocaleLowerCase(locale).includes(query.trim().toLocaleLowerCase(locale))) })).filter(group => group.items.length > 0);
+  const hasFilters = Boolean(query.trim() || activityStatus !== 'all');
   const activeExam = examSummary?.modules.find((exam) => exam.code === activeSession.id);
   const assessmentPassed = Boolean(activeExam?.passed);
   const percentage = Math.round((totalCompleted / totalRequirements) * 100);
@@ -366,39 +387,30 @@ export function TrainingWorkspace({ portal, locale: _locale }: { portal: Trainin
       }));
       await loadExamSummary();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : copy.progressCouldNotBeSaved);
       await load();
+      setError(reason instanceof Error ? reason.message : copy.progressCouldNotBeSaved);
     } finally { setSavingItem(''); }
   };
 
   return (
     <div className="space-y-5" data-workspace="training">
       <IndiceTitleBar
-        tone="aqua"
+        tone="blue"
         icon={<GraduationCap className="h-5 w-5" />}
-        eyebrow={trainingProgramText(copy.indiceAcademyVersionP, { p0: workspace?.program_version ?? '2026.1' }, locale)}
-        title={portal === 'root' ? copy.trainingAndContent : copy.indiceAcademy}
+        title={view === 'home' ? (portal === 'root' ? copy.trainingAndContent : copy.indiceAcademy) : view === 'induction' ? copy.getToKnowIndice : view === 'program' ? copy.certificationPath : copy.salesProcess}
         subtitle={portal === 'root' ? copy.superviseTheProgramAndReviewTheSame : copy.getToKnowThePlatformPractiseIts}
-        actions={portal === 'distributor' ? <button type="button" onClick={continueProgram} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white hover:bg-[#126553]"><BookOpenCheck className="h-4 w-4" />{totalCompleted ? copy.continueLearning : copy.startLearning}</button> : undefined}
+        actions={<>
+          <Button type="button" variant="outline" className="h-11 rounded-xl" disabled={loading} onClick={() => void load()}><RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />{copy.refreshProgress}</Button>
+          {portal === 'distributor' && view !== 'program' && <Button type="button" disabled={!workspace} onClick={continueProgram} className="h-11 rounded-xl bg-blue-600 text-white hover:bg-blue-700"><BookOpenCheck className="h-4 w-4" />{totalCompleted ? copy.continueLearning : copy.startLearning}</Button>}
+        </>}
       />
 
-      <IndiceWorkspaceNavigation<'home' | 'induction' | 'program' | 'sales'>
-        ariaLabel={copy.trainingNavigation}
-        tone="aqua"
-        value={view}
-        onValueChange={setView}
-        items={[
-          { id: 'home', label: copy.home, icon: <LayoutDashboard /> },
-          { id: 'induction', label: copy.getToKnowIndice, description: copy.indiceInduction, icon: <Globe2 /> },
-          { id: 'program', label: copy.certificationPath, icon: <BookOpenCheck /> },
-          { id: 'sales', label: copy.salesProcess, description: copy.salesMethodForDistributors, icon: <BriefcaseBusiness /> },
-        ]}
-        className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-700 dark:bg-slate-900"
-      />
 
       {error ? <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
-      {view === 'home' ? <AcademyHome
+      {workspace && <p className="text-xs text-slate-500 dark:text-slate-400">{trainingProgramText(copy.indiceAcademyVersionP, { p0: workspace.program_version }, locale)}</p>}
+      {loading && !workspace && <div aria-busy="true" className="grid min-h-40 place-items-center"><LoaderCircle className="h-6 w-6 animate-spin text-blue-600" /></div>}
+      {view === 'home' && workspace ? <AcademyHome
         portal={portal}
         percentage={percentage}
         completed={totalCompleted}
@@ -414,10 +426,10 @@ export function TrainingWorkspace({ portal, locale: _locale }: { portal: Trainin
 
       {view === 'sales' ? <SalesProcess basePath={basePath} /> : null}
 
-      {view === 'program' ? <>
+      {view === 'program' && workspace ? <>
 
-      <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="h-fit rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900 xl:sticky xl:top-36">
+      <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="min-w-0 h-fit rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900 xl:sticky xl:top-36">
           <p className="px-3 pb-2 pt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{copy.certificationStages}</p>
           <div className="space-y-1.5">{sessions.map((session) => {
             const sessionItems = session.groups.flatMap((group) => group.items);
@@ -425,7 +437,7 @@ export function TrainingWorkspace({ portal, locale: _locale }: { portal: Trainin
             const done = sessionItems.filter((trainingItem) => completed.has(trainingItem.id)).length + (stageValidated ? 1 : 0);
             const active = session.id === activeSession.id;
             const Icon = session.icon;
-            return <button key={session.id} type="button" onClick={() => setActiveSessionId(session.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left outline-none transition focus-visible:ring-2 focus-visible:ring-[#59C3A5] ${active ? 'bg-[#177D66] text-white shadow-sm' : 'text-slate-700 hover:bg-[#59C3A5]/5 dark:text-slate-300 dark:hover:bg-slate-800'}`}><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: active ? 'rgba(255,255,255,.16)' : `${session.accent}18`, color: active ? 'white' : session.accent }}>{stageValidated ? <ShieldCheck className="h-4 w-4" /> : <Icon className="h-4 w-4" />}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{trainingProgramNumber(session.number, locale)}. {session.title}</span><span className={`mt-0.5 block text-xs ${active ? 'text-white/75' : 'text-slate-500 dark:text-slate-400'}`}>{stageValidated ? copy.competencyValidated : trainingProgramText(copy.pOfPRequirements, { p0: done, p1: sessionItems.length + 1 }, locale)}</span></span><ChevronRight className="h-4 w-4 shrink-0 opacity-60" /></button>;
+            return <button key={session.id} type="button" aria-pressed={active} onClick={() => setActiveSessionId(session.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left outline-none transition focus-visible:ring-2 focus-visible:ring-blue-500 ${active ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-700 hover:bg-[#59C3A5]/5 dark:text-slate-300 dark:hover:bg-slate-800'}`}><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: active ? 'rgba(255,255,255,.16)' : `${session.accent}18`, color: active ? 'white' : session.accent }}>{stageValidated ? <ShieldCheck className="h-4 w-4" /> : <Icon className="h-4 w-4" />}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{trainingProgramNumber(session.number, locale)}. {session.title}</span><span className={`mt-0.5 block text-xs ${active ? 'text-white/75' : 'text-slate-500 dark:text-slate-400'}`}>{stageValidated ? copy.competencyValidated : trainingProgramText(copy.pOfPRequirements, { p0: done, p1: sessionItems.length + 1 }, locale)}</span></span><ChevronRight className="h-4 w-4 shrink-0 opacity-60" /></button>;
           })}</div>
         </aside>
 
@@ -441,15 +453,20 @@ export function TrainingWorkspace({ portal, locale: _locale }: { portal: Trainin
 
           {activeSession.id === 'comercial' ? <div className="flex gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900"><Sparkles className="mt-0.5 h-5 w-5 shrink-0" /><p><strong>{copy.theHeartOfIndice}</strong> {copy.weOfferMoreThanAToolWe}</p></div> : null}
 
-          {activeSession.groups.map((group) => <div key={group.title} className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"><div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800"><h4 className="font-medium text-slate-950 dark:text-white">{group.title}</h4></div><div className="divide-y divide-slate-100 dark:divide-slate-800">{group.items.map((trainingItem) => {
+          <IndiceFilterBar title={labels.filters} summary={hasFilters ? <Button type="button" variant="outline" onClick={() => { setQuery(''); setActivityStatus('all'); }}>{labels.clear}</Button> : undefined}>
+            <IndiceFilterSearch tone="blue" label={labels.searchActivities} placeholder={labels.searchActivities} value={query} onValueChange={setQuery} onClear={() => setQuery('')} />
+            <IndiceFilterSelect tone="blue" label={labels.status} value={activityStatus} onValueChange={setActivityStatus} options={[{ value: 'all', label: labels.all }, { value: 'pending', label: labels.pending }, { value: 'completed', label: labels.completed }]} />
+          </IndiceFilterBar>
+          {!visibleGroups.length && <div role="status" className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"><p className="font-medium">{labels.noResults}</p><p className="mt-1">{labels.adjustFilters}</p></div>}
+          {visibleGroups.map((group) => <div key={group.title} className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"><div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800"><h4 className="font-medium text-slate-950 dark:text-white">{group.title}</h4></div><div className="divide-y divide-slate-100 dark:divide-slate-800">{group.items.map((trainingItem) => {
             const checked = completed.has(trainingItem.id);
             const saving = savingItem === trainingItem.id;
-            return <div key={trainingItem.id} className={`flex gap-4 p-5 transition ${checked ? 'bg-emerald-50/40 dark:bg-emerald-950/15' : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/60'}`}><button type="button" aria-label={trainingProgramText(copy.pP, { p0: checked ? copy.markPending : copy.markLearned, p1: trainingItem.title }, locale)} aria-pressed={checked} disabled={saving || !workspace} onClick={() => void toggle(trainingItem)} className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg border outline-none transition focus-visible:ring-2 focus-visible:ring-[#59C3A5] ${checked ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300 bg-white text-transparent hover:border-[#59C3A5] dark:border-slate-600 dark:bg-slate-800'} disabled:opacity-50`}>{saving ? <LoaderCircle className="h-3.5 w-3.5 animate-spin text-current" /> : <Check className="h-4 w-4" />}</button><div className="min-w-0 flex-1"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className={`text-sm font-medium ${checked ? 'text-emerald-900 dark:text-emerald-200' : 'text-slate-900 dark:text-white'}`}>{trainingItem.title}</p><p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{trainingItem.description}</p></div>{trainingItem.route ? <button type="button" onClick={() => navigate(trainingItem.route!)} className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300"><ExternalLink className="h-3.5 w-3.5" />{copy.openInIndice}</button> : null}</div></div></div>;
+            return <div key={trainingItem.id} className={`flex gap-4 p-5 transition ${checked ? 'bg-emerald-50/40 dark:bg-emerald-950/15' : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/60'}`}><button type="button" aria-label={trainingProgramText(copy.pP, { p0: checked ? copy.markPending : copy.markLearned, p1: trainingItem.title }, locale)} aria-pressed={checked} disabled={saving || !workspace} onClick={() => void toggle(trainingItem)} className={`mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-lg border outline-none transition focus-visible:ring-2 focus-visible:ring-blue-500 ${checked ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300 bg-white text-transparent hover:border-[#59C3A5] dark:border-slate-600 dark:bg-slate-800'} disabled:opacity-50`}>{saving ? <LoaderCircle className="h-3.5 w-3.5 animate-spin text-current" /> : <Check className="h-4 w-4" />}</button><div className="min-w-0 flex-1"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className={`text-sm font-medium ${checked ? 'text-emerald-900 dark:text-emerald-200' : 'text-slate-900 dark:text-white'}`}>{trainingItem.title}</p><p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{trainingItem.description}</p></div>{trainingItem.route ? <button type="button" onClick={() => navigate(trainingItem.route!)} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300"><ExternalLink className="h-3.5 w-3.5" />{copy.openInIndice}</button> : null}</div></div></div>;
           })}</div></div>)}
 
           {activeExam ? <TrainingExamPanel basePath={basePath} exam={activeExam} title={trainingProgramText(copy.assessmentP, { p0: activeSession.title }, locale)} onChanged={loadExamSummary} /> : <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500">{copy.preparingThisStageSAssessment}</div>}
 
-          <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-3"><BookOpenCheck className="h-5 w-5 text-blue-600" /><p className="text-sm text-slate-600 dark:text-slate-300">{copy.practicePreparesYouForTheStageOnly}</p></div><button type="button" onClick={() => void load()} className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"><RefreshCw className="h-4 w-4" />{copy.refreshProgress}</button></div>
+          <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-3"><BookOpenCheck className="h-5 w-5 text-blue-600" /><p className="text-sm text-slate-600 dark:text-slate-300">{copy.practicePreparesYouForTheStageOnly}</p></div></div>
         </section>
       </div>
       {examSummary ? <div className="mt-5 space-y-4">
@@ -494,14 +511,14 @@ function AcademyHome({
             <h3 className="mt-1 text-2xl font-medium text-slate-950 dark:text-white">{nextItem ? nextSession.title : copy.programCompleted}</h3>
             <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{nextItem?.title ?? copy.youHaveCompletedAllPracticalProgramActivities}</p>
             {nextItem ? <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{nextItem.description}</p> : null}
-            <button type="button" onClick={onContinue} className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white hover:bg-[#126553]"><BookOpenCheck className="h-4 w-4" />{completed ? copy.continueWhereILeftOff : copy.startTheProgram}</button>
+            <button type="button" onClick={onContinue} className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700"><BookOpenCheck className="h-4 w-4" />{completed ? copy.continueWhereILeftOff : copy.startTheProgram}</button>
           </div>
         </div>
       </article>
 
       <article className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="flex items-end justify-between"><div><p className="text-xs font-medium uppercase tracking-wide text-slate-500">{copy.practicalMastery}</p><p className="mt-1 text-4xl font-medium text-slate-950 dark:text-white">{new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0 }).format(percentage / 100)}</p></div><p className="text-sm font-medium text-slate-600 dark:text-slate-300">{trainingProgramText(copy.pOfPRequirements, { p0: completed, p1: total }, locale)}</p></div>
-        <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-[#59C3A5] transition-all" style={{ width: `${new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0 }).format(percentage / 100)}` }} /></div>
+        <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-[#59C3A5] transition-all" style={{ width: `${percentage}%` }} /></div>
         <p className="mt-4 text-sm leading-6 text-slate-500 dark:text-slate-400">{copy.thisPercentageRepresentsFunctionsYouUnderstandAnd}</p>
       </article>
     </section>

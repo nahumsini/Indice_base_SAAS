@@ -23,9 +23,11 @@ public class FunnelController {
     private final ModuleAccessService modules;
     private final TabPermissionAccessService tabs;
     private final FunnelService service;
+    private final ContentCalendarService calendar;
     public FunnelController(SessionAuthService auth, SessionCsrfService csrf, ModuleAccessService modules,
-        TabPermissionAccessService tabs, FunnelService service) {
+        TabPermissionAccessService tabs, FunnelService service, ContentCalendarService calendar) {
         this.auth = auth; this.csrf = csrf; this.modules = modules; this.tabs = tabs; this.service = service;
+        this.calendar = calendar;
     }
 
     private AuthSessionUser actor(HttpSession session, String token, boolean write) {
@@ -56,5 +58,17 @@ public class FunnelController {
     public Plan save(HttpSession session, @RequestHeader(name = "X-CSRF-Token", required = false) String token,
         @PathVariable String id, @Valid @RequestBody PlanInput input) {
         return service.save(actor(session, token, true), id, input);
+    }
+
+    @GetMapping("/{id}/content-calendar")
+    public ContentCalendarContracts.Calendar calendar(HttpSession session, @PathVariable String id) {
+        return calendar.get(actor(session, null, false), id);
+    }
+    @PutMapping("/{id}/content-calendar")
+    public ContentCalendarContracts.Calendar saveCalendar(HttpSession session, @PathVariable String id,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String token,
+        @RequestHeader(name = "X-Content-Calendar-Actor", required = false) String expectedActor,
+        @Valid @RequestBody ContentCalendarContracts.Input input) {
+        return calendar.save(actor(session, token, true), id, expectedActor, input);
     }
 }

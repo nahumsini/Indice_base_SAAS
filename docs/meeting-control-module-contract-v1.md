@@ -202,3 +202,24 @@ Original minutes/decisions, native task ownership and independent completion rem
 printing is an operational copy bounded by the disclosed 100-entry audit history. Attachments,
 external invitations and provider calendar synchronization remain deferred. Production deployment
 and live entitlement changes: N/A; this delivery does not promote the pilot to released status.
+
+
+## Operational presentation refinement — 2026-10-19
+
+Daily navigation remains Juntas → Acuerdos → Indicadores: planning, commitments, then analysis.
+Each tab has its own operational subtitle, shared blue title bar and white filter card. Juntas
+keeps search, date range and status visible; coordinator and needs-attention filters use the
+shared More filters disclosure. Restored active secondary values remain visible and editable.
+
+Acuerdos consolidates all-open, all-overdue and period selection in its filter card. All-open and
+all-overdue omit unused date inputs and the redundant open-status selector; a conflicting explicit
+status remains visible for correction. Meeting-specific scope and previous-series commitments
+retain their independent behavior. Due dates visibly identify open overdue agreements using the
+same device timezone supplied to the API. No alert completes or changes a record.
+
+Calendar supports Day/Week/Month, Today, previous/next and explicit custom ranges. A cell previews
+up to three meetings; its remaining count opens the complete loaded day list with time, owner,
+participants and status. The existing bounded-calendar warning remains authoritative. Meeting
+names in the table open the same detail workflow as View. Ascending/descending server sorting,
+resizing, planning/series, delegated minutes, agreements, reminders, evidence and task links keep
+their existing owner contracts. These are presentation changes; no new endpoints or migrations.

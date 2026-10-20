@@ -16,7 +16,11 @@ public class JakartaMailboxTransport implements MailboxTransport {
     /** Injection seam is package-private and has no runtime setting that weakens TLS/destination policy. */
     static class Connections {
         Session smtp(ConnectionMaterial material)throws Exception {
-            var a=material.account();return EmailConnectionFactory.session("SMTP",a.smtpHost(),a.smtpPort(),a.smtpSecurity());
+            var a=material.account();var session=EmailConnectionFactory.session("SMTP",a.smtpHost(),a.smtpPort(),a.smtpSecurity());
+            // Real submission can include provider filtering; connection probes retain their short timeout.
+            session.getProperties().setProperty("mail.smtp.timeout","60000");
+            session.getProperties().setProperty("mail.smtp.writetimeout","60000");
+            return session;
         }
         Store receive(ConnectionMaterial material)throws Exception {
             var a=material.account();var session=EmailConnectionFactory.session("IMAP",a.receiveHost(),a.receivePort(),"TLS");
@@ -31,12 +35,26 @@ public class JakartaMailboxTransport implements MailboxTransport {
             for(var folder:store.getDefaultFolder().list("*")) {
                 if(result.size()>=100)break;
                 if((folder.getType()&Folder.HOLDS_MESSAGES)==0||folder.getFullName().length()>512)continue;
-                String kind=folder.getFullName().equalsIgnoreCase("INBOX")?"INBOX":"CUSTOM";
-                if(folder instanceof IMAPFolder imap)for(String attribute:imap.getAttributes())kind=switch(attribute.toLowerCase(Locale.ROOT)){
-                    case "\\sent"->"SENT";case "\\drafts"->"DRAFTS";case "\\trash"->"TRASH";case "\\archive"->"ARCHIVE";case "\\junk"->"JUNK";default->kind;};
-                result.add(new FolderInfo(folder.getFullName(),kind));
+                result.add(folderInfo(folder));
             }
             return result;
+        }catch(Exception e){throw failure(e);}
+    }
+    private FolderInfo folderInfo(Folder folder)throws MessagingException {
+        String kind=folder.getFullName().equalsIgnoreCase("INBOX")?"INBOX":"CUSTOM";
+        if(folder instanceof IMAPFolder imap)for(String attribute:imap.getAttributes())kind=switch(attribute.toLowerCase(Locale.ROOT)){
+            case "\\sent"->"SENT";case "\\drafts"->"DRAFTS";case "\\trash"->"TRASH";case "\\archive"->"ARCHIVE";case "\\junk"->"JUNK";default->kind;};
+        return new FolderInfo(folder.getFullName(),kind);
+    }
+    @Override public FolderInfo createFolder(ConnectionMaterial material,String name) {
+        try(var store=connections.receive(material)) {
+            var namespaces=store.getPersonalNamespaces();
+            var root=namespaces.length>0?namespaces[0]:store.getDefaultFolder();
+            var folder=root.getFolder(name);
+            // Same name is idempotent if CREATE succeeded but its response was lost.
+            if(!folder.exists()&&!folder.create(Folder.HOLDS_MESSAGES))throw new Failure("email_folder_create_failed");
+            if((folder.getType()&Folder.HOLDS_MESSAGES)==0)throw new Failure("email_folder_create_failed");
+            return folderInfo(folder);
         }catch(Exception e){throw failure(e);}
     }
     @Override public Batch sync(ConnectionMaterial material,Cursor cursor,boolean older,long[] knownUids) {
@@ -111,8 +129,10 @@ public class JakartaMailboxTransport implements MailboxTransport {
             transport=session.getTransport("smtp");transport.connect(a.smtpHost(),a.smtpPort(),a.smtpUsername(),material.password());
             submissionStarted=true;transport.sendMessage(message,envelope);return Outcome.ACCEPTED;
         }catch(Exception e){
-            // After DATA starts an error can mean accepted but acknowledgement lost. Never automatically retry.
-            return submissionStarted?Outcome.UNKNOWN:Outcome.FAILED;
+            var rejection=MailSendRejection.classify(e,submissionStarted);
+            if(rejection!=null)throw rejection;
+            // Missing DATA acknowledgement or partial delivery remains uncertain. Never retry automatically.
+            return Outcome.UNKNOWN;
         }finally{if(transport!=null)try{transport.close();}catch(Exception ignored){ }}
     }
     private MimeMessage mime(Session session,ConnectionMaterial material,Outgoing outgoing) throws Exception {

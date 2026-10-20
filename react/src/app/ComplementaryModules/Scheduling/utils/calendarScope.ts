@@ -13,3 +13,11 @@ export function calendarDates(from: string, to: string): Date[] {
   while (date <= end) { if (values.length >= 42) throw new Error('Calendar range exceeds 42 days'); values.push(new Date(date)); date.setDate(date.getDate() + 1); }
   return values;
 }
+
+/** Use the displayed calendar dates without depending on Intl.formatRange support. */
+export function calendarRangeLabel(from: string, to: string, locale: string): string {
+  dateScope(from, to);
+  const formatter = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' });
+  const start = formatter.format(new Date(`${from}T12:00:00`));
+  return from === to ? start : `${start} — ${formatter.format(new Date(`${to}T12:00:00`))}`;
+}

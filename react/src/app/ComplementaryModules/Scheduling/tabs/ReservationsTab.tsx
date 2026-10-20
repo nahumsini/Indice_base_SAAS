@@ -19,7 +19,8 @@ import { ReservationsCalendar } from '../components/ReservationsCalendar';
 import { PublicAgendaModal } from '../components/PublicAgendaModal';
 import { AgendaConfigurationModal, type AgendaConfigurationSection } from '../components/AgendaConfigurationModal';
 import { dateInput, dateScope } from '../utils/dateScope';
-import { calendarDates, calendarPeriod, type CalendarPeriod } from '../utils/calendarScope';
+import { calendarDates, calendarPeriod, calendarRangeLabel, type CalendarPeriod } from '../utils/calendarScope';
+import { getSchedulingExperienceCopy } from '../translations/schedulingExperienceCopy';
 import { schedulingEmoji, schedulingTone } from '../utils/schedulingIdentity';
 const statuses = ['REQUESTED','CONFIRMED','COMPLETED','NO_SHOW','CANCELLED','PAUSED'] as const;
 export default function ReservationsTab({ mode, copy, locale, canRead = true, canCapture, canConfigure = false, administrator = false }: {
@@ -37,7 +38,8 @@ export default function ReservationsTab({ mode, copy, locale, canRead = true, ca
   const [anchor,setAnchor]=useState(today);
   const [page,setPage]=useState(1),[size,setSize]=useState(25),[includeArchived,setIncludeArchived]=useState(false);
   const [advancedOpen,setAdvancedOpen]=useState(false);
-  const filterCopy=useIndiceFilterDisclosureCopy();
+  const filterCopy=useIndiceFilterDisclosureCopy(), experience=getSchedulingExperienceCopy(locale);
+  const presetMatches=(()=>{try{const range=calendarPeriod(from,period);return range.from===from&&range.to===to;}catch{return false;}})();
   useEffect(()=>{if(includeArchived)setAdvancedOpen(true);},[includeArchived]);
   const [capture,setCapture]=useState(false),[review,setReview]=useState<Reservation|null>(null),[publicOpen,setPublicOpen]=useState(false);
   const requested = useSchedulingQuery(useCallback(signal => canRead && requestedId ? schedulingApi.reservation(requestedId, signal) : Promise.resolve(undefined), [canRead, requestedId]));
@@ -63,7 +65,7 @@ export default function ReservationsTab({ mode, copy, locale, canRead = true, ca
   const resize=useCallback((id:ReservationColumn,width:number)=>setWidths(previous=>({...previous,[id]:width})),[]);
   const refresh=()=>{table.reload();calendar.reload();options.reload();};
   const applyPeriod=(value:CalendarPeriod,date=anchor)=>{const range=calendarPeriod(date,value);setAnchor(date);setPeriod(value);setFrom(range.from);setTo(range.to);setPage(1);};
-  const move=(offset:number)=>{const date=new Date(`${from}T12:00:00`);if(period==='month')date.setMonth(date.getMonth()+offset,1);else date.setDate(date.getDate()+offset*(period==='week'?7:1));applyPeriod(period,dateInput(date));};
+  const move=(offset:number)=>{if(!presetMatches){const count=calendarDates(from,to).length;const start=new Date(`${from}T12:00:00`),end=new Date(`${to}T12:00:00`);start.setDate(start.getDate()+offset*count);end.setDate(end.getDate()+offset*count);setFrom(dateInput(start));setTo(dateInput(end));setAnchor(dateInput(start));setPage(1);return;}const date=new Date(`${from}T12:00:00`);if(period==='month')date.setMonth(date.getMonth()+offset,1);else date.setDate(date.getDate()+offset*(period==='week'?7:1));applyPeriod(period,dateInput(date));};
   const query=view==='calendar'?calendar:table;
   const titleActions=[
     ...(canCapture?[{id:'new',label:copy.newReservation,icon:<Plus className="h-4 w-4"/>,onSelect:()=>setCapture(true),primary:true}]:[]),
@@ -104,8 +106,8 @@ export default function ReservationsTab({ mode, copy, locale, canRead = true, ca
     </IndiceFilterBar>
     <p className="text-xs text-slate-500 dark:text-slate-400">{copy.timezone}: {Intl.DateTimeFormat().resolvedOptions().timeZone}</p>
     {options.error&&<Feedback error>{copy.error}</Feedback>}
-    {view==='calendar'&&<div className="flex flex-wrap items-center justify-between gap-3"><div className="flex flex-wrap gap-2">{(['day','week','month'] as const).map(value=><ActionButton key={value} aria-pressed={period===value} primary={period===value} onClick={()=>applyPeriod(value)}>{copy[value]}</ActionButton>)}</div>
-      <div className="flex gap-2"><ActionButton aria-label={copy.back} onClick={()=>move(-1)}><ChevronLeft className="h-4 w-4"/></ActionButton><ActionButton onClick={()=>applyPeriod(period,today)}>{copy.today}</ActionButton><ActionButton aria-label={copy.next} onClick={()=>move(1)}><ChevronRight className="h-4 w-4"/></ActionButton></div></div>}
+    {view==='calendar'&&<div className="flex flex-wrap items-center justify-between gap-3"><div className="flex flex-wrap gap-2">{(['day','week','month'] as const).map(value=><ActionButton key={value} aria-pressed={presetMatches&&period===value} primary={presetMatches&&period===value} onClick={()=>applyPeriod(value)}>{copy[value]}</ActionButton>)}</div>
+      <p className="text-sm text-slate-600 dark:text-slate-300">{!presetMatches&&`${experience.customRange} · `}{validCalendar?calendarRangeLabel(from,to,locale):`${from} — ${to}`}</p><div className="flex gap-2"><ActionButton aria-label={experience.previousPeriod} disabled={!validCalendar} onClick={()=>move(-1)}><ChevronLeft className="h-4 w-4"/></ActionButton><ActionButton onClick={()=>applyPeriod(period,today)}>{copy.today}</ActionButton><ActionButton aria-label={experience.nextPeriod} disabled={!validCalendar} onClick={()=>move(1)}><ChevronRight className="h-4 w-4"/></ActionButton></div></div>}
     {view==='calendar'&&!validCalendar?<Feedback>{copy.calendarRangeHint}</Feedback>:query.loading?<Feedback>{copy.loading}</Feedback>:query.error?<Feedback error>{copy.error}<ActionButton onClick={refresh}>{copy.retry}</ActionButton></Feedback>:view==='calendar'&&calendar.data?
       <ReservationsCalendar workspace={calendar.data} from={from} to={to} copy={copy} locale={locale} selectedDate={anchor} onSelectDate={setAnchor} onReview={setReview}/>:
       view==='table'&&table.data&&<ReservationsTable data={table.data} columns={columns} copy={copy} locale={locale} page={page} size={size} administrator={administrator} canManage={canCapture} onPage={setPage}

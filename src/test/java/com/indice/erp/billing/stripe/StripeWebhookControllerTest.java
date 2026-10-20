@@ -18,6 +18,9 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(StripeWebhookController.class)
 class StripeWebhookControllerTest {
 
+    @org.springframework.boot.test.mock.mockito.MockBean
+    private com.indice.erp.learning.LearningAppliedAdvice learningAppliedAdvice;
+
     @Autowired
     private MockMvc mockMvc;
 

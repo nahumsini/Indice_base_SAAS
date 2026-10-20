@@ -1,5 +1,6 @@
+import { basicNotificationDescription } from './basicNotificationCatalog';
 import { HeaderEmoji } from '../icons/HeaderEmoji';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import type { AppNotification } from '../../api/notifications';
 import { useLanguage } from '../../shared/context';
 import { Badge } from '../ui/badge';
@@ -19,6 +20,7 @@ import {
   getNotificationPriority,
   type NotificationPriority,
 } from './notificationCatalog';
+import { notificationFlowCopy } from './notificationFlowCopy';
 import { getNotificationCenterCopy } from './notificationCenterCopy';
 
 interface NotificationMenuProps {
@@ -27,6 +29,11 @@ interface NotificationMenuProps {
   unreadCount: number;
   loading: boolean;
   error: string;
+  refreshing?: boolean;
+  actionError?: string;
+  busy?: boolean;
+  onRefresh: () => void;
+  onRetryAction: () => void;
   onOpenChange: (open: boolean) => void;
   onOpenAll: () => void;
   onOpenItem: (notification: AppNotification) => void;
@@ -37,13 +44,18 @@ export function NotificationMenu({
   items,
   unreadCount,
   loading,
-  error,
+  error, refreshing = false, actionError = '', busy = false, onRefresh, onRetryAction,
   onOpenChange,
   onOpenAll,
   onOpenItem,
 }: NotificationMenuProps) {
   const { currentLanguage } = useLanguage();
   const copy = getNotificationCenterCopy(currentLanguage.code);
+  const flow = notificationFlowCopy(currentLanguage.code);
+  const feedback = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (open && actionError) feedback.current?.scrollIntoView({ block: 'nearest' });
+  }, [open, actionError]);
   const previewItems = getPreviewItems(items);
 
   return (
@@ -53,23 +65,24 @@ export function NotificationMenu({
           variant="ghost"
           size="icon"
           className={`relative h-11 w-11 sm:h-10 sm:w-10 rounded-full border text-slate-50/85 transition-all hover:border-white/35 hover:bg-white/15 hover:text-slate-50 dark:text-slate-50/85 dark:hover:border-white/35 dark:hover:bg-white/15 dark:hover:text-slate-50 ${open ? 'border-white/50 bg-white/20 dark:bg-white/20' : 'border-transparent'}`}
-          aria-label={copy.previewTitle}
+          aria-label={`${copy.previewTitle}${unreadCount > 0 ? ` (${unreadCount} ${copy.unread.toLowerCase()})` : ''}`}
           aria-expanded={open}
           title={copy.previewTitle}
         >
           <HeaderEmoji name="notifications" />
           {unreadCount > 0 && (
             <Badge className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center bg-red-500 p-0 text-[10px] hover:bg-red-500 sm:h-5 sm:w-5 sm:text-xs">
-              {unreadCount}
+              {unreadCount > 99 ? '99+' : unreadCount}
             </Badge>
           )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-[var(--indice-brand-primary)]/35 bg-white p-0 shadow-[0_24px_60px_rgba(34,40,49,0.18)] dark:border-[var(--indice-brand-primary)]/30 dark:bg-[#222831] sm:w-[26rem]"
+        collisionPadding={8}
+        className="flex max-h-[min(36rem,var(--radix-dropdown-menu-content-available-height))] flex-col w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-[var(--indice-brand-primary)]/35 bg-white p-0 shadow-[0_24px_60px_rgba(34,40,49,0.18)] dark:border-[var(--indice-brand-primary)]/30 dark:bg-[#222831] sm:w-[26rem]"
       >
-        <div className="border-b border-[var(--indice-brand-primary-hover)] bg-[var(--indice-brand-primary)] p-4">
+        <div className="shrink-0 border-b border-[var(--indice-brand-primary-hover)] bg-[var(--indice-brand-primary)] p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h3 className="text-base font-bold text-white">{copy.previewTitle}</h3>
@@ -81,27 +94,30 @@ export function NotificationMenu({
             )}
           </div>
         </div>
-        <div className="max-h-[420px] overflow-y-auto overflow-x-hidden bg-white dark:bg-[#222831]">
-          {loading && <p className="p-4 text-sm text-gray-500">{copy.loading}</p>}
-          {!loading && error && <p className="p-4 text-sm text-red-600">{error}</p>}
+        <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto overflow-x-hidden bg-white dark:bg-[#222831]">
+          {loading && <p role="status" className="p-4 text-sm text-gray-500 dark:text-gray-300">{copy.loading}</p>}
+          {!loading && refreshing && <p role="status" className="sr-only">{flow.updating}</p>}
+          {actionError && <div ref={feedback} role="alert" className="p-3 text-sm text-red-700 dark:text-red-200"><p>{actionError}</p><button type="button" disabled={busy} onClick={onRetryAction} className="min-h-11 px-2 font-semibold underline">{flow.retry}</button></div>}
+          {!loading && error && <div role="alert" className="p-3 text-sm text-red-700 dark:text-red-200"><p>{error}</p><button type="button" disabled={refreshing} onClick={onRefresh} className="min-h-11 px-2 font-semibold underline">{copy.retry}</button></div>}
           {!loading && !error && previewItems.length === 0 && (
             <p className="p-4 text-sm text-gray-500">{copy.previewEmpty}</p>
           )}
-          {!loading && !error && previewItems.map((notification, index) => (
+          {!loading && previewItems.map((notification, index) => (
             <NotificationPreviewItem
               key={notification.id}
               notification={notification}
               locale={currentLanguage.code}
               onOpenItem={onOpenItem}
+              busy={busy}
             >
               {index < previewItems.length - 1 && <DropdownMenuSeparator className="mx-0 my-0" />}
             </NotificationPreviewItem>
           ))}
         </div>
-        <div className="border-t border-[var(--indice-brand-primary)]/25 bg-[var(--indice-brand-soft)] p-3 dark:border-[var(--indice-brand-primary)]/25 dark:bg-[var(--indice-brand-primary)]/10">
+        <div className="shrink-0 border-t border-[var(--indice-brand-primary)]/25 bg-[var(--indice-brand-soft)] p-3 dark:border-[var(--indice-brand-primary)]/25 dark:bg-[var(--indice-brand-primary)]/10">
           <button
             onClick={onOpenAll}
-            className="w-full rounded-xl px-3 py-2 text-center text-sm font-semibold text-[var(--indice-brand-text)] transition-colors hover:bg-white/70 hover:text-[var(--indice-brand-primary-deep)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-primary)] dark:text-[var(--indice-brand-text-dark)] dark:hover:bg-white/10 dark:hover:text-white"
+            className="min-h-11 w-full rounded-xl px-3 py-2 text-center text-sm font-semibold text-[var(--indice-brand-text)] transition-colors hover:bg-white/70 hover:text-[var(--indice-brand-primary-deep)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-primary)] dark:text-[var(--indice-brand-text-dark)] dark:hover:bg-white/10 dark:hover:text-white"
           >
             {copy.previewAll}
           </button>
@@ -115,12 +131,13 @@ function NotificationPreviewItem({
   notification,
   locale,
   onOpenItem,
-  children,
+  children, busy,
 }: {
   notification: AppNotification;
   locale: string;
   onOpenItem: (notification: AppNotification) => void;
   children: ReactNode;
+  busy: boolean;
 }) {
   const moduleMeta = getNotificationModule(notification, locale);
   const colorClasses = getModuleColorClasses(moduleMeta.color);
@@ -130,7 +147,8 @@ function NotificationPreviewItem({
     <div>
       <DropdownMenuItem
         className="cursor-pointer p-4 hover:bg-[var(--indice-brand-soft)]/65 focus:bg-[var(--indice-brand-soft)]/65 dark:hover:bg-[var(--indice-brand-primary)]/10 dark:focus:bg-[var(--indice-brand-primary)]/10"
-        onSelect={() => onOpenItem(notification)}
+        disabled={busy}
+        onSelect={event => { event.preventDefault(); onOpenItem(notification); }}
       >
         <div className="flex w-full min-w-0 gap-3">
           <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border text-xl ${colorClasses.bg} ${colorClasses.border}`} aria-hidden="true">
@@ -138,12 +156,12 @@ function NotificationPreviewItem({
           </div>
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex items-start justify-between gap-2">
-              <p className={`min-w-0 break-words text-sm font-bold ${notification.is_unread ? 'text-gray-950 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+              <p className={`min-w-0 break-words [overflow-wrap:anywhere] text-sm font-bold ${notification.is_unread ? 'text-gray-950 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
                 {displayTitle}
               </p>
               {notification.is_unread && <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[var(--indice-brand-primary)]" />}
             </div>
-            <p className="line-clamp-2 text-xs text-gray-600 dark:text-gray-400">{notification.description}</p>
+            <p className="line-clamp-2 [overflow-wrap:anywhere] text-xs text-gray-600 dark:text-gray-400">{basicNotificationDescription(notification, locale)}</p>
             <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
               <span className={`inline-flex max-w-full items-center truncate rounded border px-2 py-0.5 text-xs font-medium ${colorClasses.bg} ${colorClasses.text} ${colorClasses.border}`}>
                 {moduleMeta.shortLabel}

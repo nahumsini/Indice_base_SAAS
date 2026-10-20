@@ -37,6 +37,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import(ProcessTasksRequestGuard.class)
 class ProcessesApiControllerCsrfTest {
 
+    @org.springframework.boot.test.mock.mockito.MockBean
+    private com.indice.erp.learning.LearningAppliedAdvice learningAppliedAdvice;
+
     private static final AuthSessionUser CURRENT_USER = new AuthSessionUser(1L, 7L, "Usuario Demo", "user");
 
     @Autowired

@@ -39,6 +39,9 @@ import org.springframework.test.web.servlet.MockMvc;
 @Import(KioskPublicV2ExceptionHandler.class)
 class SalesPublicCatalogSharePreviewControllerTest {
 
+    @org.springframework.boot.test.mock.mockito.MockBean
+    private com.indice.erp.learning.LearningAppliedAdvice learningAppliedAdvice;
+
     @Autowired
     private MockMvc mockMvc;
 

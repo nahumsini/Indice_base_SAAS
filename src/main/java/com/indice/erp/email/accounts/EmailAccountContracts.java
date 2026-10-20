@@ -30,5 +30,7 @@ public final class EmailAccountContracts {
     public record Accounts(List<Account> items,boolean configurationAvailable) { }
     public record Version(@Min(1) long version) { }
     public record ConnectionTest(@Min(1) long version,@NotNull @Pattern(regexp="SMTP|RECEIVE") String channel) { }
+    // Additive test-only diagnostic; existing account response fields remain at the top level.
+    public record ConnectionTestResult(@com.fasterxml.jackson.annotation.JsonUnwrapped Account account,String failureCode) { }
     public record Sender(String id,String label,String email,String displayName,String smtpStatus) { }
 }

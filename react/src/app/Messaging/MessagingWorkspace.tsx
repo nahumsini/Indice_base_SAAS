@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useContext, useRef, useState } from 'react';
-import { ArrowLeft, Check, CheckCheck, Headphones, MessageSquare, Plus, RefreshCw, Search, Send, Users } from 'lucide-react';
+import { ArrowLeft, Check, CheckCheck, Headphones, MessageSquare, MoreHorizontal, Paperclip, Plus, RefreshCw, Search, Send, Users } from 'lucide-react';
 import { ApiClientError } from '../lib/apiClient';
 import { field, button, primary, ErrorNotice, type ComposerState } from './MessagingPrimitives';
 export type { ComposerState } from './MessagingPrimitives';
@@ -13,7 +13,8 @@ import { useMessagingApi, MessagingVisibleContext } from './MessagingTransportCo
 import { messagingCopy, messagingLabel } from './copy';
 import { useConversation } from './useConversation';
 import { MessagePhoto, PhotoPicker } from './MessagePhotos';
-import { photoCopy } from './photoCopy';
+import { attachmentCopy, attachmentErrorText } from './attachmentCopy';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import type { Audit, CareSummary, Conversation, MessagingContext, MessagingPortal, Page, Person } from './types';
 
 export function MessagingWorkspace({ portal, locale, userId, initialId = null, initialQuery = '', contained = false, onComposerState, initialKind = 'DIRECT' }: {
@@ -21,6 +22,7 @@ export function MessagingWorkspace({ portal, locale, userId, initialId = null, i
 }) {
   const copy = messagingCopy(locale);
   const team = teamCopy(locale);
+  const attachments = attachmentCopy(locale);
   const api = useMessagingApi(portal);
   const visible = useContext(MessagingVisibleContext);
   const [context, setContext] = useState<MessagingContext | null>(null);
@@ -93,9 +95,9 @@ export function MessagingWorkspace({ portal, locale, userId, initialId = null, i
       <button disabled={composer.busy} className={primary} onClick={() => { setComposer({ dirty: false, busy: false }); pendingNavigation(); setPendingNavigation(null); }}>{copy.discard}</button>
     </div>}
     <div className="flex min-h-0 flex-1 overflow-hidden">
-      <aside aria-label={copy.inbox} className={`${selected || creating ? 'hidden md:flex' : 'flex'} min-h-0 w-full shrink-0 flex-col border-r border-slate-200 md:w-80 lg:w-96 dark:border-slate-700`}>
+      <aside aria-label={copy.inbox} className={`${selected || creating ? 'hidden md:flex' : 'flex'} min-h-0 w-full shrink-0 flex-col border-r border-slate-200 md:w-80 dark:border-slate-700`}>
         <div data-chat-inbox-header className="shrink-0 space-y-3 border-b border-slate-200 p-4 dark:border-slate-700">
-          <div className="flex items-center justify-between gap-2"><div><h2 className="flex items-center gap-2 text-lg font-medium"><span aria-hidden data-chat-emoji>💬</span>{copy.inbox}</h2>{portal === 'member' && <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{team.connected}</p>}</div><button type="button" aria-label={copy.refresh} className={button} onClick={refresh}><RefreshCw size={16} /></button></div>
+          <div className="flex items-center justify-between gap-2"><div><h2 className="flex items-center gap-2 text-lg font-semibold"><span aria-hidden data-chat-emoji>💬</span>{copy.inbox}</h2></div><button type="button" aria-label={copy.refresh} className={button} onClick={refresh}><RefreshCw size={16} /></button></div>
           {portal === 'member' && <button type="button" className={`${primary} w-full`} disabled={!context || composer.busy} onClick={() => navigate(() => { setSelected(null); setCreating(true); })}><Plus size={18} />{copy.newMessage}</button>}
           <div className="relative"><Search size={17} aria-hidden className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input aria-label={copy.search} placeholder={copy.search} value={query} maxLength={100} onChange={e => { setQuery(e.target.value); setLimit(40); }} className={`${field} pl-10`} /></div>
           <select aria-label={copy.title} value={filter} onChange={e => { setFilter(e.target.value); setLimit(40); }} className={field}>{filters.map(value => <option key={value} value={value}>{label(value)}</option>)}</select>
@@ -105,9 +107,9 @@ export function MessagingWorkspace({ portal, locale, userId, initialId = null, i
             <button type="button" key={c.id} disabled={composer.busy} onClick={() => { if (selected !== c.id || creating) navigate(() => { setSelected(c.id); setCreating(false); }); }} aria-current={selected === c.id && !creating ? 'true' : undefined}
               className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 ${selected === c.id && !creating ? 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950' : 'border-transparent hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
               <span aria-hidden data-chat-emoji className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 dark:bg-slate-800">{c.kind === 'DIRECT' ? '💬' : c.kind === 'GROUP' ? '👥' : '🎧'}</span>
-              <span className="min-w-0 flex-1"><span className="flex items-start justify-between gap-2"><span className="break-words text-base font-medium [overflow-wrap:anywhere]">{c.displayName || c.subject}</span>{c.unreadCount > 0 && <span className="shrink-0 rounded-full bg-[#143675] px-2 py-0.5 text-xs text-white">{c.unreadCount}</span>}</span>
-              <span className="mt-1 block truncate text-xs text-slate-500 dark:text-slate-300">{portal === 'member' ? label(c.kind) : `${c.companyName} · ${c.requesterName}`}</span>
-              <span className="mt-1 block text-xs text-slate-600 dark:text-slate-300">{['DIRECT','GROUP'].includes(c.kind) ? new Date(c.updatedAt).toLocaleDateString(locale, { month: 'short', day: 'numeric' }) : messagingLabel(copy,c.status)}</span></span>
+              <span className="min-w-0 flex-1"><span className="flex items-start justify-between gap-2"><span className="truncate text-sm font-semibold">{c.displayName || c.subject}</span><span className="shrink-0 pt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{new Date(c.updatedAt).toLocaleDateString(locale, { month: 'short', day: 'numeric' })}</span>{c.unreadCount > 0 && <span className="shrink-0 rounded-full bg-[#143675] px-2 py-0.5 text-xs text-white">{c.unreadCount}</span>}</span>
+              <span className="mt-1 flex min-w-0 items-center gap-1 text-xs text-slate-600 dark:text-slate-300">{c.lastMessageHasAttachments && <Paperclip size={12} className="shrink-0"/>}<span className="truncate">{c.lastMessagePreview || (c.lastMessageHasAttachments ? attachments.attachment : label(c.kind))}</span></span>
+              {!['DIRECT','GROUP'].includes(c.kind) && <span className="mt-1 block truncate text-[11px] text-slate-500 dark:text-slate-400">{portal !== 'member' ? `${c.companyName} · ` : ''}{messagingLabel(copy,c.status)}</span>}</span>
             </button>)}
           {page.hasMore && <button type="button" className={button} onClick={() => setLimit(value => value + 40)}>{copy.more}</button>}
         </div>
@@ -115,7 +117,7 @@ export function MessagingWorkspace({ portal, locale, userId, initialId = null, i
       <div data-messaging-detail className={`${selected || creating ? 'flex' : 'hidden md:flex'} min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}>
         {creating && context ? <NewConversation initialKind={initialKind} context={context} locale={locale} onState={setComposer} onCancel={() => navigate(() => setCreating(false))} onCreated={id => { setCreating(false); setSelected(id); refresh(); }} />
           : selected ? <ConversationThread key={`${portal}:${selected}`} id={selected} portal={portal} locale={locale} userId={context?.userId ?? userId} onState={setComposer} onBack={() => navigate(() => setSelected(null))} onChanged={refresh} />
-            : <div className="m-auto max-w-sm p-8 text-center text-sm text-slate-500 dark:text-slate-400"><span className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950"><MessageSquare size={28} /></span><h2 className="mb-2 text-lg font-medium text-slate-900 dark:text-white">{copy.title}</h2>{copy.choose}</div>}
+            : <div className="m-auto max-w-sm p-8 text-center text-sm text-slate-500 dark:text-slate-400"><span className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950"><MessageSquare size={28} /></span><h2 className="mb-2 text-lg font-medium text-slate-900 dark:text-white">{attachments.emptyTitle}</h2><p className="leading-relaxed">{attachments.emptyHint}</p>{portal === 'member' && <button type="button" className={`${primary} mt-5`} disabled={!context || composer.busy} onClick={() => navigate(() => setCreating(true))}><Plus size={18}/>{copy.newMessage}</button>}</div>}
       </div>
     </div>
   </section>;
@@ -124,12 +126,14 @@ export function MessagingWorkspace({ portal, locale, userId, initialId = null, i
 function ConversationThread({ id, portal, locale, userId, onBack, onChanged, onState }: { id: number; portal: MessagingPortal; locale: string; userId: number; onBack: () => void; onChanged: () => void; onState: (state: ComposerState) => void }) {
   const copy = messagingCopy(locale);
   const team = teamCopy(locale);
+  const attachments = attachmentCopy(locale);
   const visible = useContext(MessagingVisibleContext);
   const thread = useConversation(portal, id, onChanged);
   const c = thread.conversation;
   const isTeam = c?.kind === 'DIRECT' || c?.kind === 'GROUP';
   const api = useMessagingApi(portal);
   const [taskOpen, setTaskOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
   const [taskState, setTaskState] = useState<ComposerState>({ dirty:false, busy:false });
   const [canCreateTask, setCanCreateTask] = useState(false);
   const blocked = isTeam && thread.participants.some(p => !p.active);
@@ -164,12 +168,13 @@ function ConversationThread({ id, portal, locale, userId, onBack, onChanged, onS
     <div data-chat-header className="flex shrink-0 items-center gap-3 border-b border-slate-200 p-3 dark:border-slate-700"><button type="button" aria-label={copy.back} className={`${button} md:hidden`} disabled={thread.sending || taskState.busy} onClick={onBack}><ArrowLeft size={18} /></button>
       <span aria-hidden data-chat-emoji className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 md:flex dark:bg-slate-800">{c?.kind === 'GROUP' ? '👥' : isTeam ? '💬' : '🎧'}</span>
       <div className="min-w-0 flex-1"><h2 className="break-words font-medium [overflow-wrap:anywhere]">{c?.displayName || c?.subject || copy.title}</h2>{c && <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">{isTeam ? c.kind === 'GROUP' ? `${team.members} · ${thread.participants.length}` : team.direct : `${c.kind === 'SUPPORT' ? copy.support : copy.distributor} · ${messagingLabel(copy,c.status)}`}</p>}</div>
-      <button type="button" aria-label={copy.refresh} className={button} onClick={() => void thread.refresh()}><RefreshCw size={16} /></button></div>
-    {(thread.error || staffError) ? <div className="shrink-0 px-3 pt-2"><ErrorNotice error={thread.error || staffError} copy={copy} /></div> : null}
-    {isTeam && !taskOpen && <div className="flex shrink-0 flex-wrap items-center justify-between gap-1 border-b border-slate-100 px-3 py-1.5 dark:border-slate-800">
-      <details className="min-w-0 flex-1 text-xs text-slate-600 dark:text-slate-300"><summary className="flex min-h-11 cursor-pointer items-center gap-2"><Users size={16}/>{team.members}</summary><ul className="max-h-32 space-y-2 overflow-y-auto pb-2">{thread.participants.map(p => <li key={p.membershipId} className="break-words">{p.name}{!p.active ? ` · ${team.inactive}` : ''}</li>)}</ul><p className="pb-2">{team.receiptHint}</p></details>
-      {portal === 'member' && <button type="button" className={`${button} self-start border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100`} disabled={!canCreateTask || thread.sending} title={!canCreateTask ? team.taskDenied : team.taskHint} onClick={() => setTaskOpen(true)}><span aria-hidden>✅</span>{team.addTask}</button>}
-    </div>}
+      <Popover open={actionsOpen} onOpenChange={setActionsOpen}><PopoverTrigger asChild><button type="button" aria-label={attachments.actions} className={button}><MoreHorizontal size={20}/></button></PopoverTrigger>
+        <PopoverContent align="end" className="z-[100] w-72 space-y-2 rounded-2xl p-3">
+          <button type="button" className={`${button} w-full justify-start border-transparent`} onClick={() => { setActionsOpen(false); void thread.refresh(); }}><RefreshCw size={16}/>{copy.refresh}</button>
+          {isTeam && <><details className="text-sm"><summary className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-3"><Users size={16}/>{team.members} · {thread.participants.length}</summary><ul className="max-h-40 space-y-2 overflow-y-auto p-3 text-xs">{thread.participants.map(p => <li key={p.membershipId} className="break-words">{p.name}{!p.active ? ` · ${team.inactive}` : ''}</li>)}</ul><p className="px-3 pb-2 text-xs text-slate-500 dark:text-slate-400">{team.receiptHint}</p></details>
+          {portal === 'member' && <button type="button" className={`${button} w-full justify-start border-transparent`} disabled={!canCreateTask || thread.sending} title={!canCreateTask ? team.taskDenied : team.taskHint} onClick={() => { setActionsOpen(false); setTaskOpen(true); }}><span aria-hidden>✅</span>{team.addTask}</button>}</>}
+        </PopoverContent></Popover></div>
+    {((thread.error && (!thread.sendError || !c)) || staffError) ? <div className="shrink-0 px-3 pt-2"><ErrorNotice error={thread.error || staffError} copy={copy} /></div> : null}
     {taskOpen && c && <QuickMessageTask conversationId={id} locale={locale} onClose={() => setTaskOpen(false)} onState={setTaskState}/>}
     {c && portal !== 'member' && <div className="max-h-48 shrink-0 space-y-2 overflow-y-auto border-b border-slate-200 p-3 dark:border-slate-700">
       <p className="text-xs">#{c.id} · {c.companyName} · {c.requesterName} · {c.language} · {messagingLabel(copy,c.topic)} {c.moduleName ? `· ${c.moduleName}` : ''}</p>
@@ -185,21 +190,21 @@ function ConversationThread({ id, portal, locale, userId, onBack, onChanged, onS
     <div ref={history} data-chat-history hidden={taskOpen} onScroll={e => { const el=e.currentTarget; followLatest.current=el.scrollHeight-el.scrollTop-el.clientHeight<60; readVisible(); }} className={`${taskOpen ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4 md:p-6`} role="log" aria-live="polite" aria-label={copy.title} aria-busy={thread.loading}>
       {thread.loading && <p role="status">{copy.loading}</p>}
       {thread.hasOlder && <button type="button" className={button} onClick={() => void thread.older()}>{copy.older}</button>}
-      {thread.messages.map(m => { const receipt = messageReceipt(m, thread.participants); const receiptLabel = receipt.allRead ? team.read : receipt.read > 0 ? team.readBy.replace('{read}', String(receipt.read)).replace('{total}', String(receipt.total)) : copy.sent; return <article key={m.id} data-chat-message data-chat-own={m.senderUserId === userId && m.visibility !== 'INTERNAL' ? '' : undefined} className={`max-w-[90%] shrink-0 rounded-2xl border px-4 py-3 md:max-w-[80%] ${m.visibility === 'INTERNAL' ? 'self-start border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950' : m.senderUserId === userId ? 'self-end rounded-br-sm' : 'self-start rounded-bl-sm border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800'}`}>
-        <p className="mb-1 text-xs font-medium">{m.senderName}{m.visibility === 'INTERNAL' ? ` · ${copy.internal}` : ''}</p><p data-chat-body className="whitespace-pre-wrap break-words text-sm [overflow-wrap:anywhere]">{m.body}</p>
+      {thread.messages.map((m, index) => { const previous = thread.messages[index - 1]; const newDay = !previous || new Date(previous.createdAt).toDateString() !== new Date(m.createdAt).toDateString(); const receipt = messageReceipt(m, thread.participants); const receiptLabel = receipt.allRead ? team.read : receipt.read > 0 ? team.readBy.replace('{read}', String(receipt.read)).replace('{total}', String(receipt.total)) : copy.sent; return <div key={m.id} className="contents">{newDay && <div className="chat-day"><span>{new Date(m.createdAt).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })}</span></div>}<article data-chat-message data-chat-own={m.senderUserId === userId && m.visibility !== 'INTERNAL' ? '' : undefined} className={`max-w-[90%] shrink-0 rounded-2xl border px-4 py-3 md:max-w-[80%] ${m.visibility === 'INTERNAL' ? 'self-start border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950' : m.senderUserId === userId ? 'self-end rounded-br-sm' : 'self-start rounded-bl-sm border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800'}`}>
+        {(m.senderUserId !== userId || m.visibility === 'INTERNAL') && <p className="mb-1 text-xs font-semibold">{m.senderName}{m.visibility === 'INTERNAL' ? ` · ${copy.internal}` : ''}</p>}<p data-chat-body className="whitespace-pre-wrap break-words text-sm [overflow-wrap:anywhere]">{m.body}</p>
         {m.attachments?.map(photo => <MessagePhoto key={photo.id} photo={photo} portal={portal} conversationId={id} locale={locale}
           onLoad={() => { if (followLatest.current && history.current) history.current.scrollTop = history.current.scrollHeight; }} />)}
         <div data-chat-time title={new Date(m.createdAt).toLocaleString(locale)} className="mt-2 flex flex-wrap items-center justify-end gap-2 text-xs text-slate-600 dark:text-slate-300"><span>{new Date(m.createdAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}</span>{m.senderUserId === userId && <span data-chat-receipt title={isTeam ? team.receiptHint : copy.sent}>{isTeam && m.visibility === 'PUBLIC' ? <>{receipt.allRead ? <CheckCheck size={16} aria-hidden/> : <Check size={16} aria-hidden/>}<span>{receiptLabel}</span></> : copy.sent}</span>}</div>
-      </article>; })}
+      </article></div>; })}
     </div>
     {blocked && !taskOpen && <p role="status" className="shrink-0 bg-amber-50 p-3 text-sm text-amber-950 dark:bg-amber-950 dark:text-amber-100">{team.unavailable}</p>}
-    {c && !taskOpen && <form className="shrink-0 space-y-2 border-t border-slate-200 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:border-slate-700" onSubmit={e => { e.preventDefault(); if (!blocked) { followLatest.current = true; void thread.send(); } }}>
-      <PhotoPicker photos={thread.photos.photos} disabled={thread.sending} locale={locale} onAdd={thread.photos.add} onRemove={thread.photos.remove} />
-      {thread.error && thread.photos.photos.length > 0 && <p role="alert" className="text-sm text-red-600 dark:text-red-300">{photoCopy(locale).uploadError}</p>}
-      {portal !== 'member' && <select className={field} aria-label={copy.body} disabled={thread.sending} value={thread.visibility} onChange={e => thread.setVisibility(e.target.value)}><option value="PUBLIC">{copy.public}</option><option value="INTERNAL">{copy.internal}</option></select>}
-      <div className="flex items-end gap-2"><textarea ref={composerInput} aria-label={copy.body} placeholder={copy.body} value={thread.draft} onChange={e => thread.setDraft(e.target.value)} rows={1} maxLength={8000} disabled={thread.sending} className={`${field} max-h-28 min-w-0 flex-1 resize-none`} />
-        <button type="submit" aria-label={thread.sending ? copy.sending : copy.send} className={`${primary} shrink-0`} disabled={blocked || thread.sending || (!thread.draft.trim() && !thread.photos.photos.length)}><Send size={18} /><span className="hidden sm:inline">{thread.sending ? copy.sending : copy.send}</span></button></div>
-      {thread.draft.length > 7000 && <p className="text-right text-xs text-slate-500">{thread.draft.length}/8000</p>}
+    {c && !taskOpen && <form data-chat-composer className="chat-composer" onDragOver={e => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }} onDrop={e => { e.preventDefault(); if (!thread.sending && !blocked) thread.photos.add(Array.from(e.dataTransfer.files)); }} onSubmit={e => { e.preventDefault(); if (!blocked) { followLatest.current = true; void thread.send(); } }}>
+      {thread.sendError && <div className="col-span-full">{attachmentErrorText(thread.sendError, locale) ? <p role="alert" className="text-sm text-red-600 dark:text-red-300">{attachmentErrorText(thread.sendError, locale)}</p> : <ErrorNotice error={thread.sendError} copy={copy}/>}</div>}
+      {portal !== 'member' && <select className={`${field} col-span-full`} aria-label={copy.body} disabled={thread.sending} value={thread.visibility} onChange={e => thread.setVisibility(e.target.value)}><option value="PUBLIC">{copy.public}</option><option value="INTERNAL">{copy.internal}</option></select>}
+      <PhotoPicker photos={thread.photos.photos} error={thread.photos.error} disabled={thread.sending || blocked} locale={locale} onAdd={thread.photos.add} onRemove={thread.photos.remove} />
+      <textarea ref={composerInput} aria-label={copy.body} placeholder={attachments.placeholder} onPaste={e => { const files = Array.from(e.clipboardData.files); if (files.length && !thread.sending && !blocked) { e.preventDefault(); thread.photos.add(files); } }} value={thread.draft} onChange={e => thread.setDraft(e.target.value)} rows={1} maxLength={8000} disabled={thread.sending || blocked} className={`${field} max-h-28 min-w-0 resize-none border-transparent bg-slate-100 dark:bg-slate-800`} />
+        <button type="submit" aria-label={thread.sending ? copy.sending : copy.send} className={`${primary} shrink-0`} disabled={blocked || thread.sending || (!thread.draft.trim() && !thread.photos.photos.length)}><Send size={18} /><span className="hidden sm:inline">{thread.sending ? copy.sending : copy.send}</span></button>
+      {thread.draft.length > 7000 && <p className="col-span-full text-right text-xs text-slate-500">{thread.draft.length}/8000</p>}
     </form>}
     <IndiceConfirmationDialog open={confirmTransfer} title={copy.transfer} description={copy.transferConfirm} confirmLabel={copy.transfer} cancelLabel={copy.cancel}
       busy={thread.sending} tone="blue" onCancel={() => setConfirmTransfer(false)} onConfirm={async () => { if (await thread.change('TRANSFER')) onBack(); }} />

@@ -40,6 +40,11 @@ public interface ObjectStorageService {
 
     String presignDownload(String bucketName, String objectKey, int expirySeconds);
 
+    /** Preserve a human filename when opening a private document in its native viewer. */
+    default String presignDownload(String bucketName, String objectKey, int expirySeconds, String fileName) {
+        return presignDownload(bucketName, objectKey, expirySeconds);
+    }
+
     String presignServiceDownload(String bucketName, String objectKey, int expirySeconds);
 
     void deleteObject(String bucketName, String objectKey);

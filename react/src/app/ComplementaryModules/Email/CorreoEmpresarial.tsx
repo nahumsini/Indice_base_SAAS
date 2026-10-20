@@ -20,6 +20,7 @@ export default function CorreoEmpresarial({ onNavigate, preview = false }: {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const revision = useAuthorizationRevision();
+  const canOpenMailbox = preview || canAccessModuleTab("email", "mail", getCachedAuthSession());
   const canConfigureAccounts = preview || canAccessModuleTab("email", "accounts", getCachedAuthSession());
   const [previewTab, setPreviewTab] = useState<'mail' | 'accounts'>('mail');
   const { activeTab, setActiveTab, isTabLoading } = useRoutedModuleTab('mail', tabs);
@@ -33,7 +34,7 @@ export default function CorreoEmpresarial({ onNavigate, preview = false }: {
     tabs={[{ id: 'mail', label: copy.mailbox, icon: <Mail className="h-4 w-4" /> }, { id: 'accounts', label: copy.accounts, icon: <Settings className="h-4 w-4" /> }]}>
     <div className="space-y-5" key={revision}>
       {preview && <p role="status" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">{copy.previewNotice}</p>}
-      {tab === 'accounts' ? <EmailAccountsWorkspace onReturn={campaign ? () => navigate(`/sales/mailing?campaign=${campaign}`) : undefined} />
+      {tab === 'accounts' ? <EmailAccountsWorkspace onMailbox={canOpenMailbox ? () => changeTab('mail') : undefined} onReturn={campaign ? () => navigate(`/sales/mailing?campaign=${campaign}`) : undefined} />
         : preview ? <EmailMailboxWorkspace preview onAccounts={() => changeTab('accounts')} />
         : <LiveMailboxWorkspace onAccounts={canConfigureAccounts ? () => changeTab('accounts') : undefined} />}
     </div>

@@ -1,4 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { useNotificationPreferences } from './useNotificationPreferences';
+import { notificationSettingsCopy } from './notificationSettingsCopy';
 import { Info, Settings2 } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { Switch } from '../ui/switch';
@@ -22,16 +24,19 @@ const priorityTone: Record<NotificationPriority, string> = {
 };
 
 export function NotificationSettingsView({ copy, locale }: NotificationSettingsViewProps) {
-  const preferenceGroups = useMemo(() => getLocalizedNotificationPreferenceGroups(locale), [locale]);
-  const defaultState = useMemo(() => {
-    return Object.fromEntries(
-      preferenceGroups.flatMap((group) => (
-        group.items.map((item) => [preferenceKey(group.module.slug, item.eventType), item.defaultEnabled])
-      )),
-    );
-  }, [preferenceGroups]);
-  const [enabledMap, setEnabledMap] = useState<Record<string, boolean>>(defaultState);
-  const [quietMode, setQuietMode] = useState(false);
+  const feedback = useRef<HTMLDivElement>(null);
+  const preferences = useNotificationPreferences();
+  const settingsCopy = notificationSettingsCopy(locale);
+  const { enabled: enabledMap, quietMode, disabled, status } = preferences;
+  useEffect(() => {
+    if (status === 'saveError' || status === 'conflict') feedback.current?.scrollIntoView({ block: 'nearest' });
+  }, [status]);
+  const preferenceGroups = useMemo(() => {
+    const allowed = new Set(preferences.confirmed?.items.map(item => preferenceKey(item.module, item.eventType)) ?? []);
+    return getLocalizedNotificationPreferenceGroups(locale).map(group => ({
+      ...group, items: group.items.filter(item => allowed.has(preferenceKey(group.module.slug, item.eventType))),
+    })).filter(group => group.items.length > 0);
+  }, [locale, preferences.confirmed]);
 
   const enabledCount = Object.values(enabledMap).filter(Boolean).length;
   const totalCount = Object.keys(enabledMap).length;
@@ -42,31 +47,42 @@ export function NotificationSettingsView({ copy, locale }: NotificationSettingsV
         <div className="flex gap-3">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
-            <p className="font-semibold">{copy.settingsSummary}</p>
-            <p className="mt-1 text-[var(--indice-brand-text)]">{copy.settingsSummaryDescription} {copy.noPersistence}</p>
+            <p className="font-semibold">{copy.preferencesTitle}</p>
+            <p className="mt-1 text-[var(--indice-brand-text)]">{settingsCopy.notice}</p>
           </div>
         </div>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div ref={feedback} role={status === 'saveError' || status === 'loadError' || status === 'conflict' ? 'alert' : 'status'} aria-live="polite" className="flex flex-wrap items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
+        {status === 'loading' && settingsCopy.loading}
+        {status === 'saving' && settingsCopy.saving}
+        {status === 'saved' && settingsCopy.saved}
+        {status === 'loadError' && settingsCopy.loadError}
+        {status === 'saveError' && settingsCopy.saveError}
+        {status === 'conflict' && settingsCopy.conflict}
+        {(status === 'loadError' || status === 'saveError') && <button type="button" onClick={preferences.retry} className="min-h-11 rounded-lg border border-slate-300 px-4 font-semibold">{settingsCopy.retry}</button>}
+        {(status === 'conflict' || status === 'saveError') && <button type="button" onClick={() => void preferences.reload()} className="min-h-11 rounded-lg border border-slate-300 px-4 font-semibold">{settingsCopy.reload}</button>}
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
             <div className="rounded-lg bg-gray-900 p-2 text-white">
               <Settings2 className="h-4 w-4" />
             </div>
             <div>
-              <p className="font-semibold text-gray-950">{copy.quietMode}</p>
-              <p className="text-sm text-gray-600">{copy.quietModeDescription}</p>
+              <p className="font-semibold text-gray-950 dark:text-slate-100">{copy.quietMode}</p>
+              <p className="text-sm text-gray-600 dark:text-slate-300">{settingsCopy.quiet}</p>
             </div>
           </div>
-          <Switch checked={quietMode} onCheckedChange={setQuietMode} aria-label={copy.quietMode} className="data-[state=checked]:bg-[var(--indice-brand-primary)] focus-visible:ring-[var(--indice-brand-primary)]/30" />
+          <Switch checked={quietMode} disabled={disabled} onCheckedChange={quietMode => preferences.change({ quietMode })} aria-label={copy.quietMode} className="data-[state=checked]:bg-[var(--indice-brand-primary)] focus-visible:ring-[var(--indice-brand-primary)]/30" />
         </div>
       </div>
 
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-bold text-gray-950">{copy.preferencesTitle}</h3>
-          <p className="text-sm text-gray-600">{copy.preferencesSubtitle}</p>
+          <h3 className="text-lg font-bold text-gray-950 dark:text-slate-100">{copy.preferencesTitle}</h3>
+          <p className="text-sm text-gray-600 dark:text-slate-300">{copy.preferencesSubtitle}</p>
         </div>
         <Badge variant="outline" className="border-gray-200 bg-gray-50 text-gray-700">
           {enabledCount}/{totalCount} {copy.enabled}
@@ -74,17 +90,18 @@ export function NotificationSettingsView({ copy, locale }: NotificationSettingsV
       </div>
 
       <div className="grid gap-4">
+        {preferences.confirmed && preferenceGroups.length === 0 && <p className="text-sm text-slate-600 dark:text-slate-300">{settingsCopy.empty}</p>}
         {preferenceGroups.map((group) => {
           const moduleColorClasses = getModuleColorClasses(group.module.color);
           return (
-          <section key={group.module.slug} className="overflow-hidden rounded-xl border border-[var(--indice-brand-primary)]/20 bg-white shadow-sm">
+          <section key={group.module.slug} className="overflow-hidden rounded-xl border border-[var(--indice-brand-primary)]/20 bg-white shadow-sm dark:bg-slate-900">
             <div className="flex items-center justify-between border-b border-[var(--indice-brand-primary)]/15 px-4 py-3">
               <div className="flex items-center gap-3">
                 <div className={`flex h-10 w-10 items-center justify-center rounded-lg border text-xl ${moduleColorClasses.bg} ${moduleColorClasses.border}`} aria-hidden="true">
                   {group.module.emoji}
                 </div>
                 <div>
-                  <p className="font-bold text-gray-950">{group.module.label}</p>
+                  <p className="font-bold text-gray-950 dark:text-slate-100">{group.module.label}</p>
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">
                     {group.module.shortLabel}
                   </p>
@@ -102,12 +119,8 @@ export function NotificationSettingsView({ copy, locale }: NotificationSettingsV
                   item={item}
                   checked={enabledMap[preferenceKey(group.module.slug, item.eventType)]}
                   copy={copy}
-                  onCheckedChange={(checked) => {
-                    setEnabledMap((current) => ({
-                      ...current,
-                      [preferenceKey(group.module.slug, item.eventType)]: checked,
-                    }));
-                  }}
+                  disabled={disabled}
+                  onCheckedChange={checked => preferences.change({ items: [{ module: group.module.slug, eventType: item.eventType, enabled: checked }] })}
                 />
               ))}
             </div>
@@ -122,11 +135,13 @@ export function NotificationSettingsView({ copy, locale }: NotificationSettingsV
 function PreferenceRow({
   item,
   checked,
+  disabled,
   copy,
   onCheckedChange,
 }: {
   item: NotificationPreferenceItem;
   checked: boolean;
+  disabled: boolean;
   copy: NotificationCenterCopy;
   onCheckedChange: (checked: boolean) => void;
 }) {
@@ -140,10 +155,10 @@ function PreferenceRow({
     <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="font-semibold text-gray-900">{item.label}</p>
+          <p className="font-semibold text-gray-900 dark:text-slate-100">{item.label}</p>
           <Badge variant="outline" className={priorityTone[item.priority]}>{priorityLabel}</Badge>
         </div>
-        <p className="mt-1 text-sm text-gray-600">{item.description}</p>
+        <p className="mt-1 text-sm text-gray-600 dark:text-slate-300">{item.description}</p>
         <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
           <span className="rounded-full bg-gray-100 px-2 py-1">{copy.channelSystem}</span>
           <span className="rounded-full bg-gray-100 px-2 py-1">{copy.frequencyImmediate}</span>
@@ -153,7 +168,7 @@ function PreferenceRow({
         <span className={`text-sm font-semibold ${checked ? 'text-emerald-700' : 'text-gray-500'}`}>
           {checked ? copy.enabled : copy.disabled}
         </span>
-        <Switch checked={checked} onCheckedChange={onCheckedChange} aria-label={item.label} className="data-[state=checked]:bg-[var(--indice-brand-primary)] focus-visible:ring-[var(--indice-brand-primary)]/30" />
+        <Switch checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} aria-label={item.label} className="data-[state=checked]:bg-[var(--indice-brand-primary)] focus-visible:ring-[var(--indice-brand-primary)]/30" />
       </div>
     </div>
   );

@@ -1,7 +1,12 @@
+import { useWorkspaceNavigationMemory } from '../../hooks/useWorkspaceNavigationMemory';
+import { useState } from 'react';
+import { IndiceFilterBar, IndiceFilterSearch, IndiceFilterSelect } from '../../components/frontend-os';
+import { getAdminWorkspaceCopy } from '../../components/frontend-os/adminWorkspaceCopy';
+import { Button } from '../../components/ui/button';
 import { Boxes } from 'lucide-react';
 import type { BillingCatalogProduct } from '../../api/billing';
 import type { BillingCopy } from '../translations';
-import { BillingProductCard } from './BillingProductCard';
+import { BillingProductCard, getBillingProductName } from './BillingProductCard';
 
 type Props = {
   copy: BillingCopy;
@@ -24,6 +29,19 @@ export function ModuleSelectionPanel({
   billingInterval,
   onToggle,
 }: Props) {
+  const labels = getAdminWorkspaceCopy(languageCode);
+  const [query, setQuery] = useState('');
+  const [selection, setSelection] = useState('all');
+  useWorkspaceNavigationMemory({ moduleKey: 'billing', tabKey: 'catalog', state: { query, selection },
+    defaults: { query: '', selection: 'all' }, rememberScroll: false,
+    onRestore: value => { setQuery(typeof value.query === 'string' ? value.query : ''); setSelection(['all', 'selected', 'available'].includes(value.selection) ? value.selection : 'all'); },
+  });
+  const filtered = Boolean(query.trim() || selection !== 'all');
+  const visibleProducts = products.filter(product => {
+    const selected = selectedCodes.includes(product.product_code);
+    return (selection === 'all' || (selection === 'selected' ? selected : !selected)) &&
+      `${getBillingProductName(product, copy)} ${product.display_name} ${product.capabilities.map(key => copy.capabilityNames[key] || key).join(' ')}`.toLocaleLowerCase(languageCode).includes(query.trim().toLocaleLowerCase(languageCode));
+  });
   const versionedOffer = products.some((product) => product.commercial_kind === 'PACKAGE');
   const groups = versionedOffer
     ? [
@@ -51,10 +69,17 @@ export function ModuleSelectionPanel({
           {copy.selected(selectedCodes.length)}
         </span>
       </header>
+      {products.length > 0 && <div className="p-4 pb-0">
+        <IndiceFilterBar title={labels.filters} summary={filtered ? <Button type="button" variant="outline" onClick={() => { setQuery(''); setSelection('all'); }}>{labels.clear}</Button> : undefined}>
+          <IndiceFilterSearch tone="blue" label={labels.search} placeholder={labels.searchProducts} value={query} onValueChange={setQuery} onClear={() => setQuery('')} />
+          <IndiceFilterSelect tone="blue" label={labels.selection} value={selection} onValueChange={setSelection} options={[{ value: 'all', label: labels.all }, { value: 'selected', label: labels.selected }, { value: 'available', label: labels.available }]} />
+        </IndiceFilterBar>
+        {!visibleProducts.length && <div role="status" className="py-8 text-center text-sm text-slate-500 dark:text-slate-400"><p className="font-medium">{labels.noResults}</p><p className="mt-1">{labels.adjustFilters}</p></div>}
+      </div>}
       {products.length ? (
         <div className="space-y-5 p-4">
           {groups.map((group) => {
-            const groupedProducts = products.filter((product) =>
+            const groupedProducts = visibleProducts.filter((product) =>
               versionedOffer
                 ? (product.commercial_kind || 'MODULE') === group.type
                 : product.product_type === group.type,

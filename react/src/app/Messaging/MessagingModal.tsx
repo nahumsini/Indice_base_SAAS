@@ -17,7 +17,7 @@ export function MessagingModal({ userId, locale, initialId, onClose }: {
     const resize = () => {
       // Mobile keyboards can shrink the visual viewport without changing dvh.
       setViewport(visible && window.innerWidth < 768 && visible.scale === 1
-        ? { height: visible.height - 16, maxHeight: visible.height - 16, top: visible.offsetTop + visible.height / 2 }
+        ? { height: visible.height, maxHeight: visible.height, top: visible.offsetTop + visible.height / 2 }
         : undefined);
     };
     resize();
@@ -28,11 +28,10 @@ export function MessagingModal({ userId, locale, initialId, onClose }: {
   }, []);
   const close = () => { if (!composer.busy) { if (composer.dirty) setConfirmClose(true); else onClose(); } };
   return <IndiceModalFrame open modalType="operational-workspace" tone="blue" icon={<MessageSquare size={20} />}
-    title={copy.title} description={copy.subtitle} closeLabel={copy.close} busy={composer.busy}
+    title={copy.title} description={<span className="sr-only">{copy.subtitle}</span>} closeLabel={copy.close} busy={composer.busy}
     onOpenChange={value => { if (!value) close(); }} contentStyle={viewport}
-    contentClassName="h-[92dvh] gap-0 max-md:max-w-[calc(100%-1rem)] max-md:rounded-2xl"
-    bodyClassName="flex flex-col overflow-hidden p-0" footerClassName="px-4 py-2"
-    footerSummary={<span className="text-xs">{composer.busy ? copy.sending : copy.subtitle}</span>}>
+    contentClassName="messaging-modal h-[min(92dvh,960px)] gap-0 max-md:h-[100dvh] max-md:max-h-[100dvh] max-md:w-screen max-md:max-w-none max-md:rounded-none"
+    bodyClassName="flex flex-col overflow-hidden p-0 sm:p-0">
     {confirmClose && <div role="alert" className="flex shrink-0 flex-wrap items-center gap-2 border-b border-amber-200 bg-amber-50 p-3 text-sm text-slate-900 dark:bg-amber-950 dark:text-white">
       <p className="flex-1">{copy.discardPrompt}</p>
       <button className="min-h-11 rounded-lg border px-3" onClick={() => setConfirmClose(false)}>{copy.keepWriting}</button>

@@ -2,6 +2,7 @@ import { Building2, Trash2 } from 'lucide-react';
 import type { EstructuraType, Negocio, Unidad } from '../types';
 
 interface UnitsCopy {
+  modal: { delete: string };
   actions: {
     addUnit: string;
     configure: string;
@@ -60,7 +61,7 @@ export function UnitsSection({
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{structure.units.subtitle}</p>
         </div>
         {!isSimple ? (
-          <button type="button" onClick={onCreateUnidad} disabled={disabled} className="min-h-10 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+          <button type="button" onClick={onCreateUnidad} disabled={disabled} className="min-h-11 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
             + {structure.actions.createUnit}
           </button>
         ) : null}
@@ -87,11 +88,11 @@ export function UnitsSection({
         <p className="mb-3 text-xs font-medium text-gray-500 dark:text-gray-400">{structure.units.context}</p>
       ) : null}
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2">
         {!isSimple && operationalUnits.map((unidad) => {
           const hasBusinesses = unidad.negocios.length > 0;
           return (
-            <article key={unidad.id} className="rounded-xl border border-gray-200 p-3 dark:border-gray-700">
+            <article key={unidad.id} className="min-w-0 rounded-xl border border-gray-200 p-3 dark:border-gray-700">
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
                   <Building2 className="h-5 w-5 shrink-0 text-gray-500 dark:text-gray-400" />
@@ -105,8 +106,8 @@ export function UnitsSection({
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
-                  <button type="button" onClick={() => onEditUnidad(unidad)} disabled={disabled} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-60">{structure.actions.configureGroup}</button>
-                  <button type="button" onClick={() => onDeleteUnidad(unidad.id)} disabled={disabled} className="rounded-lg p-2 text-red-500 hover:bg-red-50 disabled:opacity-60 dark:hover:bg-red-900/20" aria-label={structure.actions.configure}><Trash2 className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => onEditUnidad(unidad)} disabled={disabled} className="min-h-11 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-60">{structure.actions.configureGroup}</button>
+                  <button type="button" onClick={() => onDeleteUnidad(unidad.id)} disabled={disabled} className="min-h-11 min-w-11 rounded-lg p-2 text-red-500 hover:bg-red-50 disabled:opacity-60 dark:hover:bg-red-900/20" aria-label={`${structure.modal.delete}: ${unidad.name}`}><Trash2 className="h-4 w-4" /></button>
                 </div>
               </div>
 
@@ -115,15 +116,15 @@ export function UnitsSection({
                   <div key={negocio.id} className="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900/50">
                     <span className="min-w-0 truncate text-sm font-medium text-gray-900 dark:text-white">🏪 {negocio.name}</span>
                     <div className="flex shrink-0 items-center gap-1">
-                      <button type="button" onClick={() => onEditNegocio(negocio, unidad.id)} disabled={disabled} className="rounded-md px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-60 dark:text-blue-300">{structure.actions.configure}</button>
-                      <button type="button" onClick={() => onDeleteNegocio(unidad.id, negocio.id)} disabled={disabled} className="rounded-md p-1.5 text-red-500 hover:bg-red-50 disabled:opacity-60 dark:hover:bg-red-900/20" aria-label={structure.actions.configure}><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button type="button" onClick={() => onEditNegocio(negocio, unidad.id)} disabled={disabled} className="min-h-11 rounded-md px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-60 dark:text-blue-300">{structure.actions.configure}</button>
+                      <button type="button" onClick={() => onDeleteNegocio(unidad.id, negocio.id)} disabled={disabled} className="min-h-11 min-w-11 rounded-md p-1.5 text-red-500 hover:bg-red-50 disabled:opacity-60 dark:hover:bg-red-900/20" aria-label={`${structure.modal.delete}: ${negocio.name}`}><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </div>
                 ))}
                 {!hasBusinesses ? <p className="px-1 text-xs text-gray-500">{structure.units.emptyHelper}</p> : null}
               </div>
 
-              <button type="button" onClick={() => onCreateNegocio(unidad.id)} disabled={disabled} className="mt-3 rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-60 dark:border-blue-700 dark:text-blue-300">
+              <button type="button" onClick={() => onCreateNegocio(unidad.id)} disabled={disabled} className="mt-3 min-h-11 rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-60 dark:border-blue-700 dark:text-blue-300">
                 {structure.units.addBusiness}
               </button>
             </article>

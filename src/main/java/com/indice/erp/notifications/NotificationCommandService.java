@@ -23,6 +23,8 @@ class NotificationCommandService {
 
     @Transactional
     Map<String, Object> markRead(HrAnnouncementActor actor, long notificationId) {
+        if (notificationId < 0) queryService.loadOneApp(actor, Math.abs(notificationId));
+        else queryService.loadOne(actor, notificationId);
         if (notificationId < 0) {
             var appNotificationId = Math.abs(notificationId);
             var updated = jdbcTemplate.update(
@@ -52,57 +54,20 @@ class NotificationCommandService {
 
     @Transactional
     Map<String, Object> markAllRead(HrAnnouncementActor actor) {
-        var updated = jdbcTemplate.update(
-            """
-                UPDATE hr_announcement_deliveries
-                SET status = 'read',
-                    read_at = COALESCE(read_at, CURRENT_TIMESTAMP)
-                WHERE company_id = ?
-                  AND user_company_id = ?
-                  AND dismissed_at IS NULL
-                  AND read_at IS NULL
-                  AND LOWER(COALESCE(status, 'delivered')) NOT IN ('cancelled', 'dismissed')
-                """,
-            actor.companyId(),
-            actor.userCompanyId()
-        );
-        var appUpdated = jdbcTemplate.update(
-            """
-                UPDATE app_notifications
-                SET status = 'read',
-                    read_at = COALESCE(read_at, CURRENT_TIMESTAMP)
-                WHERE company_id = ?
-                  AND recipient_user_company_id = ?
-                  AND dismissed_at IS NULL
-                  AND read_at IS NULL
-                  AND LOWER(COALESCE(status, 'delivered')) NOT IN ('cancelled', 'dismissed')
-                """,
-            actor.companyId(),
-            actor.userCompanyId()
-        );
-        jdbcTemplate.update(
-            """
-                INSERT INTO hr_announcement_reads
-                (company_id, announcement_id, user_company_id, user_id)
-                SELECT d.company_id, d.announcement_id, d.user_company_id, ?
-                FROM hr_announcement_deliveries d
-                JOIN hr_announcements a ON a.id = d.announcement_id AND a.company_id = d.company_id
-                WHERE d.company_id = ?
-                  AND d.user_company_id = ?
-                  AND d.dismissed_at IS NULL
-                  AND d.read_at IS NOT NULL
-                  AND a.deleted_at IS NULL
-                ON DUPLICATE KEY UPDATE read_at = read_at
-                """,
-            actor.userId(),
-            actor.companyId(),
-            actor.userCompanyId()
-        );
-        return Map.of("updated_count", updated + appUpdated);
+        int[] updated = {0};
+        queryService.visitVisible(actor, Integer.MAX_VALUE, item -> {
+            if (Boolean.TRUE.equals(item.get("is_unread"))) {
+                markRead(actor, ((Number)item.get("id")).longValue());
+                updated[0]++;
+            }
+        });
+        return Map.of("updated_count", updated[0]);
     }
 
     @Transactional
     Map<String, Object> dismiss(HrAnnouncementActor actor, long notificationId) {
+        if (notificationId < 0) queryService.loadOneApp(actor, Math.abs(notificationId));
+        else queryService.loadOne(actor, notificationId);
         if (notificationId < 0) {
             var updated = jdbcTemplate.update(
                 """

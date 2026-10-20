@@ -4,23 +4,23 @@ import { createServer } from 'vite';
 
 // Uses the real application entrypoint, router and training UI. Every API is synthetic,
 // and non-local network is blocked: this never reads or writes a functional/production DB.
-const { chromium } = await import(process.env.INDICE_PLAYWRIGHT_MODULE || 'playwright');
+const { chromium, webkit } = await import(process.env.INDICE_PLAYWRIGHT_MODULE || 'playwright');
 const origin = 'http://127.0.0.1:5198';
 const server = await createServer({ root: resolve(import.meta.dirname, '..'),
-  server: { host: '127.0.0.1', port: 5198, strictPort: true },
+  server: { host: '127.0.0.1', port: 5198, strictPort: true, hmr: false, watch: null },
   define: { 'import.meta.env.VITE_API_BASE_URL': '""' },
 });
 let browser, page;
 try {
   await server.listen();
-  browser = await chromium.launch({ headless: true,
-    ...(process.env.INDICE_CHROME_PATH ? { executablePath: process.env.INDICE_CHROME_PATH } : {}),
+  browser = await (process.env.INDICE_BROWSER === 'webkit' ? webkit : chromium).launch({ headless: true,
+    ...(process.env.INDICE_BROWSER !== 'webkit' && process.env.INDICE_CHROME_PATH ? { executablePath: process.env.INDICE_CHROME_PATH } : {}),
   });
   page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.setDefaultTimeout(20000);
   await page.addInitScript(() => localStorage.setItem('frontend-indice-language', 'es-MX'));
   const errors = [], unexpected = [], calls = [], saved = new Set();
-  let mode = 'distributor', testingDashboard = false;
+  let mode = 'distributor', testingDashboard = false, failProgress = false;
   page.on('pageerror', error => errors.push(error.message));
   const actor = () => ({
     user: { id: 42, name: 'Alumno de prueba', role: mode === 'root' ? 'root' : mode === 'denied' ? 'user' : 'superadmin' },
@@ -44,6 +44,8 @@ try {
       `import React from '/node_modules/.vite/deps/react.js'; export default function App() { return React.createElement('h1', null, 'ERP de prueba'); }`,
     });
     if (!url.pathname.startsWith('/api/')) return route.continue();
+    if (url.pathname.startsWith('/api/v1/workspace-state/')) return route.fulfill({ json: { state: {}, schemaVersion: 1 } });
+
     calls.push(`${request.method()} ${url.pathname}`);
     if (url.pathname === '/api/v1/auth/me') return route.fulfill({ json: actor() });
     const basePath = mode === 'root' ? '/api/v1/platform-admin/training' : '/api/v1/distributor-portal/training';
@@ -57,6 +59,7 @@ try {
     } });
     if (url.pathname === `${basePath}/progress` && request.method() === 'PATCH') {
       assert.equal(request.headers()['x-csrf-token'], 'synthetic-csrf');
+      if (failProgress) return route.fulfill({ status: 503, json: { message: 'Synthetic progress failure' } });
       const { itemCode, completed } = request.postDataJSON();
       completed ? saved.add(itemCode) : saved.delete(itemCode);
       return route.fulfill({ json: workspace() });
@@ -100,7 +103,16 @@ try {
   await navigation().getByRole('tab', { name: /Conoce Índice/ }).click();
   await page.getByRole('tablist', { name: 'Pilares de Índice', exact: true }).waitFor();
   await navigation().getByRole('tab', { name: 'Ruta de certificación', exact: true }).click();
+  await page.getByRole('searchbox', { name: 'Buscar actividades', exact: true }).fill('sin coincidencia');
+  await page.getByText('Sin resultados con estos filtros', { exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Limpiar filtros', exact: true }).click();
   const learn = page.getByRole('button', { name: 'Marcar aprendido: Explicar qué es Índice', exact: true });
+  failProgress = true;
+  await learn.click();
+  await page.getByRole('alert').waitFor();
+  await learn.waitFor();
+  assert.equal(saved.size, 0, 'failed progress must be rolled back and remain visibly failed');
+  failProgress = false;
   await learn.click();
   await page.getByRole('button', { name: 'Marcar pendiente: Explicar qué es Índice', exact: true }).waitFor();
   assert.deepEqual([...saved], ['indice.propuesta']);
@@ -165,5 +177,6 @@ try {
   throw error;
 } finally {
   await browser?.close();
+  server.httpServer?.closeAllConnections();
   await server.close();
 }

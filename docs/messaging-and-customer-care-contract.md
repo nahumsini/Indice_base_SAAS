@@ -89,57 +89,75 @@ never logs message bodies. Operator queues are durable database queries and do n
 notification worker. The browser polls incrementally, backs off after errors, and refreshes on
 focus. It clears conversation state when identity/company changes.
 
-### Photographs (approved extension, 2026-10-05)
+### Photos and documents (approved extension, 2026-10-18)
 
-Existing conversations support up to five JPEG, PNG or WebP photographs per message, each at most
-8 MiB. Text is optional when photographs are attached. Opening a new conversation still requires
-its initial text; photographs can then be sent in that conversation. Other document formats are
-not accepted. The composer shows removable previews, guards unsent photo drafts, preserves failed
-uploads for retry and displays sent photographs inline with an enlarge/reduce control.
+Messages accept up to five attachments per message, each at most 8 MiB: JPEG, PNG, WebP,
+PDF, Word (DOC/DOCX) and Excel (XLS/XLSX). MIME and extension must match; empty files,
+HEIC, SVG, HTML and macro-enabled Office extensions are rejected. The server verifies actual
+size, MIME and image/PDF/OLE signatures; modern Office containers require the expected XML
+entries and reject VBA payloads, malformed ZIPs and excessive entries/decompressed size.
+This is bounded format verification, not a general antivirus scan. Documents appear as file cards,
+never HTML. Private authorized download links last 60 seconds and are never logged or persisted.
 
-`POST /conversations/{id}/attachments` reserves storage through `CompanyStorageMeter` and returns
-a short-lived upload URL. The pending record belongs to the authenticated sender, actor channel,
-company and authorized conversation. Caller-selected object keys are never accepted. Upload intents
-are idempotent, bounded to 30 per sender per minute and expire after at most 15 minutes.
+Existing conversation uploads retain `POST /conversations/{id}/attachments` and all participant,
+tenant and channel checks. The authenticated ERP additionally exposes `POST /attachments` for
+first-message staging. It permits only an operational MEMBER actor under existing session/CSRF
+checks; platform/distributor actors and support-only accounts are denied. No kiosk route or
+subscription recovery allowlist was added. `Context.initialAttachments` advertises ERP availability;
+the existing kiosk context defaults false. Restricted accounts retain initial text followed by
+authorized attachments in their support conversation.
 
-Sending includes `attachmentIds`. The locked send transaction copies staging objects to immutable
-keys, verifies their actual size, content type and JPEG/PNG/WebP signature, commits quota and binds
-the photographs to the message. Failed registration rolls back message/outbox/metadata; copied
-objects are cleaned on rollback. Retries of an acknowledged or lost response return the same
-message only if text, visibility and attachment identities match. Reusing the staging PUT URL
-cannot alter the committed photograph. This validates signatures, not a general antivirus scan.
+First-message staging belongs to the authenticated company, sender and actor scope. It has no
+conversation and is unreadable until the create/send transaction validates the audience, binds it
+to that conversation and commits the message/outbox. `Create.attachmentIds` is additive; text is
+optional with attachments. The creation fingerprint includes nonempty attachment IDs, preserving
+old request fingerprints when absent. Other senders/companies cannot take or read pending files.
+The first-message audience is still validated by the messaging owner before any message mutation.
 
-`GET /conversations/{id}/attachments/{attachmentId}` rechecks conversation and message visibility
-and returns a 60-second signed download URL with a no-store API response. Storage buckets remain
-private. Pending uploads cannot be read through this endpoint. Root cannot view employee photos;
-customer members cannot read internal photos; internal distributor photos remain unavailable to
-platform support after transfer. Previously issued download links expire within 60 seconds of
-revocation; previously downloaded bytes cannot be recalled. Never persist or log signed URLs.
+Uploads reserve quota through `CompanyStorageMeter`; immutable sent keys and existing request
+identities remain authoritative. Expired unbound intents can renew under the same attachment ID
+and request key, using a new staging object/reservation. Renewal locks the row, deletes/releases
+the old staging key and clears its cleanup marker. Bound attachments can never renew. The browser
+first retries a completed PUT's original message/create request, even after expiration, to recover
+a lost commit acknowledgement. Only an expired conflict renews staging and retries with the same
+IDs and message/create key. Failed PUTs and drafts retain per-file status and specific errors.
 
-The cleanup job processes at most 50 expired staging records per pass, after a one-minute expiry
-margin. It removes only temporary/uncommitted objects, releases unused reservations and marks
-cleanup complete. Sent photos and business records are retained. Failures remain eligible for
-retry. Configuration: `app.messaging.photo-cleanup-delay-ms` and
-`app.messaging.photo-cleanup-initial-delay-ms`, both default 60000.
+Cleanup still processes at most 50 expired staging records per pass with a one-minute margin,
+removes only temporary/uncommitted objects and releases unused quota. Unbound first-message
+drafts follow the same cleanup. Sent attachments/history are retained. Existing limits of 30 upload
+intents per sender per minute, immutable object verification, no-store download responses,
+internal-note isolation, revoked-member checks and channel ownership remain in force.
 
-Support-only recovery permits exactly the attachment upload/read routes; all participant, tenant,
-channel, subscription-recovery and CSRF checks still apply. Storage failures do not block text-only
-messages. Local verification requires a private MinIO bucket, not public image URLs.
+V326 widens attachment MIME metadata; V327 makes only staging conversation ownership nullable
+and adds a sender/company-scoped draft upload key. Apply both migrations before application
+rollout. Rollback retains these additive schema changes and private records; do not drop attachment
+data or rewrite applied migrations. Storage failures continue to allow text-only messages.
 
 ## Care workflow
 
 ### Messages modal presentation
 
 Messages is an **Operational Workspace Modal** implemented with `IndiceModalFrame` through
-the module-owned `MessagingModal`. It uses the canonical blue header/footer and workspace width.
-Desktop keeps the searchable inbox on the left and the selected conversation on the right.
+the module-owned `MessagingModal`. It uses the shared canonical blue shell and workspace width. The repeated summary footer is omitted;
+on phones the conversation header becomes the single visible blue bar, retaining the accessible modal title.
+Desktop keeps a compact searchable inbox on the left and the selected conversation on the right.
+Inbox previews use only messages visible to the actor; internal care notes never leak into member previews.
+Participants, refresh and personal task capture live in the conversation actions popover. The attachment
+menu offers photos/documents, removable previews, per-file status, desktop paste/drop and actionable errors.
 Each pane scrolls internally; the conversation header and composer remain visible. On mobile,
 the inbox and conversation replace each other with an explicit Back action, preserving the inbox
 query, filter and loaded rows. The shared shell follows the visual viewport when the keyboard
 reduces available space; message input uses at least 16px text and touch actions are at least 44px.
 Unsent drafts require an inline discard decision before navigation or closing. Sending blocks
-navigation/close. Existing request identities, retries, authorization and portal ownership remain
-unchanged. This presentation change does not alter the API or database schema.
+navigation/close. Creation shares the compact phone header; send errors stay beside its fixed footer.
+Directory loading and retry are explicit, and the Search keyboard action never submits a group.
+Document opening reserves its viewer tab during the tap, then requests the existing private link;
+failed/abandoned pending tabs close without discarding the chat draft. A blocked window gets a direct,
+short-lived link on the file card, refreshed after expiry. Native downloads carry the original UTF-8
+filename in the signed Content-Disposition override; original three-argument storage callers remain
+unchanged. No file URL or draft is persisted in browser storage.
+Existing request identities, retries, authorization and portal ownership remain
+unchanged. The presentation keeps ownership unchanged; the additive attachment contract and schema are specified above.
 
 OPEN means waiting for care; WAITING_CUSTOMER means care has replied; RESOLVED means closed by care.
 A customer reply reopens the case. Assignment, priority, resolution and transfer are audited.

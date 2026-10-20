@@ -78,7 +78,7 @@ export const zhCA = {
   photoHint: '请保持面部居中清晰。',
   captureLocation: '获取 GPS 位置',
   refreshLocation: '刷新位置',
-  locationReady: '位置已就绪',
+  locationReady: '已获取 GPS 位置',
   locationPending: '需要 GPS 位置。',
   locationRequiredHint: '登记上班或下班前，请允许此设备使用 GPS 位置。',
   readyToPunch: '可以记录。',

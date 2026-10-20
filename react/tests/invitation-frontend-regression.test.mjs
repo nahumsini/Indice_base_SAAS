@@ -37,3 +37,12 @@ test('invitation details preserve long email addresses instead of truncating the
   assert.match(invitationPage, /break-words/);
   assert.doesNotMatch(invitationPage, /truncate text-sm font-semibold/);
 });
+
+
+test('invitation feedback explains recoverable failures without exposing infrastructure details', () => {
+  const copy = getInviteAcceptCopy('es-MX');
+  assert.equal(localizeInvitationError('SQL exception with synthetic private detail', copy), copy.acceptFallback);
+  assert.equal(localizeInvitationError('The existing account password is incorrect.', copy), copy.currentPasswordIncorrect);
+  assert.equal(localizeInvitationError('Password is too long.', copy), copy.passwordTooLong);
+  assert.equal(localizeInvitationError('The selected business unit is not available in this company.', copy), copy.scopeError);
+});

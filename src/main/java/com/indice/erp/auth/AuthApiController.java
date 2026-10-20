@@ -193,12 +193,12 @@ public class AuthApiController {
             var challenge = mfaChallengeService.startChallenge(verification.login(), session.getId(), auditContext);
             if (challenge.blocked()) {
                 return ResponseEntity.status(HttpStatus.LOCKED).body(Map.of(
-                    "message", challenge.message()
+                    "message", challenge.message(), "code", challenge.code()
                 ));
             }
             if (!challenge.started()) {
                 return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
-                    "message", challenge.message()
+                    "message", challenge.message(), "code", challenge.code()
                 ));
             }
             return ResponseEntity.ok(mfaBody(challenge));
@@ -246,7 +246,7 @@ public class AuthApiController {
         );
         if (!result.success()) {
             return ResponseEntity.status(result.blocked() ? HttpStatus.LOCKED : HttpStatus.UNAUTHORIZED).body(Map.of(
-                "message", result.message()
+                "message", result.message(), "code", result.code()
             ));
         }
         servletRequest.changeSessionId();
@@ -278,10 +278,12 @@ public class AuthApiController {
             LoginAuditContext.from(servletRequest, session)
         );
         if (result.blocked()) {
-            return ResponseEntity.status(HttpStatus.LOCKED).body(Map.of("message", result.message()));
+            return ResponseEntity.status(HttpStatus.LOCKED).body(Map.of("message", result.message(), "code", result.code()));
         }
         if (!result.started()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", result.message()));
+            return ResponseEntity.status(AuthFailureReason.MFA_EMAIL_FAILED.equals(result.code())
+                ? HttpStatus.SERVICE_UNAVAILABLE : HttpStatus.UNAUTHORIZED)
+                .body(Map.of("message", result.message(), "code", result.code()));
         }
         return ResponseEntity.ok(mfaBody(result));
     }
@@ -376,7 +378,8 @@ public class AuthApiController {
             "challengeId", challenge.challengeReference(),
             "maskedDestination", challenge.maskedDestination(),
             "expiresInSeconds", challenge.expiresInSeconds(),
-            "resendAvailableInSeconds", challenge.resendAvailableInSeconds()
+            "resendAvailableInSeconds", challenge.resendAvailableInSeconds(),
+            "codeSent", !"MFA_RESEND_COOLDOWN".equals(challenge.code())
         );
     }
 

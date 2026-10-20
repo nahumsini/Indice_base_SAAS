@@ -88,7 +88,7 @@ credential-bearing validation values. No public endpoint is added.
 1. OAuth provider application registration and authorization where required by the provider.
 2. Durable campaign outbox, recipient/content snapshots, explicit send permission and launch review,
    idempotency, limits, scheduling, pause/cancel and per-recipient outcomes. An uncertain SMTP result
-   must not be blindly retried. Consent, suppression and authenticated unsubscribe must precede
+   must not be blindly retried. Recipient eligibility, suppression and authenticated unsubscribe must precede
    marketing dispatch; connection verification alone is insufficient.
 3. Attachment upload/download through the canonical private object-storage flow, server-side Sent
    APPEND reconciliation, full mailbox history synchronization and POP3 import remain separate
@@ -323,7 +323,7 @@ sandbox and a deny-by-default CSP. Plain-text view remains available. The indivi
 a text editor with attachments; editing converts any draft HTML to the reviewed plain text. Rich
 HTML authoring and remote image loading are not introduced.
 
-### Sales campaign delivery ownership and consent
+### Sales campaign delivery ownership and recipient selection
 
 V318 extends campaign statuses to DRAFT, SCHEDULED, RUNNING, PAUSED, COMPLETED and CANCELLED. It adds
 consent/suppression and evidence history, durable run configuration and one delivery per normalized
@@ -335,16 +335,23 @@ The private sender owner must also retain Email/Mail access and explicitly opt t
 Mailing. No new permission is automatically granted to existing production memberships.
 
 Review is computed by the backend: current account version and verified SMTP status, normalized
-recipient addresses, duplicate/invalid/consent/suppression exclusions, campaign version and an audience
-digest. Launch rechecks all of these under the company lock. Only consented recipients enter the
-snapshot; names and addresses are frozen. Content is locked against draft edits after launch.
+recipient addresses, duplicate/invalid/suppression exclusions, campaign version and an audience
+digest. Launch rechecks all of these under the company lock. Only selected eligible recipients enter
+the snapshot; names and addresses are frozen. Content is locked against draft edits after launch.
 `{{name}}` is personalized from the frozen recipient name. A contact footer and unsubscribe link are
 included per recipient. The preview distinguishes eligible and excluded recipients explicitly.
 
-Consent is an explicit operator record of verified permission, with evidence and the actual date;
-it is not inferred from selecting a contact or creating a campaign. A recorded unsubscribe cannot
-be cleared by the consent action. Suppression is checked again immediately before authorizing each
-submission. Pause/cancel prevent pending submissions; a submission already authorized may finish.
+The [direct recipient selection decision of 2026-10-19](sales-mailing-contract-v1.md#direct-recipient-selection--2026-10-19)
+supersedes the original manual consent gate. A valid active contact is READY unless unsubscribed or
+duplicated; no manual consent record is required for review, launch or worker dispatch. Optional launch
+`contactIds` restricts the snapshot to the selected eligible members of this campaign; an explicit empty
+selection is rejected. Omitted/null selection preserves the older client's all-eligible behavior.
+Unknown, foreign, unselected-from-campaign or excluded IDs fail before any run is persisted.
+
+Historical consent records and the compatibility endpoint remain intact; selection never fabricates
+consent evidence. A recorded unsubscribe cannot be cleared by that endpoint. Suppression is checked
+again immediately before authorizing each submission. Pause/cancel prevent pending submissions;
+a submission already authorized may finish.
 
 Sales calls `CampaignEmailGateway`, the Email owner's narrow sender/outcome/send port. The owner
 creates a stable individual outbox identity for each campaign recipient or test command and commits
@@ -446,3 +453,381 @@ needs the application's reachable public HTTPS unsubscribe page; localhost does 
 SPF/DKIM/DMARC and provider sending policies still require provider/domain validation. The current
 limit is 30 submissions/hour/account. OAuth, POP3 mailbox import and full historical mailbox import
 are outside this SMTP/IMAP increment. Deployment and exports: N/A.
+
+
+## Connection-test diagnostics — 2026-10-18
+
+Connection-test failures now expose an allowlisted category alongside the unchanged account fields
+in the existing `POST /api/v1/email/accounts/{id}/test` response. `failureCode` is null on success;
+known categories distinguish authentication rejection, DNS, timeout, connection failure, TLS and
+rejected destinations. Unknown provider errors retain a generic explanation. No raw exception,
+provider diagnostic, username or credential is returned or logged. A content-free log contains
+only the failure category. The category is transient; persisted SMTP/receiving status and audit
+semantics remain unchanged.
+
+The UI localizes each category in all eight runtime locales and identifies SMTP versus IMAP/POP3.
+Existing endpoints, HTTP success shape/status, permissions, CSRF, ownership, encryption, 30-second
+account cooldown, optimistic probe checks and destination/certificate verification are preserved.
+No credentials are changed and no messages are sent or read by connection tests. Schema changes:
+N/A. Unknown/old-server responses keep the existing generic message.
+
+Files changed: Email account contracts/controller/service/probe and destination exception;
+`MailConnectionFailure`; Email API/workspace, `connectionDiagnostics` and locale dictionaries;
+focused backend/frontend tests and this contract. Unrelated local work is preserved. Production
+deployment and commit/push: N/A. Local runtime rollback keeps the previous immutable artifact;
+no database rollback is needed.
+
+Acceptance evidence: 40 focused backend tests passed (`EmailAccountIntegrationTest`,
+`EmailTransportSecurityTest`, `MailConnectionFailureTest`, `MailboxIntegrationTest`,
+`MailTransportTest`) against the isolated test database. An initial mock-reset error in the new
+integration test was corrected before the passing rerun. Frontend connection diagnostics, account/
+Mailing regression and mailbox flow tests passed (12/12); TypeScript and production build passed
+with the existing large-chunk advisory. `git diff --check` passed. The local backend was restarted
+with only the validated Email account classes overlaid on the existing runtime, preserving other
+local modules and configuration; no migration or credential change was introduced.
+
+Live local validation: the first real UI probe reported DNS failure. Inspection found a transposed
+letter in both saved server names; these were corrected through the account editor without changing
+passwords. Subsequent real SMTP and IMAP probes both reached the provider and reported
+`AUTHENTICATION_FAILED`. Java TLS validation succeeded on ports 465 and 993, and the SMTP server
+advertised LOGIN and PLAIN. Remaining dependency: the account owner must verify/re-enter the current
+mailbox credentials or resolve provider account policy before connection can be marked functional.
+No message delivery, inbox import or provider credential change was performed by this validation.
+
+## Email operational UI refinement — 2026-10-18
+
+This is a presentation-only increment under the Frontend Operating System. The account catalog
+separates SMTP and receiving into labeled panels with the actual host, port, status and last-check
+time. Editing is directly visible; disconnection stays in Actions. Open mailbox respects the
+existing Mail tab permission. Mailing opt-in is distinct from connection verification. Progress,
+success and error feedback are visible; the existing 30-second check interval is explained.
+
+The live mailbox uses shared workspace navigation vertically on desktop and horizontally on phones,
+retaining account, query and server-folder controls. Message rows improve subject readability,
+unread, starred and attachment indicators. Counts explicitly refer to the loaded page. Reply,
+reply-all and forward precede the body. On phones, selecting a message gives space to the reader;
+Back restores the list and filters. Copy covers all eight runtime locales and dates use that locale.
+
+Modal classification: `AccountEditor` remains a **Standard Form Modal**, because identity, SMTP,
+receiving and Mailing opt-in form one coherent configuration without dependent progression. Dirty
+close remains a **Confirmation Modal** in the same frame. `IndiceModalFrame`, the blue header/footer,
+visible Cancel, validation, neutral body and 44px controls are preserved. HR and Frontend Operating
+System sections 18, 21–24 and 26 govern grouping and master/detail. No modal-width deviation exists.
+
+Folder structure remains `react/src/app/ComplementaryModules/Email`:
+
+- Modified `CorreoEmpresarial.tsx`: permission-aware mailbox navigation callback.
+- Modified `EmailAccountsWorkspace.tsx`: account panels, feedback and direct editing.
+- Modified `AccountEditor.tsx`: grouped fields, required markers and responsive form styling.
+- Modified `LiveMailboxWorkspace.tsx`: responsive mailbox, folder navigation and reader composition.
+- Modified `MailMessageDetail.tsx`: action placement, localized dates and reading guidance.
+- Created `MailMessageList.tsx`: stateless row presentation; remote operations remain in the owner.
+- Created `emailExperienceCopy.ts`: presentation copy through the existing language context.
+- Created `react/tests/email-experience-flow.test.mjs`; updated diagnostic test rendering.
+- Created isolated visual fixture `react/tests/browser/email-workspace.{html,tsx}` and
+  `react/tests/email-workspace-preview.mjs`. Every fixture API request terminates in its synthetic
+  server, without a backend proxy or provider access.
+
+State and exportability: existing editor drafts, authorization revision, workspace memory, abort
+handling, optimistic versions and owner callbacks are preserved. The extracted list accepts data
+and callbacks without persistence, reducing rendering complexity inside the Email owner. No new
+state library, shared business abstraction or UI engine is introduced.
+
+Preserved: backend, APIs, payloads, routes, permission enforcement, save/test/sync/send handlers,
+TLS and encrypted credentials, empty-password preservation, private ownership, attachments, HTML
+sandbox/CSP and uncertain-send recovery. Earlier diagnostic work remains intact. Schema/database
+tests, deployment, backend restart, exports and commit/push: N/A for this UI increment. Unrelated
+local work remains untouched.
+
+Verification: 16 focused tests passed, covering diagnostics, Email/Mailing contracts, mailbox
+flows and the new UI flows: failed-save input retention, blank stored passwords, transport choices,
+message selection and reply callbacks. The initial diagnostic test renderer needed the new copy
+hook; the corrected suite passed. TypeScript passed. Chrome checks used synthetic data: desktop
+accounts, form and list/reader; dark mailbox; 390px iframe viewport for account cards, modal controls
+and mobile list-to-reader navigation. Review caught and corrected compressed account names and
+action/folder-label overflow. No real account was changed and no email was sent during UI checks.
+Remaining inconsistencies in the changed account form: none observed. Physical mobile keyboards
+and real delivery were outside this visual acceptance.
+
+Final production build passed (14.73 seconds), retaining the existing warning about chunks above
+600 kB; `git diff --check` passed. The live local Accounts page displayed the new panels and retained
+its saved configuration. Only the isolated fixture process/tab was stopped; the application remains
+available on port 5175.
+
+### Attachment upload correction — 2026-10-18
+
+A failed local upload reached registration as `image/png` but contained a valid JPEG.
+The existing content policy correctly rejected the mismatch. Inspection confirmed the same
+bytes pass the unchanged server policy when declared as JPEG; storage connectivity and file
+size were not the cause.
+
+Email now recognizes PNG/JPEG signatures for files with an allowed image extension and normalizes
+only the outgoing filename/MIME. It does not change the source file or transcode its bytes. The
+backend continues to verify complete content, dimensions, ownership, versions, quota and immutable
+storage before registration. PDF/TXT MIME is populated from the allowed extension when the browser
+omits it; backend content checks remain authoritative. Other format families and limits are unchanged.
+
+`mailAttachmentUpload.ts`, `attachmentCopy.ts` and `MailAttachments.tsx` own normalization,
+localized safe diagnostics, upload stages and in-memory retry state. No signed URL, file contents
+or failure payload enters navigation/browser storage. Retry reuses the same staged upload and
+checks for an already committed attachment after a lost registration response, preventing a
+second attachment. Expired transfers require reselecting the file. The compose draft and explicit
+send review retain their existing owner and persistence semantics. This is a correction within
+the existing Standard Form Modal, with no API, schema, credential or permission changes.
+
+Validation: 22 focused frontend regressions passed, including the mislabeled image, preflight
+rejections, normalized private PUT/register sequence, interrupted transfer and ambiguous registration
+reconciliation. TypeScript and production build passed (existing bundle-size warning remains).
+The actual failed file was inspected read-only against the existing Java content policy; no business
+record was mutated and no message was sent for verification. The isolated browser fixture can reproduce
+compose/attachment uploads with synthetic in-memory data; it has no backend/provider proxy.
+
+Browser QA opened the synthetic compose form, but the native file picker/control did not
+complete reliably during this turn. A full new browser upload remains unverified; this does not
+replace the successful component-flow regressions and read-only Java validation above.
+
+### Inbox organization and SMTP outcome correction — 2026-10-18
+
+The Email owner now exposes the account's IMAP folders directly in its blue workspace navigation.
+The list supports All, Unread and Starred filters before server pagination. Search also matches
+recipient addresses, within the selected account/folder and the synchronized cache; it does not
+claim full provider search or cross-account CRM ownership. The reader exposes star/archive/trash
+shortcuts and moving to any discovered folder. Server Sent messages display recipients in the list.
+Entering a remote folder initiates synchronization; periodic refresh pauses while reading or
+composing. The workspace retains its account/folder/search/filter through existing scoped memory.
+
+Provider special-use attributes remain authoritative for Inbox, Sent, Archive, Junk and Trash;
+custom names are preserved. Spam/No deseado is a view of the provider's Junk folder, not a new spam
+engine or a promise to train provider filtering. Drafts and the uncertain/failed sending queue are
+explicitly labeled as local Índice state. Accepted SMTP mail and its separate IMAP Sent copy retain
+independent truth. This increment does not add folder deletion/rename, shared mailboxes, OAuth,
+POP3 ingestion, server-wide body search or unrestricted attachment formats.
+
+New owner mutation: `POST /api/v1/email/mailboxes/{account}/folders` with
+`{name, accountVersion}`. Requires session + CSRF, Email entitlement/module/mail tab, active private
+account ownership, current account version and the existing account operation lease. Names contain
+1–80 Unicode letters/numbers/spaces/underscores/hyphens; nested path/control input is rejected.
+Creation uses the provider's personal namespace and upserts only after confirmed provider success.
+An existing message-holding folder with the same name is idempotent, preserving its special-use
+kind. The existing 100-folder bound applies. No new schema or hard deletion is introduced. Remote
+creation and local recording cannot be one transaction; rediscovery/repeating the same name repairs
+an interrupted registration. Folder moves retain the existing IMAP MOVE requirement and history.
+
+`GET .../messages` adds optional `filter=ALL|UNREAD|STARRED`, defaulting to ALL for existing clients.
+The Sent query no longer keeps a remote accepted message in Sent after it was moved elsewhere.
+Search escapes SQL LIKE wildcards and remains tenant/account/version/folder scoped. Payloads,
+individual-send idempotency, account encryption, private attachment policy and Sales Mailing's
+owner gateway remain compatible.
+
+SMTP now distinguishes explicit sender/recipient/content/size/temporary rejection from a missing
+acknowledgement or partial delivery. Only allowlisted codes reach storage/UI; no SMTP response text,
+addresses, credentials or exception causes leave the transport. Definitive failures remain FAILED
+and require a new reviewed draft; UNKNOWN is never retried automatically. Historical UNKNOWN rows
+cannot be retrospectively classified because their original cause was not retained. Connection
+probes retain their short limits; actual submission read/write timeouts allow up to 60 seconds,
+within the existing absolute socket deadline. This improves tolerance, not a claim that the old
+local incident was a timeout: its request completed in under eight seconds.
+
+References for protocol classification: [Angus SMTP exceptions](https://eclipse-ee4j.github.io/angus-mail/docs/api/org.eclipse.angus.mail/org/eclipse/angus/mail/smtp/SMTPSendFailedException.html)
+and [SMTP timeout guidance, RFC 5321](https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.3.2).
+
+Implementation: `MailSendRejection`, `JakartaMailboxTransport`, `MailDraftService`,
+`MailboxRepository`, `MailboxService`, `MailboxController`, `MailboxContracts`, `MailboxTransport`;
+frontend `LiveMailboxWorkspace`, `MailMessageDetail`, `MailMessageList`, `mailboxApi`,
+`MailFolderDialog` and `mailWorkspaceCopy`. The new form uses the existing Standard Form Modal;
+navigation, buttons and state feedback use the Frontend Operating System primitives. Copy covers
+the existing six languages/eight locale variants. No additional framework or business owner exists.
+
+Validation for this increment: 54 backend tests passed (SMTP/IMAP transport, mailbox isolation,
+folder creation, account diagnostics and Sales Mailing delivery); 25 frontend tests passed including
+new folder-form failure/double-submit handling, recipient error rendering, custom-folder move and
+workspace filter/sync routing. TypeScript and production build passed; the existing >600 kB chunk
+warning remains. `git diff --check` passed. An initial UI test mock did not supply the new copy hook;
+updating the mock restored the regression and the final suite passes.
+
+Chrome's isolated fixture rendered the new folder navigation and the Unread filter changed 12
+messages to 3. Further native UI checks were interrupted by another active Chrome window; a direct
+dedicated browser binding also timed out. Reader/move/create behavior has component regression
+coverage; a complete live-browser delivery is still pending explicit authorization for a single
+self-addressed test message. No real email has been sent or retried by this implementation task.
+
+The local backend was restarted on 8083 with only the validated mailbox package overlaid onto a
+copy of the previous runtime. Other module classes/resources, database, credentials and environment
+were retained; the previous artifact remains available for rollback. Health and class hashes passed.
+The frontend remains served on 5175. All database tests used the isolated `indice_test_db` on 13328,
+which was stopped afterwards. Schema migration, production deployment, commit and push: N/A.
+
+Authorized live verification, 2026-10-18: the user subsequently approved exactly one self-addressed
+message. The normal local session/CSRF-protected mailbox API submitted the approved subject/body
+once, without extracting stored provider credentials. Result: SMTP `ACCEPTED`, IMAP Sent copy
+`COPIED`, and one matching message in INBOX with the exact approved body. Read-only correlation
+confirmed the same Message-ID and exactly one durable send attempt. A subsequent Sent-folder sync
+reconciled the provider copy into the original accepted row; the Sent view contains one matching
+message without duplication. The earlier uncertain attempt was never resent or reclassified.
+Temporary API sessions were logged out. This closes the pending self-send verification above;
+external-domain delivery, provider spam placement and full browser interaction are not established
+by this self-addressed test. No application code changed for the live verification.
+
+### Compact mailbox reading workspace — 2026-10-18
+
+The approved presentation refinement prioritizes reading and daily customer correspondence.
+The account selector, search, refresh and Compose now share a sticky workspace toolbar; the blue
+Indice title bar retains configuration. Desktop uses a narrower folder rail and compact message
+rows, preserving sender/recipient identity, subject, date, unread, starred and attachment signals.
+Received rows no longer repeat the same status label. Outgoing failure/uncertainty remains visible.
+No message bodies are fetched merely to manufacture list snippets.
+
+Provider folders use localized special-use labels. A presentation-only helper removes a leading
+`INBOX.` or `INBOX/` from custom labels and disambiguates matching labels with the original name.
+It never changes folder IDs, names or kinds, merges folders, or guesses spam authority from a name.
+For example, a custom `INBOX.Junk` remains separate from a provider-designated Junk folder named
+`INBOX.spam`. Original names remain available in folder details, the current-folder title and move
+menu tooltips. Local drafts and sending status have a separate “En Índice” navigation group.
+
+The reader keeps one anchored action bar: reply, star, archive, trash, folder move, and a secondary
+menu for reply-all, forward and unread. Draft editing/deletion, failed-message copy and uncertain
+send restrictions retain their existing handlers. Full addressing, CC/BCC, provider folder and exact
+timestamp are disclosed from Message details. Opening another message resets its reading viewport.
+The formatted document has improved typography and borderless layout tables; the text alternative
+and protected-view explanation remain available. The HTML document deliberately keeps a white
+reading canvas inside the light/dark workspace. Existing backend sanitization, empty iframe sandbox,
+no-referrer policy and deny-by-default CSP remain intact; remote images and active content remain
+blocked. No backend, API, permission, credential, persistence or sending semantics changed.
+
+Files: `LiveMailboxWorkspace.tsx`, `MailMessageDetail.tsx`, `MailMessageList.tsx`,
+`SafeMailView.tsx`, `mailFolderPresentation.ts`, `mailWorkspaceCopy.ts`,
+`react/tests/email-experience-flow.test.mjs` and the isolated `email-workspace-preview.mjs` fixture.
+The helper is local to Email; navigation, buttons and menus reuse existing shared primitives.
+New copy covers the six existing language families and their locale variants.
+
+Verification: 27 focused Email frontend tests pass, including real callback routing for reply,
+reply-all, forward and folder moves, uncertain-send restrictions, folder identity preservation,
+and the sandboxed HTML/text alternative. Chrome's isolated fixture verified opening, selecting,
+moving a synthetic message into Clients and back, reply recipient/subject prefill, address-details
+expansion, desktop, narrow-screen navigation/reading and dark mode. Browser error log was empty.
+The fixture has no provider/backend proxy; no real mail was sent, moved or removed for this change.
+TypeScript and production build passed; the existing bundle-size warning remains. The live local
+Email tab was inspected read-only and displayed the updated controls; its route returned HTTP 200.
+`git diff --check` passed. Backend/database tests, schema migration, runtime restart, deployment and
+push: N/A.
+
+### Folder rail and focused reading — 2026-10-18
+
+The approved daily-use refinement adds a desktop folder toggle. The compact rail retains every
+folder's icon, accessible name and hover title, with a distinct selected marker. Its boolean layout
+preference uses the existing company/user-scoped `email/mail` workspace-memory contract; account and
+filter changes retain it. Mobile uses the existing Sheet component with complete labels, focus
+containment, an explicit close button and focus return. Selecting a folder closes the drawer;
+creating one hands off to the existing folder form. Drawer visibility is transient.
+
+Folder navigation has a neutral sidebar with a blue selected marker; message filters have an
+underline; organizing actions have a separate neutral toolbar. Compose remains the primary action.
+The existing title bar is compact and names its configuration menu explicitly. On phones the
+account selector occupies its own row so the selected mailbox remains readable.
+
+“Ampliar lectura” temporarily hides both folder rail and message list. The list stays mounted;
+returning restores its scroll position and the same selected message without an additional list
+or open request. The reader is centered for readable line length. “Volver al buzón” and Escape
+return to the prior rail layout; dialogs and menus retain ownership of Escape. Neither expanded
+reading, message selection nor message content is persisted. Provider folder identity, sync,
+SMTP delivery, permissions, draft recovery and safe HTML boundaries remain unchanged.
+
+Files for this increment: `LiveMailboxWorkspace.tsx`, `MailFolderRail.tsx`, `mailWorkspace.css`,
+`MailMessageDetail.tsx`, `mailWorkspaceCopy.ts`, optional presentation props in
+`IndiceWorkspaceNavigation.tsx`, and focused regressions in `email-experience-flow.test.mjs` /
+`system-tools-navigation.test.mjs`. Existing navigation variants retain their defaults.
+
+Validation: all 48 focused Email, shared-navigation and workspace-memory regressions passed,
+including scope isolation, restored-layout normalization, list/selection retention and no extra
+requests when changing layout. TypeScript, production build and `git diff --check` passed; the
+existing >600 kB bundle warning remains. Chrome's isolated synthetic fixture verified compact and
+expanded rails, expanded reading, menu/Escape precedence, list return position, light/dark styling,
+and the 390px mobile drawer including folder selection and the new-folder form handoff. Browser
+error log was empty; intermittent automation timeouts recovered through the existing tab binding.
+No real mail was sent or moved. Backend/database/schema/deployment/push: N/A for this increment.
+
+### Restrained mailbox color accents — 2026-10-18
+
+The user-requested visual refinement adds soft blue workspace surfaces and selected/unread rows,
+lavender reading actions, and small aqua/lavender folder icons and correspondent avatars. A stable
+address-derived tint stays with each correspondent without storing or exposing an additional
+identifier. Blue remains the selected-state and primary-action color. Amber remains associated
+with starred mail and the provider's spam folder; delivery status is never inferred from an avatar
+or folder color. Text, accessible labels, icons and unread indicators retain their meanings.
+The sender context gains a soft blue surface while the document canvas stays white. Light/dark
+styles retain the existing folder, drawer, focus, selection and expanded-reader behavior.
+
+Affected frontend files: `LiveMailboxWorkspace.tsx`, `MailFolderRail.tsx`, `MailMessageList.tsx`,
+`MailMessageDetail.tsx` and `mailWorkspace.css`; the Frontend Operating System records the narrow
+supporting-accent decision. API, provider operations, safe HTML, sending, permissions, routes and
+workspace-memory semantics are unchanged. Backend/schema/deployment: N/A.
+
+Validation: 37 existing Email/navigation regressions, TypeScript, production build and
+`git diff --check` passed. Chrome's isolated fixture was reviewed in light/dark themes, compact and
+expanded rails, and a 390px mobile drawer. No browser errors were recorded and no real message was
+sent, moved or removed. Aqua initial contrast was raised to 5.49:1 on the selected-row background;
+blue and lavender initials also exceed 4.5:1. The existing >600 kB build warning remains. No new
+test suite was introduced for this presentation-only refinement.
+
+### Canonical title and filter composition — 2026-10-18
+
+The user's request to align the live Mailbox with the Frontend Operating System supersedes the
+earlier compact title and combined account/search/action toolbar. The shared `IndiceTitleBar`
+now retains its standard title, icon, descriptive subtitle and responsive spacing. Compose is
+the primary action; Refresh and Preferences are direct secondary actions. When Accounts access
+is available, it occupies the shared neutral Actions overflow as the fourth eligible action.
+With only three eligible actions there is no overflow. Existing Accounts permission remains
+authoritative; the empty-account state retains its existing connection action.
+
+A separate `IndiceFilterBar` uses shared search/select/disclosure primitives. Search is first,
+followed by mailbox account and All/Unread/Starred. There are no invented unit/business, date or
+advanced filters. Inline search clearing preserves the status filter; Clear filters resets query,
+status and paging while retaining the account, folder and collapsed-rail preference. Account
+changes reset the folder to Inbox and clear query/status; unknown account IDs are ignored.
+Remote search is debounced by 300 ms, cancels superseded requests, and returns to the first page.
+The workspace row names the current folder and the number of messages on this page, without
+claiming a global total. The existing 25-item API paging contract remains unchanged.
+
+The folder rail, message list and reader keep their distinct soft-color surfaces. The empty reader
+reuses `IndiceViewState` without a second nested card. Phone filters hide while reading a message
+and reappear when returning to the list. Accounts was reviewed and already uses the shared
+title/subtitle/action anatomy; its provider configuration flow is unchanged.
+
+Implementation handoff:
+
+- Folder structure stays under `react/src/app/ComplementaryModules/Email/`; shared presentation
+  remains in `react/src/app/components/frontend-os/` and tests in `react/tests/`.
+- New `MailWorkspaceFilters.tsx` owns controlled filter presentation only. Extracting this cohesive
+  block replaces duplicated inline filter/action markup and keeps the mailbox owner focused on
+  scope, requests and message operations; it adds no new state or fetching layer.
+- Modified `LiveMailboxWorkspace.tsx` composes the title, filters and workspace, owns filter-change
+  callbacks and continues to use `useWorkspaceNavigationMemory` for company/user-scoped state.
+  `MailMessageDetail.tsx` adjusts only empty-state presentation. `mailWorkspaceCopy.ts` supplies
+  the new labels and subtitle for all six existing language families.
+- `react/tests/email-experience-flow.test.mjs` covers the controlled filters, debounce, reset,
+  paging, account scope, layout preference, Compose routing and permission-sensitive overflow.
+  The two documentation files record this approved composition.
+- Exportability: the new presentation component depends only on Email copy/types and existing
+  shared controls. It can move with its Email owner without transferring domain authority into
+  shared UI or adding routes, global state or backend dependencies.
+- Preserved: SMTP/IMAP, API payloads, routes, provider folder identities, permissions, safe HTML,
+  draft/send workflows, account ownership, workspace-memory scope, mobile folder drawer and
+  expanded-reader/list-position behavior. New modals, backend/schema work and deployment: N/A.
+
+Verification: 39 focused Email/navigation regressions, TypeScript and production build passed.
+Chrome's isolated fixture verified no-read/starred/search filters, inline and full clearing,
+Compose opening with the selected account, collapsing folders, expanded reading, and light/dark
+styles. At 390 px, the shared filters and folder drawer work with no horizontal overflow; opening
+a message hides filters and returning restores them. No browser errors were recorded. The fixture
+uses synthetic mail without a provider/backend proxy; no real email was sent, moved or deleted.
+The existing production-build warning for chunks over 600 kB remains.
+
+### Sales contact audience extension — 2026-10-18
+
+The [Mailing contact audience contract](sales-mailing-contract-v1.md#contact-audiences-and-campaign-history--2026-10-18)
+adds filtered contact selection, static saved lists, eligibility preview and contact campaign
+history. Sales owns those records and endpoints. Email account privacy, SMTP verification,
+credentials, the owner gateway, recipient send ledger, quota, suppression and explicit launch/test
+confirmation remain unchanged. New campaigns personalize `{{name}}` from contact person with a
+company-name fallback; launched snapshots remain immutable. No real email is sent by audience or
+list operations.

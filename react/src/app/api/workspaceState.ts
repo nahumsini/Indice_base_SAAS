@@ -6,6 +6,7 @@ export type WorkspaceStateResponse<TState extends Record<string, unknown>> = {
   state: TState;
   schemaVersion: number;
   updatedAt?: string;
+  expiresAt?: string | null;
 };
 
 const pathFor = (moduleKey: string, tabKey: string) => (
@@ -14,20 +15,24 @@ const pathFor = (moduleKey: string, tabKey: string) => (
 
 export const workspaceStateApi = {
   get<TState extends Record<string, unknown>>(moduleKey: string, tabKey: string) {
-    return apiClient<WorkspaceStateResponse<TState>>(pathFor(moduleKey, tabKey), {headers:learningActorHeaders(moduleKey,tabKey)});
+    return apiClient<WorkspaceStateResponse<TState>>(pathFor(moduleKey, tabKey), {headers:workspaceActorHeaders(moduleKey,tabKey)});
   },
   save<TState extends Record<string, unknown>>(moduleKey: string, tabKey: string, state: TState) {
     return apiClient<WorkspaceStateResponse<TState>>(pathFor(moduleKey, tabKey), {
       method: 'PUT',
-      headers: learningActorHeaders(moduleKey,tabKey),
+      headers: workspaceActorHeaders(moduleKey,tabKey),
       body: JSON.stringify({ state, schemaVersion: 1 }),
     });
   },
   clear(moduleKey: string, tabKey: string) {
-    return apiClient<{ success: boolean }>(pathFor(moduleKey, tabKey), { method: 'DELETE',headers:learningActorHeaders(moduleKey,tabKey) });
+    return apiClient<{ success: boolean }>(pathFor(moduleKey, tabKey), { method: 'DELETE',headers:workspaceActorHeaders(moduleKey,tabKey) });
   },
 };
-function learningActorHeaders(moduleKey:string,tabKey:string):HeadersInit|undefined {
+function workspaceActorHeaders(moduleKey:string,tabKey:string):HeadersInit|undefined {
+  if(moduleKey==='system'&&(tabKey==='business-currency'||tabKey==='workbar-layout')) {
+    const session=getCachedAuthSession();
+    return {'X-Workspace-Actor':session?`${session.company.id}:${session.user.id}`:''};
+  }
   if(moduleKey!=='system'||!tabKey.startsWith('learning-view-'))return undefined;
   const session=getCachedAuthSession();
   return {'X-Learning-Actor':session?`${session.company.id}:${session.user.id}`:''};

@@ -411,12 +411,6 @@ class ConfigCenterServiceTest {
     void saveEmpresaRejectsInvalidHeadquartersLatitude() {
         var service = newService();
 
-        when(jdbcTemplate.query(
-            eq("SELECT settings_json FROM company_settings WHERE company_id = ? LIMIT 1"),
-            org.mockito.ArgumentMatchers.<RowMapper<String>>any(),
-            eq(1L)
-        )).thenReturn(List.of("{}"));
-
         var headquartersLocation = new LinkedHashMap<String, Object>();
         headquartersLocation.put("latitude", "100.0000000");
         headquartersLocation.put("longitude", "-79.3817000");
@@ -425,6 +419,7 @@ class ConfigCenterServiceTest {
         payload.put("headquarters_location", headquartersLocation);
 
         assertThrows(IllegalArgumentException.class, () -> service.saveEmpresa(1L, 1L, payload));
+        verifyNoInteractions(jdbcTemplate);
     }
 
     @Test
@@ -609,6 +604,7 @@ class ConfigCenterServiceTest {
 
     @Test
     void inviteUserAllowsGloballyRegisteredEmailForAnotherCompany() {
+        when(jdbcTemplate.queryForObject("SELECT id FROM companies WHERE id = ? FOR UPDATE", Long.class, 1L)).thenReturn(1L);
         var service = newService();
 
         when(jdbcTemplate.query(
@@ -722,6 +718,7 @@ class ConfigCenterServiceTest {
                        COALESCE(p.given_names, '') AS given_names,
                        COALESCE(p.family_names, '') AS family_names,
                        COALESCE(p.phone, '') AS phone,
+                       p.phone_numbers_json,
                        COALESCE(p.country, '') AS country,
                        COALESCE(p.preferred_language, 'es-419') AS preferred_language,
                        COALESCE(p.avatar_url, '') AS avatar_url,
@@ -749,6 +746,7 @@ class ConfigCenterServiceTest {
             when(rs.getString("avatar_url")).thenReturn(null);
             when(rs.getString("avatar_object_key")).thenReturn(null);
             when(rs.getString("avatar_content_type")).thenReturn(null);
+            when(rs.getString("phone_numbers_json")).thenReturn(null);
             return List.of(rowMapper.mapRow(rs, 0));
         });
 
@@ -791,6 +789,7 @@ class ConfigCenterServiceTest {
             when(rs.getString("avatar_url")).thenReturn(null);
             when(rs.getString("avatar_object_key")).thenReturn(null);
             when(rs.getString("avatar_content_type")).thenReturn(null);
+            when(rs.getString("phone_numbers_json")).thenReturn(null);
             return List.of(rowMapper.mapRow(rs, 0));
         });
 
@@ -833,6 +832,7 @@ class ConfigCenterServiceTest {
             when(rs.getString("avatar_url")).thenReturn(null);
             when(rs.getString("avatar_object_key")).thenReturn(null);
             when(rs.getString("avatar_content_type")).thenReturn(null);
+            when(rs.getString("phone_numbers_json")).thenReturn(null);
             return List.of(rowMapper.mapRow(rs, 0));
         });
 

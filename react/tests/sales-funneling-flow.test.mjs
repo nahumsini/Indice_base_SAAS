@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { validateFunnel, previewConversion, moveStage, duplicateFunnel, normalizeFunnelView, selectVisibleFunnel } from '../src/app/BasicModules/Sales/Funneling/funnelModel.ts';
+import { loadTypescript } from './helpers/hook-runtime.mjs';
+const root = new URL('../src/app/BasicModules/Sales/Funneling/', import.meta.url);
+const campaignModel = loadTypescript(new URL('campaignModel.ts', root).pathname, id => { throw Error(id); });
+const { validateFunnel, previewConversion, moveStage, duplicateFunnel, normalizeFunnelView, selectVisibleFunnel } = loadTypescript(new URL('funnelModel.ts', root).pathname, id => { if (id === './campaignModel') return campaignModel; throw Error(id); });
 
 const plan = () => ({ id: 'saved-plan', version: 4, name: 'Campaign', objective: 'Appointments', audience: 'Adults', channel: 'EMAIL', notes: '', status: 'PLANNED', updatedAt: '', estimatedConversion: 10,
   stages: [{ name: 'Attract', action: 'Invite', measure: 'People reached', target: 100 }, { name: 'Convert', action: 'Follow up', measure: 'Appointments', target: 10 }] });

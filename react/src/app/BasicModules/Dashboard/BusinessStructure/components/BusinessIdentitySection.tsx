@@ -88,6 +88,8 @@ interface BusinessIdentitySectionProps {
   onDescriptionChange: (value: string) => void;
   onBusinessAddressChange: (updates: Partial<BusinessAddressFormValues>) => void;
   onLocationCoordinateChange: (updates: Partial<LocationCoordinateFormValues>) => void;
+  onLogoFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onCoordinateBusyChange?: (busy: boolean) => void;
   disabled?: boolean;
 }
 
@@ -106,6 +108,8 @@ export function BusinessIdentitySection({
   onDescriptionChange,
   onBusinessAddressChange,
   onLocationCoordinateChange,
+  onLogoFileChange,
+  onCoordinateBusyChange,
   disabled = false,
 }: BusinessIdentitySectionProps) {
   const { currentLanguage } = useLanguage();
@@ -189,19 +193,6 @@ export function BusinessIdentitySection({
     });
   };
 
-  const handleLogoUpload = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      onLogoChange(String(reader.result ?? ''));
-    };
-    reader.readAsDataURL(file);
-  };
-
   return (
     <div
       key={`identity-${estructuraType}`}
@@ -221,6 +212,8 @@ export function BusinessIdentitySection({
           </label>
           <input
             type="text"
+            aria-label={companyNameLabel}
+            maxLength={120}
             value={companyName}
             onChange={(event) => onCompanyNameChange(event.target.value)}
             className={inputClassName}
@@ -234,6 +227,7 @@ export function BusinessIdentitySection({
           </label>
           <select
             className={`${inputClassName} appearance-none cursor-pointer`}
+            aria-label={structure.fields.industry}
             value={industry}
             onChange={(event) => onIndustryChange(event.target.value)}
             disabled={disabled}
@@ -274,7 +268,7 @@ export function BusinessIdentitySection({
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={handleLogoUpload}
+                  onChange={onLogoFileChange}
                   disabled={disabled}
                   className="sr-only"
                 />
@@ -299,7 +293,8 @@ export function BusinessIdentitySection({
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{structure.fields.description}</label>
-            <textarea rows={2} value={description} onChange={(event) => onDescriptionChange(event.target.value)} className={textareaClassName} disabled={disabled} />
+            <textarea rows={2} aria-label={structure.fields.description}
+            value={description} onChange={(event) => onDescriptionChange(event.target.value)} className={textareaClassName} disabled={disabled} />
           </div>
         </div>
       </details>
@@ -316,7 +311,9 @@ export function BusinessIdentitySection({
               </label>
               <input
                 type="text"
-                value={businessAddress.street}
+                aria-label={structure.fields.address}
+            maxLength={255}
+            value={businessAddress.street}
                 onChange={(event) => onBusinessAddressChange({ street: event.target.value })}
                 className={inputClassName}
                 disabled={disabled}
@@ -328,7 +325,8 @@ export function BusinessIdentitySection({
                 {structure.fields.country}
               </label>
               <select
-                value={businessAddress.country}
+                aria-label={structure.fields.country}
+            value={businessAddress.country}
                 onChange={(event) => handleAddressCountryChange(event.target.value)}
                 className={`${inputClassName} appearance-none cursor-pointer`}
                 disabled={disabled}
@@ -348,7 +346,8 @@ export function BusinessIdentitySection({
               </label>
               {usesStateDropdown ? (
                 <select
-                  value={businessAddress.state}
+                  aria-label={structure.fields.state}
+            value={businessAddress.state}
                   onChange={(event) => onBusinessAddressChange({ state: event.target.value })}
                   className={`${inputClassName} appearance-none cursor-pointer`}
                   disabled={disabled}
@@ -363,7 +362,8 @@ export function BusinessIdentitySection({
               ) : (
                 <input
                   type="text"
-                  value={businessAddress.state}
+                  aria-label={structure.fields.state}
+            value={businessAddress.state}
                   onChange={(event) => onBusinessAddressChange({ state: event.target.value })}
                   className={inputClassName}
                   disabled={disabled}
@@ -377,7 +377,8 @@ export function BusinessIdentitySection({
               </label>
               <input
                 type="text"
-                value={businessAddress.city}
+                aria-label={structure.fields.city}
+            value={businessAddress.city}
                 onChange={(event) => onBusinessAddressChange({ city: event.target.value })}
                 className={inputClassName}
                 disabled={disabled}
@@ -390,7 +391,8 @@ export function BusinessIdentitySection({
               </label>
               <input
                 type="text"
-                value={businessAddress.zip}
+                aria-label={structure.fields.postalCode}
+            value={businessAddress.zip}
                 onChange={(event) => onBusinessAddressChange({ zip: event.target.value })}
                 className={inputClassName}
                 disabled={disabled}
@@ -398,6 +400,7 @@ export function BusinessIdentitySection({
             </div>
         </div>
         <LocationCoordinateFields
+          onBusyChange={onCoordinateBusyChange}
           values={locationCoordinateValues}
           onChange={onLocationCoordinateChange}
           disabled={disabled}

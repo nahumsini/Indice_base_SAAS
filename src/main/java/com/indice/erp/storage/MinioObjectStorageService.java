@@ -220,6 +220,21 @@ public class MinioObjectStorageService implements ObjectStorageService {
     }
 
     @Override
+    public String presignDownload(String bucketName, String objectKey, int expirySeconds, String fileName) {
+        if (fileName == null || fileName.isBlank()) return presignDownload(bucketName, objectKey, expirySeconds);
+        try {
+            var disposition = org.springframework.http.ContentDisposition.inline()
+                .filename(fileName, java.nio.charset.StandardCharsets.UTF_8).build().toString();
+            return rewritePublicUrl(minioClient.getPresignedObjectUrl(
+                GetPresignedObjectUrlArgs.builder().method(Method.GET).bucket(bucketName).object(objectKey)
+                    .expiry(expirySeconds).extraQueryParams(Map.of("response-content-disposition", disposition)).build()
+            ), properties.getMinio().getPublicEndpoint());
+        } catch (Exception ex) {
+            throw new ObjectStorageException("Unable to generate a private document URL.", ex);
+        }
+    }
+
+    @Override
     public String presignServiceDownload(String bucketName, String objectKey, int expirySeconds) {
         try {
             var serviceEndpoint = isBlank(properties.getMinio().getServicePublicEndpoint())

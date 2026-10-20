@@ -14,7 +14,26 @@ const stages=[{key:'pending',label:'Pending',colorToken:'BLUE'},{key:'coordinati
 let flows:ContinuityFlow[]=[{id:0,name:'Delivery and service',stages,version:0,archived:false}];
 let rows:ContinuityItem[]=Array.from({length:33},(_,i)=>({kind:i<30?'won':'lost',sourceId:i+1,reference:(i<30?'SAL-':'OPP-')+String(i+1).padStart(5,'0'),title:'Programa de servicio '+(i+1),clientName:['Clínica Horizonte','Consultorios del Valle','Centro Médico Alba','Salud Empresarial'][i%4]+' · '+(i+1),contactName:['Mariana Torres','Ricardo Salas','Fernanda Vega'][i%3],phone:'',email:'',contactId:null,opportunityId:null,workId:i<30?i+1:null,version:i<30?1:0,flowId:0,stageKey:i<24?'pending':i<30?'delivery':'unscheduled',ownerId:1,ownerName:'Vendedor de prueba',nextAction:i<30?'Confirmar entrega y documentación':'',nextActionDate:i<5?'2026-10-17':i<30?'2026-10-20':null,notes:'',lossReason:i<30?'':'Revisar presupuesto el próximo mes',recoveryStatus:'unscheduled',recoveredOpportunityId:null}));
 const events=new Map<number,ContinuityDetail['history']>();const receipts=new Map<string,ContinuityDetail>();let failNext=false;
-api.workspace=async(params)=>{const items=rows.filter(row=>row.kind===params.kind&&(!params.search||row.clientName.toLowerCase().includes(params.search.toLowerCase()))&&(params.flow===undefined||params.flow===row.flowId)&&(!params.owner||params.owner===row.ownerId)&&(!params.stage||params.stage==='all'||params.stage===row.recoveryStatus));return {items:items.slice((params.page-1)*50,params.page*50),counts:{total:items.length,overdue:items.filter(row=>row.nextActionDate&&row.nextActionDate<'2026-10-18').length,today:0,unscheduled:items.filter(row=>!row.nextActionDate).length,completed:items.filter(row=>row.stageKey==='completed'||row.recoveryStatus==='recovered').length},page:params.page,pageSize:50,flows,owners:[{id:1,name:'Vendedor de prueba'}],today:'2026-10-18',timezone:'America/Toronto',canReactivate:true};};
+// This fixture emulates the server's global order before slicing the page.
+api.workspace=async(params)=>{
+ const size=params.pageSize??50;
+ const items=rows.filter(row=>row.kind===params.kind&&(!params.search||row.clientName.toLowerCase().includes(params.search.toLowerCase()))&&(params.flow===undefined||params.flow===row.flowId)&&(!params.owner||params.owner===row.ownerId)&&(!params.stage||params.stage==='all'||params.stage===(row.kind==='won'?row.stageKey:row.recoveryStatus)));
+ const value=(row:ContinuityItem):string|number|null=>{
+  switch(params.sort??'nextAction'){
+   case 'client':return row.clientName.trim()||row.title.trim()||null;
+   case 'sale':return row.reference.trim()||null;
+   case 'owner':return row.ownerName.trim()||null;
+   case 'lossReason':return row.lossReason.trim()||null;
+   case 'stage':return row.kind==='lost'?['unscheduled','scheduled','paused','recovered'].indexOf(row.recoveryStatus):flows.find(flow=>flow.id===row.flowId)?.stages.findIndex(stage=>stage.key===row.stageKey)??null;
+   default:return row.nextActionDate;
+  }
+ };
+ items.sort((a,b)=>{const left=value(a),right=value(b);if(left===null||right===null)return left===right?b.sourceId-a.sourceId:left===null?1:-1;
+  const comparison=typeof left==='number'&&typeof right==='number'?left-right:String(left).localeCompare(String(right),'es',{sensitivity:'base'});
+  return comparison*(params.direction==='desc'?-1:1)||b.sourceId-a.sourceId;
+ });
+ return {items:items.slice((params.page-1)*size,params.page*size),counts:{total:items.length,overdue:items.filter(row=>row.nextActionDate&&row.nextActionDate<'2026-10-18').length,today:0,unscheduled:items.filter(row=>!row.nextActionDate).length,completed:items.filter(row=>row.stageKey==='completed'||row.recoveryStatus==='recovered').length},page:params.page,pageSize:size,flows,owners:[{id:1,name:'Vendedor de prueba'}],today:'2026-10-18',timezone:'America/Toronto',canReactivate:true};
+};
 api.detail=async(kind,id)=>structuredClone({item:rows.find(row=>row.sourceId===id&&row.kind===kind)!,history:events.get(id)??[]});
 api.save=async(kind,id,cmd)=>{if(receipts.has(cmd.requestKey))return receipts.get(cmd.requestKey)!;const item=rows.find(row=>row.sourceId===id)!;if(item.version!==cmd.version)throw {status:409};Object.assign(item,cmd,{workId:id,version:item.version+1,recoveryStatus:cmd.paused?'paused':cmd.nextActionDate?'scheduled':'unscheduled'});events.set(id,[{id:Date.now(),type:'updated',actor:item.ownerName,createdAt:new Date().toISOString(),detail:JSON.stringify(cmd)},...events.get(id)??[]]);const result=await api.detail(kind,id);receipts.set(cmd.requestKey,result);if(failNext){failNext=false;throw new Error('Synthetic response lost');}return result;};
 api.reactivate=async(id,cmd)=>{if(receipts.has(cmd.requestKey))return receipts.get(cmd.requestKey)!;const item=rows.find(row=>row.sourceId===id)!;Object.assign(item,{recoveredOpportunityId:1000+id,recoveryStatus:'recovered',version:item.version+1});events.set(id,[{id:Date.now(),type:'reactivated',actor:item.ownerName,createdAt:new Date().toISOString(),detail:JSON.stringify({opportunityName:cmd.opportunityName})},...events.get(id)??[]]);const result=await api.detail('lost',id);receipts.set(cmd.requestKey,result);return result;};

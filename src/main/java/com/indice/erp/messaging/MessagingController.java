@@ -19,6 +19,10 @@ public class MessagingController {
     public com.indice.erp.processTasks.tasks.ProcessTaskMessagingContract.TaskLink task(HttpServletRequest r,@PathVariable long id,@RequestBody MessagingTaskService.CreateTask body) {
         return tasks.create(access.actor(r),id,body,false,null);
     }
+    @PostMapping("/attachments")
+    public PhotoUploadResult draftUpload(HttpServletRequest r,@RequestBody PhotoUpload request) {
+        return attachments.presignDraft(access.actor(r),request);
+    }
     @PostMapping("/conversations/{id}/attachments")
     public PhotoUploadResult upload(HttpServletRequest r,@PathVariable long id,@RequestBody PhotoUpload request) {
         return attachments.presign(access.actor(r),id,request);
@@ -28,7 +32,8 @@ public class MessagingController {
         return org.springframework.http.ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore())
             .body(attachments.download(access.actor(r),id,attachmentId));
     }
-    @GetMapping("/context") public Context context(HttpServletRequest r) { return service.context(access.actor(r)); }
+    @GetMapping("/context") public Context context(HttpServletRequest r) { var c=service.context(access.actor(r));
+        return new Context(c.userId(),c.companyId(),c.membershipId(),c.distributor(),c.supportOnly(),!c.supportOnly()); }
     @GetMapping("/unread") public long unread(HttpServletRequest r) { return service.unread(access.actor(r)); }
     @GetMapping("/directory") public List<Person> directory(HttpServletRequest r,@RequestParam(defaultValue="") String q) { return service.directory(access.actor(r),q); }
     @GetMapping("/conversations") public Page<Conversation> list(HttpServletRequest r,@RequestParam(defaultValue="ALL") String filter,

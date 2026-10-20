@@ -79,3 +79,142 @@ test('notification opens once, stays closed after permission refresh, and opens 
   location={...location,key:'second'};runtime.render();await runtime.flush();assert.equal(reads,2);assert.ok(find(runtime,n=>n.type==='ContinuityWorkModal'));
  } finally {runtime.unmount();globalThis.window=previousWindow;}
 });
+
+function setupWorkspace(restored = {}, total = 83) {
+ const runtime=hookRuntime(); const reads=[]; let memory; let fail=false;
+ const item={...base,kind:'won',sourceId:8,reference:'SAL-008',stageKey:'pending'};
+ const {default:Postventa}=loadTypescript(new URL('../Postventa.tsx',root).pathname,id=>{
+  if(id==='react')return runtime.hooks;
+  if(id==='react/jsx-runtime')return {jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props}),Fragment:'Fragment'};
+  if(id==='react-router')return {useLocation:()=>({search:'',key:'table-test'})};
+  if(id.endsWith('/shared/context'))return {useLanguage:()=>({currentLanguage:{code:'es-MX'}})};
+  if(id.endsWith('useWorkspaceNavigationMemory'))return {useWorkspaceNavigationMemory:(options)=>{memory=options;return true;}};
+  if(id.endsWith('postSaleWorkspaceApi'))return {postSaleWorkspaceApi:{workspace:async(params)=>{reads.push(params);if(fail){fail=false;throw new Error('Synthetic read failure');}return {...workspace,items:[params.kind === 'lost' ? base : item],counts:{total,overdue:0,today:0,unscheduled:total,completed:0},page:params.page,pageSize:params.pageSize};}}};
+  if(id.endsWith('continuityCopy'))return copy;
+  if(id.endsWith('continuityModel'))return model;
+  return new Proxy({}, {get:(_,key)=>key});
+ });
+ runtime.render(()=>Postventa()); memory.onRestore({...memory.defaults,...restored});
+ return {runtime,reads,item,memory:()=>memory,failNext(){fail=true;}};
+}
+function viewButton(runtime,label) {return find(runtime,n=>n.type==='Button'&&Array.isArray(n.props.children)&&n.props.children.includes(label)).props;}
+test('won view restores and switching layouts retains filters, page and server result without refetch',async()=>{
+ const {runtime,reads,memory}=setupWorkspace({wonView:'table',page:2,search:'clinic',owner:'2'}); await runtime.flush();
+ assert.ok(find(runtime,n=>n.type==='ContinuityTable'));const count=reads.length;
+ viewButton(runtime,'Tablero').onClick();await runtime.flush();assert.ok(find(runtime,n=>n.type==='ContinuityBoard'));
+ viewButton(runtime,'Tabla').onClick();await runtime.flush();assert.ok(find(runtime,n=>n.type==='ContinuityTable'));
+ assert.equal(reads.length,count);assert.equal(memory().state.page,2);assert.equal(memory().state.search,'clinic');assert.equal(memory().state.owner,'2');assert.equal(memory().state.wonView,'table');
+ viewButton(runtime,'Ganadas').onClick();await runtime.flush();assert.ok(find(runtime,n=>n.type==='ContinuityTable'));assert.equal(memory().state.page,1);
+ viewButton(runtime,'Ganadas').onClick();await runtime.flush();assert.ok(find(runtime,n=>n.type==='ContinuityTable'));
+ viewButton(runtime,'Perdidas').onClick();await runtime.flush();assert.ok(find(runtime,n=>n.type==='ContinuityBoard'));assert.equal(nodes(runtime.result).some(n=>n.type==='ContinuityTable'),false);
+ viewButton(runtime,'Ganadas').onClick();await runtime.flush();assert.ok(find(runtime,n=>n.type==='ContinuityTable'));runtime.unmount();
+});
+test('table pagination requests the complete server page and resets after changing size',async()=>{
+ const {runtime,reads,memory}=setupWorkspace({wonView:'table',page:2});await runtime.flush();
+ const pagination=find(runtime,n=>n.type==='DataTablePagination').props;
+ assert.equal(pagination.totalCount,83);assert.equal(pagination.pageStart,51);assert.equal(pagination.pageEnd,83);
+ assert.deepEqual(pagination.pageSizeOptions,[10,25,50,100]);pagination.onPageSizeChange(10);await runtime.flush();
+ assert.equal(reads.at(-1).page,1);assert.equal(reads.at(-1).pageSize,10);assert.equal(memory().state.pageSize,10);
+ find(runtime,n=>n.type==='DataTablePagination').props.onPageChange(3);await runtime.flush();assert.equal(reads.at(-1).page,3);runtime.unmount();
+});
+test('restored invalid size and removed last page normalize to a valid server page',async()=>{
+ const {runtime,reads,memory}=setupWorkspace({wonView:'invalid',page:9,pageSize:200},12);await runtime.flush();
+ assert.equal(memory().state.wonView,'board');assert.equal(memory().state.pageSize,50);assert.equal(reads.at(-1).page,1);runtime.unmount();
+});
+function setupTable() {
+ const runtime=hookRuntime();const opened=[];const widthKeys=[];
+ const {ContinuityTable}=loadTypescript(new URL('ContinuityTable.tsx',root).pathname,id=>{
+  if(id==='react')return runtime.hooks;
+  if(id==='react/jsx-runtime')return {jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props}),Fragment:'Fragment'};
+  if(id.endsWith('postSaleWorkspaceApi'))return {continuitySortColumns:['client','sale','stage','owner','lossReason','nextAction']};
+  if(id.endsWith('usePersistentColumnWidths'))return {usePersistentColumnWidths:({defaults,storageKey})=>{widthKeys.push(storageKey);return {columnWidths:defaults,resizeColumn(){}};}};
+  if(id.endsWith('IndiceTableEngine'))return {...Object.fromEntries(['IndiceTableShell','IndiceOperationalTable','IndiceTableColGroup','IndiceTableHeaderRow','IndiceTableActionGroup'].map(key=>[key,key])),getIndiceTableMinimumWidth:()=>1280};
+  if(id.endsWith('salesCommunicationUtils'))return {getPhoneHref:phone=>'tel:'+phone};
+  if(id.endsWith('continuityCopy'))return copy;if(id.endsWith('continuityModel'))return model;
+  return new Proxy({}, {get:(_,key)=>key});
+ });
+ return {runtime,opened,widthKeys,ContinuityTable};
+}
+test('won table opens the existing follow-up with the original record and preserves completed urgency',()=>{
+ const {runtime,opened,ContinuityTable}=setupTable();
+ const item={...base,kind:'won',stageKey:'completed',nextActionDate:'2026-01-01',phone:'+12025550100',email:'synthetic@example.com'};const t=copy.continuityCopy('es-MX');
+ const props={kind:'won',items:[item],flow:workspace.flows[0],today:'2026-10-18',locale:'es-MX',t,busy:false,pagination:'pagination',onOpen:value=>opened.push(value)};
+ runtime.render(()=>ContinuityTable(props));find(runtime,n=>n.props?.['aria-label']===`${t.nextAction} · ${item.reference}`).props.onClick();assert.equal(opened[0],item);
+ assert.ok(nodes(runtime.result).some(n=>n.type==='span'&&n.props.children===t.completed));assert.equal(nodes(runtime.result).some(n=>n.type==='span'&&n.props.children===t.overdue),false);
+ const actions=nodes(runtime.result).filter(n=>n.type==='OpportunityActionButton');assert.equal(actions.length,3);assert.equal(actions[1].props.href,'tel:+12025550100');assert.equal(actions[2].props.href,'mailto:synthetic@example.com');actions[0].props.onClick();assert.equal(opened[1],item);
+ runtime.render(()=>ContinuityTable({...props,busy:true}));assert.equal(find(runtime,n=>n.props?.['aria-label']===`${t.nextAction} · ${item.reference}`).props.disabled,true);
+ runtime.render(()=>ContinuityTable({...props,items:[]}));assert.ok(find(runtime,n=>n.type==='TableCell'&&n.props.children===t.empty));runtime.unmount();
+});
+
+test('lost table restores independently and preserves recovery filters without fetching on a layout switch',async()=>{
+ const {runtime,reads,memory}=setupWorkspace({kind:'lost',lostView:'table',wonView:'board',page:2,stage:'scheduled',search:'clinic',owner:'2'});await runtime.flush();
+ assert.equal(find(runtime,n=>n.type==='ContinuityTable').props.kind,'lost');const count=reads.length;
+ assert.equal(reads.at(-1).stage,'scheduled');assert.equal(reads.at(-1).flow,undefined);
+ viewButton(runtime,'Tarjetas').onClick();await runtime.flush();assert.ok(find(runtime,n=>n.type==='ContinuityBoard'));
+ viewButton(runtime,'Tabla').onClick();await runtime.flush();assert.equal(reads.length,count);
+ assert.equal(memory().state.page,2);assert.equal(memory().state.stage,'scheduled');assert.equal(memory().state.owner,'2');assert.equal(memory().state.search,'clinic');
+ viewButton(runtime,'Ganadas').onClick();await runtime.flush();assert.ok(find(runtime,n=>n.type==='ContinuityBoard'));assert.equal(memory().state.wonView,'board');
+ viewButton(runtime,'Perdidas').onClick();await runtime.flush();assert.equal(find(runtime,n=>n.type==='ContinuityTable').props.kind,'lost');
+ const pagination=find(runtime,n=>n.type==='DataTablePagination').props;pagination.onPageSizeChange(10);await runtime.flush();
+ assert.equal(reads.at(-1).kind,'lost');assert.equal(reads.at(-1).page,1);assert.equal(reads.at(-1).pageSize,10);
+ find(runtime,n=>n.type==='DataTablePagination').props.onPageChange(3);await runtime.flush();assert.equal(reads.at(-1).page,3);
+ runtime.unmount();
+});
+test('lost invalid view falls back to cards without changing the won preference',async()=>{
+ const {runtime,memory}=setupWorkspace({kind:'lost',lostView:'invalid',wonView:'table'});await runtime.flush();
+ assert.equal(memory().state.lostView,'board');assert.equal(memory().state.wonView,'table');assert.ok(find(runtime,n=>n.type==='ContinuityBoard'));runtime.unmount();
+});
+test('lost table uses recovery labels, loss reason and review date, and opens the original lost item',()=>{
+ const {runtime,opened,widthKeys,ContinuityTable}=setupTable();const t=copy.continuityCopy('es-MX');
+ const props={kind:'lost',items:[],today:'2026-10-18',locale:'es-MX',t,busy:false,pagination:'pagination',onOpen:value=>opened.push(value)};
+ for(const [recoveryStatus,label] of [['unscheduled',t.unscheduled],['scheduled',t.scheduled],['paused',t.paused],['recovered',t.reactivated]]) {
+  const item={...base,recoveryStatus,nextActionDate:recoveryStatus==='unscheduled'?null:'2026-10-17'};
+  runtime.render(()=>ContinuityTable({...props,items:[item]}));
+  const headers=find(runtime,n=>n.type==='IndiceTableHeaderRow').props.columns;
+  assert.deepEqual(headers.map(c=>c.label),[t.client,t.opportunity,t.recoveryState,t.owner,t.lossReason,t.nextAction]);
+  assert.ok(nodes(runtime.result).some(n=>n.type==='TableCell'&&n.props.children===item.lossReason));
+  const status=find(runtime,n=>n.type==='span'&&n.props.className?.startsWith('inline-flex items-center gap-2'));
+  assert.ok(status.props.children.includes(label));
+  assert.equal(nodes(runtime.result).some(n=>n.type==='span'&&n.props.children===t.completed),false);
+  if(['paused','recovered'].includes(recoveryStatus))assert.equal(nodes(runtime.result).some(n=>n.type==='span'&&n.props.children===t.overdue),false);
+  find(runtime,n=>n.props?.['aria-label']===`${t.nextAction} · ${item.reference}`).props.onClick();assert.equal(opened.at(-1),item);
+  const actions=nodes(runtime.result).filter(n=>n.type==='OpportunityActionButton');assert.equal(actions.length,1);actions[0].props.onClick();assert.equal(opened.at(-1).kind,'lost');
+ }
+ assert.ok(widthKeys.every(key=>key==='indice:sales:post-sales:lost:columns:v1'));
+ runtime.render(()=>ContinuityTable(props));assert.ok(find(runtime,n=>n.type==='TableCell'&&n.props.children===t.empty));runtime.unmount();
+});
+
+test('each table restores its own sorting and header clicks sort the full result from page one',async()=>{
+ const {runtime,reads,memory}=setupWorkspace({wonView:'table',wonSortColumn:'owner',wonSortDirection:'desc',lostView:'table',lostSortColumn:'stage',lostSortDirection:'asc',page:2,search:'clinic',owner:'2'});await runtime.flush();
+ assert.equal(reads.at(-1).sort,'owner');assert.equal(reads.at(-1).direction,'desc');
+ find(runtime,n=>n.type==='ContinuityTable').props.onSort('client');await runtime.flush();
+ assert.equal(reads.at(-1).sort,'client');assert.equal(reads.at(-1).direction,'asc');assert.equal(reads.at(-1).page,1);assert.equal(reads.at(-1).search,'clinic');assert.equal(reads.at(-1).owner,2);
+ find(runtime,n=>n.type==='ContinuityTable').props.onSort('client');await runtime.flush();assert.equal(reads.at(-1).direction,'desc');
+ find(runtime,n=>n.type==='DataTablePagination').props.onPageChange(2);await runtime.flush();assert.equal(reads.at(-1).sort,'client');assert.equal(reads.at(-1).direction,'desc');
+ viewButton(runtime,'Perdidas').onClick();await runtime.flush();assert.equal(reads.at(-1).sort,'stage');assert.equal(reads.at(-1).direction,'asc');
+ find(runtime,n=>n.type==='ContinuityTable').props.onSort('stage');await runtime.flush();assert.equal(reads.at(-1).direction,'desc');
+ viewButton(runtime,'Ganadas').onClick();await runtime.flush();assert.equal(reads.at(-1).sort,'client');assert.equal(reads.at(-1).direction,'desc');
+ assert.equal(memory().state.wonSortColumn,'client');assert.equal(memory().state.lostSortColumn,'stage');assert.equal(memory().state.lostSortDirection,'desc');runtime.unmount();
+});
+test('invalid saved sort normalizes by domain and failed reads do not present stale rows under a new sort',async()=>{
+ const {runtime,reads,memory,failNext}=setupWorkspace({wonView:'table',wonSortColumn:'lossReason',wonSortDirection:'sideways',lostSortColumn:'DROP TABLE',lostSortDirection:'invalid'});await runtime.flush();
+ assert.equal(memory().state.wonSortColumn,'nextAction');assert.equal(memory().state.wonSortDirection,'asc');assert.equal(memory().state.lostSortColumn,'nextAction');assert.equal(memory().state.lostSortDirection,'asc');
+ failNext();find(runtime,n=>n.type==='ContinuityTable').props.onSort('sale');await runtime.flush();assert.equal(reads.at(-1).sort,'sale');
+ assert.equal(nodes(runtime.result).some(n=>n.type==='ContinuityTable'),false);assert.ok(find(runtime,n=>n.props?.role==='alert'));
+ button(runtime,'Actualizar').onClick();await runtime.flush();assert.ok(find(runtime,n=>n.type==='ContinuityTable'));assert.equal(nodes(runtime.result).some(n=>n.props?.role==='alert'),false);runtime.unmount();
+});
+test('shared table headers expose active order in the module tone and guard sorting while a move is uncertain',()=>{
+ const {runtime,ContinuityTable}=setupTable();const changes=[];const t=copy.continuityCopy('es-MX');const sortState={columnId:'nextAction',direction:'desc'};
+ const props={kind:'lost',items:[base],today:'2026-10-18',locale:'es-MX',t,busy:false,pagination:null,onOpen(){},sortState,onSort:value=>changes.push(value)};
+ runtime.render(()=>ContinuityTable(props));const header=find(runtime,n=>n.type==='IndiceTableHeaderRow').props;
+ assert.equal(header.sortState,sortState);assert.equal(header.tone,'coral');assert.ok(header.columns.every(column=>column.sortable));header.onSort('owner');assert.deepEqual(changes,['owner']);
+ runtime.render(()=>ContinuityTable({...props,busy:true}));find(runtime,n=>n.type==='IndiceTableHeaderRow').props.onSort('client');assert.deepEqual(changes,['owner']);runtime.unmount();
+});
+
+test('a workspace refresh failure preserves an already open follow-up modal',async()=>{
+ const {runtime,item,failNext}=setupWorkspace({wonView:'table'});await runtime.flush();
+ find(runtime,n=>n.type==='ContinuityTable').props.onOpen(item);await runtime.flush();
+ failNext();find(runtime,n=>n.type==='ContinuityWorkModal').props.onSaved();await runtime.flush();
+ assert.equal(find(runtime,n=>n.type==='ContinuityWorkModal').props.item,item);
+ assert.equal(nodes(runtime.result).some(n=>n.type==='ContinuityTable'),false);runtime.unmount();
+});

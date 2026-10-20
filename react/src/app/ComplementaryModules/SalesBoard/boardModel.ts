@@ -22,7 +22,7 @@ export function normalizeFilters(value: Partial<BoardFilters>): BoardFilters {
     origin: allowed(value.origin, ['ALL', 'SALES', 'POS', 'UNKNOWN'], 'ALL'), channel: typeof value.channel === 'string' && value.channel.length <= 40 && value.channel.trim() ? value.channel : 'ALL',
     status: allowed(value.status, ['ALL', 'ACTIVE', 'CANCELLED'], 'ALL'), unitId, businessId: unitId === 'ALL' ? 'ALL' : id(value.businessId), search: typeof value.search === 'string' ? value.search.slice(0, 180) : '',
     page: Math.max(1, Math.min(1000000, Math.trunc(Number(value.page) || 1))), pageSize: [10, 25, 50, 100, 200].includes(Number(value.pageSize)) ? Number(value.pageSize) : 25,
-    sort: allowed(value.sort, ['date', 'number', 'customer'], 'date'), direction: allowed(value.direction, ['asc', 'desc'], 'desc'), granularity: allowed(value.granularity, ['auto', 'day', 'week', 'month'], 'auto') };
+    sort: allowed(value.sort, ['date', 'number', 'customer', 'amount'], 'date'), direction: allowed(value.direction, ['asc', 'desc'], 'desc'), granularity: allowed(value.granularity, ['auto', 'day', 'week', 'month'], 'auto') };
 }
 export function boardQuery(filters: BoardFilters, currency: string) {
   const { view: _view, unitId, businessId, channel, ...rest } = filters;
@@ -40,4 +40,25 @@ export function moneyLabel(value: number | null, currency: string, locale: strin
   const code = (currency ?? '').trim().toUpperCase();
   if (!/^[A-Z]{3}$/.test(code)) return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value)} · ${code || '—'}`;
   return new Intl.NumberFormat(locale, { style: 'currency', currency: code, currencyDisplay: 'code', maximumFractionDigits: 2 }).format(value);
+}
+
+/** Calendar dates use the company's server-provided date, independent of browser timezone. */
+export function periodRange(period: 'today' | 'week' | 'month', asOfDate: string) {
+  if (!date(asOfDate)) return null;
+  const start = new Date(`${asOfDate}T12:00:00Z`);
+  if (period === 'week') start.setUTCDate(start.getUTCDate() - (start.getUTCDay() + 6) % 7);
+  if (period === 'month') start.setUTCDate(1);
+  return { from: start.toISOString().slice(0, 10), to: asOfDate };
+}
+export function detectedPeriod(filters: Pick<BoardFilters, 'from' | 'to'>, asOfDate: string) {
+  if (!filters.from && !filters.to) return 'month';
+  return (['month', 'week', 'today'] as const).find(period => {
+    const range = periodRange(period, asOfDate);
+    return range?.from === filters.from && range.to === filters.to;
+  }) ?? 'custom';
+}
+export function amountShare(part: Money, total: Money) {
+  const denominator = completeAmount(total), numerator = completeAmount(part);
+  return denominator !== null && denominator > 0 && numerator !== null && numerator >= 0
+    ? numerator / denominator : null;
 }

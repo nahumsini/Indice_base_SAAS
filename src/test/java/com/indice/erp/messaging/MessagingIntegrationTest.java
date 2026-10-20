@@ -71,7 +71,7 @@ class MessagingIntegrationTest {
             .thenAnswer(i->new com.indice.erp.storage.PresignedUpload(i.getArgument(1),"https://storage.example.test/upload",java.time.Instant.now().plusSeconds(900),java.util.Map.of()));
         when(storage.objectMetadata(anyString(),anyString())).thenReturn(new com.indice.erp.storage.StoredObjectMetadata(100,"image/png"));
         when(storage.readObjectPrefix(anyString(),anyString(),anyInt())).thenReturn(new byte[]{(byte)137,80,78,71,13,10,26,10});
-        when(storage.presignDownload(anyString(),anyString(),eq(60))).thenReturn("https://storage.example.test/read");
+        when(storage.presignDownload(anyString(),anyString(),eq(60),anyString())).thenReturn("https://storage.example.test/read");
     }
     @Test void authenticatedPinMemberUsesExistingConversationsAndCannotImpersonateAnotherMembership() {
         var conversation = service.create(alice, create("DIRECT", bob.membershipId())).conversation().id();
@@ -397,6 +397,7 @@ class MessagingIntegrationTest {
         assertThat(message.attachments()).extracting(Attachment::id).containsExactly(photo.id());
         assertThat(service.detail(bob,id,0,0).messages().items().getLast().attachments()).hasSize(1);
         assertThat(photos.download(bob,id,photo.id()).url()).isNotBlank();
+        verify(storage).presignDownload(anyString(),anyString(),eq(60),eq(request.fileName()));
         assertThatThrownBy(()->photos.download(outsider,id,photo.id())).isInstanceOf(ResponseStatusException.class);
         assertThatThrownBy(()->photos.download(root,id,photo.id())).isInstanceOf(ResponseStatusException.class);
         verify(meter,times(1)).commitMoved(eq(alice.companyId()),anyString(),contains("/pending/"),contains("/photos/"),eq(100L));
@@ -460,6 +461,49 @@ class MessagingIntegrationTest {
         verify(storage,never()).deleteObject(anyString(),contains("/photos/"));
         verify(meter,never()).release(anyLong(),anyString(),anyString());
         assertThat(photos.download(alice,id,photo.id()).url()).isNotBlank();
+    }
+    @Test void expiredUploadRenewsTheSameAttachmentAndCannotRenewSentObjects() {
+        var id=service.create(alice,create("SUPPORT",null)).conversation().id();
+        var request=upload(); var pending=photos.presign(alice,id,request);
+        jdbc.update("UPDATE messaging_attachments SET expires_at=CURRENT_TIMESTAMP - INTERVAL 2 MINUTE WHERE id=?",pending.id());
+        var renewed=photos.presign(alice,id,request);
+        assertThat(renewed.id()).isEqualTo(pending.id());
+        assertThat(renewed.expiresAt()).isAfter(java.time.Instant.now());
+        verify(meter).release(eq(alice.companyId()),anyString(),eq("messaging_upload_renewed"));
+        var send=new Send("","PUBLIC",key(),java.util.List.of(renewed.id()));
+        var saved=service.send(alice,id,send);
+        assertThat(service.send(alice,id,send).id()).isEqualTo(saved.id());
+        assertThatThrownBy(()->photos.presign(alice,id,request)).isInstanceOf(ResponseStatusException.class);
+    }
+    @Test void pdfMessagesArePrivateAndInboxPreviewNeverLeaksInternalNotes() {
+        var id=service.create(alice,create("SUPPORT",null)).conversation().id();
+        var pdf=photos.presign(alice,id,new PhotoUpload("evidence.pdf","application/pdf",100,key()));
+        when(storage.objectMetadata(anyString(),anyString())).thenReturn(new com.indice.erp.storage.StoredObjectMetadata(100,"application/pdf"));
+        when(storage.readObjectPrefix(anyString(),anyString(),anyInt())).thenReturn("%PDF-1.7".getBytes());
+        var saved=service.send(alice,id,new Send("","PUBLIC",key(),java.util.List.of(pdf.id())));
+        assertThat(saved.attachments().getFirst().contentType()).isEqualTo("application/pdf");
+        assertThat(service.detail(alice,id,0,0).conversation().lastMessageHasAttachments()).isTrue();
+        assertThatThrownBy(()->photos.download(bob,id,pdf.id())).isInstanceOf(ResponseStatusException.class);
+        service.send(root,id,new Send("Private staff diagnosis","INTERNAL",key()));
+        assertThat(service.list(alice,"ALL","",0).items().getFirst().lastMessagePreview()).isEmpty();
+        assertThat(service.list(root,"ALL","",0).items().getFirst().lastMessagePreview()).isEqualTo("Private staff diagnosis");
+    }
+    @Test void initialAttachmentsAreSenderOwnedAtomicAndCreationRetriesDoNotDuplicate() {
+        var staged=photos.presignDraft(alice,upload());
+        assertThat(photos.presignDraft(alice,new PhotoUpload(upload().fileName(),"image/png",100,
+            jdbc.queryForObject("SELECT request_key FROM messaging_attachments WHERE id=?",String.class,staged.id()))).id()).isEqualTo(staged.id());
+        var request=new Create("DIRECT",bob.membershipId(),"",null,"","es-MX","",key(),null,null,java.util.List.of(staged.id()));
+        var result=service.create(alice,request);
+        assertThat(result.messages().items()).hasSize(1);
+        assertThat(result.messages().items().getFirst().attachments()).extracting(Attachment::id).containsExactly(staged.id());
+        assertThat(service.create(alice,request).messages().items()).hasSize(1);
+        assertThat(photos.download(bob,result.conversation().id(),staged.id()).url()).isNotBlank();
+        assertThatThrownBy(()->photos.presignDraft(root,upload())).isInstanceOf(ResponseStatusException.class);
+        var restricted=new Actor(alice.userId(),alice.companyId(),alice.membershipId(),"MEMBER",true);
+        assertThatThrownBy(()->photos.presignDraft(restricted,upload())).isInstanceOf(ResponseStatusException.class);
+        var another=photos.presignDraft(alice,upload());
+        assertThatThrownBy(()->service.create(bob,new Create("DIRECT",alice.membershipId(),"",null,"","es-MX","",key(),null,null,java.util.List.of(another.id())))).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(()->service.create(outsider,new Create("SUPPORT",null,"Help","CONSULTATION","","es-MX","",key(),null,null,java.util.List.of(another.id())))).isInstanceOf(ResponseStatusException.class);
     }
     private String key() { return UUID.randomUUID().toString(); }
     private long company(String type) { jdbc.update("INSERT INTO companies(name,commercial_account_type,platform_status) VALUES (?,?,'ACTIVE')","Messaging test "+key(),type); return jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class); }

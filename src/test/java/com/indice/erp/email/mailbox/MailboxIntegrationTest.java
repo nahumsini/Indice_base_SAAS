@@ -96,6 +96,34 @@ class MailboxIntegrationTest {
         assertThat(mailbox.list(actor,account.id(),"OUTBOX","",0).items()).hasSize(1);
         assertThat(mailbox.list(actor,account.id(),"SENT","",0).items()).isEmpty();
     }
+    @Test void safeSmtpDiagnosticIsPersistedWithoutRetrying() {
+        var account=create();String id=draft(account.id());when(transport.send(any(),any())).thenThrow(new MailSendRejection("email_send_recipient_rejected"));
+        var result=drafts.send(actor,account.id(),id,new Version(1,1));
+        assertThat(result.state()).isEqualTo("FAILED");assertThat(result.failureCode()).isEqualTo("email_send_recipient_rejected");
+        drafts.send(actor,account.id(),id,new Version(1,1));verify(transport,times(1)).send(any(),any());
+    }
+    @Test void folderCreationRequiresCsrfOwnershipVersionAndValidName()throws Exception {
+        var account=create();String endpoint="/api/v1/email/mailboxes/"+account.id()+"/folders";
+        var input=new FolderInput("Clientes",1);
+        mvc.perform(post(endpoint).session(session()).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(input))).andExpect(status().isForbidden());
+        when(transport.folders(any())).thenReturn(List.of());when(transport.createFolder(any(),eq("Clientes"))).thenReturn(new MailboxTransport.FolderInfo("INBOX.Clientes","CUSTOM"));
+        assertThat(mailbox.createFolder(actor,account.id(),input).folders()).extracting(Folder::name).contains("INBOX.Clientes");
+        assertThat(mailbox.createFolder(actor,account.id(),input).folders()).hasSize(1);
+        assertThatThrownBy(()->mailbox.createFolder(actor,account.id(),new FolderInput("../private",1))).hasMessageContaining("email_folder_name_invalid");
+        assertThatThrownBy(()->mailbox.createFolder(actor,account.id(),new FolderInput("Another",99))).hasMessageContaining("email_account_changed");
+        assertThatThrownBy(()->mailbox.createFolder(new AuthSessionUser(otherUser,company,"Other","admin"),account.id(),input)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        db.update("DELETE FROM user_company_tab_permissions WHERE user_company_id=? AND module_slug='correo' AND tab_key='mail'",membership);
+        mvc.perform(post(endpoint).session(session()).header("X-CSRF-Token","synthetic-csrf").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(input))).andExpect(status().isForbidden());
+    }
+    @Test void filtersApplyBeforePaginationAndSearchIncludesRecipients() {
+        var account=create();String id=draft(account.id());
+        assertThat(mailbox.list(actor,account.id(),"DRAFTS","recipient@example.com",0,"ALL").items()).hasSize(1);
+        assertThat(mailbox.list(actor,account.id(),"DRAFTS","",0,"UNREAD").items()).isEmpty();
+        assertThat(mailbox.list(actor,account.id(),"DRAFTS","",0,"STARRED").items()).isEmpty();
+        db.update("UPDATE email_messages SET is_starred=TRUE WHERE company_id=? AND id=?",company,id);
+        assertThat(mailbox.list(actor,account.id(),"DRAFTS","",0,"STARRED").items()).hasSize(1);
+        assertThatThrownBy(()->mailbox.list(actor,account.id(),"DRAFTS","",0,"invalid")).hasMessageContaining("email_filter_invalid");
+    }
     @Test void imapSyncIsIdempotentAndUidValiditySeparatesMessages() {
         var account=create();var workspace=sync(account.id(),100);String inbox=workspace.folders().getFirst().id();
         String original=mailbox.list(actor,account.id(),inbox,"",0).items().getFirst().id();

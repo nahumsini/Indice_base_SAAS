@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Mail } from "lucide-react";
+import { ArrowLeft, ArrowRight, FilePenLine, Mail, Save } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
-import { Input } from "../../../../components/ui/input";
 import { Textarea } from "../../../../components/ui/textarea";
+import {
+  IndiceModalSummary,
+  IndiceModalValidation,
+} from "../../../../components/indice-modal";
 import { ApiClientError } from "../../../../lib/apiClient";
 import { SalesModalFrame } from "../../components/SalesModalFrame";
 import { SalesDocumentWizard } from "../../components/SalesDocumentWizard";
@@ -13,11 +16,20 @@ import {
   type MailingContact,
 } from "../mailingApi";
 import type { MailingCopy } from "../translations";
+import { useAudienceCopy } from "../audienceCopy";
+import { useDeliveryCopy } from "../deliveryCopy";
+import { useMailingWorkspaceCopy } from "../workspaceCopy";
 import { RecipientPicker } from "./RecipientPicker";
 import type { MailingSender } from "../../../../ComplementaryModules/Email/emailApi";
 import { CampaignSenderPicker } from "./CampaignSenderPicker";
 import { useEmailCopy } from "../../../../ComplementaryModules/Email/translations";
 import { CampaignTemplatePicker } from "./CampaignTemplatePicker";
+import {
+  CampaignEditorField,
+  campaignFieldClassName,
+} from "./CampaignEditorField";
+import { useCampaignEditorCopy } from "../editorCopy";
+import { getSalesModalActionClassNames } from "../../salesModalStyles";
 
 export function CampaignEditor({
   campaign,
@@ -31,11 +43,18 @@ export function CampaignEditor({
   canEdit: boolean;
   copy: MailingCopy;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (campaign: Campaign, review: boolean) => void;
   onConfigureAccounts?: (id: string) => void;
 }) {
   const { copy: emailCopy } = useEmailCopy();
+  const workspaceCopy = useMailingWorkspaceCopy();
+  const audienceCopy = useAudienceCopy();
+  const deliveryCopy = useDeliveryCopy();
+  const editorCopy = useCampaignEditorCopy();
+  const actionClasses = getSalesModalActionClassNames();
   const id = useRef(campaign?.id ?? crypto.randomUUID());
+  const pending = useRef(false);
+  const formRef = useRef<HTMLDivElement>(null);
   const initial: Draft = {
     name: campaign?.name ?? "",
     subject: campaign?.subject ?? "",
@@ -58,6 +77,19 @@ export function CampaignEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [blocked, setBlocked] = useState(false);
+  const [invalidField, setInvalidField] = useState<"name" | "replyTo" | null>(
+    null,
+  );
+  const readOnly = !canEdit || busy || blocked;
+  useEffect(() => {
+    if (!invalidField || discard) return;
+    const frame = requestAnimationFrame(() =>
+      formRef.current
+        ?.querySelector<HTMLInputElement>(`input[name="${invalidField}"]`)
+        ?.focus(),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [invalidField, step, discard]);
   const dirty = JSON.stringify(draft) !== initialJson.current;
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
@@ -72,41 +104,58 @@ export function CampaignEditor({
   const steps = [copy.details, copy.audience, copy.content, copy.review].map(
     (label, index) => ({ id: String(index), label }),
   );
+  const stepHints = [
+    editorCopy.detailsHint,
+    editorCopy.audienceHint,
+    editorCopy.contentHint,
+    editorCopy.reviewHint,
+  ];
   function close() {
-    if (busy) return;
+    if (busy || pending.current) return;
     if (JSON.stringify(draft) !== initialJson.current) setDiscard(true);
     else onClose();
   }
   function update(key: keyof Draft, value: string) {
     setDraft((d) => ({ ...d, [key]: value }));
     setError("");
+    if (key === invalidField) setInvalidField(null);
   }
-  async function save(configure = false) {
+  function validateDetails() {
     if (!draft.name.trim()) {
       setError(copy.nameRequired);
+      setInvalidField("name");
       setStep(0);
-      return;
+      return false;
     }
     if (
       draft.replyTo.trim() &&
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.replyTo.trim())
     ) {
       setError(copy.invalidEmail);
+      setInvalidField("replyTo");
       setStep(0);
-      return;
+      return false;
     }
+    setInvalidField(null);
+    setError("");
+    return true;
+  }
+  async function save(configure = false, review = false) {
+    if (readOnly || pending.current || !validateDetails()) return;
+    pending.current = true;
     setBusy(true);
     setError("");
     try {
-      await mailingApi.save(id.current, draft);
+      const saved = await mailingApi.save(id.current, draft);
       if (configure && onConfigureAccounts) onConfigureAccounts(id.current);
-      else onSaved();
+      else onSaved(saved, review);
     } catch (e) {
       if (e instanceof ApiClientError && e.status === 409) {
         setError(copy.conflict);
         setBlocked(true);
       } else setError(copy.saveError);
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   }
@@ -114,18 +163,21 @@ export function CampaignEditor({
     key: "name" | "subject" | "senderName" | "replyTo" | "previewText",
     label: string,
     maxLength: number,
+    hint?: string,
+    placeholder?: string,
   ) => (
-    <label className="block space-y-2 text-sm">
-      <span>{label}</span>
-      <Input
-        className="h-11"
-        value={draft[key]}
-        maxLength={maxLength}
-        type={key === "replyTo" ? "email" : "text"}
-        disabled={!canEdit || busy}
-        onChange={(e) => update(key, e.target.value)}
-      />
-    </label>
+    <CampaignEditorField
+      name={key}
+      label={label}
+      value={draft[key]}
+      maxLength={maxLength}
+      required={key === "name"}
+      disabled={readOnly}
+      hint={hint}
+      placeholder={placeholder}
+      error={invalidField === key ? error : undefined}
+      onChange={(value) => update(key, value)}
+    />
   );
   return (
     <SalesModalFrame
@@ -142,56 +194,150 @@ export function CampaignEditor({
         discard
           ? copy.closeWarning
           : campaign
-            ? campaign.name
+            ? editorCopy.edit
             : copy.newCampaign
       }
-      description={discard ? copy.reviewHint : copy.subtitle}
+      eyebrow={
+        discard
+          ? undefined
+          : `${editorCopy.step.replace("{current}", String(step + 1)).replace("{total}", String(steps.length))} · ${steps[step].label}`
+      }
+      description={discard ? editorCopy.discardHint : stepHints[step]}
       closeLabel={copy.cancel}
       icon={<Mail className="h-5 w-5" />}
-      footerLeading={<Button className="h-11 rounded-xl !border-white !bg-white px-5 !text-slate-600 hover:!bg-white/90" variant="outline" disabled={busy} onClick={() => discard ? setDiscard(false) : close()}>{discard ? copy.keepEditing : copy.cancel}</Button>}
-      footer={discard ? <Button data-modal-destructive onClick={onClose}>{copy.discard}</Button> : <>
-        {step > 0 && <Button variant="outline" disabled={busy} onClick={() => setStep(s => s - 1)}>{copy.back}</Button>}
-        {step < 3 && <Button variant="outline" disabled={busy} onClick={() => {
-          if (!draft.name.trim()) { setError(copy.nameRequired);setStep(0); }
-          else { setError("");setStep(s => s + 1); }
-        }}>{copy.next}</Button>}
-        {canEdit && <Button disabled={busy || blocked} onClick={() => void save()}>{busy ? copy.saving : copy.save}</Button>}
-      </>}
-
+      footerLeading={
+        <Button
+          className={`${actionClasses.secondary} dark:border-white/50 dark:text-white dark:hover:text-white`}
+          variant="outline"
+          disabled={busy}
+          onClick={() => (discard ? setDiscard(false) : close())}
+        >
+          {discard ? copy.keepEditing : copy.cancel}
+        </Button>
+      }
+      footer={
+        discard ? (
+          <Button data-modal-destructive onClick={onClose}>
+            {copy.discard}
+          </Button>
+        ) : (
+          <>
+            {step > 0 && (
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() => setStep((s) => s - 1)}
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                {copy.back}
+              </Button>
+            )}
+            {canEdit && (
+              <Button
+                variant="outline"
+                disabled={busy || blocked}
+                onClick={() => void save()}
+              >
+                <Save className="h-4 w-4" aria-hidden="true" />
+                {busy ? copy.saving : copy.save}
+              </Button>
+            )}
+            {step < 3 && (
+              <Button
+                className={actionClasses.primary}
+                disabled={busy || blocked}
+                onClick={() => {
+                  if (validateDetails()) setStep((s) => s + 1);
+                }}
+              >
+                {copy.next}
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            )}
+            {canEdit && step === 3 && (
+              <Button
+                disabled={busy || blocked}
+                onClick={() => void save(false, true)}
+              >
+                {workspaceCopy.saveReview}
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            )}
+          </>
+        )
+      }
     >
-      {!discard && (
+      {discard && (
+        <p className="break-words text-sm font-medium text-slate-800 dark:text-slate-200">
+          {draft.name}
+        </p>
+      )}
+      <div ref={formRef} hidden={discard}>
         <SalesDocumentWizard
           activeStepId={String(step)}
           progressLabel={steps[step].label}
           steps={steps}
-          validation={
-            error ? (
-              <p
-                role="alert"
-                className="text-sm text-red-700 dark:text-red-300"
-              >
-                {error}
-              </p>
-            ) : undefined
-          }
+          validation={<IndiceModalValidation messages={error ? [error] : []} />}
         >
           {step === 0 && (
             <div className="space-y-4">
-              {field("name", copy.name, 180)}
-              <CampaignSenderPicker onResolved={setSender} value={draft.senderAccountId} disabled={!canEdit || busy || blocked}
-                onChange={sender => setDraft(d => ({ ...d, senderAccountId: sender?.id ?? null,
-                  senderName: sender ? sender.displayName : d.senderName, replyTo: sender ? sender.email : d.replyTo }))}
-                onConfigure={canEdit && onConfigureAccounts ? () => void save(true) : undefined} />
-              {field("senderName", copy.senderName, 160)}
-              {field("replyTo", copy.replyTo, 240)}
-              <p className="text-sm text-slate-500">{copy.note}</p>
+              <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 dark:border-slate-700 dark:bg-slate-900">
+                <h3 className="text-sm font-medium text-slate-900 dark:text-white">
+                  {editorCopy.identity}
+                </h3>
+                {field(
+                  "name",
+                  copy.name,
+                  180,
+                  editorCopy.nameHint,
+                  editorCopy.namePlaceholder,
+                )}
+              </section>
+              <CampaignSenderPicker
+                onResolved={setSender}
+                value={draft.senderAccountId}
+                disabled={readOnly}
+                onChange={(sender) => {
+                  setError("");
+                  setInvalidField(null);
+                  setDraft((d) => ({
+                    ...d,
+                    senderAccountId: sender?.id ?? null,
+                    senderName: sender ? sender.displayName : d.senderName,
+                    replyTo: sender ? sender.email : d.replyTo,
+                  }));
+                }}
+                onConfigure={
+                  canEdit && onConfigureAccounts
+                    ? () => void save(true)
+                    : undefined
+                }
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {field(
+                    "senderName",
+                    copy.senderName,
+                    160,
+                    editorCopy.senderNameHint,
+                  )}
+                  {field("replyTo", copy.replyTo, 240, editorCopy.replyToHint)}
+                </div>
+              </CampaignSenderPicker>
+              <p className="flex items-start gap-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                <FilePenLine
+                  className="mt-0.5 h-4 w-4 shrink-0"
+                  aria-hidden="true"
+                />
+                {editorCopy.draftHint}
+              </p>
             </div>
           )}
           {step === 1 && (
             <RecipientPicker
               copy={copy}
               selected={contacts}
-              disabled={!canEdit || busy}
+              onBusyChange={setBusy}
+              disabled={readOnly}
               onChange={(value) => {
                 setContacts(value);
                 setDraft((d) => ({ ...d, contactIds: value.map((c) => c.id) }));
@@ -202,7 +348,7 @@ export function CampaignEditor({
             <div className="space-y-4">
               <CampaignTemplatePicker
                 copy={copy}
-                disabled={!canEdit || busy}
+                disabled={readOnly}
                 onApply={(value) =>
                   setDraft((d) => ({
                     ...d,
@@ -214,45 +360,65 @@ export function CampaignEditor({
               />
               {field("subject", copy.subject, 240)}
               {field("previewText", copy.previewText, 240)}
-              <label className="block space-y-2 text-sm">
+              <label className="block space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
                 <span>{copy.body}</span>
                 <Textarea
-                  className="min-h-56"
+                  className={`${campaignFieldClassName} min-h-56 font-normal`}
                   value={draft.bodyText}
-                  disabled={!canEdit || busy}
+                  disabled={readOnly}
                   maxLength={20000}
                   onChange={(e) => update("bodyText", e.target.value)}
                 />
               </label>
-              <p className="text-xs text-slate-500">
-                {"{{name}}"} · {copy.sample}
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {audienceCopy.personalization}
               </p>
             </div>
           )}
           {step === 3 && (
             <div className="space-y-4">
-              <p className="text-sm">{copy.reviewHint}</p>
-              <dl className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] gap-3 text-sm [&_dd]:min-w-0 [&_dd]:break-words">
-                <dt>{copy.campaign}</dt>
-                <dd>{draft.name}</dd>
-                <dt>{copy.selected}</dt>
-                <dd>{contacts.length}</dd>
-                <dt>{emailCopy.senderAccount}</dt>
-                <dd>{sender ? `${sender.label} · ${sender.email}` : draft.senderAccountId ? emailCopy.senderUnavailable : emailCopy.disabled}</dd>
-                {sender && <><dt>SMTP</dt><dd>{sender.smtpStatus === "VERIFIED" ? emailCopy.verified : sender.smtpStatus === "ERROR" ? emailCopy.failed : emailCopy.untested}</dd></>}
-                <dt>{copy.senderName}</dt>
-                <dd>{draft.senderName || "—"}</dd>
-                <dt>{copy.replyTo}</dt>
-                <dd>{draft.replyTo || "—"}</dd>
-              </dl>
+              <IndiceModalSummary
+                title={editorCopy.summary}
+                columns={2}
+                className="[&_dd]:whitespace-normal [&_dd]:break-words"
+                items={[
+                  { label: copy.campaign, value: draft.name, emphasized: true },
+                  { label: copy.selected, value: contacts.length },
+                  {
+                    label: emailCopy.senderAccount,
+                    value: sender
+                      ? `${sender.label} · ${sender.email}`
+                      : draft.senderAccountId
+                        ? emailCopy.senderUnavailable
+                        : emailCopy.disabled,
+                  },
+                  {
+                    label: "SMTP",
+                    value: sender
+                      ? sender.smtpStatus === "VERIFIED"
+                        ? emailCopy.verified
+                        : sender.smtpStatus === "ERROR"
+                          ? emailCopy.failed
+                          : emailCopy.untested
+                      : "—",
+                  },
+                  { label: copy.senderName, value: draft.senderName || "—" },
+                  { label: copy.replyTo, value: draft.replyTo || "—" },
+                ]}
+              />
               <section
                 aria-label={copy.preview}
                 className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"
               >
+                <p className="mb-3 text-xs font-medium text-[#B63B32] dark:text-[#FF9D94]">
+                  {editorCopy.messagePreview}
+                </p>
                 <h3 className="mb-2 text-lg font-medium">
-                  {draft.subject || copy.subject}
+                  {(draft.subject || copy.subject)
+                    .split("{{name}}")
+                    .join(contacts[0]?.name ?? copy.sample)}
                 </h3>
-                <p className="mb-4 text-sm text-slate-500">
+                <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
                   {draft.previewText}
                 </p>
                 <p className="whitespace-pre-wrap break-words text-sm">
@@ -261,11 +427,13 @@ export function CampaignEditor({
                     .join(contacts[0]?.name ?? copy.sample)}
                 </p>
               </section>
-              <p className="text-sm text-slate-500">{copy.note}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                {deliveryCopy.note}
+              </p>
             </div>
           )}
         </SalesDocumentWizard>
-      )}
+      </div>
     </SalesModalFrame>
   );
 }

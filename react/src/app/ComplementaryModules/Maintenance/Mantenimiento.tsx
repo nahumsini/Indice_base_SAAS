@@ -8,7 +8,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { authApi } from "../../api/auth";
-import { canAccessModuleTab } from "../../access/tabScopeCatalog";
+import { canAccessModuleTab, MODULE_TAB_ROUTE_ALIASES } from "../../access/tabScopeCatalog";
 import { IndiceModuleShell } from "../../components/frontend-os/IndiceModuleShell";
 import { IndiceViewState } from "../../components/frontend-os/IndiceViewState";
 import { useRoutedModuleTab } from "../../hooks/useRoutedModuleTab";
@@ -64,13 +64,7 @@ export default function Mantenimiento({
       return { session, context };
     }, []),
   );
-  const { activeTab, setActiveTab } = useRoutedModuleTab("requests", tabs, {
-    reportes: "requests",
-    ordenes: "orders",
-    equipos: "assets",
-    preventivos: "preventive",
-    kpis: "indicators",
-  });
+  const { activeTab, setActiveTab } = useRoutedModuleTab("requests", tabs, MODULE_TAB_ROUTE_ALIASES.maintenance);
   const allowed = result.data
     ? tabs.filter((tab) =>
         canAccessModuleTab("maintenance", tab, result.data!.session),

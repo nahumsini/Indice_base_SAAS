@@ -14,7 +14,7 @@ let language = 'en-CA';
 const cache = new Map();
 function load(path) {
   path = resolve(root, path);
-  if (!existsSync(path)) path += '.ts';
+  if (!existsSync(path)) path = [`${path}.ts`, `${path}.tsx`].find(existsSync) ?? path;
   if (statSync(path).isDirectory()) path = resolve(path, 'index.ts');
   if (cache.has(path)) return cache.get(path).exports;
   const module = { exports: {} };
@@ -25,9 +25,11 @@ function load(path) {
   const localRequire = (specifier) => {
     if (specifier.endsWith('/shared/context')) return { useLanguage: () => ({ currentLanguage: { code: language } }) };
     if (['./IndiceInduction', './SalesProcess', './TrainingExamPanel'].includes(specifier)) return new Proxy({}, { get: () => () => null });
+    if (specifier.endsWith('/hooks/useWorkspaceNavigationMemory')) return { useWorkspaceNavigationMemory: () => {} };
+    if (specifier.endsWith('/components/ui/button')) return { Button: ({ children, ...props }) => React.createElement('button', props, children) };
     if (specifier === 'react-router') return { useNavigate: () => () => {} };
     if (specifier.endsWith('/lib/apiClient')) return { apiClient: () => Promise.resolve({}) };
-    if (specifier.endsWith('/components/frontend-os')) return new Proxy({}, { get: () => ({ title, children }) => React.createElement('section', null, title, children) });
+    if (specifier.endsWith('/components/frontend-os')) return new Proxy({}, { get: () => ({ title, subtitle, actions, children }) => React.createElement('section', null, title, subtitle, actions, children) });
     if (specifier === 'lucide-react') return new Proxy({}, { get: () => () => null });
     if (specifier.includes('/components/indice-modal')) return {
       IndiceModalFrame: ({ title, description, children, footer }) => React.createElement('section', null,
@@ -135,9 +137,10 @@ test('training home uses the current language even when a legacy locale prop is 
   for (const locale of supported) {
     language = locale;
     const copy = program.getTrainingProgramCopy(locale);
-    const html = renderToStaticMarkup(React.createElement(TrainingWorkspace, { portal: 'root', locale: 'es' }));
+    const html = renderToStaticMarkup(React.createElement(TrainingWorkspace, { portal: 'root', locale: 'es', view: 'home', onViewChange() {} }));
     assert.ok(html.includes(copy.trainingAndContent), locale);
-    assert.ok(html.includes(copy.practicalMastery), locale);
-    assert.ok(html.includes(copy.startTheProgram), locale);
+    assert.ok(html.includes(copy.refreshProgress), locale);
+    assert.ok(html.includes('aria-busy="true"'), locale);
+    assert.ok(!html.includes(copy.practicalMastery), 'progress is unavailable until loaded');
   }
 });

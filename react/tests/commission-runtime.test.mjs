@@ -19,7 +19,7 @@ function load(relative) {
     const code = ts.transpileModule(readFileSync(full, 'utf8').replaceAll('import.meta.env', '({DEV:false})'), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
     }).outputText;
-    const require = specifier => specifier.endsWith('.css') ? {} : specifier.startsWith('.') ? compile(resolve(dirname(full), specifier)) : createRequire(full)(specifier);
+    const require = specifier => specifier.endsWith('.css') ? {} : /\.(png|svg|webp|jpe?g)$/.test(specifier) ? { default: specifier } : specifier.startsWith('.') ? compile(resolve(dirname(full), specifier)) : createRequire(full)(specifier);
     new Function('require', 'module', 'exports', code)(require, module, module.exports);
     return module.exports;
   }

@@ -105,6 +105,9 @@ public class EmailAccountService {
     }
     // Network I/O stays outside the transaction. The version check prevents a stale probe from validating new settings.
     public Account test(AuthSessionUser actor,String id,ConnectionTest input) {
+        return testWithDiagnostic(actor,id,input).account();
+    }
+    public ConnectionTestResult testWithDiagnostic(AuthSessionUser actor,String id,ConnectionTest input) {
         var material=transactions.execute(status->{
             mutation(actor);requireIdle(actor,id);var account=get(actor,id);
             require(account.version()==input.version(),HttpStatus.CONFLICT,"email_version_conflict");
@@ -117,15 +120,21 @@ public class EmailAccountService {
             return new ProbeMaterial(account,codec.decrypt(actor.companyId(),id,channel,encrypted));
         });
         var a=material.account();boolean smtp="SMTP".equals(input.channel());
-        boolean verified=probe.verify(smtp?"SMTP":a.receiveProtocol(),smtp?a.smtpHost():a.receiveHost(),smtp?a.smtpPort():a.receivePort(),smtp?a.smtpSecurity():"TLS",smtp?a.smtpUsername():a.receiveUsername(),material.password());
-        return transactions.execute(status->{
+        boolean verified;String failureCode=null;
+        try {
+            verified=probe.verify(smtp?"SMTP":a.receiveProtocol(),smtp?a.smtpHost():a.receiveHost(),smtp?a.smtpPort():a.receivePort(),smtp?a.smtpSecurity():"TLS",smtp?a.smtpUsername():a.receiveUsername(),material.password());
+            if(!verified)failureCode=MailConnectionFailure.Code.UNKNOWN.name();
+        } catch(MailConnectionFailure failure) {verified=false;failureCode=failure.code().name();}
+        final boolean connected=verified;
+        var tested=transactions.execute(status->{
             mutation(actor);get(actor,id);String column=smtp?"smtp":"receive";
             int changed=db.update("UPDATE email_accounts SET "+column+"_status=?,"+column+"_checked_at=CURRENT_TIMESTAMP(6) WHERE company_id=? AND owner_user_id=? AND id=? AND active=TRUE AND version=?",
-                verified?"VERIFIED":"ERROR",actor.companyId(),actor.userId(),id,input.version());
+                connected?"VERIFIED":"ERROR",actor.companyId(),actor.userId(),id,input.version());
             require(changed==1,HttpStatus.CONFLICT,"email_version_conflict");
-            audit(actor,id,input.version(),smtp?(verified?"SMTP_VERIFIED":"SMTP_FAILED"):(verified?"RECEIVE_VERIFIED":"RECEIVE_FAILED"));
+            audit(actor,id,input.version(),smtp?(connected?"SMTP_VERIFIED":"SMTP_FAILED"):(connected?"RECEIVE_VERIFIED":"RECEIVE_FAILED"));
             return get(actor,id);
         });
+        return new ConnectionTestResult(tested,failureCode);
     }
     /** Internal Email owner port. Never serialize this material or pass it to another module. */
     public ConnectionMaterial connection(AuthSessionUser actor,String id,boolean smtp) {

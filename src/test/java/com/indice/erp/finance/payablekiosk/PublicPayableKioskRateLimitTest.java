@@ -29,6 +29,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({KioskRateLimitExceptionHandler.class, FinanceApiExceptionHandler.class})
 class PublicPayableKioskRateLimitTest {
 
+    @org.springframework.boot.test.mock.mockito.MockBean
+    private com.indice.erp.learning.LearningAppliedAdvice learningAppliedAdvice;
+
     @Autowired
     private MockMvc mockMvc;
 

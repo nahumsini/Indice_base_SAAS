@@ -1,5 +1,7 @@
 import { fr, pt, ko, zh } from './continuityLocales';
 const en = {
+  lostView: 'Lost opportunities view', cards: 'Cards', opportunity: 'Opportunity', recoveryState: 'Recovery status',
+  table: 'Table', wonView: 'Won sales view', client: 'Customer', sale: 'Sale', actions: 'Actions', resizeColumn: 'Resize column',
   allStatuses: 'All statuses', columnPage: 'On this page', title: 'Post-sales', subtitle: 'Keep ownership of delivery, service and the next commercial conversation.',
   won: 'Won', lost: 'Lost', flows: 'Manage flows', refresh: 'Refresh', history: 'Customer history', board: 'Board',
   wonHint: 'Each sale continues with a responsible seller, a service stage and a next action.',
@@ -31,6 +33,8 @@ const en = {
 };
 export type ContinuityCopy = typeof en;
 const es: ContinuityCopy = {
+  lostView: 'Vista de perdidas', cards: 'Tarjetas', opportunity: 'Oportunidad', recoveryState: 'Estado de recuperación',
+  table: 'Tabla', wonView: 'Vista de ganadas', client: 'Cliente', sale: 'Venta', actions: 'Acciones', resizeColumn: 'Cambiar ancho de columna',
   allStatuses: 'Todos los estados', columnPage: 'En esta página', title: 'Postventa', subtitle: 'Conserva el seguimiento de la entrega, el servicio y la siguiente conversación comercial.',
   won: 'Ganadas', lost: 'Perdidas', flows: 'Administrar flujos', refresh: 'Actualizar', history: 'Historial de clientes', board: 'Tablero',
   wonHint: 'Cada venta continúa con un vendedor responsable, una etapa de servicio y una siguiente acción.',

@@ -24,6 +24,8 @@ interface NotificationFilterBarProps {
   onStatusFilterChange: (value: NotificationStatusFilter) => void;
   onRefresh: () => void;
   onMarkAllRead: () => void;
+  busy?: boolean;
+  refreshing?: boolean;
 }
 
 export function NotificationFilterBar({
@@ -40,7 +42,7 @@ export function NotificationFilterBar({
   onPriorityFilterChange,
   onStatusFilterChange,
   onRefresh,
-  onMarkAllRead,
+  onMarkAllRead, busy = false, refreshing = false,
 }: NotificationFilterBarProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const activeAdvancedCount = Number(moduleFilter !== 'all') + Number(priorityFilter !== 'all');
@@ -53,16 +55,19 @@ export function NotificationFilterBar({
           <Input
             type="search"
             placeholder={copy.searchPlaceholder}
+            aria-label={copy.searchPlaceholder}
+            inputMode="search"
+            onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }}
             value={searchQuery}
             onChange={(event) => onSearchChange(event.target.value)}
-            className="h-11 rounded-xl border-slate-200 bg-slate-50 pl-10 pr-10 text-slate-900 placeholder:text-slate-400 focus-visible:border-[var(--indice-brand-action)] focus-visible:ring-[var(--indice-brand-action)]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+            className="h-11 rounded-xl border-slate-200 bg-slate-50 pl-10 pr-11 text-base sm:text-sm text-slate-900 placeholder:text-slate-400 focus-visible:border-[var(--indice-brand-action)] focus-visible:ring-[var(--indice-brand-action)]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
           />
           {searchQuery ? (
             <button
               type="button"
               onClick={() => onSearchChange('')}
               aria-label={copy.clearSearch}
-              className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] dark:hover:bg-slate-700 dark:hover:text-white"
+              className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] dark:hover:bg-slate-700 dark:hover:text-white"
             >
               <X className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -90,6 +95,8 @@ export function NotificationFilterBar({
             type="button"
             variant="outline"
             onClick={onRefresh}
+            aria-label={copy.refresh}
+            disabled={refreshing || busy}
             className="h-11 rounded-xl border-slate-200 bg-white px-3 text-slate-700 shadow-none hover:border-[var(--indice-brand-border)] hover:bg-[var(--indice-brand-soft)] dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
           >
             <RefreshCw className="h-4 w-4" aria-hidden="true" />
@@ -99,8 +106,8 @@ export function NotificationFilterBar({
             type="button"
             variant="outline"
             onClick={onMarkAllRead}
-            disabled={unreadCount === 0}
-            className="col-span-2 h-11 rounded-xl border-slate-200 bg-white px-3 text-slate-700 shadow-none hover:border-[var(--indice-brand-border)] hover:bg-[var(--indice-brand-soft)] disabled:opacity-45 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 sm:col-auto"
+            disabled={unreadCount === 0 || busy}
+            className="hidden sm:inline-flex col-span-2 h-11 rounded-xl border-slate-200 bg-white px-3 text-slate-700 shadow-none hover:border-[var(--indice-brand-border)] hover:bg-[var(--indice-brand-soft)] disabled:opacity-45 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 sm:col-auto"
           >
             <Check className="h-4 w-4" aria-hidden="true" />
             {copy.markAllRead}
@@ -113,7 +120,7 @@ export function NotificationFilterBar({
           <label className="grid gap-1.5">
             <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{copy.module}</span>
             <Select value={moduleFilter} onValueChange={onModuleFilterChange}>
-              <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white px-3 text-slate-800 focus:ring-[var(--indice-brand-action)]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white">
+              <SelectTrigger aria-label={copy.module} className="min-h-11 sm:min-h-10 rounded-xl border-slate-200 bg-white px-3 text-slate-800 focus:ring-[var(--indice-brand-action)]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white">
                 <SelectValue placeholder={copy.allModules} />
               </SelectTrigger>
               <SelectContent className="z-[220]">
@@ -127,7 +134,7 @@ export function NotificationFilterBar({
           <label className="grid gap-1.5">
             <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{copy.priority}</span>
             <Select value={priorityFilter} onValueChange={(value) => onPriorityFilterChange(value as NotificationPriorityFilter)}>
-              <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white px-3 text-slate-800 focus:ring-[var(--indice-brand-action)]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white">
+              <SelectTrigger aria-label={copy.priority} className="min-h-11 sm:min-h-10 rounded-xl border-slate-200 bg-white px-3 text-slate-800 focus:ring-[var(--indice-brand-action)]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white">
                 <SelectValue placeholder={copy.allPriorities} />
               </SelectTrigger>
               <SelectContent className="z-[220]">
@@ -138,6 +145,7 @@ export function NotificationFilterBar({
               </SelectContent>
             </Select>
           </label>
+          <Button type="button" variant="outline" disabled={unreadCount === 0 || busy} onClick={onMarkAllRead} className="min-h-11 rounded-xl sm:hidden"><Check className="h-4 w-4" aria-hidden="true"/>{copy.markAllRead}</Button>
           {activeAdvancedCount > 0 ? (
             <Button
               type="button"
@@ -146,7 +154,7 @@ export function NotificationFilterBar({
                 onModuleFilterChange('all');
                 onPriorityFilterChange('all');
               }}
-              className="h-10 rounded-xl px-3 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+              className="min-h-11 sm:min-h-10 rounded-xl px-3 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
             >
               {copy.clearFilters}
             </Button>
@@ -155,10 +163,10 @@ export function NotificationFilterBar({
       ) : null}
 
       <Tabs value={statusFilter} onValueChange={(value) => onStatusFilterChange(value as NotificationStatusFilter)}>
-        <TabsList className="grid h-10 w-full grid-cols-3 rounded-xl bg-[var(--indice-brand-soft)] p-1 dark:bg-[var(--indice-brand-primary)]/15">
-          <TabsTrigger value="all" className="rounded-lg text-slate-600 data-[state=active]:text-[var(--indice-brand-text)] data-[state=active]:shadow-sm dark:text-slate-300 dark:data-[state=active]:text-white">{copy.all} ({totalCount})</TabsTrigger>
-          <TabsTrigger value="unread" className="rounded-lg text-slate-600 data-[state=active]:text-[var(--indice-brand-text)] data-[state=active]:shadow-sm dark:text-slate-300 dark:data-[state=active]:text-white">{copy.unread} ({unreadCount})</TabsTrigger>
-          <TabsTrigger value="read" className="rounded-lg text-slate-600 data-[state=active]:text-[var(--indice-brand-text)] data-[state=active]:shadow-sm dark:text-slate-300 dark:data-[state=active]:text-white">{copy.read} ({Math.max(totalCount - unreadCount, 0)})</TabsTrigger>
+        <TabsList className="grid min-h-11 w-full grid-cols-3 rounded-xl bg-[var(--indice-brand-soft)] p-1 dark:bg-[var(--indice-brand-primary)]/15">
+          <TabsTrigger value="all" className="min-h-11 sm:min-h-9 rounded-lg px-1 text-xs sm:text-sm text-slate-600 data-[state=active]:text-[var(--indice-brand-text)] data-[state=active]:shadow-sm dark:text-slate-300 dark:data-[state=active]:text-white">{copy.all} ({totalCount})</TabsTrigger>
+          <TabsTrigger value="unread" className="min-h-11 sm:min-h-9 rounded-lg px-1 text-xs sm:text-sm text-slate-600 data-[state=active]:text-[var(--indice-brand-text)] data-[state=active]:shadow-sm dark:text-slate-300 dark:data-[state=active]:text-white">{copy.unread} ({unreadCount})</TabsTrigger>
+          <TabsTrigger value="read" className="min-h-11 sm:min-h-9 rounded-lg px-1 text-xs sm:text-sm text-slate-600 data-[state=active]:text-[var(--indice-brand-text)] data-[state=active]:shadow-sm dark:text-slate-300 dark:data-[state=active]:text-white">{copy.read} ({Math.max(totalCount - unreadCount, 0)})</TabsTrigger>
         </TabsList>
       </Tabs>
     </div>

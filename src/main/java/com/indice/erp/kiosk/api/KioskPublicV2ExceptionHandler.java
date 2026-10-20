@@ -6,6 +6,7 @@ import com.indice.erp.kiosk.engine.KioskIdempotencyConflictException;
 import com.indice.erp.kiosk.engine.KioskUnavailableException;
 import com.indice.erp.billing.lifecycle.CommercialAccessRestrictedException;
 import com.indice.erp.hr.attendance.kiosk.api.PublicKioskAttendanceApiController;
+import com.indice.erp.hr.attendance.locations.AttendanceLocationValidationException;
 import com.indice.erp.pos.PosApiException;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogSharePreviewController;
 import java.util.NoSuchElementException;
@@ -132,6 +133,19 @@ public class KioskPublicV2ExceptionHandler {
         };
         return ResponseEntity.status(HttpStatus.CONFLICT).body(
             responses.error(failure.code(), message, true));
+    }
+
+    @ExceptionHandler(AttendanceLocationValidationException.class)
+    public ResponseEntity<?> attendanceLocation(AttendanceLocationValidationException failure) {
+        var code = "ATTENDANCE_LOCATION_" + failure.reason().name();
+        var message = switch (failure.reason()) {
+            case NOT_CONFIGURED -> "No hay una ubicación de asistencia configurada. Pide a Recursos Humanos que revise las ubicaciones activas.";
+            case NOT_ALLOWED -> "La ubicación seleccionada no está habilitada para tu asistencia. Pide a Recursos Humanos que revise tu asignación.";
+            case OUTSIDE_RADIUS -> "Tu ubicación GPS está fuera del radio permitido para registrar asistencia. Actualiza la ubicación si ya estás en la sede; si trabajas fuera, consulta con Recursos Humanos el kiosco que debes usar.";
+        };
+        // Deliberately exclude coordinates, identity, tokens, payload and internal exception text.
+        LOGGER.warn("Attendance kiosk validation rejected code={}", code);
+        return ResponseEntity.badRequest().body(responses.error(code, message, false));
     }
 
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})

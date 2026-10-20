@@ -24,6 +24,9 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(SalesKpiTodayApiController.class)
 class SalesKpiTodayApiControllerTest {
 
+    @org.springframework.boot.test.mock.mockito.MockBean
+    private com.indice.erp.learning.LearningAppliedAdvice learningAppliedAdvice;
+
     @MockBean
     private com.indice.erp.kpis.KpiRequestAccessService kpiAccess;
 

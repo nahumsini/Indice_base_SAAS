@@ -34,6 +34,12 @@ public final class ConfigCenterUserMutationGuard {
         ensureAdminCeiling(actor, text(payload, "role"), moduleSlugs, tabPermissionKeys, scope);
     }
 
+    public void validateExistingAccess(ActorAccess actor, TargetUser target, List<String> modules,
+        List<String> tabs, AccessScope scope) {
+        ensureCanMutateUsers(actor);
+        if (!isProtected(actor.role())) ensureAdminCeiling(actor,target.role(),modules,tabs,scope);
+    }
+
     private void ensureRoleTabPermissionCompatibility(String targetRole, List<String> tabPermissionKeys) {
         if (isProtected(targetRole)) {
             return;

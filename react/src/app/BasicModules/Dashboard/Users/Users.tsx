@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Building2,
   Check,
@@ -45,6 +45,11 @@ import {
   type ConfigCenterEmployeeKiosk,
   type ConfigCenterUser,
 } from '../../../api/configCenter';
+import { getCachedAuthSession } from '../../../api/authSessionStore';
+import { useAuthorizationRevision } from '../../../hooks/useAuthorizationRevision';
+import { currentProfileActor } from '../../../api/configCenter';
+import { SuccessToast } from '../../../components/SuccessToast';
+import { getUsersFeedbackCopy } from './usersFeedbackCopy';
 import { ApiClientError } from '../../../lib/apiClient';
 import { canAccessModuleTab, isTabScopeAssignableToRole } from '../../../access/tabScopeCatalog';
 import {
@@ -73,6 +78,8 @@ import { DashboardTitleBar } from '../components/DashboardTitleBar';
 interface User {
   id: string;
   backendId: number;
+  backendRole: string;
+  moduleSlugs: string[];
   source: 'user' | 'invitation';
   name: string;
   email: string;
@@ -146,7 +153,7 @@ type SortState = {
 type InviteWizardStep = 'identity' | 'organization' | 'access';
 
 const inputClassName =
-  'w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent';
+  'min-h-11 w-full text-base sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent';
 
 const emptyInviteForm: InviteFormState = {
   name: '',
@@ -158,8 +165,47 @@ const emptyInviteForm: InviteFormState = {
 };
 
 export default function Users() {
+  const revision = useAuthorizationRevision();
+  const actor = currentProfileActor();
+  return <UsersEditor key={`${actor}:${revision}`} actor={actor} />;
+}
+
+function UsersEditor({ actor }: { actor: string | null }) {
   const { currentLanguage, t } = useLanguage();
   const usersCopy = useUsersTranslations();
+  const feedback = getUsersFeedbackCopy(currentLanguage.code);
+  const alive = useRef(true);
+  const mutationRef = useRef(false);
+  const refreshSequence = useRef(0);
+  const rawCatalogModules = useRef<ConfigCenterCatalogModule[]>([]);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [isMutating, setIsMutating] = useState(false);
+  const [initialReady, setInitialReady] = useState(false);
+  const [refreshError, setRefreshError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [inviteUncertain, setInviteUncertain] = useState(false);
+  const isCurrent = () => alive.current && actor !== null && currentProfileActor() === actor;
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  const formatApiError = (error: unknown, fallback: string) => {
+    const code = error instanceof ApiClientError ? error.code : '';
+    const message = error instanceof Error ? error.message : '';
+    const errors: Record<string,string> = {
+      users_actor_changed: feedback.changed, user_name_required: feedback.name, user_name_too_long: feedback.name,
+      user_email_invalid: feedback.email, user_role_invalid: feedback.permission, user_scope_invalid: feedback.scope,
+      user_modules_required: feedback.modules, user_last_administrator: feedback.lastAdmin,
+      SEAT_CAPACITY_EXCEEDED: usersCopy.seats.limitReached,
+    };
+    if (code && errors[code]) return errors[code];
+    if (error instanceof ApiClientError && (error.status === 401 || error.status === 403)) return feedback.permission;
+    if (/At least one administrator/.test(message)) return feedback.lastAdmin;
+    if (/already has a pending invitation/.test(message)) return feedback.pending;
+    if (/email is already used/.test(message)) return feedback.existing;
+    if (/cannot deactivate your own|cannot activate your own/.test(message)) return feedback.self;
+    if (/selected business|selected unit|Organizational scope/.test(message)) return feedback.scope;
+    if (/Admin cannot|Only Admin|Only Super|Protected users|Protected tab|own role or permissions|administrative Panel/.test(message)) return feedback.permission;
+    if (/module permission|Tab permissions|tab permission|module.*(available|assign|entitled)/i.test(message)) return feedback.modules;
+    return fallback;
+  };
   const [users, setUsers] = useState<User[]>([]);
   const [availableModules, setAvailableModules] = useState<AvailableModule[]>([]);
   const [availableUnits, setAvailableUnits] = useState<BusinessUnitOption[]>([]);
@@ -231,7 +277,7 @@ export default function Users() {
     () => buildTabPermissionModuleOptions(availableModules),
     [availableModules],
   );
-  const canAssignSuperAdmin = pageCapabilities.canAssignSuperAdmin || isSuperAdminRole(currentUserRole);
+  const canAssignSuperAdmin = pageCapabilities.canAssignSuperAdmin;
   const currentAccessUser = users.find((user) =>
     user.source === 'user' && user.backendId === currentUserId
   ) ?? null;
@@ -477,7 +523,7 @@ export default function Users() {
   const seatLimitReached = Boolean(subscription?.seat_limit_enforced && subscription.remaining_seats <= 0);
   const activeSeatCount = subscription?.active_seats ?? activeUsers;
   const pendingSeatCount = subscription?.pending_invitations ?? pendingUsers;
-  const availableSeatCount = subscription?.seat_limit_enforced
+  const availableSeatCount = subscription === null ? '—' : subscription.seat_limit_enforced
     ? subscription.remaining_seats
     : usersCopy.seats.unlimited;
 
@@ -500,6 +546,9 @@ export default function Users() {
     task: () => Promise<void>;
     minimumDurationMs?: number;
   }) => {
+    if (mutationRef.current || !isCurrent() || !initialReady) return;
+    mutationRef.current = true;
+    setIsMutating(true);
     setLoadingOverlay({
       isVisible: true,
       title,
@@ -509,7 +558,8 @@ export default function Users() {
     try {
       await runWithMinimumDuration(task(), minimumDurationMs);
     } finally {
-      hideLoadingOverlay();
+      mutationRef.current = false;
+      if (isCurrent()) { hideLoadingOverlay(); setIsMutating(false); }
     }
   };
 
@@ -548,95 +598,77 @@ export default function Users() {
     return styles[status];
   };
 
-  const refreshUsers = async () => {
-    const [response, nextSubscription] = await Promise.all([
-      configCenterApi.getUsers(),
-      billingApi.subscription().catch(() => null),
-    ]);
-    const mappedUnits = response.catalog.units.map(mapCatalogUnit);
-    const mappedBusinesses = response.catalog.businesses.map(mapCatalogBusiness);
-    const mappedModules = response.catalog.modules
-      .map((module) => mapCatalogModule(module, t))
-      .filter((module): module is AvailableModule => module !== null);
-    const mappedUsers = response.users.map((user) => mapBackendUser(user, mappedModules));
-
-    setUsers(mappedUsers);
-    setSubscription(nextSubscription);
-    setPageCapabilities({
-      canManageUsers: response.capabilities?.can_manage_users ?? false,
-      canInvite: response.capabilities?.can_invite ?? false,
-      canAssignSuperAdmin: response.capabilities?.can_assign_super_admin ?? false,
-    });
-    setAvailableUnits(mappedUnits);
-    setAvailableBusinesses(mappedBusinesses);
+  const applyUsersResponse = (response: Awaited<ReturnType<typeof configCenterApi.getUsers>>) => {
+    if (String(response.company_id) !== actor?.split(':')[0] || !Array.isArray(response.users)
+      || !Array.isArray(response.catalog?.units) || !Array.isArray(response.catalog?.businesses) || !Array.isArray(response.catalog?.modules)) throw new Error('users_incomplete');
+    rawCatalogModules.current = response.catalog.modules;
+    const mappedModules = response.catalog.modules.map((module) => mapCatalogModule(module,t)).filter((module): module is AvailableModule => module !== null);
+    setAvailableModules(mappedModules);
+    setUsers(response.users.map((user) => mapBackendUser(user,mappedModules)));
+    setAvailableUnits(response.catalog.units.map(mapCatalogUnit));
+    setAvailableBusinesses(response.catalog.businesses.map(mapCatalogBusiness));
     setCatalogTabs(response.catalog.tabs ?? []);
     setAvailableEmployeeKiosks(response.catalog.employee_kiosks ?? []);
-    setAvailableModules(mappedModules);
+    setPageCapabilities({ canManageUsers: response.capabilities?.can_manage_users === true,
+      canInvite: response.capabilities?.can_invite === true, canAssignSuperAdmin: response.capabilities?.can_assign_super_admin === true });
+  };
+  const refreshUsers = async () => {
+    const sequence = ++refreshSequence.current;
+    const [response,nextSubscription] = await Promise.all([configCenterApi.getUsers(actor),billingApi.subscription().catch(() => null)]);
+    if (!isCurrent() || sequence !== refreshSequence.current) return;
+    applyUsersResponse(response);
+    setSubscription(nextSubscription);
+    setRefreshError('');
+    return response;
+  };
+  const refreshAfterMutation = async () => {
+    try { await refreshUsers(); }
+    catch { if (isCurrent()) setRefreshError(feedback.refreshFailed); }
+  };
+  const retryList = async () => {
+    if (mutationRef.current || !isCurrent()) return;
+    setIsLoading(true);
+    try {
+      const response=await refreshUsers();
+      if (isCurrent()) {
+        setLoadError('');
+        if (inviteUncertain) {
+          const pending=response?.users.find((user) => user.source === 'invitation' && user.email.toLowerCase() === inviteForm.email.trim().toLowerCase());
+          if (pending) {
+            setShowInviteModal(false); setSelectedUserForResend(`invitation:${pending.invitation_id ?? pending.id}`);
+            setNewEmail(''); setInviteLink(''); setInviteEmailStatus(null); setShowResendModal(true); setLoadError(feedback.pending);
+          }
+        }
+        setInviteUncertain(false);
+      }
+    }
+    catch (error) { if (isCurrent()) setRefreshError(formatApiError(error,feedback.load)); }
+    finally { if (isCurrent()) setIsLoading(false); }
   };
 
   useEffect(() => {
     let active = true;
-
-    setAvailableModules([]);
-    setIsLoading(true);
-    setLoadError('');
-
-    runWithMinimumDuration(Promise.all([
-      configCenterApi.getCurrentUser(),
-      configCenterApi.getUsers(),
-      authApi.getSessionOrNull().catch(() => null),
-      billingApi.subscription().catch(() => null),
-    ]))
-      .then(([currentUser, response, session, nextSubscription]) => {
-        if (!active) {
-          return;
-        }
-
-        setCurrentUserId(currentUser.id);
-        setCurrentUserRole(currentUser.role ?? null);
-        setActiveCompanyName(session?.company.name ?? '');
-        setSubscription(nextSubscription);
-        setPageCapabilities({
-          canManageUsers: response.capabilities?.can_manage_users
-            ?? (isSuperAdminRole(currentUser.role) || isAdminRole(currentUser.role)),
-          canInvite: response.capabilities?.can_invite
-            ?? (isSuperAdminRole(currentUser.role) || isAdminRole(currentUser.role)),
-          canAssignSuperAdmin: response.capabilities?.can_assign_super_admin
-            ?? isSuperAdminRole(currentUser.role),
-        });
-        const mappedUnits = response.catalog.units.map(mapCatalogUnit);
-        const mappedBusinesses = response.catalog.businesses.map(mapCatalogBusiness);
-        const mappedModules = response.catalog.modules
-          .map((module) => mapCatalogModule(module, t))
-          .filter((module): module is AvailableModule => module !== null);
-        const mappedUsers = response.users.map((user) => mapBackendUser(user, mappedModules));
-
-        setUsers(mappedUsers);
-        setAvailableUnits(mappedUnits);
-        setAvailableBusinesses(mappedBusinesses);
-        setCatalogTabs(response.catalog.tabs ?? []);
-        setAvailableEmployeeKiosks(response.catalog.employee_kiosks ?? []);
-        setAvailableModules(mappedModules);
+    setIsLoading(true); setLoadError(''); setInitialReady(false);
+    runWithMinimumDuration(Promise.all([configCenterApi.getCurrentUser(),configCenterApi.getUsers(actor),billingApi.subscription().catch(() => null)]))
+      .then(([currentUser,response,nextSubscription]) => {
+        if (!active || !isCurrent()) return;
+        if (String(currentUser.id) !== actor?.split(':')[1]) throw new Error('users_actor_changed');
+        applyUsersResponse(response);
+        setCurrentUserId(currentUser.id); setCurrentUserRole(currentUser.role ?? null);
+        setActiveCompanyName(getCachedAuthSession()?.company.name ?? ''); setSubscription(nextSubscription); setInitialReady(true);
       })
-      .catch((error) => {
-        if (!active) {
-          return;
-        }
-        setAvailableModules([]);
-        setLoadError(error instanceof Error ? error.message : usersCopy.errors.load);
-      })
-      .finally(() => {
-        if (active) {
-          setIsLoading(false);
-        }
-      });
+      .catch((error) => { if (active && isCurrent()) setLoadError(formatApiError(error,feedback.load)); })
+      .finally(() => { if (active && isCurrent()) setIsLoading(false); });
+    return () => { active = false; };
+  }, [loadAttempt]);
 
-    return () => {
-      active = false;
-    };
-  }, [t, usersCopy.errors.load]);
+  useEffect(() => {
+    if (initialReady) setAvailableModules(rawCatalogModules.current.map((module) => mapCatalogModule(module,t)).filter((module): module is AvailableModule => module !== null));
+  }, [t]);
 
   const closeInviteModal = () => {
+    if (mutationRef.current || isMutating) return;
+    setLoadError(''); setInviteUncertain(false);
     setShowInviteModal(false);
     setInviteForm(emptyInviteForm);
     setInviteModuleIds([]);
@@ -650,6 +682,8 @@ export default function Users() {
   };
 
   const closeResendModal = () => {
+    if (mutationRef.current || isMutating) return;
+    setLoadError('');
     setShowResendModal(false);
     setSelectedUserForResend(null);
     setInviteLink('');
@@ -731,13 +765,17 @@ export default function Users() {
       overrides.tabPermissionKeys ?? user.tabPermissionKeys,
     );
     const scopeType = overrides.scopeType ?? user.scopeType;
-    const unitId = overrides.unitId ?? user.unitId;
-    const businessId = overrides.businessId ?? user.businessId;
+    const unitId = overrides.unitId === undefined ? user.unitId : overrides.unitId;
+    const businessId = overrides.businessId === undefined ? user.businessId : overrides.businessId;
+    const editableSlugs = new Set(assignableModules.map((module) => module.slug));
+    const moduleSlugs = [...new Set([...moduleSlugsForIds(moduleIds), ...user.moduleSlugs.filter((slug) => !editableSlugs.has(slug))])];
+    const editableTabs = new Set(assignableCatalogTabs.map((tab) => tab.permission_key));
+    const retainedTabs = user.tabPermissionKeys.filter((key) => !editableTabs.has(key) && moduleSlugs.includes(key.split('.')[0]));
     return {
-      role: toBackendRole(role),
+      role: user.backendRole === 'root' && role === user.role ? 'root' : toBackendRole(role),
       status: overrides.status ?? user.status,
-      module_slugs: moduleSlugsForIds(moduleIds),
-      tab_permission_keys: tabPermissionKeys,
+      module_slugs: moduleSlugs,
+      tab_permission_keys: pruneTabPermissionKeysForRole(role,[...new Set([...tabPermissionKeys,...retainedTabs])]),
       kiosk_definition_ids: eligibleKioskIds(
         overrides.kioskDefinitionIds ?? user.kioskDefinitionIds,
         moduleIds,
@@ -753,31 +791,37 @@ export default function Users() {
   const canEditAccessFor = (user: User) => user.source === 'user' && user.capabilities.canEditAccess;
 
   const handleActivateUser = async (user: User) => {
-    if (!user.capabilities.canActivate) return;
+    if (!user.capabilities.canActivate || mutationRef.current || !isCurrent() || !initialReady) return;
     try {
       setLoadError('');
       await runUserFeedbackTask({
         title: usersCopy.overlays.activatingTitle,
         description: usersCopy.overlays.activatingDescription,
         task: async () => {
-          await configCenterApi.activateUser(user.backendId);
-          await refreshUsers();
+          const receipt=await configCenterApi.activateUser(user.backendId,actor);
+          if (!receipt.success) throw new Error('users_invalid_receipt');
+          if (!isCurrent()) return;
+          setSuccessMessage(feedback.saved);
+          await refreshAfterMutation();
         },
       });
     } catch (error) {
-      setLoadError(formatApiError(error, usersCopy.errors.status));
+      if (isCurrent()) setLoadError(formatApiError(error, usersCopy.errors.status));
     }
   };
 
   const handleSendInvite = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!pageCapabilities.canInvite || seatLimitReached) {
+    if (inviteWizardStep !== 'access') { if (!mutationRef.current) continueInviteWizard(); return; }
+    if (!pageCapabilities.canInvite || seatLimitReached || isLoading || mutationRef.current || !isCurrent() || inviteUncertain || inviteLink) {
       return;
     }
     const trimmedName = inviteForm.name.trim();
     const trimmedEmail = inviteForm.email.trim();
 
-    if (!trimmedName || !trimmedEmail || !inviteOrganizationIsValid || inviteModuleIds.length === 0) {
+    if (!trimmedName || [...trimmedName].length > 100) { setInviteValidationMessage(feedback.name); setInviteWizardStep('identity'); return; }
+    if (trimmedEmail.length > 120) { setInviteValidationMessage(feedback.email); setInviteWizardStep('identity'); return; }
+    if (!trimmedEmail || !inviteOrganizationIsValid || inviteModuleIds.length === 0) {
       setInviteValidationMessage(usersCopy.inviteWizard.accessError);
       return;
     }
@@ -822,30 +866,37 @@ export default function Users() {
               inviteForm.businessUnitId,
               inviteForm.businessId,
             ),
-          });
-          await refreshUsers();
+          },actor);
+          if (!isCurrent()) return;
+          if (!response.invite_link) throw new Error('users_invalid_receipt');
           setInviteLink(response.invite_link);
           setInviteEmailStatus({
             sent: response.email_sent,
             status: response.email_status,
             message: response.email_message,
           });
+          await refreshAfterMutation();
         },
       });
     } catch (error) {
+      if (!isCurrent()) return;
       setLoadError(formatApiError(error, usersCopy.errors.sendInvitation));
+      if (!(error instanceof ApiClientError) || error.status >= 500) {
+        setInviteUncertain(true);
+        await refreshAfterMutation();
+      }
     }
   };
 
   const handleResendInvite = async () => {
-    if (!selectedUserForResend || !resendUser || resendUser.source !== 'invitation') {
+    if (!selectedUserForResend || !resendUser || resendUser.source !== 'invitation' || !resendUser.capabilities.canResendInvitation || mutationRef.current || !isCurrent() || inviteLink) {
       return;
     }
 
     const trimmedEmail = newEmail.trim();
     const validatedEmail = trimmedEmail ? validateEmail(trimmedEmail) : null;
     if (trimmedEmail) {
-      if (!validatedEmail?.ok) {
+      if (trimmedEmail.length > 120 || !validatedEmail?.ok) {
         setLoadError(t.loginPage.emailError);
         return;
       }
@@ -859,31 +910,33 @@ export default function Users() {
         task: async () => {
           const response = await configCenterApi.resendInvitation(
             resendUser.backendId,
-            validatedEmail?.ok ? validatedEmail.normalized : undefined,
+            validatedEmail?.ok ? validatedEmail.normalized : undefined,actor,
           );
-          await refreshUsers();
+          if (!isCurrent()) return;
+          if (!response.invite_link) throw new Error('users_invalid_receipt');
           setInviteLink(response.invite_link);
           setInviteEmailStatus({
             sent: response.email_sent,
             status: response.email_status,
             message: response.email_message,
           });
+          await refreshAfterMutation();
         },
       });
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : usersCopy.errors.resendInvitation);
+      if (isCurrent()) setLoadError(formatApiError(error, usersCopy.errors.resendInvitation));
     }
   };
 
   const closeDeleteDialog = () => {
-    if (isDeletingUser) {
+    if (isDeletingUser || mutationRef.current) {
       return;
     }
     setSelectedUserForDelete(null);
   };
 
   const handleDeleteUser = async () => {
-    if (!invitationPendingDelete || isDeletingUser) {
+    if (!invitationPendingDelete?.capabilities.canCancelInvitation || isDeletingUser || mutationRef.current || !isCurrent()) {
       return;
     }
 
@@ -891,30 +944,32 @@ export default function Users() {
       const pendingDelete = invitationPendingDelete;
       setIsDeletingUser(true);
       setLoadError('');
-      setSelectedUserForDelete(null);
       await runUserFeedbackTask({
         title: usersCopy.overlays.deletingTitle,
         description: usersCopy.overlays.deletingDescription,
         task: async () => {
-          await configCenterApi.deleteInvitation(pendingDelete.backendId);
-          await refreshUsers();
+          const receipt=await configCenterApi.deleteInvitation(pendingDelete.backendId,actor);
+          if (!receipt.success) throw new Error('users_invalid_receipt');
+          if (!isCurrent()) return;
+          setSelectedUserForDelete(null); setSuccessMessage(feedback.saved);
+          await refreshAfterMutation();
         },
       });
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : usersCopy.errors.deleteInvitation);
+      if (isCurrent()) setLoadError(formatApiError(error, usersCopy.errors.deleteInvitation));
     } finally {
-      setIsDeletingUser(false);
+      if (isCurrent()) setIsDeletingUser(false);
     }
   };
 
   const closeDeactivateDialog = () => {
-    if (!isDeletingUser) {
+    if (!isDeletingUser && !mutationRef.current) {
       setSelectedUserForDeactivate(null);
     }
   };
 
   const handleDeactivateUser = async () => {
-    if (!userPendingDeactivation?.capabilities.canDeactivate || isDeletingUser) {
+    if (!userPendingDeactivation?.capabilities.canDeactivate || isDeletingUser || mutationRef.current || !isCurrent()) {
       return;
     }
 
@@ -922,27 +977,30 @@ export default function Users() {
       const pendingDeactivation = userPendingDeactivation;
       setIsDeletingUser(true);
       setLoadError('');
-      setSelectedUserForDeactivate(null);
       await runUserFeedbackTask({
         title: usersCopy.overlays.deactivatingTitle,
         description: usersCopy.overlays.deactivatingDescription,
         task: async () => {
-          await configCenterApi.deleteUser(pendingDeactivation.backendId);
-          await refreshUsers();
+          const receipt=await configCenterApi.deleteUser(pendingDeactivation.backendId,actor);
+          if (!receipt.success) throw new Error('users_invalid_receipt');
+          if (!isCurrent()) return;
+          setSelectedUserForDeactivate(null); setSuccessMessage(feedback.saved);
+          await refreshAfterMutation();
         },
       });
     } catch (error) {
-      setLoadError(formatApiError(error, usersCopy.errors.status));
+      if (isCurrent()) setLoadError(formatApiError(error, usersCopy.errors.status));
     } finally {
-      setIsDeletingUser(false);
+      if (isCurrent()) setIsDeletingUser(false);
     }
   };
 
   const handleOpenModuleSettings = (user: User) => {
-    if (!canEditAccessFor(user)) {
+    if (!canEditAccessFor(user) || mutationRef.current || !isCurrent() || !initialReady) {
       return;
     }
 
+    setLoadError('');
     setSelectedUserForModules(user.id);
     setSelectedRoleAccessNotice('');
     setSelectedRoleDraft(user.role);
@@ -960,44 +1018,29 @@ export default function Users() {
     setSelectedKioskDefinitionDraft(user.kioskDefinitionIds);
   };
 
+  const closeAccessEditor = () => { if (!mutationRef.current && !isMutating) { setSelectedUserForModules(null); setLoadError(''); } };
   const handleSaveSelectedModules = async () => {
-    if (!selectedUser || !canEditAccessFor(selectedUser)) {
-      setSelectedUserForModules(null);
-      return;
-    }
-
+    if (!selectedUser || !canEditAccessFor(selectedUser) || mutationRef.current || !isCurrent()) return;
+    if (!selectedEditScopeIsValid || !selectedModulesDraft.length) { setLoadError(feedback.scope); return; }
     try {
       setLoadError('');
-      const tabPermissionKeys = pruneTabPermissionKeysForModules(
-        selectedUserCatalogTabs,
-        assignableTabPermissionModules,
-        selectedTabPermissionDraft,
-        selectedModulesDraft,
-      );
-      await configCenterApi.updateUser(
-        selectedUser.backendId,
-        buildUserAccessPayload(selectedUser, {
-          role: selectedRoleDraft,
-          moduleIds: selectedModulesDraft,
-          tabPermissionKeys,
-          kioskDefinitionIds: selectedKioskDefinitionDraft,
-          scopeType: selectedScopeTypeDraft,
-          unitId: selectedScopeTypeDraft === 'corporate_office' ? null : selectedUnitDraft,
-          businessId: selectedScopeTypeDraft === 'business_office' ? selectedBusinessDraft : null,
-        }),
-      );
-      if (selectedUser.backendId === currentUserId) {
-        const nextSession = await authApi.me();
-        if (canAccessModuleTab('home-panel', 'users', nextSession)) {
-          await refreshUsers();
+      const tabPermissionKeys = pruneTabPermissionKeysForModules(selectedUserCatalogTabs,assignableTabPermissionModules,selectedTabPermissionDraft,selectedModulesDraft);
+      await runUserFeedbackTask({title:usersCopy.screen.modal.save,task:async () => {
+        const receipt = await configCenterApi.updateUser(selectedUser.backendId,buildUserAccessPayload(selectedUser,{
+          role:selectedRoleDraft,moduleIds:selectedModulesDraft,tabPermissionKeys,kioskDefinitionIds:selectedKioskDefinitionDraft,
+          scopeType:selectedScopeTypeDraft,unitId:selectedScopeTypeDraft === 'corporate_office' ? null : selectedUnitDraft,
+          businessId:selectedScopeTypeDraft === 'business_office' ? selectedBusinessDraft : null,
+        }),actor);
+        if (!isCurrent()) return;
+        if (!receipt.success) throw new Error('users_invalid_receipt');
+        setSelectedUserForModules(null); setSuccessMessage(feedback.saved);
+        if (selectedUser.backendId === currentUserId) {
+          try { const nextSession=await authApi.me(); if (!isCurrent() || !canAccessModuleTab('home-panel', 'users', nextSession)) return; }
+          catch { if (isCurrent()) setRefreshError(feedback.refreshFailed); return; }
         }
-      } else {
-        await refreshUsers();
-      }
-      setSelectedUserForModules(null);
-    } catch (error) {
-      setLoadError(formatApiError(error, usersCopy.errors.moduleAccess));
-    }
+        await refreshAfterMutation();
+      }});
+    } catch (error) { if (isCurrent()) setLoadError(formatApiError(error,usersCopy.errors.moduleAccess)); }
   };
 
   const copyToClipboard = async (text: string) => {
@@ -1016,16 +1059,17 @@ export default function Users() {
           document.body.appendChild(textarea);
           textarea.focus();
           textarea.select();
-          document.execCommand('copy');
+          if (!document.execCommand('copy')) throw new Error('users_copy_failed');
         } finally {
           textarea.remove();
         }
       }
 
+      if (!isCurrent()) return;
       setCopiedLink(true);
-      window.setTimeout(() => setCopiedLink(false), 2000);
+      window.setTimeout(() => { if (isCurrent()) setCopiedLink(false); }, 2000);
     } catch (error) {
-      console.error(usersCopy.errors.copyLink, error);
+      if (isCurrent()) setLoadError(feedback.copy);
     }
   };
 
@@ -1150,7 +1194,8 @@ export default function Users() {
             variant="outline"
             size="sm"
             onClick={() => handleOpenModuleSettings(user)}
-            className="h-9 gap-2 rounded-xl border-blue-200 px-3 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-300"
+            disabled={isMutating || isLoading}
+            className="h-11 gap-2 rounded-xl border-blue-200 px-3 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-300"
           >
             <Settings aria-hidden="true" className="h-4 w-4" />
             {usersCopy.actions.manage}
@@ -1160,14 +1205,14 @@ export default function Users() {
         {hasSecondaryActions ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button type="button" variant="ghost" size="sm" className="h-9 w-9 rounded-xl p-0" aria-label={usersCopy.actions.more}>
+              <Button type="button" variant="ghost" size="sm" disabled={isMutating || isLoading} className="h-11 w-11 rounded-xl p-0" aria-label={usersCopy.actions.more}>
                 <MoreHorizontal aria-hidden="true" className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52 rounded-xl p-1.5">
               {user.capabilities.canActivate ? (
                 <DropdownMenuItem
-                  disabled={seatLimitReached}
+                  disabled={seatLimitReached || isLoading || isMutating || !initialReady}
                   title={seatLimitReached ? usersCopy.seats.limitReached : undefined}
                   onClick={() => void handleActivateUser(user)}
                   className="cursor-pointer rounded-lg"
@@ -1177,7 +1222,7 @@ export default function Users() {
                 </DropdownMenuItem>
               ) : null}
               {user.capabilities.canDeactivate ? (
-                <DropdownMenuItem onClick={() => setSelectedUserForDeactivate(user.id)} className="cursor-pointer rounded-lg">
+                <DropdownMenuItem onClick={() => { setLoadError(''); setSelectedUserForDeactivate(user.id); }} className="cursor-pointer rounded-lg">
                   <UserX aria-hidden="true" />
                   {usersCopy.actions.deactivate}
                 </DropdownMenuItem>
@@ -1185,6 +1230,7 @@ export default function Users() {
               {user.capabilities.canResendInvitation ? (
                 <DropdownMenuItem
                   onClick={() => {
+                    setLoadError('');
                     setSelectedUserForResend(user.id);
                     setShowResendModal(true);
                     setInviteLink('');
@@ -1199,7 +1245,7 @@ export default function Users() {
                 </DropdownMenuItem>
               ) : null}
               {user.capabilities.canCancelInvitation ? (
-                <DropdownMenuItem variant="destructive" onClick={() => setSelectedUserForDelete(user.id)} className="cursor-pointer rounded-lg">
+                <DropdownMenuItem variant="destructive" onClick={() => { setLoadError(''); setSelectedUserForDelete(user.id); }} className="cursor-pointer rounded-lg">
                   <Trash2 aria-hidden="true" />
                   {deleteLabel}
                 </DropdownMenuItem>
@@ -1234,7 +1280,7 @@ export default function Users() {
         <div>
           <div className="font-medium">{title}</div>
           <div className="mt-1 opacity-90">
-            {inviteEmailStatus.message || usersCopy.statusFallback}
+            {feedback.delivery}
           </div>
         </div>
       </div>
@@ -1244,9 +1290,11 @@ export default function Users() {
   const titleBarActions = pageCapabilities.canInvite ? (
     <Button
       className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
-      disabled={seatLimitReached}
+      disabled={seatLimitReached || isLoading || isMutating || !initialReady}
       title={seatLimitReached ? usersCopy.seats.limitReached : undefined}
       onClick={() => {
+        if (mutationRef.current || !isCurrent() || !initialReady) return;
+        setLoadError(''); setInviteUncertain(false);
         setInviteForm(emptyInviteForm);
         setInviteModuleIds([]);
         setInviteTabPermissionKeys([]);
@@ -1267,7 +1315,9 @@ export default function Users() {
 
   return (
     <div className="space-y-5">
-      <UsersFeedback error={loadError} isLoading={isLoading} loadingLabel={usersCopy.loading} />
+      <UsersFeedback error={selectedUser || showInviteModal || showResendModal || invitationPendingDelete || userPendingDeactivation ? '' : loadError} isLoading={isLoading} loadingLabel={usersCopy.loading} />
+      {!initialReady && !isLoading ? <Button className="min-h-11" onClick={() => setLoadAttempt((value) => value+1)}>{feedback.retry}</Button> : null}
+      {refreshError ? <div role="status" className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200 sm:flex-row sm:items-center sm:justify-between"><p>{refreshError}</p><Button variant="outline" disabled={isMutating || isLoading} onClick={() => { void retryList(); }}>{feedback.refresh}</Button></div> : null}
 
       <DashboardTitleBar
         actions={titleBarActions ?? undefined}
@@ -1538,13 +1588,14 @@ export default function Users() {
 
       {selectedUser && (
         <IndiceModalFrame
+          busy={isMutating}
           bodyClassName="px-5 py-5 sm:px-7"
           contentClassName="max-h-[88dvh] sm:max-w-5xl"
           description={selectedUser.name}
           footer={(
             <Button
               onClick={handleSaveSelectedModules}
-              disabled={selectedModulesDraft.length === 0 || !selectedEditScopeIsValid}
+              disabled={isMutating || selectedModulesDraft.length === 0 || !selectedEditScopeIsValid}
             >
               {usersCopy.screen.modal.save}
             </Button>
@@ -1553,7 +1604,8 @@ export default function Users() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setSelectedUserForModules(null)}
+              onClick={closeAccessEditor}
+              disabled={isMutating}
               className="h-11 rounded-xl border-white bg-white px-5 text-sm font-medium text-slate-600 hover:bg-white/90"
             >
               {usersCopy.screen.modal.cancel}
@@ -1563,13 +1615,16 @@ export default function Users() {
           icon={<Layers3 className="h-5 w-5" />}
           modalType="operational-workspace"
           onOpenChange={(open) => {
-            if (!open) setSelectedUserForModules(null);
+            if (!open) closeAccessEditor();
           }}
           open
           title={usersCopy.accessEditor.title}
           tone="blue"
         >
               <div className="space-y-6">
+                <IndiceModalValidation messages={loadError ? [loadError] : []} />
+                {selectedUser.moduleSlugs.some((slug) => !assignableModules.some((module) => module.slug === slug)) ? <p className="text-sm text-slate-600 dark:text-slate-300">{feedback.retained}</p> : null}
+                <fieldset disabled={isMutating} className="min-w-0 space-y-6">
                 <section className="space-y-3">
                   <AccessEditorSectionHeading
                     description={usersCopy.accessEditor.organizationDescription}
@@ -1591,7 +1646,7 @@ export default function Users() {
                           return nextKeys;
                         });
                       }}
-                      className={`${inputClassName} h-11 px-3 text-sm`}
+                      className={`${inputClassName} h-11 px-3`}
                     >
                       {canAssignSuperAdmin || selectedUser.role === 'Super Admin' ? (
                         <option value="Super Admin">{usersCopy.screen.roles.superAdmin}</option>
@@ -1614,7 +1669,7 @@ export default function Users() {
                           setSelectedBusinessDraft('');
                         }
                       }}
-                      className={`${inputClassName} h-11 px-3 text-sm`}
+                      className={`${inputClassName} h-11 px-3`}
                     >
                       {assignableScopeTypes.map((scope) => (
                         <option key={scope} value={scope}>{usersCopy.scope[scope]}</option>
@@ -1630,7 +1685,7 @@ export default function Users() {
                           setSelectedUnitDraft(event.target.value);
                           setSelectedBusinessDraft('');
                         }}
-                        className={`${inputClassName} h-11 px-3 text-sm`}
+                        className={`${inputClassName} h-11 px-3`}
                       >
                         <option value="">{usersBusinessCopy.selectBusinessUnit}</option>
                         {assignableBusinessUnitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
@@ -1643,7 +1698,7 @@ export default function Users() {
                       <select
                         value={selectedBusinessDraft}
                         onChange={(event) => setSelectedBusinessDraft(event.target.value)}
-                        className={`${inputClassName} h-11 px-3 text-sm`}
+                        className={`${inputClassName} h-11 px-3`}
                       >
                         <option value="">{usersBusinessCopy.selectBusiness}</option>
                         {selectedBusinessOptions.map((business) => <option key={business.id} value={business.id}>{business.name}</option>)}
@@ -1701,23 +1756,24 @@ export default function Users() {
 	                  copy={usersCopy.kioskPermissions}
 	                />
                 </section>
+                </fieldset>
 	              </div>
         </IndiceModalFrame>
       )}
 
       {showInviteModal && (
         <IndiceModalFrame
-          busy={loadingOverlay.isVisible}
+          busy={isMutating}
           closeLabel={usersCopy.screen.modal.cancel}
           contentClassName="max-h-[min(92dvh,820px)]"
           description={usersCopy.screen.subtitle}
           eyebrow={!inviteLink ? inviteWizardCopy.progress(activeInviteStepIndex + 1, inviteWizardSteps.length) : inviteWizardCopy.completed}
           footer={inviteLink ? (
-            <Button type="button" onClick={closeInviteModal}>{closeLabel}</Button>
+            <Button type="button" onClick={closeInviteModal} disabled={isMutating}>{closeLabel}</Button>
           ) : (
             <>
               {inviteWizardStep !== 'identity' ? (
-                <Button type="button" variant="outline" onClick={goBackInviteWizard}>
+                <Button type="button" variant="outline" onClick={goBackInviteWizard} disabled={isMutating}>
                   {inviteWizardCopy.back}
                 </Button>
               ) : null}
@@ -1725,13 +1781,13 @@ export default function Users() {
                 <Button
                   type="submit"
                   form="dashboard-user-invite-form"
-                  disabled={loadingOverlay.isVisible || !inviteAccessIsValid}
+                  disabled={isMutating || inviteUncertain || !inviteAccessIsValid}
                 >
                   <UserPlus className="h-4 w-4" />
                   {usersCopy.screen.modal.send}
                 </Button>
               ) : (
-                <Button type="button" onClick={continueInviteWizard}>
+                <Button type="button" onClick={continueInviteWizard} disabled={isMutating}>
                   {inviteWizardCopy.next}
                 </Button>
               )}
@@ -1741,7 +1797,7 @@ export default function Users() {
             <Button
               type="button"
               variant="outline"
-              onClick={closeInviteModal}
+              onClick={closeInviteModal} disabled={isMutating}
               className="h-11 rounded-xl border-white bg-white px-5 text-sm font-medium text-slate-600 hover:bg-white/90"
             >
               {usersCopy.screen.modal.cancel}
@@ -1759,7 +1815,10 @@ export default function Users() {
           title={usersCopy.screen.modal.newUser}
           tone="blue"
         >
-          <form id="dashboard-user-invite-form" onSubmit={handleSendInvite} className="space-y-5">
+          <form noValidate id="dashboard-user-invite-form" onSubmit={handleSendInvite} className="space-y-5">
+            <IndiceModalValidation messages={loadError ? [loadError] : []} />
+            {inviteUncertain ? <div role="status" className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><p>{feedback.uncertain}</p><Button type="button" variant="outline" disabled={isMutating || isLoading} onClick={() => { void retryList(); }}>{feedback.refresh}</Button></div> : null}
+            <fieldset disabled={isMutating} className="min-w-0 space-y-5">
             {!inviteLink ? (
               <>
                 <IndiceModalWizardStepper
@@ -1787,6 +1846,8 @@ export default function Users() {
                       <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{usersCopy.screen.modal.name}</span>
                       <input
                         type="text"
+                        maxLength={100}
+                        autoComplete="name"
                         value={inviteForm.name}
                         onChange={(event) => updateInviteForm('name', event.target.value)}
                         className={`h-11 px-4 ${inputClassName}`}
@@ -1798,6 +1859,10 @@ export default function Users() {
                       <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{usersCopy.screen.modal.email}</span>
                       <input
                         type="email"
+                        maxLength={120}
+                        autoComplete="email"
+                        inputMode="email"
+                        autoCapitalize="none"
                         value={inviteForm.email}
                         onChange={(event) => updateInviteForm('email', event.target.value)}
                         className={`h-11 px-4 ${inputClassName}`}
@@ -1950,7 +2015,7 @@ export default function Users() {
                 <label className="space-y-2">
                   <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{usersCopy.screen.modal.inviteLink}</span>
                   <span className="flex flex-col gap-2 sm:flex-row">
-                    <input type="text" value={inviteLink} readOnly className={`h-11 flex-1 px-4 ${inputClassName}`} />
+                    <input type="text" aria-label={usersCopy.screen.modal.inviteLink} value={inviteLink} readOnly className={`h-11 flex-1 px-4 ${inputClassName}`} />
                     <Button type="button" onClick={() => copyToClipboard(inviteLink)} className="h-11 gap-2 bg-blue-600 text-white hover:bg-blue-700">
                       {copiedLink ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                       {copiedLink ? usersCopy.screen.modal.copied : usersCopy.screen.modal.copyLink}
@@ -1959,19 +2024,20 @@ export default function Users() {
                 </label>
               </div>
             )}
+            </fieldset>
           </form>
         </IndiceModalFrame>
       )}
 
       {showResendModal && resendUser && (
         <IndiceModalFrame
-          busy={loadingOverlay.isVisible}
+          busy={isMutating}
           contentClassName="sm:max-w-xl"
           description={resendUser.name}
           footer={inviteLink ? (
-            <Button type="button" onClick={closeResendModal}>{closeLabel}</Button>
+            <Button type="button" onClick={closeResendModal} disabled={isMutating}>{closeLabel}</Button>
           ) : (
-            <Button type="button" onClick={handleResendInvite} disabled={loadingOverlay.isVisible}>
+            <Button type="button" onClick={handleResendInvite} disabled={isMutating}>
               <Mail className="h-4 w-4" />
               {usersCopy.screen.resend}
             </Button>
@@ -1980,7 +2046,7 @@ export default function Users() {
             <Button
               type="button"
               variant="outline"
-              onClick={closeResendModal}
+              onClick={closeResendModal} disabled={isMutating}
               className="h-11 rounded-xl border-white bg-white px-5 text-sm font-medium text-slate-600 hover:bg-white/90"
             >
               {usersCopy.screen.modal.cancel}
@@ -1997,6 +2063,8 @@ export default function Users() {
           tone="blue"
         >
             <div className="space-y-4">
+              <IndiceModalValidation messages={loadError ? [loadError] : []} />
+              <fieldset disabled={isMutating} className="min-w-0 space-y-4">
               {!inviteLink ? (
                 <>
                   <label className="block space-y-2">
@@ -2017,6 +2085,11 @@ export default function Users() {
                     </span>
                     <input
                       type="email"
+                      aria-label={resendEmailLabel}
+                      maxLength={120}
+                      autoComplete="email"
+                      inputMode="email"
+                      autoCapitalize="none"
                       value={newEmail}
                       onChange={(event) => setNewEmail(event.target.value)}
                       className={`h-11 px-4 ${inputClassName}`}
@@ -2046,7 +2119,7 @@ export default function Users() {
                     <span className="flex flex-col gap-2 sm:flex-row">
                       <input
                         type="text"
-                        value={inviteLink}
+                        aria-label={usersCopy.screen.modal.inviteLink} value={inviteLink}
                         readOnly
                         className={`h-11 flex-1 px-4 ${inputClassName}`}
                       />
@@ -2062,10 +2135,12 @@ export default function Users() {
                   </label>
                 </div>
               )}
+              </fieldset>
             </div>
         </IndiceModalFrame>
       )}
 
+      <SuccessToast isVisible={Boolean(successMessage)} message={successMessage} onClose={() => setSuccessMessage('')} />
       <LoadingBarOverlay
         isVisible={loadingOverlay.isVisible}
         title={loadingOverlay.title}
@@ -2082,7 +2157,7 @@ export default function Users() {
         confirmDisabled={isDeletingUser || loadingOverlay.isVisible}
         onConfirm={handleDeleteUser}
         onCancel={closeDeleteDialog}
-      />
+      ><IndiceModalValidation messages={loadError ? [loadError] : []} /></ConfirmDeleteDialog>
 
       <ConfirmDeleteDialog
         isVisible={Boolean(userPendingDeactivation)}
@@ -2095,6 +2170,7 @@ export default function Users() {
         onConfirm={handleDeactivateUser}
         onCancel={closeDeactivateDialog}
       >
+        <IndiceModalValidation messages={loadError ? [loadError] : []} />
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-5 text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
           {usersCopy.deactivateConfirmationWarning}
         </p>
@@ -2179,6 +2255,8 @@ function mapBackendUser(user: ConfigCenterUser, availableModules: AvailableModul
   return {
     id: `${user.source}:${backendId}`,
     backendId,
+    backendRole: user.role,
+    moduleSlugs: user.module_slugs,
     source: user.source === 'invitation' ? 'invitation' : 'user',
     name: fullName,
     email: user.email,
@@ -2211,16 +2289,6 @@ function mapBackendUser(user: ConfigCenterUser, availableModules: AvailableModul
         return route && validModuleIds.has(route) ? [route] : [];
       }),
   };
-}
-
-function formatApiError(error: unknown, fallback: string) {
-  if (error instanceof ApiClientError && error.code === 'SEAT_CAPACITY_EXCEEDED') {
-    const seats = (error.payload as { seats?: { active?: number; reserved?: number; limit?: number } } | null)?.seats;
-    if (seats && typeof seats.limit === 'number') {
-      return `${error.message} (${seats.active ?? 0} active + ${seats.reserved ?? 0} pending / ${seats.limit})`;
-    }
-  }
-  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 function normalizeUserRole(role: string): User['role'] {

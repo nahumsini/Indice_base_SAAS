@@ -19,7 +19,7 @@ Use graphite on the light coral CTA, soft coral title bars, module-colored modal
 and coral focus treatment on the shared 44px filters. This private ERP identity does not overwrite
 saved public business colors or the product-wide blue chrome. Reservation status badges retain
 their semantic colors.
-Daily navigation is Agenda/reservations → Clients → Events → Indicators. Calendar and Reservations
+Daily navigation is Agenda/reservations → Events → Clients → Indicators. Calendar and Reservations
 are one visible workspace with Calendar/Table views, not separate daily tabs. Services,
 Team/availability and Public agenda are title-bar actions opening native modals; Configuration
 is no longer a visible module tab. Backend tab scopes remain independent and unchanged.
@@ -280,3 +280,48 @@ Release acceptance/deployment: N/A for this local implementation. Remaining work
 authorized acceptance before publication, plus the explicitly deferred external integrations above.
 Internal reminders are best effort; HR half-days conservatively block their date, and exports do
 not synchronize calendars. Commercial inclusion is documented without changing live subscriptions.
+
+
+## Operational presentation refinement — 2026-10-19
+
+The daily tab order groups scheduling work first: Agenda/reservations → Events → Clients →
+Indicators. Existing route IDs, independent backend tab scopes, setup modals and the Sales-owned
+Clients workspace remain unchanged. Coral title bars, white filter cards and subtle semantic
+status colors use the shared frontend system; public-page branding is unaffected.
+
+Events offers Cards/Table views with search (title, description, host), period (all/upcoming/past),
+publication/cancellation status and host. The existing authorized owner read returns at most 500
+records; the UI explicitly discloses that filters, sorting, counts and pagination apply to that
+loaded set. It does not claim an unbounded search. Both views share scoped workspace memory,
+filters and pagination. The shared table supports deterministic ascending/descending sorting
+before pagination and resizable columns. Participants remains direct; edit, copy public link and
+cancel use the row Actions menu with the same permissions and one-frame owner modals.
+
+Calendar cells preview at most three combined reservations/events in chronological order. The
+remaining count opens the selected day's complete loaded activity list, including events, without
+silently removing records or changing the existing truncation warning. Date-range arrows retain
+custom-range length. The selected range is visible, and an edited range is not misrepresented as
+a preset. Indicators retain server counts, formulas and permission-aware drilldowns.
+
+
+## Browser compatibility and short-screen verification (2026-10-19)
+
+Private event columns satisfy the shared table definition, use its `alignment` property and name
+each resize separator with the localized column label. The calendar period label uses ordinary
+Intl formatting without `formatRange`; a single date is shown once. Restoring event sorting uses
+an own-property check compatible with the existing ES2020 target and rejects prototype keys.
+
+On reduced-height screens, the Agenda booking wizard and native editor forms keep header/footer
+inside the viewport and scroll their own body. Secondary header guidance remains available to
+screen readers while compact presentation frees space for the fields. Phone wizard actions share
+a row, including the back/continue/review steps. The canonical coral modal, controls, calendar and
+table sliders remain in use. This is owner-scoped presentation, with no change to the shared
+modal engine, request policy, permissions, API or persistence.
+
+`test:scheduling` verifies the calendar labels in all eight locales and restored sort state with
+newer built-ins unavailable. `test:scheduling-browser` covers desktop and 320x360, 360x740,
+390x844 and 844x390 phone viewports, including complete reservation submission with synthetic
+HTTP, reachable wizard/editor footers, day/week/month, contained horizontal scrolling, event
+cards/table, eight locales, permission filtering and dark mode. Set `INDICE_SCHEDULING_TEST_PORT`
+when another fixture already uses the default test port. Browser testing uses synthetic data and
+does not certify a physical phone or real external delivery.

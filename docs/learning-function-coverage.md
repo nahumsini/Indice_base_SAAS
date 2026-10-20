@@ -4,6 +4,22 @@ Generated from the reviewed bilingual curriculum. Domain owners remain authorita
 
 | Chapter | Stage | Page/tab | Version | Evidence actions |
 | --- | --- | --- | --- | --- |
+| sales_board.overview | 6 | sales-board/overview | 2 | Understanding only until an owner completion is integrated |
+| sales_board.trends | 6 | sales-board/trends | 2 | Understanding only until an owner completion is integrated |
+| sales_board.channels | 6 | sales-board/channels | 2 | Understanding only until an owner completion is integrated |
+| sales_board.sales | 6 | sales-board/sales | 2 | Understanding only until an owner completion is integrated |
+| correo.accounts | 5 | email/accounts | 2 | Understanding only until an owner completion is integrated |
+| correo.mail | 5 | email/mail | 2 | Understanding only until an owner completion is integrated |
+| maintenance.requests | 3 | maintenance/requests | 2 | Understanding only until an owner completion is integrated |
+| maintenance.orders | 3 | maintenance/orders | 2 | Understanding only until an owner completion is integrated |
+| maintenance.assets | 3 | maintenance/assets | 2 | Understanding only until an owner completion is integrated |
+| maintenance.preventive | 3 | maintenance/preventive | 2 | Understanding only until an owner completion is integrated |
+| maintenance.indicators | 3 | maintenance/indicators | 2 | Understanding only until an owner completion is integrated |
+| maintenance.configuration | 3 | maintenance/configuration | 2 | Understanding only until an owner completion is integrated |
+| crm.after-sales | 5 | sales/after-sales | 2 | Understanding only until an owner completion is integrated |
+| crm.funneling | 5 | sales/funneling | 3 | Understanding only until an owner completion is integrated |
+| crm.mailing | 5 | sales/mailing | 2 | Understanding only until an owner completion is integrated |
+| crm.whatsapping | 5 | sales/whatsapping | 2 | Understanding only until an owner completion is integrated |
 | control_minutas.meetings | 3 | minutes-control/meetings | 2 | Understanding only until an owner completion is integrated |
 | control_minutas.agreements | 3 | minutes-control/agreements | 2 | Understanding only until an owner completion is integrated |
 | control_minutas.indicators | 3 | minutes-control/indicators | 2 | Understanding only until an owner completion is integrated |
@@ -20,8 +36,8 @@ Generated from the reviewed bilingual curriculum. Domain owners remain authorita
 | config_center.consulting | 1 | home-panel/consulting | 2 | Understanding only until an owner completion is integrated |
 | config_center.integrations | 1 | home-panel/integrations | 2 | Understanding only until an owner completion is integrated |
 | human_resources.collaborators | 2 | human-resources/collaborators | 2 | create_employee, update_employee, import_employees, attach_employee_document |
-| human_resources.control | 2 | human-resources/control | 2 | create_hr_schedule, assign_hr_schedule, assign_hr_work_site, assign_hr_rest_days |
-| human_resources.attendance | 2 | human-resources/attendance | 2 | Understanding only until an owner completion is integrated |
+| human_resources.control | 2 | human-resources/control | 3 | create_hr_schedule, assign_hr_schedule, assign_hr_work_site, assign_hr_rest_days |
+| human_resources.attendance | 2 | human-resources/attendance | 3 | Understanding only until an owner completion is integrated |
 | human_resources.permissions | 2 | human-resources/permissions | 2 | create_my_hr_permission, approve_hr_permission, reject_hr_permission |
 | human_resources.payroll | 2 | human-resources/payroll | 2 | prepare_hr_payroll, approve_hr_payroll |
 | human_resources.announcements | 2 | human-resources/announcements | 2 | create_announcement, update_announcement, mark_announcement_read |

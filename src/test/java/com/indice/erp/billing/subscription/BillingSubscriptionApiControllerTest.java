@@ -28,6 +28,9 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(BillingSubscriptionApiController.class)
 class BillingSubscriptionApiControllerTest {
 
+    @org.springframework.boot.test.mock.mockito.MockBean
+    private com.indice.erp.learning.LearningAppliedAdvice learningAppliedAdvice;
+
     @Autowired
     private MockMvc mockMvc;
 

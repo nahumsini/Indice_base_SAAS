@@ -113,7 +113,7 @@ export function LearningModeSettingsModal({
       busy={saving}
       onOpenChange={(next) => { if (!savingRef.current) onOpenChange(next); }}
       modalType="standard-form"
-      contentClassName="sm:max-w-2xl"
+      contentClassName="sm:max-w-2xl indice-account-preferences"
       tone="blue"
       icon={<GraduationCap className="h-5 w-5" />}
       eyebrow={copy.eyebrow}
@@ -145,7 +145,7 @@ export function LearningModeSettingsModal({
           ? 'border-[var(--indice-brand-action)] ring-1 ring-[var(--indice-brand-action)]/20'
           : 'border-slate-200 dark:border-slate-700',
       )}>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
           <span className={cn(
             'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-2xl',
             draft.active
@@ -166,7 +166,7 @@ export function LearningModeSettingsModal({
                 {draft.active ? copy.activeState : copy.inactiveState}
               </span>
             </div>
-            <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">{copy.activeDescription}</p>
+            <p className="mt-1 hidden text-xs leading-5 text-slate-600 sm:block dark:text-slate-300">{copy.activeDescription}</p>
           </div>
           <PreferenceSwitch
             checked={draft.active}
@@ -174,6 +174,7 @@ export function LearningModeSettingsModal({
             onChange={(active) => setDraft((current) => ({ ...current, active }))}
           />
         </div>
+        <p className="mt-3 text-xs leading-5 text-slate-600 sm:hidden dark:text-slate-300">{copy.activeDescription}</p>
       </section>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -195,10 +196,10 @@ export function LearningModeSettingsModal({
           <div className="mt-4 flex items-center justify-between gap-4 border-t border-slate-100 pt-4 dark:border-slate-800">
             <div className="min-w-0">
               <p className="text-xs font-medium text-slate-800 dark:text-slate-100">{copy.journeyLabel}</p>
-              {!draft.active ? <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{copy.journeyDisabledHint}</p> : null}
+              {!draft.active ? <p role="status" className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{copy.journeyDisabledHint}</p> : null}
             </div>
             <PreferenceSwitch
-              checked={draft.visible}
+              checked={draft.active && draft.visible}
               disabled={!draft.active}
               label={copy.journeyLabel}
               onChange={(visible) => setDraft((current) => ({ ...current, visible }))}
@@ -231,7 +232,7 @@ export function LearningModeSettingsModal({
             type="button"
             onClick={() => setDraft((current) => ({ ...current, step: 0 }))}
             disabled={safeStep === 0}
-            className="mt-4 inline-flex min-h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-blue-700 dark:hover:bg-blue-950/40"
+            className="mt-4 inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-blue-700 dark:hover:bg-blue-950/40"
             title={copy.restartHint}
           >
             <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />

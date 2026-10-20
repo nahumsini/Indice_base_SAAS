@@ -1,3 +1,4 @@
+import { getAdminWorkspaceCopy } from '../components/frontend-os/adminWorkspaceCopy';
 import { useCustomerAccountCopy } from "./Customers/useCustomerAccountCopy";
 import { useMemo, useState, type FormEvent } from "react";
 import {
@@ -52,6 +53,7 @@ export default function DistributorAssignmentModal({
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (saving || unchanged || reason.trim().length < 5 || (!distributors.length && !company.distributor_company_id)) return;
     void onSave(selectedId, reason.trim());
   };
 
@@ -61,12 +63,12 @@ export default function DistributorAssignmentModal({
       busy={saving}
       onOpenChange={(open) => !open && onClose()}
       modalType="standard-form"
-      contentClassName="sm:max-w-xl"
       tone="aqua"
       icon={<Handshake className="h-5 w-5" />}
       eyebrow={t("commercialRelationship")}
       title={t("assignDistributor")}
       description={company.name}
+      footerSummary={reason.trim().length < 5 ? getAdminWorkspaceCopy(locale).reasonHelp : company.name}
       footer={
         <>
           <button type="button" onClick={onClose} disabled={saving}>
@@ -131,6 +133,7 @@ export default function DistributorAssignmentModal({
           <label className="mt-5 block space-y-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
             <span>{t("commercialOrigin")}</span>
             <select
+              disabled={saving}
               autoFocus
               value={selection}
               onChange={(event) => setSelection(event.target.value)}
@@ -151,6 +154,7 @@ export default function DistributorAssignmentModal({
           <label className="mt-4 block space-y-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
             <span>{t("operationalReason")}</span>
             <textarea
+              disabled={saving}
               required
               minLength={5}
               maxLength={500}

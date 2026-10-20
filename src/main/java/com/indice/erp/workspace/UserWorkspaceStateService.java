@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.Timestamp;
 import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -29,16 +30,18 @@ public class UserWorkspaceStateService {
         var scope = validatedScope(moduleKey, tabKey);
         var rows = jdbcTemplate.query(
             """
-                SELECT state_json, schema_version, updated_at
+                SELECT state_json, schema_version, updated_at, expires_at
                 FROM user_workspace_states
                 WHERE company_id = ? AND user_id = ? AND module_key = ? AND tab_key = ?
-                  AND (expires_at IS NULL OR expires_at > NOW())
+                  AND (expires_at IS NULL OR expires_at > NOW()
+                    OR (module_key = 'system' AND tab_key = 'workbar-layout'))
                 LIMIT 1
                 """,
             (resultSet, rowNumber) -> new WorkspaceRow(
                 resultSet.getString("state_json"),
                 resultSet.getInt("schema_version"),
-                resultSet.getTimestamp("updated_at")
+                resultSet.getTimestamp("updated_at"),
+                resultSet.getTimestamp("expires_at")
             ),
             companyId,
             userId,
@@ -74,7 +77,7 @@ public class UserWorkspaceStateService {
         var resolvedSchemaVersion = schemaVersion == null ? 1 : Math.max(1, schemaVersion);
         // Explicit user preferences last until changed; navigation keeps its retention.
         Integer retentionDays = (scope.moduleKey().equals("expenses") && scope.tabKey().equals("expenses-columns"))
-            || (scope.moduleKey().equals("system") && (scope.tabKey().equals("learning-mode") || scope.tabKey().startsWith("learning-view-")))
+            || (scope.moduleKey().equals("system") && (scope.tabKey().equals("learning-mode") || scope.tabKey().equals("business-currency") || scope.tabKey().equals("workbar-layout") || scope.tabKey().startsWith("learning-view-")))
             ? null : RETENTION_DAYS;
 
         jdbcTemplate.update(
@@ -137,11 +140,12 @@ public class UserWorkspaceStateService {
 
     private Map<String, Object> response(WorkspaceRow row) {
         try {
-            return Map.of(
-                "state", objectMapper.readTree(row.stateJson()),
-                "schemaVersion", row.schemaVersion(),
-                "updatedAt", row.updatedAt().toInstant().toString()
-            );
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("state", objectMapper.readTree(row.stateJson()));
+            result.put("schemaVersion", row.schemaVersion());
+            result.put("updatedAt", row.updatedAt().toInstant().toString());
+            result.put("expiresAt", row.expiresAt() == null ? null : row.expiresAt().toInstant().toString());
+            return result;
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Stored workspace state is invalid.", ex);
         }
@@ -149,5 +153,5 @@ public class UserWorkspaceStateService {
 
     private record WorkspaceScope(String moduleKey, String tabKey) {}
 
-    private record WorkspaceRow(String stateJson, int schemaVersion, Timestamp updatedAt) {}
+    private record WorkspaceRow(String stateJson, int schemaVersion, Timestamp updatedAt, Timestamp expiresAt) {}
 }

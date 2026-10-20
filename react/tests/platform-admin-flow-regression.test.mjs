@@ -248,13 +248,12 @@ function assertLocalizedLabel(source, expected) {
   assert.ok(expected.test(source) || localizedLabelIsBound(source, expected), `Expected a rendered/localized label matching ${expected}`);
 }
 
-test("el encabezado reconoce Root desde la autoridad real de plataforma", () => {
-  assert.match(header, /platformAdminApi\.getContext\(\)/);
-  assert.match(header, /platformAdminRole === 'PLATFORM_ROOT'/);
-  assert.doesNotMatch(
-    header,
-    /const isRootAccount = normalizeAccessRole\(authSession\?\.user\.role\) === 'root';/,
-  );
+test("las herramientas del sistema reconocen la autoridad real de plataforma", () => {
+  const tools = read("src/app/Dashboard/components/SystemToolsSection.tsx");
+  const visibility = read("src/app/Dashboard/systemToolAccess.ts");
+  assert.match(tools, /platformAdminApi\.getContext\(\)/);
+  assert.match(tools, /getSystemToolVisibility\(session, platformRole\)/);
+  assert.match(visibility, /platformRole === 'PLATFORM_ROOT'/);
 });
 
 test("Root administra todos los tickets de sistema enviados por distribuidores", () => {
@@ -422,7 +421,7 @@ test("la certificación exige prácticas, examen cronometrado y acreditación po
 
 test("la navegación interna comparte motor accesible y memoria de contexto", () => {
   assert.match(page, /variant="sections"/);
-  assert.match(page, /primary-navigation/);
+  assert.match(read("src/app/PlatformAdmin/usePlatformNavigation.ts"), /primary-navigation/);
   assert.match(page, /useWorkspaceNavigationMemory/);
   assert.match(workspaceNavigation, /variant\?: 'sections' \| 'views' \| 'workflow'/);
   assert.match(workspaceNavigation, /role="tablist"/);

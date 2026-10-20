@@ -92,6 +92,24 @@ class EmailAccountIntegrationTest {
         assertThatThrownBy(()->accounts.test(actor,account.id(),new ConnectionTest(1,"SMTP"))).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
         assertThat(accounts.get(actor,account.id()).smtpStatus()).isEqualTo("NOT_TESTED");
     }
+    @Test void connectionDiagnosticsAreAdditiveSafeAndPersistTheFailedStatus() throws Exception {
+        var account=create();
+        when(probe.verify(anyString(),anyString(),anyInt(),anyString(),anyString(),anyString()))
+            .thenThrow(MailConnectionFailure.classify(new jakarta.mail.AuthenticationFailedException("synthetic-password provider-private-text")));
+        String endpoint="/api/v1/email/accounts/"+account.id()+"/test";
+        mvc.perform(post(endpoint).session(session()).header("X-CSRF-Token","synthetic-csrf")
+            .contentType(MediaType.APPLICATION_JSON).content("{\"version\":1,\"channel\":\"SMTP\"}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(account.id()))
+            .andExpect(jsonPath("$.smtpStatus").value("ERROR"))
+            .andExpect(jsonPath("$.receiveStatus").value("NOT_TESTED"))
+            .andExpect(jsonPath("$.failureCode").value("AUTHENTICATION_FAILED"))
+            .andExpect(result->assertThat(result.getResponse().getContentAsString()).doesNotContain("synthetic-password","provider-private-text","smtpPassword","smtp_secret"));
+        assertThat(accounts.get(actor,account.id()).smtpStatus()).isEqualTo("ERROR");
+        db.update("UPDATE email_accounts SET last_test_at=NULL WHERE company_id=? AND id=?",company,account.id());
+        doReturn(true).when(probe).verify(anyString(),anyString(),anyInt(),anyString(),anyString(),anyString());
+        var recovered=accounts.testWithDiagnostic(actor,account.id(),new ConnectionTest(1,"SMTP"));
+        assertThat(recovered.account().smtpStatus()).isEqualTo("VERIFIED");assertThat(recovered.failureCode()).isNull();
+    }
     @Test void campaignStoresOnlyAnAuthorizedSenderReferenceAndDisconnectRevokesIt() {
         var account=create();String id=UUID.randomUUID().toString();
         var campaign=mailing.save(actor,id,new MailingContracts.DraftInput("Campaign","Subject","Clinic","sender@example.com","","Message",List.of(),0,account.id()));

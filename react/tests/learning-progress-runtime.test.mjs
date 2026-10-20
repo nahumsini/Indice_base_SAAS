@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {LearningProgressStore} from '../src/app/learningMode/learningProgressStore.ts';
 import {learningChapters} from '../src/app/learningMode/curriculum.ts';
+import {MODULE_TAB_SCOPE_CATALOG} from '../src/app/access/tabScopeCatalog.ts';
 import {readFileSync} from 'node:fs';
 
 const deferred=()=>{let resolve,reject;const promise=new Promise((ok,no)=>{resolve=ok;reject=no;});return {promise,resolve,reject};};
@@ -62,8 +63,9 @@ test('a later successful chapter does not discard an earlier failed declaration'
 });
 
 test('all current chapters have bilingual workflows, stable IDs and explicit POS exceptions',()=>{
-  assert.equal(learningChapters.length,67);assert.equal(new Set(learningChapters.map(c=>c.id)).size,67);
-  assert.equal(new Set(learningChapters.map(c=>c.module)).size,12);
+  const expected = Object.values(MODULE_TAB_SCOPE_CATALOG).flatMap(scope => Object.keys(scope.tabs).map(tab => `${scope.moduleSlug}.${tab}`));
+  assert.deepEqual(learningChapters.map(c => c.id).sort(), expected.sort());
+  assert.equal(new Set(learningChapters.map(c => c.id)).size, learningChapters.length);
   for (const [module, tabs] of Object.entries({control_minutas:['meetings','agreements','indicators'],scheduling:['calendar','reservations','clients','events','indicators','configuration']})) {
     assert.deepEqual(learningChapters.filter(c=>c.module===module).map(c=>c.tab),tabs);
     assert.ok(learningChapters.filter(c=>c.module===module).every(c=>c.evidenceTools.length===0));

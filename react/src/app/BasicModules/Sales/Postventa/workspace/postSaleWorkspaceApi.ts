@@ -1,5 +1,8 @@
 import { apiClient } from '../../../../lib/apiClient';
 export type ContinuityKind = 'won' | 'lost';
+export const continuitySortColumns = ['client', 'sale', 'stage', 'owner', 'lossReason', 'nextAction'] as const;
+export type ContinuitySortColumn = typeof continuitySortColumns[number];
+export type ContinuitySort = { columnId: ContinuitySortColumn; direction: 'asc' | 'desc' };
 export type ContinuityStage = { key: string; label: string; colorToken: string };
 export type ContinuityFlow = { id: number; name: string; version: number; archived: boolean; stages: ContinuityStage[] };
 export type ContinuityItem = {
@@ -22,7 +25,7 @@ export type SaveContinuityWork = {
 export type SaveContinuityFlow = { requestKey: string; version?: number; name: string; archived: boolean; stages: ContinuityStage[] };
 const base = '/api/v1/sales/post-sales/workspace';
 export const postSaleWorkspaceApi = {
-  workspace(params: { kind: ContinuityKind; search: string; flow?: number; owner?: number; stage?: string; page: number }) {
+  workspace(params: { kind: ContinuityKind; search: string; flow?: number; owner?: number; stage?: string; page: number; pageSize?: number; sort?: ContinuitySortColumn; direction?: ContinuitySort['direction'] }) {
     const query = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => { if (value !== undefined && value !== '') query.set(key, String(value)); });
     return apiClient<ContinuityWorkspace>(`${base}?${query}`);

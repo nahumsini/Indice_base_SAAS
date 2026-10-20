@@ -1,0 +1,40 @@
+const es = {
+ retry: 'Reintentar', refresh: 'Actualizar lista', saved: 'Cambios guardados.',
+ refreshFailed: 'El cambio se guardó, pero no pudimos actualizar la lista. Vuelve a cargarla.',
+ load: 'No pudimos cargar los usuarios y sus accesos. Reintenta antes de editar.',
+ permission: 'Solo puedes administrar usuarios dentro de tus permisos y alcance. Revisa tu acceso con un administrador.',
+ changed: 'Cambió la cuenta o empresa activa. Abre de nuevo Usuarios y permisos.',
+ name: 'Escribe un nombre de hasta 100 caracteres.', email: 'Escribe un correo válido de hasta 120 caracteres.',
+ lastAdmin: 'Debe quedar al menos un administrador activo. Asigna otro antes de cambiar este acceso.',
+ self: 'No puedes desactivar tu propio acceso.', existing: 'Ese correo ya está en la empresa. Busca al usuario para editar o reactivar su acceso.',
+ pending: 'Ese correo ya tiene una invitación pendiente. Usa Reenviar desde la lista.',
+ scope: 'Elige una unidad y un negocio disponibles. El negocio debe pertenecer a esa unidad.',
+ modules: 'Elige al menos un módulo disponible y revisa sus permisos.',
+ uncertain: 'No pudimos confirmar el resultado. Actualiza la lista antes de volver a invitar.',
+ retained: 'Se conservan los accesos existentes que no aparecen en este catálogo.',
+ copy: 'No pudimos copiar el enlace. Puedes seleccionarlo y copiarlo manualmente.',
+ delivery: 'La invitación está creada. Puedes copiar el enlace y compartirlo con esa persona.',
+};
+export type UsersFeedbackCopy = typeof es;
+const en: UsersFeedbackCopy = {
+ retry: 'Retry', refresh: 'Refresh list', saved: 'Changes saved.',
+ refreshFailed: 'The change was saved, but the list could not refresh. Please reload it.',
+ load: 'We could not load users and access settings. Retry before editing.',
+ permission: 'You can only manage users within your permissions and scope. Ask an administrator to review your access.',
+ changed: 'The active account or company changed. Reopen Users and permissions.',
+ name: 'Enter a name of up to 100 characters.', email: 'Enter a valid email of up to 120 characters.',
+ lastAdmin: 'At least one active administrator must remain. Assign another before changing this access.',
+ self: 'You cannot deactivate your own access.', existing: 'This email already belongs to the company. Find the user to edit or reactivate their access.',
+ pending: 'This email already has a pending invitation. Use Resend from the list.',
+ scope: 'Choose an available unit and business. The business must belong to that unit.',
+ modules: 'Choose at least one available module and review its permissions.',
+ uncertain: 'We could not confirm the result. Refresh the list before inviting again.', retained: 'Existing access outside this catalogue is preserved.',
+ copy: 'We could not copy the link. You can select it and copy it manually.', delivery: 'The invitation was created. You can copy its link and share it with this person.',
+};
+const copies: Record<string,UsersFeedbackCopy> = { es,en,
+ fr: {retry:'Réessayer',refresh:'Actualiser la liste',saved:'Modifications enregistrées.',refreshFailed:'La modification est enregistrée, mais la liste n’a pas pu être actualisée. Rechargez-la.',load:'Impossible de charger les utilisateurs et leurs accès. Réessayez avant de modifier.',permission:'Vous pouvez uniquement gérer les utilisateurs dans vos permissions et votre périmètre. Consultez un administrateur.',changed:'Le compte ou l’entreprise a changé. Rouvrez les utilisateurs et permissions.',name:'Saisissez un nom de 100 caractères maximum.',email:'Saisissez un courriel valide de 120 caractères maximum.',lastAdmin:'Au moins un administrateur actif doit rester. Désignez-en un autre avant ce changement.',self:'Vous ne pouvez pas désactiver votre propre accès.',existing:'Ce courriel existe déjà dans l’entreprise. Retrouvez l’utilisateur pour modifier ou réactiver son accès.',pending:'Une invitation est déjà en attente pour ce courriel. Utilisez Renvoyer dans la liste.',scope:'Choisissez une unité et un établissement disponibles et associés.',modules:'Choisissez au moins un module disponible et vérifiez ses permissions.',uncertain:'Résultat non confirmé. Actualisez la liste avant d’inviter à nouveau.',retained:'Les accès existants hors de ce catalogue sont conservés.',copy:'Impossible de copier le lien. Sélectionnez-le pour le copier manuellement.',delivery:'L’invitation est créée. Vous pouvez copier son lien et le partager avec cette personne.'},
+ pt: {retry:'Tentar novamente',refresh:'Atualizar lista',saved:'Alterações salvas.',refreshFailed:'A alteração foi salva, mas a lista não pôde ser atualizada. Recarregue-a.',load:'Não foi possível carregar usuários e acessos. Tente novamente antes de editar.',permission:'Você só pode gerenciar usuários dentro das suas permissões e alcance. Consulte um administrador.',changed:'A conta ou empresa ativa mudou. Abra Usuários e permissões novamente.',name:'Digite um nome de até 100 caracteres.',email:'Digite um e-mail válido de até 120 caracteres.',lastAdmin:'Deve permanecer pelo menos um administrador ativo. Atribua outro antes de alterar este acesso.',self:'Você não pode desativar seu próprio acesso.',existing:'Este e-mail já está na empresa. Encontre o usuário para editar ou reativar o acesso.',pending:'Este e-mail já tem um convite pendente. Use Reenviar na lista.',scope:'Escolha uma unidade e um negócio disponíveis. O negócio deve pertencer à unidade.',modules:'Escolha pelo menos um módulo disponível e revise as permissões.',uncertain:'Não foi possível confirmar o resultado. Atualize a lista antes de convidar novamente.',retained:'Acessos existentes fora deste catálogo são preservados.',copy:'Não foi possível copiar o link. Selecione-o para copiar manualmente.',delivery:'O convite foi criado. Você pode copiar o link e compartilhá-lo com essa pessoa.'},
+ ko: {retry:'다시 시도',refresh:'목록 새로고침',saved:'저장되었습니다.',refreshFailed:'변경 사항은 저장되었지만 목록을 불러오지 못했습니다. 새로고침하세요.',load:'사용자와 권한을 불러오지 못했습니다. 수정하기 전에 다시 시도하세요.',permission:'본인의 권한과 범위 내 사용자만 관리할 수 있습니다. 관리자에게 확인하세요.',changed:'계정 또는 회사가 변경되었습니다. 사용자 및 권한을 다시 여세요.',name:'100자 이하의 이름을 입력하세요.',email:'120자 이하의 올바른 이메일을 입력하세요.',lastAdmin:'활성 관리자가 최소 한 명 필요합니다. 변경하기 전에 다른 관리자를 지정하세요.',self:'본인의 접근 권한은 비활성화할 수 없습니다.',existing:'이 이메일은 이미 회사에 등록되어 있습니다. 사용자를 찾아 권한을 수정하거나 다시 활성화하세요.',pending:'이 이메일의 초대가 이미 대기 중입니다. 목록에서 다시 보내기를 사용하세요.',scope:'같은 단위에 속한 사용 가능한 단위와 사업장을 선택하세요.',modules:'사용 가능한 모듈을 하나 이상 선택하고 권한을 확인하세요.',uncertain:'결과를 확인하지 못했습니다. 다시 초대하기 전에 목록을 새로고침하세요.',retained:'이 목록에 없는 기존 권한은 유지됩니다.',copy:'링크를 복사하지 못했습니다. 선택하여 직접 복사할 수 있습니다.',delivery:'초대가 생성되었습니다. 링크를 복사하여 해당 사용자에게 공유할 수 있습니다.'},
+ zh: {retry:'重试',refresh:'刷新列表',saved:'更改已保存。',refreshFailed:'更改已保存，但列表未能刷新。请重新加载。',load:'无法加载用户和权限。请先重试再编辑。',permission:'您只能管理自己权限和范围内的用户。请联系管理员核对。',changed:'当前账户或公司已更改。请重新打开用户和权限。',name:'请输入不超过100个字符的姓名。',email:'请输入不超过120个字符的有效电子邮箱。',lastAdmin:'至少需保留一位启用的管理员。更改前请先指定另一位管理员。',self:'您不能停用自己的访问权限。',existing:'该邮箱已在公司中。请查找用户以编辑或重新启用其权限。',pending:'该邮箱已有待处理邀请。请在列表中选择重新发送。',scope:'请选择可用的单位及其所属营业场所。',modules:'请选择至少一个可用模块并检查权限。',uncertain:'无法确认结果。再次邀请前请刷新列表。',retained:'此目录之外的现有权限将保留。',copy:'无法复制链接。您可以选中并手动复制。',delivery:'邀请已创建。您可以复制链接并分享给该用户。'},
+};
+export const getUsersFeedbackCopy = (language:string) => copies[language.split('-')[0]] ?? en;

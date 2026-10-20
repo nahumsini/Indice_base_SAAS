@@ -18,7 +18,7 @@ export const panel =
   "rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900";
 export const control =
   getIndiceFilterControlClassName("blue") +
-  " rounded-[12px] [color-scheme:light] dark:[color-scheme:dark]";
+  " rounded-[12px] [color-scheme:light] dark:[color-scheme:dark] focus-within:border-[var(--indice-brand-action)] focus-within:ring-2 focus-within:ring-[var(--indice-brand-action)]/20";
 export function Action({
   primary = false,
   ...props

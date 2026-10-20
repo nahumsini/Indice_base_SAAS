@@ -35,13 +35,13 @@ test('Conectar IA usa los patrones canónicos del Frontend Engine', () => {
   assert.match(pageSource, /<IndiceTitleBar/);
   assert.match(pageSource, /tone="blue"/);
   assert.match(pageSource, /<IndiceWorkspaceNavigation<WorkspaceSection>/);
-  assert.match(pageSource, /'guide' \| 'ideas'/);
+  assert.match(read('useIntegrationSection.ts'), /'connections', 'guide', 'ideas'/);
   assert.match(pageSource, /getIntegrationsTranslations/);
   assert.doesNotMatch(visualSource, /tone="aqua"|#59C3A5|#177D66|#126553/);
 });
 
 test('la guía inicia en ChatGPT y permite administrar conexiones sin emitir claves manuales', () => {
-  assert.match(pageSource, /useState<WorkspaceSection>\('guide'\)/);
+  assert.match(read('useIntegrationSection.ts'), /useQuerySection\('ai-section', integrationSections, 'guide'\)/);
   assert.match(pageSource, /id: 'connections'/);
   assert.match(pageSource, /<ManageAiConnections/);
   const manager = read('components/ManageAiConnections.tsx');

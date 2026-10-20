@@ -19,6 +19,8 @@ import {
 import { DataTablePagination } from "../../../components/table/DataTablePagination";
 import { TableBody, TableRow, TableCell } from "../../../components/ui/table";
 import type { MeetingCopy } from "../translations/meetingCopy";
+import { getMeetingWorkspaceCopy } from "../translations/meetingWorkspaceCopy";
+import { getMeetingOperationsCopy } from "../translations/meetingOperationsCopy";
 import { Field, control } from "./MeetingPrimitives";
 
 export type ListScope = {
@@ -44,6 +46,9 @@ export function ScopeFilters({
   people = [],
   onChange,
   hideDates = false,
+  locale,
+  agreements = false,
+  meetingScoped = false,
 }: {
   scope: ListScope;
   defaults: ListScope;
@@ -52,31 +57,163 @@ export function ScopeFilters({
   total?: number;
   people?: { id: number; name: string }[];
   hideDates?: boolean;
+  locale: string;
+  agreements?: boolean;
+  meetingScoped?: boolean;
   onChange: (scope: ListScope) => void;
 }) {
   const c = useIndiceFilterDisclosureCopy(),
-    change = (key: string, value: string | number) =>
-      onChange({ ...scope, [key]: value, page: 1 }),
-    [advanced, setAdvanced] = useState(false);
+    w = getMeetingWorkspaceCopy(locale),
+    op = getMeetingOperationsCopy(locale);
+  const change = (key: string, value: string | number) =>
+    onChange({ ...scope, [key]: value, page: 1 });
+  const [advanced, setAdvanced] = useState(false);
+  const fixedOpen =
+    agreements &&
+    ["allOpen", "allOverdue", "overdueAgreements"].includes(scope.attention) &&
+    (!scope.status || scope.status === "OPEN");
+  const controls: { key: string; active: boolean; node: ReactNode }[] = [
+    {
+      key: "search",
+      active: Boolean(scope.search),
+      node: (
+        <IndiceFilterSearch
+          label={copy.search}
+          placeholder={copy.name}
+          tone="blue"
+          value={scope.search}
+          onValueChange={(value) => change("search", value.slice(0, 180))}
+          clearLabel={c.clearFilters}
+          onClear={() => change("search", "")}
+        />
+      ),
+    },
+  ];
+  if (agreements && !meetingScoped)
+    controls.push({
+      key: "attention",
+      active: scope.attention !== defaults.attention,
+      node: (
+        <IndiceFilterSelect
+          tone="blue"
+          label={w.quickView}
+          value={scope.attention || "period"}
+          onValueChange={(value) =>
+            onChange({
+              ...scope,
+              attention: value === "period" ? "" : value,
+              status: "",
+              page: 1,
+            })
+          }
+          options={[
+            { value: "allOpen", label: op.allOpen },
+            { value: "allOverdue", label: op.allOverdue },
+            { value: "period", label: op.period },
+            ...(scope.attention === "overdueAgreements"
+              ? [{ value: "overdueAgreements", label: copy.overdueAgreements }]
+              : []),
+          ]}
+        />
+      ),
+    });
+  if (!hideDates)
+    for (const key of ["from", "to"] as const)
+      controls.push({
+        key,
+        active: scope[key] !== defaults[key],
+        node: (
+          <Field label={copy[key]}>
+            <input
+              className={control}
+              type="date"
+              value={scope[key]}
+              onChange={(e) => change(key, e.target.value)}
+            />
+          </Field>
+        ),
+      });
+  if (!fixedOpen)
+    controls.push({
+      key: "status",
+      active: Boolean(scope.status),
+      node: (
+        <IndiceFilterSelect
+          label={copy.status}
+          tone="blue"
+          value={scope.status || "all"}
+          onValueChange={(value) =>
+            change("status", value === "all" ? "" : value)
+          }
+          options={[
+            { value: "all", label: copy.all },
+            ...statuses.map((value) => ({
+              value,
+              label: copy[value as keyof MeetingCopy],
+            })),
+          ]}
+        />
+      ),
+    });
+  controls.push({
+    key: "person",
+    active: Boolean(scope.person),
+    node: (
+      <IndiceFilterSelect
+        label={agreements ? copy.assignee : copy.owner}
+        tone="blue"
+        value={String(scope.person)}
+        onValueChange={(value) => change("person", Number(value))}
+        options={[
+          { value: "0", label: copy.all },
+          ...people.map((person) => ({
+            value: String(person.id),
+            label: person.name,
+          })),
+        ]}
+      />
+    ),
+  });
+  if (!agreements)
+    controls.push({
+      key: "attention",
+      active: Boolean(scope.attention),
+      node: (
+        <IndiceFilterSelect
+          tone="blue"
+          label={w.attention}
+          value={scope.attention || "all"}
+          onValueChange={(value) =>
+            change("attention", value === "all" ? "" : value)
+          }
+          options={[
+            { value: "all", label: copy.all },
+            { value: "awaitingClosure", label: copy.awaitingClosure },
+            { value: "missingMinutes", label: copy.missingMinutes },
+          ]}
+        />
+      ),
+    });
+  const secondary = controls.slice(4),
+    activeSecondary = secondary
+      .filter((item) => item.active)
+      .map((item) => item.key)
+      .join(",");
   useEffect(() => {
-    if (scope.person || scope.status || scope.attention) setAdvanced(true);
-  }, [scope.person, scope.status, scope.attention]);
+    if (activeSecondary) setAdvanced(true);
+  }, [activeSecondary]);
   return (
     <IndiceFilterBar
       title={copy.filters}
-      subtitle={
-        scope.attention ? copy[scope.attention as keyof MeetingCopy] : undefined
-      }
-      gridClassName="lg:grid-cols-3"
+      gridClassName="md:grid-cols-2 xl:grid-cols-4"
       summary={
         <IndiceFilterDisclosureActions
           tone="blue"
-          activeAdvancedCount={
-            Number(Boolean(scope.person)) + Number(Boolean(scope.status))
-          }
+          showAdvancedToggle={secondary.length > 0}
+          activeAdvancedCount={secondary.filter((item) => item.active).length}
           advancedLabel={advanced ? c.hideFilters : c.moreFilters}
           isAdvancedOpen={advanced}
-          onToggleAdvanced={() => setAdvanced((v) => !v)}
+          onToggleAdvanced={() => setAdvanced((value) => !value)}
           clearLabel={c.clearFilters}
           hasActiveFilters={[
             "from",
@@ -86,8 +223,9 @@ export function ScopeFilters({
             "person",
             "attention",
           ].some(
-            (k) =>
-              scope[k as keyof ListScope] !== defaults[k as keyof ListScope],
+            (key) =>
+              scope[key as keyof ListScope] !==
+              defaults[key as keyof ListScope],
           )}
           onClear={() => {
             onChange({ ...defaults, widths: scope.widths, view: scope.view });
@@ -99,62 +237,18 @@ export function ScopeFilters({
         />
       }
     >
-      <IndiceFilterSearch
-        label={copy.search}
-        placeholder={copy.name}
-        tone="blue"
-        value={scope.search}
-        onValueChange={(value) => change("search", value.slice(0, 180))}
-        clearLabel={c.clearFilters}
-        onClear={() => change("search", "")}
-        inputClassName="rounded-[12px]"
-      />
-      {!hideDates && <><Field label={copy.from}>
-        <input
-          className={control}
-          type="date"
-          value={scope.from}
-          onChange={(e) => change("from", e.target.value)}
-        />
-      </Field>
-      <Field label={copy.to}>
-        <input
-          className={control}
-          type="date"
-          value={scope.to}
-          onChange={(e) => change("to", e.target.value)}
-        />
-      </Field>
-      </>}
-      {advanced && (
-        <IndiceFilterAdvancedSection className="md:col-span-2 lg:col-span-3">
-          <IndiceFilterSelect
-            label={copy.status}
-            tone="blue"
-            value={scope.status || "all"}
-            onValueChange={(value) =>
-              change("status", value === "all" ? "" : value)
-            }
-            options={[
-              { value: "all", label: copy.all },
-              ...statuses.map((s) => ({
-                value: s,
-                label: copy[s as keyof MeetingCopy],
-              })),
-            ]}
-            triggerClassName="rounded-[12px] data-[size=default]:h-11"
-          />
-          <IndiceFilterSelect
-            label={copy.owner}
-            tone="blue"
-            value={String(scope.person)}
-            onValueChange={(value) => change("person", Number(value))}
-            options={[
-              { value: "0", label: copy.all },
-              ...people.map((p) => ({ value: String(p.id), label: p.name })),
-            ]}
-            triggerClassName="rounded-[12px] data-[size=default]:h-11"
-          />
+      {controls.slice(0, 4).map((item) => (
+        <div key={item.key} className="min-w-0">
+          {item.node}
+        </div>
+      ))}
+      {advanced && secondary.length > 0 && (
+        <IndiceFilterAdvancedSection className="md:col-span-2 xl:col-span-4">
+          {secondary.map((item) => (
+            <div key={item.key} className="min-w-0">
+              {item.node}
+            </div>
+          ))}
         </IndiceFilterAdvancedSection>
       )}
     </IndiceFilterBar>

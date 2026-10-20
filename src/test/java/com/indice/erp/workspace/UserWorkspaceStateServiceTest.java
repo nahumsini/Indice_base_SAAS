@@ -42,6 +42,22 @@ class UserWorkspaceStateServiceTest {
     }
 
     @Test
+    void currencyPreferencesHaveNoExpiryAndRemainScopedToTheAuthenticatedUser() {
+        var state = new ObjectMapper().createObjectNode().put("preferredCurrency", "CAD");
+        service.save(33L, 44L, "system", "business-currency", state, 1);
+        verify(jdbc).update(contains("DATE_ADD(NOW(), INTERVAL ? DAY)"),
+            eq(33L), eq(44L), eq("system"), eq("business-currency"), eq(state.toString()), eq(1), isNull());
+    }
+
+    @Test
+    void workbarPreferencesHaveNoExpiryAndRemainScopedToTheAuthenticatedUser() {
+        var state = new ObjectMapper().createObjectNode().put("position", "left").put("dualScreenEnabled", true);
+        service.save(33L, 44L, "system", "workbar-layout", state, 1);
+        verify(jdbc).update(contains("DATE_ADD(NOW(), INTERVAL ? DAY)"),
+            eq(33L), eq(44L), eq("system"), eq("workbar-layout"), eq(state.toString()), eq(1), isNull());
+    }
+
+    @Test
     void learningModeNameDoesNotChangeRetentionInAnotherModule() {
         var state = new ObjectMapper().createObjectNode();
         service.save(11L, 22L, "sales", "learning-mode", state, 1);

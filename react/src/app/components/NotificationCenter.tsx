@@ -1,4 +1,5 @@
-import { useDeferredValue, useMemo, useState } from 'react';
+import { notificationSettingsCopy } from './notifications/notificationSettingsCopy';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, BellOff, Inbox, Settings } from 'lucide-react';
 import type { AppNotification, NotificationsSummary } from '../api/notifications';
 import { useLanguage } from '../shared/context';
@@ -15,6 +16,7 @@ import {
   getLocalizedNotificationPreferenceGroups,
   isActionableNotification,
 } from './notifications/notificationCatalog';
+import { notificationFlowCopy } from './notifications/notificationFlowCopy';
 import { getNotificationCenterCopy } from './notifications/notificationCenterCopy';
 
 interface NotificationCenterProps {
@@ -23,6 +25,11 @@ interface NotificationCenterProps {
   summary: NotificationsSummary;
   loading: boolean;
   error: string;
+  refreshing?: boolean;
+  actionError?: string;
+  busy?: boolean;
+  onRetryAction?: () => void;
+  notice?: { title: string; description: string; message: string } | null;
   onClose: () => void;
   onRefresh: () => void;
   onOpenItem: (notification: AppNotification) => void;
@@ -40,7 +47,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
     items,
     summary,
     loading,
-    error,
+    error, refreshing = false, actionError = '', busy = false, onRetryAction, notice,
     onClose,
     onRefresh,
     onOpenItem,
@@ -50,6 +57,13 @@ export function NotificationCenter(props: NotificationCenterProps) {
   } = props;
   const { currentLanguage } = useLanguage();
   const copy = getNotificationCenterCopy(currentLanguage.code);
+  const flow = notificationFlowCopy(currentLanguage.code);
+  const actionFeedback = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!isOpen || !actionError) return;
+    const frame = requestAnimationFrame(() => actionFeedback.current?.scrollIntoView({ block: 'nearest' }));
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen, actionError]);
   const [activeView, setActiveView] = useState<NotificationCenterView>('inbox');
   const [searchQuery, setSearchQuery] = useState('');
   const [moduleFilter, setModuleFilter] = useState('all');
@@ -127,21 +141,21 @@ export function NotificationCenter(props: NotificationCenterProps) {
         if (!open) onClose();
       }}
       modalType="operational-workspace"
-      contentClassName="sm:max-w-5xl"
+      contentClassName="notification-center sm:max-w-5xl"
       bodyClassName="bg-slate-50/95 px-0 py-0 dark:bg-slate-950"
       tone="blue"
       icon={<Bell className="h-5 w-5" />}
-      eyebrow={unreadCount > 0 ? `${unreadCount} ${unreadCount === 1 ? copy.newSingular : copy.newPlural}` : copy.inbox}
+      eyebrow={<span className="hidden sm:inline">{unreadCount > 0 ? `${unreadCount} ${unreadCount === 1 ? copy.newSingular : copy.newPlural}` : copy.inbox}</span>}
       title={copy.title}
-      description={copy.subtitle}
-      footerSummary={activeView === 'inbox'
+      description={<span className="sr-only sm:not-sr-only">{copy.subtitle}</span>}
+      footerSummary={<span className="hidden sm:inline">{activeView === 'inbox'
         ? `${copy.showing} ${visibleItems.length} ${copy.of} ${items.length} · ${unreadCount} ${copy.unread.toLowerCase()}`
-        : copy.preferencesNotice}
+        : notificationSettingsCopy(currentLanguage.code).notice}</span>}
       footer={(
         <Button type="button" variant="outline" onClick={onClose}>{copy.close}</Button>
       )}
     >
-      <div className="sticky top-0 z-30 border-b border-slate-200/90 bg-white/95 px-5 py-3 backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/95">
+      <div className="sticky top-0 z-30 border-b border-slate-200/90 bg-white/95 px-3 sm:px-5 py-3 backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/95">
         <div className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="inline-flex w-full rounded-xl bg-slate-100 p-1 dark:bg-slate-800 sm:w-auto" role="tablist" aria-label={copy.title}>
             <button
@@ -149,7 +163,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
               role="tab"
               aria-selected={activeView === 'inbox'}
               onClick={() => setActiveView('inbox')}
-              className={`flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition sm:flex-none ${activeView === 'inbox' ? 'bg-white text-[var(--indice-brand-text)] shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'}`}
+              className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition sm:flex-none ${activeView === 'inbox' ? 'bg-white text-[var(--indice-brand-text)] shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'}`}
             >
               <Inbox className="h-4 w-4" aria-hidden="true" />
               {copy.inbox}
@@ -159,7 +173,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
               role="tab"
               aria-selected={activeView === 'settings'}
               onClick={() => setActiveView('settings')}
-              className={`flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition sm:flex-none ${activeView === 'settings' ? 'bg-white text-[var(--indice-brand-text)] shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'}`}
+              className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition sm:flex-none ${activeView === 'settings' ? 'bg-white text-[var(--indice-brand-text)] shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'}`}
             >
               <Settings className="h-4 w-4" aria-hidden="true" />
               {copy.settings}
@@ -175,7 +189,10 @@ export function NotificationCenter(props: NotificationCenterProps) {
       </div>
 
       {activeView === 'inbox' ? (
-        <div className="mx-auto max-w-5xl px-5 py-5">
+        <div className="mx-auto max-w-5xl px-3 sm:px-5 py-3 sm:py-5">
+          {refreshing && !loading && <p role="status" className="sr-only">{flow.updating}</p>}
+          {actionError && <div ref={actionFeedback} role="alert" className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 [overflow-wrap:anywhere] dark:bg-red-950 dark:text-red-200"><p>{actionError}</p><Button type="button" variant="outline" disabled={busy} onClick={onRetryAction} className="mt-2 min-h-11">{flow.retry}</Button></div>}
+          {notice && <section aria-label={flow.details} role="status" className="mb-3 rounded-xl border border-[var(--indice-brand-border)] bg-white p-3 text-sm [overflow-wrap:anywhere] dark:bg-slate-900"><p className="font-semibold">{notice.title}</p><p className="mt-1 whitespace-pre-wrap">{notice.description}</p><p className="mt-2 text-slate-600 dark:text-slate-300">{notice.message}</p></section>}
           <NotificationSummaryStrip
             totalCount={items.length}
             unreadCount={unreadCount}
@@ -185,8 +202,9 @@ export function NotificationCenter(props: NotificationCenterProps) {
             copy={copy}
           />
 
-          <div className="sticky top-[65px] z-20 -mx-1 mt-4 bg-slate-50/95 px-1 py-2 backdrop-blur-md dark:bg-slate-950/95">
+          <div className="sm:sticky sm:top-[65px] z-20 -mx-1 mt-4 bg-slate-50/95 px-1 py-2 backdrop-blur-md dark:bg-slate-950/95">
             <NotificationFilterBar
+              busy={busy} refreshing={refreshing}
               searchQuery={searchQuery}
               moduleFilter={moduleFilter}
               priorityFilter={priorityFilter}
@@ -206,10 +224,10 @@ export function NotificationCenter(props: NotificationCenterProps) {
 
           {loading ? <NotificationLoadingSkeleton /> : null}
           {!loading && error ? (
-            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-200">
+            <div role="alert" className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-200">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <span>{error}</span>
-                <Button variant="outline" size="sm" onClick={onRefresh}>{copy.retry}</Button>
+                <Button variant="outline" size="sm" disabled={refreshing} onClick={onRefresh}>{copy.retry}</Button>
               </div>
             </div>
           ) : null}
@@ -220,7 +238,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.emptyDescription}</p>
             </div>
           ) : null}
-          {!loading && !error && groupedVisibleItems.length > 0 ? (
+          {!loading && groupedVisibleItems.length > 0 ? (
             <div className="mt-4 space-y-5">
               {groupedVisibleItems.map((group) => (
                 <section key={group.key} aria-labelledby={`notification-group-${group.key}`}>
@@ -238,6 +256,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
                       <NotificationItemCard
                         key={notification.id}
                         notification={notification}
+                        busy={busy}
                         locale={currentLanguage.code}
                         copy={copy}
                         onOpen={onOpenItem}
@@ -252,7 +271,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
           ) : null}
         </div>
       ) : (
-        <div className="mx-auto max-w-5xl px-5 py-5">
+        <div className="mx-auto max-w-5xl px-3 sm:px-5 py-3 sm:py-5">
           <NotificationSettingsView copy={copy} locale={currentLanguage.code} />
         </div>
       )}

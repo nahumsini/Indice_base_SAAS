@@ -1,6 +1,6 @@
 /** Presentation-only identities. Tab IDs, labels, access checks and routing stay with their owners. */
 export const moduleTabArtwork = {
-  'home-panel': { profile: 'person', 'business-structure': 'company', 'business-profile': 'chart', consulting: 'handshake', integrations: 'robot', users: 'people' },
+  'home-panel': { profile: 'person', 'business-structure': 'company', 'business-profile': 'chart', consulting: 'handshake', integrations: 'robot', users: 'people', connections: 'robot', guide: 'learning', ideas: 'sparkle' },
   'human-resources': { collaborators: 'people', attendance: 'calendar', control: 'stopwatch', payroll: 'coins', announcements: 'megaphone', assets: 'briefcase', records: 'clipboard', permissions: 'check', incentives: 'gift', kpis: 'chart' },
   'processes-tasks': { calendar: 'calendar', projects: 'folder', processes: 'checklist', kpis: 'chart' },
   expenses: { expenses: 'expense', budgets: 'clipboard', providers: 'company', accounting: 'books', payment_accounts: 'card', kpis: 'chart' },
@@ -14,7 +14,11 @@ export const moduleTabArtwork = {
   scheduling: { calendar: 'calendar', clients: 'people', events: 'calendar', indicators: 'chart', services: 'wrench', team: 'people', publicAgenda: 'globe' },
   'minutes-control': { meetings: 'calendar', agreements: 'handshake', indicators: 'chart' },
   email: { mail: 'mail', accounts: 'gear' },
-  'sales-board': { overview: 'chart' },
+  'sales-board': { overview: 'chart', trends: 'chart', channels: 'globe', sales: 'briefcase' },
+  'kiosk-center': { 'multi-kiosks': 'kiosk', inventory: 'warehouse', people: 'people', activity: 'history' },
+  billing: { plan: 'package', people: 'people', payment: 'card', history: 'clipboard' },
+  training: { home: 'home', induction: 'globe', program: 'learning', sales: 'briefcase' },
+  'platform-admin': { websiteVisits: 'globe', leads: 'target', commercialOperations: 'handshake', customers: 'people', companies: 'company', billing: 'card', consulting: 'learning', systemTickets: 'messages', catalog: 'package', audit: 'chart', internalDevelopment: 'gear' },
   'material-warehouse': { materials: 'package', receipts: 'inbox', providers: 'company', requests: 'clipboard', fulfillments: 'truck', movements: 'arrows', kpis: 'chart' },
   production: { prototypes: 'flask', recipes: 'ruler', 'batch-planning': 'calendar', 'material-requests': 'clipboard', 'material-receipts': 'inbox', transformation: 'gear', 'quality-closure': 'check', kpis: 'chart' },
 } satisfies Record<string, Record<string, string>>;

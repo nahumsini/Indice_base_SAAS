@@ -20,6 +20,9 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(value = SignupTrialApiController.class, properties = "app.billing.signup.internal-trial-enabled=true")
 class SignupTrialApiControllerTest {
 
+    @org.springframework.boot.test.mock.mockito.MockBean
+    private com.indice.erp.learning.LearningAppliedAdvice learningAppliedAdvice;
+
     @Autowired
     private MockMvc mockMvc;
 

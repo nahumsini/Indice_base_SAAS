@@ -1,6 +1,6 @@
 import { Link2, LocateFixed } from 'lucide-react';
-import { useState } from 'react';
-import { configCenterApi } from '../../../../api/configCenter';
+import { useEffect, useId, useRef, useState } from 'react';
+import { configCenterApi, currentProfileActor } from '../../../../api/configCenter';
 import { Button } from '../../../../components/ui/button';
 import { inputClassName } from '../constants';
 import { useBusinessStructureTranslations } from '../hooks/useBusinessStructureTranslations';
@@ -10,6 +10,7 @@ interface LocationCoordinateFieldsProps {
   values: LocationCoordinateFormValues;
   onChange: (updates: Partial<LocationCoordinateFormValues>) => void;
   disabled?: boolean;
+  onBusyChange?: (busy: boolean) => void;
   requireGoogleMapsLink?: boolean;
 }
 
@@ -19,9 +20,25 @@ export function LocationCoordinateFields({
   values,
   onChange,
   disabled = false,
+  onBusyChange,
   requireGoogleMapsLink = false,
 }: LocationCoordinateFieldsProps) {
   const { actions, coordinates } = useBusinessStructureTranslations();
+  const id = useId();
+  const actor = useRef(currentProfileActor()).current;
+  const alive = useRef(true);
+  const pending = useRef(false);
+  const latestValues = useRef(values);
+  latestValues.current = values;
+  const busyCallback = useRef(onBusyChange);
+  busyCallback.current = onBusyChange;
+  useEffect(() => { alive.current = true; return () => {
+    alive.current = false;
+    if (pending.current) busyCallback.current?.(false);
+  }; }, []);
+  const canApply = (snapshot: string) => alive.current && currentProfileActor() === actor && JSON.stringify(latestValues.current) === snapshot;
+  const begin = () => { pending.current = true; busyCallback.current?.(true); };
+  const finish = () => { pending.current = false; if (alive.current) { setIsExtracting(false); setIsLocating(false); busyCallback.current?.(false); } };
   const [statusMessage, setStatusMessage] = useState('');
   const [statusTone, setStatusTone] = useState<'success' | 'error'>('success');
   const [isExtracting, setIsExtracting] = useState(false);
@@ -33,18 +50,22 @@ export function LocationCoordinateFields({
   };
 
   const handleExtractCoordinates = async () => {
+    if (disabled || pending.current) return;
     if (!values.googleMapsUrl.trim()) {
       showStatus(coordinates.pasteLinkFirst, 'error');
       return;
     }
 
+    const snapshot = JSON.stringify(values);
+    begin();
     setIsExtracting(true);
     setStatusMessage('');
 
     try {
       const response = await configCenterApi.extractLocationCoordinates({
         map_url: values.googleMapsUrl.trim(),
-      });
+      }, actor);
+      if (!canApply(snapshot)) return;
       onChange({
         latitude: String(response.latitude),
         longitude: String(response.longitude),
@@ -54,23 +75,27 @@ export function LocationCoordinateFields({
       });
       showStatus(coordinates.extracted, 'success');
     } catch {
-      showStatus(coordinates.extractError, 'error');
+      if (canApply(snapshot)) showStatus(coordinates.extractError, 'error');
     } finally {
-      setIsExtracting(false);
+      finish();
     }
   };
 
   const handleUseCurrentLocation = async () => {
+    if (disabled || pending.current) return;
     if (!navigator.geolocation) {
       showStatus(coordinates.unavailable, 'error');
       return;
     }
 
+    const snapshot = JSON.stringify(values);
+    begin();
     setIsLocating(true);
     setStatusMessage('');
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        if (!canApply(snapshot)) { finish(); return; }
         onChange({
           latitude: position.coords.latitude.toFixed(7),
           longitude: position.coords.longitude.toFixed(7),
@@ -78,11 +103,11 @@ export function LocationCoordinateFields({
           coordinateSource: 'current_location',
         });
         showStatus(coordinates.captured, 'success');
-        setIsLocating(false);
+        finish();
       },
       () => {
-        showStatus(coordinates.readError, 'error');
-        setIsLocating(false);
+        if (canApply(snapshot)) showStatus(coordinates.readError, 'error');
+        finish();
       },
       {
         enableHighAccuracy: true,
@@ -103,12 +128,13 @@ export function LocationCoordinateFields({
     <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
       <div className="flex flex-col gap-2 lg:flex-row lg:items-end">
         <div className="flex-1">
-          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label htmlFor={`${id}-googleMapsUrl`} className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
             {coordinates.googleMapsLink}
             {requireGoogleMapsLink ? <span className="ml-1 text-red-500">*</span> : null}
           </label>
           <input
             type="text"
+            id={`${id}-googleMapsUrl`}
             value={values.googleMapsUrl}
             onChange={(event) => onChange({ googleMapsUrl: event.target.value })}
             placeholder={coordinates.googleMapsPlaceholder}
@@ -117,9 +143,10 @@ export function LocationCoordinateFields({
             required={requireGoogleMapsLink}
           />
         </div>
-        <div className="grid grid-cols-2 gap-2 lg:w-auto">
+        <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2 lg:w-auto">
           <Button
             type="button"
+            className="min-h-11 whitespace-normal"
             variant="outline"
             onClick={() => void handleExtractCoordinates()}
             disabled={disabled || isExtracting || isLocating}
@@ -129,6 +156,7 @@ export function LocationCoordinateFields({
           </Button>
           <Button
             type="button"
+            className="min-h-11 whitespace-normal"
             variant="outline"
             onClick={() => void handleUseCurrentLocation()}
             disabled={disabled || isExtracting || isLocating}
@@ -141,11 +169,12 @@ export function LocationCoordinateFields({
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label htmlFor={`${id}-latitude`} className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
             {coordinates.latitude}
           </label>
           <input
             type="number"
+            id={`${id}-latitude`}
             value={values.latitude}
             onChange={(event) => setManualCoordinate('latitude', event.target.value)}
             placeholder="0.0000000"
@@ -157,11 +186,12 @@ export function LocationCoordinateFields({
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label htmlFor={`${id}-longitude`} className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
             {coordinates.longitude}
           </label>
           <input
             type="number"
+            id={`${id}-longitude`}
             value={values.longitude}
             onChange={(event) => setManualCoordinate('longitude', event.target.value)}
             placeholder="0.0000000"
@@ -173,11 +203,12 @@ export function LocationCoordinateFields({
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label htmlFor={`${id}-radiusMeters`} className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
             {coordinates.radiusMeters}
           </label>
           <input
             type="number"
+            id={`${id}-radiusMeters`}
             value={values.radiusMeters}
             onChange={(event) => onChange({ radiusMeters: event.target.value })}
             placeholder="100"
@@ -191,6 +222,7 @@ export function LocationCoordinateFields({
 
       {statusMessage ? (
         <p
+          role={statusTone === 'error' ? 'alert' : 'status'}
           className={`text-xs ${
             statusTone === 'success'
               ? 'text-emerald-700 dark:text-emerald-300'

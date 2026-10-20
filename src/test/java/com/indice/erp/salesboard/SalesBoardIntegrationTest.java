@@ -127,6 +127,24 @@ class SalesBoardIntegrationTest {
         assertThat(first.items()).hasSize(10);assertThat(second.items()).hasSize(2);assertThat(second.total()).isEqualTo(12);
         assertThat(first.summary().total().preferredTotal()).isEqualByComparingTo("120");assertThat(second.summary()).isEqualTo(first.summary());
     }
+    @Test void amountSortingGroupsCurrenciesAndKeepsStableScopedPages() throws Exception {
+        long high=sale("SALES","2026-10-01","500"), low=sale("POS","2026-10-02","10");
+        long dollar=sale(company,unit,business,"SALES","2026-10-03","USD","2","approved");
+        sale(other,null,null,"SALES","2026-10-01","MXN","9999","approved");
+        sale(company,otherUnit,otherBusiness,"SALES","2026-10-01","MXN","9998","approved");
+        for(int i=0;i<10;i++) sale("SALES","2026-10-01","100");
+        var first=board.read(actor,"2026-10-01","2026-10-14","","ALL","","ALL",null,null,1,10,"amount","desc","MXN","auto");
+        var second=board.read(actor,"2026-10-01","2026-10-14","","ALL","","ALL",null,null,2,10,"amount","desc","MXN","auto");
+        assertThat(first.total()).isEqualTo(13);
+        assertThat(first.items().getFirst().sale().id()).isEqualTo(high);
+        assertThat(second.items()).extracting(r->r.sale().id()).endsWith(low,dollar);
+        assertThat(first.items()).extracting(r->r.sale().id()).doesNotContainAnyElementsOf(second.items().stream().map(r->r.sale().id()).toList());
+        var ascending=board.read(actor,"2026-10-01","2026-10-14","","ALL","","ALL",null,null,1,25,"amount","asc","MXN","auto");
+        assertThat(ascending.items().getFirst().sale().id()).isEqualTo(low);
+        assertThat(ascending.items().getLast().sale().id()).isEqualTo(dollar);
+        mvc.perform(get("/api/v1/sales-board").session(session()).param("from","2026-10-01").param("to","2026-10-14").param("sort","amount"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(13));
+    }
     @Test void unlinkedPosAndCrmChannelsStayUnclassifiedAndCrossTenantTicketsDoNotJoin() {
         long id=sale("POS","2026-10-01","200");
         assertThatThrownBy(()->ticket(id,other,"FOREIGN")).isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);

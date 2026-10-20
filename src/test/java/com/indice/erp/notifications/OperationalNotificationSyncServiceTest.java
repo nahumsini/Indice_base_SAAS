@@ -3,70 +3,30 @@ package com.indice.erp.notifications;
 import com.indice.erp.hr.announcements.HrAnnouncementActor;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import org.springframework.jdbc.core.JdbcTemplate;
+import static org.mockito.Mockito.*;
 
 class OperationalNotificationSyncServiceTest {
-
-    @Test
-    void syncDelegatesToEnabledOperationalModules() {
-        var expenseSync = mock(ExpenseNotificationSyncService.class);
-        var posSync = mock(PosNotificationSyncService.class);
-        var salesSync = mock(SalesNotificationSyncService.class);
-        var service = new OperationalNotificationSyncService(expenseSync, posSync, salesSync);
-        var actor = actor(List.of("expenses", "pos", "sales"));
-
-        service.sync(actor);
-
-        verify(expenseSync).sync(actor);
-        verify(posSync).sync(actor);
-        verify(salesSync).sync(actor);
+    @Test void operationalManagementDoesNotDependOnHrPermission() {
+        var expenses=mock(ExpenseNotificationSyncService.class);
+        var pos=mock(PosNotificationSyncService.class);
+        var sales=mock(SalesNotificationSyncService.class);
+        var actor=new HrAnnouncementActor(7,1,20,"Admin","admin",null,null,"",List.of(),false);
+        new OperationalNotificationSyncService(expenses,pos,sales).sync(actor);
+        var expected=actor.withManagementAccess(true);
+        verify(expenses).sync(expected); verify(pos).sync(expected); verify(sales).sync(expected);
     }
 
-    @Test
-    void syncAllowsEmptyModuleListForLegacyAdminSessions() {
-        var expenseSync = mock(ExpenseNotificationSyncService.class);
-        var posSync = mock(PosNotificationSyncService.class);
-        var salesSync = mock(SalesNotificationSyncService.class);
-        var service = new OperationalNotificationSyncService(expenseSync, posSync, salesSync);
-        var actor = actor(List.of());
-
-        service.sync(actor);
-
-        verify(expenseSync).sync(actor);
-        verify(posSync).sync(actor);
-        verify(salesSync).sync(actor);
-    }
-
-    @Test
-    void syncSkipsUnavailableModules() {
-        var expenseSync = mock(ExpenseNotificationSyncService.class);
-        var posSync = mock(PosNotificationSyncService.class);
-        var salesSync = mock(SalesNotificationSyncService.class);
-        var service = new OperationalNotificationSyncService(expenseSync, posSync, salesSync);
-        var actor = actor(List.of("human_resources"));
-
-        service.sync(actor);
-
-        verify(expenseSync, never()).sync(actor);
-        verify(posSync, never()).sync(actor);
-        verify(salesSync, never()).sync(actor);
-    }
-
-    private HrAnnouncementActor actor(List<String> moduleSlugs) {
-        return new HrAnnouncementActor(
-            7L,
-            1L,
-            20L,
-            "Demo Admin",
-            "superadmin",
-            null,
-            null,
-            "Operations",
-            moduleSlugs,
-            true
-        );
+    @Test void emptyModuleListNeverGrantsReadAccessToOperationalData() {
+        var db=mock(JdbcTemplate.class);
+        var modules=mock(com.indice.erp.access.module.ModuleAccessService.class);
+        var tabs=mock(com.indice.erp.access.tab.TabPermissionAccessService.class);
+        var access=new NotificationAccessService(null,null,null,modules,tabs,null,null,null,null,List.of());
+        var actor=new HrAnnouncementActor(7,1,20,"User","user",null,null,"",List.of(),false);
+        // Default false is deliberate: no module/tab grant is not legacy administrator authority.
+        new ExpenseNotificationSyncService(db,access).sync(actor);
+        new PosNotificationSyncService(db,access).sync(actor);
+        new SalesNotificationSyncService(db,access).sync(actor);
+        verifyNoInteractions(db);
     }
 }

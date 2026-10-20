@@ -121,7 +121,10 @@ export default function IndicatorsTab({
       ) : query.loading ? (
         <Feedback>{copy.loading}</Feedback>
       ) : query.error ? (
-        <Feedback error>{copy.error}</Feedback>
+        <Feedback error>
+          {copy.error}
+          <Action onClick={query.reload}>{copy.refresh}</Action>
+        </Feedback>
       ) : (
         query.data && (
           <>
@@ -155,7 +158,10 @@ export default function IndicatorsTab({
                   ][i],
                   risk = [4, 5, 7].includes(i);
                 return (
-                  <section key={key} className={panel}>
+                  <section
+                    key={key}
+                    className={`${panel} border-t-4 ${risk ? "border-t-amber-300 dark:border-t-amber-600" : agreement || key === "completed" ? "border-t-emerald-300 dark:border-t-emerald-700" : "border-t-blue-300 dark:border-t-blue-700"}`}
+                  >
                     <span aria-hidden="true" className="text-xl">
                       {["📅", "💬", "✅", "📁", "⏳", "📝", "🤝", "⚠️"][i]}
                     </span>

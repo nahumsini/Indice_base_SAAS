@@ -24,6 +24,8 @@ public class InvitationSeatCoordinator {
         String actorRole,
         Map<String, Object> payload
     ) {
+        com.indice.erp.configcenter.users.UserAccessInput.invitation(payload);
+        invitations.lockUserAdministration(companyId);
         var email = payload == null || payload.get("email") == null ? "" : String.valueOf(payload.get("email"));
         var reservation = seats.reserveInvitation(
             companyId,
@@ -43,6 +45,7 @@ public class InvitationSeatCoordinator {
         String actorRole,
         long invitationId
     ) {
+        invitations.lockUserAdministration(companyId);
         var result = invitations.deleteInvitation(companyId, actorUserId, actorRole, invitationId);
         seats.releaseInvitation(companyId, invitationId);
         return result;
@@ -56,6 +59,7 @@ public class InvitationSeatCoordinator {
         long invitationId,
         Map<String, Object> payload
     ) {
+        invitations.lockUserAdministration(companyId);
         var result = invitations.resendInvitation(companyId, actorUserId, actorRole, invitationId, payload);
         seats.refreshInvitation(companyId, invitationId, String.valueOf(result.get("email")), actorUserId);
         return result;

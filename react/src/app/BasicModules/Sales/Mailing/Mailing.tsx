@@ -1,23 +1,23 @@
-import { CampaignDelivery } from './components/CampaignDelivery';
-import { useDeliveryCopy } from './deliveryCopy';
-import { useEffect, useMemo, useState } from "react";
-import { Mail, Plus, RefreshCw, Pencil, Eye, Send, FileText, Settings } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Mail,
+  Plus,
+  RefreshCw,
+  FileText,
+  Settings,
+  Users,
+  ArrowRight,
+  CircleAlert,
+} from "lucide-react";
 import { canAccessModuleTab } from "../../../access/tabScopeCatalog";
 import { getCachedAuthSession } from "../../../api/authSessionStore";
 import { useNavigate, useSearchParams } from "react-router";
-import { IndiceTitleBarOverflow, IndiceViewState } from "../../../components/frontend-os";
+import {
+  IndiceTitleBarOverflow,
+  IndiceViewState,
+} from "../../../components/frontend-os";
 import { useEmailCopy } from "../../../ComplementaryModules/Email/translations";
 import { Button } from "../../../components/ui/button";
-import { TableBody, TableCell, TableRow } from "../../../components/ui/table";
-import { DataTablePagination } from "../../../components/table/DataTablePagination";
-import {
-  IndiceTableShell,
-  IndiceOperationalTable,
-  IndiceTableColGroup,
-  IndiceTableHeaderRow,
-  type IndiceTableColumnDefinition,
-} from "../../../components/table/IndiceTableEngine";
-import { usePersistentColumnWidths } from "../../../hooks/usePersistentColumnWidths";
 import { useWorkspaceNavigationMemory } from "../../../hooks/useWorkspaceNavigationMemory";
 import { useAuthorizationRevision } from "../../../hooks/useAuthorizationRevision";
 import {
@@ -27,40 +27,72 @@ import {
 import {
   SalesFilterBar,
   SalesFilterSearch,
+  SalesFilterSelect,
 } from "../components/SalesFilterBar";
-import { mailingApi, type Campaign, type CampaignPage } from "./mailingApi";
+import { mailingApi, type Campaign } from "./mailingApi";
+import {
+  workspaceApi,
+  type CampaignRow,
+  type CampaignWorkspace,
+} from "./workspaceApi";
 import { CampaignEditor } from "./components/CampaignEditor";
+import { CampaignDelivery } from "./components/CampaignDelivery";
+import { CampaignWorkspaceTable } from "./components/CampaignWorkspaceTable";
+import { AudienceWorkspace } from "./components/AudienceWorkspace";
 import { TemplateManager } from "./components/TemplateManager";
 import { useMailingCopy } from "./translations";
-
-type Column = "name" | "subject" | "recipients" | "updatedAt";
+import { useDeliveryCopy } from "./deliveryCopy";
+import { useMailingWorkspaceCopy } from "./workspaceCopy";
+const statuses = [
+  "ALL",
+  "DRAFT",
+  "SCHEDULED",
+  "RUNNING",
+  "PAUSED",
+  "COMPLETED",
+  "CANCELLED",
+  "ATTENTION",
+];
 const defaults = {
   search: "",
+  status: "ALL",
+  senderAccountId: "",
   page: 1,
   pageSize: 25,
   sort: "updatedAt",
-  direction: "desc",
+  direction: "desc" as "asc" | "desc",
 };
-const widths = { name: 280, subject: 300, recipients: 180, updatedAt: 210 };
-const sortable = ["name", "subject", "updatedAt"] as Column[];
 export default function Mailing() {
-  const { copy, locale } = useMailingCopy(); const deliveryCopy=useDeliveryCopy(); const [delivery,setDelivery]=useState<Campaign|null>(null);
+  const { copy, locale } = useMailingCopy(),
+    text = useMailingWorkspaceCopy(),
+    deliveryCopy = useDeliveryCopy();
   const { copy: emailCopy } = useEmailCopy();
-  const navigate = useNavigate();
-  const [params, setParams] = useSearchParams();
+  const navigate = useNavigate(),
+    [params, setParams] = useSearchParams(),
+    revision = useAuthorizationRevision();
+  const operationScope = useRef(revision);
+  operationScope.current = revision;
   const returnCampaign = params.get("campaign");
-  const revision = useAuthorizationRevision();
-  const canConfigureAccounts = canAccessModuleTab("email", "accounts", getCachedAuthSession());
-  const [filters, setFilters] = useState(defaults);
-  const [search, setSearch] = useState("");
-  const [data, setData] = useState<CampaignPage | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
-  const [refresh, setRefresh] = useState(0);
-  const [editor, setEditor] = useState<Campaign | "new" | null>(null);
-  const [opening, setOpening] = useState(false);
-  const [templatesOpen, setTemplatesOpen] = useState(false);
-  const [notice, setNotice] = useState("");
+  const canConfigureAccounts = canAccessModuleTab(
+    "email",
+    "accounts",
+    getCachedAuthSession(),
+  );
+  const [filters, setFilters] = useState(defaults),
+    [search, setSearch] = useState("");
+  const [data, setData] = useState<CampaignWorkspace | null>(null),
+    [loading, setLoading] = useState(true),
+    [failed, setFailed] = useState(false),
+    [refresh, setRefresh] = useState(0);
+  const [editor, setEditor] = useState<Campaign | "new" | null>(null),
+    [delivery, setDelivery] = useState<Pick<Campaign, "id" | "name"> | null>(
+      null,
+    );
+  const [opening, setOpening] = useState(false),
+    [templatesOpen, setTemplatesOpen] = useState(false),
+    [listsOpen, setListsOpen] = useState(false),
+    [notice, setNotice] = useState("");
+  const openRequest = useRef<AbortController | null>(null);
   useWorkspaceNavigationMemory({
     moduleKey: "crm",
     tabKey: "mailing",
@@ -70,11 +102,19 @@ export default function Mailing() {
       setFilters({
         search:
           typeof value.search === "string" ? value.search.slice(0, 180) : "",
+        status: statuses.includes(value.status) ? value.status : "ALL",
+        senderAccountId:
+          typeof value.senderAccountId === "string" &&
+          /^(|NONE|[a-f0-9-]{36})$/.test(value.senderAccountId)
+            ? value.senderAccountId
+            : "",
         page: Math.max(1, Math.min(10000, Number(value.page) || 1)),
         pageSize: [10, 25, 50, 100, 200].includes(value.pageSize)
           ? value.pageSize
           : 25,
-        sort: ["name", "subject", "updatedAt"].includes(value.sort)
+        sort: ["name", "status", "scheduledAt", "updatedAt"].includes(
+          value.sort,
+        )
           ? value.sort
           : "updatedAt",
         direction: value.direction === "asc" ? "asc" : "desc",
@@ -85,44 +125,57 @@ export default function Mailing() {
     return () => window.clearTimeout(timer);
   }, [filters.search]);
   useEffect(() => {
-    setEditor(null);setDelivery(null);
+    openRequest.current?.abort();
+    setOpening(false);
+    setEditor(null);
+    setDelivery(null);
     setTemplatesOpen(false);
+    setListsOpen(false);
     setNotice("");
+    setData(null);
   }, [revision]);
+  useEffect(() => () => openRequest.current?.abort(), []);
   useEffect(() => {
-    const controller = new AbortController();
+    const c = new AbortController();
     setLoading(true);
     setFailed(false);
-    setData(null);
     const query = new URLSearchParams({
       search,
+      status: filters.status,
+      senderAccountId: filters.senderAccountId,
       page: String(filters.page),
       pageSize: String(filters.pageSize),
       sort: filters.sort,
       direction: filters.direction,
     });
-    mailingApi
-      .list(query, controller.signal)
+    void workspaceApi
+      .list(query, c.signal)
       .then((result) => {
-        if (controller.signal.aborted) return;
+        if (c.signal.aborted) return;
         setData(result);
+        const pages = Math.max(1, Math.ceil(result.total / filters.pageSize));
+        if (filters.page > pages) setFilters((f) => ({ ...f, page: pages }));
         if (
-          filters.page > Math.max(1, Math.ceil(result.total / filters.pageSize))
+          filters.senderAccountId &&
+          filters.senderAccountId !== "NONE" &&
+          !result.senders.some((s) => s.id === filters.senderAccountId)
         )
-          setFilters((f) => ({
-            ...f,
-            page: Math.max(1, Math.ceil(result.total / f.pageSize)),
-          }));
+          setFilters((f) => ({ ...f, senderAccountId: "", page: 1 }));
       })
       .catch(() => {
-        if (!controller.signal.aborted) setFailed(true);
+        if (!c.signal.aborted) {
+          setFailed(true);
+          setData(null);
+        }
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!c.signal.aborted) setLoading(false);
       });
-    return () => controller.abort();
+    return () => c.abort();
   }, [
     search,
+    filters.status,
+    filters.senderAccountId,
     filters.page,
     filters.pageSize,
     filters.sort,
@@ -131,210 +184,330 @@ export default function Mailing() {
     revision,
   ]);
   useEffect(() => {
+    if (
+      !data ||
+      data.summary.running + data.summary.scheduled === 0 ||
+      editor ||
+      delivery ||
+      listsOpen ||
+      templatesOpen
+    )
+      return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") setRefresh((v) => v + 1);
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, [
+    data?.summary.running,
+    data?.summary.scheduled,
+    editor,
+    delivery,
+    listsOpen,
+    templatesOpen,
+  ]);
+  useEffect(() => {
     if (!returnCampaign || !data?.canViewDetails) return;
-    const controller = new AbortController();setOpening(true);
-    mailingApi.get(returnCampaign, controller.signal).then(campaign => {
-      if (!controller.signal.aborted) { setEditor(campaign);setParams(current => { const next = new URLSearchParams(current);next.delete("campaign");return next; }, { replace: true }); }
-    }).catch(() => { if (!controller.signal.aborted) setNotice(copy.loadError); })
-      .finally(() => { if (!controller.signal.aborted) setOpening(false); });
+    const controller = new AbortController();
+    setOpening(true);
+    void mailingApi.get(returnCampaign, controller.signal)
+      .then((campaign) => {
+        if (controller.signal.aborted) return;
+        if (campaign.status === "DRAFT") setEditor(campaign);
+        else setDelivery(campaign);
+        setParams(
+          (current) => {
+            const next = new URLSearchParams(current);
+            next.delete("campaign");
+            return next;
+          },
+          { replace: true },
+        );
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setNotice(copy.loadError);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setOpening(false);
+      });
     return () => controller.abort();
-  }, [returnCampaign, data?.canViewDetails, revision, copy.loadError, setParams]);
-    const labels = useMemo(
-    () => ({
-      name: copy.campaign,
-      subject: copy.subject,
-      recipients: copy.recipients,
-      updatedAt: copy.updated,
-    }),
-    [copy],
-  );
-  const { columnWidths, resizeColumn } = usePersistentColumnWidths<Column>({
-    defaults: widths,
-    headerLabels: labels,
-    sortableColumnIds: sortable,
-    storageKey: "sales-mailing-column-widths-v1",
-  });
-  const columns: IndiceTableColumnDefinition<Column>[] = (
-    Object.keys(widths) as Column[]
-  ).map((id) => ({
-    id,
-    label: labels[id],
-    width: columnWidths[id],
-    defaultWidth: widths[id],
-    contentMinimumWidth: widths[id],
-    sortable: sortable.includes(id),
-    resizeLabel: `${copy.resize}: ${labels[id]}`,
-  }));
-  const total = data?.total ?? 0;
-  const pages = Math.max(1, Math.ceil(total / filters.pageSize));
-  async function open(campaign: Campaign) {
-    if(campaign.status!=="DRAFT"){setDelivery(campaign);return;}
+  }, [
+    returnCampaign,
+    data?.canViewDetails,
+    revision,
+    copy.loadError,
+    setParams,
+  ]);
+  async function open(row: CampaignRow) {
+    if (row.status !== "DRAFT" || !data?.canEdit) {
+      setDelivery(row);
+      return;
+    }
+    openRequest.current?.abort();
+    const c = new AbortController();
+    openRequest.current = c;
     setOpening(true);
     setNotice("");
     try {
-      setEditor(await mailingApi.get(campaign.id));
+      const campaign = await mailingApi.get(row.id, c.signal);
+      if (!c.signal.aborted) {
+        if (campaign.status === "DRAFT") setEditor(campaign);
+        else setDelivery(campaign);
+      }
     } catch {
-      setNotice(copy.loadError);
+      if (!c.signal.aborted) setNotice(copy.loadError);
     } finally {
-      setOpening(false);
+      if (!c.signal.aborted) setOpening(false);
     }
   }
+  const filter = (
+    key: "status" | "senderAccountId" | "search",
+    value: string,
+  ) => setFilters((f) => ({ ...f, [key]: value, page: 1 }));
+  const filtered =
+    !!filters.search || filters.status !== "ALL" || !!filters.senderAccountId;
+  const statusLabel = (status: string) =>
+    status === "ALL"
+      ? text.all
+      : status === "ATTENTION"
+        ? text.attention
+        : deliveryCopy.states[status];
+  const titleActions = [
+    ...(data?.canViewDetails
+      ? [
+          {
+            id: "lists",
+            label: text.lists,
+            icon: <Users className="h-4 w-4" />,
+            onSelect: () => setListsOpen(true),
+          },
+        ]
+      : []),
+    {
+      id: "templates",
+      label: copy.templates,
+      icon: <FileText className="h-4 w-4" />,
+      onSelect: () => setTemplatesOpen(true),
+    },
+    ...(data?.canEdit
+      ? [
+          {
+            id: "new",
+            label: copy.newCampaign,
+            icon: <Plus className="h-4 w-4" />,
+            onSelect: () => setEditor("new"),
+          },
+        ]
+      : []),
+    {
+      id: "refresh",
+      label: copy.refresh,
+      icon: <RefreshCw className="h-4 w-4" />,
+      onSelect: () => setRefresh((v) => v + 1),
+    },
+    ...(canConfigureAccounts
+      ? [
+          {
+            id: "accounts",
+            label: emailCopy.configureAccounts,
+            icon: <Settings className="h-4 w-4" />,
+            onSelect: () => navigate("/email/accounts"),
+          },
+        ]
+      : []),
+  ];
+  const direct =
+    titleActions.length > 3 ? titleActions.slice(0, 3) : titleActions;
+  const facets = data
+    ? [
+        { status: "ALL", count: data.summary.total },
+        { status: "DRAFT", count: data.summary.draft },
+        { status: "SCHEDULED", count: data.summary.scheduled },
+        { status: "RUNNING", count: data.summary.running },
+        { status: "ATTENTION", count: data.summary.attention },
+      ]
+    : [];
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <SalesTitleBar
-        title="Mailing"
-        subtitle={copy.subtitle}
+        title={text.title}
+        subtitle={text.subtitle}
         icon={<Mail className="h-5 w-5" />}
         actions={
           <>
-            {canConfigureAccounts && <Button variant="outline" onClick={() => navigate('/email/accounts')}><Settings className="mr-2 h-4 w-4" />{emailCopy.configureAccounts}</Button>}
-            <Button
-              variant="outline"
-              disabled={loading}
-              onClick={() => setTemplatesOpen(true)}
-            >
-              <FileText className="mr-2 h-4 w-4" />
-              {copy.templates}
-            </Button>
-            <IndiceTitleBarOverflow label={copy.actions} items={[{ id: "refresh", label: copy.refresh, icon: <RefreshCw className="h-4 w-4" />, disabled: loading, onSelect: () => setRefresh(v => v + 1) }]} />
-            {data?.canEdit && (
+            {direct.map((action) => (
               <Button
-                className={salesTitleBarPrimaryActionClassName}
-                onClick={() => setEditor("new")}
+                key={action.id}
+                variant={action.id === "new" ? "default" : "outline"}
+                className={
+                  action.id === "new"
+                    ? salesTitleBarPrimaryActionClassName
+                    : undefined
+                }
+                disabled={opening || (loading && action.id !== "accounts")}
+                onClick={action.onSelect}
               >
-                <Plus className="mr-2 h-4 w-4" />
-                {copy.newCampaign}
+                {action.icon}
+                <span className="ml-2">{action.label}</span>
               </Button>
+            ))}
+            {titleActions.length > 3 && (
+              <IndiceTitleBarOverflow
+                label={copy.actions}
+                items={titleActions
+                  .slice(3)
+                  .map((action) => ({
+                    ...action,
+                    disabled: loading && action.id !== "accounts",
+                  }))}
+              />
             )}
           </>
         }
       />
-      <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-        {deliveryCopy.note}
-      </p>
+      <div className="flex flex-wrap items-center gap-2 px-1 text-sm text-slate-600 dark:text-slate-300">
+        <ArrowRight className="h-4 w-4 text-[#B83D32] dark:text-[#FF9B91]" />
+        {text.workflow}
+      </div>
+      {data && !data.publicLinkReady && (
+        <div
+          role="status"
+          className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+          {deliveryCopy.publicMissing}
+        </div>
+      )}
       {notice && (
-        <p role="status" className="text-sm">
+        <p role="alert" className="rounded-xl border p-3 text-sm">
           {notice}
         </p>
       )}
       <SalesFilterBar
         title={copy.filters}
-        summary={loading ? copy.loading : `${total}`}
+        gridClassName="grid-cols-1 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]"
+        summary={
+          filtered ? (
+            <Button variant="ghost" onClick={() => setFilters(defaults)}>
+              {text.clear}
+            </Button>
+          ) : undefined
+        }
       >
         <SalesFilterSearch
           label={copy.search}
           placeholder={copy.searchPlaceholder}
           value={filters.search}
+          onValueChange={(value) => filter("search", value.slice(0, 180))}
+          onClear={() => filter("search", "")}
+          clearLabel={text.clear}
+        />
+        <SalesFilterSelect
+          label={text.status}
+          value={filters.status}
+          onValueChange={(value) => filter("status", value)}
+          options={statuses.map((value) => ({
+            value,
+            label: statusLabel(value),
+          }))}
+        />
+        <SalesFilterSelect
+          label={text.sender}
+          value={filters.senderAccountId || "ALL"}
           onValueChange={(value) =>
-            setFilters((f) => ({ ...f, search: value.slice(0, 180), page: 1 }))
+            filter("senderAccountId", value === "ALL" ? "" : value)
           }
-          onClear={() => setFilters((f) => ({ ...f, search: "", page: 1 }))}
-          clearLabel={copy.cancel}
+          options={[
+            { value: "ALL", label: text.allSenders },
+            { value: "NONE", label: text.noSender },
+            ...(data?.senders ?? []).map((s) => ({
+              value: s.id,
+              label: `${s.label} · ${s.email}`,
+            })),
+          ]}
         />
       </SalesFilterBar>
-      {loading || opening ? (
-        <IndiceViewState variant="loading" title={copy.loading} tone="coral" />
-      ) : failed ? (
-        <IndiceViewState variant="error" title={copy.loadError} tone="coral" action={<Button variant="outline" onClick={() => setRefresh(v => v + 1)}>{copy.retry}</Button>} />
-      ) : (
-        <IndiceTableShell
-          pagination={
-            total > 0 ? (
-              <DataTablePagination
-                currentPage={filters.page}
-                pageSize={filters.pageSize}
-                pageSizeOptions={[10, 25, 50, 100, 200]}
-                totalCount={total}
-                totalPages={pages}
-                pageStart={(filters.page - 1) * filters.pageSize + 1}
-                pageEnd={Math.min(filters.page * filters.pageSize, total)}
-                onPageChange={(page) => setFilters((f) => ({ ...f, page }))}
-                onPageSizeChange={(pageSize) =>
-                  setFilters((f) => ({ ...f, pageSize, page: 1 }))
-                }
-              />
-            ) : undefined
-          }
+      {data && (
+        <div
+          aria-label={text.summaryHint}
+          className="flex flex-wrap gap-2"
+          role="group"
         >
-          <IndiceOperationalTable
-            minimumWidth={
-              Object.values(columnWidths).reduce((a, b) => a + b, 0) + 132
-            }
-          >
-            <IndiceTableColGroup columns={columns} actionsWidth={132} />
-            <IndiceTableHeaderRow
-              columns={columns}
-              onResize={resizeColumn}
-              sortState={{
-                columnId: filters.sort as Column,
-                direction: filters.direction as "asc" | "desc",
-              }}
-              onSort={(id) =>
-                setFilters((f) => ({
-                  ...f,
-                  sort: id,
-                  direction:
-                    f.sort === id && f.direction === "asc" ? "desc" : "asc",
-                  page: 1,
-                }))
-              }
-              actions={{ label: copy.actions, width: 132 }}
-              tone="coral"
-            />
-            <TableBody>
-              {data?.items.length ? (
-                data.items.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell>
-                      <span className="font-medium">{row.name}</span>
-                      <span className="ml-2 rounded-full bg-slate-100 px-2 py-1 text-xs dark:bg-slate-800">
-                        {deliveryCopy.states[row.status]}
-                      </span>
-                    </TableCell>
-                    <TableCell>{row.subject || "—"}</TableCell>
-                    <TableCell>{row.recipientCount}</TableCell>
-                    <TableCell>
-                      {new Intl.DateTimeFormat(locale, {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      }).format(new Date(row.updatedAt))}
-                    </TableCell>
-                    <TableCell>
-                      {data.canViewDetails&&<Button variant="ghost" className="h-11 w-11 p-0" aria-label={`${deliveryCopy.title}: ${row.name}`} onClick={()=>setDelivery(row)}><Send className="h-4 w-4"/></Button>}
-                      {data.canViewDetails && (
-                        <Button
-                          variant="ghost"
-                          className="h-11 w-11 p-0"
-                          aria-label={`${data.canEdit ? copy.edit : copy.view}: ${row.name}`}
-                          onClick={() => void open(row)}
-                        >
-                          {data.canEdit ? (
-                            <Pencil className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={5} className="py-12 text-center">
-                    {copy.empty}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </IndiceOperationalTable>
-        </IndiceTableShell>
+          {facets.map((facet) => (
+            <button
+              key={facet.status}
+              type="button"
+              aria-pressed={filters.status === facet.status}
+              onClick={() => filter("status", facet.status)}
+              className={`inline-flex min-h-11 items-center gap-3 rounded-xl border px-4 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E] ${filters.status === facet.status ? "border-[#FF6B5E]/50 bg-[#FF6B5E]/10 text-[#A4372D] dark:text-[#FFAEA6]" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"}`}
+            >
+              {facet.status === "DRAFT" ? text.draftSummary : facet.status === "SCHEDULED" ? text.scheduledSummary : statusLabel(facet.status)}
+              <span className="rounded-md bg-slate-100 px-2 py-0.5 font-medium tabular-nums text-slate-800 dark:bg-slate-800 dark:text-slate-100">
+                {facet.count}
+              </span>
+            </button>
+          ))}
+        </div>
       )}
-      {delivery&&<CampaignDelivery key={delivery.id} id={delivery.id} name={delivery.name} onClose={()=>{setDelivery(null);setRefresh(v=>v+1);}}/>}
+      {failed ? (
+        <IndiceViewState
+          variant="error"
+          title={copy.loadError}
+          tone="coral"
+          action={
+            <Button variant="outline" onClick={() => setRefresh((v) => v + 1)}>
+              {copy.retry}
+            </Button>
+          }
+        />
+      ) : !data ? (
+        <IndiceViewState variant="loading" title={copy.loading} tone="coral" />
+      ) : (
+        <CampaignWorkspaceTable
+          data={data}
+          filters={filters}
+          filtered={filtered}
+          loading={loading || opening}
+          onOpen={(row) => void open(row)}
+          onReview={setDelivery}
+          onCreate={() => setEditor("new")}
+          onClear={() => setFilters(defaults)}
+          onPage={(page) => setFilters((f) => ({ ...f, page }))}
+          onSize={(pageSize) =>
+            setFilters((f) => ({ ...f, pageSize, page: 1 }))
+          }
+          onSort={(sort) =>
+            setFilters((f) => ({
+              ...f,
+              sort,
+              direction:
+                f.sort === sort && f.direction === "asc" ? "desc" : "asc",
+              page: 1,
+            }))
+          }
+        />
+      )}
+      {listsOpen && (
+        <AudienceWorkspace
+          canManage={data?.canEdit ?? false}
+          onClose={() => setListsOpen(false)}
+        />
+      )}
       {templatesOpen && (
         <TemplateManager
           copy={copy}
           locale={locale}
           onClose={() => setTemplatesOpen(false)}
+        />
+      )}
+      {delivery && (
+        <CampaignDelivery
+          key={delivery.id}
+          id={delivery.id}
+          name={delivery.name}
+          onClose={() => {
+            setDelivery(null);
+            setRefresh((v) => v + 1);
+          }}
         />
       )}
       {editor && (
@@ -343,12 +516,18 @@ export default function Mailing() {
           campaign={editor === "new" ? null : editor}
           canEdit={data?.canEdit ?? false}
           copy={copy}
-          onConfigureAccounts={canConfigureAccounts ? id => navigate(`/email/accounts?campaign=${id}`) : undefined}
+          onConfigureAccounts={
+            canConfigureAccounts
+              ? (id) => { if (operationScope.current === revision) navigate(`/email/accounts?campaign=${id}`); }
+              : undefined
+          }
           onClose={() => setEditor(null)}
-          onSaved={() => {
+          onSaved={(saved, review) => {
+            if (operationScope.current !== revision) return;
             setEditor(null);
-            setNotice(copy.saved);
             setRefresh((v) => v + 1);
+            if (review) setDelivery(saved);
+            else setNotice(copy.saved);
           }}
         />
       )}

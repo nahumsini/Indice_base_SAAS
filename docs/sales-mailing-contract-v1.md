@@ -141,3 +141,217 @@ initial contract's draft-only restriction. Draft routes, ownership, template beh
 compatible; non-DRAFT campaigns are immutable to draft editing. Delivery adds native mailing_send
 authorization, verified sender review, explicit consent evidence, recipient snapshots, scheduling,
 provider outcomes, suppression and a capability-only public unsubscribe page.
+
+## Contact audiences and campaign history — 2026-10-18
+
+Approved scope: make the existing Sales contact directory usable for campaign audiences, reusable
+lists and read-only contact campaign history. This does not authorize a campaign launch, change
+SMTP quotas, grant consent, or add automated email sequences.
+
+- Sales remains owner of contact identity. `/api/v1/mailing/audience` projects active,
+  non-deleted contacts from the authenticated company: person, company, email, salesperson and
+  sending eligibility. Search includes person, company and email. Exact source, salesperson, tag
+  and eligibility filters compose with server pagination and sorting. Source/tag/owner choices
+  come from that same tenant directory. The legacy `/contacts` API remains compatible.
+- `GET /audience/selection` selects all matching results, independent of pagination. More than
+  500 results fails explicitly; the client merges by contact ID, preserving previous selections
+  and refusing a union larger than 500. No silent truncation occurs.
+- `POST /audience/preview` accepts at most 500 owned contact IDs. It resolves current identities,
+  email validity, normalized-email duplicates, recorded consent and suppressions. Missing consent
+  is separate from excluded recipients. This read-only POST uses session/CSRF protection and
+  never registers consent. Launch still rechecks its existing authoritative review.
+- `GET /audience/options`, `/audience/lists`, `/audience/lists/{id}` and
+  `/contacts/{id}/history` require both `crm.mailing` and `crm.contacts` plus CRM module access.
+  New list `PUT` and archive `POST` additionally require the existing Mailing manager role,
+  mutation entitlement and CSRF. They do not require or grant `crm.mailing_send`.
+- V329 adds company-owned saved lists, membership and audit events. Lists store explicit contact
+  membership, not dynamic filter rules. Updates use optimistic versions; stable client UUIDs
+  prevent duplicate creation on retry. Archive is soft, retains membership/audit and does not
+  alter campaign recipients. On reuse, inactive/deleted members are omitted with a visible count;
+  other exclusions remain visible in recipient review. Membership changes are transactional.
+- `{{name}}` now resolves to the trimmed contact person, falling back to company name. Review
+  digests include the resolved name so a changed name invalidates stale launch confirmation.
+  Already-launched campaigns retain their original immutable names and email snapshots.
+- Contact history is a paginated read-only projection of draft participation and actual delivery
+  snapshots. It distinguishes draft, excluded-at-launch, pending, SMTP accepted, failed and unknown;
+  it never claims inbox delivery, opening or engagement. History follows contact ID, not a join on
+  the contact's currently edited email address. No message body or credentials are exposed.
+
+UI classification: retain the existing four-step **Modal Wizard Índice** (details, recipients,
+content, review). The recipient stage uses the shared filter bar, progressive filters, canonical
+sortable/resizable table and pagination. Saved-list editing and archive confirmation are inline
+sections inside that existing frame, not stacked dialogs. The existing contact **Standard Form
+Modal** gains a lazy, permission-gated history disclosure. New copy supports all eight product
+locales. Recipient selection and message content are never stored in browser workspace memory.
+
+Verification for this extension: 27 distinct backend regressions (7 audience, 8 existing draft/template,
+10 delivery and 2 migration checks) passed using only `indice_test_db`; Flyway applied V329 there.
+57 focused frontend regressions, TypeScript and production build passed. The existing >600 kB
+bundle advisory remains. An isolated browser flow with synthetic contacts exercised cross-page
+selection, sort directions, failed list save/retry, list reuse, personalized preview, draft save,
+contact history, 390 px layout and dark-mode contrast; it rejects every send/test/launch request.
+Local 8083 was restarted with only the validated Mailing classes and V329, preserving its prior
+runtime for rollback and the ongoing unrelated work. Read-only authenticated checks resolved the
+10 active local contacts, filters, lists, preview and history. No real campaign was launched and no
+real email, consent or contact was created or changed by verification. The public HTTPS unsubscribe
+gate and existing SMTP quotas continue to apply to actual campaign execution.
+
+
+## Campaign operating workspace — 2026-10-19
+
+Approved scope: surface the existing campaign engine as an operational Sales workspace. The tab
+remains Mailing at `/sales/mailing`; the view title is localized “Email campaigns”. No automatic
+multi-email sequences, new transport, delivery guarantees or open/click tracking are introduced.
+
+- `GET /api/v1/mailing/workspace` is a protected, read-only CRM/Mailing projection using the same
+  session, entitlement and tab boundary as the existing campaign listing. Contact access controls
+  detail/list-management entry points and draft editing. Existing campaign endpoints remain compatible.
+- Search and sender-account filters apply before aggregation; status is a facet over that scope.
+  Summary counts cover all matching campaigns, not just the displayed page. `ATTENTION` means a
+  failed/unconfirmed recipient or a recorded run error; it may overlap a completed campaign.
+- Draft recipient numbers count selected contact IDs, without claiming validity or consent.
+  Launched campaigns use immutable delivery rows. Processed counts include accepted, failed,
+  unknown, suppressed and cancelled rows; pending/submitting remain outstanding. Acceptance is
+  explicitly not proof of inbox delivery. Tenant scoping applies to each aggregated source.
+- Sender options use Email's existing private-owner projection only. Accounts owned by others are
+  not disclosed; a campaign's previously stored commercial sender name remains visible. No secrets,
+  credential fields or mailbox contents enter the workspace projection.
+- Search, status, sender, sort and pagination use existing company/user-scoped navigation memory.
+  Running/scheduled campaigns refresh every 15 seconds while the page is visible and no editor is open.
+- The title bar exposes recipient lists, templates and new campaign, with secondary administration
+  in the final Actions overflow. The shared filter bar, status navigator, table, sorting, resizing,
+  pagination, empty/retry states, dark mode and localized copy follow the Frontend OS.
+- Row actions are state-aware: continue a draft, review a send, view progress or view results.
+  A launched campaign never presents draft editing. The final wizard step adds Save and review send,
+  passing the persisted campaign to the existing review modal. This action does not launch or test.
+- Recipient lists also open as a standalone shared operational workspace. Loading a list there
+  replaces the working selection; inside a campaign it retains the existing explicit merge behavior.
+  Save, version checks, archive confirmation and campaign-independent list membership are preserved.
+- Existing verified SMTP, consent, suppression, public HTTPS unsubscribe, recipient limit, quota,
+  launch confirmation, scheduling and ambiguity rules continue to be enforced by the existing engine.
+
+No schema migration is needed for this projection.
+
+Verification: 31 distinct backend tests passed (6 workspace projection/access, 8 existing
+campaign/template, 7 audience, 10 delivery) against `indice_test_db` with workers disabled and
+mock transport for delivery. The 57 relevant frontend regressions, TypeScript and production build
+passed. Both isolated browser flows passed: campaign workspace (facets, sorting, filter restoration,
+draft-to-review handoff, standalone lists, immutable completed-campaign results, empty/error retry,
+responsive and dark views) and the existing audience flow (selection, retries, reuse, personalization,
+history). Browser traffic is mocked and rejects send/launch/control requests. Screenshots were
+reviewed at desktop and mobile widths. No real messages were sent.
+
+Local handoff: only the validated Mailing controller and workspace projection classes were added
+to a copy of the currently running 8083 artifact. All unrelated runtime classes and resources were
+preserved, and the previous artifact remains available for rollback. Authenticated read-only smoke
+checks passed for the workspace, draft facet, cross-page summary and compatible legacy listing.
+Public HTTPS unsubscribe remains unconfigured locally; campaign launch therefore remains blocked
+by the existing engine. The production build retains its existing large-chunk warnings. Schema and
+production deployment changes: N/A.
+
+Files for this workspace change: `Mailing.tsx`, `workspaceApi.ts`, `workspaceCopy.ts`,
+`components/CampaignWorkspaceTable.tsx`, `components/AudienceWorkspace.tsx`, and targeted extensions
+to `CampaignEditor.tsx`, `RecipientPicker.tsx` and `AudienceLists.tsx`; backend
+`MailingWorkspaceService.java` and `MailingController.java`; `MailingWorkspaceIntegrationTest.java`
+and the `mailing-workspace` browser fixture/runner; this contract and the canonical frontend adoption.
+Existing draft persistence, account privacy, send permissions, consent, quotas and delivery behavior
+are preserved.
+
+## Campaign editor refinement — 2026-10-19
+
+Classification: retain the **Modal Wizard Índice** for the dependent details, audience, content and
+review steps. The shared Sales frame, module-colored header/footer, stepper, validation and summary
+remain the presentation foundation. No alternative modal engine, API or schema is introduced.
+
+- The header names the editing action and current step, with one short instruction per step.
+- Details group the internal campaign name separately from the sender account, displayed name and
+  reply-to address. Field helpers explain what customers see. The account uses the shared select,
+  and a compact SMTP status badge distinguishes verified, failed and untested connections.
+  Loading, empty, unavailable-account and retry states retain the draft's captured identity.
+- Controls use the Sales coral focus, neutral surfaces and consistent sizing. Sender identity fields
+  share a row on desktop and stack on phones. Dark-mode contrast and short-viewport scrolling follow
+  the existing modal system. New copy covers all eight supported locales.
+- Continue is the final primary action before review. Saving an incomplete draft remains available
+  after naming it. A nonempty malformed reply-to is now caught when continuing from Details as well
+  as when saving. Errors identify and focus the affected field.
+- Back/Continue retain the captured values. Declining an unsaved-close confirmation also retains
+  the current audience search, because the wizard remains mounted inside the same hidden frame.
+- Saving awaits the existing owner API and blocks duplicate submissions, close and conflicting edits.
+  A recoverable failure retains the draft for retry; a version conflict locks editing. Configuring a
+  sender still saves before navigation. Final Save and review send still opens the existing review
+  flow only after persistence; it does not send, test or schedule mail.
+- Final review uses the shared compact summary and a separate message preview. Plain-text rendering,
+  contact personalization, recipient selection, private account ownership and send gates are unchanged.
+
+Files: `components/CampaignEditor.tsx`, `components/CampaignEditorField.tsx`,
+`components/CampaignSenderPicker.tsx`, presentation-only adjustments in `CampaignTemplatePicker.tsx`,
+`editorCopy.ts`, the `mailing-editor` browser fixture/runner and this contract. The existing audience
+browser fixture now stubs template listing explicitly instead of depending on beating its debounce.
+
+Verification: focused editor browser checks cover field validation/focus, account failure/retry and
+unavailability, identity retention, cancel recovery, draft saving, review/configuration handoffs,
+pending-save locks, failure/retry, stale-version locking, read-only access and phone/dark/short views.
+The existing audience and campaign-workspace browser regressions pass with mocked APIs. No real
+emails or campaign mutations are used by these checks. TypeScript, production build and the 57
+relevant frontend regressions pass. Screenshots were inspected in desktop, phone and dark layouts.
+The build retains the pre-existing large-chunk warning. Backend/schema/deployment changes: N/A.
+
+
+## Direct recipient selection — 2026-10-19
+
+The user's explicit product decision removes the mandatory manual consent-registration step and makes
+the delivery-review checkboxes control the campaign audience. This section supersedes older consent
+prerequisites in the draft-pilot, audience and operating-workspace notes above and in the original
+Email/Mailing delivery extension. It does not replace tenant, authorization, integrity or public-release
+invariants.
+
+- Delivery review selects all currently eligible recipients initially. **Seleccionar todos** toggles
+  the entire campaign audience across pages, with an indeterminate state for a partial selection.
+  Invalid, duplicate and unsubscribed contacts remain visible but cannot be selected for sending.
+- The confirmation shows selected, unselected and excluded counts. The browser submits the exact
+  `contactIds`; an explicit empty selection never falls back to sending everybody. The server verifies
+  every selected ID against this campaign's current, company-scoped, eligible audience under its
+  existing lock/version/digest checks before persisting any run. Replaying a launch returns the same
+  immutable snapshot and cannot expand it.
+- `Launch.contactIds` is additive and optional for existing clients: omitted/null uses all eligible
+  campaign recipients. The current frontend always supplies its explicit selection. The existing
+  preview field `consentRequired` remains for response compatibility and is zero under the new policy.
+- READY means a valid, active contact whose normalized address is not suppressed or duplicated. Neither
+  review, selection nor launch creates consent rows or evidence. Historical consent data and its owner
+  endpoint remain for compatibility/audit, but are no longer prerequisites for dispatch. Unsubscribing
+  creates a SUPPRESSED row when none exists (system recorder `0`, no consent evidence, null event actor),
+  and preserves any existing historical evidence. The company lock prevents duplicate unsubscribe events.
+- Unsubscribe suppression remains authoritative before launch and immediately before SMTP dispatch.
+  The public HTTPS unsubscribe URL, footer, verified private sender, native send permission, CSRF,
+  current tenant access, explicit final send confirmation, per-account quota, durable outbox and
+  uncertain-delivery protections remain unchanged. No schema migration or contact-data backfill.
+- API changes are limited to Mailing contracts, audience projection, recipient eligibility and launch
+  selection. The Email transport, credentials, account configuration and other modules are unchanged.
+
+Verification covers no-consent dispatch with a mocked transport, exact subsets, replay, empty/foreign/
+invalid/duplicate/suppressed selection rejection, current unsubscribe enforcement, CSRF and native
+send permission. Browser fixtures exercise cross-page bulk selection, confirmation/payload parity,
+failed-launch retry, pending request protection, refreshed exclusions, public-URL gating, read-only
+access, keyboard, mobile and dark mode. All browser addresses and transports are synthetic.
+No real campaign launch or external email is part of this verification. Local functional launch still
+requires a real public HTTPS unsubscribe address; the new selection policy does not fabricate one.
+
+
+Validated locally: 35 focused backend integration cases on `indice_test_db` (including 14 delivery
+cases), 57 frontend regressions, TypeScript and the production build, plus three isolated browser
+flows (delivery selection, contact audiences and campaign workspace). The original unsubscribe test
+exposed the missing-row assumption; it now passes without a prior consent row. No unresolved test
+failures remain. The build still reports its existing chunk-size warning.
+
+The local backend was updated with only the validated Mailing contracts/repository/service/audience
+classes, retaining the prior runtime for rollback and all existing resources/migrations. Authenticated
+read-only checks and the real browser review show 10 READY contacts and zero consent requirements.
+Public HTTPS is still unconfigured, so production campaign submission was not exercised. Schema and
+production deployment: N/A.
+
+Files in this change: `CampaignDelivery.tsx`, `CampaignDeliveryTable.tsx`, `RecipientPicker.tsx`,
+`deliveryApi.ts`, `deliveryCopy.ts`, `audienceCopy.ts`, `workspaceCopy.ts`; backend
+`MailingDeliveryContracts`, `MailingDeliveryRepository`, `MailingDeliveryService`,
+`MailingAudienceService`; delivery/audience integration coverage, the new `mailing-delivery` browser
+fixture and flow, and updated audience/workspace fixtures. The frontend/backend canonical documents
+and Email/Mailing owner contract adopt this product decision.

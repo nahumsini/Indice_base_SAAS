@@ -8,7 +8,7 @@ export const koCA = {
     management: '관리',
     funnelingDescription: '캠페인 퍼널과 목표를 계획하세요.',
     mailingDescription: '이메일 캠페인을 준비하고 보내세요.',
-    whatsappingDescription: '준비 중: 아직 메시지를 보낼 수 없습니다.',
+    whatsappingDescription: '캠페인을 준비하고 WhatsApp으로 후속 연락하세요.',
   },
   loading: {
     openingTitle: '영업 열기',

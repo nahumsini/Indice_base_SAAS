@@ -6,13 +6,16 @@ import javax.net.SocketFactory;
 
 /** Resolve once, reject non-public destinations, then pin every connection to that result. */
 final class PublicMailSocketFactory extends SocketFactory {
+    static final class DestinationRejected extends IOException {
+        DestinationRejected(){super("Mail destination rejected");}
+    }
     private static final java.util.Timer DEADLINES=new java.util.Timer("email-socket-deadline",true);
     private final InetAddress address;
     private final int port;
     PublicMailSocketFactory(String host,int port) throws IOException {
         var addresses=InetAddress.getAllByName(host);
         if(addresses.length==0)throw new IOException("Mail destination unavailable");
-        for(var candidate:addresses)if(!isPublic(candidate))throw new IOException("Mail destination rejected");
+        for(var candidate:addresses)if(!isPublic(candidate))throw new DestinationRejected();
         this.address=java.util.Arrays.stream(addresses).filter(Inet4Address.class::isInstance).findFirst().orElse(addresses[0]);this.port=port;
     }
     static boolean isPublic(InetAddress address) {
@@ -40,7 +43,7 @@ final class PublicMailSocketFactory extends SocketFactory {
             private java.util.TimerTask deadline;
             @Override public synchronized void close() throws IOException {if(deadline!=null)deadline.cancel();super.close();}
             @Override public void connect(SocketAddress endpoint,int timeout) throws IOException {
-                if(!(endpoint instanceof InetSocketAddress target)||target.getPort()!=port)throw new IOException("Mail destination rejected");
+                if(!(endpoint instanceof InetSocketAddress target)||target.getPort()!=port)throw new DestinationRejected();
                 super.connect(new InetSocketAddress(address,port),Math.min(timeout>0?timeout:8000,8000));
                 deadline=new java.util.TimerTask(){@Override public void run(){try{close();}catch(IOException ignored){ }}};DEADLINES.schedule(deadline,60000);
             }

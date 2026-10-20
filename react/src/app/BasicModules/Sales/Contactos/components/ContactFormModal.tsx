@@ -1,3 +1,4 @@
+import { ContactMailingHistory } from '../../Mailing/components/ContactMailingHistory';
 import type { Dispatch, SetStateAction } from 'react';
 import { IndiceModalValidation } from '../../../../components/indice-modal';
 import { BriefcaseBusiness, FileText, UsersRound } from 'lucide-react';
@@ -287,6 +288,7 @@ export function ContactFormModal({
         </div>
       </ContactFormSection>
       </fieldset>
+      {editingContact && <ContactMailingHistory key={editingContact.id} contactId={editingContact.id} />}
     </SalesModalFrame>
   );
 }

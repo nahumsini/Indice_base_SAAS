@@ -9,12 +9,15 @@ import org.springframework.stereotype.Service;
 class ExpenseNotificationSyncService {
 
     private final JdbcTemplate jdbcTemplate;
+    private final NotificationAccessService access;
 
-    ExpenseNotificationSyncService(JdbcTemplate jdbcTemplate) {
+    ExpenseNotificationSyncService(JdbcTemplate jdbcTemplate, NotificationAccessService access) {
         this.jdbcTemplate = jdbcTemplate;
+        this.access = access;
     }
 
     void sync(HrAnnouncementActor actor) {
+        if (!access.scope(actor).allowed("expenses", "expense_due")) return;
         insertPendingApprovals(actor);
         insertDuePayments(actor);
         insertPaidSignals(actor);
@@ -40,7 +43,7 @@ class ExpenseNotificationSyncService {
               AND (? IS NULL OR expense.unit_id = ? OR expense.unit_id IS NULL)
               AND (? IS NULL OR expense.business_id = ? OR expense.business_id IS NULL)
             ON DUPLICATE KEY UPDATE title = VALUES(title), description = VALUES(description),
-              action_url = VALUES(action_url), dismissed_at = NULL, dismissed_by = NULL
+              action_url = VALUES(action_url)
             """,
             actor.userCompanyId(), actor.companyId(), actor.unitId(), actor.unitId(),
             actor.businessId(), actor.businessId());
@@ -71,7 +74,7 @@ class ExpenseNotificationSyncService {
                 OR expense.approved_by_user_id = ?
               )
             ON DUPLICATE KEY UPDATE title = VALUES(title), description = VALUES(description),
-              action_url = VALUES(action_url), dismissed_at = NULL, dismissed_by = NULL
+              action_url = VALUES(action_url)
             """,
             actor.userCompanyId(), actor.companyId(), java.sql.Date.valueOf(LocalDate.now()),
             actor.managementAccess(), actor.unitId(), actor.unitId(), actor.businessId(), actor.businessId(),

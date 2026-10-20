@@ -76,7 +76,7 @@ export const enCA = {
   photoHint: 'Keep the face centered and clear.',
   captureLocation: 'Capture GPS location',
   refreshLocation: 'Refresh location',
-  locationReady: 'Location ready',
+  locationReady: 'GPS location obtained',
   locationPending: 'GPS location required.',
   locationRequiredHint: 'Allow GPS location on this device before registering check-in or check-out.',
   readyToPunch: 'Ready to record.',
