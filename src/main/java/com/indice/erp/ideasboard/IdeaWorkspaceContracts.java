@@ -27,7 +27,17 @@ public final class IdeaWorkspaceContracts {
     public record ProjectInput(@NotBlank @Size(max=120) String name,
         @NotNull @Pattern(regexp="FREEFORM|SYSTEM") String kind,
         @Valid Document freeform,@Valid SystemDocument system) {}
-    public record ProjectSummary(String id,String name,String kind,int nodeCount,int connectionCount,Instant createdAt) {}
+    public record ProjectSummary(String id,String name,String kind,int nodeCount,int connectionCount,Instant createdAt,
+        @JsonInclude(JsonInclude.Include.NON_NULL) Long version,
+        @JsonInclude(JsonInclude.Include.NON_NULL) Boolean owned,
+        @JsonInclude(JsonInclude.Include.NON_NULL) Long ownerId,
+        @JsonInclude(JsonInclude.Include.NON_NULL) String ownerName,
+        @JsonInclude(JsonInclude.Include.NON_NULL) Instant deletedAt,
+        @JsonInclude(JsonInclude.Include.NON_NULL) Integer shareCount) {
+        public ProjectSummary(String id,String name,String kind,int nodeCount,int connectionCount,Instant createdAt) {
+            this(id,name,kind,nodeCount,connectionCount,createdAt,null,null,null,null,null,null);
+        }
+    }
     public record Project(ProjectSummary summary,Document freeform,SystemDocument system) {}
     public record ProjectPage(List<ProjectSummary> items,long total,int page,int pageSize) {}
     public static SystemDocument emptySystem() { return new SystemDocument(List.of(),List.of(),new SystemViewport(0d,0d,0.35d)); }

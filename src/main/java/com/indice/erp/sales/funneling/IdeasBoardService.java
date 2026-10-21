@@ -94,6 +94,22 @@ public class IdeasBoardService {
         storage.writeObject(bucket,key,mime,bytes);meter.commit(a.companyId(),bucket,key,bytes.length);
         var asset=new Asset(id,name,mime,bytes.length);repository.insertAsset(a,new StoredAsset(asset,key,hash),scope);return asset;
     }
+    /** Personal workspace owner supplies only assets authorized by an explicit project read/copy grant.
+     * References retain private blobs in the same tenant; no storage bytes are duplicated or exposed. */
+    @Transactional
+    public Map<String,String> copyPersonalAssetReferences(AuthSessionUser target,List<StoredAsset> approved) {
+        repository.lock(target);
+        require(modules.companyCanAccessForMutation(target.companyId(),"ideas_board"),HttpStatus.FORBIDDEN,"ideas_board_unavailable");
+        require(repository.assetCount(target,IdeasBoardScope.PERSONAL)+approved.size()<=50,HttpStatus.UNPROCESSABLE_ENTITY,"ideas_board_photo_limit");
+        var result=new HashMap<String,String>();
+        for(var stored:approved){
+            require(stored.objectKey().startsWith("ideas-board/"+target.companyId()+"/"),HttpStatus.BAD_REQUEST,"ideas_board_photo_invalid");
+            var asset=stored.asset();String id=UUID.randomUUID().toString();
+            repository.insertAsset(target,new StoredAsset(new Asset(id,asset.name(),asset.contentType(),asset.size()),stored.objectKey(),stored.digest()),IdeasBoardScope.PERSONAL);
+            result.put(asset.id(),id);
+        }
+        return Map.copyOf(result);
+    }
     @Transactional(readOnly=true)
     public StoredAsset asset(AuthSessionUser a,String id) { return asset(a,id,IdeasBoardScope.FUNNEL); }
     @Transactional(readOnly=true)

@@ -13,12 +13,14 @@ import {sameSystemIdeas,toSystemDocument} from './systemBoardModel';
 import {boardFileCopy} from './boardFileCopy';
 import {editableProject,hasBoardWork,listBoardFiles,type BoardFileKind} from './boardFileModel';
 import {workspaceCopy} from './workspaceCopy';
+import type {Project} from './ideaWorkspaceApi';
 type SaveRequest={draft:ProjectDraft;expected:BoardFileSnapshot;next?:BoardContent;purpose:'save'|'new'|'open'};
-export function BoardFileControls({context,locale,kind,onSaved}:{context:BoardFileContext;locale:string;kind:BoardFileKind;onSaved:()=>void}) {
+export function BoardFileControls({context,locale,kind,onSaved,openRequest,onOpened}:{context:BoardFileContext;locale:string;kind:BoardFileKind;onSaved:()=>void;openRequest?:{key:string;project:Project};onOpened?:()=>void}) {
  const f=boardFileCopy(locale),c=workspaceCopy(locale),latest=useRef(context);latest.current=context;
- const archived=useRef<BoardFileSnapshot|null>(null);
+ const archived=useRef<BoardFileSnapshot|null>(null),opened=useRef('');
  const [picker,setPicker]=useState(false),[request,setRequest]=useState<SaveRequest|null>(null);
  useEffect(()=>{if(!context.active){setPicker(false);setRequest(null);}},[context.active]);
+ useEffect(()=>{if(!openRequest||!context.active||!context.ready||openRequest.project.summary.kind!==kind||opened.current===openRequest.key)return;opened.current=openRequest.key;try{begin('open',editableProject(openRequest.project,kind));}catch{context.notify(f.openError);}onOpened?.();},[openRequest?.key,context.active,context.ready,kind]);
  function begin(purpose:SaveRequest['purpose'],next?:BoardContent){
   if(!latest.current.ready){latest.current.notify(f.openError);return;}const expected=latest.current.capture();
   if(purpose!=='save'&&(!hasBoardWork(expected.content)||(archived.current?.actor===expected.actor&&sameSystemIdeas(archived.current.content,expected.content)))){if(next&&latest.current.replace(expected,next)){archived.current=purpose==='open'?{actor:expected.actor,content:structuredClone(next)}:null;latest.current.notify(purpose==='new'?f.newReady:f.opened);}else latest.current.notify(f.openError);return;}

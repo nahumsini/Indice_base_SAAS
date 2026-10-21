@@ -28,10 +28,10 @@ public class IdeaWorkspaceRepository {
             return new ProjectRow(new Project(summary(r),input.freeform(),input.system()),r.getString("content_digest"));
         },a.companyId(),a.userId(),id).stream().findFirst();
     }
-    public long count(AuthSessionUser a) { return db.queryForObject("SELECT COUNT(*) FROM personal_idea_projects WHERE company_id=? AND user_id=?",Long.class,a.companyId(),a.userId()); }
+    public long count(AuthSessionUser a) { return db.queryForObject("SELECT COUNT(*) FROM personal_idea_projects WHERE company_id=? AND user_id=? AND deleted_at IS NULL",Long.class,a.companyId(),a.userId()); }
     public ProjectPage projects(AuthSessionUser a,String search,int page,int size) {
         String pattern="%"+search.toLowerCase(java.util.Locale.ROOT).replace("!","!!").replace("%","!%").replace("_","!_")+"%";
-        String where=" WHERE company_id=? AND user_id=? AND LOWER(name) LIKE ? ESCAPE '!'";
+        String where=" WHERE company_id=? AND user_id=? AND deleted_at IS NULL AND LOWER(name) LIKE ? ESCAPE '!'";
         long total=db.queryForObject("SELECT COUNT(*) FROM personal_idea_projects"+where,Long.class,a.companyId(),a.userId(),pattern);
         var rows=db.query("SELECT project_id,name,kind,node_count,connection_count,created_at FROM personal_idea_projects"+where+" ORDER BY created_at DESC,project_id DESC LIMIT ? OFFSET ?",(r,n)->summary(r),a.companyId(),a.userId(),pattern,size,(page-1)*size);
         return new ProjectPage(rows,total,page,size);

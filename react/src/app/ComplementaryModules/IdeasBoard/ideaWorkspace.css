@@ -140,3 +140,44 @@
 .board-file-list span {font-size:12px;color:#64748b;}
 .dark .board-file-list article {border-color:#3c4b63;}.dark .board-file-list span {color:#a7b5c9;}
 @media(max-width:640px){.board-file-actions{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:6px;}.board-file-actions button:last-child{grid-column:1/-1;}.board-file-actions .idea-board-button{justify-content:center;}.board-file-list article{padding:12px;gap:10px;}.board-file-list article>button{min-height:44px;flex-shrink:0;}}
+
+/* Named project management keeps the existing cards and a single clear action menu. */
+.project-library-filters{margin-bottom:4px}
+.project-scope-tabs{display:flex;gap:8px;overflow-x:auto;overscroll-behavior-x:contain;padding:0 24px 18px;scrollbar-width:thin}
+.project-scope-tabs button{display:flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;min-height:46px;padding:9px 14px;background:var(--board-panel);border:1px solid var(--board-border);border-radius:12px;font-size:14px;color:var(--board-ink)}
+.project-scope-tabs button[aria-pressed=true]{background:#fff0eb;border-color:#efb3a8;color:#a64737;box-shadow:0 2px 6px #9c48390a}
+.project-card-topline{display:flex;width:100%;gap:10px;align-items:center;justify-content:space-between}
+.project-actions{display:flex;gap:8px;align-items:center;flex:none;max-width:100%}
+.workspace-project-card-body .project-menu-trigger,.project-menu-trigger{width:44px;height:44px;min-height:44px;margin:0;padding:8px;display:grid;place-items:center;border:1px solid var(--board-border);border-radius:11px;color:var(--board-ink);background:var(--board-muted)}
+.project-actions-menu{min-width:230px;max-width:calc(100vw - 24px);padding:6px;border-radius:14px;z-index:120}
+.project-actions-menu [role=menuitem]{min-height:44px;gap:10px;border-radius:8px;font-size:14px}
+.project-actions-menu .project-trash-action{color:#bb3f35}
+.project-access-badge{display:flex;align-items:center;gap:6px;color:#64748b;font-size:12px;max-width:100%;overflow-wrap:anywhere}
+.project-access-badge.is-shared{color:#277b67}
+.project-preview-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.project-preview-actions .idea-board-primary{display:flex;align-items:center;gap:7px;min-height:44px;background:#ff6b5e;color:#222831;padding:9px 13px;border-radius:10px;font-size:14px}
+.project-library-notice{margin:0 24px 16px}
+.project-management-modal .workspace-field input{font-size:16px;min-height:46px}
+.project-confirm-name{overflow-wrap:anywhere;border:1px solid var(--board-border);background:var(--board-muted);border-radius:12px;padding:16px;font-weight:500}
+.project-trash-confirm{background:#c4473c!important;color:#fff!important}
+.project-share-form{display:flex;flex-direction:column;gap:16px;min-width:0}
+.project-sharing-note{display:flex;gap:12px;padding:14px;border:1px solid #d5e4fa;background:#f2f7ff;border-radius:14px;font-size:14px;line-height:1.6}
+.project-sharing-note svg{flex:none}
+.project-member-search{display:flex;align-items:center;gap:8px;border:1px solid #cbd5e1;border-radius:12px;padding:0 12px}
+.project-member-search input{width:100%;min-width:0;border:0!important;box-shadow:none!important;background:transparent!important;padding:10px 0!important}
+.project-member-search svg{flex:none;color:#8193ad}
+.project-member-count,.project-share-form>small{font-size:12px;color:#64748b}
+.project-member-list{display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto;overscroll-behavior:contain}
+.project-member-option{display:flex;align-items:center;gap:12px;min-height:60px;border:1px solid var(--board-border);border-radius:12px;padding:12px;cursor:pointer}
+.project-member-option input{width:21px;height:21px;flex:none;accent-color:#2563eb}
+.project-member-option>span{display:flex;flex-direction:column;gap:5px;min-width:0;overflow-wrap:anywhere}
+.project-member-option strong{font-size:14px;font-weight:500}.project-member-option small{font-size:12px;color:#64748b}
+.project-link-message{font-size:14px;line-height:1.6;margin-top:16px}
+.dark .project-scope-tabs button[aria-pressed=true]{background:#462d29;border-color:#865548;color:#ffcfbf}
+.dark .project-access-badge.is-shared{color:#80d5b8}
+.dark .project-sharing-note{background:#192b45;border-color:#3b557a}
+.dark .project-member-search{border-color:#475569}
+.dark .project-actions-menu .project-trash-action{color:#ff9f95}
+@media(max-width:600px){.project-scope-tabs{padding:0 16px 14px;gap:7px}.project-scope-tabs button{font-size:13px;padding:8px 11px}.project-preview-actions{justify-content:flex-start}.project-preview-actions>button{width:100%}.project-library-notice{margin:0 16px 14px}.project-member-list{max-height:44dvh}.project-management-modal .workspace-project-form{gap:16px}}
+.project-management-modal{--board-border:#dce5f0;--board-muted:#f5f8fc;--board-ink:#263449;--board-panel:#fff}
+.dark .project-management-modal{--board-border:#3b4c65;--board-muted:#1d2a3e;--board-ink:#e2e8f0;--board-panel:#172033}

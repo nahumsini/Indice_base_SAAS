@@ -21,11 +21,11 @@ import {workspaceCopy} from './workspaceCopy';
 
 type Point={x:number;y:number};
 type Gesture={base:BoardContent;start:Point;node:string|null;resize?:ResizeEdge;moved:boolean;pinch?:{distance:number;middle:Point}};
-export function WorkspaceCanvas({content,onChange,locale,system=true,active=true,readonly=false,tool='PAN',selected,source,onSelect,onConnect,onEdit,onLabel,onRemove,focusRequest,initialFit=false,expandedTools,onExpandedChange}: {
+export function WorkspaceCanvas({content,onChange,locale,system=true,active=true,readonly=false,tool='PAN',selected,source,onSelect,onConnect,onEdit,onLabel,onRemove,focusRequest,initialFit=false,expandedTools,onExpandedChange,assetUrl=personalIdeasBoardApi.photoUrl,privacyLabel}: {
  content:BoardContent;onChange:(content:BoardContent)=>void;locale:string;system?:boolean;active?:boolean;readonly?:boolean;
  tool?:'PAN'|'CONNECT';selected?:string|null;source?:string|null;onSelect?:(id:string|null)=>void;
  onConnect?:(id:string)=>void;onEdit?:(node:IdeaNode)=>void;onLabel?:(id:string,label:string)=>void;onRemove?:()=>void;
- focusRequest?:{key:number;area?:Area};initialFit?:boolean;expandedTools?:ReactNode;onExpandedChange?:(expanded:boolean)=>void;
+ focusRequest?:{key:number;area?:Area};initialFit?:boolean;expandedTools?:ReactNode;onExpandedChange?:(expanded:boolean)=>void;assetUrl?:(id:string)=>string;privacyLabel?:string;
 }) {
  const [stepsNode,setStepsNode]=useState<SystemNode|null>(null),catalog=systemCatalogCopy(locale);
  const c=workspaceCopy(locale),b=ideasBoardCopy(locale),surface=useRef<HTMLDivElement>(null),marker=useId().replace(/:/g,'');
@@ -99,13 +99,13 @@ export function WorkspaceCanvas({content,onChange,locale,system=true,active=true
      className={`idea-board-node ${isLegacySystemNode(node)?'system-node':''} ${source===node.id?'idea-board-source':''}`}
      style={{left:node.x,top:node.y,width:node.width,height:node.height,...nodeBoxStyle(node)}} role="button" aria-label={node.text} aria-pressed={selected===node.id} tabIndex={0}
      onFocus={()=>{if(!readonly)onSelect?.(node.id);}} onDoubleClick={e=>{e.stopPropagation();if(readonly&&hasProcessSteps(node))setStepsNode(node);else if(!readonly)onEdit?.(node);}}>
-      {node.kind==='DRAWING'?<BoardDrawingElement node={node}/>:node.kind==='VIDEO'||node.kind==='AUDIO'?<BoardMediaElement node={node} url={personalIdeasBoardApi.photoUrl(node.assetId!)} locale={locale}/>:isLegacySystemNode(node)?<SystemNodeContent node={node} locale={locale} onSteps={()=>readonly?setStepsNode(node):onEdit?.(node)}/>:<><BoardGeometryElement node={node}/>{node.kind==='IMAGE'&&node.assetId&&<img draggable={false} src={personalIdeasBoardApi.photoUrl(node.assetId)} alt="" style={nodeImageStyle(node)}/>}<span className="idea-board-node-text" style={nodeTextStyle(node)}>{node.text}</span></>}
+      {node.kind==='DRAWING'?<BoardDrawingElement node={node}/>:node.kind==='VIDEO'||node.kind==='AUDIO'?<BoardMediaElement node={node} url={assetUrl(node.assetId!)} locale={locale}/>:isLegacySystemNode(node)?<SystemNodeContent node={node} locale={locale} onSteps={()=>readonly?setStepsNode(node):onEdit?.(node)}/>:<><BoardGeometryElement node={node}/>{node.kind==='IMAGE'&&node.assetId&&<img draggable={false} src={assetUrl(node.assetId)} alt="" style={nodeImageStyle(node)}/>}<span className="idea-board-node-text" style={nodeTextStyle(node)}>{node.text}</span></>}
     {!readonly&&selected===node.id&&tool!=='CONNECT'&&<NodeResizeHandles node={node} zoom={shown.viewport.zoom} label={b.resize} bounds={elementBounds(node)} onResize={next=>apply({...current.current,nodes:current.current.nodes.map(n=>n.id===next.id?next:n)})}/>}
     </div>)}
    </div>
    <IdeasBoardMinimap content={shown} canvas={size} selectedId={selected??null} copy={b} worldBounds={worldBounds} regions={regions} onPreview={viewport=>show({...current.current,viewport})} onCommit={viewport=>apply({...current.current,viewport})}/>
   </div>
-  <footer className="idea-board-footer"><span>{c.privateProject}</span><div className="idea-board-zoom-controls"><button className="idea-board-button" aria-label={b.zoomOut} onClick={()=>zoom(-.1)} disabled={shown.viewport.zoom<=(system?.04:.08)}><Minus size={17}/></button><span className="idea-board-zoom">{Math.round(shown.viewport.zoom*100)}%</span><button className="idea-board-button" aria-label={b.zoomIn} onClick={()=>zoom(.1)} disabled={shown.viewport.zoom>=2}><Plus size={17}/></button><button className="idea-board-button idea-board-fit" aria-label={b.fit} onClick={()=>fit()}><Focus size={17}/><span>{b.fit}</span></button></div></footer>
+  <footer className="idea-board-footer"><span>{privacyLabel??c.privateProject}</span><div className="idea-board-zoom-controls"><button className="idea-board-button" aria-label={b.zoomOut} onClick={()=>zoom(-.1)} disabled={shown.viewport.zoom<=(system?.04:.08)}><Minus size={17}/></button><span className="idea-board-zoom">{Math.round(shown.viewport.zoom*100)}%</span><button className="idea-board-button" aria-label={b.zoomIn} onClick={()=>zoom(.1)} disabled={shown.viewport.zoom>=2}><Plus size={17}/></button><button className="idea-board-button idea-board-fit" aria-label={b.fit} onClick={()=>fit()}><Focus size={17}/><span>{b.fit}</span></button></div></footer>
   {stepsNode&&<SalesModalFrame open tone="graphite" title={stepsNode.text} description={catalog.steps} icon={<span aria-hidden="true">📋</span>} closeLabel={catalog.close} onOpenChange={open=>{if(!open)setStepsNode(null);}} footer={<Button className="min-h-11" onClick={()=>setStepsNode(null)}>{catalog.close}</Button>}><ol className="system-steps-readonly">{stepsNode.steps?.map((step,index)=><li key={index}><span>{index+1}</span><p>{step}</p></li>)}</ol></SalesModalFrame>}
  </div>;
 }
