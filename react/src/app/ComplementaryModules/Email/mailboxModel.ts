@@ -6,7 +6,7 @@ export function validRecipients(...values: string[][]) {
 }
 export function initialDraft(account: MailboxAccount, message?: MailboxMessage, mode: 'new' | 'edit' | 'reply' | 'all' | 'forward' | 'copy' = 'new'): MailDraft {
   const draft: MailDraft = { version: 0, accountVersion: account.version, to: [], cc: [], bcc: [], subject: '', bodyText: '', replyToMessageId: null };
-  if (!message) return draft;
+  if (!message || mode === 'new') return draft;
   if (mode === 'edit' || mode === 'copy') return { ...draft, version: mode === 'edit' ? message.version : 0, to: message.to, cc: message.cc, bcc: message.bcc, subject: message.subject, bodyText: message.bodyText ?? '', bodyHtml: mode === 'edit' ? message.bodyHtml : null };
   if (mode === 'forward') return { ...draft, subject: `Fwd: ${message.subject}`.slice(0, 240), bodyText: `\n\n${message.fromName} <${message.fromAddress}>\n${message.subject}\n\n${message.bodyText ?? ''}`.slice(0, 20000) };
   const own = account.email.toLowerCase();

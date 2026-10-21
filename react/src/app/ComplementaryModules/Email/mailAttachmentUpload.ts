@@ -1,5 +1,6 @@
 import { ApiClientError } from '../../lib/apiClient';
 
+export const MAIL_OFFICE_TYPES: Record<string, string> = { docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' };
 export const MAIL_ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024;
 export const MAIL_ATTACHMENT_TOTAL_BYTES = 10 * 1024 * 1024;
 export type AttachmentErrorKey = 'fileSize' | 'fileFormat' | 'fileContent' | 'fileLimit' | 'fileQuota' | 'fileStorage' | 'fileConflict' | 'fileAccess' | 'fileTransfer' | 'fileExpired' | 'fileUnknown';
@@ -12,9 +13,13 @@ export class AttachmentUploadError extends Error {
 export async function prepareMailAttachment(original: File): Promise<File> {
   if (original.size < 1 || original.size > MAIL_ATTACHMENT_MAX_BYTES) throw new AttachmentUploadError('fileSize');
   const extension = original.name.match(/\.([^.]+)$/)?.[1].toLowerCase();
-  if (!extension || !['pdf', 'png', 'jpg', 'jpeg', 'txt'].includes(extension)
+  if (!extension || !['pdf', 'png', 'jpg', 'jpeg', 'txt', ...Object.keys(MAIL_OFFICE_TYPES)].includes(extension)
     || original.name.length > 180 || /[\r\n\0/\\]/.test(original.name)) throw new AttachmentUploadError('fileFormat');
-  let type = extension === 'pdf' ? 'application/pdf' : 'text/plain';
+  let type = MAIL_OFFICE_TYPES[extension] ?? (extension === 'pdf' ? 'application/pdf' : 'text/plain');
+  if (MAIL_OFFICE_TYPES[extension]) {
+    const header = new Uint8Array(await original.slice(0, 4).arrayBuffer());
+    if (header[0] !== 80 || header[1] !== 75 || header[2] !== 3 || header[3] !== 4) throw new AttachmentUploadError('fileContent');
+  }
   let name = original.name;
   if (['png', 'jpg', 'jpeg'].includes(extension)) {
     const header = new Uint8Array(await original.slice(0, 8).arrayBuffer());

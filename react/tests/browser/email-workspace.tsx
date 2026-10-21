@@ -4,8 +4,10 @@ import { LanguageProvider, useLanguage } from '../../src/app/shared/context';
 import { EmailAccountsWorkspace } from '../../src/app/ComplementaryModules/Email/EmailAccountsWorkspace';
 import { LiveMailboxWorkspace } from '../../src/app/ComplementaryModules/Email/LiveMailboxWorkspace';
 import { MailComposer } from '../../src/app/ComplementaryModules/Email/MailComposer';
+import { setCachedAuthSession } from '../../src/app/api/authSessionStore';
 import { languages } from '../../src/app/context/LanguageContext';
 import '../../src/styles/index.css';
+setCachedAuthSession({user:{id:1,role:'admin',tab_permissions_configured:true,tab_permission_keys:['crm.mailing','crm.contacts','correo.mail'],module_slugs:['crm','correo']},company:{id:1,active:true,role:'admin'}} as Parameters<typeof setCachedAuthSession>[0]);
 function Preview() {
   const params = new URLSearchParams(location.search);
   const [view,setView]=useState(params.get('view') ?? 'accounts');

@@ -831,3 +831,77 @@ credentials, the owner gateway, recipient send ledger, quota, suppression and ex
 confirmation remain unchanged. New campaigns personalize `{{name}}` from contact person with a
 company-name fallback; launched snapshots remain immutable. No real email is sent by audience or
 list operations.
+
+
+### Daily mailbox and composer — 2026-10-21
+
+The approved first stage improves daily mailbox organization, drafting and attachments. It does
+not introduce conversation grouping, a shared team inbox or automatic CRM follow-ups. Existing
+Email and Sales owners, routes, entitlements, CSRF, private-account access and send quotas remain
+in force. No real send is part of this implementation's validation.
+
+- **Organization:** selection applies only to received remote messages on the current 25-item
+  page. Read/unread, archive and move reuse the existing versioned per-message endpoint serially.
+  Successful rows update immediately; failures remain selected and are reported as unconfirmed.
+  A new account/folder/filter/page clears selection. There is no automatic retry of an uncertain
+  provider mutation and no bulk permanent deletion. Unmount/account changes stop further work.
+- **Layout:** comfortable/compact density and list width (260–440 px) join the existing scoped
+  workspace navigation preferences. They do not persist message bodies or selected messages.
+  The standard title bar, filters, colored folder rail, mobile drawer and expanded reader remain.
+  Explicit refresh preserves the open reader, updating its version/flags when present in the list.
+- **Counts and freshness:** `Folder.unreadCount` is additive and counts unread **synchronized**
+  messages across that folder's cached pages, scoped by company, account, account version,
+  folder, UID validity and remote presence. It is not a claim about unsynchronized remote mail.
+  While reading, a visible page checks the current list every 60 seconds and offers an update
+  when a newer synchronized message appears. Receiving new server mail in that state relies on
+  the existing opt-in background synchronization preference or an explicit refresh.
+- **Drafting:** complete recipient addresses become removable chips; CC/BCC may be collapsed
+  without clearing their values. Drafts autosave after 1.5 seconds of inactivity. Stable IDs and
+  optimistic versions serialize autosaves, manual saves and attachment registration. Text typed
+  during a save remains dirty until its own save completes. A failed autosave pauses retries and
+  leaves the input visible. A manual retry first reconciles a lost save response against the stored
+  draft/version; a conflicting editor is never silently overwritten. Closing with unsaved changes retains the existing discard decision.
+  Review and explicit send remain separate; a lost send response requires a status check and
+  never triggers an automatic resend. New composition never inherits the open message's audience.
+- **Formatting:** the Email-owned editor supports selected-text bold, italic, bullets and removal
+  of formatting, plain-text paste and the existing HTML/text draft alternatives. The backend's
+  `SafeMailHtml` remains authoritative, including in transport; preview remains sandboxed.
+- **Signature:** migration V342 adds `email_mailboxes.signature_text` (up to 2,000 characters).
+  The existing owner-checked, CSRF-protected, versioned preferences API adds `signature`.
+  Omission preserves the value for older clients; an empty string clears it. Insert signature is
+  explicit and uses the current account's private preference, without altering recipient scope.
+- **Sales library:** the composer consumes Sales' existing read contracts `/api/v1/mailing/contacts`,
+  `/api/v1/mailing/templates` and `/api/v1/mailing/templates/{id}`. Contacts require both
+  `crm.contacts` and `crm.mailing`; templates require `crm.mailing`. Existing backend guards remain
+  authoritative. Search is debounced/cancelled and limited to 25 results. Template details are
+  loaded on selection (list responses omit the body), appended to the draft, and fill only an
+  empty subject. Placeholder variables remain visible for review, not implicitly personalized.
+  This grants no access to another user's mailbox and creates no CRM record or campaign.
+- **Attachments:** add DOCX/XLSX/PPTX to PDF, PNG/JPG and UTF-8 TXT. Preserve five files, 5 MB each,
+  10 MB total and private storage. Server validation bounds ZIP expansion and XML parsing,
+  verifies OOXML content type/main part, and blocks macros, embedded packages, external data
+  relationships, path traversal and active content. Hyperlinks are permitted; documents are not
+  executed or rendered. Legacy DOC/XLS/PPT, macro-enabled formats and general archives remain
+  unsupported. This is format validation, not antivirus certification. Incoming attachment
+  downloads use the same policy.
+- **Send status:** the accepted state explicitly means acceptance by the sending server, not
+  confirmed recipient delivery. Failed/unknown items remain in “Envíos por revisar”. Credentials,
+  SMTP configuration and the immutable send ledger are unchanged.
+
+Implementation remains in the Email frontend owner and mailbox backend package. New UI helpers
+are `MailBulkActions`, `MailComposerLibrary`, `MailRecipients`, `MailRichEditor`, `mailBulk` and
+six-language `mailDailyCopy`; no new shared state, modal framework or rich-text dependency is added.
+Regression coverage includes autosave races/failures, explicit send and uncertain-result recovery,
+bulk partial results/scope changes, private signatures, unread counts, OOXML validation and the
+isolated desktop/mobile browser fixture. Database validation uses only `indice_test_db`.
+
+Verification for this stage: 38 focused frontend regressions and 41 backend/migration tests pass,
+as do TypeScript and the production frontend build. Chrome and WebKit exercised bulk read state,
+reader-preserving refresh, density/width, account signature, Sales contact/template insertion,
+formatting, autosave, a synthetic attachment and mobile review at 390 px, without browser errors
+or real sends. V342 applied successfully in the isolated Flyway startup and is present in the
+functional local schema; `/api/v1/health` and the local mailbox route respond successfully.
+The build retains its existing large-chunk advisory. An initial test database startup failed
+because Docker's disk was full; rerunning on an isolated tmpfs test database passed, and 1.26 GB
+of unused build cache was reclaimed without changing functional volumes. No deployment or push
+was part of this stage; unrelated concurrent workspace changes were preserved.

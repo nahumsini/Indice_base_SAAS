@@ -1,3 +1,4 @@
+import { useMailDailyCopy } from './mailDailyCopy';
 import { useState } from 'react';
 import { Archive, ArrowLeft, ChevronDown, FolderInput, Forward, MailOpen, Maximize2, Minimize2, MoreHorizontal, Reply, ReplyAll, Star, Trash2 } from 'lucide-react';
 import { useMailWorkspaceCopy, sendFailureText } from './mailWorkspaceCopy';
@@ -21,13 +22,13 @@ export function MailMessageDetail({ account, accountVersion, message, folders, b
   onAction: (action: string, target?: string) => void; onDiscard: () => void;
   expanded?: boolean; onToggleExpanded?: () => void;
 }) {
-  const work=useMailWorkspaceCopy();const { copy, locale } = useEmailCopy(); const text = useMailboxCopy(); const extra=useMailCompletionCopy();const [copyState,setCopyState]=useState<string>();const [copyBusy,setCopyBusy]=useState(false);const [copyError,setCopyError]=useState(false);
+  const daily=useMailDailyCopy();const work=useMailWorkspaceCopy();const { copy, locale } = useEmailCopy(); const text = useMailboxCopy(); const extra=useMailCompletionCopy();const [copyState,setCopyState]=useState<string>();const [copyBusy,setCopyBusy]=useState(false);const [copyError,setCopyError]=useState(false);
   if (!message) return <IndiceViewState compact className="min-h-[360px] rounded-none border-0 bg-transparent shadow-none dark:bg-transparent" variant="empty" title={work.emptyReader} description={work.readerHint} tone="blue" />;
   const folder = folders.find(f => f.id === message.folderId);
   const remote = !!folder && ['RECEIVED','ACCEPTED'].includes(message.state);
   const target = (kind: string) => folders.find(f => f.kind === kind && f.id !== message.folderId);
   const diagnostic = sendFailureText(message.failureCode,work) ?? ({email_send_authentication_failed:copy.testAuthentication,email_send_dns_failed:copy.testDns,email_send_connection_failed:copy.testConnection,email_send_tls_failed:copy.testTls} as Record<string,string>)[message.failureCode??''];
-  const hint = diagnostic ?? ({ ACCEPTED: text.acceptedHint, FAILED: text.failedHint, UNKNOWN: text.unknownHint, SUBMITTING: text.submittingHint } as Record<string, string>)[message.state];
+  const hint = diagnostic ?? ({ ACCEPTED: daily.acceptedHint, FAILED: text.failedHint, UNKNOWN: text.unknownHint, SUBMITTING: text.submittingHint } as Record<string, string>)[message.state];
   const canReply = ['RECEIVED', 'ACCEPTED'].includes(message.state);
   const namedFolders = presentMailFolders(folders, { INBOX: work.inbox, SENT: copy.sent, ARCHIVE: work.archive, TRASH: copy.trash, JUNK: work.spam, DRAFTS: copy.drafts });
   const iconButton = 'h-11 w-11 shrink-0 rounded-lg';
@@ -73,7 +74,7 @@ export function MailMessageDetail({ account, accountVersion, message, folders, b
         <dl className="mt-1 space-y-2 rounded-xl bg-slate-50 p-3 leading-5 dark:bg-slate-800">
           <div className="break-words"><dt className="inline text-slate-500 dark:text-slate-400">{text.from}: </dt><dd className="inline">{message.fromName} &lt;{message.fromAddress}&gt;</dd></div>
           {(['to', 'cc', 'bcc'] as const).map(field => message[field].length > 0 && <div key={field} className="break-words"><dt className="inline text-slate-500 dark:text-slate-400">{field === 'to' ? copy.to : text[field]}: </dt><dd className="inline">{message[field].join(', ')}</dd></div>)}
-          <div>{messageState(message.state, text)} · {new Date(message.occurredAt).toLocaleString(locale)}</div>
+          <div>{message.state === 'ACCEPTED' ? daily.accepted : messageState(message.state, text)} · {new Date(message.occurredAt).toLocaleString(locale)}</div>
           {folder && <div className="break-words">{copy.folders}: {folder.name}</div>}
         </dl>
       </details>

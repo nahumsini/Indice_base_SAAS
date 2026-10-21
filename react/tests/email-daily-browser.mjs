@@ -1,0 +1,51 @@
+import assert from 'node:assert/strict';
+import { mkdirSync } from 'node:fs';
+const { chromium, webkit }=await import(process.env.INDICE_PLAYWRIGHT_MODULE || 'playwright');
+const output=new URL('../../artifacts/email-daily/',import.meta.url).pathname;mkdirSync(output,{recursive:true});
+for(const [engine,name] of [[chromium,'chromium'],[webkit,'webkit']]){
+ const browser=await engine.launch({headless:true,...(name==='chromium'?{channel:'chrome'}:{})});
+ try{
+  const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[],saves=[],actions=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.route('**/*',route=>new URL(route.request().url()).hostname==='127.0.0.1'?route.continue():route.abort());
+  page.on('request',request=>{if(request.method()==='PUT'&&/\/drafts\//.test(request.url()))saves.push(request.postDataJSON());if(request.url().endsWith('/action'))actions.push(request.postDataJSON());assert.ok(!request.url().endsWith('/send'),'browser QA must never send');});
+  await page.goto('http://127.0.0.1:5199/tests/browser/email-workspace.html?view=mail');
+  await page.getByRole('checkbox',{name:'Seleccionar esta página',exact:true}).waitFor();
+  await page.getByRole('checkbox',{name:'Seleccionar esta página',exact:true}).check();
+  await page.getByRole('button',{name:'Marcar leídos',exact:true}).click();
+  await page.getByText('12 procesados',{exact:true}).waitFor();assert.equal(actions.length,12);
+  await page.getByText('Vista',{exact:true}).click();await page.getByLabel('Densidad',{exact:true}).selectOption('compact');
+  await page.getByLabel('Ancho de la lista',{exact:true}).fill('380');await page.getByText('Vista',{exact:true}).click();
+  await page.getByRole('button',{name:/Mariana · Empresa de prueba/}).first().click();
+  await page.getByRole('heading',{name:'Seguimiento de nuestra propuesta de servicios',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Actualizar',exact:true}).click();
+  await page.getByRole('heading',{name:'Seguimiento de nuestra propuesta de servicios',exact:true}).waitFor();
+  await page.screenshot({path:`${output}/${name}-mailbox.png`,fullPage:true});
+  await page.getByRole('button',{name:'Preferencias del buzón',exact:true}).click();
+  await page.getByLabel('Firma de esta cuenta',{exact:true}).fill('Equipo Comercial\nEmpresa demo');
+  await page.getByRole('dialog').getByRole('button',{name:/Guardar/}).click();
+  await page.getByRole('button',{name:'Redactar',exact:true}).click();
+  const dialog=page.getByRole('dialog');
+  await dialog.getByRole('button',{name:'Contactos de Ventas',exact:true}).click();
+  await dialog.getByRole('button',{name:/Lucía Cliente/}).click();
+  await dialog.getByLabel('Asunto',{exact:true}).fill('Propuesta personalizada');
+  const editor=dialog.getByRole('textbox',{name:'Mensaje',exact:true});await editor.fill('Hola, te comparto nuestra propuesta.');
+  await editor.evaluate(node=>{const range=document.createRange();range.selectNodeContents(node);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);});
+  await dialog.getByRole('button',{name:'Negrita',exact:true}).click();assert.match(await editor.innerHTML(),/<b>/);
+  await dialog.getByRole('button',{name:'Plantillas de Ventas',exact:true}).click();await dialog.getByRole('button',{name:/Seguimiento comercial/}).click();
+  await dialog.getByRole('button',{name:'Insertar firma',exact:true}).click();
+  await page.getByText('Borrador guardado',{exact:true}).waitFor();
+  assert.equal(saves.at(-1).subject,'Propuesta personalizada');assert.deepEqual(saves.at(-1).to,['lucia@example.com']);
+  assert.ok(saves.at(-1).bodyText.includes('Hola, te comparto'));assert.ok(saves.at(-1).bodyText.includes('Gracias por tu interés'));assert.ok(saves.at(-1).bodyText.includes('Equipo Comercial'));assert.match(saves.at(-1).bodyHtml,/<b>/);
+  await dialog.locator('input[type=file]').setInputFiles({name:'propuesta.txt',mimeType:'text/plain',buffer:Buffer.from('Documento sintético')});
+  await dialog.getByRole('link',{name:'Descargar',exact:true}).waitFor();
+  await page.screenshot({path:`${output}/${name}-composer.png`,fullPage:true});
+  await page.setViewportSize({width:390,height:844});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true,'mobile page overflow');
+  assert.equal(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth+1),true,'mobile modal overflow');
+  await dialog.getByRole('button',{name:'Revisar envío',exact:true}).click();
+  await page.getByRole('heading',{name:'¿Enviar este correo?',exact:true}).waitFor();
+  await page.screenshot({path:`${output}/${name}-mobile-review.png`,fullPage:true});
+  assert.deepEqual(errors,[]);console.log(`PASS ${name}: selection, reading preservation, density, signature, Sales contacts/templates, formatting, autosave, attachment, mobile review; no sends.`);
+ }finally{await browser.close();}
+}

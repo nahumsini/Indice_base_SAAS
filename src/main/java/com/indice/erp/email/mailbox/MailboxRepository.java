@@ -36,8 +36,8 @@ public class MailboxRepository {
             .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"email_message_not_found"));
     }
     List<Folder> folders(AuthSessionUser actor,String account,long version) {
-        return db.query("SELECT * FROM email_folders WHERE company_id=? AND account_id=? AND account_version=? ORDER BY CASE kind WHEN 'INBOX' THEN 0 WHEN 'SENT' THEN 1 ELSE 2 END,remote_name",
-            (r,n)->new Folder(r.getString("id"),r.getString("remote_name"),r.getString("kind"),r.getLong("uid_validity"),r.getLong("newest_uid"),r.getLong("oldest_uid"),r.getBoolean("has_older"),instant(r,"synced_at")),actor.companyId(),account,version);
+        return db.query("SELECT f.*, (SELECT COUNT(*) FROM email_messages m WHERE m.company_id=f.company_id AND m.account_id=f.account_id AND m.folder_id=f.id AND m.account_version=f.account_version AND m.uid_validity=f.uid_validity AND m.remote_present=TRUE AND m.is_read=FALSE) unread_count FROM email_folders f WHERE f.company_id=? AND f.account_id=? AND f.account_version=? ORDER BY CASE kind WHEN 'INBOX' THEN 0 WHEN 'SENT' THEN 1 ELSE 2 END,remote_name",
+            (r,n)->new Folder(r.getString("id"),r.getString("remote_name"),r.getString("kind"),r.getLong("uid_validity"),r.getLong("newest_uid"),r.getLong("oldest_uid"),r.getBoolean("has_older"),instant(r,"synced_at"),r.getLong("unread_count")),actor.companyId(),account,version);
     }
     Workspace workspace(AuthSessionUser actor,String account,long version) {
         var status=db.query("SELECT last_sync_at,last_error FROM email_mailboxes WHERE company_id=? AND account_id=?",(r,n)->new Workspace(folders(actor,account,version),instant(r,"last_sync_at"),r.getString("last_error")),actor.companyId(),account);

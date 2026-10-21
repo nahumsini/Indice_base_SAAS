@@ -60,6 +60,31 @@ class MailboxIntegrationTest {
         when(transport.sync(any(),any(),anyBoolean(),any())).thenReturn(new MailboxTransport.Batch(validity,10,10,false,List.of(header),List.of()));
         return mailbox.sync(actor,account,new SyncInput(null,false));
     }
+    @Test void privateSignaturePersistsWithVersioningAndOlderClientsCannotEraseIt() throws Exception {
+        var account=create();
+        var saved=preferences.save(actor,account.id(),new PreferencesInput(false,null,1,1,"Equipo de ventas\nEmpresa de prueba"));
+        assertThat(saved.signature()).isEqualTo("Equipo de ventas\nEmpresa de prueba");
+        var legacy=preferences.save(actor,account.id(),new PreferencesInput(false,null,saved.version(),1));
+        assertThat(legacy.signature()).isEqualTo(saved.signature());
+        assertThatThrownBy(()->preferences.save(actor,account.id(),new PreferencesInput(false,null,saved.version(),1,"Old"))).hasMessageContaining("email_preferences_changed");
+        assertThatThrownBy(()->preferences.get(new AuthSessionUser(otherUser,company,"Other","superadmin"),account.id())).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        assertThatThrownBy(()->preferences.get(new AuthSessionUser(user,other,"Other","superadmin"),account.id())).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        mvc.perform(put("/api/v1/email/mailboxes/"+account.id()+"/preferences").session(session()).contentType(MediaType.APPLICATION_JSON).content("{\"backgroundEnabled\":false,\"version\":3,\"accountVersion\":1,\"signature\":\"unauthorized\"}")).andExpect(status().isForbidden());
+        assertThat(preferences.save(actor,account.id(),new PreferencesInput(false,null,legacy.version(),1,"")).signature()).isEmpty();
+        assertThatThrownBy(()->preferences.save(actor,account.id(),new PreferencesInput(false,null,4,1,"x".repeat(2001)))).hasMessageContaining("email_signature_invalid");
+    }
+    @Test void unreadCountsUseCurrentAccountFolderValidityAndRemotePresence() {
+        var account=create();var workspace=sync(account.id(),123);var inbox=workspace.folders().stream().filter(f->f.kind().equals("INBOX")).findFirst().orElseThrow();
+        assertThat(inbox.unreadCount()).isEqualTo(1);
+        String id=mailbox.list(actor,account.id(),inbox.id(),"",0).items().getFirst().id();
+        db.update("UPDATE email_messages SET is_read=TRUE WHERE company_id=? AND account_id=? AND id=?",company,account.id(),id);
+        assertThat(mailbox.workspace(actor,account.id()).folders().stream().filter(f->f.id().equals(inbox.id())).findFirst().orElseThrow().unreadCount()).isZero();
+        db.update("UPDATE email_messages SET is_read=FALSE,remote_present=FALSE WHERE company_id=? AND account_id=? AND id=?",company,account.id(),id);
+        assertThat(mailbox.workspace(actor,account.id()).folders().stream().filter(f->f.id().equals(inbox.id())).findFirst().orElseThrow().unreadCount()).isZero();
+        db.update("UPDATE email_messages SET remote_present=TRUE,uid_validity=999 WHERE company_id=? AND account_id=? AND id=?",company,account.id(),id);
+        assertThat(mailbox.workspace(actor,account.id()).folders().stream().filter(f->f.id().equals(inbox.id())).findFirst().orElseThrow().unreadCount()).isZero();
+        assertThatThrownBy(()->mailbox.workspace(new AuthSessionUser(otherUser,company,"Other","superadmin"),account.id())).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+    }
     @Test void draftsPersistWithOptimisticVersionsAndCannotEscapeAccountOwnership() {
         var account=create();String id=draft(account.id());var saved=mailbox.get(actor,account.id(),id);
         assertThat(saved.bodyText()).isEqualTo("Synthetic body");assertThat(saved.bcc()).containsExactly("hidden@example.com");

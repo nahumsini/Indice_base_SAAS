@@ -21,6 +21,8 @@ function resolver(runtime,api={}){return id=>{
  if(id.endsWith('/emailExperienceCopy'))return experience;
  if(id.endsWith('/mailWorkspaceCopy'))return workspaceCopy;
  if(id.endsWith('/mailboxCopy'))return mailbox;
+ if(id.endsWith('/mailDailyCopy'))return load('mailDailyCopy.ts',()=>language);
+ if(id.endsWith('/mailBulk'))return load('mailBulk.ts',()=>({}));
  if(id.endsWith('/completionCopy'))return completion;
  if(id.endsWith('/mailFolderPresentation'))return folderPresentation;
  if(id.endsWith('/apiClient'))return {ApiClientError};

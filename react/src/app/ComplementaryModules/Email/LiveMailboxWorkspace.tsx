@@ -20,11 +20,17 @@ import { MailMessageList } from './MailMessageList';
 import { MailFolderRail } from './MailFolderRail';
 import { MailWorkspaceFilters } from './MailWorkspaceFilters';
 import './mailWorkspace.css';
+import { MailBulkActions } from './MailBulkActions';
+import { organizeMail } from './mailBulk';
+import { useMailDailyCopy } from './mailDailyCopy';
 import { presentMailFolders } from './mailFolderPresentation';
 
-const defaults = { accountId: '', folder: 'INBOX', query: '', quick: 'ALL', foldersCollapsed: false };
+const defaults = { accountId: '', folder: 'INBOX', query: '', quick: 'ALL', foldersCollapsed: false, density: 'comfortable', listWidth: 320 };
 const emptyWorkspace: MailboxWorkspace = { folders: [], lastSyncAt: null, lastError: null };
 export function LiveMailboxWorkspace({ onAccounts }: { onAccounts?: () => void }) {
+  const daily = useMailDailyCopy();
+  const [checked, setChecked] = useState<string[]>([]); const [bulkProgress, setBulkProgress] = useState(0); const bulkLock = useRef(false);
+  const [newMail, setNewMail] = useState(false);
   const [mobileFolders, setMobileFolders] = useState(false);
   const [readerExpanded, setReaderExpanded] = useState(false);
   const listRef = useRef<HTMLDivElement>(null); const listPosition = useRef(0);
@@ -39,7 +45,7 @@ export function LiveMailboxWorkspace({ onAccounts }: { onAccounts?: () => void }
   const [discard, setDiscard] = useState<MailboxMessage | null>(null); const alive = useRef(true); const scope = useRef('');
   const account = accounts.find(a => a.id === filters.accountId) ?? accounts[0];
   scope.current = account?.id ?? '';
-  useWorkspaceNavigationMemory({ moduleKey: 'email', tabKey: 'mail', defaults, state: filters, onRestore: value => setFilters({ accountId: typeof value.accountId === 'string' ? value.accountId : '', folder: typeof value.folder === 'string' ? value.folder : 'INBOX', query: typeof value.query === 'string' ? value.query.slice(0, 180) : '', quick: ['UNREAD','STARRED'].includes(String(value.quick)) ? String(value.quick) : 'ALL', foldersCollapsed: value.foldersCollapsed === true }) });
+  useWorkspaceNavigationMemory({ moduleKey: 'email', tabKey: 'mail', defaults, state: filters, onRestore: value => setFilters({ accountId: typeof value.accountId === 'string' ? value.accountId : '', folder: typeof value.folder === 'string' ? value.folder : 'INBOX', query: typeof value.query === 'string' ? value.query.slice(0, 180) : '', quick: ['UNREAD','STARRED'].includes(String(value.quick)) ? String(value.quick) : 'ALL', foldersCollapsed: value.foldersCollapsed === true, density: value.density === 'compact' ? 'compact' : 'comfortable', listWidth: Math.max(260, Math.min(440, Number(value.listWidth) || 320)) }) });
   const readingExpanded = readerExpanded && !!selected;
   useEffect(() => { if (!selected) setReaderExpanded(false); }, [selected?.id]);
   useEffect(() => {
@@ -91,7 +97,7 @@ export function LiveMailboxWorkspace({ onAccounts }: { onAccounts?: () => void }
     return () => controller.abort();
   }, [accountId, account?.version]);
   useEffect(() => {
-    setSelected(null); setPage({ items: [], hasMore: false });
+    setSelected(null); setChecked([]); setNewMail(false); setPage({ items: [], hasMore: false });
     if (!accountId || !folderId || !['DRAFTS', 'SENT', 'OUTBOX'].includes(folderId) && !workspace.folders.some(f => f.id === folderId)) return;
     const controller = new AbortController(); setListLoading(true);
     const timer = window.setTimeout(() => mailboxApi.list(accountId, folderId, filters.query, offset, controller.signal, filters.quick)
@@ -99,7 +105,7 @@ export function LiveMailboxWorkspace({ onAccounts }: { onAccounts?: () => void }
       .catch(e => { if (!controller.signal.aborted) setError(failure(e)); })
       .finally(() => { if (!controller.signal.aborted) setListLoading(false); }), 300);
     return () => { controller.abort(); window.clearTimeout(timer); };
-  }, [accountId, folderId, filters.query, filters.quick, offset, workspace, reload]);
+  }, [accountId, folderId, filters.query, filters.quick, offset, reload]);
   function changeQuery(query: string) {
     if (busy) return;
     setOffset(0); setSelected(null); setFilters(value => ({ ...value, query: query.slice(0, 180) }));
@@ -117,32 +123,68 @@ export function LiveMailboxWorkspace({ onAccounts }: { onAccounts?: () => void }
     if (busy) return;
     setOffset(0); setSelected(null); setFilters(value => ({ ...value, query: '', quick: 'ALL' }));
   }
-  function changeFolder(folder: string) { setOffset(0); setFilters(v => ({ ...v, folder, quick: 'ALL' })); setSelected(null); setNotice(''); setError(''); }
-  async function refresh(older = false, quiet = false) {
+  function changeFolder(folder: string) { if (busy) return; setOffset(0); setFilters(v => ({ ...v, folder, quick: 'ALL' })); setSelected(null); setNotice(''); setError(''); }
+  async function refresh(older = false, quiet = false, targetOffset = offset) {
     if (!account || busy) return; const captured = account.id; lastSyncAttempt.current=Date.now(); setBusy(true); if (!quiet) { setError(''); setNotice(''); }
     try {
       const value = account.receiveProtocol === 'IMAP' && (!['DRAFTS', 'OUTBOX'].includes(filters.folder))
         ? await mailboxApi.sync(captured, remoteFolder?.id ?? null, older)
         : await mailboxApi.workspace(captured);
-      if (current(captured)) { setWorkspace(value); if (!quiet) setNotice(account.receiveProtocol === 'IMAP' && !['DRAFTS', 'OUTBOX'].includes(filters.folder) ? text.syncDone : ''); }
+      if (current(captured)) {
+        setWorkspace(value);
+        const targetFolder = filters.folder === 'INBOX' ? value.folders.find(f => f.kind === 'INBOX')?.id : filters.folder;
+        if (targetFolder) {
+          const updated = await mailboxApi.list(captured, targetFolder, filters.query, targetOffset, undefined, filters.quick);
+          if (current(captured)) { setPage(updated); setSelected(previous => { const fresh = updated.items.find(m => m.id === previous?.id); return previous && fresh ? { ...previous, ...fresh, bodyText: previous.bodyText, bodyHtml: previous.bodyHtml } : previous; }); setChecked([]); setNewMail(false); }
+        }
+        if (!quiet) setNotice(account.receiveProtocol === 'IMAP' && !['DRAFTS', 'OUTBOX'].includes(filters.folder) ? text.syncDone : ''); }
     } catch (e) { if (current(captured)) setError(failure(e)); }
     finally { if (current(captured)) setBusy(false); }
   }
   useEffect(()=>{
-    if(!account||workspaceReady!==account.id||loading||busy||compose||selected||account.receiveProtocol!=='IMAP'||['DRAFTS','OUTBOX'].includes(filters.folder))return;
+    if(!account||workspaceReady!==account.id||loading||busy||compose||selected||checked.length||account.receiveProtocol!=='IMAP'||['DRAFTS','OUTBOX'].includes(filters.folder))return;
     const key=`${account.id}:${account.version}:${filters.folder}`;
     if(firstSync.current===key)return;
     const timer=window.setTimeout(()=>{firstSync.current=key;void refresh(false,true);},Math.max(0,5100-(Date.now()-lastSyncAttempt.current)));
     return ()=>window.clearTimeout(timer);
-  },[accountId,account?.version,workspaceReady,loading,busy,compose,selected,filters.folder]);
+  },[accountId,account?.version,workspaceReady,loading,busy,compose,selected,checked.length,filters.folder]);
   useEffect(() => {
-    if (!workspace.lastSyncAt || busy || compose || discard || selected || loading || account?.receiveProtocol !== 'IMAP') return;
+    if (!workspace.lastSyncAt || busy || compose || discard || selected || checked.length || loading || account?.receiveProtocol !== 'IMAP') return;
     const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh(false, true); }, 60_000);
     return () => window.clearInterval(timer);
-  }, [workspace, busy, compose, discard, selected, loading, accountId, filters.folder]);
+  }, [workspace, busy, compose, discard, selected, checked.length, loading, accountId, filters.folder]);
+  useEffect(() => {
+    if (!accountId || !folderId || !selected || busy || compose || checked.length) return;
+    const abort = new AbortController();
+    const timer = window.setInterval(async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const latest = await mailboxApi.list(accountId, folderId, filters.query, 0, abort.signal, filters.quick);
+        if (!abort.signal.aborted && latest.items.some(m => !page.items.some(old => old.id === m.id) && new Date(m.occurredAt) > new Date(page.items[0]?.occurredAt ?? 0))) setNewMail(true);
+      } catch { /* The next explicit refresh reports connection errors without disturbing reading. */ }
+    }, 60_000);
+    return () => { abort.abort(); window.clearInterval(timer); };
+  }, [accountId, folderId, selected?.id, busy, compose, checked.length, filters.query, filters.quick, page]);
+  const selectable = page.items.filter(m => m.folderId && m.state === 'RECEIVED');
+  async function bulkAction(kind: string, target?: string) {
+    if (!account || busy || bulkLock.current) return;
+    const messages = selectable.filter(m => checked.includes(m.id)); if (!messages.length) return;
+    const captured = account.id; bulkLock.current = true; setBusy(true); setBulkProgress(0); setError(''); setNotice('');
+    try {
+      const result = await organizeMail(messages, message => mailboxApi.action(captured, message, account.version, kind, target ?? null), value => {
+        setPage(previous => ({ ...previous, items: kind === 'MOVE' || kind === 'READ' && filters.quick === 'UNREAD' ? previous.items.filter(m => m.id !== value.id) : previous.items.map(m => m.id === value.id ? { ...m, ...value } : m) }));
+        setSelected(previous => previous?.id === value.id ? kind === 'MOVE' ? null : value : previous);
+      }, setBulkProgress, () => current(captured));
+      if (current(captured)) { setChecked(result.failed); setNotice(`${result.completed} ${daily.processed}${result.failed.length ? ` · ${result.failed.length} ${daily.failed}` : ''}`); }
+      await updateCounts(captured);
+    } finally { bulkLock.current = false; if (current(captured)) { setBusy(false); setBulkProgress(0); } }
+  }
+  async function updateCounts(captured: string) {
+    try { const next = await mailboxApi.workspace(captured); if (current(captured)) setWorkspace(next); } catch { /* A failed read must not turn a successful mutation into a failure. */ }
+  }
   async function open(message: MailboxMessage) {
     if (!account || busy) return; const captured = account.id; setBusy(true); setError('');
-    try { const value = await mailboxApi.open(captured, message.id); if (current(captured)) { setSelected(value); setPage(v => ({ ...v, items: v.items.map(m => m.id === value.id ? { ...m, read: value.read, version: value.version } : m) })); } }
+    try { const value = await mailboxApi.open(captured, message.id); if (current(captured)) { setSelected(value); setPage(v => ({ ...v, items: v.items.map(m => m.id === value.id ? { ...m, read: value.read, version: value.version } : m) })); void updateCounts(captured); } }
     catch (e) { if (current(captured)) setError(failure(e)); }
     finally { if (current(captured)) setBusy(false); }
   }
@@ -155,7 +197,7 @@ export function LiveMailboxWorkspace({ onAccounts }: { onAccounts?: () => void }
   }
   async function action(action: string, target?: string) {
     if (!account || !selected || busy) return; const captured = account.id; setBusy(true); setError('');
-    try { const value = await mailboxApi.action(captured, selected, account.version, action, target ?? null); if (current(captured)) { setSelected(action === 'MOVE' || action === 'UNREAD' ? null : value); setPage(v => ({ ...v, items: action === 'MOVE' ? v.items.filter(m => m.id !== value.id) : v.items.map(m => m.id === value.id ? value : m) })); if (action === 'MOVE') setNotice(text.moveDone); } }
+    try { const value = await mailboxApi.action(captured, selected, account.version, action, target ?? null); if (current(captured)) { setSelected(action === 'MOVE' || action === 'UNREAD' ? null : value); setPage(v => ({ ...v, items: action === 'MOVE' ? v.items.filter(m => m.id !== value.id) : v.items.map(m => m.id === value.id ? value : m) })); if (action === 'MOVE') setNotice(text.moveDone); void updateCounts(captured); } }
     catch (e) { if (current(captured)) setError(failure(e)); }
     finally { if (current(captured)) setBusy(false); }
   }
@@ -174,10 +216,10 @@ export function LiveMailboxWorkspace({ onAccounts }: { onAccounts?: () => void }
       .sort((a, b) => folderOrder.indexOf(a.kind) - folderOrder.indexOf(b.kind))
       .map(f => ({ id: f.id, kind: f.kind, label: f.label, description: f.name, icon: folderIcons[f.kind] ?? <Folder className="h-4 w-4" /> })),
     { id: 'DRAFTS', kind: 'DRAFTS', label: copy.drafts, icon: <FileText className="h-4 w-4" />, group: work.localGroup },
-    { id: 'OUTBOX', kind: 'OUTBOX', label: work.localOutbox, icon: <Clock3 className="h-4 w-4" />, group: work.localGroup }];
+    { id: 'OUTBOX', kind: 'OUTBOX', label: daily.outbox, icon: <Clock3 className="h-4 w-4" />, group: work.localGroup }];
   const activeFolderLabel = filters.folder === 'DRAFTS' ? work.localDrafts : folderItems.find(f => f.id === filters.folder)?.label ?? work.inbox;
   const folderRailProps = {
-    items: folderItems, namedFolders, value: filters.folder, busy, canCreate: account?.receiveProtocol === 'IMAP',
+    items: folderItems.map(item => ({ ...item, unread: workspace.folders.find(f => f.id === item.id || item.id === 'INBOX' && f.kind === 'INBOX')?.unreadCount })), namedFolders, value: filters.folder, busy, canCreate: account?.receiveProtocol === 'IMAP',
     lastSync: workspace.folders.some(f => f.syncedAt) ? workspace.lastSyncAt : null,
     onChange: (id: string) => { changeFolder(id); setMobileFolders(false); },
     onCreate: () => { setMobileFolders(false); setNewFolder(true); },
@@ -203,8 +245,10 @@ export function LiveMailboxWorkspace({ onAccounts }: { onAccounts?: () => void }
           <Button ref={mobileFoldersTrigger} variant="outline" className="h-11 w-11 shrink-0 rounded-lg px-0 lg:hidden" aria-label={work.folders} title={work.folders} aria-expanded={mobileFolders} aria-haspopup="dialog" onClick={() => setMobileFolders(true)}><Folder className="h-4 w-4" /></Button>
           <span title={remoteFolder?.name} className="min-w-0 truncate text-sm font-medium text-blue-900 dark:text-blue-200">{activeFolderLabel}</span>
         </div>
-        <span className="text-xs text-slate-600 dark:text-slate-300">{work.pageCount}: <span className="rounded-md bg-blue-100 px-2 py-0.5 font-medium text-blue-800 dark:bg-blue-900/60 dark:text-blue-200">{listLoading ? '—' : page.items.length}</span></span>
+        <div className="flex flex-wrap items-center gap-3"><details className="relative text-xs"><summary className="cursor-pointer rounded-lg border bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900">{daily.view}</summary><div className="absolute right-0 top-full z-20 w-64 space-y-4 rounded-xl border bg-white p-4 shadow-lg dark:border-slate-700 dark:bg-slate-900"><label className="block space-y-2"><span>{daily.density}</span><select aria-label={daily.density} className="h-11 w-full rounded-lg border bg-transparent px-2" value={filters.density} onChange={e => setFilters(v => ({...v, density: e.target.value}))}><option value="comfortable">{daily.comfortable}</option><option value="compact">{daily.compact}</option></select></label><label className="hidden space-y-2 lg:block"><span>{daily.listWidth}</span><input aria-label={daily.listWidth} className="w-full" type="range" min="260" max="440" step="20" value={filters.listWidth} onChange={e => setFilters(v => ({...v, listWidth: Number(e.target.value)}))}/></label></div></details><span className="text-xs text-slate-600 dark:text-slate-300">{work.pageCount}: <span className="rounded-md bg-blue-100 px-2 py-0.5 font-medium text-blue-800 dark:bg-blue-900/60 dark:text-blue-200">{listLoading ? '—' : page.items.length}</span></span></div>
       </div>
+      {newMail && <div role="status" className="flex items-center justify-between bg-blue-100 px-4 py-2 text-sm text-blue-900 dark:bg-blue-950 dark:text-blue-100"><span>{daily.newMail}</span><Button disabled={busy} variant="outline" onClick={() => { setOffset(0); void refresh(false, false, 0); }}>{daily.showNew}</Button></div>}
+      {!readingExpanded && <MailBulkActions count={checked.length} available={selectable.length} all={selectable.length > 0 && selectable.every(m => checked.includes(m.id))} busy={busy || listLoading} progress={bulkProgress} folders={workspace.folders} folderId={folderId} onSelectAll={() => setChecked(checked.length === selectable.length ? [] : selectable.map(m => m.id))} onClear={() => setChecked([])} onAction={(kind, target) => void bulkAction(kind, target)} />}
       <div data-mail-layout={readingExpanded ? 'reading' : filters.foldersCollapsed ? 'compact' : 'expanded'} className={`grid ${readingExpanded ? 'lg:grid-cols-1' : filters.foldersCollapsed ? 'lg:grid-cols-[68px_minmax(0,1fr)]' : 'lg:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[210px_minmax(0,1fr)]'}`}>
         <aside className={`${readingExpanded ? 'hidden' : 'hidden lg:block'} min-w-0 border-r border-blue-100 bg-blue-50/70 p-3 dark:border-slate-700 dark:bg-blue-950/20`}>
           <div className="max-h-[75dvh] overflow-y-auto overscroll-contain"><MailFolderRail {...folderRailProps} collapsed={filters.foldersCollapsed} /></div>
@@ -213,9 +257,9 @@ export function LiveMailboxWorkspace({ onAccounts }: { onAccounts?: () => void }
       {workspace.lastError&&<p role="status" className="border-b border-amber-200 p-4 text-sm text-amber-800 dark:border-amber-900 dark:text-amber-200">{text.operationError}</p>}
       {account.receiveProtocol !== 'IMAP' && <p className="border-b border-slate-200 p-4 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-300">{text.imapRequired}</p>}
       {!folderId && filters.folder === 'INBOX' ? <IndiceViewState variant="empty" title={text.start} description={text.startHint} tone="blue" action={account.receiveProtocol === 'IMAP' ? <Button disabled={busy} onClick={() => void refresh()}>{text.sync}</Button> : onAccounts ? <Button onClick={onAccounts}>{copy.configureAccounts}</Button> : undefined} /> : <>
-        <div className={`grid min-h-[480px] ${readingExpanded ? 'lg:grid-cols-1' : 'xl:grid-cols-[minmax(280px,320px)_minmax(0,1fr)] lg:grid-cols-[minmax(230px,280px)_minmax(0,1fr)]'}`}>
+        <div style={{ '--mail-list-width': `${filters.listWidth}px` } as React.CSSProperties} className={`grid min-h-[480px] ${readingExpanded ? 'lg:grid-cols-1' : 'mail-message-columns'}`}>
           <div ref={listRef} data-mail-message-list className={`${readingExpanded ? 'hidden' : selected ? 'hidden lg:block' : ''} max-h-[70dvh] overflow-y-auto overscroll-contain border-slate-200 dark:border-slate-700 lg:border-r`}>
-            {listLoading ? <IndiceViewState compact variant="loading" title={copy.loading} tone="blue" /> : !page.items.length ? <IndiceViewState compact variant="empty" title={filters.query ? copy.noResults : copy.emptyFolder} tone="blue" /> : <MailMessageList outgoing={filters.folder==='SENT'} messages={page.items} selectedId={selected?.id} busy={busy} onOpen={message => void open(message)} />}
+            {listLoading ? <IndiceViewState compact variant="loading" title={copy.loading} tone="blue" /> : !page.items.length ? <IndiceViewState compact variant="empty" title={filters.query ? copy.noResults : copy.emptyFolder} tone="blue" /> : <MailMessageList density={filters.density} checked={checked} onCheck={id => setChecked(v => v.includes(id) ? v.filter(item => item !== id) : [...v, id])} outgoing={filters.folder==='SENT'} messages={page.items} selectedId={selected?.id} busy={busy} onOpen={message => void open(message)} />}
 
           </div>
           <article key={selected?.id ?? 'empty'} className={`${selected ? '' : 'hidden lg:block'} min-w-0 max-h-[70dvh] overflow-y-auto overscroll-contain`}><MailMessageDetail key={selected?.id??'empty'} expanded={readingExpanded} onToggleExpanded={toggleReading} account={account.id} accountVersion={account.version} message={selected} folders={workspace.folders} busy={busy} onBack={() => setSelected(null)} onWrite={write} onAction={(value, target) => void action(value, target)} onDiscard={() => setDiscard(selected)} /></article>

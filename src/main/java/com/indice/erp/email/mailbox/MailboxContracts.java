@@ -7,7 +7,9 @@ import java.util.List;
 public final class MailboxContracts {
     private MailboxContracts() { }
     public record Account(String id,String label,String email,String displayName,String receiveProtocol,long version) { }
-    public record Folder(String id,String name,String kind,long uidValidity,long newestUid,long oldestUid,boolean hasOlder,Instant syncedAt) { }
+    public record Folder(String id,String name,String kind,long uidValidity,long newestUid,long oldestUid,boolean hasOlder,Instant syncedAt,long unreadCount) {
+        public Folder(String id,String name,String kind,long uidValidity,long newestUid,long oldestUid,boolean hasOlder,Instant syncedAt) { this(id,name,kind,uidValidity,newestUid,oldestUid,hasOlder,syncedAt,0); }
+    }
     public record Workspace(List<Folder> folders,Instant lastSyncAt,String lastError) { }
     public record Message(String id,String folderId,String state,String subject,String fromAddress,String fromName,
         List<String> to,List<String> cc,List<String> bcc,List<String> replyTo,String bodyText,boolean bodyTruncated,
@@ -24,8 +26,13 @@ public final class MailboxContracts {
         public DraftInput(long version,long accountVersion,List<String> to,List<String> cc,List<String> bcc,String subject,String bodyText,String replyToMessageId){this(version,accountVersion,to,cc,bcc,subject,bodyText,replyToMessageId,null);}
         @Override public String toString(){return "DraftInput[redacted]";}
     }
-    public record Preferences(boolean backgroundEnabled,String sentFolder,long version,Instant nextSyncAt,int failures) { }
-    public record PreferencesInput(boolean backgroundEnabled,@Size(max=512) String sentFolder,@Min(1) long version,@Min(1) long accountVersion) { }
+    public record Preferences(boolean backgroundEnabled,String sentFolder,long version,Instant nextSyncAt,int failures,String signature) {
+        public Preferences(boolean backgroundEnabled,String sentFolder,long version,Instant nextSyncAt,int failures){this(backgroundEnabled,sentFolder,version,nextSyncAt,failures,"");}
+    }
+    public record PreferencesInput(boolean backgroundEnabled,@Size(max=512) String sentFolder,@Min(1) long version,@Min(1) long accountVersion,@Size(max=2000) String signature) {
+        public PreferencesInput(boolean backgroundEnabled,String sentFolder,long version,long accountVersion){this(backgroundEnabled,sentFolder,version,accountVersion,null);}
+        @Override public String toString(){return "MailPreferencesInput[redacted]";}
+    }
     public record Attachment(String id,String filename,String contentType,long sizeBytes,boolean remote) { }
     public record UploadInput(@NotBlank @Size(max=180) String filename,@NotBlank @Size(max=100) String contentType,@Min(1) @Max(5242880) long sizeBytes,@Min(1) long version,@Min(1) long accountVersion) { }
     public record Upload(String id,String url,java.util.Map<String,String> headers) { }

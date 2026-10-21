@@ -1,6 +1,6 @@
 import { apiClient } from '../../lib/apiClient';
 export type MailboxAccount = { id: string; label: string; email: string; displayName: string; receiveProtocol: string; version: number };
-export type MailboxFolder = { id: string; name: string; kind: string; uidValidity: number; newestUid: number; oldestUid: number; hasOlder: boolean; syncedAt: string | null };
+export type MailboxFolder = { id: string; name: string; kind: string; unreadCount?: number; uidValidity: number; newestUid: number; oldestUid: number; hasOlder: boolean; syncedAt: string | null };
 export type MailboxWorkspace = { folders: MailboxFolder[]; lastSyncAt: string | null; lastError: string | null };
 export type MailboxMessage = {
   id: string; folderId: string | null; state: 'RECEIVED' | 'DRAFT' | 'SUBMITTING' | 'ACCEPTED' | 'FAILED' | 'UNKNOWN'; subject: string;
@@ -10,7 +10,7 @@ export type MailboxMessage = {
 };
 export type MailDraft = { version: number; accountVersion: number; to: string[]; cc: string[]; bcc: string[]; subject: string; bodyText: string; replyToMessageId: string | null; bodyHtml?: string | null };
 export type MailPage = { items: MailboxMessage[]; hasMore: boolean };
-export type MailPreferencesData = {backgroundEnabled:boolean;sentFolder:string|null;version:number;nextSyncAt:string|null;failures:number};
+export type MailPreferencesData = {backgroundEnabled:boolean;sentFolder:string|null;version:number;nextSyncAt:string|null;failures:number;signature?:string};
 export type MailAttachment = {id:string;filename:string;contentType:string;sizeBytes:number;remote:boolean};
 const base = '/api/v1/email/mailboxes';
 const request = <T,>(path: string, method: string, body: unknown) => apiClient<T>(path, { method, body: JSON.stringify(body) });

@@ -13,6 +13,7 @@ messages[0].bodyHtml='<table><tr><td><table><tr><td><h2>El siguiente paso para t
 messages[0].cc=['administracion@example.com'];
 const workspace={folders,lastSyncAt:'2026-10-18T18:00:00Z',lastError:null};
 const drafts=new Map(), attachments=new Map();
+let preferences={backgroundEnabled:true,sentFolder:null,version:1,signature:'Equipo Horizonte\nAtención a clientes',failures:0,nextSyncAt:null};
 const server=await createServer({root,configFile:false,plugins:[{name:'email-workspace-preview',configureServer(vite){vite.middlewares.use(async(req,res,next)=>{
  if(req.url==='/')req.url='/tests/browser/email-workspace.html';
  if(req.url?.startsWith('/fixture-upload/')){
@@ -23,7 +24,11 @@ const server=await createServer({root,configFile:false,plugins:[{name:'email-wor
  if(!req.url?.startsWith('/api/'))return next();
  const path=new URL(req.url,'http://fixture.invalid').pathname; let result;
  const draftPath=path.match(/\/drafts\/([^/]+)$/), uploadPath=path.match(/\/messages\/([^/]+)\/attachments\/upload$/),registerPath=path.match(/\/messages\/([^/]+)\/attachments\/([^/]+)\/register$/),listPath=path.match(/\/messages\/([^/]+)\/attachments$/);
- if(path==='/api/v1/auth/csrf')result={csrfToken:'isolated-fixture-only'};
+ if(path.endsWith('/preferences')) {if(req.method==='PUT'){const chunks=[];for await(const chunk of req)chunks.push(chunk);const input=JSON.parse(Buffer.concat(chunks).toString());preferences={...input,version:input.version+1};}result=preferences;}
+ else if(path==='/api/v1/mailing/contacts')result={items:[{id:1,name:'Lucía Cliente',email:'lucia@example.com'}],total:1};
+ else if(path==='/api/v1/mailing/templates')result={items:[{id:'template-one',name:'Seguimiento comercial',subject:'Siguiente paso',bodyText:'',status:'ACTIVE',version:1}],total:1};
+ else if(path==='/api/v1/mailing/templates/template-one')result={id:'template-one',name:'Seguimiento comercial',subject:'Siguiente paso',bodyText:'Gracias por tu interés. Revisemos tu propuesta.',status:'ACTIVE',version:1};
+ else if(path==='/api/v1/auth/csrf')result={csrfToken:'isolated-fixture-only'};
  else if(draftPath&&req.method==='PUT'){
   const chunks=[];for await(const chunk of req)chunks.push(chunk);const input=JSON.parse(Buffer.concat(chunks).toString());
   result={...input,id:draftPath[1],state:'DRAFT',version:input.version+1,hasAttachments:false};drafts.set(result.id,result);
@@ -36,11 +41,11 @@ const server=await createServer({root,configFile:false,plugins:[{name:'email-wor
  else if(path==='/api/v1/email/accounts')result={items:[account],configurationAvailable:true};
  else if(path===`/api/v1/email/accounts/${account.id}/test`)result={...account,smtpStatus:'VERIFIED',failureCode:null};
  else if(path==='/api/v1/email/mailboxes')result=[account];
- else if(path.endsWith('/open'))result={...messages.find(m=>path.includes(m.id)),read:true};
+ else if(path.endsWith('/open')){const m=messages.find(m=>path.includes('/'+m.id+'/'));m.read=true;m.version++;result=m;}
  else if(path.endsWith('/folders')&&req.method==='POST'){const chunks=[];for await(const chunk of req)chunks.push(chunk);const input=JSON.parse(Buffer.concat(chunks).toString());folders.push({id:'custom-'+folders.length,name:input.name,kind:'CUSTOM',hasOlder:false});result=workspace;}
- else if(path.endsWith('/action')){const chunks=[];for await(const chunk of req)chunks.push(chunk);const input=JSON.parse(Buffer.concat(chunks).toString());const m=messages.find(m=>path.includes(m.id));if(input.action==='MOVE')m.folderId=input.targetFolderId;if(input.action==='STAR')m.starred=true;if(input.action==='UNSTAR')m.starred=false;if(input.action==='UNREAD')m.read=false;m.version++;result=m;}
+ else if(path.endsWith('/action')){const chunks=[];for await(const chunk of req)chunks.push(chunk);const input=JSON.parse(Buffer.concat(chunks).toString());const m=messages.find(m=>path.includes('/'+m.id+'/'));if(input.action==='MOVE')m.folderId=input.targetFolderId;if(input.action==='STAR')m.starred=true;if(input.action==='UNSTAR')m.starred=false;if(input.action==='UNREAD')m.read=false;if(input.action==='READ')m.read=true;m.version++;result=m;}
  else if(path.endsWith('/messages')){const params=new URL(req.url,'http://fixture.invalid').searchParams;result={items:messages.filter(m=>m.folderId===params.get('folder')&&(params.get('filter')!=='UNREAD'||!m.read)&&(params.get('filter')!=='STARRED'||m.starred)&&(!params.get('query')||JSON.stringify(m).toLowerCase().includes(params.get('query').toLowerCase()))),hasMore:false};}
- else if(path===`/api/v1/email/mailboxes/${account.id}`||path.endsWith('/sync'))result=workspace;
+ else if(path===`/api/v1/email/mailboxes/${account.id}`||path.endsWith('/sync'))result={...workspace,folders:folders.map(f=>({...f,unreadCount:messages.filter(m=>m.folderId===f.id&&!m.read).length}))};
  res.writeHead(result?200:503,{'Content-Type':'application/json'});res.end(JSON.stringify(result??{message:'No provider or persistent writes in this isolated fixture'}));
  });}},react(),tailwindcss()],resolve:{alias:{'@':resolve(root,'src')}},server:{host:'127.0.0.1',port:5199,strictPort:true}});
 await server.listen();console.log('Email UI fixture: http://127.0.0.1:5199/tests/browser/email-workspace.html');

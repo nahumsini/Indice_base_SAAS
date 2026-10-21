@@ -21,6 +21,7 @@ function harness(api, prepare = async () => ({ id: 'draft', version: 4, state: '
   const { MailAttachments } = load('MailAttachments.tsx', id => {
     if (id === 'react') return runtime.hooks; if (id === 'react/jsx-runtime') return jsx;
     if (id.endsWith('/mailboxApi')) return { mailboxApi: { attachments: async () => [], downloadUrl: () => '/synthetic-download', ...api } };
+    if (id.endsWith('/mailDailyCopy')) return load('mailDailyCopy.ts', () => language);
     if (id.endsWith('/completionCopy')) return completion;
     if (id.endsWith('/attachmentCopy')) return copy;
     if (id.endsWith('/mailAttachmentUpload')) return rules;

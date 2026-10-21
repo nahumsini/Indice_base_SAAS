@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { FileText, Loader2, Paperclip, RotateCcw } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { mailboxApi, type MailboxMessage, type MailAttachment } from './mailboxApi';
+import { useMailDailyCopy } from './mailDailyCopy';
 import { useMailCompletionCopy } from './completionCopy';
 import { useMailAttachmentCopy } from './attachmentCopy';
 import { AttachmentUploadError, attachmentErrorKey, prepareMailAttachment, MAIL_ATTACHMENT_TOTAL_BYTES } from './mailAttachmentUpload';
@@ -9,11 +10,12 @@ import { AttachmentUploadError, attachmentErrorKey, prepareMailAttachment, MAIL_
 type UploadRequest = Awaited<ReturnType<typeof mailboxApi.upload>>;
 type PendingUpload = { file: File; request?: UploadRequest; expiresAt?: number; transferred: boolean };
 type Phase = 'preparing' | 'uploading' | 'registering' | 'removing';
-export function MailAttachments({ account, messageId, version, accountVersion, onPrepare, onSaved, onBusy }: {
+export function MailAttachments({ account, messageId, version, accountVersion, onPrepare, onSaved, onBusy, disabled = false }: {
+  disabled?: boolean;
   account: string; messageId: string; version: number; accountVersion: number;
   onPrepare?: () => Promise<MailboxMessage | null | undefined>; onSaved?: (message: MailboxMessage) => void; onBusy?: (busy: boolean) => void;
 }) {
-  const copy = useMailCompletionCopy(); const text = useMailAttachmentCopy();
+  const daily = useMailDailyCopy(); const copy = useMailCompletionCopy(); const text = useMailAttachmentCopy();
   const [files, setFiles] = useState<MailAttachment[]>([]); const [busy, setBusy] = useState(false);
   const [phase, setPhase] = useState<Phase>('preparing'); const [error, setError] = useState('');
   const [filename, setFilename] = useState(''); const [corrected, setCorrected] = useState('');
@@ -32,7 +34,7 @@ export function MailAttachments({ account, messageId, version, accountVersion, o
     if (alive.current) { setBusy(value); onBusy?.(value); }
   }
   async function upload(original: File, previous?: PendingUpload) {
-    if (locked.current) return;
+    if (locked.current || disabled) return;
     working(true); setError(''); setRetry(null); setFilename(original.name); setPhase('preparing');
     let pending = previous;
     try {
@@ -83,7 +85,7 @@ export function MailAttachments({ account, messageId, version, accountVersion, o
     } finally { working(false); }
   }
   async function remove(file: MailAttachment) {
-    if (locked.current) return;
+    if (locked.current || disabled) return;
     working(true); setError(''); setRetry(null); setFilename(file.filename); setPhase('removing');
     try { const saved = await mailboxApi.removeAttachment(account, messageId, file.id, version, accountVersion); if (alive.current) onSaved?.(saved); }
     catch (failure) { if (alive.current) setError(text[attachmentErrorKey(failure)]); }
@@ -95,17 +97,17 @@ export function MailAttachments({ account, messageId, version, accountVersion, o
       <FileText className="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-300" />
       <span className="min-w-0 flex-1 break-all font-medium">{file.filename}<span className="ml-2 font-normal text-slate-500 dark:text-slate-400">{file.sizeBytes > 0 ? `${Math.ceil(file.sizeBytes / 1024)} KB` : ''}</span></span>
       <a className="inline-flex min-h-11 items-center px-3 text-blue-600 dark:text-blue-300" href={mailboxApi.downloadUrl(account, messageId, file.id)} download>{copy.download}</a>
-      {onPrepare && <Button type="button" variant="ghost" disabled={busy} onClick={() => void remove(file)}>{copy.remove}</Button>}
+      {onPrepare && <Button type="button" variant="ghost" disabled={busy || disabled} onClick={() => void remove(file)}>{copy.remove}</Button>}
     </div>)}
     {busy && <p role="status" className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300"><Loader2 className="h-4 w-4 animate-spin" /><span>{text[phase]} <span className="break-all">{filename}</span></span></p>}
     {corrected && <p className="break-words text-xs text-slate-500 dark:text-slate-400">{text.corrected} <strong>{corrected}</strong>.</p>}
     {error && <div role="alert" className="space-y-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
       {filename && <p className="break-all font-medium">{filename}</p>}<p>{error}</p>
-      {retry && <Button type="button" variant="outline" disabled={busy} onClick={() => void upload(retry.file, retry)}><RotateCcw className="mr-2 h-4 w-4" />{text.retry}</Button>}
+      {retry && <Button type="button" variant="outline" disabled={busy || disabled} onClick={() => void upload(retry.file, retry)}><RotateCcw className="mr-2 h-4 w-4" />{text.retry}</Button>}
     </div>}
-    {onPrepare && <><label className={`inline-flex min-h-11 items-center rounded-xl border px-4 text-sm focus-within:ring-2 focus-within:ring-blue-500 ${busy || files.length >= 5 ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+    {onPrepare && <><label className={`inline-flex min-h-11 items-center rounded-xl border px-4 text-sm focus-within:ring-2 focus-within:ring-blue-500 ${busy || disabled || files.length >= 5 ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
       <Paperclip className="mr-2 h-4 w-4" />{copy.addFile}
-      <input type="file" className="sr-only" disabled={busy || files.length >= 5} accept=".pdf,.png,.jpg,.jpeg,.txt" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void upload(file); }} />
-    </label><p className="text-xs text-slate-500 dark:text-slate-400">{copy.fileHint}</p></>}
+      <input type="file" className="sr-only" disabled={busy || disabled || files.length >= 5} accept=".pdf,.png,.jpg,.jpeg,.txt,.docx,.xlsx,.pptx" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void upload(file); }} />
+    </label><p className="text-xs text-slate-500 dark:text-slate-400">{daily.attachmentHelp}</p></>}
   </section>;
 }

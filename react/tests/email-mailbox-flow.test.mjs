@@ -25,8 +25,12 @@ test('live mailbox uses persistent APIs; confirmation and uncertain-result recov
   const workspace = readFileSync(new URL('LiveMailboxWorkspace.tsx', root), 'utf8');
   assert.match(composer, /saved \? onDone\(saved\) : onClose\(\)/);
   assert.match(composer, /setView\('review'\)/);assert.match(composer, /mailboxApi\.send\(account\.id, saved, account\.version\)/);
-  assert.match(composer, /if \(!saved \|\| busy \|\| uncertain\) return/);assert.match(composer, /mailboxApi\.get\(account\.id, id\.current\)/);
+  assert.match(composer, /if \(!saved \|\| locked \|\| uncertain \|\| sendLock.current\) return/);assert.match(composer, /mailboxApi\.get\(account\.id, id\.current\)/);
   assert.doesNotMatch(composer, /localStorage|sessionStorage|dangerouslySetInnerHTML/);
   assert.match(workspace, /scope\.current === captured/);assert.match(workspace, /AbortController/);
   assert.match(workspace, /state: filters/);assert.doesNotMatch(workspace, /previewMessages/);
+});
+
+test('compose new while reading never inherits recipients, subject or thread authority', () => {
+ const draft=initialDraft(account,message,'new');assert.deepEqual(draft.to,[]);assert.deepEqual(draft.cc,[]);assert.deepEqual(draft.bcc,[]);assert.equal(draft.subject,'');assert.equal(draft.replyToMessageId,null);
 });
