@@ -16,8 +16,8 @@
     "test:v1-e2e": "INDICE_E2E_COMMIT_ACTIONS=true npm run test:http-contract"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
     "express": "5.2.1",
-    "@modelcontextprotocol/sdk": "1.31.0",
     "zod": "4.5.4"
   },
   "overrides": {

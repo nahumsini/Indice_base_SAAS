@@ -4,6 +4,33 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createIndiceMcpServer } from "../mcpServer.js";
 
+test("rejects excessive tool input before validation and retains normal calls", async () => {
+  let calls = 0;
+  const server = createIndiceMcpServer({
+    async getSalesToday() { calls++; return summary(); },
+    async getBusinessSnapshot() { return businessSnapshot(); },
+    async previewCreateTask() { return taskPreview(); },
+    async createTask() { return createdTask(); }
+  });
+  const client = new Client({ name: "bounded-input-test", version: "0.1.0" });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+  try {
+    const result = await client.callTool({ name: "get_sales_today",
+      arguments: { excessive: Array(20_001).fill(0) } });
+    assert.equal(result.isError, true);
+    assert.match(firstText(result.content), /maximum of 20000 elements/);
+    assert.equal(calls, 0);
+    const valid = await client.callTool({ name: "get_sales_today", arguments: {} });
+    assert.equal(valid.isError, undefined);
+    assert.equal(calls, 1);
+  } finally {
+    await client.close();
+    await server.close();
+  }
+});
+
 test("lists and executes get_sales_today through MCP", async () => {
   const server = createIndiceMcpServer({
     async getSalesToday(preferredCurrency) {

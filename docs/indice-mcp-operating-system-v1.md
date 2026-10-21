@@ -404,6 +404,9 @@ The dedicated HTTP capacity policy is fixed and version-reviewed, not client-con
   only a current manifest containing `stage_operational_file` selects the 14 MiB parser, and a body
   over 100 KiB must name that exact intake. Declared oversized bodies are rejected before reading;
   compressed JSON remains disallowed. Authentication errors before parsing have a null RPC ID.
+- The SDK bounds each tool's arguments to 20,000 combined array elements and object members
+  before schema validation. Rejected inputs never reach a domain handler. This complements the
+  byte limits, including private file intake, and does not change the supported batch sizes.
 - Nginx bounds body inactivity to 15 seconds; Node bounds header receipt to 15 seconds and whole
   request receipt to 30 seconds. These are not a new deadline or retry for an already received action.
 
@@ -418,10 +421,12 @@ client address. The transitive `proxy-addr` package is pinned to patched `2.0.8`
 for CVE-2026-90711; its mapped-IPv6 trust and unchanged no-proxy-trust behavior
 have regressions. This dependency correction changes no tools, scopes or action protocol.
 
-The MCP SDK is pinned to `1.31.0`, the minimum corrected 1.x version for
-`GHSA-6qxp-vccf-f47h`/`CVE-2026-104850`. The affected OAuth-client credential forwarding is not
-used by this delegated server; do not introduce unbound persisted OAuth-client credentials.
-This patch does not replace the backend's token/resource validation or change consent.
+The MCP SDK is pinned to `1.32.1`, retaining the `GHSA-6qxp-vccf-f47h` correction and the
+subsequent 1.x security fixes. The `maxToolInputElements` option is explicitly enabled for
+`GHSA-46jr-4wx8-v453`; upgrading alone does not enable that protection. The delegated server
+does not use SDK OAuth-client credentials, experimental tasks or SDK bearer-token validation.
+Backend token/resource checks, the closed tool catalog, current grants and action consent remain
+authoritative. See [the upstream input-validation advisory](https://github.com/modelcontextprotocol/typescript-sdk/security/advisories/GHSA-46jr-4wx8-v453).
 
 ### 7.1 Conversation continuity and bounded recovery
 

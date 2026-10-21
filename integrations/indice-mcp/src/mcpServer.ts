@@ -77,7 +77,7 @@ export function createIndiceMcpServer(
   const server = new McpServer({
     name: "indice-business-tools",
     version: "0.4.0"
-  }, { instructions: lupitaInstructions });
+  }, { instructions: lupitaInstructions, maxToolInputElements: 20_000 });
 
   const salesTodayTool = server.registerTool("get_sales_today", {
     title: "Get today's sales",
