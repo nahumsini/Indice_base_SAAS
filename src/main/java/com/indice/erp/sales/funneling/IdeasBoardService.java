@@ -58,14 +58,19 @@ public class IdeasBoardService {
         var ids=new HashSet<String>();
         for(var n:content.nodes()) {
             uuid(n.id());require(ids.add(n.id()) && finite(n.x(),n.y(),n.width(),n.height()),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
-            if(scope==IdeasBoardScope.FUNNEL) require(n.width()>=120&&n.height()>=80&&n.appearance()==null,HttpStatus.BAD_REQUEST,"ideas_board_invalid");
+            if(scope==IdeasBoardScope.FUNNEL) require(n.width()>=120&&n.height()>=80&&n.appearance()==null&&n.drawing()==null&&!Set.of("DRAWING","VIDEO","AUDIO").contains(n.kind())&&Set.of("NOTE","RECTANGLE","ELLIPSE","PLAIN").contains(n.shape()),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
+            if("DRAWING".equals(n.kind())) {
+                require(scope==IdeasBoardScope.PERSONAL&&n.drawing()!=null&&n.text().isEmpty()&&n.appearance()==null&&"PLAIN".equals(n.shape()),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
+                require(finite(n.drawing().width())&&n.drawing().points().stream().allMatch(p->finite(p.x(),p.y())),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
+            } else require(n.drawing()==null&&n.width()<=1000&&n.height()<=800,HttpStatus.BAD_REQUEST,"ideas_board_invalid");
             if(n.appearance()!=null) require(finite(n.appearance().fontSize(),n.appearance().borderWidth()),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
-            if("IMAGE".equals(n.kind())) {
-                uuid(n.assetId());require(repository.asset(a,n.assetId(),scope).isPresent(),HttpStatus.BAD_REQUEST,"ideas_board_photo_invalid");
+            if(Set.of("IMAGE","VIDEO","AUDIO").contains(n.kind())) {
+                uuid(n.assetId());var stored=repository.asset(a,n.assetId(),scope);require(stored.isPresent()&&IdeasBoardMediaPolicy.matchesKind(n.kind(),stored.get().asset().contentType()),HttpStatus.BAD_REQUEST,"ideas_board_photo_invalid");
             } else require(n.assetId()==null,HttpStatus.BAD_REQUEST,"ideas_board_invalid");
         }
         var links=new HashSet<String>();var pairs=new HashSet<String>();
         for(var link:content.connections()) {
+            if(scope==IdeasBoardScope.FUNNEL)require(link.direction()==null,HttpStatus.BAD_REQUEST,"ideas_board_invalid");
             uuid(link.id());require(links.add(link.id()) && !ids.contains(link.id()) && ids.contains(link.from()) && ids.contains(link.to()) && !link.from().equals(link.to()) && pairs.add(link.from()+":"+link.to()),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
         }
         require(finite(content.viewport().x(),content.viewport().y(),content.viewport().zoom()),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
@@ -75,9 +80,9 @@ public class IdeasBoardService {
     @Transactional
     public Asset upload(AuthSessionUser a,String expectedActor,String id,String name,String mime,byte[] bytes,IdeasBoardScope scope) {
         mutation(a,expectedActor,scope);uuid(id);
-        require(bytes!=null && bytes.length>0 && bytes.length<=MAX_BYTES && mime!=null && Set.of("image/png","image/jpeg","image/webp").contains(mime),HttpStatus.BAD_REQUEST,"ideas_board_photo_invalid");
+        require(bytes!=null && bytes.length>0 && bytes.length<=(scope==IdeasBoardScope.PERSONAL?IdeasBoardMediaPolicy.limit(mime):MAX_BYTES) && mime!=null && (scope==IdeasBoardScope.PERSONAL||Set.of("image/png","image/jpeg","image/webp").contains(mime)),HttpStatus.BAD_REQUEST,"ideas_board_photo_invalid");
         require(name!=null && !name.isBlank() && name.length()<=180 && name.chars().noneMatch(c->c<32 || c==127 || c=='/' || c=='\\'),HttpStatus.BAD_REQUEST,"ideas_board_photo_invalid");
-        require(signature(mime,bytes),HttpStatus.BAD_REQUEST,"ideas_board_photo_invalid");String hash=digest(bytes);
+        require(scope==IdeasBoardScope.PERSONAL?IdeasBoardMediaPolicy.valid(name,mime,bytes):signature(mime,bytes),HttpStatus.BAD_REQUEST,"ideas_board_photo_invalid");String hash=digest(bytes);
         var existing=repository.asset(a,id,scope);if(existing.isPresent()) {
             var row=existing.get();require(row.digest().equals(hash) && row.asset().name().equals(name) && row.asset().contentType().equals(mime),HttpStatus.CONFLICT,"ideas_board_conflict");return row.asset();
         }
@@ -94,7 +99,7 @@ public class IdeasBoardService {
     @Transactional(readOnly=true)
     public StoredAsset asset(AuthSessionUser a,String id,IdeasBoardScope scope) { uuid(id);return repository.asset(a,id,scope).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"ideas_board_photo_not_found")); }
     public byte[] bytes(StoredAsset asset) { return bytes(asset,IdeasBoardScope.FUNNEL); }
-    public byte[] bytes(StoredAsset asset,IdeasBoardScope scope) { enabled();return storage.readObject(bucket(scope),asset.objectKey(),MAX_BYTES); }
+    public byte[] bytes(StoredAsset asset,IdeasBoardScope scope) { enabled();return storage.readObject(bucket(scope),asset.objectKey(),scope==IdeasBoardScope.PERSONAL?IdeasBoardMediaPolicy.limit(asset.asset().contentType()):MAX_BYTES); }
     private void enabled(){require(storage.isEnabled(),HttpStatus.SERVICE_UNAVAILABLE,"ideas_board_storage_unavailable");}
     private String bucket(IdeasBoardScope scope){return scope==IdeasBoardScope.FUNNEL ? properties.getMinio().getBucketSalesDocuments() : properties.getMinio().getBucketIdeasBoard();}
     static boolean signature(String mime, byte[] bytes) {
