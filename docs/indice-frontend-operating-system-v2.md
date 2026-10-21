@@ -4869,3 +4869,39 @@ Mi pizarra y Tablero Índice refuerzan su única IndiceTitleBar coral y mantiene
 
 ### Herramientas persistentes del pizarrón personal — 2026-10-20
 La aclaración del usuario extiende el bloque fijo a las herramientas y a Construye tu tablero, además de título/Guardar proyecto, en ambos lienzos personales. Se reutilizan las mismas instancias y acciones; la presentación compacta conserva sliders, foco, nombres accesibles y objetivos táctiles. La compensación de altura vive fuera del bloque sticky para mantenerlo visible incluso al final del contenedor. Móvil y pantallas bajas arrancan compactos; pantalla completa reserva superficie útil. Es presentación opt-in del módulo personal: no cambia Funneling ni los contratos HTTP, guardado o permisos. Aceptación y rollback en `docs/personal-ideas-board-contract-v1.md`.
+
+
+### Gestión privada y compartida de proyectos de pizarrón — 2026-10-20
+El usuario autoriza administración de versiones y colaboración limitada a consulta/copia. La biblioteca personal mantiene tarjetas e incorpora menú por proyecto, scopes propios/recibidos/papelera, nombre, copia, enlace y selección explícita de personas. Usa IndiceModalFrame, dropdown y controles existentes, con traducciones, 44 px, scroll local y sliders móviles. Los permisos de UI proceden del resumen del servidor; no reemplazan su autorización. El enlace identifica propietario y proyecto sin dar acceso. Usar en mi pizarrón reutiliza el reemplazo protegido de BoardFileControls y no modifica el snapshot original ni introduce otro editor. Los archivos de consulta usan URL privada del proyecto; el archivo independiente creado pertenece al receptor. API, aceptación y límites en `docs/personal-ideas-board-contract-v1.md`.
+
+
+Agenda uses the approved employee/Inventory integration, guided publication and inline Sales client capture described in `docs/scheduling-module-contract-v1.md` (2026-10-21). Native modal controls, eight locales, phone footer/body containment and the calendar/table sliders remain the presentation contract.
+
+
+### Control de juntas: live execution owner extension — 2026-10-21
+
+Control de juntas retains native blue title/filter surfaces, sliders, tab access, calendar/table
+and shared modal engine. Its detail workspace adds actual attendance and a meeting-context
+agreement preview, with responsive columns on desktop and vertical cards on phones. Attendance
+starts unmarked, saves explicitly and has a discard guard; reading invitations never marks
+attendance. Planning defaults the minutes writer to coordinator and exposes a separate writer
+only when requested. Available-time suggestions are explicit actions and stale results disappear
+when people/time/authorization change. Agreement creation inside a meeting fixes that meeting,
+uses action/assignee/date and configurable internal follow-up, then returns to its origin.
+Concluding shows decisions, attendance and authorized agreement status; open agreements remain
+open. Headers and footer actions fit 390px and short 640px viewports with internal body scroll.
+The new copy covers en-CA/en-US/es-MX/es-CO/fr-CA/pt-BR/ko-CA/zh-CA. These owner extensions add no
+new visual engine, implicit access, external invitation or automatic task completion. Full domain
+and API details remain in `meeting-control-module-contract-v1.md`.
+
+
+### Weighted meeting decisions — 2026-10-21
+The native blue meeting detail adds Decisiones y votaciones, a two-step wizard (proposal/functions/
+team/rules → review/open), and one-frame vote/close workspace. Function points are explicit,
+initial assignments are equal, and reuse from the same meeting requires review. Personal radio
+choices save explicitly; discard protection retains edits, and stale counts require refresh.
+Weighted yes/no/abstention cards show participation and fixed approval/quorum points. Closed
+results stay in minutes/print; approved proposals can explicitly prefill an existing agreement
+editor with assignee/date/save. Eight locales, permission-driven actions, 44px controls, local
+sliders and small-phone pinned footers reuse the current engine. No new tab or automatic action
+is introduced. Domain/API/integrity details: `docs/meeting-control-module-contract-v1.md`.

@@ -1129,3 +1129,36 @@ IdeasBoardContracts.Connection añade direction opcional validado FORWARD|BOTH, 
 
 ### Anotaciones exteriores del diagnóstico personal — 2026-10-20
 IdeaWorkspaceContracts.Element permite category=OUTSIDE solo para icon=IDEA con caja que sobresalga de 2200 × 1600 y esté contenida en x[-1200,3400], y[-900,2500]. Las otras categorías conservan validación por centro y contención original; los iconos tipados no pueden convertirse en OUTSIDE. SystemViewport admite zoom mínimo .04 para consulta en celular. La tanda del cliente sigue siendo un documento completo bajo validación, transacción, CAS y límites existentes; no hay escritura parcial ni nuevo endpoint o esquema. Las fronteras usuario/empresa, actor, permisos, CSRF, propiedad de activos e inmutabilidad permanecen iguales. Rollback compatible conserva lectores de OUTSIDE/.04; véase `docs/personal-ideas-board-contract-v1.md`.
+
+
+### Personal project management and read/copy sharing — 2026-10-20
+The personal ideas-board owner now owns recoverable project trash, metadata CAS/idempotency, explicit same-company read/copy grants and independent copies. Existing snapshot content remains immutable. No public capability URLs or collaborative editing are authorized. IdeaProjectService enforces live membership/module/tab gates, owner-only management, tenant-qualified object lookup and project-scoped media reads. It exports no broader access to an author's personal assets. IdeasBoardService exposes a technical reference-copy port for already authorized private blobs in the same tenant, preserving storage metering and private recipient references. V340 adds forward-only management/grant metadata; no hard deletion or automatic notifications. The approved owner contract, endpoints, limits and verification are in `docs/personal-ideas-board-contract-v1.md`.
+
+
+Agenda integration follows `docs/scheduling-module-contract-v1.md` (2026-10-21): HR/Inventory-owned minimal projections, tenant-scoped service windows and employee breaks, and explicit private Sales-owned client creation with native CRM authority and retry receipts. Public requests retain their Engine trust boundary and cannot create/link master clients.
+
+
+### Meeting execution and availability boundary — 2026-10-21
+
+The Meetings owner adds a versioned, transactional actual-attendance aggregate in V343 and a
+bounded time-suggestion endpoint. Both retain session-derived company/object/module/tab scope;
+mutations and availability POST require CSRF. Attendance is independent of membership and may
+be recorded only by coordinator/admin/delegated writer while in progress; closed evidence is
+immutable. The HR owner supplies safe active identity projection/eligibility, and Scheduling
+supplies only configured-hours eligibility. Existing resource mutexes and appointment/absence
+checks remain required before planning writes. Per-request configuration snapshots are not
+cross-request caches. Suggested slots disclose no other appointment text and reserve nothing.
+Optional agreement follow-up at creation preserves old-payload defaults and existing authorized
+notification routing. See `meeting-control-module-contract-v1.md` for states, bounds, compatibility
+and the additive V342/V343 local migration sequence. No billing or entitlement grants are added.
+
+
+### Weighted meeting ballots — 2026-10-21
+The Meetings owner adds V344 weighted roll-call ballots with frozen team/function points and
+whole-team approval/quorum thresholds. Own votes derive solely from the session actor, preserve
+per-person optimistic versions and append-only audit; close/cancel uses the global ballot version.
+Current employment, membership, module/tab and object checks remain active. Coordinator/admin
+management never grants another person's vote or modifies permissions. Closed results project
+into minutes/print; open ballots block completion and meeting cancellation cancels them atomically.
+No automatic tasks or external delivery are added. Endpoints, exact formulas, bounds, retry and
+rollback rules are in `docs/meeting-control-module-contract-v1.md`.

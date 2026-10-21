@@ -124,6 +124,9 @@ jobs:
           npm run test:inventory-ui
           npm run test:sales-ui
           npm run test:sales-workflow
+          npm run test:meeting-control
+          npm run test:scheduling
+          node --experimental-strip-types --test tests/email-attachments-flow.test.mjs tests/email-experience-flow.test.mjs tests/email-mailbox-flow.test.mjs tests/email-daily-workflow.test.mjs tests/meeting-voting-regression.test.mjs tests/project-management.test.mjs tests/scheduling-setup.test.mjs
           node --test tests/personal-ideas-board.test.mjs tests/system-board-model.test.mjs tests/node-appearance.test.mjs
           npm run test:pos-ui
           npm run test:platform-admin
