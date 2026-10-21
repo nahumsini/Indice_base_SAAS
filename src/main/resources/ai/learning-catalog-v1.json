@@ -1,6 +1,6 @@
 {
-  "version": "2026-10-20.v8",
-  "sourceDigest": "cc3fb3fc2beca5f33828ac378025fbe66b9d28ba7887ae4263b561363f42a2dc",
+  "version": "2026-10-21.v1",
+  "sourceDigest": "536f5dcb538eb22a89e0068012283c393c3f62dd1813e9a6e983f54a3650b27d",
   "modules": [
     {
       "module": "ideas_board",
@@ -71,10 +71,10 @@
           "tab": "projects",
           "label": "Mis proyectos",
           "title": "Mis proyectos",
-          "purpose": "Busca por nombre los proyectos guardados para tu usuario y empresa activa.",
-          "effect": "La consulta conserva el contenido original: acercar o mover la vista no cambia el proyecto ni tus borradores.",
+          "purpose": "Busca proyectos propios, compartidos contigo o en tu papelera dentro de la empresa activa.",
+          "effect": "Compartir no permite editar el original. Comprueba los destinatarios y la copia guardada; restaura desde la papelera y protege el borrador antes de usar un proyecto en tu pizarrón.",
           "chapterId": "ideas_board.projects",
-          "version": 3,
+          "version": 4,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -82,17 +82,17 @@
             {
               "id": "prepare",
               "title": "Antes de empezar",
-              "description": "Busca por nombre los proyectos guardados para tu usuario y empresa activa."
+              "description": "Busca proyectos propios, compartidos contigo o en tu papelera dentro de la empresa activa."
             },
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Abre una copia de Mi pizarra o del Tablero Índice para consultar elementos, archivos, dibujos, pasos y relaciones; puedes imprimirla o guardarla como PDF desde tu navegador."
+              "description": "Consulta e imprime una versión guardada, crea una copia privada o, si eres su dueño, cambia el nombre, comparte consulta y copia o mueve el proyecto a la papelera."
             },
             {
               "id": "verify",
               "title": "Comprueba el resultado",
-              "description": "La consulta conserva el contenido original: acercar o mover la vista no cambia el proyecto ni tus borradores."
+              "description": "Compartir no permite editar el original. Comprueba los destinatarios y la copia guardada; restaura desde la papelera y protege el borrador antes de usar un proyecto en tu pizarrón."
             }
           ]
         }
@@ -266,7 +266,7 @@
           "purpose": "Selecciona tu cuenta conectada y carpeta y busca al cliente, remitente, destinatario o asunto.",
           "effect": "Comprueba Enviados y el estado de envío. Distingue carpetas del servidor, borradores locales y resultados sin confirmar antes de reintentar.",
           "chapterId": "correo.mail",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -279,7 +279,7 @@
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Sincroniza, consulta, responde o prepara un correo y revisa sus destinatarios y adjuntos antes de enviarlo."
+              "description": "Sincroniza y organiza mensajes con selección múltiple. Redacta con formato, contactos y plantillas autorizados de Ventas y la firma de la cuenta; revisa destinatarios y adjuntos antes de confirmar el envío."
             },
             {
               "id": "verify",
@@ -862,9 +862,9 @@
           "label": "Juntas y minutas",
           "title": "Juntas y minutas",
           "purpose": "Revisa participantes, responsable, horario y permisos antes de planear una junta o serie finita.",
-          "effect": "Comprueba la junta guardada y su seguimiento. Las notificaciones internas no acreditan correo o invitaciones externas.",
+          "effect": "Los horarios sugeridos no reservan disponibilidad. Cierra las votaciones antes de completar y comprueba sus resultados en la minuta. Las notificaciones internas no acreditan correo o invitaciones externas.",
           "chapterId": "control_minutas.meetings",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -877,12 +877,12 @@
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Planea la junta y registra su minuta y decisiones desde Control de juntas."
+              "description": "Consulta horarios sugeridos y planea la junta. Durante su ejecución registra asistencia real y, con permiso, abre votaciones ponderadas; cada participante emite su propio voto."
             },
             {
               "id": "verify",
               "title": "Comprueba el resultado",
-              "description": "Comprueba la junta guardada y su seguimiento. Las notificaciones internas no acreditan correo o invitaciones externas."
+              "description": "Los horarios sugeridos no reservan disponibilidad. Cierra las votaciones antes de completar y comprueba sus resultados en la minuta. Las notificaciones internas no acreditan correo o invitaciones externas."
             }
           ]
         },
@@ -1018,7 +1018,7 @@
           "purpose": "Comprueba tus permisos de Clientes en Ventas y el acceso administrativo requerido en Agendamiento.",
           "effect": "Comprueba la identidad del cliente antes de asociarlo. Una solicitud pública no crea automáticamente un cliente CRM.",
           "chapterId": "scheduling.clients",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -1031,7 +1031,7 @@
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Consulta los clientes mediante el propietario de Ventas desde la sección autorizada."
+              "description": "Busca clientes mediante el propietario de Ventas o registra uno desde la captura interna autorizada; confirma el guardado antes de asociarlo."
             },
             {
               "id": "verify",
@@ -1102,10 +1102,10 @@
           "tab": "configuration",
           "label": "Servicios, equipo y agenda pública",
           "title": "Servicios, equipo y agenda pública",
-          "purpose": "Revisa servicios, duración, anticipación, equipo activo y disponibilidad semanal explícita.",
+          "purpose": "Revisa servicios del catálogo, duración, anticipación y colaboradores activos de Recursos Humanos.",
           "effect": "Comparte solo el enlace guardado y publicado. Guardar no habilita el adaptador público ni concede permisos; las solicitudes requieren confirmación interna.",
           "chapterId": "scheduling.configuration",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -1113,12 +1113,12 @@
             {
               "id": "prepare",
               "title": "Antes de empezar",
-              "description": "Revisa servicios, duración, anticipación, equipo activo y disponibilidad semanal explícita."
+              "description": "Revisa servicios del catálogo, duración, anticipación y colaboradores activos de Recursos Humanos."
             },
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Guarda servicios y equipo y configura apariencia y publicación de la agenda desde sus espacios autorizados."
+              "description": "Guarda las ventanas semanales de servicios y colaboradores y sus descansos. Completa la configuración necesaria antes de publicar la agenda."
             },
             {
               "id": "verify",
@@ -2870,10 +2870,10 @@
           "tab": "projects",
           "label": "My projects",
           "title": "My projects",
-          "purpose": "Search by name for projects saved for your user and active company.",
-          "effect": "Consultation preserves the original content: zooming or panning does not change the project or your drafts.",
+          "purpose": "Search your own projects, projects shared with you or your trash within the active company.",
+          "effect": "Sharing does not allow editing the original. Check recipients and the saved copy; restore from trash and protect your draft before using a project in your board.",
           "chapterId": "ideas_board.projects",
-          "version": 3,
+          "version": 4,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -2881,17 +2881,17 @@
             {
               "id": "prepare",
               "title": "Before starting",
-              "description": "Search by name for projects saved for your user and active company."
+              "description": "Search your own projects, projects shared with you or your trash within the active company."
             },
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Open a My board or Indice system board snapshot to inspect elements, files, drawings, steps and relationships; you can print it or save it as PDF from your browser."
+              "description": "Review and print a saved snapshot, create a private copy or, as its owner, rename it, share read/copy access or move it to trash."
             },
             {
               "id": "verify",
               "title": "Verify the result",
-              "description": "Consultation preserves the original content: zooming or panning does not change the project or your drafts."
+              "description": "Sharing does not allow editing the original. Check recipients and the saved copy; restore from trash and protect your draft before using a project in your board."
             }
           ]
         }
@@ -3065,7 +3065,7 @@
           "purpose": "Select your connected account and folder and search by customer, sender, recipient or subject.",
           "effect": "Check Sent and delivery status. Distinguish server folders, local drafts and unconfirmed outcomes before retrying.",
           "chapterId": "correo.mail",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3078,7 +3078,7 @@
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Sync, read, reply or prepare an email and review recipients and attachments before sending."
+              "description": "Sync and organize messages with multiple selection. Compose with formatting, authorized Sales contacts and templates, and the account signature; review recipients and attachments before confirming send."
             },
             {
               "id": "verify",
@@ -3661,9 +3661,9 @@
           "label": "Meetings and minutes",
           "title": "Meetings and minutes",
           "purpose": "Review participants, owner, time and permissions before planning a meeting or finite series.",
-          "effect": "Check the saved meeting and its follow-up. Internal notifications do not prove email or external invitations.",
+          "effect": "Suggested times do not reserve availability. Close ballots before completing and check their results in the minutes. Internal notifications do not prove email or external invitations.",
           "chapterId": "control_minutas.meetings",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3676,12 +3676,12 @@
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Plan the meeting and record its minutes and decisions in Meeting control."
+              "description": "Review suggested times and plan the meeting. During execution record actual attendance and, with permission, open weighted ballots; each participant casts their own vote."
             },
             {
               "id": "verify",
               "title": "Verify the result",
-              "description": "Check the saved meeting and its follow-up. Internal notifications do not prove email or external invitations."
+              "description": "Suggested times do not reserve availability. Close ballots before completing and check their results in the minutes. Internal notifications do not prove email or external invitations."
             }
           ]
         },
@@ -3817,7 +3817,7 @@
           "purpose": "Check your Sales client permissions and the administrative access required in Scheduling.",
           "effect": "Check the client identity before linking it. A public request does not automatically create a CRM client.",
           "chapterId": "scheduling.clients",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3830,7 +3830,7 @@
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Review clients through the Sales owner from the authorized section."
+              "description": "Search clients through the Sales owner or create one through authorized internal capture; confirm the saved result before linking it."
             },
             {
               "id": "verify",
@@ -3901,10 +3901,10 @@
           "tab": "configuration",
           "label": "Services, team and public agenda",
           "title": "Services, team and public agenda",
-          "purpose": "Review services, duration, notice, active staff and explicit weekly availability.",
+          "purpose": "Review catalog services, duration, notice and active Human Resources staff.",
           "effect": "Share only the saved and published link. Saving does not enable the public adapter or grant permissions; requests require internal confirmation.",
           "chapterId": "scheduling.configuration",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3912,12 +3912,12 @@
             {
               "id": "prepare",
               "title": "Before starting",
-              "description": "Review services, duration, notice, active staff and explicit weekly availability."
+              "description": "Review catalog services, duration, notice and active Human Resources staff."
             },
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Save services and staff and configure agenda appearance and publication from their authorized workspaces."
+              "description": "Save weekly service and staff windows and their breaks. Complete the required setup before publishing the agenda."
             },
             {
               "id": "verify",

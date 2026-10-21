@@ -25,7 +25,9 @@ const definitions: Record<string, readonly [string, number]> = {
 };
 function chapter(module: string, tab: string, label: LearningText, steps: readonly LearningText[], evidenceTools: readonly string[] = []): LearningChapter {
   const [pageId, stage] = definitions[module];
-  const version = ["expenses", "petty_cash"].includes(module)
+  const version = module === 'ideas_board' && tab === 'projects' ? 4
+    : ['correo.mail', 'control_minutas.meetings', 'scheduling.clients', 'scheduling.configuration'].includes(`${module}.${tab}`) ? 3
+    : ["expenses", "petty_cash"].includes(module)
     || module === 'ideas_board'
     || (module === 'crm' && tab === 'funneling')
     || (module === 'human_resources' && ['control', 'attendance'].includes(tab)) ? 3 : 2;
@@ -45,9 +47,9 @@ export const learningChapters: readonly LearningChapter[] = [
     ["Comprueba el guardado y conserva un proyecto. El mapa ordena ideas; no crea empleados, tareas, productos ni registros contables.", "Check the saved state and retain a project. The map organizes ideas; it does not create employees, tasks, products or accounting records."],
   ]),
   chapter("ideas_board", "projects", ["Mis proyectos", "My projects"], [
-    ["Busca por nombre los proyectos guardados para tu usuario y empresa activa.", "Search by name for projects saved for your user and active company."],
-    ["Abre una copia de Mi pizarra o del Tablero Índice para consultar elementos, archivos, dibujos, pasos y relaciones; puedes imprimirla o guardarla como PDF desde tu navegador.", "Open a My board or Indice system board snapshot to inspect elements, files, drawings, steps and relationships; you can print it or save it as PDF from your browser."],
-    ["La consulta conserva el contenido original: acercar o mover la vista no cambia el proyecto ni tus borradores.", "Consultation preserves the original content: zooming or panning does not change the project or your drafts."],
+    ["Busca proyectos propios, compartidos contigo o en tu papelera dentro de la empresa activa.", "Search your own projects, projects shared with you or your trash within the active company."],
+    ["Consulta e imprime una versión guardada, crea una copia privada o, si eres su dueño, cambia el nombre, comparte consulta y copia o mueve el proyecto a la papelera.", "Review and print a saved snapshot, create a private copy or, as its owner, rename it, share read/copy access or move it to trash."],
+    ["Compartir no permite editar el original. Comprueba los destinatarios y la copia guardada; restaura desde la papelera y protege el borrador antes de usar un proyecto en tu pizarrón.", "Sharing does not allow editing the original. Check recipients and the saved copy; restore from trash and protect your draft before using a project in your board."],
   ]),
   chapter("sales_board", "overview", ["Resumen de ventas","Sales overview"], [
     ["Elige periodo, origen y alcance autorizado para revisar las ventas de CRM y POS.","Choose period, origin and authorized scope to review CRM and POS sales."],
@@ -76,7 +78,7 @@ export const learningChapters: readonly LearningChapter[] = [
   ]),
   chapter("correo", "mail", ["Buzón y mensajes","Mailbox and messages"], [
     ["Selecciona tu cuenta conectada y carpeta y busca al cliente, remitente, destinatario o asunto.","Select your connected account and folder and search by customer, sender, recipient or subject."],
-    ["Sincroniza, consulta, responde o prepara un correo y revisa sus destinatarios y adjuntos antes de enviarlo.","Sync, read, reply or prepare an email and review recipients and attachments before sending."],
+    ["Sincroniza y organiza mensajes con selección múltiple. Redacta con formato, contactos y plantillas autorizados de Ventas y la firma de la cuenta; revisa destinatarios y adjuntos antes de confirmar el envío.","Sync and organize messages with multiple selection. Compose with formatting, authorized Sales contacts and templates, and the account signature; review recipients and attachments before confirming send."],
     ["Comprueba Enviados y el estado de envío. Distingue carpetas del servidor, borradores locales y resultados sin confirmar antes de reintentar.","Check Sent and delivery status. Distinguish server folders, local drafts and unconfirmed outcomes before retrying."],
   ]),
   chapter("maintenance", "requests", ["Solicitudes técnicas","Technical requests"], [
@@ -131,8 +133,8 @@ export const learningChapters: readonly LearningChapter[] = [
   ]),
   chapter('control_minutas', 'meetings', ['Juntas y minutas', 'Meetings and minutes'], [
     ['Revisa participantes, responsable, horario y permisos antes de planear una junta o serie finita.', 'Review participants, owner, time and permissions before planning a meeting or finite series.'],
-    ['Planea la junta y registra su minuta y decisiones desde Control de juntas.', 'Plan the meeting and record its minutes and decisions in Meeting control.'],
-    ['Comprueba la junta guardada y su seguimiento. Las notificaciones internas no acreditan correo o invitaciones externas.', 'Check the saved meeting and its follow-up. Internal notifications do not prove email or external invitations.'],
+    ['Consulta horarios sugeridos y planea la junta. Durante su ejecución registra asistencia real y, con permiso, abre votaciones ponderadas; cada participante emite su propio voto.', 'Review suggested times and plan the meeting. During execution record actual attendance and, with permission, open weighted ballots; each participant casts their own vote.'],
+    ['Los horarios sugeridos no reservan disponibilidad. Cierra las votaciones antes de completar y comprueba sus resultados en la minuta. Las notificaciones internas no acreditan correo o invitaciones externas.', 'Suggested times do not reserve availability. Close ballots before completing and check their results in the minutes. Internal notifications do not prove email or external invitations.'],
   ]),
   chapter('control_minutas', 'agreements', ['Acuerdos y seguimiento', 'Agreements and follow-up'], [
     ['Identifica la junta, el acuerdo, su responsable y fecha; consulta solo los registros autorizados.', 'Identify the meeting, agreement, owner and date; review only authorized records.'],
@@ -156,7 +158,7 @@ export const learningChapters: readonly LearningChapter[] = [
   ]),
   chapter('scheduling', 'clients', ['Clientes compartidos', 'Shared clients'], [
     ['Comprueba tus permisos de Clientes en Ventas y el acceso administrativo requerido en Agendamiento.', 'Check your Sales client permissions and the administrative access required in Scheduling.'],
-    ['Consulta los clientes mediante el propietario de Ventas desde la sección autorizada.', 'Review clients through the Sales owner from the authorized section.'],
+    ['Busca clientes mediante el propietario de Ventas o registra uno desde la captura interna autorizada; confirma el guardado antes de asociarlo.', 'Search clients through the Sales owner or create one through authorized internal capture; confirm the saved result before linking it.'],
     ['Comprueba la identidad del cliente antes de asociarlo. Una solicitud pública no crea automáticamente un cliente CRM.', 'Check the client identity before linking it. A public request does not automatically create a CRM client.'],
   ]),
   chapter('scheduling', 'events', ['Eventos y cupos', 'Events and capacity'], [
@@ -170,8 +172,8 @@ export const learningChapters: readonly LearningChapter[] = [
     ['Verifica estados e historial antes de interpretar resultados; el aprendizaje no modifica asistencia ni métricas.', 'Check statuses and history before interpreting results; learning does not change attendance or metrics.'],
   ]),
   chapter('scheduling', 'configuration', ['Servicios, equipo y agenda pública', 'Services, team and public agenda'], [
-    ['Revisa servicios, duración, anticipación, equipo activo y disponibilidad semanal explícita.', 'Review services, duration, notice, active staff and explicit weekly availability.'],
-    ['Guarda servicios y equipo y configura apariencia y publicación de la agenda desde sus espacios autorizados.', 'Save services and staff and configure agenda appearance and publication from their authorized workspaces.'],
+    ['Revisa servicios del catálogo, duración, anticipación y colaboradores activos de Recursos Humanos.', 'Review catalog services, duration, notice and active Human Resources staff.'],
+    ['Guarda las ventanas semanales de servicios y colaboradores y sus descansos. Completa la configuración necesaria antes de publicar la agenda.', 'Save weekly service and staff windows and their breaks. Complete the required setup before publishing the agenda.'],
     ['Comparte solo el enlace guardado y publicado. Guardar no habilita el adaptador público ni concede permisos; las solicitudes requieren confirmación interna.', 'Share only the saved and published link. Saving does not enable the public adapter or grant permissions; requests require internal confirmation.'],
   ]),
   chapter('config_center', 'business-structure', ['Empresa, unidades y negocios', 'Company, units and businesses'], [

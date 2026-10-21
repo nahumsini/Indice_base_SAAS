@@ -6,13 +6,13 @@ Generated from the reviewed bilingual curriculum. Domain owners remain authorita
 | --- | --- | --- | --- | --- |
 | ideas_board.canvas | 1 | ideas-board/canvas | 3 | Understanding only until an owner completion is integrated |
 | ideas_board.system | 1 | ideas-board/system | 3 | Understanding only until an owner completion is integrated |
-| ideas_board.projects | 1 | ideas-board/projects | 3 | Understanding only until an owner completion is integrated |
+| ideas_board.projects | 1 | ideas-board/projects | 4 | Understanding only until an owner completion is integrated |
 | sales_board.overview | 6 | sales-board/overview | 2 | Understanding only until an owner completion is integrated |
 | sales_board.trends | 6 | sales-board/trends | 2 | Understanding only until an owner completion is integrated |
 | sales_board.channels | 6 | sales-board/channels | 2 | Understanding only until an owner completion is integrated |
 | sales_board.sales | 6 | sales-board/sales | 2 | Understanding only until an owner completion is integrated |
 | correo.accounts | 5 | email/accounts | 2 | Understanding only until an owner completion is integrated |
-| correo.mail | 5 | email/mail | 2 | Understanding only until an owner completion is integrated |
+| correo.mail | 5 | email/mail | 3 | Understanding only until an owner completion is integrated |
 | maintenance.requests | 3 | maintenance/requests | 2 | Understanding only until an owner completion is integrated |
 | maintenance.orders | 3 | maintenance/orders | 2 | Understanding only until an owner completion is integrated |
 | maintenance.assets | 3 | maintenance/assets | 2 | Understanding only until an owner completion is integrated |
@@ -23,15 +23,15 @@ Generated from the reviewed bilingual curriculum. Domain owners remain authorita
 | crm.funneling | 5 | sales/funneling | 3 | Understanding only until an owner completion is integrated |
 | crm.mailing | 5 | sales/mailing | 2 | Understanding only until an owner completion is integrated |
 | crm.whatsapping | 5 | sales/whatsapping | 2 | Understanding only until an owner completion is integrated |
-| control_minutas.meetings | 3 | minutes-control/meetings | 2 | Understanding only until an owner completion is integrated |
+| control_minutas.meetings | 3 | minutes-control/meetings | 3 | Understanding only until an owner completion is integrated |
 | control_minutas.agreements | 3 | minutes-control/agreements | 2 | Understanding only until an owner completion is integrated |
 | control_minutas.indicators | 3 | minutes-control/indicators | 2 | Understanding only until an owner completion is integrated |
 | scheduling.calendar | 3 | scheduling/calendar | 2 | Understanding only until an owner completion is integrated |
 | scheduling.reservations | 3 | scheduling/reservations | 2 | Understanding only until an owner completion is integrated |
-| scheduling.clients | 3 | scheduling/clients | 2 | Understanding only until an owner completion is integrated |
+| scheduling.clients | 3 | scheduling/clients | 3 | Understanding only until an owner completion is integrated |
 | scheduling.events | 3 | scheduling/events | 2 | Understanding only until an owner completion is integrated |
 | scheduling.indicators | 3 | scheduling/indicators | 2 | Understanding only until an owner completion is integrated |
-| scheduling.configuration | 3 | scheduling/configuration | 2 | Understanding only until an owner completion is integrated |
+| scheduling.configuration | 3 | scheduling/configuration | 3 | Understanding only until an owner completion is integrated |
 | config_center.business-structure | 1 | home-panel/business-structure | 2 | Understanding only until an owner completion is integrated |
 | config_center.profile | 1 | home-panel/profile | 2 | Understanding only until an owner completion is integrated |
 | config_center.users | 1 | home-panel/users | 2 | Understanding only until an owner completion is integrated |
