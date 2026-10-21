@@ -88,6 +88,12 @@ pending, under [the workspace release decision](decisions/2026-10-20-workspace-r
 Only that blocker is replaced for this activation and observation window; the finding
 remains unresolved and no provider activation or later release is authorized.
 
+For creative workspace revision `23d5b954a2b9a5d14a74d8c0fc06ac3323f233c5`, the
+owner separately authorized publication with the historical Stripe TEST-key
+revocation pending, under [the creative release decision](decisions/2026-10-20-creative-release-stripe-deferral.md).
+Only that blocker is replaced for this activation and observation; the finding
+remains unresolved, all other gates apply, and no later release is authorized.
+
 For the 2026-10-06 release, the owner's later explicit instruction to review directly in production
 replaces only the human-UAT location/timing, as recorded in the
 [bounded production-acceptance decision](decisions/2026-10-06-owner-production-acceptance.md).
