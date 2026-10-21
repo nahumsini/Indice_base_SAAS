@@ -112,7 +112,7 @@ export default function ReservationsTab({ mode, copy, locale, canRead = true, ca
       <ReservationsCalendar workspace={calendar.data} from={from} to={to} copy={copy} locale={locale} selectedDate={anchor} onSelectDate={setAnchor} onReview={setReview}/>:
       view==='table'&&table.data&&<ReservationsTable data={table.data} columns={columns} copy={copy} locale={locale} page={page} size={size} administrator={administrator} canManage={canCapture} onPage={setPage}
         onSize={value=>{setSize(value);setPage(1);}} onResize={resize} onReview={setReview} onManage={(record,action)=>setManagement({record,action})}/>}
-    {capture&&canCapture&&<InternalBookingModal copy={copy} locale={locale} onClose={()=>{setCapture(false);refresh();}}/>}
+    {capture&&canCapture&&<InternalBookingModal copy={copy} locale={locale} onSetup={canConfigure?section=>{setCapture(false);setConfiguration(section);}:undefined} onClose={()=>{setCapture(false);refresh();}}/>}
     {review&&<ReservationReview record={review} copy={copy} locale={locale} canManage={canCapture&&!review.archivedAt} onClose={()=>setReview(null)} onSaved={()=>{setReview(null);refresh();}}/>}
     {management&&<ReservationManagement {...management} staff={options.data??[]} copy={copy} onClose={()=>setManagement(null)} onSaved={()=>{setManagement(null);refresh();}}/>}
     </>}

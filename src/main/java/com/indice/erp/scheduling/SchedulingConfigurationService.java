@@ -17,17 +17,44 @@ public class SchedulingConfigurationService {
     private final KioskPayloadProtectionService protection;
     private final SchedulingResourceAvailabilityService resources;
     private final Clock clock;
+    private final com.indice.erp.sales.SchedulingServiceCatalog catalog;
+    private final com.indice.erp.hr.users.HrSchedulingDirectoryService employees;
     private final com.indice.erp.access.module.ModuleAccessService modules;
     private final SchedulingNotificationService notifications;
     private final com.indice.erp.hr.permissions.HrSchedulingAvailabilityService hr;
     public SchedulingConfigurationService(SchedulingRepository repository,KioskRegistryService registry,
-        KioskPayloadProtectionService protection,SchedulingResourceAvailabilityService resources,Clock clock,com.indice.erp.access.module.ModuleAccessService modules,SchedulingNotificationService notifications,com.indice.erp.hr.permissions.HrSchedulingAvailabilityService hr){
-        this.repository=repository;this.registry=registry;this.protection=protection;this.resources=resources;this.clock=clock;this.modules=modules;this.notifications=notifications;this.hr=hr;
+        KioskPayloadProtectionService protection,SchedulingResourceAvailabilityService resources,Clock clock,com.indice.erp.access.module.ModuleAccessService modules,SchedulingNotificationService notifications,com.indice.erp.hr.permissions.HrSchedulingAvailabilityService hr,com.indice.erp.sales.SchedulingServiceCatalog catalog,com.indice.erp.hr.users.HrSchedulingDirectoryService employees){
+        this.repository=repository;this.registry=registry;this.protection=protection;this.resources=resources;this.clock=clock;this.modules=modules;this.notifications=notifications;this.hr=hr;this.catalog=catalog;this.employees=employees;
+    }
+    static void validateDays(List<AvailabilityDay> days){
+        if(days.size()>28)throw new IllegalArgumentException("scheduling_hours_invalid");
+        AvailabilityDay previous=null;
+        for(var day:days.stream().sorted(Comparator.comparingInt(AvailabilityDay::dayOfWeek).thenComparing(AvailabilityDay::startTime)).toList()){
+            if(day.dayOfWeek()<1||day.dayOfWeek()>7||!day.startTime().isBefore(day.endTime())||day.startTime().getSecond()!=0||day.endTime().getSecond()!=0||previous!=null&&previous.dayOfWeek()==day.dayOfWeek()&&previous.endTime().isAfter(day.startTime()))throw new IllegalArgumentException("scheduling_hours_invalid");
+            previous=day;
+        }
+    }
+    public Readiness readiness(long company,boolean publicEnabled){
+        String alias="agenda-"+Long.toString(company,36);
+        if(repository.aliasTaken(company,alias))alias+="-"+UUID.randomUUID().toString().substring(0,8);
+        return new Readiness(publicEnabled,repository.companyName(company),alias,bookingReady(company));
+    }
+    private boolean bookingReady(long company){
+        var staff=repository.activeStaff(company);
+        var services=repository.services(company).stream().filter(service->service.active()&&(service.productId()==null||catalog.available(company,service.productId()))).toList();
+        boolean sessions=staff.stream().anyMatch(person->!person.days().isEmpty()&&services.stream().anyMatch(service->person.serviceIds().isEmpty()||person.serviceIds().contains(service.id())));
+        var activeIds=staff.stream().map(StaffItem::id).toList();
+        return sessions||repository.publicEvents(company,clock.instant()).stream().anyMatch(event->activeIds.contains(event.staffId()));
     }
     private void lock(long company){repository.lockCompany(company);if(!modules.companyCanAccessForMutation(company,"scheduling"))throw new SecurityException();}
     @Transactional(isolation=Isolation.READ_COMMITTED)
     public void service(AuthSessionUser actor,Long id,ServiceRequest request) {
         SchedulingAccessService.requireAdministrator(actor);long company=actor.companyId();lock(company);
+        if(request.name().isBlank())throw new IllegalArgumentException();
+        if(request.days()!=null)validateDays(request.days());
+        Long product=request.productId();
+        if(id!=null&&product==null){for(var saved:repository.services(company))if(saved.id()==id){product=saved.productId();break;}}
+        if(product!=null)catalog.selected(company,product);
         if(id==null)id=repository.insert("""
             INSERT INTO scheduling_services(company_id,name,description,duration_minutes,buffer_minutes,notice_hours,active)
             VALUES(?,?,?,?,?,?,?)
@@ -38,22 +65,20 @@ public class SchedulingConfigurationService {
              active=?,version=version+1 WHERE company_id=? AND id=? AND version=?
             """,request.name().trim(),text(request.description()),request.durationMinutes(),request.bufferMinutes(),
             request.noticeHours(),request.active(),company,id,request.version()));
+        repository.jdbc().update("UPDATE scheduling_services SET product_id=? WHERE company_id=? AND id=?",product,company,id);
+        if(request.days()!=null){
+            repository.jdbc().update("DELETE FROM scheduling_service_availability WHERE company_id=? AND service_id=?",company,id);
+            for(var day:request.days())repository.jdbc().update("INSERT INTO scheduling_service_availability(company_id,service_id,day_of_week,start_time,end_time) VALUES(?,?,?,?,?)",company,id,day.dayOfWeek(),day.startTime(),day.endTime());
+        }
         repository.audit(company,actor.userId(),"SERVICE",id,"SERVICE_SAVED");
     }
     @Transactional(isolation=Isolation.READ_COMMITTED)
     public void staff(AuthSessionUser actor,Long id,StaffRequest request) {
         SchedulingAccessService.requireAdministrator(actor);long company=actor.companyId();lock(company);
         repository.memberEmail(company,request.userId());ZoneId.of(request.timezone());
+        if(request.active()&&!employees.eligible(company,request.userId()))throw new IllegalArgumentException("scheduling_employee_unavailable");
         if(request.days()==null||request.days().size()>28)throw new IllegalArgumentException("Invalid weekly availability.");
-        var ordered=request.days().stream().sorted(Comparator.comparingInt(AvailabilityDay::dayOfWeek).thenComparing(AvailabilityDay::startTime)).toList();
-        AvailabilityDay previous=null;
-        for(var day:ordered){
-            if(day.dayOfWeek()<1||day.dayOfWeek()>7||!day.startTime().isBefore(day.endTime())
-                ||day.startTime().getSecond()!=0||day.endTime().getSecond()!=0
-                ||previous!=null&&previous.dayOfWeek()==day.dayOfWeek()&&previous.endTime().isAfter(day.startTime()))
-                throw new IllegalArgumentException("Invalid or overlapping weekly availability.");
-            previous=day;
-        }
+        validateDays(request.days());
         if(request.unavailableDates()!=null&&(request.unavailableDates().size()>366||request.unavailableDates().stream().anyMatch(d->d==null||d.isBefore(LocalDate.of(2000,1,1))||d.isAfter(LocalDate.of(2100,1,1)))))throw new IllegalArgumentException();
         if(request.serviceIds()!=null){
             var owned=repository.services(company).stream().map(ServiceItem::id).toList();
@@ -78,11 +103,13 @@ public class SchedulingConfigurationService {
             repository.jdbc().update("DELETE FROM scheduling_staff_services WHERE company_id=? AND staff_id=?",company,id);
             for(var service:new TreeSet<>(request.serviceIds()))repository.jdbc().update("INSERT INTO scheduling_staff_services(company_id,staff_id,service_id) VALUES(?,?,?)",company,id,service);
         }
+        if(request.bufferMinutes()!=null)repository.jdbc().update("UPDATE scheduling_staff SET buffer_minutes=? WHERE company_id=? AND id=?",request.bufferMinutes(),company,id);
         repository.audit(company,actor.userId(),"STAFF",id,"STAFF_SAVED");
     }
     @Transactional(isolation=Isolation.READ_COMMITTED)
     public PageItem page(AuthSessionUser actor,PageRequest request) {
         SchedulingAccessService.requireAdministrator(actor);long company=actor.companyId();lock(company);
+        if(request.published()&&!bookingReady(company))throw new IllegalArgumentException("scheduling_setup_required");
         var previous=repository.page(company);long id;String token;
         if(previous.isEmpty()) {
             token="sch_"+UUID.randomUUID().toString().replace("-","")+UUID.randomUUID().toString().replace("-","");

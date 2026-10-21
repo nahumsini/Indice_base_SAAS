@@ -64,7 +64,7 @@ Events use one host and a bounded capacity. Requests contain consented minimal c
 Public requests and event registrations remain REQUESTED until an authorized operator confirms.
 They do not guarantee a slot or seat. Confirmation rechecks time, collisions and capacity inside
 a transaction. No email verification or external email delivery is claimed in this pilot.
-No automatic meeting provider, checkout, Stripe mutation, CRM write, entitlement, or ERP signup.
+No automatic meeting provider, checkout, Stripe mutation, public CRM write, entitlement, or ERP signup.
 
 Booking states: REQUESTED → CONFIRMED → COMPLETED | NO_SHOW; REQUESTED/CONFIRMED → CANCELLED.
 Future REQUESTED/CONFIRMED reservations can be paused (PAUSED), releasing the slot or event seat.
@@ -154,9 +154,8 @@ In addition to Scheduling's administrator/clients access, embedding requires an 
 message and do not mount/fetch the Sales workspace. Scheduling never grants a Sales entitlement
 or mutation authority. All owner endpoint checks and narrower object scopes remain enforced.
 
-The narrow read-only `SalesClientDirectoryService` and `/scheduling/clients` endpoint remain
-compatible for existing consumers: company/contact names, email, phone and status. That contract
-cannot write clients, opportunities or financial state. Public contact submissions do not create
+The narrow `SalesClientDirectoryService` and `/scheduling/clients` endpoint remain
+compatible for existing consumers: company/contact names, email, phone and status. Its directory read cannot write clients, opportunities or financial state. The explicitly authorized private creation extension below is a separate Sales-owned command. Public contact submissions do not create
 or silently associate a master client by unverified email. Client commands in the embedded UI
 run only through the existing authorized Sales workflow, not through Scheduling authority.
 
@@ -325,3 +324,57 @@ HTTP, reachable wizard/editor footers, day/week/month, contained horizontal scro
 cards/table, eight locales, permission filtering and dark mode. Set `INDICE_SCHEDULING_TEST_PORT`
 when another fixture already uses the default test port. Browser testing uses synthetic data and
 does not certify a physical phone or real external delivery.
+
+
+## Employee, Inventory service and guided booking integration — 2026-10-21
+
+The approved Agenda extension keeps the existing coral module, shared modal frame, calendar/table
+sliders, independent permissions, company boundaries, reservation lifecycle and historical snapshots.
+It supersedes the earlier restriction on explicit **private** client creation only. Public booking
+still cannot select or create a Sales client and never links an unverified email automatically.
+
+- `/members` now delegates to the HR-owned `HrSchedulingDirectoryService`: active work profiles,
+  active company memberships and no termination date. It exposes only user identity and display
+  name. New team setup selects these real employees and does not create or invite a user. Existing
+  staff without an HR profile stay compatible; a known inactive/terminated employee is not bookable.
+  Operators retain their own-staff scope and administrators retain company configuration access.
+- `GET /inventory-services?search=&page=1` is an administrator/configuration projection through
+  Inventory-owned `SchedulingServiceCatalog`, scoped by company and nondeleted `SERVICE` type.
+  Pages contain 25 records with an escaped name/SKU search, totals and active status. No prices,
+  stock, employee private details or additional module grants are exposed. Active services can be
+  added to Agenda and retain `productId`; one product has at most one company Agenda configuration.
+  Legacy independent services remain editable. Linked inactive/deleted/retyped products stop being
+  offered or booked. Agenda owns only booking name/description, duration, notice, break and hours;
+  it never writes the Inventory product.
+- Service hours support up to 28 nonoverlapping weekly windows. Empty hours retain all eligible
+  staff hours. The owner intersects service windows with employee windows in the employee's zone,
+  including DST validation, blocked dates and existing cross-module resource checks. Staff can set
+  a 0–120 minute break; the larger service/staff break is snapshotted on new individual requests.
+  Existing confirmed appointments retain their original duration/buffer. Adjacent sessions are
+  blocked by the snapshotted break. Updating configuration does not rewrite appointment history.
+- Public setup now returns company name, a generated nonconflicting alias and booking readiness.
+  The modal selects a page title, Cards/Compact presentation, a colour and publication; brand/link
+  are prepared automatically. Legacy titles, aliases, descriptions and saved theme remain intact.
+  Save keeps the modal open with confirmation and saved-version links, using the returned version
+  on subsequent saves. Publishing requires an active service/employee pair with weekly hours or
+  an upcoming published event. Public adapter flags, entitlement, registry, sessions, rate limits,
+  idempotency, audit and lifecycle gates remain mandatory. Setup does not silently publish a page.
+- `POST /booking-clients` uses Scheduling reservations + administrator + CSRF and native CRM/contacts
+  authority. `SchedulingClientCaptureService` owns a company/actor/key fingerprint receipt; the
+  Sales-owned explicit `createForScheduling` port delegates native contact creation to `SalesService`.
+  It requires consent and a valid name/email, supports safe retries and returns the selected master
+  client. No new contact table, inferred association, external notification or automatic booking is
+  introduced. Creation uses one inline form, then fills the booking wizard; capture continues only
+  after the normal reservation review/consent. Public code never mounts the client picker.
+- Native editors and private capture guard against a changed authorization revision, keep drafts on
+  recoverable errors, disable inputs while saving and explain invalid hours or unavailable sources.
+  Setup errors offer permitted service/team configuration actions instead of a dead end. Translation
+  coverage includes all eight locales. Phone bodies scroll within the native modal and retain the
+  visible footer; table/calendar horizontal navigation remains contained.
+
+V341 is additive: nullable service-product identity, service weekly windows, staff break and private
+client retry receipts. It backfills no clients, employees, permissions, prices or publication.
+Verification uses a disposable MySQL database and synthetic HTTP/browser data, never functional
+business mutations. Local activation retains a private pre-migration backup and previous runtime;
+rollback restores application processes without reversing Flyway history. Public access rollback
+remains the existing scheduling adapter flag. No production rollout is included.

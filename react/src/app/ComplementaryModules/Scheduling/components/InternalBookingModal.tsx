@@ -1,19 +1,23 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { getAuthorizationRevision } from '../../../api/authSessionStore';
 import { IndiceModalFrame } from '../../../components/indice-modal/IndiceModalFrame';
 import { schedulingApi, type SlotRequest, type BookingRequest } from '../services/schedulingApi';
 import { useSchedulingQuery } from '../hooks/useSchedulingQuery';
 import type { SchedulingCopy } from '../translations/schedulingCopy';
 import { ActionButton, Feedback } from './SchedulingPrimitives';
 import { BookingForm } from './BookingForm';
+import { getSchedulingSetupCopy } from '../translations/schedulingSetupCopy';
 import { schedulingEmoji, schedulingTone } from '../utils/schedulingIdentity';
 
-export function InternalBookingModal({ copy, locale, onClose }: { copy: SchedulingCopy; locale: string; onClose: () => void }) {
+export function InternalBookingModal({ copy, locale, onClose, onSetup }: { copy: SchedulingCopy; locale: string; onClose: () => void; onSetup?:(section:"services"|"team")=>void }) {
+  const actorRevision=useRef(getAuthorizationRevision());
+  const setup=getSchedulingSetupCopy(locale);
   const query = useSchedulingQuery(useCallback((signal: AbortSignal) => schedulingApi.catalog(signal), []));
   const [busy, setBusy] = useState(false), [discard, setDiscard] = useState(false);
   const [received, setReceived] = useState(false);
   const [dirty,setDirty] = useState(false), [footerTarget,setFooterTarget] = useState<HTMLDivElement|null>(null);
   const slots = useCallback((request: SlotRequest, signal: AbortSignal) => schedulingApi.slots(request, signal), []);
-  const submit = useCallback((request: BookingRequest, key: string) => schedulingApi.request(request, key), []);
+  const submit = useCallback((request: BookingRequest, key: string) => {if(actorRevision.current!==getAuthorizationRevision())return Promise.reject(new Error("scheduling_scope_changed"));return schedulingApi.request(request,key);}, []);
   const close = () => received || !dirty ? onClose() : setDiscard(true);
   return <IndiceModalFrame open busy={busy} onOpenChange={open => { if (!open) close(); }} tone={schedulingTone} modalType={discard ? 'confirmation' : 'wizard'}
     contentClassName="group/agenda-booking data-[dialog-compact-viewport=true]:!overflow-hidden"
@@ -23,6 +27,6 @@ export function InternalBookingModal({ copy, locale, onClose }: { copy: Scheduli
       <ActionButton onClick={() => setDiscard(false)}>{copy.keepEditing}</ActionButton><ActionButton onClick={onClose}>{copy.close}</ActionButton>
     </> : <><ActionButton disabled={busy} onClick={close}>{received?copy.close:copy.cancel}</ActionButton><div ref={setFooterTarget} className="ml-auto flex flex-wrap gap-3"/></>}>
     <div className={discard ? 'hidden' : ''}>{query.loading ? <Feedback>{copy.loading}</Feedback> : query.error ? <Feedback error>{copy.error}</Feedback> : query.data &&
-      <BookingForm tone={schedulingTone} footerTarget={footerTarget} onDirtyChange={setDirty} catalog={query.data} copy={copy} locale={locale} loadSlots={slots} onSubmit={submit} onBusyChange={setBusy} onReceived={() => setReceived(true)} />}</div>
+      <><BookingForm tone={schedulingTone} footerTarget={footerTarget} onDirtyChange={setDirty} catalog={query.data} copy={copy} locale={locale} loadSlots={slots} onSubmit={submit} onBusyChange={setBusy} onReceived={() => setReceived(true)} />{onSetup&&(!query.data.staff.length||(!query.data.services.length&&!query.data.events.length))&&<div className="mt-4 flex flex-wrap gap-3"><ActionButton onClick={()=>onSetup("services")}>{setup.servicesSetup}</ActionButton><ActionButton primary onClick={()=>onSetup("team")}>{setup.teamSetup}</ActionButton></div>}</>}</div>
   </IndiceModalFrame>;
 }

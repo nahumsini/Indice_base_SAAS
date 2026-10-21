@@ -16,14 +16,15 @@ public final class SchedulingSlotPolicy {
         for(var day:staff.days()) {
             if(day.dayOfWeek()!=date.getDayOfWeek().getValue())continue;
             var windowEnd=date.atTime(day.endTime());
-            for(var local=date.atTime(day.startTime());!local.plusMinutes(service.durationMinutes()+service.bufferMinutes())
+            for(var local=date.atTime(day.startTime());!local.plusMinutes(service.durationMinutes()+Math.max(service.bufferMinutes(),staff.bufferMinutes()))
                 .isAfter(windowEnd);local=local.plusMinutes(15)) {
                 // Reject ambiguous/nonexistent DST wall times rather than silently shifting them.
                 var offsets=zone.getRules().getValidOffsets(local);
                 if(offsets.size()!=1)continue;
                 var start=local.toInstant(offsets.getFirst());
-                var finish=start.plusSeconds((service.durationMinutes()+service.bufferMinutes())*60L).atZone(zone).toLocalDateTime();
-                if(!finish.equals(local.plusMinutes(service.durationMinutes()+service.bufferMinutes())))continue;
+                var finish=start.plusSeconds((service.durationMinutes()+Math.max(service.bufferMinutes(),staff.bufferMinutes()))*60L).atZone(zone).toLocalDateTime();
+                if(!finish.equals(local.plusMinutes(service.durationMinutes()+Math.max(service.bufferMinutes(),staff.bufferMinutes()))))continue;
+                if(!service.days().isEmpty()&&service.days().stream().noneMatch(window->window.dayOfWeek()==date.getDayOfWeek().getValue()&&!start.atZone(zone).toLocalTime().isBefore(window.startTime())&&!finish.toLocalTime().isAfter(window.endTime())))continue;
                 if(!start.isBefore(now.plusSeconds(service.noticeHours()*3600L)))result.add(start);
                 if(result.size()>=96)break;
             }

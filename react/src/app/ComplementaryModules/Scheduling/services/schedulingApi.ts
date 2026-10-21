@@ -1,9 +1,9 @@
 import { apiClient, buildApiUrl } from '../../../lib/apiClient';
 
 export type ReservationStatus = 'REQUESTED' | 'CONFIRMED' | 'COMPLETED' | 'NO_SHOW' | 'CANCELLED' | 'PAUSED';
-export type Service = { id: number; name: string; description: string; durationMinutes: number; bufferMinutes: number; noticeHours: number; active: boolean; version: number };
+export type Service = { id: number; name: string; description: string; durationMinutes: number; bufferMinutes: number; noticeHours: number; active: boolean; version: number; productId?: number | null; days?: AvailabilityDay[] };
 export type AvailabilityDay = { dayOfWeek: number; startTime: string; endTime: string };
-export type Staff = { id: number; userId: number; publicName: string; timezone: string; active: boolean; version: number; days: AvailabilityDay[]; unavailableDates?: string[]; serviceIds?: number[] };
+export type Staff = { id: number; userId: number; publicName: string; timezone: string; active: boolean; version: number; days: AvailabilityDay[]; unavailableDates?: string[]; serviceIds?: number[]; bufferMinutes?: number };
 export type PageAppearance = { brandName: string; accentColor: string; surfaceColor: string; buttonLabel: string; layout: 'cards' | 'compact' };
 export type BookingPage = { id: number; alias: string; title: string; description: string; published: boolean; version: number; publicUrl: string; appearance?: PageAppearance };
 export type Event = { id: number; staffId: number; title: string; description: string; startAt: string; durationMinutes: number; capacity: number; confirmedCount: number; activeParticipantCount?: number; location?: string; published: boolean; status: string; version: number };
@@ -18,6 +18,9 @@ export type SlotRequest = { serviceId: number; staffId: number; date: string };
 export type Slots = { timezone: string; starts: string[] };
 export type BookingRequest = { serviceId: number | null; eventId: number | null; staffId: number; startAt: string; attendeeName: string; attendeeEmail: string; attendeeCompany: string; attendeePhone: string; contactConsent: boolean; clientId?: number };
 export type Submission = { status: string; submissionPolicy: 'REVIEW_REQUIRED'; reference?: string };
+export type SchedulingReadiness = { publicAccessEnabled: boolean; companyName: string; suggestedAlias: string; bookingReady: boolean };
+export type InventoryService = { id:number; name:string; description:string; sku:string; active:boolean };
+export type ClientCapture = { name:string; email:string; phone:string; companyName:string; contactConsent:boolean };
 export type Range = { from: string; to: string };
 const root = '/api/v1/scheduling';
 const save = <T>(path: string, body: unknown, method = 'POST') => apiClient<T>(path, { method, body: JSON.stringify(body) });
@@ -26,11 +29,13 @@ export const schedulingApi = {
   history: (id: number, signal?: AbortSignal) => apiClient<{ action: string; reason: string; occurredAt: string; previousStartAt: string | null; nextStartAt: string | null }[]>(`${root}/reservations/${id}/history`, { signal }),
   participants: (id: number, page: number, signal?: AbortSignal, pageSize = 25) => apiClient<ReservationPage>(`${root}/events/${id}/participants?page=${page}&pageSize=${pageSize}`, { signal }),
   bookingClients: (search: string, page: number, signal?: AbortSignal) => apiClient<{ items: Client[]; total: number }>(`${root}/booking-clients?${new URLSearchParams({ search, page: String(page) })}`, { signal }),
+  createBookingClient: (body: ClientCapture,key:string) => apiClient<Client>(`${root}/booking-clients`,{method:"POST",body:JSON.stringify(body),headers:{"Idempotency-Key":key}}),
+  inventoryServices: (search:string,page:number,signal?:AbortSignal) => apiClient<{items:InventoryService[];total:number;page:number;pageSize:number}>(`${root}/inventory-services?${new URLSearchParams({search,page:String(page)})}`,{signal}),
   services: (signal?: AbortSignal) => apiClient<Service[]>(`${root}/services`, { signal }),
   staff: (signal?: AbortSignal) => apiClient<Staff[]>(`${root}/staff`, { signal }),
   members: (signal?: AbortSignal) => apiClient<{ id: number; name: string }[]>(`${root}/members`, { signal }),
   page: (signal?: AbortSignal) => apiClient<BookingPage | null>(`${root}/page`, { signal }),
-  readiness: (signal?: AbortSignal) => apiClient<{ publicAccessEnabled: boolean }>(`${root}/readiness`, { signal }),
+  readiness: (signal?: AbortSignal) => apiClient<SchedulingReadiness>(`${root}/readiness`, { signal }),
   links: (signal?: AbortSignal) => apiClient<{ publicUrl: string | null }>(`${root}/links`, { signal }),
   events: (signal?: AbortSignal) => apiClient<Event[]>(`${root}/events`, { signal }),
   catalog: (signal?: AbortSignal) => apiClient<BookingCatalog>(`${root}/catalog`, { signal }),

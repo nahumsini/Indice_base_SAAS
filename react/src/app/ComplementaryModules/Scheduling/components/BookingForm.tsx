@@ -33,6 +33,7 @@ export function BookingForm({ catalog, copy, locale, loadSlots, onSubmit, preset
   const [error, setError] = useState(false), [busy, setBusy] = useState(false), [received, setReceived] = useState(false);
   const [contact, setContact] = useState({ attendeeName: '', attendeeEmail: '', attendeeCompany: '', attendeePhone: '', contactConsent: false });
   const [clientId, setClientId] = useState<number>();
+  const [creatingClient,setCreatingClient]=useState(false);
   const retry = useRef<{ fingerprint: string; key: string } | null>(null);
   const selectedEvent = selection.startsWith('event:') ? catalog.events.find(e => e.id === Number(selection.slice(6))) : undefined;
   const service = selection.startsWith('service:') ? catalog.services.find(s => s.id === Number(selection.slice(8))) : undefined;
@@ -63,7 +64,7 @@ export function BookingForm({ catalog, copy, locale, loadSlots, onSubmit, preset
   const timeReady = Boolean(selectedEvent || startAt);
   const buttons=<>
     {step!=='choose'&&<ActionButton disabled={busy} onClick={()=>setStep(steps[Math.max(0,steps.indexOf(step)-1)])}>{copy.back}</ActionButton>}
-    <ActionButton primary type="submit" form={formId} disabled={busy||(step==='choose'?!chooseReady:step==='time'?!timeReady||slotLoading:!contact.contactConsent)}>{busy?copy.loading:step==='review'?(catalog.appearance?.buttonLabel?.trim()||copy.send):copy.next}</ActionButton>
+    <ActionButton primary type="submit" form={formId} disabled={busy||creatingClient||(step==='choose'?!chooseReady:step==='time'?!timeReady||slotLoading:!contact.contactConsent)}>{busy?copy.loading:step==='review'?(catalog.appearance?.buttonLabel?.trim()||copy.send):copy.next}</ActionButton>
   </>;
   return <div className="space-y-5">
     <IndiceModalWizardStepper accent={tone==='coral'?'coral':'blue'} activeStepId={step} progressLabel={copy.newReservation}
@@ -113,10 +114,10 @@ export function BookingForm({ catalog, copy, locale, loadSlots, onSubmit, preset
         <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
           <p className="font-medium">{service?.name ?? selectedEvent?.title}</p><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{staff?.publicName} · {timeLabel(selectedEvent?.startAt ?? startAt, true)} · {staff?.timezone}</p>
         </section>
-        <div>{catalog.clientSelectionEnabled && <BookingClientPicker copy={copy} locale={locale} onSelect={client => {
+        <div>{catalog.clientSelectionEnabled && <BookingClientPicker copy={copy} locale={locale} onBusyChange={setBusy} onCreatingChange={setCreatingClient} onSelect={client => {
           setClientId(client.id); setContact({ attendeeName: client.contactPerson || client.companyName, attendeeEmail: client.email || '', attendeeCompany: client.companyName || '', attendeePhone: client.phone || '', contactConsent: false });
         }} />}</div>
-        <fieldset disabled={busy} className="grid gap-4 sm:grid-cols-2">
+        {!creatingClient&&<fieldset disabled={busy} className="grid gap-4 sm:grid-cols-2">
           {(['attendeeName', 'attendeeEmail', 'attendeeCompany', 'attendeePhone'] as const).map(key => <Field key={key}
             label={{ attendeeName: copy.attendee, attendeeEmail: copy.email, attendeeCompany: copy.company, attendeePhone: copy.phone }[key]}>
             <input className={controlClass} type={key === 'attendeeEmail' ? 'email' : key === 'attendeePhone' ? 'tel' : 'text'}
@@ -125,8 +126,8 @@ export function BookingForm({ catalog, copy, locale, loadSlots, onSubmit, preset
               value={contact[key]} onChange={e => { setClientId(undefined); setContact(previous => ({ ...previous, [key]: e.target.value })); }} />
           </Field>)}
           <label className="flex min-h-11 items-start gap-3 text-sm leading-6 sm:col-span-2"><input type="checkbox" className="mt-1 h-4 w-4 shrink-0" style={{accentColor:`var(--scheduling-accent,${MODULE_COLORS[tone].primary})`}} required checked={contact.contactConsent} onChange={e => setContact(previous => ({ ...previous, contactConsent: e.target.checked }))} />{copy.consent}</label>
-        </fieldset>
-        <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{copy.privacy}</p>
+        </fieldset>}
+        {!creatingClient&&<p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{copy.privacy}</p>}
       </>}
       {step==='review'&&<section className={panelClass}>
         <h3 className="font-medium">{op.review}</h3>

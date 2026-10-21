@@ -21,11 +21,12 @@ public class SchedulingPublicAdapter implements KioskModuleAdapter {
     private final ObjectMapper mapper;
     private final Validator validator;
     private final Clock clock;
+    private final com.indice.erp.sales.SchedulingServiceCatalog inventory;
 
     public SchedulingPublicAdapter(SchedulingRepository repository,SchedulingBookingService booking,
-        ModuleAccessService modules,ObjectMapper mapper,Validator validator,Clock clock) {
+        ModuleAccessService modules,ObjectMapper mapper,Validator validator,Clock clock,com.indice.erp.sales.SchedulingServiceCatalog inventory) {
         this.repository=repository;this.booking=booking;this.modules=modules;
-        this.mapper=mapper;this.validator=validator;this.clock=clock;
+        this.mapper=mapper;this.validator=validator;this.clock=clock;this.inventory=inventory;
     }
     public static Set<KioskCapabilityDescriptor> descriptors() {
         return Set.of(
@@ -43,7 +44,7 @@ public class SchedulingPublicAdapter implements KioskModuleAdapter {
         var members=repository.activeStaff(company);
         var staff=members.stream().map(s->new PublicStaff(s.id(),s.publicName(),s.timezone(),s.serviceIds())).toList();
         var staffIds=staff.stream().map(PublicStaff::id).toList();
-        var services=repository.services(company).stream().filter(ServiceItem::active)
+        var services=repository.services(company).stream().filter(v->v.active()&&(v.productId()==null||inventory.available(company,v.productId())))
             .map(s->new PublicService(s.id(),s.name(),s.description(),s.durationMinutes(),s.noticeHours())).toList();
         var events=repository.publicEvents(company,clock.instant()).stream().filter(e->staffIds.contains(e.staffId()))
             .map(e->new PublicEvent(e.id(),e.staffId(),e.title(),e.description(),e.startAt(),e.durationMinutes(),

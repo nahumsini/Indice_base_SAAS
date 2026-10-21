@@ -5,7 +5,8 @@ import { createServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
-const origin = 'http://127.0.0.1:5197';
+const previewPort=Number(process.env.INDICE_SCHEDULING_PREVIEW_PORT||5197);
+const origin=`http://127.0.0.1:${previewPort}`;
 const csrf = 'synthetic-csrf';
 const root = '/api/v1/scheduling/';
 const engine = '/api/v2/kiosks/public/synthetic-preview-address/';
@@ -33,7 +34,7 @@ export function createPreviewHandler() {
   const replays = new Map(), workspaces = new Map();
   const catalog = () => ({ title: bookingPage.title, description: bookingPage.description,appearance:bookingPage.appearance,
     services: services.filter(item => item.active), staff: staff.filter(item => item.active),
-    events: events.filter(item => item.published && item.status === 'ACTIVE').map(item => ({ ...item, availablePlaces: Math.max(0, item.capacity - item.confirmedCount) })), csrfToken: csrf });
+    clientSelectionEnabled:true, events: events.filter(item => item.published && item.status === 'ACTIVE').map(item => ({ ...item, availablePlaces: Math.max(0, item.capacity - item.confirmedCount) })), csrfToken: csrf });
   const scoped = url => reservations.filter(item => (!item.archivedAt||url.searchParams.get('includeArchived')==='true')&&(!url.searchParams.get('staffId')||item.staffId===Number(url.searchParams.get('staffId')))&&(!url.searchParams.get('from') || item.startAt >= url.searchParams.get('from')) && (!url.searchParams.get('to') || item.startAt < url.searchParams.get('to')) && (!url.searchParams.get('status') || item.status === url.searchParams.get('status'))).sort((a, b) => a.startAt.localeCompare(b.startAt));
   const clients=[{id:1,companyName:'Empresa demo Norte',contactPerson:'Cliente demo 1',email:'client1@example.com',phone:'',status:'ACTIVE'},{id:2,companyName:'Empresa demo Centro',contactPerson:'Cliente demo 2',email:'client2@example.com',phone:'',status:'ACTIVE'}];
   const send = (res, value, status = 200) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(status === 204 ? undefined : JSON.stringify(value)); };
@@ -58,7 +59,7 @@ export function createPreviewHandler() {
     }
     if (method === 'GET' && path === '/api/v1/modules') return send(res, [{ slug: 'scheduling', name: 'Agenda y eventos' }]);
     if (method === 'GET' && path === `/api/v1/public/scheduling/${bookingPage.alias}` && bookingPage.published) return send(res, { token: 'synthetic-preview-address' });
-    if (method === 'GET' && path === `${engine}bootstrap` && bookingPage.published) return send(res, { data: catalog() });
+    if (method === 'GET' && path === `${engine}bootstrap` && bookingPage.published) return send(res, { data: {...catalog(),clientSelectionEnabled:false} });
     const isPublic = path.startsWith(engine);
     const tail = path.startsWith(root) ? path.slice(root.length) : isPublic ? path.slice(engine.length) : '';
     if (method === 'GET' && path.startsWith(root)) {
@@ -66,7 +67,7 @@ export function createPreviewHandler() {
         const items=scoped(url),visible=events.filter(item=>(!url.searchParams.get('staffId')||item.staffId===Number(url.searchParams.get('staffId')))&&item.startAt>=url.searchParams.get('from')&&item.startAt<url.searchParams.get('to'));
         return send(res,{items,total:items.length,events:visible,eventsTotal:visible.length});
       }
-      if(tail==='clients'){
+      if(tail==='clients'||tail==='booking-clients'){
         const search=(url.searchParams.get('search')??'').toLowerCase(),items=clients.filter(item=>`${item.companyName} ${item.contactPerson} ${item.email}`.toLowerCase().includes(search));
         return send(res,{items,total:items.length,page:1,pageSize:25});
       }
@@ -79,10 +80,15 @@ export function createPreviewHandler() {
         const completed = count('COMPLETED'), noShow = count('NO_SHOW');
         return send(res, { requests: count('REQUESTED'), confirmed: count('CONFIRMED'), completed, noShow, cancelled: count('CANCELLED'), attendanceRate: completed + noShow ? completed / (completed + noShow) * 100 : null });
       }
-      const payloads = { services, staff,'staff-options':staff, events, members: staff.map(item => ({ id: item.userId, name: item.publicName })), page: bookingPage, readiness: { publicAccessEnabled: true }, links: { publicUrl: bookingPage.publicUrl }, catalog: catalog() };
+      const payloads = { services, staff,'staff-options':staff, events, members: staff.map(item => ({ id: item.userId, name: item.publicName })), page: bookingPage, readiness: { publicAccessEnabled: true,companyName:'Empresa demo',suggestedAlias:'agenda-demo',bookingReady:true }, links: { publicUrl: bookingPage.publicUrl }, catalog: catalog() };
       if (Object.hasOwn(payloads, tail)) return send(res, payloads[tail]);
     }
-    if (method === 'POST' && (tail === 'slots' || tail === 'actions/scheduling.slots.read@1')) {
+    if(method==='GET'&&tail==='inventory-services')return send(res,{items:[{id:501,name:'Consulta de seguimiento',description:'Servicio real del catálogo de prueba',sku:'SRV-501',active:true},{id:502,name:'Evaluación inicial',description:'Evaluación del negocio',sku:'SRV-502',active:true}],total:2,page:1,pageSize:25});
+    if(method==='POST'&&tail==='booking-clients'){
+      const key=req.headers['idempotency-key'];if(replays.has(key))return send(res,replays.get(key));
+      const client={id:++nextId,companyName:body.companyName||body.name,contactPerson:body.name,email:body.email,phone:body.phone,status:'active'};clients.push(client);replays.set(key,client);return send(res,client);
+    }
+    if (method === 'POST' && (tail === 'slots'  || tail === 'actions/scheduling.slots.read@1')) {
       const consultant = staff.find(item => item.id === body.staffId), service = services.find(item => item.id === body.serviceId);
       if (!consultant || !service || !/^\d{4}-\d{2}-\d{2}$/.test(body.date)) return send(res, { message: 'Invalid demo selection' }, 400);
       const start = new Date(`${body.date}T10:00:00`);
@@ -159,7 +165,7 @@ export function createPreviewHandler() {
 async function startPreview() {
   const projectRoot = resolve(import.meta.dirname, '..');
   const handler = createPreviewHandler();
-  const server = await createServer({ root: projectRoot, configFile: false, cacheDir: resolve(projectRoot, 'node_modules/.vite-scheduling-preview'),
+  const server = await createServer({ root: projectRoot, configFile: false, cacheDir: resolve(projectRoot, '.cache/agenda-preview'),
     plugins: [{ name: 'isolated-scheduling-preview', configureServer(vite) {
       vite.middlewares.use((req, res, next) => { handler(req, res, next).catch(() => { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end('{"message":"Preview request failed"}'); }); });
       vite.middlewares.use((req, _res, next) => { if (req.url === '/' || req.url.startsWith('/scheduling/')) req.url = `/tests/browser/scheduling.html${req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''}`; next(); });
@@ -169,7 +175,7 @@ async function startPreview() {
       return { html, tags };
     } } }, react(), tailwindcss()],
     resolve: { alias: { '@': resolve(projectRoot, 'src') } }, assetsInclude: ['**/*.svg', '**/*.csv'],
-    define: { 'import.meta.env.VITE_API_BASE_URL': '""' }, server: { host: '127.0.0.1', port: 5197, strictPort: true } });
+    define: { 'import.meta.env.VITE_API_BASE_URL': '""' }, server: { host: '127.0.0.1', port: previewPort, strictPort: true } });
   await server.listen();
   console.log(`Agenda (synthetic data): ${origin}/scheduling/calendar\nBooking page (synthetic data): ${origin}/book/piloto\nNo backend connection. Changes disappear when this process stops.`);
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, async () => { await server.close(); process.exit(0); });

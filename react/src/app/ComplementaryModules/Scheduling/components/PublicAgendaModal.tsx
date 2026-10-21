@@ -11,7 +11,7 @@ export function PublicAgendaModal({copy,onClose}:{copy:SchedulingCopy;onClose:()
     const [page,readiness,staff]=await Promise.all([schedulingApi.page(signal),schedulingApi.readiness(signal),schedulingApi.staff(signal)]);
     return {page,readiness,staff};
   },[]));
-  if(query.data)return <PageEditor page={query.data.page} staff={query.data.staff} publicAccessEnabled={query.data.readiness.publicAccessEnabled} copy={copy} onClose={onClose} onSaved={onClose}/>;
+  if(query.data)return <PageEditor page={query.data.page} staff={query.data.staff} publicAccessEnabled={query.data.readiness.publicAccessEnabled} readiness={query.data.readiness} copy={copy} onClose={onClose} onSaved={()=>{}}/>;
   return <IndiceModalFrame open tone={schedulingTone} modalType="operational-workspace" title={copy.publicAgenda} description={copy.publicAgendaHint} icon={<span className="text-xl leading-none">{schedulingEmoji.publicAgenda}</span>}
     onOpenChange={open=>{if(!open)onClose();}} footer={<ActionButton onClick={onClose}>{copy.close}</ActionButton>}>
     <Feedback error={query.error}>{query.error?copy.error:copy.loading}</Feedback>{query.error&&<ActionButton onClick={query.reload}>{copy.retry}</ActionButton>}

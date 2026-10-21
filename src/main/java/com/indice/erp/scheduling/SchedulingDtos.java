@@ -12,19 +12,25 @@ public final class SchedulingDtos {
     public record ServiceRequest(@NotBlank @Size(max=180) String name,
         @Size(max=1500) String description, @Min(15) @Max(180) int durationMinutes,
         @Min(0) @Max(60) int bufferMinutes, @Min(0) @Max(720) int noticeHours,
-        boolean active, Long version) { }
+        boolean active, Long version, @Positive Long productId, @Size(max=28) List<@Valid AvailabilityDay> days) {
+        public ServiceRequest(String name,String description,int durationMinutes,int bufferMinutes,int noticeHours,boolean active,Long version){this(name,description,durationMinutes,bufferMinutes,noticeHours,active,version,null,null);}
+    }
     public record ServiceItem(long id, String name, String description, int durationMinutes,
-        int bufferMinutes, int noticeHours, boolean active, long version) { }
+        int bufferMinutes, int noticeHours, boolean active, long version, Long productId,List<AvailabilityDay> days) {
+        public ServiceItem(long id,String name,String description,int durationMinutes,int bufferMinutes,int noticeHours,boolean active,long version){this(id,name,description,durationMinutes,bufferMinutes,noticeHours,active,version,null,List.of());}
+    }
     public record AvailabilityDay(@Min(1) @Max(7) int dayOfWeek,
         @NotNull LocalTime startTime, @NotNull LocalTime endTime) { }
     public record StaffRequest(@Positive long userId, @NotBlank @Size(max=180) String publicName,
         @NotBlank @Size(max=80) String timezone, boolean active,
         @NotNull @Size(max=28) List<@Valid AvailabilityDay> days, Long version,
-        @Size(max=366) List<@NotNull LocalDate> unavailableDates,@Size(max=500) List<@NotNull @Positive Long> serviceIds) {
+        @Size(max=366) List<@NotNull LocalDate> unavailableDates,@Size(max=500) List<@NotNull @Positive Long> serviceIds, @Min(0) @Max(120) Integer bufferMinutes) {
+        public StaffRequest(long userId,String publicName,String timezone,boolean active,List<AvailabilityDay> days,Long version,List<LocalDate> unavailableDates,List<Long> serviceIds){this(userId,publicName,timezone,active,days,version,unavailableDates,serviceIds,null);}
         public StaffRequest(long userId,String publicName,String timezone,boolean active,List<AvailabilityDay> days,Long version){this(userId,publicName,timezone,active,days,version,null,null);}
     }
     public record StaffItem(long id, long userId, String publicName, String timezone,
-        boolean active, long version, List<AvailabilityDay> days,List<LocalDate> unavailableDates,List<Long> serviceIds) {
+        boolean active, long version, List<AvailabilityDay> days,List<LocalDate> unavailableDates,List<Long> serviceIds,int bufferMinutes) {
+        public StaffItem(long id,long userId,String publicName,String timezone,boolean active,long version,List<AvailabilityDay> days,List<LocalDate> unavailableDates,List<Long> serviceIds){this(id,userId,publicName,timezone,active,version,days,unavailableDates,serviceIds,0);}
         public StaffItem(long id,long userId,String publicName,String timezone,boolean active,long version,List<AvailabilityDay> days){this(id,userId,publicName,timezone,active,version,days,List.of(),List.of());}
     }
     public record MemberItem(long id, String name) { }
@@ -89,6 +95,7 @@ public final class SchedulingDtos {
         public PublicWorkspace(String companyName,String title,String description,List<PublicService> services,List<PublicStaff> staff,List<PublicEvent> events){this(companyName,title,description,services,staff,events,PageAppearance.defaults(),false);}
         public PublicWorkspace(String companyName,String title,String description,List<PublicService> services,List<PublicStaff> staff,List<PublicEvent> events,PageAppearance appearance){this(companyName,title,description,services,staff,events,appearance,false);}
     }
+    public record Readiness(boolean publicAccessEnabled,String companyName,String suggestedAlias,boolean bookingReady) { }
     public record Metrics(long requests, long confirmed, long completed, long noShow,
         long cancelled, Double attendanceRate) { }
     public record ReservationPage(List<ReservationItem> items, long total, int page, int pageSize) { }

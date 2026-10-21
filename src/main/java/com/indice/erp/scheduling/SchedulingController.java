@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.*;
 @RequiresModuleAccess("scheduling")
 public class SchedulingController {
     private final SchedulingAccessService access;
+    private final SchedulingClientCaptureService capture;
+    private final com.indice.erp.sales.SchedulingServiceCatalog inventory;
+    private final com.indice.erp.hr.users.HrSchedulingDirectoryService employees;
     private final SchedulingRepository repository;
     private final SchedulingConfigurationService configuration;
     private final SchedulingBookingService booking;
@@ -21,13 +24,12 @@ public class SchedulingController {
     private final com.indice.erp.kiosk.engine.KioskEngineFeatureFlags flags;
     public SchedulingController(SchedulingAccessService access,SchedulingRepository repository,
         SchedulingConfigurationService configuration,SchedulingBookingService booking,com.indice.erp.kiosk.engine.KioskEngineFeatureFlags flags,
-        SchedulingReservationManagementService management,com.indice.erp.sales.SalesClientDirectoryService clients){
-        this.access=access;this.repository=repository;this.configuration=configuration;this.booking=booking;this.flags=flags;this.management=management;this.clients=clients;
+        SchedulingReservationManagementService management,com.indice.erp.sales.SalesClientDirectoryService clients,com.indice.erp.sales.SchedulingServiceCatalog inventory,com.indice.erp.hr.users.HrSchedulingDirectoryService employees,SchedulingClientCaptureService capture){
+        this.access=access;this.repository=repository;this.configuration=configuration;this.booking=booking;this.flags=flags;this.management=management;this.clients=clients;this.inventory=inventory;this.employees=employees;this.capture=capture;
     }
-    public record Readiness(boolean publicAccessEnabled) { }
     @GetMapping("/readiness") public Readiness readiness(HttpSession s){
         var actor=access.require(s,"configuration",null,false);SchedulingAccessService.requireAdministrator(actor);
-        return new Readiness(flags.registryEnabled()&&flags.sessionsEnabled()&&flags.auditEnabled()&&flags.adapterEnabled("SCHEDULING"));
+        return configuration.readiness(actor.companyId(),flags.registryEnabled()&&flags.sessionsEnabled()&&flags.auditEnabled()&&flags.adapterEnabled("SCHEDULING"));
     }
     @GetMapping("/services") public List<ServiceItem> services(HttpSession session){
         var actor=access.require(session,"configuration",null,false);SchedulingAccessService.requireAdministrator(actor);
@@ -43,7 +45,10 @@ public class SchedulingController {
     }
     @GetMapping("/members") public List<MemberItem> members(HttpSession s){
         var actor=access.require(s,"configuration",null,false);SchedulingAccessService.requireAdministrator(actor);
-        return repository.members(actor.companyId());
+        return employees.active(actor.companyId()).stream().map(e->new MemberItem(e.id(),e.name())).toList();
+    }
+    @GetMapping("/inventory-services") public com.indice.erp.sales.SchedulingServiceCatalog.Page inventoryServices(HttpSession s,@RequestParam(defaultValue="")String search,@RequestParam(defaultValue="1")int page){
+        var actor=access.require(s,"configuration",null,false);SchedulingAccessService.requireAdministrator(actor);return inventory.read(actor.companyId(),search,page);
     }
     @PostMapping("/staff") public void staff(HttpSession s,@RequestHeader(value="X-CSRF-Token",required=false)String token,
         @Valid @RequestBody StaffRequest body){configuration.staff(access.require(s,"configuration",token,true),null,body);}
@@ -154,7 +159,7 @@ public class SchedulingController {
         var events=repository.publicEvents(company,Instant.now()).stream().filter(e->staffIds.contains(e.staffId()))
             .map(e->new PublicEvent(e.id(),e.staffId(),e.title(),e.description(),e.startAt(),e.durationMinutes(),
                 Math.max(0,e.capacity()-(int)e.confirmedCount()),e.location())).toList();
-        return new PublicWorkspace("","","",repository.services(company).stream().filter(ServiceItem::active)
+        return new PublicWorkspace("","","",repository.services(company).stream().filter(v->v.active()&&(v.productId()==null||inventory.available(company,v.productId())))
             .map(t->new PublicService(t.id(),t.name(),t.description(),t.durationMinutes(),t.noticeHours())).toList(),staff,events,PageAppearance.defaults(),
                 SchedulingAccessService.administrator(actor)&&clients.canSelect(actor));
     }
@@ -163,6 +168,7 @@ public class SchedulingController {
         var actor=access.require(s,"reservations",null,false);SchedulingAccessService.requireAdministrator(actor);
         if(!clients.canSelect(actor))throw new SecurityException();return clients.read(actor.companyId(),search,page,25);
     }
+    @PostMapping("/booking-clients") public com.indice.erp.sales.SalesClientDirectoryService.Client createBookingClient(HttpSession s,@RequestHeader(value="X-CSRF-Token",required=false)String token,@RequestHeader(value="Idempotency-Key",required=false)String key,@Valid @RequestBody SchedulingClientCaptureService.Request body){return capture.create(access.require(s,"reservations",token,true),body,key);}
     public record ShareLink(String publicUrl) { }
     @GetMapping("/links") public ShareLink links(HttpSession s){
         var actor=access.requireAny(s,List.of("configuration","events","reservations"),null,false);

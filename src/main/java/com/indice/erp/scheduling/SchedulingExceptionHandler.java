@@ -17,7 +17,8 @@ public class SchedulingExceptionHandler {
     @ExceptionHandler({IllegalStateException.class,DataIntegrityViolationException.class,org.springframework.dao.TransientDataAccessException.class}) public ResponseEntity<Error> conflict(){
         return ResponseEntity.status(409).body(new Error("scheduling_conflict","Availability or record changed. Reload before continuing."));
     }
-    @ExceptionHandler({IllegalArgumentException.class,java.time.DateTimeException.class}) public ResponseEntity<Error> invalid(){
-        return ResponseEntity.badRequest().body(new Error("scheduling_invalid","Check the scheduling fields."));
+    @ExceptionHandler({IllegalArgumentException.class,java.time.DateTimeException.class}) public ResponseEntity<Error> invalid(Exception error){
+        String code=java.util.Set.of("scheduling_hours_invalid","scheduling_catalog_service_unavailable","scheduling_employee_unavailable","scheduling_setup_required").contains(String.valueOf(error.getMessage()))?error.getMessage():"scheduling_invalid";
+        return ResponseEntity.badRequest().body(new Error(code,"Check the scheduling fields."));
     }
 }

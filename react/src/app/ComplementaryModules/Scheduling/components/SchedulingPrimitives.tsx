@@ -1,4 +1,4 @@
-import { cloneElement, isValidElement, useId, useState, type ReactNode, type ReactElement, type ComponentProps } from 'react';
+import { cloneElement, isValidElement, useId, useRef, useState, type ReactNode, type ReactElement, type ComponentProps } from 'react';
 import { Button } from '../../../components/ui/button';
 import { cn } from '../../../components/ui/utils';
 import { IndiceModalFrame, type IndiceModalType } from '../../../components/indice-modal/IndiceModalFrame';
@@ -6,9 +6,12 @@ import { getIndiceFilterControlClassName } from '../../../components/frontend-os
 import { MODULE_COLORS, type IndiceModuleTone } from '../../../styles/moduleColors';
 import type { ReservationStatus } from '../services/schedulingApi';
 import type { SchedulingCopy } from '../translations/schedulingCopy';
+import { getAuthorizationRevision } from '../../../api/authSessionStore';
 import { ApiClientError } from '../../../lib/apiClient';
 import { useLanguage } from '../../../shared/context';
 import { getSchedulingOperationsCopy } from '../translations/schedulingOperationsCopy';
+import { getSchedulingSetupCopy } from '../translations/schedulingSetupCopy';
+import { SchedulingValidationError } from '../utils/setupValidation';
 import { schedulingEmoji, schedulingTone } from '../utils/schedulingIdentity';
 
 export const panelClass = 'rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900';
@@ -46,8 +49,9 @@ export function EditorFrame({ title, description, copy, children, onSave, onClos
   icon?: ReactNode;
   hasChanges?: boolean;
 }) {
-  const formId = useId();
+  const formId = useId(), actorRevision=useRef(getAuthorizationRevision());
   const { currentLanguage } = useLanguage(), op = getSchedulingOperationsCopy(currentLanguage.code);
+  const setup = getSchedulingSetupCopy(currentLanguage.code);
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const [dirty, setDirty] = useState(false), [discard, setDiscard] = useState(false);
   const close = () => dirty || hasChanges ? setDiscard(true) : onClose();
@@ -59,8 +63,9 @@ export function EditorFrame({ title, description, copy, children, onSave, onClos
       <ActionButton onClick={() => setDiscard(false)}>{copy.keepEditing}</ActionButton><ActionButton onClick={onClose}>{copy.close}</ActionButton>
     </> : <><ActionButton disabled={busy} onClick={close}>{copy.cancel}</ActionButton><ActionButton primary disabled={busy} type="submit" form={formId} data-modal-destructive={destructive||undefined} style={destructive?{'--scheduling-accent':'#DC2626','--scheduling-accent-foreground':'#FFFFFF'} as React.CSSProperties:undefined}>{busy ? copy.loading : saveLabel??copy.save}</ActionButton></>}>
     {!discard && <form id={formId} className="space-y-5" onChange={() => setDirty(true)} onSubmit={async event => {
-      event.preventDefault(); if (busy) return; setBusy(true); setError('');
-      try { await onSave(); onSaved(); } catch (error) { setError(error instanceof ApiClientError && error.status === 409 ? op.conflict : copy.error); } finally { setBusy(false); }
-    }}>{error && <Feedback error>{error}</Feedback>}{children}</form>}
+      event.preventDefault(); if (busy) return; if(actorRevision.current!==getAuthorizationRevision()){setError(op.conflict);return;} setBusy(true); setError('');
+      try { await onSave(); setDirty(false); onSaved(); } catch (error) { const code=error instanceof SchedulingValidationError?error.code:error instanceof ApiClientError?(error.payload as {code?:string}|undefined)?.code:undefined;
+        setError(code==='scheduling_hours_invalid'?setup.hoursInvalid:code==='scheduling_catalog_service_unavailable'?setup.unavailableService:code==='scheduling_employee_unavailable'?setup.unavailableEmployee:code==='scheduling_setup_required'?setup.setupRequired:error instanceof ApiClientError&&error.status===409?op.conflict:copy.error); } finally { setBusy(false); }
+    }}>{error && <Feedback error>{error}</Feedback>}<fieldset disabled={busy} className="min-w-0 space-y-5">{children}</fieldset></form>}
   </IndiceModalFrame>;
 }

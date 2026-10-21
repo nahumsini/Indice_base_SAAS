@@ -11,7 +11,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class SchedulingRepository {
     private final JdbcTemplate db;
-    public SchedulingRepository(JdbcTemplate db) { this.db = db; }
+    private final com.indice.erp.hr.users.HrSchedulingDirectoryService employees;
+    public SchedulingRepository(JdbcTemplate db,com.indice.erp.hr.users.HrSchedulingDirectoryService employees) { this.db = db;this.employees=employees; }
     public JdbcTemplate jdbc() { return db; }
     private static String currentRead() {
         return org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()
@@ -33,14 +34,15 @@ public class SchedulingRepository {
         return db.query("SELECT * FROM scheduling_services WHERE company_id=? ORDER BY name,id"+currentRead(),
             (r,n)->new ServiceItem(r.getLong("id"),r.getString("name"),r.getString("description"),
                 r.getInt("duration_minutes"),r.getInt("buffer_minutes"),r.getInt("notice_hours"),
-                r.getBoolean("active"),r.getLong("version")), company);
+                r.getBoolean("active"),r.getLong("version"),r.getObject("product_id",Long.class),serviceDays(company,r.getLong("id"))), company);
     }
     public List<StaffItem> staff(long company) {
         return db.query("SELECT * FROM scheduling_staff WHERE company_id=? ORDER BY public_name,id"+currentRead(),
             (r,n)->new StaffItem(r.getLong("id"),r.getLong("user_id"),r.getString("public_name"),
                 r.getString("timezone"),r.getBoolean("active"),r.getLong("version"),
-                days(company,r.getLong("id")),unavailableDates(company,r.getLong("id")),staffServices(company,r.getLong("id"))),company);
+                days(company,r.getLong("id")),unavailableDates(company,r.getLong("id")),staffServices(company,r.getLong("id")),r.getInt("buffer_minutes")),company);
     }
+    public List<AvailabilityDay> serviceDays(long company,long service){return db.query("SELECT day_of_week,start_time,end_time FROM scheduling_service_availability WHERE company_id=? AND service_id=? ORDER BY day_of_week,start_time",(r,n)->new AvailabilityDay(r.getInt(1),r.getTime(2).toLocalTime(),r.getTime(3).toLocalTime()),company,service);}
     private List<java.time.LocalDate> unavailableDates(long company,long staff){return db.query("SELECT unavailable_date FROM scheduling_unavailable_dates WHERE company_id=? AND staff_id=? ORDER BY unavailable_date",(r,n)->r.getDate(1).toLocalDate(),company,staff);}
     private List<Long> staffServices(long company,long staff){return db.queryForList("SELECT service_id FROM scheduling_staff_services WHERE company_id=? AND staff_id=? ORDER BY service_id",Long.class,company,staff);}
     public List<AvailabilityDay> days(long company,long staff) {
@@ -51,7 +53,7 @@ public class SchedulingRepository {
     public List<StaffItem> activeStaff(long company) {
         var memberIds=db.query("SELECT user_id FROM user_companies WHERE company_id=?"
             +" AND LOWER(COALESCE(status,'active')) IN ('active','activo')",(r,n)->r.getLong(1),company);
-        return staff(company).stream().filter(s->s.active()&&memberIds.contains(s.userId())).toList();
+        return staff(company).stream().filter(s->s.active()&&memberIds.contains(s.userId())&&employees.eligible(company,s.userId())).toList();
     }
     public List<MemberItem> members(long company) {
         return db.query("""
@@ -74,6 +76,8 @@ public class SchedulingRepository {
         return db.queryForObject("SELECT u.email FROM scheduling_staff s JOIN users u ON u.id=s.user_id"
             +" WHERE s.company_id=? AND s.id=?"+currentRead(),String.class,company,staff);
     }
+    public String companyName(long company){return db.queryForObject("SELECT name FROM companies WHERE id=?",String.class,company);}
+    public boolean aliasTaken(long company,String alias){return db.queryForObject("SELECT COUNT(*) FROM scheduling_pages WHERE alias=? AND company_id<>?",Long.class,alias,company)>0;}
     public Optional<PageItem> page(long company) {
         return db.query("SELECT * FROM scheduling_pages WHERE company_id=?"+currentRead(),(r,n)->pageRow(r),company)
             .stream().findFirst();

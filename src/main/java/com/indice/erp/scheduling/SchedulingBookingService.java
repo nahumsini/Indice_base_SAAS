@@ -22,15 +22,17 @@ public class SchedulingBookingService {
     private final com.indice.erp.sales.SalesClientDirectoryService clients;
     private final com.indice.erp.hr.permissions.HrSchedulingAvailabilityService hr;
     private final SchedulingNotificationService notifications;
-    public SchedulingBookingService(SchedulingRepository repository,SchedulingResourceAvailabilityService resources,Clock clock,ModuleAccessService modules,ObjectMapper mapper,com.indice.erp.sales.SalesClientDirectoryService clients,com.indice.erp.hr.permissions.HrSchedulingAvailabilityService hr,SchedulingNotificationService notifications){
-        this.repository=repository;this.resources=resources;this.clock=clock;this.modules=modules;this.mapper=mapper;this.clients=clients;this.hr=hr;this.notifications=notifications;
+    private final com.indice.erp.sales.SchedulingServiceCatalog catalog;
+    private final com.indice.erp.hr.users.HrSchedulingDirectoryService employees;
+    public SchedulingBookingService(SchedulingRepository repository,SchedulingResourceAvailabilityService resources,Clock clock,ModuleAccessService modules,ObjectMapper mapper,com.indice.erp.sales.SalesClientDirectoryService clients,com.indice.erp.hr.permissions.HrSchedulingAvailabilityService hr,SchedulingNotificationService notifications,com.indice.erp.sales.SchedulingServiceCatalog catalog,com.indice.erp.hr.users.HrSchedulingDirectoryService employees){
+        this.repository=repository;this.resources=resources;this.clock=clock;this.modules=modules;this.mapper=mapper;this.clients=clients;this.hr=hr;this.notifications=notifications;this.catalog=catalog;this.employees=employees;
     }
     public StaffItem staff(long company,long id) {
         var staff=repository.staff(company).stream().filter(s->s.id()==id&&s.active()).findFirst().orElseThrow();
-        repository.memberEmail(company,staff.userId());return staff;
+        repository.memberEmail(company,staff.userId());if(!employees.eligible(company,staff.userId()))throw new NoSuchElementException();return staff;
     }
     public ServiceItem service(long company,long id) {
-        return repository.services(company).stream().filter(s->s.id()==id&&s.active()).findFirst().orElseThrow();
+        return repository.services(company).stream().filter(s->s.id()==id&&s.active()&&(s.productId()==null||catalog.available(company,s.productId()))).findFirst().orElseThrow();
     }
     public SlotResponse slots(long company,SlotRequest request) {
         var staff=staff(company,request.staffId());var service=service(company,request.serviceId());
@@ -38,7 +40,7 @@ public class SchedulingBookingService {
         var email=repository.memberEmail(company,staff.userId());
         return new SlotResponse(staff.timezone(),SchedulingSlotPolicy.candidates(service,staff,request.date(),clock.instant())
             .stream().filter(start->!resources.busy(email,start,
-                start.plusSeconds((service.durationMinutes()+service.bufferMinutes())*60L),null,null,null)).toList());
+                start.plusSeconds((service.durationMinutes()+Math.max(service.bufferMinutes(),staff.bufferMinutes()))*60L),null,null,null)).toList());
     }
     @Transactional(isolation=Isolation.READ_COMMITTED)
     public Submission requestInternal(AuthSessionUser actor,ReservationRequest request,String key) {
@@ -93,7 +95,7 @@ public class SchedulingBookingService {
             var date=start.atZone(ZoneId.of(staff.timezone())).toLocalDate();
             if(!slots(company,new SlotRequest(service.id(),staff.id(),date)).starts().contains(start))
                 throw new IllegalStateException("Requested slot is unavailable.");
-            duration=service.durationMinutes();buffer=service.bufferMinutes();
+            duration=service.durationMinutes();buffer=Math.max(service.bufferMinutes(),staff.bufferMinutes());
         }
         String reference="SCH-"+UUID.randomUUID().toString().replace("-","").substring(0,24);
         long id=repository.insert("""
@@ -127,7 +129,7 @@ public class SchedulingBookingService {
     }
     void requireEntitlement(long company){if(!modules.companyCanAccessForMutation(company,"scheduling"))throw new SecurityException();}
     void validateConfirmation(long company,ReservationItem current,StaffItem staff) {
-            if(!staff.active())throw new IllegalStateException("Consultant is inactive.");
+            if(!staff.active()||!employees.eligible(company,staff.userId()))throw new IllegalStateException("Consultant is inactive.");
             if(!current.startAt().isAfter(clock.instant()))throw new IllegalStateException("Session must be in the future.");
             var day=current.startAt().atZone(ZoneId.of(staff.timezone())).toLocalDate();
             if(hr.unavailable(company,staff.userId(),day,day))throw new IllegalStateException("The member is unavailable.");
@@ -143,7 +145,7 @@ public class SchedulingBookingService {
                 var service=service(company,current.serviceId());
                 int buffer=repository.jdbc().queryForObject("SELECT buffer_minutes FROM scheduling_reservations WHERE company_id=? AND id=?",
                     Integer.class,company,current.id());
-                var snapshot=new ServiceItem(service.id(),service.name(),service.description(),current.durationMinutes(),buffer,0,true,service.version());
+                var snapshot=new ServiceItem(service.id(),service.name(),service.description(),current.durationMinutes(),buffer,0,true,service.version(),service.productId(),service.days());
                 var date=current.startAt().atZone(ZoneId.of(staff.timezone())).toLocalDate();
                 if(!SchedulingSlotPolicy.candidates(snapshot,staff,date,clock.instant()).contains(current.startAt()))
                     throw new IllegalStateException("Availability changed.");

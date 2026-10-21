@@ -27,7 +27,7 @@ export function AgendaConfigurationModal({ section, copy, locale, onClose, onCha
   if (editor && query.data) {
     return section === 'services'
       ? <ServiceEditor service={query.data.services.find(item => item.id === editor.id)} copy={copy} onClose={() => setEditor(null)} onSaved={saved} />
-      : <StaffEditor staff={query.data.staff.find(item => item.id === editor.id)} members={query.data.members} copy={copy} locale={locale} onClose={() => setEditor(null)} onSaved={saved} />;
+      : <StaffEditor staff={query.data.staff.find(item => item.id === editor.id)} members={editor.id?query.data.members:query.data.members.filter(member=>!query.data.staff.some(person=>person.userId===member.id))} copy={copy} locale={locale} onClose={() => setEditor(null)} onSaved={saved} />;
   }
   return <IndiceModalFrame open tone={schedulingTone} modalType="operational-workspace"
     title={section === 'services' ? copy.services : copy.team}

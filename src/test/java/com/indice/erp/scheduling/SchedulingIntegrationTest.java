@@ -74,7 +74,7 @@ class SchedulingIntegrationTest {
         for(long tenant:new long[]{company,otherCompany})if(tenant>0){
             db.update("DELETE FROM user_permission_requests WHERE company_id=?",tenant);
             db.update("DELETE FROM scheduling_notification_receipts WHERE company_id=?",tenant);
-            for(String table:List.of("meeting_create_replays","meeting_audit","meeting_participants","meeting_records","scheduling_capture_replays","scheduling_audit","scheduling_reservations","scheduling_events","scheduling_pages","scheduling_unavailable_dates","scheduling_staff_services","scheduling_availability","scheduling_staff","scheduling_services","consulting_appointments","sales_contacts"))
+            for(String table:List.of("meeting_create_replays","meeting_audit","meeting_participants","meeting_records","scheduling_client_capture_replays","scheduling_service_availability","scheduling_capture_replays","scheduling_audit","scheduling_reservations","scheduling_events","scheduling_pages","scheduling_unavailable_dates","scheduling_staff_services","scheduling_availability","scheduling_staff","scheduling_services","consulting_appointments","sales_contacts","sales_products"))
                 db.update("DELETE FROM "+table+" WHERE company_id=?",tenant);
             var kiosks=db.queryForList("SELECT id FROM kiosk_definitions WHERE company_id=? AND owner_module='SCHEDULING'",Long.class,tenant);
             for(long kiosk:kiosks){db.update("DELETE FROM kiosk_definition_capabilities WHERE kiosk_definition_id=?",kiosk);db.update("DELETE FROM kiosk_definitions WHERE id=?",kiosk);}
@@ -427,4 +427,63 @@ class SchedulingIntegrationTest {
             var a=executor.submit(one);var b=executor.submit(two);latch.countDown();return(a.get(30,TimeUnit.SECONDS)?1:0)+(b.get(30,TimeUnit.SECONDS)?1:0);
         }
     }
+    @Autowired com.indice.erp.sales.SchedulingServiceCatalog inventoryCatalog;
+    @Autowired com.indice.erp.hr.users.HrSchedulingDirectoryService employees;
+    @Autowired SchedulingClientCaptureService clientCapture;
+    @Test void inventoryServicesAreTenantScopedTypedAndLinkedWithHours(){
+        long product=repository.insert("INSERT INTO sales_products(company_id,product_code,name,type,status) VALUES(?,'SRV-T','Therapy','SERVICE','ACTIVE')",company);
+        repository.insert("INSERT INTO sales_products(company_id,product_code,name,type,status) VALUES(?,'PRD-T','Physical item','PRODUCT','ACTIVE')",company);
+        long foreign=repository.insert("INSERT INTO sales_products(company_id,product_code,name,type,status) VALUES(?,'SRV-T','Other tenant','SERVICE','ACTIVE')",otherCompany);
+        assertThat(inventoryCatalog.read(company,"",1).items()).extracting(com.indice.erp.sales.SchedulingServiceCatalog.Item::id).containsExactly(product);
+        var date=start.atZone(ZoneOffset.UTC).toLocalDate();
+        var hours=List.of(new AvailabilityDay(date.getDayOfWeek().getValue(),LocalTime.of(12,0),LocalTime.of(15,0)));
+        configuration.service(actor,null,new ServiceRequest("Therapy","",60,15,0,true,null,product,hours));
+        var configured=repository.services(company).stream().filter(v->Objects.equals(v.productId(),product)).findFirst().orElseThrow();
+        assertThat(configured.days()).containsExactlyElementsOf(hours);
+        assertThat(booking.slots(company,new SlotRequest(configured.id(),staff,date)).starts()).doesNotContain(start).contains(date.atTime(12,0).toInstant(ZoneOffset.UTC));
+        assertThatThrownBy(()->configuration.service(actor,null,new ServiceRequest("Foreign","",60,0,0,true,null,foreign,List.of()))).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(()->configuration.service(actor,null,new ServiceRequest("Again","",60,0,0,true,null,product,List.of()))).isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+        db.update("UPDATE sales_products SET status='INACTIVE' WHERE company_id=? AND id=?",company,product);
+        assertThatThrownBy(()->booking.service(company,configured.id())).isInstanceOf(NoSuchElementException.class);
+    }
+    @Test void employeeDirectoryUsesRealActiveHrProfilesAndRejectsInactiveBookings(){
+        assertThat(employees.active(company)).isEmpty();
+        long membership=db.queryForObject("SELECT id FROM user_companies WHERE company_id=? AND user_id=?",Long.class,company,user);
+        db.update("INSERT INTO user_work_profiles(company_id,user_company_id,user_id,status) VALUES(?,?,?,'active')",company,membership,user);
+        assertThat(employees.active(company)).extracting(com.indice.erp.hr.users.HrSchedulingDirectoryService.Employee::id).contains(user);
+        db.update("UPDATE user_work_profiles SET status='inactive' WHERE company_id=? AND user_company_id=?",company,membership);
+        assertThat(employees.active(company)).isEmpty();assertThat(repository.activeStaff(company)).isEmpty();
+        assertThatThrownBy(()->booking.staff(company,staff)).isInstanceOf(NoSuchElementException.class);
+    }
+    @Test void staffBreakIsSnapshottedAndPreventsBackToBackConfirmation(){
+        var row=repository.staff(company).getFirst();
+        configuration.staff(actor,staff,new StaffRequest(user,row.publicName(),row.timezone(),true,row.days(),row.version(),List.of(),List.of(),30));
+        var id=create("break");confirm(actor,id);
+        assertThat(db.queryForObject("SELECT buffer_minutes FROM scheduling_reservations WHERE company_id=? AND id=?",Integer.class,company,id)).isEqualTo(30);
+        var slots=booking.slots(company,new SlotRequest(service,staff,start.atZone(ZoneOffset.UTC).toLocalDate()));
+        assertThat(slots.starts()).doesNotContain(start.plusSeconds(75*60L)).contains(start.plusSeconds(90*60L));
+    }
+    @Test void serviceHoursRejectOverlapWithoutPartialWrite(){
+        var date=start.atZone(ZoneOffset.UTC).toLocalDate();var day=date.getDayOfWeek().getValue();
+        var overlap=List.of(new AvailabilityDay(day,LocalTime.of(9,0),LocalTime.of(12,0)),new AvailabilityDay(day,LocalTime.of(11,0),LocalTime.of(14,0)));
+        var old=repository.services(company).getFirst();
+        assertThatThrownBy(()->configuration.service(actor,service,new ServiceRequest("Changed","",60,15,0,true,old.version(),null,overlap))).isInstanceOf(IllegalArgumentException.class);
+        assertThat(repository.services(company).getFirst().name()).isEqualTo(old.name());
+    }
+    @Test void privateClientCaptureRequiresCrmAndIsIdempotent()throws Exception{
+        var body=new SchedulingClientCaptureService.Request("Synthetic client","new-client@example.com","5551234","Synthetic business",true);String key=UUID.randomUUID().toString();
+        assertThatThrownBy(()->clientCapture.create(actor,body,key)).isInstanceOf(SecurityException.class);
+        db.update("INSERT INTO company_module_entitlements(company_id,module_slug,status,source) VALUES(?,'crm','active','test')",company);
+        var created=clientCapture.create(actor,body,key);assertThat(clientCapture.create(actor,body,key).id()).isEqualTo(created.id());
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM sales_contacts WHERE company_id=?",Long.class,company)).isEqualTo(1);
+        assertThatThrownBy(()->clientCapture.create(actor,new SchedulingClientCaptureService.Request("Different","different@example.com","","",true),key)).isInstanceOf(IllegalStateException.class);
+        mvc.perform(post("/api/v1/scheduling/booking-clients").session(session()).contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(body))).andExpect(status().isForbidden());
+    }
+    @Test void publicPageReadinessHasDefaultsAndPublicationCannotPretendMissingSetup()throws Exception{
+        mvc.perform(get("/api/v1/scheduling/readiness").session(session())).andExpect(status().isOk()).andExpect(jsonPath("$.companyName").isNotEmpty()).andExpect(jsonPath("$.suggestedAlias").isNotEmpty()).andExpect(jsonPath("$.bookingReady").value(true));
+        db.update("UPDATE scheduling_services SET active=0 WHERE company_id=?",company);
+        assertThatThrownBy(()->configuration.page(actor,new PageRequest("test-"+UUID.randomUUID(),"Appointments","",true,null))).isInstanceOf(IllegalArgumentException.class);
+        assertThatCode(()->configuration.page(actor,new PageRequest("test-"+UUID.randomUUID(),"Appointments","",false,null))).doesNotThrowAnyException();
+    }
+
 }

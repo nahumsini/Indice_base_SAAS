@@ -6,16 +6,17 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Explicit read-only master-client contract. Consumers cannot own or duplicate Sales contacts. */
+/** Explicit Sales master-client owner contract; Scheduling capture uses native CRM authority. */
 @Service
 public class SalesClientDirectoryService {
     public record Client(long id,String companyName,String contactPerson,String email,String phone,String status) { }
     public record Directory(List<Client> items,long total,int page,int pageSize) { }
     private final JdbcTemplate db;
+    private final SalesService sales;
     private final com.indice.erp.access.module.ModuleAccessService modules;
     private final com.indice.erp.access.tab.TabPermissionAccessService tabs;
     public SalesClientDirectoryService(JdbcTemplate db,com.indice.erp.access.module.ModuleAccessService modules,
-        com.indice.erp.access.tab.TabPermissionAccessService tabs){this.db=db;this.modules=modules;this.tabs=tabs;}
+        com.indice.erp.access.tab.TabPermissionAccessService tabs,SalesService sales){this.db=db;this.modules=modules;this.tabs=tabs;this.sales=sales;}
     public boolean canSelect(com.indice.erp.auth.AuthSessionUser actor){
         return modules.canAccess(actor,"crm")&&tabs.canAccess(actor,new com.indice.erp.access.tab.TabPermissionRequirement(List.of("crm.contacts")));
     }
@@ -24,6 +25,14 @@ public class SalesClientDirectoryService {
         return db.query("SELECT id,company_name,contact_person,email,phone,status FROM sales_contacts WHERE company_id=? AND id=? AND deleted_at IS NULL",
             (r,n)->new Client(r.getLong(1),r.getString(2),r.getString(3),r.getString(4),r.getString(5),r.getString(6)),actor.companyId(),id)
             .stream().findFirst().orElseThrow(java.util.NoSuchElementException::new);
+    }
+    public Client createForScheduling(com.indice.erp.auth.AuthSessionUser actor,String name,String email,String phone,String companyName){
+        if(!canSelect(actor)||!modules.companyCanAccessForMutation(actor.companyId(),"crm"))throw new SecurityException();
+        var saved=sales.create(actor.companyId(),actor.userId(),"contacts",java.util.Map.of(
+            "companyName",companyName==null||companyName.isBlank()?name.trim():companyName.trim(),
+            "contactPerson",name.trim(),"email",email.trim().toLowerCase(java.util.Locale.ROOT),
+            "phone",phone==null?"":phone.trim(),"status","active","source","other"));
+        return selected(actor,((Number)saved.get("id")).longValue());
     }
     @Transactional(readOnly=true)
     public Directory read(long company,String search,int page,int size){
