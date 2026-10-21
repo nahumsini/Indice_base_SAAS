@@ -1,5 +1,6 @@
 package com.indice.erp.ideasboard;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.indice.erp.sales.funneling.IdeasBoardContracts.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
@@ -9,11 +10,15 @@ import java.util.List;
 public final class IdeaWorkspaceContracts {
     private IdeaWorkspaceContracts() {}
     public record Element(@NotNull @Valid Node node,
-        @NotNull @Pattern(regexp="PERSON|PROCESS|PRODUCT|FINANCE") String category,
-        @NotNull @Size(max=40) String icon) {}
+        @NotNull @Pattern(regexp="PERSON|PROCESS|PRODUCT|FINANCE|OUTSIDE") String category,
+        @NotNull @Size(max=40) String icon,
+        @JsonInclude(JsonInclude.Include.NON_EMPTY) @Size(max=50) List<@NotBlank @Size(max=500) String> steps,
+        @JsonInclude(JsonInclude.Include.NON_NULL) @Pattern(regexp="PRODUCT|SERVICE") String offeringType) {
+        public Element(Node node,String category,String icon) { this(node,category,icon,null,null); }
+    }
     public record SystemViewport(@NotNull @DecimalMin("-30000") @DecimalMax("30000") Double x,
         @NotNull @DecimalMin("-30000") @DecimalMax("30000") Double y,
-        @NotNull @DecimalMin("0.08") @DecimalMax("2") Double zoom) {}
+        @NotNull @DecimalMin("0.04") @DecimalMax("2") Double zoom) {}
     public record SystemDocument(@NotNull @Size(max=100) List<@NotNull @Valid Element> elements,
         @NotNull @Size(max=200) List<@NotNull @Valid Connection> connections,
         @NotNull @Valid SystemViewport viewport) {}

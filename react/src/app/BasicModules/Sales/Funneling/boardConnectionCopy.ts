@@ -1,0 +1,11 @@
+const messages={
+ es:{forward:'Flecha sencilla',both:'Flecha doble',type:'Tipo de conexión',start:'Elige el primer elemento y después el que sigue.',next:'El último elemento inicia la siguiente conexión. Elige el que sigue.',continuous:'Sigue uniendo elementos. Cambia de herramienta o pulsa Esc para terminar.'},
+ en:{forward:'Single arrow',both:'Double arrow',type:'Connection type',start:'Choose the first element, then the next one.',next:'The last element starts the next connection. Choose the next one.',continuous:'Keep connecting elements. Change tools or press Esc to finish.'},
+ fr:{forward:'Flèche simple',both:'Flèche double',type:'Type de connexion',start:'Choisissez le premier élément, puis le suivant.',next:'Le dernier élément démarre la connexion suivante. Choisissez la suite.',continuous:'Continuez à relier les éléments. Changez d’outil ou appuyez sur Échap pour terminer.'},
+ pt:{forward:'Seta simples',both:'Seta dupla',type:'Tipo de conexão',start:'Escolha o primeiro elemento e depois o próximo.',next:'O último elemento inicia a próxima conexão. Escolha o seguinte.',continuous:'Continue conectando elementos. Troque de ferramenta ou pressione Esc para terminar.'},
+ de:{forward:'Einfacher Pfeil',both:'Doppelpfeil',type:'Verbindungstyp',start:'Wähle das erste Element und danach das nächste.',next:'Das letzte Element beginnt die nächste Verbindung. Wähle das nächste.',continuous:'Verbinde weitere Elemente. Wechsle das Werkzeug oder drücke Esc zum Beenden.'},
+ it:{forward:'Freccia semplice',both:'Freccia doppia',type:'Tipo di collegamento',start:'Scegli il primo elemento e poi il successivo.',next:'L’ultimo elemento inizia il prossimo collegamento. Scegli il successivo.',continuous:'Continua a collegare gli elementi. Cambia strumento o premi Esc per terminare.'},
+ ko:{forward:'단방향 화살표',both:'양방향 화살표',type:'연결 유형',start:'첫 번째 요소를 선택한 후 다음 요소를 선택하세요.',next:'마지막 요소에서 다음 연결이 시작됩니다. 다음 요소를 선택하세요.',continuous:'계속 요소를 연결하세요. 도구를 바꾸거나 Esc를 누르면 종료됩니다.'},
+ zh:{forward:'单向箭头',both:'双向箭头',type:'连接类型',start:'选择第一个元素，再选择下一个。',next:'最后一个元素是下一条连接的起点。请选择下一个。',continuous:'继续连接元素。切换工具或按 Esc 结束。'},
+} as const;
+export const boardConnectionCopy=(locale:string)=>messages[locale.split('-')[0] as keyof typeof messages]??messages.es;

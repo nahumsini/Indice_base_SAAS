@@ -1,11 +1,13 @@
+import {createTypeScriptLoader} from './helpers/loadTypeScript.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {loadTypescript} from './helpers/hook-runtime.mjs';
 const app=new URL('../src/app/',import.meta.url);
 const load=(path,require=()=>{throw Error('unexpected import');})=>loadTypescript(new URL(path,app).pathname,require);
 const base=load('BasicModules/Sales/Funneling/ideasBoardModel.ts');
-const m=load('ComplementaryModules/IdeasBoard/systemBoardModel.ts',()=>base);
 const {workspaceCopy}=load('ComplementaryModules/IdeasBoard/workspaceCopy.ts');
+const catalog=load('ComplementaryModules/IdeasBoard/systemCatalog.ts',()=>({workspaceCopy}));
+const m=load('ComplementaryModules/IdeasBoard/systemBoardModel.ts',id=>id==='./systemCatalog'?catalog:base);
 const {BoardSaveQueue}=load('BasicModules/Sales/Funneling/boardSaveQueue.ts',()=>base);
 const tick=()=>new Promise(r=>setTimeout(r,0));
 test('four areas follow clockwise geometry, and element placement and movement stay in their area',()=>{
@@ -25,7 +27,7 @@ test('overview and area focus fit mobile viewport, and zoom stays anchored',()=>
  const old={x:10,y:20,zoom:.3},z=m.zoomWorkspace(old,.6,200,300);assert.equal((200-old.x)/old.zoom,(200-z.x)/z.zoom);
 });
 test('all eight locales expose complete practical labels and the same icon choices',()=>{
- const keys=Object.keys(workspaceCopy('es-MX'));for(const locale of ['es-MX','es-CO','en-US','en-CA','fr-CA','pt-BR','ko-CA','zh-CA']){const c=workspaceCopy(locale);assert.deepEqual(Object.keys(c),keys);for(const text of Object.values(c))if(typeof text==='string')assert.ok(text.length>0);for(const choices of Object.values(m.areaIcons))for(const icon of choices)assert.ok(c.iconLabels[icon]);}
+ const keys=Object.keys(workspaceCopy('es-MX'));for(const locale of ['es-MX','es-CO','en-US','en-CA','fr-CA','pt-BR','ko-CA','zh-CA']){const c=workspaceCopy(locale);assert.deepEqual(Object.keys(c),keys);for(const text of Object.values(c))if(typeof text==='string')assert.ok(text.length>0);for(const choices of Object.values(m.areaIcons))for(const icon of choices)assert.ok(catalog.diagnosticLabels(locale)[icon]);}
 });
 test('metadata-only remote changes are real conflicts and cannot be overwritten by camera recovery',async()=>{
  const node={...m.newElement(base.emptyBoard(),'PERSON'),text:'Ana'},initial={...base.emptyBoard(),nodes:[node]},remote={...initial,nodes:[{...node,icon:'LEADER'}]};
@@ -33,3 +35,29 @@ test('metadata-only remote changes are real conflicts and cannot be overwritten 
  let calls=0,state;const queue=new BoardSaveQueue(1,'actor',async()=>{calls++;throw {status:409};},s=>state=s,{content:initial,latest:async()=>({content:remote,version:2,actorKey:'actor'}),sameIdeas:m.sameSystemIdeas});
  queue.enqueue({...initial,viewport:{x:50,y:0,zoom:1}});await tick();assert.equal(state,'conflict');assert.equal(calls,1);assert.ok(queue.dirty());
 });
+
+test('shared placement supports every tool and crossing the four visual areas without losing content',()=>{
+ const initial=base.emptyBoard();
+ for(const shape of ['NOTE','RECTANGLE','ELLIPSE','PLAIN']){
+  const node=m.placeSystemIdea({...base.textNode(100,150,shape),text:'Nombre\nUna idea práctica',color:'LAVENDER'},initial);
+  assert.equal(node.shape,shape);assert.equal(node.icon,'IDEA');assert.equal(node.category,'PERSON');
+  const process=m.moveSystemIdea(node,1300,0),product=m.moveSystemIdea(process,0,900),finance=m.moveSystemIdea(product,-1300,0);
+  assert.equal(process.category,'PROCESS');assert.equal(product.category,'PRODUCT');assert.equal(finance.category,'FINANCE');
+  assert.equal(finance.text,node.text);assert.equal(finance.shape,shape);assert.equal(finance.color,'LAVENDER');
+ }
+ const legacy={...m.newElement(initial,'PERSON'),text:'Ana',icon:'LEADER'};
+ assert.equal(m.moveSystemIdea(legacy,1300,0).icon,'LEADER');assert.equal(m.isLegacySystemNode(legacy),true);
+ const photo=m.placeSystemIdea({...base.textNode(1400,1000),kind:'IMAGE',assetId:crypto.randomUUID(),text:''},initial);
+ assert.equal(photo.category,'PRODUCT');assert.equal(photo.kind,'IMAGE');assert.equal(m.isLegacySystemNode(photo),false);
+ assert.deepEqual(m.fromSystemDocument(m.toSystemDocument({...initial,nodes:[photo]})).nodes,[photo]);
+});
+test('shared bounds and total limit allow 100 ideas without artificial per-area limits',()=>{
+ let content=base.emptyBoard();for(let i=0;i<100;i++){const node=m.placeSystemIdea({...base.textNode(-999,-999),text:'Idea '+i},content);assert.ok(node);content={...content,nodes:[...content.nodes,node]};}
+ assert.equal(m.placeSystemIdea(base.textNode(0,0),content),null);assert.ok(m.placeSystemIdea(content.nodes[0],content));
+ const far=m.moveSystemIdea(content.nodes[0],99999,99999);assert.equal(far.x+far.width,m.systemWorkspaceBounds.right);assert.equal(far.y+far.height,m.systemWorkspaceBounds.bottom);
+ const z=base.zoomAt({x:0,y:0,zoom:.12},.08,100,100,.08);assert.equal(z.zoom,.08);assert.equal(base.zoomAt({x:0,y:0,zoom:1},.08,100,100).zoom,.25);
+});
+
+test('server JSON field order cannot create a false system-board conflict',()=>{const node={...m.newElement(base.emptyBoard(),'PERSON'),text:'Ana'},same=Object.fromEntries(Object.entries(node).reverse()),a={...base.emptyBoard(),nodes:[node]};assert.equal(m.sameSystemIdeas(a,{...a,nodes:[same]}),true);assert.equal(m.sameSystemIdeas(a,{...a,nodes:[{...same,category:'PROCESS'}]}),false);});
+
+test('large freehand strokes preserve their coordinates and dimensions across areas',()=>{const node={...base.textNode(30,130),kind:'DRAWING',width:2000,height:1400,drawing:{points:[{x:.1,y:.1},{x:.9,y:.9}],color:'#2563eb',width:4}};const placed=m.placeSystemIdea(node,base.emptyBoard());assert.equal(placed.width,2000);assert.equal(placed.height,1400);assert.deepEqual(placed.drawing,node.drawing);assert.equal(placed.category,'FINANCE');});

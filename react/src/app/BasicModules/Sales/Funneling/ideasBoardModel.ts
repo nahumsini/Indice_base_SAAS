@@ -1,8 +1,10 @@
+import type { BoardDrawing } from './boardDrawing';
 import type { NodeAppearance } from './nodeAppearance';
-export type BoardShape = 'NOTE' | 'RECTANGLE' | 'ELLIPSE' | 'PLAIN';
+export type BoardShape = 'NOTE' | 'RECTANGLE' | 'ELLIPSE' | 'PLAIN' | 'TRIANGLE' | 'DIAMOND' | 'PENTAGON' | 'HEXAGON' | 'PARALLELOGRAM';
 export type BoardColor = 'YELLOW' | 'CORAL' | 'BLUE' | 'MINT' | 'LAVENDER' | 'WHITE';
-export interface IdeaNode { id: string; kind: 'TEXT' | 'IMAGE'; text: string; x: number; y: number; width: number; height: number; shape: BoardShape; color: BoardColor; assetId: string | null; appearance?: NodeAppearance | null }
-export interface IdeaConnection { id: string; from: string; to: string; label: string }
+export interface IdeaNode { id: string; kind: 'TEXT' | 'IMAGE' | 'DRAWING' | 'VIDEO' | 'AUDIO'; text: string; x: number; y: number; width: number; height: number; shape: BoardShape; color: BoardColor; assetId: string | null; appearance?: NodeAppearance | null; drawing?: BoardDrawing | null }
+export type ConnectionDirection = 'FORWARD' | 'BOTH';
+export interface IdeaConnection { id: string; from: string; to: string; label: string; direction?:ConnectionDirection }
 export interface BoardViewport { x: number; y: number; zoom: number }
 export interface BoardContent { nodes: IdeaNode[]; connections: IdeaConnection[]; viewport: BoardViewport }
 export interface SavedBoard { content: BoardContent; version: number; updatedAt: string | null; actorKey: string }
@@ -13,12 +15,32 @@ export const clamp = (value: number, min: number, max: number) => Math.max(min, 
 export const boardPoint = (x: number, y: number, viewport: BoardViewport) => ({ x: clamp((x - viewport.x) / viewport.zoom, -10000, 10000), y: clamp((y - viewport.y) / viewport.zoom, -10000, 10000) });
 export function textNode(x: number, y: number, shape: BoardShape = 'NOTE'): IdeaNode { return { id: crypto.randomUUID(), kind: 'TEXT', text: '', x, y, width: 240, height: 160, shape, color: 'YELLOW', assetId: null }; }
 export function withoutNode(content: BoardContent, id: string): BoardContent { return { ...content, nodes: content.nodes.filter(n => n.id !== id), connections: content.connections.filter(c => c.from !== id && c.to !== id) }; }
-export function connect(content: BoardContent, from: string, to: string): BoardContent {
-  if (from === to || content.connections.length >= 200 || !content.nodes.some(n => n.id === from) || !content.nodes.some(n => n.id === to) || content.connections.some(c => c.from === from && c.to === to)) return content;
-  return { ...content, connections: [...content.connections, { id: crypto.randomUUID(), from, to, label: '' }] };
+/** Omit the default direction so legacy JSON and idempotent digests stay stable. */
+export function withConnectionDirection(link:IdeaConnection,direction:ConnectionDirection):IdeaConnection {
+ const {direction:previous,...base}=link;return direction==='BOTH'?{...base,direction}:base;
 }
-export function zoomAt(view: BoardViewport, zoom: number, x: number, y: number): BoardViewport {
-  zoom = clamp(zoom, .25, 2); const ratio = zoom / view.zoom;
+export function connect(content: BoardContent, from: string, to: string,direction:ConnectionDirection='FORWARD'): BoardContent {
+ if(from===to||!content.nodes.some(n=>n.id===from)||!content.nodes.some(n=>n.id===to))return content;
+ const direct=content.connections.find(c=>c.from===from&&c.to===to),reverse=content.connections.find(c=>c.from===to&&c.to===from);
+ const existing=direct??reverse;
+ if(direct||reverse?.direction==='BOTH'||direction==='BOTH'&&reverse){
+  if(direction==='BOTH'&&existing&&existing.direction!=='BOTH')return{...content,connections:content.connections.map(c=>c.id===existing.id?withConnectionDirection(c,'BOTH'):c)};
+  return content;
+ }
+ if(content.connections.length>=200)return content;
+ return {...content,connections:[...content.connections,withConnectionDirection({id:crypto.randomUUID(),from,to,label:''},direction)]};
+}
+/** Personal continuous mode advances the origin only after a valid connection or existing path. */
+export function continueConnection(content:BoardContent,source:string|null,target:string,direction:ConnectionDirection='FORWARD') {
+ if(!content.nodes.some(n=>n.id===target))return{content,source,limited:false};
+ if(!source||!content.nodes.some(n=>n.id===source))return{content,source:target,limited:false};
+ if(source===target)return{content,source,limited:false};
+ const next=connect(content,source,target,direction);
+ const exists=next.connections.some(c=>c.from===source&&c.to===target||c.from===target&&c.to===source&&(c.direction==='BOTH'||direction==='BOTH'));
+ return{content:next,source:exists?target:source,limited:!exists&&next.connections.length>=200};
+}
+export function zoomAt(view: BoardViewport, zoom: number, x: number, y: number, minZoom = .25): BoardViewport {
+  zoom = clamp(zoom, minZoom, 2); const ratio = zoom / view.zoom;
   return { x: clamp(x - (x - view.x) * ratio, -30000, 30000), y: clamp(y - (y - view.y) * ratio, -30000, 30000), zoom };
 }
 export function fitBoard(nodes: IdeaNode[], width: number, height: number): BoardViewport {
@@ -50,6 +72,6 @@ export function stepHistory(history: BoardHistory, direction: 'undo' | 'redo'): 
 
 // Ignore each window's camera while comparing the actual ideas and their stacking order.
 export function sameBoardIdeas(a: BoardContent, b: BoardContent): boolean {
-  const key = (value: BoardContent) => JSON.stringify({ nodes: value.nodes.map(n => [n.id,n.kind,n.text,n.x,n.y,n.width,n.height,n.shape,n.color,n.assetId ?? null,n.appearance ?? null]), connections: value.connections.map(c => [c.id,c.from,c.to,c.label]) });
+  const key = (value: BoardContent) => JSON.stringify({ nodes: value.nodes.map(n => [n.id,n.kind,n.text,n.x,n.y,n.width,n.height,n.shape,n.color,n.assetId ?? null,n.appearance ?? null,n.drawing ?? null]), connections: value.connections.map(c => [c.id,c.from,c.to,c.label,c.direction??'FORWARD']) });
   return key(a) === key(b);
 }

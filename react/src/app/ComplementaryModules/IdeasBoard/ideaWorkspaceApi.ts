@@ -17,7 +17,7 @@ export const systemBoardApi:IdeasBoardApi={
  upload:personalIdeasBoardApi.upload,photoUrl:personalIdeasBoardApi.photoUrl,
 };
 export const ideaWorkspaceApi={
- list:(q='',page=1,signal?:AbortSignal)=>apiClient<ProjectPage>(`${base}/projects?${new URLSearchParams({q,page:String(page),pageSize:'12'})}`,{signal}),
+ list:(q='',page=1,signal?:AbortSignal,pageSize=12)=>apiClient<ProjectPage>(`${base}/projects?${new URLSearchParams({q,page:String(page),pageSize:String(pageSize)})}`,{signal}),
  get:(id:string,signal?:AbortSignal)=>apiClient<Project>(`${base}/projects/${encodeURIComponent(id)}`,{signal}),
  save:(id:string,input:ProjectInput,actor:string)=>apiClient<Project>(`${base}/projects/${encodeURIComponent(id)}`,{method:'PUT',headers:{'X-Idea-Board-Actor':actor},body:JSON.stringify(input)}),
 };

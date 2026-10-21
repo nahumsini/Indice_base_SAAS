@@ -227,3 +227,27 @@
   .idea-board-empty-actions .idea-board-secondary { display:none; }
   .idea-board-empty-actions .idea-board-button { padding:10px; font-size:12px; }
 }
+
+/* Both personal editors keep their complete tools scrollable on short screens,
+   reserving the canvas and footer instead of clipping controls below the window. */
+.idea-board-chrome {display:contents;}
+.idea-board-expanded[data-customizable]>.idea-board-chrome {display:block;flex:0 1 auto;min-height:64px;max-height:calc(100% - 210px);overflow-y:auto;overscroll-behavior-y:contain;scrollbar-width:thin;}
+.idea-board-expanded[data-customizable]>.idea-board-footer {flex-shrink:0;}
+
+.idea-board[data-file-tools] .idea-board-heading-meta {flex-wrap:wrap;justify-content:flex-end;}
+.idea-board[data-file-tools].idea-board-expanded {inset:0;border-radius:0;z-index:49;}
+.idea-board[data-file-tools]:fullscreen {width:100%;height:100%;inset:0;border-radius:0;}
+.idea-board[data-file-tools]:fullscreen::backdrop {background:#0f172a;}
+@media(max-width:640px){.idea-board[data-file-tools] .idea-board-heading-meta{justify-content:flex-start;}.idea-board[data-file-tools] .idea-board-status{flex-basis:100%;max-width:100%;}.idea-board[data-file-tools] .idea-board-expand{width:auto;flex:1;white-space:normal;font-size:12px;}.idea-board[data-file-tools] .idea-board-expand span{display:inline;}}
+
+/* Personal freehand elements share the same canvas, selection and resize tools. */
+.idea-board-node[data-kind=DRAWING] { padding:0; background:transparent; border:0; box-shadow:none; border-radius:0; }
+.idea-board-node[data-kind=DRAWING] svg { display:block; overflow:visible; pointer-events:none; }
+.idea-board-node[data-kind=DRAWING][aria-pressed=true] { outline:2px solid var(--board-accent); box-shadow:0 0 0 7px #ff6b5e0c; }
+.idea-board-marker-controls { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:0 24px 14px; font-size:12px; color:var(--board-ink); }
+.idea-board-marker-controls label { display:inline-flex; align-items:center; gap:8px; }
+.idea-board-marker-controls input,.idea-board-marker-controls select { min-height:44px; min-width:44px; border:1px solid var(--board-border); border-radius:10px; background:var(--board-panel); color:var(--board-ink); padding:5px; }
+.idea-board-marker-controls span { max-width:540px; line-height:1.5; color:#64748b; }
+@media(max-width:640px) { .idea-board-marker-controls { padding:0 12px 12px; } .idea-board-marker-controls span { flex-basis:100%; } }
+
+.idea-board-surface[data-active-tool=DRAW] .idea-board-node {cursor:crosshair;}

@@ -118,4 +118,31 @@ class PersonalIdeasBoardIntegrationTest {
         var nodes=java.util.stream.IntStream.range(0,101).mapToObj(i->node("Too many")).toList();
         mvc.perform(put(URL).session(session()).header("X-CSRF-Token","synthetic-csrf").header("X-Idea-Board-Actor",key()).contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(new Input(new Document(nodes,List.of(),empty().viewport()),0,UUID.randomUUID().toString())))).andExpect(status().isBadRequest());
     }
+    @Test void personalDoubleArrowsRoundTripAndRetryWithoutChangingLegacyConnections() throws Exception {
+        var a=node("Inicio");var b=node("Siguiente");var c=node("Final");
+        var first=new Connection(UUID.randomUUID().toString(),a.id(),b.id(),"Entrega","BOTH");
+        var second=new Connection(UUID.randomUUID().toString(),b.id(),c.id(),"Continúa");
+        var content=new Document(List.of(a,b,c),List.of(first,second),new Viewport(0d,0d,1d));
+        var request=new Input(content,0,UUID.randomUUID().toString());
+        mvc.perform(put(URL).session(session()).header("X-CSRF-Token","synthetic-csrf").header("X-Idea-Board-Actor",key()).contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(request)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.content.connections[0].direction").value("BOTH")).andExpect(jsonPath("$.content.connections[1].direction").doesNotExist());
+        assertThat(service.get(actor,PERSONAL).content()).isEqualTo(content);
+        assertThat(service.save(actor,key(),request,PERSONAL).version()).isEqualTo(1);
+        assertThat(service.get(new AuthSessionUser(user+10000,company,"Other","user"),PERSONAL).content().connections()).isEmpty();
+    }
+    @Test void invalidDirectionsAndSalesOptInAreRejected() {
+        var a=node("A");var b=node("B");
+        var invalid=new Document(List.of(a,b),List.of(new Connection(UUID.randomUUID().toString(),a.id(),b.id(),"","INVALID")),new Viewport(0d,0d,1d));
+        assertThatThrownBy(()->service.save(actor,key(),new Input(invalid,0,UUID.randomUUID().toString()),PERSONAL)).isInstanceOf(ResponseStatusException.class);
+        var doubleArrow=new Document(List.of(a,b),List.of(new Connection(UUID.randomUUID().toString(),a.id(),b.id(),"","BOTH")),new Viewport(0d,0d,1d));
+        assertThatThrownBy(()->service.validateSnapshot(actor,doubleArrow,IdeasBoardScope.FUNNEL)).isInstanceOf(ResponseStatusException.class);
+        assertThat(service.get(actor,PERSONAL).version()).isZero();
+    }
+    @Test void absentDirectionPreservesOldJsonAndIdempotentRequests() throws Exception {
+        var a=node("A");var b=node("B");var original=new Document(List.of(a,b),List.of(new Connection(UUID.randomUUID().toString(),a.id(),b.id(),"Entrega")),new Viewport(0d,0d,1d));
+        String json=mapper.writeValueAsString(original);assertThat(json).doesNotContain("direction");
+        var request=new Input(mapper.readValue(json,Document.class),0,UUID.randomUUID().toString());
+        service.save(actor,key(),request,PERSONAL);assertThat(service.save(actor,key(),request,PERSONAL).version()).isEqualTo(1);
+    }
+
 }

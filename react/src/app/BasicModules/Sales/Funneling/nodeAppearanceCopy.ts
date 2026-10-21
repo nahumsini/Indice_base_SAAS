@@ -1,5 +1,14 @@
 const copy = {
   "es": {
+    "symbols": "Símbolos",
+    "fontShort": "Fuente",
+    "sizeShort": "Tamaño",
+    "textShort": "Letra",
+    "fillShort": "Relleno",
+    "borderShort": "Borde",
+    "strokeShort": "Trazo",
+
+    "quickEdit": "Edición rápida",
     "customize": "Personalizar",
     "typography": "Texto y apariencia",
     "fontFamily": "Estilo de letra",
@@ -32,6 +41,15 @@ const copy = {
     ]
   },
   "en": {
+    "symbols": "Symbols",
+    "fontShort": "Font",
+    "sizeShort": "Size",
+    "textShort": "Text",
+    "fillShort": "Fill",
+    "borderShort": "Outline",
+    "strokeShort": "Stroke",
+
+    "quickEdit": "Quick edit",
     "customize": "Customize",
     "typography": "Text and appearance",
     "fontFamily": "Font style",
@@ -64,6 +82,15 @@ const copy = {
     ]
   },
   "fr": {
+    "symbols": "Symboles",
+    "fontShort": "Police",
+    "sizeShort": "Taille",
+    "textShort": "Texte",
+    "fillShort": "Fond",
+    "borderShort": "Contour",
+    "strokeShort": "Trait",
+
+    "quickEdit": "Édition rapide",
     "customize": "Personnaliser",
     "typography": "Texte et apparence",
     "fontFamily": "Police",
@@ -96,6 +123,15 @@ const copy = {
     ]
   },
   "pt": {
+    "symbols": "Símbolos",
+    "fontShort": "Fonte",
+    "sizeShort": "Tamanho",
+    "textShort": "Texto",
+    "fillShort": "Fundo",
+    "borderShort": "Borda",
+    "strokeShort": "Traço",
+
+    "quickEdit": "Edição rápida",
     "customize": "Personalizar",
     "typography": "Texto e aparência",
     "fontFamily": "Estilo de letra",
@@ -128,6 +164,15 @@ const copy = {
     ]
   },
   "ko": {
+    "symbols": "기호",
+    "fontShort": "글꼴",
+    "sizeShort": "크기",
+    "textShort": "글자",
+    "fillShort": "채우기",
+    "borderShort": "테두리",
+    "strokeShort": "두께",
+
+    "quickEdit": "빠른 편집",
     "customize": "꾸미기",
     "typography": "텍스트 및 모양",
     "fontFamily": "글꼴 스타일",
@@ -160,6 +205,15 @@ const copy = {
     ]
   },
   "zh": {
+    "symbols": "符号",
+    "fontShort": "字体",
+    "sizeShort": "字号",
+    "textShort": "文字",
+    "fillShort": "填充",
+    "borderShort": "边框",
+    "strokeShort": "线宽",
+
+    "quickEdit": "快速编辑",
     "customize": "自定义",
     "typography": "文字和外观",
     "fontFamily": "字体样式",

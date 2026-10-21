@@ -89,7 +89,7 @@ class IdeaWorkspaceIntegrationTest {
         assertThat(workspace.system(actor).version()).isEqualTo(1);assertThat(workspace.system(new AuthSessionUser(user,other,"Other","user")).version()).isZero();
     }
     @Test void invalidCategoryIconGeometryAndBrokenConnectionsAreRejected() {
-        var graph=graph();var e=graph.elements().getFirst();var invalid=new Element(e.node(),e.category(),"BALANCE");
+        var graph=graph();var e=graph.elements().getFirst();var invalid=new Element(e.node(),e.category(),"UNKNOWN_ICON");
         assertThatThrownBy(()->workspace.saveSystem(actor,key(),systemInput(new SystemDocument(List.of(invalid),List.of(),graph.viewport()),0))).isInstanceOf(ResponseStatusException.class);
         var outside=new Node(e.node().id(),"TEXT","Outside",1200d,1200d,180d,120d,"RECTANGLE","BLUE",null);
         assertThatThrownBy(()->workspace.saveSystem(actor,key(),systemInput(new SystemDocument(List.of(new Element(outside,"PERSON","PERSON")),List.of(),graph.viewport()),0))).isInstanceOf(ResponseStatusException.class);
@@ -145,4 +145,115 @@ class IdeaWorkspaceIntegrationTest {
         mvc.perform(get(URL+"/projects/"+id).session(session())).andExpect(status().isOk()).andExpect(jsonPath("$.system.connections.length()").value(4));
         assertThat(workspace.system(actor).version()).isEqualTo(1);
     }
+    @Test void sharedToolsRoundTripShapesMultilineColorsAndCrossAreaMovement() {
+        var elements=new ArrayList<Element>();var shapes=List.of("NOTE","PLAIN","ELLIPSE","RECTANGLE");
+        for(int i=0;i<4;i++)elements.add(new Element(new Node(UUID.randomUUID().toString(),"TEXT","Idea\n"+"Texto práctico ".repeat(20),50d+i*200,150d,180d,120d,shapes.get(i),"LAVENDER",null),"PERSON","IDEA"));
+        var graph=new SystemDocument(elements,List.of(),new SystemViewport(0d,0d,.08d));
+        var saved=workspace.saveSystem(actor,key(),systemInput(graph,0));assertThat(saved.content()).isEqualTo(graph);
+        var first=elements.getFirst().node();elements.set(0,new Element(new Node(first.id(),first.kind(),first.text(),1250d,150d,first.width(),first.height(),first.shape(),first.color(),null),"PROCESS","IDEA"));
+        var moved=new SystemDocument(elements,List.of(),graph.viewport());workspace.saveSystem(actor,key(),systemInput(moved,1));
+        var project=workspace.saveProject(actor,key(),UUID.randomUUID().toString(),new ProjectInput("Herramientas compartidas","SYSTEM",null,moved));assertThat(project.system()).isEqualTo(moved);
+    }
+    @Test void photosWorkInEveryAreaAndKeepPersonalOwnership() throws Exception {
+        when(storage.isEnabled()).thenReturn(true);String asset=UUID.randomUUID().toString();service.upload(actor,key(),asset,"reference.png","image/png",png(),PERSONAL);
+        var original=graph();var elements=new ArrayList<Element>();
+        for(var element:original.elements()){var n=element.node();elements.add(new Element(new Node(n.id(),"IMAGE","",n.x(),n.y(),n.width(),n.height(),"ELLIPSE","CORAL",asset),element.category(),"IDEA"));}
+        var graph=new SystemDocument(elements,List.of(),original.viewport());assertThat(workspace.saveSystem(actor,key(),systemInput(graph,0)).content()).isEqualTo(graph);
+        var foreign=new AuthSessionUser(user,other,"Other","user");assertThatThrownBy(()->service.asset(foreign,asset,PERSONAL)).isInstanceOf(ResponseStatusException.class);
+    }
+    @Test void sharedTotalLimitAllowsOneHundredIdeasAndRejectsOutsideWorld() {
+        var elements=new ArrayList<Element>();for(int i=0;i<100;i++)elements.add(new Element(new Node(UUID.randomUUID().toString(),"TEXT","Idea "+i,50d,150d,180d,120d,"NOTE","YELLOW",null),"PERSON","IDEA"));
+        var graph=new SystemDocument(elements,List.of(),new SystemViewport(0d,0d,1d));assertThat(workspace.saveSystem(actor,key(),systemInput(graph,0)).content().elements()).hasSize(100);
+        elements.add(new Element(node("Extra"),"PERSON","IDEA"));assertThatThrownBy(()->workspace.saveSystem(actor,key(),systemInput(new SystemDocument(elements,List.of(),graph.viewport()),1))).isInstanceOf(ResponseStatusException.class);
+        var outside=new Node(UUID.randomUUID().toString(),"TEXT","Outside",2190d,150d,180d,120d,"NOTE","BLUE",null);
+        assertThatThrownBy(()->workspace.saveSystem(actor,key(),systemInput(new SystemDocument(List.of(new Element(outside,"PROCESS","IDEA")),List.of(),graph.viewport()),1))).isInstanceOf(ResponseStatusException.class);
+        assertThat(workspace.system(actor).version()).isEqualTo(1);
+    }
+
+    @Test void diagnosticStepsIndustryAndReportsRoundTripInPrivateSnapshots() throws Exception {
+        var process=graph().elements().get(1);var product=graph().elements().get(2);var finance=graph().elements().get(3);
+        var detailed=new Element(process.node(),"PROCESS","QUALITY",List.of("Revisar pedido","Preparar paquete","Confirmar entrega"),null);
+        var serviceElement=new Element(product.node(),"PRODUCT","CLEANING",null,"SERVICE");
+        var content=new SystemDocument(List.of(detailed,serviceElement,new Element(finance.node(),"FINANCE","EQUITY_CHANGES")),List.of(),graph().viewport());
+        var input=systemInput(content,0);assertThat(workspace.saveSystem(actor,key(),input).content()).isEqualTo(content);
+        assertThat(workspace.saveSystem(actor,key(),input).version()).isEqualTo(1);
+        String id=UUID.randomUUID().toString();workspace.saveProject(actor,key(),id,new ProjectInput("Pasos y giro","SYSTEM",null,content));
+        mvc.perform(get(URL+"/projects/"+id).session(session())).andExpect(status().isOk()).andExpect(jsonPath("$.system.elements[0].steps[2]").value("Confirmar entrega")).andExpect(jsonPath("$.system.elements[1].offeringType").value("SERVICE"));
+        assertThatThrownBy(()->workspace.project(new AuthSessionUser(user+1000,company,"Other","user"),id)).isInstanceOf(ResponseStatusException.class);
+        var n=process.node();var moved=new Node(n.id(),n.kind(),n.text(),50d,150d,n.width(),n.height(),n.shape(),n.color(),n.assetId());
+        var next=new SystemDocument(List.of(new Element(moved,"PERSON","QUALITY",detailed.steps(),null)),List.of(),content.viewport());
+        assertThat(workspace.saveSystem(actor,key(),systemInput(next,1)).content().elements().getFirst().steps()).isEqualTo(detailed.steps());
+        assertThat(workspace.project(actor,id).system()).isEqualTo(content);
+    }
+    @Test void invalidStepsAndOfferingTypeAreRejectedBeforeChangingSavedWork() {
+        var process=graph().elements().get(1);
+        for(var steps:List.of(List.of(""),List.of("  "),List.of("x".repeat(501)),Collections.nCopies(51,"Paso"))) {
+            var content=new SystemDocument(List.of(new Element(process.node(),"PROCESS","CHECKLIST",steps,null)),List.of(),graph().viewport());
+            assertThatThrownBy(()->workspace.saveSystem(actor,key(),systemInput(content,0))).isInstanceOf(ResponseStatusException.class);
+            assertThatThrownBy(()->workspace.saveProject(actor,key(),UUID.randomUUID().toString(),new ProjectInput("Inválido","SYSTEM",null,content))).isInstanceOf(ResponseStatusException.class);
+        }
+        var invalid=new SystemDocument(List.of(new Element(process.node(),"PROCESS","CHECKLIST",null,"UNKNOWN")),List.of(),graph().viewport());
+        assertThatThrownBy(()->workspace.saveSystem(actor,key(),systemInput(invalid,0))).isInstanceOf(ResponseStatusException.class);
+        assertThat(workspace.system(actor).version()).isZero();
+    }
+    @Test void optionalMetadataDoesNotChangeLegacyJsonOrIdempotentRetries() throws Exception {
+        var json=mapper.writeValueAsString(graph());assertThat(json).doesNotContain("steps","offeringType");
+        var request=systemInput(mapper.readValue(json,SystemDocument.class),0);workspace.saveSystem(actor,key(),request);
+        assertThat(workspace.saveSystem(actor,key(),request).version()).isEqualTo(1);
+    }
+
+    @Test void allDiagnosticCatalogueIconsAreAcceptedAndPersisted() {
+        var base=graph().elements().getFirst();long version=0;
+        for(String icon:List.of("CHECKLIST","GEAR","FLOW","DELIVERY","PRODUCTION","PURCHASING","STOCK_CONTROL","QUALITY","SERVICE_DELIVERY","SALES_PROCESS","PROSPECTING","MARKETING","CUSTOMER_CARE","AFTER_SALES","BILLING","COLLECTIONS_PROCESS","PAYMENTS_PROCESS","HIRING","ONBOARDING","PAYROLL_PROCESS","MAINTENANCE_PROCESS","ADMINISTRATION","BOX","SERVICE","COFFEE","FOOD","TOOLS","PHONE","GROCERY","BAKERY","FASHION","FOOTWEAR","BEAUTY","HEALTH","PHARMACY","EDUCATION","PROFESSIONAL","SOFTWARE","CONSTRUCTION","REAL_ESTATE","AUTOMOTIVE","TRANSPORT","TOURISM","EVENTS","FITNESS","HOME_GOODS","AGRICULTURE","PETS","CLEANING","MANUFACTURING","CRM","POS","SALES_FUNNEL","STORE","MARKETPLACE","DISTRIBUTORS","PARTNERS","REFERRALS","ONLINE","SOCIAL","CHAT","EMAIL","WHATSAPP","PHONE_SALES","SEO","GOOGLE_ADS","AI_ADS","META_ADS","TIKTOK_ADS","YOUTUBE","ACTIVATIONS","TRADE_SHOW","INFLUENCERS","BALANCE","INCOME","CASH_FLOW","EQUITY_CHANGES","TRIAL_BALANCE","LEDGER_DETAIL","FINANCIAL_CLOSE","FINANCIAL_PULSE","PROFIT_BRIDGE","CASH_BRIDGE","FINANCIAL_TREND","UNIT_RESULTS","BUDGET","COSTS","EXPENSE_REPORT","EXPENSE_AGING","TAX_REPORT","RECEIVABLE_REPORT","RECEIVABLE_AGING","UPCOMING_COLLECTIONS","PETTY_CASH_STATEMENT","FUND_BALANCES","CASH_RECONCILIATION","SALES_REPORT","POS_CLOSING","PAYROLL_REPORT","SALES_COMMISSION")) {
+            var content=new SystemDocument(List.of(new Element(base.node(),"PERSON",icon)),List.of(),graph().viewport());
+            assertThat(workspace.saveSystem(actor,key(),systemInput(content,version++)).content().elements().getFirst().icon()).isEqualTo(icon);
+        }
+    }
+
+    @Test void doubleArrowsPersistInSystemAndBothImmutableProjectKinds() {
+        var original=graph();var elements=original.elements();var first=original.connections().getFirst();
+        var doubleArrow=new Connection(first.id(),first.from(),first.to(),"Relación doble","BOTH");
+        var system=new SystemDocument(elements,List.of(doubleArrow),original.viewport());
+        assertThat(workspace.saveSystem(actor,key(),systemInput(system,0)).content().connections().getFirst().direction()).isEqualTo("BOTH");
+        String systemId=UUID.randomUUID().toString();workspace.saveProject(actor,key(),systemId,new ProjectInput("Sistema doble","SYSTEM",null,system));
+        var freeform=new Document(elements.stream().map(Element::node).toList(),system.connections(),new Viewport(0d,0d,1d));
+        String freeId=UUID.randomUUID().toString();workspace.saveProject(actor,key(),freeId,new ProjectInput("Pizarra doble","FREEFORM",freeform,null));
+        assertThat(workspace.project(actor,systemId).system().connections().getFirst().direction()).isEqualTo("BOTH");
+        assertThat(workspace.project(actor,freeId).freeform().connections().getFirst().direction()).isEqualTo("BOTH");
+        assertThatThrownBy(()->workspace.project(new AuthSessionUser(user,other,"Other","user"),systemId)).isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test void outsideAnnotationsAndConnectionsRoundTripInThePrivateProject() throws Exception {
+        var original=graph();var first=original.elements().getFirst();
+        var note=new Node(UUID.randomUUID().toString(),"TEXT","Revisar después de la reunión",-500d,-300d,220d,220d,"NOTE","YELLOW",null);
+        var outside=new Element(note,"OUTSIDE","IDEA");
+        var content=new SystemDocument(List.of(first,outside),List.of(new Connection(UUID.randomUUID().toString(),first.node().id(),note.id(),"Pendiente","BOTH")),new SystemViewport(0d,0d,.04d));
+        var request=systemInput(content,0);assertThat(workspace.saveSystem(actor,key(),request).content()).isEqualTo(content);
+        assertThat(workspace.saveSystem(actor,key(),request).version()).isEqualTo(1);
+        String id=UUID.randomUUID().toString();workspace.saveProject(actor,key(),id,new ProjectInput("Anotaciones externas","SYSTEM",null,content));
+        mvc.perform(get(URL+"/projects/"+id).session(session())).andExpect(status().isOk()).andExpect(jsonPath("$.system.elements[1].category").value("OUTSIDE")).andExpect(jsonPath("$.system.elements[1].node.x").value(-500));
+        assertThatThrownBy(()->workspace.project(new AuthSessionUser(user,other,"Other","user"),id)).isInstanceOf(ResponseStatusException.class);
+    }
+    @Test void aThreeElementCaptureSavesAsOneVersionAndAnInvalidItemCannotPartiallyWrite() {
+        var elements=new ArrayList<Element>();for(int i=0;i<3;i++)elements.add(new Element(new Node(UUID.randomUUID().toString(),"TEXT","Persona "+i,50d+i*210d,150d,180d,120d,"RECTANGLE","BLUE",null),"PERSON","PERSON"));
+        var content=new SystemDocument(elements,List.of(),graph().viewport());
+        assertThat(workspace.saveSystem(actor,key(),systemInput(content,0)).version()).isEqualTo(1);
+        assertThat(workspace.system(actor).content().elements()).hasSize(3);
+        var n=elements.get(1).node();var invalid=new ArrayList<>(elements);invalid.set(1,new Element(new Node(n.id(),n.kind(),"",n.x(),n.y(),n.width(),n.height(),n.shape(),n.color(),null),"PERSON","PERSON"));
+        assertThatThrownBy(()->workspace.saveSystem(actor,key(),systemInput(new SystemDocument(invalid,List.of(),content.viewport()),1))).isInstanceOf(ResponseStatusException.class);
+        assertThat(workspace.system(actor).version()).isEqualTo(1);assertThat(workspace.system(actor).content()).isEqualTo(content);
+    }
+    @Test void outsideCategoryRejectsForgedGeometryNamedItemsAndOutOfBoundsAnnotations() {
+        for(var e:List.of(
+            new Element(new Node(UUID.randomUUID().toString(),"TEXT","Dentro",50d,150d,220d,220d,"NOTE","YELLOW",null),"OUTSIDE","IDEA"),
+            new Element(new Node(UUID.randomUUID().toString(),"TEXT","Lejos",-1300d,150d,220d,220d,"NOTE","YELLOW",null),"OUTSIDE","IDEA"),
+            new Element(new Node(UUID.randomUUID().toString(),"TEXT","Persona",-400d,150d,180d,120d,"RECTANGLE","BLUE",null),"OUTSIDE","PERSON"),
+            new Element(new Node(UUID.randomUUID().toString(),"TEXT","Área incorrecta",-400d,150d,220d,220d,"NOTE","YELLOW",null),"PERSON","IDEA"))) {
+            var content=new SystemDocument(List.of(e),List.of(),graph().viewport());
+            assertThatThrownBy(()->workspace.saveSystem(actor,key(),systemInput(content,0))).isInstanceOf(ResponseStatusException.class);
+            assertThatThrownBy(()->workspace.saveProject(actor,key(),UUID.randomUUID().toString(),new ProjectInput("Inválido","SYSTEM",null,content))).isInstanceOf(ResponseStatusException.class);
+        }
+        assertThat(workspace.system(actor).version()).isZero();
+    }
+
 }

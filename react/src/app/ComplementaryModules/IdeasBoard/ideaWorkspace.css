@@ -120,3 +120,23 @@
 .system-expanded-tools>span {max-width:300px;font-size:12px;line-height:1.4;}
 .system-expanded-tools>button[aria-pressed=true] {background:#ffebe5;color:#9f352b;}
 .dark .system-expanded-tools>button[aria-pressed=true] {background:#593a34;color:#ffccbb;}
+
+/* Both editable surfaces use the same tool rail and node editor. Regions only add visual navigation. */
+.system-board .system-area-nav {flex-wrap:nowrap;overflow-x:auto;}
+.system-board .system-area-nav>.idea-board-button {flex-shrink:0;}
+.system-board .system-node[data-shape=ELLIPSE] {border-radius:50%;}
+
+.idea-board[data-customizable] .idea-board-link,.workspace-link-label {width:max-content;}
+
+.board-file-actions {display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.board-file-actions .idea-board-button {min-height:44px;}
+.board-file-picker {display:flex;flex-direction:column;gap:18px;min-width:0;}
+.board-file-picker .workspace-field>div {display:flex;align-items:center;gap:8px;}
+.board-file-picker .workspace-field input {flex:1;min-width:0;}
+.board-file-list {display:flex;flex-direction:column;gap:10px;}
+.board-file-list article {display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px;border:1px solid #dce5f0;border-radius:14px;min-width:0;}
+.board-file-list article>div {display:flex;flex-direction:column;gap:5px;min-width:0;}
+.board-file-list strong {font-size:14px;font-weight:500;overflow-wrap:anywhere;}
+.board-file-list span {font-size:12px;color:#64748b;}
+.dark .board-file-list article {border-color:#3c4b63;}.dark .board-file-list span {color:#a7b5c9;}
+@media(max-width:640px){.board-file-actions{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:6px;}.board-file-actions button:last-child{grid-column:1/-1;}.board-file-actions .idea-board-button{justify-content:center;}.board-file-list article{padding:12px;gap:10px;}.board-file-list article>button{min-height:44px;flex-shrink:0;}}

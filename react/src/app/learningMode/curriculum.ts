@@ -26,6 +26,7 @@ const definitions: Record<string, readonly [string, number]> = {
 function chapter(module: string, tab: string, label: LearningText, steps: readonly LearningText[], evidenceTools: readonly string[] = []): LearningChapter {
   const [pageId, stage] = definitions[module];
   const version = ["expenses", "petty_cash"].includes(module)
+    || module === 'ideas_board'
     || (module === 'crm' && tab === 'funneling')
     || (module === 'human_resources' && ['control', 'attendance'].includes(tab)) ? 3 : 2;
   return { id: `${module}.${tab}`, module, tab, version, pageId, stage, label, steps, evidenceTools,
@@ -35,17 +36,17 @@ function chapter(module: string, tab: string, label: LearningText, steps: readon
 export const learningChapters: readonly LearningChapter[] = [
   chapter("ideas_board", "canvas", ["Mi pizarra", "My board"], [
     ["Revisa la empresa activa: esta pizarra es privada para tu usuario y empresa.", "Check the active company: this board is private to your user and company."],
-    ["Organiza notas, imágenes y conexiones; ajusta su formato y comprueba el guardado automático.", "Arrange notes, images and connections; adjust their appearance and check autosave."],
+    ["Escribe sobre el lienzo, agrega notas, figuras, dibujos o archivos multimedia y enlaza tus ideas con flechas sencillas o dobles. Comprueba el guardado automático.", "Write on the canvas, add notes, shapes, drawings or media files, and connect ideas with single or double arrows. Check autosave."],
     ["Guarda un proyecto con nombre para conservar una copia. Si hay un conflicto, revisa la versión guardada antes de descartar cambios.", "Save a named project to retain a snapshot. If a conflict occurs, review the saved version before discarding changes."],
   ]),
   chapter("ideas_board", "system", ["Tablero Índice", "Indice system board"], [
     ["Prepara un mapa de Personas, Procesos, Productos y Finanzas dentro de tu espacio privado.", "Prepare a map of People, Processes, Products and Finance within your private workspace."],
-    ["Agrega elementos en su área, enlaza sus relaciones y usa el minimapa para recorrer el diagnóstico.", "Add elements in their area, connect their relationships and use the minimap to navigate the diagnosis."],
+    ["Agrega hasta tres elementos por captura, define pasos de procesos, canales y productos o servicios. Conecta sus relaciones y usa notas exteriores y el minimapa para organizar el diagnóstico.", "Add up to three elements at a time, define process steps, channels, and products or services. Connect their relationships and use outside notes and the minimap to organize the diagnosis."],
     ["Comprueba el guardado y conserva un proyecto. El mapa ordena ideas; no crea empleados, tareas, productos ni registros contables.", "Check the saved state and retain a project. The map organizes ideas; it does not create employees, tasks, products or accounting records."],
   ]),
   chapter("ideas_board", "projects", ["Mis proyectos", "My projects"], [
     ["Busca por nombre los proyectos guardados para tu usuario y empresa activa.", "Search by name for projects saved for your user and active company."],
-    ["Abre una copia de Mi pizarra o del Tablero Índice para consultar sus elementos y relaciones.", "Open a My board or Indice system board snapshot to inspect its elements and relationships."],
+    ["Abre una copia de Mi pizarra o del Tablero Índice para consultar elementos, archivos, dibujos, pasos y relaciones; puedes imprimirla o guardarla como PDF desde tu navegador.", "Open a My board or Indice system board snapshot to inspect elements, files, drawings, steps and relationships; you can print it or save it as PDF from your browser."],
     ["La consulta conserva el contenido original: acercar o mover la vista no cambia el proyecto ni tus borradores.", "Consultation preserves the original content: zooming or panning does not change the project or your drafts."],
   ]),
   chapter("sales_board", "overview", ["Resumen de ventas","Sales overview"], [

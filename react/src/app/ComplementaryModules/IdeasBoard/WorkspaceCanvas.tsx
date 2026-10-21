@@ -1,3 +1,12 @@
+import {SalesModalFrame} from '../../BasicModules/Sales/components/SalesModalFrame';
+import {Button} from '../../components/ui/button';
+import {SystemNodeContent} from './SystemNodeContent';
+import {hasProcessSteps,type SystemNode} from './systemBoardModel';
+import {systemCatalogCopy} from './systemCatalogCopy';
+import {BoardGeometryElement} from '../../BasicModules/Sales/Funneling/boardGeometry';
+import {BoardMediaElement} from '../../BasicModules/Sales/Funneling/boardMedia';
+import {SystemBoardBackdrop} from './SystemBoardBackdrop';
+import {BoardDrawingElement} from '../../BasicModules/Sales/Funneling/BoardDrawingElement';
 import {useEffect,useId,useRef,useState,type ReactNode,type PointerEvent} from 'react';
 import {Focus,Maximize2,Minimize2,Minus,Plus} from 'lucide-react';
 import {IdeasBoardMinimap} from '../../BasicModules/Sales/Funneling/IdeasBoardMinimap';
@@ -5,8 +14,8 @@ import {ideasBoardCopy} from '../../BasicModules/Sales/Funneling/ideasBoardCopy'
 import {clamp,connectionEnds,type BoardContent,type IdeaNode} from '../../BasicModules/Sales/Funneling/ideasBoardModel';
 import {OriginalModuleEmoji} from '../../components/icons/OriginalModuleEmoji';
 import {personalIdeasBoardApi} from './personalIdeasBoardApi';
-import {areaOrder,areas,elementBounds,fitWorkspace,isSystemNode,moveElement,symbols,zoomWorkspace,type Area} from './systemBoardModel';
-import {NodeResizeHandles} from '../../BasicModules/Sales/Funneling/NodeAppearanceControls';
+import {areaOrder,areas,elementBounds,fitWorkspace,isSystemNode,isLegacySystemNode,moveElement,symbols,zoomWorkspace,type Area} from './systemBoardModel';
+import {NodeAppearanceControls,NodeResizeHandles} from '../../BasicModules/Sales/Funneling/NodeAppearanceControls';
 import {nodeBoxStyle,nodeTextStyle,nodeImageStyle,resizeNode,type ResizeEdge} from '../../BasicModules/Sales/Funneling/nodeAppearance';
 import {workspaceCopy} from './workspaceCopy';
 
@@ -18,6 +27,7 @@ export function WorkspaceCanvas({content,onChange,locale,system=true,active=true
  onConnect?:(id:string)=>void;onEdit?:(node:IdeaNode)=>void;onLabel?:(id:string,label:string)=>void;onRemove?:()=>void;
  focusRequest?:{key:number;area?:Area};initialFit?:boolean;expandedTools?:ReactNode;onExpandedChange?:(expanded:boolean)=>void;
 }) {
+ const [stepsNode,setStepsNode]=useState<SystemNode|null>(null),catalog=systemCatalogCopy(locale);
  const c=workspaceCopy(locale),b=ideasBoardCopy(locale),surface=useRef<HTMLDivElement>(null),marker=useId().replace(/:/g,'');
  const [preview,setPreview]=useState<BoardContent|null>(null),[size,setSize]=useState({width:0,height:0}),[expanded,setExpanded]=useState(false);
  const shown=preview??content,current=useRef(shown),change=useRef(onChange);current.current=shown;change.current=onChange;
@@ -46,7 +56,7 @@ export function WorkspaceCanvas({content,onChange,locale,system=true,active=true
  },[active]);
  function point(e:PointerEvent<HTMLDivElement>):Point {const rect=surface.current!.getBoundingClientRect();return{x:e.clientX-rect.left,y:e.clientY-rect.top};}
  function down(e:PointerEvent<HTMLDivElement>) {
-  if(e.button!==0)return;e.preventDefault();if(wheelTimer.current){clearTimeout(wheelTimer.current);wheelTimer.current=null;apply(current.current);}
+  if(e.button!==0||(e.target as Element).closest('video,audio,button'))return;e.preventDefault();if(wheelTimer.current){clearTimeout(wheelTimer.current);wheelTimer.current=null;apply(current.current);}
   const p=point(e);pointers.current.set(e.pointerId,p);e.currentTarget.setPointerCapture(e.pointerId);
   if(pointers.current.size===2){const[a,b]=[...pointers.current.values()];gesture.current={base:current.current,start:p,node:null,moved:true,pinch:{distance:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),middle:{x:(a.x+b.x)/2,y:(a.y+b.y)/2}}};return;}
   if(pointers.current.size>2)return;
@@ -68,32 +78,34 @@ export function WorkspaceCanvas({content,onChange,locale,system=true,active=true
  return <div className={`workspace-canvas-wrap ${expanded?'workspace-canvas-expanded':''}`} data-workspace-canvas data-readonly={readonly}>
   <div className="workspace-canvas-controls"><span>{readonly?c.readonly:tool==='CONNECT'?c.connectHint:c.addHint}</span><button className="idea-board-button" title={expanded?b.collapse:b.expand} aria-label={expanded?b.collapse:b.expand} onClick={()=>setExpanded(!expanded)}>{expanded?<Minimize2 size={18}/>:<Maximize2 size={18}/>}</button></div>
   {expanded&&expandedTools}
+  {!readonly&&tool!=='CONNECT'&&shown.nodes.filter(n=>n.id===selected).map(node=><NodeAppearanceControls key={node.id} compact node={node} locale={locale} system={system} bounds={elementBounds(node)} onChange={next=>apply({...current.current,nodes:current.current.nodes.map(n=>n.id===next.id?next:n)})}/>)}
   <div ref={surface} className="idea-board-surface workspace-canvas" data-workspace-surface role="group" aria-label={system?c.system:c.myBoard} tabIndex={0}
    style={{backgroundSize:`${Math.max(12,24*shown.viewport.zoom)}px ${Math.max(12,24*shown.viewport.zoom)}px`,backgroundPosition:`${shown.viewport.x}px ${shown.viewport.y}px`}}
    onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onLostPointerCapture={up}
    onKeyDown={e=>{if((e.target as HTMLElement).closest('input,textarea,select,[data-resize]'))return;if(e.key==='Escape'){onSelect?.(null);return;}
-    if(readonly){if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();const d=e.shiftKey?160:40;apply({...current.current,viewport:{...current.current.viewport,x:clamp(current.current.viewport.x+(e.key==='ArrowLeft'?d:e.key==='ArrowRight'?-d:0),-30000,30000),y:clamp(current.current.viewport.y+(e.key==='ArrowUp'?d:e.key==='ArrowDown'?-d:0),-30000,30000)}});}return;}
+    if(readonly){const id=(e.target as HTMLElement).closest<HTMLElement>('[data-workspace-node]')?.dataset.workspaceNode;const node=current.current.nodes.find(n=>n.id===id);if(e.key==='Enter'&&node&&hasProcessSteps(node)){e.preventDefault();setStepsNode(node);return;}if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();const d=e.shiftKey?160:40;apply({...current.current,viewport:{...current.current.viewport,x:clamp(current.current.viewport.x+(e.key==='ArrowLeft'?d:e.key==='ArrowRight'?-d:0),-30000,30000),y:clamp(current.current.viewport.y+(e.key==='ArrowUp'?d:e.key==='ArrowDown'?-d:0),-30000,30000)}});}return;}
     const id=(e.target as HTMLElement).closest<HTMLElement>('[data-workspace-node]')?.dataset.workspaceNode;
     if(e.key==='Enter'&&id){e.preventDefault();onSelect?.(id);if(tool==='CONNECT')onConnect?.(id);else{const n=current.current.nodes.find(n=>n.id===id);if(n)onEdit?.(n);}}
     if((e.key==='Delete'||e.key==='Backspace')&&selected){e.preventDefault();onRemove?.();}
     if(id&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();const d=e.shiftKey?20:5;apply({...current.current,nodes:current.current.nodes.map(n=>n.id===id?moveElement(n,e.key==='ArrowLeft'?-d:e.key==='ArrowRight'?d:0,e.key==='ArrowUp'?-d:e.key==='ArrowDown'?d:0):n)});}
    }}>
    <div className="idea-board-world" style={{transform:`translate(${shown.viewport.x}px,${shown.viewport.y}px) scale(${shown.viewport.zoom})`}}>
-    {system&&<div className="system-areas" aria-hidden="true">{areaOrder.map((category,i)=><div key={category} className="system-area" data-area={category} style={{left:areas[category].x,top:areas[category].y}}><div className="system-area-heading"><OriginalModuleEmoji id={areas[category].module} className="system-area-emoji"/><span>{i+1} · {c[areas[category].label]}</span><span className="system-area-arrow">{i===0?'→':i===1?'↓':i===2?'←':'↑'}</span></div></div>)}<div className="system-hub">Índice<span>↻</span></div></div>}
+    {system&&<SystemBoardBackdrop locale={locale}/>}
     <svg className="idea-board-lines" width="1" height="1" aria-hidden="true"><defs><marker id={marker} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="currentColor" strokeWidth="1.7"/></marker></defs>
-     {shown.connections.map(link=>{const a=shown.nodes.find(n=>n.id===link.from),d=shown.nodes.find(n=>n.id===link.to);if(!a||!d)return null;const p=connectionEnds(a,d);return <line data-workspace-line={link.id} key={link.id} x1={p.start.x} y1={p.start.y} x2={p.end.x} y2={p.end.y} stroke="currentColor" strokeWidth="2.5" markerEnd={`url(#${marker})`}/>;})}
+     {shown.connections.map(link=>{const a=shown.nodes.find(n=>n.id===link.from),d=shown.nodes.find(n=>n.id===link.to);if(!a||!d)return null;const p=connectionEnds(a,d);return <line data-workspace-line={link.id} key={link.id} x1={p.start.x} y1={p.start.y} x2={p.end.x} y2={p.end.y} stroke="currentColor" strokeWidth="2.5" markerStart={link.direction==='BOTH'?`url(#${marker})`:undefined} markerEnd={`url(#${marker})`}/>;})}
     </svg>
     {shown.connections.map(link=>{const a=shown.nodes.find(n=>n.id===link.from),d=shown.nodes.find(n=>n.id===link.to);if(!a||!d)return null;const p=connectionEnds(a,d),style={left:(p.start.x+p.end.x)/2,top:(p.start.y+p.end.y)/2};return readonly?link.label?<span key={link.id} className="workspace-link-label" style={style}>{link.label}</span>:null:<button key={link.id} className="idea-board-link workspace-link-label" style={style} aria-label={link.label||c.connectionLabel} onPointerDown={e=>e.stopPropagation()} onClick={()=>onLabel?.(link.id,link.label)}>{link.label||'↗'}</button>;})}
     {shown.nodes.map(node=><div key={node.id} data-workspace-node={node.id} data-category={isSystemNode(node)?node.category:undefined} data-shape={node.shape} data-color={node.color} data-kind={node.kind}
-     className={`idea-board-node ${isSystemNode(node)?'system-node':''} ${source===node.id?'idea-board-source':''}`}
+     className={`idea-board-node ${isLegacySystemNode(node)?'system-node':''} ${source===node.id?'idea-board-source':''}`}
      style={{left:node.x,top:node.y,width:node.width,height:node.height,...nodeBoxStyle(node)}} role="button" aria-label={node.text} aria-pressed={selected===node.id} tabIndex={0}
-     onFocus={()=>{if(!readonly)onSelect?.(node.id);}} onDoubleClick={e=>{e.stopPropagation();if(!readonly)onEdit?.(node);}}>
-      {isSystemNode(node)?<><div className="system-node-visual" style={{width:Math.min(node.width-16,(node.kind==='IMAGE'?58:64)*node.width/180),height:Math.min(node.height-16,58*node.height/120),fontSize:45*Math.min(node.width/180,node.height/120)}}>{node.kind==='IMAGE'&&node.assetId?<img draggable={false} src={personalIdeasBoardApi.photoUrl(node.assetId)} alt="" style={nodeImageStyle(node)}/>:<span aria-hidden="true">{symbols[node.icon]??'✨'}</span>}</div><div className="system-node-name" style={{...nodeTextStyle(node),maxHeight:Math.max(0,node.height-20-Math.min(node.height-16,58*node.height/120))}} title={node.text}>{node.text}</div></>:<>{node.kind==='IMAGE'&&node.assetId&&<img draggable={false} src={personalIdeasBoardApi.photoUrl(node.assetId)} alt="" style={nodeImageStyle(node)}/>}<span className="idea-board-node-text" style={nodeTextStyle(node)}>{node.text}</span></>}
+     onFocus={()=>{if(!readonly)onSelect?.(node.id);}} onDoubleClick={e=>{e.stopPropagation();if(readonly&&hasProcessSteps(node))setStepsNode(node);else if(!readonly)onEdit?.(node);}}>
+      {node.kind==='DRAWING'?<BoardDrawingElement node={node}/>:node.kind==='VIDEO'||node.kind==='AUDIO'?<BoardMediaElement node={node} url={personalIdeasBoardApi.photoUrl(node.assetId!)} locale={locale}/>:isLegacySystemNode(node)?<SystemNodeContent node={node} locale={locale} onSteps={()=>readonly?setStepsNode(node):onEdit?.(node)}/>:<><BoardGeometryElement node={node}/>{node.kind==='IMAGE'&&node.assetId&&<img draggable={false} src={personalIdeasBoardApi.photoUrl(node.assetId)} alt="" style={nodeImageStyle(node)}/>}<span className="idea-board-node-text" style={nodeTextStyle(node)}>{node.text}</span></>}
     {!readonly&&selected===node.id&&tool!=='CONNECT'&&<NodeResizeHandles node={node} zoom={shown.viewport.zoom} label={b.resize} bounds={elementBounds(node)} onResize={next=>apply({...current.current,nodes:current.current.nodes.map(n=>n.id===next.id?next:n)})}/>}
     </div>)}
    </div>
    <IdeasBoardMinimap content={shown} canvas={size} selectedId={selected??null} copy={b} worldBounds={worldBounds} regions={regions} onPreview={viewport=>show({...current.current,viewport})} onCommit={viewport=>apply({...current.current,viewport})}/>
   </div>
-  <footer className="idea-board-footer"><span>{c.privateProject}</span><div className="idea-board-zoom-controls"><button className="idea-board-button" aria-label={b.zoomOut} onClick={()=>zoom(-.1)} disabled={shown.viewport.zoom<=.08}><Minus size={17}/></button><span className="idea-board-zoom">{Math.round(shown.viewport.zoom*100)}%</span><button className="idea-board-button" aria-label={b.zoomIn} onClick={()=>zoom(.1)} disabled={shown.viewport.zoom>=2}><Plus size={17}/></button><button className="idea-board-button idea-board-fit" aria-label={b.fit} onClick={()=>fit()}><Focus size={17}/><span>{b.fit}</span></button></div></footer>
+  <footer className="idea-board-footer"><span>{c.privateProject}</span><div className="idea-board-zoom-controls"><button className="idea-board-button" aria-label={b.zoomOut} onClick={()=>zoom(-.1)} disabled={shown.viewport.zoom<=(system?.04:.08)}><Minus size={17}/></button><span className="idea-board-zoom">{Math.round(shown.viewport.zoom*100)}%</span><button className="idea-board-button" aria-label={b.zoomIn} onClick={()=>zoom(.1)} disabled={shown.viewport.zoom>=2}><Plus size={17}/></button><button className="idea-board-button idea-board-fit" aria-label={b.fit} onClick={()=>fit()}><Focus size={17}/><span>{b.fit}</span></button></div></footer>
+  {stepsNode&&<SalesModalFrame open tone="graphite" title={stepsNode.text} description={catalog.steps} icon={<span aria-hidden="true">📋</span>} closeLabel={catalog.close} onOpenChange={open=>{if(!open)setStepsNode(null);}} footer={<Button className="min-h-11" onClick={()=>setStepsNode(null)}>{catalog.close}</Button>}><ol className="system-steps-readonly">{stepsNode.steps?.map((step,index)=><li key={index}><span>{index+1}</span><p>{step}</p></li>)}</ol></SalesModalFrame>}
  </div>;
 }

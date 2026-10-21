@@ -19,10 +19,9 @@ public class IdeaWorkspaceService {
     private final IdeasBoardService canvas;private final ModuleAccessService modules;private final Validator validator;
     private static final Map<String,Set<String>> ICONS=Map.of(
         "PERSON",Set.of("PERSON","TEAM","LEADER","WORKER"),
-        "PROCESS",Set.of("CHECKLIST","GEAR","FLOW","DELIVERY"),
-        "PRODUCT",Set.of("BOX","SERVICE","COFFEE","FOOD","TOOLS","PHONE"),
-        "FINANCE",Set.of("BALANCE","INCOME","CASH_FLOW","BUDGET","COSTS"));
-    private static final Map<String,String> COLORS=Map.of("PERSON","BLUE","PROCESS","YELLOW","PRODUCT","CORAL","FINANCE","MINT");
+        "PROCESS",Set.of("CHECKLIST","GEAR","FLOW","DELIVERY","PRODUCTION","PURCHASING","STOCK_CONTROL","QUALITY","SERVICE_DELIVERY","SALES_PROCESS","PROSPECTING","MARKETING","CUSTOMER_CARE","AFTER_SALES","BILLING","COLLECTIONS_PROCESS","PAYMENTS_PROCESS","HIRING","ONBOARDING","PAYROLL_PROCESS","MAINTENANCE_PROCESS","ADMINISTRATION"),
+        "PRODUCT",Set.of("BOX","SERVICE","COFFEE","FOOD","TOOLS","PHONE","GROCERY","BAKERY","FASHION","FOOTWEAR","BEAUTY","HEALTH","PHARMACY","EDUCATION","PROFESSIONAL","SOFTWARE","CONSTRUCTION","REAL_ESTATE","AUTOMOTIVE","TRANSPORT","TOURISM","EVENTS","FITNESS","HOME_GOODS","AGRICULTURE","PETS","CLEANING","MANUFACTURING","CRM","POS","SALES_FUNNEL","STORE","MARKETPLACE","DISTRIBUTORS","PARTNERS","REFERRALS","ONLINE","SOCIAL","CHAT","EMAIL","WHATSAPP","PHONE_SALES","SEO","GOOGLE_ADS","AI_ADS","META_ADS","TIKTOK_ADS","YOUTUBE","ACTIVATIONS","TRADE_SHOW","INFLUENCERS"),
+        "FINANCE",Set.of("BALANCE","INCOME","CASH_FLOW","EQUITY_CHANGES","TRIAL_BALANCE","LEDGER_DETAIL","FINANCIAL_CLOSE","FINANCIAL_PULSE","PROFIT_BRIDGE","CASH_BRIDGE","FINANCIAL_TREND","UNIT_RESULTS","BUDGET","COSTS","EXPENSE_REPORT","EXPENSE_AGING","TAX_REPORT","RECEIVABLE_REPORT","RECEIVABLE_AGING","UPCOMING_COLLECTIONS","PETTY_CASH_STATEMENT","FUND_BALANCES","CASH_RECONCILIATION","SALES_REPORT","POS_CLOSING","PAYROLL_REPORT","SALES_COMMISSION"));
     public IdeaWorkspaceService(IdeaWorkspaceRepository repository,IdeasBoardRepository boards,IdeasBoardService canvas,ModuleAccessService modules,Validator validator) { this.repository=repository;this.boards=boards;this.canvas=canvas;this.modules=modules;this.validator=validator; }
     @Transactional(readOnly=true) public SystemBoard system(AuthSessionUser a) { return repository.system(a).map(IdeaWorkspaceRepository.SystemRow::board).orElseGet(()->new SystemBoard(emptySystem(),0,null,IdeaWorkspaceRepository.actor(a))); }
     private void lock(AuthSessionUser a,String actor) {
@@ -57,16 +56,16 @@ public class IdeaWorkspaceService {
     }
     private void validate(AuthSessionUser a,SystemDocument content) {
         require(content!=null&&validator.validate(content).isEmpty(),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
-        var counts=new HashMap<String,Integer>();
+        var knownIcons=new HashSet<String>();ICONS.values().forEach(knownIcons::addAll);knownIcons.add("IDEA");
         for(var e:content.elements()) {
             var n=e.node();String category=e.category();
-            require(ICONS.get(category).contains(e.icon())&&COLORS.get(category).equals(n.color())&&"RECTANGLE".equals(n.shape()),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
-            require(!n.text().isBlank()&&n.text().length()<=120&&n.text().chars().noneMatch(c->c<32||c==127),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
-            require("TEXT".equals(n.kind())||"PERSON".equals(category),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
-            require(counts.merge(category,1,Integer::sum)<=25,HttpStatus.BAD_REQUEST,"ideas_board_limit");
-            double left=(category.equals("PROCESS")||category.equals("PRODUCT"))?1100:0;
-            double top=(category.equals("PRODUCT")||category.equals("FINANCE"))?800:0;
-            require(n.x()>=left+16&&n.y()>=top+100&&n.x()+n.width()<=left+1084&&n.y()+n.height()<=top+784,HttpStatus.BAD_REQUEST,"ideas_board_invalid");
+            require(knownIcons.contains(e.icon()),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
+            require(Set.of("IMAGE","DRAWING","VIDEO","AUDIO").contains(n.kind())||!n.text().isBlank()||"IDEA".equals(e.icon())&&Set.of("RECTANGLE","ELLIPSE","TRIANGLE","DIAMOND","PENTAGON","HEXAGON","PARALLELOGRAM").contains(n.shape()),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
+            boolean right=n.x()+n.width()/2>=1100,bottom=n.y()+n.height()/2>=800;
+            String expected=bottom?(right?"PRODUCT":"FINANCE"):(right?"PROCESS":"PERSON");
+            boolean inside=n.x()>=0&&n.y()>=0&&n.x()+n.width()<=2200&&n.y()+n.height()<=1600;
+            if("OUTSIDE".equals(category))require(!inside&&"IDEA".equals(e.icon())&&n.x()>=-1200&&n.y()>=-900&&n.x()+n.width()<=3400&&n.y()+n.height()<=2500,HttpStatus.BAD_REQUEST,"ideas_board_invalid");
+            else require(expected.equals(category)&&inside,HttpStatus.BAD_REQUEST,"ideas_board_invalid");
         }
         // The shared technical validator checks UUIDs, finite geometry, arrows and private photo ownership.
         // This owner has its own wider zoom range for a four-area overview.
