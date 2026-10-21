@@ -1,3 +1,4 @@
+import type { VotingResult } from "./meetingVotingApi";
 import { apiClient } from "../../../lib/apiClient";
 
 export type MeetingStatus =
@@ -28,6 +29,7 @@ export type MeetingDetail = {
   minutes: string;
   decisions: string;
   participants: Member[];
+  votingResults?: VotingResult[];
   history: {
     action: string;
     actorName: string;
@@ -143,6 +145,7 @@ export type AgreementRequest = {
   title: string;
   assigneeId: number;
   dueDate: string;
+  followupEnabled?: boolean;
 };
 export type Metrics = {
   planned: number;
@@ -156,6 +159,8 @@ export type Metrics = {
   calculatedAt: string;
   timezone: string;
 };
+export type Attendance = { people: { userId: number; name: string; status: "PRESENT" | "ABSENT" | "UNMARKED" }[]; version: number };
+export type Availability = { available: boolean; alternatives: { startAt: string; endAt: string }[]; timezone: string };
 const root = "/api/v1/meetings";
 const query = (params: Record<string, string | number>) =>
   new URLSearchParams(
@@ -168,6 +173,9 @@ const save = <T>(path: string, method: string, body: unknown, key?: string) =>
     headers: key ? { "Idempotency-Key": key } : undefined,
   });
 export const meetingApi = {
+  attendance: (id: number, signal: AbortSignal) => apiClient<Attendance>(`${root}/${id}/attendance`, { signal }),
+  saveAttendance: (id: number, body: { entries: { userId: number; status: string }[]; expectedVersion: number }) => save<Attendance>(`/${id}/attendance`, "PUT", body),
+  availability: (meeting: MeetingRequest, excludeMeetingId?: number) => save<Availability>("/availability", "POST", { meeting, excludeMeetingId }),
   createTask: (record: Agreement) => save<AgreementDetail>(`/agreements/${record.id}/task`, "POST", { expectedVersion: record.version }),
   searchChoices: (search: string, page: number, selected: number, signal: AbortSignal) =>
     apiClient<Page<MeetingChoice>>(`${root}/agreement-meetings/search?${query({ search, page, selected, pageSize: 25 })}`, { signal }),

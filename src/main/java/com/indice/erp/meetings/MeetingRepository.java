@@ -14,7 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class MeetingRepository {
     private final JdbcTemplate db;
     private final com.indice.erp.processTasks.tasks.ProcessTaskMeetingContract tasks;
-    public MeetingRepository(JdbcTemplate db,com.indice.erp.processTasks.tasks.ProcessTaskMeetingContract tasks){this.db=db;this.tasks=tasks;}
+    private final com.indice.erp.hr.users.HrSchedulingDirectoryService employees;
+    private final MeetingVotingRepository voting;
+    public MeetingRepository(JdbcTemplate db,com.indice.erp.processTasks.tasks.ProcessTaskMeetingContract tasks,com.indice.erp.hr.users.HrSchedulingDirectoryService employees,MeetingVotingRepository voting){this.db=db;this.tasks=tasks;this.employees=employees;this.voting=voting;}
     private static final String SELECT="SELECT m.*,u.full_name owner_name,(SELECT COUNT(*) FROM meeting_participants p WHERE p.company_id=m.company_id AND p.meeting_id=m.id) participant_count FROM meeting_records m JOIN users u ON u.id=m.owner_id ";
     static String visibility(AuthSessionUser actor){return MeetingAccessService.administrator(actor)?"":" AND (m.owner_id="+actor.userId()+" OR EXISTS(SELECT 1 FROM meeting_participants p WHERE p.company_id=m.company_id AND p.meeting_id=m.id AND p.user_id="+actor.userId()+"))";}
     private static String agreementVisibility(AuthSessionUser actor){return MeetingAccessService.administrator(actor)?"":" AND (a.assignee_id="+actor.userId()+" OR m.owner_id="+actor.userId()+" OR EXISTS(SELECT 1 FROM meeting_participants p WHERE p.company_id=m.company_id AND p.meeting_id=m.id AND p.user_id="+actor.userId()+"))";}
@@ -44,16 +46,17 @@ public class MeetingRepository {
         var item=meeting(actor,id,false);
         var texts=db.queryForMap("SELECT agenda,location,minutes,decisions FROM meeting_records WHERE company_id=? AND id=?",actor.companyId(),id);
         var history=db.query("SELECT a.action,u.full_name,a.reason,a.occurred_at FROM meeting_audit a JOIN users u ON u.id=a.actor_id WHERE a.company_id=? AND a.meeting_id=? AND a.agreement_id IS NULL ORDER BY a.id DESC LIMIT 100",(r,n)->new AuditItem(r.getString(1),r.getString(2),r.getString(3),r.getTimestamp(4).toInstant()),actor.companyId(),id);
-        return new MeetingDetail(item,(String)texts.get("agenda"),(String)texts.get("location"),(String)texts.get("minutes"),(String)texts.get("decisions"),participants(actor.companyId(),id),history,planning(actor.companyId(),id));
+        return new MeetingDetail(item,(String)texts.get("agenda"),(String)texts.get("location"),(String)texts.get("minutes"),(String)texts.get("decisions"),participants(actor.companyId(),id),history,planning(actor.companyId(),id),voting.results(actor.companyId(),id));
     }
     public PlanningMetadata planning(long company,long id){
         return db.query("SELECT m.objective,m.expected_result,COALESCE(m.minutes_owner_id,m.owner_id) minutes_owner,u.full_name,m.reminder_minutes,m.series_id,m.occurrence_number,COALESCE(s.reminders_paused,0) paused,COALESCE(s.version,0) series_version FROM meeting_records m JOIN users u ON u.id=COALESCE(m.minutes_owner_id,m.owner_id) LEFT JOIN meeting_series s ON s.company_id=m.company_id AND s.id=m.series_id WHERE m.company_id=? AND m.id=?",
             (r,n)->new PlanningMetadata(r.getString(1),r.getString(2),new Member(r.getLong(3),r.getString(4)),r.getInt(5),(Long)r.getObject(6),(Integer)r.getObject(7),r.getBoolean(8),r.getLong(9)),company,id).stream().findFirst().orElseThrow(NoSuchElementException::new);
     }
     @Transactional(readOnly=true) public Directory members(long company){
-        var items=db.query("SELECT u.id,u.full_name FROM user_companies uc JOIN users u ON u.id=uc.user_id WHERE uc.company_id=? AND uc.status='active' ORDER BY u.full_name,u.id LIMIT 500",(r,n)->new Member(r.getLong(1),r.getString(2)),company);
-        return new Directory(items,db.queryForObject("SELECT COUNT(*) FROM user_companies WHERE company_id=? AND status='active'",Long.class,company));
+        var people=employees.meetingMembers(company);
+        return new Directory(people.stream().limit(500).map(p->new Member(p.id(),p.name())).toList(),people.size());
     }
+
     public boolean activeMember(long company,long user){return Boolean.TRUE.equals(db.queryForObject("SELECT EXISTS(SELECT 1 FROM user_companies WHERE company_id=? AND user_id=? AND status='active')",Boolean.class,company,user));}
     @Transactional(readOnly=true) public List<MeetingChoice> choices(AuthSessionUser actor){
         return choices(actor,"",0,1,100).items();
@@ -65,7 +68,8 @@ public class MeetingRepository {
         long total=db.queryForObject("SELECT COUNT(*) FROM meeting_records m"+where,Long.class,args);
         var values=new ArrayList<>(Arrays.asList(args));values.add(size);values.add((page-1)*size);
         var rows=db.query(SELECT+where+" ORDER BY m.start_at DESC,m.id DESC LIMIT ? OFFSET ?",MEETING,values.toArray());
-        var items=rows.stream().map(m->{var people=new ArrayList<>(participants(actor.companyId(),m.id()));if(people.stream().noneMatch(p->p.id()==m.ownerId()))people.add(new Member(m.ownerId(),m.ownerName()));return new MeetingChoice(m.id(),m.title(),people);}).toList();
+        var eligible=employees.meetingMembers(actor.companyId()).stream().map(com.indice.erp.hr.users.HrSchedulingDirectoryService.Employee::id).collect(java.util.stream.Collectors.toSet());
+        var items=rows.stream().map(m->{var people=new ArrayList<>(participants(actor.companyId(),m.id()).stream().filter(p->eligible.contains(p.id())).toList());if(eligible.contains(m.ownerId())&&people.stream().noneMatch(p->p.id()==m.ownerId()))people.add(new Member(m.ownerId(),m.ownerName()));return new MeetingChoice(m.id(),m.title(),people);}).toList();
         return new Page<>(items,total,page,size);
     }
     @Transactional(readOnly=true) public Directory assignees(AuthSessionUser actor){
@@ -123,5 +127,6 @@ public class MeetingRepository {
         return new Metrics(values[0],values[1],values[2],values[3],values[4],values[5],open,db.queryForObject("SELECT COUNT(*)"+agreements+" AND a.due_date<?",Long.class,late.toArray()),now,zone.getId());
     }
     public long insert(String sql,Object...args){var key=new GeneratedKeyHolder();db.update(c->{var s=c.prepareStatement(sql,Statement.RETURN_GENERATED_KEYS);for(int i=0;i<args.length;i++)s.setObject(i+1,args[i]);return s;},key);return Objects.requireNonNull(key.getKey()).longValue();}
+    boolean employmentEligible(long company,long user){return employees.eligible(company,user);}
     public JdbcTemplate jdbc(){return db;}
 }

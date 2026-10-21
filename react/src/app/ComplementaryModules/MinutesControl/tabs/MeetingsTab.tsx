@@ -34,6 +34,9 @@ import {
   MinutesEditor,
   TransitionEditor,
 } from "../components/MeetingEditors";
+import { MeetingVotingEditor } from "../components/MeetingVotingEditor";
+import { MeetingVotingWorkspace } from "../components/MeetingVotingWorkspace";
+import { AgreementEditor } from "../components/AgreementEditors";
 import { MeetingDetail } from "../components/MeetingDetail";
 import { calendarDates, dayCount } from "../utils/dateScope";
 import { MeetingWorkflows } from "../components/MeetingWorkflows";
@@ -45,6 +48,9 @@ type Dialog =
   | { kind: "workflows" }
   | { kind: "detail"; id: number }
   | { kind: "edit" | "minutes"; detail: Detail }
+  | { kind: "agreement"; detail: Detail; suggestedTitle?: string }
+  | { kind: "ballot-create"; detail: Detail }
+  | { kind: "ballot"; detail: Detail; ballotId: number }
   | { kind: "status"; detail: Detail; status: MeetingStatus };
 export default function MeetingsTab({
   copy,
@@ -372,6 +378,9 @@ export default function MeetingsTab({
           administrator={administrator}
           onClose={close}
           onAgreements={onAgreements}
+          onNewBallot={detail => setDialog({ kind: "ballot-create", detail })}
+          onBallot={(detail, ballotId) => setDialog({ kind: "ballot", detail, ballotId })}
+          onNewAgreement={onAgreements ? detail => setDialog({ kind: "agreement", detail }) : undefined}
           onEdit={(detail) => setDialog({ kind: "edit", detail })}
           onMinutes={(detail) => setDialog({ kind: "minutes", detail })}
           onTransition={(detail, status) =>
@@ -385,8 +394,8 @@ export default function MeetingsTab({
           initial={dialog.detail}
           userId={userId}
           administrator={administrator}
-          onClose={close}
-          onSaved={saved}
+          onClose={() => setDialog({ kind: "detail", id: dialog.detail.meeting.id })}
+          onSaved={() => { query.reload(); setDialog({ kind: "detail", id: dialog.detail.meeting.id }); }}
         />
       )}
       {dialog?.kind === "workflows" && (
@@ -401,17 +410,21 @@ export default function MeetingsTab({
         <MinutesEditor
           copy={copy}
           detail={dialog.detail}
-          onClose={close}
-          onSaved={saved}
+          onClose={() => setDialog({ kind: "detail", id: dialog.detail.meeting.id })}
+          onSaved={() => { query.reload(); setDialog({ kind: "detail", id: dialog.detail.meeting.id }); }}
         />
       )}
+      {dialog?.kind === "agreement" && <AgreementEditor copy={copy} suggestedTitle={dialog.suggestedTitle} meetingId={dialog.detail.meeting.id} onClose={() => setDialog({ kind: "detail", id: dialog.detail.meeting.id })} onSaved={() => { query.reload(); setDialog({ kind: "detail", id: dialog.detail.meeting.id }); }} />}
+      {dialog?.kind === "ballot-create" && <MeetingVotingEditor meetingId={dialog.detail.meeting.id} locale={locale} copy={copy} onClose={() => setDialog({ kind: "detail", id: dialog.detail.meeting.id })} onOpened={ballotId => setDialog({ kind: "ballot", detail: dialog.detail, ballotId })} />}
+      {dialog?.kind === "ballot" && <MeetingVotingWorkspace meetingId={dialog.detail.meeting.id} id={dialog.ballotId} locale={locale} copy={copy} canManage={administrator || dialog.detail.meeting.ownerId === userId} onClose={() => { query.reload(); setDialog({ kind: "detail", id: dialog.detail.meeting.id }); }} onAgreement={onAgreements ? subject => setDialog({ kind: "agreement", detail: dialog.detail, suggestedTitle: subject }) : undefined} />}
       {dialog?.kind === "status" && (
         <TransitionEditor
           copy={copy}
           meeting={dialog.detail}
           status={dialog.status}
-          onClose={close}
-          onSaved={saved}
+          canAgreements={Boolean(onAgreements)}
+          onClose={() => setDialog({ kind: "detail", id: dialog.detail.meeting.id })}
+          onSaved={() => { query.reload(); setDialog({ kind: "detail", id: dialog.detail.meeting.id }); }}
         />
       )}
     </>

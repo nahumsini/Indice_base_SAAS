@@ -104,6 +104,7 @@ export function planningError(
         ? error.message
         : "";
   const messages: Record<string, string> = {
+    meeting_employee_unavailable: w.peopleInvalid,
     meeting_appointment_conflict: appointmentConflict || w.futureConflict,
     meeting_purpose_required: w.required,
     meeting_start_past: w.startPast,

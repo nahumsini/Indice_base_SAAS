@@ -223,3 +223,134 @@ participants and status. The existing bounded-calendar warning remains authorita
 names in the table open the same detail workflow as View. Ascending/descending server sorting,
 resizing, planning/series, delegated minutes, agreements, reminders, evidence and task links keep
 their existing owner contracts. These are presentation changes; no new endpoints or migrations.
+
+
+## Real employees and live meeting execution — 2026-10-21
+
+The meeting directory now consumes the HR-owned `HrSchedulingDirectoryService.meetingMembers`
+projection. It returns names and user identities only, preferring HR profile names and retaining
+active administrative/legacy company accounts. Known inactive or terminated employees are excluded
+from new assignments and rechecked on planning/agreement writes. Existing participant/history
+records remain readable. Editing shows departed saved participants for explicit removal; an open
+agreement still requires reassignment before removing its assignee. Directory limit/disclosure
+remains 500; HR payroll, contact and employment detail never enters the meeting DTO.
+
+`POST /api/v1/meetings/availability` is an authenticated, CSRF-protected meeting-tab operation.
+It validates company participants/coordinator, duration, timezone and optional authorized meeting
+exclusion. It returns only availability and up to eight alternatives over seven local dates,
+with quarter-hour starts from 08:00 through 18:00 and the requested duration. Suggestions do not
+reserve time or guarantee a future save. Confirmed Agenda/Consulting/Maintenance occupancy,
+approved HR absences and existing company meeting overlaps are checked. Scheduling supplies its
+own boolean projection of active configured staff weekly windows, unavailable dates and the break
+after a session. Split windows preserve breaks. People with no active Agenda staff configuration
+receive no invented office hours restriction. Each request snapshots configured windows and
+memoizes HR date checks locally; there is no shared personal-data cache. Saving still locks the
+validated shared resources and rechecks hard appointment/HR/hour conflicts. Existing explicit
+meeting-overlap acknowledgement policy is preserved.
+
+V343 adds the owned `meeting_attendance` table. GET/PUT `/{id}/attendance` use the meeting tab,
+session company/object scope and CSRF for writes. Initial attendance is UNMARKED, including the
+coordinator; invitation never implies presence. Only the coordinator, company administrator or
+explicit delegated minutes writer can mark PRESENT, ABSENT or UNMARKED while IN_PROGRESS. A
+partial update changes only listed invitees, rejects duplicates/foreign identities, increments
+the meeting version and appends an audit event in one transaction. Closed/cancelled records are
+read-only. Attendance never grants/revokes module permissions or meeting visibility. Stale writes
+return 409 and require an explicit refresh. Unsaved attendance has a native discard confirmation;
+keeping editing retains the draft. Other modifying actions pause until attendance is saved.
+
+The existing blue workspace shows purpose, actual attendance, agenda, minutes, decisions and
+meeting-specific agreements. Creating an agreement from it fixes the meeting context, asks what
+will be done, assignee and due date, and returns to that same meeting on save/cancel. Agreement
+counts (open, overdue, done) are separate server queries over the entire authorized meeting set,
+not the current date filter or ten displayed rows. Preview is capped at ten, with disclosed total
+and access to the full agreement tab. No agreement query/panel appears without that tab permission.
+The native Processes task link remains an explicit, authorized idempotent action in agreement
+detail; no task or notification is fabricated by the new workspace.
+
+Agreement creation now accepts optional `followupEnabled`; omitted preserves the historical true
+default, explicit false is persisted. Existing per-user/company notification preferences and
+recipient permission checks remain authoritative. New UI copy explains internal notifications;
+no email, external invitation or provider synchronization is triggered. The coordinator remains
+the default minutes writer, with optional visible delegation. Editors and multi-request planning
+ignore completion from replaced authorization/company contexts. Native modal headers/footers
+remain visible within small viewports; body scroll and existing horizontal navigation stay local.
+
+Concluding previews decisions, actual attendance (including unmarked people), and authorized
+agreement status. It preserves original minutes/attendance and does not complete open agreements.
+The same meeting reopens after planning/minutes/status save. History is collapsible. Print/calendar
+exports retain their existing contract (printed invitees are not relabeled as actual attendees).
+
+Local activation uses a private database backup and only this module's verified classes plus its
+HR/Scheduling projections. The existing independently requested V342 Email signature preference
+is an additive schema dependency; this delivery activates no Email feature classes. No live
+entitlement, billing, external delivery or production release state is changed.
+
+
+## Weighted team decisions — 2026-10-21
+
+The user selected different voting weight by function. Inside each meeting, Decisiones y
+votaciones adds a proposal → team/rules review → open → personal votes → explicit close flow.
+It uses the existing blue module/modal engine, eight locales, phone body scrolling and pinned
+footer; it creates no new navigation tab or access authority. The UI initially offers editable
+function examples (3/2/1/0 points) while assigning every eligible person Integrante/Member (1).
+The coordinator explicitly assigns functions and reviews totals before opening. A previous
+ballot in that meeting can prefill its functions, assignments and rules, with fresh eligibility
+and required review. New participants receive no implicit elevated weight. Ineligible people
+must have a zero-point function; removing a function requires explicit reassignment.
+
+This is an operational, transparent roll-call vote, not a secret ballot, legal quorum,
+corporate-governance or signature system. Function names do not change HR/account roles or
+permissions. The current meeting participants plus coordinator comprise the exact roster,
+including zero-point observers. Functions, participant name snapshots, points and rules freeze
+when opened. Changing them requires cancelling with a reason and opening another ballot.
+
+Both approval and participation rules operate on the entire frozen positive weight W:
+MAJORITY = floor(W/2)+1, TWO_THIRDS = ceil(2W/3), ALL = W. Abstentions add participation only;
+missing votes stay missing. Closing first checks participation, then approval, then an equal
+nonzero yes/no tally. Outcomes are NO_QUORUM, APPROVED, TIED or NOT_APPROVED. OPEN remains PENDING
+even when enough yes points exist. CANCELLED retains votes, reason and history. The defaults
+are majority approval and majority participation; users can select each rule independently.
+
+API owner: /api/v1/meetings/{meetingId}/ballots (GET paginated, POST open), /team (GET current
+people and optional prior setup), /{id} (GET snapshot/voters/history), /{id}/vote (PUT own vote),
+and /{id}/close (POST CLOSE/CANCEL). Existing authenticated company, native entitlement/module,
+meetings-tab, object visibility and CSRF guards remain authoritative. The coordinator or company
+administrator manages ballots while IN_PROGRESS; a delegated minutes writer gains no management
+power. Every positive voter must be currently employment-eligible and have active company/module/
+meetings-tab access. New votes and management writes recheck access. Revocation blocks new votes,
+while recorded evidence and frozen denominators remain unchanged. An administrator cannot vote
+on another user's behalf or vote unless listed with positive weight. Only session actor determines
+the voter; client user/weight fields never determine authority or tally.
+
+V344 owns four tenant-qualified tables: meeting_ballots, meeting_ballot_roles,
+meeting_ballot_voters and append-only meeting_ballot_audit. Opening is company/actor/meeting/
+payload-bound idempotent with the existing request receipt mechanism. Ballot global versions
+protect close/cancel review; per-person vote versions permit independent simultaneous voters.
+An exact retry of the last own choice acknowledges it without duplicate counting/audit, including
+after closure. Stale changes/closing return 409. All changes, tally capture, receipts and audit
+share the existing transaction/company lock. There is no deletion or editable closed result.
+
+Limits: 100 ballots/meeting, 10/page (pages 1–10), 12 named functions, integer 0–1000 points/function,
+101 people (100 participants plus coordinator), 240-character subject, 3000-character context,
+2000-character close/cancel reason, and latest 100 audit entries with disclosure. Maximum total
+weight is 101000. Names/subjects/reasons are protected in DTO diagnostics. Voting roles never
+grants module access, and cross-company object IDs return scoped not-found/forbidden responses.
+
+A meeting cannot conclude while a ballot remains OPEN. Cancelling a meeting cancels its open
+ballots atomically, keeping their votes and cancellation reason. Closed/cancelled weighted results
+are a structured projection in MeetingDetail.votingResults and printed minutes; original minutes,
+decisions, attendance, agreements and tasks remain separate evidence. An approved result can
+explicitly prefill a new agreement title. Assignee, date and Save remain required, with the existing
+agreements-tab permission. No automatic agreement, task, attendance mark or completion occurs.
+Manual Actualizar refreshes counts; no live push, ballot notifications, email or external delivery
+are claimed. Existing internal reminders retain their own contract.
+
+Acceptance: disposable MySQL tests cover frozen weighted totals, thresholds, quorum/abstention,
+retry/change/concurrent votes, stale closing, revoked/HR eligibility, tenant/tab/CSRF boundaries,
+forged voter/weight inputs, meeting completion guard and cancellation. Frontend tests cover draft
+validation, actor-safe API payloads, all eight locales, print and guidance. Native browser review
+uses fictitious records at desktop, 390×844 and 390×640, including discard retention, change vote,
+close and explicit agreement capture. Typecheck and build are required before scoped local install.
+Local activation backs up the database privately, applies only V344 and overlays verified meetings
+classes on the existing runtime. Rollback retains V344 schema/data and its result readers; do not
+remove or rewrite an applied migration or erase ballot evidence.

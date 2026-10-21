@@ -1,4 +1,8 @@
-import { useCallback, useId, useRef, useState } from "react";
+import { getMeetingLiveCopy } from "../translations/meetingLiveCopy";
+import { MeetingAvailability } from "./MeetingAvailability";
+import { getAuthorizationRevision } from "../../../api/authSessionStore";
+import { useAuthorizationRevision } from "../../../hooks/useAuthorizationRevision";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
   IndiceModalFrame,
   IndiceModalWizardStepper,
@@ -54,6 +58,7 @@ export function MeetingPlanningModal({
 }) {
   const { currentLanguage } = useLanguage();
   const w = getMeetingWorkflowCopy(currentLanguage.code);
+  const live = getMeetingLiveCopy(currentLanguage.code);
   const op = getMeetingOperationsCopy(currentLanguage.code);
   const directory = useMeetingQuery(
     useCallback((signal) => meetingApi.members(signal), []),
@@ -101,6 +106,8 @@ export function MeetingPlanningModal({
     bodyRef = useRef<HTMLDivElement>(null),
     key = useRef({ body: "", key: "" });
   const formId = useId();
+  const authorization = useAuthorizationRevision(), openedAuthorization = useRef(authorization);
+  useEffect(() => { if (authorization !== openedAuthorization.current) onClose(); }, [authorization]);
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const update = (patch: Partial<PlanningDraft>) => {
     setForm((f) => ({
@@ -166,6 +173,7 @@ export function MeetingPlanningModal({
       go(1);
       return;
     }
+    if (openedAuthorization.current !== getAuthorizationRevision()) return;
     setBusy(true);
     setError("");
     try {
@@ -179,9 +187,11 @@ export function MeetingPlanningModal({
               initial.planning!.seriesVersion,
             )
           : await meetingApi.preview(body);
+      if (openedAuthorization.current !== getAuthorizationRevision()) return;
       setPreview(result);
       go(2);
     } catch (e) {
+      if (openedAuthorization.current !== getAuthorizationRevision()) return;
       setError(planningError(e, w, w.previewError, op.appointmentConflict));
     } finally {
       setBusy(false);
@@ -195,6 +205,7 @@ export function MeetingPlanningModal({
       !checkPeople()
     )
       return;
+    if (openedAuthorization.current !== getAuthorizationRevision()) return;
     setBusy(true);
     setError("");
     try {
@@ -220,7 +231,7 @@ export function MeetingPlanningModal({
             initial.planning!.seriesVersion,
           );
         } else await meetingApi.edit(initial.meeting.id, body.meeting);
-        onSaved();
+        if (openedAuthorization.current === getAuthorizationRevision()) onSaved();
         return;
       }
       let checked = preview;
@@ -228,6 +239,7 @@ export function MeetingPlanningModal({
         checked = await meetingApi.preview(body);
         setPreview(checked);
       }
+      if (openedAuthorization.current !== getAuthorizationRevision()) return;
       if (
         checked.occurrences.some((o) => o.conflicts > 0) &&
         !form.allowConflicts
@@ -240,9 +252,11 @@ export function MeetingPlanningModal({
       if (key.current.body !== value)
         key.current = { body: value, key: crypto.randomUUID() };
       const result = await meetingApi.plan(body, key.current.key);
+      if (openedAuthorization.current !== getAuthorizationRevision()) return;
       if (onPlanned) onPlanned(result);
       else onSaved();
     } catch (e) {
+      if (openedAuthorization.current !== getAuthorizationRevision()) return;
       setError(
         planningError(
           e,
@@ -334,6 +348,7 @@ export function MeetingPlanningModal({
       tone="blue"
       modalType={discard ? "confirmation" : guided ? "wizard" : "standard-form"}
       bodyRef={bodyRef}
+      contentClassName="max-h-[calc(100dvh-1rem)]"
       icon="📝"
       title={discard ? copy.discard : initial ? copy.edit : copy.newMeeting}
       description={
@@ -426,6 +441,7 @@ export function MeetingPlanningModal({
                 ))}
               </div>
             )}
+            {initial?.participants.some(p => !directory.data?.items.some(m => m.id === p.id)) && <Feedback error>{live.leaveHint}</Feedback>}
             {error && <IndiceModalValidation messages={[error]} />}
             {directory.loading ? (
               <Feedback>{copy.loading}</Feedback>
@@ -466,7 +482,7 @@ export function MeetingPlanningModal({
                     update={update}
                     copy={copy}
                     w={w}
-                    members={directory.data?.items ?? []}
+                    members={[...(directory.data?.items ?? []), ...(initial?.participants.filter(p => !directory.data?.items.some(m => m.id === p.id)) ?? [])]}
                     administrator={administrator}
                     userId={userId}
                   />
@@ -481,6 +497,8 @@ export function MeetingPlanningModal({
                       guided={guided && !initial}
                       zone={zone}
                     />
+                    <MeetingAvailability form={form} zone={zone} locale={currentLanguage.code} copy={copy} meetingId={initial?.meeting.id} update={update} />
+                    <p className="text-xs leading-5 text-slate-500 dark:text-slate-300">{live.reminderHint}</p>
                     {initial?.planning?.seriesId &&
                       Date.parse(initial.meeting.startAt) > Date.now() && (
                         <div className="space-y-2">
@@ -513,7 +531,7 @@ export function MeetingPlanningModal({
                     preview={preview}
                     copy={copy}
                     w={w}
-                    members={directory.data?.items ?? []}
+                    members={[...(directory.data?.items ?? []), ...(initial?.participants.filter(p => !directory.data?.items.some(m => m.id === p.id)) ?? [])]}
                     locale={currentLanguage.code}
                     editing={Boolean(initial)}
                   />

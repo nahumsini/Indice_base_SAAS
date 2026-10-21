@@ -1,0 +1,65 @@
+CREATE TABLE meeting_ballots (
+ id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ company_id BIGINT NOT NULL,
+ meeting_id BIGINT NOT NULL,
+ subject VARCHAR(240) NOT NULL,
+ description TEXT NOT NULL,
+ approval_rule VARCHAR(24) NOT NULL,
+ quorum_rule VARCHAR(24) NOT NULL,
+ total_weight INT NOT NULL,
+ approval_weight INT NOT NULL,
+ quorum_weight INT NOT NULL,
+ status VARCHAR(16) NOT NULL DEFAULT 'OPEN',
+ outcome VARCHAR(24) NOT NULL DEFAULT 'PENDING',
+ version BIGINT NOT NULL DEFAULT 1,
+ created_by BIGINT NOT NULL,
+ created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+ closed_by BIGINT NULL,
+ closed_at TIMESTAMP(6) NULL,
+ close_reason VARCHAR(2000) NOT NULL DEFAULT '',
+ UNIQUE KEY uq_ballot_tenant(company_id,id),
+ KEY idx_ballot_meeting(company_id,meeting_id,status,id),
+ CONSTRAINT fk_ballot_meeting FOREIGN KEY(company_id,meeting_id) REFERENCES meeting_records(company_id,id),
+ CONSTRAINT fk_ballot_creator FOREIGN KEY(created_by) REFERENCES users(id),
+ CONSTRAINT fk_ballot_closer FOREIGN KEY(closed_by) REFERENCES users(id),
+ CONSTRAINT chk_ballot_total CHECK(total_weight BETWEEN 1 AND 101000),
+ CONSTRAINT chk_ballot_status CHECK(status IN ('OPEN','CLOSED','CANCELLED')),
+ CONSTRAINT chk_ballot_outcome CHECK(outcome IN ('PENDING','APPROVED','NOT_APPROVED','TIED','NO_QUORUM','CANCELLED'))
+);
+CREATE TABLE meeting_ballot_roles (
+ company_id BIGINT NOT NULL,
+ ballot_id BIGINT NOT NULL,
+ role_key VARCHAR(24) NOT NULL,
+ name VARCHAR(60) NOT NULL,
+ weight INT NOT NULL,
+ PRIMARY KEY(company_id,ballot_id,role_key),
+ CONSTRAINT fk_ballot_role FOREIGN KEY(company_id,ballot_id) REFERENCES meeting_ballots(company_id,id),
+ CONSTRAINT chk_ballot_role_weight CHECK(weight BETWEEN 0 AND 1000)
+);
+CREATE TABLE meeting_ballot_voters (
+ company_id BIGINT NOT NULL,
+ ballot_id BIGINT NOT NULL,
+ user_id BIGINT NOT NULL,
+ name_snapshot VARCHAR(500) NOT NULL,
+ role_key VARCHAR(24) NOT NULL,
+ choice VARCHAR(12) NULL,
+ vote_version BIGINT NOT NULL DEFAULT 0,
+ voted_at TIMESTAMP(6) NULL,
+ PRIMARY KEY(company_id,ballot_id,user_id),
+ CONSTRAINT fk_ballot_voter_role FOREIGN KEY(company_id,ballot_id,role_key) REFERENCES meeting_ballot_roles(company_id,ballot_id,role_key),
+ CONSTRAINT fk_ballot_voter_user FOREIGN KEY(user_id) REFERENCES users(id),
+ CONSTRAINT chk_ballot_vote_choice CHECK(choice IS NULL OR choice IN ('YES','NO','ABSTAIN'))
+);
+CREATE TABLE meeting_ballot_audit (
+ id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ company_id BIGINT NOT NULL,
+ ballot_id BIGINT NOT NULL,
+ actor_id BIGINT NOT NULL,
+ action VARCHAR(24) NOT NULL,
+ choice VARCHAR(12) NULL,
+ reason VARCHAR(2000) NOT NULL DEFAULT '',
+ occurred_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+ KEY idx_ballot_audit(company_id,ballot_id,id),
+ CONSTRAINT fk_ballot_audit FOREIGN KEY(company_id,ballot_id) REFERENCES meeting_ballots(company_id,id),
+ CONSTRAINT fk_ballot_audit_actor FOREIGN KEY(actor_id) REFERENCES users(id)
+);

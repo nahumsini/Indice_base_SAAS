@@ -4,15 +4,17 @@ import { useLanguage } from "../../../shared/context";
 import { meetingApi, type Agreement, type MeetingDetail as Detail } from "../services/meetingApi";
 import type { MeetingCopy } from "../translations/meetingCopy";
 import { getMeetingOperationsCopy } from "../translations/meetingOperationsCopy";
+import { getMeetingLiveCopy } from "../translations/meetingLiveCopy";
 import { Action, Editor, Field, control, Feedback, useMeetingQuery, dateInput } from "./MeetingPrimitives";
 
 type Props = { copy: MeetingCopy; onClose: () => void; onSaved: () => void };
-export function AgreementEditor({ copy, onClose, onSaved, record, meetingId = 0 }: Props & { record?: Agreement; meetingId?: number }) {
+export function AgreementEditor({ copy, onClose, onSaved, record, meetingId = 0, suggestedTitle }: Props & { record?: Agreement; meetingId?: number; suggestedTitle?: string }) {
   const { currentLanguage } = useLanguage(), op = getMeetingOperationsCopy(currentLanguage.code);
   const [term, setTerm] = useState(""), [search, setSearch] = useState(""), [page, setPage] = useState(1);
-  const [form, setForm] = useState({ meetingId: record?.meetingId ?? meetingId, title: record?.title ?? "",
+  const [form, setForm] = useState({ meetingId: record?.meetingId ?? meetingId, title: record?.title ?? suggestedTitle ?? "",
     assigneeId: record?.assigneeId ?? 0, dueDate: record?.dueDate ?? dateInput(new Date(Date.now() + 7 * 86400000)),
     reason: "", followupEnabled: record?.followupEnabled ?? true });
+  const live = getMeetingLiveCopy(currentLanguage.code);
   const retry = useRef({ body: "", key: "" });
   useEffect(() => { const timer = setTimeout(() => { setSearch(term); setPage(1); }, 250); return () => clearTimeout(timer); }, [term]);
   const choices = useMeetingQuery(useCallback(signal => meetingApi.searchChoices(search, page, record ? record.meetingId : 0, signal), [search, page, record?.meetingId]));
@@ -21,14 +23,14 @@ export function AgreementEditor({ copy, onClose, onSaved, record, meetingId = 0 
   return <Editor title={record ? op.editAgreement : copy.newAgreement} copy={copy} onClose={onClose} onSaved={onSaved}
     ready={Boolean(selected && form.assigneeId && !selection.error)} onSave={async () => {
       if (record) return meetingApi.updateAgreement(record, form);
-      const body = { meetingId: form.meetingId, title: form.title, assigneeId: form.assigneeId, dueDate: form.dueDate };
+      const body = { meetingId: form.meetingId, title: form.title, assigneeId: form.assigneeId, dueDate: form.dueDate, followupEnabled: form.followupEnabled };
       const fingerprint = JSON.stringify(body);
       if (retry.current.body !== fingerprint) retry.current = { body: fingerprint, key: crypto.randomUUID() };
       return meetingApi.agreement(body, retry.current.key);
     }}>
-    {!record && <Field label={op.searchMeeting}><input className={control} maxLength={180} value={term} onChange={e => setTerm(e.target.value)} /></Field>}
+    {!record && !meetingId && <Field label={op.searchMeeting}><input className={control} maxLength={180} value={term} onChange={e => setTerm(e.target.value)} /></Field>}
     {(choices.error || selection.error) && <Feedback error>{copy.error}</Feedback>}
-    {choices.loading ? <Feedback>{copy.loading}</Feedback> : <>
+    {meetingId ? <p className="rounded-xl bg-blue-50 p-3 text-sm dark:bg-blue-950">📅 {selected?.title ?? copy.loading}</p> : choices.loading ? <Feedback>{copy.loading}</Feedback> : <>
       <Field label={copy.meeting}><select className={control} required disabled={Boolean(record)} value={form.meetingId || ""}
         onChange={e => setForm({ ...form, meetingId: Number(e.target.value), assigneeId: 0 })}>
         <option value="">—</option>
@@ -41,7 +43,7 @@ export function AgreementEditor({ copy, onClose, onSaved, record, meetingId = 0 
         <Action disabled={page * 25 >= (choices.data?.total ?? 0)} onClick={() => setPage(p => p + 1)}>{op.next}</Action>
       </div>}
     </>}
-    <Field label={copy.name}><input className={control} required maxLength={240} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></Field>
+    <Field label={live.actionLabel}><input className={control} placeholder={live.actionExample} required maxLength={240} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></Field>
     <div className="grid gap-4 sm:grid-cols-2">
       <Field label={copy.assignee}><select className={control} required value={form.assigneeId || ""} onChange={e => setForm({ ...form, assigneeId: Number(e.target.value) })}>
         <option value="">—</option>{selected?.participants.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -50,8 +52,9 @@ export function AgreementEditor({ copy, onClose, onSaved, record, meetingId = 0 
     </div>
     {record && <>
       <Field label={copy.reason}><textarea className={control + " h-28 py-3"} required minLength={3} maxLength={2000} value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} /></Field>
-      <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={form.followupEnabled} onChange={e => setForm({ ...form, followupEnabled: e.target.checked })} />{op.followup}</label>
     </>}
+      <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={form.followupEnabled} onChange={e => setForm({ ...form, followupEnabled: e.target.checked })} />{op.followup}</label>
+    <p className="text-xs leading-5 text-slate-500">{live.reminderHint}</p>
   </Editor>;
 }
 export function FollowupEditor({ copy, onClose, onSaved, agreement, meeting }: Props & { agreement?: Agreement; meeting?: Detail }) {

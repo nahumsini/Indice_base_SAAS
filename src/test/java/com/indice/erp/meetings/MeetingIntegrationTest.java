@@ -25,6 +25,7 @@ class MeetingIntegrationTest {
     @Autowired MeetingService service;
     @Autowired MeetingPlanningService planning;
     @Autowired MeetingReminderService reminders;
+    @Autowired MeetingOperationalService operational;
     @Autowired JdbcTemplate db;
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper mapper;
@@ -326,4 +327,79 @@ class MeetingIntegrationTest {
         planning.command(actor,saved.seriesId(),new SeriesCommand("CANCEL_FUTURE","Keep history",1));
         assertThat(repository.detail(actor,ids.get(0)).meeting().status()).isEqualTo("PLANNED");assertThat(repository.detail(actor,ids.get(1)).meeting().status()).isEqualTo("IN_PROGRESS");assertThat(repository.detail(actor,ids.get(2)).meeting().status()).isEqualTo("CANCELLED");
     }
+
+    @Test void attendanceIsActualVersionedScopedAndFrozenAtClosure() {
+        var meeting=create();long id=meeting.meeting().id();
+        assertThat(operational.attendance(actor,id).people()).extracting(AttendancePerson::status).containsOnly("UNMARKED");
+        assertThatThrownBy(()->operational.attendance(outsider,id)).isInstanceOf(NoSuchElementException.class);
+        assertThatThrownBy(()->operational.attendance(actor,id,new AttendanceRequest(List.of(new AttendanceEntry(participant,"PRESENT")),1))).isInstanceOf(IllegalStateException.class);
+        service.transition(actor,id,new TransitionRequest("IN_PROGRESS","",1));
+        assertThatThrownBy(()->operational.attendance(member,id,new AttendanceRequest(List.of(new AttendanceEntry(participant,"PRESENT")),2))).isInstanceOf(SecurityException.class);
+        assertThatThrownBy(()->operational.attendance(actor,id,new AttendanceRequest(List.of(new AttendanceEntry(stranger,"PRESENT")),2))).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(()->operational.attendance(actor,id,new AttendanceRequest(List.of(new AttendanceEntry(participant,"PRESENT"),new AttendanceEntry(participant,"ABSENT")),2))).isInstanceOf(IllegalArgumentException.class);
+        var saved=operational.attendance(actor,id,new AttendanceRequest(List.of(new AttendanceEntry(participant,"PRESENT"),new AttendanceEntry(user,"ABSENT")),2));
+        assertThat(saved.version()).isEqualTo(3);
+        assertThat(saved.people()).filteredOn(p->p.userId()==participant).extracting(AttendancePerson::status).containsExactly("PRESENT");
+        assertThat(repository.detail(member,id).participants()).extracting(Member::id).contains(participant);
+        assertThatThrownBy(()->operational.attendance(actor,id,new AttendanceRequest(List.of(new AttendanceEntry(user,"PRESENT")),2))).isInstanceOf(IllegalStateException.class);
+        service.minutes(actor,id,new MinutesRequest("Real meeting evidence","Decision preserved",3));
+        service.transition(actor,id,new TransitionRequest("COMPLETED","",4));
+        assertThatThrownBy(()->operational.attendance(actor,id,new AttendanceRequest(List.of(new AttendanceEntry(user,"PRESENT")),5))).isInstanceOf(IllegalStateException.class);
+        assertThat(operational.attendance(actor,id).people()).extracting(AttendancePerson::status).containsExactlyInAnyOrder("PRESENT","ABSENT");
+    }
+    @Test void delegatedWriterCanRecordAttendanceButCannotConcludeMeeting() {
+        var b=request();long id=service.create(actor,new MeetingRequest(b.title(),b.meetingType(),b.startAt(),b.endAt(),b.timezone(),b.ownerId(),b.participantIds(),b.agenda(),b.location(),null,"Purpose","Decision",participant,0),UUID.randomUUID().toString()).meeting().id();
+        service.transition(actor,id,new TransitionRequest("IN_PROGRESS","",1));
+        operational.attendance(member,id,new AttendanceRequest(List.of(new AttendanceEntry(participant,"PRESENT")),2));
+        assertThatThrownBy(()->service.transition(member,id,new TransitionRequest("COMPLETED","",3))).isInstanceOf(SecurityException.class);
+    }
+    @Test void hrInactivePeopleCannotBeNewlyAssignedButHistoricalNamesRemain() {
+        var row=create();
+        long membership=db.queryForObject("SELECT id FROM user_companies WHERE company_id=? AND user_id=?",Long.class,company,participant);
+        db.update("INSERT INTO user_work_profiles(company_id,user_company_id,user_id,status) VALUES(?,?,?,'active')",company,membership,participant);
+        try {
+            assertThat(repository.members(company).items()).extracting(Member::id).contains(user,participant);
+            db.update("UPDATE user_work_profiles SET status='inactive' WHERE company_id=? AND user_company_id=?",company,membership);
+            assertThat(repository.members(company).items()).extracting(Member::id).contains(user).doesNotContain(participant);
+            assertThat(repository.detail(actor,row.meeting().id()).participants()).extracting(Member::id).contains(participant);
+            assertThat(repository.choices(actor,"",row.meeting().id(),1,25).items().getFirst().participants()).extracting(Member::id).contains(user).doesNotContain(participant);
+            assertThatThrownBy(()->service.create(actor,request(),UUID.randomUUID().toString())).isInstanceOf(MeetingPlanningException.class);
+            assertThatThrownBy(()->service.agreement(actor,new AgreementRequest(row.meeting().id(),"New assignment",participant,LocalDate.now()),UUID.randomUUID().toString())).isInstanceOf(MeetingPlanningException.class);
+        } finally { db.update("DELETE FROM user_work_profiles WHERE company_id=? AND user_company_id=?",company,membership); }
+    }
+    @Test void suggestionsRespectConfiguredAgendaHoursBreaksAndOtherMeetings() {
+        long staff=repository.insert("INSERT INTO scheduling_staff(company_id,user_id,public_name,timezone,active,buffer_minutes) VALUES(?,?,'Synthetic employee','UTC',1,30)",company,participant);
+        int day=start.atZone(ZoneOffset.UTC).getDayOfWeek().getValue();
+        db.update("INSERT INTO scheduling_availability(company_id,staff_id,day_of_week,start_time,end_time) VALUES(?,?,?,'09:00','12:00')",company,staff,day);
+        try {
+            var available=operational.availability(actor,new AvailabilityRequest(request(),null));assertThat(available.available()).isTrue();assertThat(available.alternatives()).isNotEmpty();
+            assertThat(available.alternatives()).allMatch(o->!o.endAt().plusSeconds(30*60).isAfter(start.atZone(ZoneOffset.UTC).toLocalDate().atTime(12,0).toInstant(ZoneOffset.UTC)));
+            var meeting=create();
+            assertThat(operational.availability(actor,new AvailabilityRequest(request(),null)).available()).isFalse();
+            assertThat(operational.availability(actor,new AvailabilityRequest(request(),meeting.meeting().id())).available()).isTrue();
+            var b=request();var late=new MeetingRequest(b.title(),b.meetingType(),start.plusSeconds(3600),start.plusSeconds(7200),"UTC",user,List.of(participant),"","",null);
+            assertThatThrownBy(()->service.create(actor,late,UUID.randomUUID().toString())).isInstanceOf(MeetingPlanningException.class);
+            db.update("INSERT INTO scheduling_unavailable_dates(company_id,staff_id,unavailable_date) VALUES(?,?,?)",company,staff,java.sql.Date.valueOf(start.atZone(ZoneOffset.UTC).toLocalDate()));
+            assertThat(operational.availability(actor,new AvailabilityRequest(request(),meeting.meeting().id())).available()).isFalse();
+        } finally { db.update("DELETE FROM scheduling_unavailable_dates WHERE company_id=?",company);db.update("DELETE FROM scheduling_availability WHERE company_id=?",company);db.update("DELETE FROM scheduling_staff WHERE company_id=?",company); }
+    }
+    @Test void attendanceAndAvailabilityEndpointsRequireCsrfAndIndependentTabPermission() throws Exception {
+        long id=create().meeting().id();var body=new AttendanceRequest(List.of(new AttendanceEntry(participant,"PRESENT")),1);
+        mvc.perform(put("/api/v1/meetings/"+id+"/attendance").session(session(user,company)).contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(body))).andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/meetings/availability").session(session(user,company)).contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(new AvailabilityRequest(request(),null)))).andExpect(status().isForbidden());
+        long uc=db.queryForObject("SELECT id FROM user_companies WHERE company_id=? AND user_id=?",Long.class,company,participant);
+        db.update("INSERT INTO user_company_module_roles(user_company_id,module_slug,role) VALUES(?,'control_minutas','user')",uc);
+        db.update("INSERT INTO user_company_tab_permissions(user_company_id,module_slug,tab_key,can_view) VALUES(?,'control_minutas','agreements',1)",uc);
+        mvc.perform(get("/api/v1/meetings/"+id+"/attendance").session(session(participant,company))).andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/meetings/availability").session(session(participant,company)).header("X-CSRF-Token","synthetic-csrf").contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(new AvailabilityRequest(request(),null)))).andExpect(status().isForbidden());
+    }
+    @Test void agreementFollowupCanBeDisabledAtCreationAndClosingNeverClosesAgreement() {
+        var m=create();var agreement=service.agreement(actor,new AgreementRequest(m.meeting().id(),"Concrete next action",user,LocalDate.now().plusDays(1),false),UUID.randomUUID().toString());
+        assertThat(agreement.followupEnabled()).isFalse();
+        service.minutes(actor,m.meeting().id(),new MinutesRequest("Minutes","Decision",1));
+        service.transition(actor,m.meeting().id(),new TransitionRequest("IN_PROGRESS","",2));
+        service.transition(actor,m.meeting().id(),new TransitionRequest("COMPLETED","",3));
+        assertThat(repository.agreement(actor,agreement.id(),false).status()).isEqualTo("OPEN");
+    }
+
 }

@@ -20,26 +20,33 @@ public class MeetingService {
     private final com.indice.erp.scheduling.SchedulingResourceAvailabilityService resources;
     private final com.indice.erp.processTasks.tasks.ProcessTaskMeetingContract tasks;
     private final com.indice.erp.hr.permissions.HrSchedulingAvailabilityService hr;
+    private final com.indice.erp.scheduling.SchedulingMeetingAvailabilityService hours;
+    private final MeetingVotingRepository voting;
     public MeetingService(MeetingRepository repository,ModuleAccessService modules,ObjectMapper mapper,
-        com.indice.erp.scheduling.SchedulingResourceAvailabilityService resources,com.indice.erp.processTasks.tasks.ProcessTaskMeetingContract tasks,com.indice.erp.hr.permissions.HrSchedulingAvailabilityService hr){this.repository=repository;this.modules=modules;this.mapper=mapper;this.resources=resources;this.tasks=tasks;this.hr=hr;}
+        com.indice.erp.scheduling.SchedulingResourceAvailabilityService resources,com.indice.erp.processTasks.tasks.ProcessTaskMeetingContract tasks,com.indice.erp.hr.permissions.HrSchedulingAvailabilityService hr,com.indice.erp.scheduling.SchedulingMeetingAvailabilityService hours,MeetingVotingRepository voting){this.repository=repository;this.modules=modules;this.mapper=mapper;this.resources=resources;this.tasks=tasks;this.hr=hr;this.hours=hours;this.voting=voting;}
     private List<String> peopleEmails(AuthSessionUser actor,MeetingRequest body){
         var people=new TreeSet<>(body.participantIds());people.add(body.ownerId());
         return people.stream().map(id->repository.jdbc().queryForObject("SELECT u.email FROM users u JOIN user_companies uc ON uc.user_id=u.id WHERE uc.company_id=? AND uc.user_id=? AND uc.status='active' ORDER BY uc.id DESC LIMIT 1",String.class,actor.companyId(),id))
             .map(email->email.toLowerCase(Locale.ROOT)).distinct().sorted().toList();
     }
     int appointmentConflicts(AuthSessionUser actor,MeetingRequest body,Instant from,Instant to){
-        var people=new HashSet<>(body.participantIds());people.add(body.ownerId());
-        var first=from.atZone(ZoneId.of(body.timezone())).toLocalDate();var last=to.minusNanos(1).atZone(ZoneId.of(body.timezone())).toLocalDate();
-        if(people.stream().anyMatch(user->hr.unavailable(actor.companyId(),user,first,last)))return 1;
-        return (int)peopleEmails(actor,body).stream().filter(email->resources.busyWithoutMeetings(email,from,to,null,null,null)).count();
+        return appointmentAvailability(actor,body).test(from,to)?0:1;
+    }
+    java.util.function.BiPredicate<Instant,Instant> appointmentAvailability(AuthSessionUser actor,MeetingRequest body){
+        var people=new TreeSet<>(body.participantIds());people.add(body.ownerId());
+        var emails=peopleEmails(actor,body);var configuredHours=hours.checker(actor.companyId(),people);
+        var absenceCache=new HashMap<String,Boolean>();var zone=ZoneId.of(body.timezone());
+        return (from,to)->{
+            if(!configuredHours.test(from,to))return false;
+            var first=from.atZone(zone).toLocalDate();var last=to.minusNanos(1).atZone(zone).toLocalDate();
+            if(people.stream().anyMatch(user->absenceCache.computeIfAbsent(user+":"+first+":"+last,
+                key->hr.unavailable(actor.companyId(),user,first,last))))return false;
+            return emails.stream().noneMatch(email->resources.busyWithoutMeetings(email,from,to,null,null,null));
+        };
     }
     private void requireAppointmentAvailability(AuthSessionUser actor,MeetingRequest body){
-        var emails=peopleEmails(actor,body);emails.forEach(resources::lock);
-        var people=new HashSet<>(body.participantIds());people.add(body.ownerId());
-        var first=body.startAt().atZone(ZoneId.of(body.timezone())).toLocalDate();
-        var last=body.endAt().minusNanos(1).atZone(ZoneId.of(body.timezone())).toLocalDate();
-        if(people.stream().anyMatch(user->hr.unavailable(actor.companyId(),user,first,last)))throw new MeetingPlanningException("meeting_appointment_conflict");
-        if(emails.stream().anyMatch(email->resources.busyWithoutMeetings(email,body.startAt(),body.endAt(),null,null,null)))
+        peopleEmails(actor,body).forEach(resources::lock);
+        if(!appointmentAvailability(actor,body).test(body.startAt(),body.endAt()))
             throw new MeetingPlanningException("meeting_appointment_conflict");
     }
     void lock(AuthSessionUser actor){
@@ -48,6 +55,7 @@ public class MeetingService {
         member(actor.companyId(),actor.userId());
     }
     void member(long company,long user){
+        if(!repository.employmentEligible(company,user))throw new MeetingPlanningException("meeting_employee_unavailable");
         if(repository.jdbc().query("SELECT user_id FROM user_companies WHERE company_id=? AND user_id=? AND status='active' FOR SHARE",(r,n)->r.getLong(1),company,user).isEmpty())throw new IllegalArgumentException("Active company member required.");
     }
     static void owner(AuthSessionUser actor,long owner){if(!MeetingAccessService.administrator(actor)&&actor.userId()!=owner)throw new SecurityException();}
@@ -113,6 +121,8 @@ public class MeetingService {
         boolean valid=row.status().equals("PLANNED")&&Set.of("IN_PROGRESS","CANCELLED").contains(body.status())||row.status().equals("IN_PROGRESS")&&Set.of("COMPLETED","CANCELLED").contains(body.status());
         if(!valid||body.status().equals("COMPLETED")&&!row.hasMinutes())throw new IllegalStateException();
         if(body.reason()==null||body.reason().length()>2000||body.status().equals("CANCELLED")&&body.reason().trim().length()<3)throw new IllegalArgumentException();
+        if(body.status().equals("COMPLETED")&&voting.hasOpen(actor.companyId(),id))throw new MeetingPlanningException("meeting_voting_open");
+        if(body.status().equals("CANCELLED"))voting.cancelOpen(actor.companyId(),id,actor.userId(),body.reason().trim());
         repository.jdbc().update("UPDATE meeting_records SET status=?,version=version+1,updated_at=CURRENT_TIMESTAMP(6) WHERE company_id=? AND id=?",body.status(),actor.companyId(),id);
         audit(actor,id,null,"MEETING_"+body.status(),body.reason().trim());return repository.detail(actor,id);
     }
@@ -123,6 +133,7 @@ public class MeetingService {
         if(meeting.status().equals("CANCELLED"))throw new IllegalStateException();member(actor.companyId(),body.assigneeId());
         if(meeting.ownerId()!=body.assigneeId()&&repository.participants(actor.companyId(),meeting.id()).stream().noneMatch(p->p.id()==body.assigneeId()))throw new IllegalArgumentException();
         long id=repository.insert("INSERT INTO meeting_agreements(company_id,meeting_id,title,assignee_id,due_date) VALUES(?,?,?,?,?)",actor.companyId(),body.meetingId(),body.title().trim(),body.assigneeId(),java.sql.Date.valueOf(body.dueDate()));
+        if(body.followupEnabled()!=null)repository.jdbc().update("UPDATE meeting_agreements SET followup_enabled=? WHERE company_id=? AND id=?",body.followupEnabled(),actor.companyId(),id);
         remember(actor,"AGREEMENT",key,hash,id);audit(actor,body.meetingId(),id,"AGREEMENT_CREATED","");return repository.agreement(actor,id,false);
     }
     @Transactional public AgreementItem agreementStatus(AuthSessionUser actor,long id,TransitionRequest body){

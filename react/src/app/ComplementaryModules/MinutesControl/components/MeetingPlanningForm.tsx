@@ -7,6 +7,8 @@ import type { Member, PlanPreview } from "../services/meetingApi";
 import type { MeetingCopy } from "../translations/meetingCopy";
 import type { MeetingWorkflowCopy } from "../translations/meetingWorkflowCopy";
 import type { PlanningDraft } from "../utils/meetingPlanning";
+import { getMeetingLiveCopy } from "../translations/meetingLiveCopy";
+import { useLanguage } from "../../../shared/context";
 import { Field, control } from "./MeetingPrimitives";
 
 export function PlanningSection({
@@ -61,6 +63,9 @@ export function PurposePeople({
   userId,
 }: Props) {
   const [search, setSearch] = useState("");
+  const { currentLanguage } = useLanguage();
+  const live = getMeetingLiveCopy(currentLanguage.code);
+  const [delegating, setDelegating] = useState(form.minutesOwnerId !== form.ownerId);
   return (
     <div className="space-y-6">
       <PlanningSection icon="🎯" title={w.peopleStep} hint={w.validationHint}>
@@ -107,7 +112,9 @@ export function PurposePeople({
           </select>
         </Field>
       </PlanningSection>
-      <PlanningSection icon="👥" title={copy.participants} hint={w.peopleHint}>
+      <PlanningSection icon="👥" title={copy.participants} hint={live.directoryHint}>
+        <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-4 w-4 accent-blue-600" checked={delegating} onChange={e => { setDelegating(e.target.checked); if (!e.target.checked) update({ minutesOwnerId: form.ownerId }); }} />{live.delegate}</label>
+        {!delegating && <p className="text-sm text-slate-500">{live.sameWriter}</p>}
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Field label={w.coordinator + " *"}>
@@ -140,7 +147,7 @@ export function PurposePeople({
               {w.coordinatorHint}
             </p>
           </div>
-          <div>
+          <div hidden={!delegating}>
             <Field label={w.minutesOwner + " *"}>
               <select
                 className={control}

@@ -14,7 +14,9 @@ public final class MeetingDtos {
     public record PlanningMetadata(String objective,String expectedResult,Member minutesOwner,int reminderMinutes,
         Long seriesId,Integer occurrenceNumber,boolean remindersPaused,long seriesVersion) { @Override public String toString(){return "PlanningMetadata[protected]";} }
     public record MeetingDetail(MeetingItem meeting,String agenda,String location,String minutes,String decisions,
-        List<Member> participants,List<AuditItem> history,PlanningMetadata planning) { @Override public String toString(){return "MeetingDetail[protected]";} }
+        List<Member> participants,List<AuditItem> history,PlanningMetadata planning,List<MeetingVotingDtos.Result> votingResults) {
+        public MeetingDetail(MeetingItem meeting,String agenda,String location,String minutes,String decisions,List<Member> participants,List<AuditItem> history,PlanningMetadata planning){this(meeting,agenda,location,minutes,decisions,participants,history,planning,List.of());}
+        @Override public String toString(){return "MeetingDetail[protected]";} }
     public record MeetingChoice(long id,String title,List<Member> participants) { @Override public String toString(){return "MeetingChoice[protected]";} }
     public record AgreementItem(long id,long meetingId,String meetingTitle,String title,long assigneeId,
         String assigneeName,LocalDate dueDate,String status,String resolution,long version,long meetingOwnerId,boolean followupEnabled) { @Override public String toString(){return "AgreementItem[protected]";} }
@@ -34,7 +36,10 @@ public final class MeetingDtos {
     public record TransitionRequest(@NotBlank String status,@NotNull @Size(max=2000) String reason,
         @Positive long expectedVersion) { @Override public String toString(){return "TransitionRequest[protected]";} }
     public record AgreementRequest(@Positive long meetingId,@NotBlank @Size(max=240) String title,
-        @Positive long assigneeId,@NotNull LocalDate dueDate) { @Override public String toString(){return "AgreementRequest[protected]";} }
+        @Positive long assigneeId,@NotNull LocalDate dueDate,Boolean followupEnabled) {
+        public AgreementRequest(long meetingId,String title,long assigneeId,LocalDate dueDate){this(meetingId,title,assigneeId,dueDate,null);}
+        @Override public String toString(){return "AgreementRequest[protected]";}
+    }
     public record AgreementUpdateRequest(@NotBlank @Size(max=240) String title,@Positive long assigneeId,
         @NotNull LocalDate dueDate,@NotBlank @Size(min=3,max=2000) String reason,@Positive long expectedVersion,Boolean followupEnabled) {
         @Override public String toString(){return "AgreementUpdateRequest[protected]";}
@@ -46,5 +51,15 @@ public final class MeetingDtos {
         com.indice.erp.processTasks.tasks.ProcessTaskMeetingContract.TaskLink task,boolean canLinkTask) {
         @Override public String toString(){return "AgreementDetail[protected]";}
     }
+    public record AttendanceEntry(@Positive long userId,@NotBlank String status) { }
+    public record AttendanceRequest(@NotNull @Size(max=101) List<@jakarta.validation.Valid AttendanceEntry> entries,
+        @Positive long expectedVersion) { @Override public String toString(){return "AttendanceRequest[protected]";} }
+    public record AttendancePerson(long userId,String name,String status) {
+        @Override public String toString(){return "AttendancePerson[protected]";}
+    }
+    public record Attendance(List<AttendancePerson> people,long version) { }
+    public record AvailabilityRequest(@NotNull @jakarta.validation.Valid MeetingRequest meeting,Long excludeMeetingId) { }
+    public record TimeOption(Instant startAt,Instant endAt) { }
+    public record Availability(boolean available,List<TimeOption> alternatives,String timezone) { }
     public record VersionRequest(@Positive long expectedVersion) { }
 }

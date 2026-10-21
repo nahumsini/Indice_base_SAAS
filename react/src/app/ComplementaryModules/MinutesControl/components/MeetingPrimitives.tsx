@@ -2,6 +2,7 @@ import {
   useEffect,
   useState,
   useId,
+  useRef,
   cloneElement,
   type ReactElement,
   type ReactNode,
@@ -11,7 +12,11 @@ import { Button } from "../../../components/ui/button";
 import { IndiceModalFrame } from "../../../components/indice-modal/IndiceModalFrame";
 import { getIndiceFilterControlClassName } from "../../../components/frontend-os/IndiceFilterBar";
 import { useAuthorizationRevision } from "../../../hooks/useAuthorizationRevision";
+import { getAuthorizationRevision } from "../../../api/authSessionStore";
 import { ApiClientError } from "../../../lib/apiClient";
+import { useLanguage } from "../../../shared/context";
+import { getMeetingVotingCopy } from "../translations/meetingVotingCopy";
+import { getMeetingLiveCopy } from "../translations/meetingLiveCopy";
 import type { MeetingCopy } from "../translations/meetingCopy";
 
 export const panel =
@@ -85,12 +90,14 @@ export function Status({
 }
 export function useMeetingQuery<T>(load: (signal: AbortSignal) => Promise<T>) {
   const auth = useAuthorizationRevision(),
+    [loadedAuthorization, setLoadedAuthorization] = useState(auth),
     [revision, setRevision] = useState(0),
     [data, setData] = useState<T>(),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
+    setLoadedAuthorization(auth);
     setData(undefined);
     setLoading(true);
     setError(false);
@@ -107,7 +114,7 @@ export function useMeetingQuery<T>(load: (signal: AbortSignal) => Promise<T>) {
       });
     return () => controller.abort();
   }, [load, auth, revision]);
-  return { data, loading, error, reload: () => setRevision((n) => n + 1) };
+  return { data: loadedAuthorization === auth ? data : undefined, loading: loadedAuthorization !== auth || loading, error: loadedAuthorization === auth && error, reload: () => setRevision((n) => n + 1) };
 }
 export function Editor({
   title,
@@ -132,16 +139,22 @@ export function Editor({
   submitLabel?: string;
   description?: string;
 }) {
+  const { currentLanguage } = useLanguage();
+  const live = getMeetingLiveCopy(currentLanguage.code);
+  const voting = getMeetingVotingCopy(currentLanguage.code);
   const id = useId(),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [dirty, setDirty] = useState(false),
     [discard, setDiscard] = useState(false);
-  const close = () => (dirty ? setDiscard(true) : onClose());
+  const revision = useAuthorizationRevision(), initialRevision = useRef(revision);
+  useEffect(() => { if (revision !== initialRevision.current) onClose(); }, [revision]);
+  const close = () => { if (!busy) { if (dirty) setDiscard(true); else onClose(); } };
   return (
     <IndiceModalFrame
       open
       tone="blue"
+      contentClassName="max-h-[calc(100dvh-1rem)]"
       modalType={discard || destructive ? "confirmation" : "standard-form"}
       busy={busy}
       icon="📝"
@@ -184,15 +197,17 @@ export function Editor({
           onChange={() => setDirty(true)}
           onSubmit={async (e) => {
             e.preventDefault();
-            if (busy || !ready) return;
+            if (busy || !ready || initialRevision.current !== getAuthorizationRevision()) return;
+            const revision = getAuthorizationRevision();
             setBusy(true);
             setError("");
             try {
               await onSave();
-              onSaved();
+              if (revision === getAuthorizationRevision()) onSaved();
             } catch (error) {
+              if (revision !== getAuthorizationRevision()) return;
               setError(
-                error instanceof ApiClientError && error.status === 409
+                error instanceof ApiClientError && error.code === "meeting_voting_open" ? voting.openBallots : error instanceof ApiClientError && error.code === "meeting_employee_unavailable" ? live.employeeUnavailable : error instanceof ApiClientError && error.status === 409
                   ? copy.conflict
                   : copy.error,
               );
@@ -202,7 +217,7 @@ export function Editor({
           }}
         >
           {error && <Feedback error>{error}</Feedback>}
-          {children}
+          <fieldset disabled={busy} className="min-w-0 space-y-5">{children}</fieldset>
         </form>
       )}
     </IndiceModalFrame>

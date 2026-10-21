@@ -1,9 +1,11 @@
 import { printStandardDocumentHtml } from '../../../BasicModules/shared/print/standardDocumentHtml';
 import type { MeetingDetail } from '../services/meetingApi';
 import type { MeetingCopy } from '../translations/meetingCopy';
+import { getMeetingVotingCopy } from '../translations/meetingVotingCopy';
 import { getMeetingOperationsCopy } from '../translations/meetingOperationsCopy';
 
 export function printMeetingMinutes(detail: MeetingDetail, copy: MeetingCopy, locale: string) {
+  const voting = getMeetingVotingCopy(locale);
   const op = getMeetingOperationsCopy(locale), row = detail.meeting;
   const format = (date: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: row.timezone }).format(new Date(date));
   return printStandardDocumentHtml({
@@ -18,6 +20,10 @@ export function printMeetingMinutes(detail: MeetingDetail, copy: MeetingCopy, lo
     sections: [
       { title: copy.agenda, paragraphs: [detail.agenda] }, { title: copy.minutes, paragraphs: [detail.minutes] },
       { title: copy.decisions, paragraphs: [detail.decisions] },
+      ...(detail.votingResults ?? []).map(result => ({
+        title: `${voting.result}: ${result.subject}`,
+        paragraphs: [voting[result.outcome], `${voting.YES}: ${result.tally.yes} · ${voting.NO}: ${result.tally.no} · ${voting.abstentions}: ${result.tally.abstain} (${voting.points})`, `${voting.participation}: ${result.tally.cast}/${result.totalWeight} · ${voting.approval}: ${result.approvalWeight} · ${voting.quorum}: ${result.quorumWeight}`, result.closedAt ? format(result.closedAt) : "", result.closeReason ?? ""],
+      })),
       ...detail.history.filter(entry => entry.action === 'MINUTES_ADDENDUM').reverse().map(entry => ({
         title: `${op.addendum} · ${format(entry.occurredAt)} · ${entry.actorName}`, paragraphs: [entry.reason],
       })),

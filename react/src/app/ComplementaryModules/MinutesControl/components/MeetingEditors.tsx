@@ -9,6 +9,9 @@ import {
 import type { MeetingCopy } from "../translations/meetingCopy";
 import { useLanguage } from "../../../shared/context";
 import { getMeetingWorkflowCopy } from "../translations/meetingWorkflowCopy";
+import { MeetingVotingPanel } from "./MeetingVotingPanel";
+import { MeetingAttendance, MeetingAgreementsSummary } from "./MeetingExecution";
+import { getMeetingLiveCopy } from "../translations/meetingLiveCopy";
 import { FollowupEditor } from "./AgreementEditors";
 import {
   Editor,
@@ -85,16 +88,19 @@ export function TransitionEditor({
   copy,
   meeting,
   agreement,
+  canAgreements = false,
   status,
   onClose,
   onSaved,
 }: EditorProps & {
   meeting?: MeetingDetail;
   agreement?: Agreement;
+  canAgreements?: boolean;
   status: MeetingStatus | AgreementStatus;
 }) {
   const { currentLanguage } = useLanguage();
   const w = getMeetingWorkflowCopy(currentLanguage.code);
+  const live = getMeetingLiveCopy(currentLanguage.code);
   const [reason, setReason] = useState("");
   const action =
     status === "CANCELLED"
@@ -142,6 +148,14 @@ export function TransitionEditor({
           ? copy.retained
           : (meeting?.meeting.title ?? agreement?.title)}
       </Feedback>
+      {status === "COMPLETED" && meeting && <div className="space-y-4">
+        <h3 className="font-medium">✅ {live.closure}</h3>
+        <section className="space-y-2 rounded-xl border border-slate-200 p-4 dark:border-slate-700"><h4 className="text-sm font-medium">{copy.decisions}</h4><p className="whitespace-pre-wrap break-words text-sm">{meeting.decisions || "—"}</p></section>
+        <MeetingAttendance detail={meeting} copy={copy} locale={currentLanguage.code} />
+        <MeetingVotingPanel meetingId={meeting.meeting.id} status={meeting.meeting.status} locale={currentLanguage.code} copy={copy} />
+        {canAgreements && <MeetingAgreementsSummary id={meeting.meeting.id} copy={copy} locale={currentLanguage.code} />}
+        <Feedback>{live.closureHint}</Feedback>
+      </div>}
       <Field label={status === "DONE" ? w.outcomeEvidence : copy.reason}>
         <textarea
           className={control + " h-32 py-3"}

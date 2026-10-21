@@ -245,3 +245,63 @@ test('meeting workspace copy is complete in every supported locale',()=>{
   for(const copy of Object.values(copies)){assert.deepEqual(Object.keys(copy),Object.keys(copies['en-CA']));assert.ok(Object.values(copy).every(value=>typeof value==='string'&&value.trim()));}
   assert.equal(get('unknown'),copies['en-CA']);
 });
+
+test('live meeting copy covers native locales and uses English for an unknown locale', () => {
+  const { getMeetingLiveCopy: get } = load('translations/meetingLiveCopy.ts');
+  const keys = Object.keys(get('en-CA'));
+  for (const locale of ['en-CA','en-US','es-MX','es-CO','fr-CA','pt-BR','ko-CA','zh-CA']) {
+    assert.deepEqual(Object.keys(get(locale)), keys);
+    assert.ok(Object.values(get(locale)).every(value => typeof value === 'string' && value.trim()));
+  }
+  assert.deepEqual(get('unknown'), get('en-CA'));
+  assert.equal(get('es-MX').unmarked, 'Sin registrar');
+  assert.notEqual(get('ko-CA').attendance, get('es-MX').attendance);
+});
+
+test('meeting client preserves explicit disabled follow-up and attendance version', async () => {
+  const calls = [];
+  const {meetingApi: api} = loadTypescript(resolve(base+'services/meetingApi.ts'), name => {
+    assert.ok(name.endsWith('/apiClient'));
+    return {apiClient: async (path, options) => { calls.push({path, options}); return {}; }};
+  });
+  await api.agreement({meetingId:17,title:'Send revised quote',assigneeId:42,dueDate:'2026-10-30',followupEnabled:false},'fixed-synthetic-request-key');
+  assert.equal(JSON.parse(calls[0].options.body).followupEnabled,false);
+  assert.equal(calls[0].options.headers['Idempotency-Key'],'fixed-synthetic-request-key');
+  await api.saveAttendance(17,{expectedVersion:9,entries:[{userId:42,status:'ABSENT'}]});
+  assert.equal(calls[1].path,'/api/v1/meetings/17/attendance');
+  assert.equal(calls[1].options.method,'PUT');
+  assert.deepEqual(JSON.parse(calls[1].options.body),{expectedVersion:9,entries:[{userId:42,status:'ABSENT'}]});
+});
+
+test('late availability responses are hidden after participants or tenant change', async () => {
+  const {hookRuntime} = await import('./helpers/hook-runtime.mjs');
+  const runtime = hookRuntime(), pending = [];
+  let revision = 1;
+  const jsx = (type, props) => ({type,props});
+  const {MeetingAvailability} = loadTypescript(resolve(base+'components/MeetingAvailability.tsx'), name => {
+    if(name==='react')return runtime.hooks;
+    if(name==='react/jsx-runtime')return {jsx,jsxs:jsx,Fragment:'fragment'};
+    if(name.endsWith('apiClient'))return {ApiClientError:class extends Error {}};
+    if(name.endsWith('useAuthorizationRevision'))return {useAuthorizationRevision:()=>revision};
+    if(name.endsWith('meetingApi'))return {meetingApi:{availability:()=>new Promise(resolve=>pending.push(resolve))}};
+    if(name.endsWith('meetingPlanning'))return {planningRequest: form => ({meeting:form}),dateTimeInput:()=>''};
+    if(name.endsWith('meetingLiveCopy'))return load('translations/meetingLiveCopy.ts');
+    if(name.endsWith('MeetingPrimitives'))return {Action:'Action',Feedback:'Feedback'};
+    throw new Error(name);
+  });
+  let form={start:'2026-10-30T10:00',duration:60,ownerId:42,minutesOwnerId:42,participantIds:[43]};
+  const render=()=>MeetingAvailability({form,zone:'UTC',locale:'es-MX',copy:{loading:'Loading',error:'Error'},update:()=>{}});
+  function nodes(node) {if(!node||typeof node!=='object')return [];return [node,...[node.props?.children].flat(Infinity).flatMap(nodes)];}
+  runtime.render(render);
+  const button=()=>nodes(runtime.result).find(n=>n.type==='Action');
+  const event={currentTarget:{closest:()=>({reportValidity:()=>true})}};
+  const first=button().props.onClick(event); await runtime.flush();
+  form={...form,participantIds:[44]};runtime.render(render);
+  pending.shift()({available:true,alternatives:[],timezone:'UTC'});await first;await runtime.flush();
+  assert.equal(nodes(runtime.result).some(n=>n.type==='Feedback'),false);
+  const second=button().props.onClick(event);await runtime.flush();
+  revision=2;runtime.render(render);
+  pending.shift()({available:true,alternatives:[],timezone:'UTC'});await second;await runtime.flush();
+  assert.equal(nodes(runtime.result).some(n=>n.type==='Feedback'),false);
+  runtime.unmount();
+});

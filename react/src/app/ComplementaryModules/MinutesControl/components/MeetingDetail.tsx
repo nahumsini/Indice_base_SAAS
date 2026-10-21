@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Pencil, Play, Check, X } from "lucide-react";
 import { IndiceModalFrame } from "../../../components/indice-modal/IndiceModalFrame";
 import {
@@ -6,6 +6,10 @@ import {
   type MeetingDetail as Detail,
   type MeetingStatus,
 } from "../services/meetingApi";
+import { MeetingVotingPanel } from "./MeetingVotingPanel";
+import { getMeetingVotingCopy } from "../translations/meetingVotingCopy";
+import { MeetingAttendance, MeetingAgreementsSummary } from "./MeetingExecution";
+import { getMeetingLiveCopy } from "../translations/meetingLiveCopy";
 import type { MeetingCopy } from "../translations/meetingCopy";
 import { getMeetingWorkflowCopy } from "../translations/meetingWorkflowCopy";
 import { getMeetingOperationsCopy } from "../translations/meetingOperationsCopy";
@@ -30,6 +34,9 @@ export function MeetingDetail({
   onMinutes,
   onTransition,
   onAgreements,
+  onNewAgreement,
+  onNewBallot,
+  onBallot,
 }: {
   id: number;
   copy: MeetingCopy;
@@ -41,7 +48,16 @@ export function MeetingDetail({
   onMinutes: (detail: Detail) => void;
   onTransition: (detail: Detail, status: MeetingStatus) => void;
   onAgreements?: (meetingId: number) => void;
+  onNewAgreement?: (detail: Detail) => void;
+  onNewBallot?: (detail: Detail) => void;
+  onBallot?: (detail: Detail, id: number) => void;
 }) {
+  const [savingAttendance, setSavingAttendance] = useState(false);
+  const [dirtyAttendance, setDirtyAttendance] = useState(false);
+  const [discardAttendance, setDiscardAttendance] = useState(false);
+  const close = () => { if (!savingAttendance) { if (dirtyAttendance) setDiscardAttendance(true); else onClose(); } };
+  const live = getMeetingLiveCopy(locale);
+  const voting = getMeetingVotingCopy(locale);
   const query = useMeetingQuery(
       useCallback((signal) => meetingApi.detail(id, signal), [id]),
     ),
@@ -55,17 +71,20 @@ export function MeetingDetail({
   return (
     <IndiceModalFrame
       open
+      busy={savingAttendance}
+      contentClassName="max-h-[calc(100dvh-1rem)]"
       tone="blue"
-      modalType="operational-workspace"
-      title={row?.title ?? copy.detail}
+      modalType={discardAttendance ? "confirmation" : "operational-workspace"}
+      title={discardAttendance ? copy.discard : row?.title ?? copy.detail}
       description={copy.subtitle}
       icon="📝"
       closeLabel={copy.close}
       onOpenChange={(open) => {
-        if (!open) onClose();
+        if (!open) close();
       }}
-      footer={<Action onClick={onClose}>{copy.close}</Action>}
+      footer={discardAttendance ? <><Action onClick={() => setDiscardAttendance(false)}>{copy.keepEditing}</Action><Action onClick={onClose}>{copy.close}</Action></> : <Action disabled={savingAttendance} onClick={close}>{copy.close}</Action>}
     >
+      <div hidden={discardAttendance}>
       {query.loading ? (
         <Feedback>{copy.loading}</Feedback>
       ) : query.error ? (
@@ -89,7 +108,7 @@ export function MeetingDetail({
               · {row.timezone}
             </p>
             {(editable || canMinutes) && active && (
-              <div className="flex flex-wrap gap-2">
+              <fieldset disabled={savingAttendance || dirtyAttendance} className="flex flex-wrap gap-2">
                 {editable && row.status === "PLANNED" && (
                   <Action onClick={() => onEdit(detail)}>
                     <Pencil className="h-4 w-4" />
@@ -131,7 +150,7 @@ export function MeetingDetail({
                     {copy.cancelMeeting}
                   </Action>
                 )}
-              </div>
+              </fieldset>
             )}
             {canMinutes && row.status === "COMPLETED" && <Action onClick={()=>onMinutes(detail)}>{op.addendum}</Action>}
             <div className="flex flex-wrap gap-3">
@@ -176,11 +195,12 @@ export function MeetingDetail({
                 </p>
               </section>
             )}
-            {onAgreements && (
-              <Action onClick={() => onAgreements?.(id)}>
-                <span aria-hidden>🤝</span> {w.pendingAgreements}
-              </Action>
-            )}
+            <div className="grid items-start gap-5 lg:grid-cols-2">
+            <MeetingAttendance detail={detail} copy={copy} locale={locale} editable={canMinutes && row.status === "IN_PROGRESS"} onSaved={query.reload} onBusy={setSavingAttendance} onDirty={setDirtyAttendance} />
+            {onAgreements && <MeetingAgreementsSummary id={id} copy={copy} locale={locale} onOpen={!dirtyAttendance && !savingAttendance ? () => onAgreements(id) : undefined} onNew={!dirtyAttendance && !savingAttendance && editable && active && onNewAgreement ? () => onNewAgreement(detail) : undefined} />}
+            </div>
+            <MeetingVotingPanel meetingId={id} status={row.status} locale={locale} copy={copy} onNew={!dirtyAttendance && !savingAttendance && editable && onNewBallot ? () => onNewBallot(detail) : undefined} onOpen={!dirtyAttendance && !savingAttendance && onBallot ? ballotId => onBallot(detail, ballotId) : undefined} />
+            {row.status === "COMPLETED" && <Feedback>{live.closureHint}</Feedback>}
             {[
               ["agenda", copy.agenda],
               ["minutes", copy.minutes],
@@ -194,14 +214,8 @@ export function MeetingDetail({
                 </p>
               </section>
             ))}
-            <section className={panel}>
-              <h3 className="mb-3 text-sm font-medium">{copy.participants}</h3>
-              <p className="text-sm">
-                {detail.participants.map((p) => p.name).join(" · ") || "—"}
-              </p>
-            </section>
-            <section className={panel}>
-              <h3 className="mb-3 text-sm font-medium">{copy.history}</h3>
+            <details className={panel}>
+              <summary className="min-h-11 cursor-pointer text-sm font-medium">{copy.history}</summary>
               {detail.history.length === 100 && (
                 <Feedback>{copy.partial}</Feedback>
               )}
@@ -211,6 +225,10 @@ export function MeetingDetail({
                     <p>
                       {copy[item.action as keyof MeetingCopy] ??
                         {
+                          VOTING_OPENED: voting.OPENED,
+                          VOTING_CLOSED: voting.CLOSED,
+                          VOTING_CANCELLED: voting.CANCELLED,
+                          ATTENDANCE_UPDATED: live.attendance,
                           MINUTES_ADDENDUM: op.addendum,
                           AGREEMENT_UPDATED: op.editAgreement,
                           AGREEMENT_NOTE: op.note,
@@ -237,10 +255,11 @@ export function MeetingDetail({
                   </li>
                 ))}
               </ol>
-            </section>
+            </details>
           </div>
         )
       )}
+      </div>
     </IndiceModalFrame>
   );
 }
