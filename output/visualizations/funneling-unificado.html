@@ -1,0 +1,133 @@
+<div id="indice-unified-funnel" class="viz-dotted-background">
+  <style>
+    #indice-unified-funnel { padding: 14px; font-family: system-ui, sans-serif; font-size: 14px; color: light-dark(#222831, #f1f5f9); }
+    #indice-unified-funnel * { box-sizing: border-box; }
+    #indice-unified-funnel .product { background: light-dark(#f8fafc, #101827); border: 1px solid light-dark(#e2e8f0, #334155); border-radius: 18px; overflow: hidden; }
+    #indice-unified-funnel .top { padding: 18px 22px; padding-right: 95px; background: light-dark(#fff0ed, #38272c); }
+    #indice-unified-funnel h2 { margin: 0 0 5px; font-size: 20px; font-weight: 500; }
+    #indice-unified-funnel h3 { margin: 0; font-size: 16px; font-weight: 500; }
+    #indice-unified-funnel .secondary { color: light-dark(#58677d, #bac8da); font-size: 12px; }
+    #indice-unified-funnel .choices { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; padding: 18px; border-bottom: 1px solid light-dark(#e2e8f0,#334155); }
+    #indice-unified-funnel label { display: grid; gap: 7px; min-width: 0; }
+    #indice-unified-funnel select, #indice-unified-funnel textarea { width: 100%; min-width: 0; font: inherit; color: light-dark(#222831,#f1f5f9); background: light-dark(#fff,#182234); border: 1px solid light-dark(#cbd5e1,#536178); border-radius: 9px; padding: 10px; }
+    #indice-unified-funnel select { min-height: 44px; }
+    #indice-unified-funnel .workspace { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,0.95fr); gap: 18px; padding: 20px 18px; }
+    #indice-unified-funnel .diagram { min-width: 0; }
+    #indice-unified-funnel .diagram > .secondary { margin-bottom: 15px; }
+    #indice-unified-funnel ol { list-style: none; padding: 0; margin: 0; }
+    #indice-unified-funnel li { display: flex; flex-direction: column; align-items: center; }
+    #indice-unified-funnel .arrow { padding: 5px; color: light-dark(#73829a,#9faec3); }
+    #indice-unified-funnel .stage { position: relative; isolation: isolate; display: grid; gap: 5px; min-height: 77px; padding: 16px 20px; font: inherit; color: light-dark(#222831,#f1f5f9); border: 0; background: transparent; text-align: center; }
+    #indice-unified-funnel .stage::before { content: ''; position: absolute; inset: 0; z-index: -1; background: light-dark(#ffe5df,#403037); clip-path: polygon(0 0,100% 0,94% 100%,6% 100%); }
+    #indice-unified-funnel .stage[aria-pressed="true"]::before { background: light-dark(#ff6b5e,#a43934); }
+    #indice-unified-funnel .stage[aria-pressed="true"] { color: light-dark(#222831,#fff); }
+    #indice-unified-funnel .stage small { font-size: 12px; font-weight: 400; }
+    #indice-unified-funnel .stage strong { font-weight: 500; }
+    #indice-unified-funnel .detail { align-self: start; display: grid; gap: 16px; padding: 18px; border: 1px solid light-dark(#e2e8f0,#334155); border-radius: 14px; background: light-dark(#fff,#182234); }
+    #indice-unified-funnel .eyebrow { color: light-dark(#aa342b,#ffb6ad); font-size: 12px; margin-bottom: 6px; }
+    #indice-unified-funnel .measure { border-top: 1px solid light-dark(#e2e8f0,#334155); padding-top: 13px; display: grid; gap: 7px; }
+    #indice-unified-funnel .bottom { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 16px 18px; border-top: 1px solid light-dark(#e2e8f0,#334155); }
+    #indice-unified-funnel .prompt-button { font: inherit; font-weight: 500; border: 0; border-radius: 10px; min-height: 44px; padding: 11px 17px; background: light-dark(#ff6b5e,#a43934); color: light-dark(#222831,#fff); }
+    #indice-unified-funnel .prompt-area { padding: 0 18px 18px; }
+    #indice-unified-funnel .prompt-area[hidden] { display: none; }
+    #indice-unified-funnel textarea { resize: vertical; min-height: 200px; }
+    @media(max-width:580px) { #indice-unified-funnel { padding: 6px; } #indice-unified-funnel .choices { grid-template-columns: 1fr; } #indice-unified-funnel .workspace { grid-template-columns: 1fr; } #indice-unified-funnel select, #indice-unified-funnel textarea { font-size: 16px; } }
+  </style>
+  <div class="product">
+    <header class="top"><h2>Diseña tu campaña</h2><div class="secondary">Propuesta interactiva · Empresa de servicios</div></header>
+    <div class="choices">
+      <label>Objetivo<select id="iuf-goal" class="cursor-interaction"><option value="appointments">Conseguir citas</option><option value="sales">Conseguir compras</option><option value="renewals">Conseguir renovaciones</option></select></label>
+      <label>Canal<select id="iuf-channel" class="cursor-interaction"><option>Meta Ads</option><option>Google Ads · Búsqueda</option><option>Contenido en redes</option></select></label>
+      <label>Contacto<select id="iuf-destination" class="cursor-interaction"><option>WhatsApp</option><option>Formulario</option><option>Página web</option></select></label>
+    </div>
+    <div class="workspace">
+      <div class="diagram"><div class="secondary">Recorrido sugerido · Selecciona una etapa</div><ol id="iuf-stages" aria-label="Etapas de la campaña"></ol></div>
+      <section class="detail" aria-labelledby="iuf-detail-title">
+        <div><div class="eyebrow" id="iuf-stage-number"></div><h3 id="iuf-detail-title"></h3></div>
+        <label>Qué quieres que hagan<select id="iuf-action" class="cursor-interaction"></select></label>
+        <label>Qué preparar<select id="iuf-content" class="cursor-interaction"></select></label>
+        <div class="measure"><span class="secondary">Qué observarías</span><span id="iuf-measure"></span></div>
+      </section>
+    </div>
+    <footer class="bottom"><span class="secondary" id="iuf-status" aria-live="polite">Sin metas numéricas · Ejemplo de planeación</span><button id="iuf-prompt-toggle" type="button" class="prompt-button cursor-interaction" aria-expanded="false" aria-controls="iuf-prompt-area">Ver prompt de esta campaña</button></footer>
+    <div class="prompt-area" id="iuf-prompt-area" hidden><label>Prompt actualizado con tus elecciones<textarea id="iuf-prompt" readonly rows="10"></textarea></label></div>
+  </div>
+  <script>
+    (() => {
+      const root = document.getElementById('indice-unified-funnel');
+      const byId = id => root.querySelector('#' + id);
+      const goals = {
+        appointments: ['Te descubren','Piden información','Agendan una cita','Asisten a la cita'],
+        sales: ['Te descubren','Conocen la oferta','Resuelven dudas','Compran'],
+        renewals: ['Recuerdan tu servicio','Revisan su renovación','Resuelven dudas','Renuevan']
+      };
+      const actionChoices = ['Conocer el servicio','Pedir información','Agendar una cita','Asistir a la cita','Conocer la oferta','Resolver dudas','Comprar','Revisar la renovación','Renovar'];
+      const contentChoices = ['Video corto','Publicación con imagen','Anuncio de búsqueda','Mensaje de bienvenida','Página explicativa','Respuestas a dudas','Recordatorio de cita','Recordatorio de renovación','Cotización'];
+      const initialActions = { appointments: [0,1,2,3], sales: [0,4,5,6], renewals: [0,7,5,8] };
+      const initialContents = { appointments: [0,3,4,6], sales: [0,4,5,8], renewals: [7,4,5,7] };
+      const measures = ['Personas que conocen el servicio','Personas que piden información','Personas que agendan','Personas que asisten','Personas que consultan la oferta','Personas que resuelven sus dudas','Personas que compran','Personas que revisan la renovación','Personas que renuevan'];
+      let state = { goal: 'appointments', channel: 'Meta Ads', destination: 'WhatsApp', selected: 2, edits: {}, showPrompt: false };
+      function restore(saved) {
+        const s = saved?.privateContent;
+        if (!s || !goals[s.goal]) return;
+        state.goal = s.goal;
+        if (['Meta Ads','Google Ads · Búsqueda','Contenido en redes'].includes(s.channel)) state.channel = s.channel;
+        if (['WhatsApp','Formulario','Página web'].includes(s.destination)) state.destination = s.destination;
+        state.selected = Number.isInteger(s.selected) && s.selected >= 0 && s.selected < 4 ? s.selected : 2;
+        state.showPrompt = s.showPrompt === true;
+        state.edits = {};
+        for (const key of Object.keys(goals)) {
+          const e = s.edits?.[key];
+          if (Array.isArray(e) && e.length === 4 && e.every(x => actionChoices.includes(x.action) && contentChoices.includes(x.content))) state.edits[key] = e.map(x => ({ action: x.action, content: x.content }));
+        }
+      }
+      function stages() {
+        return goals[state.goal].map((name,index) => ({ name, ...(state.edits[state.goal]?.[index] || {action:actionChoices[initialActions[state.goal][index]], content:contentChoices[initialContents[state.goal][index]]}) }));
+      }
+      function remember() {
+        if (window.openai?.setWidgetState) window.openai.setWidgetState({ modelContent: { objective:byId('iuf-goal').selectedOptions[0].text, channel:state.channel, destination:state.destination, stages:stages() }, privateContent: state }).catch(() => {});
+      }
+      function fillOptions(el, values, selected) {
+        el.replaceChildren(...values.map(value => { const option = document.createElement('option'); option.value = value; option.textContent = value; option.selected = value === selected; return option; }));
+      }
+      function render() {
+        byId('iuf-goal').value = state.goal; byId('iuf-channel').value = state.channel; byId('iuf-destination').value = state.destination;
+        const path = stages();
+        const list = byId('iuf-stages'); list.replaceChildren();
+        path.forEach((stage,index) => {
+          const li = document.createElement('li');
+          if (index) { const arrow = document.createElement('span'); arrow.className = 'arrow'; arrow.textContent = '↓'; arrow.setAttribute('aria-hidden','true'); li.append(arrow); }
+          const button = document.createElement('button'); button.type = 'button'; button.className = 'stage cursor-interaction'; button.style.width = (100-index*5)+'%'; button.setAttribute('aria-pressed',String(state.selected===index)); button.setAttribute('aria-controls','iuf-detail-title');
+          const label = document.createElement('strong'); label.textContent = (index+1)+'. '+stage.name;
+          const content = document.createElement('small'); content.textContent = stage.content;
+          button.append(label,content); button.addEventListener('click',() => {state.selected=index;render();remember();byId('iuf-stages').querySelectorAll('button')[index].focus();}); li.append(button); list.append(li);
+        });
+        const chosen = path[state.selected];
+        byId('iuf-stage-number').textContent = 'Etapa '+(state.selected+1)+' de 4';
+        byId('iuf-detail-title').textContent = chosen.name;
+        fillOptions(byId('iuf-action'),actionChoices,chosen.action);
+        fillOptions(byId('iuf-content'),contentChoices,chosen.content);
+        byId('iuf-measure').textContent = measures[actionChoices.indexOf(chosen.action)];
+        byId('iuf-prompt-area').hidden = !state.showPrompt;
+        byId('iuf-prompt-toggle').setAttribute('aria-expanded',String(state.showPrompt));
+        byId('iuf-prompt-toggle').textContent = state.showPrompt ? 'Ocultar prompt' : 'Ver prompt de esta campaña';
+        byId('iuf-prompt').value = [
+          'Ayúdame a preparar una campaña para una empresa de servicios.',
+          'Objetivo: '+byId('iuf-goal').selectedOptions[0].text+'.',
+          'Canal: '+state.channel+'. Contacto: '+state.destination+'.',
+          'Oferta, público y fechas: pendientes de definir; pregúntalos antes de proponer contenidos.',
+          'Recorrido elegido:',
+          ...path.map((s,i)=>(i+1)+'. '+s.name+' — Preparar: '+s.content+'. Acción deseada: '+s.action+'.'),
+          'Propón piezas conectadas entre sí, con mensaje, formato y llamada a la acción para cada etapa.',
+          'Distingue supuestos de datos confirmados. No inventes precios, testimonios ni resultados.'
+        ].join('\n\n');
+      }
+      byId('iuf-goal').addEventListener('change',event=>{ state.goal=event.target.value;state.selected=0;render();byId('iuf-status').textContent='Ejemplo actualizado · Cada recorrido conserva sus ajustes';remember(); });
+      for (const [id,key] of [['iuf-channel','channel'],['iuf-destination','destination']]) byId(id).addEventListener('change',event=>{state[key]=event.target.value;render();remember();});
+      for (const [id,key] of [['iuf-action','action'],['iuf-content','content']]) byId(id).addEventListener('change',event=>{const edits=stages().map(s=>({action:s.action,content:s.content}));edits[state.selected][key]=event.target.value;state.edits[state.goal]=edits;render();byId('iuf-status').textContent='Etapa y prompt actualizados';remember();});
+      byId('iuf-prompt-toggle').addEventListener('click',()=>{state.showPrompt=!state.showPrompt;render();remember();});
+      restore(window.openai?.widgetState);render();
+      window.addEventListener('openai:set_globals',event=>{const saved=event.detail?.globals?.widgetState;if(saved){restore(saved);render();}});
+    })();
+  </script>
+</div>
