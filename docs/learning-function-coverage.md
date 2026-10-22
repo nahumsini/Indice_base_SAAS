@@ -24,6 +24,7 @@ Generated from the reviewed bilingual curriculum. Domain owners remain authorita
 | crm.mailing | 5 | sales/mailing | 2 | Understanding only until an owner completion is integrated |
 | crm.whatsapping | 5 | sales/whatsapping | 2 | Understanding only until an owner completion is integrated |
 | control_minutas.meetings | 3 | minutes-control/meetings | 3 | Understanding only until an owner completion is integrated |
+| control_minutas.session | 3 | minutes-control/session | 2 | Understanding only until an owner completion is integrated |
 | control_minutas.agreements | 3 | minutes-control/agreements | 2 | Understanding only until an owner completion is integrated |
 | control_minutas.indicators | 3 | minutes-control/indicators | 2 | Understanding only until an owner completion is integrated |
 | scheduling.calendar | 3 | scheduling/calendar | 3 | Understanding only until an owner completion is integrated |

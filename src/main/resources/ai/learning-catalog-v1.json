@@ -1,6 +1,6 @@
 {
   "version": "2026-10-22.v1",
-  "sourceDigest": "aa4135334d052dd1dea1c1dccea292e5a9400d192df303eb278d59c21b6aefa2",
+  "sourceDigest": "00782537454357f19a4a9980beb2ec7d3094df964445ef5b154cd157db3c1ec7",
   "modules": [
     {
       "module": "ideas_board",
@@ -883,6 +883,35 @@
               "id": "verify",
               "title": "Comprueba el resultado",
               "description": "Los horarios sugeridos no reservan disponibilidad. Cierra las votaciones antes de completar y comprueba sus resultados en la minuta. Las notificaciones internas no acreditan correo o invitaciones externas."
+            }
+          ]
+        },
+        {
+          "tab": "session",
+          "label": "Sala de juntas",
+          "title": "Sala de juntas",
+          "purpose": "Selecciona una junta autorizada y revisa su estado, participantes, agenda y responsable de la minuta.",
+          "effect": "Comprueba el guardado antes de cambiar de junta. Ante un conflicto conserva o copia tu borrador y revisa la versión actual; cambiar de sala o cerrar no guarda automáticamente.",
+          "chapterId": "control_minutas.session",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Selecciona una junta autorizada y revisa su estado, participantes, agenda y responsable de la minuta."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Con permiso de edición, escribe la minuta y las decisiones y usa Guardar. Registra asistencia durante la junta; consulta acuerdos y votaciones según tus permisos."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Comprueba el guardado antes de cambiar de junta. Ante un conflicto conserva o copia tu borrador y revisa la versión actual; cambiar de sala o cerrar no guarda automáticamente."
             }
           ]
         },
@@ -3682,6 +3711,35 @@
               "id": "verify",
               "title": "Verify the result",
               "description": "Suggested times do not reserve availability. Close ballots before completing and check their results in the minutes. Internal notifications do not prove email or external invitations."
+            }
+          ]
+        },
+        {
+          "tab": "session",
+          "label": "Meeting room",
+          "title": "Meeting room",
+          "purpose": "Select an authorized meeting and review its status, participants, agenda and minutes owner.",
+          "effect": "Check the saved result before changing meetings. On a conflict, retain or copy your draft and review the current version; changing rooms or closing does not save automatically.",
+          "chapterId": "control_minutas.session",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Select an authorized meeting and review its status, participants, agenda and minutes owner."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "With editing permission, write the minutes and decisions and select Save. Record attendance during the meeting; review agreements and ballots according to your permissions."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Check the saved result before changing meetings. On a conflict, retain or copy your draft and review the current version; changing rooms or closing does not save automatically."
             }
           ]
         },

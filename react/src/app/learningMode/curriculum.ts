@@ -138,6 +138,11 @@ export const learningChapters: readonly LearningChapter[] = [
     ['Consulta horarios sugeridos y planea la junta. Durante su ejecución registra asistencia real y, con permiso, abre votaciones ponderadas; cada participante emite su propio voto.', 'Review suggested times and plan the meeting. During execution record actual attendance and, with permission, open weighted ballots; each participant casts their own vote.'],
     ['Los horarios sugeridos no reservan disponibilidad. Cierra las votaciones antes de completar y comprueba sus resultados en la minuta. Las notificaciones internas no acreditan correo o invitaciones externas.', 'Suggested times do not reserve availability. Close ballots before completing and check their results in the minutes. Internal notifications do not prove email or external invitations.'],
   ]),
+  chapter('control_minutas', 'session', ['Sala de juntas', 'Meeting room'], [
+    ['Selecciona una junta autorizada y revisa su estado, participantes, agenda y responsable de la minuta.', 'Select an authorized meeting and review its status, participants, agenda and minutes owner.'],
+    ['Con permiso de edición, escribe la minuta y las decisiones y usa Guardar. Registra asistencia durante la junta; consulta acuerdos y votaciones según tus permisos.', 'With editing permission, write the minutes and decisions and select Save. Record attendance during the meeting; review agreements and ballots according to your permissions.'],
+    ['Comprueba el guardado antes de cambiar de junta. Ante un conflicto conserva o copia tu borrador y revisa la versión actual; cambiar de sala o cerrar no guarda automáticamente.', 'Check the saved result before changing meetings. On a conflict, retain or copy your draft and review the current version; changing rooms or closing does not save automatically.'],
+  ]),
   chapter('control_minutas', 'agreements', ['Acuerdos y seguimiento', 'Agreements and follow-up'], [
     ['Identifica la junta, el acuerdo, su responsable y fecha; consulta solo los registros autorizados.', 'Identify the meeting, agreement, owner and date; review only authorized records.'],
     ['Registra y actualiza acuerdos y su seguimiento desde el propietario de juntas.', 'Record and update agreements and their follow-up through the meeting owner.'],
