@@ -15,7 +15,7 @@ const server = await createServer({
     import.meta.dirname,
     "../node_modules/.vite-meeting-browser",
   ),
-  server: { host: "127.0.0.1", port: 5197, strictPort: true, hmr: false, watch: null },
+  server: { host: "127.0.0.1", port: 5197, strictPort: true, hmr: false, watch: null, proxy: {} },
   define: { "import.meta.env.VITE_API_BASE_URL": '""' },
 });
 let browser;
@@ -157,6 +157,11 @@ try {
       const tail = path.slice("/api/v1/meetings".length);
       if (req.method() !== "GET")
         assert.equal(req.headers()["x-csrf-token"], "synthetic-csrf");
+      if (/^\/\d+\/ballots$/.test(tail)) return ok({items:[],total:0,page:1,pageSize:10});
+      if (/^\/\d+\/attendance$/.test(tail) && req.method() === "GET") {
+        const meeting = meetings.find(m => m.id === Number(tail.split("/")[1]));
+        return ok({people:people.map(p=>({userId:p.id,name:p.name,status:"UNMARKED"})),version:meeting.version});
+      }
       if (tail === "/members")
         return ok({ items: people, total: people.length });
       if (tail === "/flows" && req.method() === "GET") return ok(flowRows);
@@ -480,7 +485,10 @@ try {
   await page
     .getByLabel("¿Qué resultado esperamos? *", { exact: true })
     .fill("Definir responsables");
+  await page.getByRole("button", { name: "Continuar", exact: true }).click();
   await page.getByLabel("Participante sintético", { exact: true }).check();
+  await page.getByRole("button", { name: "Continuar", exact: true }).click();
+  await page.getByRole("button", { name: "Revisar junta", exact: true }).click();
   await page
     .getByRole("button", { name: "Programar junta", exact: true })
     .click();
@@ -525,7 +533,8 @@ try {
   await page
     .getByRole("button", { name: "Guardar minuta", exact: true })
     .click();
-  await page.getByRole("dialog").waitFor({ state: "hidden" });
+  await page.locator('[data-indice-modal="operational-workspace"]').waitFor();
+  await close();
   const review = async () =>
     page
       .getByRole("row")
@@ -540,7 +549,8 @@ try {
     .getByRole("dialog")
     .getByRole("button", { name: "Iniciar junta", exact: true })
     .click();
-  await page.getByRole("dialog").waitFor({ state: "hidden" });
+  await page.locator('[data-indice-modal="operational-workspace"]').waitFor();
+  await close();
   await review();
   await page
     .getByRole("button", { name: "Concluir junta", exact: true })
@@ -549,19 +559,20 @@ try {
     .getByRole("dialog")
     .getByRole("button", { name: "Concluir junta", exact: true })
     .click();
-  await page.getByRole("dialog").waitFor({ state: "hidden" });
+  await page.locator('[data-indice-modal="operational-workspace"]').waitFor();
+  await close();
   assert.equal(meetings[0].status, "COMPLETED");
   const originalMinutes=texts.get(1).minutes;
   await review();await page.getByRole('button',{name:'Agregar adenda',exact:true}).click();
-  await page.getByRole('textbox',{name:'Agregar adenda',exact:true}).fill('Aclaración de cierre sintética');await page.getByRole('button',{name:'Guardar',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+  await page.getByRole('textbox',{name:'Agregar adenda',exact:true}).fill('Aclaración de cierre sintética');await page.getByRole('button',{name:'Guardar',exact:true}).click();await page.locator('[data-indice-modal="operational-workspace"]').waitFor();await close();
   assert.equal(texts.get(1).minutes,originalMinutes);assert.equal(texts.get(1).history[0].action,'MINUTES_ADDENDUM');
-  await review();await page.getByText('Aclaración de cierre sintética',{exact:true}).waitFor();
+  await review();await page.getByRole('dialog').locator('summary').click();await page.getByText('Aclaración de cierre sintética',{exact:true}).waitFor();
   const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Agregar al calendario',exact:true}).click()]);assert.match(download.suggestedFilename(),/\.ics$/);
   await page.getByRole('dialog').getByRole('button',{name:'Cerrar',exact:true}).last().click();
   await page.getByRole("button", { name: "Acuerdos", exact: true }).click();
   await page.getByText("Preparar seguimiento", { exact: true }).waitFor();
   await page.getByRole('button',{name:'Preparar seguimiento',exact:true}).click();await page.getByRole('button',{name:'Editar acuerdo',exact:true}).click();
-  await page.getByLabel('Título',{exact:true}).fill('Preparar seguimiento actualizado');await page.getByRole('dialog').getByLabel('Responsable',{exact:true}).selectOption('42');await page.getByLabel('Motivo / evidencia del resultado',{exact:true}).fill('Cambio de responsable acordado');
+  await page.getByLabel('¿Qué se hará?',{exact:true}).fill('Preparar seguimiento actualizado');await page.getByRole('dialog').getByLabel('Responsable',{exact:true}).selectOption('42');await page.getByLabel('Motivo / evidencia del resultado',{exact:true}).fill('Cambio de responsable acordado');
   await page.getByRole('button',{name:'Guardar',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});assert.equal(agreements[0].assigneeId,42);
   await page.getByRole('button',{name:'Preparar seguimiento actualizado',exact:true}).click();await page.getByRole('button',{name:'Agregar seguimiento',exact:true}).click();
   await page.getByRole('textbox',{name:'Agregar seguimiento',exact:true}).fill('Primer avance documentado');await page.getByRole('button',{name:'Guardar',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
@@ -573,7 +584,7 @@ try {
     .click();
   await page.getByLabel("Junta", { exact: true }).selectOption("1");
   await page
-    .getByLabel("Título", { exact: true })
+    .getByLabel("¿Qué se hará?", { exact: true })
     .fill("Acuerdo sintético nuevo");
   await page.getByRole("dialog").getByLabel("Responsable", { exact: true }).selectOption("43");
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
@@ -629,9 +640,9 @@ try {
   await page
     .getByLabel("¿Qué resultado esperamos? *", { exact: true })
     .fill("Definir responsables y siguiente decisión");
-  await page
-    .getByLabel("Responsable de minuta *", { exact: true })
-    .selectOption("43");
+  await page.getByRole("button", { name: "Continuar", exact: true }).click();
+  await page.getByLabel("Otra persona escribirá la minuta", { exact: true }).check();
+  await page.getByLabel("Responsable de minuta *", { exact: true }).selectOption("43");
   await page.getByRole("button", { name: "Continuar", exact: true }).click();
   await page.getByLabel("Repetir esta junta", { exact: true }).check();
   await page.getByLabel("Número de juntas", { exact: true }).fill("3");
@@ -639,23 +650,18 @@ try {
     .getByLabel("Recordatorios internos", { exact: true })
     .selectOption("15");
   await page.getByRole("button", { name: "Atrás", exact: true }).click();
-  assert.equal(
-    await page.getByLabel("Título *", { exact: true }).inputValue(),
-    "Serie sintética semanal",
-  );
-  assert.equal(
-    await page
-      .getByLabel("Responsable de minuta *", { exact: true })
-      .inputValue(),
-    "43",
-  );
+  assert.equal(await page.getByLabel("Responsable de minuta *", { exact: true }).inputValue(), "43");
+  await page.getByRole("button", { name: "Atrás", exact: true }).click();
+  assert.equal(await page.getByLabel("Título *", { exact: true }).inputValue(), "Serie sintética semanal");
+  await page.getByRole("button", { name: "Continuar", exact: true }).click();
+  assert.equal(await page.getByLabel("Responsable de minuta *", { exact: true }).inputValue(), "43");
   await page.getByRole("button", { name: "Continuar", exact: true }).click();
   assert.equal(
     await page.getByLabel("Número de juntas", { exact: true }).inputValue(),
     "3",
   );
   await page
-    .getByRole("button", { name: "Revisar fechas", exact: true })
+    .getByRole("button", { name: "Revisar junta", exact: true })
     .click();
   await page.getByText("Fechas que se crearán", { exact: true }).waitFor();
   assert.equal(
@@ -705,7 +711,8 @@ try {
     3,
   );
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
-  await page.getByRole("dialog").waitFor({ state: "hidden" });
+  await page.locator('[data-indice-modal="operational-workspace"]').waitFor();
+  await close();
   assert.equal(seriesRows[0].version, 2);
   // Reusing a flow copies planning only; no evidence or access grants.
   await page.getByRole("button", { name: "Nueva junta", exact: true }).click();
@@ -824,8 +831,10 @@ try {
   for(let i=0;i<30;i++)meetings.push({...meetings[0],id:1000+i,title:'Junta de estrategia '+i});
   await page.getByRole('button',{name:'Actualizar',exact:true}).click();
   await page.getByRole('button',{name:/Ver juntas del día/}).click();
-  assert.equal(await page.getByRole('region',{name:'Día seleccionado',exact:true}).getByRole('button').count(),31);
+  await page.getByRole('dialog').getByRole('list').waitFor();
+  assert.equal(await page.getByRole('dialog').getByRole('listitem').count(),31);
   await page.screenshot({path:resolve(artifactDir,'indice-meeting-busy-day.png'),animations:'disabled',timeout:10000});
+  await close();
   meetings.splice(originalCount);await page.getByRole('button',{name:'Actualizar',exact:true}).click();
   await page.getByText("Junta de estrategia", { exact: true }).first().waitFor();
   await settle();

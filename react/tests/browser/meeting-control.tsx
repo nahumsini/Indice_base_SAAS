@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router";
+import { createBrowserRouter, RouterProvider } from "react-router";
 import {
   LanguageProvider,
   FavoritesProvider,
@@ -58,28 +58,10 @@ function Fixture() {
         Prueba UI sintética · sin acceso a producción
       </div>
       <main className="min-h-0 flex-1">
-        <Routes>
-          <Route
-            path="/:pageId/*"
-            element={
-              <MinutesControl learningModeActive onNavigate={() => {}} />
-            }
-          />
-        </Routes>
+        <MinutesControl learningModeActive onNavigate={() => {}} />
       </main>
     </div>
   );
 }
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <LanguageProvider>
-      <BrowserRouter>
-        <FavoritesProvider>
-          <WorkbarLayoutProvider>
-            <Fixture />
-          </WorkbarLayoutProvider>
-        </FavoritesProvider>
-      </BrowserRouter>
-    </LanguageProvider>
-  </StrictMode>,
-);
+const router = createBrowserRouter([{ path: "/:pageId/*", element: <LanguageProvider><FavoritesProvider><WorkbarLayoutProvider><Fixture /></WorkbarLayoutProvider></FavoritesProvider></LanguageProvider> }]);
+createRoot(document.getElementById("root")!).render(<StrictMode><RouterProvider router={router} /></StrictMode>);
