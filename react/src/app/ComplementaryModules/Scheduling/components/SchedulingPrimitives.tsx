@@ -1,7 +1,8 @@
-import { cloneElement, isValidElement, useId, useRef, useState, type ReactNode, type ReactElement, type ComponentProps } from 'react';
+import { cloneElement, isValidElement, useEffect, useId, useRef, useState, type ReactNode, type ReactElement, type ComponentProps } from 'react';
 import { Button } from '../../../components/ui/button';
 import { cn } from '../../../components/ui/utils';
 import { IndiceModalFrame, type IndiceModalType } from '../../../components/indice-modal/IndiceModalFrame';
+import { IndiceModalValidation } from '../../../components/indice-modal/IndiceModalValidation';
 import { getIndiceFilterControlClassName } from '../../../components/frontend-os/IndiceFilterBar';
 import { MODULE_COLORS, type IndiceModuleTone } from '../../../styles/moduleColors';
 import type { ReservationStatus } from '../services/schedulingApi';
@@ -41,31 +42,46 @@ export function StatusBadge({ status, copy }: { status: ReservationStatus; copy:
   return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${statusClass[status]}`}>{copy[status]}</span>;
 }
 /** One modal frame changes to a discard confirmation; it never opens a nested modal. */
-export function EditorFrame({ title, description, copy, children, onSave, onClose, onSaved, modalType = 'standard-form', saveLabel, destructive = false, icon = schedulingEmoji.calendar, hasChanges = false }: {
-  title: string; description: string; copy: SchedulingCopy; children: ReactNode;
+export function EditorFrame({ title, description, copy, children, onSave, onClose, onSaved, modalType = 'standard-form', saveLabel, destructive = false, icon = schedulingEmoji.calendar, hasChanges = false, footerLayout = 'actions', footerSummary, discardDescription, discardLabel, navigation, validate, trackChanges = true }: {
+  title: string; description: string; copy: SchedulingCopy; children: ReactNode | ((actions: { requestExit: (action: () => void) => void }) => ReactNode);
   onSave: () => Promise<unknown>; onClose: () => void; onSaved: () => void;
   modalType?: IndiceModalType;
   saveLabel?: string; destructive?: boolean;
   icon?: ReactNode;
   hasChanges?: boolean;
+  footerLayout?: 'actions' | 'split';
+  footerSummary?: ReactNode;
+  discardDescription?: string;
+  discardLabel?: string;
+  navigation?: { stepLabel: string; backLabel: string; continueLabel: string; progress: ReactNode; onBack?: () => void; onContinue?: () => void; disabled?: boolean };
+  validate?: () => string | undefined;
+  trackChanges?: boolean;
 }) {
   const formId = useId(), actorRevision=useRef(getAuthorizationRevision());
+  const body = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (navigation) body.current?.scrollTo({ top: 0 }); }, [navigation?.stepLabel]);
   const { currentLanguage } = useLanguage(), op = getSchedulingOperationsCopy(currentLanguage.code);
   const setup = getSchedulingSetupCopy(currentLanguage.code);
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const pending = useRef(false);
+  const exitAction = useRef<(() => void) | null>(null);
   const [dirty, setDirty] = useState(false), [discard, setDiscard] = useState(false);
-  const close = () => dirty || hasChanges ? setDiscard(true) : onClose();
-  return <IndiceModalFrame open onOpenChange={open => { if (!open) close(); }} busy={busy} tone={schedulingTone} closeLabel={copy.close}
-    modalType={discard ? 'confirmation' : modalType} title={discard ? copy.discard : title}
+  const keepEditing = () => { exitAction.current = null; setDiscard(false); };
+  const close = (action = onClose) => { if (!pending.current) { if (dirty || hasChanges) { exitAction.current = action; setDiscard(true); } else action(); } };
+  const cancel = <ActionButton disabled={busy} className={footerLayout === 'split' ? '!border-[#222831]/25 !bg-transparent !text-[#222831] hover:!bg-white/20 dark:!border-white/40 dark:!text-white' : undefined} onClick={() => close()}>{copy.cancel}</ActionButton>;
+  return <IndiceModalFrame open onOpenChange={open => { if (!open) { if (discard) keepEditing(); else close(); } }} busy={busy} tone={schedulingTone} closeLabel={copy.close}
+    bodyRef={body}
+    modalType={discard ? 'confirmation' : modalType} title={discard ? copy.discard : title} eyebrow={!discard ? navigation?.stepLabel : undefined}
     contentClassName="group/agenda-editor data-[dialog-compact-viewport=true]:!overflow-hidden"
     bodyClassName="group-data-[dialog-compact-viewport=true]/agenda-editor:!flex-[1_1_0%] group-data-[dialog-compact-viewport=true]/agenda-editor:!overflow-y-auto"
-    description={<span className="group-data-[dialog-compact-viewport=true]/agenda-editor:sr-only">{description}</span>} icon={<span className="text-xl leading-none">{icon}</span>} footer={discard ? <>
-      <ActionButton onClick={() => setDiscard(false)}>{copy.keepEditing}</ActionButton><ActionButton onClick={onClose}>{copy.close}</ActionButton>
-    </> : <><ActionButton disabled={busy} onClick={close}>{copy.cancel}</ActionButton><ActionButton primary disabled={busy} type="submit" form={formId} data-modal-destructive={destructive||undefined} style={destructive?{'--scheduling-accent':'#DC2626','--scheduling-accent-foreground':'#FFFFFF'} as React.CSSProperties:undefined}>{busy ? copy.loading : saveLabel??copy.save}</ActionButton></>}>
-    {!discard && <form id={formId} className="space-y-5" onChange={() => setDirty(true)} onSubmit={async event => {
-      event.preventDefault(); if (busy) return; if(actorRevision.current!==getAuthorizationRevision()){setError(op.conflict);return;} setBusy(true); setError('');
-      try { await onSave(); setDirty(false); onSaved(); } catch (error) { const code=error instanceof SchedulingValidationError?error.code:error instanceof ApiClientError?(error.payload as {code?:string}|undefined)?.code:undefined;
-        setError(code==='scheduling_hours_invalid'?setup.hoursInvalid:code==='scheduling_catalog_service_unavailable'?setup.unavailableService:code==='scheduling_employee_unavailable'?setup.unavailableEmployee:code==='scheduling_setup_required'?setup.setupRequired:error instanceof ApiClientError&&error.status===409?op.conflict:copy.error); } finally { setBusy(false); }
-    }}>{error && <Feedback error>{error}</Feedback>}<fieldset disabled={busy} className="min-w-0 space-y-5">{children}</fieldset></form>}
+    description={discard ? discardDescription ?? description : <span className="group-data-[dialog-compact-viewport=true]/agenda-editor:sr-only">{description}</span>} icon={<span className="text-xl leading-none">{icon}</span>}
+    footerLeading={!discard && footerLayout === 'split' ? cancel : undefined} footerSummary={!discard ? footerSummary : undefined} footer={discard ? <>
+      <ActionButton onClick={keepEditing}>{copy.keepEditing}</ActionButton><ActionButton data-modal-destructive={Boolean(discardLabel)||undefined} onClick={() => (exitAction.current ?? onClose)()}>{discardLabel ?? copy.close}</ActionButton>
+    </> : <>{footerLayout === 'actions' ? cancel : null}{navigation?.onBack && <ActionButton disabled={busy} onClick={() => { setError(''); navigation.onBack?.(); }}>{navigation.backLabel}</ActionButton>}<ActionButton primary disabled={busy || navigation?.disabled} type="submit" form={formId} data-modal-destructive={destructive||undefined} style={destructive?{'--scheduling-accent':'#DC2626','--scheduling-accent-foreground':'#FFFFFF'} as React.CSSProperties:undefined}>{busy ? copy.loading : navigation?.onContinue ? navigation.continueLabel : saveLabel??copy.save}</ActionButton></>}>
+    {!discard && <form id={formId} className="space-y-5" onChange={() => { if (trackChanges) setDirty(true); }} onSubmit={async event => {
+      event.preventDefault(); if (pending.current) return; if(actorRevision.current!==getAuthorizationRevision()){setError(op.conflict);return;} const validation = validate?.(); if (validation) { setError(validation); return; } pending.current=true; setBusy(true); setError('');
+      try { if (navigation?.onContinue) navigation.onContinue(); else { await onSave(); setDirty(false); onSaved(); } } catch (error) { const code=error instanceof SchedulingValidationError?error.code:error instanceof ApiClientError?(error.payload as {code?:string}|undefined)?.code:undefined;
+        setError(code==='scheduling_hours_invalid'?setup.hoursInvalid:code==='scheduling_catalog_service_unavailable'?setup.unavailableService:code==='scheduling_employee_unavailable'?setup.unavailableEmployee:code==='scheduling_setup_required'?setup.setupRequired:error instanceof ApiClientError&&error.status===409?op.conflict:copy.error); } finally { pending.current=false; setBusy(false); }
+    }}>{navigation?.progress}{error && (navigation ? <IndiceModalValidation messages={[error]} /> : <Feedback error>{error}</Feedback>)}<fieldset disabled={busy} className="min-w-0 space-y-5">{typeof children === 'function' ? children({ requestExit: close }) : children}</fieldset></form>}
   </IndiceModalFrame>;
 }

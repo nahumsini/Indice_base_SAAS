@@ -61,7 +61,7 @@ for (const locale of ['es-MX','en-CA']) {
       }))});
   }
 }
-const serialized = JSON.stringify({version:'2026-10-21.v1', sourceDigest:sourceDigest.digest('hex'), modules},null,2)+'\n';
+const serialized = JSON.stringify({version:'2026-10-22.v1', sourceDigest:sourceDigest.digest('hex'), modules},null,2)+'\n';
 const output = new URL('src/main/resources/ai/learning-catalog-v1.json',root);
 const matrix = '# Learning function coverage\n\nGenerated from the reviewed bilingual curriculum. Domain owners remain authoritative.\n\n| Chapter | Stage | Page/tab | Version | Evidence actions |\n| --- | --- | --- | --- | --- |\n'
   + learningChapters.map(c=>`| ${c.id} | ${c.stage+1} | ${c.pageId}/${c.tab} | ${c.version} | ${c.evidenceTools.join(', ') || 'Understanding only until an owner completion is integrated'} |`).join('\n')+'\n';

@@ -83,6 +83,19 @@ class MailingIntegrationTest {
         mvc.perform(get("/api/v1/mailing/contacts").session(session())).andExpect(status().isForbidden());
     }
 
+    @Test void sharedFormattedTemplatesCarryIntoCampaignsWithoutLosingLegacyText() {
+        String id=UUID.randomUUID().toString();String html="<p style='color:#2563eb'><b>Hello {{name}}</b></p>";
+        var saved=templateService.save(actor,id,new MailingTemplateContracts.TemplateInput("Styled","Subject","","Hello {{name}}",0,html));
+        assertThat(saved.bodyHtml()).contains("color:#2563eb");
+        var legacy=templateService.save(actor,id,new MailingTemplateContracts.TemplateInput("Renamed","Subject","","Hello {{name}}",saved.version()));
+        assertThat(legacy.bodyHtml()).isEqualTo(saved.bodyHtml());
+        var campaign=service.save(actor,UUID.randomUUID().toString(),new DraftInput("Campaign","Subject","Team","","","Hello {{name}}",List.of(),0,null,saved.bodyHtml()));
+        assertThat(campaign.bodyHtml()).isEqualTo(saved.bodyHtml());
+        assertThat(MailingDeliveryService.formatted(campaign,"<img src=x>","Footer")).contains("&lt;img src=x&gt;","Footer").doesNotContain("<img src=x>");
+        var plain=templateService.save(actor,id,new MailingTemplateContracts.TemplateInput("Renamed","Subject","","Changed text",legacy.version()));
+        assertThat(plain.bodyHtml()).isNull();
+        assertThat(templateService.get(actor,id).bodyText()).isEqualTo("Changed text");
+    }
     MailingTemplateContracts.TemplateInput template(String name,long version) {
         return new MailingTemplateContracts.TemplateInput(name,"Template subject","Template preview","Hello {{name}}",version);
     }

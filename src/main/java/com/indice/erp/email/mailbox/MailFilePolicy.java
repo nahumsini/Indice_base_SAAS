@@ -20,12 +20,15 @@ final class MailFilePolicy {
                 case "application/pdf"->{
                     if(bytes.length<5||!new String(bytes,0,5,StandardCharsets.US_ASCII).equals("%PDF-"))throw denied();
                     try(var doc=Loader.loadPDF(bytes)){
-                        if(doc.isEncrypted()||doc.getNumberOfPages()>200)throw denied();
+                        if(doc.isEncrypted())throw denied("email_pdf_password");
+                        if(doc.getNumberOfPages()>200)throw denied("email_pdf_complex");
+                        COSBase opening=doc.getDocumentCatalog().getCOSObject().getDictionaryObject(COSName.OPEN_ACTION);
+                        if(opening!=null && !(opening instanceof COSArray) && !(opening instanceof COSString) && !(opening instanceof COSName))throw denied("email_pdf_active");
                         var queue=new ArrayDeque<COSBase>();var seen=Collections.newSetFromMap(new IdentityHashMap<COSBase,Boolean>());queue.add(doc.getDocumentCatalog().getCOSObject());int count=0;
-                        var blocked=Set.of("JS","JavaScript","AA","OpenAction","EmbeddedFiles","EF","XFA","RichMediaContent","RichMediaSettings","AcroForm","Launch","SubmitForm","ImportData","GoToE","Rendition");
-                        while(!queue.isEmpty()){var item=queue.removeFirst();if(!seen.add(item))continue;if(++count>20000)throw denied();
+                        var blocked=Set.of("JS","JavaScript","AA","EmbeddedFiles","EF","XFA","RichMediaContent","RichMediaSettings","AcroForm","Launch","SubmitForm","ImportData","GoToE","Rendition");
+                        while(!queue.isEmpty()){var item=queue.removeFirst();if(!seen.add(item))continue;if(++count>20000)throw denied("email_pdf_complex");
                             if(item instanceof COSObject ref){if(ref.getObject()!=null)queue.add(ref.getObject());}
-                            else if(item instanceof COSDictionary dictionary){for(var key:dictionary.keySet()){if(blocked.contains(key.getName()))throw denied();var value=dictionary.getItem(key);if(value!=null){if(value instanceof COSName n&&blocked.contains(n.getName()))throw denied();queue.add(value);}}}
+                            else if(item instanceof COSDictionary dictionary){for(var key:dictionary.keySet()){if(blocked.contains(key.getName()))throw denied(key.getName().equals("AcroForm")?"email_pdf_form":"email_pdf_active");var value=dictionary.getItem(key);if(value!=null){if(value instanceof COSName n&&blocked.contains(n.getName()))throw denied("email_pdf_active");queue.add(value);}}}
                             else if(item instanceof COSArray array)for(var value:array)if(value!=null)queue.add(value);
                         }
                     }
@@ -38,7 +41,8 @@ final class MailFilePolicy {
                 case "text/plain"->{String text=StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).decode(java.nio.ByteBuffer.wrap(bytes)).toString();if(text.indexOf('\0')>=0)throw denied();}
                 default->{if(!MailOfficePolicy.TYPES.containsValue(type))throw denied();MailOfficePolicy.validate(name,bytes);}
             }
-        }catch(Exception e){throw denied();}
+        }catch(ResponseStatusException e){throw e;}catch(org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException e){throw denied("email_pdf_password");}catch(Exception e){throw denied(MailOfficePolicy.TYPES.containsValue(type)?"email_attachment_blocked":"email_attachment_damaged");}
     }
-    private static ResponseStatusException denied(){return new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,"email_attachment_blocked");}
+    private static ResponseStatusException denied(){return denied("email_attachment_blocked");}
+    private static ResponseStatusException denied(String code){return new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,code);}
 }

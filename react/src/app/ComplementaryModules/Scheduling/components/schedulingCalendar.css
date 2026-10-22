@@ -1,0 +1,24 @@
+.scheduling-calendar-workspace {container-type:inline-size}
+.scheduling-calendar-columns {display:grid;gap:1rem;align-items:start}
+.scheduling-calendar-days {min-width:0;order:2}
+.scheduling-calendar-detail {min-width:0;order:1}
+@container(min-width:1080px){
+ .scheduling-calendar-columns:not(.scheduling-calendar-single){grid-template-columns:minmax(0,1fr) 320px}
+ .scheduling-calendar-columns:not(.scheduling-calendar-single) .scheduling-calendar-days{order:1}
+ .scheduling-calendar-columns:not(.scheduling-calendar-single) .scheduling-calendar-detail{order:2}
+}
+@media(prefers-reduced-motion:reduce){.scheduling-calendar-workspace *{scroll-behavior:auto!important}}
+
+/* A full-width empty agenda stays compact; narrow sidebars and phones keep stacked actions. */
+@container(min-width:640px) and (max-width:1079px){
+ .scheduling-calendar-empty{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:1rem}
+ .scheduling-calendar-empty>header{grid-column:1;border-bottom:0;padding-bottom:0}
+ .scheduling-calendar-empty>.scheduling-calendar-empty-body{grid-column:1;padding-top:.5rem}
+ .scheduling-calendar-empty>.scheduling-calendar-create{grid-column:2;grid-row:1/span 2;align-self:center;border-top:0;padding-left:0}
+}
+@container(min-width:1080px){
+ .scheduling-calendar-single .scheduling-calendar-empty{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:1rem}
+ .scheduling-calendar-single .scheduling-calendar-empty>header{grid-column:1;border-bottom:0;padding-bottom:0}
+ .scheduling-calendar-single .scheduling-calendar-empty>.scheduling-calendar-empty-body{grid-column:1;padding-top:.5rem}
+ .scheduling-calendar-single .scheduling-calendar-empty>.scheduling-calendar-create{grid-column:2;grid-row:1/span 2;align-self:center;border-top:0;padding-left:0}
+}

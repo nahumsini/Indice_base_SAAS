@@ -1,141 +1,123 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, Clock3 } from 'lucide-react';
-import { IndiceModalWizardStepper } from '../../../components/indice-modal/IndiceModalWizardStepper';
+import { CalendarDays, CheckCircle2, ClipboardCheck, UserRound, Users } from 'lucide-react';
+import { IndiceModalSummary, IndiceModalValidation, IndiceModalWizardStepper } from '../../../components/indice-modal';
 import { getSchedulingOperationsCopy } from '../translations/schedulingOperationsCopy';
+import { getBookingFlowCopy } from '../translations/bookingFlowCopy';
+import { getServiceTermsCopy, serviceChargeLabel } from '../translations/serviceTermsCopy';
 import { getIndiceFilterControlClassName } from '../../../components/frontend-os/IndiceFilterBar';
 import { MODULE_COLORS, type IndiceModuleTone } from '../../../styles/moduleColors';
 import type { BookingCatalog, BookingRequest, SlotRequest, Slots, Submission } from '../services/schedulingApi';
 import type { SchedulingCopy } from '../translations/schedulingCopy';
-import { ActionButton, controlClass as privateControlClass, Feedback, Field, panelClass } from './SchedulingPrimitives';
+import { useBookingFlow } from '../hooks/useBookingFlow';
+import { bookingSteps, slotDateBounds, validBookingContact, type BookingProgress } from '../utils/bookingFlow';
+import { ActionButton, controlClass as privateControlClass, Feedback, Field } from './SchedulingPrimitives';
 import { BookingClientPicker } from './BookingClientPicker';
+import { PublicServiceChoices } from './PublicServiceChoices';
 import { schedulingTone } from '../utils/schedulingIdentity';
 
-/** Shared owner workflow for public requests and authorized internal capture. No contact data is cached. */
-export function BookingForm({ catalog, copy, locale, loadSlots, onSubmit, presetStaff, presetEvent, onBusyChange, onReceived, footerTarget, onDirtyChange, tone = 'blue' }: {
-  catalog: BookingCatalog; copy: SchedulingCopy; locale: string; presetStaff?: number; presetEvent?: number;
-  loadSlots: (request: SlotRequest, signal: AbortSignal) => Promise<Slots>;
-  onSubmit: (request: BookingRequest, idempotencyKey: string) => Promise<Submission>;
-  onBusyChange?: (busy: boolean) => void;
-  onReceived?: () => void;
-  tone?: IndiceModuleTone;
-  footerTarget?: HTMLElement|null;
-  onDirtyChange?: (dirty:boolean)=>void;
+/** Public requests and private capture share one booking use case and separate presentation. */
+export function BookingForm({ catalog, copy, locale, loadSlots, loadCatalog, onSubmit, presetStaff, presetEvent, presetDate, onBusyChange, onReceived,
+  footerTarget, onDirtyChange, onProgressChange, tone = 'blue', selectionLayout = 'compact', context = 'public' }: {
+  catalog: BookingCatalog; copy: SchedulingCopy; locale: string; presetStaff?: number; presetEvent?: number; presetDate?: string;
+  loadSlots: (request: SlotRequest, signal: AbortSignal) => Promise<Slots>; loadCatalog?: (signal: AbortSignal) => Promise<BookingCatalog>;
+  onSubmit: (request: BookingRequest, key: string) => Promise<Submission>;
+  onBusyChange?: (busy: boolean) => void; onReceived?: (result: Submission) => void;
+  onProgressChange?: (progress: BookingProgress) => void; onDirtyChange?: (dirty: boolean) => void;
+  tone?: IndiceModuleTone; selectionLayout?: 'cards' | 'compact'; context?: 'public' | 'internal'; footerTarget?: HTMLElement|null;
 }) {
-  const formId=useId(), op=getSchedulingOperationsCopy(locale);
+  const formId = useId(), heading = useRef<HTMLHeadingElement>(null);
+  const op = getSchedulingOperationsCopy(locale), text = getBookingFlowCopy(locale), terms = getServiceTermsCopy(locale), internal = context === 'internal';
   const controlClass = tone === schedulingTone ? privateControlClass : getIndiceFilterControlClassName(tone);
-  const initialEvent = catalog.events.find(e => e.id === presetEvent);
-  const [selection, setSelection] = useState(initialEvent ? `event:${initialEvent.id}` : '');
-  const [staffId, setStaffId] = useState(initialEvent?.staffId ?? (catalog.staff.some(s => s.id === presetStaff) ? presetStaff! : 0));
-  const [date, setDate] = useState(''), [startAt, setStartAt] = useState('');
-  const [step, setStep] = useState<'choose' | 'time' | 'contact' | 'review'>('choose');
-  const [slots, setSlots] = useState<Slots>(), [slotLoading, setSlotLoading] = useState(false);
-  const [error, setError] = useState(false), [busy, setBusy] = useState(false), [received, setReceived] = useState(false);
-  const [contact, setContact] = useState({ attendeeName: '', attendeeEmail: '', attendeeCompany: '', attendeePhone: '', contactConsent: false });
-  const [clientId, setClientId] = useState<number>();
-  const [creatingClient,setCreatingClient]=useState(false);
-  const retry = useRef<{ fingerprint: string; key: string } | null>(null);
-  const selectedEvent = selection.startsWith('event:') ? catalog.events.find(e => e.id === Number(selection.slice(6))) : undefined;
-  const service = selection.startsWith('service:') ? catalog.services.find(s => s.id === Number(selection.slice(8))) : undefined;
-  const eligibleStaff = catalog.staff.filter(s => !service || !s.serviceIds?.length || s.serviceIds.includes(service.id));
-  const staff = eligibleStaff.find(s => s.id === staffId);
-  const timeLabel = (value: string, full = false) => new Intl.DateTimeFormat(locale, {
-    timeZone: staff?.timezone, ...(full ? { dateStyle: 'medium', timeStyle: 'short' } : { hour: '2-digit', minute: '2-digit' }),
+  const flow = useBookingFlow({catalog,presetStaff,presetEvent,presetDate,loadSlots,loadCatalog,onSubmit,onBusyChange,onDirtyChange,onReceived});
+  const { service,event,staff,step,busy,receipt } = flow;
+  const stepIndex = bookingSteps.indexOf(step), labels = [internal ? text.selection : copy.service,internal ? text.schedule : copy.time,internal ? text.contact : copy.attendee,op.review];
+  const hints = [text.chooseHint,text.timeHint,text.contactHint,text.reviewHint];
+  const summary = [service?.name ?? event?.title,staff?.publicName].filter(Boolean).join(' · ');
+  useEffect(() => { heading.current?.focus(); },[step,receipt]);
+  useEffect(() => { onProgressChange?.({step,summary}); },[step,summary,onProgressChange]);
+  const timeLabel = (value: string, full = false) => !value || !Number.isFinite(Date.parse(value)) ? '—' : new Intl.DateTimeFormat(locale, {
+    timeZone:staff?.timezone,...(full ? {dateStyle:'medium',timeStyle:'short'} : {hour:'2-digit',minute:'2-digit'}),
   }).format(new Date(value));
-  useEffect(() => {
-    const controller = new AbortController(); setSlots(undefined); setStartAt(''); setError(false);
-    if (!service || !staff || !date) { setSlotLoading(false); return; }
-    setSlotLoading(true);
-    loadSlots({ serviceId: service.id, staffId: staff.id, date }, controller.signal)
-      .then(result => { if (!controller.signal.aborted) setSlots(result); })
-      .catch(() => { if (!controller.signal.aborted) setError(true); })
-      .finally(() => { if (!controller.signal.aborted) setSlotLoading(false); });
-    return () => controller.abort();
-  }, [service?.id, staffId, date, loadSlots]);
-  useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
-  useEffect(()=>{onDirtyChange?.(Boolean(selection||staffId||date||contact.attendeeName||contact.attendeeEmail||contact.attendeeCompany||contact.attendeePhone));},[selection,staffId,date,contact,onDirtyChange]);
-  if (received) return <section className={`${panelClass} space-y-3 text-center`} role="status">
-    <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" aria-hidden="true" /><h2 className="text-xl font-medium">{copy.received}</h2>
-    <p className="mx-auto max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300">{copy.receivedHint}</p>
+  const scheduledTime = event?.startAt ?? flow.startAt;
+  const sessionItems = [
+    {label:copy.service,value:service?.name ?? event?.title ?? '—'},{label:copy.consultant,value:staff?.publicName ?? '—'},
+    {label:copy.date,value:timeLabel(scheduledTime,true)},{label:copy.timezone,value:staff?.timezone ?? '—'},
+    {label:copy.duration,value:`${service?.durationMinutes ?? event?.durationMinutes ?? 0} ${copy.minutes}`},
+    ...(service ? [{label:terms.chargePolicy,value:serviceChargeLabel(service.chargePolicy,locale)}] : []),
+    ...(event?.location ? [{label:op.location,value:event.location}] : []),
+  ];
+  if (receipt) return <section className="space-y-5" role="status">
+    <div className="space-y-3 text-center"><CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" aria-hidden="true"/><h2 ref={heading} tabIndex={-1} className="text-xl font-medium outline-none">{internal ? text.recorded : copy.received}</h2>
+      <p className="mx-auto max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300">{internal ? receipt.status === 'CONFIRMED' || receipt.status === 'PAUSED' ? text.existingRequest : text.recordedHint : copy.receivedHint}</p></div>
+    {internal && <IndiceModalSummary variant="success" columns={2} className="[&_dd]:whitespace-normal [&_dd]:break-words" items={[
+      ...(receipt.reference ? [{label:text.reference,value:receipt.reference}] : []),{label:copy.status,value:receipt.status === 'CONFIRMED' ? copy.CONFIRMED : receipt.status === 'PAUSED' ? copy.PAUSED : copy.REQUESTED},...sessionItems,
+    ]}/>}
   </section>;
-  if (!catalog.staff.length || (!catalog.services.length && !catalog.events.length)) return <Feedback tone={tone}>{copy.setupHint}</Feedback>;
-  const steps = ['choose', 'time', 'contact', 'review'] as const;
-  const chooseReady = Boolean(staff && (service || (selectedEvent && selectedEvent.availablePlaces > 0)));
-  const timeReady = Boolean(selectedEvent || startAt);
-  const buttons=<>
-    {step!=='choose'&&<ActionButton disabled={busy} onClick={()=>setStep(steps[Math.max(0,steps.indexOf(step)-1)])}>{copy.back}</ActionButton>}
-    <ActionButton primary type="submit" form={formId} disabled={busy||creatingClient||(step==='choose'?!chooseReady:step==='time'?!timeReady||slotLoading:!contact.contactConsent)}>{busy?copy.loading:step==='review'?(catalog.appearance?.buttonLabel?.trim()||copy.send):copy.next}</ActionButton>
+  if (!flow.catalog.staff.length || (!flow.catalog.services.length && !flow.catalog.events.length)) return <Feedback tone={tone}>{copy.setupHint}</Feedback>;
+  const issue = flow.error && {selection:text.selectionRequired,time:text.timeRequired,contact:text.contactInvalid,client:text.finishClient,submit:copy.error,conflict:op.conflict,scope:text.scopeChanged,catalog:copy.error}[flow.error];
+  const buttons = <>
+    {step !== 'choose' && <ActionButton disabled={busy} onClick={() => flow.goTo(bookingSteps[stepIndex-1])}>{copy.back}</ActionButton>}
+    <ActionButton primary className={tone === 'blue' ? 'h-auto max-w-full whitespace-normal break-words py-3 text-center [overflow-wrap:anywhere]' : undefined} type="submit" form={formId}
+      disabled={busy || flow.error === 'scope' || (step === 'choose' ? !flow.chooseReady : step === 'time' ? !flow.timeReady : flow.creatingClient || !validBookingContact(flow.contact))}>
+      {busy ? copy.loading : step === 'review' ? internal ? text.submit : flow.catalog.appearance?.buttonLabel?.trim() || copy.send : copy.next}
+    </ActionButton>
   </>;
   return <div className="space-y-5">
-    <IndiceModalWizardStepper accent={tone==='coral'?'coral':'blue'} activeStepId={step} progressLabel={copy.newReservation}
-      steps={[{id:'choose',label:copy.service},{id:'time',label:copy.time},{id:'contact',label:copy.attendee},{id:'review',label:op.review}]}
-      onStepSelect={value=>{if(!busy&&steps.indexOf(value)<=steps.indexOf(step))setStep(value);}} />
-    <Feedback tone={tone}>{copy.reviewRequired}</Feedback>
-    {error && <Feedback error>{copy.error}</Feedback>}
-    <form id={formId} className="space-y-5" onSubmit={async event => {
-      event.preventDefault(); if (busy) return;
-      if (step === 'choose') { if (chooseReady) setStep('time'); return; }
-      if (step === 'time') { if (timeReady) setStep('contact'); return; }
-      if (!chooseReady || !timeReady || !contact.contactConsent) return;
-      if(step==='contact'){setStep('review');return;}
-      const body: BookingRequest = { serviceId: service?.id ?? null, eventId: selectedEvent?.id ?? null, staffId, ...(clientId ? { clientId } : {}),
-        startAt: selectedEvent?.startAt ?? startAt, ...contact };
-      const fingerprint = JSON.stringify(body);
-      if (retry.current?.fingerprint !== fingerprint) retry.current = { fingerprint, key: crypto.randomUUID() };
-      setBusy(true); setError(false);
-      try { await onSubmit(body, retry.current.key); setReceived(true); onReceived?.(); }
-      catch { setError(true); } finally { setBusy(false); }
-    }}>
-      {step === 'choose' && <div className="grid gap-5 md:grid-cols-2">
-        <Field label={`${copy.service} / ${copy.events}`}><select required className={controlClass} value={selection} onChange={event => {
-          const value = event.target.value; setSelection(value);
-          const chosen = catalog.events.find(e => `event:${e.id}` === value);
-          if (chosen) setStaffId(chosen.staffId);
-        }}><option value="">{copy.selectOption}</option>
-          {catalog.services.map(s => <option key={`service:${s.id}`} value={`service:${s.id}`}>{s.name} · {s.durationMinutes} {copy.minutes}</option>)}
-          {catalog.events.map(e => <option key={`event:${e.id}`} value={`event:${e.id}`} disabled={e.availablePlaces <= 0}>{e.title} · {e.availablePlaces} {copy.places}</option>)}
-        </select></Field>
-        <Field label={copy.consultant}><select required className={controlClass} value={staffId || ''} disabled={Boolean(selectedEvent)} onChange={e => setStaffId(Number(e.target.value))}>
-          <option value="">{copy.selectOption}</option>{eligibleStaff.map(s => <option key={s.id} value={s.id}>{s.publicName}</option>)}
-        </select></Field>
-        {(service?.description || selectedEvent?.description) && <p className="text-sm leading-6 text-slate-600 dark:text-slate-300 md:col-span-2">{service?.description ?? selectedEvent?.description}</p>}
-      </div>}
-      {step === 'time' && <section className="space-y-4">
-        <p className="flex items-center gap-2 text-sm font-medium"><Clock3 className="h-4 w-4" aria-hidden="true" />{staff?.publicName} · {staff?.timezone}</p>
-        <p className="text-sm text-slate-500 dark:text-slate-400">{copy.timezoneHint}</p>
-        {selectedEvent ? <div className={panelClass}><p className="font-medium">{selectedEvent.title}</p><p className="mt-2 text-sm">{timeLabel(selectedEvent.startAt, true)} · {selectedEvent.durationMinutes} {copy.minutes}</p>{selectedEvent.location && <p className="mt-2 text-sm">{op.location}: {selectedEvent.location}</p>}</div> : <>
-          <Field label={copy.date}><input type="date" required className={`${controlClass} max-w-sm`} value={date} onChange={e => setDate(e.target.value)} /></Field>
-          {slotLoading ? <Feedback tone={tone}>{copy.loading}</Feedback> : slots && !slots.starts.length ? <Feedback tone={tone}>{copy.noSlots}</Feedback> :
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" role="group" aria-label={copy.time}>{slots?.starts.map(start =>
-              <ActionButton key={start} aria-pressed={startAt === start} primary={startAt === start} onClick={() => setStartAt(start)}>{timeLabel(start)}</ActionButton>)}</div>}
-        </>}
-      </section>}
-      {step === 'contact' && <>
-        <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
-          <p className="font-medium">{service?.name ?? selectedEvent?.title}</p><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{staff?.publicName} · {timeLabel(selectedEvent?.startAt ?? startAt, true)} · {staff?.timezone}</p>
-        </section>
-        <div>{catalog.clientSelectionEnabled && <BookingClientPicker copy={copy} locale={locale} onBusyChange={setBusy} onCreatingChange={setCreatingClient} onSelect={client => {
-          setClientId(client.id); setContact({ attendeeName: client.contactPerson || client.companyName, attendeeEmail: client.email || '', attendeeCompany: client.companyName || '', attendeePhone: client.phone || '', contactConsent: false });
-        }} />}</div>
-        {!creatingClient&&<fieldset disabled={busy} className="grid gap-4 sm:grid-cols-2">
-          {(['attendeeName', 'attendeeEmail', 'attendeeCompany', 'attendeePhone'] as const).map(key => <Field key={key}
-            label={{ attendeeName: copy.attendee, attendeeEmail: copy.email, attendeeCompany: copy.company, attendeePhone: copy.phone }[key]}>
-            <input className={controlClass} type={key === 'attendeeEmail' ? 'email' : key === 'attendeePhone' ? 'tel' : 'text'}
-              autoComplete={{ attendeeName: 'name', attendeeEmail: 'email', attendeeCompany: 'organization', attendeePhone: 'tel' }[key]}
-              required={key === 'attendeeName' || key === 'attendeeEmail'} maxLength={key === 'attendeeEmail' ? 240 : key === 'attendeePhone' ? 40 : 180}
-              value={contact[key]} onChange={e => { setClientId(undefined); setContact(previous => ({ ...previous, [key]: e.target.value })); }} />
-          </Field>)}
-          <label className="flex min-h-11 items-start gap-3 text-sm leading-6 sm:col-span-2"><input type="checkbox" className="mt-1 h-4 w-4 shrink-0" style={{accentColor:`var(--scheduling-accent,${MODULE_COLORS[tone].primary})`}} required checked={contact.contactConsent} onChange={e => setContact(previous => ({ ...previous, contactConsent: e.target.checked }))} />{copy.consent}</label>
+    <IndiceModalWizardStepper density={internal ? 'compact' : 'default'} accent={tone === 'coral' ? 'coral' : 'blue'} activeStepId={step} progressLabel={copy.newReservation}
+      steps={bookingSteps.map((id,index) => ({id,label:labels[index]}))} onStepSelect={value => flow.goTo(value)}/>
+    {internal ? <div className="flex items-start gap-3"><span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#FF6B5E]/10 text-[#b63b32] dark:text-[#FF9C92]">{step === 'choose' ? <Users className="h-5 w-5"/> : step === 'time' ? <CalendarDays className="h-5 w-5"/> : step === 'contact' ? <UserRound className="h-5 w-5"/> : <ClipboardCheck className="h-5 w-5"/>}</span><div className="min-w-0"><h2 ref={heading} tabIndex={-1} className="text-base font-medium outline-none">{labels[stepIndex]}</h2><p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{hints[stepIndex]}</p></div></div>
+      : <Feedback tone={tone}>{copy.reviewRequired}</Feedback>}
+    {issue && <IndiceModalValidation messages={[issue]}/>}
+    <form id={formId} className="space-y-5" onSubmit={event => { event.preventDefault(); void flow.submit(); }}>
+      <fieldset disabled={busy} className="min-w-0 space-y-5">
+        {step === 'choose' && <div className="grid gap-5 sm:grid-cols-2">
+          {selectionLayout === 'cards' ? <div className="min-w-0 sm:col-span-2"><PublicServiceChoices catalog={flow.catalog} value={flow.selection} onChange={flow.chooseSelection} copy={copy} locale={locale}/></div> :
+            <Field label={`${copy.service} / ${copy.events}`}><select required className={controlClass} value={flow.selection} onChange={event => flow.chooseSelection(event.target.value)}><option value="">{copy.selectOption}</option>
+              {flow.catalog.services.map(service => <option key={`service:${service.id}`} value={`service:${service.id}`}>{service.name} · {service.durationMinutes} {copy.minutes}</option>)}
+              {flow.catalog.events.map(event => <option key={`event:${event.id}`} value={`event:${event.id}`} disabled={event.availablePlaces <= 0}>{event.title} · {event.availablePlaces} {copy.places}</option>)}
+            </select></Field>}
+          <Field label={copy.consultant}><select required className={controlClass} value={flow.staffId || ''} disabled={Boolean(event)} onChange={event => flow.changeStaff(Number(event.target.value))}>
+            <option value="">{copy.selectOption}</option>{flow.eligibleStaff.map(person => <option key={person.id} value={person.id}>{person.publicName}</option>)}
+          </select></Field>
+          {service && <p className="text-sm font-medium sm:col-span-2">{terms.chargePolicy}: {serviceChargeLabel(service.chargePolicy,locale)}</p>}
+          {(service?.description || event?.description) && <p className="text-sm leading-6 text-slate-600 dark:text-slate-300 sm:col-span-2">{service?.description ?? event?.description}</p>}
+          {service && !flow.eligibleStaff.length && <Feedback>{text.noStaff}</Feedback>}
+        </div>}
+        {step === 'time' && <section className="space-y-4">
+          <IndiceModalSummary variant="muted" columns={2} className="[&_dd]:whitespace-normal [&_dd]:break-words" items={event ? sessionItems : sessionItems.filter(item => item.label !== copy.date)}/>
+          {event ? <p className="text-sm text-slate-500 dark:text-slate-400">{copy.reviewRequired}</p> : <>
+            <Field label={copy.date}><input type="date" required className={`${controlClass} max-w-sm`} {...slotDateBounds(staff?.timezone ?? 'UTC')} value={flow.date} onChange={event => flow.changeDate(event.target.value)}/></Field>
+            <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{text.dateHint} {copy.timezoneHint}</p>
+            {!flow.date ? <Feedback tone={tone}>{text.chooseDate}</Feedback> : flow.slotLoading ? <Feedback tone={tone}>{copy.loading}</Feedback> : flow.slotError ? <Feedback error>{text.slotsError}<ActionButton className="ml-2" onClick={flow.refreshSlots}>{copy.retry}</ActionButton></Feedback> : flow.slots && !flow.slots.starts.length ? <Feedback tone={tone}>{copy.noSlots}<ActionButton className="ml-2" onClick={flow.refreshSlots}>{text.refreshSlots}</ActionButton></Feedback> :
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" role="group" aria-label={copy.time}>{flow.slots?.starts.map(start => <ActionButton key={start} aria-pressed={flow.startAt === start} primary={flow.startAt === start} onClick={() => flow.chooseTime(start)}>{timeLabel(start)}</ActionButton>)}</div>}
+          </>}
+        </section>}
+        {internal && flow.contactVisited && flow.catalog.clientSelectionEnabled && <fieldset hidden={step !== 'contact'} disabled={step !== 'contact' || busy} className="min-w-0">
+          <BookingClientPicker copy={copy} locale={locale} onBusyChange={flow.onClientBusyChange} onCreatingChange={flow.setCreatingClient} onSelect={flow.selectClient}/>
         </fieldset>}
-        {!creatingClient&&<p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{copy.privacy}</p>}
-      </>}
-      {step==='review'&&<section className={panelClass}>
-        <h3 className="font-medium">{op.review}</h3>
-        <p className="mt-3">{service?.name??selectedEvent?.title} · {staff?.publicName}</p>
-        <p className="mt-2 text-sm">{timeLabel(selectedEvent?.startAt??startAt,true)} · {staff?.timezone}</p>
-        <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">{[[copy.attendee,contact.attendeeName],[copy.email,contact.attendeeEmail],[copy.company,contact.attendeeCompany],[copy.phone,contact.attendeePhone]].map(([label,value])=><div key={label}><dt className="text-slate-500">{label}</dt><dd className="break-words">{value||'—'}</dd></div>)}</dl>
-      </section>}
-      {footerTarget?createPortal(buttons,footerTarget):<div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-5 dark:border-slate-700">{buttons}</div>}
+        {step === 'contact' && <>
+          <IndiceModalSummary variant="muted" columns={2} className="[&_dd]:whitespace-normal [&_dd]:break-words" items={sessionItems}/>
+          {!flow.creatingClient && <fieldset className="grid gap-4 sm:grid-cols-2">
+            <legend className="mb-3 text-sm font-medium">{flow.clientId ? text.linkedClient : text.manualContact}</legend>
+            {(['attendeeName','attendeeEmail','attendeeCompany','attendeePhone'] as const).map(key => <Field key={key} label={{attendeeName:copy.attendee,attendeeEmail:copy.email,attendeeCompany:copy.company,attendeePhone:copy.phone}[key]}>
+              <input className={controlClass} type={key === 'attendeeEmail' ? 'email' : key === 'attendeePhone' ? 'tel' : 'text'}
+                autoComplete={{attendeeName:'name',attendeeEmail:'email',attendeeCompany:'organization',attendeePhone:'tel'}[key]} required={key === 'attendeeName' || key === 'attendeeEmail'}
+                maxLength={key === 'attendeeEmail' ? 240 : key === 'attendeePhone' ? 40 : 180} value={flow.contact[key]} onChange={event => flow.editContact(key,event.target.value)}/>
+            </Field>)}
+            <label className="flex min-h-11 items-start gap-3 text-sm leading-6 sm:col-span-2"><input type="checkbox" className="mt-1 h-4 w-4 shrink-0" style={{accentColor:`var(--scheduling-accent,${MODULE_COLORS[tone].primary})`}} required checked={flow.contact.contactConsent} onChange={event => flow.setConsent(event.target.checked)}/>{copy.consent}</label>
+          </fieldset>}
+          {!flow.creatingClient && <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{copy.privacy}</p>}
+        </>}
+        {step === 'review' && <IndiceModalSummary title={internal ? undefined : op.review} columns={2} className="[&_dd]:whitespace-normal [&_dd]:break-words" items={[
+          ...sessionItems,{label:copy.attendee,value:flow.contact.attendeeName},{label:copy.email,value:flow.contact.attendeeEmail},
+          {label:copy.company,value:flow.contact.attendeeCompany || '—'},{label:copy.phone,value:flow.contact.attendeePhone || '—'},
+          ...(internal ? [{label:text.contact,value:flow.clientId ? text.linkedClient : text.manualContact}] : []),
+        ]}/>}
+        {internal && step === 'review' && <Feedback>{copy.reviewRequired}</Feedback>}
+        {loadCatalog && step === 'choose' && <ActionButton onClick={() => void flow.refreshCatalog()}>{text.refreshCatalog}</ActionButton>}
+      </fieldset>
+      {footerTarget ? createPortal(buttons,footerTarget) : <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-5 dark:border-slate-700">{buttons}</div>}
     </form>
   </div>;
 }

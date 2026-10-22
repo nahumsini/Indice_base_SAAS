@@ -126,7 +126,7 @@ class MailTransportTest {
         try(var pdf=new org.apache.pdfbox.pdmodel.PDDocument();var out=new ByteArrayOutputStream()){
             pdf.addPage(new org.apache.pdfbox.pdmodel.PDPage());pdf.save(out);MailFilePolicy.bytes("safe.pdf","application/pdf",out.toByteArray());
             pdf.getDocumentCatalog().getCOSObject().setString(org.apache.pdfbox.cos.COSName.getPDFName("JS"),"app.alert('bad')");out.reset();pdf.save(out);
-            assertThatThrownBy(()->MailFilePolicy.bytes("active.pdf","application/pdf",out.toByteArray())).hasMessageContaining("email_attachment_blocked");
+            assertThatThrownBy(()->MailFilePolicy.bytes("active.pdf","application/pdf",out.toByteArray())).hasMessageContaining("email_pdf_active");
         }
     }
 }

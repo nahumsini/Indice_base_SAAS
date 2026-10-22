@@ -1,0 +1,2 @@
+/* The day agenda opens in the owner modal; the calendar keeps the complete width. */
+.meeting-calendar-workspace {min-width:0}

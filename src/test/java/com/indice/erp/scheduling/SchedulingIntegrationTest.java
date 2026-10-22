@@ -430,6 +430,48 @@ class SchedulingIntegrationTest {
     @Autowired com.indice.erp.sales.SchedulingServiceCatalog inventoryCatalog;
     @Autowired com.indice.erp.hr.users.HrSchedulingDirectoryService employees;
     @Autowired SchedulingClientCaptureService clientCapture;
+    @Test void independentServiceCanLinkInventoryWithoutChangingPastReservationTerms()throws Exception{
+        var original=repository.services(company).getFirst();
+        configuration.service(actor,service,new ServiceRequest("Demo session","Presentation",45,0,0,true,original.version(),null,List.of(),ChargePolicy.NO_CHARGE));
+        long first=create("free-demo");
+        assertThat(repository.reservation(company,first).chargePolicy()).isEqualTo(ChargePolicy.NO_CHARGE);
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM sales_products WHERE company_id=?",Long.class,company)).isZero();
+        var free=repository.services(company).getFirst();
+        // An older caller omitting the new property preserves an explicit offer.
+        configuration.service(actor,service,new ServiceRequest(free.name(),free.description(),45,0,0,true,free.version()));
+        assertThat(repository.services(company).getFirst().chargePolicy()).isEqualTo(ChargePolicy.NO_CHARGE);
+        long product=repository.insert("INSERT INTO sales_products(company_id,product_code,name,type,status) VALUES(?,'SRV-DEMO','Commercial consultation','SERVICE','ACTIVE')",company);
+        var saved=repository.services(company).getFirst();
+        configuration.service(actor,service,new ServiceRequest(saved.name(),saved.description(),45,0,0,true,saved.version(),product,List.of(),ChargePolicy.TO_BE_AGREED));
+        assertThat(repository.services(company).getFirst().id()).isEqualTo(service);
+        assertThat(repository.services(company).getFirst().productId()).isEqualTo(product);
+        assertThat(repository.reservation(company,first).serviceId()).isEqualTo(service);
+        assertThat(repository.reservation(company,first).chargePolicy()).isEqualTo(ChargePolicy.NO_CHARGE);
+        assertThat(repository.reservation(company,create("quoted-demo")).chargePolicy()).isEqualTo(ChargePolicy.TO_BE_AGREED);
+        mvc.perform(get("/api/v1/scheduling/catalog").session(session())).andExpect(status().isOk())
+            .andExpect(jsonPath("$.services[0].chargePolicy").value("TO_BE_AGREED"));
+        assertThat(repository.services(otherCompany)).isEmpty();
+        assertThatThrownBy(()->repository.reservation(otherCompany,first)).isInstanceOf(NoSuchElementException.class);
+    }
+    @Test void independentServiceHttpContractDefaultsSafelyAndRequiresAuthCsrfAndValidCondition()throws Exception{
+        String body="""
+            {"name":"Introductory demo","description":"No catalogue required","durationMinutes":30,
+             "bufferMinutes":0,"noticeHours":0,"active":true,"chargePolicy":"NO_CHARGE","days":[]}
+            """;
+        mvc.perform(post("/api/v1/scheduling/services").contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/v1/scheduling/services").session(session()).contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/scheduling/services").session(session()).header("X-CSRF-Token","synthetic-workspace-csrf")
+            .contentType(MediaType.APPLICATION_JSON).content(body.replace("NO_CHARGE","INVALID"))).andExpect(status().isBadRequest());
+        mvc.perform(post("/api/v1/scheduling/services").session(session()).header("X-CSRF-Token","synthetic-workspace-csrf")
+            .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isOk());
+        var independent=repository.services(company).stream().filter(s->s.name().equals("Introductory demo")).findFirst().orElseThrow();
+        assertThat(independent.productId()).isNull();assertThat(independent.chargePolicy()).isEqualTo(ChargePolicy.NO_CHARGE);
+        assertThat(repository.services(company).stream().filter(s->s.id()==service).findFirst().orElseThrow().chargePolicy()).isEqualTo(ChargePolicy.TO_BE_AGREED);
+        var page=configuration.page(actor,new PageRequest("terms-"+UUID.randomUUID(),"Appointments","",true,null));
+        String token=protection.reveal(repository.protectedToken(company));
+        mvc.perform(get("/api/v2/kiosks/public/"+token+"/bootstrap").session(new MockHttpSession())).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.services[?(@.id == "+independent.id()+")].chargePolicy").value(org.hamcrest.Matchers.contains("NO_CHARGE")));
+    }
     @Test void inventoryServicesAreTenantScopedTypedAndLinkedWithHours(){
         long product=repository.insert("INSERT INTO sales_products(company_id,product_code,name,type,status) VALUES(?,'SRV-T','Therapy','SERVICE','ACTIVE')",company);
         repository.insert("INSERT INTO sales_products(company_id,product_code,name,type,status) VALUES(?,'PRD-T','Physical item','PRODUCT','ACTIVE')",company);

@@ -16,20 +16,23 @@ public final class MailboxContracts {
         boolean hasAttachments,boolean read,boolean starred,Instant occurredAt,long version,String failureCode,String bodyHtml,String sentCopyState) {
         public Message(String id,String folderId,String state,String subject,String fromAddress,String fromName,List<String> to,List<String> cc,List<String> bcc,List<String> replyTo,String bodyText,boolean bodyTruncated,boolean hasAttachments,boolean read,boolean starred,Instant occurredAt,long version,String failureCode){this(id,folderId,state,subject,fromAddress,fromName,to,cc,bcc,replyTo,bodyText,bodyTruncated,hasAttachments,read,starred,occurredAt,version,failureCode,null,"NONE");}
         @Override public String toString(){return "MailboxMessage[redacted]";} }
+    public record OperationalCounts(long unread,long starred,long drafts,long review) { }
     public record Page(List<Message> items,boolean hasMore) { }
     public record DraftInput(@Min(0) long version,@Min(1) long accountVersion,
         @NotNull @Size(max=20) List<@NotBlank @Email @Size(max=240) String> to,
         @NotNull @Size(max=20) List<@NotBlank @Email @Size(max=240) String> cc,
         @NotNull @Size(max=20) List<@NotBlank @Email @Size(max=240) String> bcc,
         @NotNull @Size(max=240) String subject,@NotNull @Size(max=20000) String bodyText,
-        @Pattern(regexp="[0-9a-f-]{36}") String replyToMessageId,@Size(max=20000) String bodyHtml) {
+        @Pattern(regexp="[0-9a-f-]{36}") String replyToMessageId,@Size(max=500000) String bodyHtml) {
         public DraftInput(long version,long accountVersion,List<String> to,List<String> cc,List<String> bcc,String subject,String bodyText,String replyToMessageId){this(version,accountVersion,to,cc,bcc,subject,bodyText,replyToMessageId,null);}
         @Override public String toString(){return "DraftInput[redacted]";}
     }
-    public record Preferences(boolean backgroundEnabled,String sentFolder,long version,Instant nextSyncAt,int failures,String signature) {
+    public record Preferences(boolean backgroundEnabled,String sentFolder,long version,Instant nextSyncAt,int failures,String signature,String signatureHtml,boolean signatureNew,boolean signatureReply) {
+        public Preferences(boolean backgroundEnabled,String sentFolder,long version,Instant nextSyncAt,int failures,String signature){this(backgroundEnabled,sentFolder,version,nextSyncAt,failures,signature,null,false,false);}
         public Preferences(boolean backgroundEnabled,String sentFolder,long version,Instant nextSyncAt,int failures){this(backgroundEnabled,sentFolder,version,nextSyncAt,failures,"");}
     }
-    public record PreferencesInput(boolean backgroundEnabled,@Size(max=512) String sentFolder,@Min(1) long version,@Min(1) long accountVersion,@Size(max=2000) String signature) {
+    public record PreferencesInput(boolean backgroundEnabled,@Size(max=512) String sentFolder,@Min(1) long version,@Min(1) long accountVersion,@Size(max=2000) String signature,@Size(max=500000) String signatureHtml,Boolean signatureNew,Boolean signatureReply) {
+        public PreferencesInput(boolean backgroundEnabled,String sentFolder,long version,long accountVersion,String signature){this(backgroundEnabled,sentFolder,version,accountVersion,signature,null,null,null);}
         public PreferencesInput(boolean backgroundEnabled,String sentFolder,long version,long accountVersion){this(backgroundEnabled,sentFolder,version,accountVersion,null);}
         @Override public String toString(){return "MailPreferencesInput[redacted]";}
     }

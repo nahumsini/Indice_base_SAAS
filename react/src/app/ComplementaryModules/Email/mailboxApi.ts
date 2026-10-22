@@ -10,11 +10,13 @@ export type MailboxMessage = {
 };
 export type MailDraft = { version: number; accountVersion: number; to: string[]; cc: string[]; bcc: string[]; subject: string; bodyText: string; replyToMessageId: string | null; bodyHtml?: string | null };
 export type MailPage = { items: MailboxMessage[]; hasMore: boolean };
-export type MailPreferencesData = {backgroundEnabled:boolean;sentFolder:string|null;version:number;nextSyncAt:string|null;failures:number;signature?:string};
+export type MailPreferencesData = {backgroundEnabled:boolean;sentFolder:string|null;version:number;nextSyncAt:string|null;failures:number;signature?:string;signatureHtml?:string|null;signatureNew?:boolean;signatureReply?:boolean};
 export type MailAttachment = {id:string;filename:string;contentType:string;sizeBytes:number;remote:boolean};
 const base = '/api/v1/email/mailboxes';
 const request = <T,>(path: string, method: string, body: unknown) => apiClient<T>(path, { method, body: JSON.stringify(body) });
+export type MailOperationalCounts = {unread:number;starred:number;drafts:number;review:number};
 export const mailboxApi = {
+  counts:(id:string,query:string,signal?:AbortSignal)=>apiClient<MailOperationalCounts>(`${base}/${id}/counts?query=${encodeURIComponent(query)}`,{signal}),
   preferences: (id:string,signal?:AbortSignal)=>apiClient<MailPreferencesData>(`${base}/${id}/preferences`,{signal}),
   savePreferences: (id:string,value:MailPreferencesData&{accountVersion:number})=>request<MailPreferencesData>(`${base}/${id}/preferences`,'PUT',value),
   sentCopy: (account:string,id:string)=>request<MailboxMessage>(`${base}/${account}/messages/${id}/sent-copy`,'POST',{}),

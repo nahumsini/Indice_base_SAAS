@@ -14,7 +14,7 @@ export function CampaignTemplatePicker({
   copy: MailingCopy;
   disabled: boolean;
   onApply: (
-    value: Pick<EmailTemplate, "subject" | "previewText" | "bodyText">,
+    value: Pick<EmailTemplate, "subject" | "previewText" | "bodyText" | "bodyHtml">,
   ) => void;
 }) {
   const [search, setSearch] = useState("");
@@ -22,7 +22,7 @@ export function CampaignTemplatePicker({
   const [selected, setSelected] = useState("");
   const [preview, setPreview] = useState<Pick<
     EmailTemplate,
-    "subject" | "previewText" | "bodyText"
+    "subject" | "previewText" | "bodyText" | "bodyHtml"
   > | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);

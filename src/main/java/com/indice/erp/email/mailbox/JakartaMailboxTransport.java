@@ -146,7 +146,7 @@ public class JakartaMailboxTransport implements MailboxTransport {
         if(outgoing.inReplyTo()!=null)message.setHeader("In-Reply-To",outgoing.inReplyTo());
         if(outgoing.references()!=null&&!outgoing.references().isBlank())message.setHeader("References",outgoing.references());
         var body=new MimeBodyPart();body.setText(outgoing.text(),"UTF-8");
-        if(outgoing.html()!=null){var alternative=new MimeMultipart("alternative");alternative.addBodyPart(body);var html=new MimeBodyPart();html.setContent(SafeMailHtml.clean(outgoing.html()),"text/html; charset=UTF-8");alternative.addBodyPart(html);body=new MimeBodyPart();body.setContent(alternative);}
+        if(outgoing.html()!=null){var alternative=new MimeMultipart("alternative");alternative.addBodyPart(body);alternative.addBodyPart(MailInlineImages.body(outgoing.html()));body=new MimeBodyPart();body.setContent(alternative);}
         if(!outgoing.files().isEmpty()){var mixed=new MimeMultipart("mixed");mixed.addBodyPart(body);for(var file:outgoing.files()){var part=new MimeBodyPart();part.setDataHandler(new jakarta.activation.DataHandler(new jakarta.mail.util.ByteArrayDataSource(file.bytes(),file.type())));part.setFileName(file.name());part.setDisposition(Part.ATTACHMENT);mixed.addBodyPart(part);}message.setContent(mixed);}
         else if(outgoing.html()!=null)message.setContent((Multipart)body.getContent());else message.setText(outgoing.text(),"UTF-8");
         message.saveChanges();return message;

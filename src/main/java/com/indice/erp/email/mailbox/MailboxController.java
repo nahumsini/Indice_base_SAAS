@@ -24,6 +24,7 @@ public class MailboxController {
     }
     @GetMapping public List<Account> accounts(HttpSession session){return mailbox.accounts(actor(session,null,false));}
     @GetMapping("/{account}") public Workspace workspace(HttpSession session,@PathVariable String account){return mailbox.workspace(actor(session,null,false),account);}
+    @GetMapping("/{account}/counts") public OperationalCounts counts(HttpSession session,@PathVariable String account,@RequestParam(defaultValue="") String query){return mailbox.counts(actor(session,null,false),account,query);}
     @GetMapping("/{account}/messages") public Page list(HttpSession session,@PathVariable String account,@RequestParam String folder,@RequestParam(defaultValue="") String query,@RequestParam(defaultValue="0") int offset,@RequestParam(defaultValue="ALL") String filter){return mailbox.list(actor(session,null,false),account,folder,query,offset,filter);}
     @GetMapping("/{account}/messages/{id}") public Message get(HttpSession session,@PathVariable String account,@PathVariable String id){return mailbox.get(actor(session,null,false),account,id);}
     @PostMapping("/{account}/folders") public Workspace createFolder(HttpSession session,@RequestHeader(name="X-CSRF-Token",required=false) String token,@PathVariable String account,@Valid @RequestBody FolderInput input){return mailbox.createFolder(actor(session,token,true),account,input);}

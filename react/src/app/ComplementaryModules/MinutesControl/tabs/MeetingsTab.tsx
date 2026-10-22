@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router";
 import { Plus, RotateCw, CalendarDays, List } from "lucide-react";
 import { IndiceTitleBar } from "../../../components/frontend-os/IndiceTitleBar";
 import { IndiceWorkspaceNavigation } from "../../../components/frontend-os/IndiceWorkspaceNavigation";
+import { MeetingDayAgenda } from "../components/MeetingDayAgenda";
 import { MeetingCalendar } from "../components/MeetingCalendar";
 import { IndiceTableActionGroup } from "../../../components/table/IndiceTableEngine";
 import { TableCell } from "../../../components/ui/table";
@@ -44,7 +45,8 @@ import { getMeetingWorkflowCopy } from "../translations/meetingWorkflowCopy";
 
 const statuses = ["PLANNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as const;
 type Dialog =
-  | { kind: "create" }
+  | { kind: "day"; date: string }
+  | { kind: "create"; date?: string }
   | { kind: "workflows" }
   | { kind: "detail"; id: number }
   | { kind: "edit" | "minutes"; detail: Detail }
@@ -58,18 +60,22 @@ export default function MeetingsTab({
   userId,
   administrator,
   onAgreements,
+  onSession,
 }: {
   copy: MeetingCopy;
   locale: string;
   userId: number;
   administrator: boolean;
   onAgreements?: (meetingId: number) => void;
+  onSession?: (meetingId: number) => void;
 }) {
   const w = getMeetingWorkflowCopy(locale),
     workspace = getMeetingWorkspaceCopy(locale);
   const [params, setParams] = useSearchParams();
   const requested = params.get("meeting");
   const opened = useRef("");
+  const dayTrigger = useRef<HTMLElement | null>(null);
+  const calendarRoot = useRef<HTMLDivElement>(null);
   const [notice, setNotice] = useState("");
   const now = new Date(),
     defaults: ListScope = {
@@ -92,6 +98,7 @@ export default function MeetingsTab({
         participants: 180,
       },
     };
+  const [dayOrigin, setDayOrigin] = useState<string>();
   const [scope, setScope] = useState(defaults),
     [dialog, setDialog] = useState<Dialog | null>(null),
     [search, setSearch] = useState(""),
@@ -176,7 +183,15 @@ export default function MeetingsTab({
     onRestore: (state) => setScope(restoreScope(state, defaults, statuses)),
   });
   const close = () => {
-      setDialog(null);
+      setDialog(dayOrigin ? { kind: "day", date: dayOrigin } : null);
+      setDayOrigin(undefined);
+      if (dialog?.kind === "day" && (dayTrigger.current || calendarRoot.current)) {
+        requestAnimationFrame(() => {
+          const trigger = dayTrigger.current?.isConnected ? dayTrigger.current
+            : calendarRoot.current?.querySelector<HTMLElement>('button[aria-label][aria-pressed="true"]');
+          trigger?.focus({ preventScroll: true });
+        });
+      }
       if (requested)
         setParams(
           (current) => {
@@ -260,17 +275,21 @@ export default function MeetingsTab({
             {query.data.total > query.data.items.length &&
               scope.view === "calendar" && <Feedback>{copy.partial}</Feedback>}
             {scope.view === "calendar" ? (
-              <MeetingCalendar
+              <div ref={calendarRoot} className="min-w-0"><MeetingCalendar
                 items={query.data.items}
                 from={scope.from}
                 to={scope.to}
                 selectedDate={selected}
                 onSelectDate={setSelected}
+                onDayOpen={(date) => {
+                  dayTrigger.current = typeof document !== "undefined" && document.activeElement instanceof HTMLElement ? document.activeElement : null;
+                  setDialog({ kind: "day", date });
+                }}
                 onRange={(range) => setScope({ ...scope, ...range, page: 1 })}
                 onOpen={(id) => setDialog({ kind: "detail", id })}
                 copy={copy}
                 locale={locale}
-              />
+              /></div>
             ) : (
               <MeetingList<MeetingItem>
                 items={query.data.items}
@@ -351,9 +370,27 @@ export default function MeetingsTab({
           </>
         )
       )}
+      {dialog?.kind === "day" && (
+        <MeetingDayAgenda
+          date={dialog.date}
+          items={query.data?.items ?? []}
+          loading={query.loading || search !== scope.search}
+          error={query.error}
+          partial={Boolean(query.data && query.data.total > query.data.items.length)}
+          filtered={Boolean(scope.search.trim() || scope.status || scope.attention || scope.person)}
+          onClearFilters={() => setScope({ ...scope, search: "", status: "", attention: "", person: 0, page: 1 })}
+          onRetry={query.reload}
+          onOpen={(id) => { setDayOrigin(dialog.date); setDialog({ kind: "detail", id }); }}
+          onCreate={(date) => { setDayOrigin(date); setDialog({ kind: "create", date }); }}
+          onClose={close}
+          copy={copy}
+          locale={locale}
+        />
+      )}
       {dialog?.kind === "create" && (
         <MeetingEditor
           copy={copy}
+          suggestedDate={dialog.date}
           userId={userId}
           administrator={administrator}
           onClose={close}
@@ -378,6 +415,7 @@ export default function MeetingsTab({
           administrator={administrator}
           onClose={close}
           onAgreements={onAgreements}
+          onSession={onSession}
           onNewBallot={detail => setDialog({ kind: "ballot-create", detail })}
           onBallot={(detail, ballotId) => setDialog({ kind: "ballot", detail, ballotId })}
           onNewAgreement={onAgreements ? detail => setDialog({ kind: "agreement", detail }) : undefined}

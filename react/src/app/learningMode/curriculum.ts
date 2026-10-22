@@ -25,8 +25,10 @@ const definitions: Record<string, readonly [string, number]> = {
 };
 function chapter(module: string, tab: string, label: LearningText, steps: readonly LearningText[], evidenceTools: readonly string[] = []): LearningChapter {
   const [pageId, stage] = definitions[module];
-  const version = module === 'ideas_board' && tab === 'projects' ? 4
-    : ['correo.mail', 'control_minutas.meetings', 'scheduling.clients', 'scheduling.configuration'].includes(`${module}.${tab}`) ? 3
+  const version = module === 'scheduling' && ['calendar','reservations'].includes(tab) ? 3
+    : module === 'scheduling' && tab === 'configuration' ? 7
+    : module === 'ideas_board' && tab === 'projects' ? 4
+    : ['correo.mail', 'control_minutas.meetings', 'scheduling.clients'].includes(`${module}.${tab}`) ? 3
     : ["expenses", "petty_cash"].includes(module)
     || module === 'ideas_board'
     || (module === 'crm' && tab === 'funneling')
@@ -148,12 +150,12 @@ export const learningChapters: readonly LearningChapter[] = [
   ]),
   chapter('scheduling', 'calendar', ['Agenda unificada', 'Unified agenda'], [
     ['Selecciona periodo, colaborador y vista y comprueba tus permisos de agenda.', 'Select the period, staff member and view and check your agenda permissions.'],
-    ['Consulta reservas y eventos en la agenda unificada y abre el registro autorizado.', 'Review bookings and events in the unified agenda and open the authorized record.'],
+    ['Consulta reservas y eventos. En Nueva solicitud, completa servicio y colaborador, fecha y horario, contacto y revisión; registra sólo al terminar.', 'Review bookings and events. In New request, complete service and collaborator, date and time, contact and review; register only at the end.'],
     ['Comprueba el horario y estado guardados. Ver una solicitud no confirma disponibilidad ni reserva.', 'Check the saved time and status. Viewing a request does not confirm availability or a booking.'],
   ]),
   chapter('scheduling', 'reservations', ['Reservas y asistencia', 'Bookings and attendance'], [
     ['Revisa servicio, colaborador, horario, consentimiento y capacidad antes de capturar o confirmar.', 'Review service, staff, time, consent and capacity before capturing or confirming.'],
-    ['Captura o revisa la solicitud y confirma desde Agendamiento; pausa, reanuda o cancela con el motivo requerido.', 'Capture or review the request and confirm through Scheduling; pause, resume or cancel with the required reason.'],
+    ['Captura la solicitud en cuatro pasos, conserva el borrador al volver y comprueba la referencia y el estado guardados. Elegir o crear un cliente con los permisos correspondientes no envía la solicitud; confirma desde Agendamiento.', 'Capture the request in four steps, retain the draft on Back and check the saved reference and status. Selecting or creating a client with the appropriate permissions does not submit the request; confirm through Scheduling.'],
     ['Comprueba el estado persistido y registra asistencia cuando corresponda. Una solicitud no garantiza lugar y archivar conserva el historial.', 'Check the persisted status and record attendance when applicable. A request does not guarantee a place and archiving preserves history.'],
   ]),
   chapter('scheduling', 'clients', ['Clientes compartidos', 'Shared clients'], [
@@ -172,9 +174,9 @@ export const learningChapters: readonly LearningChapter[] = [
     ['Verifica estados e historial antes de interpretar resultados; el aprendizaje no modifica asistencia ni métricas.', 'Check statuses and history before interpreting results; learning does not change attendance or metrics.'],
   ]),
   chapter('scheduling', 'configuration', ['Servicios, equipo y agenda pública', 'Services, team and public agenda'], [
-    ['Revisa servicios del catálogo, duración, anticipación y colaboradores activos de Recursos Humanos.', 'Review catalog services, duration, notice and active Human Resources staff.'],
-    ['Guarda las ventanas semanales de servicios y colaboradores y sus descansos. Completa la configuración necesaria antes de publicar la agenda.', 'Save weekly service and staff windows and their breaks. Complete the required setup before publishing the agenda.'],
-    ['Comparte solo el enlace guardado y publicado. Guardar no habilita el adaptador público ni concede permisos; las solicitudes requieren confirmación interna.', 'Share only the saved and published link. Saving does not enable the public adapter or grant permissions; requests require internal confirmation.'],
+    ['En Servicios, elige de Inventarios o crea directamente en Agenda. Define Sin cobro o Precio por acordar, configura la reserva y revisa antes de guardar. Puedes vincular después un servicio de Agenda con Inventarios conservando sus reservas. Si ya está configurado, abre Editar configuración.', 'In Services, choose from Inventory or create directly in Scheduling. Set No charge or Price to be agreed, configure booking and review before saving. You can link a Scheduling service to Inventory later while retaining reservations. If already configured, open Edit configuration.'],
+    ['En Equipo y disponibilidad, busca al colaborador y abre Editar desde su fila. Al agregar o editar, completa los pasos de colaborador, disponibilidad, servicios y excepciones; revisa todo antes de guardar. Configura también las ventanas y descansos del servicio antes de publicar.', 'In Team & availability, find the collaborator and open Edit from their row. When adding or editing, complete the collaborator, availability, services and exceptions steps; review everything before saving. Also configure service windows and breaks before publishing.'],
+    ['En Agenda pública, personaliza Contenido y Diseño, revisa la vista de escritorio o móvil y elige guardar borrador o publicar. Ajusta nombre público, título, descripción, botón, colores y presentación en tarjetas o compacta. Comparte solo el enlace guardado y publicado; las solicitudes requieren confirmación interna.', 'In Public agenda, customize Content and Design, review the desktop or mobile preview and choose to save a draft or publish. Adjust public name, title, description, button, colours and cards or compact presentation. Share only the saved and published link; requests require internal confirmation.'],
   ]),
   chapter('config_center', 'business-structure', ['Empresa, unidades y negocios', 'Company, units and businesses'], [
     ['Define la identidad y tipo de operación de la empresa; distingue una unidad de negocio de una sucursal.', 'Set the company identity and operation type; distinguish a business unit from a branch.'],

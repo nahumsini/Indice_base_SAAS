@@ -1,3 +1,4 @@
+import { useMailEditorCopy } from '../../components/mail-editor/mailEditorCopy';
 import { useEffect, useRef, useState } from 'react';
 import { FileText, Loader2, Paperclip, RotateCcw } from 'lucide-react';
 import { Button } from '../../components/ui/button';
@@ -15,7 +16,7 @@ export function MailAttachments({ account, messageId, version, accountVersion, o
   account: string; messageId: string; version: number; accountVersion: number;
   onPrepare?: () => Promise<MailboxMessage | null | undefined>; onSaved?: (message: MailboxMessage) => void; onBusy?: (busy: boolean) => void;
 }) {
-  const daily = useMailDailyCopy(); const copy = useMailCompletionCopy(); const text = useMailAttachmentCopy();
+  const daily = useMailDailyCopy(); const copy = useMailCompletionCopy(); const text = {...useMailAttachmentCopy(),...useMailEditorCopy()};
   const [files, setFiles] = useState<MailAttachment[]>([]); const [busy, setBusy] = useState(false);
   const [phase, setPhase] = useState<Phase>('preparing'); const [error, setError] = useState('');
   const [filename, setFilename] = useState(''); const [corrected, setCorrected] = useState('');

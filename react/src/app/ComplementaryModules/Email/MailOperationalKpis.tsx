@@ -1,0 +1,25 @@
+import { useEffect, useState } from 'react';
+import { MailOpen, Star, FilePenLine, ClockAlert, ChevronRight } from 'lucide-react';
+import { useLanguage } from '../../shared/context';
+import { mailboxApi, type MailOperationalCounts, type MailboxWorkspace } from './mailboxApi';
+const labels={
+ es:['Seguimiento del buzón','Sin leer','Revisa los nuevos mensajes recibidos.','Destacados','Retoma los correos que marcaste para seguimiento.','Borradores','Continúa y revisa antes de enviar.','Envíos por revisar','Comprueba envíos en curso, fallidos o sin confirmación.','Cuenta y búsqueda actuales · mensajes sincronizados, en todas las páginas.','No se pudieron cargar los indicadores.'],
+ en:['Mailbox follow-up','Unread','Review new incoming messages.','Starred','Follow up on messages you marked.','Drafts','Continue and review before sending.','Sends to review','Check pending, failed or unconfirmed sends.','Current account and search · synchronized messages, across all pages.','Could not load indicators.'],
+ fr:['Suivi de la boîte','Non lus','Consultez les nouveaux messages reçus.','Favoris','Reprenez les messages marqués pour suivi.','Brouillons','Continuez et vérifiez avant l’envoi.','Envois à vérifier','Vérifiez les envois en cours, échoués ou non confirmés.','Compte et recherche actuels · messages synchronisés, toutes les pages.','Impossible de charger les indicateurs.'],
+ pt:['Acompanhamento da caixa','Não lidos','Confira as novas mensagens recebidas.','Favoritos','Retome as mensagens marcadas para acompanhamento.','Rascunhos','Continue e revise antes de enviar.','Envios para revisar','Confira envios em andamento, com falha ou sem confirmação.','Conta e pesquisa atuais · mensagens sincronizadas, em todas as páginas.','Não foi possível carregar os indicadores.'],
+ ko:['메일 후속 관리','읽지 않음','새로 받은 메시지를 확인하세요.','별표 표시','표시한 메시지의 후속 작업을 진행하세요.','임시보관함','작성 후 보내기 전에 검토하세요.','전송 확인','진행 중이거나 실패 또는 미확인 전송을 확인하세요.','현재 계정 및 검색 · 모든 페이지의 동기화된 메시지.','지표를 불러오지 못했습니다.'],
+ zh:['邮件跟进','未读','查看新收到的邮件。','已加星标','跟进您标记的邮件。','草稿','继续编辑并在发送前检查。','待检查的发送','检查发送中、失败或尚未确认的邮件。','当前帐户和搜索 · 所有页面中已同步的邮件。','无法加载指标。'],
+};
+export function MailOperationalKpis({account,query,revision,workspace,folder,quick,busy,hidden,onSelect}:{account:string;query:string;revision:number;workspace:MailboxWorkspace;folder:string;quick:string;busy:boolean;hidden:boolean;onSelect:(folder:string,quick:string)=>void}){
+ const {currentLanguage}=useLanguage();const copy=labels[currentLanguage.code.slice(0,2) as keyof typeof labels]??labels.en;
+ const [data,setData]=useState<MailOperationalCounts|null>(null),[failed,setFailed]=useState(false);
+ useEffect(()=>{const abort=new AbortController();setData(null);setFailed(false);const timer=window.setTimeout(()=>{mailboxApi.counts(account,query,abort.signal).then(value=>{if(!abort.signal.aborted)setData(value);}).catch(()=>{if(!abort.signal.aborted)setFailed(true);});},300);return()=>{abort.abort();window.clearTimeout(timer);};},[account,query,revision,workspace]);
+ const inbox=workspace.folders.some(f=>f.kind==='INBOX');
+ const cards=[{key:'unread',label:copy[1],hint:copy[2],icon:MailOpen,folder:'INBOX',quick:'UNREAD'},{key:'starred',label:copy[3],hint:copy[4],icon:Star,folder:'INBOX',quick:'STARRED'},{key:'drafts',label:copy[5],hint:copy[6],icon:FilePenLine,folder:'DRAFTS',quick:'ALL'},{key:'review',label:copy[7],hint:copy[8],icon:ClockAlert,folder:'OUTBOX',quick:'ALL'}] as const;
+ return <section aria-label={copy[0]} className={hidden?'hidden lg:block':''}>
+  <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">{cards.map(card=>{const selected=folder===card.folder&&quick===card.quick;return <button key={card.key} type="button" aria-pressed={selected} disabled={busy||!data||card.folder==='INBOX'&&!inbox} onClick={()=>onSelect(selected?'INBOX':card.folder,selected?'ALL':card.quick)} className={`group min-w-0 rounded-2xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-60 ${selected?'border-blue-500 bg-blue-50 dark:bg-blue-950/40':'border-slate-200 bg-white hover:border-blue-300 dark:border-slate-700 dark:bg-slate-900'}`}>
+   <div className="flex items-center justify-between gap-2"><span className="rounded-xl bg-blue-50 p-2 text-blue-700 dark:bg-blue-950 dark:text-blue-300"><card.icon className="h-5 w-5" aria-hidden/></span><span className="text-2xl font-medium tabular-nums text-slate-900 dark:text-white">{data?data[card.key].toLocaleString(currentLanguage.code):'—'}</span></div>
+   <span className="mt-3 flex items-center justify-between gap-2 text-sm font-medium">{card.label}<ChevronRight className="h-4 w-4 shrink-0 text-blue-500" aria-hidden/></span><span className="mt-1 block text-xs leading-5 text-slate-500 dark:text-slate-400">{card.hint}</span>
+  </button>;})}</div><p role={failed?'status':undefined} className={`mt-2 text-xs ${failed?'text-amber-700 dark:text-amber-300':'text-slate-500 dark:text-slate-400'}`}>{failed?copy[10]:copy[9]}</p>
+ </section>;
+}

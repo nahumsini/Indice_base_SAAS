@@ -1,6 +1,7 @@
 /** Development-only UI preview. All data stays in memory; no backend, database or mail provider. */
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
 import { createServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -19,6 +20,7 @@ export function createPreviewHandler() {
     { id: 2, userId: 42, publicName: 'Consultor demo 1', timezone: 'America/Toronto', active: true, version: 1, days: workdays },
     { id: 3, userId: 43, publicName: 'Consultor demo 2', timezone: 'America/Toronto', active: true, version: 1, days: workdays },
   ];
+  const members = [...staff.map(item => ({ id: item.userId, name: item.publicName })), { id: 44, name: 'Colaborador sintético disponible' }];
   const services = [
     { id: 1, name: 'Diagnóstico empresarial', description: 'Identifica oportunidades y define los siguientes pasos para tu empresa.', durationMinutes: 60, bufferMinutes: 15, noticeHours: 24, active: true, version: 1 },
     { id: 6, name: 'Sesión de seguimiento', description: 'Revisa los avances de tu plan de trabajo con tu consultor.', durationMinutes: 30, bufferMinutes: 15, noticeHours: 24, active: true, version: 1 },
@@ -80,10 +82,15 @@ export function createPreviewHandler() {
         const completed = count('COMPLETED'), noShow = count('NO_SHOW');
         return send(res, { requests: count('REQUESTED'), confirmed: count('CONFIRMED'), completed, noShow, cancelled: count('CANCELLED'), attendanceRate: completed + noShow ? completed / (completed + noShow) * 100 : null });
       }
-      const payloads = { services, staff,'staff-options':staff, events, members: staff.map(item => ({ id: item.userId, name: item.publicName })), page: bookingPage, readiness: { publicAccessEnabled: true,companyName:'Empresa demo',suggestedAlias:'agenda-demo',bookingReady:true }, links: { publicUrl: bookingPage.publicUrl }, catalog: catalog() };
+      const payloads = { services, staff,'staff-options':staff, events, members, page: bookingPage, readiness: { publicAccessEnabled: true,companyName:'Empresa demo',suggestedAlias:'agenda-demo',bookingReady:true }, links: { publicUrl: bookingPage.publicUrl }, catalog: catalog() };
       if (Object.hasOwn(payloads, tail)) return send(res, payloads[tail]);
     }
-    if(method==='GET'&&tail==='inventory-services')return send(res,{items:[{id:501,name:'Consulta de seguimiento',description:'Servicio real del catálogo de prueba',sku:'SRV-501',active:true},{id:502,name:'Evaluación inicial',description:'Evaluación del negocio',sku:'SRV-502',active:true}],total:2,page:1,pageSize:25});
+    if(method==='GET'&&tail==='inventory-services'){
+      const catalogServices=[{id:501,name:'Consulta de seguimiento',description:'Servicio real del catálogo de prueba',sku:'SRV-501',active:true},{id:502,name:'Evaluación inicial',description:'Evaluación del negocio',sku:'SRV-502',active:true}];
+      const term=(url.searchParams.get('search')??'').trim().toLowerCase(),page=Math.max(1,Number(url.searchParams.get('page'))||1);
+      const items=catalogServices.filter(item=>`${item.name} ${item.sku}`.toLowerCase().includes(term));
+      return send(res,{items:items.slice((page-1)*25,page*25),total:items.length,page,pageSize:25});
+    }
     if(method==='POST'&&tail==='booking-clients'){
       const key=req.headers['idempotency-key'];if(replays.has(key))return send(res,replays.get(key));
       const client={id:++nextId,companyName:body.companyName||body.name,contactPerson:body.name,email:body.email,phone:body.phone,status:'active'};clients.push(client);replays.set(key,client);return send(res,client);
@@ -162,10 +169,10 @@ export function createPreviewHandler() {
   };
 }
 
-async function startPreview() {
+export async function startPreview() {
   const projectRoot = resolve(import.meta.dirname, '..');
   const handler = createPreviewHandler();
-  const server = await createServer({ root: projectRoot, configFile: false, cacheDir: resolve(projectRoot, '.cache/agenda-preview'),
+  const server = await createServer({ root: projectRoot, configFile: false, cacheDir: resolve(tmpdir(), 'indice-agenda-preview'),
     plugins: [{ name: 'isolated-scheduling-preview', configureServer(vite) {
       vite.middlewares.use((req, res, next) => { handler(req, res, next).catch(() => { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end('{"message":"Preview request failed"}'); }); });
       vite.middlewares.use((req, _res, next) => { if (req.url === '/' || req.url.startsWith('/scheduling/')) req.url = `/tests/browser/scheduling.html${req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''}`; next(); });
@@ -179,5 +186,6 @@ async function startPreview() {
   await server.listen();
   console.log(`Agenda (synthetic data): ${origin}/scheduling/calendar\nBooking page (synthetic data): ${origin}/book/piloto\nNo backend connection. Changes disappear when this process stops.`);
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, async () => { await server.close(); process.exit(0); });
+  return server;
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await startPreview();

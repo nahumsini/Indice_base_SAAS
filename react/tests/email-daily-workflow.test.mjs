@@ -4,6 +4,7 @@ import { loadTypescript, hookRuntime } from './helpers/hook-runtime.mjs';
 const root=new URL('../src/app/ComplementaryModules/Email/',import.meta.url);
 const load=(file,resolve=()=>({}))=>loadTypescript(new URL(file,root).pathname,resolve);
 const language={useLanguage:()=>({currentLanguage:{code:'es-MX'}})};
+const editorCopy=loadTypescript(new URL('../src/app/components/mail-editor/mailEditorCopy.ts',import.meta.url).pathname,()=>language);
 const daily=load('mailDailyCopy.ts',()=>language),mailbox=load('mailboxCopy.ts',()=>language),extra=load('translations.extra.ts'),translations=load('translations.ts',id=>id.endsWith('translations.extra')?extra:language);
 const jsx={jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props}),Fragment:'Fragment'},stub=new Proxy({},{get:(_,key)=>key});
 const nodes=n=>n==null||typeof n!=='object'?[]:Array.isArray(n)?n.flatMap(nodes):[n,...nodes(n.props?.children)];
@@ -14,7 +15,7 @@ function composer(api){
  const timers=new Map();let serial=0;globalThis.window={setTimeout(fn,ms){timers.set(++serial,{fn,ms});return serial;},clearTimeout(id){timers.delete(id);},addEventListener(){},removeEventListener(){}};
  const runtime=hookRuntime(),done=[];const account={id:'account',version:4,email:'owner@example.com',displayName:'Owner'};
  const {MailComposer}=load('MailComposer.tsx',id=>{
-  if(id==='react')return runtime.hooks;if(id==='react/jsx-runtime')return jsx;
+  if(id==='react')return runtime.hooks;if(id.endsWith('/mailEditorCopy'))return editorCopy;if(id==='react/jsx-runtime')return jsx;
   if(id.endsWith('/mailDailyCopy'))return daily;if(id.endsWith('/mailboxCopy'))return mailbox;if(id.endsWith('/translations'))return translations;
   if(id.endsWith('/mailboxModel'))return model;if(id.endsWith('/MailRichEditor'))return {MailRichEditor:'MailRichEditor',plainMailHtml:v=>v};
   if(id.endsWith('/apiClient'))return {ApiClientError};

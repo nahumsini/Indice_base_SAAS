@@ -34,7 +34,7 @@ public class SchedulingRepository {
         return db.query("SELECT * FROM scheduling_services WHERE company_id=? ORDER BY name,id"+currentRead(),
             (r,n)->new ServiceItem(r.getLong("id"),r.getString("name"),r.getString("description"),
                 r.getInt("duration_minutes"),r.getInt("buffer_minutes"),r.getInt("notice_hours"),
-                r.getBoolean("active"),r.getLong("version"),r.getObject("product_id",Long.class),serviceDays(company,r.getLong("id"))), company);
+                r.getBoolean("active"),r.getLong("version"),r.getObject("product_id",Long.class),serviceDays(company,r.getLong("id")),ChargePolicy.valueOf(r.getString("charge_policy"))), company);
     }
     public List<StaffItem> staff(long company) {
         return db.query("SELECT * FROM scheduling_staff WHERE company_id=? ORDER BY public_name,id"+currentRead(),
@@ -179,7 +179,7 @@ public class SchedulingRepository {
             r.getString("staff_name"),r.getString("attendee_name"),r.getString("attendee_email"),
             r.getString("attendee_company"),r.getString("attendee_phone"),r.getTimestamp("start_at").toInstant(),r.getInt("duration_minutes"),
             r.getString("status"),r.getLong("version"),r.getString("paused_from_status"),
-            r.getTimestamp("archived_at")==null?null:r.getTimestamp("archived_at").toInstant(),r.getObject("client_id",Long.class));
+            r.getTimestamp("archived_at")==null?null:r.getTimestamp("archived_at").toInstant(),r.getObject("client_id",Long.class),ChargePolicy.valueOf(r.getString("charge_policy_snapshot")));
     }
     public void audit(long company,Long actor,String entity,long id,String action) {
         db.update("INSERT INTO scheduling_audit(company_id,actor_user_id,entity_type,entity_id,action) VALUES(?,?,?,?,?)",

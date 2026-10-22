@@ -6,6 +6,7 @@ import {
   type MeetingDetail as Detail,
   type MeetingStatus,
 } from "../services/meetingApi";
+import { getMeetingSessionCopy } from "../translations/meetingSessionCopy";
 import { MeetingVotingPanel } from "./MeetingVotingPanel";
 import { getMeetingVotingCopy } from "../translations/meetingVotingCopy";
 import { MeetingAttendance, MeetingAgreementsSummary } from "./MeetingExecution";
@@ -37,6 +38,7 @@ export function MeetingDetail({
   onNewAgreement,
   onNewBallot,
   onBallot,
+  onSession,
 }: {
   id: number;
   copy: MeetingCopy;
@@ -44,6 +46,7 @@ export function MeetingDetail({
   userId: number;
   administrator: boolean;
   onClose: () => void;
+  onSession?: (meetingId: number) => void;
   onEdit: (detail: Detail) => void;
   onMinutes: (detail: Detail) => void;
   onTransition: (detail: Detail, status: MeetingStatus) => void;
@@ -107,6 +110,7 @@ export function MeetingDetail({
               }).format(new Date(row.startAt))}{" "}
               · {row.timezone}
             </p>
+            {onSession && <Action primary disabled={savingAttendance || dirtyAttendance} onClick={() => onSession(id)}>📝 {getMeetingSessionCopy(locale).enter}</Action>}
             {(editable || canMinutes) && active && (
               <fieldset disabled={savingAttendance || dirtyAttendance} className="flex flex-wrap gap-2">
                 {editable && row.status === "PLANNED" && (

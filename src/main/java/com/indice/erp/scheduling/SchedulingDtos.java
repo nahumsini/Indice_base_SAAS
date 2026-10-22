@@ -9,14 +9,17 @@ import java.util.List;
 
 public final class SchedulingDtos {
     private SchedulingDtos() { }
+    public enum ChargePolicy { NO_CHARGE, TO_BE_AGREED }
     public record ServiceRequest(@NotBlank @Size(max=180) String name,
         @Size(max=1500) String description, @Min(15) @Max(180) int durationMinutes,
         @Min(0) @Max(60) int bufferMinutes, @Min(0) @Max(720) int noticeHours,
-        boolean active, Long version, @Positive Long productId, @Size(max=28) List<@Valid AvailabilityDay> days) {
+        boolean active, Long version, @Positive Long productId, @Size(max=28) List<@Valid AvailabilityDay> days, ChargePolicy chargePolicy) {
+        public ServiceRequest(String name,String description,int durationMinutes,int bufferMinutes,int noticeHours,boolean active,Long version,Long productId,List<AvailabilityDay> days){this(name,description,durationMinutes,bufferMinutes,noticeHours,active,version,productId,days,null);}
         public ServiceRequest(String name,String description,int durationMinutes,int bufferMinutes,int noticeHours,boolean active,Long version){this(name,description,durationMinutes,bufferMinutes,noticeHours,active,version,null,null);}
     }
     public record ServiceItem(long id, String name, String description, int durationMinutes,
-        int bufferMinutes, int noticeHours, boolean active, long version, Long productId,List<AvailabilityDay> days) {
+        int bufferMinutes, int noticeHours, boolean active, long version, Long productId,List<AvailabilityDay> days, ChargePolicy chargePolicy) {
+        public ServiceItem(long id,String name,String description,int durationMinutes,int bufferMinutes,int noticeHours,boolean active,long version,Long productId,List<AvailabilityDay> days){this(id,name,description,durationMinutes,bufferMinutes,noticeHours,active,version,productId,days,ChargePolicy.TO_BE_AGREED);}
         public ServiceItem(long id,String name,String description,int durationMinutes,int bufferMinutes,int noticeHours,boolean active,long version){this(id,name,description,durationMinutes,bufferMinutes,noticeHours,active,version,null,List.of());}
     }
     public record AvailabilityDay(@Min(1) @Max(7) int dayOfWeek,
@@ -66,10 +69,10 @@ public final class SchedulingDtos {
     public record ReservationItem(long id, String reference, long staffId, Long serviceId,
         Long eventId, String serviceName, String staffName, String attendeeName, String attendeeEmail,
         String attendeeCompany, String attendeePhone, Instant startAt, int durationMinutes, String status, long version,
-        String pausedFromStatus, Instant archivedAt,Long clientId) {
+        String pausedFromStatus, Instant archivedAt,Long clientId,ChargePolicy chargePolicy) {
         ReservationItem at(Instant start) { return new ReservationItem(id,reference,staffId,serviceId,eventId,
             serviceName,staffName,attendeeName,attendeeEmail,attendeeCompany,attendeePhone,start,durationMinutes,
-            status,version,pausedFromStatus,archivedAt,clientId); }
+            status,version,pausedFromStatus,archivedAt,clientId,chargePolicy); }
     }
     public record RescheduleRequest(@NotNull Instant startAt,@NotBlank @Size(max=500) String reason,@Positive long version) { }
     public record ReassignRequest(@Positive long staffId,@NotBlank @Size(max=500) String reason,@Positive long version) { }
@@ -84,7 +87,7 @@ public final class SchedulingDtos {
         public PublicStaff(long id,String publicName,String timezone){this(id,publicName,timezone,List.of());}
     }
     public record StaffOption(long id,String publicName,String timezone,boolean active) { }
-    public record PublicService(long id,String name,String description,int durationMinutes,int noticeHours) { }
+    public record PublicService(long id,String name,String description,int durationMinutes,int noticeHours,ChargePolicy chargePolicy) { }
     public record PublicEvent(long id,long staffId,String title,String description,Instant startAt,
         int durationMinutes,int availablePlaces,String location) {
         public PublicEvent(long id,long staffId,String title,String description,Instant startAt,int durationMinutes,int availablePlaces){this(id,staffId,title,description,startAt,durationMinutes,availablePlaces,"");}

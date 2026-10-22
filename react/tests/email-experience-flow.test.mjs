@@ -4,6 +4,7 @@ import {loadTypescript,hookRuntime} from './helpers/hook-runtime.mjs';
 const root=new URL('../src/app/ComplementaryModules/Email/',import.meta.url);
 const load=(file,resolve)=>loadTypescript(new URL(file,root).pathname,resolve);
 const language={useLanguage:()=>({currentLanguage:{code:'es-MX'}})};
+const editorCopy=loadTypescript(new URL('../src/app/components/mail-editor/mailEditorCopy.ts',import.meta.url).pathname,()=>language);
 const extra=load('translations.extra.ts',()=>({}));
 const translations=load('translations.ts',id=>id.endsWith('translations.extra')?extra:language);
 const experience=load('emailExperienceCopy.ts',()=>language);
@@ -16,10 +17,11 @@ const stub=new Proxy({},{get:(_,key)=>key});
 const nodes=n=>n==null||typeof n!=='object'?[]:Array.isArray(n)?n.flatMap(nodes):[n,...nodes(n.props?.children)];
 class ApiClientError extends Error {}
 function resolver(runtime,api={}){return id=>{
- if(id==='react')return runtime.hooks;if(id==='react/jsx-runtime')return jsx;
+ if(id==='react')return runtime.hooks;if(id.endsWith('/mailEditorCopy'))return editorCopy;if(id==='react/jsx-runtime')return jsx;
  if(id.endsWith('/translations'))return translations;
  if(id.endsWith('/emailExperienceCopy'))return experience;
  if(id.endsWith('/mailWorkspaceCopy'))return workspaceCopy;
+ if(id.endsWith('/mailFormat'))return {cleanEditorHtml:value=>value};
  if(id.endsWith('/mailboxCopy'))return mailbox;
  if(id.endsWith('/mailDailyCopy'))return load('mailDailyCopy.ts',()=>language);
  if(id.endsWith('/mailBulk'))return load('mailBulk.ts',()=>({}));
@@ -123,14 +125,14 @@ test('formatted reader retains the isolated sandbox and text alternative',async(
  const runtime=hookRuntime();const {SafeMailView}=load('SafeMailView.tsx',resolver(runtime));
  runtime.render(()=>SafeMailView({text:'Plain alternative',html:'<table><tr><td>Sanitized content</td></tr></table>'}));
  const frame=nodes(runtime.result).find(n=>n.type==='iframe');
- assert.equal(frame.props.sandbox,'');assert.equal(frame.props.referrerPolicy,'no-referrer');
+ assert.equal(frame.props.sandbox,'allow-popups allow-popups-to-escape-sandbox');assert.equal(frame.props.referrerPolicy,'no-referrer');
  assert.ok(frame.props.srcDoc.includes("default-src 'none'"));assert.ok(frame.props.srcDoc.includes("form-action 'none'"));
  assert.equal(nodes(runtime.result).find(n=>n.type==='details').props.open,undefined);
  nodes(runtime.result).find(n=>n.type==='Button').props.onClick();await runtime.flush();
  assert.equal(nodes(runtime.result).some(n=>n.type==='iframe'),false);
  assert.ok(nodes(runtime.result).some(n=>n.type==='p'&&n.props.children==='Plain alternative'));
  nodes(runtime.result).find(n=>n.type==='Button').props.onClick();await runtime.flush();
- assert.equal(nodes(runtime.result).find(n=>n.type==='iframe').props.sandbox,'');runtime.unmount();
+ assert.equal(nodes(runtime.result).find(n=>n.type==='iframe').props.sandbox,'allow-popups allow-popups-to-escape-sandbox');runtime.unmount();
 });
 
 
@@ -230,6 +232,6 @@ test('canonical title actions and filter reset retain mailbox scope, paging and 
  filters().props.onAccount('b');await runtime.flush();await tick();await tick();
  assert.equal(lists.at(-1)[0],'b');assert.equal(lists.at(-1)[1],'inbox');assert.equal(memory.state.foldersCollapsed,true);
  props.onAccounts=undefined;runtime.render(()=>LiveMailboxWorkspace(props));await runtime.flush();
- assert.equal(actions().some(n=>n.type==='IndiceTitleBarOverflow'),false);assert.equal(actions().filter(n=>n.type==='Button').length,3);
+ assert.equal(actions().find(n=>n.type==='IndiceTitleBarOverflow').props.items[0].id,'expand');assert.equal(actions().filter(n=>n.type==='Button').length,3);
  runtime.unmount();
 });

@@ -1,0 +1,20 @@
+.indice-mail-editor {min-width:0;overflow:hidden;color:#172033}
+.indice-mail-editor .mail-rich-editor {max-height:60dvh;line-height:1.65;font-family:Arial,sans-serif;background:white;color:#172033}
+.indice-mail-editor .mail-rich-editor ul {list-style:disc;padding-left:1.5rem}
+.indice-mail-editor .mail-rich-editor ol {list-style:decimal;padding-left:1.5rem}
+.indice-mail-editor .mail-rich-editor img {max-width:100%;height:auto;display:inline-block}
+.indice-mail-editor .mail-rich-editor a {color:#1d4ed8;text-decoration:underline}
+.indice-mail-editor .mail-rich-editor blockquote {border-left:3px solid #cbd5e1;padding-left:1rem}
+.indice-mail-editor [role=toolbar] {scrollbar-width:thin;scroll-padding:8px}
+.dark .indice-mail-editor {color:#e2e8f0}
+.mail-compose-expanded {width:calc(100vw - 24px)!important;max-width:1600px!important;height:calc(100dvh - 24px)!important;max-height:calc(100dvh - 24px)!important}
+.mail-compose-expanded .mail-rich-editor {min-height:40dvh}
+.mail-workspace-expanded {position:fixed!important;inset:0;z-index:40;background:#f8fafc;overflow:auto;padding:16px;overscroll-behavior:contain}
+.dark .mail-workspace-expanded {background:#020617}
+@media(max-width:640px){.mail-compose-frame{width:100vw!important;max-width:100vw!important;height:100dvh!important;max-height:100dvh!important;border-radius:0!important}.mail-compose-frame .mail-rich-editor{min-height:32dvh}.mail-workspace-expanded{padding:8px}.mail-workspace-expanded article{max-height:calc(100dvh - 160px)}}
+/* Keep compose actions reachable when the on-screen keyboard reduces the visual viewport. */
+.mail-compose-frame[data-dialog-compact-viewport="true"] {overflow-y:hidden!important}
+.mail-compose-frame[data-dialog-compact-viewport="true"] [data-slot="indice-modal-body"] {flex:1 1 0%;min-height:0;overflow-y:auto}
+@media(max-width:640px){
+ .mail-compose-frame[data-slot="dialog-content"]{width:100vw!important;max-width:100vw!important;height:var(--indice-dialog-viewport-height,100dvh)!important;max-height:var(--indice-dialog-viewport-height,100dvh)!important;border-radius:0!important}
+}

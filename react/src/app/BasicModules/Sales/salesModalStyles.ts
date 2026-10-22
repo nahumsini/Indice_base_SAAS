@@ -1,4 +1,4 @@
-export type SalesModalTone = 'coral' | 'aqua' | 'yellow' | 'graphite';
+export type SalesModalTone = 'blue' | 'coral' | 'aqua' | 'yellow' | 'graphite';
 
 const toneStyles = {
   coral: {
@@ -27,6 +27,15 @@ const toneStyles = {
     close: 'flex h-10 w-10 items-center justify-center rounded-full border border-[#222831]/20 bg-[#222831]/10 text-[#222831] opacity-100 hover:bg-[#222831]/15 hover:text-[#222831] focus:ring-[#222831]/30 focus:ring-offset-0 data-[state=open]:bg-[#222831]/15 data-[state=open]:text-[#222831]',
     primary: 'h-11 rounded-xl bg-white px-5 text-sm font-medium text-[#9A6B05] shadow-sm hover:bg-white/90 focus-visible:ring-[#222831]/30 disabled:bg-white/60 disabled:text-[#9A6B05]/50',
     secondary: 'h-11 rounded-xl border-[#222831]/40 bg-transparent px-5 text-sm font-medium text-[#222831] hover:bg-white/20 hover:text-[#222831] focus-visible:ring-[#222831]/30 disabled:border-[#222831]/20 disabled:text-[#222831]/45',
+  },
+  blue: {
+    solid: 'bg-[#2563EB]',
+    title: 'text-white',
+    description: 'text-white/80',
+    icon: 'text-white',
+    close: 'flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white opacity-100 hover:bg-white/25 hover:text-white focus:ring-white/50 focus:ring-offset-0 data-[state=open]:bg-white/20 data-[state=open]:text-white',
+    primary: 'h-11 rounded-xl bg-white px-5 text-sm font-medium text-[#1D4ED8] shadow-sm hover:bg-white/90 focus-visible:ring-white/40 disabled:bg-white/60 disabled:text-[#1D4ED8]/50',
+    secondary: 'h-11 rounded-xl border-white/60 bg-transparent px-5 text-sm font-medium text-white hover:bg-white/15 hover:text-white focus-visible:ring-white/40 disabled:border-white/25 disabled:text-white/45',
   },
   graphite: {
     solid: 'bg-[#222831]',

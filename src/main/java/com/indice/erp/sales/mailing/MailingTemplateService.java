@@ -50,7 +50,7 @@ public class MailingTemplateService {
     private Template get(long company,String id) {
         uuid(id);
         return db.query("SELECT * FROM sales_mailing_templates WHERE company_id=? AND id=?",
-            (r,n)->new Template(r.getString("id"),r.getString("name"),r.getString("subject"),r.getString("preview_text"),r.getString("body_text"),r.getString("status"),r.getLong("version"),r.getTimestamp("updated_at").toInstant()),company,id)
+            (r,n)->new Template(r.getString("id"),r.getString("name"),r.getString("subject"),r.getString("preview_text"),r.getString("body_text"),r.getString("status"),r.getLong("version"),r.getTimestamp("updated_at").toInstant(),r.getString("body_html")),company,id)
             .stream().findFirst().orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"mailing_template_not_found"));
     }
     private void lock(AuthSessionUser actor) {
@@ -67,6 +67,7 @@ public class MailingTemplateService {
         uuid(id); lock(actor);
         var versions=db.queryForList("SELECT version FROM sales_mailing_templates WHERE company_id=? AND id=? FOR UPDATE",Long.class,actor.companyId(),id);
         require(versions.isEmpty()?input.version()==0:versions.getFirst()==input.version(),HttpStatus.CONFLICT,"mailing_template_version_conflict");
+        String html=input.bodyHtml()==null ? (versions.isEmpty()?null:get(actor.companyId(),id).bodyText().equals(input.bodyText())?get(actor.companyId(),id).bodyHtml():null) : com.indice.erp.email.mailbox.SafeMailHtml.clean(input.bodyHtml());
         if (versions.isEmpty()) {
             db.update("""
                 INSERT INTO sales_mailing_templates(company_id,id,name,subject,preview_text,body_text,created_by,updated_by)
@@ -78,6 +79,7 @@ public class MailingTemplateService {
                 updated_by=?,updated_at=CURRENT_TIMESTAMP(6) WHERE company_id=? AND id=? AND version=?
                 """,input.name().trim(),input.subject().trim(),input.previewText().trim(),input.bodyText(),actor.userId(),actor.companyId(),id,input.version());
         }
+        db.update("UPDATE sales_mailing_templates SET body_html=? WHERE company_id=? AND id=?",html,actor.companyId(),id);
         audit(actor,id,input.version()+1,"TEMPLATE_SAVED");
         return get(actor.companyId(),id);
     }

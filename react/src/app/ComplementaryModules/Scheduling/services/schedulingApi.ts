@@ -1,19 +1,20 @@
 import { apiClient, buildApiUrl } from '../../../lib/apiClient';
 
 export type ReservationStatus = 'REQUESTED' | 'CONFIRMED' | 'COMPLETED' | 'NO_SHOW' | 'CANCELLED' | 'PAUSED';
-export type Service = { id: number; name: string; description: string; durationMinutes: number; bufferMinutes: number; noticeHours: number; active: boolean; version: number; productId?: number | null; days?: AvailabilityDay[] };
+export type ServiceChargePolicy = 'NO_CHARGE' | 'TO_BE_AGREED';
+export type Service = { chargePolicy?: ServiceChargePolicy; id: number; name: string; description: string; durationMinutes: number; bufferMinutes: number; noticeHours: number; active: boolean; version: number; productId?: number | null; days?: AvailabilityDay[] };
 export type AvailabilityDay = { dayOfWeek: number; startTime: string; endTime: string };
 export type Staff = { id: number; userId: number; publicName: string; timezone: string; active: boolean; version: number; days: AvailabilityDay[]; unavailableDates?: string[]; serviceIds?: number[]; bufferMinutes?: number };
 export type PageAppearance = { brandName: string; accentColor: string; surfaceColor: string; buttonLabel: string; layout: 'cards' | 'compact' };
 export type BookingPage = { id: number; alias: string; title: string; description: string; published: boolean; version: number; publicUrl: string; appearance?: PageAppearance };
 export type Event = { id: number; staffId: number; title: string; description: string; startAt: string; durationMinutes: number; capacity: number; confirmedCount: number; activeParticipantCount?: number; location?: string; published: boolean; status: string; version: number };
-export type Reservation = { id: number; reference: string; staffId: number; serviceId: number | null; eventId: number | null; serviceName: string; staffName: string; attendeeName: string; attendeeEmail: string; attendeeCompany: string; attendeePhone?: string; clientId?: number | null; startAt: string; durationMinutes: number; status: ReservationStatus; version: number; pausedFromStatus?: ReservationStatus | null; archivedAt?: string | null };
+export type Reservation = { chargePolicy?: ServiceChargePolicy; id: number; reference: string; staffId: number; serviceId: number | null; eventId: number | null; serviceName: string; staffName: string; attendeeName: string; attendeeEmail: string; attendeeCompany: string; attendeePhone?: string; clientId?: number | null; startAt: string; durationMinutes: number; status: ReservationStatus; version: number; pausedFromStatus?: ReservationStatus | null; archivedAt?: string | null };
 export type CalendarWorkspace = { items: Reservation[]; total: number; events: Event[]; eventsTotal: number };
 export type Client = { id: number; companyName: string; contactPerson: string; email: string; phone: string; status: string };
 export type ReservationPage = { items: Reservation[]; total: number; page: number; pageSize: number };
 export type Metrics = { requests: number; confirmed: number; completed: number; noShow: number; cancelled: number; attendanceRate: number | null };
 export type PublicEvent = { id: number; staffId: number; title: string; description: string; startAt: string; durationMinutes: number; availablePlaces: number; location?: string };
-export type BookingCatalog = { title: string; description: string; services: Pick<Service, 'id' | 'name' | 'description' | 'durationMinutes' | 'noticeHours'>[]; staff: Pick<Staff, 'id' | 'publicName' | 'timezone' | 'serviceIds'>[]; events: PublicEvent[]; clientSelectionEnabled?: boolean; appearance?: PageAppearance };
+export type BookingCatalog = { title: string; description: string; services: Pick<Service, 'id' | 'name' | 'description' | 'durationMinutes' | 'noticeHours' | 'chargePolicy'>[]; staff: Pick<Staff, 'id' | 'publicName' | 'timezone' | 'serviceIds'>[]; events: PublicEvent[]; clientSelectionEnabled?: boolean; appearance?: PageAppearance };
 export type SlotRequest = { serviceId: number; staffId: number; date: string };
 export type Slots = { timezone: string; starts: string[] };
 export type BookingRequest = { serviceId: number | null; eventId: number | null; staffId: number; startAt: string; attendeeName: string; attendeeEmail: string; attendeeCompany: string; attendeePhone: string; contactConsent: boolean; clientId?: number };

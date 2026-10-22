@@ -14,10 +14,13 @@ const actor = (role = 'superadmin', keys?: string[]) => ({ user: { id: 42, name:
 setCachedAuthSession(actor());setCachedCsrfToken('synthetic-csrf');
 if (!window.location.pathname.startsWith('/scheduling/')) window.history.replaceState(null, '', '/scheduling/calendar');
 function Fixture() {
-  const { setPosition } = useWorkbarLayout(), { setCurrentLanguage } = useLanguage();
+  const { setPosition } = useWorkbarLayout(), { setCurrentLanguage, currentLanguage } = useLanguage();
   Object.assign(window, { schedulingFixture: { layout: setPosition, language: (code: string) => setCurrentLanguage(languages.find(language => language.code === code)!), role: (role: string, keys?: string[]) => setCachedAuthSession(actor(role, keys)) } });
   return <div className="flex h-screen flex-col"><div className="flex shrink-0 flex-wrap items-center justify-between gap-2 bg-[#2563EB] p-3 text-sm text-white">
-    <span>Prueba UI con datos sintéticos · sin acceso a producción</span><a href="/book/piloto" target="_blank" rel="noopener noreferrer" className="underline">Ver página de reservas</a></div>
+    <span>Prueba UI con datos sintéticos · sin acceso a producción</span>
+    <label>Idioma de la prueba <select aria-label="Idioma de la prueba" className="rounded bg-white p-1 text-slate-900" value={currentLanguage.code} onChange={event=>setCurrentLanguage(languages.find(language=>language.code===event.target.value)!)}>{languages.map(language=><option key={language.code} value={language.code}>{language.code}</option>)}</select></label>
+    <button type="button" className="min-h-11 rounded border border-white/50 px-3" onClick={()=>document.documentElement.classList.toggle('dark')}>Cambiar tema de prueba</button>
+    <a href="/book/piloto" target="_blank" rel="noopener noreferrer" className="underline">Ver página de reservas</a></div>
     <main className="min-h-0 flex-1"><Routes><Route path="/:pageId/*" element={<Scheduling learningModeActive onNavigate={() => {}} />} /></Routes></main></div>;
 }
 createRoot(document.getElementById('root')!).render(<StrictMode><LanguageProvider><BrowserRouter><FavoritesProvider><WorkbarLayoutProvider><Fixture /></WorkbarLayoutProvider></FavoritesProvider></BrowserRouter></LanguageProvider></StrictMode>);

@@ -53,7 +53,14 @@ public class SchedulingConfigurationService {
         if(request.name().isBlank())throw new IllegalArgumentException();
         if(request.days()!=null)validateDays(request.days());
         Long product=request.productId();
-        if(id!=null&&product==null){for(var saved:repository.services(company))if(saved.id()==id){product=saved.productId();break;}}
+        ChargePolicy chargePolicy=request.chargePolicy();
+        if(id!=null){
+            long serviceId=id;
+            var saved=repository.services(company).stream().filter(item->item.id()==serviceId).findFirst().orElseThrow();
+            if(product==null)product=saved.productId();
+            if(chargePolicy==null)chargePolicy=saved.chargePolicy();
+        }
+        if(chargePolicy==null)chargePolicy=ChargePolicy.TO_BE_AGREED;
         if(product!=null)catalog.selected(company,product);
         if(id==null)id=repository.insert("""
             INSERT INTO scheduling_services(company_id,name,description,duration_minutes,buffer_minutes,notice_hours,active)
@@ -65,7 +72,7 @@ public class SchedulingConfigurationService {
              active=?,version=version+1 WHERE company_id=? AND id=? AND version=?
             """,request.name().trim(),text(request.description()),request.durationMinutes(),request.bufferMinutes(),
             request.noticeHours(),request.active(),company,id,request.version()));
-        repository.jdbc().update("UPDATE scheduling_services SET product_id=? WHERE company_id=? AND id=?",product,company,id);
+        repository.jdbc().update("UPDATE scheduling_services SET product_id=?,charge_policy=? WHERE company_id=? AND id=?",product,chargePolicy.name(),company,id);
         if(request.days()!=null){
             repository.jdbc().update("DELETE FROM scheduling_service_availability WHERE company_id=? AND service_id=?",company,id);
             for(var day:request.days())repository.jdbc().update("INSERT INTO scheduling_service_availability(company_id,service_id,day_of_week,start_time,end_time) VALUES(?,?,?,?,?)",company,id,day.dayOfWeek(),day.startTime(),day.endTime());

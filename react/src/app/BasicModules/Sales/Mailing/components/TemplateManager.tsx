@@ -31,10 +31,12 @@ export function TemplateManager({
   copy,
   locale,
   onClose,
+  tone = "coral",
 }: {
   copy: MailingCopy;
   locale: string;
   onClose: () => void;
+  tone?: "blue" | "coral";
 }) {
   const selectionRequest = useRef(0);
   const [view, setView] = useState<View>("workspace");
@@ -121,6 +123,7 @@ export function TemplateManager({
           subject: template.subject,
           previewText: template.previewText,
           bodyText: template.bodyText,
+          bodyHtml: template.bodyHtml,
           version: template.version,
         }
       : { ...blank };
@@ -195,7 +198,7 @@ export function TemplateManager({
   }
   const confirmation = view === "discard" || view === "archive";
   return (
-    <SalesModalFrame
+    <SalesModalFrame tone={tone}
       open
       busy={busy}
       modalType={

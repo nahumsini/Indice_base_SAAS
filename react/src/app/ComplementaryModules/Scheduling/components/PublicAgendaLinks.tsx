@@ -5,8 +5,8 @@ import type { SchedulingCopy } from '../translations/schedulingCopy';
 import { ActionButton, Feedback } from './SchedulingPrimitives';
 
 /** Links describe the saved publication, never an unsaved alias or draft. */
-export function PublicAgendaLinks({ page, staff, copy, publicAccessEnabled }: {
-  page: BookingPage | null; staff: Staff[]; copy: SchedulingCopy; publicAccessEnabled: boolean;
+export function PublicAgendaLinks({ page, staff, copy, publicAccessEnabled, title }: {
+  page: BookingPage | null; staff: Staff[]; copy: SchedulingCopy; publicAccessEnabled: boolean; title?: string;
 }) {
   const [feedback, setFeedback] = useState<'copied' | 'error' | null>(null);
   const copyLink = async (path: string) => {
@@ -16,7 +16,7 @@ export function PublicAgendaLinks({ page, staff, copy, publicAccessEnabled }: {
   if (!page) return null;
   const available = page.published && publicAccessEnabled;
   return <section className="min-w-0 space-y-3 border-t border-slate-200 pt-5 dark:border-slate-700">
-    <h2 className="text-sm font-medium">{copy.share}</h2>
+    <h2 className="text-sm font-medium">{title ?? copy.share}</h2>
     {!page.published && <Feedback>{copy.unpublished}</Feedback>}
     <p className="break-all rounded-xl bg-slate-100 p-3 text-sm dark:bg-slate-800">{new URL(page.publicUrl, window.location.origin).href}</p>
     {available && <><div className="flex flex-wrap gap-2">

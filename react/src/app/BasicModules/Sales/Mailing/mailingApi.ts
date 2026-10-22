@@ -10,6 +10,7 @@ export type Campaign = {
   replyTo: string;
   previewText: string;
   bodyText: string;
+  bodyHtml?: string | null;
   status: "DRAFT" | "SCHEDULED" | "RUNNING" | "PAUSED" | "COMPLETED" | "CANCELLED";
   version: number;
   recipientCount: number;
@@ -25,6 +26,7 @@ export type Draft = Pick<
   | "replyTo"
   | "previewText"
   | "bodyText"
+  | "bodyHtml"
   | "version"
 > & { contactIds: number[] };
 export type CampaignPage = {
@@ -60,13 +62,14 @@ export type EmailTemplate = {
   subject: string;
   previewText: string;
   bodyText: string;
+  bodyHtml?: string | null;
   status: "ACTIVE" | "ARCHIVED";
   version: number;
   updatedAt: string;
 };
 export type TemplateInput = Pick<
   EmailTemplate,
-  "name" | "subject" | "previewText" | "bodyText" | "version"
+  "name" | "subject" | "previewText" | "bodyText" | "bodyHtml" | "version"
 >;
 export type TemplatePage = {
   items: EmailTemplate[];

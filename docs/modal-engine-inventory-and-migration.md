@@ -79,6 +79,42 @@ Consolidate presentation into `IndiceModalFrame` plus four classified modes: con
 
 ## Acceptance criteria for every migrated modal
 
+Scheduling team refinement (2026-10-22): Team/availability is a compact **Operational Workspace**
+with search/status filters and a single directory with direct Edit actions. It has no KPI cards or
+parallel dossier; height follows content. Add/edit collaborator is
+a four-stage **Wizard** (identity, availability, services/exceptions, review), explicitly adopted
+by the user as guided setup for this domain. This supersedes its earlier standard-form decision.
+Both reuse `IndiceModalFrame`; the wizard reuses the shared stepper, validation, summary and
+footer. Current-stage validation gates Continue; Back retains state and only review submits.
+Dirty discard replaces the form with **Confirmation** and returns to the same draft/step on
+cancel/Escape. No stacked overlay, new shell or backend change. See the Scheduling owner contract
+and `validation/2026-10-22-scheduling-staff-modals.md` for scope and verification.
+
+Scheduling services (2026-10-22): Add/edit service is a three-stage **Wizard**, explicitly adopted
+by the user: service source (Inventory or direct Agenda creation), booking settings, review.
+Charge condition is explicit and independent of origin. Existing Inventory links and independent
+records retain compatibility; configured results open the existing configuration through
+the same guarded replacement. Empty/search/error states and permission-gated Inventory navigation
+belong to the module. The shared frame adds optional validation, disabled progression and guarded
+exit composition without changing its default consumers. No new modal engine. The subsequent
+approved standalone-service extension adds an owner API field and reservation condition snapshot.
+See `validation/2026-10-22-scheduling-service-wizard.md` and
+`validation/2026-10-22-scheduling-standalone-services.md`.
+
+Scheduling public agenda (2026-10-22): the user adopts the Public Catalog editor as reference and
+replaces the publication workspace form with a three-stage **Wizard**: Content, Design, Review and
+publish. Reuse the coral frame/stepper, fixed footer, discard/pending guards and existing page API.
+The editor and public route share heading and service-card presentation. Custom colors, content,
+desktop/mobile preview and explicit saved links remain module-owned. See
+`validation/2026-10-22-scheduling-public-agenda-editor.md`.
+
+Scheduling New request (2026-10-22): the existing four-stage **Wizard** retains selection,
+time, contact and review, with the shared compact stepper, summaries, split footer and one-frame
+discard. Module-owned state guards pending mutations synchronously, preserves contact/client
+drafts on Back, retries slot reads and displays the saved private reference/status. The public
+booking route retains its presentation and transport. No new modal engine or backend contract.
+See `validation/2026-10-22-scheduling-new-request.md`.
+
 Maintenance pilot (2026-10-09): request/asset/order editing, progress, labor, inventory consumption,
 expense linking and configuration are **Standard Forms**. Preventive creation is a three-step
 **Wizard** (asset/recurrence, procedure/closure, review). Order, request and asset dossiers are

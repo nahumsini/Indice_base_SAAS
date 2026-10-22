@@ -496,6 +496,22 @@ remains a WorkspaceView, with its existing fixed-size API pagination and explici
 count; do not invent a global total, page-size choices or business/unit filters without an owner
 contract. On phones, opening a message hides the filter card until returning to the message list.
 
+Email commercial-composition and operational KPI extension, 2026-10-22: user-authorized
+refinement retains the mailbox WorkspaceView. After the shared filter bar, show four actionable
+cards: Unread, Starred, Drafts and Sends to review. The Email owner endpoint computes totals for
+the current private account and search across all cached pages, independently of the selected
+folder/status. Unread and Starred cover the current synchronized Inbox only; Drafts and review
+cover local draft/send states. Explain this scope; never infer reply obligations, recipient opens,
+delivery or sales revenue. A card selects its folder/status and resets page/selection; toggling
+it off returns to Inbox/All while preserving account/search. Failed/loading counts show no stale
+numbers. Keep Compose primary, Refresh/Preferences secondary, and Expand/Restore plus authorized
+account navigation in the final Actions overflow. Mailbox and composer expansion preserve draft
+and selection state; phone composition uses a full-height frame with independently scrolling
+content and reachable actions. Shared template management keeps IndiceTableEngine and its existing
+server pagination/sorting. Rich-text editing is shared presentation; Sales still owns templates
+and audiences, Email owns private drafts/signatures/transport. See the current
+[email owner contract](email-mailing-integration-contract-v1.md#professional-composition-and-operational-kpis--2026-10-22).
+
 Mailing operational workspace, 2026-10-19: the [campaign workspace contract](sales-mailing-contract-v1.md#campaign-operating-workspace--2026-10-19)
 adopts the standard title/filter/status/table composition for the campaign list. Keep recipient lists,
 templates and new campaign directly accessible, with administrative actions in the final overflow.
@@ -4324,8 +4340,10 @@ Calendar/Table views share period and collaborator filters. Day/week/month prese
 existing calendar rhythm without adding a scheduling engine; owner APIs scope all company agendas
 or an operator's own staff. Services and Team/availability open operational-workspace modals;
 their standard create/edit form replaces the list frame instead of nesting another modal. Public
-agenda uses one operational-workspace modal with live preview, saved public/personalized links,
-localized copy and safe colors. The underlying agenda filters/view stay intact. Legacy reservation
+agenda uses one three-stage Modal Wizard Índice (Content, Design, Review and publish), adopting the
+Public Catalog editor reference: editable public identity/text, palettes/custom colors, Cards/Compact
+presentation, desktop/mobile preview and saved public/personalized links. See the 2026-10-22
+Scheduling owner decision. The underlying agenda filters/view stay intact. Legacy reservation
 links preserve their filters and open Table in the unified tab; backend permission scopes stay
 independent despite the visual union.
 The title bar follows the shared three-direct-action limit: New request, Team/availability and
@@ -4357,8 +4375,8 @@ presenting a failed workspace after a successful login.
 `react/src/app/ComplementaryModules/MinutesControl` is the active native workspace for the existing
 `minutes-control` route / `control_minutas` slug, not the former mock entry. See
 [Meeting control module contract v1](meeting-control-module-contract-v1.md).
-Identity is corporate blue with 📝; tabs follow Juntas → Acuerdos → Indicadores, using independent
-native permissions. Calendar/Table share search and period; status/responsible use More filters.
+Identity is corporate blue with 📝; tabs follow Juntas → Sala de junta → Acuerdos → Indicadores. Sala de junta is a derivative
+view of the meetings scope; the other tabs retain independent native permissions. Calendar/Table share search and period; status/responsible use More filters.
 Title actions are New, Flows and series, and Refresh. All operational tables use the canonical header, expandable
 resizing, backend allowlisted sorting and shared 10/25/50/100/200 pagination. Safe filters, widths,
 view and page use existing company/user-scoped workspace memory; no record content is persisted.
@@ -4895,6 +4913,30 @@ new visual engine, implicit access, external invitation or automatic task comple
 and API details remain in `meeting-control-module-contract-v1.md`.
 
 
+### Agenda y reservas: daily agenda alignment — 2026-10-22
+The approved Meeting control calendar arrangement is repeated in Agenda using its native coral
+identity: grouped period controls, compact shared calendar, responsive daily panel, informative
+empty/filter states and date-prefilled private capture. Agenda del día includes both reservations
+and events with chronological order and explicit loaded subtotals. Existing scope, truncation,
+slot/consent/review workflow and public appearance remain owned by Scheduling. This introduces no
+new visual engine, access grant or automatic reservation. Details: `scheduling-module-contract-v1.md`.
+
+
+### Control de juntas: selected-day planning — 2026-10-22
+The approved selected-day refinement retains shared blue title/filters and calendar/table sliders.
+The calendar header groups period navigation. The subsequent user refinement removes the persistent
+selected-day panel: the calendar uses the available width and date/overflow selection opens the native
+blue Standard Form Modal with a chronological daily agenda. One coherent consultation list needs no
+parallel workspace. Its header/footer remain visible with local body scrolling on phones; the parent
+replaces this frame with detail/planning and returns to the day when closed, never stacking dialogs.
+Empty filtered days distinguish missing matches from an unfiltered empty day and expose contextual
+recovery. Loading, retry, truncation and timezone stay explicit. Schedule meeting opens
+the existing planning modal with the selected date; save, availability, permissions and lifecycle
+remain with the owner. Day mode reuses the single-day calendar and the same consultation modal.
+Calendar compact density is opt-in; other
+consumers retain their default. Scope and timing: `meeting-control-module-contract-v1.md`.
+
+
 ### Weighted meeting decisions — 2026-10-21
 The native blue meeting detail adds Decisiones y votaciones, a two-step wizard (proposal/functions/
 team/rules → review/open), and one-frame vote/close workspace. Function points are explicit,
@@ -4905,3 +4947,26 @@ results stay in minutes/print; approved proposals can explicitly prefill an exis
 editor with assignee/date/save. Eight locales, permission-driven actions, 44px controls, local
 sliders and small-phone pinned footers reuse the current engine. No new tab or automatic action
 is introduced. Domain/API/integrity details: `docs/meeting-control-module-contract-v1.md`.
+
+
+### Control de juntas: guided creation — 2026-10-22
+New Single meeting and Flow/series creation use the approved Modal Wizard Índice with Purpose,
+Team, Date and agenda, and Review. This user decision replaces the long single-form creation
+exception. Each step has one objective; Back retains the draft, and final native preview precedes
+explicit scheduling. Blue shared frame/compact stepper/validation/summary/pinned footer remain the
+visual engine. Mobile keeps the step name and progression visible with local body scrolling.
+Editing, recurrence rules, native authorization and API contracts remain owned by Meetings.
+Details: `meeting-control-module-contract-v1.md`.
+
+
+### Native meeting room workspace — 2026-10-22
+
+Control de juntas adds the user-requested Sala de junta tab, scoped to the existing meetings
+permission. Its native blue title and explicit Save minutes stay visible during room scrolling.
+Native section navigation organizes agenda, inline minutes/decisions, actual attendance, authorized
+agreements and existing weighted voting. The writing area and agenda align on desktop and stack
+through local section navigation on phones. No second modal/navigation/data engine is introduced.
+Native router blocking and the existing Confirmation Modal protect unsaved minutes/attendance;
+requests and native editors block navigation until complete. Failed or stale writes preserve the
+draft, with explicit copy/reload instead of silent overwrite. The domain contract documents this
+derivative tab and preserved lifecycle, object authorization and eight-locale behavior.

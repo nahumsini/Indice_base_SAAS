@@ -1,3 +1,4 @@
+import { getServiceTermsCopy, serviceChargeLabel } from '../translations/serviceTermsCopy';
 import { useCallback, useState } from 'react';
 import { IndiceModalFrame } from '../../../components/indice-modal/IndiceModalFrame';
 import { schedulingApi, type Reservation, type ReservationStatus } from '../services/schedulingApi';
@@ -10,14 +11,14 @@ import { schedulingEmoji, schedulingTone } from '../utils/schedulingIdentity';
 
 export function ReservationReview({ record, copy, locale, canManage, onClose, onSaved }: { record: Reservation; copy: SchedulingCopy; locale: string;
   canManage: boolean; onClose: () => void; onSaved: () => void }) {
-  const op = getSchedulingOperationsCopy(locale);
+  const op = getSchedulingOperationsCopy(locale), terms = getServiceTermsCopy(locale);
   const history = useSchedulingQuery(useCallback(signal => schedulingApi.history(record.id, signal), [record.id]));
   const allowed: ReservationStatus[] = record.status === 'REQUESTED' ? ['CONFIRMED', 'CANCELLED'] : record.status === 'CONFIRMED' ?
     (new Date(record.startAt) > new Date() ? ['CANCELLED'] : ['COMPLETED', 'NO_SHOW', 'CANCELLED']) : [];
   const [status, setStatus] = useState<ReservationStatus>(allowed[0] ?? record.status), [reason, setReason] = useState('');
   const summary = <section className="space-y-4"><StatusBadge status={record.status} copy={copy} />
     <dl className="grid gap-4 text-sm sm:grid-cols-2">{[
-      [copy.service, record.serviceName], [copy.consultant, record.staffName], [copy.attendee, record.attendeeName], [copy.email, record.attendeeEmail], [copy.phone, record.attendeePhone || '—'],
+      [copy.service, record.serviceName], ...(record.serviceId ? [[terms.chargePolicy, serviceChargeLabel(record.chargePolicy,locale)]] : []), [copy.consultant, record.staffName], [copy.attendee, record.attendeeName], [copy.email, record.attendeeEmail], [copy.phone, record.attendeePhone || '—'],
       [copy.company, record.attendeeCompany || '—'], [copy.date, new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(record.startAt))],
     ].map(([label, value]) => <div key={label}><dt className="text-slate-500 dark:text-slate-400">{label}</dt><dd className="mt-1 break-words text-slate-900 dark:text-white">{value}</dd></div>)}</dl>
     <p className="text-xs text-slate-500">{record.reference} · {Intl.DateTimeFormat().resolvedOptions().timeZone}</p>

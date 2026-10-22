@@ -3,7 +3,7 @@ import { ApiClientError } from '../../lib/apiClient';
 export const MAIL_OFFICE_TYPES: Record<string, string> = { docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' };
 export const MAIL_ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024;
 export const MAIL_ATTACHMENT_TOTAL_BYTES = 10 * 1024 * 1024;
-export type AttachmentErrorKey = 'fileSize' | 'fileFormat' | 'fileContent' | 'fileLimit' | 'fileQuota' | 'fileStorage' | 'fileConflict' | 'fileAccess' | 'fileTransfer' | 'fileExpired' | 'fileUnknown';
+export type AttachmentErrorKey = 'pdfPassword' | 'pdfForm' | 'pdfActive' | 'pdfComplex' | 'damaged' | 'fileSize' | 'fileFormat' | 'fileContent' | 'fileLimit' | 'fileQuota' | 'fileStorage' | 'fileConflict' | 'fileAccess' | 'fileTransfer' | 'fileExpired' | 'fileUnknown';
 export class AttachmentUploadError extends Error {
   constructor(public readonly key: AttachmentErrorKey) { super(key); }
 }
@@ -36,6 +36,11 @@ export function attachmentErrorKey(error: unknown): AttachmentErrorKey {
   if (error instanceof AttachmentUploadError) return error.key;
   if (error instanceof ApiClientError) {
     switch (error.code) {
+      case 'email_pdf_password': return 'pdfPassword';
+      case 'email_pdf_form': return 'pdfForm';
+      case 'email_pdf_active': return 'pdfActive';
+      case 'email_pdf_complex': return 'pdfComplex';
+      case 'email_attachment_damaged': return 'damaged';
       case 'email_attachment_blocked': case 'email_attachment_mismatch': return 'fileContent';
       case 'email_attachment_limit': return 'fileLimit';
       case 'STORAGE_QUOTA_EXCEEDED': return 'fileQuota';

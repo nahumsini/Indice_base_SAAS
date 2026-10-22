@@ -55,6 +55,13 @@ class MailingDeliveryIntegrationTest {
         delivery.tick();due(id);delivery.tick();due(id);delivery.tick();assertThat(delivery.results(actor,id).status()).isEqualTo("COMPLETED");assertThat(delivery.results(actor,id).items()).extracting(Delivery::state).containsExactly("ACCEPTED");verify(transport,times(1)).send(any(),any());
         assertThatThrownBy(()->campaigns.save(actor,id,new MailingContracts.DraftInput("Changed","X","Sender","","","X",List.of(contact),campaigns.get(actor,id).version(),account))).hasMessageContaining("mailing_campaign_locked");
     }
+    @Test void expandedHtmlIsRejectedBeforeCreatingDeliveryWork(){
+        String id=campaign(List.of(contact));
+        db.update("UPDATE sales_mailing_campaigns SET body_html=? WHERE company_id=? AND id=?", "<span>".repeat(38460)+"{{name}}"+"</span>".repeat(38460), company,id);
+        assertThatThrownBy(()->delivery.launch(actor,id,launchInput(id,null))).hasMessageContaining("mailing_content_too_long");
+        assertThat(delivery.results(actor,id).status()).isEqualTo("DRAFT");
+        assertThat(delivery.results(actor,id).items()).isEmpty();verifyNoInteractions(transport);
+    }
     @Test void reviewAcceptsContactsWithoutConsentAndRejectsChangedAudience(){
         String id=campaign(List.of(contact));assertThat(delivery.review(actor,id).audience().getFirst().eligibility()).isEqualTo("READY");var input=launchInput(id,null);
         db.update("UPDATE sales_contacts SET email='changed@example.com' WHERE company_id=? AND id=?",company,contact);

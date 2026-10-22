@@ -12,7 +12,7 @@ No corporate entries are copied, no invitations/email are sent, and no public ac
 external calendars, attachments or automatic Processes tasks are introduced. The approved
 2026-10-07 extension below adds finite meeting series and internal notification automation.
 Identity: 📝 Control de juntas, corporate blue; native ERP shell, title/filter bars,
-calendar presentation and one-frame modal engine. Tabs: meetings, agreements, indicators.
+calendar presentation and one-frame modal engine. Tabs: meetings, session, agreements, indicators. Session inherits the meetings scope.
 The former mock templates/follow-ups are not supported production contracts.
 
 Company administrators can operate all company records. Other assigned users see
@@ -59,9 +59,11 @@ planning fields retain existing values, with the default minutes role following 
 coordinator on legacy reassignment. Explicit independent delegation must be retained or
 replaced, not silently removed. Existing records do not require a data rewrite.
 
-- Junta única is a grouped **Standard Form Modal**. Flow/series is a three-stage
-  **Modal Wizard Índice**: purpose/people → schedule → review. Back retains the draft.
-  Review shows backend-calculated dates, timezone, responsibilities and overlap counts.
+- The 2026-10-22 user refinement adopts **Modal Wizard Índice** for both new Single meeting
+  and Flow/series: Purpose → Team → Date and agenda → Review. Back retains the complete draft.
+  Review shows backend-calculated dates, timezone, responsibilities, meeting type, duration and
+  overlap counts. Existing single-occurrence editing retains its form; future-series editing
+  retains its existing guarded three-stage workflow.
 - Reusable flows copy only planning settings, not dates, minutes, decisions, agreements,
   recurrence authority or access grants. Maximum 100 active flows/company. Creator or
   company administrator can list/archive flows; archive retains existing meetings.
@@ -354,3 +356,92 @@ close and explicit agreement capture. Typecheck and build are required before sc
 Local activation backs up the database privately, applies only V344 and overlays verified meetings
 classes on the existing runtime. Rollback retains V344 schema/data and its result readers; do not
 remove or rewrite an applied migration or erase ballot evidence.
+
+
+## Selected-day planning workspace — 2026-10-22
+
+The approved refinement replaces the ambiguous date/count empty card with an explicit daily agenda.
+The shared blue title, filters, calendar/table navigation, native modals, API, permissions and
+meeting lifecycle remain unchanged. No backend or schema change is needed.
+
+- One compact header groups visible period, Day/Week/Month, Today and previous/next. Timezone context
+  stays visible below the workspace. Month/week reuse IndiceCalendarSurface with opt-in compact
+  density; day mode uses its existing single-day presentation. Other calendar owners are unchanged.
+- The subsequent user decision replaces the persistent daily panel with a day consultation modal.
+  Month/week/day use the complete available width with local horizontal scrolling only where needed.
+  Selecting a date or the remaining-count action opens **Juntas del día** in the shared blue Standard
+  Form Modal: one coherent, read-only single-column list, without parallel configuration or bulk
+  work. This classification keeps the native compact width, bounded body scroll and pinned actions;
+  it is not an Operational Workspace merely to obtain more width. No custom modal engine is added.
+- “Juntas del día” identifies the selected date and count. Cards show time, title, coordinator,
+  participant count and status, ordered by start time/id, and open the existing detail. Preview retains
+  three cards plus the remaining-count action; the modal shows all loaded rows. The parent owns one
+  dialog state: detail/planning replaces the day list and closing returns to that day, without stacked
+  dialogs. Loading/error, filtered scope and the existing truncation warning remain explicit.
+- Empty filtered days say no matches and offer Clear filters while preserving period. Unfiltered
+  empty days explain that no meetings exist in the authorized scope. Schedule meeting opens the
+  existing planning modal with that local date; future days default to editable 09:00, today uses
+  the current rounded future-time default where possible. Past days remain consultable without
+  the date-specific scheduling shortcut. Global New meeting retains its existing default.
+- All eight locales are complete. Save, availability, participant validation and discard protection
+  remain owned by the native planning flow. Synthetic UI acceptance creates no real meetings.
+
+Rollback restores the changed frontend files. Validation covers empty/filtered/five-meeting days,
+selected-date prefill, calendar overflow, scope navigation and desktop/phone layouts.
+
+
+## New meeting creation wizard refinement — 2026-10-22
+
+The user explicitly replaces the long Single meeting creation form with four dependent steps.
+Purpose captures mode/title/objective/result/type. Team selects active members, coordinator and
+optional independent minutes writer. Date and agenda contains time/duration, native availability,
+internal reminders, agenda/place and optional recurrence for Flow/series. Review uses the existing
+server preview and shared summary before an explicit Schedule action. Single meeting never bypasses
+review, exposes recurrence, or accidentally saves a reusable flow. Flow/series retains optional
+flow reuse, repeat controls and save-flow selection.
+
+Continue validates only the visible stage; active people and purpose are rechecked before preview
+and submission. Back retains values; edits invalidate preview/overlap acknowledgment as before.
+Pending preview/submission blocks duplicate actions and dismissal synchronously. Failed saves
+retain input and reuse the existing payload-bound idempotency key for unchanged retries.
+Authorization revision checks and native availability/lifecycle/CSRF/tenant rules stay authoritative.
+The shared frame, compact stepper, validation, summary and module blue are reused. Body scrolls
+inside the modal, header/footer stay visible, and the footer identifies the step on phones. New
+labels cover all eight locales. Editing/version semantics, API and database are unchanged.
+
+
+## Dedicated meeting room — 2026-10-22
+
+The user explicitly adds a route-backed **Sala de junta** between Juntas and Acuerdos.
+`/minutes-control/session?meeting={id}` reuses `control_minutas.meetings` through the native
+tab-scope catalog. This is a derivative presentation tab, not a new permission or an agreement
+grant. Existing meetings/agreements/indicators routes and independent backend scopes remain.
+The prior statement that voting creates no new tab described that delivery; the new room groups
+meeting execution, including the unchanged voting owner, without changing voting authority.
+
+The calendar/detail offers Enter meeting room. Without an ID the room shows an authorized,
+paginated native meeting search with dates/status. An explicit inaccessible or malformed ID
+shows an error; it never falls back to a different meeting. No private content enters workspace
+memory or browser storage. The meeting ID remains navigational context only.
+
+One shared blue title bar identifies the meeting, its original timezone, status and coordinator.
+The room has native section navigation for agenda, minutes, attendance, authorized agreements and
+weighted votes. Agenda/context stays alongside the writing area on wide screens and is reachable
+from section navigation on phones. Minutes and decisions are editable inline by the coordinator,
+company administrator or delegated writer only while active, using the existing versioned PUT.
+Save is explicit and remains in the sticky title. No realtime coediting or autosave is claimed.
+
+Failed writes retain drafts. A 409 keeps the draft, blocks blind retries and offers Copy draft
+and explicit reload/discard before reviewing server data. Duplicate saves are synchronously
+blocked. Authorization changes hide/discard the old mounted workspace and ignore stale completion.
+Native router blocking covers tab/module navigation, meeting changes and browser Back/Forward;
+beforeunload covers reload/close. Discard is the native Confirmation Modal. While a native editor
+or request is open, navigation is blocked without stacking confirmations. Minutes and attendance
+are saved separately: other mutations pause while either is dirty, avoiding silent version rebasing.
+
+Attendance, agreement creation/detail/edit/progress/task linking, voting, lifecycle review, closed
+minute addenda and printing reuse existing owners, APIs and modal frames. Agreement reads/actions
+are mounted only with independent agreement access. New agreement context stays fixed to the current
+meeting; saving returns to the current room section. Start/complete/cancel remain explicit, with
+existing minutes/open-ballot closure rules. No backend change, migration, external message or real
+record mutation is required for synthetic UI verification.

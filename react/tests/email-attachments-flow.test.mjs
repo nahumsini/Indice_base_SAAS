@@ -7,6 +7,7 @@ const load = (file, require) => loadTypescript(new URL(file, root).pathname, req
 class ApiClientError extends Error { constructor(message, status, code) { super(message); this.status = status; this.code = code; } }
 const rules = load('mailAttachmentUpload.ts', () => ({ ApiClientError }));
 const language = { useLanguage: () => ({ currentLanguage: { code: 'es-MX' } }) };
+const editorCopy=loadTypescript(new URL('../src/app/components/mail-editor/mailEditorCopy.ts',import.meta.url).pathname,()=>language);
 const copy = load('attachmentCopy.ts', () => language);
 const completion = load('completionCopy.ts', () => language);
 const jpeg = new Uint8Array([255, 216, 255, 224, 0, 16, 74, 70, 73, 70]);
@@ -19,7 +20,7 @@ async function settle(runtime) { for (let i = 0; i < 35; i++) { await setImmedia
 function harness(api, prepare = async () => ({ id: 'draft', version: 4, state: 'DRAFT' })) {
   const runtime = hookRuntime(), saved = [], busy = [];
   const { MailAttachments } = load('MailAttachments.tsx', id => {
-    if (id === 'react') return runtime.hooks; if (id === 'react/jsx-runtime') return jsx;
+    if (id === 'react') return runtime.hooks; if(id.endsWith('/mailEditorCopy'))return editorCopy; if (id === 'react/jsx-runtime') return jsx;
     if (id.endsWith('/mailboxApi')) return { mailboxApi: { attachments: async () => [], downloadUrl: () => '/synthetic-download', ...api } };
     if (id.endsWith('/mailDailyCopy')) return load('mailDailyCopy.ts', () => language);
     if (id.endsWith('/completionCopy')) return completion;

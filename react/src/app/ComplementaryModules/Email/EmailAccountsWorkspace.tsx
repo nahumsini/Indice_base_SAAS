@@ -86,7 +86,7 @@ export function EmailAccountsWorkspace({ onReturn, onMailbox }: { onReturn?: () 
               <header className="flex flex-col gap-4 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:border-slate-800">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-blue-600 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300"><Mail aria-hidden className="h-6 w-6" /></span>
-                  <div className="min-w-0"><h3 className="break-words text-lg font-semibold text-slate-900 dark:text-slate-100">{account.label}</h3><p className="mt-0.5 break-all text-sm text-slate-500 dark:text-slate-400">{account.email}</p></div>
+                  <div className="min-w-0"><h3 className="break-words text-lg font-medium text-slate-900 dark:text-slate-100">{account.label}</h3><p className="mt-0.5 break-all text-sm text-slate-500 dark:text-slate-400">{account.email}</p></div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2"><Button className="h-11 rounded-xl" variant="outline" disabled={!!busy} onClick={() => setEditor(account)}><Pencil aria-hidden className="mr-2 h-4 w-4" />{copy.edit}</Button>
                   <IndiceTitleBarOverflow className="w-auto shrink-0 rounded-xl" label={copy.actions} items={[
@@ -96,13 +96,13 @@ export function EmailAccountsWorkspace({ onReturn, onMailbox }: { onReturn?: () 
               </header>
               <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-6">
                 <section aria-label={`${copy.sending} · SMTP`} className="flex min-w-0 flex-col rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-950/50">
-                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><h4 className="flex items-center gap-2 text-sm font-semibold"><Send aria-hidden className="h-4 w-4 text-blue-600 dark:text-blue-400" />{copy.sending} · SMTP</h4><ConnectionBadge status={account.smtpStatus} /></div>
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><h4 className="flex items-center gap-2 text-sm font-medium"><Send aria-hidden className="h-4 w-4 text-blue-600 dark:text-blue-400" />{copy.sending} · SMTP</h4><ConnectionBadge status={account.smtpStatus} /></div>
                   <p className="break-all text-sm text-slate-700 dark:text-slate-200">{account.smtpHost}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{copy.port} {account.smtpPort} · {account.smtpSecurity}</p>
                   {account.smtpCheckedAt && <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">{copy.lastTest}: {new Date(account.smtpCheckedAt).toLocaleString(locale)}</p>}
                   <div className="mt-auto pt-4"><Button className="h-11 w-full rounded-xl bg-white dark:bg-slate-900" variant="outline" disabled={!!busy || !data.configurationAvailable} onClick={() => void test(account, 'SMTP')}><RefreshCw aria-hidden className="mr-2 h-4 w-4" />{copy.testSmtp}</Button></div>
                 </section>
                 <section aria-label={copy.receiving} className="flex min-w-0 flex-col rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-950/50">
-                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><h4 className="flex items-center gap-2 text-sm font-semibold"><Inbox aria-hidden className="h-4 w-4 text-blue-600 dark:text-blue-400" />{copy.receiving}{account.receiveProtocol !== 'NONE' && ` · ${account.receiveProtocol}`}</h4>{account.receiveProtocol !== 'NONE' && <ConnectionBadge status={account.receiveStatus} />}</div>
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><h4 className="flex items-center gap-2 text-sm font-medium"><Inbox aria-hidden className="h-4 w-4 text-blue-600 dark:text-blue-400" />{copy.receiving}{account.receiveProtocol !== 'NONE' && ` · ${account.receiveProtocol}`}</h4>{account.receiveProtocol !== 'NONE' && <ConnectionBadge status={account.receiveStatus} />}</div>
                   {account.receiveProtocol === 'NONE' ? <p className="text-sm text-slate-500 dark:text-slate-400">{copy.disabled}</p> : <>
                     <p className="break-all text-sm text-slate-700 dark:text-slate-200">{account.receiveHost}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{copy.port} {account.receivePort} · TLS</p>
                     {account.receiveCheckedAt && <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">{copy.lastTest}: {new Date(account.receiveCheckedAt).toLocaleString(locale)}</p>}

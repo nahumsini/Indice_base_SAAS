@@ -24,6 +24,10 @@ public class MailboxService {
         if(!Set.of("DRAFTS","SENT","OUTBOX").contains(folder))access.folder(actor,account,a.version(),folder);
         return repository.list(actor,account,a.version(),folder,query.trim(),offset,filter);
     }
+    public OperationalCounts counts(AuthSessionUser actor,String account,String query){
+        var a=access.read(actor,account);require(query.length()<=180,HttpStatus.BAD_REQUEST,"email_filter_invalid");
+        return repository.counts(actor,account,a.version(),query.trim());
+    }
     public Message get(AuthSessionUser actor,String account,String id){var a=access.read(actor,account);return access.message(actor,account,a.version(),id).view();}
     private record Operation(ConnectionMaterial material,String lease) { @Override public String toString(){return "MailboxOperation[redacted]";} }
     private Operation begin(AuthSessionUser actor,String account,boolean sync){return access.tx.execute(s->{

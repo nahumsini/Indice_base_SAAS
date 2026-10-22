@@ -21,6 +21,7 @@ import { AgendaConfigurationModal, type AgendaConfigurationSection } from '../co
 import { dateInput, dateScope } from '../utils/dateScope';
 import { calendarDates, calendarPeriod, calendarRangeLabel, type CalendarPeriod } from '../utils/calendarScope';
 import { getSchedulingExperienceCopy } from '../translations/schedulingExperienceCopy';
+import { getSchedulingCalendarCopy } from '../translations/schedulingCalendarCopy';
 import { schedulingEmoji, schedulingTone } from '../utils/schedulingIdentity';
 const statuses = ['REQUESTED','CONFIRMED','COMPLETED','NO_SHOW','CANCELLED','PAUSED'] as const;
 export default function ReservationsTab({ mode, copy, locale, canRead = true, canCapture, canConfigure = false, administrator = false }: {
@@ -38,9 +39,10 @@ export default function ReservationsTab({ mode, copy, locale, canRead = true, ca
   const [anchor,setAnchor]=useState(today);
   const [page,setPage]=useState(1),[size,setSize]=useState(25),[includeArchived,setIncludeArchived]=useState(false);
   const [advancedOpen,setAdvancedOpen]=useState(false);
-  const filterCopy=useIndiceFilterDisclosureCopy(), experience=getSchedulingExperienceCopy(locale);
+  const filterCopy=useIndiceFilterDisclosureCopy(), experience=getSchedulingExperienceCopy(locale), calendarCopy=getSchedulingCalendarCopy(locale);
   const presetMatches=(()=>{try{const range=calendarPeriod(from,period);return range.from===from&&range.to===to;}catch{return false;}})();
   useEffect(()=>{if(includeArchived)setAdvancedOpen(true);},[includeArchived]);
+  const [captureDate,setCaptureDate]=useState<string>();
   const [capture,setCapture]=useState(false),[review,setReview]=useState<Reservation|null>(null),[publicOpen,setPublicOpen]=useState(false);
   const requested = useSchedulingQuery(useCallback(signal => canRead && requestedId ? schedulingApi.reservation(requestedId, signal) : Promise.resolve(undefined), [canRead, requestedId]));
   useEffect(() => { if (requested.data) setReview(requested.data); }, [requested.data]);
@@ -68,7 +70,7 @@ export default function ReservationsTab({ mode, copy, locale, canRead = true, ca
   const move=(offset:number)=>{if(!presetMatches){const count=calendarDates(from,to).length;const start=new Date(`${from}T12:00:00`),end=new Date(`${to}T12:00:00`);start.setDate(start.getDate()+offset*count);end.setDate(end.getDate()+offset*count);setFrom(dateInput(start));setTo(dateInput(end));setAnchor(dateInput(start));setPage(1);return;}const date=new Date(`${from}T12:00:00`);if(period==='month')date.setMonth(date.getMonth()+offset,1);else date.setDate(date.getDate()+offset*(period==='week'?7:1));applyPeriod(period,dateInput(date));};
   const query=view==='calendar'?calendar:table;
   const titleActions=[
-    ...(canCapture?[{id:'new',label:copy.newReservation,icon:<Plus className="h-4 w-4"/>,onSelect:()=>setCapture(true),primary:true}]:[]),
+    ...(canCapture?[{id:'new',label:copy.newReservation,icon:<Plus className="h-4 w-4"/>,onSelect:()=>{setCaptureDate(undefined);setCapture(true);},primary:true}]:[]),
     ...(canConfigure?[
       {id:'team',label:copy.team,icon:<Users className="h-4 w-4"/>,onSelect:()=>setConfiguration('team'),primary:false},
       {id:'public',label:copy.publicAgenda,icon:<Globe className="h-4 w-4"/>,onSelect:()=>setPublicOpen(true),primary:false},
@@ -106,13 +108,22 @@ export default function ReservationsTab({ mode, copy, locale, canRead = true, ca
     </IndiceFilterBar>
     <p className="text-xs text-slate-500 dark:text-slate-400">{copy.timezone}: {Intl.DateTimeFormat().resolvedOptions().timeZone}</p>
     {options.error&&<Feedback error>{copy.error}</Feedback>}
-    {view==='calendar'&&<div className="flex flex-wrap items-center justify-between gap-3"><div className="flex flex-wrap gap-2">{(['day','week','month'] as const).map(value=><ActionButton key={value} aria-pressed={presetMatches&&period===value} primary={presetMatches&&period===value} onClick={()=>applyPeriod(value)}>{copy[value]}</ActionButton>)}</div>
-      <p className="text-sm text-slate-600 dark:text-slate-300">{!presetMatches&&`${experience.customRange} · `}{validCalendar?calendarRangeLabel(from,to,locale):`${from} — ${to}`}</p><div className="flex gap-2"><ActionButton aria-label={experience.previousPeriod} disabled={!validCalendar} onClick={()=>move(-1)}><ChevronLeft className="h-4 w-4"/></ActionButton><ActionButton onClick={()=>applyPeriod(period,today)}>{copy.today}</ActionButton><ActionButton aria-label={experience.nextPeriod} disabled={!validCalendar} onClick={()=>move(1)}><ChevronRight className="h-4 w-4"/></ActionButton></div></div>}
+    {view==='calendar'&&<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="min-w-0"><h3 className="flex items-center gap-2 text-base font-medium text-slate-900 dark:text-white"><CalendarDays className="h-5 w-5 shrink-0 text-[#B63B32] dark:text-[#FFB0AA]" aria-hidden/>{validCalendar ? presetMatches&&period==='month' ? new Intl.DateTimeFormat(locale,{month:'long',year:'numeric'}).format(new Date(`${from}T12:00:00`)) : `${!presetMatches ? experience.customRange+' · ' : ''}${calendarRangeLabel(from,to,locale)}` : `${from} — ${to}`}</h3><p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{calendarCopy.calendarHint}</p></div>
+        <div className="flex flex-wrap items-center gap-3">
+          <div role="group" aria-label={experience.calendarRange} className="flex gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-950">{(['day','week','month'] as const).map(value=><ActionButton key={value} aria-pressed={presetMatches&&period===value} primary={presetMatches&&period===value} className={presetMatches&&period===value?'shadow-sm':'!border-transparent !bg-transparent shadow-none'} onClick={()=>applyPeriod(value)}>{copy[value]}</ActionButton>)}</div>
+          <div role="group" aria-label={copy.calendarView} className="flex items-center gap-1"><ActionButton className="w-11 !px-0" aria-label={experience.previousPeriod} disabled={!validCalendar} onClick={()=>move(-1)}><ChevronLeft className="h-4 w-4" aria-hidden/></ActionButton><ActionButton onClick={()=>applyPeriod(period,today)}>{copy.today}</ActionButton><ActionButton className="w-11 !px-0" aria-label={experience.nextPeriod} disabled={!validCalendar} onClick={()=>move(1)}><ChevronRight className="h-4 w-4" aria-hidden/></ActionButton></div>
+        </div>
+      </div>
+    </div>}
     {view==='calendar'&&!validCalendar?<Feedback>{copy.calendarRangeHint}</Feedback>:query.loading?<Feedback>{copy.loading}</Feedback>:query.error?<Feedback error>{copy.error}<ActionButton onClick={refresh}>{copy.retry}</ActionButton></Feedback>:view==='calendar'&&calendar.data?
-      <ReservationsCalendar workspace={calendar.data} from={from} to={to} copy={copy} locale={locale} selectedDate={anchor} onSelectDate={setAnchor} onReview={setReview}/>:
+      <ReservationsCalendar workspace={calendar.data} from={from} to={to} copy={copy} locale={locale} selectedDate={anchor} onSelectDate={setAnchor} onReview={setReview}
+        filtered={Boolean(staffId||status)} onClearFilters={()=>{setStaffId(0);setStatus('');setPage(1);}}
+        onCreate={canCapture?date=>{setCaptureDate(date);setCapture(true);}:undefined}/>:
       view==='table'&&table.data&&<ReservationsTable data={table.data} columns={columns} copy={copy} locale={locale} page={page} size={size} administrator={administrator} canManage={canCapture} onPage={setPage}
         onSize={value=>{setSize(value);setPage(1);}} onResize={resize} onReview={setReview} onManage={(record,action)=>setManagement({record,action})}/>}
-    {capture&&canCapture&&<InternalBookingModal copy={copy} locale={locale} onSetup={canConfigure?section=>{setCapture(false);setConfiguration(section);}:undefined} onClose={()=>{setCapture(false);refresh();}}/>}
+    {capture&&canCapture&&<InternalBookingModal copy={copy} locale={locale} suggestedDate={captureDate} onSetup={canConfigure?section=>{setCapture(false);setConfiguration(section);}:undefined} onClose={()=>{setCapture(false);refresh();}}/>}
     {review&&<ReservationReview record={review} copy={copy} locale={locale} canManage={canCapture&&!review.archivedAt} onClose={()=>setReview(null)} onSaved={()=>{setReview(null);refresh();}}/>}
     {management&&<ReservationManagement {...management} staff={options.data??[]} copy={copy} onClose={()=>setManagement(null)} onSaved={()=>{setManagement(null);refresh();}}/>}
     </>}

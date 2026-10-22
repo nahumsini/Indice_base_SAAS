@@ -1,6 +1,16 @@
 import type { CSSProperties } from 'react';
 import type { PageAppearance } from '../services/schedulingApi';
 export const defaultAppearance: PageAppearance = { brandName:'',accentColor:'#2563EB',surfaceColor:'#F8FAFC',buttonLabel:'',layout:'cards' };
+export const publicAgendaPalettes = [
+  { id:'professional',accentColor:'#2563EB',surfaceColor:'#EFF6FF',layout:'cards' },
+  { id:'warm',accentColor:'#B63B32',surfaceColor:'#FFF1ED',layout:'cards' },
+  { id:'natural',accentColor:'#047857',surfaceColor:'#ECFDF5',layout:'cards' },
+  { id:'minimal',accentColor:'#334155',surfaceColor:'#F8FAFC',layout:'compact' },
+] as const;
+export const validPublicContent = (draft: { title: string; description: string }, appearance: PageAppearance) =>
+  Boolean(draft.title.trim()) && draft.title.length <= 180 && draft.description.length <= 1500 && appearance.brandName.length <= 120 && appearance.buttonLabel.length <= 80;
+export const validPublicAppearance = (appearance: PageAppearance) =>
+  /^#[0-9a-f]{6}$/i.test(appearance.accentColor) && /^#[0-9a-f]{6}$/i.test(appearance.surfaceColor) && ['cards','compact'].includes(appearance.layout);
 const safeColor=(color:unknown,fallback:string)=>typeof color==='string'&&/^#[0-9a-f]{6}$/i.test(color)?color:fallback;
 export function contrastingText(color:string):string {
   const channels=[1,3,5].map(start=>parseInt(safeColor(color,'#FFFFFF').slice(start,start+2),16)/255).map(value=>value<=0.04045?value/12.92:((value+0.055)/1.055)**2.4);
@@ -9,5 +19,5 @@ export function contrastingText(color:string):string {
 }
 export function publicAppearanceStyle(appearance?:PageAppearance):CSSProperties {
   const accent=safeColor(appearance?.accentColor,defaultAppearance.accentColor),surface=safeColor(appearance?.surfaceColor,defaultAppearance.surfaceColor);
-  return {'--scheduling-accent':accent,'--scheduling-accent-foreground':contrastingText(accent),'--scheduling-surface':surface,'--scheduling-surface-foreground':contrastingText(surface)} as CSSProperties;
+  return {'--indice-brand-action':accent,'--indice-brand-shell-foreground':contrastingText(accent),'--scheduling-accent':accent,'--scheduling-accent-foreground':contrastingText(accent),'--scheduling-surface':surface,'--scheduling-surface-foreground':contrastingText(surface)} as CSSProperties;
 }

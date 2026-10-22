@@ -905,3 +905,58 @@ The build retains its existing large-chunk advisory. An initial test database st
 because Docker's disk was full; rerunning on an isolated tmpfs test database passed, and 1.26 GB
 of unused build cache was reclaimed without changing functional volumes. No deployment or push
 was part of this stage; unrelated concurrent workspace changes were preserved.
+
+
+## Professional composition and operational KPIs — 2026-10-22
+
+This approved increment supersedes the earlier limited-format/signature/contacts descriptions.
+Existing private-account ownership, tenancy, entitlements, optimistic versions, CSRF, send review,
+SMTP idempotency, uncertain-outcome handling, limits and quotas remain authoritative.
+
+- **Recipients:** reusable Sales audience read endpoints provide name/email autocomplete and
+  selection by source, salesperson, tag and saved list. Both `crm.contacts` and `crm.mailing`
+  remain required; only eligible addresses are offered. The individual draft accepts at most
+  20 unique addresses across To/CC/BCC. Filtering never automatically adds or sends to contacts.
+- **Editor:** shared `components/mail-editor` provides seven fonts, bounded sizes, bold/italic/
+  underline, text/highlight colors, alignment, lists, safe links, embedded PNG/JPEG, undo/redo and
+  plain-text paste. Native editing preserves browser undo; its deprecated command API is isolated
+  to this adapter and requires future browser compatibility monitoring. It introduces no library
+  or second modal engine. HTML is bounded to 500,000 characters; plain draft text stays at 20,000.
+- **Safe formatting:** frontend and backend whitelist passive tags/styles. Remote image loading,
+  tracking pixels, scripts, credentials in links and active content are excluded. Up to three
+  PNG/JPEG images of 100 KiB decoded each are validated by the server and transported as related
+  MIME CID parts. Original editor uploads are resized locally; attachments retain their own quota.
+  Preview remains a white sandboxed document with no scripts or same-origin privileges.
+- **Templates:** Email reuses Sales templates with optional `bodyHtml`, detail-on-selection,
+  append/replace preview and unresolved-variable review guard. Inserting after an untouched
+  automatic signature positions the template above it. Mailbox Preferences exposes the existing
+  Sales TemplateManager; permissions still govern read/create/edit/archive/restore. Template bodies
+  never appear in list responses. Sales campaign persistence and delivery retain the same format.
+- **Signature:** V345 adds optional `signatureHtml`, `signatureNew` and `signatureReply` to the
+  existing private-account preferences contract. Each is versioned and scoped by user/company/account.
+  Legacy omission preserves values; edited legacy plain text clears obsolete HTML. New automatic
+  settings default off. Saved drafts never receive a duplicate automatic signature.
+- **PDF correction:** a passive OpenAction page destination is permitted; action dictionaries,
+  JavaScript, forms, password protection and embedded files remain rejected. Distinct localized
+  reasons identify password, form, active content, complexity or damaged content. Existing safe
+  Office/PNG/JPEG/TXT limits and registration reconciliation are unchanged. Format validation is
+  not antivirus certification. The reported original PDF was not provided; generated safe and
+  unsafe samples cover policy behavior.
+- **Layout:** canonical title and filters remain shared, with Compose primary, Refresh/Preferences
+  secondary, Accounts and Expand/Restore in Actions. Expanded mailbox retains search, selection,
+  reader and draft. Expanded composition and phone full-height composition preserve editable input.
+  Editor toolbar scrolls horizontally; modal body scrolls independently of its title/actions.
+- **KPIs:** new protected `GET /api/v1/email/mailboxes/{account}/counts?query=...` returns typed
+  `{unread,starred,drafts,review}` aggregate counts. The private-account read boundary and module/tab
+  authorization apply. Query is limited to 180 characters and uses literal escaped matching of
+  subject, sender, To and CC. Counts ignore current folder/status/page but honor account/search.
+  Unread/Starred require current account version, folder UID validity, remote presence and Inbox;
+  Drafts use DRAFT; review uses SUBMITTING/UNKNOWN/FAILED. Cards navigate/reset page and selection;
+  pressing the active card returns to Inbox/All. Loading/error never displays stale counts.
+  These are cached operational counts, not remote-unseen totals, recipient reads or revenue KPIs.
+
+V345 is additive and forward-only. Local rollout backs up the functional database, preserves the
+running service configuration and overlays only compiled Email/Mailing classes and V345. Previous
+runtime and source copies are retained. Production activation and real sending are outside this
+validation. External rendering in Outlook/Gmail and final provider attachment limits still need
+provider-specific acceptance before a production release.

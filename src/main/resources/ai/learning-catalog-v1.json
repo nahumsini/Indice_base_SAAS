@@ -1,6 +1,6 @@
 {
-  "version": "2026-10-21.v1",
-  "sourceDigest": "536f5dcb538eb22a89e0068012283c393c3f62dd1813e9a6e983f54a3650b27d",
+  "version": "2026-10-22.v1",
+  "sourceDigest": "aa4135334d052dd1dea1c1dccea292e5a9400d192df303eb278d59c21b6aefa2",
   "modules": [
     {
       "module": "ideas_board",
@@ -960,7 +960,7 @@
           "purpose": "Selecciona periodo, colaborador y vista y comprueba tus permisos de agenda.",
           "effect": "Comprueba el horario y estado guardados. Ver una solicitud no confirma disponibilidad ni reserva.",
           "chapterId": "scheduling.calendar",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -973,7 +973,7 @@
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Consulta reservas y eventos en la agenda unificada y abre el registro autorizado."
+              "description": "Consulta reservas y eventos. En Nueva solicitud, completa servicio y colaborador, fecha y horario, contacto y revisión; registra sólo al terminar."
             },
             {
               "id": "verify",
@@ -989,7 +989,7 @@
           "purpose": "Revisa servicio, colaborador, horario, consentimiento y capacidad antes de capturar o confirmar.",
           "effect": "Comprueba el estado persistido y registra asistencia cuando corresponda. Una solicitud no garantiza lugar y archivar conserva el historial.",
           "chapterId": "scheduling.reservations",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -1002,7 +1002,7 @@
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Captura o revisa la solicitud y confirma desde Agendamiento; pausa, reanuda o cancela con el motivo requerido."
+              "description": "Captura la solicitud en cuatro pasos, conserva el borrador al volver y comprueba la referencia y el estado guardados. Elegir o crear un cliente con los permisos correspondientes no envía la solicitud; confirma desde Agendamiento."
             },
             {
               "id": "verify",
@@ -1102,10 +1102,10 @@
           "tab": "configuration",
           "label": "Servicios, equipo y agenda pública",
           "title": "Servicios, equipo y agenda pública",
-          "purpose": "Revisa servicios del catálogo, duración, anticipación y colaboradores activos de Recursos Humanos.",
-          "effect": "Comparte solo el enlace guardado y publicado. Guardar no habilita el adaptador público ni concede permisos; las solicitudes requieren confirmación interna.",
+          "purpose": "En Servicios, elige de Inventarios o crea directamente en Agenda. Define Sin cobro o Precio por acordar, configura la reserva y revisa antes de guardar. Puedes vincular después un servicio de Agenda con Inventarios conservando sus reservas. Si ya está configurado, abre Editar configuración.",
+          "effect": "En Agenda pública, personaliza Contenido y Diseño, revisa la vista de escritorio o móvil y elige guardar borrador o publicar. Ajusta nombre público, título, descripción, botón, colores y presentación en tarjetas o compacta. Comparte solo el enlace guardado y publicado; las solicitudes requieren confirmación interna.",
           "chapterId": "scheduling.configuration",
-          "version": 3,
+          "version": 7,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -1113,17 +1113,17 @@
             {
               "id": "prepare",
               "title": "Antes de empezar",
-              "description": "Revisa servicios del catálogo, duración, anticipación y colaboradores activos de Recursos Humanos."
+              "description": "En Servicios, elige de Inventarios o crea directamente en Agenda. Define Sin cobro o Precio por acordar, configura la reserva y revisa antes de guardar. Puedes vincular después un servicio de Agenda con Inventarios conservando sus reservas. Si ya está configurado, abre Editar configuración."
             },
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Guarda las ventanas semanales de servicios y colaboradores y sus descansos. Completa la configuración necesaria antes de publicar la agenda."
+              "description": "En Equipo y disponibilidad, busca al colaborador y abre Editar desde su fila. Al agregar o editar, completa los pasos de colaborador, disponibilidad, servicios y excepciones; revisa todo antes de guardar. Configura también las ventanas y descansos del servicio antes de publicar."
             },
             {
               "id": "verify",
               "title": "Comprueba el resultado",
-              "description": "Comparte solo el enlace guardado y publicado. Guardar no habilita el adaptador público ni concede permisos; las solicitudes requieren confirmación interna."
+              "description": "En Agenda pública, personaliza Contenido y Diseño, revisa la vista de escritorio o móvil y elige guardar borrador o publicar. Ajusta nombre público, título, descripción, botón, colores y presentación en tarjetas o compacta. Comparte solo el enlace guardado y publicado; las solicitudes requieren confirmación interna."
             }
           ]
         }
@@ -3759,7 +3759,7 @@
           "purpose": "Select the period, staff member and view and check your agenda permissions.",
           "effect": "Check the saved time and status. Viewing a request does not confirm availability or a booking.",
           "chapterId": "scheduling.calendar",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3772,7 +3772,7 @@
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Review bookings and events in the unified agenda and open the authorized record."
+              "description": "Review bookings and events. In New request, complete service and collaborator, date and time, contact and review; register only at the end."
             },
             {
               "id": "verify",
@@ -3788,7 +3788,7 @@
           "purpose": "Review service, staff, time, consent and capacity before capturing or confirming.",
           "effect": "Check the persisted status and record attendance when applicable. A request does not guarantee a place and archiving preserves history.",
           "chapterId": "scheduling.reservations",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3801,7 +3801,7 @@
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Capture or review the request and confirm through Scheduling; pause, resume or cancel with the required reason."
+              "description": "Capture the request in four steps, retain the draft on Back and check the saved reference and status. Selecting or creating a client with the appropriate permissions does not submit the request; confirm through Scheduling."
             },
             {
               "id": "verify",
@@ -3901,10 +3901,10 @@
           "tab": "configuration",
           "label": "Services, team and public agenda",
           "title": "Services, team and public agenda",
-          "purpose": "Review catalog services, duration, notice and active Human Resources staff.",
-          "effect": "Share only the saved and published link. Saving does not enable the public adapter or grant permissions; requests require internal confirmation.",
+          "purpose": "In Services, choose from Inventory or create directly in Scheduling. Set No charge or Price to be agreed, configure booking and review before saving. You can link a Scheduling service to Inventory later while retaining reservations. If already configured, open Edit configuration.",
+          "effect": "In Public agenda, customize Content and Design, review the desktop or mobile preview and choose to save a draft or publish. Adjust public name, title, description, button, colours and cards or compact presentation. Share only the saved and published link; requests require internal confirmation.",
           "chapterId": "scheduling.configuration",
-          "version": 3,
+          "version": 7,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3912,17 +3912,17 @@
             {
               "id": "prepare",
               "title": "Before starting",
-              "description": "Review catalog services, duration, notice and active Human Resources staff."
+              "description": "In Services, choose from Inventory or create directly in Scheduling. Set No charge or Price to be agreed, configure booking and review before saving. You can link a Scheduling service to Inventory later while retaining reservations. If already configured, open Edit configuration."
             },
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Save weekly service and staff windows and their breaks. Complete the required setup before publishing the agenda."
+              "description": "In Team & availability, find the collaborator and open Edit from their row. When adding or editing, complete the collaborator, availability, services and exceptions steps; review everything before saving. Also configure service windows and breaks before publishing."
             },
             {
               "id": "verify",
               "title": "Verify the result",
-              "description": "Share only the saved and published link. Saving does not enable the public adapter or grant permissions; requests require internal confirmation."
+              "description": "In Public agenda, customize Content and Design, review the desktop or mobile preview and choose to save a draft or publish. Adjust public name, title, description, button, colours and cards or compact presentation. Share only the saved and published link; requests require internal confirmation."
             }
           ]
         }

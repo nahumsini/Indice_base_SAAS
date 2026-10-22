@@ -10,7 +10,7 @@ export const MODULE_TAB_SCOPE_CATALOG: Partial<Record<PageId, TabScopeDefinition
   'ideas-board': { moduleSlug: 'ideas_board', tabs: { canvas: 'canvas', projects: 'canvas', system: 'canvas' } },
   'sales-board': { moduleSlug: 'sales_board', tabs: { overview: 'overview', trends: 'overview', channels: 'overview', sales: 'overview' } },
   email: { moduleSlug: 'correo', tabs: { mail: 'mail', accounts: 'accounts' } },
-  'minutes-control': { moduleSlug: 'control_minutas', tabs: { meetings: 'meetings', agreements: 'agreements', indicators: 'indicators' } },
+  'minutes-control': { moduleSlug: 'control_minutas', tabs: { meetings: 'meetings', session: 'meetings', agreements: 'agreements', indicators: 'indicators' } },
   maintenance: { moduleSlug: 'maintenance', tabs: { requests: 'requests', orders: 'orders', assets: 'assets', preventive: 'preventive', indicators: 'indicators', configuration: 'configuration' } },
   scheduling: { moduleSlug: 'scheduling', tabs: { calendar: 'calendar', reservations: 'reservations', clients: 'clients', events: 'events', indicators: 'indicators', configuration: 'configuration' } },
   'home-panel': {

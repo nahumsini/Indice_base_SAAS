@@ -48,13 +48,183 @@ events across all company agendas for administrators; operators remain restricte
 staff. Calendar reads return totals and disclose truncation above 2,000 records per category;
 the reservation table remains paginated. The title bar exposes Services and Team/availability
 as separate operational-workspace modals for selecting/configuring records. Create/edit replaces
-the workspace with the existing standard-form modal, never a nested dialog. Saving returns to the
+the workspace with the service or staff wizard, never a nested dialog. Saving returns to the
 list, refreshes agenda options, and preserves the underlying period/collaborator/view context.
 Public agenda is one operational-workspace modal with a live preview, publication/appearance,
 the saved public link and personalized staff links. Sharing uses saved publication, never an
 unsaved alias; changing appearance does not remove existing sharing functionality.
+
+### Team modal presentation — 2026-10-22
+
+Team/availability is a compact **Operational Workspace** with search, status filtering and a
+single directory of collaborators. Each row shows public name, time zone, active/inactive state
+and a direct Edit action that opens the existing wizard. Search also matches the linked HR name.
+There are no KPI cards, record-selection stage, parallel dossier or service-detail read on this
+surface. Its height follows content within the shared viewport limit. Close is leading and Add
+is trailing. Services retains its existing table and uses the service wizard documented below. This presentation follows
+the user's latest 2026-10-22 simplification; the four-step staff wizard is explicitly preserved.
+
+Adding/editing a collaborator is now a **Modal Wizard Índice**, following the user's explicit
+2026-10-22 product decision for guided setup. This replaces the previous standard-form decision
+for this domain only. It uses four ordered stages: collaborator identity → weekly availability →
+services/date exceptions → complete review. Identity gates the configuration stages; valid weekly
+windows gate review. Optional configuration remains optional: zero windows is valid and no
+selected services still means all services. Continue validates only the current stage, Back retains
+the draft and only the final review can call the owner save endpoint. The review includes HR and
+public names, active state, time zone, gap, every weekly window, blocked dates and all selected
+service IDs (including retained IDs no longer returned by the service list).
+
+Both surfaces reuse `IndiceModalFrame`; the wizard also uses the shared stepper, validation,
+summary and footer primitives. The wizard replaces the workspace and returns after the existing
+save acknowledges success. No permanent wizard side panel or nested dialog is introduced.
+The selected HR identity remains immutable on edit. Seven-day editing preserves split windows,
+the 28-window bound and the Services editor's prior presentation. The footer counts draft days
+and windows; this is not authoritative booking availability.
+
+Discard uses the same frame with an explicit consequence and destructive action; Keep editing,
+Escape or the close control returns to the draft at its current step. The module-owned frame uses
+a synchronous pending guard to reject duplicate submissions/dismissal while saving, retains errors
+and input, and permits an explicit retry. Routes, request/response shapes, owner validation,
+permissions, time-zone interpretation and persisted scheduling rules remain unchanged. No schema
+change. The Scheduling configuration learning chapter is version 7 for service origins, charge
+conditions and public page personalization.
+
+
+### Service configuration wizard — 2026-10-22
+
+The user explicitly adopts **Modal Wizard Índice** for service creation/editing, replacing the
+previous standard form: service source → booking configuration → complete review. The shared
+frame, stepper, validation, summaries and footer are reused; business state stays in Scheduling.
+The compact team directory and approved staff wizard retain their behavior.
+
+The approved full-stack extension lets administrators choose **Choose from Inventory** or
+**Create in Scheduling**. Independent services require a booking name, accept an optional description
+and do not require Inventory access or create an Inventory product. They use the same service list,
+availability and reservation lifecycle. Individual consultations, demos and presentations can use
+either origin; group presentations with capacity continue through Events.
+
+Inventory selection searches the existing company-scoped projection by name/code and selects an
+active service. Results identify inactive services and configurations already present in Agenda.
+A configured result offers Edit configuration instead of creating another association. Switching
+to it uses the same discard guard when the current draft has changes, then resets the editor with
+the selected record/version. A previously linked record keeps its immutable Inventory association;
+unlinked services remain editable and can later select an Inventory source. Linking updates the
+same service ID and preserves its booking name/description, settings, staff eligibility and existing
+reservations. Switching source while creating retains each source's draft. The backend unique
+constraint and source/tenant checks remain authoritative.
+
+Catalog loading, read failure, no search matches and an empty catalog are distinct. Empty catalog
+copy explains creating an active Service record in Inventory. Open Inventory is a new-tab link
+only when both the Inventory entitlement and products-tab permission allow it; no additional
+module access is granted. Returning leaves the Agenda draft in place; Refresh services reloads
+the owner projection. Pager controls appear only above 25 results, use Previous page/Next page,
+and cannot be confused with wizard Back/Continue. Selection survives search and page navigation.
+Search-only changes and disclosure expansion do not mark booking settings dirty.
+
+Booking configuration defaults to collaborator hours. Optional restrictions preserve the existing
+seven-day/split-window rules and are interpreted in the chosen collaborator's time zone. Toggling
+restrictions off retains their draft but sends an empty list when saving. Native bounds and owner
+validation retain duration 15–180 minutes, service break 0–60 minutes, minimum notice 0–720 hours,
+name 180 characters and description 1500 characters. Name/description prefill from Inventory;
+optional customization changes only Scheduling presentation. Source product data is never mutated.
+
+**Charge condition** is independent of origin: `NO_CHARGE` (Sin cobro) or `TO_BE_AGREED`
+(Precio por acordar). No blank price or absent product link implies a free service. The default for
+older records/new callers omitting the field is `TO_BE_AGREED`; edits omitting the new property
+preserve the saved condition. Agenda owns this booking offer only. Sales remains the owner of
+commercial prices, financial documents and payments; this extension creates none of those.
+
+Migration `V346` adds constrained `charge_policy` and `charge_policy_snapshot` columns. Service
+requests/responses and the private/public booking catalogue expose the additive `chargePolicy`
+enum. The backend snapshots the selected service's condition when creating a reservation; visitors
+cannot supply that authority. Reservation reads expose the snapshot, preserved through later service
+edits, Inventory linking, rescheduling and status/assignment changes. Historical reservations default
+to `TO_BE_AGREED`; the migration never retroactively labels a booking free. The booking choose/review
+steps and private reservation details display the explicit condition for services; Events retain
+their existing behavior.
+
+Continue validates the current stage. Review contains the Inventory source when known, booking
+name/description, origin, charge condition, duration, break, notice, active state and every service
+window or the explicit collaborator-hours default. Only final review writes the existing service endpoint with
+its optimistic version. Pending saves block dismissal/duplicate attempts; failures retain the
+review and allow an explicit retry. Tenant boundaries, administrator/CSRF guards, optimistic versions,
+duration/buffer snapshots and Inventory availability checks remain in place. See
+`validation/2026-10-22-scheduling-service-wizard.md` for the initial wizard and
+`validation/2026-10-22-scheduling-standalone-services.md` for the subsequent approved extension.
+
 Recurrent events and external calendar synchronization remain outside this pilot. The operational
 extension below adds split weekly hours, unavailable dates and service eligibility per staff member.
+
+### Public agenda editor — 2026-10-22
+
+The user adopts the Sales Public Catalog editor as the interaction reference for the Agenda pública
+modal. This supersedes the previous operational-workspace form and its predefined title/colour-only
+controls. The module reuses the shared coral **Modal Wizard Índice** in three stages:
+**Content → Design → Review and publish**, keeping a single frame, fixed footer and internal scroll.
+
+- Content edits the already-supported public business name (120 characters), required free page
+  title (180), optional description (1500) and final request button (80). The company record and
+  booking alias are retained. An intentionally empty public name uses the existing Índice mark.
+- Design provides starting palettes and independent custom hex accent/header colours, plus Cards
+  or Compact presentation. Presets modify visual fields only; they retain identity, text, link and
+  publication state. Header contrast and action text are computed from validated colours. Saved
+  business colours remain visible in both light and dark mode.
+- Review offers desktop/mobile preview, explicit publication, save-draft/save-and-publish actions,
+  generated read-only link and saved public/personalized links. Preview uses clearly identified
+  sample service content; actual service availability always comes from the existing owner APIs.
+  Preview-size toggles do not mark a draft dirty. Unsaved previews and saved-version links are
+  distinguished. A successful save adopts the returned page, appearance and optimistic version,
+  remains open and permits further edits; errors/discard keep the existing owner guards.
+
+The preview and `/book/:alias` share the public identity, header and service-card presentation.
+Public Cards now renders accessible service/event radio cards with description, duration and
+service charge condition or event availability. Compact retains the original selector. Both feed
+the unchanged four-stage booking workflow. Private capture keeps its selector by default; personalized
+staff, event host/capacity checks, slots, contact consent, manual confirmation and retry identity remain.
+
+This is an incremental frontend change using existing PageRequest/PageAppearance fields and
+`PUT /api/v1/scheduling/page`; no schema, backend permission, publication authority or public trust
+contract changes. Public pages fetch no private ERP session/configuration data. Eight locales and
+the existing en-CA fallback apply. See `validation/2026-10-22-scheduling-public-agenda-editor.md`.
+
+### New request modal — 2026-10-22
+
+The user requests a functional, consistent **Nueva solicitud** flow. The existing four stages remain:
+**Service/collaborator → Date/time → Contact → Review**. The private wizard reuses the coral modal,
+compact stepper, summaries, validation, split footer and single-frame discard confirmation. Its header
+identifies the current step, the body scrolls and Back/Register remain reachable on short screens.
+
+- The company/actor catalogue remains authoritative. Choosing a different service clears an
+  ineligible collaborator and stale time. Events retain their fixed host/start and capacity checks.
+  Calendar-origin date suggestions remain editable and start clean; global capture starts without
+  an implicit date. Slot lookup preserves contact data, ignores aborted/stale responses, shows
+  distinct empty/error/loading states and permits retry. Date bounds match the backend's next
+  90 days in the collaborator's zone. No slot is auto-selected.
+- Back preserves selected time, contact and client creation draft. A hidden client picker remains
+  mounted but disabled outside Contact, so unfinished fields do not block other stages' native
+  validation. Manual contact works without Sales access. Selecting/creating a client still requires
+  the backend's `clientSelectionEnabled` authority and explicit consent. Editing linked contact
+  fields clears `clientId` and renews consent. Client creation and booking are separate mutations.
+- Final review includes service/event, collaborator, time/zone, duration, service charge condition,
+  event location, contact and explicit client linkage. Only Register request submits. Required data
+  is checked again by the owner flow before mutation, including when review inputs are unmounted.
+  Browser validation remains UX; backend scope, entitlement, consent and availability stay enforced.
+- Synchronous pending guards block duplicate sends, dismissal and conflicting navigation before
+  asynchronous rendering. Same-payload retries retain the existing idempotency key; payload changes
+  rotate it. A 409 returns an individual request to time selection and retains contact; unavailable
+  resources return to selection. Explicit catalogue refresh keeps contact and invalidates old slots.
+  Scope changes fail closed. Client creation has its own synchronous pending guard.
+- A successful private response shows its reference and saved status. New requests remain pending
+  internal confirmation and do not imply email delivery. An existing confirmed/paused event
+  registration keeps the backend's reference/status and is identified as existing. Escape from
+  discard returns to editing; only explicit discard loses the in-memory request draft.
+
+`BookingForm` uses a cohesive Scheduling-owned state hook for both private/public capture. The public
+route retains Cards/Compact presentation, personalized collaborator, consent, public acknowledgement,
+custom button label and its separate Kiosk Engine transport. Private client data is not exposed there.
+No request DTO, endpoint, permission, schema, financial rule or reservation lifecycle changes.
+Learning chapters `scheduling.calendar` and `scheduling.reservations` advance from version 2 to 3.
+Verification: `validation/2026-10-22-scheduling-new-request.md`.
 
 ## Pilot behavior
 
@@ -343,8 +513,8 @@ still cannot select or create a Sales client and never links an unverified email
   Pages contain 25 records with an escaped name/SKU search, totals and active status. No prices,
   stock, employee private details or additional module grants are exposed. Active services can be
   added to Agenda and retain `productId`; one product has at most one company Agenda configuration.
-  Legacy independent services remain editable. Linked inactive/deleted/retyped products stop being
-  offered or booked. Agenda owns only booking name/description, duration, notice, break and hours;
+  Independent services may be created and later linked as specified above. Linked inactive/deleted/retyped products stop being
+  offered or booked. Agenda owns booking name/description, charge condition, duration, notice, break and hours;
   it never writes the Inventory product.
 - Service hours support up to 28 nonoverlapping weekly windows. Empty hours retain all eligible
   staff hours. The owner intersects service windows with employee windows in the employee's zone,
@@ -378,3 +548,34 @@ Verification uses a disposable MySQL database and synthetic HTTP/browser data, n
 business mutations. Local activation retains a private pre-migration backup and previous runtime;
 rollback restores application processes without reversing Flyway history. Public access rollback
 remains the existing scheduling adapter flag. No production rollout is included.
+
+
+## Daily agenda alignment with Meeting control — 2026-10-22
+
+The user-approved calendar design is repeated in Agenda/reservations with the native coral tone.
+Shared title/filter/table/modal owners and the public booking appearance remain unchanged.
+
+- The compact calendar header groups the localized visible period, Day/Week/Month, Today and
+  previous/next. Custom-range length, 42-day limit and timezone context remain authoritative.
+- IndiceCalendarSurface adopts its existing optional compact density. Wide containers pair the
+  calendar and daily agenda; narrower layouts place Agenda del día first, retaining local horizontal
+  calendar scrolling. Empty full-width panels use the same compact action layout as Meetings.
+- Reservations and events remain separate owner records in one chronological activity list. The
+  daily header identifies total loaded activities and reservation/event subtotals. Reservation
+  cards retain their review action; event cards retain capacity, publication/cancellation state.
+  Grid preview is limited to three combined entries plus View day; all loaded day entries appear
+  in the agenda. Existing server truncation warnings remain visible. Day mode shows the agenda once.
+- Empty days distinguish no loaded activities from no matches with current staff/status filters.
+  Clear day filters resets only staff/status and pagination, preserving the period/selected day.
+  The original global Clear filters still restores factory month and other documented defaults.
+- Authorized capture exposes New request on today/future day panels. It opens the same private
+  guarded booking wizard with an editable date prefilled; global New request retains its blank
+  date. Prefill alone is clean. Staff/service, available slot, client details, consent and explicit
+  review/submission are still required. Slots use the chosen staff timezone shown by the wizard;
+  a calendar day is not an availability promise. Public booking receives no date default change.
+- Day selection scrolls/focuses the panel after it resizes. The day-specific CTA is omitted from
+  read-only agendas and past-day panels. No new entitlement, endpoint, migration or backend rule.
+
+Acceptance covers combined ordering, empty/filtered states, read-only capture absence, overflow,
+slot/date behavior, all eight locales and desktop/phone presentation with synthetic records.
+Rollback restores the affected frontend files; existing records and services are not altered.

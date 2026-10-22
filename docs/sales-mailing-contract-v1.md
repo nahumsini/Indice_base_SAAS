@@ -355,3 +355,20 @@ Files in this change: `CampaignDelivery.tsx`, `CampaignDeliveryTable.tsx`, `Reci
 `MailingAudienceService`; delivery/audience integration coverage, the new `mailing-delivery` browser
 fixture and flow, and updated audience/workspace fixtures. The frontend/backend canonical documents
 and Email/Mailing owner contract adopt this product decision.
+
+
+## Shared rich templates and Email consumption — 2026-10-22
+
+Sales remains the owner of templates, audiences and campaign execution. Email's composer and
+Preferences consume those same APIs; no parallel template store is introduced. V345 adds optional
+`bodyHtml` to template/campaign details and writes, bounded at 500,000 characters. Lists omit the
+body. The Email-owned sanitizer validates passive styles and embedded images; old clients that
+leave plain text unchanged preserve HTML, while changing plain text without HTML clears it.
+The shared editor/preview is presentation only and adds no permission authority.
+
+Campaign copies retain formatting through saved template, campaign, explicit review and private
+Email transport. `{{name}}`, preview text and unsubscribe/footer text are escaped before HTML
+insertion. Launch validates expanded HTML for each selected recipient before creating delivery
+work, including the footer/unsubscribe space, so oversized personalization cannot queue a
+permanent retry. Plain text, immutable delivery ledger, owner-selected account, recipient scope,
+suppression checks, send/schedule confirmation and idempotency remain unchanged.

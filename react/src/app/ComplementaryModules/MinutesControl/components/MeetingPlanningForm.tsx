@@ -7,6 +7,7 @@ import type { Member, PlanPreview } from "../services/meetingApi";
 import type { MeetingCopy } from "../translations/meetingCopy";
 import type { MeetingWorkflowCopy } from "../translations/meetingWorkflowCopy";
 import type { PlanningDraft } from "../utils/meetingPlanning";
+import { getMeetingPlanningStepsCopy } from "../translations/meetingPlanningStepsCopy";
 import { getMeetingLiveCopy } from "../translations/meetingLiveCopy";
 import { useLanguage } from "../../../shared/context";
 import { Field, control } from "./MeetingPrimitives";
@@ -52,6 +53,7 @@ type Props = {
   members: Member[];
   administrator: boolean;
   userId: number;
+  part?: "purpose" | "team" | "all";
 };
 export function PurposePeople({
   form,
@@ -61,14 +63,16 @@ export function PurposePeople({
   members,
   administrator,
   userId,
+  part = "all",
 }: Props) {
   const [search, setSearch] = useState("");
   const { currentLanguage } = useLanguage();
   const live = getMeetingLiveCopy(currentLanguage.code);
+  const labels = getMeetingPlanningStepsCopy(currentLanguage.code);
   const [delegating, setDelegating] = useState(form.minutesOwnerId !== form.ownerId);
   return (
     <div className="space-y-6">
-      <PlanningSection icon="🎯" title={w.peopleStep} hint={w.validationHint}>
+      {part !== "team" && <PlanningSection icon="🎯" title={part === "purpose" ? labels.purposeStep : w.peopleStep} hint={w.validationHint}>
         <Field label={copy.name + " *"}>
           <input
             className={control}
@@ -111,8 +115,8 @@ export function PurposePeople({
             ))}
           </select>
         </Field>
-      </PlanningSection>
-      <PlanningSection icon="👥" title={copy.participants} hint={live.directoryHint}>
+      </PlanningSection>}
+      {part !== "purpose" && <PlanningSection icon="👥" title={copy.participants} hint={live.directoryHint}>
         <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-4 w-4 accent-blue-600" checked={delegating} onChange={e => { setDelegating(e.target.checked); if (!e.target.checked) update({ minutesOwnerId: form.ownerId }); }} />{live.delegate}</label>
         {!delegating && <p className="text-sm text-slate-500">{live.sameWriter}</p>}
         <div className="grid gap-4 sm:grid-cols-2">
@@ -238,7 +242,7 @@ export function PurposePeople({
         <p className="text-xs leading-5 text-slate-500 dark:text-slate-300">
           {w.permissionHint}
         </p>
-      </PlanningSection>
+      </PlanningSection>}
     </div>
   );
 }
@@ -418,6 +422,7 @@ export function PlanReview({
   members,
   locale,
   editing = false,
+  allowSaveFlow = true,
 }: {
   form: PlanningDraft;
   update: Props["update"];
@@ -427,6 +432,7 @@ export function PlanReview({
   members: Member[];
   locale: string;
   editing?: boolean;
+  allowSaveFlow?: boolean;
 }) {
   const name = (id: number) => members.find((m) => m.id === id)?.name ?? "—";
   const conflicts = preview.occurrences.some((o) => o.conflicts > 0);
@@ -440,6 +446,9 @@ export function PlanReview({
         description={form.objective}
         items={[
           { label: w.expectedResult, value: form.expectedResult },
+          { label: copy.type, value: copy[form.meetingType as keyof MeetingCopy] ?? form.meetingType },
+          { label: copy.duration, value: form.duration },
+          ...(form.recurring ? [{ label: w.frequency, value: w[form.frequency] }, { label: w.interval, value: form.interval }] : []),
           { label: w.coordinator, value: name(form.ownerId) },
           { label: w.minutesOwner, value: name(form.minutesOwnerId) },
           {
@@ -518,7 +527,7 @@ export function PlanReview({
           )}
         </>
       )}
-      {!editing && (
+      {!editing && allowSaveFlow && (
         <div className="space-y-3">
           <label className="flex min-h-11 items-center gap-3 text-sm">
             <input

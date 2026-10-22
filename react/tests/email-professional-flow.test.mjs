@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {loadTypescript,hookRuntime} from './helpers/hook-runtime.mjs';
+const base=new URL('../src/app/',import.meta.url);
+const format=loadTypescript(new URL('components/mail-editor/mailFormat.ts',base).pathname,()=>({}));
+test('native rich text sizes survive sanitization while active styling and links do not',()=>{
+ assert.equal(format.mailStyles('font-size:x-large;color:#2563eb;position:fixed;background-image:url(https://example.com/a)'), 'font-size:24px;color:#2563eb');
+ assert.equal(format.safeMailLink('https://example.com/propuesta'),true);
+ for(const link of ['javascript:alert(1)','https://user:password@example.com','mailto:a@example.com?body=secret','https://example.com/<tag>'])assert.equal(format.safeMailLink(link),false);
+ assert.equal(format.MAIL_FONTS.length,7);
+});
+const jsx={jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})};
+const nodes=n=>n==null||typeof n!=='object'?[]:Array.isArray(n)?n.flatMap(nodes):[n,...nodes(n.props?.children)];
+test('operational KPI totals come from account/search endpoint and obsolete results never appear',async()=>{
+ const timers=new Map();let id=0;globalThis.window={setTimeout(fn){timers.set(++id,fn);return id;},clearTimeout(key){timers.delete(key);}};
+ const runtime=hookRuntime(),requests=[],selections=[];
+ const props={account:'account-a',query:'propuesta',revision:1,workspace:{folders:[{id:'remote-inbox',kind:'INBOX'}]},folder:'INBOX',quick:'ALL',busy:false,hidden:false,onSelect:(...args)=>selections.push(args)};
+ const {MailOperationalKpis}=loadTypescript(new URL('ComplementaryModules/Email/MailOperationalKpis.tsx',base).pathname,id=>id==='react'?runtime.hooks:id==='react/jsx-runtime'?jsx:id.endsWith('/context')?{useLanguage:()=>({currentLanguage:{code:'es-MX'}})}:id.endsWith('/mailboxApi')?{mailboxApi:{counts:(...args)=>new Promise((resolve,reject)=>requests.push({args,resolve,reject}))}}:new Proxy({},{get:(_,key)=>key}));
+ const buttons=()=>nodes(runtime.result).filter(n=>n.type==='button');
+ const tick=async()=>{for(const [id,fn]of timers){timers.delete(id);fn();}await runtime.flush();};
+ runtime.render(()=>MailOperationalKpis(props));await runtime.flush();assert.equal(buttons().length,4);assert.ok(buttons().every(b=>b.props.disabled));await tick();
+ assert.deepEqual(requests[0].args.slice(0,2),['account-a','propuesta']);
+ props.query='renovación';runtime.render();await runtime.flush();await tick();assert.equal(requests[0].args[2].aborted,true);
+ requests[0].resolve({unread:999,starred:999,drafts:999,review:999});await runtime.flush();assert.ok(buttons().every(b=>b.props.disabled));
+ requests[1].resolve({unread:31,starred:4,drafts:28,review:2});await runtime.flush();assert.ok(!JSON.stringify(runtime.result).includes('999'));
+ buttons()[2].props.onClick();assert.deepEqual(selections.at(-1),['DRAFTS','ALL']);
+ props.folder='DRAFTS';runtime.render();assert.equal(buttons()[2].props['aria-pressed'],true);buttons()[2].props.onClick();assert.deepEqual(selections.at(-1),['INBOX','ALL']);
+ props.account='account-b';runtime.render();await runtime.flush();await tick();requests[2].reject(new Error('failed'));await runtime.flush();assert.ok(buttons().every(b=>b.props.disabled));assert.ok(nodes(runtime.result).some(n=>n.props?.role==='status'));
+ runtime.unmount();
+});

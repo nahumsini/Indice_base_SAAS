@@ -1,3 +1,4 @@
+import { getMeetingPlanningStepsCopy } from "../translations/meetingPlanningStepsCopy";
 import { getMeetingLiveCopy } from "../translations/meetingLiveCopy";
 import { MeetingAvailability } from "./MeetingAvailability";
 import { getAuthorizationRevision } from "../../../api/authSessionStore";
@@ -44,6 +45,7 @@ export function MeetingPlanningModal({
   userId,
   administrator,
   initial,
+  suggestedDate,
   onClose,
   onSaved,
   onPlanned,
@@ -52,12 +54,14 @@ export function MeetingPlanningModal({
   userId: number;
   administrator: boolean;
   initial?: MeetingDetail;
+  suggestedDate?: string;
   onClose: () => void;
   onSaved: () => void;
   onPlanned?: (result: PlanResult) => void;
 }) {
   const { currentLanguage } = useLanguage();
   const w = getMeetingWorkflowCopy(currentLanguage.code);
+  const labels = getMeetingPlanningStepsCopy(currentLanguage.code);
   const live = getMeetingLiveCopy(currentLanguage.code);
   const op = getMeetingOperationsCopy(currentLanguage.code);
   const directory = useMeetingQuery(
@@ -70,7 +74,7 @@ export function MeetingPlanningModal({
     ),
   );
   const [form, setForm] = useState<PlanningDraft>(() => {
-    const d = initialPlanning(userId);
+    const d = initialPlanning(userId, suggestedDate);
     if (!initial) return d;
     return {
       ...d,
@@ -93,7 +97,8 @@ export function MeetingPlanningModal({
       reminderMinutes: initial.planning?.reminderMinutes ?? 0,
     };
   });
-  const [guided, setGuided] = useState(false),
+  const [guided, setGuided] = useState(!initial),
+    [seriesMode, setSeriesMode] = useState(false),
     [step, setStep] = useState(0),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -104,11 +109,16 @@ export function MeetingPlanningModal({
     [future, setFuture] = useState(false);
   const formRef = useRef<HTMLFormElement>(null),
     bodyRef = useRef<HTMLDivElement>(null),
-    key = useRef({ body: "", key: "" });
+    key = useRef({ body: "", key: "" }),
+    pending = useRef(false);
   const formId = useId();
   const authorization = useAuthorizationRevision(), openedAuthorization = useRef(authorization);
   useEffect(() => { if (authorization !== openedAuthorization.current) onClose(); }, [authorization]);
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const scheduleStep = initial ? 1 : 2, reviewStep = initial ? 2 : 3;
+  const stepLabels = initial ? [w.peopleStep, w.scheduleStep, w.reviewStep]
+    : [labels.purposeStep, labels.teamStep, labels.scheduleStep, labels.reviewStep];
+  const stepHints = [labels.purposeHint, labels.teamHint, labels.scheduleHint, labels.reviewHint];
   const update = (patch: Partial<PlanningDraft>) => {
     setForm((f) => ({
       ...f,
@@ -129,7 +139,7 @@ export function MeetingPlanningModal({
       setPreview(undefined);
   };
   const close = () => {
-    if (!busy) {
+    if (!busy && !pending.current) {
       if (dirty) setDiscard(true);
       else onClose();
     }
@@ -139,9 +149,8 @@ export function MeetingPlanningModal({
     setError("");
     bodyRef.current?.scrollTo({ top: 0 });
     requestAnimationFrame(() =>
-      formRef.current
-        ?.querySelector<HTMLElement>("input,select,textarea")
-        ?.focus(),
+      (formRef.current?.querySelector<HTMLElement>("input,select,textarea") ?? formRef.current)
+        ?.focus({ preventScroll: true }),
     );
   };
   const checkPeople = () => {
@@ -168,12 +177,22 @@ export function MeetingPlanningModal({
     return true;
   };
   const next = async () => {
-    if (!formRef.current?.reportValidity() || !checkPeople()) return;
-    if (step === 0) {
+    if (busy || pending.current || !directory.data || !formRef.current?.reportValidity()) return;
+    if (!initial && step === 0) {
+      if (!form.title.trim() || !form.objective.trim() || !form.expectedResult.trim()) {
+        setError(w.required);
+        return;
+      }
       go(1);
       return;
     }
+    if (!checkPeople()) return;
+    if (step < scheduleStep) {
+      go(step + 1);
+      return;
+    }
     if (openedAuthorization.current !== getAuthorizationRevision()) return;
+    pending.current = true;
     setBusy(true);
     setError("");
     try {
@@ -189,23 +208,26 @@ export function MeetingPlanningModal({
           : await meetingApi.preview(body);
       if (openedAuthorization.current !== getAuthorizationRevision()) return;
       setPreview(result);
-      go(2);
+      go(reviewStep);
     } catch (e) {
       if (openedAuthorization.current !== getAuthorizationRevision()) return;
       setError(planningError(e, w, w.previewError, op.appointmentConflict));
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   };
   const submit = async () => {
     if (
-      busy ||
+      busy || pending.current ||
+      (guided && (step !== reviewStep || !preview)) ||
       !directory.data ||
       !formRef.current?.reportValidity() ||
       !checkPeople()
     )
       return;
     if (openedAuthorization.current !== getAuthorizationRevision()) return;
+    pending.current = true;
     setBusy(true);
     setError("");
     try {
@@ -222,7 +244,7 @@ export function MeetingPlanningModal({
               ),
             );
             setGuided(true);
-            go(2);
+            go(reviewStep);
             return;
           }
           await meetingApi.editFuture(
@@ -245,7 +267,7 @@ export function MeetingPlanningModal({
         !form.allowConflicts
       ) {
         setGuided(true);
-        go(2);
+        go(reviewStep);
         return;
       }
       const value = JSON.stringify(body);
@@ -268,6 +290,7 @@ export function MeetingPlanningModal({
         ),
       );
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   };
@@ -318,21 +341,21 @@ export function MeetingPlanningModal({
           busy ||
           !ready ||
           (guided &&
-            step === 2 &&
+            step === reviewStep &&
             (!preview ||
               (preview.occurrences.some((o) => o.conflicts > 0) &&
                 (Boolean(initial && future) || !form.allowConflicts))))
         }
-        type={guided && step < 2 ? "button" : "submit"}
+        type={guided && step < reviewStep ? "button" : "submit"}
         form={formId}
-        onClick={guided && step < 2 ? () => void next() : undefined}
+        onClick={guided && step < reviewStep ? () => void next() : undefined}
       >
         {busy
           ? copy.loading
-          : guided && step === 0
+          : guided && step < scheduleStep
             ? w.next
-            : guided && step === 1
-              ? w.review
+            : guided && step === scheduleStep
+              ? initial ? w.review : labels.reviewAction
               : initial
                 ? copy.save
                 : form.recurring
@@ -349,13 +372,13 @@ export function MeetingPlanningModal({
       modalType={discard ? "confirmation" : guided ? "wizard" : "standard-form"}
       bodyRef={bodyRef}
       contentClassName="max-h-[calc(100dvh-1rem)]"
-      icon="📝"
+      icon={guided && !discard ? ["🎯", "👥", "📅", "✅"][initial ? Math.min(step + 1, 3) : step] : "📝"}
       title={discard ? copy.discard : initial ? copy.edit : copy.newMeeting}
       description={
         discard
           ? copy.subtitle
           : guided
-            ? [w.peopleStep, w.scheduleStep, w.reviewStep][step]
+            ? initial ? stepLabels[step] : stepHints[step]
             : w.quickHint
       }
       closeLabel={copy.close}
@@ -372,7 +395,7 @@ export function MeetingPlanningModal({
       }
       footerSummary={
         !discard && guided
-          ? `${step + 1} / 3 · ${form.title || copy.newMeeting}`
+          ? `${step + 1} / ${stepLabels.length} · ${stepLabels[step]}`
           : undefined
       }
     >
@@ -380,10 +403,11 @@ export function MeetingPlanningModal({
         <form
           id={formId}
           ref={formRef}
-          className="space-y-6"
+          tabIndex={-1}
+          className="space-y-6 focus:outline-none"
           onSubmit={(e) => {
             e.preventDefault();
-            if (guided && step < 2) void next();
+            if (guided && step < reviewStep) void next();
             else void submit();
           }}
         >
@@ -394,11 +418,7 @@ export function MeetingPlanningModal({
                 activeStepId={String(step)}
                 progressLabel={w.progress}
                 density="compact"
-                steps={[
-                  { id: "0", label: w.peopleStep },
-                  { id: "1", label: w.scheduleStep },
-                  { id: "2", label: w.reviewStep },
-                ]}
+                steps={stepLabels.map((label, index) => ({ id: String(index), label }))}
               />
             )}
             {!initial && step === 0 && (
@@ -420,13 +440,15 @@ export function MeetingPlanningModal({
                   <button
                     type="button"
                     key={m.label}
-                    aria-pressed={guided === m.value}
+                    aria-pressed={seriesMode === m.value}
                     onClick={() => {
-                      setGuided(m.value);
+                      setSeriesMode(m.value);
+                      setDirty(true);
+                      setPreview(undefined);
                       if (!m.value)
                         update({ recurring: false, saveFlow: false });
                     }}
-                    className={`rounded-2xl border p-4 text-left focus-visible:ring-2 focus-visible:ring-blue-600 ${guided === m.value ? "border-blue-400 bg-blue-50 dark:bg-blue-950" : "border-slate-200 dark:border-slate-700"}`}
+                    className={`rounded-2xl border p-4 text-left focus-visible:ring-2 focus-visible:ring-blue-600 ${seriesMode === m.value ? "border-blue-400 bg-blue-50 dark:bg-blue-950" : "border-slate-200 dark:border-slate-700"}`}
                   >
                     <span aria-hidden className="text-xl">
                       {m.icon}
@@ -453,7 +475,7 @@ export function MeetingPlanningModal({
                   directory.data.total > directory.data.items.length && (
                     <Feedback>{copy.partial}</Feedback>
                   )}
-                {guided && step === 0 && !initial && (
+                {seriesMode && step === 0 && !initial && (
                   <div className="space-y-2">
                     <Field label={w.chooseFlow}>
                       <select
@@ -476,8 +498,10 @@ export function MeetingPlanningModal({
                     {flows.error && <Feedback error>{copy.error}</Feedback>}
                   </div>
                 )}
-                {(!guided || step === 0) && (
+                {(!guided || step < scheduleStep) && (
                   <PurposePeople
+                    key={guided && !initial ? step : "all"}
+                    part={guided && !initial ? step === 0 ? "purpose" : "team" : "all"}
                     form={form}
                     update={update}
                     copy={copy}
@@ -487,14 +511,14 @@ export function MeetingPlanningModal({
                     userId={userId}
                   />
                 )}
-                {(!guided || step === 1) && (
+                {(!guided || step === scheduleStep) && (
                   <>
                     <ScheduleSetup
                       form={form}
                       update={update}
                       copy={copy}
                       w={w}
-                      guided={guided && !initial}
+                      guided={seriesMode && !initial}
                       zone={zone}
                     />
                     <MeetingAvailability form={form} zone={zone} locale={currentLanguage.code} copy={copy} meetingId={initial?.meeting.id} update={update} />
@@ -524,7 +548,7 @@ export function MeetingPlanningModal({
                       )}
                   </>
                 )}
-                {guided && step === 2 && preview && (
+                {guided && step === reviewStep && preview && (
                   <PlanReview
                     form={form}
                     update={update}
@@ -534,6 +558,7 @@ export function MeetingPlanningModal({
                     members={[...(directory.data?.items ?? []), ...(initial?.participants.filter(p => !directory.data?.items.some(m => m.id === p.id)) ?? [])]}
                     locale={currentLanguage.code}
                     editing={Boolean(initial)}
+                    allowSaveFlow={seriesMode}
                   />
                 )}
               </>

@@ -45,7 +45,7 @@ public class SchedulingPublicAdapter implements KioskModuleAdapter {
         var staff=members.stream().map(s->new PublicStaff(s.id(),s.publicName(),s.timezone(),s.serviceIds())).toList();
         var staffIds=staff.stream().map(PublicStaff::id).toList();
         var services=repository.services(company).stream().filter(v->v.active()&&(v.productId()==null||inventory.available(company,v.productId())))
-            .map(s->new PublicService(s.id(),s.name(),s.description(),s.durationMinutes(),s.noticeHours())).toList();
+            .map(s->new PublicService(s.id(),s.name(),s.description(),s.durationMinutes(),s.noticeHours(),s.chargePolicy())).toList();
         var events=repository.publicEvents(company,clock.instant()).stream().filter(e->staffIds.contains(e.staffId()))
             .map(e->new PublicEvent(e.id(),e.staffId(),e.title(),e.description(),e.startAt(),e.durationMinutes(),
                 Math.max(0,e.capacity()-(int)e.confirmedCount()),e.location())).toList();

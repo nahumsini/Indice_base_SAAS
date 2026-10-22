@@ -1,3 +1,7 @@
+import { MailOperationalKpis } from './MailOperationalKpis';
+import { Maximize2, Minimize2 } from 'lucide-react';
+import { useMailEditorCopy } from '../../components/mail-editor/mailEditorCopy';
+import '../../components/mail-editor/mailEditor.css';
 import { useEffect, useRef, useState } from 'react';
 import { Archive, Clock3, FileText, Folder, PanelLeftClose, PanelLeftOpen, X, Inbox, Mail, PenLine, RefreshCw, Settings, Send, ShieldAlert, Trash2 } from 'lucide-react';
 import { IndiceTitleBarOverflow, IndiceTitleBar, IndiceViewState } from '../../components/frontend-os';
@@ -36,6 +40,8 @@ export function LiveMailboxWorkspace({ onAccounts }: { onAccounts?: () => void }
   const listRef = useRef<HTMLDivElement>(null); const listPosition = useRef(0);
   const mobileFoldersTrigger = useRef<HTMLButtonElement>(null);
   const work=useMailWorkspaceCopy();const [newFolder,setNewFolder]=useState(false);
+  const pro=useMailEditorCopy();const [workspaceExpanded,setWorkspaceExpanded]=useState(false);
+  useEffect(()=>{if(!workspaceExpanded)return;const previous=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{document.body.style.overflow=previous;};},[workspaceExpanded]);
   const { copy } = useEmailCopy(); const text = useMailboxCopy(); const extra=useMailCompletionCopy();const [preferences,setPreferences]=useState(false);
   const [accounts, setAccounts] = useState<MailboxAccount[]>([]); const [filters, setFilters] = useState(defaults);
   const [workspace, setWorkspace] = useState(emptyWorkspace); const [workspaceReady,setWorkspaceReady]=useState('');const firstSync=useRef('');const lastSyncAttempt=useRef(0); const [page, setPage] = useState<MailPage>({ items: [], hasMore: false });
@@ -191,6 +197,7 @@ export function LiveMailboxWorkspace({ onAccounts }: { onAccounts?: () => void }
   function write(mode: 'new' | 'edit' | 'reply' | 'all' | 'forward' | 'copy' = 'new') {
     if (account) setCompose({ draft: initialDraft(account, selected ?? undefined, mode), id: mode === 'edit' ? selected?.id : undefined });
   }
+  useEffect(()=>{if(!workspaceExpanded)return;const key=(event:KeyboardEvent)=>{if(event.key==='Escape'&&!document.querySelector('[role="dialog"],[role="menu"]')){setWorkspaceExpanded(false);event.preventDefault();}};document.addEventListener('keydown',key);return()=>document.removeEventListener('keydown',key);},[workspaceExpanded]);
   function done(message: MailboxMessage) {
     setCompose(null); changeFolder(message.state === 'DRAFT' ? 'DRAFTS' : message.state === 'ACCEPTED' ? 'SENT' : 'OUTBOX');
     setNotice(message.state === 'DRAFT' ? text.draftSaved : sendFailureText(message.failureCode,work) ?? messageState(message.state, text)); setReload(v => v + 1);
@@ -224,13 +231,15 @@ export function LiveMailboxWorkspace({ onAccounts }: { onAccounts?: () => void }
     onChange: (id: string) => { changeFolder(id); setMobileFolders(false); },
     onCreate: () => { setMobileFolders(false); setNewFolder(true); },
   };
-  return <div className="space-y-5">
+  return <div className={`space-y-5 ${workspaceExpanded?'mail-workspace-expanded':''}`} data-mail-expanded={workspaceExpanded}>
     <IndiceTitleBar title={copy.mailbox} subtitle={work.mailboxSubtitle} icon={<Mail className="h-5 w-5" />} tone="blue" actions={<>
       <Button variant="outline" className="min-h-11 rounded-lg" disabled={busy || loading} onClick={() => account ? void refresh() : setReload(value => value + 1)}><RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} />{busy ? text.syncing : copy.refresh}</Button>
       {account ? <>
         <Button variant="outline" className="min-h-11 rounded-lg" disabled={busy} onClick={() => setPreferences(true)}><Settings className="h-4 w-4" />{extra.preferences}</Button>
         <Button className="min-h-11 rounded-lg" disabled={busy || loading} onClick={() => write()}><PenLine className="h-4 w-4" />{copy.compose}</Button>
-        {onAccounts && <IndiceTitleBarOverflow label={copy.actions} items={[{ id: 'accounts', label: copy.accounts, disabled: busy, icon: <Mail className="h-4 w-4" />, onSelect: onAccounts }]} />}
+        <IndiceTitleBarOverflow label={copy.actions} items={[
+          ...(onAccounts?[{ id: 'accounts', label: copy.accounts, disabled: busy, icon: <Mail className="h-4 w-4" />, onSelect: onAccounts }]:[]),
+          {id:'expand',label:workspaceExpanded?pro.restoreMailbox:pro.expandMailbox,icon:workspaceExpanded?<Minimize2 className="h-4 w-4"/>:<Maximize2 className="h-4 w-4"/>,onSelect:()=>setWorkspaceExpanded(v=>!v)}]} />
       </> : onAccounts && <Button className="min-h-11 rounded-lg" disabled={loading} onClick={onAccounts}><Mail className="h-4 w-4" />{copy.connect}</Button>}
     </>} />
     {error && <IndiceViewState compact variant="error" title={error} tone="blue" action={<Button variant="outline" disabled={busy} onClick={() => { setError(''); setReload(v => v + 1); }}>{copy.refresh}</Button>} />}
@@ -238,6 +247,8 @@ export function LiveMailboxWorkspace({ onAccounts }: { onAccounts?: () => void }
     {loading && !account ? <IndiceViewState variant="loading" title={copy.loading} tone="blue" /> : !account ? <IndiceViewState variant="empty" title={copy.noAccounts} description={copy.noAccountsDescription} tone="blue" action={onAccounts ? <Button onClick={onAccounts}>{copy.connect}</Button> : undefined} /> : <>
       <MailWorkspaceFilters className={selected ? 'hidden lg:block' : undefined} accounts={accounts} accountId={account.id}
         query={filters.query} quick={filters.quick} busy={busy || loading} onQuery={changeQuery} onAccount={changeAccount} onQuick={changeQuick} onClear={clearFilters} />
+      <MailOperationalKpis key={account.id} account={account.id} query={filters.query} revision={reload} workspace={workspace} hidden={!!selected} busy={busy||loading} folder={filters.folder} quick={filters.quick}
+        onSelect={(folder,quick)=>{setSelected(null);setChecked([]);setOffset(0);setFilters(v=>({...v,folder,quick}));}} />
       <section className="overflow-clip rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-blue-100 bg-blue-50/60 px-3 py-2 dark:border-slate-700 dark:bg-blue-950/20">
         <div className="flex min-w-0 items-center gap-3">

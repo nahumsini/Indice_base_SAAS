@@ -1,3 +1,6 @@
+import { MailFormattedPreview } from '../../../../components/mail-editor/MailFormattedPreview';
+import { plainMailHtml } from '../../../../components/mail-editor/mailFormat';
+import { MailRichEditor } from "../../../../components/mail-editor/MailRichEditor";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, FilePenLine, Mail, Save } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
@@ -63,6 +66,7 @@ export function CampaignEditor({
     replyTo: campaign?.replyTo ?? "",
     previewText: campaign?.previewText ?? "",
     bodyText: campaign?.bodyText ?? "",
+    bodyHtml: campaign?.bodyHtml ?? null,
     version: campaign?.version ?? 0,
     contactIds: campaign?.recipients.map((c) => c.id) ?? [],
   };
@@ -355,6 +359,7 @@ export function CampaignEditor({
                     subject: value.subject,
                     previewText: value.previewText,
                     bodyText: value.bodyText,
+                    bodyHtml: value.bodyHtml,
                   }))
                 }
               />
@@ -362,13 +367,7 @@ export function CampaignEditor({
               {field("previewText", copy.previewText, 240)}
               <label className="block space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
                 <span>{copy.body}</span>
-                <Textarea
-                  className={`${campaignFieldClassName} min-h-56 font-normal`}
-                  value={draft.bodyText}
-                  disabled={readOnly}
-                  maxLength={20000}
-                  onChange={(e) => update("bodyText", e.target.value)}
-                />
+                <MailRichEditor label={copy.body} text={draft.bodyText} html={draft.bodyHtml??null} disabled={readOnly} onChange={(bodyText,bodyHtml)=>setDraft(d=>({...d,bodyText,bodyHtml}))} />
               </label>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {audienceCopy.personalization}
@@ -421,11 +420,9 @@ export function CampaignEditor({
                 <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
                   {draft.previewText}
                 </p>
-                <p className="whitespace-pre-wrap break-words text-sm">
-                  {draft.bodyText
-                    .split("{{name}}")
-                    .join(contacts[0]?.name ?? copy.sample)}
-                </p>
+                <MailFormattedPreview label={editorCopy.messagePreview}
+                  text={draft.bodyText.split("{{name}}").join(contacts[0]?.name ?? copy.sample)}
+                  html={draft.bodyHtml?.split("{{name}}").join(plainMailHtml(contacts[0]?.name ?? copy.sample))} />
               </section>
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 {deliveryCopy.note}

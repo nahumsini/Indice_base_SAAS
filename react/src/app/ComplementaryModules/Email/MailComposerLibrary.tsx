@@ -1,44 +1,42 @@
 import { useEffect, useRef, useState } from 'react';
-import { BookOpen, Users } from 'lucide-react';
+import { BookOpen, Users, X } from 'lucide-react';
 import { canAccessModuleTab } from '../../access/tabScopeCatalog';
 import { getCachedAuthSession } from '../../api/authSessionStore';
-import { mailingApi, templateApi } from '../../BasicModules/Sales/Mailing/mailingApi';
+import { templateApi, type EmailTemplate } from '../../BasicModules/Sales/Mailing/mailingApi';
+import { audienceApi, type AudienceOptions, type AudienceList } from '../../BasicModules/Sales/Mailing/audienceApi';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
+import { MailFormattedPreview } from '../../components/mail-editor/MailFormattedPreview';
+import { useMailEditorCopy } from '../../components/mail-editor/mailEditorCopy';
+import { useEmailCopy } from './translations';
+import { useMailboxCopy } from './mailboxCopy';
 import { useMailDailyCopy } from './mailDailyCopy';
-type Item = { id: string; name: string; email?: string; subject?: string; bodyText?: string };
-/** Read-only consumption of Sales' published contacts/templates APIs, under their existing permissions. */
-export function MailComposerLibrary({ disabled, onContact, onTemplate, onBusy }: { disabled: boolean; onBusy?: (busy: boolean) => void; onContact: (email: string) => void; onTemplate: (subject: string, body: string) => void }) {
-  const copy = useMailDailyCopy(); const session = getCachedAuthSession();
-  const templates = canAccessModuleTab('sales', 'mailing', session);
-  const contacts = templates && canAccessModuleTab('sales', 'contacts', session);
-  const alive=useRef(true); const choiceLock=useRef(false); const [inserting,setInserting]=useState(false);
-  useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
-  const [mode, setMode] = useState<'contacts'|'templates'|null>(null); const [query,setQuery]=useState(''); const [items,setItems]=useState<Item[]>([]); const [error,setError]=useState(false); const [loading,setLoading]=useState(false);
-  useEffect(()=>{
-    setItems([]); setError(false); if(!mode || mode==='contacts'&&!contacts || mode==='templates'&&!templates)return;
-    const abort=new AbortController(); setLoading(true);
-    const timer=window.setTimeout(async()=>{
-      try {
-        const params=new URLSearchParams({search:query,page:'1',pageSize:'25',status:'ACTIVE'});
-        const result=mode==='contacts'?await mailingApi.contacts(params,abort.signal):await templateApi.list(params,abort.signal);
-        if(!abort.signal.aborted)setItems(result.items.map(item=>({...item,id:String(item.id)})));
-      }catch{if(!abort.signal.aborted)setError(true);}finally{if(!abort.signal.aborted)setLoading(false);}
-    },250);return()=>{abort.abort();window.clearTimeout(timer);};
-  },[mode,query,contacts,templates]);
-  async function choose(item: Item) {
-    if(disabled||choiceLock.current)return;
-    if(mode==='contacts'&&item.email){onContact(item.email);setMode(null);return;}
-    choiceLock.current=true;setInserting(true);onBusy?.(true);setError(false);
-    try {const template=await templateApi.get(item.id);if(!alive.current)return;if(template.status!=='ACTIVE')throw new Error('template_unavailable');onTemplate(template.subject,template.bodyText);setMode(null);}
-    catch{if(alive.current)setError(true);}finally{choiceLock.current=false;if(alive.current){setInserting(false);onBusy?.(false);}}
-  }
-  if(!templates&&!contacts)return null;
-  return <div className="space-y-3"><div className="flex flex-wrap gap-2">{contacts&&<Button type="button" variant="outline" disabled={disabled||inserting} aria-expanded={mode==='contacts'} onClick={()=>{setMode(mode==='contacts'?null:'contacts');setQuery('');}}><Users className="h-4 w-4"/>{copy.contacts}</Button>}{templates&&<Button type="button" variant="outline" disabled={disabled||inserting} aria-expanded={mode==='templates'} onClick={()=>{setMode(mode==='templates'?null:'templates');setQuery('');}}><BookOpen className="h-4 w-4"/>{copy.templates}</Button>}</div>
-    {mode&&<section className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3 dark:border-blue-900 dark:bg-blue-950/20"><Input aria-label={mode==='contacts'?copy.searchContacts:copy.searchTemplates} placeholder={mode==='contacts'?copy.searchContacts:copy.searchTemplates} value={query} disabled={disabled||inserting} maxLength={120} onChange={e=>setQuery(e.target.value)}/>
-      {error&&<p role="alert" className="text-sm text-amber-800 dark:text-amber-200">{copy.lookupFailed}</p>}
-      <ul aria-busy={loading} className="max-h-44 space-y-1 overflow-y-auto">{items.map(item=><li key={item.id}><Button type="button" variant="ghost" className="h-auto min-h-11 w-full justify-start whitespace-normal text-left" disabled={disabled||inserting} onClick={()=>void choose(item)}><span className="min-w-0 break-words">{item.name}<small className="block font-normal text-slate-500 dark:text-slate-400">{item.email??item.subject}</small></span></Button></li>)}</ul>
-      {!loading&&!error&&!items.length&&<p className="text-sm">{copy.noMatches}</p>}{mode==='templates'&&<p className="text-xs text-slate-500 dark:text-slate-400">{copy.insertHint}</p>}
-    </section>}
-  </div>;
+type Item={id:string;name:string;email?:string;subject?:string;companyName?:string};
+/** Sales owns contacts, filters, permissions and the single company template library. */
+export function MailComposerLibrary({disabled,onBusy,onContacts,onTemplate,existing}:{disabled:boolean;existing:string[];onBusy?:(busy:boolean)=>void;onContacts:(emails:string[],target:'to'|'cc'|'bcc')=>void;onTemplate:(subject:string,body:string,html:string|null,replace:boolean)=>void}){
+ const mail=useMailboxCopy(),{copy:email}=useEmailCopy();const copy=useMailDailyCopy(),pro=useMailEditorCopy(),session=getCachedAuthSession(),templates=canAccessModuleTab('sales','mailing',session),contacts=templates&&canAccessModuleTab('sales','contacts',session);
+ const [mode,setMode]=useState<'contacts'|'templates'|null>(null),[query,setQuery]=useState(''),[page,setPage]=useState(1),[total,setTotal]=useState(0),[items,setItems]=useState<Item[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState(''),[inserting,setInserting]=useState(false);
+ const [filters,setFilters]=useState({source:'',owner:'',tag:'',listId:''}),[options,setOptions]=useState<AudienceOptions>({sources:[],owners:[],tags:[]}),[lists,setLists]=useState<AudienceList[]>([]),[chosen,setChosen]=useState<string[]>([]),[target,setTarget]=useState<'to'|'cc'|'bcc'>('to'),[preview,setPreview]=useState<EmailTemplate|null>(null),[replace,setReplace]=useState(false);
+ const alive=useRef(true),choiceLock=useRef(false),selectionRequest=useRef(0);useEffect(()=>{alive.current=true;return()=>{alive.current=false;selectionRequest.current++;};},[]);
+ useEffect(()=>{if(mode!=='contacts'||!contacts)return;const abort=new AbortController();Promise.all([audienceApi.options(abort.signal),audienceApi.lists(abort.signal)]).then(([o,l])=>{if(!abort.signal.aborted){setOptions(o);setLists(l);}}).catch(()=>{if(!abort.signal.aborted)setError(copy.lookupFailed);});return()=>abort.abort();},[mode,contacts,copy.lookupFailed]);
+ useEffect(()=>{setItems([]);setError('');setPreview(null);selectionRequest.current++;if(!mode)return;const abort=new AbortController();setLoading(true);const timer=window.setTimeout(async()=>{
+  try{const params=new URLSearchParams({search:query,page:String(page),pageSize:'25',status:'ACTIVE',eligibility:'READY',...filters});const result=mode==='contacts'?await audienceApi.contacts(params,abort.signal):await templateApi.list(params,abort.signal);if(!abort.signal.aborted){setItems(result.items.map(i=>({...i,id:String(i.id)})));setTotal(result.total);}}
+  catch{if(!abort.signal.aborted)setError(copy.lookupFailed);}finally{if(!abort.signal.aborted)setLoading(false);}
+ },250);return()=>{abort.abort();clearTimeout(timer);};},[mode,query,page,filters,copy.lookupFailed]);
+ function open(next:'contacts'|'templates'){setMode(mode===next?null:next);setPage(1);setQuery('');setChosen([]);setPreview(null);setReplace(false);}
+ async function choose(item:Item){if(disabled||choiceLock.current)return;choiceLock.current=true;setInserting(true);onBusy?.(true);const request=++selectionRequest.current;try{const value=await templateApi.get(item.id);if(!alive.current||request!==selectionRequest.current)return;if(value.status!=='ACTIVE')throw new Error('inactive');setPreview(value);}catch{if(alive.current)setError(copy.lookupFailed);}finally{choiceLock.current=false;if(alive.current){setInserting(false);onBusy?.(false);}}}
+ const used=new Set(existing.map(e=>e.toLowerCase()));const pending=chosen.filter(e=>!used.has(e.toLowerCase()));
+ if(!templates&&!contacts)return null;
+ return <div className="space-y-3"><div className="flex flex-wrap gap-2">{contacts&&<Button type="button" variant="outline" disabled={disabled||inserting} aria-expanded={mode==='contacts'} onClick={()=>open('contacts')}><Users className="h-4 w-4"/>{copy.contacts}</Button>}{templates&&<Button type="button" variant="outline" disabled={disabled||inserting} aria-expanded={mode==='templates'} onClick={()=>open('templates')}><BookOpen className="h-4 w-4"/>{copy.templates}</Button>}</div>
+ {mode&&<section aria-label={mode==='contacts'?copy.contacts:copy.templates} className="space-y-3 rounded-xl border border-blue-200 bg-blue-50/40 p-3 dark:border-blue-900 dark:bg-blue-950/20">
+  <div className="flex items-center gap-2"><Input aria-label={mode==='contacts'?copy.searchContacts:copy.searchTemplates} placeholder={mode==='contacts'?copy.searchContacts:copy.searchTemplates} value={query} disabled={disabled||inserting} maxLength={120} onChange={e=>{setQuery(e.target.value);setPage(1);}}/><Button type="button" className="h-11 w-11 shrink-0 p-0" variant="ghost" aria-label={pro.cancel} disabled={disabled||inserting} onClick={()=>setMode(null)}><X className="h-4 w-4"/></Button></div>
+  {mode==='contacts'&&<div className="grid grid-cols-2 gap-2 md:grid-cols-4">{([{key:'source',label:pro.source,values:options.sources.map(value=>({value,label:value}))},{key:'owner',label:pro.owner,values:options.owners},{key:'tag',label:pro.tag,values:options.tags.map(value=>({value,label:value}))},{key:'listId',label:pro.list,values:lists.map(l=>({value:l.id,label:l.name}))}] as const).map(f=><label key={f.key} className="min-w-0 space-y-1 text-xs"><span>{f.label}</span><select aria-label={f.label} className="h-11 w-full min-w-0 rounded-lg border bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-900" disabled={disabled||inserting} value={filters[f.key]} onChange={e=>{setFilters(v=>({...v,[f.key]:e.target.value}));setPage(1);}}><option value="">{pro.all}</option>{f.values.map(v=><option key={v.value} value={v.value}>{v.label}</option>)}</select></label>)}</div>}
+  {error&&<p role="alert" className="text-sm text-amber-800 dark:text-amber-200">{error}</p>}
+  {loading&&<p role="status" className="text-sm">{pro.loading}</p>}
+  <ul aria-busy={loading} className="max-h-52 space-y-1 overflow-y-auto">{items.map(item=><li key={item.id}>{mode==='contacts'&&item.email?<label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border border-transparent px-3 py-2 hover:border-blue-200 hover:bg-white dark:hover:bg-slate-900"><input type="checkbox" checked={used.has(item.email.toLowerCase())||chosen.includes(item.email)} disabled={disabled||used.has(item.email.toLowerCase())||!chosen.includes(item.email)&&used.size+pending.length>=20} onChange={e=>setChosen(v=>e.target.checked?[...v,item.email!]:v.filter(email=>email!==item.email))}/><span className="min-w-0 break-words text-sm">{item.name}<small className="block text-slate-500">{item.email}{item.companyName&&item.companyName!==item.name?` · ${item.companyName}`:''}</small></span></label>:<Button type="button" variant="ghost" className="h-auto min-h-11 w-full justify-start whitespace-normal text-left" disabled={disabled||inserting} onClick={()=>void choose(item)}><span className="min-w-0 break-words">{item.name}<small className="block font-normal text-slate-500">{item.subject}</small></span></Button>}</li>)}</ul>
+  {!loading&&!error&&!items.length&&<p className="text-sm">{copy.noMatches}</p>}
+  <div className="flex items-center justify-between gap-2 text-xs"><span>{total} · {page} / {Math.max(1,Math.ceil(total/25))}</span><div className="flex gap-1"><Button type="button" variant="ghost" disabled={disabled||inserting||loading||page===1} onClick={()=>setPage(p=>p-1)}>{pro.previous}</Button><Button type="button" variant="ghost" disabled={disabled||inserting||loading||page*25>=total} onClick={()=>setPage(p=>p+1)}>{pro.next}</Button></div></div>
+  {mode==='contacts'&&<><p className="text-xs text-slate-500">{pro.limit}</p><div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3"><label className="flex items-center gap-2 text-sm">{pro.insertTo}<select className="h-11 rounded-lg border bg-white px-3 dark:bg-slate-900" value={target} disabled={disabled} onChange={e=>setTarget(e.target.value as typeof target)}><option value="to">{email.to}</option><option value="cc">{mail.cc}</option><option value="bcc">{mail.bcc}</option></select></label><Button type="button" disabled={disabled||!pending.length||used.size+pending.length>20} onClick={()=>{onContacts(pending,target);setMode(null);setChosen([]);}}>{pro.add} ({pending.length})</Button></div></>}
+  {mode==='templates'&&preview&&<div className="space-y-3 border-t pt-3"><h4 className="font-medium">{preview.subject}</h4><MailFormattedPreview text={preview.bodyText} html={preview.bodyHtml} label={pro.preview}/><p className="text-xs text-slate-500">{copy.insertHint}</p><div className="flex flex-wrap items-center justify-between gap-3"><select aria-label={pro.insert} className="h-11 max-w-full rounded-lg border bg-white px-3 text-sm dark:bg-slate-900" value={replace?'replace':'append'} onChange={e=>setReplace(e.target.value==='replace')}><option value="append">{pro.append}</option><option value="replace">{pro.replace}</option></select><Button type="button" disabled={disabled||inserting} onClick={()=>{onTemplate(preview.subject,preview.bodyText,preview.bodyHtml??null,replace);setMode(null);}}>{pro.insert}</Button></div></div>}
+ </section>}</div>;
 }

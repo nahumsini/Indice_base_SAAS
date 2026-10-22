@@ -5,7 +5,7 @@ import type {
 } from "../services/meetingApi";
 import type { MeetingWorkflowCopy } from "../translations/meetingWorkflowCopy";
 import { ApiClientError } from "../../../lib/apiClient";
-import { dateInput } from "./dateScope";
+import { dateInput, localDate } from "./dateScope";
 
 export type PlanningDraft = {
   title: string;
@@ -30,9 +30,18 @@ export type PlanningDraft = {
 };
 export const dateTimeInput = (date: Date) =>
   `${dateInput(date)}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-export function initialPlanning(userId: number): PlanningDraft {
+export function initialPlanning(userId: number, suggestedDate?: string): PlanningDraft {
   const date = new Date(Date.now() + 3600000);
   date.setMinutes(Math.ceil(date.getMinutes() / 15) * 15, 0, 0);
+  if (suggestedDate) {
+    const selected = localDate(suggestedDate);
+    const today = dateInput(new Date());
+    const time = suggestedDate === today
+      ? dateInput(date) === today ? [date.getHours(), date.getMinutes()] : [23, 59]
+      : [9, 0];
+    date.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
+    date.setHours(time[0], time[1], 0, 0);
+  }
   return {
     title: "",
     meetingType: "WORKING",

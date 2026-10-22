@@ -17,6 +17,12 @@ public class MailingDeliveryService {
     private final MailingDeliveryAccess access;private final MailingService campaigns;private final MailingDeliveryRepository repository;private final CampaignEmailGateway email;private final MailingUnsubscribeService unsubscribe;private final TransactionTemplate tx;
     public MailingDeliveryService(MailingDeliveryAccess access,MailingService campaigns,MailingDeliveryRepository repository,CampaignEmailGateway email,MailingUnsubscribeService unsubscribe,PlatformTransactionManager manager){this.access=access;this.campaigns=campaigns;this.repository=repository;this.email=email;this.unsubscribe=unsubscribe;this.tx=new TransactionTemplate(manager);}
     static String content(MailingContracts.Campaign campaign){return (campaign.previewText().isBlank()?"":campaign.previewText()+"\n\n")+campaign.bodyText();}
+    static String formatted(MailingContracts.Campaign campaign,String name,String footer){
+        if(campaign.bodyHtml()==null)return null;
+        String html=campaign.bodyHtml().replace("{{name}}",com.indice.erp.email.mailbox.SafeMailHtml.escape(name));
+        if(!campaign.previewText().isBlank())html="<p>"+com.indice.erp.email.mailbox.SafeMailHtml.escape(personalize(campaign.previewText(),name))+"</p>"+html;
+        return html+(footer==null?"":"<p>"+com.indice.erp.email.mailbox.SafeMailHtml.escape(footer).replace("\n","<br>")+"</p>");
+    }
     static String personalize(String text,String name){return text.replace("{{name}}",name);}
     static boolean address(String value){try{var a=new InternetAddress(value,true);a.validate();return value.length()<=240&&!value.contains("\r")&&!value.contains("\n")&&a.getPersonal()==null&&!a.isGroup()&&a.getAddress().equals(value);}catch(Exception e){return false;}}
     public Review review(AuthSessionUser actor,String id){var a=access.read(actor);var c=campaigns.get(a,id);CampaignEmailGateway.Sender sender=null;
@@ -41,14 +47,15 @@ public class MailingDeliveryService {
             require(eligible.size()==selected.size(),CONFLICT,"mailing_recipient_unavailable");
         }
         require(!eligible.isEmpty(),CONFLICT,"mailing_no_recipients");
-        for(var person:eligible){require(personalize(content(c),person.name()).length()+input.footer().length()+250<=20000&&personalize(c.subject(),person.name().replaceAll("[\\r\\n]"," ")).length()<=240,BAD_REQUEST,"mailing_content_too_long");}
+        String sampleFooter=input.footer()+"\n\nUnsubscribe / Cancelar suscripción:\n"+unsubscribe.link("00000000-0000-0000-0000-000000000000");
+        for(var person:eligible){String html=formatted(c,person.name(),sampleFooter);require(html==null||html.length()<=500000,BAD_REQUEST,"mailing_content_too_long");require(personalize(content(c),person.name()).length()+input.footer().length()+250<=20000&&personalize(c.subject(),person.name().replaceAll("[\\r\\n]"," ")).length()<=240,BAD_REQUEST,"mailing_content_too_long");}
         Instant when=input.scheduledAt()==null?Instant.now():input.scheduledAt();require(!when.isBefore(Instant.now().minusSeconds(60))&&!when.isAfter(Instant.now().plusSeconds(365*86400L)),BAD_REQUEST,"mailing_schedule_invalid");
         repository.launch(a,c,input.accountVersion(),when,input.footer().trim(),eligible);return results(a,id);
     });}
     public SendResult test(AuthSessionUser actor,String id,TestInput input){var a=access.current(actor);var c=tx.execute(s->{access.write(a);var campaign=campaigns.get(a,id);require(campaign.version()==input.version(),CONFLICT,"mailing_review_changed");require(campaign.senderAccountId()!=null&&!campaign.subject().isBlank()&&!campaign.bodyText().isBlank(),BAD_REQUEST,"mailing_content_required");return campaign;});
         require(address(input.to()),BAD_REQUEST,"mailing_recipient_invalid");var sender=email.sender(a,c.senderAccountId());require(sender.verified(),CONFLICT,"mailing_sender_not_verified");
         String key=UUID.nameUUIDFromBytes(("mailing-test:"+a.companyId()+":"+id+":"+input.version()+":"+input.to()+":"+input.requestId()).getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
-        return new SendResult(email.send(a,sender.id(),sender.version(),key,input.to(),"[TEST] "+c.subject().substring(0,Math.min(c.subject().length(),230)),content(c),c.replyTo(),c.senderName()));
+        return new SendResult(email.send(a,sender.id(),sender.version(),key,input.to(),"[TEST] "+c.subject().substring(0,Math.min(c.subject().length(),230)),content(c),c.replyTo(),c.senderName(),formatted(c,"{{name}}",null)));
     }
     public Results results(AuthSessionUser actor,String id){var a=access.read(actor);var c=campaigns.get(a,id);var run=repository.run(a.companyId(),id);return new Results(c.status(),c.version(),run==null?null:run.scheduled(),run==null?null:run.lastError(),repository.deliveries(a.companyId(),id),access.canSend(a));}
     public Results control(AuthSessionUser actor,String id,Control in){return tx.execute(s->{var a=access.write(actor);var c=campaigns.get(a,id);require(c.version()==in.version(),CONFLICT,"mailing_review_changed");var run=repository.run(a.companyId(),id);require(run!=null,CONFLICT,"mailing_campaign_locked");
@@ -76,7 +83,7 @@ public class MailingDeliveryService {
                 // Last permission/suppression check is serialized against unsubscribe, immediately before authorizing transport.
                 boolean eligible=tx.execute(s->{access.write(work.actor());return repository.eligible(run.company(),work.recipient().email());});
                 if(!eligible)state="SUPPRESSED";
-                else {String body=personalize(content(work.campaign()),work.recipient().name())+"\n\n"+run.footer()+"\n\nUnsubscribe / Cancelar suscripción:\n"+unsubscribe.link(work.recipient().id());state=email.send(work.actor(),run.account(),run.accountVersion(),work.recipient().id(),work.recipient().email(),personalize(work.campaign().subject(),work.recipient().name().replaceAll("[\\r\\n]"," ")),body,work.campaign().replyTo(),work.campaign().senderName());}
+                else {String body=personalize(content(work.campaign()),work.recipient().name())+"\n\n"+run.footer()+"\n\nUnsubscribe / Cancelar suscripción:\n"+unsubscribe.link(work.recipient().id());state=email.send(work.actor(),run.account(),run.accountVersion(),work.recipient().id(),work.recipient().email(),personalize(work.campaign().subject(),work.recipient().name().replaceAll("[\\r\\n]"," ")),body,work.campaign().replyTo(),work.campaign().senderName(),formatted(work.campaign(),work.recipient().name(),run.footer()+"\n\nUnsubscribe / Cancelar suscripción:\n"+unsubscribe.link(work.recipient().id())));}
             }
         }catch(ResponseStatusException failure){
             error=failure.getReason()!=null&&failure.getReason().matches("(?:email|mailing)_[a-z_]+")?failure.getReason():"mailing_send_unavailable";

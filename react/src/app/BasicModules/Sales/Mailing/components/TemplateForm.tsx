@@ -1,3 +1,5 @@
+import { MailRichEditor } from "../../../../components/mail-editor/MailRichEditor";
+import { MailFormattedPreview } from "../../../../components/mail-editor/MailFormattedPreview";
 import { Input } from "../../../../components/ui/input";
 import { Textarea } from "../../../../components/ui/textarea";
 import type { TemplateInput } from "../mailingApi";
@@ -36,13 +38,7 @@ export function TemplateForm({
       {field("previewText", copy.previewText, 240)}
       <label className="block space-y-2 text-sm">
         <span>{copy.body}</span>
-        <Textarea
-          className="min-h-52"
-          maxLength={20000}
-          disabled={disabled}
-          value={value.bodyText}
-          onChange={(e) => onChange({ ...value, bodyText: e.target.value })}
-        />
+        <MailRichEditor label={copy.body} text={value.bodyText} html={value.bodyHtml??null} disabled={disabled} onChange={(bodyText,bodyHtml)=>onChange({...value,bodyText,bodyHtml})} />
       </label>
       <p className="text-sm text-slate-500">{copy.templateHint}</p>
       <TemplatePreview value={value} copy={copy} />
@@ -53,7 +49,7 @@ export function TemplatePreview({
   value,
   copy,
 }: {
-  value: Pick<TemplateInput, "subject" | "previewText" | "bodyText">;
+  value: Pick<TemplateInput, "subject" | "previewText" | "bodyText" | "bodyHtml">;
   copy: MailingCopy;
 }) {
   return (
@@ -63,9 +59,7 @@ export function TemplatePreview({
     >
       <h3 className="text-lg font-medium">{value.subject || copy.subject}</h3>
       <p className="mt-2 text-sm text-slate-500">{value.previewText}</p>
-      <p className="mt-4 whitespace-pre-wrap break-words text-sm">
-        {value.bodyText.split("{{name}}").join(copy.previewName)}
-      </p>
+      <MailFormattedPreview text={value.bodyText.split("{{name}}").join(copy.previewName)} html={value.bodyHtml?.split("{{name}}").join(copy.previewName)} label={copy.templatePreview} />
     </section>
   );
 }

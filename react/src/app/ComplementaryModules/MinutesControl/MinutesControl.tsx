@@ -14,9 +14,11 @@ import { getMeetingCopy } from "./translations/meetingCopy";
 import MeetingsTab from "./tabs/MeetingsTab";
 import AgreementsTab from "./tabs/AgreementsTab";
 import IndicatorsTab from "./tabs/IndicatorsTab";
+import MeetingSessionTab from "./tabs/MeetingSessionTab";
+import { getMeetingSessionCopy } from "./translations/meetingSessionCopy";
 import { MeetingGuide } from "./components/MeetingGuide";
 
-const tabs = ["meetings", "agreements", "indicators"] as const;
+const tabs = ["meetings", "session", "agreements", "indicators"] as const;
 export default function MinutesControl({
   onNavigate,
   learningModeActive = false,
@@ -57,8 +59,8 @@ export default function MinutesControl({
       onNavigate={onNavigate}
       tabs={allowed.map((id) => ({
         id,
-        label: copy[id],
-        icon: { meetings: "📅", agreements: "🤝", indicators: "📊" }[id],
+        label: id === "session" ? getMeetingSessionCopy(currentLanguage.code).title : copy[id],
+        icon: { meetings: "📅", session: "📝", agreements: "🤝", indicators: "📊" }[id],
         access: { page: "minutes-control", tabId: id },
       }))}
     >
@@ -78,12 +80,16 @@ export default function MinutesControl({
               locale={currentLanguage.code}
               userId={userId}
               administrator={administrator}
+              onSession={id => navigate(`/minutes-control/session?meeting=${id}`)}
               onAgreements={
                 allowed.includes("agreements")
                   ? (meetingId) => navigate(`/minutes-control/agreements?meeting=${meetingId}&q=&assignee=0&status=&attention=&page=1`)
                   : undefined
               }
             />
+          ) : activeTab === "session" ? (
+            <MeetingSessionTab copy={copy} locale={currentLanguage.code} userId={userId} administrator={administrator}
+              onAgreements={allowed.includes("agreements") ? id => navigate(`/minutes-control/agreements?meeting=${id}&q=&assignee=0&status=&attention=&page=1`) : undefined} />
           ) : activeTab === "agreements" ? (
             <AgreementsTab
               copy={copy}

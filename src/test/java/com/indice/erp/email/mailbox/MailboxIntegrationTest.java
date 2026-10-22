@@ -60,6 +60,36 @@ class MailboxIntegrationTest {
         when(transport.sync(any(),any(),anyBoolean(),any())).thenReturn(new MailboxTransport.Batch(validity,10,10,false,List.of(header),List.of()));
         return mailbox.sync(actor,account,new SyncInput(null,false));
     }
+    @Test void operationalCountsUseAllMatchingRowsAndRemainPrivate() throws Exception {
+        var account=create();var workspace=sync(account.id(),17);String inbox=workspace.folders().stream().filter(f->f.kind().equals("INBOX")).findFirst().orElseThrow().id();
+        var first=mailbox.list(actor,account.id(),inbox,"",0).items().getFirst();
+        db.update("UPDATE email_messages SET is_starred=TRUE WHERE company_id=? AND account_id=? AND id=?",company,account.id(),first.id());
+        for(int i=0;i<28;i++)draft(account.id());
+        assertThat(mailbox.list(actor,account.id(),"DRAFTS","",0).items()).hasSize(25);
+        assertThat(mailbox.counts(actor,account.id(),"")).isEqualTo(new OperationalCounts(1,1,28,0));
+        assertThat(mailbox.counts(actor,account.id(),"Incoming")).isEqualTo(new OperationalCounts(1,1,0,0));
+        assertThat(mailbox.counts(actor,account.id(),"%")).isEqualTo(new OperationalCounts(0,0,0,0));
+        String failed=draft(account.id());db.update("UPDATE email_messages SET state='FAILED' WHERE company_id=? AND account_id=? AND id=?",company,account.id(),failed);
+        assertThat(mailbox.counts(actor,account.id(),"").review()).isEqualTo(1);
+        db.update("UPDATE email_messages SET remote_present=FALSE WHERE company_id=? AND account_id=? AND id=?",company,account.id(),first.id());
+        assertThat(mailbox.counts(actor,account.id(),"").unread()).isZero();
+        mvc.perform(get("/api/v1/email/mailboxes/"+account.id()+"/counts").session(session())).andExpect(status().isOk()).andExpect(jsonPath("$.drafts").value(28));
+        assertThatThrownBy(()->mailbox.counts(new AuthSessionUser(otherUser,company,"Other","admin"),account.id(),"")).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        assertThatThrownBy(()->mailbox.counts(new AuthSessionUser(user,other,"Other company","admin"),account.id(),"")).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        assertThatThrownBy(()->mailbox.counts(actor,account.id(),"x".repeat(181))).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+    }
+    @Test void formattedSignaturesAndDraftsRetainSafeStylesAndRemainPrivate() {
+        var account=create();String html="<p style='color:#2563eb;font-size:18px' onclick='bad()'>Equipo</p>";
+        var saved=preferences.save(actor,account.id(),new PreferencesInput(false,null,1,1,"Equipo",html,true,true));
+        assertThat(saved.signatureHtml()).contains("color:#2563eb","font-size:18px").doesNotContain("onclick");
+        assertThat(saved.signatureNew()).isTrue();assertThat(saved.signatureReply()).isTrue();
+        var legacy=preferences.save(actor,account.id(),new PreferencesInput(false,null,saved.version(),1));
+        assertThat(legacy.signatureHtml()).isEqualTo(saved.signatureHtml());assertThat(legacy.signatureNew()).isTrue();
+        var message=drafts.save(actor,account.id(),UUID.randomUUID().toString(),new DraftInput(0,1,List.of("reader@example.com"),List.of(),List.of(),"Subject","Equipo",null,html));
+        assertThat(message.bodyHtml()).contains("color:#2563eb").doesNotContain("onclick");
+        assertThatThrownBy(()->preferences.get(new AuthSessionUser(otherUser,company,"Other","superadmin"),account.id())).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        var cleared=preferences.save(actor,account.id(),new PreferencesInput(false,null,legacy.version(),1,"", "",false,false));assertThat(cleared.signatureHtml()).isNull();assertThat(cleared.signatureNew()).isFalse();
+    }
     @Test void privateSignaturePersistsWithVersioningAndOlderClientsCannotEraseIt() throws Exception {
         var account=create();
         var saved=preferences.save(actor,account.id(),new PreferencesInput(false,null,1,1,"Equipo de ventas\nEmpresa de prueba"));

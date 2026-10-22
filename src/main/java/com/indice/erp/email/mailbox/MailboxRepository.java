@@ -57,6 +57,18 @@ public class MailboxRepository {
         var rows=db.query("SELECT m.* FROM email_messages m LEFT JOIN email_folders f ON f.company_id=m.company_id AND f.account_id=m.account_id AND f.id=m.folder_id WHERE m.company_id=? AND m.account_id=? AND "+where+" ORDER BY m.occurred_at DESC,m.id DESC LIMIT 26 OFFSET ?",this::row,args.toArray());
         return new Page(rows.stream().limit(25).map(Row::view).map(m->new Message(m.id(),m.folderId(),m.state(),m.subject(),m.fromAddress(),m.fromName(),m.to(),m.cc(),m.bcc(),m.replyTo(),null,m.bodyTruncated(),m.hasAttachments(),m.read(),m.starred(),m.occurredAt(),m.version(),m.failureCode())).toList(),rows.size()>25);
     }
+    OperationalCounts counts(AuthSessionUser actor,String account,long version,String query) {
+        String incoming="m.state='RECEIVED' AND f.kind='INBOX' AND f.account_version=? AND m.uid_validity=f.uid_validity AND m.remote_present=TRUE";
+        var args=new ArrayList<Object>(List.of(version,version,actor.companyId(),account));
+        String search="";
+        if(!query.isBlank()){
+            search=" AND (LOWER(m.subject) LIKE ? ESCAPE '!' OR LOWER(m.from_address) LIKE ? ESCAPE '!' OR LOWER(m.from_name) LIKE ? ESCAPE '!' OR LOWER(m.to_json) LIKE ? ESCAPE '!' OR LOWER(m.cc_json) LIKE ? ESCAPE '!')";
+            String term="%"+query.toLowerCase(Locale.ROOT).replace("!","!!").replace("%","!%").replace("_","!_")+"%";
+            for(int i=0;i<5;i++)args.add(term);
+        }
+        return db.queryForObject("SELECT COALESCE(SUM(CASE WHEN "+incoming+" AND m.is_read=FALSE THEN 1 ELSE 0 END),0) unread, COALESCE(SUM(CASE WHEN "+incoming+" AND m.is_starred=TRUE THEN 1 ELSE 0 END),0) starred, COALESCE(SUM(CASE WHEN m.state='DRAFT' THEN 1 ELSE 0 END),0) drafts, COALESCE(SUM(CASE WHEN m.state IN ('SUBMITTING','UNKNOWN','FAILED') THEN 1 ELSE 0 END),0) review FROM email_messages m LEFT JOIN email_folders f ON f.company_id=m.company_id AND f.account_id=m.account_id AND f.id=m.folder_id WHERE m.company_id=? AND m.account_id=?"+search,
+          (r,n)->new OperationalCounts(r.getLong("unread"),r.getLong("starred"),r.getLong("drafts"),r.getLong("review")),args.toArray());
+    }
     void discover(AuthSessionUser actor,String account,long version,List<MailboxTransport.FolderInfo> folders) {
         for(var f:folders)db.update("INSERT INTO email_folders(company_id,account_id,id,account_version,remote_name,kind) VALUES(?,?,?,?,?,?) ON DUPLICATE KEY UPDATE kind=VALUES(kind)",actor.companyId(),account,UUID.randomUUID().toString(),version,f.name(),f.kind());
     }

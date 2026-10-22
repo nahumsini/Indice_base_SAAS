@@ -31,3 +31,9 @@ export function canUseSalesClients(session: AuthSessionResponse | null | undefin
   return Boolean(session && canAccessModuleTab('sales', 'contacts', session)
     && modules.some(module => module.slug === 'crm' && !module.locked));
 }
+
+/** The catalog projection does not grant access to Inventory's product workspace. */
+export function canOpenInventoryProducts(session: AuthSessionResponse | null | undefined, modules: BackendDashboardModule[]) {
+  return Boolean(session && canAccessModuleTab('inventory', 'products', session)
+    && modules.some(module => module.slug === 'inventory' && !module.locked));
+}

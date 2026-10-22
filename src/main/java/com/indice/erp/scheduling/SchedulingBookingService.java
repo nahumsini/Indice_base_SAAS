@@ -75,6 +75,7 @@ public class SchedulingBookingService {
     public Submission request(long company,Long actor,ReservationRequest request) {
         repository.lockCompany(company);var staff=staff(company,request.staffId());
         int duration,buffer;Instant start=request.startAt();
+        ChargePolicy chargePolicy=ChargePolicy.TO_BE_AGREED;
         if((request.serviceId()==null)==(request.eventId()==null))
             throw new IllegalArgumentException("Choose exactly one service or event.");
         if(request.eventId()!=null) {
@@ -96,15 +97,16 @@ public class SchedulingBookingService {
             if(!slots(company,new SlotRequest(service.id(),staff.id(),date)).starts().contains(start))
                 throw new IllegalStateException("Requested slot is unavailable.");
             duration=service.durationMinutes();buffer=Math.max(service.bufferMinutes(),staff.bufferMinutes());
+            chargePolicy=service.chargePolicy();
         }
         String reference="SCH-"+UUID.randomUUID().toString().replace("-","").substring(0,24);
         long id=repository.insert("""
             INSERT INTO scheduling_reservations(company_id,staff_id,service_id,event_id,reference,attendee_name,
-              attendee_email,attendee_company,attendee_phone,start_at,duration_minutes,buffer_minutes,consent_at,client_id)
-            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+              attendee_email,attendee_company,attendee_phone,start_at,duration_minutes,buffer_minutes,consent_at,client_id,charge_policy_snapshot)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,company,staff.id(),request.serviceId(),request.eventId(),reference,request.attendeeName().trim(),
             email(request.attendeeEmail()),SchedulingConfigurationService.text(request.attendeeCompany()),
-            SchedulingConfigurationService.text(request.attendeePhone()),Timestamp.from(start),duration,buffer,Timestamp.from(clock.instant()),request.clientId());
+            SchedulingConfigurationService.text(request.attendeePhone()),Timestamp.from(start),duration,buffer,Timestamp.from(clock.instant()),request.clientId(),chargePolicy.name());
         repository.audit(company,actor,"RESERVATION",id,"RESERVATION_REQUESTED");
         notifications.dispatch(company,id,true);
         return new Submission(reference,"REQUESTED","REVIEW_REQUIRED");

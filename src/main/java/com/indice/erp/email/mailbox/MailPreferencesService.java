@@ -11,6 +11,7 @@ public class MailPreferencesService {
     public Preferences get(AuthSessionUser actor,String account){access.read(actor,account);return operations.preferences(actor,account);}
     public Preferences save(AuthSessionUser actor,String account,PreferencesInput input){
         require(input.signature()==null||input.signature().length()<=2000&&!input.signature().contains("\u0000"),HttpStatus.BAD_REQUEST,"email_signature_invalid");
+        require(input.signatureHtml()==null||input.signatureHtml().length()<=500000,HttpStatus.BAD_REQUEST,"email_signature_invalid");
         var a=access.read(actor,account);access.sameVersion(a,input.accountVersion());
         require(!input.backgroundEnabled()||a.receiveProtocol().equals("IMAP"),HttpStatus.BAD_REQUEST,"email_imap_required");
         if(input.sentFolder()!=null)require(access.repository.folders(actor,account,a.version()).stream().anyMatch(f->f.name().equals(input.sentFolder())),HttpStatus.BAD_REQUEST,"email_folder_invalid");

@@ -16,6 +16,22 @@ const en = {
   period: "Visible period",
   previousPeriod: "Previous period",
   nextPeriod: "Next period",
+  dayMeetings: "Meetings for the day",
+  calendarHint: "Select a day to view its meetings.",
+  emptyDayTitle: "No meetings for this day",
+  emptyDayHint: "Schedule a meeting to start planning this day.",
+  filteredDayTitle: "No meetings match your filters",
+  filteredDayHint: "Adjust your filters to see other meetings on this day.",
+  scheduleDay: "Schedule meeting",
+  clearDayFilters: "Clear filters",
+  meetingSingular: "meeting",
+  meetingPlural: "meetings",
+  filteredDayScope: "Results for the current filters.",
+  pastDayHint: "Choose today or a future day to schedule a meeting.",
+  openDayMeeting: "Open meeting",
+  coordinatorLabel: "Coordinator",
+  calendarScrollHint: "Horizontal scroll reveals the other days.",
+
 };
 export type MeetingWorkspaceCopy = { [K in keyof typeof en]: string };
 const es: MeetingWorkspaceCopy = {
@@ -36,6 +52,22 @@ const es: MeetingWorkspaceCopy = {
   period: "Periodo visible",
   previousPeriod: "Periodo anterior",
   nextPeriod: "Periodo siguiente",
+  dayMeetings: "Juntas del día",
+  calendarHint: "Selecciona un día para consultar sus juntas.",
+  emptyDayTitle: "No hay juntas para este día",
+  emptyDayHint: "Programa una junta para comenzar a organizar este día.",
+  filteredDayTitle: "No hay juntas que coincidan con tus filtros",
+  filteredDayHint: "Ajusta los filtros para ver otras juntas de este día.",
+  scheduleDay: "Programar junta",
+  clearDayFilters: "Limpiar filtros",
+  meetingSingular: "junta",
+  meetingPlural: "juntas",
+  filteredDayScope: "Resultados con los filtros actuales.",
+  pastDayHint: "Elige hoy o una fecha futura para programar una junta.",
+  openDayMeeting: "Abrir junta",
+  coordinatorLabel: "Coordina",
+  calendarScrollHint: "Desliza horizontalmente para ver los demás días.",
+
 };
 const fr: MeetingWorkspaceCopy = {
   meetingsHint:
@@ -55,6 +87,22 @@ const fr: MeetingWorkspaceCopy = {
   period: "Période visible",
   previousPeriod: "Période précédente",
   nextPeriod: "Période suivante",
+  dayMeetings: "Réunions du jour",
+  calendarHint: "Sélectionnez un jour pour consulter ses réunions.",
+  emptyDayTitle: "Aucune réunion ce jour",
+  emptyDayHint: "Planifiez une réunion pour organiser cette journée.",
+  filteredDayTitle: "Aucune réunion ne correspond aux filtres",
+  filteredDayHint: "Ajustez les filtres pour voir d’autres réunions ce jour.",
+  scheduleDay: "Planifier une réunion",
+  clearDayFilters: "Effacer les filtres",
+  meetingSingular: "réunion",
+  meetingPlural: "réunions",
+  filteredDayScope: "Résultats avec les filtres actuels.",
+  pastDayHint: "Choisissez aujourd’hui ou une date future pour planifier une réunion.",
+  openDayMeeting: "Ouvrir la réunion",
+  coordinatorLabel: "Coordination",
+  calendarScrollHint: "Faites défiler horizontalement pour voir les autres jours.",
+
 };
 const pt: MeetingWorkspaceCopy = {
   meetingsHint:
@@ -74,6 +122,22 @@ const pt: MeetingWorkspaceCopy = {
   period: "Período visível",
   previousPeriod: "Período anterior",
   nextPeriod: "Próximo período",
+  dayMeetings: "Reuniões do dia",
+  calendarHint: "Selecione um dia para consultar as reuniões.",
+  emptyDayTitle: "Não há reuniões neste dia",
+  emptyDayHint: "Agende uma reunião para começar a organizar este dia.",
+  filteredDayTitle: "Nenhuma reunião corresponde aos filtros",
+  filteredDayHint: "Ajuste os filtros para ver outras reuniões deste dia.",
+  scheduleDay: "Agendar reunião",
+  clearDayFilters: "Limpar filtros",
+  meetingSingular: "reunião",
+  meetingPlural: "reuniões",
+  filteredDayScope: "Resultados com os filtros atuais.",
+  pastDayHint: "Escolha hoje ou uma data futura para agendar uma reunião.",
+  openDayMeeting: "Abrir reunião",
+  coordinatorLabel: "Coordenação",
+  calendarScrollHint: "Deslize horizontalmente para ver os outros dias.",
+
 };
 const ko: MeetingWorkspaceCopy = {
   meetingsHint: "회의를 계획하고 결정을 기록하며 다음 단계를 확인하세요.",
@@ -91,6 +155,22 @@ const ko: MeetingWorkspaceCopy = {
   period: "표시 기간",
   previousPeriod: "이전 기간",
   nextPeriod: "다음 기간",
+  dayMeetings: "하루 회의",
+  calendarHint: "날짜를 선택하여 회의를 확인하세요.",
+  emptyDayTitle: "이 날짜에는 회의가 없습니다",
+  emptyDayHint: "회의를 예약하여 하루를 계획하세요.",
+  filteredDayTitle: "필터에 맞는 회의가 없습니다",
+  filteredDayHint: "필터를 조정하여 이 날짜의 다른 회의를 확인하세요.",
+  scheduleDay: "회의 예약",
+  clearDayFilters: "필터 지우기",
+  meetingSingular: "회의",
+  meetingPlural: "회의",
+  filteredDayScope: "현재 필터에 따른 결과입니다.",
+  pastDayHint: "회의를 예약하려면 오늘 또는 미래 날짜를 선택하세요.",
+  openDayMeeting: "회의 열기",
+  coordinatorLabel: "진행자",
+  calendarScrollHint: "다른 날짜를 보려면 가로로 스크롤하세요.",
+
 };
 const zh: MeetingWorkspaceCopy = {
   meetingsHint: "安排会议、记录决策并关注后续步骤。",
@@ -108,6 +188,22 @@ const zh: MeetingWorkspaceCopy = {
   period: "显示期间",
   previousPeriod: "上一期间",
   nextPeriod: "下一期间",
+  dayMeetings: "当天会议",
+  calendarHint: "选择日期以查看会议。",
+  emptyDayTitle: "当天没有会议",
+  emptyDayHint: "安排会议以开始规划当天的工作。",
+  filteredDayTitle: "没有符合筛选条件的会议",
+  filteredDayHint: "调整筛选条件以查看当天的其他会议。",
+  scheduleDay: "安排会议",
+  clearDayFilters: "清除筛选",
+  meetingSingular: "场会议",
+  meetingPlural: "场会议",
+  filteredDayScope: "当前筛选条件的结果。",
+  pastDayHint: "请选择今天或未来日期来安排会议。",
+  openDayMeeting: "打开会议",
+  coordinatorLabel: "协调人",
+  calendarScrollHint: "横向滑动可查看其他日期。",
+
 };
 export const meetingWorkspaceCopyLocales: Record<string, MeetingWorkspaceCopy> =
   {

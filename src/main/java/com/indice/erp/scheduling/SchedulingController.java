@@ -160,7 +160,7 @@ public class SchedulingController {
             .map(e->new PublicEvent(e.id(),e.staffId(),e.title(),e.description(),e.startAt(),e.durationMinutes(),
                 Math.max(0,e.capacity()-(int)e.confirmedCount()),e.location())).toList();
         return new PublicWorkspace("","","",repository.services(company).stream().filter(v->v.active()&&(v.productId()==null||inventory.available(company,v.productId())))
-            .map(t->new PublicService(t.id(),t.name(),t.description(),t.durationMinutes(),t.noticeHours())).toList(),staff,events,PageAppearance.defaults(),
+            .map(t->new PublicService(t.id(),t.name(),t.description(),t.durationMinutes(),t.noticeHours(),t.chargePolicy())).toList(),staff,events,PageAppearance.defaults(),
                 SchedulingAccessService.administrator(actor)&&clients.canSelect(actor));
     }
     @GetMapping("/booking-clients") public com.indice.erp.sales.SalesClientDirectoryService.Directory bookingClients(HttpSession s,
