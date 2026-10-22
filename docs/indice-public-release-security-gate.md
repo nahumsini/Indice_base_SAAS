@@ -94,6 +94,15 @@ revocation pending, under [the creative release decision](decisions/2026-10-20-c
 Only that blocker is replaced for this activation and observation; the finding
 remains unresolved, all other gates apply, and no later release is authorized.
 
+For integrated revision `8c451b5612d07c1e4dfe291d72439838d68a5380`, the owner's
+explicit "despleiga ignorando stripe" instruction narrowly replaces that same
+historical TEST-key revocation blocker under the
+[integrated release decision](decisions/2026-10-22-integrated-release-stripe-deferral.md).
+It covers APPTEST first and App only after APPTEST verification and observation
+pass. The finding remains unresolved; all other gates and provider boundaries
+remain applicable. This exception expires with this release attempt and its
+observation windows, no later than the decision's stated deadline.
+
 For the 2026-10-06 release, the owner's later explicit instruction to review directly in production
 replaces only the human-UAT location/timing, as recorded in the
 [bounded production-acceptance decision](decisions/2026-10-06-owner-production-acceptance.md).
