@@ -66,7 +66,7 @@ test('all current chapters have bilingual workflows, stable IDs and explicit POS
   const expected = Object.values(MODULE_TAB_SCOPE_CATALOG).flatMap(scope => Object.keys(scope.tabs).map(tab => `${scope.moduleSlug}.${tab}`));
   assert.deepEqual(learningChapters.map(c => c.id).sort(), expected.sort());
   assert.equal(new Set(learningChapters.map(c => c.id)).size, learningChapters.length);
-  for (const [module, tabs] of Object.entries({control_minutas:['meetings','agreements','indicators'],scheduling:['calendar','reservations','clients','events','indicators','configuration']})) {
+  for (const [module, tabs] of Object.entries({control_minutas:['meetings','session','agreements','indicators'],scheduling:['calendar','reservations','clients','events','indicators','configuration']})) {
     assert.deepEqual(learningChapters.filter(c=>c.module===module).map(c=>c.tab),tabs);
     assert.ok(learningChapters.filter(c=>c.module===module).every(c=>c.evidenceTools.length===0));
   }
