@@ -1,8 +1,13 @@
 # Integrated local work and ordered release preparation — 2026-10-22
 
-Status: TECHNICALLY PREPARED / BLOCKED BY ACTIVE HISTORICAL TEST KEY.
+Status at preparation close (2026-10-22T13:46Z): TECHNICALLY PREPARED / BLOCKED BY ACTIVE HISTORICAL TEST KEY.
 Application activation has not run on APPTEST or production.
 The owner requests current local work in `main`, followed by APPTEST and then App.
+
+Subsequently, the owner explicitly authorized this release with Stripe revocation
+pending. Ordered APPTEST and App activation and observation completed successfully;
+see the [activation report](2026-10-22-integrated-release-activation.md) for current
+status. The remainder of this document records the earlier preparation state.
 
 ## Source and integration
 

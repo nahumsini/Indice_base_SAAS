@@ -33,3 +33,9 @@ The [preparation report](../validation/2026-10-22-integrated-release-preparation
 records tests, immutable images, backups, restored-data rehearsals and compatible
 recovery limitations. Record actual activation, observation and residual risks
 separately. This decision alone is not evidence of deployment.
+
+Ordered activation and observation completed successfully at
+**2026-10-22T18:01:36Z**, as recorded in the
+[activation report](../validation/2026-10-22-integrated-release-activation.md).
+This exception window is closed and its operational authorization is disabled.
+Historical Stripe TEST-key revocation remains unresolved; no later release is authorized.
