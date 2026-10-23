@@ -84,8 +84,8 @@ public class AiFileOwnerService {
     }
     public long register(AuthSessionUser user,AiStagedFileRepository.Stored file,byte[] bytes) {
         var f=file.view();var payload=payload(f.fileName(),f.mimeType(),f.sizeBytes(),f.documentType(),file.objectKey());
-        if(AiCommerceFileOwnerService.supports(f.purpose()))commerce.register(user,file);
-        else switch(f.purpose()) {
+        if(AiCommerceFileOwnerService.supports(f.purpose()))return commerce.register(user,file);
+        switch(f.purpose()) {
             case employee_document->people.registerUserDocument(user,f.targetId(),payload);
             case announcement_attachment->announcementFiles.register(announcements.delegatedActor(user),f.targetId(),payload);
             case hr_record_attachment->recordFiles.registerAttachment(user,f.targetId(),payload);

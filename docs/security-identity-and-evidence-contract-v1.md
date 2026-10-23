@@ -38,6 +38,8 @@ Billing Storage for quota, deployment for proxy logging.
 - Financial kiosk descriptors explicitly declare `ownerSealsOnRegister`. Engine verifies the
   owner's final object against the same file intent and adopts that final key; it does not
   recommit a staging reservation already moved by Finance. Other kiosk policies are unchanged.
+- MCP file registration uses the attachment ID returned by the Finance owner. It never looks up
+  the registered evidence by its temporary upload key; sealing deliberately changes that key.
 - Existing attachments remain readable and are not assigned an invented historical digest.
   Already-issued legacy URLs cannot be remotely revoked by a source-code change; their actual
   maximum TTL must expire before declaring the old write capabilities closed. Unregistered legacy

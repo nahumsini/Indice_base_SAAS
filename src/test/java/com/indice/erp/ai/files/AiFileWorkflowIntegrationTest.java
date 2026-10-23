@@ -54,6 +54,7 @@ class AiFileWorkflowIntegrationTest {
         when(storage.presignDownload(anyString(),anyString(),anyInt())).thenReturn("https://private.invalid/must-not-leak");
         when(meter.presign(anyLong(),anyString(),anyString(),anyString(),anyString(),anyLong(),anyInt())).thenAnswer(i->new PresignedUpload(i.getArgument(3),"https://private.invalid/must-not-leak",Instant.now().plusSeconds(900),Map.of()));
         doAnswer(i->{String key=i.getArgument(1);objects.put(key,((byte[])i.getArgument(3)).clone());mimes.put(key,i.getArgument(2));return null;}).when(storage).writeObject(anyString(),anyString(),anyString(),any(byte[].class));
+        doAnswer(i->{String source=i.getArgument(1),target=i.getArgument(2);objects.put(target,objects.get(source).clone());mimes.put(target,mimes.get(source));return null;}).when(storage).copyObject(anyString(),anyString(),anyString());
         when(storage.objectExists(anyString(),anyString())).thenAnswer(i->objects.containsKey(i.getArgument(1)));
         when(storage.objectMetadata(anyString(),anyString())).thenAnswer(i->{String key=i.getArgument(1);return new StoredObjectMetadata(objects.get(key).length,mimes.get(key));});
         when(storage.readObject(anyString(),anyString(),anyInt())).thenAnswer(i->{var bytes=objects.get(i.getArgument(1));if(bytes==null||bytes.length>(Integer)i.getArgument(2))throw new IllegalArgumentException("Invalid stored size");return bytes.clone();});
@@ -74,6 +75,12 @@ class AiFileWorkflowIntegrationTest {
         for(var entry:List.of(Map.entry(Purpose.expense_attachment,expense),Map.entry(Purpose.budget_line_attachment,line),Map.entry(Purpose.petty_cash_receipt_attachment,receipt))){
             String action=switch(entry.getKey()){case expense_attachment->"attach_expense_file";case budget_line_attachment->"attach_budget_line_file";default->"attach_petty_cash_receipt_file";};
             var staged=intake.stage(token,request(entry.getKey(),entry.getValue(),null,"synthetic-receipt.pdf",pdf,"application/pdf"));var p=actions.preview(token,action,new AttachRequest(staged.stagedFileId()));var c=new CommitRequest(p.confirmationToken(),UUID.randomUUID().toString());var result=actions.commit(token,action,c);assertThat(actions.commit(token,action,c).replayed()).isTrue();
+            var sealed=jdbc.queryForMap("SELECT staging_key,final_key,content_sha256 FROM finance_attachment_uploads WHERE company_id=? AND owner_id=? AND owner_type=?",
+                company,entry.getValue(),switch(entry.getKey()){case expense_attachment->"EXPENSE";case budget_line_attachment->"BUDGET_LINE";default->"PETTY_CASH";});
+            assertThat(sealed.get("final_key")).isNotEqualTo(sealed.get("staging_key"));
+            assertThat(sealed.get("content_sha256")).isEqualTo(AiFileValidation.hash(pdf));
+            // A browser upload capability still targets staging, never the registered evidence.
+            storage.writeObject(owner.bucket(entry.getKey()),String.valueOf(sealed.get("staging_key")),"application/pdf",new byte[]{1,2,3});
             assertThat(owner.list(token.user(),entry.getKey(),entry.getValue()).items()).hasSize(1);assertThat(owner.read(token.user(),new ReadRequest(entry.getKey(),entry.getValue(),result.result().attachmentId())).contentBase64()).isEqualTo(Base64.getEncoder().encodeToString(pdf));
             assertThat(jdbc.queryForObject("SELECT normalized_args_json FROM ai_action_confirmations WHERE company_id=? AND tool_name=?",String.class,company,"file_attachment_v1:"+action)).doesNotContain("objectKey","private.invalid",Base64.getEncoder().encodeToString(pdf));
             var remove=Map.<String,Object>of("id",entry.getValue(),"attachmentId",result.result().attachmentId());if(entry.getKey()==Purpose.petty_cash_receipt_attachment){remove=new HashMap<>(remove);remove.put("fundId",fund);}saveFinance(switch(entry.getKey()){case expense_attachment->"remove_expense_attachment";case budget_line_attachment->"remove_budget_line_attachment";default->"remove_petty_cash_receipt_attachment";},remove);assertThat(owner.list(token.user(),entry.getKey(),entry.getValue()).items()).isEmpty();

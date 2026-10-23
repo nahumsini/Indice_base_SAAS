@@ -23,7 +23,21 @@ public class AiCommerceFileOwnerService {
     public void validateWrite(AuthSessionUser user,Purpose purpose,long id,boolean lock){record(user,purpose,id,true,lock);}
     public List<OperationalFileReference> files(AuthSessionUser user,Purpose purpose,long id){return switch(purpose){case expense_attachment,budget_line_attachment,petty_cash_receipt_attachment->finance.files(user,kind(purpose),id);case inventory_product_image,sale_payment_evidence,sales_contract_attachment->sales.files(user,kind(purpose),id);case supplier_invoice_attachment->invoices.files(user,id);case pos_receipt_attachment->receipts.files(user,id);default->throw new IllegalArgumentException("Unsupported commerce attachment.");};}
     public String reserve(AuthSessionUser user,StageRequest f,long bytes){validateWrite(user,f.purpose(),f.targetId(),false);return switch(f.purpose()){case expense_attachment,budget_line_attachment,petty_cash_receipt_attachment->finance.reserve(user,kind(f.purpose()),f.targetId(),f.fileName(),f.mimeType(),bytes);case inventory_product_image,sale_payment_evidence,sales_contract_attachment->sales.reserve(user,kind(f.purpose()),f.targetId(),f.fileName(),f.mimeType(),bytes);case supplier_invoice_attachment->invoices.reserve(user,f.targetId(),f.fileName(),f.mimeType(),bytes);case pos_receipt_attachment->receipts.reserve(user,f.targetId(),f.fileName(),f.mimeType(),bytes);default->throw new IllegalArgumentException("Unsupported commerce attachment.");};}
-    public void register(AuthSessionUser user,AiStagedFileRepository.Stored stored){var f=stored.view();validateWrite(user,f.purpose(),f.targetId(),true);switch(f.purpose()){case expense_attachment,budget_line_attachment,petty_cash_receipt_attachment->finance.register(user,kind(f.purpose()),f.targetId(),f.fileName(),f.mimeType(),f.sizeBytes(),stored.objectKey());case inventory_product_image,sale_payment_evidence,sales_contract_attachment->sales.register(user,kind(f.purpose()),f.targetId(),f.fileName(),f.mimeType(),f.sizeBytes(),stored.objectKey());case supplier_invoice_attachment->invoices.register(user,f.targetId(),f.fileName(),f.mimeType(),f.sizeBytes(),stored.objectKey());case pos_receipt_attachment->receipts.register(user,f.targetId(),f.fileName(),f.mimeType(),f.sizeBytes(),stored.objectKey());default->throw new IllegalArgumentException("Unsupported commerce attachment.");}}
+    public long register(AuthSessionUser user,AiStagedFileRepository.Stored stored){
+        var f=stored.view();validateWrite(user,f.purpose(),f.targetId(),true);
+        // Finance owns the definitive sealed key; use its registered ID directly.
+        if(Set.of(Purpose.expense_attachment,Purpose.budget_line_attachment,Purpose.petty_cash_receipt_attachment).contains(f.purpose()))
+            return finance.register(user,kind(f.purpose()),f.targetId(),f.fileName(),f.mimeType(),f.sizeBytes(),stored.objectKey());
+        switch(f.purpose()){
+            case inventory_product_image,sale_payment_evidence,sales_contract_attachment->sales.register(user,kind(f.purpose()),f.targetId(),f.fileName(),f.mimeType(),f.sizeBytes(),stored.objectKey());
+            case supplier_invoice_attachment->invoices.register(user,f.targetId(),f.fileName(),f.mimeType(),f.sizeBytes(),stored.objectKey());
+            case pos_receipt_attachment->receipts.register(user,f.targetId(),f.fileName(),f.mimeType(),f.sizeBytes(),stored.objectKey());
+            default->throw new IllegalArgumentException("Unsupported commerce attachment.");
+        }
+        return files(user,f.purpose(),f.targetId()).stream().filter(ref->ref.objectKey().equals(stored.objectKey()))
+            .mapToLong(OperationalFileReference::id).max().orElseThrow(()->new IllegalStateException("Owner file registration missing."));
+    }
+
     public String bucket(){return sales.bucket();}
     private static String kind(Purpose purpose){return switch(purpose){case expense_attachment->"expense";case budget_line_attachment->"budget_line";case petty_cash_receipt_attachment->"receipt";case inventory_product_image->"product";case sale_payment_evidence->"sale";case sales_contract_attachment->"contract";default->throw new IllegalArgumentException("Unsupported sales attachment.");};}
 }

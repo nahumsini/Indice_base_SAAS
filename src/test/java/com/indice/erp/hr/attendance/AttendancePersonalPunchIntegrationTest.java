@@ -3,6 +3,7 @@ package com.indice.erp.hr.attendance;
 import com.indice.erp.hr.attendance.locations.AttendanceLocationValidationException;
 import com.indice.erp.storage.ObjectStorageService;
 import com.indice.erp.storage.PresignedUpload;
+import com.indice.erp.storage.StoredObjectMetadata;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -46,11 +47,16 @@ class AttendancePersonalPunchIntegrationTest {
             userId, companyId);
         membershipId = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         when(storage.isEnabled()).thenReturn(true);
-        when(storage.presignUpload(anyString(), anyString(), anyString(), anyInt()))
+        when(storage.presignUpload(anyString(), anyString(), anyString(), eq(4L), anyInt()))
             .thenAnswer(call -> new PresignedUpload(call.getArgument(1),
                 "https://example.invalid/synthetic-upload", Instant.now().plusSeconds(60), Map.of()));
         when(storage.objectExists(anyString(), anyString()))
             .thenAnswer(call -> uploaded.contains(call.getArgument(1)));
+        when(storage.objectMetadata(anyString(), anyString()))
+            .thenAnswer(call -> {
+                if (!uploaded.contains(call.getArgument(1))) throw new IllegalArgumentException("Missing synthetic upload");
+                return new StoredObjectMetadata(4, "image/jpeg");
+            });
     }
 
     @Test
@@ -158,7 +164,7 @@ class AttendancePersonalPunchIntegrationTest {
     private Map<String, Object> payload(String type, int hour, boolean stored, String latitude) {
         var timestamp = LocalDateTime.of(LocalDate.now(), java.time.LocalTime.of(hour, 0)).toString();
         var presigned = attendance.createSelfPhotoUpload(companyId, userId,
-            Map.of("content_type", "image/jpeg", "event_type", type, "event_timestamp", timestamp));
+            Map.of("content_type", "image/jpeg", "event_type", type, "event_timestamp", timestamp, "size_bytes", 4));
         var key = (String) presigned.get("object_key");
         if (stored) uploaded.add(key);
         return Map.of("event_type", type, "event_timestamp", timestamp, "photo_url", key,
