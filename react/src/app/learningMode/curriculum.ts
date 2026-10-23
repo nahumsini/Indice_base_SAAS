@@ -26,10 +26,11 @@ const definitions: Record<string, readonly [string, number]> = {
 function chapter(module: string, tab: string, label: LearningText, steps: readonly LearningText[], evidenceTools: readonly string[] = []): LearningChapter {
   const [pageId, stage] = definitions[module];
   const version = module === 'scheduling' && ['calendar','reservations'].includes(tab) ? 3
-    : module === 'scheduling' && tab === 'configuration' ? 7
+    : module === 'scheduling' && tab === 'configuration' ? 8
     : module === 'ideas_board' && tab === 'projects' ? 5
     : module === 'ideas_board' && ['canvas','system'].includes(tab) ? 4
-    : ['correo.mail', 'control_minutas.meetings', 'scheduling.clients'].includes(`${module}.${tab}`) ? 3
+    : ['correo.mail', 'control_minutas.meetings'].includes(`${module}.${tab}`) ? 4
+    : ['human_resources.collaborators', 'crm.mailing', 'control_minutas.session', 'control_minutas.agreements', 'control_minutas.indicators', 'scheduling.clients'].includes(`${module}.${tab}`) ? 3
     : ["expenses", "petty_cash"].includes(module)
     || module === 'ideas_board'
     || (module === 'crm' && tab === 'funneling')
@@ -81,7 +82,7 @@ export const learningChapters: readonly LearningChapter[] = [
   ]),
   chapter("correo", "mail", ["Buzón y mensajes","Mailbox and messages"], [
     ["Selecciona tu cuenta conectada y carpeta y busca al cliente, remitente, destinatario o asunto.","Select your connected account and folder and search by customer, sender, recipient or subject."],
-    ["Sincroniza y organiza mensajes con selección múltiple. Redacta con formato, contactos y plantillas autorizados de Ventas y la firma de la cuenta; revisa destinatarios y adjuntos antes de confirmar el envío.","Sync and organize messages with multiple selection. Compose with formatting, authorized Sales contacts and templates, and the account signature; review recipients and attachments before confirming send."],
+    ["Sincroniza y organiza mensajes con selección múltiple. Redacta con formato, contactos y plantillas autorizados de Ventas y la firma de la cuenta. Guarda plantillas con sus archivos reutilizables y revisa los adjuntos cargados y destinatarios antes de confirmar el envío.","Sync and organize messages with multiple selection. Compose with formatting, authorized Sales contacts and templates, and the account signature. Save templates with reusable files and review uploaded attachments and recipients before confirming send."],
     ["Comprueba Enviados y el estado de envío. Distingue carpetas del servidor, borradores locales y resultados sin confirmar antes de reintentar.","Check Sent and delivery status. Distinguish server folders, local drafts and unconfirmed outcomes before retrying."],
   ]),
   chapter("maintenance", "requests", ["Solicitudes técnicas","Technical requests"], [
@@ -126,7 +127,7 @@ export const learningChapters: readonly LearningChapter[] = [
   ]),
   chapter("crm", "mailing", ["Campañas de correo","Email campaigns"], [
     ["Selecciona una cuenta remitente verificada y los contactos o listas de Ventas para la campaña.","Select a verified sender account and Sales contacts or lists for the campaign."],
-    ["Prepara asunto, contenido y variables; revisa destinatarios habilitados, exclusiones y configuración antes de confirmar el lanzamiento o programación.","Prepare subject, content and variables; review eligible recipients, exclusions and configuration before confirming launch or scheduling."],
+    ["Prepara asunto, contenido y variables; crea o inserta una plantilla con archivos guardados. Comprueba su guardado y revisa adjuntos, destinatarios habilitados, exclusiones y configuración antes de confirmar el lanzamiento o programación.","Prepare subject, content and variables; create or insert a template with saved files. Verify it was saved and review attachments, eligible recipients, exclusions and configuration before confirming launch or scheduling."],
     ["Consulta resultados por destinatario y respeta las bajas. Aceptado por SMTP no significa leído o entregado; una prueba no lanza la campaña.","Review per-recipient outcomes and respect opt-outs. SMTP acceptance does not mean read or delivered; a test does not launch the campaign."],
   ]),
   chapter("crm", "whatsapping", ["Campañas asistidas de WhatsApp","Assisted WhatsApp campaigns"], [
@@ -136,23 +137,23 @@ export const learningChapters: readonly LearningChapter[] = [
   ]),
   chapter('control_minutas', 'meetings', ['Juntas y minutas', 'Meetings and minutes'], [
     ['Revisa participantes, responsable, horario y permisos antes de planear una junta o serie finita.', 'Review participants, owner, time and permissions before planning a meeting or finite series.'],
-    ['Consulta horarios sugeridos y planea la junta. Durante su ejecución registra asistencia real y, con permiso, abre votaciones ponderadas; cada participante emite su propio voto.', 'Review suggested times and plan the meeting. During execution record actual attendance and, with permission, open weighted ballots; each participant casts their own vote.'],
+    ['Revisa preparación, agenda y personas en el detalle; consulta horarios sugeridos y planea la junta. Entra a la sala para registrar asistencia real y, con permiso, abre votaciones ponderadas; cada participante emite su propio voto.', 'Review preparation, agenda and people in the detail; review suggested times and plan the meeting. Enter the room to record actual attendance and, with permission, open weighted ballots; each participant casts their own vote.'],
     ['Los horarios sugeridos no reservan disponibilidad. Cierra las votaciones antes de completar y comprueba sus resultados en la minuta. Las notificaciones internas no acreditan correo o invitaciones externas.', 'Suggested times do not reserve availability. Close ballots before completing and check their results in the minutes. Internal notifications do not prove email or external invitations.'],
   ]),
   chapter('control_minutas', 'session', ['Sala de juntas', 'Meeting room'], [
     ['Selecciona una junta autorizada y revisa su estado, participantes, agenda y responsable de la minuta.', 'Select an authorized meeting and review its status, participants, agenda and minutes owner.'],
-    ['Con permiso de edición, escribe la minuta y las decisiones y usa Guardar. Registra asistencia durante la junta; consulta acuerdos y votaciones según tus permisos.', 'With editing permission, write the minutes and decisions and select Save. Record attendance during the meeting; review agreements and ballots according to your permissions.'],
+    ['Con permiso de edición, escribe la minuta y las decisiones y usa Guardar. Registra asistencia durante la junta; consulta acuerdos y votaciones según tus permisos. Al delegar un acuerdo, revisa la tarea vinculada y valida su cumplimiento por separado.', 'With editing permission, write the minutes and decisions and select Save. Record attendance during the meeting; review agreements and ballots according to your permissions. When delegating an agreement, review the linked task and validate fulfilment separately.'],
     ['Comprueba el guardado antes de cambiar de junta. Ante un conflicto conserva o copia tu borrador y revisa la versión actual; cambiar de sala o cerrar no guarda automáticamente.', 'Check the saved result before changing meetings. On a conflict, retain or copy your draft and review the current version; changing rooms or closing does not save automatically.'],
   ]),
   chapter('control_minutas', 'agreements', ['Acuerdos y seguimiento', 'Agreements and follow-up'], [
     ['Identifica la junta, el acuerdo, su responsable y fecha; consulta solo los registros autorizados.', 'Identify the meeting, agreement, owner and date; review only authorized records.'],
-    ['Registra y actualiza acuerdos y su seguimiento desde el propietario de juntas.', 'Record and update agreements and their follow-up through the meeting owner.'],
-    ['Comprueba el estado y la evidencia guardados. Un acuerdo no crea automáticamente una tarea de Procesos.', 'Check the saved status and evidence. An agreement does not automatically create a Processes task.'],
+    ['Registra acuerdos y usa Crear tarea y delegar para elegir responsable y fecha. Revisa antes de confirmar; registra el motivo si cambias el compromiso.', 'Record agreements and use Create task and delegate to choose an assignee and due date. Review before confirming; record a reason when changing the commitment.'],
+    ['Comprueba el vínculo con la tarea de Procesos. Terminar la tarea no valida el acuerdo: confirma su cumplimiento con resultado y evidencia. Reprogramar conserva el plazo original.', 'Check the link to the Processes task. Completing the task does not validate the agreement: confirm fulfilment with an outcome and evidence. Rescheduling preserves the original deadline.'],
   ]),
   chapter('control_minutas', 'indicators', ['Indicadores de juntas', 'Meeting indicators'], [
     ['Selecciona periodo y alcance autorizado para juntas y acuerdos.', 'Select the period and authorized scope for meetings and agreements.'],
-    ['Consulta los indicadores y revisa los registros que explican el seguimiento.', 'Review indicators and the records behind the follow-up.'],
-    ['Distingue los resultados operativos del avance de aprendizaje; leer una guía no completa acuerdos.', 'Distinguish operational results from learning progress; reading a guide does not complete agreements.'],
+    ['Consulta los indicadores y abre una junta para revisar Cumplimiento en plazo: acuerdos cumplidos a tiempo, tarde, vencidos y con plazo vigente.', 'Review indicators and open a meeting to check On-time fulfilment: agreements fulfilled on time, late, overdue and not yet due.'],
+    ['El cálculo usa los plazos originales vencidos y el cumplimiento validado; sin acuerdos evaluables muestra Pendiente de evaluación. Los históricos sin base verificable no reciben una calificación inventada. Leer una guía no completa acuerdos.', 'The calculation uses expired original deadlines and validated fulfilment; with no eligible agreements it shows Pending evaluation. Historical records without a verifiable baseline receive no invented score. Reading a guide does not complete agreements.'],
   ]),
   chapter('scheduling', 'calendar', ['Agenda unificada', 'Unified agenda'], [
     ['Selecciona periodo, colaborador y vista y comprueba tus permisos de agenda.', 'Select the period, staff member and view and check your agenda permissions.'],
@@ -182,7 +183,7 @@ export const learningChapters: readonly LearningChapter[] = [
   chapter('scheduling', 'configuration', ['Servicios, equipo y agenda pública', 'Services, team and public agenda'], [
     ['En Servicios, elige de Inventarios o crea directamente en Agenda. Define Sin cobro o Precio por acordar, configura la reserva y revisa antes de guardar. Puedes vincular después un servicio de Agenda con Inventarios conservando sus reservas. Si ya está configurado, abre Editar configuración.', 'In Services, choose from Inventory or create directly in Scheduling. Set No charge or Price to be agreed, configure booking and review before saving. You can link a Scheduling service to Inventory later while retaining reservations. If already configured, open Edit configuration.'],
     ['En Equipo y disponibilidad, busca al colaborador y abre Editar desde su fila. Al agregar o editar, completa los pasos de colaborador, disponibilidad, servicios y excepciones; revisa todo antes de guardar. Configura también las ventanas y descansos del servicio antes de publicar.', 'In Team & availability, find the collaborator and open Edit from their row. When adding or editing, complete the collaborator, availability, services and exceptions steps; review everything before saving. Also configure service windows and breaks before publishing.'],
-    ['En Agenda pública, personaliza Contenido y Diseño, revisa la vista de escritorio o móvil y elige guardar borrador o publicar. Ajusta nombre público, título, descripción, botón, colores y presentación en tarjetas o compacta. Comparte solo el enlace guardado y publicado; las solicitudes requieren confirmación interna.', 'In Public agenda, customize Content and Design, review the desktop or mobile preview and choose to save a draft or publish. Adjust public name, title, description, button, colours and cards or compact presentation. Share only the saved and published link; requests require internal confirmation.'],
+    ['En Agenda pública, elige una agenda o crea otra y personaliza Contenido y Diseño. Revisa la vista de escritorio o móvil y guarda borrador o publica. Ajusta nombre público, logo, título, descripción, botón, colores y presentación de catálogo, lista o editorial. Comparte solo el enlace guardado y publicado; las solicitudes requieren confirmación interna.', 'In Public agenda, choose an agenda or create another and customize Content and Design. Review the desktop or mobile preview and save a draft or publish. Adjust public name, logo, title, description, button, colours and catalogue, list or editorial presentation. Share only the saved and published link; requests require internal confirmation.'],
   ]),
   chapter('config_center', 'business-structure', ['Empresa, unidades y negocios', 'Company, units and businesses'], [
     ['Define la identidad y tipo de operación de la empresa; distingue una unidad de negocio de una sucursal.', 'Set the company identity and operation type; distinguish a business unit from a branch.'],
@@ -216,7 +217,7 @@ export const learningChapters: readonly LearningChapter[] = [
   ]),
   chapter('human_resources', 'collaborators', ['Colaboradores y expediente', 'Employees and employee files'], [
     ['Revisa país, moneda, identidad, contacto, unidad, negocio y condiciones laborales. Busca antes de crear para evitar duplicados.', 'Review country, currency, identity, contact, unit, business and employment terms. Search before creating to avoid duplicates.'],
-    ['Crea, edita o importa colaboradores mediante la revisión de datos. Adjunta documentos al expediente correcto; los archivos requieren carga y registro confirmados.', 'Create, edit or import employees through data review. Attach documents to the correct file; files require confirmed upload and registration.'],
+    ['Crea, edita o importa colaboradores mediante la revisión de datos laborales. Su contacto de empleo pertenece a la empresa; editarlo no cambia el correo global de acceso ni sus roles. Adjunta documentos al expediente correcto; los archivos requieren carga y registro confirmados.', 'Create, edit or import employees by reviewing employment data. Employment contact details belong to the company; editing them does not change the global login email or roles. Attach documents to the correct file; files require confirmed upload and registration.'],
     ['Completa contrato, compensación, horario, ubicación y acceso según corresponda. Una excepción de aprendizaje exige motivo y no cambia la política laboral. Inactivar y terminar son acciones distintas y conservan historia.', 'Complete contract, compensation, schedule, location and access as applicable. A learning exception requires a reason and does not change employment policy. Inactivation and termination are distinct actions that preserve history.'],
   ], ['create_employee', 'update_employee', 'import_employees', 'attach_employee_document']),
   chapter('human_resources', 'control', ['Horarios, ubicaciones y acceso', 'Schedules, locations and access'], [

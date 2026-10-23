@@ -1,6 +1,6 @@
 {
-  "version": "2026-10-22.v1",
-  "sourceDigest": "00782537454357f19a4a9980beb2ec7d3094df964445ef5b154cd157db3c1ec7",
+  "version": "2026-10-23.v1",
+  "sourceDigest": "2b0d0187c606c36962cafd793c0c68aff653a12b0868d93902490de887d5fb90",
   "modules": [
     {
       "module": "ideas_board",
@@ -16,7 +16,7 @@
           "purpose": "Revisa la empresa activa: esta pizarra es privada para tu usuario y empresa.",
           "effect": "Guarda un proyecto con nombre para conservar una copia. Si hay un conflicto, revisa la versión guardada antes de descartar cambios.",
           "chapterId": "ideas_board.canvas",
-          "version": 3,
+          "version": 4,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -29,7 +29,7 @@
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Escribe sobre el lienzo, agrega notas, figuras, dibujos o archivos multimedia y enlaza tus ideas con flechas sencillas o dobles. Comprueba el guardado automático."
+              "description": "Usa Construye tu tablero para agregar personas, procesos, canales, productos o servicios y finanzas. Combínalos con texto, notas, dibujos y multimedia; enlaza tus ideas y comprueba el guardado automático."
             },
             {
               "id": "verify",
@@ -40,12 +40,12 @@
         },
         {
           "tab": "system",
-          "label": "Tablero Índice",
-          "title": "Tablero Índice",
+          "label": "Diagnóstico empresarial",
+          "title": "Diagnóstico empresarial",
           "purpose": "Prepara un mapa de Personas, Procesos, Productos y Finanzas dentro de tu espacio privado.",
           "effect": "Comprueba el guardado y conserva un proyecto. El mapa ordena ideas; no crea empleados, tareas, productos ni registros contables.",
           "chapterId": "ideas_board.system",
-          "version": 3,
+          "version": 4,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -71,10 +71,10 @@
           "tab": "projects",
           "label": "Mis proyectos",
           "title": "Mis proyectos",
-          "purpose": "Busca proyectos propios, compartidos contigo o en tu papelera dentro de la empresa activa.",
+          "purpose": "Busca proyectos propios, compartidos contigo o en tu papelera. Filtra por tipo, ordena los resultados y conserva tus filtros dentro de la empresa activa.",
           "effect": "Compartir no permite editar el original. Comprueba los destinatarios y la copia guardada; restaura desde la papelera y protege el borrador antes de usar un proyecto en tu pizarrón.",
           "chapterId": "ideas_board.projects",
-          "version": 4,
+          "version": 5,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -82,7 +82,7 @@
             {
               "id": "prepare",
               "title": "Antes de empezar",
-              "description": "Busca proyectos propios, compartidos contigo o en tu papelera dentro de la empresa activa."
+              "description": "Busca proyectos propios, compartidos contigo o en tu papelera. Filtra por tipo, ordena los resultados y conserva tus filtros dentro de la empresa activa."
             },
             {
               "id": "operate",
@@ -266,7 +266,7 @@
           "purpose": "Selecciona tu cuenta conectada y carpeta y busca al cliente, remitente, destinatario o asunto.",
           "effect": "Comprueba Enviados y el estado de envío. Distingue carpetas del servidor, borradores locales y resultados sin confirmar antes de reintentar.",
           "chapterId": "correo.mail",
-          "version": 3,
+          "version": 4,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -279,7 +279,7 @@
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Sincroniza y organiza mensajes con selección múltiple. Redacta con formato, contactos y plantillas autorizados de Ventas y la firma de la cuenta; revisa destinatarios y adjuntos antes de confirmar el envío."
+              "description": "Sincroniza y organiza mensajes con selección múltiple. Redacta con formato, contactos y plantillas autorizados de Ventas y la firma de la cuenta. Guarda plantillas con sus archivos reutilizables y revisa los adjuntos cargados y destinatarios antes de confirmar el envío."
             },
             {
               "id": "verify",
@@ -545,7 +545,7 @@
           "purpose": "Selecciona una cuenta remitente verificada y los contactos o listas de Ventas para la campaña.",
           "effect": "Consulta resultados por destinatario y respeta las bajas. Aceptado por SMTP no significa leído o entregado; una prueba no lanza la campaña.",
           "chapterId": "crm.mailing",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -558,7 +558,7 @@
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Prepara asunto, contenido y variables; revisa destinatarios habilitados, exclusiones y configuración antes de confirmar el lanzamiento o programación."
+              "description": "Prepara asunto, contenido y variables; crea o inserta una plantilla con archivos guardados. Comprueba su guardado y revisa adjuntos, destinatarios habilitados, exclusiones y configuración antes de confirmar el lanzamiento o programación."
             },
             {
               "id": "verify",
@@ -864,7 +864,7 @@
           "purpose": "Revisa participantes, responsable, horario y permisos antes de planear una junta o serie finita.",
           "effect": "Los horarios sugeridos no reservan disponibilidad. Cierra las votaciones antes de completar y comprueba sus resultados en la minuta. Las notificaciones internas no acreditan correo o invitaciones externas.",
           "chapterId": "control_minutas.meetings",
-          "version": 3,
+          "version": 4,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -877,7 +877,7 @@
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Consulta horarios sugeridos y planea la junta. Durante su ejecución registra asistencia real y, con permiso, abre votaciones ponderadas; cada participante emite su propio voto."
+              "description": "Revisa preparación, agenda y personas en el detalle; consulta horarios sugeridos y planea la junta. Entra a la sala para registrar asistencia real y, con permiso, abre votaciones ponderadas; cada participante emite su propio voto."
             },
             {
               "id": "verify",
@@ -893,7 +893,7 @@
           "purpose": "Selecciona una junta autorizada y revisa su estado, participantes, agenda y responsable de la minuta.",
           "effect": "Comprueba el guardado antes de cambiar de junta. Ante un conflicto conserva o copia tu borrador y revisa la versión actual; cambiar de sala o cerrar no guarda automáticamente.",
           "chapterId": "control_minutas.session",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -906,7 +906,7 @@
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Con permiso de edición, escribe la minuta y las decisiones y usa Guardar. Registra asistencia durante la junta; consulta acuerdos y votaciones según tus permisos."
+              "description": "Con permiso de edición, escribe la minuta y las decisiones y usa Guardar. Registra asistencia durante la junta; consulta acuerdos y votaciones según tus permisos. Al delegar un acuerdo, revisa la tarea vinculada y valida su cumplimiento por separado."
             },
             {
               "id": "verify",
@@ -920,9 +920,9 @@
           "label": "Acuerdos y seguimiento",
           "title": "Acuerdos y seguimiento",
           "purpose": "Identifica la junta, el acuerdo, su responsable y fecha; consulta solo los registros autorizados.",
-          "effect": "Comprueba el estado y la evidencia guardados. Un acuerdo no crea automáticamente una tarea de Procesos.",
+          "effect": "Comprueba el vínculo con la tarea de Procesos. Terminar la tarea no valida el acuerdo: confirma su cumplimiento con resultado y evidencia. Reprogramar conserva el plazo original.",
           "chapterId": "control_minutas.agreements",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -935,12 +935,12 @@
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Registra y actualiza acuerdos y su seguimiento desde el propietario de juntas."
+              "description": "Registra acuerdos y usa Crear tarea y delegar para elegir responsable y fecha. Revisa antes de confirmar; registra el motivo si cambias el compromiso."
             },
             {
               "id": "verify",
               "title": "Comprueba el resultado",
-              "description": "Comprueba el estado y la evidencia guardados. Un acuerdo no crea automáticamente una tarea de Procesos."
+              "description": "Comprueba el vínculo con la tarea de Procesos. Terminar la tarea no valida el acuerdo: confirma su cumplimiento con resultado y evidencia. Reprogramar conserva el plazo original."
             }
           ]
         },
@@ -949,9 +949,9 @@
           "label": "Indicadores de juntas",
           "title": "Indicadores de juntas",
           "purpose": "Selecciona periodo y alcance autorizado para juntas y acuerdos.",
-          "effect": "Distingue los resultados operativos del avance de aprendizaje; leer una guía no completa acuerdos.",
+          "effect": "El cálculo usa los plazos originales vencidos y el cumplimiento validado; sin acuerdos evaluables muestra Pendiente de evaluación. Los históricos sin base verificable no reciben una calificación inventada. Leer una guía no completa acuerdos.",
           "chapterId": "control_minutas.indicators",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -964,12 +964,12 @@
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Consulta los indicadores y revisa los registros que explican el seguimiento."
+              "description": "Consulta los indicadores y abre una junta para revisar Cumplimiento en plazo: acuerdos cumplidos a tiempo, tarde, vencidos y con plazo vigente."
             },
             {
               "id": "verify",
               "title": "Comprueba el resultado",
-              "description": "Distingue los resultados operativos del avance de aprendizaje; leer una guía no completa acuerdos."
+              "description": "El cálculo usa los plazos originales vencidos y el cumplimiento validado; sin acuerdos evaluables muestra Pendiente de evaluación. Los históricos sin base verificable no reciben una calificación inventada. Leer una guía no completa acuerdos."
             }
           ]
         }
@@ -1132,9 +1132,9 @@
           "label": "Servicios, equipo y agenda pública",
           "title": "Servicios, equipo y agenda pública",
           "purpose": "En Servicios, elige de Inventarios o crea directamente en Agenda. Define Sin cobro o Precio por acordar, configura la reserva y revisa antes de guardar. Puedes vincular después un servicio de Agenda con Inventarios conservando sus reservas. Si ya está configurado, abre Editar configuración.",
-          "effect": "En Agenda pública, personaliza Contenido y Diseño, revisa la vista de escritorio o móvil y elige guardar borrador o publicar. Ajusta nombre público, título, descripción, botón, colores y presentación en tarjetas o compacta. Comparte solo el enlace guardado y publicado; las solicitudes requieren confirmación interna.",
+          "effect": "En Agenda pública, elige una agenda o crea otra y personaliza Contenido y Diseño. Revisa la vista de escritorio o móvil y guarda borrador o publica. Ajusta nombre público, logo, título, descripción, botón, colores y presentación de catálogo, lista o editorial. Comparte solo el enlace guardado y publicado; las solicitudes requieren confirmación interna.",
           "chapterId": "scheduling.configuration",
-          "version": 7,
+          "version": 8,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -1152,7 +1152,7 @@
             {
               "id": "verify",
               "title": "Comprueba el resultado",
-              "description": "En Agenda pública, personaliza Contenido y Diseño, revisa la vista de escritorio o móvil y elige guardar borrador o publicar. Ajusta nombre público, título, descripción, botón, colores y presentación en tarjetas o compacta. Comparte solo el enlace guardado y publicado; las solicitudes requieren confirmación interna."
+              "description": "En Agenda pública, elige una agenda o crea otra y personaliza Contenido y Diseño. Revisa la vista de escritorio o móvil y guarda borrador o publica. Ajusta nombre público, logo, título, descripción, botón, colores y presentación de catálogo, lista o editorial. Comparte solo el enlace guardado y publicado; las solicitudes requieren confirmación interna."
             }
           ]
         }
@@ -1355,7 +1355,7 @@
           "purpose": "Revisa país, moneda, identidad, contacto, unidad, negocio y condiciones laborales. Busca antes de crear para evitar duplicados.",
           "effect": "Completa contrato, compensación, horario, ubicación y acceso según corresponda. Una excepción de aprendizaje exige motivo y no cambia la política laboral. Inactivar y terminar son acciones distintas y conservan historia.",
           "chapterId": "human_resources.collaborators",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [
@@ -1373,7 +1373,7 @@
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Crea, edita o importa colaboradores mediante la revisión de datos. Adjunta documentos al expediente correcto; los archivos requieren carga y registro confirmados."
+              "description": "Crea, edita o importa colaboradores mediante la revisión de datos laborales. Su contacto de empleo pertenece a la empresa; editarlo no cambia el correo global de acceso ni sus roles. Adjunta documentos al expediente correcto; los archivos requieren carga y registro confirmados."
             },
             {
               "id": "verify",
@@ -2844,7 +2844,7 @@
           "purpose": "Check the active company: this board is private to your user and company.",
           "effect": "Save a named project to retain a snapshot. If a conflict occurs, review the saved version before discarding changes.",
           "chapterId": "ideas_board.canvas",
-          "version": 3,
+          "version": 4,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -2857,7 +2857,7 @@
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Write on the canvas, add notes, shapes, drawings or media files, and connect ideas with single or double arrows. Check autosave."
+              "description": "Use Build your board to add people, processes, channels, products or services and finance. Combine them with text, notes, drawings and media; connect your ideas and check autosave."
             },
             {
               "id": "verify",
@@ -2868,12 +2868,12 @@
         },
         {
           "tab": "system",
-          "label": "Indice system board",
-          "title": "Indice system board",
+          "label": "Business diagnosis",
+          "title": "Business diagnosis",
           "purpose": "Prepare a map of People, Processes, Products and Finance within your private workspace.",
           "effect": "Check the saved state and retain a project. The map organizes ideas; it does not create employees, tasks, products or accounting records.",
           "chapterId": "ideas_board.system",
-          "version": 3,
+          "version": 4,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -2899,10 +2899,10 @@
           "tab": "projects",
           "label": "My projects",
           "title": "My projects",
-          "purpose": "Search your own projects, projects shared with you or your trash within the active company.",
+          "purpose": "Search your own projects, shared projects or trash. Filter by type, sort results and retain your filters within the active company.",
           "effect": "Sharing does not allow editing the original. Check recipients and the saved copy; restore from trash and protect your draft before using a project in your board.",
           "chapterId": "ideas_board.projects",
-          "version": 4,
+          "version": 5,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -2910,7 +2910,7 @@
             {
               "id": "prepare",
               "title": "Before starting",
-              "description": "Search your own projects, projects shared with you or your trash within the active company."
+              "description": "Search your own projects, shared projects or trash. Filter by type, sort results and retain your filters within the active company."
             },
             {
               "id": "operate",
@@ -3094,7 +3094,7 @@
           "purpose": "Select your connected account and folder and search by customer, sender, recipient or subject.",
           "effect": "Check Sent and delivery status. Distinguish server folders, local drafts and unconfirmed outcomes before retrying.",
           "chapterId": "correo.mail",
-          "version": 3,
+          "version": 4,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3107,7 +3107,7 @@
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Sync and organize messages with multiple selection. Compose with formatting, authorized Sales contacts and templates, and the account signature; review recipients and attachments before confirming send."
+              "description": "Sync and organize messages with multiple selection. Compose with formatting, authorized Sales contacts and templates, and the account signature. Save templates with reusable files and review uploaded attachments and recipients before confirming send."
             },
             {
               "id": "verify",
@@ -3373,7 +3373,7 @@
           "purpose": "Select a verified sender account and Sales contacts or lists for the campaign.",
           "effect": "Review per-recipient outcomes and respect opt-outs. SMTP acceptance does not mean read or delivered; a test does not launch the campaign.",
           "chapterId": "crm.mailing",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3386,7 +3386,7 @@
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Prepare subject, content and variables; review eligible recipients, exclusions and configuration before confirming launch or scheduling."
+              "description": "Prepare subject, content and variables; create or insert a template with saved files. Verify it was saved and review attachments, eligible recipients, exclusions and configuration before confirming launch or scheduling."
             },
             {
               "id": "verify",
@@ -3692,7 +3692,7 @@
           "purpose": "Review participants, owner, time and permissions before planning a meeting or finite series.",
           "effect": "Suggested times do not reserve availability. Close ballots before completing and check their results in the minutes. Internal notifications do not prove email or external invitations.",
           "chapterId": "control_minutas.meetings",
-          "version": 3,
+          "version": 4,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3705,7 +3705,7 @@
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Review suggested times and plan the meeting. During execution record actual attendance and, with permission, open weighted ballots; each participant casts their own vote."
+              "description": "Review preparation, agenda and people in the detail; review suggested times and plan the meeting. Enter the room to record actual attendance and, with permission, open weighted ballots; each participant casts their own vote."
             },
             {
               "id": "verify",
@@ -3721,7 +3721,7 @@
           "purpose": "Select an authorized meeting and review its status, participants, agenda and minutes owner.",
           "effect": "Check the saved result before changing meetings. On a conflict, retain or copy your draft and review the current version; changing rooms or closing does not save automatically.",
           "chapterId": "control_minutas.session",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3734,7 +3734,7 @@
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "With editing permission, write the minutes and decisions and select Save. Record attendance during the meeting; review agreements and ballots according to your permissions."
+              "description": "With editing permission, write the minutes and decisions and select Save. Record attendance during the meeting; review agreements and ballots according to your permissions. When delegating an agreement, review the linked task and validate fulfilment separately."
             },
             {
               "id": "verify",
@@ -3748,9 +3748,9 @@
           "label": "Agreements and follow-up",
           "title": "Agreements and follow-up",
           "purpose": "Identify the meeting, agreement, owner and date; review only authorized records.",
-          "effect": "Check the saved status and evidence. An agreement does not automatically create a Processes task.",
+          "effect": "Check the link to the Processes task. Completing the task does not validate the agreement: confirm fulfilment with an outcome and evidence. Rescheduling preserves the original deadline.",
           "chapterId": "control_minutas.agreements",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3763,12 +3763,12 @@
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Record and update agreements and their follow-up through the meeting owner."
+              "description": "Record agreements and use Create task and delegate to choose an assignee and due date. Review before confirming; record a reason when changing the commitment."
             },
             {
               "id": "verify",
               "title": "Verify the result",
-              "description": "Check the saved status and evidence. An agreement does not automatically create a Processes task."
+              "description": "Check the link to the Processes task. Completing the task does not validate the agreement: confirm fulfilment with an outcome and evidence. Rescheduling preserves the original deadline."
             }
           ]
         },
@@ -3777,9 +3777,9 @@
           "label": "Meeting indicators",
           "title": "Meeting indicators",
           "purpose": "Select the period and authorized scope for meetings and agreements.",
-          "effect": "Distinguish operational results from learning progress; reading a guide does not complete agreements.",
+          "effect": "The calculation uses expired original deadlines and validated fulfilment; with no eligible agreements it shows Pending evaluation. Historical records without a verifiable baseline receive no invented score. Reading a guide does not complete agreements.",
           "chapterId": "control_minutas.indicators",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3792,12 +3792,12 @@
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Review indicators and the records behind the follow-up."
+              "description": "Review indicators and open a meeting to check On-time fulfilment: agreements fulfilled on time, late, overdue and not yet due."
             },
             {
               "id": "verify",
               "title": "Verify the result",
-              "description": "Distinguish operational results from learning progress; reading a guide does not complete agreements."
+              "description": "The calculation uses expired original deadlines and validated fulfilment; with no eligible agreements it shows Pending evaluation. Historical records without a verifiable baseline receive no invented score. Reading a guide does not complete agreements."
             }
           ]
         }
@@ -3960,9 +3960,9 @@
           "label": "Services, team and public agenda",
           "title": "Services, team and public agenda",
           "purpose": "In Services, choose from Inventory or create directly in Scheduling. Set No charge or Price to be agreed, configure booking and review before saving. You can link a Scheduling service to Inventory later while retaining reservations. If already configured, open Edit configuration.",
-          "effect": "In Public agenda, customize Content and Design, review the desktop or mobile preview and choose to save a draft or publish. Adjust public name, title, description, button, colours and cards or compact presentation. Share only the saved and published link; requests require internal confirmation.",
+          "effect": "In Public agenda, choose an agenda or create another and customize Content and Design. Review the desktop or mobile preview and save a draft or publish. Adjust public name, logo, title, description, button, colours and catalogue, list or editorial presentation. Share only the saved and published link; requests require internal confirmation.",
           "chapterId": "scheduling.configuration",
-          "version": 7,
+          "version": 8,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3980,7 +3980,7 @@
             {
               "id": "verify",
               "title": "Verify the result",
-              "description": "In Public agenda, customize Content and Design, review the desktop or mobile preview and choose to save a draft or publish. Adjust public name, title, description, button, colours and cards or compact presentation. Share only the saved and published link; requests require internal confirmation."
+              "description": "In Public agenda, choose an agenda or create another and customize Content and Design. Review the desktop or mobile preview and save a draft or publish. Adjust public name, logo, title, description, button, colours and catalogue, list or editorial presentation. Share only the saved and published link; requests require internal confirmation."
             }
           ]
         }
@@ -4183,7 +4183,7 @@
           "purpose": "Review country, currency, identity, contact, unit, business and employment terms. Search before creating to avoid duplicates.",
           "effect": "Complete contract, compensation, schedule, location and access as applicable. A learning exception requires a reason and does not change employment policy. Inactivation and termination are distinct actions that preserve history.",
           "chapterId": "human_resources.collaborators",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [
@@ -4201,7 +4201,7 @@
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Create, edit or import employees through data review. Attach documents to the correct file; files require confirmed upload and registration."
+              "description": "Create, edit or import employees by reviewing employment data. Employment contact details belong to the company; editing them does not change the global login email or roles. Attach documents to the correct file; files require confirmed upload and registration."
             },
             {
               "id": "verify",
