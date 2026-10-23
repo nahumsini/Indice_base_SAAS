@@ -30,6 +30,9 @@ public interface ObjectStorageService {
         throw new UnsupportedOperationException("Server file intake is unavailable.");
     }
 
+    /** Read a complete object no larger than maxBytes. Pass the accepted content limit,
+     * without adding a sentinel byte: over-limit detection belongs to the provider.
+     * Implementations must reject oversized objects rather than silently truncate them. */
     default byte[] readObject(String bucketName, String objectKey, int maxBytes) {
         throw new UnsupportedOperationException("Private file download is unavailable.");
     }

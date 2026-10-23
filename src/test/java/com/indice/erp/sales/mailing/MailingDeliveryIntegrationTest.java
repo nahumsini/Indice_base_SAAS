@@ -61,7 +61,7 @@ class MailingDeliveryIntegrationTest {
         byte[] bytes="Frozen campaign brochure".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         String file=UUID.randomUUID().toString(),key="mailing/"+company+"/files/"+file+"/"+UUID.randomUUID(),template=UUID.randomUUID().toString();
         db.update("INSERT INTO sales_mailing_files(company_id,id,created_by,filename,content_type,size_bytes,object_key,status) VALUES(?,?,?,'brochure.txt','text/plain',?,?,'READY')",company,file,user,bytes.length,key);
-        when(storage.readObject(anyString(),eq(key),anyInt())).thenReturn(bytes);
+        when(storage.readObject(anyString(),eq(key),anyInt())).thenAnswer(call->{assertThat((Integer)call.getArgument(2)).isBetween(1,com.indice.erp.email.mailbox.MailFilePolicy.MAX);return bytes;});
         templates.save(actor,template,new MailingTemplateContracts.TemplateInput("Brochure","Hello","","Hello {{name}}",0,null,List.of(file),UUID.randomUUID().toString()));
         String id=UUID.randomUUID().toString();
         campaigns.save(actor,id,new MailingContracts.DraftInput("With brochure","Hello","Campaign clinic","reply@example.com","","Hello {{name}}",List.of(contact),0,account,null,List.of(file)));

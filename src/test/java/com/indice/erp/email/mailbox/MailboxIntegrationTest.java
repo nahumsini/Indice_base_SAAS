@@ -260,7 +260,7 @@ class MailboxIntegrationTest {
         var account=create();var id=draft(account.id());when(storage.isEnabled()).thenReturn(true);
         when(storage.presignUpload(anyString(),anyString(),anyString(),anyLong(),anyInt())).thenAnswer(call->new com.indice.erp.storage.PresignedUpload(call.getArgument(1),"https://storage.example.invalid/upload",Instant.now().plusSeconds(300),Map.of()));
         var upload=files.upload(actor,account.id(),id,new UploadInput("sample.txt","text/plain",3,1,1));
-        when(storage.objectExists(anyString(),anyString())).thenReturn(true);when(storage.objectMetadata(anyString(),anyString())).thenReturn(new com.indice.erp.storage.StoredObjectMetadata(3,"text/plain"));when(storage.readObject(anyString(),anyString(),anyInt())).thenReturn("abc".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        when(storage.objectExists(anyString(),anyString())).thenReturn(true);when(storage.objectMetadata(anyString(),anyString())).thenReturn(new com.indice.erp.storage.StoredObjectMetadata(3,"text/plain"));doAnswer(call->{assertThat((Integer)call.getArgument(2)).isBetween(1,MailFilePolicy.MAX);return "abc".getBytes(java.nio.charset.StandardCharsets.UTF_8);}).when(storage).readObject(anyString(),anyString(),anyInt());
         var saved=files.register(actor,account.id(),id,upload.id(),new Version(1,1));assertThat(saved.version()).isEqualTo(2);assertThat(saved.hasAttachments()).isTrue();assertThat(files.list(actor,account.id(),id)).hasSize(1);
         verify(storage).copyObject(anyString(),contains("/staging/"),contains("/files/"));
         assertThatThrownBy(()->drafts.send(actor,account.id(),id,new Version(1,1))).hasMessageContaining("email_message_changed");
@@ -273,7 +273,7 @@ class MailboxIntegrationTest {
         when(storage.presignUpload(anyString(),anyString(),anyString(),anyLong(),anyInt())).thenAnswer(call->new com.indice.erp.storage.PresignedUpload(call.getArgument(1),"https://storage.example.invalid/upload",Instant.now().plusSeconds(300),Map.of()));
         when(storage.objectExists(anyString(),anyString())).thenReturn(true);
         when(storage.objectMetadata(anyString(),anyString())).thenReturn(new com.indice.erp.storage.StoredObjectMetadata(bytes.length,"text/plain"));
-        when(storage.readObject(anyString(),anyString(),anyInt())).thenReturn(bytes);
+        doAnswer(call->{assertThat((Integer)call.getArgument(2)).isBetween(1,MailFilePolicy.MAX);return bytes;}).when(storage).readObject(anyString(),anyString(),anyInt());
         String id=UUID.randomUUID().toString();
         sharedFiles.upload(actor,new com.indice.erp.sales.mailing.MailingFileContracts.UploadInput(id,"brochure.txt","text/plain",bytes.length));
         assertThat(sharedFiles.register(actor,id).sizeBytes()).isEqualTo(bytes.length);
@@ -326,6 +326,75 @@ class MailboxIntegrationTest {
         assertThat(files.list(actor,account.id(),message)).isEmpty();
         db.update("DELETE FROM user_company_tab_permissions WHERE user_company_id=? AND module_slug='crm' AND tab_key='mailing'",membership);
         assertThatThrownBy(()->templateImport.apply(actor,account.id(),message,new com.indice.erp.sales.mailing.MailingFileContracts.TemplateFiles(template,1,1,1))).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints={31,MailFilePolicy.MAX})
+    @org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable(named="TEST_MINIO_ENDPOINT",matches="http://127\\.0\\.0\\.1:[0-9]+")
+    void realMinioPersistsReusableTemplateAndPrivateAttachments(int size) throws Exception {
+        // This path uses the real provider, including signed PUT, immutable copy and bounded reads.
+        // SMTP remains mocked; the harness provisions disposable MinIO and indice_test_db only.
+        String endpoint=System.getenv("TEST_MINIO_ENDPOINT");
+        var properties=new com.indice.erp.storage.ObjectStorageProperties();properties.setProvider("minio");
+        properties.getMinio().setEndpoint(endpoint);properties.getMinio().setPublicEndpoint(endpoint);
+        properties.getMinio().setAccessKey(System.getenv("TEST_MINIO_ACCESS_KEY"));
+        properties.getMinio().setSecretKey(System.getenv("TEST_MINIO_SECRET_KEY"));
+        var client=io.minio.MinioClient.builder().endpoint(endpoint)
+            .credentials(properties.getMinio().getAccessKey(),properties.getMinio().getSecretKey()).build();
+        var real=new com.indice.erp.storage.MinioObjectStorageService(client,properties);
+        real.ensureBucketExists(properties.getMinio().getBucketDocuments());
+        var delegate=org.mockito.AdditionalAnswers.delegatesTo(real);
+        when(storage.isEnabled()).thenReturn(true);
+        doAnswer(delegate).when(storage).presignUpload(anyString(),anyString(),anyString(),anyLong(),anyInt());
+        doAnswer(delegate).when(storage).objectExists(anyString(),anyString());
+        doAnswer(delegate).when(storage).objectMetadata(anyString(),anyString());
+        doAnswer(delegate).when(storage).copyObject(anyString(),anyString(),anyString());
+        doAnswer(delegate).when(storage).readObject(anyString(),anyString(),anyInt());
+        doAnswer(delegate).when(storage).deleteObject(anyString(),anyString());
+        byte[] bytes=new byte[size];Arrays.fill(bytes,(byte)'a');
+        String file=UUID.randomUUID().toString(),template=UUID.randomUUID().toString();
+        var upload=sharedFiles.upload(actor,new com.indice.erp.sales.mailing.MailingFileContracts.UploadInput(file,"brochure.txt","text/plain",size));
+        putRealFile(upload.url(),bytes);
+        String register="/api/v1/mailing/template-files/"+file+"/register";
+        for(int replay=0;replay<2;replay++)mvc.perform(post(register).session(session()).header("X-CSRF-Token","synthetic-csrf"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.sizeBytes").value(size));
+        var value=new com.indice.erp.sales.mailing.MailingTemplateContracts.TemplateInput("Real storage","Hello","","Hello {{name}}",0,null,List.of(file),UUID.randomUUID().toString());
+        mvc.perform(put("/api/v1/mailing/templates/"+template).session(session()).header("X-CSRF-Token","synthetic-csrf")
+            .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(value)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.attachments[0].id").value(file));
+        mvc.perform(get("/api/v1/mailing/templates/"+template).session(session()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.attachments[0].sizeBytes").value(size));
+        byte[] downloaded=mvc.perform(get("/api/v1/mailing/template-files/"+file+"/download").session(session()))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+        sameFile(downloaded,bytes);
+        var account=create();String message=draft(account.id());
+        var imported=templateImport.apply(actor,account.id(),message,new com.indice.erp.sales.mailing.MailingFileContracts.TemplateFiles(template,1,1,1));
+        var importedFile=files.list(actor,account.id(),message).getFirst();
+        sameFile(files.download(actor,account.id(),message,importedFile.id()).bytes(),bytes);
+        doAnswer(call->{MailboxTransport.Outgoing outgoing=call.getArgument(1);
+            assertThat(outgoing.files()).hasSize(1);sameFile(outgoing.files().getFirst().bytes(),bytes);return MailboxTransport.Outcome.ACCEPTED;}).when(transport).send(any(),any());
+        assertThat(drafts.send(actor,account.id(),message,new Version(imported.version(),1)).state()).isEqualTo("ACCEPTED");
+
+        // A private draft's own upload uses the same production storage boundary.
+        byte[] privateBytes="Private synthetic attachment".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        String privateDraft=draft(account.id());
+        var privateUpload=files.upload(actor,account.id(),privateDraft,new UploadInput("private.txt","text/plain",privateBytes.length,1,1));
+        putRealFile(privateUpload.url(),privateBytes);
+        var saved=files.register(actor,account.id(),privateDraft,privateUpload.id(),new Version(1,1));
+        sameFile(files.download(actor,account.id(),privateDraft,privateUpload.id()).bytes(),privateBytes);
+        doAnswer(call->{MailboxTransport.Outgoing outgoing=call.getArgument(1);
+            assertThat(outgoing.files()).hasSize(1);sameFile(outgoing.files().getFirst().bytes(),privateBytes);return MailboxTransport.Outcome.ACCEPTED;}).when(transport).send(any(),any());
+        assertThat(drafts.send(actor,account.id(),privateDraft,new Version(saved.version(),1)).state()).isEqualTo("ACCEPTED");
+        verify(transport,times(2)).send(any(),any());
+    }
+    private void putRealFile(String url,byte[] bytes) throws Exception {
+        var request=java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).timeout(java.time.Duration.ofSeconds(30))
+            .header("Content-Type","text/plain").PUT(java.net.http.HttpRequest.BodyPublishers.ofByteArray(bytes)).build();
+        assertThat(java.net.http.HttpClient.newHttpClient().send(request,java.net.http.HttpResponse.BodyHandlers.discarding()).statusCode()).isEqualTo(200);
+    }
+    private static void sameFile(byte[] actual,byte[] expected) throws java.security.NoSuchAlgorithmException {
+        assertThat(actual.length).isEqualTo(expected.length);
+        assertThat(java.security.MessageDigest.getInstance("SHA-256").digest(actual))
+            .isEqualTo(java.security.MessageDigest.getInstance("SHA-256").digest(expected));
     }
     @Test void attachmentTypeMismatchAndOversizeAreRejectedBeforePresign() {
         var account=create();var id=draft(account.id());when(storage.isEnabled()).thenReturn(true);

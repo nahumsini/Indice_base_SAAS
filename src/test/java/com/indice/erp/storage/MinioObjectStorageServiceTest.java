@@ -1,6 +1,7 @@
 package com.indice.erp.storage;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -94,5 +95,32 @@ class MinioObjectStorageServiceTest {
         var disabled = new DisabledObjectStorageService();
 
         assertFalse(disabled.isEnabled());
+    }
+
+    @Test
+    void completeObjectAtAcceptedLimitIsReturnedWithoutRequiringCallerLookahead() throws Exception {
+        byte[] bytes = new byte[10 * 1024 * 1024];
+        var response = new io.minio.GetObjectResponse(new okhttp3.Headers.Builder().build(),
+            "private-bucket", "us-east-1", "document", new java.io.ByteArrayInputStream(bytes));
+        given(minioClient.getObject(any())).willReturn(response);
+
+        assertThat(service.readObject("private-bucket", "document", bytes.length)).isEqualTo(bytes);
+    }
+
+    @Test
+    void oversizedObjectIsRejectedInsteadOfReturningTruncatedContent() throws Exception {
+        var response = new io.minio.GetObjectResponse(new okhttp3.Headers.Builder().build(),
+            "private-bucket", "us-east-1", "document", new java.io.ByteArrayInputStream(new byte[4]));
+        given(minioClient.getObject(any())).willReturn(response);
+
+        assertThatThrownBy(() -> service.readObject("private-bucket", "document", 3))
+            .isInstanceOf(IllegalArgumentException.class).hasMessage("Stored file exceeds the size limit.");
+    }
+
+    @Test
+    void invalidReadBudgetIsRejectedBeforeContactingStorage() throws Exception {
+        assertThatThrownBy(() -> service.readObject("private-bucket", "document", 10 * 1024 * 1024 + 1))
+            .isInstanceOf(IllegalArgumentException.class).hasMessage("Invalid file size limit.");
+        verify(minioClient, never()).getObject(any());
     }
 }

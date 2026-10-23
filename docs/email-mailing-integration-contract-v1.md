@@ -968,6 +968,16 @@ per-file limit. Sales owns company-shared template assets; Email retains private
 content validation, immutable transport and SMTP outcomes. No private account attachment becomes
 company-shared implicitly.
 
+Storage boundary correction (2026-10-23): `ObjectStorageService.readObject` takes the maximum
+accepted content size, without a caller-added lookahead byte. MinIO owns bounded overflow detection
+and rejects oversized objects instead of returning truncated content. Template registration/download
+and private attachment registration/download/import/transport pass the unchanged 10 MiB limit.
+API shapes, ownership, immutable sealing, quotas and permitted formats are preserved; no migration
+is required. Contract fakes enforce the provider's read budget. CI additionally runs
+`scripts/test-mail-attachments-minio.sh` against disposable real MinIO and `indice_test_db`, exercising
+small/exact-limit signed PUT, registration replay, template persistence, download, private import,
+private upload and mocked transport. No real mail is sent by that harness.
+
 - Template editing adds verified PDF/PNG/JPEG/UTF-8 TXT and passive DOCX/XLSX/PPTX attachments.
   Upload/registration can happen before template creation; **Save template** atomically persists
   content and the selected file IDs. Cancel does not publish a partially edited template. New

@@ -87,7 +87,7 @@ public class MailingFileService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization(){
             @Override public void afterCompletion(int status){if(status!=STATUS_COMMITTED)delete(sealed);}
         });
-        var bytes=storage.readObject(bucket,sealed,MailFilePolicy.MAX+1);
+        var bytes=storage.readObject(bucket,sealed,MailFilePolicy.MAX);
         require(bytes.length==row.file().sizeBytes(),BAD_REQUEST,"email_attachment_mismatch");
         MailFilePolicy.bytes(row.file().filename(),row.file().contentType(),bytes);
         meter.commitMoved(actor.companyId(),bucket,row.key(),sealed,row.file().sizeBytes());
@@ -115,7 +115,7 @@ public class MailingFileService {
     }
     @Transactional(readOnly=true)
     public MailboxTransport.FilePart download(AuthSessionUser actor,String id) {
-        readAccess(actor);var row=ready(actor,id);var bytes=storage.readObject(bucket,row.key(),MailFilePolicy.MAX+1);
+        readAccess(actor);var row=ready(actor,id);var bytes=storage.readObject(bucket,row.key(),MailFilePolicy.MAX);
         require(bytes.length==row.file().sizeBytes(),CONFLICT,"email_attachment_mismatch");
         MailFilePolicy.bytes(row.file().filename(),row.file().contentType(),bytes);
         return new MailboxTransport.FilePart(row.file().filename(),row.file().contentType(),bytes);

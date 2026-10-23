@@ -25,7 +25,7 @@ public class MailAttachmentService {
         require(storage.objectExists(bucket,row.key()),BAD_REQUEST,"email_attachment_missing");var meta=storage.objectMetadata(bucket,row.key());require(meta.sizeBytes()==row.size()&&row.type().equalsIgnoreCase(meta.contentType()),BAD_REQUEST,"email_attachment_mismatch");
         String sealed="email/"+actor.companyId()+"/"+account+"/"+id+"/files/"+attachment;
         // Verify the immutable destination after copying; the upload URL cannot overwrite it.
-        storage.copyObject(bucket,row.key(),sealed);try{var bytes=storage.readObject(bucket,sealed,MailFilePolicy.MAX+1);require(bytes.length==row.size(),BAD_REQUEST,"email_attachment_mismatch");MailFilePolicy.bytes(row.filename(),row.type(),bytes);
+        storage.copyObject(bucket,row.key(),sealed);try{var bytes=storage.readObject(bucket,sealed,MailFilePolicy.MAX);require(bytes.length==row.size(),BAD_REQUEST,"email_attachment_mismatch");MailFilePolicy.bytes(row.filename(),row.type(),bytes);
         meter.commitMoved(actor.companyId(),bucket,row.key(),sealed,row.size());}catch(RuntimeException failure){try{storage.deleteObject(bucket,sealed);}catch(RuntimeException ignored){ }throw failure;}repository.ready(actor,account,id,attachment,sealed);StorageCommitCleanup.afterCommit(()->{try{storage.deleteObject(bucket,row.key());}catch(RuntimeException ignored){ }});access.repository.audit(actor,account,version.accountVersion(),"ATTACHMENT_ADDED");return access.repository.get(actor,account,id).view();
     });}
     public Message remove(AuthSessionUser actor,String account,String id,String attachment,Version version){return access.tx.execute(s->{editable(actor,account,id,version);repository.get(actor,account,id,attachment);repository.remove(actor,account,id,attachment);return access.repository.get(actor,account,id).view();});}
@@ -35,7 +35,7 @@ public class MailAttachmentService {
     }
     public MailboxTransport.FilePart download(AuthSessionUser actor,String account,String id,String attachment){var a=access.read(actor,account);var row=access.message(actor,account,a.version(),id);MailboxTransport.FilePart file;
         if(attachment.equals("0")||attachment.startsWith("0.")){require(row.uid()!=null,NOT_FOUND,"email_attachment_unavailable");var folder=access.folder(actor,account,a.version(),row.view().folderId());var material=access.accounts.connection(actor,account,false);access.sameVersion(material.account(),a.version());file=transport.attachment(material,cursor(folder),row.uid(),attachment);}
-        else{var f=repository.get(actor,account,id,attachment);require(f.state().equals("READY"),NOT_FOUND,"email_attachment_unavailable");file=new MailboxTransport.FilePart(f.filename(),f.type(),storage.readObject(bucket,f.key(),MailFilePolicy.MAX+1));}
+        else{var f=repository.get(actor,account,id,attachment);require(f.state().equals("READY"),NOT_FOUND,"email_attachment_unavailable");file=new MailboxTransport.FilePart(f.filename(),f.type(),storage.readObject(bucket,f.key(),MailFilePolicy.MAX));}
         MailFilePolicy.bytes(file.name(),file.type(),file.bytes());access.sameVersion(access.read(actor,account),a.version());return file;
     }
     /** Internal Sales owner port. The caller resolves tenant-authorized immutable objects;
@@ -47,7 +47,7 @@ public class MailAttachmentService {
         require(current.size()+fresh.size()<=MailFilePolicy.COUNT&&current.stream().mapToLong(MailAttachmentRepository.Row::size).sum()+fresh.stream().mapToLong(SharedFile::sizeBytes).sum()<=MailFilePolicy.TOTAL,UNPROCESSABLE_ENTITY,"email_attachment_limit");
         for(var file:fresh){
             require(file.objectKey().matches("mailing/"+actor.companyId()+"/files/"+java.util.regex.Pattern.quote(file.id())+"/[0-9a-f-]{36}"),BAD_REQUEST,"email_attachment_blocked");
-            var bytes=storage.readObject(bucket,file.objectKey(),MailFilePolicy.MAX+1);
+            var bytes=storage.readObject(bucket,file.objectKey(),MailFilePolicy.MAX);
             require(bytes.length==file.sizeBytes(),CONFLICT,"email_attachment_mismatch");MailFilePolicy.bytes(file.filename(),file.contentType(),bytes);
             repository.importShared(actor,account,id,sharedId(id,file.id()),file);
         }
@@ -55,5 +55,5 @@ public class MailAttachmentService {
         return access.repository.get(actor,account,id).view();
     });}
     private static String sharedId(String message,String file){return UUID.nameUUIDFromBytes(("template-file:"+message+":"+file).getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();}
-    List<MailboxTransport.FilePart> outgoing(AuthSessionUser actor,String account,String id){var result=new ArrayList<MailboxTransport.FilePart>();long total=0;for(var row:repository.list(actor,account,id)){var bytes=storage.readObject(bucket,row.key(),MailFilePolicy.MAX+1);require(bytes.length==row.size(),CONFLICT,"email_attachment_mismatch");total+=bytes.length;require(total<=MailFilePolicy.TOTAL,UNPROCESSABLE_ENTITY,"email_attachment_limit");MailFilePolicy.bytes(row.filename(),row.type(),bytes);result.add(new MailboxTransport.FilePart(row.filename(),row.type(),bytes));}return result;}
+    List<MailboxTransport.FilePart> outgoing(AuthSessionUser actor,String account,String id){var result=new ArrayList<MailboxTransport.FilePart>();long total=0;for(var row:repository.list(actor,account,id)){var bytes=storage.readObject(bucket,row.key(),MailFilePolicy.MAX);require(bytes.length==row.size(),CONFLICT,"email_attachment_mismatch");total+=bytes.length;require(total<=MailFilePolicy.TOTAL,UNPROCESSABLE_ENTITY,"email_attachment_limit");MailFilePolicy.bytes(row.filename(),row.type(),bytes);result.add(new MailboxTransport.FilePart(row.filename(),row.type(),bytes));}return result;}
 }
