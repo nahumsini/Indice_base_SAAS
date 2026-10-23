@@ -25,10 +25,11 @@ export function CampaignContentGuide({ value, locale, onChange, compact = false 
       : !compact && <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">{c.hookHint}</p>}
     {compact && !['AUTO', 'CUSTOM'].includes(g.hook) && <blockquote className="content-guide-hook-preview"><Quote size={18} aria-hidden="true" /><div><span>{c.hook}</span><p>{label('hook',g.hook)}</p></div></blockquote>}
     <label className="block space-y-2 text-sm"><span>{c.topic}</span><>{compact ? <Textarea rows={2} maxLength={500} placeholder={c.topicPlaceholder} value={g.topic} onChange={e => patch({ topic: e.target.value })} /> : <Input maxLength={500} placeholder={c.topicPlaceholder} value={g.topic} onChange={e => patch({ topic: e.target.value })} />}</></label>
+    <details className="content-guide-help" open={g.variation!=='NONE'}><summary className="min-h-11 cursor-pointer">{c.variation}<ChevronDown size={16} aria-hidden="true"/></summary>
     <div className="grid min-w-0 gap-4 sm:grid-cols-2">
       <label className="block min-w-0 space-y-2 text-sm"><span>{c.variation}</span><select className={campaignSelectClass} value={g.variation} onChange={e => patch({ variation: e.target.value as ContentGuide['variation'] })}>{contentVariations.map(id => <option key={id} value={id}>{c[`variation_${id}`]}</option>)}</select></label>
       {g.variation !== 'NONE' && <label className="block space-y-2 text-sm"><span>{c.variationCount}</span><select className={campaignSelectClass} value={g.variationCount} onChange={e => patch({ variationCount: Number(e.target.value) })}>{[2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}</select></label>}
-    </div>
+    </div></details>
     {!compact && g.variation !== 'NONE' && <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">{c.variationHint}</p>}
     {compact && <details className="content-guide-help"><summary><Lightbulb size={16} aria-hidden="true" />{c.help}<ChevronDown size={16} aria-hidden="true" /></summary><div><p>{c.goalHint}</p>{g.format === 'SHORT_VIDEO' && <p>{c.formatHint}</p>}<p>{c.hookHint}</p>{g.variation !== 'NONE' && <p>{c.variationHint}</p>}</div></details>}
     <div role="status" aria-label={c.summary} className={compact ? "content-guide-summary" : "space-y-1 break-words rounded-lg bg-white p-3 text-xs leading-5 dark:bg-slate-900"}>

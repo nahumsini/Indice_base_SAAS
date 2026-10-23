@@ -35,15 +35,16 @@ export function ContentCalendarBoard({ entries, anchor, mode, today, locale, c, 
         const items = sortedEntries(entries.filter(entry => entry.date === date));
         return <section key={date} aria-label={dateLabel(date,true)} className={`min-w-0 border-t border-r border-slate-100 p-2 dark:border-slate-800 ${mode === 'week' ? 'min-h-72' : 'min-h-40'} ${date.slice(0,7) !== anchor.slice(0,7) && mode === 'month' ? 'bg-slate-50/80 dark:bg-slate-950/40' : ''}`}>
           <div className="mb-1 flex items-center justify-between gap-1">
-            <button type="button" disabled={!validDate(date)} onClick={() => onDay(date)} className={`min-h-11 min-w-11 rounded-full text-sm font-medium ${date === today ? 'bg-[#FF6B5E] text-slate-950' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}>{Number(date.slice(-2))}</button>
-            <button type="button" disabled={disabled || !validDate(date)} aria-label={`${c.create}: ${dateLabel(date)}`} onClick={() => onCreate(date)} className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-[#b63b32] dark:hover:bg-slate-800"><Plus className="h-4 w-4" /></button>
+            <button type="button" disabled={!validDate(date)} onClick={() => onDay(date)} aria-label={dateLabel(date,true)} className={`min-h-11 w-full rounded-xl text-sm font-medium ${date === today ? 'bg-[#FF6B5E] text-slate-950' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}>{Number(date.slice(-2))}</button>
+
           </div>
           <div className="space-y-2">{(mode === 'month' ? items.slice(0,3) : items).map(entry => card(entry,true))}</div>
-          {mode === 'month' && items.length > 3 && <button type="button" onClick={() => onDay(date)} className="mt-1 min-h-11 w-full rounded-xl text-sm font-medium text-[#b63b32] dark:text-[#ffb0aa]">+{items.length - 3} · {c.week}</button>}
+          {mode === 'month' && items.length > 3 && <button type="button" onClick={() => onDay(date)} className="mt-1 min-h-11 w-full rounded-xl text-sm font-medium text-[#b63b32] dark:text-[#ffb0aa]">+{items.length - 3}</button>}
         </section>;
       })}</div>
     </div>}
-    <div className={`${mode === 'agenda' ? '' : 'lg:hidden'} space-y-4`}>
+    {mode==='month'&&<div className="grid grid-cols-7 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900 lg:hidden">{days.slice(0,7).map(date=><span className="py-3 text-center text-xs text-slate-500" key={date}>{new Intl.DateTimeFormat(locale,{weekday:'narrow',timeZone:'UTC'}).format(new Date(`${date}T12:00:00Z`))}</span>)}{days.map(date=>{const count=entries.filter(e=>e.date===date).length;return <button type="button" key={date} aria-label={dateLabel(date,true)} onClick={()=>onDay(date)} className={`flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 border-t border-slate-100 p-1 text-sm dark:border-slate-800 ${date===today?'bg-[#ff6b5e]/15 font-semibold':''}`}><span>{Number(date.slice(-2))}</span>{count>0&&<span className="rounded-full bg-[#ff6b5e]/15 px-1.5 text-[10px]">{count}</span>}</button>;})}</div>}
+    <div className={`${mode === 'agenda' ? '' : mode==='month'?'hidden':'lg:hidden'} space-y-4`}>
       {dates.map(date => <section key={date} className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
         <header className="mb-3 flex items-center justify-between gap-2"><h3 className="text-sm font-medium">{dateLabel(date,true)}</h3><button type="button" disabled={disabled} aria-label={`${c.create}: ${dateLabel(date)}`} onClick={() => onCreate(date)} className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-[#FF6B5E]/10 text-[#b63b32] dark:text-[#ffb0aa]"><Plus className="h-4 w-4" /></button></header>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{visible.filter(entry => entry.date === date).map(entry => card(entry,false))}</div>

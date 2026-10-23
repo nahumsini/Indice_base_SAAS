@@ -798,3 +798,119 @@ All acceptance writes used isolated synthetic browser/session data; functional u
 and boards were not modified. Local frontend 5175 serves the current workspace. Physical
 mobile keyboards/printers remain unverified. Backend tests/restart/migrations, production
 deployment, commit/push: N/A.
+
+
+## Campaign workspace and company library — adopted 2026-10-23
+
+The owner approved reorganization into **Campaigns / Content / Calendar** using the existing
+`IndiceWorkspaceNavigation` sections, coral Sales title bar and native modal engine. The standard
+title bar keeps Company information, Refresh and Create campaign direct. Cards/Table are views
+inside Campaigns; the visual customer journey remains campaign detail. Historical `view=ideas`,
+`list` and `funnel` URLs and stored state remain valid. Content and Calendar show one selected
+campaign context strip. Changing campaigns returns through the campaign directory with its native
+filters and pagination, preserving reachability beyond the current page. Editors no longer show
+the campaign directory pagination. Existing draft/conflict and navigation guards remain active.
+
+The private Funneling ideas board remains mounted, user/company scoped and explicitly opened from
+Campaigns; hiding it does not throw away its save queue or unsaved recovery state. Nothing is moved
+from this private board into the company library. No opportunity, publication, ad account or model
+execution is introduced by reorganizing the workspace.
+
+Content keeps a compact campaign summary and explicit company reference selection. Variants,
+full AI instructions and optional pasted response are disclosed on demand. Copy, download and
+print still use the same complete prompt, including an explicitly selected company snapshot.
+Calendar day buttons open a native Operational Workspace Modal listing that day's entries;
+creation/editing replaces the day modal rather than nesting dialogs. A small-screen monthly grid
+opens the same day view. Manual publication state, calendar version, filters, time zone and existing
+entry editor remain unchanged.
+
+### Ownership, access and persistence
+
+`/api/v1/sales/company-library` is authenticated, company-owned and requires the native CRM module
+and `crm.funneling` tab for every operation. Public demo sessions are denied; writes require native
+session CSRF, the actor key issued by the read response, an active membership and a current module
+mutation entitlement, serialized on the company. No permission grants or roles are created.
+Authorized Funneling editors may maintain this new shared planning information; this does not
+permit editing the corporate identity, inventory or other Sales tabs.
+
+One profile per company holds bounded business description, offer, differentiation, usual audience,
+service region/contact, communication style, guidance and up to three hex colors. The company name
+and main logo are a narrow read projection of their existing company owner: `companies.name` and
+`ConfigCenterService.getCompanyLogo`. This is not another owner or editor of the global logo.
+No company settings root or employee, fiscal, billing or access data is returned.
+
+V354 introduces `sales_brand_profiles`, `sales_brand_assets`, `sales_funnel_brand_contexts` and
+metadata-only `sales_brand_audit`. Profile and campaign-reference saves have separate optimistic
+versions, stable mutation UUIDs and input hashes for exact lost-response retries. Existing campaign
+DTOs, versions, stage estimates, guides and briefs are unchanged. Selection captures an independent
+text/asset-metadata snapshot: editing company details later does not rewrite a prior selection.
+New selection requires the current profile version, at most ten unique owned assets and the
+campaign's company ownership. An archived asset can only be retained if already selected there.
+
+### Private materials
+
+The new owner uses the existing `ObjectStorageService` and `CompanyStorageMeter` with the private
+Sales documents bucket; no normal file body is stored in MySQL. Upload allocates a stable UUID and
+server-chosen tenant staging key, reserves quota and signs an exact-length upload for five minutes.
+Registration is creator-bound, validates metadata, copies to a new immutable server-only key,
+validates the copied bytes and commits quota against that final object. Failed transactions clean
+the copy; committed registration cleans staging. Repeating registration or a completed upload
+returns the existing asset, without duplicating the quota or accepting replacement content.
+
+First-release formats: PNG/JPG, PDF and UTF-8 TXT, at most 5 MiB per file. The existing Email
+`MailFilePolicy` is reused only as a bounded binary-validation primitive, with an owner allowlist;
+this grants no Email/Mailing authority. Existing active/encrypted/form PDF exclusions apply.
+There are at most thirty active/recent pending assets and one hundred retained registered assets
+per company, checked again under lock at registration/restore. Pending rows are never downloadable.
+Archive/restore is recoverable and does not delete bytes, release retained quota or break historical
+campaign references. Downloads reauthorize the company/tab and use attachment disposition,
+`no-store`, `nosniff` and sandbox headers. No raw storage key or signed download URL is returned.
+
+A copied prompt includes selected business details and material names/types, never private object
+keys, download capabilities or file bodies. The UI explains that users must attach those files to
+their chosen AI themselves. Material download links are available on the selected-context card.
+There is no automatic external transmission and no new MCP tool, OAuth scope, image-generation
+promise or publication capability. Native ChatGPT/Lupita visual acceptance from the earlier Phase 0
+remains pending. Inventory product/photo selection through its owner contract is a later extension;
+this release's offer is a descriptive planning field and never reads inventory without its permission.
+
+### Rollback
+
+Retain the additive V354 tables and immutable application backups. Previous application versions
+ignore the new library and independent snapshots. No destructive down migration, automatic seed,
+corporate logo rewrite or historical campaign conversion is required.
+
+
+## Guided company information and separated logos — adopted 2026-10-23
+
+The owner approved mixed selectors and short free-text questions inside the existing company
+library workspace. Business starts with industry, offering type, short description and customer
+segments. Native disclosure reveals named offer tags, customer need, up to three differentiators,
+service modes, reach and contact channels, with optional supporting text. Brand has up to two
+communication tones, address style, language, up to three colors and optional preferred words,
+communication notes and exclusions. No choice is preselected or inferred from older text.
+Original description/offer/difference/audience/region/contact/voice/guidance remain intact and
+editable; questions add a bounded typed `answers` object in the existing profile/snapshot JSON.
+Missing answers from old profiles and snapshots normalize to empty optional values. Canonical
+option codes are validated server-side; duplicate arrays, unrecognized codes, overlong tags and
+excess choices fail atomically. Profile versions/retry IDs, selected-context versions and tenant,
+CSRF, entitlement/tab checks retain their prior ownership and lifecycle.
+
+Brand shows the main company logo from the existing read projection and an explicit optional
+preference to use it as campaign reference when company information is selected. This preference
+is text planning context, not an automatic image attachment or new global-logo editor. Dedicated
+LOGO_VARIANT assets are shown separately from general Materials, also in campaign selection.
+PNG/JPG variants may be classified Light/Dark/Horizontal/Symbol/Other and previewed privately
+on light and dark backgrounds. Preview reuses the authorized attachment download and a bounded,
+short-lived browser blob URL revoked on cleanup; it does not publish or sign a new capability.
+General materials support Photo/Document/Reference categories. Optional upload descriptions and
+logo variant metadata are part of upload retry identity and captured with selected asset metadata.
+They do not affect existing assets or earlier snapshots. V355 adds only two bounded metadata
+columns with empty defaults. Applied migrations, storage validation, quota, archive/restore and
+download authorization remain unchanged. Logos reject non-image content before allocation.
+
+The modal retains native sections and replacement discard confirmation. Profile answers persist
+only through Save information; uploaded files are saved immediately through their explicit upload
+action. Pending upload descriptions receive the same close/unload protection. Labels/options cover
+all eight native locales. Mobile wraps choices and stacks fields without horizontal overflow.
+Rollback retains V355 and its metadata, restores the previous package/source, and never drops data.

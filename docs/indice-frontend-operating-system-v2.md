@@ -389,6 +389,16 @@ Dirty-close and
 stage removal use replacement Confirmation Modals. Defining a plan does not execute campaigns
 or change the opportunity pipeline.
 
+The 2026-10-23 Funneling owner extension reorganizes the visible workspace into Campaigns,
+Content and Calendar. Cards/Table and customer-journey detail stay inside Campaigns; historical
+view URLs remain valid. Company information opens one shared Operational Workspace Modal with
+Business, Brand and Materials sections. Its name/logo are read from the existing company owner;
+its descriptive planning profile and private assets are company-owned. Content explicitly selects
+an independent reference snapshot. Full instructions and optional responses use native disclosures;
+no model call or automatic file transmission is implied. Calendar day selection opens the native
+day-list workspace, including on the mobile month grid. Private boards and dirty-navigation recovery
+remain separate and unchanged. Details and lifecycle: `docs/sales-funneling-contract-v1.md`. The approved guided-profile extension uses localized native selectors, bounded choice pills and short text, with optional details disclosed progressively. Logos have a dedicated Brand group and private light/dark previews; Materials retains photos/documents/references. Existing text, draft guards, snapshot selection and global company identity remain owned by their existing contracts.
+
 Sales, Point of Sale, Inventory, and Receivables must feel like sibling modules.
 
 They share the commercial operating language:
