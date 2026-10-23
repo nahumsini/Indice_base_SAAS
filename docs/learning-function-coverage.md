@@ -20,9 +20,11 @@ Generated from the reviewed bilingual curriculum. Domain owners remain authorita
 | maintenance.indicators | 3 | maintenance/indicators | 2 | Understanding only until an owner completion is integrated |
 | maintenance.configuration | 3 | maintenance/configuration | 2 | Understanding only until an owner completion is integrated |
 | crm.after-sales | 5 | sales/after-sales | 2 | Understanding only until an owner completion is integrated |
-| crm.funneling | 5 | sales/funneling | 3 | Understanding only until an owner completion is integrated |
+| crm.funneling | 5 | sales/funneling | 4 | Understanding only until an owner completion is integrated |
 | crm.mailing | 5 | sales/mailing | 3 | Understanding only until an owner completion is integrated |
 | crm.whatsapping | 5 | sales/whatsapping | 2 | Understanding only until an owner completion is integrated |
+| crm.conversations | 5 | sales/conversations | 2 | Understanding only until an owner completion is integrated |
+| crm.whatsapp-settings | 5 | sales/whatsapp-settings | 2 | Understanding only until an owner completion is integrated |
 | control_minutas.meetings | 3 | minutes-control/meetings | 4 | Understanding only until an owner completion is integrated |
 | control_minutas.session | 3 | minutes-control/session | 3 | Understanding only until an owner completion is integrated |
 | control_minutas.agreements | 3 | minutes-control/agreements | 3 | Understanding only until an owner completion is integrated |

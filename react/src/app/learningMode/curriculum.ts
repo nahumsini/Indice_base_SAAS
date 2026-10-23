@@ -30,6 +30,7 @@ function chapter(module: string, tab: string, label: LearningText, steps: readon
     : module === 'ideas_board' && tab === 'projects' ? 5
     : module === 'ideas_board' && ['canvas','system'].includes(tab) ? 4
     : ['correo.mail', 'control_minutas.meetings'].includes(`${module}.${tab}`) ? 4
+    : module === 'crm' && tab === 'funneling' ? 4
     : ['human_resources.collaborators', 'crm.mailing', 'control_minutas.session', 'control_minutas.agreements', 'control_minutas.indicators', 'scheduling.clients'].includes(`${module}.${tab}`) ? 3
     : ["expenses", "petty_cash"].includes(module)
     || module === 'ideas_board'
@@ -121,8 +122,8 @@ export const learningChapters: readonly LearningChapter[] = [
     ["Comprueba seguimiento e historial. La fecha de recuperación avisa al vendedor para revisar y reactivar manualmente; no crea una nueva venta.","Check follow-up and history. The recovery date notifies the salesperson to review and reactivate manually; it does not create a new sale."],
   ]),
   chapter("crm", "funneling", ["Campañas y embudo","Campaigns and funnel"], [
-    ["Organiza notas y fotos en Mis ideas; define oferta, público, objetivo y canales de cada campaña con las opciones guiadas del taller.","Organize notes and photos in My ideas; define each campaign’s offer, audience, goal and channels with the workshop’s guided choices."],
-    ["Revisa el embudo y prepara el prompt en Generación de contenido. En Calendario de contenido elige campaña, agenda piezas o revisa Contenido sugerido y guarda las seleccionadas. Consulta Mes, Semana o Agenda.","Review the funnel and prepare the prompt in Content generation. In Content calendar choose a campaign, schedule pieces or review Suggested content and save selected items. Browse Month, Week or Agenda."],
+    ["Organiza Mis ideas y define oferta, público, objetivo y canales. En la Biblioteca de empresa puedes completar preguntas de marca y conservar materiales sin cambiar la identidad global del negocio.","Organize My ideas and define offer, audience, goal and channels. In the Company library you can answer brand questions and retain materials without changing the business’s global identity."],
+    ["Selecciona expresamente la información y los materiales para cada campaña antes de preparar el prompt. Revisa el embudo y el Calendario de contenido, agenda piezas o guarda sugerencias editables; consulta Mes, Semana o Agenda.","Explicitly select each campaign’s information and materials before preparing its prompt. Review the funnel and Content calendar, schedule pieces or save editable suggestions; browse Month, Week or Agenda."],
     ["Guarda el plan y el calendario y comprueba fechas, zona horaria y estados. Las sugerencias son propuestas editables; marcar Publicado es manual. El taller no publica anuncios ni activa campañas de Google Ads o Meta, y las metas no son resultados reales.","Save the plan and calendar and check dates, time zone and statuses. Suggestions are editable proposals; Published is a manual status. The workshop does not publish ads or activate Google Ads or Meta campaigns, and targets are not actual results."],
   ]),
   chapter("crm", "mailing", ["Campañas de correo","Email campaigns"], [
@@ -134,6 +135,16 @@ export const learningChapters: readonly LearningChapter[] = [
     ["Selecciona contactos y prepara plantilla, variables, enlaces y pasos de seguimiento.","Select contacts and prepare a template, variables, links and follow-up steps."],
     ["Revisa el mensaje individual, abre WhatsApp y envíalo desde la cuenta que elegiste en esa aplicación. Registra el resultado en Índice.","Review the individual message, open WhatsApp and send it from the account you selected in that application. Record the result in Índice."],
     ["Consulta pendientes y próximas acciones. Preparar el enlace no envía el mensaje; los resultados son confirmaciones manuales y una respuesta o exclusión detiene el seguimiento.","Review pending and next actions. Preparing the link does not send the message; outcomes are manual confirmations and a reply or exclusion stops follow-up."],
+  ]),
+  chapter("crm", "conversations", ["Conversaciones","Conversations"], [
+    ["Esta bandeja requiere activación del canal, permisos nativos y acceso explícito dentro de tu empresa y alcance. El despliegue del código no conecta un número ni habilita envíos.","This inbox requires channel activation, native permissions and explicit access within your company and scope. Deploying the code does not connect a number or enable sending."],
+    ["En un piloto autorizado, toma o revisa conversaciones permitidas y distingue respuestas al cliente de notas internas. Revisa responsable, ventana de atención y archivos antes de confirmar una respuesta.","In an authorized pilot, claim or review permitted conversations and distinguish customer replies from internal notes. Review ownership, the service window and files before confirming a reply."],
+    ["Comprueba la evidencia del proveedor. Aceptado no significa entregado o leído; un resultado desconocido requiere revisión y no debe reenviarse automáticamente.","Check provider evidence. Accepted does not mean delivered or read; an unknown outcome requires review and must not be resent automatically."],
+  ]),
+  chapter("crm", "whatsapp-settings", ["Administrar canal WhatsApp","Manage WhatsApp channel"], [
+    ["Revisa la empresa, el alcance y las autorizaciones del piloto. La conexión real con Meta permanece deshabilitada hasta verificar sus requisitos y el adaptador.","Review the company, scope and pilot authorizations. Real Meta onboarding remains disabled until its requirements and adapter are verified."],
+    ["Cuando exista un canal autorizado, administra accesos explícitos dentro de tus permisos y revisa su estado. La administración del canal no concede lectura de conversaciones ni cambia sus responsables comerciales.","Once an authorized channel exists, manage explicit access within your permissions and review its state. Channel administration does not grant conversation reading or change commercial owners."],
+    ["Pausar o desconectar conserva el historial. Distingue la desconexión local de revocar acceso en Meta y comprueba los envíos pendientes o de resultado desconocido.","Pausing or disconnecting retains history. Distinguish local disconnection from revocation in Meta and review pending or unknown sends."],
   ]),
   chapter('control_minutas', 'meetings', ['Juntas y minutas', 'Meetings and minutes'], [
     ['Revisa participantes, responsable, horario y permisos antes de planear una junta o serie finita.', 'Review participants, owner, time and permissions before planning a meeting or finite series.'],

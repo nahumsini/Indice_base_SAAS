@@ -1,6 +1,6 @@
 {
   "version": "2026-10-23.v1",
-  "sourceDigest": "b6cce4d4b3ea0177271be03539ab57ae1ad9a456bf22f487c1ee8a0b78181a97",
+  "sourceDigest": "713925cc62f62eabd604ac758e671df56b5e9c802acf702e61d5293aba20a4a4",
   "modules": [
     {
       "module": "ideas_board",
@@ -513,10 +513,10 @@
           "tab": "funneling",
           "label": "Campañas y embudo",
           "title": "Campañas y embudo",
-          "purpose": "Organiza notas y fotos en Mis ideas; define oferta, público, objetivo y canales de cada campaña con las opciones guiadas del taller.",
+          "purpose": "Organiza Mis ideas y define oferta, público, objetivo y canales. En la Biblioteca de empresa puedes completar preguntas de marca y conservar materiales sin cambiar la identidad global del negocio.",
           "effect": "Guarda el plan y el calendario y comprueba fechas, zona horaria y estados. Las sugerencias son propuestas editables; marcar Publicado es manual. El taller no publica anuncios ni activa campañas de Google Ads o Meta, y las metas no son resultados reales.",
           "chapterId": "crm.funneling",
-          "version": 3,
+          "version": 4,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -524,12 +524,12 @@
             {
               "id": "prepare",
               "title": "Antes de empezar",
-              "description": "Organiza notas y fotos en Mis ideas; define oferta, público, objetivo y canales de cada campaña con las opciones guiadas del taller."
+              "description": "Organiza Mis ideas y define oferta, público, objetivo y canales. En la Biblioteca de empresa puedes completar preguntas de marca y conservar materiales sin cambiar la identidad global del negocio."
             },
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Revisa el embudo y prepara el prompt en Generación de contenido. En Calendario de contenido elige campaña, agenda piezas o revisa Contenido sugerido y guarda las seleccionadas. Consulta Mes, Semana o Agenda."
+              "description": "Selecciona expresamente la información y los materiales para cada campaña antes de preparar el prompt. Revisa el embudo y el Calendario de contenido, agenda piezas o guarda sugerencias editables; consulta Mes, Semana o Agenda."
             },
             {
               "id": "verify",
@@ -593,6 +593,64 @@
               "id": "verify",
               "title": "Comprueba el resultado",
               "description": "Consulta pendientes y próximas acciones. Preparar el enlace no envía el mensaje; los resultados son confirmaciones manuales y una respuesta o exclusión detiene el seguimiento."
+            }
+          ]
+        },
+        {
+          "tab": "conversations",
+          "label": "Conversaciones",
+          "title": "Conversaciones",
+          "purpose": "Esta bandeja requiere activación del canal, permisos nativos y acceso explícito dentro de tu empresa y alcance. El despliegue del código no conecta un número ni habilita envíos.",
+          "effect": "Comprueba la evidencia del proveedor. Aceptado no significa entregado o leído; un resultado desconocido requiere revisión y no debe reenviarse automáticamente.",
+          "chapterId": "crm.conversations",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Esta bandeja requiere activación del canal, permisos nativos y acceso explícito dentro de tu empresa y alcance. El despliegue del código no conecta un número ni habilita envíos."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "En un piloto autorizado, toma o revisa conversaciones permitidas y distingue respuestas al cliente de notas internas. Revisa responsable, ventana de atención y archivos antes de confirmar una respuesta."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Comprueba la evidencia del proveedor. Aceptado no significa entregado o leído; un resultado desconocido requiere revisión y no debe reenviarse automáticamente."
+            }
+          ]
+        },
+        {
+          "tab": "whatsapp-settings",
+          "label": "Administrar canal WhatsApp",
+          "title": "Administrar canal WhatsApp",
+          "purpose": "Revisa la empresa, el alcance y las autorizaciones del piloto. La conexión real con Meta permanece deshabilitada hasta verificar sus requisitos y el adaptador.",
+          "effect": "Pausar o desconectar conserva el historial. Distingue la desconexión local de revocar acceso en Meta y comprueba los envíos pendientes o de resultado desconocido.",
+          "chapterId": "crm.whatsapp-settings",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Revisa la empresa, el alcance y las autorizaciones del piloto. La conexión real con Meta permanece deshabilitada hasta verificar sus requisitos y el adaptador."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Cuando exista un canal autorizado, administra accesos explícitos dentro de tus permisos y revisa su estado. La administración del canal no concede lectura de conversaciones ni cambia sus responsables comerciales."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Pausar o desconectar conserva el historial. Distingue la desconexión local de revocar acceso en Meta y comprueba los envíos pendientes o de resultado desconocido."
             }
           ]
         },
@@ -3341,10 +3399,10 @@
           "tab": "funneling",
           "label": "Campaigns and funnel",
           "title": "Campaigns and funnel",
-          "purpose": "Organize notes and photos in My ideas; define each campaign’s offer, audience, goal and channels with the workshop’s guided choices.",
+          "purpose": "Organize My ideas and define offer, audience, goal and channels. In the Company library you can answer brand questions and retain materials without changing the business’s global identity.",
           "effect": "Save the plan and calendar and check dates, time zone and statuses. Suggestions are editable proposals; Published is a manual status. The workshop does not publish ads or activate Google Ads or Meta campaigns, and targets are not actual results.",
           "chapterId": "crm.funneling",
-          "version": 3,
+          "version": 4,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3352,12 +3410,12 @@
             {
               "id": "prepare",
               "title": "Before starting",
-              "description": "Organize notes and photos in My ideas; define each campaign’s offer, audience, goal and channels with the workshop’s guided choices."
+              "description": "Organize My ideas and define offer, audience, goal and channels. In the Company library you can answer brand questions and retain materials without changing the business’s global identity."
             },
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Review the funnel and prepare the prompt in Content generation. In Content calendar choose a campaign, schedule pieces or review Suggested content and save selected items. Browse Month, Week or Agenda."
+              "description": "Explicitly select each campaign’s information and materials before preparing its prompt. Review the funnel and Content calendar, schedule pieces or save editable suggestions; browse Month, Week or Agenda."
             },
             {
               "id": "verify",
@@ -3421,6 +3479,64 @@
               "id": "verify",
               "title": "Verify the result",
               "description": "Review pending and next actions. Preparing the link does not send the message; outcomes are manual confirmations and a reply or exclusion stops follow-up."
+            }
+          ]
+        },
+        {
+          "tab": "conversations",
+          "label": "Conversations",
+          "title": "Conversations",
+          "purpose": "This inbox requires channel activation, native permissions and explicit access within your company and scope. Deploying the code does not connect a number or enable sending.",
+          "effect": "Check provider evidence. Accepted does not mean delivered or read; an unknown outcome requires review and must not be resent automatically.",
+          "chapterId": "crm.conversations",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "This inbox requires channel activation, native permissions and explicit access within your company and scope. Deploying the code does not connect a number or enable sending."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "In an authorized pilot, claim or review permitted conversations and distinguish customer replies from internal notes. Review ownership, the service window and files before confirming a reply."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Check provider evidence. Accepted does not mean delivered or read; an unknown outcome requires review and must not be resent automatically."
+            }
+          ]
+        },
+        {
+          "tab": "whatsapp-settings",
+          "label": "Manage WhatsApp channel",
+          "title": "Manage WhatsApp channel",
+          "purpose": "Review the company, scope and pilot authorizations. Real Meta onboarding remains disabled until its requirements and adapter are verified.",
+          "effect": "Pausing or disconnecting retains history. Distinguish local disconnection from revocation in Meta and review pending or unknown sends.",
+          "chapterId": "crm.whatsapp-settings",
+          "version": 2,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Review the company, scope and pilot authorizations. Real Meta onboarding remains disabled until its requirements and adapter are verified."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Once an authorized channel exists, manage explicit access within your permissions and review its state. Channel administration does not grant conversation reading or change commercial owners."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Pausing or disconnecting retains history. Distinguish local disconnection from revocation in Meta and review pending or unknown sends."
             }
           ]
         },

@@ -881,8 +881,9 @@ the canonical public release gate applies independently to each new candidate an
 
 See [the owner security contract](../docs/security-identity-and-evidence-contract-v1.md).
 This source branch adds V349 HR employment contacts and V350 financial upload sealing.
-Before activation, verify the target Flyway lineage; these versions conflict with the separate
-unmerged WhatsApp worktree and must not be combined or repaired in place. Both shipped web
+Before activation, verify the target Flyway lineage. The 2026-10-23 unified release retains
+published V349/V350 and assigns the previously unpublished WhatsApp changes to V356–V359;
+never repair or replace applied versions. Both shipped web
 proxy configurations mask recovery-token paths and suppress raw error logging on recovery routes.
 Deploy frontend and backend together so attendance uploads include `size_bytes`. Preserve the
 additive schema, old attachment readability, private final evidence and rollback history.
