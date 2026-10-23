@@ -29,14 +29,19 @@ export TEST_MINIO_SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_
 export MINIO_ROOT_USER="$TEST_MINIO_ACCESS_KEY" MINIO_ROOT_PASSWORD="$TEST_MINIO_SECRET_KEY"
 export TEST_MINIO_ENDPOINT="http://127.0.0.1:$port"
 container_id="$(docker run -d --name "$container" --label indice.purpose=isolated-mail-attachment-test \
-  --tmpfs /data:rw,nosuid,size=134217728 --memory=512m -p "127.0.0.1:$port:9000" \
+  --user 10001:10001 --workdir /data --entrypoint /usr/bin/minio \
+  --tmpfs /data:rw,nosuid,size=134217728,mode=1777 --memory=512m -p "127.0.0.1:$port:9000" \
   -e MINIO_ROOT_USER -e MINIO_ROOT_PASSWORD "$image" server /data --address :9000)"
 ready=false
 for attempt in $(seq 1 30); do
   if curl -fsS "$TEST_MINIO_ENDPOINT/minio/health/live" >/dev/null 2>&1; then ready=true; break; fi
   sleep 1
 done
-[[ "$ready" == true ]] || { echo 'Disposable MinIO did not become ready.' >&2; exit 1; }
+if [[ "$ready" != true ]]; then
+  docker inspect "$container_id" --format 'Private MinIO running={{.State.Running}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}' >&2
+  echo 'Disposable MinIO did not become ready; no application upload test was skipped or accepted.' >&2
+  exit 1
+fi
 echo 'Testing small and 10 MiB template/private uploads with real disposable MinIO; SMTP is mocked.'
 cd "$root"
 ./mvnw -B -ntp '-Dtest=MailboxIntegrationTest#realMinioPersistsReusableTemplateAndPrivateAttachments' test

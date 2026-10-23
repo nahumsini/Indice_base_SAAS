@@ -53,6 +53,14 @@ privado 13321, verificado antes de Maven. MinIO del ensayo usó tmpfs y puerto p
 19300 y se eliminó al terminar. SMTP permaneció simulado: ningún correo real se envió.
 No se usaron ni modificaron datos funcionales durante estas pruebas.
 
+La primera ejecución del nuevo ensayo en CI se detuvo antes de ejecutar las pruebas
+de archivos: el servicio MinIO sin privilegios no pudo escribir en el tmpfs. Se
+reprodujo con UID 10001, entrada directa al binario y directorio de trabajo `/data`.
+El arnés fija ahora el modo del volumen temporal y reproduce ese mismo usuario/arranque
+localmente. Los dos tamaños volvieron a pasar, sin privilegios y sin omitir casos.
+La ejecución CI fallida no se considera aprobada; se requiere otra ejecución completa.
+Este ajuste del arnés no cambia los bytes de la aplicación previamente probada.
+
 El arnés repetible es `scripts/test-mail-attachments-minio.sh`. Exige la base aislada,
 rechaza nombres de contenedor ya ocupados, genera credenciales efímeras y limpia
 únicamente el contenedor que creó. CI construye MinIO desde su fuente oficial fijada.
