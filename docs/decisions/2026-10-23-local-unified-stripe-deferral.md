@@ -38,4 +38,11 @@ browser/contract checks and authenticated connection continuity are recorded sep
 from human product acceptance, which remains UNKNOWN until the owner reviews the result.
 This changes acceptance timing only; it does not waive a known security or integrity defect.
 
-Activation and authorization closure are pending and must be recorded after observation.
+The ordered activation and observations passed on 2026-10-23. App Test was verified at
+22:03:16Z and observed through 22:08:17.822Z; production was verified at 22:16:29Z and
+observed through 22:21:29.945Z. Final joint verification passed at 22:21:37.857026Z.
+Authorization closed at **2026-10-23T22:21:37.886116Z** and its private operational record
+now has `authorized=false`. This exception window is closed and cannot be reused.
+The historical Stripe TEST-key finding remains HIGH and unresolved. Human product
+acceptance remains UNKNOWN; all WhatsApp provider and publication switches remain off.
+See the [activation closeout](../validation/2026-10-23-local-unified-release.md#activación-y-cierre).

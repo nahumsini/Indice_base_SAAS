@@ -135,6 +135,10 @@ observation, no later than 2026-10-24T06:00:00Z; it does not authorize another r
 The HIGH key finding remains unresolved. All other security, data-integrity, recovery,
 capacity and observation gates apply; provider flags, prices and existing access remain
 protected. Human product acceptance is recorded separately from engineering validation.
+The ordered activation, both five-minute observations and final joint verification passed;
+this authorization closed at **2026-10-23T22:21:37.886116Z** and cannot be reused.
+The historical TEST-key finding remains HIGH and unresolved. See the
+[unified activation evidence](validation/2026-10-23-local-unified-release.md#activación-y-cierre).
 
 For the 2026-10-06 release, the owner's later explicit instruction to review directly in production
 replaces only the human-UAT location/timing, as recorded in the

@@ -1,8 +1,10 @@
 # Biblioteca de plantillas compacta — 2026-10-23
 
-Estado: **IMPLEMENTADA Y VERIFICADA EN LOCAL**. No se publicó este diseño en los
-entornos públicos. La autorización del hotfix de adjuntos identifica exclusivamente
-el backend `fb01d39f`; no se reutiliza para publicar este incremento visual.
+Estado: **DESPLEGADA EN APP TEST Y PRODUCCIÓN** el 2026-10-23, dentro del candidato
+unificado `76780da7`, con CI completo y observación de ambos entornos aprobados.
+La autorización cerrada del hotfix `fb01d39f` no se reutilizó; la publicación y su
+decisión puntual se registran en el [cierre unificado](2026-10-23-local-unified-release.md#activación-y-cierre).
+La aceptación humana integrada continúa pendiente.
 
 ## Alcance y clasificación
 
@@ -66,5 +68,8 @@ Evidencia privada: `/private/tmp/indice-mail-upload-hotfix-20261023/modal-*` y
 `/tmp/indice-template-workspace-review/`. Fallas finales: ninguna. La prueba nueva
 se ajustó para cancelar desde el pie y buscar el registro de lectura que está fuera
 de la primera página; la falla real de retorno de foco quedó corregida y cubierta.
-CI completo de este incremento visual y aceptación humana integrada: **PENDIENTES**;
-el CI aprobado del hotfix no se presenta como evidencia de este diseño nuevo.
+CI completo de este incremento visual: **PASS** en el
+[candidato unificado `76780da7`](https://github.com/nahumsini/Indice_base_SAAS/actions/runs/40027119178).
+Las comprobaciones públicas y los contextos autenticados de ambos entornos pasan;
+la aceptación humana integrada sigue **UNKNOWN**. No se presenta el CI del hotfix
+anterior como evidencia de este diseño nuevo ni se envían correos reales para validarlo.

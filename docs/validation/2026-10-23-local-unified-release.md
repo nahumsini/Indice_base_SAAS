@@ -1,6 +1,7 @@
 # Liberación unificada del trabajo local — 23 de octubre de 2026
 
-Estado: preparación y verificaciones completas; activación pendiente.
+Estado: **DESPLEGADA EN APP TEST Y PRODUCCIÓN**; verificaciones finales y observación
+de ambos entornos aprobadas. Autorización puntual cerrada el 2026-10-23 a las 22:21:37 UTC.
 
 ## Código integrado
 
@@ -122,4 +123,50 @@ proveedores como parte de estas pruebas. La aceptación humana del producto sigu
 
 ## Activación y cierre
 
-Pendiente de registrar tras App Test, producción, observación y verificación final.
+Las activaciones utilizaron el wrapper canónico de host-network, con los artefactos
+exactos anteriores y los archivos protegidos independientes de cada entorno. Se actualizó
+primero el runtime previo con los parches de seguridad y después la aplicación nueva.
+Los dos pasos conservaron la configuración de negocio, los montajes y el entorno opuesto.
+
+| Entorno | Preparación segura de recuperación (UTC) | Activación nueva (UTC) | Observación (UTC) | Resultado |
+| --- | --- | --- | --- | --- |
+| App Test | 22:00:26 → 22:01:51 | 22:01:51 → 22:03:16 | 22:03:16.856 → 22:08:17.822 | PASS; 300,966 s |
+| Producción | 22:13:39 → 22:15:03 | 22:15:04 → 22:16:29 | 22:16:29.042 → 22:21:29.945 | PASS; 300,903 s |
+
+Cada observación contiene seis muestras de página, API, almacenamiento y MCP: HTTP 200,
+cero reinicios y cero errores de backend. Ambos procesos terminaron con código 0.
+La comprobación conjunta final pasó a las **22:21:37.857026 UTC**:
+
+- IDs exactos de backend/web/MCP, SHA-256 del JAR y Node/Zod/ip-address parcheados en ejecución.
+- Flyway V359 sin migraciones fallidas; historial publicado y checksums anteriores intactos.
+- Precios, referencias de suscripciones, permisos existentes, entorno y archivos protegidos sin cambios.
+- Nuevos permisos de Conversaciones explícitamente denegados; conexiones, miembros y outbox de WhatsApp vacíos; switches de proveedor apagados.
+- Recuperación compatible retenida y detenida; MinIO conserva su imagen y montajes originales.
+- HTML público idéntico al de la imagen, cabeceras de seguridad presentes y ocho rutas protegidas rechazando acceso anónimo con 401 por entorno.
+- Navegador real de ambas páginas de acceso sin errores JavaScript ni recursos fallidos. No se enviaron credenciales desde ese navegador.
+- Conectores autenticados conservan usuario, empresa, membresía, rol, alcance y asignaciones anteriores.
+
+No hubo rollback ni fallas finales. Los ensayos aislados que detectaron incompatibilidad
+del backend V353 y los fixtures de permisos de lectura quedaron resueltos y se repitieron
+con éxito antes de activar. Envíos SMTP/Meta reales y cobros de prueba en producción: **N/A**.
+La aceptación humana sigue **UNKNOWN**. El onboarding real de Meta sigue pendiente y la
+integración de código no activa WhatsApp. Stripe TEST permanece **HIGH y pendiente**.
+
+La autorización puntual se cerró a las **2026-10-23T22:21:37.886116Z**, con
+`authorized=false` en el registro operativo; no permite otro despliegue. Se conservaron
+los respaldos fuera del servidor y una copia privada verificada de 218 archivos de evidencia
+operativa (SHA-256 del archivo comprimido
+`2afd555caa0d8ee699713b8051eb3a429da4f1482750b489815153264c0a96d4`).
+Los contextos privados, entornos y respaldos no se agregan a Git.
+
+`main` y `release/local-unified-20261023` contienen todo el código integrado. La carpeta
+principal adoptó su snapshot exacto y avanzó por fast-forward, sin descartar archivos;
+quedó limpia en la nueva rama publicada `codex/next-work-20261023`. La rama original y
+las otras dos carpetas de trabajo se conservaron. Los commits de cierre sólo modifican
+documentación: los bytes de aplicación siguen siendo los del candidato `76780da7`.
+
+Evidencia privada local: `/private/tmp/indice-local-unified-release-20261023/latest-evidence/`.
+Evidencia operativa y configuración de recuperación del host:
+`/root/indice-local-unified-release-20261023/`. Para recuperación se debe usar el wrapper
+canónico y el backend compatible V359 de la tabla, nunca el JAR V353 sin los seis recursos
+adicionales; se conserva el esquema y no se reparan ni revierten migraciones aplicadas.
