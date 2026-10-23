@@ -61,7 +61,7 @@ export function registerTaskEditingTools(server: McpServer, reader: TaskEditor, 
     title: "Aplicar cambios confirmados de tarea",
     description: "Aplica únicamente la edición o reasignación de preview_update_task después de confirmación explícita del usuario. No acepta campos nuevos. Reutiliza la misma clave al reintentar. Si la tarea cambió, prepara otra vista previa y vuelve a confirmar; no sobrescribas cambios ajenos.",
     inputSchema: z.object({
-      confirmation_token: z.string().startsWith("idx_confirm_"),
+      confirmation_token: z.string().regex(/^idx_confirm_.*/),
       idempotency_key: z.string().min(8).max(128)
     }).strict(),
     outputSchema: taskCommitResponseSchema,

@@ -19,7 +19,7 @@ export const stageFileRequestSchema=z.object({purpose:filePurposeSchema,targetId
 export const stagedFileSchema=z.object({stagedFileId:z.uuid(),purpose:filePurposeSchema,targetId:id,documentType:z.string().nullable(),fileName:plainName,mimeType:fileMimeSchema,sizeBytes:id.max(10485760),sha256:hash,expiresAt:z.iso.datetime({offset:true})});
 export const attachFileRequestSchema=z.object({stagedFileId:z.uuid()}).strict();
 export const fileCommitRequestSchema=z.object({confirmationToken:z.string().regex(/^idx_confirm_[A-Za-z0-9_-]{43}$/),idempotencyKey:z.string().min(8).max(128)}).strict();
-export const filePreviewSchema=z.object({action:fileActionSchema,confirmationToken:z.string().startsWith("idx_confirm_"),expiresAt:z.iso.datetime({offset:true}),requiresConfirmation:z.literal(true),file:stagedFileSchema,targetName:z.string(),previousFileName:z.string().nullable(),effects:z.array(z.string()).min(1)});
+export const filePreviewSchema=z.object({action:fileActionSchema,confirmationToken:z.string().regex(/^idx_confirm_.*/),expiresAt:z.iso.datetime({offset:true}),requiresConfirmation:z.literal(true),file:stagedFileSchema,targetName:z.string(),previousFileName:z.string().nullable(),effects:z.array(z.string()).min(1)});
 export const attachedFileSchema=z.object({purpose:filePurposeSchema,targetId:id,attachmentId:id,fileName:plainName,mimeType:fileMimeSchema,sizeBytes:id.max(10485760),sha256:hash});
 export const fileCommittedSchema=z.object({action:fileActionSchema,replayed:z.boolean(),correlationId:z.string(),result:attachedFileSchema});
 export const fileListRequestSchema=z.object({purpose:filePurposeSchema,targetId:id}).strict();
@@ -34,7 +34,7 @@ export const commerceReportRequestSchema=z.object({report:z.enum(["inventory_pro
 });
 export type CommerceReportRequest=z.infer<typeof commerceReportRequestSchema>;
 export const fileListSchema=fileListRequestSchema.extend({items:z.array(z.object({attachmentId:id,fileName:z.string(),mimeType:z.string(),sizeBytes:id,documentType:z.string().nullable()}))});
-export const fileMetadataSchema=z.object({uri:z.string().startsWith("indice://"),fileName:z.string(),mimeType:z.string(),sizeBytes:id.max(10485760),sha256:hash});
+export const fileMetadataSchema=z.object({uri:z.string().regex(/^indice:\/\/.*/),fileName:z.string(),mimeType:z.string(),sizeBytes:id.max(10485760),sha256:hash});
 export const fileContentSchema=fileMetadataSchema.extend({contentBase64:z.string().min(4).max(13981016)}).superRefine((v,c)=>{
   const bytes=Buffer.from(v.contentBase64,"base64");
   if(bytes.length!==v.sizeBytes||createHash("sha256").update(bytes).digest("hex")!==v.sha256)c.addIssue({code:"custom",message:"Private file integrity mismatch."});

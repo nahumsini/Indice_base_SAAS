@@ -19,7 +19,7 @@ export const commercialRecordSchema = z.object({
   amount: z.number().nullable(), stage: z.string().nullable(), flowId: id.nullable(), flowName: z.string().nullable(), probabilityPercent: z.number().int().nullable(), expectedCloseDate: z.iso.date().nullable(), nextAction: z.string().nullable(),
   expirationDate: z.iso.date().nullable(), terms: z.string().nullable(), items: z.array(lineResult)
 });
-export const commercialPreviewSchema = z.object({ action: z.string(), confirmationToken: z.string().startsWith("idx_confirm_"),
+export const commercialPreviewSchema = z.object({ action: z.string(), confirmationToken: z.string().regex(/^idx_confirm_.*/),
   expiresAt: z.iso.datetime(), requiresConfirmation: z.literal(true), before: commercialRecordSchema.nullable(),
   after: commercialRecordSchema, effects: z.array(z.string()) });
 export const commercialCommitSchema = z.object({ action: z.string(), replayed: z.boolean(), correlationId: z.string(), record: commercialRecordSchema });

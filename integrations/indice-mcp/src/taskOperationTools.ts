@@ -53,7 +53,7 @@ export function registerTaskOperationTools(server: McpServer, reader: TaskOperat
     configureTool(preview, `preview_${action}`, allowed);
     const commit = server.registerTool(action, {
       title: `Aplicar: ${action}`, description: `Aplica únicamente la operación de preview_${action} aprobada explícitamente. No recibe campos nuevos. Reutiliza confirmation_token e idempotency_key al reintentar.`,
-      inputSchema: z.object({ confirmation_token: z.string().startsWith("idx_confirm_"), idempotency_key: z.string().min(8).max(128) }).strict(), outputSchema: taskCommitResponseSchema,
+      inputSchema: z.object({ confirmation_token: z.string().regex(/^idx_confirm_.*/), idempotency_key: z.string().min(8).max(128) }).strict(), outputSchema: taskCommitResponseSchema,
       annotations: { readOnlyHint: false, destructiveHint: ["cancel_task", "share_task"].includes(action), idempotentHint: true, openWorldHint: false }
     }, async input => {
       try {

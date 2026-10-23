@@ -94,7 +94,7 @@ export function registerHrTools(server: McpServer, reader: HrReader, allowed?: R
       } catch(error) { return toolError(error); }
     });
     configureTool(preview,`preview_${action}`,allowed);
-    const commit=server.registerTool(action,{ title:`Aplicar: ${action}`,description:`Aplica solo preview_${action} aprobada explícitamente. No recibe campos nuevos. Reutiliza la misma clave al reintentar para evitar duplicados.`,inputSchema:z.object({ confirmation_token:z.string().startsWith("idx_confirm_"),idempotency_key:z.string().min(8).max(128) }).strict(),outputSchema:hrCommitSchema,
+    const commit=server.registerTool(action,{ title:`Aplicar: ${action}`,description:`Aplica solo preview_${action} aprobada explícitamente. No recibe campos nuevos. Reutiliza la misma clave al reintentar para evitar duplicados.`,inputSchema:z.object({ confirmation_token:z.string().regex(/^idx_confirm_.*/),idempotency_key:z.string().min(8).max(128) }).strict(),outputSchema:hrCommitSchema,
       annotations:{ readOnlyHint:false,destructiveHint:action==="inactivate_employee",idempotentHint:true,openWorldHint:false }
     },async input=>{
       try {

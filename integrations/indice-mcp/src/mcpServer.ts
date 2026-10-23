@@ -315,7 +315,7 @@ export function createIndiceMcpServer(
     title: "Create confirmed task",
     description: "Crea en Índice únicamente la tarea contenida en una vista previa vigente. Úsala solo después de que el usuario confirme explícitamente los datos exactos mostrados por preview_create_task. No acepta título, descripción, prioridad ni fecha para impedir cambios posteriores a la confirmación.",
     inputSchema: z.object({
-      confirmation_token: z.string().startsWith("idx_confirm_")
+      confirmation_token: z.string().regex(/^idx_confirm_.*/)
         .describe("Token interno devuelto por preview_create_task."),
       idempotency_key: z.string().min(8).max(128)
         .describe("Clave única generada para este intento, preferentemente un UUID. Reutiliza la misma al reintentar.")
@@ -738,7 +738,7 @@ function registerFinancePreview(
   const tool = server.registerTool(toolName, {
     title, description, inputSchema,
     outputSchema: {
-      confirmationToken: z.string().startsWith("idx_confirm_"),
+      confirmationToken: z.string().regex(/^idx_confirm_.*/),
       expiresAt: z.iso.datetime(), requiresConfirmation: z.literal(true),
       action: z.enum(["create_expense_draft", "register_fund_expense", "add_money_to_fund"]),
       preview: z.record(z.string(), z.unknown())
@@ -770,7 +770,7 @@ function registerFinanceCommit(
     title,
     description: `${description} Úsala solo después de confirmación explícita de la vista previa.`,
     inputSchema: {
-      confirmation_token: z.string().startsWith("idx_confirm_"),
+      confirmation_token: z.string().regex(/^idx_confirm_.*/),
       idempotency_key: z.string().min(8).max(128)
     },
     outputSchema: {

@@ -181,7 +181,7 @@ export const taskDraftSchema = z.object({
 });
 
 export const taskPreviewResponseSchema = z.object({
-  confirmationToken: z.string().startsWith("idx_confirm_"),
+  confirmationToken: z.string().regex(/^idx_confirm_.*/),
   expiresAt: z.iso.datetime(),
   requiresConfirmation: z.literal(true),
   task: taskDraftSchema,
@@ -189,7 +189,7 @@ export const taskPreviewResponseSchema = z.object({
 });
 
 export const taskCommitRequestSchema = z.object({
-  confirmationToken: z.string().startsWith("idx_confirm_"),
+  confirmationToken: z.string().regex(/^idx_confirm_.*/),
   idempotencyKey: z.string().min(8).max(128)
 }).strict();
 
@@ -237,7 +237,7 @@ export const financeActionNameSchema = z.enum([
 ]);
 
 export const financeActionPreviewResponseSchema = z.object({
-  confirmationToken: z.string().startsWith("idx_confirm_"),
+  confirmationToken: z.string().regex(/^idx_confirm_.*/),
   expiresAt: z.iso.datetime(),
   requiresConfirmation: z.literal(true),
   action: financeActionNameSchema,
@@ -245,7 +245,7 @@ export const financeActionPreviewResponseSchema = z.object({
 });
 
 export const financeActionCommitRequestSchema = z.object({
-  confirmationToken: z.string().startsWith("idx_confirm_"),
+  confirmationToken: z.string().regex(/^idx_confirm_.*/),
   idempotencyKey: z.string().min(8).max(128)
 });
 
