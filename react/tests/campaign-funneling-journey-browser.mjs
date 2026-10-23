@@ -17,7 +17,8 @@ try{
  for(const size of [{width:1440,height:1000},{width:390,height:844},{width:320,height:568},{width:844,height:390}]){
   const context=await browser.newContext({viewport:size,permissions:['clipboard-read','clipboard-write'],...(size.width<768?{isMobile:true,hasTouch:true}:{})});
   await context.addInitScript(()=>localStorage.setItem('frontend-indice-language','es-MX'));
-  const page=await context.newPage(),errors=[];page.setDefaultTimeout(12000);page.on('pageerror',e=>errors.push(e.message));
+  const page=await context.newPage(),errors=[],unexpected=[];page.setDefaultTimeout(12000);page.on('pageerror',e=>errors.push(e.message));
+  await context.route('**/*',route=>{const url=new URL(route.request().url());if(url.origin!==origin||url.pathname.startsWith('/api/')){unexpected.push(url.pathname);return route.abort();}return route.continue();});
   const name=`Campaña completa ${size.width} · ejemplo`,hook='¿Tu equipo olvida dar seguimiento? Empieza por aquí.';
   try{
    await page.goto(origin+'/tests/fixtures/campaign-workshop.html');
@@ -52,6 +53,7 @@ try{
    await guide.getByRole('combobox',{name:'Gancho de entrada',exact:true}).selectOption('CUSTOM');
    await guide.getByRole('textbox',{name:/^Tu propio gancho/}).fill(hook);
    await guide.getByRole('textbox',{name:'Tema o idea concreta',exact:true}).fill('Cómo dar seguimiento a pendientes');
+   await guide.locator('summary').filter({hasText:'Variantes para comparar'}).click();
    await guide.getByRole('combobox',{name:'Variantes para comparar',exact:true}).selectOption('HOOKS');
    await guide.getByRole('combobox',{name:'Cantidad de variantes',exact:true}).selectOption('3');
    // Errors in a different panel must reveal the actual stage, without discarding hooks.
@@ -102,18 +104,18 @@ try{
    if(size.width<1024)assert.ok(await inBody(guide.getByRole('heading')),'Reopened guide must be brought into view');
    await page.screenshot({path:resolve(artifacts,`saved-${size.width}.png`)});
    await dialog.getByRole('button',{name:'Cancelar',exact:true}).click();await page.reload();
-   await page.getByRole('tab',{name:'Mis ideas',exact:true}).click();
+   await page.getByRole('tab',{name:'Campañas',exact:true}).click();
    await page.getByRole('button',{name,exact:true}).click();await page.getByRole('button',{name:'Preparar para IA',exact:true}).click();
    assert.equal(await dialog.locator('textarea[readonly]').inputValue(),prompt);
    await dialog.getByRole('button',{name:'Copiar prompt',exact:true}).click();await until(page,async()=>await dialog.getByText('Prompt copiado.',{exact:true}).count());assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),prompt);
    await dialog.getByRole('button',{name:'Cancelar',exact:true}).click();
-   await page.getByRole('tab',{name:'Mis ideas',exact:true}).click();
+   await page.getByRole('tab',{name:'Campañas',exact:true}).click();
    await page.getByRole('button',{name:'Duplicar: '+name,exact:true}).click();await dialog.getByRole('button',{name:'Configurar campaña',exact:true}).click();await dialog.getByRole('tab',{name:'Preparar para IA',exact:true}).click();
    assert.equal(await guide.getByRole('textbox',{name:/^Tu propio gancho/}).inputValue(),hook);
    await guide.getByRole('textbox',{name:/^Tu propio gancho/}).fill('Gancho de la copia independiente');
    await dialog.getByRole('button',{name:'Guardar plan',exact:true}).click();await dialog.waitFor({state:'hidden'});
    assert.equal(await page.evaluate(n=>window.campaignFixture.stats().rows.find(r=>r.name===n).contentGuide.customHook,name),hook);
-   assert.deepEqual(errors,[]);console.log(`PASS ${size.width}x${size.height}: create/configure/stages/hooks, visible validation, clipboard/recovery/download, failed save/retry/double-submit, reopen/reload/duplicate.`);
+   assert.deepEqual(errors,[]);assert.deepEqual(unexpected,[]);console.log(`PASS ${size.width}x${size.height}: create/configure/stages/hooks, visible validation, clipboard/recovery/download, failed save/retry/double-submit, reopen/reload/duplicate; external/API traffic=0.`);
   }catch(error){await page.screenshot({path:resolve(artifacts,`failure-${size.width}.png`)});throw error;}
   finally{await context.close();}
  }

@@ -10,6 +10,10 @@ import { funnelApi } from '../../src/app/BasicModules/Sales/Funneling/funnelApi'
 import { newCampaignIdea } from '../../src/app/BasicModules/Sales/Funneling/campaignModel';
 import { previewConversion, type FunnelPlan } from '../../src/app/BasicModules/Sales/Funneling/funnelModel';
 import { ApiClientError } from '../../src/app/lib/apiClient';
+import { brandApi } from '../../src/app/BasicModules/Sales/Funneling/brand/brandApi';
+import { emptyBrandDetails } from '../../src/app/BasicModules/Sales/Funneling/brand/brandModel';
+// An unselected brand context is fixture-owned; never fall through to a local API.
+brandApi.snapshot=async()=>({companyName:'Estudio Alba · Ejemplo',details:emptyBrandDetails(),assets:[],version:0,profileVersion:0,includeProfile:false});
 import { authApi } from '../../src/app/api/auth';
 import { workspaceStateApi } from '../../src/app/api/workspaceState';
 import { contentCalendarApi } from '../../src/app/BasicModules/Sales/Funneling/calendar/contentCalendarApi';
