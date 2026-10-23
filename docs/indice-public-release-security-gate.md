@@ -115,6 +115,14 @@ at 18:20:43 UTC, as recorded in the
 [activation report](validation/2026-10-23-integrated-release-activation.md).
 The historical TEST-key finding remains unresolved.
 
+For attachment hotfix `fb01d39fe23381ada960de92863d875f3f14c806`, the owner separately
+answered "Autorizar excepción puntual" under the
+[mail attachment hotfix decision](decisions/2026-10-23-mail-attachment-hotfix-stripe-deferral.md).
+Only the historical TEST-key revocation blocker is replaced for this exact backend,
+ordered App Test → production activation and five-minute observation per environment,
+ending no later than 2026-10-23T22:00:00Z. The HIGH finding remains unresolved;
+all other gates apply. The separate template modal refinement is outside this artifact.
+
 For the 2026-10-06 release, the owner's later explicit instruction to review directly in production
 replaces only the human-UAT location/timing, as recorded in the
 [bounded production-acceptance decision](decisions/2026-10-06-owner-production-acceptance.md).
