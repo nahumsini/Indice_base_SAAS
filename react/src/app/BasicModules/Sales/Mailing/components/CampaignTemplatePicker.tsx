@@ -3,6 +3,7 @@ import { Input } from "../../../../components/ui/input";
 import { Button } from "../../../../components/ui/button";
 import { templateApi, type EmailTemplate } from "../mailingApi";
 import type { MailingCopy } from "../translations";
+import { MailingFiles } from "./MailingFiles";
 import { TemplatePreview } from "./TemplateForm";
 import { campaignFieldClassName } from "./CampaignEditorField";
 
@@ -14,7 +15,7 @@ export function CampaignTemplatePicker({
   copy: MailingCopy;
   disabled: boolean;
   onApply: (
-    value: Pick<EmailTemplate, "subject" | "previewText" | "bodyText" | "bodyHtml">,
+    value: Pick<EmailTemplate, "subject" | "previewText" | "bodyText" | "bodyHtml" | "attachments">,
   ) => void;
 }) {
   const [search, setSearch] = useState("");
@@ -22,7 +23,7 @@ export function CampaignTemplatePicker({
   const [selected, setSelected] = useState("");
   const [preview, setPreview] = useState<Pick<
     EmailTemplate,
-    "subject" | "previewText" | "bodyText" | "bodyHtml"
+    "subject" | "previewText" | "bodyText" | "bodyHtml" | "attachments"
   > | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -173,7 +174,7 @@ export function CampaignTemplatePicker({
       )}
       {preview && (
         <>
-          <TemplatePreview value={preview} copy={copy} />
+          <TemplatePreview value={preview} copy={copy} /><MailingFiles files={preview.attachments??[]}/>
           <p className="text-sm text-slate-500">{copy.replaceContent}</p>
           <Button
             variant="outline"

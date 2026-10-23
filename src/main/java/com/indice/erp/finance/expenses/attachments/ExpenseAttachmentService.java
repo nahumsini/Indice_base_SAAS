@@ -26,16 +26,18 @@ public class ExpenseAttachmentService {
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties objectStorageProperties;
     private final CompanyStorageMeter storageMeter;
+    private final com.indice.erp.finance.attachments.FinanceAttachmentSealer sealer;
 
     public ExpenseAttachmentService(
             ExpenseAttachmentRepository repository,
             ObjectStorageService objectStorageService,
             ObjectStorageProperties objectStorageProperties,
-            CompanyStorageMeter storageMeter) {
+            CompanyStorageMeter storageMeter, com.indice.erp.finance.attachments.FinanceAttachmentSealer sealer) {
         this.repository = repository;
         this.objectStorageService = objectStorageService;
         this.objectStorageProperties = objectStorageProperties;
         this.storageMeter = storageMeter;
+        this.sealer = sealer;
     }
 
     @Transactional(readOnly = true)
@@ -90,8 +92,8 @@ public class ExpenseAttachmentService {
         var mimeType = ExpenseAttachmentRules.normalizeContentType(request.contentType());
         var fileName = ExpenseAttachmentRules.normalizeFileName(request.fileName());
         var objectKey = ExpenseAttachmentRules.buildObjectKey(context.companyId(), expenseId, fileName, mimeType);
-        var upload = storageMeter.presign(
-                context.companyId(), "EXPENSES",
+        var upload = sealer.presign(
+                context.companyId(), "EXPENSE", expenseId,
                 documentsBucket(),
                 objectKey,
                 mimeType,
@@ -118,13 +120,22 @@ public class ExpenseAttachmentService {
         var objectKey = ExpenseAttachmentRules.normalizeObjectKey(context.companyId(), expenseId, request.objectKey());
         var mimeType = ExpenseAttachmentRules.normalizeContentType(request.mimeType());
         var fileName = ExpenseAttachmentRules.normalizeFileName(request.originalFilename());
-        if (!objectStorageService.objectExists(documentsBucket(), objectKey)) {
-            throw FinanceApiException.badRequest("objectKey does not reference an uploaded expense attachment.");
+        var sealed = sealer.seal(context.companyId(), "EXPENSE", expenseId, documentsBucket(),
+                objectKey, mimeType, request.sizeBytes());
+        var existing = repository.findByObjectKey(context.companyId(), expenseId, sealed.key());
+        if (existing.isPresent()) {
+            var previous = existing.get();
+            if (!previous.originalFilename().equals(fileName) || !java.util.Objects.equals(previous.paymentAmount(), request.paymentAmount())
+                    || !java.util.Objects.equals(previous.paymentDate(), request.paymentDate())
+                    || !java.util.Objects.equals(previous.paymentAccountId(), request.paymentAccountId())) {
+                throw FinanceApiException.badRequest("Attachment upload has already been registered with different metadata.");
+            }
+            return previous.toResponse(signedUrl(previous.objectKey()));
         }
-        storageMeter.commit(context.companyId(), documentsBucket(), objectKey, request.sizeBytes());
 
-        var row = repository.insert(context, expenseId, fileName, mimeType, request.sizeBytes(), objectKey,
+        var row = repository.insert(context, expenseId, fileName, mimeType, request.sizeBytes(), sealed.key(),
                 request.paymentAmount(), request.paymentDate(), request.paymentAccountId());
+        repository.storeDigest(context.companyId(), row.id(), sealed.sha256());
         repository.refreshExpenseAttachmentCount(context, expenseId);
         return row.toResponse(signedUrl(row.objectKey()));
     }

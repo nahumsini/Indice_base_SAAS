@@ -13,13 +13,16 @@ public class AiToolCapabilityService {
 
     private final AiToolAuthorizationService authorizationService;
     private final HrAccessService hrAccessService;
+    private final com.indice.erp.meetings.MeetingAssistantService meetings;
 
     public AiToolCapabilityService(
         AiToolAuthorizationService authorizationService,
-        HrAccessService hrAccessService
+        HrAccessService hrAccessService,
+        com.indice.erp.meetings.MeetingAssistantService meetings
     ) {
         this.authorizationService = authorizationService;
         this.hrAccessService = hrAccessService;
+        this.meetings=meetings;
     }
 
     public List<String> allowedTools(AiAccessTokenRepository.StoredToken token) {
@@ -29,6 +32,12 @@ public class AiToolCapabilityService {
     private List<String> resolveAllowedTools(AiAccessTokenRepository.StoredToken token) {
         var tools = new TreeSet<String>();
         var user = token.user();
+        var meetingAccess=new com.indice.erp.ai.meetings.AiMeetingAccess(meetings);
+        for(var tool:com.indice.erp.meetings.MeetingAssistantService.READS)
+            add(tools,token,com.indice.erp.ai.meetings.AiMeetingAccess.scope(tool),()->meetingAccess.allowed(token,tool),tool);
+        for(var action:com.indice.erp.meetings.MeetingAssistantService.ACTIONS)
+            add(tools,token,com.indice.erp.ai.meetings.AiMeetingAccess.scope(action),()->meetingAccess.allowed(token,action),"preview_"+action,action);
+
         add(tools, token, AiAccessTokenService.LEARNING_READ, () -> canReadLearning(user), "get_system_guide", "get_learning_progress", "get_next_learning_mission");
         add(tools, token, AiAccessTokenService.LEARNING_MANAGE, () -> canReadLearning(user), "preview_update_learning_progress", "update_learning_progress");
         add(tools,token,AiAccessTokenService.HR_KPIS_READ,()->authorizationService.canReadGuideTab(user,"human_resources","kpis")&&hrAccessService.canAccessManagementTab(user,HrTab.KPIS),"get_hr_kpis");

@@ -9,6 +9,12 @@ import { indiceToolNameSchema, type IndiceToolName } from "./contracts.js";
 
 /** Discovery metadata only. Spring remains the authority for every invocation. */
 export const toolScopes: Record<IndiceToolName, string> = {
+"list_meetings":"meetings.read", "get_meeting":"meetings.read",
+"get_meeting_agreements":"meeting_agreements.read", "get_meeting_agreement_performance":"meeting_agreements.read",
+"preview_save_meeting_minutes":"meetings.manage", "save_meeting_minutes":"meetings.manage",
+"preview_create_meeting_agreement":"meeting_agreements.manage", "create_meeting_agreement":"meeting_agreements.manage",
+"preview_delegate_meeting_agreement_task":"meeting_agreements.manage", "delegate_meeting_agreement_task":"meeting_agreements.manage",
+
 "list_finance_accounting_accounts":"expenses.read",
 "get_finance_accounting_account":"expenses.read",
 "create_finance_accounting_account":"expenses.accounting.manage",
@@ -506,7 +512,7 @@ export function bearerChallenge(metadataUrl: URL, error?: "invalid_token"): stri
 
 export function configureTool(tool: RegisteredTool, name: string, allowedTools?: ReadonlySet<string>): void {
   const scope = toolScopes[indiceToolNameSchema.parse(name)];
-  tool.update({ _meta: { ...tool._meta, securitySchemes: [{ type: "oauth2", scopes: [scope] }] } });
+  tool.update({ _meta: { ...tool._meta, securitySchemes: [{ type: "oauth2", scopes: name.endsWith("delegate_meeting_agreement_task") ? [scope,"tasks.create","tasks.delegate"] : [scope] }] } });
   if (allowedTools && !allowedTools.has(name)) tool.disable();
 }
 
@@ -518,6 +524,7 @@ export function isRetryableRead(path: string, method: string): boolean {
   if (["/api/v1/ai/tools/learning/guide", "/api/v1/ai/tools/learning/progress"].includes(pathname!)) return true;
   if (pathname === "/api/v1/ai/tools/kpis/get_hr_kpis") return true;
   if (pathname === "/api/v1/ai/tools/kpis/get_process_task_kpis") return true;
+  if (pathname?.startsWith("/api/v1/ai/tools/meetings/")) return ["list_meetings","get_meeting","get_meeting_agreements","get_meeting_agreement_performance"].some(name => pathname === `/api/v1/ai/tools/meetings/${name}`);
   if (pathname?.startsWith("/api/v1/ai/tools/process_workflows/")) {
     const name=indiceToolNameSchema.safeParse(pathname.slice("/api/v1/ai/tools/process_workflows/".length));
     return name.success && ["projects.read","processes.read"].includes(toolScopes[name.data]);

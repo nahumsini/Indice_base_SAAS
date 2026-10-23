@@ -45,6 +45,8 @@ class KioskFileIntentServiceTest {
     private KioskFileIntentService service;
     private KioskExecutionContext context;
 
+    @Mock private com.indice.erp.billing.storage.CompanyStorageMeter storageMeter;
+
     @BeforeEach
     void setUp() {
         var properties = new ObjectStorageProperties();
@@ -54,7 +56,7 @@ class KioskFileIntentServiceTest {
             objectStorage,
             properties,
             rejections,
-            mock(com.indice.erp.billing.storage.CompanyStorageMeter.class)
+            storageMeter
         );
         var definition = new KioskResolvedDefinition(
             17L, 7L, "PROCESS_TASKS", "task_access", 31L, "TASKS", "Tasks",
@@ -305,6 +307,21 @@ class KioskFileIntentServiceTest {
                 "mimeTypes", List.of("application/pdf", "image/jpeg"),
                 "extensions", List.of(".pdf", ".jpg", ".jpeg"),
                 "maxSizeBytes", 10L * 1024L * 1024L, "maxFiles", 5));
+    }
+
+    @Test
+    void adoptsTheOwnerSealedKeyWithoutRecommittingTheOldStagingReservation() throws Exception {
+        givenPendingIntent("evidence.pdf", "application/pdf", 1024L);
+        String source="finance/expenses/7/41/attachments/pending.pdf", target="finance/expenses/7/41/attachments/sealed/private";
+        given(objectStorage.objectMetadata("documents",target)).willReturn(new StoredObjectMetadata(1024L,"application/pdf"));
+        given(objectStorage.readObjectPrefix("documents",target,4096)).willReturn("%PDF-1.7\n".getBytes(StandardCharsets.US_ASCII));
+        given(jdbcTemplate.update(contains("SET status = 'ADOPTED'"),any(Object[].class))).willReturn(1);
+        var policy=new LinkedHashMap<>(fileCapability().filePolicy());policy.put("ownerSealsOnRegister",true);
+        var capability=new KioskCapabilityDescriptor("expenses.attachment.register",1,"EXPENSES",KioskOperationPolicy.DIRECT,
+            KioskAccessLevel.CONTROLLED,true,false,Map.of(),Map.of(),Map.copyOf(policy));
+        service.captureOutcome(context,registerRequest(source),capability,Map.of("objectKey",target));
+        verify(storageMeter,never()).commitMoved(any(Long.class),anyString(),anyString(),anyString(),any(Long.class));
+        verify(jdbcTemplate).update(contains("SET status = 'ADOPTED'"),any(),eq(target),eq(17L),eq("session-1"),eq("41"),eq(source));
     }
 
     private KioskCapabilityDescriptor presignCapability() {

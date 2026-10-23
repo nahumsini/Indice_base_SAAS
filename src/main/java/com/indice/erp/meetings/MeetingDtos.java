@@ -51,6 +51,18 @@ public final class MeetingDtos {
         com.indice.erp.processTasks.tasks.ProcessTaskMeetingContract.TaskLink task,boolean canLinkTask) {
         @Override public String toString(){return "AgreementDetail[protected]";}
     }
+    public record DelegateTaskRequest(@Positive long expectedVersion,@Positive long assigneeId,
+        @NotNull LocalDate dueDate,@NotNull @Size(max=2000) String reason) {
+        @Override public String toString(){return "DelegateTaskRequest[protected]";}
+    }
+    public record AgreementEvidence(LocalDate originalDueDate,String deadlineBasis,Instant fulfilledAt,
+        String outcome,List<AgreementRevision> revisions) { }
+    public record AgreementRevision(String actorName,String previousAssigneeName,String assigneeName,
+        LocalDate previousDueDate,LocalDate dueDate,String reason,Instant occurredAt) {
+        @Override public String toString(){return "AgreementRevision[protected]";}
+    }
+    public record AgreementPerformance(long total,long eligible,long onTime,long late,long overdue,
+        long upcoming,long cancelled,long historicalUnknown,Integer onTimePercent,Instant calculatedAt,String timezone) { }
     public record AttendanceEntry(@Positive long userId,@NotBlank String status) { }
     public record AttendanceRequest(@NotNull @Size(max=101) List<@jakarta.validation.Valid AttendanceEntry> entries,
         @Positive long expectedVersion) { @Override public String toString(){return "AttendanceRequest[protected]";} }

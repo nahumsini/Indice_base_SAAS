@@ -77,6 +77,7 @@ test('private modal blocks synchronous dismissal while busy and Escape restores 
   if(id.endsWith('/schedulingSetupCopy'))return load('translations/schedulingSetupCopy.ts');
   if(id.endsWith('/schedulingOperationsCopy'))return load('translations/schedulingOperationsCopy.ts');
   if(id.endsWith('/bookingFlowCopy'))return load('translations/bookingFlowCopy.ts');
+   if(id.endsWith('/publicAgendaBrandCopy'))return load('translations/publicAgendaBrandCopy.ts');
   if(id.endsWith('/bookingFlow'))return utils;
   if(id.endsWith('/schedulingIdentity'))return {schedulingTone:'coral',schedulingEmoji:{calendar:'📅'}};
   return stub;
@@ -110,6 +111,7 @@ test('public presentation never mounts the private client picker even if a catal
    if(id.endsWith('/useBookingFlow'))return {useBookingFlow:()=>flow};
    if(id.endsWith('/bookingFlow'))return utils;
    if(id.endsWith('/bookingFlowCopy'))return load('translations/bookingFlowCopy.ts');
+   if(id.endsWith('/publicAgendaBrandCopy'))return load('translations/publicAgendaBrandCopy.ts');
    if(id.endsWith('/schedulingOperationsCopy'))return load('translations/schedulingOperationsCopy.ts');
    if(id.endsWith('/serviceTermsCopy'))return load('translations/serviceTermsCopy.ts');
    if(id.endsWith('/schedulingIdentity'))return {schedulingTone:'coral'};

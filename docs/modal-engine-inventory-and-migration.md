@@ -147,3 +147,10 @@ engine or persistent contact/minutes draft storage is introduced.
 - Uses native transaction currency and preloads preferred currency for new monetary entries.
 - Handles loading, empty, error, retry, permissions, attachments, and unsaved changes.
 - Preserves current route, API, validation, permission, and business behavior.
+
+
+Meeting refinement (2026-10-23): meeting detail remains a compact **Operational Workspace** with
+preparation before agenda/results, a lifecycle-aware footer entry to the existing route-backed room,
+and secondary actions in More options. Task delegation and agreement fulfilment are **Standard Form**
+editors that replace the detail and preserve draft/discard/error guards. The room retains native owners
+and permission gates; no nested active overlays or new modal engine.

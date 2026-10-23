@@ -63,6 +63,27 @@ class PersonalIdeasBoardIntegrationTest {
         assertThat(db.queryForObject("SELECT COUNT(*) FROM company_module_entitlements WHERE company_id=? AND module_slug='ideas_board'",Long.class,other)).isZero();
         assertThat(com.indice.erp.configcenter.users.ConfigCenterTabPermissionCatalog.isValidPermissionKey("ideas_board.canvas")).isTrue();
     }
+    @Test void freeformCatalogContentPersistsWithStepsAndIdempotentAutosave() throws Exception {
+        var base=node("Atender un pedido");
+        var catalog=new NodeCatalog("PROCESS","FLOW",List.of("Recibir","Preparar","Entregar"),null);
+        var enriched=new Node(base.id(),base.kind(),base.text(),base.x(),base.y(),base.width(),base.height(),base.shape(),base.color(),base.assetId(),base.appearance(),base.drawing(),catalog);
+        var request=new Input(new Document(List.of(enriched),List.of(),new Viewport(-120d,50d,.8d)),0,UUID.randomUUID().toString());
+        mvc.perform(put(URL).session(session()).header("X-CSRF-Token","synthetic-csrf").header("X-Idea-Board-Actor",key()).contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(request))).andExpect(status().isOk()).andExpect(jsonPath("$.content.nodes[0].catalog.steps[2]").value("Entregar"));
+        assertThat(service.save(actor,key(),request,PERSONAL).version()).isEqualTo(1);
+        mvc.perform(get(URL).session(session())).andExpect(status().isOk()).andExpect(jsonPath("$.content.nodes[0].catalog.category").value("PROCESS")).andExpect(jsonPath("$.content.nodes[0].catalog.icon").value("FLOW"));
+        assertThat(service.get(actor,PERSONAL).content().nodes().getFirst().catalog()).isEqualTo(catalog);
+        assertThat(mapper.writeValueAsString(base)).doesNotContain("catalog");
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM sales_funnel_idea_boards WHERE company_id=?",Long.class,company)).isZero();
+    }
+    @Test void catalogLimitsAndTheSalesBoundaryRejectInvalidMetadata(){
+        var base=node("Process");
+        for(var catalog:List.of(new NodeCatalog("UNKNOWN","FLOW",null,null),new NodeCatalog("PROCESS","SCRIPT",null,null),new NodeCatalog("PROCESS","FLOW",Collections.nCopies(51,"Step"),null),new NodeCatalog("PROCESS","FLOW",List.of(""),null),new NodeCatalog("PRODUCT","BOX",null,"FREE"))){
+            var enriched=new Node(base.id(),base.kind(),base.text(),base.x(),base.y(),base.width(),base.height(),base.shape(),base.color(),null,null,null,catalog);
+            assertThatThrownBy(()->service.validateSnapshot(actor,new Document(List.of(enriched),List.of(),new Viewport(0d,0d,1d)),PERSONAL)).isInstanceOf(ResponseStatusException.class);
+        }
+        var valid=new Node(base.id(),base.kind(),base.text(),base.x(),base.y(),base.width(),base.height(),base.shape(),base.color(),null,null,null,new NodeCatalog("PRODUCT","BOX",null,"SERVICE"));
+        assertThatThrownBy(()->service.validateSnapshot(actor,new Document(List.of(valid),List.of(),new Viewport(0d,0d,1d)),IdeasBoardScope.FUNNEL)).isInstanceOf(ResponseStatusException.class);
+    }
     @Test void personalReadAndWriteWorkWithoutSalesAccess() throws Exception {
         mvc.perform(get(URL).session(session())).andExpect(status().isOk()).andExpect(jsonPath("$.actorKey").value(key()));
         mvc.perform(put(URL).session(session()).header("X-CSRF-Token","synthetic-csrf").header("X-Idea-Board-Actor",key()).contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(input("Independent idea",0))))

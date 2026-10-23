@@ -16,7 +16,12 @@ public class MeetingController {
     private final MeetingRepository repository;
     private final MeetingService service;
     private final MeetingOperationalService operational;
-    public MeetingController(MeetingAccessService access,MeetingRepository repository,MeetingService service,MeetingOperationalService operational){this.access=access;this.repository=repository;this.service=service;this.operational=operational;}
+    private final MeetingAgreementPerformanceService performance;
+    public MeetingController(MeetingAccessService access,MeetingRepository repository,MeetingService service,MeetingOperationalService operational,MeetingAgreementPerformanceService performance){this.access=access;this.repository=repository;this.service=service;this.operational=operational;this.performance=performance;}
+    @GetMapping("/{id}/agreement-performance") public AgreementPerformance performance(HttpSession s,@PathVariable long id){return performance.performance(access.require(s,List.of("agreements"),null,false),id);}
+    @GetMapping("/agreements/{id}/evidence") public AgreementEvidence evidence(HttpSession s,@PathVariable long id){return performance.evidence(access.require(s,List.of("agreements"),null,false),id);}
+    @PostMapping("/agreements/{id}/task-delegation") public AgreementDetail delegateTask(HttpSession s,@PathVariable long id,
+        @RequestHeader(value="X-CSRF-Token",required=false)String token,@Valid @RequestBody DelegateTaskRequest body){return service.delegateTask(access.require(s,List.of("agreements"),token,true),id,body);}
     @GetMapping("/{id}/attendance") public Attendance attendance(HttpSession s,@PathVariable long id){return operational.attendance(access.require(s,List.of("meetings"),null,false),id);}
     @PutMapping("/{id}/attendance") public Attendance attendance(HttpSession s,@PathVariable long id,@RequestHeader(value="X-CSRF-Token",required=false)String token,@Valid @RequestBody AttendanceRequest body){return operational.attendance(access.require(s,List.of("meetings"),token,true),id,body);}
     @PostMapping("/availability") public Availability availability(HttpSession s,@RequestHeader(value="X-CSRF-Token",required=false)String token,@Valid @RequestBody AvailabilityRequest body){return operational.availability(access.require(s,List.of("meetings"),token,true),body);}

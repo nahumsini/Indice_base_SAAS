@@ -68,6 +68,7 @@ public class TabPermissionRouteClassifier {
             return any("maintenance.requests","maintenance.orders","maintenance.assets","maintenance.preventive","maintenance.indicators","maintenance.configuration");
         }
         if (path.startsWith("/api/v1/meetings")) {
+            if (path.matches("/api/v1/meetings/[0-9]+/agreement-performance")) return one("control_minutas.agreements");
             if (path.startsWith("/api/v1/meetings/metrics")) return one("control_minutas.indicators");
             if (path.startsWith("/api/v1/meetings/agreements") || path.startsWith("/api/v1/meetings/agreement-meetings") || path.startsWith("/api/v1/meetings/agreement-assignees")) return one("control_minutas.agreements");
             return one("control_minutas.meetings");

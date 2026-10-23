@@ -516,3 +516,23 @@ separate approved domain decision and recovery tests.
   current release evidence.
 
 These items define the next MCP foundation blocks. They do not authorize additional write actions.
+
+
+## Meeting tools and explicit delegation — 2026-10-23
+
+The meeting owner adapter provides list_meetings/get_meeting (meetings.read),
+get_meeting_agreements/get_meeting_agreement_performance (meeting_agreements.read),
+save_meeting_minutes (meetings.manage), create_meeting_agreement and
+ delegate_meeting_agreement_task (meeting_agreements.manage). Every action has a preview tool and
+uses the existing immutable five-minute preview/confirmation/commit protocol. Delegation additionally
+requires tasks.create + tasks.delegate consent, native Processes tab/assignment scope and meeting
+coordination authority. These scopes are opt-in and do not expand existing connections.
+
+The native owner validates explicit meeting IDs, participant assignees and dates, preserves expected
+versions and creates one durable agreement/task link. MCP never uses generic create_task to bypass
+that link. Reads remain paginated and scoped; agreement tools do not expose meeting minute text.
+Confirmation commits accept only token + idempotency key, reject replacement fields, recheck current
+permissions and retain audit. Identical retries return the original identity with current authorized
+projection. The read-only POST allowlist excludes previews/commits. Capability discovery and tool
+security metadata reflect these permissions. No tool infers attendance, votes, fulfilment or closure.
+Existing plain bounded minutes/decisions stay compatible; per-topic sheet storage is not delivered.

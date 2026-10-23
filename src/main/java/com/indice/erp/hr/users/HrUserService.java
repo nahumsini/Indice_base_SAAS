@@ -213,10 +213,7 @@ public class HrUserService {
     /** Partial assistant edits preserve access roles and cannot grant or demote account authority. */
     @Transactional
     public Map<String, Object> updateAssistantUser(AuthSessionUser user, long id, Map<String, Object> payload) {
-        var currentRole = jdbcTemplate.queryForObject("SELECT role FROM user_companies WHERE company_id=? AND id=?", String.class, user.companyId(), id);
-        var changes = new LinkedHashMap<>(payload);
-        changes.put("role", currentRole);
-        return updateUser(user, id, changes);
+        return updateUser(user, id, payload);
     }
 
     @Transactional
@@ -324,10 +321,10 @@ public class HrUserService {
         draft = draft.withUserCode(resolveUserCodeForCreate(companyId, draft.userCode()));
         var hrUserDraft = draft;
         var profileDraft = buildProfileDraft(profilePayload, ProfileDraft.empty());
-        var userRole = normalizeUserRole(stringValue(userPayload, "role", "user_role", "access_role"));
+        requireUnchangedAccessRole(companyId, null, userPayload);
 
         requireAvailableSeatForActiveAccess(companyId);
-        var userIdentity = mirrorHrUserIdentity(companyId, createdBy, 0L, hrUserDraft, profileDraft, userRole);
+        var userIdentity = mirrorHrUserIdentity(companyId, createdBy, hrUserDraft, profileDraft);
         ensureDefaultUserAccessProfile(companyId, userIdentity, createdBy);
         return hrUserDetails(userIdentity.userCompanyId(), companyId);
     }
@@ -361,11 +358,10 @@ public class HrUserService {
         draft = draft.withUserCode(resolveUserCodeForUpdate(companyId, userCompanyId, draft.userCode()));
         var currentProfile = loadProfileDraft(companyId, userCompanyId);
         var profileDraft = buildProfileDraft(profilePayload, currentProfile);
-        var userRole = normalizeUserRole(stringValue(userPayload, "role", "user_role", "access_role"));
+        requireUnchangedAccessRole(companyId, userCompanyId, userPayload);
 
         var userIdentity = loadUserWorkIdentity(companyId, userCompanyId);
-        updateExistingUserIdentity(userIdentity.userId(), draft, profileDraft);
-        updateUserCompany(companyId, userIdentity.userCompanyId(), draft.status(), userRole);
+        updateUserCompany(companyId, userIdentity.userCompanyId(), draft.status());
         upsertUserWorkProfile(companyId, userIdentity.userCompanyId(), userIdentity.userId(), null, draft, profileDraft);
         ensureDefaultUserAccessProfile(companyId, userIdentity, null);
         return hrUserDetails(userCompanyId, companyId);
@@ -773,22 +769,15 @@ public class HrUserService {
         );
     }
 
-    private UserWorkIdentity mirrorHrUserIdentity(
-        long companyId,
-        Long createdBy,
-        long ignoredUserCompanyId,
-        HrUserDraft draft,
-        ProfileDraft profileDraft,
-        String requestedRole
-    ) {
-        var userId = findOrCreateUser(draft);
-        upsertUserProfile(userId, draft, profileDraft);
-        var userCompanyId = findOrCreateUserCompany(companyId, userId, draft.status(), requestedRole);
+    private UserWorkIdentity mirrorHrUserIdentity(long companyId, Long createdBy,
+            HrUserDraft draft, ProfileDraft profileDraft) {
+        var userId = findOrCreateUser(companyId, draft);
+        var userCompanyId = findOrCreateUserCompany(companyId, userId, draft.status());
         upsertUserWorkProfile(companyId, userCompanyId, userId, createdBy, draft, profileDraft);
         return new UserWorkIdentity(userCompanyId, userId);
     }
 
-    private long findOrCreateUser(HrUserDraft draft) {
+    private long findOrCreateUser(long companyId, HrUserDraft draft) {
         var existingRows = jdbcTemplate.query(
             """
                 SELECT id
@@ -802,11 +791,19 @@ public class HrUserService {
 
         if (!existingRows.isEmpty()) {
             var userId = existingRows.getFirst();
-            jdbcTemplate.update(
-                "UPDATE users SET full_name = ? WHERE id = ?",
-                nullable(draft.fullName()),
-                userId
-            );
+            var acceptedMemberships = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM user_companies WHERE company_id = ? AND user_id = ? AND status = 'active'",
+                Integer.class, companyId, userId);
+            if (acceptedMemberships == null || acceptedMemberships == 0) {
+                throw new com.indice.erp.hr.HrAccessDeniedException(
+                    "Existing accounts must accept a company invitation before an HR profile can be added.");
+            }
+            var workProfiles = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM user_work_profiles WHERE company_id = ? AND user_id = ?",
+                Integer.class, companyId, userId);
+            if (workProfiles != null && workProfiles > 0) {
+                throw new IllegalArgumentException("The employee already has a work profile. Use the scoped update action.");
+            }
             return userId;
         }
 
@@ -831,36 +828,7 @@ public class HrUserService {
         return keyHolder.getKey().longValue();
     }
 
-    private void upsertUserProfile(long userId, HrUserDraft draft, ProfileDraft profileDraft) {
-        jdbcTemplate.update(
-            """
-                INSERT INTO user_profiles (user_id, full_name, phone, country, preferred_language)
-                VALUES (?, ?, ?, ?, 'es-419')
-                ON DUPLICATE KEY UPDATE
-                  full_name = VALUES(full_name),
-                  phone = VALUES(phone),
-                  country = VALUES(country),
-                  preferred_language = COALESCE(user_profiles.preferred_language, VALUES(preferred_language)),
-                  updated_at = CURRENT_TIMESTAMP
-                """,
-            userId,
-            nullable(draft.fullName()),
-            nullable(draft.phone()),
-            nullable(profileDraft.registrationCountry())
-        );
-    }
-
-    private void updateExistingUserIdentity(long userId, HrUserDraft draft, ProfileDraft profileDraft) {
-        jdbcTemplate.update(
-            "UPDATE users SET email = ?, full_name = ? WHERE id = ?",
-            draft.email(),
-            nullable(draft.fullName()),
-            userId
-        );
-        upsertUserProfile(userId, draft, profileDraft);
-    }
-
-    private long findOrCreateUserCompany(long companyId, long userId, String workStatus, String requestedRole) {
+    private long findOrCreateUserCompany(long companyId, long userId, String workStatus) {
         var existingRows = jdbcTemplate.query(
             """
                 SELECT id, COALESCE(status, 'active') AS status
@@ -881,20 +849,9 @@ public class HrUserService {
             if (!isActiveAccess(existing.status()) && isActiveAccess(accessStatus)) {
                 requireAvailableSeatForActiveAccess(companyId);
             }
-            if (requestedRole == null) {
-                jdbcTemplate.update(
-                    "UPDATE user_companies SET status = ?, visibility = COALESCE(NULLIF(visibility, ''), 'all') WHERE id = ?",
-                    accessStatus,
-                    userCompanyId
-                );
-            } else {
-                jdbcTemplate.update(
-                    "UPDATE user_companies SET role = ?, status = ?, visibility = COALESCE(NULLIF(visibility, ''), 'all') WHERE id = ?",
-                    requestedRole,
-                    accessStatus,
-                    userCompanyId
-                );
-            }
+            jdbcTemplate.update(
+                "UPDATE user_companies SET status = ? WHERE company_id = ? AND id = ?",
+                accessStatus, companyId, userCompanyId);
             return userCompanyId;
         }
 
@@ -913,7 +870,7 @@ public class HrUserService {
             );
             statement.setLong(1, userId);
             statement.setLong(2, companyId);
-            statement.setString(3, requestedRole == null ? "user" : requestedRole);
+            statement.setString(3, "user");
             statement.setString(4, accessStatus);
             return statement;
         }, keyHolder);
@@ -933,36 +890,25 @@ public class HrUserService {
         return normalized.isBlank() || "active".equals(normalized) || "activo".equals(normalized);
     }
 
-    private void updateUserCompany(long companyId, long userCompanyId, String workStatus, String requestedRole) {
-        var accessStatus = userCompanyStatusForWorkStatus(workStatus);
-        if (requestedRole == null) {
-            jdbcTemplate.update(
-                """
-                    UPDATE user_companies
-                    SET status = ?,
-                        visibility = COALESCE(NULLIF(visibility, ''), 'all')
-                    WHERE id = ? AND company_id = ?
-                    """,
-                accessStatus,
-                userCompanyId,
-                companyId
-            );
-            return;
+    private void requireUnchangedAccessRole(long companyId, Long membershipId, Map<String, Object> payload) {
+        var current = membershipId == null ? "user" : jdbcTemplate.queryForObject(
+            "SELECT role FROM user_companies WHERE company_id = ? AND id = ?", String.class, companyId, membershipId);
+        for (var key : java.util.List.of("role", "user_role", "access_role")) {
+            var requested = stringValue(payload, key);
+            if (!requested.isBlank() && !requested.equalsIgnoreCase(current)) {
+                throw new com.indice.erp.hr.HrAccessDeniedException(
+                    "Access roles can only be changed through user administration.");
+            }
         }
+    }
 
-        jdbcTemplate.update(
-            """
-                UPDATE user_companies
-                SET role = ?,
-                    status = ?,
-                    visibility = COALESCE(NULLIF(visibility, ''), 'all')
-                WHERE id = ? AND company_id = ?
-                """,
-            requestedRole,
-            accessStatus,
-            userCompanyId,
-            companyId
-        );
+    private void updateUserCompany(long companyId, long userCompanyId, String workStatus) {
+        // Employment can revoke access; restoring an administratively disabled account belongs
+        // to the dedicated user-administration action and its authority checks.
+        if (!"active".equals(userCompanyStatusForWorkStatus(workStatus))) {
+            jdbcTemplate.update("UPDATE user_companies SET status = 'inactive' WHERE company_id = ? AND id = ?",
+                companyId, userCompanyId);
+        }
     }
 
     private void upsertUserWorkProfile(
@@ -980,9 +926,14 @@ public class HrUserService {
                  hire_date, salary, pay_period, salary_type, hourly_rate, contract_type, contract_start_date,
                  contract_end_date, date_of_birth, address, national_id, tax_id, social_security_number,
                  registration_country, state_province, city, postal_code, alternate_phone, emergency_contact_name,
-                 emergency_contact_relationship, emergency_contact_phone, workday_hours, workdays_per_week, payroll_treatment, status, created_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 emergency_contact_relationship, emergency_contact_phone, workday_hours, workdays_per_week, payroll_treatment, status, created_by,
+                 work_first_name, work_last_name, work_email, work_phone)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
+                  work_first_name = VALUES(work_first_name),
+                  work_last_name = VALUES(work_last_name),
+                  work_email = VALUES(work_email),
+                  work_phone = VALUES(work_phone),
                   user_code = VALUES(user_code),
                   position = VALUES(position),
                   department = VALUES(department),
@@ -1048,7 +999,7 @@ public class HrUserService {
             profileDraft.workdaysPerWeek(),
             profileDraft.payrollTreatment(),
             draft.status(),
-            nullableCreatedBy(createdBy)
+            nullableCreatedBy(createdBy), draft.firstName(), draft.lastName(), draft.email(), draft.phone()
         );
     }
 

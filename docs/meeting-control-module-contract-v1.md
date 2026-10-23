@@ -179,7 +179,8 @@ Source: `meeting_records` / `meeting_agreements`, same ownership predicates as l
 | Open agreements | OPEN due in period / workload | Inspect OPEN agreements |
 | Overdue agreements | OPEN due in period and due date < today / intervention | Target 0; inspect OPEN agreements |
 
-No invented score, percentage, money or unit comparison. This complementary pilot uses
+The original overview has no composite score, money or unit comparison. The explicitly approved
+2026-10-23 agreement punctuality measure below is a separate, meeting-scoped projection. This complementary pilot uses
 one compact overview; the two operational tabs are the record-detail destinations.
 No empty chart or organizational view is created to fill a template. Counts can overlap
 and are not additive. No implicit comparison to an unavailable previous period.
@@ -445,3 +446,63 @@ are mounted only with independent agreement access. New agreement context stays 
 meeting; saving returns to the current room section. Start/complete/cancel remain explicit, with
 existing minutes/open-ballot closure rules. No backend change, migration, external message or real
 record mutation is required for synthetic UI verification.
+
+
+## Agreement delegation and punctuality — 2026-10-23
+
+The approved user flow is Junta → Acuerdo → linked native Processes task. The blue detail remains
+an **Operational Workspace Modal**, simplified to preparation, agenda, participants and a scoped
+agreement/result summary. Its single footer primary opens the existing room (Open / Continue /
+View minutes by lifecycle). Secondary planning/printing/calendar actions live in More options;
+cancellation is separated. The room owns live editing, attendance, voting and lifecycle actions.
+Creation retains its existing wizard. Delegation and fulfilment validation are **Standard Form
+Modals** replacing the detail, with native unsaved guards and no stacked active overlays.
+
+`POST /api/v1/meetings/agreements/{id}/task-delegation` reviews participant assignee, commitment date,
+reason for any reassignment/rescheduling, and expected agreement version. One transaction validates
+native meeting authority and Processes assignment/unit/business scope, records the agreement change,
+creates the native task and durable link, and audits. Exact payload retries return the same task;
+changed retries conflict. The existing `/task` contract remains compatible. Missing task entitlement,
+revoked membership, invalid participant, stale version or failed task creation roll back the complete
+use case. Linked task access is rechecked; this does not add a new task authorization system.
+
+Tasks and agreements remain independently validated. The detail exposes View task using the native
+agenda search and Validate agreement fulfilment with a result/evidence note. Task status alone never
+fulfils an agreement; meeting closure also leaves open agreements intact. Subsequent linked task edits
+remain Processes-owned and do not silently change the meeting commitment.
+
+V351 records immutable `original_due_date`, `deadline_basis`, server-confirmed `fulfilled_at`, delegation
+retry fingerprint and append-only assignee/deadline revisions. New agreements have CREATED baselines.
+Existing rows adopt their current deadline as ADOPTED reference; earlier original deadlines cannot be
+reconstructed safely. Existing completion audit instants are retained when available, but ADOPTED
+records remain explicitly unscored. V352 keeps the additive original date nullable so an older binary
+can still insert agreements during rollback; such records remain explicitly unscored. New owner
+writes always supply the original date. No historical deadline, attendance or completion is invented.
+
+`GET /{meetingId}/agreement-performance` and `GET /agreements/{id}/evidence` require current agreements
+tab and meeting/object visibility, tenant-scoped queries, and no broader minute exposure. Performance
+is computed by the Meetings backend for the selected meeting, across all its agreements whether linked
+to tasks or not. Its fixed evaluation boundary is the meeting's IANA timezone, calculated at response
+instant. An original date is ended only when earlier than the local current date; today and future
+original deadlines are not in the denominator, including work completed early. The score is:
+
+`on-time confirmed agreements / evaluable agreements with ended original deadlines × 100`.
+
+Round HALF_UP to a whole percent. No eligible agreements means null/Pending evaluation, not zero.
+Among eligible agreements: DONE with fulfilment local date <= original date is on time; DONE later
+is late; OPEN is overdue. Cancelled agreements are excluded with retained cancellation reason.
+ADOPTED or missing completion evidence is separately counted as historicalUnknown and excluded.
+Upcoming deadlines, cancelled records and historical uncertainty are always disclosed. Reprogramming
+does not reset the original baseline or erase a missed commitment. This measures agreement punctuality,
+not employee performance or the substantive quality of the meeting.
+
+Delegated MCP tools share this owner contract. Reads: `list_meetings`, `get_meeting`,
+`get_meeting_agreements`, `get_meeting_agreement_performance`. Confirmed actions:
+`save_meeting_minutes`, `create_meeting_agreement`, `delegate_meeting_agreement_task`, each with a
+preview companion. Explicit new consent: meetings.read/manage and meeting_agreements.read/manage;
+delegation additionally requires tasks.create and tasks.delegate plus current native task permissions.
+No new scopes are silently granted to old connections. Tools revalidate current tenant/tab/object and
+use stored five-minute connection-bound immutable confirmations, transactionally consumed with
+idempotent executions. A stale version requires a new review, never a blind overwrite. The existing
+bounded minute/decision text contract is retained; structured per-topic sheets remain a separate
+future evolution. Tools cannot infer attendance, votes, fulfilment or meeting closure.

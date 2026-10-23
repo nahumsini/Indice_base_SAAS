@@ -5,7 +5,7 @@ const owner='ComplementaryModules/IdeasBoard/',catalog=load(new URL(owner+'syste
 function elements(root){return[root,...[root?.props?.children].flat(Infinity).filter(v=>v&&typeof v==='object').flatMap(elements)];}
 test('all diagnostic choices have translated names, unique identifiers and accepted backend icons',()=>{
  const ids=catalog.allCatalogItems.map(i=>i.id);assert.equal(new Set(ids).size,ids.length);
- const staged=new URL('../../backend/src/main/java/com/indice/erp/ideasboard/IdeaWorkspaceService.java',import.meta.url);const backend=readFileSync(existsSync(staged)?staged:new URL('../../src/main/java/com/indice/erp/ideasboard/IdeaWorkspaceService.java',import.meta.url),'utf8');
+ const staged=new URL('../../backend/src/main/java/com/indice/erp/ideasboard/IdeaCatalogPolicy.java',import.meta.url);const backend=readFileSync(existsSync(staged)?staged:new URL('../../src/main/java/com/indice/erp/ideasboard/IdeaCatalogPolicy.java',import.meta.url),'utf8');
  for(const item of catalog.allCatalogItems){assert.ok(backend.includes('"'+item.id+'"'));for(const locale of ['es-MX','es-CO','en-US','en-CA','fr-CA','pt-BR','ko-CA','zh-CA']){const label=catalog.catalogLabel(item,locale);assert.ok(label&&label!==item.id);assert.ok(copy.systemCatalogCopy(locale)[item.group]);}}
  for(const id of ['INCOME','BALANCE','CASH_FLOW','EQUITY_CHANGES','TRIAL_BALANCE','EXPENSE_REPORT','BUDGET','RECEIVABLE_REPORT','PETTY_CASH_STATEMENT','POS_CLOSING','PAYROLL_REPORT'])assert.ok(catalog.financeCatalog.some(i=>i.id===id));
 });

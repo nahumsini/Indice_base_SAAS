@@ -1,3 +1,4 @@
+import { getMeetingOutcomeCopy } from "../translations/meetingOutcomeCopy";
 import { useCallback, useEffect, useId, useState } from "react";
 import { useBlocker } from "react-router";
 import { IndiceTitleBar } from "../../../components/frontend-os/IndiceTitleBar";
@@ -24,16 +25,17 @@ type Dialog = { kind: "edit" | "addendum" | "agreement-new" | "ballot-new" } | {
 export function MeetingSessionWorkspace(props: Props) {
   const { id, copy, locale } = props, c = getMeetingSessionCopy(locale);
   const query = useMeetingQuery(useCallback(signal => meetingApi.detail(id, signal), [id]));
-  const [notice, setNotice] = useState(""), [section, setSection] = useState("minutes");
+  const [notice, setNotice] = useState(""), [section, setSection] = useState<string | null>(null);
   return <div className="min-w-0 space-y-5 [&_button]:scroll-mt-52 [&_textarea]:scroll-mt-52 [&_select]:scroll-mt-52" data-meeting-session>
     {query.loading ? <Feedback>{copy.loading}</Feedback> : query.error ? <>
       <IndiceTitleBar tone="blue" icon="📝" title={c.title} subtitle={c.hint} actions={<Action onClick={props.onChangeMeeting}>{c.change}</Action>} />
       <Feedback error>{copy.error}<Action onClick={query.reload}>{copy.refresh}</Action></Feedback>
-    </> : query.data && <LoadedMeetingSession {...props} detail={query.data} section={section} setSection={setSection} notice={notice} onReload={() => { setNotice(""); query.reload(); }} onSaved={(message = "") => { setNotice(message); query.reload(); }} />}
+    </> : query.data && <LoadedMeetingSession {...props} detail={query.data} section={section ?? (query.data.meeting.status === "PLANNED" ? "agenda" : "minutes")} setSection={setSection} notice={notice} onReload={() => { setNotice(""); query.reload(); }} onSaved={(message = "") => { setNotice(message); query.reload(); }} />}
   </div>;
 }
 function LoadedMeetingSession({ detail, notice, section, setSection, onReload, onSaved, ...props }: Props & { detail: Detail; notice: string; section: string; setSection: (value: string) => void; onReload: () => void; onSaved: (message?: string) => void }) {
   const { copy, locale, userId, administrator, onAgreements, onChangeMeeting } = props;
+  const outcome = getMeetingOutcomeCopy(locale);
   const c = getMeetingSessionCopy(locale), op = getMeetingOperationsCopy(locale), v = getMeetingVotingCopy(locale), live = getMeetingLiveCopy(locale);
   const row = detail.meeting, canManage = administrator || row.ownerId === userId;
   const active = row.status === "PLANNED" || row.status === "IN_PROGRESS";
@@ -52,7 +54,7 @@ function LoadedMeetingSession({ detail, notice, section, setSection, onReload, o
   const locked = dirty || busy || Boolean(dialog), refresh = () => { if (busy || dialog) return; if (dirty) setDiscardRefresh(true); else onReload(); };
   const finishDialog = () => { setDialog(null); onSaved(); };
   const closeDialog = () => { setDialog(null); onReload(); };
-  const sections = [{ id: "agenda", label: copy.agenda, icon: "📋" }, { id: "minutes", label: copy.minutes, icon: "📝" }, { id: "attendance", label: live.attendance, icon: "👥" }, ...(onAgreements ? [{ id: "agreements", label: copy.agreements, icon: "🤝" }] : []), { id: "voting", label: v.title, icon: "🗳️" }];
+  const sections = [{ id: "agenda", label: outcome.preparation, icon: "📋" }, { id: "minutes", label: outcome.notes, icon: "📝" }, { id: "attendance", label: outcome.participants, icon: "👥" }, ...(onAgreements ? [{ id: "agreements", label: outcome.results, icon: "🤝" }] : []), { id: "voting", label: v.title, icon: "🗳️" }];
   return <>
     <div className="sticky top-0 z-20 space-y-3 rounded-2xl bg-slate-50 pb-3 dark:bg-slate-950">
       <IndiceTitleBar className="p-3 sm:p-5 [&_h2]:text-lg sm:[&_h2]:text-xl" tone="blue" icon="📝" eyebrow={c.title} title={row.title} subtitle={<span className="break-words">{new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", timeZone: row.timezone }).format(new Date(row.startAt))} · {row.timezone}</span>} actions={<div className={`grid w-full gap-2 ${canWrite && active ? "grid-cols-2" : "grid-cols-1"}`}>
@@ -82,9 +84,8 @@ function LoadedMeetingSession({ detail, notice, section, setSection, onReload, o
           {copyError && <Feedback error>{copy.error}</Feedback>}
           <form id={formId} onSubmit={event => { event.preventDefault(); if (!attendanceDirty && !dialog) void notes.save(); }}>
             <fieldset disabled={busy || attendanceDirty || Boolean(dialog) || !notes.current} className="min-w-0 space-y-5">
-              <Field label={copy.minutes}><textarea className={control + " min-h-80 h-80 resize-y py-3 leading-7"} maxLength={20000} readOnly={!canWrite || !active} value={notes.minutes} placeholder={c.notesPlaceholder} onChange={e => { notes.update("minutes", e.target.value); setCopied(false); }} /></Field>
-              <Field label={copy.decisions}><textarea className={control + " min-h-40 h-40 resize-y py-3 leading-7"} maxLength={10000} readOnly={!canWrite || !active} value={notes.decisions} placeholder={c.decisionsPlaceholder} onChange={e => { notes.update("decisions", e.target.value); setCopied(false); }} /></Field>
-              {canWrite && active && <Action primary type="submit" disabled={!notes.dirty || busy || notes.error === "conflict"}>💾 {notes.busy ? c.saving : c.save}</Action>}
+              <Field label={outcome.minutesLabel}><textarea className={control + " min-h-80 h-80 resize-y py-3 leading-7"} maxLength={20000} readOnly={!canWrite || !active} value={notes.minutes} placeholder={c.notesPlaceholder} onChange={e => { notes.update("minutes", e.target.value); setCopied(false); }} /></Field>
+              <Field label={outcome.decisionsLabel}><textarea className={control + " min-h-40 h-40 resize-y py-3 leading-7"} maxLength={10000} readOnly={!canWrite || !active} value={notes.decisions} placeholder={c.decisionsPlaceholder} onChange={e => { notes.update("decisions", e.target.value); setCopied(false); }} /></Field>
             </fieldset>
           </form>
         </section>

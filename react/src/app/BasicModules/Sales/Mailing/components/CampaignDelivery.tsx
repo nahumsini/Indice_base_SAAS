@@ -12,6 +12,7 @@ import {
   type CampaignResults,
 } from "../deliveryApi";
 import { useDeliveryCopy } from "../deliveryCopy";
+import { MailingFiles } from "./MailingFiles";
 import { CampaignDeliveryTable } from "./CampaignDeliveryTable";
 export function CampaignDelivery({
   id,
@@ -306,6 +307,7 @@ export function CampaignDelivery({
           <p className="max-h-80 overflow-auto whitespace-pre-wrap break-words text-sm">
             {review.bodyText}
           </p>
+          <MailingFiles files={review.attachments??[]}/>
           {testState && (
             <p role="status">
               {copy.testResult}:{" "}
@@ -333,6 +335,7 @@ export function CampaignDelivery({
           <p className="max-h-72 overflow-auto whitespace-pre-wrap break-words">
             {review.bodyText}
           </p>
+          <MailingFiles files={review.attachments??[]}/>
           <p className="whitespace-pre-wrap border-t pt-3">{footer}</p>
           <p>{copy.footerHint}</p>
         </div>

@@ -14,7 +14,7 @@ import {workspaceCopy} from './workspaceCopy';
 import {systemElementCopy} from './systemElementCopy';
 
 /** Named diagnostic elements use the same node, asset API and commit as the common editor. */
-export function SystemElementFields({node,onChange,locale,api,actor,onBusyChange,nameManaged=false}:BoardNodeEditorContext) {
+export function SystemElementFields({node,onChange,locale,api,actor,onBusyChange,nameManaged=false,bounds=systemBounds}:BoardNodeEditorContext) {
  const n=node as SystemNode,labels=systemIconLabels(locale),catalog=systemCatalogCopy(locale),c=workspaceCopy(locale),ui=systemElementCopy(locale),w=boardWorkbenchCopy(locale);
  const nameId=useId(),nameHelpId=useId();
  const input=useRef<HTMLInputElement>(null),uploading=useRef(false),alive=useRef(true),current=useRef(node as SystemNode);current.current=node as SystemNode;
@@ -48,6 +48,6 @@ export function SystemElementFields({node,onChange,locale,api,actor,onBusyChange
    {(n.category==='PERSON'||!!image)&&<div className="system-element-photo"><div><Camera size={19}/><span>{c.photo}</span></div><div className="system-element-photo-actions"><button type="button" className="idea-board-button idea-board-secondary" disabled={busy} onClick={()=>input.current?.click()}><ImagePlus size={17}/>{busy?c.loading:image?ui.changePhoto:ui.photo}</button>{image&&<button type="button" className="idea-board-button" disabled={busy} onClick={()=>update({...n,kind:'TEXT',assetId:null})}><Trash2 size={16}/>{c.removePhoto}</button>}</div><small>{ui.photoHelp}</small><input ref={input} hidden type="file" accept="image/png,image/jpeg,image/webp" aria-label={c.photo} disabled={busy} onChange={e=>{const selected=e.target.files?.[0];e.target.value='';if(selected)void photo(selected);}}/></div>}
    {error&&<div role="alert" className="workspace-error">{error}{failed&&<button type="button" aria-label={c.retry} className="idea-board-button" onClick={()=>void photo(failed.file,failed.id)}><RotateCcw size={16}/>{c.retry}</button>}</div>}
   </div>
-  <details className="board-editor-details"><summary>{w.appearance}</summary><fieldset disabled={busy}><NodeAppearanceControls node={n} locale={locale} system bounds={systemBounds} onChange={onChange}/></fieldset></details>
+  <details className="board-editor-details"><summary>{w.appearance}</summary><fieldset disabled={busy}><NodeAppearanceControls node={n} locale={locale} system bounds={bounds} onChange={onChange}/></fieldset></details>
  </div>;
 }

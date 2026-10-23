@@ -181,7 +181,7 @@ public class JakartaMailboxTransport implements MailboxTransport {
             try{Part part=message(folder,cursor,uid);if(part.getSize()>25*1024*1024)throw new Failure("email_attachment_limit");
                 var indexes=path.split("\\.");for(int i=1;i<indexes.length;i++){if(!(part.getContent() instanceof Multipart multi))throw new Failure("email_attachment_unavailable");part=multi.getBodyPart(Integer.parseInt(indexes[i]));}
                 if(part.getFileName()==null&&!Part.ATTACHMENT.equalsIgnoreCase(part.getDisposition()))throw new Failure("email_attachment_unavailable");
-                byte[] bytes;try(var input=part.getInputStream()){bytes=input.readNBytes(5*1024*1024+1);}if(bytes.length>5*1024*1024)throw new Failure("email_attachment_limit");
+                byte[] bytes;try(var input=part.getInputStream()){bytes=input.readNBytes(MailFilePolicy.MAX+1);}if(bytes.length>MailFilePolicy.MAX)throw new Failure("email_attachment_limit");
                 return new FilePart(MailContent.clipped(part.getFileName()==null?"attachment":part.getFileName(),180),new ContentType(part.getContentType()).getBaseType(),bytes);
             }finally{folder.close(false);}
         }catch(Exception e){throw failure(e);}

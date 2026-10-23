@@ -1,3 +1,6 @@
+import { ApiClientError } from "../../../lib/apiClient";
+import { Link } from "react-router";
+import { getMeetingOutcomeCopy } from "../translations/meetingOutcomeCopy";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IndiceModalFrame } from "../../../components/indice-modal/IndiceModalFrame";
 import { useLanguage } from "../../../shared/context";
@@ -69,12 +72,17 @@ export function AgreementDetail({ id, copy, locale, userId, administrator, onClo
   id: number; copy: MeetingCopy; locale: string; userId: number; administrator: boolean; onClose: () => void;
   onEdit: (record: Agreement) => void; onNote: (record: Agreement) => void;
 }) {
-  const op = getMeetingOperationsCopy(locale);
+  const op = getMeetingOperationsCopy(locale), c = getMeetingOutcomeCopy(locale);
+  const [mode, setMode] = useState<"delegate" | "validate" | null>(null);
+  const evidence = useMeetingQuery(useCallback(signal => meetingApi.agreementEvidence(id, signal), [id]));
   const query = useMeetingQuery(useCallback(signal => meetingApi.agreementDetail(id, signal), [id]));
-  const [linking, setLinking] = useState(false), [linkError, setLinkError] = useState(false);
+
   const record = query.data?.agreement, own = record && (administrator || record.meetingOwnerId === userId);
+  if (mode && record) return mode === "delegate"
+    ? <AgreementTaskEditor record={record} copy={copy} locale={locale} onClose={() => { setMode(null); query.reload(); evidence.reload(); }} onSaved={() => { setMode(null); query.reload(); evidence.reload(); }} />
+    : <AgreementFulfilmentEditor record={record} copy={copy} locale={locale} onClose={() => { setMode(null); query.reload(); evidence.reload(); }} onSaved={() => { setMode(null); query.reload(); evidence.reload(); }} />;
   return <IndiceModalFrame open tone="blue" icon="🤝" modalType="operational-workspace" title={record?.title ?? copy.agreements}
-    description={record?.meetingTitle ?? op.history} onOpenChange={open => { if (!open && !linking) onClose(); }} busy={linking} footer={<Action onClick={onClose}>{copy.close}</Action>}>
+    description={record?.meetingTitle ?? op.history} onOpenChange={open => { if (!open) onClose(); }} footer={<><Action onClick={onClose}>{copy.close}</Action>{query.data?.canLinkTask ? <Action primary onClick={() => setMode("delegate")}>{c.delegate}</Action> : record?.status === "OPEN" && (own || record.assigneeId === userId) ? <Action primary onClick={() => setMode("validate")}>{c.validate}</Action> : null}</>}>
     {query.loading ? <Feedback>{copy.loading}</Feedback> : query.error ? <Feedback error>{copy.error}</Feedback> : record && <div className="space-y-5">
       <p className="text-sm">{record.assigneeName} · {record.dueDate} · {copy[record.status]}</p>
       {record.status === "OPEN" && <div className="flex flex-wrap gap-3">
@@ -82,13 +90,19 @@ export function AgreementDetail({ id, copy, locale, userId, administrator, onClo
         {(own || record.assigneeId === userId) && <Action onClick={() => onNote(record)}>{op.note}</Action>}
       </div>}
       <section className="space-y-3">
-        {query.data?.task && <p className="rounded-xl border p-4 text-sm">{op.task}: {query.data.task.folio} · {query.data.task.title} · {query.data.task.dueDate}</p>}
-        {query.data?.canLinkTask && <Action disabled={linking} onClick={async () => {
-          setLinking(true); setLinkError(false);
-          try { await meetingApi.createTask(record); query.reload(); } catch { setLinkError(true); } finally { setLinking(false); }
-        }}>{linking ? copy.loading : op.createTask}</Action>}
-        {linkError && <Feedback error>{copy.error}</Feedback>}
+        {query.data?.task && <div className="space-y-3 rounded-xl border p-4 text-sm"><p>{op.task}: {query.data.task.folio} · {query.data.task.title}</p><p>{c.due}: {query.data.task.dueDate}</p><p>{c.taskStatus}: {({ pending: c.taskPending, in_progress: c.taskInProgress, paused: c.taskPaused, completed: c.taskCompleted, cancelled: c.taskCancelled } as Record<string, string>)[query.data.task.status] ?? c.taskPending}</p>
+          <Link className="inline-flex min-h-11 items-center rounded-xl border px-4 text-blue-700 dark:text-blue-300" to={`/processes-tasks/calendar?period=all&search=${encodeURIComponent(query.data.task.folio || query.data.task.title)}`}>{c.viewTask}</Link>
+          <p className="text-xs leading-5 text-slate-500">{c.independent}</p>
+        </div>}
+        {query.data?.canLinkTask && record.status === "OPEN" && (own || record.assigneeId === userId) && <Action onClick={() => setMode("validate")}>{c.validate}</Action>}
       </section>
+      {evidence.loading ? <Feedback>{copy.loading}</Feedback> : evidence.error ? <Feedback error>{copy.error}<Action onClick={evidence.reload}>{copy.refresh}</Action></Feedback> : evidence.data && <section className="space-y-3 rounded-xl border p-4 text-sm">
+        <p className="font-medium">{({ ON_TIME: c.onTime, LATE: c.late, OVERDUE: c.overdue, UPCOMING: c.upcoming, CANCELLED: c.cancelled, UNRATED: c.unknown })[evidence.data.outcome]}</p>
+        <p>{c.originalDue}: <strong>{evidence.data.originalDueDate || "—"}</strong></p>
+        {evidence.data.fulfilledAt && <p>{copy.DONE} · {new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(evidence.data.fulfilledAt))}</p>}
+        {evidence.data.deadlineBasis !== "CREATED" && <p className="text-xs leading-5 text-slate-500">{c.baselineHint}</p>}
+        {Boolean(evidence.data.revisions.length) && <details><summary className="min-h-11 cursor-pointer">{c.revisions}</summary>{evidence.data.revisions.length === 100 && <Feedback>{copy.partial}</Feedback>}<ul className="space-y-3">{evidence.data.revisions.map((revision, index) => <li key={index} className="border-t pt-3"><p>{revision.previousAssigneeName} → {revision.assigneeName}</p><p>{revision.previousDueDate} → {revision.dueDate}</p><p className="whitespace-pre-wrap">{revision.reason}</p><p className="text-xs text-slate-500">{revision.actorName} · {new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(revision.occurredAt))}</p></li>)}</ul></details>}
+      </section>}
       <h3 className="font-medium">{op.history}</h3>
       {query.data?.history.length === 100 && <Feedback>{copy.partial}</Feedback>}
       <ol className="space-y-3">{query.data?.history.map((entry, i) => <li key={i} className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
@@ -97,4 +111,33 @@ export function AgreementDetail({ id, copy, locale, userId, administrator, onClo
       </li>)}</ol>
     </div>}
   </IndiceModalFrame>;
+}
+
+export function AgreementTaskEditor({ record, copy, locale, onClose, onSaved }: Props & { record: Agreement; locale: string }) {
+  const c = getMeetingOutcomeCopy(locale);
+  const selection = useMeetingQuery(useCallback(signal => meetingApi.searchChoices("", 1, record.meetingId, signal), [record.meetingId]));
+  const [assigneeId, setAssigneeId] = useState(record.assigneeId), [dueDate, setDueDate] = useState(record.dueDate), [reason, setReason] = useState("");
+  const [stale, setStale] = useState(false);
+  const changed = assigneeId !== record.assigneeId || dueDate !== record.dueDate;
+  return <Editor title={c.delegate} description={c.delegateHint} copy={copy} submitLabel={c.delegate} onClose={onClose} onSaved={onSaved}
+    ready={!stale && Boolean(selection.data?.items[0]?.participants.some(person => person.id === assigneeId) && dueDate && (!changed || reason.trim().length >= 3))}
+    onSave={async () => { try { return await meetingApi.delegateTask(record, { assigneeId, dueDate, reason }); } catch (error) { if (error instanceof ApiClientError && error.status === 409) setStale(true); throw error; } }}>
+    <p className="break-words text-sm font-medium">{record.title}</p>
+    {selection.error && <Feedback error>{copy.error}</Feedback>}
+    <Field label={copy.assignee}><select className={control} required value={assigneeId} onChange={event => setAssigneeId(Number(event.target.value))}>
+      <option value="">—</option>{selection.data?.items[0]?.participants.map(person => <option key={person.id} value={person.id}>{person.name}</option>)}
+    </select></Field>
+    <Field label={c.due}><input className={control} type="date" required value={dueDate} onChange={event => setDueDate(event.target.value)} /></Field>
+    {changed && <Field label={c.delegateReason}><textarea className={control + " h-28 py-3"} required minLength={3} maxLength={2000} value={reason} onChange={event => setReason(event.target.value)} /></Field>}
+    <p className="text-xs leading-5 text-slate-500">{c.independent}</p>
+  </Editor>;
+}
+export function AgreementFulfilmentEditor({ record, copy, locale, onClose, onSaved }: Props & { record: Agreement; locale: string }) {
+  const c = getMeetingOutcomeCopy(locale), [reason, setReason] = useState("");
+  const [stale, setStale] = useState(false);
+  return <Editor title={c.validate} description={c.validationHint} copy={copy} submitLabel={c.confirmResult} onClose={onClose} onSaved={onSaved} ready={!stale}
+    onSave={async () => { try { return await meetingApi.agreementStatus(record.id, "DONE", reason, record.version); } catch (error) { if (error instanceof ApiClientError && error.status === 409) setStale(true); throw error; } }}>
+    <p className="break-words text-sm font-medium">{record.title}</p>
+    <Field label={copy.reason}><textarea className={control + " h-40 py-3"} required minLength={3} maxLength={2000} value={reason} onChange={event => setReason(event.target.value)} /></Field>
+  </Editor>;
 }

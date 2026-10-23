@@ -28,6 +28,7 @@ public final class PettyCashKioskCapabilities {
         "extensions", List.of(
             ".pdf", ".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif", ".doc", ".docx",
             ".xls", ".xlsx", ".csv", ".txt"),
+        "ownerSealsOnRegister", true,
         "maxSizeBytes", 10L * 1024L * 1024L,
         "maxFiles", 5,
         "purpose", "petty-cash-receipt",

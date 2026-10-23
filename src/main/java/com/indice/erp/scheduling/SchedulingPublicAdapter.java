@@ -40,7 +40,7 @@ public class SchedulingPublicAdapter implements KioskModuleAdapter {
         return definition!=null&&"booking_page".equals(definition.kioskType())?descriptors():Set.of();
     }
     @Override public Map<String,Object> bootstrap(KioskExecutionContext context){
-        long company=definition(context).companyId();var page=repository.page(company).orElseThrow(KioskUnavailableException::new);
+        var definition=definition(context);long company=definition.companyId();var page=repository.page(company,definition.legacyReferenceId()).orElseThrow(KioskUnavailableException::new);
         var members=repository.activeStaff(company);
         var staff=members.stream().map(s->new PublicStaff(s.id(),s.publicName(),s.timezone(),s.serviceIds())).toList();
         var staffIds=staff.stream().map(PublicStaff::id).toList();
@@ -95,7 +95,7 @@ public class SchedulingPublicAdapter implements KioskModuleAdapter {
         if(d==null||!KioskExecutionChannels.PUBLIC_LINK.equals(context.channel())||!"SCHEDULING".equals(d.ownerModule())
             ||!"booking_page".equals(d.kioskType())||d.legacyReferenceId()==null||!d.status().operational()
             ||!modules.companyCanAccess(d.companyId(),"scheduling"))throw new KioskUnavailableException();
-        var page=repository.page(d.companyId()).orElseThrow(KioskUnavailableException::new);
+        var page=repository.page(d.companyId(),d.legacyReferenceId()).orElseThrow(KioskUnavailableException::new);
         if(!page.published()||page.id()!=d.legacyReferenceId())throw new KioskUnavailableException();
         return d;
     }

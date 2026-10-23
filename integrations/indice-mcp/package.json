@@ -10,6 +10,8 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "test": "npm run build && node --test dist/test/*.test.js",
+    "test:visual-probe": "npm run build && node --test dist/test/visualProbe.test.js",
+    "probe:visual": "npm run build && node dist/test/visualProbe/runner.js",
     "test:contract": "npm run build && node dist/test/contract-runner.js",
     "test:http-contract": "npm run build && node dist/test/http-contract-runner.js",
     "test:continuity": "npm run build && node dist/test/continuity-runner.js",

@@ -1,3 +1,4 @@
+import { meetingQuerySchemas, meetingChangeSchemas, meetingCommitSchema, meetingReadSchemas, meetingPreviewSchema, meetingCommittedSchema, type MeetingReadName, type MeetingActionName, type MeetingQuery, type MeetingChange, type MeetingCommit } from "./meetingTools.js";
 import {financeReadNameSchema,financeActionNameSchema,financeInputs,financeQuerySchema,financeCommitRequestSchema,PageSchema,PreviewSchema,CommittedSchema,type FinanceReadName,type FinanceWorkflowActionName,type FinanceQuery,type FinanceChange,type FinancePage,type FinancePreview,type FinanceCommitted} from "./financeContracts.js";
 import { terminalReadNameSchema,terminalActionNameSchema,terminalQuerySchema,terminalInputs,terminalReadSchema,terminalPreviewSchema,terminalCommittedSchema,terminalCommitRequestSchema,type TerminalReadName,type TerminalActionName,type TerminalQuery,type TerminalChange,type TerminalReadResult,type TerminalPreview,type TerminalCommitted } from "./terminalContracts.js";
 import { posOperationsReadNameSchema,posOperationsActionNameSchema,posOperationsQuerySchema,posOperationsInputs,posOperationsReadSchema,posOperationsPreviewSchema,posOperationsCommittedSchema,posOperationsCommitRequestSchema,type PosOperationsReadName,type PosOperationsActionName,type PosOperationsQuery,type PosOperationsChange,type PosOperationsReadResult,type PosOperationsPreview,type PosOperationsCommitted } from "./posOperationsContracts.js";
@@ -402,6 +403,14 @@ export class IndiceClient {
     return learningGuideSchema.parse(await response.json());
   }
 
+  async readMeeting(name: MeetingReadName, request: MeetingQuery): Promise<unknown> { return this.meetingRequest(name,meetingQuerySchemas[name].parse(request),meetingReadSchemas[name]); }
+  async previewMeeting(name: MeetingActionName, request: MeetingChange): Promise<unknown> { return this.meetingRequest(`${name}/preview`,meetingChangeSchemas[name].parse(request),meetingPreviewSchema); }
+  async commitMeeting(name: MeetingActionName, request: MeetingCommit): Promise<unknown> { return this.meetingRequest(`${name}/commit`,meetingCommitSchema.parse(request),meetingCommittedSchema); }
+  private async meetingRequest<S extends z.ZodType>(path: string, request: unknown, schema: S): Promise<z.infer<S>> {
+    const response=await this.request(`/api/v1/ai/tools/meetings/${path}`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(request)});
+    if(!response.ok)throw await this.apiError(response,"No se pudo completar la operación de juntas. Revisa permisos, versión y confirmación.");
+    return schema.parse(await response.json());
+  }
   async getLearningProgress(request:LearningProgressRequest):Promise<LearningProgress> { return this.learningProgressRequest('',learningProgressRequestSchema.parse(request),learningProgressSchema); }
   async previewLearningProgress(request:LearningChange):Promise<LearningPreview> { return this.learningProgressRequest('/preview',learningChangeSchema.parse(request),learningPreviewSchema); }
   async commitLearningProgress(request:LearningCommit):Promise<LearningCommitted> { return this.learningProgressRequest('/commit',learningCommitSchema.parse(request),learningCommittedSchema); }

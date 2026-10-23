@@ -28,6 +28,9 @@ public class MeetingAccessService {
         }
         return actor;
     }
+    public void requireDelegated(AuthSessionUser actor,String tab){
+        if(!modules.canAccess(actor,"control_minutas")||!tabs.canAccess(actor,new TabPermissionRequirement(List.of("control_minutas."+tab))))throw new SecurityException();
+    }
     public static boolean administrator(AuthSessionUser actor) {
         return Set.of("root","superadmin","super admin","admin","owner","dueno").contains(actor.role().toLowerCase(Locale.ROOT));
     }

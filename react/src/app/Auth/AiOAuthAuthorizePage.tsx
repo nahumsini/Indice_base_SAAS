@@ -50,6 +50,8 @@ const actionScopes = new Set([
   'hr.payroll.pay',
   'projects.manage',
   'processes.manage',
+  'meetings.manage',
+  'meeting_agreements.manage',
   'processes.run',
   'hr.attendance.correct',
   'expenses.create',
@@ -58,6 +60,10 @@ const actionScopes = new Set([
 ]);
 
 const scopeLabels: Record<string, string> = {
+  'meetings.read': 'Consultar juntas: Accede a las juntas y minutas que puedes consultar en Índice.',
+  'meetings.manage': 'Registrar minutas: Prepara y guarda notas y decisiones con tu confirmación.',
+  'meeting_agreements.read': 'Consultar acuerdos y resultados: Revisa responsables, plazos y cumplimiento de las juntas autorizadas.',
+  'meeting_agreements.manage': 'Gestionar acuerdos: Crea acuerdos y prepara su delegación con tu confirmación. Crear tareas también requiere los permisos de tareas.',
   'sales.manage': 'Administrar ventas',
   'sales.collections.confirm': 'Confirmar cobros',
   'sales.cancel': 'Cancelar ventas',

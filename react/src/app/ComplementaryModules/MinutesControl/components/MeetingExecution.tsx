@@ -1,3 +1,4 @@
+import { MeetingPerformance } from "./MeetingPerformance";
 import { useCallback, useRef, useState, useEffect } from "react";
 import { getAuthorizationRevision } from "../../../api/authSessionStore";
 import { ApiClientError } from "../../../lib/apiClient";
@@ -55,13 +56,14 @@ export function MeetingAgreementsSummary({ id, copy, locale, onOpen, onNew, onSe
   return { list, open: open.total, overdue: overdue.total, done: done.total };
  }, [id, zone]));
  return <section className={panel + " space-y-4"}>
-  <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-medium">🤝 {copy.agreements}</h3>{onNew && <Action primary onClick={onNew}>＋ {copy.newAgreement}</Action>}</div>
+  <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-medium">🤝 {copy.agreements}</h3>{onNew && <Action onClick={onNew}>＋ {copy.newAgreement}</Action>}</div>
   {query.loading ? <Feedback>{copy.loading}</Feedback> : query.error ? <Feedback error>{copy.error}<Action onClick={query.reload}>{copy.refresh}</Action></Feedback> : query.data && <>
    <div className="grid grid-cols-3 gap-2">{[[live.pending, query.data.open], [live.overdue, query.data.overdue], [live.done, query.data.done]].map(([label, count]) => <div key={label} className="rounded-xl bg-slate-50 p-3 text-center dark:bg-slate-800"><strong className="block text-xl">{count}</strong><span className="block break-words text-xs text-slate-500 dark:text-slate-300">{label}</span></div>)}</div>
    {!query.data.list.total && <p className="text-sm text-slate-500">{live.noAgreements}</p>}
    <ul className="space-y-3">{query.data.list.items.map(item => <li key={item.id} className="rounded-xl border border-slate-200 p-3 dark:border-slate-700"><p className="break-words text-sm font-medium">{onSelect ? <button type="button" className="min-h-11 w-full break-words text-left text-blue-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:text-blue-300" onClick={() => onSelect(item.id)}>{item.title}</button> : item.title}</p><div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs"><span>{item.assigneeName} · {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(`${item.dueDate}T12:00:00`))}</span><Status status={item.status} copy={copy} /></div></li>)}</ul>
    {query.data.list.total > query.data.list.items.length && <p className="text-xs text-slate-500">{query.data.list.items.length} / {query.data.list.total} · {copy.partial}</p>}
   </>}
+  <MeetingPerformance id={id} locale={locale} copy={copy} />
   {onOpen && <Action onClick={onOpen}>{copy.view} · {copy.agreements}</Action>}
  </section>;
 }

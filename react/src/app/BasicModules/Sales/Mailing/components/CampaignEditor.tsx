@@ -26,6 +26,8 @@ import { RecipientPicker } from "./RecipientPicker";
 import type { MailingSender } from "../../../../ComplementaryModules/Email/emailApi";
 import { CampaignSenderPicker } from "./CampaignSenderPicker";
 import { useEmailCopy } from "../../../../ComplementaryModules/Email/translations";
+import { MailingFiles } from "./MailingFiles";
+import type { MailingFile } from "../mailingApi";
 import { CampaignTemplatePicker } from "./CampaignTemplatePicker";
 import {
   CampaignEditorField,
@@ -57,6 +59,8 @@ export function CampaignEditor({
   const actionClasses = getSalesModalActionClassNames();
   const id = useRef(campaign?.id ?? crypto.randomUUID());
   const pending = useRef(false);
+  const [files,setFiles]=useState<MailingFile[]>(campaign?.attachments??[]);
+  const [fileBusy,setFileBusy]=useState(false);
   const formRef = useRef<HTMLDivElement>(null);
   const initial: Draft = {
     name: campaign?.name ?? "",
@@ -67,6 +71,7 @@ export function CampaignEditor({
     previewText: campaign?.previewText ?? "",
     bodyText: campaign?.bodyText ?? "",
     bodyHtml: campaign?.bodyHtml ?? null,
+    attachmentIds: (campaign?.attachments??[]).map(f=>f.id),
     version: campaign?.version ?? 0,
     contactIds: campaign?.recipients.map((c) => c.id) ?? [],
   };
@@ -84,7 +89,8 @@ export function CampaignEditor({
   const [invalidField, setInvalidField] = useState<"name" | "replyTo" | null>(
     null,
   );
-  const readOnly = !canEdit || busy || blocked;
+  const locked=busy||fileBusy;
+  const readOnly = !canEdit || locked || blocked;
   useEffect(() => {
     if (!invalidField || discard) return;
     const frame = requestAnimationFrame(() =>
@@ -97,14 +103,14 @@ export function CampaignEditor({
   const dirty = JSON.stringify(draft) !== initialJson.current;
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (dirty) {
+      if (dirty || locked) {
         event.preventDefault();
         event.returnValue = "";
       }
     };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  }, [dirty,locked]);
   const steps = [copy.details, copy.audience, copy.content, copy.review].map(
     (label, index) => ({ id: String(index), label }),
   );
@@ -115,7 +121,7 @@ export function CampaignEditor({
     editorCopy.reviewHint,
   ];
   function close() {
-    if (busy || pending.current) return;
+    if (locked || pending.current) return;
     if (JSON.stringify(draft) !== initialJson.current) setDiscard(true);
     else onClose();
   }
@@ -193,7 +199,7 @@ export function CampaignEditor({
         }
       }}
       modalType={discard ? "confirmation" : "wizard"}
-      busy={busy}
+      busy={locked}
       title={
         discard
           ? copy.closeWarning
@@ -213,7 +219,7 @@ export function CampaignEditor({
         <Button
           className={`${actionClasses.secondary} dark:border-white/50 dark:text-white dark:hover:text-white`}
           variant="outline"
-          disabled={busy}
+          disabled={locked}
           onClick={() => (discard ? setDiscard(false) : close())}
         >
           {discard ? copy.keepEditing : copy.cancel}
@@ -229,7 +235,7 @@ export function CampaignEditor({
             {step > 0 && (
               <Button
                 variant="outline"
-                disabled={busy}
+                disabled={locked}
                 onClick={() => setStep((s) => s - 1)}
               >
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -239,7 +245,7 @@ export function CampaignEditor({
             {canEdit && (
               <Button
                 variant="outline"
-                disabled={busy || blocked}
+                disabled={locked || blocked}
                 onClick={() => void save()}
               >
                 <Save className="h-4 w-4" aria-hidden="true" />
@@ -249,7 +255,7 @@ export function CampaignEditor({
             {step < 3 && (
               <Button
                 className={actionClasses.primary}
-                disabled={busy || blocked}
+                disabled={locked || blocked}
                 onClick={() => {
                   if (validateDetails()) setStep((s) => s + 1);
                 }}
@@ -260,7 +266,7 @@ export function CampaignEditor({
             )}
             {canEdit && step === 3 && (
               <Button
-                disabled={busy || blocked}
+                disabled={locked || blocked}
                 onClick={() => void save(false, true)}
               >
                 {workspaceCopy.saveReview}
@@ -353,14 +359,15 @@ export function CampaignEditor({
               <CampaignTemplatePicker
                 copy={copy}
                 disabled={readOnly}
-                onApply={(value) =>
-                  setDraft((d) => ({
+                onApply={(value) => {
+                  setFiles(value.attachments??[]);setDraft((d) => ({
                     ...d,
                     subject: value.subject,
                     previewText: value.previewText,
                     bodyText: value.bodyText,
                     bodyHtml: value.bodyHtml,
-                  }))
+                    attachmentIds:(value.attachments??[]).map(f=>f.id),
+                  }));}
                 }
               />
               {field("subject", copy.subject, 240)}
@@ -369,6 +376,7 @@ export function CampaignEditor({
                 <span>{copy.body}</span>
                 <MailRichEditor label={copy.body} text={draft.bodyText} html={draft.bodyHtml??null} disabled={readOnly} onChange={(bodyText,bodyHtml)=>setDraft(d=>({...d,bodyText,bodyHtml}))} />
               </label>
+              <MailingFiles files={files} disabled={readOnly} onBusy={setFileBusy} onChange={canEdit?value=>{setFiles(value);setDraft(d=>({...d,attachmentIds:value.map(f=>f.id)}));}:undefined}/>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {audienceCopy.personalization}
               </p>
@@ -424,6 +432,7 @@ export function CampaignEditor({
                   text={draft.bodyText.split("{{name}}").join(contacts[0]?.name ?? copy.sample)}
                   html={draft.bodyHtml?.split("{{name}}").join(plainMailHtml(contacts[0]?.name ?? copy.sample))} />
               </section>
+              <MailingFiles files={files}/>
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 {deliveryCopy.note}
               </p>

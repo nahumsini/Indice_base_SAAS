@@ -30,18 +30,20 @@ public class PettyCashAttachmentService {
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties objectStorageProperties;
     private final CompanyStorageMeter storageMeter;
+    private final com.indice.erp.finance.attachments.FinanceAttachmentSealer sealer;
 
     public PettyCashAttachmentService(
             JdbcTemplate jdbcTemplate,
             PettyCashRepository repository,
             ObjectStorageService objectStorageService,
             ObjectStorageProperties objectStorageProperties,
-            CompanyStorageMeter storageMeter) {
+            CompanyStorageMeter storageMeter, com.indice.erp.finance.attachments.FinanceAttachmentSealer sealer) {
         this.jdbcTemplate = jdbcTemplate;
         this.repository = repository;
         this.objectStorageService = objectStorageService;
         this.objectStorageProperties = objectStorageProperties;
         this.storageMeter = storageMeter;
+        this.sealer = sealer;
     }
 
     @Transactional(readOnly = true)
@@ -80,9 +82,9 @@ public class PettyCashAttachmentService {
         validateAttachmentSize(sizeBytes);
 
         var objectKey = buildAttachmentObjectKey(context.companyId(), fundId, settlementLineId, fileName, contentType);
-        var upload = storageMeter.presign(
+        var upload = sealer.presign(
                 context.companyId(),
-                "PETTY_CASH",
+                "PETTY_CASH", settlementLineId,
                 documentsBucket(),
                 objectKey,
                 contentType,
@@ -121,10 +123,10 @@ public class PettyCashAttachmentService {
         var sizeBytes = parseLong(payload, "size_bytes", "sizeBytes");
         validateAttachmentSize(sizeBytes);
 
-        if (!objectStorageService.objectExists(documentsBucket(), objectKey)) {
-            throw new IllegalArgumentException("object_key does not reference an existing uploaded attachment.");
-        }
-        storageMeter.commit(context.companyId(), documentsBucket(), objectKey, sizeBytes);
+        var sealed = sealer.seal(context.companyId(), "PETTY_CASH", settlementLineId, documentsBucket(), objectKey, mimeType, sizeBytes);
+        var existing = jdbcTemplate.query("SELECT id FROM finance_petty_cash_settlement_line_attachments WHERE company_id=? AND petty_cash_fund_id=? AND settlement_line_id=? AND object_key=? AND deleted_at IS NULL",
+            (r,n)->r.getLong(1), context.companyId(), fundId, settlementLineId, sealed.key());
+        if (!existing.isEmpty()) return loadAttachment(context.companyId(), fundId, settlementLineId, existing.getFirst());
 
         var keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -132,8 +134,8 @@ public class PettyCashAttachmentService {
                     """
                     INSERT INTO finance_petty_cash_settlement_line_attachments
                     (company_id, petty_cash_fund_id, petty_cash_statement_id, settlement_line_id, expense_id,
-                     original_filename, mime_type, size_bytes, object_key, uploaded_by_user_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     original_filename, mime_type, size_bytes, object_key, uploaded_by_user_id, content_sha256)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     new String[] { "id" });
             statement.setLong(1, context.companyId());
@@ -144,8 +146,9 @@ public class PettyCashAttachmentService {
             statement.setString(6, fileName);
             statement.setString(7, mimeType);
             statement.setLong(8, sizeBytes);
-            statement.setString(9, objectKey);
+            statement.setString(9, sealed.key());
             statement.setLong(10, context.userId());
+            statement.setString(11, sealed.sha256());
             return statement;
         }, keyHolder);
 

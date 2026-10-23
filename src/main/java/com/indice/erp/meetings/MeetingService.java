@@ -132,7 +132,7 @@ public class MeetingService {
         String hash=fingerprint(body);Long old=replay(actor,"AGREEMENT",key,hash);if(old!=null)return repository.agreement(actor,old,false);
         if(meeting.status().equals("CANCELLED"))throw new IllegalStateException();member(actor.companyId(),body.assigneeId());
         if(meeting.ownerId()!=body.assigneeId()&&repository.participants(actor.companyId(),meeting.id()).stream().noneMatch(p->p.id()==body.assigneeId()))throw new IllegalArgumentException();
-        long id=repository.insert("INSERT INTO meeting_agreements(company_id,meeting_id,title,assignee_id,due_date) VALUES(?,?,?,?,?)",actor.companyId(),body.meetingId(),body.title().trim(),body.assigneeId(),java.sql.Date.valueOf(body.dueDate()));
+        long id=repository.insert("INSERT INTO meeting_agreements(company_id,meeting_id,title,assignee_id,due_date,original_due_date,deadline_basis) VALUES(?,?,?,?,?,?,'CREATED')",actor.companyId(),body.meetingId(),body.title().trim(),body.assigneeId(),java.sql.Date.valueOf(body.dueDate()),java.sql.Date.valueOf(body.dueDate()));
         if(body.followupEnabled()!=null)repository.jdbc().update("UPDATE meeting_agreements SET followup_enabled=? WHERE company_id=? AND id=?",body.followupEnabled(),actor.companyId(),id);
         remember(actor,"AGREEMENT",key,hash,id);audit(actor,body.meetingId(),id,"AGREEMENT_CREATED","");return repository.agreement(actor,id,false);
     }
@@ -141,7 +141,7 @@ public class MeetingService {
         if(!row.status().equals("OPEN")||!Set.of("DONE","CANCELLED").contains(body.status()))throw new IllegalStateException();
         if(!MeetingAccessService.administrator(actor)&&actor.userId()!=row.meetingOwnerId()&&!(body.status().equals("DONE")&&actor.userId()==row.assigneeId()))throw new SecurityException();
         if(body.reason()==null||body.reason().trim().length()<3||body.reason().length()>2000)throw new IllegalArgumentException();
-        repository.jdbc().update("UPDATE meeting_agreements SET status=?,resolution=?,version=version+1,updated_at=CURRENT_TIMESTAMP(6) WHERE company_id=? AND id=?",body.status(),body.reason().trim(),actor.companyId(),id);
+        repository.jdbc().update("UPDATE meeting_agreements SET status=?,resolution=?,fulfilled_at=CASE WHEN ?='DONE' THEN UTC_TIMESTAMP(6) ELSE NULL END,version=version+1,updated_at=CURRENT_TIMESTAMP(6) WHERE company_id=? AND id=?",body.status(),body.reason().trim(),body.status(),actor.companyId(),id);
         audit(actor,row.meetingId(),id,"AGREEMENT_"+body.status(),body.reason().trim());return repository.agreement(actor,id,false);
     }
     @Transactional public AgreementItem updateAgreement(AuthSessionUser actor,long id,AgreementUpdateRequest body){
@@ -151,6 +151,9 @@ public class MeetingService {
             ||body.dueDate().isBefore(LocalDate.of(2000,1,1))||body.dueDate().isAfter(LocalDate.of(2100,1,1)))throw new IllegalArgumentException();
         note(body.reason());member(actor.companyId(),body.assigneeId());
         if(body.assigneeId()!=row.meetingOwnerId()&&repository.participants(actor.companyId(),row.meetingId()).stream().noneMatch(p->p.id()==body.assigneeId()))throw new IllegalArgumentException();
+        if(row.assigneeId()!=body.assigneeId()||!row.dueDate().equals(body.dueDate()))
+            repository.jdbc().update("INSERT INTO meeting_agreement_revisions(company_id,agreement_id,actor_id,previous_assignee_id,assignee_id,previous_due_date,due_date,reason) VALUES(?,?,?,?,?,?,?,?)",
+                actor.companyId(),id,actor.userId(),row.assigneeId(),body.assigneeId(),java.sql.Date.valueOf(row.dueDate()),java.sql.Date.valueOf(body.dueDate()),body.reason().trim());
         repository.jdbc().update("UPDATE meeting_agreements SET title=?,assignee_id=?,due_date=?,followup_enabled=?,version=version+1,updated_at=CURRENT_TIMESTAMP(6) WHERE company_id=? AND id=?",
             body.title().trim(),body.assigneeId(),java.sql.Date.valueOf(body.dueDate()),body.followupEnabled()==null?row.followupEnabled():body.followupEnabled(),actor.companyId(),id);
         audit(actor,row.meetingId(),id,"AGREEMENT_UPDATED",body.reason().trim());return repository.agreement(actor,id,false);
@@ -170,12 +173,31 @@ public class MeetingService {
         audit(actor,id,null,"MINUTES_ADDENDUM",body.text().trim());return repository.detail(actor,id);
     }
     private static void note(String text){if(text==null||text.trim().length()<3||text.length()>2000)throw new IllegalArgumentException();}
+    @Transactional public AgreementDetail delegateTask(AuthSessionUser actor,long id,DelegateTaskRequest body){
+        lock(actor);var row=repository.agreement(actor,id,true);owner(actor,row.meetingOwnerId());
+        if(!tasks.allowed(actor))throw new SecurityException();
+        if(body==null||body.assigneeId()<1||body.dueDate()==null||body.reason()==null||body.reason().length()>2000)throw new IllegalArgumentException();
+        String fingerprint=fingerprint(List.of(body.assigneeId(),body.dueDate(),body.reason().trim()));
+        var links=repository.jdbc().queryForList("SELECT delegation_fingerprint FROM meeting_agreement_task_links WHERE company_id=? AND agreement_id=?",actor.companyId(),id);
+        if(!links.isEmpty()){
+            if(!fingerprint.equals(links.getFirst().get("delegation_fingerprint")))throw new IllegalStateException("Delegation already exists; review the linked task.");
+            var result=repository.agreementDetail(actor,id);if(result.task()==null)throw new SecurityException();return result;
+        }
+        version(row.version(),body.expectedVersion());
+        if(!row.status().equals("OPEN"))throw new IllegalStateException();
+        if(row.assigneeId()!=body.assigneeId()||!row.dueDate().equals(body.dueDate()))
+            row=updateAgreement(actor,id,new AgreementUpdateRequest(row.title(),body.assigneeId(),body.dueDate(),body.reason(),row.version(),row.followupEnabled()));
+        var result=createTask(actor,id,row.version());
+        repository.jdbc().update("UPDATE meeting_agreement_task_links SET delegation_fingerprint=? WHERE company_id=? AND agreement_id=?",fingerprint,actor.companyId(),id);
+        return result;
+    }
     @Transactional public AgreementDetail createTask(AuthSessionUser actor,long id,long expectedVersion){
         lock(actor);var row=repository.agreement(actor,id,true);owner(actor,row.meetingOwnerId());
         if(!tasks.allowed(actor))throw new SecurityException();
         var links=repository.jdbc().queryForList("SELECT task_id FROM meeting_agreement_task_links WHERE company_id=? AND agreement_id=?",Long.class,actor.companyId(),id);
         if(!links.isEmpty()){tasks.read(actor,links.getFirst());return repository.agreementDetail(actor,id);}
         version(row.version(),expectedVersion);if(!row.status().equals("OPEN"))throw new IllegalStateException();
+        member(actor.companyId(),row.assigneeId());
         var task=tasks.create(actor,row.title(),row.assigneeId(),row.dueDate());
         repository.jdbc().update("INSERT INTO meeting_agreement_task_links(company_id,agreement_id,task_id,created_by) VALUES(?,?,?,?)",actor.companyId(),id,task.id(),actor.userId());
         repository.jdbc().update("UPDATE meeting_agreements SET version=version+1,updated_at=CURRENT_TIMESTAMP(6) WHERE company_id=? AND id=?",actor.companyId(),id);

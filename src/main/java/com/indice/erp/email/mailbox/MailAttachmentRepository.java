@@ -16,5 +16,9 @@ public class MailAttachmentRepository {
     void insert(AuthSessionUser a,String account,String message,String id,MailboxContracts.UploadInput in,String key){db.update("INSERT INTO email_attachments(company_id,account_id,message_id,id,filename,content_type,size_bytes,object_key) VALUES(?,?,?,?,?,?,?,?)",a.companyId(),account,message,id,in.filename(),in.contentType(),in.sizeBytes(),key);}
     void ready(AuthSessionUser a,String account,String message,String id,String key){db.update("UPDATE email_attachments SET status='READY',object_key=? WHERE company_id=? AND account_id=? AND message_id=? AND id=?",key,a.companyId(),account,message,id);changed(a,account,message);}
     void remove(AuthSessionUser a,String account,String message,String id){db.update("UPDATE email_attachments SET status='REMOVED' WHERE company_id=? AND account_id=? AND message_id=? AND id=?",a.companyId(),account,message,id);changed(a,account,message);}
+    void importShared(AuthSessionUser a,String account,String message,String id,MailboxContracts.SharedFile f){
+        db.update("INSERT INTO email_attachments(company_id,account_id,message_id,id,filename,content_type,size_bytes,object_key,status) VALUES(?,?,?,?,?,?,?,?,'READY') ON DUPLICATE KEY UPDATE status='READY'",a.companyId(),account,message,id,f.filename(),f.contentType(),f.sizeBytes(),f.objectKey());
+        changed(a,account,message);
+    }
     private void changed(AuthSessionUser a,String account,String message){db.update("UPDATE email_messages SET version=version+1,has_attachments=EXISTS(SELECT 1 FROM email_attachments WHERE company_id=? AND account_id=? AND message_id=? AND status='READY') WHERE company_id=? AND account_id=? AND id=?",a.companyId(),account,message,a.companyId(),account,message);}
 }

@@ -97,6 +97,14 @@ public class KioskFileIntentService {
         } else if (capability.key().endsWith(".register")) {
             if (booleanPolicy(capability.filePolicy(), "sealOnRegister", false)) {
                 sealAndAdopt(context, request, capability, response);
+            } else if (booleanPolicy(capability.filePolicy(), "ownerSealsOnRegister", false)) {
+                var source = text(request.payload(), "object_key", "objectKey");
+                var accepted = text(response, "object_key", "objectKey");
+                var intent = pendingIntent(context, moduleReference(request), source, "File intent could not be adopted.");
+                if (accepted.isBlank() || accepted.equals(source) || !storedObjectMatches(intent, accepted)) {
+                    throw new IllegalArgumentException("Owner did not return valid sealed evidence.");
+                }
+                adopt(context, request, capability, accepted, true);
             } else {
                 adopt(context, request, capability,
                     text(request.payload(), "object_key", "objectKey"));
@@ -241,12 +249,18 @@ public class KioskFileIntentService {
             KioskActionRequest request,
             KioskCapabilityDescriptor capability,
             String acceptedObjectKey) {
+        adopt(context, request, capability, acceptedObjectKey, false);
+    }
+
+    private void adopt(KioskExecutionContext context, KioskActionRequest request,
+            KioskCapabilityDescriptor capability, String acceptedObjectKey, boolean ownerCommitted) {
         var stagedObjectKey = text(request.payload(), "object_key", "objectKey");
         var intent = pendingIntent(
             context, moduleReference(request), stagedObjectKey, "File intent could not be adopted.");
-        storageMeter.commitMoved(
-            context.definition().companyId(), intent.bucketName(), stagedObjectKey,
-            acceptedObjectKey, intent.sizeBytes());
+        if (!ownerCommitted) {
+            storageMeter.commitMoved(context.definition().companyId(), intent.bucketName(), stagedObjectKey,
+                acceptedObjectKey, intent.sizeBytes());
+        }
         var updated = jdbcTemplate.update(
             """
                 UPDATE kiosk_file_intents

@@ -14,8 +14,9 @@ import static com.indice.erp.sales.mailing.MailingDeliveryAccess.require;
 import static org.springframework.http.HttpStatus.*;
 @Service
 public class MailingDeliveryService {
+    private final MailingFileService files;
     private final MailingDeliveryAccess access;private final MailingService campaigns;private final MailingDeliveryRepository repository;private final CampaignEmailGateway email;private final MailingUnsubscribeService unsubscribe;private final TransactionTemplate tx;
-    public MailingDeliveryService(MailingDeliveryAccess access,MailingService campaigns,MailingDeliveryRepository repository,CampaignEmailGateway email,MailingUnsubscribeService unsubscribe,PlatformTransactionManager manager){this.access=access;this.campaigns=campaigns;this.repository=repository;this.email=email;this.unsubscribe=unsubscribe;this.tx=new TransactionTemplate(manager);}
+    public MailingDeliveryService(MailingDeliveryAccess access,MailingService campaigns,MailingDeliveryRepository repository,CampaignEmailGateway email,MailingUnsubscribeService unsubscribe,PlatformTransactionManager manager,MailingFileService files){this.files=files;this.access=access;this.campaigns=campaigns;this.repository=repository;this.email=email;this.unsubscribe=unsubscribe;this.tx=new TransactionTemplate(manager);}
     static String content(MailingContracts.Campaign campaign){return (campaign.previewText().isBlank()?"":campaign.previewText()+"\n\n")+campaign.bodyText();}
     static String formatted(MailingContracts.Campaign campaign,String name,String footer){
         if(campaign.bodyHtml()==null)return null;
@@ -29,7 +30,7 @@ public class MailingDeliveryService {
         if(c.senderAccountId()!=null)try{sender=email.sender(a,c.senderAccountId());if(!c.senderName().isBlank())sender=new CampaignEmailGateway.Sender(sender.id(),sender.email(),c.senderName(),sender.version(),sender.verified());}catch(ResponseStatusException ignored){ }
         var seen=new HashSet<String>();var audience=repository.audience(a.companyId(),id).stream().map(p->new Audience(p.contactId(),p.name(),p.email(),!address(p.email())?"INVALID":!seen.add(p.email())?"DUPLICATE":p.eligibility())).toList();
         String digest=BillingHashing.sha256(c.id()+":"+c.version()+":"+(sender==null?"":sender.id()+":"+sender.version())+":"+audience.stream().map(p->p.contactId()+":"+p.name()+":"+p.email()+":"+p.eligibility()).reduce("",(x,y)->x+"|"+y));
-        return new Review(id,c.version(),c.status(),c.subject(),content(c),c.replyTo(),sender,audience,digest,access.canSend(a),unsubscribe.available());
+        return new Review(id,c.version(),c.status(),c.subject(),content(c),c.replyTo(),sender,audience,digest,access.canSend(a),unsubscribe.available(),c.attachments());
     }
     public void consent(AuthSessionUser actor,Consent input){tx.executeWithoutResult(s->{var a=access.write(actor);require(!input.consentedAt().isAfter(Instant.now().plusSeconds(60)),BAD_REQUEST,"mailing_consent_date_invalid");for(long id:new HashSet<>(input.contactIds())){var address=repository.contactEmail(a.companyId(),id);require(address(address),BAD_REQUEST,"mailing_contact_unavailable");repository.consent(a,address,input.evidence().trim(),input.consentedAt());}});}
     public Results launch(AuthSessionUser actor,String id,Launch input){return tx.execute(s->{var a=access.write(actor);var c=campaigns.get(a,id);
@@ -55,7 +56,7 @@ public class MailingDeliveryService {
     public SendResult test(AuthSessionUser actor,String id,TestInput input){var a=access.current(actor);var c=tx.execute(s->{access.write(a);var campaign=campaigns.get(a,id);require(campaign.version()==input.version(),CONFLICT,"mailing_review_changed");require(campaign.senderAccountId()!=null&&!campaign.subject().isBlank()&&!campaign.bodyText().isBlank(),BAD_REQUEST,"mailing_content_required");return campaign;});
         require(address(input.to()),BAD_REQUEST,"mailing_recipient_invalid");var sender=email.sender(a,c.senderAccountId());require(sender.verified(),CONFLICT,"mailing_sender_not_verified");
         String key=UUID.nameUUIDFromBytes(("mailing-test:"+a.companyId()+":"+id+":"+input.version()+":"+input.to()+":"+input.requestId()).getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
-        return new SendResult(email.send(a,sender.id(),sender.version(),key,input.to(),"[TEST] "+c.subject().substring(0,Math.min(c.subject().length(),230)),content(c),c.replyTo(),c.senderName(),formatted(c,"{{name}}",null)));
+        return new SendResult(email.send(a,sender.id(),sender.version(),key,input.to(),"[TEST] "+c.subject().substring(0,Math.min(c.subject().length(),230)),content(c),c.replyTo(),c.senderName(),formatted(c,"{{name}}",null),files.campaignSnapshot(a,id)));
     }
     public Results results(AuthSessionUser actor,String id){var a=access.read(actor);var c=campaigns.get(a,id);var run=repository.run(a.companyId(),id);return new Results(c.status(),c.version(),run==null?null:run.scheduled(),run==null?null:run.lastError(),repository.deliveries(a.companyId(),id),access.canSend(a));}
     public Results control(AuthSessionUser actor,String id,Control in){return tx.execute(s->{var a=access.write(actor);var c=campaigns.get(a,id);require(c.version()==in.version(),CONFLICT,"mailing_review_changed");var run=repository.run(a.companyId(),id);require(run!=null,CONFLICT,"mailing_campaign_locked");
@@ -83,7 +84,7 @@ public class MailingDeliveryService {
                 // Last permission/suppression check is serialized against unsubscribe, immediately before authorizing transport.
                 boolean eligible=tx.execute(s->{access.write(work.actor());return repository.eligible(run.company(),work.recipient().email());});
                 if(!eligible)state="SUPPRESSED";
-                else {String body=personalize(content(work.campaign()),work.recipient().name())+"\n\n"+run.footer()+"\n\nUnsubscribe / Cancelar suscripción:\n"+unsubscribe.link(work.recipient().id());state=email.send(work.actor(),run.account(),run.accountVersion(),work.recipient().id(),work.recipient().email(),personalize(work.campaign().subject(),work.recipient().name().replaceAll("[\\r\\n]"," ")),body,work.campaign().replyTo(),work.campaign().senderName(),formatted(work.campaign(),work.recipient().name(),run.footer()+"\n\nUnsubscribe / Cancelar suscripción:\n"+unsubscribe.link(work.recipient().id())));}
+                else {String body=personalize(content(work.campaign()),work.recipient().name())+"\n\n"+run.footer()+"\n\nUnsubscribe / Cancelar suscripción:\n"+unsubscribe.link(work.recipient().id());state=email.send(work.actor(),run.account(),run.accountVersion(),work.recipient().id(),work.recipient().email(),personalize(work.campaign().subject(),work.recipient().name().replaceAll("[\\r\\n]"," ")),body,work.campaign().replyTo(),work.campaign().senderName(),formatted(work.campaign(),work.recipient().name(),run.footer()+"\n\nUnsubscribe / Cancelar suscripción:\n"+unsubscribe.link(work.recipient().id())),files.campaignSnapshot(work.actor(),run.campaign()));}
             }
         }catch(ResponseStatusException failure){
             error=failure.getReason()!=null&&failure.getReason().matches("(?:email|mailing)_[a-z_]+")?failure.getReason():"mailing_send_unavailable";

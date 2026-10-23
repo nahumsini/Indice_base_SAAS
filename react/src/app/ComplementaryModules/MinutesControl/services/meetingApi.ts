@@ -62,6 +62,8 @@ export type Agreement = {
   followupEnabled?: boolean;
 };
 export type AgreementDetail = { agreement: Agreement; history: MeetingDetail["history"]; task: { id: number; folio: string; title: string; status: string; dueDate: string } | null; canLinkTask: boolean };
+export type AgreementEvidence = { originalDueDate: string | null; deadlineBasis: string; fulfilledAt: string | null; outcome: "ON_TIME" | "LATE" | "OVERDUE" | "UPCOMING" | "CANCELLED" | "UNRATED"; revisions: { actorName: string; previousAssigneeName: string; assigneeName: string; previousDueDate: string; dueDate: string; reason: string; occurredAt: string }[] };
+export type AgreementPerformance = { total: number; eligible: number; onTime: number; late: number; overdue: number; upcoming: number; cancelled: number; historicalUnknown: number; onTimePercent: number | null; calculatedAt: string; timezone: string };
 export type MeetingChoice = {
   id: number;
   title: string;
@@ -176,6 +178,9 @@ export const meetingApi = {
   attendance: (id: number, signal: AbortSignal) => apiClient<Attendance>(`${root}/${id}/attendance`, { signal }),
   saveAttendance: (id: number, body: { entries: { userId: number; status: string }[]; expectedVersion: number }) => save<Attendance>(`/${id}/attendance`, "PUT", body),
   availability: (meeting: MeetingRequest, excludeMeetingId?: number) => save<Availability>("/availability", "POST", { meeting, excludeMeetingId }),
+  agreementPerformance: (id: number, signal?: AbortSignal) => apiClient<AgreementPerformance>(`${root}/${id}/agreement-performance`, { signal }),
+  agreementEvidence: (id: number, signal?: AbortSignal) => apiClient<AgreementEvidence>(`${root}/agreements/${id}/evidence`, { signal }),
+  delegateTask: (record: Agreement, body: { assigneeId: number; dueDate: string; reason: string }) => save<AgreementDetail>(`/agreements/${record.id}/task-delegation`, "POST", { ...body, expectedVersion: record.version }),
   createTask: (record: Agreement) => save<AgreementDetail>(`/agreements/${record.id}/task`, "POST", { expectedVersion: record.version }),
   searchChoices: (search: string, page: number, selected: number, signal: AbortSignal) =>
     apiClient<Page<MeetingChoice>>(`${root}/agreement-meetings/search?${query({ search, page, selected, pageSize: 25 })}`, { signal }),

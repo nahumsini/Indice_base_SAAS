@@ -12,9 +12,10 @@ import static com.indice.erp.sales.mailing.MailingContracts.*;
 @Service
 public class MailingService {
     private final JdbcTemplate db;
+    private final MailingFileService files;
     private final com.indice.erp.email.accounts.EmailAccountService emailAccounts;
     private final com.indice.erp.access.module.ModuleAccessService modules;
-    public MailingService(JdbcTemplate db,com.indice.erp.access.module.ModuleAccessService modules,com.indice.erp.email.accounts.EmailAccountService emailAccounts) { this.db=db;this.modules=modules;this.emailAccounts=emailAccounts; }
+    public MailingService(JdbcTemplate db,com.indice.erp.access.module.ModuleAccessService modules,com.indice.erp.email.accounts.EmailAccountService emailAccounts,MailingFileService files) { this.files=files;this.db=db;this.modules=modules;this.emailAccounts=emailAccounts; }
     private static void check(boolean valid,HttpStatus status,String code) {
         if(!valid)throw new ResponseStatusException(status,code);
     }
@@ -47,7 +48,7 @@ public class MailingService {
             WHERE r.company_id=c.company_id AND r.campaign_id=c.id AND s.deleted_at IS NULL
               AND s.status='active' AND s.email REGEXP '^[^[:space:]@]+@[^[:space:]@]+[.][^[:space:]@]+$') AS recipient_count
             FROM sales_mailing_campaigns c WHERE c.company_id=? AND c.id=?
-            """,(r,n)->new Campaign(r.getString("id"),r.getString("name"),r.getString("subject"),r.getString("sender_name"),r.getString("reply_to"),r.getString("preview_text"),detail?r.getString("body_text"):"",r.getString("status"),r.getLong("version"),r.getLong("recipient_count"),r.getTimestamp("updated_at").toInstant(),recipients,r.getString("sender_account_id"),detail?r.getString("body_html"):null),company,id)
+            """,(r,n)->new Campaign(r.getString("id"),r.getString("name"),r.getString("subject"),r.getString("sender_name"),r.getString("reply_to"),r.getString("preview_text"),detail?r.getString("body_text"):"",r.getString("status"),r.getLong("version"),r.getLong("recipient_count"),r.getTimestamp("updated_at").toInstant(),recipients,r.getString("sender_account_id"),detail?r.getString("body_html"):null,detail?files.campaign(company,id):List.of()),company,id)
             .stream().findFirst().orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"mailing_not_found"));
     }
     private List<Contact> recipients(long company,String id) {
@@ -80,6 +81,7 @@ public class MailingService {
         if(sender!=null)emailAccounts.requireSender(actor,sender);
         var contacts=new LinkedHashSet<>(input.contactIds());
         for(long contact:contacts)check(Boolean.TRUE.equals(db.queryForObject("SELECT EXISTS(SELECT 1 FROM sales_contacts WHERE company_id=? AND id=? AND deleted_at IS NULL AND status='active')",Boolean.class,actor.companyId(),contact)),HttpStatus.BAD_REQUEST,"mailing_contact_unavailable");
+        if(input.attachmentIds()!=null)files.validate(actor,input.attachmentIds());
         String html=input.bodyHtml()==null ? (versions.isEmpty()?null:campaign(actor.companyId(),id,true).bodyText().equals(input.bodyText())?campaign(actor.companyId(),id,true).bodyHtml():null) : com.indice.erp.email.mailbox.SafeMailHtml.clean(input.bodyHtml());
         if(versions.isEmpty())db.update("""
             INSERT INTO sales_mailing_campaigns(id,company_id,name,subject,sender_name,reply_to,preview_text,body_text,created_by,updated_by)
@@ -90,6 +92,7 @@ public class MailingService {
             WHERE company_id=? AND id=? AND version=?
             """,input.name().trim(),input.subject().trim(),input.senderName().trim(),input.replyTo().trim(),input.previewText().trim(),input.bodyText(),actor.userId(),actor.companyId(),id,input.version());
         db.update("UPDATE sales_mailing_campaigns SET sender_account_id=?,body_html=? WHERE company_id=? AND id=?",sender,html,actor.companyId(),id);
+        files.replace(actor,id,input.attachmentIds(),false);
         db.update("DELETE FROM sales_mailing_recipients WHERE company_id=? AND campaign_id=?",actor.companyId(),id);
         for(long contact:contacts)db.update("INSERT INTO sales_mailing_recipients(company_id,campaign_id,contact_id) VALUES(?,?,?)",actor.companyId(),id,contact);
         db.update("INSERT INTO sales_mailing_audit(company_id,campaign_id,actor_user_id,campaign_version,action) VALUES(?,?,?,?,'DRAFT_SAVED')",actor.companyId(),id,actor.userId(),input.version()+1);

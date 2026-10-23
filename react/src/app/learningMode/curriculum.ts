@@ -27,7 +27,8 @@ function chapter(module: string, tab: string, label: LearningText, steps: readon
   const [pageId, stage] = definitions[module];
   const version = module === 'scheduling' && ['calendar','reservations'].includes(tab) ? 3
     : module === 'scheduling' && tab === 'configuration' ? 7
-    : module === 'ideas_board' && tab === 'projects' ? 4
+    : module === 'ideas_board' && tab === 'projects' ? 5
+    : module === 'ideas_board' && ['canvas','system'].includes(tab) ? 4
     : ['correo.mail', 'control_minutas.meetings', 'scheduling.clients'].includes(`${module}.${tab}`) ? 3
     : ["expenses", "petty_cash"].includes(module)
     || module === 'ideas_board'
@@ -40,16 +41,16 @@ function chapter(module: string, tab: string, label: LearningText, steps: readon
 export const learningChapters: readonly LearningChapter[] = [
   chapter("ideas_board", "canvas", ["Mi pizarra", "My board"], [
     ["Revisa la empresa activa: esta pizarra es privada para tu usuario y empresa.", "Check the active company: this board is private to your user and company."],
-    ["Escribe sobre el lienzo, agrega notas, figuras, dibujos o archivos multimedia y enlaza tus ideas con flechas sencillas o dobles. Comprueba el guardado automático.", "Write on the canvas, add notes, shapes, drawings or media files, and connect ideas with single or double arrows. Check autosave."],
+    ["Usa Construye tu tablero para agregar personas, procesos, canales, productos o servicios y finanzas. Combínalos con texto, notas, dibujos y multimedia; enlaza tus ideas y comprueba el guardado automático.", "Use Build your board to add people, processes, channels, products or services and finance. Combine them with text, notes, drawings and media; connect your ideas and check autosave."],
     ["Guarda un proyecto con nombre para conservar una copia. Si hay un conflicto, revisa la versión guardada antes de descartar cambios.", "Save a named project to retain a snapshot. If a conflict occurs, review the saved version before discarding changes."],
   ]),
-  chapter("ideas_board", "system", ["Tablero Índice", "Indice system board"], [
+  chapter("ideas_board", "system", ["Diagnóstico empresarial", "Business diagnosis"], [
     ["Prepara un mapa de Personas, Procesos, Productos y Finanzas dentro de tu espacio privado.", "Prepare a map of People, Processes, Products and Finance within your private workspace."],
     ["Agrega hasta tres elementos por captura, define pasos de procesos, canales y productos o servicios. Conecta sus relaciones y usa notas exteriores y el minimapa para organizar el diagnóstico.", "Add up to three elements at a time, define process steps, channels, and products or services. Connect their relationships and use outside notes and the minimap to organize the diagnosis."],
     ["Comprueba el guardado y conserva un proyecto. El mapa ordena ideas; no crea empleados, tareas, productos ni registros contables.", "Check the saved state and retain a project. The map organizes ideas; it does not create employees, tasks, products or accounting records."],
   ]),
   chapter("ideas_board", "projects", ["Mis proyectos", "My projects"], [
-    ["Busca proyectos propios, compartidos contigo o en tu papelera dentro de la empresa activa.", "Search your own projects, projects shared with you or your trash within the active company."],
+    ["Busca proyectos propios, compartidos contigo o en tu papelera. Filtra por tipo, ordena los resultados y conserva tus filtros dentro de la empresa activa.", "Search your own projects, shared projects or trash. Filter by type, sort results and retain your filters within the active company."],
     ["Consulta e imprime una versión guardada, crea una copia privada o, si eres su dueño, cambia el nombre, comparte consulta y copia o mueve el proyecto a la papelera.", "Review and print a saved snapshot, create a private copy or, as its owner, rename it, share read/copy access or move it to trash."],
     ["Compartir no permite editar el original. Comprueba los destinatarios y la copia guardada; restaura desde la papelera y protege el borrador antes de usar un proyecto en tu pizarrón.", "Sharing does not allow editing the original. Check recipients and the saved copy; restore from trash and protect your draft before using a project in your board."],
   ]),

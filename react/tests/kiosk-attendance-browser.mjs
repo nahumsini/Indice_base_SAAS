@@ -4,7 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 const { chromium } = await import(process.env.INDICE_PLAYWRIGHT_MODULE || 'playwright');
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const server = await createServer({ root, server:{ host:'127.0.0.1', port:5199, strictPort:true }, define:{ 'import.meta.env.VITE_API_BASE_URL':'""' } });
+const port = Number(process.env.INDICE_KIOSK_ATTENDANCE_TEST_PORT || 5199);
+const server = await createServer({ root, server:{ host:'127.0.0.1', port, strictPort:true }, define:{ 'import.meta.env.VITE_API_BASE_URL':'""' } });
 const card = { id: 401, tool_key: 'employee.attendance@1', name: 'Recursos Humanos', module: 'HUMAN_RESOURCES', module_slug: 'human_resources', kiosk_type: 'employee_attendance', workspace_kind: 'ATTENDANCE', purpose: 'Registra asistencia y consulta comunicados, actas y permisos.', availability: 'AVAILABLE', primary_action: 'OPEN' };
 const bootstrap = { name: 'Kiosco del equipo', description: 'Herramientas operativas para colaboradores.', company_name: 'Empresa Demo Spring', theme_key: 'indice-blue', locale: 'es-MX', access_methods: ['PIN'], csrf_token: 'visual-csrf', audience_type: 'EMPLOYEE', allow_provider_registration: false };
 const session = { session_id: 'employee-session', session_token: 'employee-session-token', expires_at: '2099-01-01T00:00:00Z', identity: { type: 'EMPLOYEE', id: 7, name: 'Mariana Rodríguez' }, employee: { name: 'Mariana Rodríguez' }, multi_kiosk: { id: 2, name: bootstrap.name, description: bootstrap.description, company_name: bootstrap.company_name, theme_key: bootstrap.theme_key }, kiosks: [card] };
@@ -66,7 +67,7 @@ try {
     if(path==='/kiosks/401/workspace')return reply(workspace);
     assert.equal(req.headers()['x-kiosk-session-token'],'child-token');
     assert.ok(req.headers()['idempotency-key']);
-    if(path.endsWith('/attendance.photo.presign@1'))return reply({object_key:'synthetic-photo',upload_url:'http://127.0.0.1:5199/synthetic-photo-upload'});
+    if(path.endsWith('/attendance.photo.presign@1')){const payload=req.postDataJSON();assert.ok(payload.size_bytes>0 && payload.size_bytes<=5*1024*1024);return reply({object_key:'synthetic-photo',upload_url:`http://127.0.0.1:${port}/synthetic-photo-upload`});}
     if(path.endsWith('/attendance.punch.create@1')){
       const payload=req.postDataJSON();punches.push(payload);
       assert.equal(payload.photo_url,'synthetic-photo');
@@ -77,7 +78,7 @@ try {
     }
     unexpected.push(`${method} ${path}`);return route.fulfill({status:500,json:{}});
   });
-  await page.goto('http://127.0.0.1:5199/tests/browser/kiosk-employee.html');
+  await page.goto(`http://127.0.0.1:${port}/tests/browser/kiosk-employee.html`);
   await page.locator('input[inputmode="numeric"]').fill('11111').catch(async error=>{console.error(await page.locator('body').innerText(),errors,unexpected);throw error;});
   await page.getByRole('button',{name:'Entrar a mis kioscos',exact:true}).click();
   await page.getByRole('button',{name:'Herramientas',exact:true}).click();

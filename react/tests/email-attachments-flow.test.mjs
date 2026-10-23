@@ -49,7 +49,7 @@ test('unsupported extensions, fake images, empty and oversized files stay blocke
     [new File([jpeg], 'script.exe', { type: 'image/jpeg' }), 'fileFormat'],
     [new File(['fake image'], 'foto.png', { type: 'image/png' }), 'fileContent'],
     [new File([], 'empty.txt'), 'fileSize'],
-    [new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'large.txt'), 'fileSize'],
+    [new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'large.txt'), 'fileSize'],
   ]) {
     await assert.rejects(rules.prepareMailAttachment(file), e => e.key === key);
     let prepared = 0; const h = harness({ upload: () => assert.fail('must not upload') }, async () => { prepared++; });

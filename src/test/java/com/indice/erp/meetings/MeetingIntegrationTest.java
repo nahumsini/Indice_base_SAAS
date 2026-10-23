@@ -26,6 +26,11 @@ class MeetingIntegrationTest {
     @Autowired MeetingPlanningService planning;
     @Autowired MeetingReminderService reminders;
     @Autowired MeetingOperationalService operational;
+    @Autowired MeetingAgreementPerformanceService performance;
+    @Autowired com.indice.erp.ai.meetings.AiMeetingActionService aiActions;
+    @Autowired com.indice.erp.ai.access.AiAccessTokenRepository aiTokens;
+    @Autowired com.indice.erp.meetings.MeetingAssistantService assistant;
+
     @Autowired JdbcTemplate db;
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper mapper;
@@ -46,9 +51,10 @@ class MeetingIntegrationTest {
     private MeetingDetail create(){return service.create(actor,request(),UUID.randomUUID().toString());}
     private MockHttpSession session(long id,long tenant){var s=new MockHttpSession();s.setAttribute(SessionAuthService.SESSION_USER_ID,id);s.setAttribute(SessionAuthService.SESSION_COMPANY_ID,tenant);s.setAttribute(SessionAuthService.SESSION_USER_NAME,"Synthetic");s.setAttribute(SessionAuthService.SESSION_LOGIN_CSRF,"synthetic-csrf");return s;}
     @AfterEach void cleanup(){
+        for(long tenant:new long[]{company,other})if(tenant>0)for(String table:List.of("ai_action_audit_events","ai_action_executions","ai_action_confirmations"))db.update("DELETE FROM "+table+" WHERE company_id=?",tenant);
         for(long tenant:new long[]{company,other})if(tenant>0)db.update("DELETE FROM meeting_agreement_task_links WHERE company_id=?",tenant);
         for(long tenant:new long[]{company,other})if(tenant>0)db.update("DELETE FROM process_tasks WHERE company_id=?",tenant);
-        for(long tenant:new long[]{company,other})if(tenant>0){for(String table:List.of("meeting_create_replays","meeting_workflow_audit","meeting_reminder_receipts","meeting_audit","meeting_agreements","meeting_participants","meeting_records","meeting_series","meeting_flows"))db.update("DELETE FROM "+table+" WHERE company_id=?",tenant);db.update("DELETE FROM companies WHERE id=?",tenant);}
+        for(long tenant:new long[]{company,other})if(tenant>0){for(String table:List.of("meeting_agreement_revisions","meeting_create_replays","meeting_workflow_audit","meeting_reminder_receipts","meeting_audit","meeting_agreements","meeting_participants","meeting_records","meeting_series","meeting_flows"))db.update("DELETE FROM "+table+" WHERE company_id=?",tenant);db.update("DELETE FROM companies WHERE id=?",tenant);}
         for(long id:new long[]{user,participant,stranger})if(id>0)db.update("DELETE FROM users WHERE id=?",id);
     }
     @Test void identicalCreateRetryDoesNotDuplicateAndChangedPayloadConflicts(){
@@ -118,6 +124,8 @@ class MeetingIntegrationTest {
         mvc.perform(get("/api/v1/meetings/agreements").session(s).param("from",LocalDate.now().minusDays(1).toString()).param("to",LocalDate.now().plusDays(2).toString())).andExpect(status().isOk()).andExpect(jsonPath("$.items[0].id").value(agreement.id())).andExpect(jsonPath("$.items[0].minutes").doesNotExist());
         mvc.perform(get("/api/v1/meetings/"+meeting.meeting().id()).session(s)).andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/meetings/members").session(s)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/meetings/{id}/agreement-performance",meeting.meeting().id()).session(s)).andExpect(status().isOk()).andExpect(jsonPath("$.timezone").value("UTC")).andExpect(jsonPath("$.minutes").doesNotExist());
+        mvc.perform(get("/api/v1/meetings/agreements/{id}/evidence",agreement.id()).session(s)).andExpect(status().isOk()).andExpect(jsonPath("$.deadlineBasis").value("CREATED"));
         mvc.perform(get("/api/v1/meetings/metrics").session(s).param("from",start.minusSeconds(86400).toString()).param("to",start.plusSeconds(86400).toString()).param("timezone","UTC")).andExpect(status().isForbidden());
         mvc.perform(post("/api/v1/meetings/agreements/"+agreement.id()+"/status").session(s).header("X-CSRF-Token","synthetic-csrf").contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(new TransitionRequest("DONE","Delivered synthetic evidence",1)))).andExpect(status().isOk());
         db.update("UPDATE user_company_tab_permissions SET can_view=0 WHERE user_company_id=?",uc);
@@ -201,6 +209,104 @@ class MeetingIntegrationTest {
         assertThat(repository.agreements(actor,LocalDate.now(),LocalDate.now().plusDays(1),"","","",0,"due","asc",LocalDate.now(),1,25,second,false).items()).isEmpty();
         assertThat(db.queryForObject("SELECT COUNT(*) FROM meeting_agreements WHERE company_id=?",Integer.class,company)).isEqualTo(1);
         assertThatThrownBy(()->repository.agreements(outsider,LocalDate.now(),LocalDate.now().plusDays(1),"","","",0,"due","asc",LocalDate.now(),1,25,second,true)).isInstanceOf(NoSuchElementException.class);
+    }
+    @Test void atomicDelegationReassignsAuditsPreservesOriginalDeadlineAndRetriesOnlyExactPayload(){
+        var meeting=create();var due=LocalDate.now().minusDays(3);
+        var agreement=service.agreement(actor,new AgreementRequest(meeting.meeting().id(),"Delegate concrete outcome",participant,due),UUID.randomUUID().toString());
+        db.update("INSERT INTO company_module_entitlements(company_id,module_slug,status,source) VALUES(?,'processes','active','test')",company);
+        var request=new DelegateTaskRequest(1,user,due.plusDays(10),"Owner accepted a new deadline");
+        assertThatThrownBy(()->service.delegateTask(member,agreement.id(),request)).isInstanceOf(SecurityException.class);
+        assertThatThrownBy(()->service.delegateTask(actor,agreement.id(),new DelegateTaskRequest(1,stranger,due,"Invalid participant"))).isInstanceOf(IllegalArgumentException.class);
+        assertThat(repository.agreement(actor,agreement.id(),false).version()).isEqualTo(1);
+        var saved=service.delegateTask(actor,agreement.id(),request);
+        assertThat(saved.task()).isNotNull();assertThat(saved.agreement().assigneeId()).isEqualTo(user);
+        assertThat(service.delegateTask(actor,agreement.id(),request).task().id()).isEqualTo(saved.task().id());
+        assertThatThrownBy(()->service.delegateTask(actor,agreement.id(),new DelegateTaskRequest(1,participant,due,"Changed retry"))).isInstanceOf(IllegalStateException.class);
+        var evidence=performance.evidence(actor,agreement.id());assertThat(evidence.originalDueDate()).isEqualTo(due);assertThat(evidence.outcome()).isEqualTo("OVERDUE");
+        assertThat(evidence.revisions()).hasSize(1);assertThat(evidence.revisions().getFirst().previousAssigneeName()).isEqualTo("Synthetic participant");
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM process_tasks WHERE company_id=?",Integer.class,company)).isEqualTo(1);
+        db.update("UPDATE process_tasks SET status='completed' WHERE company_id=? AND id=?",company,saved.task().id());
+        assertThat(repository.agreement(actor,agreement.id(),false).status()).isEqualTo("OPEN");
+        assertThat(performance.performance(actor,meeting.meeting().id()).overdue()).isEqualTo(1);
+    }
+    @Test void performanceUsesEndedOriginalDeadlinesAndConfirmedEvidenceWithoutManufacturingHistory(){
+        var meeting=create();long id=meeting.meeting().id();var due=LocalDate.of(2026,10,20);
+        for(int index=0;index<10;index++){
+            var a=service.agreement(actor,new AgreementRequest(id,"Scored obligation "+index,participant,due),UUID.randomUUID().toString());
+            if(index<9){service.agreementStatus(actor,a.id(),new TransitionRequest("DONE","Validated synthetic evidence",1));db.update("UPDATE meeting_agreements SET fulfilled_at=? WHERE company_id=? AND id=?",java.sql.Timestamp.from(Instant.parse(index<7?"2026-10-20T23:59:59Z":"2026-10-21T00:00:00Z")),company,a.id());}
+        }
+        var future=service.agreement(actor,new AgreementRequest(id,"Future obligation",participant,due.plusDays(10)),UUID.randomUUID().toString());
+        var cancelled=service.agreement(actor,new AgreementRequest(id,"Cancelled obligation",participant,due),UUID.randomUUID().toString());service.agreementStatus(actor,cancelled.id(),new TransitionRequest("CANCELLED","Explicit cancellation",1));
+        var legacy=service.agreement(actor,new AgreementRequest(id,"Legacy obligation",participant,due),UUID.randomUUID().toString());db.update("UPDATE meeting_agreements SET deadline_basis='ADOPTED' WHERE company_id=? AND id=?",company,legacy.id());
+        var fixed=new MeetingAgreementPerformanceService(repository,Clock.fixed(Instant.parse("2026-10-23T12:00:00Z"),ZoneOffset.UTC));var score=fixed.performance(actor,id);
+        assertThat(score.total()).isEqualTo(13);assertThat(score.eligible()).isEqualTo(10);assertThat(score.onTime()).isEqualTo(7);assertThat(score.late()).isEqualTo(2);assertThat(score.overdue()).isEqualTo(1);assertThat(score.upcoming()).isEqualTo(1);assertThat(score.cancelled()).isEqualTo(1);assertThat(score.historicalUnknown()).isEqualTo(1);assertThat(score.onTimePercent()).isEqualTo(70);
+        assertThatThrownBy(()->fixed.performance(outsider,id)).isInstanceOf(NoSuchElementException.class);
+        assertThatThrownBy(()->fixed.performance(new AuthSessionUser(user,other,"Other","superadmin"),id)).isInstanceOf(NoSuchElementException.class);
+        assertThatThrownBy(()->fixed.evidence(outsider,future.id())).isInstanceOf(NoSuchElementException.class);
+        assertThat(fixed.performance(actor,create().meeting().id()).onTimePercent()).isNull();
+    }
+    private com.indice.erp.ai.access.AiAccessTokenRepository.StoredToken meetingToken(Set<String> scopes){
+        long membership=db.queryForObject("SELECT id FROM user_companies WHERE company_id=? AND user_id=?",Long.class,company,user);
+        var identity=new AuthSessionUser(user,company,membership,"Synthetic owner","superadmin");
+        long id=aiTokens.insert(identity,"generic_mcp","Synthetic meeting tools","test",UUID.randomUUID().toString().replace("-","")+UUID.randomUUID().toString().replace("-",""),Instant.now().plusSeconds(3600),scopes);
+        return new com.indice.erp.ai.access.AiAccessTokenRepository.StoredToken(id,identity,scopes);
+    }
+    @Test void mcpMinutesPreviewIsImmutableVersionedPermissionedAndReplaySafe(){
+        var meeting=create();var token=meetingToken(Set.of("meetings.read","meetings.manage"));
+        var change=new MeetingAssistantService.Change(meeting.meeting().id(),null,null,null,null,null,"Reviewed discussion","Reviewed decision",null,1L);
+        var preview=aiActions.preview(token,"save_meeting_minutes",change);assertThat(repository.detail(actor,meeting.meeting().id()).minutes()).isEmpty();
+        var commit=new com.indice.erp.ai.meetings.AiMeetingActionService.Commit(preview.confirmationToken(),UUID.randomUUID().toString());
+        assertThat(aiActions.commit(token,"save_meeting_minutes",commit).replayed()).isFalse();
+        assertThat(aiActions.commit(token,"save_meeting_minutes",commit).replayed()).isTrue();
+        assertThat(repository.detail(actor,meeting.meeting().id()).minutes()).isEqualTo("Reviewed discussion");
+        assertThatThrownBy(()->aiActions.preview(token,"save_meeting_minutes",change)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(()->aiActions.commit(meetingToken(Set.of("meetings.manage")),"save_meeting_minutes",commit)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(()->aiActions.preview(meetingToken(Set.of("meetings.read")),"save_meeting_minutes",change)).isInstanceOf(SecurityException.class);
+        assertThatThrownBy(()->mapper.readValue("{\"confirmationToken\":\"example\",\"idempotencyKey\":\"example\",\"minutes\":\"replacement\"}",com.indice.erp.ai.meetings.AiMeetingActionService.Commit.class)).isInstanceOf(Exception.class);
+    }
+    @Test void mcpDelegationRequiresTaskConsentAndRechecksNativeOwnerScope(){
+        var meeting=create();var agreement=service.agreement(actor,new AgreementRequest(meeting.meeting().id(),"MCP concrete obligation",participant,LocalDate.now().plusDays(2)),UUID.randomUUID().toString());
+        db.update("INSERT INTO company_module_entitlements(company_id,module_slug,status,source) VALUES(?,'processes','active','test')",company);
+        var change=new MeetingAssistantService.Change(null,agreement.id(),null,participant,agreement.dueDate(),null,null,null,"",1L);
+        assertThatThrownBy(()->aiActions.preview(meetingToken(Set.of("meeting_agreements.manage")),"delegate_meeting_agreement_task",change)).isInstanceOf(SecurityException.class);
+        var token=meetingToken(Set.of("meeting_agreements.manage","tasks.create","tasks.delegate"));var preview=aiActions.preview(token,"delegate_meeting_agreement_task",change);
+        var request=new com.indice.erp.ai.meetings.AiMeetingActionService.Commit(preview.confirmationToken(),UUID.randomUUID().toString());
+        var saved=aiActions.commit(token,"delegate_meeting_agreement_task",request);assertThat(saved.result().id()).isEqualTo(agreement.id());assertThat(aiActions.commit(token,"delegate_meeting_agreement_task",request).replayed()).isTrue();
+        db.update("UPDATE company_module_entitlements SET status='inactive' WHERE company_id=? AND module_slug='processes'",company);
+        assertThatThrownBy(()->aiActions.commit(token,"delegate_meeting_agreement_task",request)).isInstanceOf(SecurityException.class);
+    }
+    @Test void performanceAndDelegationHttpFailClosedWithoutSessionCsrfOrObjectScope() throws Exception {
+        var meeting=create();var agreement=service.agreement(actor,new AgreementRequest(meeting.meeting().id(),"Protected agreement",participant,LocalDate.now().plusDays(2)),UUID.randomUUID().toString());
+        mvc.perform(get("/api/v1/meetings/{id}/agreement-performance",meeting.meeting().id())).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/meetings/{id}/agreement-performance",meeting.meeting().id()).session(session(participant,company))).andExpect(status().isForbidden());
+        long strangerMembership=db.queryForObject("SELECT id FROM user_companies WHERE company_id=? AND user_id=?",Long.class,company,stranger);
+        db.update("INSERT INTO user_company_module_roles(user_company_id,module_slug,role) VALUES(?,'control_minutas','user')",strangerMembership);
+        db.update("INSERT INTO user_company_tab_permissions(user_company_id,module_slug,tab_key,can_view) VALUES(?,'control_minutas','agreements',1)",strangerMembership);
+        mvc.perform(get("/api/v1/meetings/{id}/agreement-performance",meeting.meeting().id()).session(session(stranger,company))).andExpect(status().isNotFound());
+        mvc.perform(post("/api/v1/meetings/agreements/{id}/task-delegation",agreement.id()).session(session(user,company)).contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(new DelegateTaskRequest(1,participant,agreement.dueDate(),"")))).andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/ai/tools/meetings/get_meeting").contentType(MediaType.APPLICATION_JSON).content("{\"meetingId\":"+meeting.meeting().id()+"}")).andExpect(status().isUnauthorized());
+        assertThat(repository.agreement(actor,agreement.id(),false).version()).isEqualTo(1);
+    }
+    @Test void oldBinaryAgreementInsertRemainsWritableAndUnratedAfterAdditiveMigrations(){
+        var meeting=create();long id=repository.insert("INSERT INTO meeting_agreements(company_id,meeting_id,title,assignee_id,due_date) VALUES(?,?,?,?,?)",company,meeting.meeting().id(),"Legacy binary synthetic agreement",participant,java.sql.Date.valueOf(LocalDate.now().minusDays(1)));
+        assertThat(repository.agreement(actor,id,false).title()).isEqualTo("Legacy binary synthetic agreement");
+        assertThat(performance.evidence(actor,id).originalDueDate()).isNull();
+        assertThat(performance.evidence(actor,id).outcome()).isEqualTo("UNRATED");
+        assertThat(performance.performance(actor,meeting.meeting().id()).onTimePercent()).isNull();
+    }
+    @Test void mcpAgreementPreviewShowsResolvedAssigneeAndCreatesOneNativeCommitment(){
+        var meeting=create();var token=meetingToken(Set.of("meeting_agreements.manage"));
+        var due=LocalDate.now().plusDays(5);
+        var change=new MeetingAssistantService.Change(meeting.meeting().id(),null,"  Deliver reviewed outcome  ",participant,due,true,null,null,null,1L);
+        var preview=aiActions.preview(token,"create_meeting_agreement",change);
+        assertThat(preview.prepared().after().proposedAgreement().assignee().name()).isEqualTo("Synthetic participant");
+        assertThat(preview.prepared().change().title()).isEqualTo("Deliver reviewed outcome");
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM meeting_agreements WHERE company_id=?",Integer.class,company)).isZero();
+        var request=new com.indice.erp.ai.meetings.AiMeetingActionService.Commit(preview.confirmationToken(),UUID.randomUUID().toString());
+        var saved=aiActions.commit(token,"create_meeting_agreement",request);
+        assertThat(aiActions.commit(token,"create_meeting_agreement",request).replayed()).isTrue();
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM meeting_agreements WHERE company_id=?",Integer.class,company)).isEqualTo(1);
+        assertThat(performance.evidence(actor,saved.result().id()).originalDueDate()).isEqualTo(due);
     }
     private MeetingRequest rich(Instant at,Long version){var m=request();return new MeetingRequest(m.title(),m.meetingType(),at,at.plusSeconds(3600),"UTC",user,List.of(participant),m.agenda(),m.location(),version,"Review blockers","Decide owners",participant,30);}
     @Test void reviewedSeriesAndFlowAreAtomicIdempotentAndTenantScoped(){

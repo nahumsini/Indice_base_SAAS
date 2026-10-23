@@ -75,3 +75,10 @@ test('native router confirmation preserves draft on cancel and proceeds only aft
 test('pending work blocks navigation without stacking a discard confirmation',async()=>{
  const h=roomHarness({notes:{dirty:true,busy:true}});assert.equal(h.shouldBlock(),true);h.navigation.state='blocked';h.runtime.render();await h.flush();assert.equal(h.navigation.state,'unblocked');assert.equal(nodes(h.runtime.result).some(n=>n.type==='IndiceConfirmationDialog'),false);h.close();
 });
+
+test('all eight locales supply actionable delegation, independent fulfilment and punctuality labels',()=>{
+ const {meetingOutcomeLocales:locales,getMeetingOutcomeCopy:get}=loadTypescript(resolve(base+'translations/meetingOutcomeCopy.ts'),()=>({}));
+ const keys=Object.keys(get('en-CA'));assert.equal(Object.keys(locales).length,8);
+ for(const value of Object.values(locales)){assert.deepEqual(Object.keys(value),keys);assert.ok(Object.values(value).every(text=>typeof text==='string'&&text.trim()));}
+ assert.equal(get('unknown'),get('en-CA'));assert.equal(get('es-MX').delegate,'Crear tarea y delegar');
+});

@@ -1,7 +1,7 @@
 const copy = {
   "es": {
     "projects": "Mis proyectos",
-    "system": "Tablero Índice",
+    "system": "Diagnóstico empresarial",
     "myBoard": "Mi pizarra",
     "systemHint": "Conecta a tu equipo, su trabajo, lo que ofreces y el dinero.",
     "projectsHint": "Consulta las versiones que guardaste de tus pizarras y diagnósticos.",
@@ -82,7 +82,7 @@ const copy = {
   },
   "en": {
     "projects": "My projects",
-    "system": "Indice board",
+    "system": "Business diagnosis",
     "myBoard": "My board",
     "systemHint": "Connect your team, their work, your offer and your money.",
     "projectsHint": "View the versions you saved of your boards and business assessments.",
@@ -163,7 +163,7 @@ const copy = {
   },
   "fr": {
     "projects": "Mes projets",
-    "system": "Tableau Indice",
+    "system": "Diagnostic d’entreprise",
     "myBoard": "Mon tableau",
     "systemHint": "Reliez votre équipe, son travail, votre offre et les finances.",
     "projectsHint": "Consultez les versions enregistrées de vos tableaux et diagnostics.",
@@ -244,7 +244,7 @@ const copy = {
   },
   "pt": {
     "projects": "Meus projetos",
-    "system": "Quadro Índice",
+    "system": "Diagnóstico empresarial",
     "myBoard": "Meu quadro",
     "systemHint": "Conecte sua equipe, o trabalho, sua oferta e as finanças.",
     "projectsHint": "Consulte as versões salvas dos quadros e diagnósticos.",
@@ -325,7 +325,7 @@ const copy = {
   },
   "ko": {
     "projects": "내 프로젝트",
-    "system": "Indice 보드",
+    "system": "기업 진단",
     "myBoard": "내 보드",
     "systemHint": "사람, 업무, 제품과 재무를 연결하세요.",
     "projectsHint": "저장한 보드와 기업 진단 버전을 확인하세요.",
@@ -406,7 +406,7 @@ const copy = {
   },
   "zh": {
     "projects": "我的项目",
-    "system": "Indice 看板",
+    "system": "企业诊断",
     "myBoard": "我的画板",
     "systemHint": "连接人员、工作、产品和财务。",
     "projectsHint": "查看已保存的画板和企业诊断版本。",

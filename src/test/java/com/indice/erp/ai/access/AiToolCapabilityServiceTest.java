@@ -32,7 +32,7 @@ class AiToolCapabilityServiceTest {
     void setUp() {
         when(authorizationService.withCapabilityEvaluation(any()))
             .thenAnswer(invocation -> invocation.<java.util.function.Supplier<?>>getArgument(0).get());
-        service = new AiToolCapabilityService(authorizationService, hrAccessService);
+        service = new AiToolCapabilityService(authorizationService, hrAccessService, org.mockito.Mockito.mock(com.indice.erp.meetings.MeetingAssistantService.class));
     }
 
     @Test

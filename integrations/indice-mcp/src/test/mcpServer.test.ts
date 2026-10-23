@@ -55,14 +55,14 @@ test("lists and executes get_sales_today through MCP", async () => {
   try {
     const tools = await client.listTools();
     const names = tools.tools.map(tool => tool.name);
-    assert.equal(names.length, 598, "the closed catalog retains operational tools and completes finance and petty cash owners");
+    assert.equal(names.length, 608, "the closed catalog retains operational owners and adds ten scoped meeting tools");
     assert.equal(new Set(names).size, names.length, "tool names must remain unique");
     const previews = names.filter(name => name.startsWith("preview_"));
-    assert.equal(previews.length, 214);
+    assert.equal(previews.length, 217);
     for (const preview of previews) assert.ok(names.includes(preview.slice("preview_".length)));
     assert.ok(names.includes("stage_chatgpt_file"));
     assert.ok(names.includes("stage_operational_file"));
-    assert.equal(tools.tools.filter(tool => tool.annotations?.readOnlyHint).length, 168);
+    assert.equal(tools.tools.filter(tool => tool.annotations?.readOnlyHint).length, 172);
     for (const expected of [
       "get_sales_today", "get_business_snapshot", "get_attention_items",
       "search_employees", "list_tasks", "get_sales_summary", "search_products",

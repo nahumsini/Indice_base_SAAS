@@ -6,11 +6,15 @@ export const publicAgendaPalettes = [
   { id:'warm',accentColor:'#B63B32',surfaceColor:'#FFF1ED',layout:'cards' },
   { id:'natural',accentColor:'#047857',surfaceColor:'#ECFDF5',layout:'cards' },
   { id:'minimal',accentColor:'#334155',surfaceColor:'#F8FAFC',layout:'compact' },
+  { id:'elegant',accentColor:'#6B3E68',surfaceColor:'#FAF5FA',layout:'showcase' },
+  { id:'creative',accentColor:'#6D28D9',surfaceColor:'#F5F3FF',layout:'cards' },
+  { id:'ocean',accentColor:'#0E7490',surfaceColor:'#ECFEFF',layout:'cards' },
+  { id:'sunset',accentColor:'#9A3412',surfaceColor:'#FFF7ED',layout:'showcase' },
 ] as const;
 export const validPublicContent = (draft: { title: string; description: string }, appearance: PageAppearance) =>
   Boolean(draft.title.trim()) && draft.title.length <= 180 && draft.description.length <= 1500 && appearance.brandName.length <= 120 && appearance.buttonLabel.length <= 80;
 export const validPublicAppearance = (appearance: PageAppearance) =>
-  /^#[0-9a-f]{6}$/i.test(appearance.accentColor) && /^#[0-9a-f]{6}$/i.test(appearance.surfaceColor) && ['cards','compact'].includes(appearance.layout);
+  /^#[0-9a-f]{6}$/i.test(appearance.accentColor) && /^#[0-9a-f]{6}$/i.test(appearance.surfaceColor) && ['cards','compact','showcase'].includes(appearance.layout) && (!appearance.logoDataUrl || (appearance.logoDataUrl.length <= 175000 && /^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(appearance.logoDataUrl)));
 const safeColor=(color:unknown,fallback:string)=>typeof color==='string'&&/^#[0-9a-f]{6}$/i.test(color)?color:fallback;
 export function contrastingText(color:string):string {
   const channels=[1,3,5].map(start=>parseInt(safeColor(color,'#FFFFFF').slice(start,start+2),16)/255).map(value=>value<=0.04045?value/12.92:((value+0.055)/1.055)**2.4);

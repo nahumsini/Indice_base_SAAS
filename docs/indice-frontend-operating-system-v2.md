@@ -512,6 +512,15 @@ server pagination/sorting. Rich-text editing is shared presentation; Sales still
 and audiences, Email owns private drafts/signatures/transport. See the current
 [email owner contract](email-mailing-integration-contract-v1.md#professional-composition-and-operational-kpis--2026-10-22).
 
+Email/Mailing reusable-template correction, 2026-10-22: the
+[persistence and attachment contract](email-mailing-integration-contract-v1.md#persistent-templates-and-reusable-attachments--2026-10-22)
+adopts verified files in the existing template form, saved server-version reconciliation, explicit
+retry after uncertain saves and attachment previews in campaign/individual send review. Reuse
+preserves the existing modal/table engines and owner permissions. File/image preparation blocks
+Save/close while active; errors retain user input. Limits are five files, 10 MiB per file and in
+total. The same company library serves Email and Mailing; private mailbox files are never
+published implicitly.
+
 Mailing operational workspace, 2026-10-19: the [campaign workspace contract](sales-mailing-contract-v1.md#campaign-operating-workspace--2026-10-19)
 adopts the standard title/filter/status/table composition for the campaign list. Keep recipient lists,
 templates and new campaign directly accessible, with administrative actions in the final overflow.
@@ -4338,14 +4347,27 @@ preserve period/status; an unavailable attendance denominator is not zero.
 
 Calendar/Table views share period and collaborator filters. Day/week/month presentation adopts the
 existing calendar rhythm without adding a scheduling engine; owner APIs scope all company agendas
-or an operator's own staff. Services and Team/availability open operational-workspace modals;
+or an operator's own staff. The 2026-10-23 owner decision adopts Meeting control as the calendar UI/UX
+reference: compact full-width grid, matching period/navigation controls and explicit date selection
+opening Agenda del día in the native Standard Form Modal with coral header/footer. No permanent day
+sidebar remains. Reservation review/capture replaces day consultation and returns to the same day;
+closing consultation restores focus to its date. Chronological reservation/event identities, loaded-
+scope warnings, empty/filter/error states, read-only access and day capture rules remain with Scheduling.
+Services and Team/availability open operational-workspace modals;
 their standard create/edit form replaces the list frame instead of nesting another modal. Public
-agenda uses one three-stage Modal Wizard Índice (Content, Design, Review and publish), adopting the
+agenda opens an Operational Workspace Modal for saved agendas, search, publication state,
+sharing, preview and unpublishing. New/Edit replaces it with a separate three-stage Modal Wizard
+Índice (Content, Design, Review and publish), returning to administration after save/cancel. This
+2026-10-22 owner decision supports several independent named agendas and links per company, adopting the
 Public Catalog editor reference: editable public identity/text, palettes/custom colors, Cards/Compact
 presentation, desktop/mobile preview and saved public/personalized links. See the 2026-10-22
 Scheduling owner decision. The underlying agenda filters/view stay intact. Legacy reservation
 links preserve their filters and open Table in the unified tab; backend permission scopes stay
 independent despite the visual union.
+The 2026-10-23 public-presentation refinement removes duplicate heading/description layers, keeps
+one current-step heading and compact progress, and reserves space for mobile public bottom actions.
+Per-agenda logo selection/change/removal belongs to the same Design wizard stage and inert preview;
+it does not open another modal, modify global company branding or save before final review.
 The title bar follows the shared three-direct-action limit: New request, Team/availability and
 Public agenda remain direct for a fully authorized operator; Services and Refresh are in Actions.
 With fewer eligible actions, the shell exposes the permitted actions directly according to Section 12.
@@ -4970,3 +4992,33 @@ Native router blocking and the existing Confirmation Modal protect unsaved minut
 requests and native editors block navigation until complete. Failed or stale writes preserve the
 draft, with explicit copy/reload instead of silent overwrite. The domain contract documents this
 derivative tab and preserved lifecycle, object authorization and eight-locale behavior.
+
+
+### Personal ideas board and project-library adoption — 2026-10-22
+
+The user-approved personal owner contract extends the existing five construction catalogs to Mi
+pizarra through the shared canvas editor and owner layout adapter. The free canvas retains its
+geometry; Diagnóstico empresarial is the display name for the existing SYSTEM tab and route.
+Mis proyectos adopts the shared title, filters, view states and pagination while retaining the
+approved immutable-project cards and lifecycle. Server filters precede counts/pagination; native
+workspace memory remains scoped by user/company. No second editor, modal, table or state engine
+is introduced. Default Sales canvas behavior remains unchanged. Details and regression evidence:
+`personal-ideas-board-contract-v1.md`, decision 2026-10-22.
+
+
+### Meeting commitment execution refinement — 2026-10-23
+
+Control de juntas detail is a compact Operational Workspace Modal using the shared blue frame,
+neutral body and native footer. Show preparation/agenda/participants before agreements/results.
+Use one footer primary (Open meeting / Continue meeting / View minutes); keep planning, print and
+calendar in More options and cancellation separate. Meeting execution remains in the approved native
+room route, preserving inline minute drafts, attendance guards, weighted voting and independent tabs.
+The room uses preparation, topics/notes, participants and agreements/results language. Delegation and
+agreement fulfilment are Standard Form Modals replacing the detail, with explicit saves and no stacked
+overlay. Creating a task reviews assignee and date; changes require a reason. Show the linked native
+agenda action, immutable original date, deadline/reassignment history and confirmed result.
+
+The approved meeting punctuality score is authoritative backend data from the Meetings owner;
+render its denominator, timezone, future/cancelled/unverifiable counts and Pending evaluation state.
+Never compute a different percentage in React or equate task completion with agreement fulfilment.
+Contract: `docs/meeting-control-module-contract-v1.md`, Agreement delegation and punctuality.

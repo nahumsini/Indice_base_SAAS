@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test:maintenance-browser": "node tests/maintenance-browser.mjs",
-    "test:meeting-control": "node --test tests/meeting-control-regression.test.mjs tests/meeting-calendar-order.test.mjs tests/meeting-planning-wizard.test.mjs tests/meeting-session.test.mjs",
+    "test:meeting-control": "node --test tests/meeting-control-regression.test.mjs tests/meeting-calendar-order.test.mjs tests/meeting-planning-wizard.test.mjs tests/meeting-session.test.mjs tests/meeting-voting-regression.test.mjs tests/meeting-delegation.test.mjs",
     "test:meeting-control-browser": "node tests/meeting-control-browser.mjs",
     "test:scheduling": "node --test tests/scheduling-module-regression.test.mjs tests/scheduling-staff-modal.test.mjs tests/scheduling-service-wizard.test.mjs tests/scheduling-public-editor.test.mjs tests/scheduling-booking-flow.test.mjs tests/scheduling-calendar-order.test.mjs",
     "test:scheduling-browser": "node tests/scheduling-browser.mjs",
@@ -80,7 +80,11 @@
     "test:company-settings-browser": "node tests/company-settings-browser.mjs",
     "test:personal-profile-browser": "node tests/personal-profile-browser.mjs",
     "test:expenses-mobile-browser": "node tests/expenses-mobile-browser.mjs && node tests/expenses-module-mobile-browser.mjs",
-    "test:login-verification-browser": "node tests/login-verification-browser.mjs"
+    "test:login-verification-browser": "node tests/login-verification-browser.mjs",
+    "test:mail-templates-browser": "node tests/mail-template-browser.mjs",
+    "test:ideas-board-refinement": "node --test tests/board-*.test.mjs tests/ideas-board-*.test.mjs tests/system-board-model.test.mjs tests/personal-ideas-board.test.mjs tests/project-management.test.mjs",
+    "test:ideas-board-refinement-browser": "node tests/board-refinement-browser.mjs",
+    "test:meeting-agreements-browser": "node tests/meeting-agreements-browser.mjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

@@ -1,5 +1,6 @@
 import { apiClient } from "../../../lib/apiClient";
 import type { MailingSender } from "../../../ComplementaryModules/Email/emailApi";
+export type MailingFile = { id: string; filename: string; contentType: string; sizeBytes: number };
 export type MailingContact = { id: number; name: string; email: string };
 export type Campaign = {
   id: string;
@@ -11,6 +12,7 @@ export type Campaign = {
   previewText: string;
   bodyText: string;
   bodyHtml?: string | null;
+  attachments?: MailingFile[];
   status: "DRAFT" | "SCHEDULED" | "RUNNING" | "PAUSED" | "COMPLETED" | "CANCELLED";
   version: number;
   recipientCount: number;
@@ -28,7 +30,7 @@ export type Draft = Pick<
   | "bodyText"
   | "bodyHtml"
   | "version"
-> & { contactIds: number[] };
+> & { contactIds: number[]; attachmentIds?: string[] };
 export type CampaignPage = {
   items: Campaign[];
   total: number;
@@ -63,6 +65,7 @@ export type EmailTemplate = {
   previewText: string;
   bodyText: string;
   bodyHtml?: string | null;
+  attachments?: MailingFile[];
   status: "ACTIVE" | "ARCHIVED";
   version: number;
   updatedAt: string;
@@ -70,7 +73,7 @@ export type EmailTemplate = {
 export type TemplateInput = Pick<
   EmailTemplate,
   "name" | "subject" | "previewText" | "bodyText" | "bodyHtml" | "version"
->;
+> & { attachmentIds?: string[]; requestId?: string };
 export type TemplatePage = {
   items: EmailTemplate[];
   total: number;
@@ -96,4 +99,10 @@ export const templateApi = {
         body: JSON.stringify({ status, version: template.version }),
       },
     ),
+};
+
+export const mailingFileApi = {
+  upload: (body: {requestId:string;filename:string;contentType:string;sizeBytes:number}) => apiClient<{id:string;url:string;headers:Record<string,string>}>(`${base}/template-files/upload`, {method:'POST',body:JSON.stringify(body)}),
+  register: (id:string) => apiClient<MailingFile>(`${base}/template-files/${encodeURIComponent(id)}/register`, {method:'POST',body:'{}'}),
+  downloadUrl: (id:string) => `${base}/template-files/${encodeURIComponent(id)}/download`,
 };

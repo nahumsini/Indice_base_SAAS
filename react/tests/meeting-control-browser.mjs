@@ -8,14 +8,15 @@ import { createServer } from "vite";
 const { chromium, webkit } = await import(
   process.env.INDICE_PLAYWRIGHT_MODULE || "playwright"
 );
-const origin = "http://127.0.0.1:5197";
+const testPort = Number(process.env.INDICE_MEETING_BROWSER_PORT || 5197);
+const origin = `http://127.0.0.1:${testPort}`;
 const server = await createServer({
   root: resolve(import.meta.dirname, ".."),
   cacheDir: resolve(
     import.meta.dirname,
     "../node_modules/.vite-meeting-browser",
   ),
-  server: { host: "127.0.0.1", port: 5197, strictPort: true, hmr: false, watch: null, proxy: {} },
+  server: { host: "127.0.0.1", port: testPort, strictPort: true, hmr: false, watch: null, proxy: {} },
   define: { "import.meta.env.VITE_API_BASE_URL": '""' },
 });
 let browser;
@@ -244,7 +245,9 @@ try {
         const items=meetings.filter(m=>(selected?m.id===selected:m.status!=="CANCELLED")&&m.title.toLowerCase().includes(term.toLowerCase())).map(m=>({id:m.id,title:m.title,participants:people}));
         return ok({items,total:items.length,page:1,pageSize:25});
       }
-      if (/^\/agreements\/\d+(\/(notes|task))?$/.test(tail)) {
+      if (/^\/\d+\/agreement-performance$/.test(tail)) return ok({total:agreements.length,eligible:0,onTime:0,late:0,overdue:0,upcoming:0,cancelled:0,historicalUnknown:agreements.length,onTimePercent:null,calculatedAt:new Date().toISOString(),timezone:'America/Toronto'});
+      if (/^\/agreements\/\d+\/evidence$/.test(tail)) {const row=agreements.find(a=>a.id===Number(tail.split('/')[2]));return ok({originalDueDate:row.dueDate,deadlineBasis:'ADOPTED',fulfilledAt:null,outcome:'UNRATED',revisions:[]});}
+      if (/^\/agreements\/\d+(\/(notes|task|task-delegation))?$/.test(tail)) {
         const row=agreements.find(a=>a.id===Number(tail.split('/')[2]));
         const project=()=>({agreement:row,history:agreementHistory.get(row.id)||[],task:taskLinks.get(row.id)||null,canLinkTask:role==='superadmin'&&!taskLinks.has(row.id)&&row.status==='OPEN'});
         if(req.method()==='GET')return ok(project());
@@ -254,7 +257,7 @@ try {
           return ok(row);
         }
         if(tail.endsWith('/notes'))agreementHistory.set(row.id,[{action:'AGREEMENT_NOTE',reason:body.text,actorName:people[0].name,occurredAt:new Date().toISOString()},...(agreementHistory.get(row.id)||[])]);
-        if(tail.endsWith('/task'))taskLinks.set(row.id,{id:7,folio:'TASK-7',title:row.title,status:'pending',dueDate:row.dueDate});
+        if(tail.endsWith('/task')||tail.endsWith('/task-delegation'))taskLinks.set(row.id,{id:7,folio:'TASK-7',title:row.title,status:'pending',dueDate:row.dueDate});
         return ok(project());
       }
       if (/^\/\d+\/addenda$/.test(tail)) {
@@ -520,6 +523,7 @@ try {
     .filter({ hasText: "Junta de estrategia" })
     .getByRole("button", { name: "Ver", exact: true })
     .click();
+  await page.getByText("Más opciones", { exact: true }).click();
   await page
     .getByRole("button", { name: "Registrar minuta", exact: true })
     .click();
@@ -535,12 +539,10 @@ try {
     .click();
   await page.locator('[data-indice-modal="operational-workspace"]').waitFor();
   await close();
-  const review = async () =>
-    page
-      .getByRole("row")
-      .filter({ hasText: "Junta de estrategia" })
-      .getByRole("button", { name: "Ver", exact: true })
-      .click();
+  const review = async () => {
+    await page.getByRole("row").filter({ hasText: "Junta de estrategia" }).getByRole("button", { name: "Ver", exact: true }).click();
+    await page.getByText("Más opciones", {exact:true}).click();
+  };
   await review();
   await page
     .getByRole("button", { name: "Iniciar junta", exact: true })
@@ -566,7 +568,7 @@ try {
   await review();await page.getByRole('button',{name:'Agregar adenda',exact:true}).click();
   await page.getByRole('textbox',{name:'Agregar adenda',exact:true}).fill('Aclaración de cierre sintética');await page.getByRole('button',{name:'Guardar',exact:true}).click();await page.locator('[data-indice-modal="operational-workspace"]').waitFor();await close();
   assert.equal(texts.get(1).minutes,originalMinutes);assert.equal(texts.get(1).history[0].action,'MINUTES_ADDENDUM');
-  await review();await page.getByRole('dialog').locator('summary').click();await page.getByText('Aclaración de cierre sintética',{exact:true}).waitFor();
+  await review();await page.getByRole('dialog').getByText('Seguimiento e historial',{exact:true}).click();await page.getByText(/Aclaración de cierre sintética/).waitFor();
   const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Agregar al calendario',exact:true}).click()]);assert.match(download.suggestedFilename(),/\.ics$/);
   await page.getByRole('dialog').getByRole('button',{name:'Cerrar',exact:true}).last().click();
   await page.getByRole("button", { name: "Acuerdos", exact: true }).click();
@@ -576,8 +578,8 @@ try {
   await page.getByRole('button',{name:'Guardar',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});assert.equal(agreements[0].assigneeId,42);
   await page.getByRole('button',{name:'Preparar seguimiento actualizado',exact:true}).click();await page.getByRole('button',{name:'Agregar seguimiento',exact:true}).click();
   await page.getByRole('textbox',{name:'Agregar seguimiento',exact:true}).fill('Primer avance documentado');await page.getByRole('button',{name:'Guardar',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
-  await page.getByRole('button',{name:'Preparar seguimiento actualizado',exact:true}).click();await page.getByText(/Primer avance documentado/).waitFor();await page.getByRole('button',{name:'Crear tarea vinculada',exact:true}).click();await page.getByText(/TASK-7/).waitFor();
-  assert.equal(await page.getByRole('button',{name:'Crear tarea vinculada',exact:true}).count(),0);
+  await page.getByRole('button',{name:'Preparar seguimiento actualizado',exact:true}).click();await page.getByText(/Primer avance documentado/).waitFor();await page.getByRole('button',{name:'Crear tarea y delegar',exact:true}).click();await page.getByRole('button',{name:'Crear tarea y delegar',exact:true}).click();await page.getByText(/TASK-7/).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Crear tarea y delegar',exact:true}).count(),0);
   await page.getByRole('dialog').getByRole('button',{name:'Cerrar',exact:true}).last().click();
   await page
     .getByRole("button", { name: "Nuevo acuerdo", exact: true })
@@ -696,6 +698,7 @@ try {
     3,
   );
   // Planning scope is reviewed inside the same wizard, not a stacked confirmation.
+  await page.getByText("Más opciones", {exact:true}).click();
   await page
     .getByRole("button", { name: "Editar planeación", exact: true })
     .click();
@@ -873,6 +876,7 @@ try {
     history.pushState(null, "", url);
     dispatchEvent(new PopStateEvent("popstate"));
   });
+  await page.getByText("Más opciones", { exact: true }).click();
   await page
     .getByRole("button", { name: "Registrar minuta", exact: true })
     .waitFor();

@@ -41,6 +41,10 @@ class TabPermissionRouteClassifierTest {
         assertRequirement("GET","/api/v1/meetings/agreement-meetings","control_minutas.agreements");
         assertRequirement("POST","/api/v1/meetings/agreements/1/status","control_minutas.agreements");
         assertRequirement("GET","/api/v1/meetings/metrics","control_minutas.indicators");
+        assertRequirement("GET","/api/v1/meetings/1/agreement-performance","control_minutas.agreements");
+        assertRequirement("GET","/api/v1/meetings/agreements/1/evidence","control_minutas.agreements");
+        assertRequirement("POST","/api/v1/meetings/agreements/1/task-delegation","control_minutas.agreements");
+        assertRequirement("GET","/api/v1/meetings/1/unknown","control_minutas.meetings");
     }
     @Test void schedulingUsesItsOwnScopesAndPublicTrustBoundary(){
         assertRequirement("GET","/api/v1/scheduling/calendar","scheduling.calendar");

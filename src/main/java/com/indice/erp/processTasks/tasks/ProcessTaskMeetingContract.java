@@ -32,6 +32,9 @@ public class ProcessTaskMeetingContract {
     }
     @Transactional
     public TaskLink create(AuthSessionUser actor,String title,long assigneeUserId,LocalDate due){
+        return project(tasks.createTask(actor.companyId(),actor.userId(),prepare(actor,title,assigneeUserId,due)));
+    }
+    public Map<String,Object> prepare(AuthSessionUser actor,String title,long assigneeUserId,LocalDate due){
         if(!allowed(actor)||!modules.companyCanAccessForMutation(actor.companyId(),"processes"))throw new SecurityException();
         var memberships=db.queryForList("SELECT id FROM user_companies WHERE company_id=? AND user_id=? AND status='active' ORDER BY id DESC LIMIT 1",Long.class,actor.companyId(),assigneeUserId);
         if(memberships.isEmpty())throw new IllegalArgumentException("Active assignee required.");
@@ -40,7 +43,7 @@ public class ProcessTaskMeetingContract {
         payload.put("title",title);payload.put("status","pending");payload.put("priority","medium");
         payload.put("assignedUserCompanyId",assignment.userCompanyId());payload.put("assignedName",assignment.name());
         payload.put("unitId",assignment.unitId());payload.put("businessId",assignment.businessId());payload.put("dueDate",due.toString());
-        return project(tasks.createTask(actor.companyId(),actor.userId(),payload));
+        return payload;
     }
     public TaskLink read(AuthSessionUser actor,long task){
         if(!allowed(actor))throw new SecurityException();

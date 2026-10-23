@@ -56,6 +56,7 @@ export function useAttendancePhotoUpload() {
       const presigned = await humanResourcesApi.presignAttendancePhotoUpload({
         ...request,
         content_type: photo.contentType,
+        size_bytes: photo.file.size,
       });
 
       await humanResourcesApi.uploadAttendancePhoto(
@@ -92,6 +93,7 @@ export function useAttendancePhotoUpload() {
       const presigned = await humanResourcesApi.presignMyAttendancePhotoUpload({
         ...request,
         content_type: photo.contentType,
+        size_bytes: photo.file.size,
       });
 
       await humanResourcesApi.uploadAttendancePhoto(

@@ -98,6 +98,73 @@ class SchedulingIntegrationTest {
         session.setAttribute(com.indice.erp.auth.SessionAuthService.SESSION_LOGIN_CSRF,"synthetic-workspace-csrf");
         return session;
     }
+    @Test void agendaLogosPersistIndependentlyAndPublicBootstrapOnlyUsesTheSelectedPage()throws Exception{
+        String logo=SchedulingLogoTest.png(12,8),otherLogo=SchedulingLogoTest.png(8,12);
+        var appearance=new PageAppearance("Brand","#2563EB","#F8FAFC","Book","cards",logo);
+        var input=new PageRequest("logo-"+UUID.randomUUID(),"Logo agenda","",true,null,appearance);
+        var first=configuration.createPage(actor,input);
+        var second=configuration.createPage(actor,new PageRequest("other-logo-"+UUID.randomUUID(),"Other logo","",true,null,new PageAppearance("Other","#2563EB","#FFFFFF","Book","compact",otherLogo)));
+        assertThat(configuration.createPage(actor,input)).isEqualTo(first);
+        assertThat(first.appearance().logoDataUrl()).isEqualTo(SchedulingLogo.normalize(logo));
+        assertThat(repository.page(otherCompany,first.id())).isEmpty();
+        var token=protection.reveal(repository.protectedToken(company,first.id()));
+        mvc.perform(get("/api/v2/kiosks/public/"+token+"/bootstrap").session(new MockHttpSession())).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.appearance.logoDataUrl").value(first.appearance().logoDataUrl()));
+        // An older client does not erase branding by omitting the additive field.
+        var legacy=configuration.updatePage(actor,first.id(),new PageRequest(first.alias(),first.title(),"",true,first.version(),new PageAppearance("Brand","#2563EB","#F8FAFC","Book","cards")));
+        assertThat(legacy.appearance().logoDataUrl()).isEqualTo(first.appearance().logoDataUrl());
+        var cleared=configuration.updatePage(actor,first.id(),new PageRequest(first.alias(),first.title(),"",true,legacy.version(),new PageAppearance("Brand","#2563EB","#F8FAFC","Book","cards","")));
+        assertThat(cleared.appearance().logoDataUrl()).isNull();
+        assertThat(repository.page(company,second.id()).orElseThrow().appearance().logoDataUrl()).isEqualTo(SchedulingLogo.normalize(otherLogo));
+        var invalid=new PageRequest(second.alias(),second.title(),"",true,second.version(),new PageAppearance("Other","#2563EB","#FFFFFF","Book","compact","https://example.com/logo.png"));
+        mvc.perform(put("/api/v1/scheduling/pages/"+second.id()).session(session()).header("X-CSRF-Token","synthetic-workspace-csrf").contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(invalid))).andExpect(status().isBadRequest());
+        assertThat(repository.page(company,second.id()).orElseThrow().version()).isEqualTo(second.version());
+    }
+    @Test void multipleAgendasKeepTheirIdentityPublicContextAndLifecycleIndependent()throws Exception{
+        var first=configuration.page(actor,new PageRequest("primary-"+UUID.randomUUID(),"First agenda","First description",true,null));
+        var design=new PageAppearance("Second brand","#047857","#ECFDF5","Book second","showcase");
+        var create=new PageRequest("second-"+UUID.randomUUID(),"Second agenda","Second description",true,null,design);
+        var second=configuration.createPage(actor,create);
+        assertThat(second.id()).isNotEqualTo(first.id());
+        assertThat(configuration.createPage(actor,create)).isEqualTo(second);
+        assertThat(repository.pages(company)).extracting(PageItem::id).containsExactly(first.id(),second.id());
+        assertThat(repository.pages(otherCompany)).isEmpty();
+        assertThat(repository.page(company).orElseThrow()).isEqualTo(first);
+        var firstToken=protection.reveal(repository.protectedToken(company,first.id()));
+        var secondToken=protection.reveal(repository.protectedToken(company,second.id()));
+        assertThat(secondToken).isNotEqualTo(firstToken);
+        var secondDefinition=registry.resolvePublic("SCHEDULING",secondToken);
+        var context=KioskExecutionContext.publicLink("SCHEDULING",secondToken,"synthetic-client","synthetic-request").resolved(secondDefinition,null);
+        var catalog=adapter.bootstrap(context);
+        assertThat(catalog.get("title")).isEqualTo("Second agenda");
+        assertThat(mapper.convertValue(catalog.get("appearance"),PageAppearance.class)).isEqualTo(design);
+        configuration.updatePage(actor,first.id(),new PageRequest(first.alias(),first.title(),first.description(),false,first.version()));
+        mvc.perform(get("/api/v1/public/scheduling/"+first.alias())).andExpect(status().isNotFound());
+        mvc.perform(get("/api/v1/public/scheduling/"+second.alias())).andExpect(status().isOk());
+        assertThat(booking.requestPublic(company,second.id(),request("second-page")).status()).isEqualTo("REQUESTED");
+        assertThatThrownBy(()->booking.requestPublic(company,first.id(),request("hidden-first"))).isInstanceOf(KioskUnavailableException.class);
+        assertThatThrownBy(()->booking.requestPublic(otherCompany,second.id(),request("foreign-page"))).isInstanceOf(KioskUnavailableException.class);
+        var edited=configuration.updatePage(actor,second.id(),new PageRequest(second.alias(),"Edited second","",true,second.version()));
+        assertThat(edited.appearance()).isEqualTo(design);
+        assertThatThrownBy(()->configuration.updatePage(actor,second.id(),new PageRequest(second.alias(),"Stale edit","",true,second.version()))).isInstanceOf(IllegalStateException.class);
+        assertThat(repository.page(company).orElseThrow().title()).isEqualTo(first.title());
+        assertThat(repository.page(company,second.id()).orElseThrow().title()).isEqualTo("Edited second");
+    }
+    @Test void agendaCollectionRequiresScopeCsrfOwnershipAndUniqueAlias()throws Exception{
+        var body=new PageRequest("collection-"+UUID.randomUUID(),"Collection agenda","",false,null);
+        mvc.perform(get("/api/v1/scheduling/pages")).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/v1/scheduling/pages").session(session()).contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(body))).andExpect(status().isForbidden());
+        var response=mvc.perform(post("/api/v1/scheduling/pages").session(session()).header("X-CSRF-Token","synthetic-workspace-csrf").contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(body))).andExpect(status().isOk()).andReturn();
+        var page=mapper.readValue(response.getResponse().getContentAsString(),PageItem.class);
+        mvc.perform(get("/api/v1/scheduling/pages").session(session())).andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(page.id()));
+        var otherActor=new AuthSessionUser(user,otherCompany,"Synthetic consultant","superadmin");
+        assertThatThrownBy(()->configuration.updatePage(otherActor,page.id(),new PageRequest(page.alias(),"Cross tenant","",false,page.version()))).isInstanceOfAny(SecurityException.class,NoSuchElementException.class);
+        assertThatThrownBy(()->configuration.createPage(new AuthSessionUser(user,company,"Synthetic operator","user"),body)).isInstanceOf(SecurityException.class);
+        assertThatThrownBy(()->configuration.createPage(actor,new PageRequest(page.alias(),"Different payload","",false,null))).isInstanceOf(IllegalStateException.class);
+        mvc.perform(put("/api/v1/scheduling/pages/"+page.id()).session(session()).contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(new PageRequest(page.alias(),"Edit","",false,page.version())))).andExpect(status().isForbidden());
+        mvc.perform(put("/api/v1/scheduling/pages/999999999").session(session()).header("X-CSRF-Token","synthetic-workspace-csrf").contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(new PageRequest(page.alias(),"Edit","",false,page.version())))).andExpect(status().isNotFound());
+        assertThat(repository.pages(company)).hasSize(1);
+    }
     @Test void pausingReleasesOccupancyAndResumeChecksCurrentAvailability(){
         long first=create("pause-first"),second=create("pause-second");confirm(actor,first);
         var paused=management.manage(actor,first,new ManageRequest("PAUSE","Synthetic pause",2));
@@ -157,11 +224,11 @@ class SchedulingIntegrationTest {
         assertThat(repository.reservation(company,id).pausedFromStatus()).isNull();
     }
     @Test void publicAppearanceIsSafeVersionedAndOldClientsPreserveIt()throws Exception{
-        var appearance=new PageAppearance("Synthetic company","#008577","#FFF4D4","Solicitar sesión","compact");
+        var appearance=new PageAppearance("Synthetic company","#008577","#FFF4D4","Solicitar sesión","showcase");
         var page=configuration.page(actor,new PageRequest("appearance-"+UUID.randomUUID(),"Synthetic page","",true,null,appearance));
         var token=protection.reveal(repository.protectedToken(company));
         var context=KioskExecutionContext.publicLink("SCHEDULING",token,"synthetic-network","synthetic-browser").resolved(registry.resolvePublic("SCHEDULING",token),null);
-        assertThat(adapter.bootstrap(context).toString()).contains("Synthetic company","#008577","compact").doesNotContain(email,"attendeeEmail");
+        assertThat(adapter.bootstrap(context).toString()).contains("Synthetic company","#008577","showcase").doesNotContain(email,"attendeeEmail");
         var preserved=configuration.page(actor,new PageRequest(page.alias(),"Old client title","",true,page.version()));
         assertThat(preserved.appearance()).isEqualTo(appearance);
         var invalid=new PageRequest(page.alias(),page.title(),"",true,preserved.version(),new PageAppearance("","url(unsafe)","#FFFFFF","","cards"));

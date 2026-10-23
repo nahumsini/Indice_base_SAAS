@@ -146,6 +146,14 @@ class ExpenseAttachmentRepository {
         return findById(context.companyId(), expenseId, attachmentId).orElseThrow();
     }
 
+    Optional<ExpenseAttachmentRow> findByObjectKey(long companyId, long ownerId, String key) {
+        return list(companyId, ownerId).stream().filter(row -> row.objectKey().equals(key)).findFirst();
+    }
+
+    void storeDigest(long companyId, long id, String digest) {
+        jdbcTemplate.update("UPDATE finance_expense_attachments SET content_sha256=? WHERE company_id=? AND id=?", digest, companyId, id);
+    }
+
     boolean softDelete(FinanceContext context, long expenseId, long attachmentId) {
         return jdbcTemplate.update(
                 """
