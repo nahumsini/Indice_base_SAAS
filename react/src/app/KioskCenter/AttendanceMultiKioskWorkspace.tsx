@@ -278,6 +278,7 @@ export function AttendanceMultiKioskWorkspace({
       event_type: eventType,
       event_timestamp: eventTimestamp,
       content_type: photo.contentType,
+      size_bytes: photo.file.size,
     });
     await uploadPresignedKioskFile(
       upload as KioskPresignedUpload,
