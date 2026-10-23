@@ -13,11 +13,15 @@ import {
   templateApi,
   type EmailTemplate,
   type TemplateInput,
+  type MailingFile,
   type TemplatePage,
 } from "../mailingApi";
 import type { MailingCopy } from "../translations";
 import { TemplateTable } from "./TemplateTable";
 import { TemplateForm, TemplatePreview } from "./TemplateForm";
+
+import { MailingFiles } from "./MailingFiles";
+import { useReusableFileCopy } from "../reusableFileCopy";
 
 const blank: TemplateInput = {
   name: "",
@@ -25,6 +29,7 @@ const blank: TemplateInput = {
   previewText: "",
   bodyText: "",
   version: 0,
+  attachmentIds: [],
 };
 type View = "workspace" | "edit" | "discard" | "archive";
 export function TemplateManager({
@@ -38,6 +43,10 @@ export function TemplateManager({
   onClose: () => void;
   tone?: "blue" | "coral";
 }) {
+  const reusable=useReusableFileCopy();
+  const [files,setFiles]=useState<MailingFile[]>([]);
+  const [fileBusy,setFileBusy]=useState(false),[editorBusy,setEditorBusy]=useState(false);
+  const saveLock=useRef(false),saveRequest=useRef<{snapshot:string;id:string}|null>(null);
   const selectionRequest = useRef(0);
   const [view, setView] = useState<View>("workspace");
   const [search, setSearch] = useState("");
@@ -59,6 +68,7 @@ export function TemplateManager({
   const id = useRef("");
   const initial = useRef(JSON.stringify(blank));
   const discardTarget = useRef<"workspace" | "close">("workspace");
+  const locked=busy||fileBusy||editorBusy;
   const dirty = JSON.stringify(draft) !== initial.current;
   const canManage = data?.canManage ?? false;
   useEffect(() => {
@@ -100,16 +110,16 @@ export function TemplateManager({
   }, [search, status, page, size, sort, direction, refresh]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (dirty && (view === "edit" || view === "discard")) {
+      if ((dirty || locked) && (view === "edit" || view === "discard")) {
         event.preventDefault();
         event.returnValue = "";
       }
     };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty, view]);
+  }, [dirty, locked, view]);
   function leave(target: "workspace" | "close") {
-    if (busy) return;
+    if (locked) return;
     if (view === "edit" && dirty) {
       discardTarget.current = target;
       setView("discard");
@@ -125,9 +135,12 @@ export function TemplateManager({
           bodyText: template.bodyText,
           bodyHtml: template.bodyHtml,
           version: template.version,
+          attachmentIds: (template.attachments??[]).map(file=>file.id),
         }
       : { ...blank };
     id.current = template?.id ?? crypto.randomUUID();
+    saveRequest.current=null;
+    setFiles(template?.attachments??[]);
     initial.current = JSON.stringify(value);
     setDraft(value);
     setBlocked(false);
@@ -139,7 +152,7 @@ export function TemplateManager({
     if (error instanceof ApiClientError && error.status === 409) {
       setError(copy.templateConflict);
       setBlocked(true);
-    } else setError(copy.saveError);
+    } else setError(reusable.retrySave);
   }
   async function select(row: EmailTemplate) {
     const request = ++selectionRequest.current;
@@ -159,23 +172,29 @@ export function TemplateManager({
     }
   }
   async function save() {
+    if(saveLock.current||locked||blocked||!canManage)return;
     if (!draft.name.trim() || !draft.subject.trim() || !draft.bodyText.trim()) {
       setError(copy.templateRequired);
       return;
     }
+    saveLock.current=true;
     setBusy(true);
     setError("");
+    const snapshot=JSON.stringify(draft);
+    if(saveRequest.current?.snapshot!==snapshot)saveRequest.current={snapshot,id:crypto.randomUUID()};
     try {
-      const saved = await templateApi.save(id.current, draft);
+      const saved = await templateApi.save(id.current, {...draft,requestId:saveRequest.current!.id});
       setSelected(saved);
-      initial.current = JSON.stringify({ ...draft, version: saved.version });
+      const value:TemplateInput={name:saved.name,subject:saved.subject,previewText:saved.previewText,bodyText:saved.bodyText,bodyHtml:saved.bodyHtml,version:saved.version,attachmentIds:(saved.attachments??[]).map(f=>f.id)};
+      setDraft(value);setFiles(saved.attachments??[]);initial.current=JSON.stringify(value);
+      saveRequest.current=null;setSearch("");setStatus(saved.status);setPage(1);
       setView("workspace");
       setNotice(copy.templateSaved);
       setRefresh((v) => v + 1);
     } catch (e) {
       reportError(e);
     } finally {
-      setBusy(false);
+      saveLock.current=false;setBusy(false);
     }
   }
   async function changeStatus() {
@@ -200,7 +219,7 @@ export function TemplateManager({
   return (
     <SalesModalFrame tone={tone}
       open
-      busy={busy}
+      busy={locked}
       modalType={
         confirmation
           ? "confirmation"
@@ -231,7 +250,7 @@ export function TemplateManager({
           else leave("close");
         }
       }}
-      footerLeading={<Button className="h-11 rounded-xl !border-white !bg-white px-5 !text-slate-600 hover:!bg-white/90" variant="outline" disabled={busy} onClick={() => {
+      footerLeading={<Button className="h-11 rounded-xl !border-white !bg-white px-5 !text-slate-600 hover:!bg-white/90" variant="outline" disabled={locked} onClick={() => {
         if (view === "discard") setView("edit");
         else if (view === "archive") { setError("");setView("workspace"); }
         else if (view === "edit") leave("workspace");
@@ -239,9 +258,9 @@ export function TemplateManager({
       }}>{view === "discard" ? copy.keepEditing : view === "edit" ? copy.back : copy.cancel}</Button>}
       footer={view === "discard" ? <Button data-modal-destructive onClick={() => {
         if (discardTarget.current === "close") onClose();else setView("workspace");
-      }}>{copy.discard}</Button> : view === "archive" ? <Button data-modal-destructive disabled={busy || blocked} onClick={() => void changeStatus()}>{busy ? copy.saving : copy.archive}</Button>
-        : view === "edit" ? <Button disabled={busy || blocked || !canManage} onClick={() => void save()}>{busy ? copy.saving : copy.saveTemplate}</Button>
-          : canManage ? <Button disabled={busy} onClick={() => edit(null)}><Plus className="mr-2 h-4 w-4" />{copy.newTemplate}</Button> : undefined}
+      }}>{copy.discard}</Button> : view === "archive" ? <Button data-modal-destructive disabled={locked || blocked} onClick={() => void changeStatus()}>{busy ? copy.saving : copy.archive}</Button>
+        : view === "edit" ? <Button disabled={locked || blocked || !canManage} onClick={() => void save()}>{busy ? copy.saving : copy.saveTemplate}</Button>
+          : canManage ? <Button disabled={locked} onClick={() => edit(null)}><Plus className="mr-2 h-4 w-4" />{copy.newTemplate}</Button> : undefined}
 
     >
       {error && (
@@ -254,15 +273,16 @@ export function TemplateManager({
       ) : view === "archive" ? (
         <p className="text-sm font-medium">{selected?.name}</p>
       ) : view === "edit" ? (
-        <TemplateForm
+        <div className="space-y-4"><TemplateForm
           copy={copy}
           value={draft}
-          disabled={busy}
+          onBusy={setEditorBusy}
+          disabled={locked}
           onChange={(value) => {
             setDraft(value);
             setError("");
           }}
-        />
+        /><MailingFiles shared files={files} disabled={locked||blocked} onBusy={setFileBusy} onChange={value=>{setFiles(value);setDraft(d=>({...d,attachmentIds:value.map(f=>f.id)}));setError("");}}/></div>
       ) : (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -350,7 +370,7 @@ export function TemplateManager({
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
-                      disabled={busy}
+                      disabled={locked}
                       onClick={() => edit(selected)}
                     >
                       <Pencil className="mr-2 h-4 w-4" />
@@ -358,7 +378,7 @@ export function TemplateManager({
                     </Button>
                     <Button
                       variant="outline"
-                      disabled={busy || blocked}
+                      disabled={locked || blocked}
                       onClick={() => {
                         setError("");
                         setBlocked(false);
@@ -378,7 +398,7 @@ export function TemplateManager({
                   </div>
                 )}
               </div>
-              <TemplatePreview value={selected} copy={copy} />
+              <TemplatePreview value={selected} copy={copy} /><MailingFiles files={selected.attachments??[]}/>
             </div>
           )}
           </div>

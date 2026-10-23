@@ -38,7 +38,7 @@ public class IdeaProjectRepository {
         JOIN user_companies uc ON uc.company_id=s.company_id AND uc.user_id=s.owner_user_id AND uc.status='active'
         WHERE s.company_id=? AND s.owner_user_id=? AND s.project_id=? AND s.recipient_user_id=? AND s.revoked_at IS NULL
         """,Long.class,a.companyId(),owner,id,a.userId())>0;}
-    public ProjectPage list(AuthSessionUser a,String search,int page,int size,String scope){
+    public ProjectPage list(AuthSessionUser a,String search,int page,int size,String scope,String kind,String sort){
         var args=new ArrayList<Object>(List.of(a.companyId(),a.userId()));
         String where=" WHERE p.company_id=? AND "+switch(scope){
             case "OWNED"->"p.user_id=? AND p.deleted_at IS NULL";
@@ -49,9 +49,11 @@ public class IdeaProjectRepository {
         String pattern="%"+search.toLowerCase(Locale.ROOT).replace("!","!!").replace("%","!%").replace("_","!_")+"%";
         where+=" AND LOWER(p.name) LIKE ? ESCAPE '!'";
         args.add(pattern);
+        if(!"ALL".equals(kind)){where+=" AND p.kind=?";args.add(kind);}
+        String order=switch(sort){case "NEWEST"->"p.created_at DESC";case "OLDEST"->"p.created_at ASC";case "NAME_ASC"->"p.name ASC";case "NAME_DESC"->"p.name DESC";default->throw new IllegalArgumentException("ideas_board_invalid");};
         long total=db.queryForObject("SELECT COUNT(*) FROM personal_idea_projects p"+where,Long.class,args.toArray());
         args.add(size);args.add((page-1)*size);
-        var items=db.query(SELECT+where+" ORDER BY p.created_at DESC,p.project_id DESC,p.user_id DESC LIMIT ? OFFSET ?",(r,n)->summary(r,a.userId()),args.toArray());
+        var items=db.query(SELECT+where+" ORDER BY "+order+",p.project_id DESC,p.user_id DESC LIMIT ? OFFSET ?",(r,n)->summary(r,a.userId()),args.toArray());
         return new ProjectPage(items,total,page,size);
     }
     public List<AuthSessionUser> candidates(AuthSessionUser a,String query){

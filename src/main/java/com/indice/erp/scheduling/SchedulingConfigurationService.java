@@ -113,39 +113,65 @@ public class SchedulingConfigurationService {
         if(request.bufferMinutes()!=null)repository.jdbc().update("UPDATE scheduling_staff SET buffer_minutes=? WHERE company_id=? AND id=?",request.bufferMinutes(),company,id);
         repository.audit(company,actor.userId(),"STAFF",id,"STAFF_SAVED");
     }
+    /** Legacy callers retain the first agenda and never replace a later agenda. */
     @Transactional(isolation=Isolation.READ_COMMITTED)
     public PageItem page(AuthSessionUser actor,PageRequest request) {
         SchedulingAccessService.requireAdministrator(actor);long company=actor.companyId();lock(company);
+        return savePage(actor,request,repository.page(company));
+    }
+    @Transactional(isolation=Isolation.READ_COMMITTED)
+    public PageItem createPage(AuthSessionUser actor,PageRequest request) {
+        SchedulingAccessService.requireAdministrator(actor);long company=actor.companyId();lock(company);
+        if(request.version()!=null)throw new IllegalArgumentException("A new agenda cannot have a version.");
+        var existing=repository.pageByAlias(company,request.alias());
+        // A stable generated alias makes an acknowledged-or-lost creation retry safe.
+        if(existing.isPresent()) {
+            var saved=existing.get();
+            var appearance=request.appearance()!=null?request.appearance():PageAppearance.defaults();
+            if(saved.version()==1&&saved.title().equals(request.title().trim())
+                &&saved.description().equals(text(request.description()))&&saved.published()==request.published()
+                &&saved.appearance().equals(new PageAppearance(text(appearance.brandName()),appearance.accentColor(),appearance.surfaceColor(),text(appearance.buttonLabel()),appearance.layout())))return saved;
+            throw new IllegalStateException("Agenda alias already exists.");
+        }
+        return savePage(actor,request,Optional.empty());
+    }
+    @Transactional(isolation=Isolation.READ_COMMITTED)
+    public PageItem updatePage(AuthSessionUser actor,long id,PageRequest request) {
+        SchedulingAccessService.requireAdministrator(actor);long company=actor.companyId();lock(company);
+        return savePage(actor,request,Optional.of(repository.page(company,id).orElseThrow()));
+    }
+    private PageItem savePage(AuthSessionUser actor,PageRequest request,Optional<PageItem> previous) {
+        long company=actor.companyId();
         if(request.published()&&!bookingReady(company))throw new IllegalArgumentException("scheduling_setup_required");
-        var previous=repository.page(company);long id;String token;
+        long id;String token;
         if(previous.isEmpty()) {
             token="sch_"+UUID.randomUUID().toString().replace("-","")+UUID.randomUUID().toString().replace("-","");
             id=repository.insert("""
                 INSERT INTO scheduling_pages(company_id,alias,title,description,published,protected_token) VALUES(?,?,?,?,?,?)
                 """,company,request.alias(),request.title().trim(),text(request.description()),request.published(),protection.protect(token));
         } else {
-            id=previous.get().id();token=protection.reveal(repository.protectedToken(company));
+            id=previous.get().id();token=protection.reveal(repository.protectedToken(company,id));
             checked(repository.jdbc().update("""
                 UPDATE scheduling_pages SET alias=?,title=?,description=?,published=?,version=version+1
                 WHERE company_id=? AND id=? AND version=?
                 """,request.alias(),request.title().trim(),text(request.description()),request.published(),company,id,request.version()));
         }
         String registryStatus=(previous.isPresent()?previous.get().published():request.published())?"active":"disabled";
+        boolean primary=repository.page(company).orElseThrow().id()==id;
         var definition=registry.registerLegacyDefinition(company,"SCHEDULING","booking_page",id,
-            "SCHEDULING-PAGE","Booking page",registryStatus,null,null,null,token,false,
+            primary?"SCHEDULING-PAGE":"SCHEDULING-PAGE-"+id,"Booking page",registryStatus,null,null,null,token,false,
             KioskAccessLevel.PUBLIC,"scheduling","en-CA",actor.userId());
         registry.synchronizeCapabilities(definition,SchedulingPublicAdapter.descriptors());
         if(previous.isPresent()&&previous.get().published()!=request.published())
             registry.transition(company,"SCHEDULING",id,request.published()?KioskDefinitionStatus.ACTIVE:
                 KioskDefinitionStatus.DISABLED,actor.userId(),"Publication changed");
-        // Old clients omit appearance; preserve the saved design instead of resetting it.
         var appearance=request.appearance()!=null?request.appearance():previous.map(PageItem::appearance).orElse(PageAppearance.defaults());
         repository.jdbc().update("""
             UPDATE scheduling_pages SET brand_name=?,accent_color=?,surface_color=?,button_label=?,display_layout=?
             WHERE company_id=? AND id=?
             """,text(appearance.brandName()),appearance.accentColor(),appearance.surfaceColor(),text(appearance.buttonLabel()),appearance.layout(),company,id);
         repository.audit(company,actor.userId(),"PAGE",id,"PAGE_SAVED");
-        return repository.page(company).orElseThrow();
+        return repository.page(company,id).orElseThrow();
     }
     @Transactional(isolation=Isolation.READ_COMMITTED)
     public void event(AuthSessionUser actor,Long id,EventRequest request) {

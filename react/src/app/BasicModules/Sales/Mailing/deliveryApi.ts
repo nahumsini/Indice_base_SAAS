@@ -5,7 +5,9 @@ export type Audience = {
   email: string;
   eligibility: string;
 };
+import type { MailingFile } from "./mailingApi";
 export type CampaignReview = {
+  attachments?: MailingFile[];
   id: string;
   version: number;
   status: string;

@@ -181,3 +181,16 @@
 @media(max-width:600px){.project-scope-tabs{padding:0 16px 14px;gap:7px}.project-scope-tabs button{font-size:13px;padding:8px 11px}.project-preview-actions{justify-content:flex-start}.project-preview-actions>button{width:100%}.project-library-notice{margin:0 16px 14px}.project-member-list{max-height:44dvh}.project-management-modal .workspace-project-form{gap:16px}}
 .project-management-modal{--board-border:#dce5f0;--board-muted:#f5f8fc;--board-ink:#263449;--board-panel:#fff}
 .dark .project-management-modal{--board-border:#3b4c65;--board-muted:#1d2a3e;--board-ink:#e2e8f0;--board-panel:#172033}
+
+/* Project library follows the shared title/filter composition while retaining snapshot cards. */
+.idea-projects{overflow:visible;border:0;border-radius:0;background:transparent;box-shadow:none}
+.idea-projects .project-scope-tabs{padding:0;min-height:46px}
+.idea-projects .workspace-project-grid{padding:0;gap:16px}
+.idea-projects .workspace-project-card{border-radius:20px;box-shadow:0 1px 3px #2431470a}
+.idea-projects .workspace-project-card-body{gap:12px;padding:16px}
+.idea-projects .workspace-project-card-body h3{font-size:16px;line-height:1.5}
+.idea-projects .workspace-project-card-body>button{margin-top:auto}
+.idea-projects .workspace-project-type{font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.idea-projects .workspace-project-art{height:112px}
+.idea-projects .project-library-pagination{border:1px solid var(--board-border);border-radius:20px;background:var(--board-panel)}
+.dark .idea-projects{background:transparent}

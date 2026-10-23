@@ -37,8 +37,10 @@ public final class MailboxContracts {
         @Override public String toString(){return "MailPreferencesInput[redacted]";}
     }
     public record Attachment(String id,String filename,String contentType,long sizeBytes,boolean remote) { }
-    public record UploadInput(@NotBlank @Size(max=180) String filename,@NotBlank @Size(max=100) String contentType,@Min(1) @Max(5242880) long sizeBytes,@Min(1) long version,@Min(1) long accountVersion) { }
-    public record Upload(String id,String url,java.util.Map<String,String> headers) { }
+    public record UploadInput(@NotBlank @Size(max=180) String filename,@NotBlank @Size(max=100) String contentType,@Min(1) @Max(MailFilePolicy.MAX) long sizeBytes,@Min(1) long version,@Min(1) long accountVersion) { }
+    /** Internal owner port; storage keys never enter a browser DTO. */
+    public record SharedFile(String id,String filename,String contentType,long sizeBytes,String objectKey) { @Override public String toString(){return "SharedMailFile[redacted]";} }
+    public record Upload(String id,String url,java.util.Map<String,String> headers) { @Override public String toString(){return "MailUpload[redacted]";} }
     public record Version(@Min(1) long version,@Min(1) long accountVersion) { }
     public record FolderInput(@NotBlank @Size(max=80) String name,@Min(1) long accountVersion) { }
     public record SyncInput(@Pattern(regexp="[0-9a-f-]{36}") String folderId,boolean older) { }

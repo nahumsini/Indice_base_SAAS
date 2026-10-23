@@ -39,6 +39,7 @@ public final class PayableKioskCapabilities {
         "extensions", List.of(
             ".pdf", ".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif", ".xml", ".csv", ".txt",
             ".doc", ".docx", ".xls", ".xlsx"),
+        "ownerSealsOnRegister", true,
         "maxSizeBytes", 10L * 1024L * 1024L,
         "maxFiles", 5,
         "purpose", "payable-evidence",

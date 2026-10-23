@@ -39,7 +39,8 @@ public abstract class HrAttendancePhotoUseCases extends HrAttendancePublicKioskI
         var resolvedEventTimestamp = eventTimestamp == null ? LocalDateTime.now() : eventTimestamp;
         var normalizedEventType = normalizeEventType(eventType.isBlank() ? "check_in" : eventType);
         var attendanceDate = resolveOperationalAttendanceDate(companyId, userCompanyId, resolvedEventTimestamp, normalizedEventType);
-        return attendancePhotoService.createAttendanceUpload(companyId, userCompanyId, contentType, eventType, attendanceDate);
+        return attendancePhotoService.createAttendanceUpload(companyId, userCompanyId, contentType, eventType, attendanceDate,
+            com.indice.erp.hr.attendance.application.AttendancePhotoService.validatePhotoSize(parseLong(payload, "size_bytes", "sizeBytes")));
     }
 
     protected Map<String, Object> createUserPhotoUpload(long companyId, AttendanceUser user, Map<String, Object> payload) {
@@ -50,7 +51,8 @@ public abstract class HrAttendancePhotoUseCases extends HrAttendancePublicKioskI
         var resolvedEventTimestamp = eventTimestamp == null ? LocalDateTime.now() : eventTimestamp;
         var normalizedEventType = normalizeEventType(eventType.isBlank() ? "check_in" : eventType);
         var attendanceDate = resolveUserOperationalAttendanceDate(companyId, user.userId(), resolvedEventTimestamp, normalizedEventType);
-        return attendancePhotoService.createUserAttendanceUpload(companyId, user.userId(), contentType, eventType, attendanceDate);
+        return attendancePhotoService.createUserAttendanceUpload(companyId, user.userId(), contentType, eventType, attendanceDate,
+            com.indice.erp.hr.attendance.application.AttendancePhotoService.validatePhotoSize(parseLong(payload, "size_bytes", "sizeBytes")));
     }
 
     @Transactional

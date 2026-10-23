@@ -6,7 +6,7 @@ import com.indice.erp.email.mailbox.CampaignEmailGateway;
 public final class MailingDeliveryContracts {
     private MailingDeliveryContracts() { }
     public record Audience(long contactId,String name,String email,String eligibility) { }
-    public record Review(String id,long version,String status,String subject,String bodyText,String replyTo,CampaignEmailGateway.Sender sender,List<Audience> audience,String digest,boolean canSend,boolean publicLinkReady) { }
+    public record Review(String id,long version,String status,String subject,String bodyText,String replyTo,CampaignEmailGateway.Sender sender,List<Audience> audience,String digest,boolean canSend,boolean publicLinkReady,List<MailingFileContracts.File> attachments) { }
     public record Launch(@Min(1) long version,@Min(1) long accountVersion,@NotBlank @Size(max=64) String digest,Instant scheduledAt,@NotBlank @Size(max=1000) String footer,@Size(max=500) List<@NotNull @Positive Long> contactIds) {
         // Older clients launch the full eligible audience; an explicit empty selection never does.
         public Launch(long version,long accountVersion,String digest,Instant scheduledAt,String footer){this(version,accountVersion,digest,scheduledAt,footer,null);}

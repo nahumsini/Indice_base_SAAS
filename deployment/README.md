@@ -840,3 +840,57 @@ metering. Do not replace this with public URLs or raise global multipart limits:
 bounded authenticated binary route. Local activation/GET checks do not create functional board
 content. Integration writes use only a disposable `indice_test_db`. Production release gates and
 physical-device acceptance remain separate. See `docs/sales-funneling-contract-v1.md` for evidence.
+
+
+### Local personal ideas-board refinement (2026-10-22)
+
+The personal owner adds FREEFORM catalog metadata, the Diagnóstico empresarial display name and
+native project filters. No migration is added; the existing local V347 and prior Email/Mailing
+changes are retained. Backend 8083 and frontend 5175 were activated with the running service's
+configuration preserved. Authenticated read-only checks covered both boards, filtered projects
+and Mailing templates; no functional board examples were created. The previous runtime/frontend
+and a database backup are retained privately. Once a document contains Node.catalog, rollback
+must preserve its reader/validator even if the new creation UI is hidden. Do not restore an older
+writer that silently discards the metadata. Full owner policy and regression evidence are in
+`docs/personal-ideas-board-contract-v1.md`. Public deployment: N/A for this local change.
+
+
+## Public Agenda activation
+
+The Scheduling Kiosk Engine adapter is explicitly disabled by default. After validating the exact
+release and retaining backups/rollback, enable `KIOSK_ENGINE_ADAPTER_SCHEDULING_ENABLED=true` in
+the protected environment for the intended target. Compose forwards the flag; the host-network
+script preserves it when preparing the backend environment. Restart/redeploy through the canonical
+workflow; verify `/api/v1/scheduling/readiness` as an authorized company administrator reports
+`publicAccessEnabled=true`. Do not copy the APPTEST environment into production.
+
+An authorized operator then configures at least one active service and an eligible employee with
+available hours (or a supported published event), saves the public page with publication enabled,
+and checks its generated `/book/:alias` URL anonymously. Adapter activation does not change a
+company's publication state or access. Existing weekly hours, service restrictions, commercial
+entitlements and manual confirmation remain enforced. Verify available slots without submitting a
+synthetic reservation to a functional database. Exercise submission only in an isolated test flow.
+The preview and saved page share Catalogue, List and Editorial presentations. No schema migration
+is needed for this presentation/activation change.
+
+Rollback restores the previous immutable application images and the previous environment flag,
+without reversing migrations or deleting business data. Never reuse an expired release exception;
+the canonical public release gate applies independently to each new candidate and activation.
+
+### Identity and evidence fixes — 2026-10-23
+
+See [the owner security contract](../docs/security-identity-and-evidence-contract-v1.md).
+This source branch adds V349 HR employment contacts and V350 financial upload sealing.
+Before activation, verify the target Flyway lineage; these versions conflict with the separate
+unmerged WhatsApp worktree and must not be combined or repaired in place. Both shipped web
+proxy configurations mask recovery-token paths and suppress raw error logging on recovery routes.
+Deploy frontend and backend together so attendance uploads include `size_bytes`. Preserve the
+additive schema, old attachment readability, private final evidence and rollback history.
+Pending uploads created by the old writer must obtain new upload authorizations. Allow old signed
+write URLs to expire before treating their capabilities as closed. Source changes do not scrub
+old access logs, external ingress logs or retrospectively hash existing evidence.
+
+Use `deployment/tests/run-security-findings-isolated.py` with its verified disposable container
+for backend checks. `deployment/tests/security-token-logs.test.mjs` requires explicit reviewed
+local web/Node image references and runs without published ports or live application data.
+No deployment or production audit is implied by these local checks.

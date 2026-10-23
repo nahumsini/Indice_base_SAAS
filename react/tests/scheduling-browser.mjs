@@ -155,7 +155,7 @@ try {
   await page.getByRole('dialog').getByRole('button',{name:'Cerrar',exact:true}).last().click();
   await page.getByRole('button',{name:'Agenda pública',exact:true}).click();await page.getByRole('dialog').waitFor();
   await coralModal();
-  await page.getByLabel('Nombre público del negocio',{exact:true}).fill('Negocio sintético');
+  await page.getByLabel('Nombre del negocio',{exact:true}).fill('Negocio sintético');
   await page.getByLabel('Texto del botón de solicitud',{exact:true}).fill('Solicitar sesión');
   await page.getByRole('dialog').getByRole('button',{name:'Continuar',exact:true}).click();
   await page.getByRole('textbox',{name:'Color principal',exact:true}).fill('#008577');await page.getByRole('textbox',{name:'Fondo del encabezado',exact:true}).fill('#fff4d4');

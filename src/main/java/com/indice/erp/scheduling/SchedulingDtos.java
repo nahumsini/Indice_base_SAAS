@@ -40,7 +40,7 @@ public final class SchedulingDtos {
     public record PageAppearance(@Size(max=120) String brandName,
         @NotNull @Pattern(regexp="#[a-fA-F0-9]{6}") String accentColor,
         @NotNull @Pattern(regexp="#[a-fA-F0-9]{6}") String surfaceColor,
-        @Size(max=80) String buttonLabel, @NotNull @Pattern(regexp="cards|compact") String layout) {
+        @Size(max=80) String buttonLabel, @NotNull @Pattern(regexp="cards|compact|showcase") String layout) {
         public static PageAppearance defaults(){return new PageAppearance("","#2563EB","#F8FAFC","","cards");}
     }
     public record PageRequest(@NotBlank @Pattern(regexp="[a-z0-9][a-z0-9-]{2,79}") String alias,

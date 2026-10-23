@@ -94,7 +94,7 @@ class HrAttendanceServiceTest {
 
     private HrAttendanceService createService() {
         var objectMapper = new ObjectMapper();
-        var attendancePhotoService = new AttendancePhotoService(new DisabledObjectStorageService(), new ObjectStorageProperties());
+        var attendancePhotoService = new AttendancePhotoService(new DisabledObjectStorageService(), new ObjectStorageProperties(), org.mockito.Mockito.mock(com.indice.erp.billing.storage.CompanyStorageMeter.class), org.mockito.Mockito.mock(com.indice.erp.billing.storage.StorageQuotaService.class));
         var attendanceAssignmentService = new AttendanceAssignmentService(jdbcTemplate);
         var attendanceUserLookupService = new AttendanceUserLookupService(jdbcTemplate, attendancePhotoService);
         var attendanceDailyRecordRepository = new AttendanceDailyRecordRepository(jdbcTemplate);

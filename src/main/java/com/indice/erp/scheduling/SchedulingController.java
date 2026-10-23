@@ -57,6 +57,13 @@ public class SchedulingController {
     @GetMapping("/page") public PageItem page(HttpSession s){
         var actor=access.require(s,"configuration",null,false);SchedulingAccessService.requireAdministrator(actor);
         return repository.page(actor.companyId()).orElse(null);}
+    @GetMapping("/pages") public java.util.List<PageItem> pages(HttpSession s){
+        var actor=access.require(s,"configuration",null,false);SchedulingAccessService.requireAdministrator(actor);
+        return repository.pages(actor.companyId());}
+    @PostMapping("/pages") public PageItem createPage(HttpSession s,@RequestHeader(value="X-CSRF-Token",required=false)String token,
+        @Valid @RequestBody PageRequest body){return configuration.createPage(access.require(s,"configuration",token,true),body);}
+    @PutMapping("/pages/{id}") public PageItem updatePage(HttpSession s,@RequestHeader(value="X-CSRF-Token",required=false)String token,
+        @PathVariable long id,@Valid @RequestBody PageRequest body){return configuration.updatePage(access.require(s,"configuration",token,true),id,body);}
     @PutMapping("/page") public PageItem page(HttpSession s,@RequestHeader(value="X-CSRF-Token",required=false)String token,
         @Valid @RequestBody PageRequest body){return configuration.page(access.require(s,"configuration",token,true),body);}
     @GetMapping("/events") public List<EventItem> events(HttpSession s){

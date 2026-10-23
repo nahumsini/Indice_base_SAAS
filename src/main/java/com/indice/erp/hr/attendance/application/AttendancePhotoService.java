@@ -1,6 +1,9 @@
 package com.indice.erp.hr.attendance.application;
 
 import com.indice.erp.storage.ObjectStorageDisabledException;
+import com.indice.erp.billing.storage.CompanyStorageMeter;
+import com.indice.erp.billing.storage.StorageQuotaService;
+import org.springframework.transaction.annotation.Transactional;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
 import com.indice.erp.storage.PresignedUpload;
@@ -17,47 +20,58 @@ public class AttendancePhotoService {
 
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties objectStorageProperties;
+    private final CompanyStorageMeter storageMeter;
+    private final StorageQuotaService quota;
+    private static final long MAX_PHOTO_BYTES = 5L * 1024 * 1024;
 
     public AttendancePhotoService(
         ObjectStorageService objectStorageService,
-        ObjectStorageProperties objectStorageProperties
+        ObjectStorageProperties objectStorageProperties, CompanyStorageMeter storageMeter, StorageQuotaService quota
     ) {
         this.objectStorageService = objectStorageService;
         this.objectStorageProperties = objectStorageProperties;
+        this.storageMeter = storageMeter;
+        this.quota = quota;
     }
 
+    @Transactional
     public Map<String, Object> createAttendanceUpload(
         long companyId,
         long userCompanyId,
         String contentType,
         String eventType,
-        LocalDate attendanceDate
+        LocalDate attendanceDate, long sizeBytes
     ) {
         ensureEnabled();
+        validatePhotoSize(sizeBytes);
+        quota.initializeCompany(companyId);
         return toUploadResponse(
-            objectStorageService.presignUpload(
-                attendanceBucket(),
+            storageMeter.presign(
+                companyId, "HUMAN_RESOURCES", attendanceBucket(),
                 buildAttendancePhotoObjectKey(companyId, userCompanyId, contentType, eventType, attendanceDate),
-                contentType,
-                presignExpirySeconds()
+                contentType, sizeBytes,
+                (int) Math.min(presignExpirySeconds(), Math.max(1, storageMeter.reservationTtl().toSeconds() - 60))
             )
         );
     }
 
+    @Transactional
     public Map<String, Object> createUserAttendanceUpload(
         long companyId,
         long userId,
         String contentType,
         String eventType,
-        LocalDate attendanceDate
+        LocalDate attendanceDate, long sizeBytes
     ) {
         ensureEnabled();
+        validatePhotoSize(sizeBytes);
+        quota.initializeCompany(companyId);
         return toUploadResponse(
-            objectStorageService.presignUpload(
-                attendanceBucket(),
+            storageMeter.presign(
+                companyId, "HUMAN_RESOURCES", attendanceBucket(),
                 buildUserAttendancePhotoObjectKey(companyId, userId, contentType, eventType, attendanceDate),
-                contentType,
-                presignExpirySeconds()
+                contentType, sizeBytes,
+                (int) Math.min(presignExpirySeconds(), Math.max(1, storageMeter.reservationTtl().toSeconds() - 60))
             )
         );
     }
@@ -94,6 +108,7 @@ public class AttendancePhotoService {
         return objectStorageService.isEnabled();
     }
 
+    @Transactional
     public String normalizeAttendancePhotoObjectKey(long companyId, long userCompanyId, String objectKey) {
         if (objectKey == null || objectKey.isBlank()) {
             return null;
@@ -105,10 +120,11 @@ public class AttendancePhotoService {
             throw new IllegalArgumentException("photo_url must match the expected attendance upload prefix.");
         }
 
-        ensureExistingAttendanceObject(trimmed);
+        ensureExistingAttendanceObject(companyId, trimmed);
         return trimmed;
     }
 
+    @Transactional
     public String normalizeUserAttendancePhotoObjectKey(long companyId, long userId, String objectKey) {
         if (objectKey == null || objectKey.isBlank()) {
             return null;
@@ -120,7 +136,7 @@ public class AttendancePhotoService {
             throw new IllegalArgumentException("photo_url must match the expected user attendance upload prefix.");
         }
 
-        ensureExistingAttendanceObject(trimmed);
+        ensureExistingAttendanceObject(companyId, trimmed);
         return trimmed;
     }
 
@@ -133,11 +149,21 @@ public class AttendancePhotoService {
         return body;
     }
 
-    private void ensureExistingAttendanceObject(String objectKey) {
+    private void ensureExistingAttendanceObject(long companyId, String objectKey) {
         ensureEnabled();
         if (!objectStorageService.objectExists(attendanceBucket(), objectKey)) {
             throw new IllegalArgumentException("photo_url does not reference an existing uploaded object.");
         }
+        var metadata = objectStorageService.objectMetadata(attendanceBucket(), objectKey);
+        validatePhotoSize(metadata.sizeBytes());
+        com.indice.erp.hr.attendance.support.AttendanceInput.normalizeImageContentType(metadata.contentType());
+        storageMeter.commit(companyId, attendanceBucket(), objectKey, metadata.sizeBytes());
+    }
+
+    public static long validatePhotoSize(Long size) {
+        if (size == null || size <= 0 || size > MAX_PHOTO_BYTES)
+            throw new IllegalArgumentException("Attendance photo size_bytes must be between 1 byte and 5 MiB.");
+        return size;
     }
 
     private void ensureEnabled() {

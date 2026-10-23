@@ -862,7 +862,7 @@ class PettyCashRepository {
             """
             INSERT INTO finance_expense_attachments
             (company_id, expense_id, original_filename, mime_type, size_bytes, object_key, uploaded_by_user_id,
-             custom_fields_json, metadata_json)
+             custom_fields_json, metadata_json, content_sha256)
             SELECT attachment.company_id,
                    ?,
                    attachment.original_filename,
@@ -871,7 +871,8 @@ class PettyCashRepository {
                    attachment.object_key,
                    attachment.uploaded_by_user_id,
                    NULL,
-                   JSON_OBJECT('source', 'PETTY_CASH', 'settlementLineId', attachment.settlement_line_id)
+                   JSON_OBJECT('source', 'PETTY_CASH', 'settlementLineId', attachment.settlement_line_id),
+                   attachment.content_sha256
             FROM finance_petty_cash_settlement_line_attachments attachment
             WHERE attachment.company_id = ?
               AND attachment.settlement_line_id = ?

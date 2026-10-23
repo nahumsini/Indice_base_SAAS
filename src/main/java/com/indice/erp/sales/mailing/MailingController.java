@@ -16,11 +16,12 @@ import static com.indice.erp.sales.mailing.MailingTemplateContracts.*;
 @RequiresModuleAccess("crm")
 public class MailingController {
     private final com.indice.erp.email.accounts.EmailAccountService emailAccounts;
+    private final MailingFileService files;
     private final MailingAudienceService audience;
     private final MailingWorkspaceService workspace;
     private final SessionAuthService auth;private final SessionCsrfService csrf;
     private final ModuleAccessService modules;private final TabPermissionAccessService tabs;private final MailingService service;private final MailingTemplateService templates;
-    public MailingController(SessionAuthService auth,SessionCsrfService csrf,ModuleAccessService modules,TabPermissionAccessService tabs,MailingService service,MailingTemplateService templates,com.indice.erp.email.accounts.EmailAccountService emailAccounts,MailingAudienceService audience,MailingWorkspaceService workspace){this.workspace=workspace;this.audience=audience;this.emailAccounts=emailAccounts;this.auth=auth;this.csrf=csrf;this.modules=modules;this.tabs=tabs;this.service=service;this.templates=templates;}
+    public MailingController(SessionAuthService auth,SessionCsrfService csrf,ModuleAccessService modules,TabPermissionAccessService tabs,MailingService service,MailingTemplateService templates,com.indice.erp.email.accounts.EmailAccountService emailAccounts,MailingAudienceService audience,MailingWorkspaceService workspace,MailingFileService files){this.files=files;this.workspace=workspace;this.audience=audience;this.emailAccounts=emailAccounts;this.auth=auth;this.csrf=csrf;this.modules=modules;this.tabs=tabs;this.service=service;this.templates=templates;}
     private AuthSessionUser actor(HttpSession session,String token,boolean write,boolean contacts) {
         var actor=auth.currentUser(session).orElseThrow(()->new ResponseStatusException(HttpStatus.UNAUTHORIZED));
         if(auth.isPublicDemoSession(session)||!modules.canAccess(actor,"crm")||!tabs.canAccess(actor,TabPermissionRequirement.one("crm.mailing"))
@@ -64,6 +65,15 @@ public class MailingController {
     public Template templateStatus(HttpSession session,@RequestHeader(name="X-CSRF-Token",required=false) String token,
         @PathVariable String id,@Valid @RequestBody TemplateStatus input) {
         return templates.status(actor(session,token,true,false),id,input);
+    }
+    @PostMapping("/template-files/upload")
+    public MailingFileContracts.Upload uploadTemplateFile(HttpSession session,@RequestHeader(name="X-CSRF-Token",required=false) String token,@Valid @RequestBody MailingFileContracts.UploadInput input){return files.upload(actor(session,token,true,false),input);}
+    @PostMapping("/template-files/{id}/register")
+    public MailingFileContracts.File registerTemplateFile(HttpSession session,@RequestHeader(name="X-CSRF-Token",required=false) String token,@PathVariable String id){return files.register(actor(session,token,true,false),id);}
+    @GetMapping("/template-files/{id}/download")
+    public org.springframework.http.ResponseEntity<byte[]> downloadTemplateFile(HttpSession session,@PathVariable String id){
+        var file=files.download(actor(session,null,false,false),id);
+        return org.springframework.http.ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).header("X-Content-Type-Options","nosniff").header("Content-Security-Policy","sandbox").header("Content-Disposition",org.springframework.http.ContentDisposition.attachment().filename(file.name(),java.nio.charset.StandardCharsets.UTF_8).build().toString()).contentType(org.springframework.http.MediaType.APPLICATION_OCTET_STREAM).body(file.bytes());
     }
     @GetMapping("/audience") public MailingAudienceContracts.Page audience(HttpSession session,
         @Valid @ModelAttribute MailingAudienceContracts.Filters filters,

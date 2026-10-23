@@ -18,14 +18,15 @@ import { schedulingTone } from '../utils/schedulingIdentity';
 
 /** Public requests and private capture share one booking use case and separate presentation. */
 export function BookingForm({ catalog, copy, locale, loadSlots, loadCatalog, onSubmit, presetStaff, presetEvent, presetDate, onBusyChange, onReceived,
-  footerTarget, onDirtyChange, onProgressChange, tone = 'blue', selectionLayout = 'compact', context = 'public' }: {
+  footerTarget, onDirtyChange, onProgressChange, tone = 'blue', selectionLayout = 'compact', context = 'public', presentationOnly = false }: {
   catalog: BookingCatalog; copy: SchedulingCopy; locale: string; presetStaff?: number; presetEvent?: number; presetDate?: string;
   loadSlots: (request: SlotRequest, signal: AbortSignal) => Promise<Slots>; loadCatalog?: (signal: AbortSignal) => Promise<BookingCatalog>;
   onSubmit: (request: BookingRequest, key: string) => Promise<Submission>;
   onBusyChange?: (busy: boolean) => void; onReceived?: (result: Submission) => void;
   onProgressChange?: (progress: BookingProgress) => void; onDirtyChange?: (dirty: boolean) => void;
-  tone?: IndiceModuleTone; selectionLayout?: 'cards' | 'compact'; context?: 'public' | 'internal'; footerTarget?: HTMLElement|null;
+  tone?: IndiceModuleTone; selectionLayout?: 'cards' | 'compact' | 'showcase'; context?: 'public' | 'internal'; presentationOnly?: boolean; footerTarget?: HTMLElement|null;
 }) {
+  const FormSurface = presentationOnly ? 'div' : 'form';
   const formId = useId(), heading = useRef<HTMLHeadingElement>(null);
   const op = getSchedulingOperationsCopy(locale), text = getBookingFlowCopy(locale), terms = getServiceTermsCopy(locale), internal = context === 'internal';
   const controlClass = tone === schedulingTone ? privateControlClass : getIndiceFilterControlClassName(tone);
@@ -58,7 +59,7 @@ export function BookingForm({ catalog, copy, locale, loadSlots, loadCatalog, onS
   const issue = flow.error && {selection:text.selectionRequired,time:text.timeRequired,contact:text.contactInvalid,client:text.finishClient,submit:copy.error,conflict:op.conflict,scope:text.scopeChanged,catalog:copy.error}[flow.error];
   const buttons = <>
     {step !== 'choose' && <ActionButton disabled={busy} onClick={() => flow.goTo(bookingSteps[stepIndex-1])}>{copy.back}</ActionButton>}
-    <ActionButton primary className={tone === 'blue' ? 'h-auto max-w-full whitespace-normal break-words py-3 text-center [overflow-wrap:anywhere]' : undefined} type="submit" form={formId}
+    <ActionButton primary className={tone === 'blue' ? 'h-auto max-w-full whitespace-normal break-words py-3 text-center [overflow-wrap:anywhere]' : undefined} type={presentationOnly ? 'button' : 'submit'} form={presentationOnly ? undefined : formId}
       disabled={busy || flow.error === 'scope' || (step === 'choose' ? !flow.chooseReady : step === 'time' ? !flow.timeReady : flow.creatingClient || !validBookingContact(flow.contact))}>
       {busy ? copy.loading : step === 'review' ? internal ? text.submit : flow.catalog.appearance?.buttonLabel?.trim() || copy.send : copy.next}
     </ActionButton>
@@ -69,10 +70,10 @@ export function BookingForm({ catalog, copy, locale, loadSlots, loadCatalog, onS
     {internal ? <div className="flex items-start gap-3"><span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#FF6B5E]/10 text-[#b63b32] dark:text-[#FF9C92]">{step === 'choose' ? <Users className="h-5 w-5"/> : step === 'time' ? <CalendarDays className="h-5 w-5"/> : step === 'contact' ? <UserRound className="h-5 w-5"/> : <ClipboardCheck className="h-5 w-5"/>}</span><div className="min-w-0"><h2 ref={heading} tabIndex={-1} className="text-base font-medium outline-none">{labels[stepIndex]}</h2><p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{hints[stepIndex]}</p></div></div>
       : <Feedback tone={tone}>{copy.reviewRequired}</Feedback>}
     {issue && <IndiceModalValidation messages={[issue]}/>}
-    <form id={formId} className="space-y-5" onSubmit={event => { event.preventDefault(); void flow.submit(); }}>
+    <FormSurface id={formId} className="space-y-5" onSubmit={event => { event.preventDefault(); if (!presentationOnly) void flow.submit(); }}>
       <fieldset disabled={busy} className="min-w-0 space-y-5">
         {step === 'choose' && <div className="grid gap-5 sm:grid-cols-2">
-          {selectionLayout === 'cards' ? <div className="min-w-0 sm:col-span-2"><PublicServiceChoices catalog={flow.catalog} value={flow.selection} onChange={flow.chooseSelection} copy={copy} locale={locale}/></div> :
+          {!internal || selectionLayout === 'cards' || selectionLayout === 'showcase' ? <div className="min-w-0 sm:col-span-2"><PublicServiceChoices catalog={flow.catalog} value={flow.selection} onChange={flow.chooseSelection} copy={copy} locale={locale} layout={selectionLayout}/></div> :
             <Field label={`${copy.service} / ${copy.events}`}><select required className={controlClass} value={flow.selection} onChange={event => flow.chooseSelection(event.target.value)}><option value="">{copy.selectOption}</option>
               {flow.catalog.services.map(service => <option key={`service:${service.id}`} value={`service:${service.id}`}>{service.name} · {service.durationMinutes} {copy.minutes}</option>)}
               {flow.catalog.events.map(event => <option key={`event:${event.id}`} value={`event:${event.id}`} disabled={event.availablePlaces <= 0}>{event.title} · {event.availablePlaces} {copy.places}</option>)}
@@ -118,6 +119,6 @@ export function BookingForm({ catalog, copy, locale, loadSlots, loadCatalog, onS
         {loadCatalog && step === 'choose' && <ActionButton onClick={() => void flow.refreshCatalog()}>{text.refreshCatalog}</ActionButton>}
       </fieldset>
       {footerTarget ? createPortal(buttons,footerTarget) : <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-5 dark:border-slate-700">{buttons}</div>}
-    </form>
+    </FormSurface>
   </div>;
 }

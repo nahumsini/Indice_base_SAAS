@@ -10,7 +10,7 @@ const previewPort=Number(process.env.INDICE_SCHEDULING_PREVIEW_PORT||5197);
 const origin=`http://127.0.0.1:${previewPort}`;
 const csrf = 'synthetic-csrf';
 const root = '/api/v1/scheduling/';
-const engine = '/api/v2/kiosks/public/synthetic-preview-address/';
+const engineRoot = '/api/v2/kiosks/public/';
 const statuses = ['REQUESTED', 'CONFIRMED', 'COMPLETED', 'NO_SHOW', 'CANCELLED','PAUSED'];
 
 export function createPreviewHandler() {
@@ -26,6 +26,7 @@ export function createPreviewHandler() {
     { id: 6, name: 'Sesión de seguimiento', description: 'Revisa los avances de tu plan de trabajo con tu consultor.', durationMinutes: 30, bufferMinutes: 15, noticeHours: 24, active: true, version: 1 },
   ];
   let bookingPage = { id: 7, alias: 'piloto', title: 'Reserva tu diagnóstico empresarial', description: 'Vista local con datos de prueba. Elige tu consultor, solicita un diagnóstico o inscríbete en un webinar. No ingreses datos reales; esta vista no envía correos.', published: true, version: 1, publicUrl: '/book/piloto',appearance:{brandName:'',accentColor:'#2563EB',surfaceColor:'#F8FAFC',buttonLabel:'',layout:'cards'} };
+  const bookingPages=[bookingPage];
   const dateAt = (days, hour = 10) => { const date = new Date(); date.setDate(date.getDate() + days); date.setHours(hour, 0, 0, 0); return date.toISOString(); };
   const events = [{ id: 4, staffId: 2, title: 'Webinar: organiza el crecimiento de tu negocio', description: 'Evento de prueba para conocer cómo trabajar con Índice.', startAt: dateAt(3, 14), durationMinutes: 60, capacity: 25, confirmedCount: 0, published: true, status: 'ACTIVE', version: 1 }];
   const reservations = [
@@ -34,7 +35,7 @@ export function createPreviewHandler() {
     ['Participante demo 5', 'NO_SHOW', -3, 10], ['Participante demo 6', 'CANCELLED', -4, 10],
   ].map(([attendeeName, status, day, hour], index) => ({ id: 10 + index, reference: `SCH-DEMO-${index + 1}`, staffId: 2, serviceId: 1, eventId: null, serviceName: services[0].name, staffName: staff[0].publicName, attendeeName, attendeeEmail: `participant${index + 1}@example.com`, attendeeCompany: 'Empresa demo', startAt: dateAt(day, hour), durationMinutes: 60, status, version: 1 }));
   const replays = new Map(), workspaces = new Map();
-  const catalog = () => ({ title: bookingPage.title, description: bookingPage.description,appearance:bookingPage.appearance,
+  const catalog = (page = bookingPage) => ({ title: page.title, description: page.description,appearance:page.appearance,
     services: services.filter(item => item.active), staff: staff.filter(item => item.active),
     clientSelectionEnabled:true, events: events.filter(item => item.published && item.status === 'ACTIVE').map(item => ({ ...item, availablePlaces: Math.max(0, item.capacity - item.confirmedCount) })), csrfToken: csrf });
   const scoped = url => reservations.filter(item => (!item.archivedAt||url.searchParams.get('includeArchived')==='true')&&(!url.searchParams.get('staffId')||item.staffId===Number(url.searchParams.get('staffId')))&&(!url.searchParams.get('from') || item.startAt >= url.searchParams.get('from')) && (!url.searchParams.get('to') || item.startAt < url.searchParams.get('to')) && (!url.searchParams.get('status') || item.status === url.searchParams.get('status'))).sort((a, b) => a.startAt.localeCompare(b.startAt));
@@ -60,10 +61,15 @@ export function createPreviewHandler() {
       if (method === 'GET' || method === 'PUT') return send(res, workspaces.get(path) ?? { state: {}, schemaVersion: 1 });
     }
     if (method === 'GET' && path === '/api/v1/modules') return send(res, [{ slug: 'scheduling', name: 'Agenda y eventos' }]);
-    if (method === 'GET' && path === `/api/v1/public/scheduling/${bookingPage.alias}` && bookingPage.published) return send(res, { token: 'synthetic-preview-address' });
-    if (method === 'GET' && path === `${engine}bootstrap` && bookingPage.published) return send(res, { data: {...catalog(),clientSelectionEnabled:false} });
-    const isPublic = path.startsWith(engine);
-    const tail = path.startsWith(root) ? path.slice(root.length) : isPublic ? path.slice(engine.length) : '';
+    if(method==='GET'&&path.startsWith('/api/v1/public/scheduling/')){
+      const page=bookingPages.find(item=>item.alias===decodeURIComponent(path.split('/').at(-1))&&item.published);
+      return page?send(res,{token:page.id===7?'synthetic-preview-address':`synthetic-page-${page.id}`}):send(res,{message:'Agenda unavailable'},404);
+    }
+    const isPublic=path.startsWith(engineRoot), publicToken=isPublic?path.slice(engineRoot.length).split('/')[0]:'';
+    const selectedPage=isPublic?bookingPages.find(item=>item.id===(publicToken==='synthetic-preview-address'?7:Number(publicToken.replace('synthetic-page-','')))):null;
+    if(isPublic&&(!selectedPage||!selectedPage.published))return send(res,{message:'Agenda unavailable'},404);
+    const tail = path.startsWith(root) ? path.slice(root.length) : isPublic ? path.slice(`${engineRoot}${publicToken}/`.length) : '';
+    if(method==='GET'&&isPublic&&tail==='bootstrap')return send(res,{data:{...catalog(selectedPage),clientSelectionEnabled:false}});
     if (method === 'GET' && path.startsWith(root)) {
       if(tail==='calendar-grid'){
         const items=scoped(url),visible=events.filter(item=>(!url.searchParams.get('staffId')||item.staffId===Number(url.searchParams.get('staffId')))&&item.startAt>=url.searchParams.get('from')&&item.startAt<url.searchParams.get('to'));
@@ -82,7 +88,7 @@ export function createPreviewHandler() {
         const completed = count('COMPLETED'), noShow = count('NO_SHOW');
         return send(res, { requests: count('REQUESTED'), confirmed: count('CONFIRMED'), completed, noShow, cancelled: count('CANCELLED'), attendanceRate: completed + noShow ? completed / (completed + noShow) * 100 : null });
       }
-      const payloads = { services, staff,'staff-options':staff, events, members, page: bookingPage, readiness: { publicAccessEnabled: true,companyName:'Empresa demo',suggestedAlias:'agenda-demo',bookingReady:true }, links: { publicUrl: bookingPage.publicUrl }, catalog: catalog() };
+      const payloads = { services, staff,'staff-options':staff, events, members, page: bookingPage, pages:bookingPages, readiness: { publicAccessEnabled: true,companyName:'Empresa demo',suggestedAlias:'agenda-demo',bookingReady:true }, links: { publicUrl: bookingPage.publicUrl }, catalog: catalog() };
       if (Object.hasOwn(payloads, tail)) return send(res, payloads[tail]);
     }
     if(method==='GET'&&tail==='inventory-services'){
@@ -115,9 +121,21 @@ export function createPreviewHandler() {
       const result = { status: 'REQUESTED', submissionPolicy: 'REVIEW_REQUIRED', reference }; replays.set(key, result);
       return send(res, isPublic ? { data: result } : result);
     }
+    if(method==='POST'&&tail==='pages'){
+      const existing=bookingPages.find(item=>item.alias===body.alias);
+      if(existing)return send(res,existing);
+      const item={...body,id:++nextId,version:1,publicUrl:`/book/${body.alias}`};bookingPages.push(item);return send(res,item);
+    }
+    if(method==='PUT'&&/^pages\/\d+$/.test(tail)){
+      const index=bookingPages.findIndex(item=>item.id===Number(tail.split('/')[1]));
+      if(index<0)return send(res,{message:'Agenda unavailable'},404);
+      if(body.version!==bookingPages[index].version)return send(res,{message:'Agenda changed'},409);
+      bookingPages[index]={...bookingPages[index],...body,id:bookingPages[index].id,version:body.version+1,publicUrl:`/book/${body.alias}`};
+      if(index===0)bookingPage=bookingPages[0];return send(res,bookingPages[index]);
+    }
     if (method === 'PUT' && tail === 'page') {
       if (!/^[a-z0-9][a-z0-9-]{2,59}$/.test(body.alias)) return send(res, { message: 'Invalid demo alias' }, 400);
-      bookingPage = { ...bookingPage, ...body, id: bookingPage.id, version: bookingPage.version + 1, publicUrl: `/book/${body.alias}` };
+      bookingPage = { ...bookingPage, ...body, id: bookingPage.id, version: bookingPage.version + 1, publicUrl: `/book/${body.alias}` };bookingPages[0]=bookingPage;
       return send(res, bookingPage);
     }
     const collection = /^(services|staff|events)(?:\/(\d+))?$/.exec(tail);

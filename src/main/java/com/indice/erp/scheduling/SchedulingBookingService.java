@@ -66,7 +66,7 @@ public class SchedulingBookingService {
     public Submission requestPublic(long company,long pageId,ReservationRequest request) {
         if(request.clientId()!=null)throw new IllegalArgumentException("Public requests cannot link clients.");
         repository.lockCompany(company);
-        var page=repository.page(company).orElseThrow();
+        var page=repository.page(company,pageId).orElseThrow(com.indice.erp.kiosk.engine.KioskUnavailableException::new);
         if(!page.published()||page.id()!=pageId||!modules.companyCanAccessForMutation(company,"scheduling"))
             throw new com.indice.erp.kiosk.engine.KioskUnavailableException();
         return request(company,null,request);

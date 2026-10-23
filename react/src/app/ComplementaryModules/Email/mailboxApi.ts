@@ -20,6 +20,7 @@ export const mailboxApi = {
   preferences: (id:string,signal?:AbortSignal)=>apiClient<MailPreferencesData>(`${base}/${id}/preferences`,{signal}),
   savePreferences: (id:string,value:MailPreferencesData&{accountVersion:number})=>request<MailPreferencesData>(`${base}/${id}/preferences`,'PUT',value),
   sentCopy: (account:string,id:string)=>request<MailboxMessage>(`${base}/${account}/messages/${id}/sent-copy`,'POST',{}),
+  templateFiles: (account:string,id:string,templateId:string,templateVersion:number,version:number,accountVersion:number)=>request<MailboxMessage>(`${base}/${account}/messages/${id}/template-files`,'POST',{templateId,templateVersion,version,accountVersion}),
   attachments: (account:string,id:string,signal?:AbortSignal)=>apiClient<MailAttachment[]>(`${base}/${account}/messages/${id}/attachments`,{signal}),
   upload: (account:string,id:string,value:{filename:string;contentType:string;sizeBytes:number;version:number;accountVersion:number})=>request<{id:string;url:string;headers:Record<string,string>}>(`${base}/${account}/messages/${id}/attachments/upload`,'POST',value),
   register: (account:string,id:string,file:string,version:number,accountVersion:number)=>request<MailboxMessage>(`${base}/${account}/messages/${id}/attachments/${file}/register`,'POST',{version,accountVersion}),

@@ -2616,3 +2616,12 @@ lecturas automáticas. El cuerpo se sustituye en el mismo workspace y no añade 
 Ninguna fase debe comenzar eliminando infraestructura legacy. Primero se agregan contratos, pruebas y adaptadores; después se enruta tráfico bajo feature flag; finalmente se retira duplicación solo cuando exista evidencia de paridad.
 
 > Evolucionar el sistema actual. No construir un motor paralelo y no trasladar lógica de negocio al Engine.
+
+### Finance-owned sealing extension — 2026-10-23
+
+Expenses and petty-cash file descriptors may declare the server-owned
+`ownerSealsOnRegister` policy. Finance returns the definitive private object after committing
+its native quota reservation and SHA-256 snapshot. Engine verifies the final bytes against the
+same pending file intent, adopts that key and does not recommit the old staging reservation.
+The requester cannot supply this policy or final-key authority. Other file-intent policies keep
+their existing behavior. See the [security boundary](security-identity-and-evidence-contract-v1.md).

@@ -7,7 +7,7 @@ import type {IdeasBoardLayout} from './ideasBoardLayout';
 import {escapeDocumentPrintHtml as esc} from '../../shared/print/documentHtmlPrintEngine';
 export const printCanvas={width:1046,height:600};
 export function boardPrintBounds(content:BoardContent,layout?:IdeasBoardLayout) {
- if(layout){const base=layout.worldBounds;const outside=content.nodes.filter(n=>n.x<base.x||n.y<base.y||n.x+n.width>base.x+base.width||n.y+n.height>base.y+base.height);if(!outside.length)return base;const x=Math.min(base.x,...outside.map(n=>n.x-24)),y=Math.min(base.y,...outside.map(n=>n.y-24));return{x,y,width:Math.max(base.x+base.width,...outside.map(n=>n.x+n.width+24))-x,height:Math.max(base.y+base.height,...outside.map(n=>n.y+n.height+24))-y};}
+ if(layout?.worldBounds){const base=layout.worldBounds;const outside=content.nodes.filter(n=>n.x<base.x||n.y<base.y||n.x+n.width>base.x+base.width||n.y+n.height>base.y+base.height);if(!outside.length)return base;const x=Math.min(base.x,...outside.map(n=>n.x-24)),y=Math.min(base.y,...outside.map(n=>n.y-24));return{x,y,width:Math.max(base.x+base.width,...outside.map(n=>n.x+n.width+24))-x,height:Math.max(base.y+base.height,...outside.map(n=>n.y+n.height+24))-y};}
  if(!content.nodes.length)return{x:0,y:0,width:800,height:500};
  const x=Math.min(...content.nodes.map(n=>n.x))-24,y=Math.min(...content.nodes.map(n=>n.y))-24;
  return{x,y,width:Math.max(...content.nodes.map(n=>n.x+n.width))-x+24,height:Math.max(...content.nodes.map(n=>n.y+n.height))-y+24};

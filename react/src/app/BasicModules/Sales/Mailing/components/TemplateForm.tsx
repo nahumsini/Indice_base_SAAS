@@ -1,7 +1,7 @@
 import { MailRichEditor } from "../../../../components/mail-editor/MailRichEditor";
 import { MailFormattedPreview } from "../../../../components/mail-editor/MailFormattedPreview";
 import { Input } from "../../../../components/ui/input";
-import { Textarea } from "../../../../components/ui/textarea";
+
 import type { TemplateInput } from "../mailingApi";
 import type { MailingCopy } from "../translations";
 export function TemplateForm({
@@ -9,11 +9,13 @@ export function TemplateForm({
   onChange,
   copy,
   disabled,
+  onBusy,
 }: {
   value: TemplateInput;
   onChange: (value: TemplateInput) => void;
   copy: MailingCopy;
   disabled: boolean;
+  onBusy?: (busy:boolean)=>void;
 }) {
   const field = (
     key: "name" | "subject" | "previewText",
@@ -36,10 +38,10 @@ export function TemplateForm({
       {field("name", copy.templateName, 180)}
       {field("subject", copy.subject, 240)}
       {field("previewText", copy.previewText, 240)}
-      <label className="block space-y-2 text-sm">
+      <div className="block space-y-2 text-sm">
         <span>{copy.body}</span>
-        <MailRichEditor label={copy.body} text={value.bodyText} html={value.bodyHtml??null} disabled={disabled} onChange={(bodyText,bodyHtml)=>onChange({...value,bodyText,bodyHtml})} />
-      </label>
+        <MailRichEditor label={copy.body} text={value.bodyText} html={value.bodyHtml??null} disabled={disabled} onBusy={onBusy} onChange={(bodyText,bodyHtml)=>onChange({...value,bodyText,bodyHtml})} />
+      </div>
       <p className="text-sm text-slate-500">{copy.templateHint}</p>
       <TemplatePreview value={value} copy={copy} />
     </div>

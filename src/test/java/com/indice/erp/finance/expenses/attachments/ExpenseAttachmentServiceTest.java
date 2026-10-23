@@ -35,19 +35,23 @@ class ExpenseAttachmentServiceTest {
     @Mock
     private CompanyStorageMeter storageMeter;
 
+    @Mock
+    private com.indice.erp.finance.attachments.FinanceAttachmentSealer sealer;
+
     private ExpenseAttachmentService service;
 
     @BeforeEach
     void setUp() {
         var properties = new ObjectStorageProperties();
         properties.getMinio().setBucketDocuments("documents");
-        service = new ExpenseAttachmentService(repository, objectStorageService, properties, storageMeter);
+        service = new ExpenseAttachmentService(repository, objectStorageService, properties, storageMeter, sealer);
     }
 
     @Test
     void registerPersistsPaymentEvidenceContext() {
         var context = new FinanceContext(1L, 7L, "Finance User", "admin", true, FinanceScope.corporateOffice());
         var objectKey = "finance/expenses/7/99/attachments/payment.pdf";
+        var sealedKey = objectKey + "/sealed/final";
         var amount = new BigDecimal("250.00");
         var paymentDate = LocalDate.of(2026, 8, 5);
         var row = new ExpenseAttachmentRow(
@@ -55,7 +59,7 @@ class ExpenseAttachmentServiceTest {
                 "payment.pdf",
                 "application/pdf",
                 2048L,
-                objectKey,
+                sealedKey,
                 1L,
                 "Finance User",
                 amount,
@@ -64,11 +68,12 @@ class ExpenseAttachmentServiceTest {
                 "2026-08-05T18:00:00Z");
         when(repository.expenseExists(context, 99L)).thenReturn(true);
         when(objectStorageService.isEnabled()).thenReturn(true);
-        when(objectStorageService.objectExists("documents", objectKey)).thenReturn(true);
+        when(sealer.seal(7L, "EXPENSE", 99L, "documents", objectKey, "application/pdf", 2048L))
+            .thenReturn(new com.indice.erp.finance.attachments.FinanceAttachmentSealer.Sealed(sealedKey, "a".repeat(64)));
         when(repository.insert(
-                context, 99L, "payment.pdf", "application/pdf", 2048L, objectKey,
+                context, 99L, "payment.pdf", "application/pdf", 2048L, sealedKey,
                 amount, paymentDate, 81L)).thenReturn(row);
-        when(objectStorageService.presignDownload("documents", objectKey, 900))
+        when(objectStorageService.presignDownload("documents", sealedKey, 900))
                 .thenReturn("https://storage.example/download");
 
         var response = service.register(
@@ -82,8 +87,10 @@ class ExpenseAttachmentServiceTest {
         assertEquals(paymentDate, response.paymentDate());
         assertEquals(81L, response.paymentAccountId());
         verify(repository).insert(
-                context, 99L, "payment.pdf", "application/pdf", 2048L, objectKey,
+                context, 99L, "payment.pdf", "application/pdf", 2048L, sealedKey,
                 amount, paymentDate, 81L);
+        assertEquals(sealedKey, response.objectKey());
+        verify(repository).storeDigest(7L, 15L, "a".repeat(64));
     }
 
     @Test

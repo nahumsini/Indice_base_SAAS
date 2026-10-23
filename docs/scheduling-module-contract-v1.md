@@ -50,9 +50,9 @@ the reservation table remains paginated. The title bar exposes Services and Team
 as separate operational-workspace modals for selecting/configuring records. Create/edit replaces
 the workspace with the service or staff wizard, never a nested dialog. Saving returns to the
 list, refreshes agenda options, and preserves the underlying period/collaborator/view context.
-Public agenda is one operational-workspace modal with a live preview, publication/appearance,
-the saved public link and personalized staff links. Sharing uses saved publication, never an
-unsaved alias; changing appearance does not remove existing sharing functionality.
+Public agenda opens an operational-workspace manager for the company’s saved agendas. Creation
+and editing replace it with a separate wizard; they never stack frames. Sharing uses saved
+publication, never an unsaved alias; changing appearance retains existing sharing functionality.
 
 ### Team modal presentation — 2026-10-22
 
@@ -579,3 +579,115 @@ Shared title/filter/table/modal owners and the public booking appearance remain 
 Acceptance covers combined ordering, empty/filtered states, read-only capture absence, overflow,
 slot/date behavior, all eight locales and desktop/phone presentation with synthetic records.
 Rollback restores the affected frontend files; existing records and services are not altered.
+
+
+### Public agenda launch and catalogue presentation — 2026-10-23
+
+The public Agenda and its inert preview now render the same `PublicAgendaSurface` and real
+`BookingForm`. Presentation modes are Catalogue (`cards`), List (`compact`) and Editorial
+(`showcase`), with eight palettes and independent brand colours. Palette selection retains the
+selected presentation, identity and text. Preview uses current active services and public staff
+fields from the configuration owner; it has no slot/network/submission authority. An empty real
+catalogue is shown as empty instead of displaying an apparently available sample service.
+Private reservation capture retains its native selector. The public form retains all four steps,
+consent, CSRF, rate limits, retry identity and manual confirmation; no real booking is created by
+preview or launch verification.
+
+Publication review distinguishes server activation from company setup and links directly to the
+native Services and Team workspaces. These replace the editor frame rather than stacking modals.
+The in-memory draft, original optimistic version and dirty baseline survive the round trip. Refresh
+keeps the editor mounted, blocks publication while loading/failed, and closes on authorization or
+company replacement. The original saved version remains authoritative on conflict.
+
+`showcase` is an additional allowlisted PageAppearance layout within the existing field and storage
+column; no migration or ownership change is required. Existing persisted layouts remain valid.
+The public deployment opt-in is `KIOSK_ENGINE_ADAPTER_SCHEDULING_ENABLED=true`; its default remains
+false. Enabling the adapter never publishes a company page or bypasses entitlement, lifecycle,
+active service, employee or availability checks. See the deployment runbook for target-specific
+activation. Public labels have eight-locale coverage with the established en-CA fallback.
+
+
+### Compact public Agenda wizard — 2026-10-22
+
+The owner requests a less saturated, more efficient editor. Retain the three-stage native coral
+wizard, its standard width, single scrolling body and pinned footer. Step headings/instructions
+are presented once in the native header, with the focus target retained for assistive technology.
+The company identity is a compact read-only line; presentation thumbnails and palette chips reduce
+design-stage height without removing options or their accessible descriptions.
+
+Final review prioritizes one native publication switch and the preview. Booking setup, saved-version
+sharing and page details use progressive disclosure. Setup blockers stay visible and the repair
+controls expand when configuration is incomplete or refresh fails. Saved-version URLs never follow
+an unsaved draft. Successful save announces a short footer status, opens sharing, offers Close and
+disables repeated save until a field changes. Back/Continue, original expected version and the
+in-memory setup round trip remain unchanged.
+
+The default design overview shows at most two actual service/event cards, reports additional
+options, and can expand to the full inert presentation. It uses the same public surface and styles,
+with density overrides scoped to the preview. The embedded BookingForm uses a presentation-only
+div surface and non-submit action; normal public/private use retains its form and submit contract.
+Preview therefore cannot nest a second form in the owner's form or interfere with its submission.
+No new endpoints, storage, backend policy, schema or production activation are part of this refinement.
+Eight locales retain their existing fallback and all controls retain touch targets and dark mode.
+
+
+### Separate public agenda administration and creation — 2026-10-22
+
+The owner explicitly requests multiple independent public agendas per company. The title-bar
+entry opens **Operational Workspace Modal** administration: local search by saved name/link,
+publication filter, saved status, Edit, Share links, inert Preview and reasoned Unpublish
+confirmation. A company with no agendas gets an empty state and New agenda. No creation fields,
+stepper, KPI or permanent preview pane appears in administration. Staff link sharing retains the
+saved agenda’s alias and shows active collaborators only. Public adapter-disabled state remains
+explicit and cannot be cleared by frontend publication.
+
+New/Edit replaces administration with the existing **Modal Wizard Índice**: content → design →
+review/publication. New requires an explicit title and creates a fresh stable alias; cancellation
+never replaces a saved agenda. Save returns to refreshed administration with a short status.
+Owner setup round trips preserve the selected page, draft, alias and expected version. Unsaved
+wizard edits use the existing discard guard. Readiness and public release gates remain unchanged.
+Preview is a read-only operational workspace. Unpublish is a native Confirmation Modal and
+updates only the chosen saved agenda/version; existing reservations remain intact.
+
+`GET /api/v1/scheduling/pages`, `POST /pages` and `PUT /pages/{id}` reuse configuration scope,
+company-administrator checks, entitlement/lifecycle, CSRF and audit boundaries. Every page has its
+own ID, globally unique alias, protected public token, kiosk definition, design, publication and
+optimistic version. Creation retries with the same alias and identical initial normalized payload
+return that page once; a conflicting payload/alias returns conflict. Update never creates a page
+and always scopes by authenticated company and selected ID. Public bootstrap/authorization/request
+resolves that exact page, so publishing/unpublishing a sibling cannot alter another link’s authority.
+Shared staff/services and resource occupancy retain their company owner; this slice does not
+introduce per-agenda service/staff assignments or duplicate reservations/calendars.
+
+Legacy `GET/PUT /page`, `/links` and `protectedToken(company)` retain the oldest company agenda
+ordered by ID. Migration V348 replaces the single-company unique index with a company/ID index;
+it retains every existing ID, alias, token, appearance and reservation and changes no business row.
+Global alias uniqueness stays enforced. No hard-delete operation is introduced.
+
+
+### Customer-facing wording for public agenda tools — 2026-10-23
+
+The owner requests plain, task-oriented language for average users. Management and create/edit
+keep their existing native modal classifications and separate flows. Use customer/appointment
+language for copy, status help and availability errors; explain what each action does rather than
+server, saved-version or record implementation details. Hide agenda is the user-facing wording
+for the existing published=false confirmation, with explicit preservation of existing appointments.
+Share agenda exposes a labelled customer link and team-person choices; raw /book paths do not
+appear as row descriptions. Preview and Hide have visible action labels. New/Edit asks for Agenda
+name with a practical example, uses Link for your customers and omits the duplicate read-only
+business-name line. Counts use the singular for one agenda. All eight locales retain equivalent
+copy. APIs, publication/authorization rules, tenant scope, persistence and customer data are unchanged.
+
+### Catalog-style public agenda administration — 2026-10-23
+
+The owner selects the public catalog manager as the visual reference for agenda administration.
+Keep the native Operational Workspace Modal, with a scoped 56rem desktop width and tall viewport-
+bounded surface, coral header/footer, neutral scrolling body and separate white record cards.
+This narrower workspace is an approved domain presentation choice; the shared frame and wizard
+widths remain unchanged. New agenda is the primary top-card action rather than a footer action.
+Search and status remain in an accessible disclosure which expands for active filters. The footer
+retains Refresh and Close. Record actions stay in order: Edit, Share, Preview, Hide when published.
+Desktop uses compact icon controls with localized accessible names and titles; mobile shows labels
+in a two-column action grid. All actions retain at least 44px touch targets. No delete capability is
+added. Management, create/edit, preview and confirmation still replace one another in one frame;
+saved-link authority, disabled states, tenant boundaries and draft preservation are unchanged.

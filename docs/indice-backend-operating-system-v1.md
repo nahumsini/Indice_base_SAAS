@@ -570,6 +570,11 @@ without confirming that domain's accounting meaning.
 
 ## 14. Files, Object Storage, And Sensitive Data
 
+The [identity and evidence security boundary](security-identity-and-evidence-contract-v1.md)
+controls HR employment identity, immutable financial upload registration, attendance photo quota
+and the owner-sealed Finance kiosk extension. HR cannot change existing global account identity
+or access roles. A browser upload capability must never address registered financial evidence.
+
 Use the existing `ObjectStorageService`/presigned flow:
 
 1. authorize the actor and target entity;
@@ -1162,3 +1167,28 @@ management never grants another person's vote or modifies permissions. Closed re
 into minutes/print; open ballots block completion and meeting cancellation cancels them atomically.
 No automatic tasks or external delivery are added. Endpoints, exact formulas, bounds, retry and
 rollback rules are in `docs/meeting-control-module-contract-v1.md`.
+
+
+### Email/Mailing reusable-template owner extension — 2026-10-22
+
+The [approved owner contract](email-mailing-integration-contract-v1.md#persistent-templates-and-reusable-attachments--2026-10-22)
+adds company-scoped verified template assets and immutable campaign/private-message references.
+Sales owns sharing/snapshots; Email owns attachment content policy and private transport. Reuse is
+an explicit internal owner port with both access boundaries rechecked; object keys never come from
+a browser. V347 adds metadata/reference tables, template save replay metadata and a non-unique
+physical-object lookup index while retaining the message-scoped attachment primary key. Whole
+save/import transactions, current-company locks, quota-before-upload, verification-before-commit,
+10 MiB combined/five-file limits and SMTP idempotency remain required. Verified unreferenced
+objects are retained and counted until a separate owner retention policy authorizes cleanup.
+
+
+### Personal ideas-board catalog owner extension — 2026-10-22
+
+The personal owner exposes bounded optional Node.catalog metadata for FREEFORM documents via
+IdeaCatalogPolicy and the existing whole-document validator/transaction. Legacy JSON omits it;
+SYSTEM retains Element metadata and rejects nested catalog, while FUNNEL rejects catalog. Private
+project snapshots/copies retain the metadata and authorized asset references. Project listing adds
+closed kind/sort parameters applied inside the authenticated scope before count/pagination. Routes,
+actor, CSRF, CAS, private grants, quotas and immutable content are preserved. No schema migration.
+Rollback must retain catalog readers once such documents exist. Owner decision and verification:
+`personal-ideas-board-contract-v1.md`, 2026-10-22.

@@ -1,6 +1,7 @@
 import {SalesModalFrame} from '../../BasicModules/Sales/components/SalesModalFrame';
 import {Button} from '../../components/ui/button';
 import {SystemNodeContent} from './SystemNodeContent';
+import {catalogNode} from './freeformBoardLayout';
 import {hasProcessSteps,type SystemNode} from './systemBoardModel';
 import {systemCatalogCopy} from './systemCatalogCopy';
 import {BoardGeometryElement} from '../../BasicModules/Sales/Funneling/boardGeometry';
@@ -95,13 +96,13 @@ export function WorkspaceCanvas({content,onChange,locale,system=true,active=true
      {shown.connections.map(link=>{const a=shown.nodes.find(n=>n.id===link.from),d=shown.nodes.find(n=>n.id===link.to);if(!a||!d)return null;const p=connectionEnds(a,d);return <line data-workspace-line={link.id} key={link.id} x1={p.start.x} y1={p.start.y} x2={p.end.x} y2={p.end.y} stroke="currentColor" strokeWidth="2.5" markerStart={link.direction==='BOTH'?`url(#${marker})`:undefined} markerEnd={`url(#${marker})`}/>;})}
     </svg>
     {shown.connections.map(link=>{const a=shown.nodes.find(n=>n.id===link.from),d=shown.nodes.find(n=>n.id===link.to);if(!a||!d)return null;const p=connectionEnds(a,d),style={left:(p.start.x+p.end.x)/2,top:(p.start.y+p.end.y)/2};return readonly?link.label?<span key={link.id} className="workspace-link-label" style={style}>{link.label}</span>:null:<button key={link.id} className="idea-board-link workspace-link-label" style={style} aria-label={link.label||c.connectionLabel} onPointerDown={e=>e.stopPropagation()} onClick={()=>onLabel?.(link.id,link.label)}>{link.label||'↗'}</button>;})}
-    {shown.nodes.map(node=><div key={node.id} data-workspace-node={node.id} data-category={isSystemNode(node)?node.category:undefined} data-shape={node.shape} data-color={node.color} data-kind={node.kind}
+    {shown.nodes.map(original=>{const node=!system&&original.catalog?catalogNode(original)!:original;return <div key={node.id} data-workspace-node={node.id} data-category={isSystemNode(node)?node.category:undefined} data-shape={node.shape} data-color={node.color} data-kind={node.kind}
      className={`idea-board-node ${isLegacySystemNode(node)?'system-node':''} ${source===node.id?'idea-board-source':''}`}
      style={{left:node.x,top:node.y,width:node.width,height:node.height,...nodeBoxStyle(node)}} role="button" aria-label={node.text} aria-pressed={selected===node.id} tabIndex={0}
      onFocus={()=>{if(!readonly)onSelect?.(node.id);}} onDoubleClick={e=>{e.stopPropagation();if(readonly&&hasProcessSteps(node))setStepsNode(node);else if(!readonly)onEdit?.(node);}}>
-      {node.kind==='DRAWING'?<BoardDrawingElement node={node}/>:node.kind==='VIDEO'||node.kind==='AUDIO'?<BoardMediaElement node={node} url={assetUrl(node.assetId!)} locale={locale}/>:isLegacySystemNode(node)?<SystemNodeContent node={node} locale={locale} onSteps={()=>readonly?setStepsNode(node):onEdit?.(node)}/>:<><BoardGeometryElement node={node}/>{node.kind==='IMAGE'&&node.assetId&&<img draggable={false} src={assetUrl(node.assetId)} alt="" style={nodeImageStyle(node)}/>}<span className="idea-board-node-text" style={nodeTextStyle(node)}>{node.text}</span></>}
+      {node.kind==='DRAWING'?<BoardDrawingElement node={node}/>:node.kind==='VIDEO'||node.kind==='AUDIO'?<BoardMediaElement node={node} url={assetUrl(node.assetId!)} locale={locale}/>:isLegacySystemNode(node)?<SystemNodeContent node={node} locale={locale} assetUrl={assetUrl} onSteps={()=>readonly?setStepsNode(node):onEdit?.(node)}/>:<><BoardGeometryElement node={node}/>{node.kind==='IMAGE'&&node.assetId&&<img draggable={false} src={assetUrl(node.assetId)} alt="" style={nodeImageStyle(node)}/>}<span className="idea-board-node-text" style={nodeTextStyle(node)}>{node.text}</span></>}
     {!readonly&&selected===node.id&&tool!=='CONNECT'&&<NodeResizeHandles node={node} zoom={shown.viewport.zoom} label={b.resize} bounds={elementBounds(node)} onResize={next=>apply({...current.current,nodes:current.current.nodes.map(n=>n.id===next.id?next:n)})}/>}
-    </div>)}
+    </div>;})}
    </div>
    <IdeasBoardMinimap content={shown} canvas={size} selectedId={selected??null} copy={b} worldBounds={worldBounds} regions={regions} onPreview={viewport=>show({...current.current,viewport})} onCommit={viewport=>apply({...current.current,viewport})}/>
   </div>

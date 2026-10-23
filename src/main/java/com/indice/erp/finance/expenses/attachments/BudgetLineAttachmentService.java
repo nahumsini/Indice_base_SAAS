@@ -22,16 +22,18 @@ public class BudgetLineAttachmentService {
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties objectStorageProperties;
     private final CompanyStorageMeter storageMeter;
+    private final com.indice.erp.finance.attachments.FinanceAttachmentSealer sealer;
 
     public BudgetLineAttachmentService(
             BudgetLineAttachmentRepository repository,
             ObjectStorageService objectStorageService,
             ObjectStorageProperties objectStorageProperties,
-            CompanyStorageMeter storageMeter) {
+            CompanyStorageMeter storageMeter, com.indice.erp.finance.attachments.FinanceAttachmentSealer sealer) {
         this.repository = repository;
         this.objectStorageService = objectStorageService;
         this.objectStorageProperties = objectStorageProperties;
         this.storageMeter = storageMeter;
+        this.sealer = sealer;
     }
 
     @Transactional(readOnly = true)
@@ -61,8 +63,8 @@ public class BudgetLineAttachmentService {
         var fileName = ExpenseAttachmentRules.normalizeFileName(request.fileName());
         var objectKey = ExpenseAttachmentRules.buildBudgetLineObjectKey(
                 context.companyId(), budgetLineId, fileName, mimeType);
-        var upload = storageMeter.presign(
-                context.companyId(), "EXPENSES",
+        var upload = sealer.presign(
+                context.companyId(), "BUDGET_LINE", budgetLineId,
                 documentsBucket(),
                 objectKey,
                 mimeType,
@@ -87,11 +89,21 @@ public class BudgetLineAttachmentService {
                 context.companyId(), budgetLineId, request.objectKey());
         var mimeType = ExpenseAttachmentRules.normalizeContentType(request.mimeType());
         var fileName = ExpenseAttachmentRules.normalizeFileName(request.originalFilename());
-        if (!objectStorageService.objectExists(documentsBucket(), objectKey)) {
-            throw FinanceApiException.badRequest("objectKey does not reference an uploaded budget line attachment.");
+        var sealed = sealer.seal(context.companyId(), "BUDGET_LINE", budgetLineId, documentsBucket(),
+                objectKey, mimeType, request.sizeBytes());
+        var existing = repository.findByObjectKey(context.companyId(), budgetLineId, sealed.key());
+        if (existing.isPresent()) {
+            var previous = existing.get();
+            if (!previous.originalFilename().equals(fileName) || !java.util.Objects.equals(previous.paymentAmount(), request.paymentAmount())
+                    || !java.util.Objects.equals(previous.paymentDate(), request.paymentDate())
+                    || !java.util.Objects.equals(previous.paymentAccountId(), request.paymentAccountId())) {
+                throw FinanceApiException.badRequest("Attachment upload has already been registered with different metadata.");
+            }
+            return previous.toResponse(signedUrl(previous.objectKey()));
         }
-        storageMeter.commit(context.companyId(), documentsBucket(), objectKey, request.sizeBytes());
-        var row = repository.insert(context, budgetLineId, fileName, mimeType, request.sizeBytes(), objectKey);
+
+        var row = repository.insert(context, budgetLineId, fileName, mimeType, request.sizeBytes(), sealed.key());
+        repository.storeDigest(context.companyId(), row.id(), sealed.sha256());
         return row.toResponse(signedUrl(row.objectKey()));
     }
 

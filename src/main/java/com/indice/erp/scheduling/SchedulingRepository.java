@@ -77,10 +77,19 @@ public class SchedulingRepository {
             +" WHERE s.company_id=? AND s.id=?"+currentRead(),String.class,company,staff);
     }
     public String companyName(long company){return db.queryForObject("SELECT name FROM companies WHERE id=?",String.class,company);}
-    public boolean aliasTaken(long company,String alias){return db.queryForObject("SELECT COUNT(*) FROM scheduling_pages WHERE alias=? AND company_id<>?",Long.class,alias,company)>0;}
+    public boolean aliasTaken(long company,String alias){return db.queryForObject("SELECT COUNT(*) FROM scheduling_pages WHERE alias=?",Long.class,alias)>0;}
     public Optional<PageItem> page(long company) {
-        return db.query("SELECT * FROM scheduling_pages WHERE company_id=?"+currentRead(),(r,n)->pageRow(r),company)
+        return db.query("SELECT * FROM scheduling_pages WHERE company_id=? ORDER BY id LIMIT 1"+currentRead(),(r,n)->pageRow(r),company)
             .stream().findFirst();
+    }
+    public List<PageItem> pages(long company) {
+        return db.query("SELECT * FROM scheduling_pages WHERE company_id=? ORDER BY id",(r,n)->pageRow(r),company);
+    }
+    public Optional<PageItem> page(long company,long id) {
+        return db.query("SELECT * FROM scheduling_pages WHERE company_id=? AND id=?"+currentRead(),(r,n)->pageRow(r),company,id).stream().findFirst();
+    }
+    public Optional<PageItem> pageByAlias(long company,String alias) {
+        return db.query("SELECT * FROM scheduling_pages WHERE company_id=? AND alias=?"+currentRead(),(r,n)->pageRow(r),company,alias).stream().findFirst();
     }
     private PageItem pageRow(ResultSet r) throws SQLException {
         return new PageItem(r.getLong("id"),r.getString("alias"),r.getString("title"),
@@ -94,7 +103,10 @@ public class SchedulingRepository {
             (r,n)->new PublishedPage(r.getLong(1),r.getLong(2),r.getString(3)),alias).stream().findFirst();
     }
     public String protectedToken(long company) {
-        return db.queryForObject("SELECT protected_token FROM scheduling_pages WHERE company_id=?",String.class,company);
+        return db.queryForObject("SELECT protected_token FROM scheduling_pages WHERE company_id=? ORDER BY id LIMIT 1",String.class,company);
+    }
+    public String protectedToken(long company,long id) {
+        return db.queryForObject("SELECT protected_token FROM scheduling_pages WHERE company_id=? AND id=?",String.class,company,id);
     }
     public List<EventItem> events(long company) {
         return db.query(EVENT_SELECT+" WHERE e.company_id=? ORDER BY (e.start_at < UTC_TIMESTAMP()),e.start_at,e.id LIMIT 500",

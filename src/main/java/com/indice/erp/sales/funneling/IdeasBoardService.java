@@ -58,7 +58,8 @@ public class IdeasBoardService {
         var ids=new HashSet<String>();
         for(var n:content.nodes()) {
             uuid(n.id());require(ids.add(n.id()) && finite(n.x(),n.y(),n.width(),n.height()),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
-            if(scope==IdeasBoardScope.FUNNEL) require(n.width()>=120&&n.height()>=80&&n.appearance()==null&&n.drawing()==null&&!Set.of("DRAWING","VIDEO","AUDIO").contains(n.kind())&&Set.of("NOTE","RECTANGLE","ELLIPSE","PLAIN").contains(n.shape()),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
+            if(scope==IdeasBoardScope.FUNNEL) require(n.width()>=120&&n.height()>=80&&n.appearance()==null&&n.drawing()==null&&n.catalog()==null&&!Set.of("DRAWING","VIDEO","AUDIO").contains(n.kind())&&Set.of("NOTE","RECTANGLE","ELLIPSE","PLAIN").contains(n.shape()),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
+            if(scope==IdeasBoardScope.PERSONAL)com.indice.erp.ideasboard.IdeaCatalogPolicy.validate(n);
             if("DRAWING".equals(n.kind())) {
                 require(scope==IdeasBoardScope.PERSONAL&&n.drawing()!=null&&n.text().isEmpty()&&n.appearance()==null&&"PLAIN".equals(n.shape()),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
                 require(finite(n.drawing().width())&&n.drawing().points().stream().allMatch(p->finite(p.x(),p.y())),HttpStatus.BAD_REQUEST,"ideas_board_invalid");

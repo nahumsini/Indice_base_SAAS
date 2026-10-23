@@ -1307,6 +1307,7 @@ export interface PublicKioskPunchResponse {
 }
 
 export interface AttendanceMediaPresignRequest {
+  size_bytes?: number;
   user_company_id?: number;
   content_type: string;
   event_type?: "check_in" | "check_out" | "break_out" | "break_in";

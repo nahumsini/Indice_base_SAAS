@@ -28,6 +28,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class MailingDeliveryIntegrationTest {
     @Autowired JdbcTemplate db;@Autowired MailingService campaigns;@Autowired MailingDeliveryService delivery;@Autowired EmailAccountService accounts;@Autowired MailingUnsubscribeService unsubscribe;@Autowired MockMvc mvc;@Autowired ObjectMapper json;
     @MockitoBean MailboxTransport transport;
+    @MockitoBean com.indice.erp.storage.ObjectStorageService storage;
+    @Autowired MailingTemplateService templates;
     long company,other,user,membership,contact;String account;AuthSessionUser actor;
     long insert(String sql,Object...args){var key=new GeneratedKeyHolder();db.update(c->{var s=c.prepareStatement(sql,java.sql.Statement.RETURN_GENERATED_KEYS);for(int i=0;i<args.length;i++)s.setObject(i+1,args[i]);return s;},key);return key.getKey().longValue();}
     @BeforeEach void setup(){
@@ -54,6 +56,22 @@ class MailingDeliveryIntegrationTest {
         when(transport.send(any(),any())).thenAnswer(call->{MailboxTransport.Outgoing m=call.getArgument(1);assertThat(m.to()).containsExactly("customer@example.com");assertThat(m.text()).contains("Hello Synthetic customer","/mailing/unsubscribe#","123 Test Street");assertThat(m.replyTo()).isEqualTo("reply@example.com");assertThat(m.displayName()).isEqualTo("Campaign clinic");assertThat(m.text()).startsWith("Preview\n\n");return MailboxTransport.Outcome.ACCEPTED;});
         delivery.tick();due(id);delivery.tick();due(id);delivery.tick();assertThat(delivery.results(actor,id).status()).isEqualTo("COMPLETED");assertThat(delivery.results(actor,id).items()).extracting(Delivery::state).containsExactly("ACCEPTED");verify(transport,times(1)).send(any(),any());
         assertThatThrownBy(()->campaigns.save(actor,id,new MailingContracts.DraftInput("Changed","X","Sender","","","X",List.of(contact),campaigns.get(actor,id).version(),account))).hasMessageContaining("mailing_campaign_locked");
+    }
+    @Test void scheduledDeliveryUsesItsFrozenFilesAfterTheSourceTemplateChanges(){
+        byte[] bytes="Frozen campaign brochure".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        String file=UUID.randomUUID().toString(),key="mailing/"+company+"/files/"+file+"/"+UUID.randomUUID(),template=UUID.randomUUID().toString();
+        db.update("INSERT INTO sales_mailing_files(company_id,id,created_by,filename,content_type,size_bytes,object_key,status) VALUES(?,?,?,'brochure.txt','text/plain',?,?,'READY')",company,file,user,bytes.length,key);
+        when(storage.readObject(anyString(),eq(key),anyInt())).thenReturn(bytes);
+        templates.save(actor,template,new MailingTemplateContracts.TemplateInput("Brochure","Hello","","Hello {{name}}",0,null,List.of(file),UUID.randomUUID().toString()));
+        String id=UUID.randomUUID().toString();
+        campaigns.save(actor,id,new MailingContracts.DraftInput("With brochure","Hello","Campaign clinic","reply@example.com","","Hello {{name}}",List.of(contact),0,account,null,List.of(file)));
+        assertThat(delivery.review(actor,id).attachments()).extracting(MailingFileContracts.File::id).containsExactly(file);
+        delivery.launch(actor,id,launchInput(id,null));
+        templates.save(actor,template,new MailingTemplateContracts.TemplateInput("Changed","Hello","","Changed",1,null,List.of(),UUID.randomUUID().toString()));
+        when(transport.send(any(),any())).thenAnswer(call->{MailboxTransport.Outgoing outgoing=call.getArgument(1);assertThat(outgoing.files()).hasSize(1);assertThat(outgoing.files().getFirst().bytes()).isEqualTo(bytes);return MailboxTransport.Outcome.ACCEPTED;});
+        delivery.tick();due(id);delivery.tick();
+        assertThat(delivery.results(actor,id).items()).extracting(Delivery::state).containsExactly("ACCEPTED");
+        verify(transport,times(1)).send(any(),any());
     }
     @Test void expandedHtmlIsRejectedBeforeCreatingDeliveryWork(){
         String id=campaign(List.of(contact));

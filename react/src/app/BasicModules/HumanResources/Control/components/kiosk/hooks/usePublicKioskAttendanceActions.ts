@@ -74,6 +74,7 @@ export function usePublicKioskAttendanceActions({
         event_type: eventType,
         event_timestamp: eventTimestamp,
         content_type: fallbackPhotoUpload.photo.contentType,
+        size_bytes: fallbackPhotoUpload.photo.file.size,
       }, browserSessionReference);
       await humanResourcesApi.uploadAttendancePhoto(
         presigned.upload_url,

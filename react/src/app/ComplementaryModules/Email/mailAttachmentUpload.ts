@@ -1,7 +1,7 @@
 import { ApiClientError } from '../../lib/apiClient';
 
 export const MAIL_OFFICE_TYPES: Record<string, string> = { docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' };
-export const MAIL_ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024;
+export const MAIL_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
 export const MAIL_ATTACHMENT_TOTAL_BYTES = 10 * 1024 * 1024;
 export type AttachmentErrorKey = 'pdfPassword' | 'pdfForm' | 'pdfActive' | 'pdfComplex' | 'damaged' | 'fileSize' | 'fileFormat' | 'fileContent' | 'fileLimit' | 'fileQuota' | 'fileStorage' | 'fileConflict' | 'fileAccess' | 'fileTransfer' | 'fileExpired' | 'fileUnknown';
 export class AttachmentUploadError extends Error {
@@ -45,6 +45,7 @@ export function attachmentErrorKey(error: unknown): AttachmentErrorKey {
       case 'email_attachment_limit': return 'fileLimit';
       case 'STORAGE_QUOTA_EXCEEDED': return 'fileQuota';
       case 'email_storage_unavailable': return 'fileStorage';
+      case 'mailing_file_not_ready': return 'fileTransfer';
       case 'email_attachment_missing': return 'fileTransfer';
     }
     if (error.status === 409) return 'fileConflict';
