@@ -50,17 +50,19 @@ export function TemplateForm({
 export function TemplatePreview({
   value,
   copy,
+  compact = false,
 }: {
   value: Pick<TemplateInput, "subject" | "previewText" | "bodyText" | "bodyHtml">;
   copy: MailingCopy;
+  compact?: boolean;
 }) {
   return (
     <section
       aria-label={copy.templatePreview}
-      className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"
+      className={compact ? "min-w-0 space-y-3" : "rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"}
     >
-      <h3 className="text-lg font-medium">{value.subject || copy.subject}</h3>
-      <p className="mt-2 text-sm text-slate-500">{value.previewText}</p>
+      <h3 className="break-words text-lg font-medium">{value.subject || copy.subject}</h3>
+      {(!compact || (value.previewText && value.previewText !== value.subject)) && <p className="mt-2 break-words text-sm text-slate-500">{value.previewText}</p>}
       <MailFormattedPreview text={value.bodyText.split("{{name}}").join(copy.previewName)} html={value.bodyHtml?.split("{{name}}").join(copy.previewName)} label={copy.templatePreview} />
     </section>
   );
