@@ -961,6 +961,28 @@ runtime and source copies are retained. Production activation and real sending a
 validation. External rendering in Outlook/Gmail and final provider attachment limits still need
 provider-specific acceptance before a production release.
 
+## Shared library presentation refinement — 2026-10-23
+
+The user-requested compact library remains an **Operational Workspace Modal** over
+the shared frame, capped at `max-w-6xl`. A compact table directory groups name,
+subject, status and update time without horizontal scrolling. A visible sort selector
+retains name/subject/update-time ordering in both directions. Search/status and all
+pagination requests stay server-owned; shared pagination sits once below both panes,
+with the existing 10/25/50/100/200 sizes. Selection is explicit, never automatic.
+One adjacent preview shows the subject/message and reusable attachment downloads,
+without repeating identical preheader text or adding nested preview cards. Empty
+attachments use a compact count. Email retains blue and Sales coral.
+
+On phones, a selected preview temporarily replaces the directory and filters inside
+the same frame. Back restores the query/status/sort/page and row focus, including
+when list refreshes replaced the original trigger node. Create/edit remains the
+existing Standard Form; archive/discard use the existing replacement Confirmation.
+Loading, failed reads/retry, read-only access and mutation locks retain their owner
+behavior. No new API, DTO, schema, permission, upload cap or transport behavior is
+introduced. `correo.mail` v4 and `crm.mailing` v3 were reviewed: their save/preview/
+attachment guidance remains valid. Only the generated owner-source digest changes;
+guide versions and learner progress are preserved.
+
 ## Persistent templates and reusable attachments — 2026-10-22
 
 This approved correction extends the shared template library and supersedes its previous 5 MiB

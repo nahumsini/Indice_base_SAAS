@@ -531,6 +531,20 @@ Save/close while active; errors retain user input. Limits are five files, 10 MiB
 total. The same company library serves Email and Mailing; private mailbox files are never
 published implicitly.
 
+Template-library compact refinement, 2026-10-23: the user adopts a content-sized
+**Operational Workspace Modal** for the shared Email/Sales template library. The
+typed shared frame uses a `max-w-6xl` cap instead of the large default: this small
+directory does not need the schedule builder's full width. Keep a compact directory
+beside one un-nested message/attachment preview. Group template name, subject, status
+and localized update time in each selectable row; the shared table primitives/shell
+remain the owner presentation foundation. Retain server search, status, all three
+sort fields and both directions through a visible sort selector, and one shared
+pagination across the workspace with the existing size options. On phones, selection
+opens the preview inside the same frame; Back restores filters and row focus, even
+after the directory has refreshed. Email stays blue and Sales coral. Create/edit
+remains a Standard Form, and archive/discard replace it with Confirmation. Existing
+permissions, save/retry identities, attachments, payloads and API ownership stay intact.
+
 Mailing operational workspace, 2026-10-19: the [campaign workspace contract](sales-mailing-contract-v1.md#campaign-operating-workspace--2026-10-19)
 adopts the standard title/filter/status/table composition for the campaign list. Keep recipient lists,
 templates and new campaign directly accessible, with administrative actions in the final overflow.
