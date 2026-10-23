@@ -1,7 +1,7 @@
 # Corrección de adjuntos de plantillas y Correo — 2026-10-23
 
-Estado inicial: corrección verificada localmente; publicación pendiente del CI y
-de las puertas de liberación. Este informe no acredita activación en producción.
+Estado a las 20:16 UTC: **PREPARACIÓN TÉCNICA COMPLETA / PENDIENTE AUTORIZACIÓN VIGENTE
+DE STRIPE TEST**. App Test y producción conservan `3eddc38be953`; no se activó el hotfix.
 
 ## Incidente y causa
 
@@ -68,4 +68,70 @@ rechaza nombres de contenedor ya ocupados, genera credenciales efímeras y limpi
 Evidencia privada local: `/private/tmp/indice-mail-upload-hotfix-20261023`, incluidos
 `red-regression.log`, `focused-final.log`, `real-minio.log` y artefactos de compilación.
 Fallas finales conocidas: ninguna en las comprobaciones descritas. Publicación,
-backups actuales, observación y aceptación humana posterior: **PENDIENTES**.
+observación y aceptación humana posterior: **PENDIENTES**.
+
+## Preparación para publicación
+
+Candidato: `fb01d39fe23381ada960de92863d875f3f14c806`.
+[CI completo correcto](https://github.com/nahumsini/Indice_base_SAAS/actions/runs/40015201961),
+incluido el ensayo de dos tamaños contra MinIO oficial sin privilegios, el arranque
+del backend, frontend, MCP, recuperación y tráfico Nginx real aislado. La ejecución
+anterior `40011630127` falló en el arranque del arnés y quedó corregida; no se omitió
+el chequeo para publicar. La compilación adicional de esa dependencia en Docker local
+se detuvo por capacidad del motor de pruebas. Se retiró caché regenerable y se
+confirmaron los contenedores funcionales activos, sin errores de disco nuevos.
+
+La aplicación es idéntica a `54f4c581` en `src/main`, `react`, dependencias, despliegue
+e integraciones. El último commit solo corrige el arnés y documenta el ensayo.
+Se conserva el mismo JAR probado y la misma imagen, retagada para el candidato:
+
+- Imagen: `indice-erp-backend:fb01d39fe233`.
+- ID: `sha256:5c98b8dd16627b6e51b707ac17ee37706d18ec004189c0b1c86598ecd51264ff`.
+- JAR SHA-256: `2c3a71ce75154b7f6765088a12c9841899d6e12b1878c5b8a79b72ae3f58cdef`.
+
+El runtime base, sus capas y valores predeterminados son los de `3eddc38be953`,
+con la sustitución del JAR verificada por bytes. Web y MCP conservan sus imágenes
+`3eddc38be953`. No hay migraciones: ambos entornos permanecen en V353.
+
+Respaldos completos nuevos: `apptest-20261023T193059Z` y
+`production-20261023T193606Z`. SQL, objetos, configuración y archivos protegidos
+pasaron manifiestos SHA-256, compresión y verificación fuera del servidor. La copia
+externa de objetos utilizó una copia independiente del archivo anterior como base
+de transferencia; los respaldos anteriores no se modificaron.
+
+Ambos respaldos se restauraron por separado, sin red externa ni puertos publicados.
+El candidato y el backend seguro anterior de recuperación arrancaron con MinIO y
+MCP privados. La aplicación tuvo permisos SQL de solo lectura y se compararon todas
+las columnas originales, sin normalizaciones ni excepciones de timestamps: hashes,
+facturación, historial y esquema V353 quedaron iguales. Las copias desechables se
+eliminaron al terminar, preservando los respaldos completos. La recuperación
+compatible es `3eddc38be953`; nunca se reactiva el backend vulnerable `8c451b5612d0`.
+
+Las simulaciones canónicas de ambos destinos pasan. Se preservaron los puertos y
+montajes Nginx separados, configuración protegida, acceso y catálogo/precios actuales.
+Los conectores autenticados de solo lectura tienen una referencia previa para
+comprobar continuidad después de activar.
+
+Escaneos de commits e imagen: cero secretos. El escáner conserva únicamente los dos
+hallazgos Spring ya registrados: `CVE-2026-47884` y `CVE-2026-47890`. Se revisaron otra
+vez los avisos primarios, la ausencia de sus condiciones en el propietario actual
+y las dos regresiones MVC. El proveedor exige respectivamente uso de vistas XSLT
+con resolución implícita o fragmentos de vistas vía SSE; no se encontraron esas
+condiciones. No se afirma actualización de biblioteca ni una excepción general.
+[Aviso XSLT](https://spring.io/security/cve-2026-47884/),
+[aviso SSE](https://spring.io/security/cve-2026-47890/).
+
+Se conservaron todos los volúmenes, fuentes, respaldos operacionales e imágenes de
+aplicación/recuperación. Solo se retiraron cachés y herramientas de compilación o
+escaneo sin contenedores que las referenciaran, y copias generadas retenidas fuera
+del servidor tras verificar 8,797 archivos. El mínimo canónico de despliegue sigue
+en 10 GiB, sin reducirlo; las simulaciones pasan con aproximadamente 10.37 GiB libres.
+La reserva adicional del arnés de backup se ajustó de 256 a 128 MiB tras medir
+archivo y capacidad, manteniendo los 10 GiB y verificando el resultado real.
+
+La revocación histórica de Stripe TEST sigue pendiente y la
+[excepción del despliegue anterior](../decisions/2026-10-23-integrated-release-stripe-deferral.md)
+está cerrada y no se puede reutilizar. No hay autorización operacional para activar
+este candidato. Falta únicamente resolver esa decisión vigente y después ejecutar
+activación, smoke y observación ordenadas. No se enviaron correos reales ni se
+activaron proveedores, precios o permisos nuevos durante la preparación.
