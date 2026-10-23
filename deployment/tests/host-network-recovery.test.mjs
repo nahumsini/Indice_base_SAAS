@@ -20,6 +20,11 @@ const statePath = process.env.MOCK_STATE;
 const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
 const failure = process.env.MOCK_FAILURE;
 const save = () => fs.writeFileSync(statePath, JSON.stringify(state));
+if (command === 'df') {
+ console.log('Filesystem 1024-blocks Used Available Capacity Mounted on');
+ console.log('synthetic 33554432 0 ' + (failure === 'low-disk' ? '1024' : '33554432') + ' 0% /');
+ process.exit(0);
+}
 if (command === 'sleep') process.exit(0);
 if (command === 'curl') {
  const url = args.at(-1);
@@ -73,7 +78,7 @@ function exercise(failure = '', overrides = {}) {
   for (const directory of [bin, runtime, temp, join(root, 'deployment/docker/web'), join(root, 'deployment/scripts')]) {
     mkdirSync(directory, { recursive: true });
   }
-  for (const executable of ['docker', 'curl', 'sleep']) {
+  for (const executable of ['docker', 'curl', 'sleep', 'df']) {
     writeFileSync(join(bin, executable), mock);
     chmodSync(join(bin, executable), 0o700);
   }
@@ -166,6 +171,14 @@ test('a shared production/APPTEST Nginx mount blocks activation before any mutat
 });
 
 const recoveryOverrides = {DEPLOY_BACKEND_RECOVERY_IMAGE: 'test-backend:compatible-immutable'};
+test('insufficient disk blocks activation before replacing any container', () => {
+  const result = exercise('low-disk');
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /less than 10240 MiB/);
+  assert.deepEqual(Object.keys(result.containers).sort(), [...names].sort());
+  for (const name of names) assert.equal(result.containers[name].generation, 'old');
+  assert.equal(result.config, originalConfig);
+});
 for (const [failure, status] of [['backend-run', 42], ['backend-health', 22], ['web-health', 22], ['signal', 143]]) {
   test(`schema-changing failed ${failure} uses the compatible backend, never the pre-upgrade backend`, () => {
     const result = exercise(failure, recoveryOverrides);
