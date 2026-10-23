@@ -94,6 +94,17 @@ public class StorageQuotaService {
         return new Reservation(id == null ? 0 : id, objectKey, true, false);
     }
 
+    /** Explicit no-expansion owner port: channel uploads cannot purchase storage capacity. */
+    @Transactional
+    public Reservation reserveExistingCapacity(long companyId,String ownerModule,String bucketName,String objectKey,long bytes) {
+        var state=lockState(companyId);
+        if(state==null)throw new IllegalStateException("Existing storage capacity is unavailable");
+        expireLocked(companyId);var existing=findObjectForUpdate(companyId,objectKey);
+        if(existing==null && snapshotLocked(companyId).availableBytes()<bytes)
+            throw new IllegalStateException("Existing storage capacity is insufficient");
+        return reserve(companyId,ownerModule,bucketName,objectKey,bytes);
+    }
+
     @Transactional
     public CommitResult commitStoredObject(long companyId, String bucketName, String objectKey,
                                            long expectedBytes) {
@@ -103,8 +114,20 @@ public class StorageQuotaService {
     @Transactional
     public CommitResult commitStoredObject(long companyId, String bucketName, String reservationObjectKey,
                                            String storedObjectKey, long expectedBytes) {
+        return commitStoredObjectInternal(companyId,bucketName,reservationObjectKey,storedObjectKey,expectedBytes,true);
+    }
+
+    @Transactional
+    public CommitResult commitExistingCapacity(long companyId,String bucketName,String reservedKey,String storedKey,long expectedBytes){
+        return commitStoredObjectInternal(companyId,bucketName,reservedKey,storedKey,expectedBytes,false);
+    }
+
+    private CommitResult commitStoredObjectInternal(long companyId,String bucketName,String reservationObjectKey,String storedObjectKey,long expectedBytes,boolean allowExpansion){
         var state = lockState(companyId);
-        if (state == null) return CommitResult.unmetered(storedObjectKey, expectedBytes);
+        if (state == null) {
+            if(!allowExpansion)throw new IllegalStateException("Existing storage capacity is unavailable");
+            return CommitResult.unmetered(storedObjectKey, expectedBytes);
+        }
         var object = findObjectForUpdate(companyId, reservationObjectKey);
         if (object == null) {
             throw new IllegalStateException("The storage reservation is missing or expired.");
@@ -143,7 +166,8 @@ public class StorageQuotaService {
         var snapshot = snapshotLocked(companyId);
         var projected = saturatingAdd(
             Math.max(0, snapshot.usedAndReservedBytes() - object.declaredBytes()), actualBytes);
-        ensureAutomaticCapacity(companyId, snapshot, projected);
+        if(allowExpansion)ensureAutomaticCapacity(companyId, snapshot, projected);
+        else if(projected>snapshot.limitBytes())throw new IllegalStateException("Existing storage capacity is insufficient");
         jdbcTemplate.update(
             """
                 UPDATE company_storage_objects

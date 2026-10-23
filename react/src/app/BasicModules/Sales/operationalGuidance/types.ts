@@ -1,6 +1,6 @@
 import type { SalesTabId } from '../salesIdentity';
 
-export type SalesGuidanceTabId = Exclude<SalesTabId, 'mailing' | 'whatsapping' | 'funneling'>;
+export type SalesGuidanceTabId = Exclude<SalesTabId, 'mailing' | 'whatsapping' | 'funneling' | 'conversations' | 'whatsapp-settings'>;
 
 export type SalesGuidanceIcon =
   | 'leads'

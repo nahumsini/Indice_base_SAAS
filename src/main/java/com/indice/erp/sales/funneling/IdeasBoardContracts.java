@@ -23,6 +23,11 @@ public final class IdeasBoardContracts {
     public record Drawing(@NotNull @Size(min=2,max=512) List<@NotNull @Valid DrawingPoint> points,
         @NotNull @Pattern(regexp="#[0-9a-fA-F]{6}") String color,
         @NotNull @DecimalMin("1") @DecimalMax("24") Double width) {}
+    /** Optional personal-owner catalog metadata; omitted for all legacy/Sales nodes. */
+    public record NodeCatalog(@NotNull @Pattern(regexp="PERSON|PROCESS|PRODUCT|FINANCE") String category,
+        @NotNull @Size(min=1,max=40) String icon,
+        @JsonInclude(JsonInclude.Include.NON_EMPTY) @Size(max=50) List<@NotBlank @Size(max=500) String> steps,
+        @JsonInclude(JsonInclude.Include.NON_NULL) @Pattern(regexp="PRODUCT|SERVICE") String offeringType) { }
     public record Node(@NotNull String id,
         @NotNull @Pattern(regexp="TEXT|IMAGE|DRAWING|VIDEO|AUDIO") String kind,
         @NotNull @Size(max=4000) String text,
@@ -33,7 +38,11 @@ public final class IdeasBoardContracts {
         @NotNull @Pattern(regexp="NOTE|RECTANGLE|ELLIPSE|PLAIN|TRIANGLE|DIAMOND|PENTAGON|HEXAGON|PARALLELOGRAM") String shape,
         @NotNull @Pattern(regexp="YELLOW|CORAL|BLUE|MINT|LAVENDER|WHITE") String color,
         String assetId,@Valid @JsonInclude(JsonInclude.Include.NON_NULL) Appearance appearance,
-        @Valid @JsonInclude(JsonInclude.Include.NON_NULL) Drawing drawing) {
+        @Valid @JsonInclude(JsonInclude.Include.NON_NULL) Drawing drawing,
+        @Valid @JsonInclude(JsonInclude.Include.NON_NULL) NodeCatalog catalog) {
+        public Node(String id,String kind,String text,Double x,Double y,Double width,Double height,String shape,String color,String assetId,Appearance appearance,Drawing drawing) {
+            this(id,kind,text,x,y,width,height,shape,color,assetId,appearance,drawing,null);
+        }
         public Node(String id,String kind,String text,Double x,Double y,Double width,Double height,String shape,String color,String assetId,Appearance appearance) {
             this(id,kind,text,x,y,width,height,shape,color,assetId,appearance,null);
         }

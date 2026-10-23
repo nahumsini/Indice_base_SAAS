@@ -72,6 +72,8 @@ export const MODULE_TAB_SCOPE_CATALOG: Partial<Record<PageId, TabScopeDefinition
       funneling: 'funneling',
       mailing: 'mailing',
       whatsapping: 'contacts',
+      conversations: 'conversations',
+      'whatsapp-settings': 'conversations_manage',
       kpis: 'kpis',
     },
   },

@@ -132,3 +132,12 @@ La matriz backend global conserva una deuda ajena a estos scopes: `HrFirstRunInt
 ## Extensión para módulos complementarios
 
 El ciclo de vida, los entitlements y el acceso completo de los módulos complementarios se rigen por `complementary-module-access-registry-standard-2026-08-02.md`. Un módulo futuro no debe inventar pestañas para poder aparecer en Usuarios: comienza con `access_model = module` y solo evoluciona a `tabs` cuando sus superficies y APIs tengan scopes reales.
+
+## Explicit private Sales channel extension (2026-10-22)
+
+`crm.conversations` and `crm.conversations_manage` are separate native scopes; managing the channel
+also requires native Users administration and scoped administrator authority. V348 deliberately denies
+these tabs for existing memberships/invitations, replacing default-enable only for this private
+channel as explicitly requested. Channel grants are an additional restriction; Contact access or a
+role name never grants WhatsApp history. Grants attach to `user_companies`, not global users, and
+capture the current work-profile scope. See [Sales Conversations](sales-conversations-contract-v1.md).

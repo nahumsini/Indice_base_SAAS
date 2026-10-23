@@ -88,6 +88,7 @@ class NotificationAccessService {
                     case "sales_customer_activity" -> "crm.contracts";
                     case "sales_call_reminder" -> "crm.leads";
                     case "sales_whatsapping_reminder" -> "crm.contacts";
+                    case "sales_conversation_activity" -> "crm.conversations";
                     default -> "crm.sales";
                 });
                 case "scheduling" -> tab("scheduling.calendar") || tab("scheduling.reservations");

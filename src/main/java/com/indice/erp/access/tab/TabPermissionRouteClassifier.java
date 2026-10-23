@@ -55,6 +55,8 @@ public class TabPermissionRouteClassifier {
         if (path.equals("/api/v1/sales-board") || path.startsWith("/api/v1/sales-board/")) return one("sales_board.overview");
         if (path.startsWith("/api/v1/email/accounts")) return one("correo.accounts");
         if (path.startsWith("/api/v1/email")) return one("correo.mail");
+        if (path.startsWith("/api/v1/sales/conversations")) return one("crm.conversations");
+        if (path.startsWith("/api/v1/sales/whatsapp/connections")) return one("crm.conversations_manage");
         if (path.equals("/api/v1/sales/whatsapping") || path.startsWith("/api/v1/sales/whatsapping/")) return one("crm.contacts");
         if (path.equals("/api/v1/sales/funnels") || path.startsWith("/api/v1/sales/funnels/")) return one("crm.funneling");
         if (path.startsWith("/api/v1/mailing")) return one("crm.mailing");
@@ -463,7 +465,8 @@ public class TabPermissionRouteClassifier {
     }
 
     private boolean isPublicSurface(String path) {
-        return path.startsWith("/api/v1/auth/")
+        return path.equals("/api/public/sales/whatsapp/webhook")
+            || path.startsWith("/api/v1/auth/")
             || path.startsWith("/api/v1/invitations/")
             || path.startsWith("/api/v1/billing/signup")
             || path.startsWith("/api/v1/billing/stripe")

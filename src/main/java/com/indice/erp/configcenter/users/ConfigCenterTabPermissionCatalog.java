@@ -69,6 +69,8 @@ public final class ConfigCenterTabPermissionCatalog {
 
         tab("crm", "leads", "Leads", "Prospectos"),
         tab("crm", "contacts", "Contacts", "Contactos"),
+        tab("crm", "conversations", "Conversations", "Conversaciones"),
+        tab("crm", "conversations_manage", "Manage WhatsApp channel", "Administrar canal WhatsApp"),
         tab("crm", "quotes", "Quotes", "Cotizaciones"),
         tab("crm", "sales", "Sales", "Ventas"),
         tab("crm", "contracts", "Contracts", "Contratos"),
@@ -182,6 +184,7 @@ public final class ConfigCenterTabPermissionCatalog {
             return false;
         }
         if (permissionKey.equals("sales_board.overview") && !Set.of("admin","owner","dueno","manager","approver").contains(normalizedRole)) return false;
+        if (permissionKey.equals("crm.conversations_manage") && !Set.of("admin","owner","dueno").contains(normalizedRole)) return false;
         if (permissionKey.equals("maintenance.configuration") && !Set.of("admin","owner","dueno").contains(normalizedRole)) return false;
         if (Set.of("maintenance.preventive","maintenance.indicators").contains(permissionKey) && !Set.of("admin","owner","dueno","manager","approver").contains(normalizedRole)) return false;
         if (!"user".equals(normalizedRole)) {
@@ -225,7 +228,7 @@ public final class ConfigCenterTabPermissionCatalog {
         if (CONFIG_CENTER_MODULE.equals(tab.moduleSlug()) || HR_MODULE.equals(tab.moduleSlug())) {
             return "management";
         }
-        if ("scheduling.configuration".equals(key) || "sales_board.overview".equals(key)) return "management";
+        if ("crm.conversations_manage".equals(key) || "scheduling.configuration".equals(key) || "sales_board.overview".equals(key)) return "management";
         return "operational";
     }
 
@@ -358,6 +361,8 @@ public final class ConfigCenterTabPermissionCatalog {
             case "petty_cash.statements" -> description("Review petty cash statements, reconciliations and movement history.", "Consultar estados de cuenta, conciliaciones e historial de movimientos.");
             case "petty_cash.kpis" -> description("Review petty cash balances, usage and control indicators.", "Consultar saldos, uso e indicadores de control de caja chica.");
             case "crm.leads" -> description("Capture and follow up prospects through the commercial funnel.", "Capturar y dar seguimiento a prospectos dentro del embudo comercial.");
+            case "crm.conversations" -> description("Read and handle explicitly granted WhatsApp conversations in your organization scope. Contacts access alone does not grant history.","Consultar y atender conversaciones WhatsApp expresamente autorizadas en tu alcance. Contactos no otorga acceso al historial.");
+            case "crm.conversations_manage" -> description("Manage WhatsApp connection and explicit member grants within your authority. This does not grant chat reading.","Administrar conexión WhatsApp y miembros dentro de tu autoridad. No concede lectura de conversaciones.");
             case "crm.contacts" -> description("Manage customer and prospect contact information.", "Administrar datos de contacto de clientes y prospectos.");
             case "crm.quotes" -> description("Prepare and follow up commercial quotes and proposals.", "Preparar y dar seguimiento a cotizaciones y propuestas comerciales.");
             case "crm.sales" -> description("Register and monitor sales opportunities and completed sales.", "Registrar y monitorear oportunidades y ventas realizadas.");

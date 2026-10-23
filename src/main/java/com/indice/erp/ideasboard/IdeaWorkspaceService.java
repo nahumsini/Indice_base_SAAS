@@ -17,11 +17,6 @@ import org.springframework.web.server.ResponseStatusException;
 public class IdeaWorkspaceService {
     private final IdeaWorkspaceRepository repository;private final IdeasBoardRepository boards;
     private final IdeasBoardService canvas;private final ModuleAccessService modules;private final Validator validator;
-    private static final Map<String,Set<String>> ICONS=Map.of(
-        "PERSON",Set.of("PERSON","TEAM","LEADER","WORKER"),
-        "PROCESS",Set.of("CHECKLIST","GEAR","FLOW","DELIVERY","PRODUCTION","PURCHASING","STOCK_CONTROL","QUALITY","SERVICE_DELIVERY","SALES_PROCESS","PROSPECTING","MARKETING","CUSTOMER_CARE","AFTER_SALES","BILLING","COLLECTIONS_PROCESS","PAYMENTS_PROCESS","HIRING","ONBOARDING","PAYROLL_PROCESS","MAINTENANCE_PROCESS","ADMINISTRATION"),
-        "PRODUCT",Set.of("BOX","SERVICE","COFFEE","FOOD","TOOLS","PHONE","GROCERY","BAKERY","FASHION","FOOTWEAR","BEAUTY","HEALTH","PHARMACY","EDUCATION","PROFESSIONAL","SOFTWARE","CONSTRUCTION","REAL_ESTATE","AUTOMOTIVE","TRANSPORT","TOURISM","EVENTS","FITNESS","HOME_GOODS","AGRICULTURE","PETS","CLEANING","MANUFACTURING","CRM","POS","SALES_FUNNEL","STORE","MARKETPLACE","DISTRIBUTORS","PARTNERS","REFERRALS","ONLINE","SOCIAL","CHAT","EMAIL","WHATSAPP","PHONE_SALES","SEO","GOOGLE_ADS","AI_ADS","META_ADS","TIKTOK_ADS","YOUTUBE","ACTIVATIONS","TRADE_SHOW","INFLUENCERS"),
-        "FINANCE",Set.of("BALANCE","INCOME","CASH_FLOW","EQUITY_CHANGES","TRIAL_BALANCE","LEDGER_DETAIL","FINANCIAL_CLOSE","FINANCIAL_PULSE","PROFIT_BRIDGE","CASH_BRIDGE","FINANCIAL_TREND","UNIT_RESULTS","BUDGET","COSTS","EXPENSE_REPORT","EXPENSE_AGING","TAX_REPORT","RECEIVABLE_REPORT","RECEIVABLE_AGING","UPCOMING_COLLECTIONS","PETTY_CASH_STATEMENT","FUND_BALANCES","CASH_RECONCILIATION","SALES_REPORT","POS_CLOSING","PAYROLL_REPORT","SALES_COMMISSION"));
     public IdeaWorkspaceService(IdeaWorkspaceRepository repository,IdeasBoardRepository boards,IdeasBoardService canvas,ModuleAccessService modules,Validator validator) { this.repository=repository;this.boards=boards;this.canvas=canvas;this.modules=modules;this.validator=validator; }
     @Transactional(readOnly=true) public SystemBoard system(AuthSessionUser a) { return repository.system(a).map(IdeaWorkspaceRepository.SystemRow::board).orElseGet(()->new SystemBoard(emptySystem(),0,null,IdeaWorkspaceRepository.actor(a))); }
     private void lock(AuthSessionUser a,String actor) {
@@ -56,10 +51,9 @@ public class IdeaWorkspaceService {
     }
     private void validate(AuthSessionUser a,SystemDocument content) {
         require(content!=null&&validator.validate(content).isEmpty(),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
-        var knownIcons=new HashSet<String>();ICONS.values().forEach(knownIcons::addAll);knownIcons.add("IDEA");
         for(var e:content.elements()) {
             var n=e.node();String category=e.category();
-            require(knownIcons.contains(e.icon()),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
+            require(("IDEA".equals(e.icon())||IdeaCatalogPolicy.knownIcon(e.icon()))&&n.catalog()==null,HttpStatus.BAD_REQUEST,"ideas_board_invalid");
             require(Set.of("IMAGE","DRAWING","VIDEO","AUDIO").contains(n.kind())||!n.text().isBlank()||"IDEA".equals(e.icon())&&Set.of("RECTANGLE","ELLIPSE","TRIANGLE","DIAMOND","PENTAGON","HEXAGON","PARALLELOGRAM").contains(n.shape()),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
             boolean right=n.x()+n.width()/2>=1100,bottom=n.y()+n.height()/2>=800;
             String expected=bottom?(right?"PRODUCT":"FINANCE"):(right?"PROCESS":"PERSON");

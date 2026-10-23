@@ -372,3 +372,21 @@ insertion. Launch validates expanded HTML for each selected recipient before cre
 work, including the footer/unsubscribe space, so oversized personalization cannot queue a
 permanent retry. Plain text, immutable delivery ledger, owner-selected account, recipient scope,
 suppression checks, send/schedule confirmation and idempotency remain unchanged.
+
+## Reusable template files — 2026-10-22
+
+The [Email/Mailing attachment extension](email-mailing-integration-contract-v1.md#persistent-templates-and-reusable-attachments--2026-10-22)
+controls the current company-shared upload, template persistence and campaign snapshot contract.
+V347 preserves verified files independently of later template edits/archive and adds optional
+`attachmentIds` to template/campaign writes and attachment metadata to detail/review responses.
+Omission preserves the set; an empty list removes it. Files are validated within current company,
+permissions and the 10 MiB aggregate/five-file budget before a save mutates content. Delivery
+reviews display the snapshot, and test/worker transport resolve only its immutable objects.
+A physical file is counted once in company storage, regardless of recipient count. Detached
+verified files remain retained and counted; deletion requires a separate retention decision.
+
+Template saves with an optional stable `requestId` can be reconciled after a lost response without
+creating duplicate templates, versions or audit records. Stale/different payloads still fail closed.
+The editor adopts the saved server version, retains input on errors and locks saves while file or
+inline-image preparation is active. No sending, scheduling, customer access or account authority
+is granted by saving/uploading a template.

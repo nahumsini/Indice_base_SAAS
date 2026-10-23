@@ -24,6 +24,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Transactional
 class MailboxIntegrationTest {
+    @Autowired com.indice.erp.sales.mailing.MailingFileService sharedFiles;
+    @Autowired com.indice.erp.sales.mailing.MailingTemplateService templates;
+    @Autowired com.indice.erp.sales.mailing.MailingService campaigns;
+    @Autowired MailTemplateImportService templateImport;
+    @Autowired CampaignEmailGateway campaignGateway;
     @Autowired JdbcTemplate db; @Autowired EmailAccountService accounts; @Autowired MailboxService mailbox; @Autowired MailDraftService drafts;
     @Autowired MockMvc mvc; @Autowired ObjectMapper json;
     @MockitoBean MailboxTransport transport;
@@ -263,10 +268,69 @@ class MailboxIntegrationTest {
         assertThat(drafts.send(actor,account.id(),id,new Version(2,1)).state()).isEqualTo("ACCEPTED");
         assertThatThrownBy(()->files.download(new AuthSessionUser(otherUser,company,"Other","superadmin"),account.id(),id,upload.id())).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
     }
+    String sharedFile(byte[] bytes) {
+        when(storage.isEnabled()).thenReturn(true);
+        when(storage.presignUpload(anyString(),anyString(),anyString(),anyLong(),anyInt())).thenAnswer(call->new com.indice.erp.storage.PresignedUpload(call.getArgument(1),"https://storage.example.invalid/upload",Instant.now().plusSeconds(300),Map.of()));
+        when(storage.objectExists(anyString(),anyString())).thenReturn(true);
+        when(storage.objectMetadata(anyString(),anyString())).thenReturn(new com.indice.erp.storage.StoredObjectMetadata(bytes.length,"text/plain"));
+        when(storage.readObject(anyString(),anyString(),anyInt())).thenReturn(bytes);
+        String id=UUID.randomUUID().toString();
+        sharedFiles.upload(actor,new com.indice.erp.sales.mailing.MailingFileContracts.UploadInput(id,"brochure.txt","text/plain",bytes.length));
+        assertThat(sharedFiles.register(actor,id).sizeBytes()).isEqualTo(bytes.length);
+        assertThat(sharedFiles.register(actor,id).id()).isEqualTo(id); // Lost-response replay.
+        return id;
+    }
+    @Test void savedTemplateFilesSurviveReloadEditsAndPrivateAndCampaignDelivery() throws Exception {
+        byte[] bytes="Synthetic reusable brochure".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        String file=sharedFile(bytes),template=UUID.randomUUID().toString(),request=UUID.randomUUID().toString();
+        var input=new com.indice.erp.sales.mailing.MailingTemplateContracts.TemplateInput("Brochure","Hello","Preview","Hello {{name}}",0,"<p><b>Hello {{name}}</b></p>",List.of(file),request);
+        String url="/api/v1/mailing/templates/"+template;
+        mvc.perform(put(url).session(session()).header("X-CSRF-Token","synthetic-csrf").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(input))).andExpect(status().isOk()).andExpect(jsonPath("$.version").value(1)).andExpect(jsonPath("$.attachments[0].filename").value("brochure.txt"));
+        mvc.perform(put(url).session(session()).header("X-CSRF-Token","synthetic-csrf").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(input))).andExpect(status().isOk()).andExpect(jsonPath("$.version").value(1));
+        mvc.perform(get(url).session(session())).andExpect(status().isOk()).andExpect(jsonPath("$.bodyHtml").value("<p><b>Hello {{name}}</b></p>")).andExpect(jsonPath("$.attachments[0].id").value(file));
+        assertThat(templates.list(actor,"Brochure","ACTIVE",1,25,"name","asc").items().getFirst().bodyText()).isEmpty();
+        var saved=templates.get(actor,template);assertThat(saved.attachments()).hasSize(1);
+        String campaign=UUID.randomUUID().toString();var account=create();
+        campaigns.save(actor,campaign,new com.indice.erp.sales.mailing.MailingContracts.DraftInput("Campaign",saved.subject(),"Team","","",saved.bodyText(),List.of(),0,account.id(),saved.bodyHtml(),List.of(file)));
+        String message=draft(account.id());
+        var imported=templateImport.apply(actor,account.id(),message,new com.indice.erp.sales.mailing.MailingFileContracts.TemplateFiles(template,1,1,1));
+        assertThat(imported.version()).isEqualTo(2);assertThat(files.list(actor,account.id(),message)).hasSize(1);
+        assertThat(templateImport.apply(actor,account.id(),message,new com.indice.erp.sales.mailing.MailingFileContracts.TemplateFiles(template,1,2,1)).version()).isEqualTo(2);
+        templates.save(actor,template,new com.indice.erp.sales.mailing.MailingTemplateContracts.TemplateInput("Edited","New","","New body",1,null,List.of(),UUID.randomUUID().toString()));
+        assertThat(templates.get(actor,template).attachments()).isEmpty();
+        assertThat(campaigns.get(actor,campaign).attachments()).hasSize(1);
+        assertThat(files.download(actor,account.id(),message,files.list(actor,account.id(),message).getFirst().id()).bytes()).isEqualTo(bytes);
+        when(transport.send(any(),any())).thenAnswer(call->{MailboxTransport.Outgoing outgoing=call.getArgument(1);assertThat(outgoing.files()).as("files for %s; rows=%s",outgoing.subject(),db.queryForObject("SELECT COUNT(*) FROM email_attachments WHERE company_id=? AND status='READY'",Long.class,company)).hasSize(1);assertThat(outgoing.files().getFirst().bytes()).isEqualTo(bytes);return MailboxTransport.Outcome.ACCEPTED;});
+        assertThat(drafts.send(actor,account.id(),message,new Version(2,1)).state()).isEqualTo("ACCEPTED");
+        String delivery=UUID.randomUUID().toString();
+        assertThat(sharedFiles.campaignSnapshot(actor,campaign)).hasSize(1);
+        assertThat(campaignGateway.send(actor,account.id(),1,delivery,"recipient@example.com","Campaign","Hello","","Team",null,sharedFiles.campaignSnapshot(actor,campaign))).isEqualTo("ACCEPTED");
+        campaignGateway.send(actor,account.id(),1,delivery,"recipient@example.com","Campaign","Hello","","Team",null,sharedFiles.campaignSnapshot(actor,campaign));
+        verify(transport,times(2)).send(any(),any());
+        assertThatThrownBy(()->files.download(new AuthSessionUser(otherUser,company,"Other","superadmin"),account.id(),message,files.list(actor,account.id(),message).getFirst().id())).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+    }
+    @Test void sharedFileOwnershipCsrfVersionsAndAggregateBudgetFailClosed() throws Exception {
+        byte[] bytes=new byte[6*1024*1024];Arrays.fill(bytes,(byte)'a');
+        String first=sharedFile(bytes),second=sharedFile(bytes),template=UUID.randomUUID().toString();
+        assertThatThrownBy(()->sharedFiles.validate(actor,List.of(first,second))).hasMessageContaining("email_attachment_limit");
+        assertThatThrownBy(()->sharedFiles.validate(actor,List.of(first,first))).hasMessageContaining("email_attachment_limit");
+        assertThatThrownBy(()->sharedFiles.download(new AuthSessionUser(user,other,"Other","admin"),first)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        String pending=UUID.randomUUID().toString();sharedFiles.upload(actor,new com.indice.erp.sales.mailing.MailingFileContracts.UploadInput(pending,"brochure.txt","text/plain",bytes.length));
+        assertThatThrownBy(()->sharedFiles.validate(actor,List.of(pending))).hasMessageContaining("mailing_file_not_ready");
+        var source=templates.save(actor,template,new com.indice.erp.sales.mailing.MailingTemplateContracts.TemplateInput("Large file","Hello","","Hello",0,null,List.of(first),UUID.randomUUID().toString()));
+        assertThat(source.attachments().getFirst().sizeBytes()).isEqualTo(bytes.length);
+        var account=create();String message=draft(account.id());
+        mvc.perform(post("/api/v1/email/mailboxes/"+account.id()+"/messages/"+message+"/template-files").session(session()).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(new com.indice.erp.sales.mailing.MailingFileContracts.TemplateFiles(template,1,1,1)))).andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/mailing/template-files/"+first+"/register").session(session())).andExpect(status().isForbidden());
+        assertThatThrownBy(()->templateImport.apply(actor,account.id(),message,new com.indice.erp.sales.mailing.MailingFileContracts.TemplateFiles(template,2,1,1))).hasMessageContaining("mailing_template_version_conflict");
+        assertThat(files.list(actor,account.id(),message)).isEmpty();
+        db.update("DELETE FROM user_company_tab_permissions WHERE user_company_id=? AND module_slug='crm' AND tab_key='mailing'",membership);
+        assertThatThrownBy(()->templateImport.apply(actor,account.id(),message,new com.indice.erp.sales.mailing.MailingFileContracts.TemplateFiles(template,1,1,1))).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+    }
     @Test void attachmentTypeMismatchAndOversizeAreRejectedBeforePresign() {
         var account=create();var id=draft(account.id());when(storage.isEnabled()).thenReturn(true);
         assertThatThrownBy(()->files.upload(actor,account.id(),id,new UploadInput("script.html","text/plain",3,1,1))).hasMessageContaining("email_attachment_blocked");
-        assertThatThrownBy(()->files.upload(actor,account.id(),id,new UploadInput("big.txt","text/plain",6*1024*1024,1,1))).hasMessageContaining("email_attachment_blocked");
+        assertThatThrownBy(()->files.upload(actor,account.id(),id,new UploadInput("big.txt","text/plain",MailFilePolicy.MAX+1L,1,1))).hasMessageContaining("email_attachment_blocked");
         verify(storage,never()).presignUpload(anyString(),anyString(),anyString(),anyLong(),anyInt());
     }
     @Test void htmlDraftIsSanitizedOnPersistenceAndRemoteReads() {

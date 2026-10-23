@@ -261,6 +261,7 @@ validate_mercado_pago_configuration() {
 }
 
 validate_deployed_auth_configuration
+python3 "${DEPLOY_DIR}/scripts/check-whatsapp-conversations-config.py" "${ENV_FILE}"
 validate_kiosk_consolidation_configuration
 validate_mcp_configuration
 validate_mercado_pago_configuration

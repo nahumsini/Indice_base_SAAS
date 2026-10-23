@@ -80,7 +80,13 @@
     "test:company-settings-browser": "node tests/company-settings-browser.mjs",
     "test:personal-profile-browser": "node tests/personal-profile-browser.mjs",
     "test:expenses-mobile-browser": "node tests/expenses-mobile-browser.mjs && node tests/expenses-module-mobile-browser.mjs",
-    "test:login-verification-browser": "node tests/login-verification-browser.mjs"
+    "test:login-verification-browser": "node tests/login-verification-browser.mjs",
+    "test:mail-templates-browser": "node tests/mail-template-browser.mjs",
+    "test:ideas-board-refinement": "node --test tests/board-*.test.mjs tests/ideas-board-*.test.mjs tests/system-board-model.test.mjs tests/personal-ideas-board.test.mjs tests/project-management.test.mjs",
+    "test:ideas-board-refinement-browser": "node tests/board-refinement-browser.mjs",
+    "test:sales-conversations": "node --test tests/sales-conversations.test.mjs",
+    "test:sales-conversations-browser": "node tests/sales-conversations-browser.mjs",
+    "preview:sales-conversations": "node tests/sales-conversations-preview.mjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

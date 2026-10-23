@@ -18,7 +18,7 @@ const moduleArt: Record<string, string> = {
   briefcase: 'sales', checklist: 'processes-tasks', expense: 'expenses',
   cashbox: 'petty-cash', package: 'inventory', terminal: 'point-of-sale',
   minutes: 'minutes-control', mail: 'email', wrench: 'maintenance',
-  wallet: 'receivables', home: 'home-panel',
+  wallet: 'receivables', home: 'home-panel', whiteboard: 'ideas-board',
 };
 const headerArt: Record<string, ComponentProps<typeof HeaderEmoji>['name']> = {
   company: 'company', messages: 'messages', globe: 'language',

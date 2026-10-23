@@ -2,7 +2,8 @@ import type { BoardDrawing } from './boardDrawing';
 import type { NodeAppearance } from './nodeAppearance';
 export type BoardShape = 'NOTE' | 'RECTANGLE' | 'ELLIPSE' | 'PLAIN' | 'TRIANGLE' | 'DIAMOND' | 'PENTAGON' | 'HEXAGON' | 'PARALLELOGRAM';
 export type BoardColor = 'YELLOW' | 'CORAL' | 'BLUE' | 'MINT' | 'LAVENDER' | 'WHITE';
-export interface IdeaNode { id: string; kind: 'TEXT' | 'IMAGE' | 'DRAWING' | 'VIDEO' | 'AUDIO'; text: string; x: number; y: number; width: number; height: number; shape: BoardShape; color: BoardColor; assetId: string | null; appearance?: NodeAppearance | null; drawing?: BoardDrawing | null }
+export interface NodeCatalog { category:'PERSON'|'PROCESS'|'PRODUCT'|'FINANCE'; icon:string; steps?:string[]; offeringType?:'PRODUCT'|'SERVICE' }
+export interface IdeaNode { id: string; kind: 'TEXT' | 'IMAGE' | 'DRAWING' | 'VIDEO' | 'AUDIO'; text: string; x: number; y: number; width: number; height: number; shape: BoardShape; color: BoardColor; assetId: string | null; appearance?: NodeAppearance | null; drawing?: BoardDrawing | null; catalog?: NodeCatalog | null }
 export type ConnectionDirection = 'FORWARD' | 'BOTH';
 export interface IdeaConnection { id: string; from: string; to: string; label: string; direction?:ConnectionDirection }
 export interface BoardViewport { x: number; y: number; zoom: number }
@@ -72,6 +73,6 @@ export function stepHistory(history: BoardHistory, direction: 'undo' | 'redo'): 
 
 // Ignore each window's camera while comparing the actual ideas and their stacking order.
 export function sameBoardIdeas(a: BoardContent, b: BoardContent): boolean {
-  const key = (value: BoardContent) => JSON.stringify({ nodes: value.nodes.map(n => [n.id,n.kind,n.text,n.x,n.y,n.width,n.height,n.shape,n.color,n.assetId ?? null,n.appearance ?? null,n.drawing ?? null]), connections: value.connections.map(c => [c.id,c.from,c.to,c.label,c.direction??'FORWARD']) });
+  const key = (value: BoardContent) => JSON.stringify({ nodes: value.nodes.map(n => [n.id,n.kind,n.text,n.x,n.y,n.width,n.height,n.shape,n.color,n.assetId ?? null,n.appearance ?? null,n.drawing ?? null,n.catalog ?? null]), connections: value.connections.map(c => [c.id,c.from,c.to,c.label,c.direction??'FORWARD']) });
   return key(a) === key(b);
 }

@@ -22,13 +22,14 @@ const events: Record<string, { module: string; priority: NotificationPriority; e
   kpi_report_attention: { module: 'kpis', priority: 'high', en: ['Automatic report needs review', 'The report rule paused because it needs review. Check it before reactivating it.'], es: ['Reporte automático por revisar', 'La regla se pausó porque necesita revisión. Revísala antes de volver a activarla.'] },
   sales_customer_activity: { module: 'sales', priority: 'medium', en: ['Post-sale follow-up', 'You have a pending customer follow-up. Open Post-sale to continue.'], es: ['Seguimiento de postventa', 'Tienes un seguimiento pendiente. Abre Postventa para continuar.'] },
   sales_whatsapping_reminder: { module: 'sales', priority: 'medium', en: ['WhatsApp follow-up', 'A campaign contact is ready for your next message. Open Whatsapping to continue.'], es: ['Seguimiento de WhatsApp', 'Un contacto de campaña espera tu siguiente mensaje. Abre Whatsapping para continuar.'] },
+  sales_conversation_activity: { module:'sales', priority:'medium', en:['WhatsApp conversation activity','Open your authorized inbox to review the conversation.'], es:['Actividad en conversaciones WhatsApp','Abre tu bandeja autorizada para revisar la conversación.'] },
 };
 const order = Object.keys(events);
 const translatedTitles: Record<string, string[]> = {
-  fr: ['Permission à réviser', 'Réponse à votre permission', 'Contribution terminée', 'Processus lancé', 'Processus à vérifier', 'Processus terminé', 'Processus terminé avec incidents', 'Appel prévu', 'Quart de caisse ouvert', 'Quart de caisse fermé', 'Écart de caisse', 'Solde du fonds faible', 'Justificatif à réviser', 'Encaissement dû aujourd’hui', 'Encaissement en retard', 'Rapport prêt', 'Rapport automatique à vérifier', 'Suivi après-vente', 'Suivi WhatsApp'],
-  pt: ['Permissão para revisar', 'Resposta à sua permissão', 'Parte da equipe concluída', 'Processo iniciado', 'Processo com pendências', 'Processo concluído', 'Processo concluído com incidentes', 'Ligação agendada', 'Turno de caixa aberto', 'Turno de caixa fechado', 'Diferença no fechamento', 'Fundo com saldo baixo', 'Comprovante para revisar', 'Cobrança para hoje', 'Cobrança vencida', 'Relatório pronto', 'Relatório automático para revisar', 'Acompanhamento pós-venda', 'Acompanhamento no WhatsApp'],
-  ko: ['검토 대기 휴가 요청', '요청 답변 도착', '팀 기여 완료', '프로세스 시작', '프로세스 확인 필요', '프로세스 완료', '문제가 있는 프로세스 완료', '예정된 통화', '금전함 근무 시작', '금전함 근무 종료', '마감 현금 차이', '기금 잔액 부족', '증빙 검토 대기', '오늘 수금 예정', '연체 수금', '보고서 준비 완료', '자동 보고서 검토 필요', '판매 후 후속 조치', 'WhatsApp 후속 연락'],
-  zh: ['申请待审核', '申请已有答复', '团队工作已完成', '流程已开始', '流程待处理', '流程已完成', '流程完成但有异常', '已安排通话', '收银班次已开始', '收银班次已结束', '结账现金差异', '备用金余额不足', '凭证待审核', '今日待收款', '收款已逾期', '报告已就绪', '自动报告待检查', '售后跟进', 'WhatsApp 跟进'],
+  fr: ['Permission à réviser', 'Réponse à votre permission', 'Contribution terminée', 'Processus lancé', 'Processus à vérifier', 'Processus terminé', 'Processus terminé avec incidents', 'Appel prévu', 'Quart de caisse ouvert', 'Quart de caisse fermé', 'Écart de caisse', 'Solde du fonds faible', 'Justificatif à réviser', 'Encaissement dû aujourd’hui', 'Encaissement en retard', 'Rapport prêt', 'Rapport automatique à vérifier', 'Suivi après-vente', 'Suivi WhatsApp', 'Activité des conversations WhatsApp'],
+  pt: ['Permissão para revisar', 'Resposta à sua permissão', 'Parte da equipe concluída', 'Processo iniciado', 'Processo com pendências', 'Processo concluído', 'Processo concluído com incidentes', 'Ligação agendada', 'Turno de caixa aberto', 'Turno de caixa fechado', 'Diferença no fechamento', 'Fundo com saldo baixo', 'Comprovante para revisar', 'Cobrança para hoje', 'Cobrança vencida', 'Relatório pronto', 'Relatório automático para revisar', 'Acompanhamento pós-venda', 'Acompanhamento no WhatsApp', 'Atividade em conversas WhatsApp'],
+  ko: ['검토 대기 휴가 요청', '요청 답변 도착', '팀 기여 완료', '프로세스 시작', '프로세스 확인 필요', '프로세스 완료', '문제가 있는 프로세스 완료', '예정된 통화', '금전함 근무 시작', '금전함 근무 종료', '마감 현금 차이', '기금 잔액 부족', '증빙 검토 대기', '오늘 수금 예정', '연체 수금', '보고서 준비 완료', '자동 보고서 검토 필요', '판매 후 후속 조치', 'WhatsApp 후속 연락', 'WhatsApp 대화 활동'],
+  zh: ['申请待审核', '申请已有答复', '团队工作已完成', '流程已开始', '流程待处理', '流程已完成', '流程完成但有异常', '已安排通话', '收银班次已开始', '收银班次已结束', '结账现金差异', '备用金余额不足', '凭证待审核', '今日待收款', '收款已逾期', '报告已就绪', '自动报告待检查', '售后跟进', 'WhatsApp 跟进', 'WhatsApp 会话动态'],
 };
 const reviewCopy: Record<string,string> = {
   fr: 'Ouvrez cet élément pour consulter son état et la prochaine action.',
@@ -58,7 +59,7 @@ export function basicNotificationModules(locale: string): NotificationModuleMeta
   const labels=moduleNames[locale.slice(0,2)] ?? moduleNames.en;
   return ['petty_cash','receivables','kpis'].map((slug,index)=>({slug,label:labels[index],shortLabel:labels[index],emoji:['💰','👛','📊'][index],color:index===2?'blue':'green'}));
 }
-const referenceSources=new Set(['whatsapping_follow_up','permission_request','fund_balance','fund_receipt','receivable_installment','cash_shift','automated_report_rule','automated_report_run']);
+const referenceSources=new Set(['sales_conversation_activity','whatsapping_follow_up','permission_request','fund_balance','fund_receipt','receivable_installment','cash_shift','automated_report_rule','automated_report_run']);
 export function basicNotificationDescription(notification: AppNotification,locale: string): string {
   const copy=basicNotificationText(notification.source_subtype,locale);
   if (!copy || !referenceSources.has(notification.source_type)) return notification.description;

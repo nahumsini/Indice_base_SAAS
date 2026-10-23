@@ -18,7 +18,7 @@ final class NotificationPreferenceCatalog {
         new Type("expenses", "expense_due"), new Type("expenses", "expense_paid"),
         new Type("point_of_sale", "pos_shift_opened"), new Type("point_of_sale", "pos_shift_closed"),
         new Type("inventory", "pos_stock_low"), new Type("inventory", "pos_purchase_pending"),
-        new Type("sales", "sales_quote_follow_up"), new Type("sales", "sales_customer_activity"), new Type("sales", "sales_call_reminder"), new Type("sales", "sales_whatsapping_reminder"),
+        new Type("sales", "sales_quote_follow_up"), new Type("sales", "sales_customer_activity"), new Type("sales", "sales_call_reminder"), new Type("sales", "sales_whatsapping_reminder"), new Type("sales", "sales_conversation_activity"),
         new Type("human_resources", "hr_permission_pending"), new Type("human_resources", "hr_permission_resolved"),
         new Type("processes_tasks", "task_contribution_ready"), new Type("processes_tasks", "process_run_created"),
         new Type("processes_tasks", "process_run_attention"), new Type("processes_tasks", "finalized"),

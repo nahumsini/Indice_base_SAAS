@@ -63,7 +63,7 @@ test('send requires review, double click submits once and ambiguous outcome only
 });
 test('signature and template insertion preserve existing text and draft subject',async()=>{
  const h=composer({save:()=>assert.fail('no timer fired')});await h.runtime.flush();h.body('Texto original');await h.runtime.flush();
- nodes(h.runtime.result).find(n=>n.type==='MailComposerLibrary').props.onTemplate('Asunto sugerido','Texto plantilla');await h.runtime.flush();
+ nodes(h.runtime.result).find(n=>n.type==='MailComposerLibrary').props.onTemplate({id:'template',version:1,subject:'Asunto sugerido',bodyText:'Texto plantilla',attachments:[]},false);await h.runtime.flush();
  assert.equal(nodes(h.runtime.result).find(n=>n.type==='Input').props.value,'Asunto sugerido');
  nodes(h.runtime.result).find(n=>n.type==='Button'&&n.props.children===daily.useMailDailyCopy().insertSignature).props.onClick();await h.runtime.flush();
  assert.equal(nodes(h.runtime.result).find(n=>n.type==='MailRichEditor').props.text,'Texto original\n\nTexto plantilla\n\nEquipo de prueba');h.runtime.unmount();

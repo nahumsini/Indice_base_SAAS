@@ -840,3 +840,22 @@ metering. Do not replace this with public URLs or raise global multipart limits:
 bounded authenticated binary route. Local activation/GET checks do not create functional board
 content. Integration writes use only a disposable `indice_test_db`. Production release gates and
 physical-device acceptance remain separate. See `docs/sales-funneling-contract-v1.md` for evidence.
+
+
+### Local personal ideas-board refinement (2026-10-22)
+
+The personal owner adds FREEFORM catalog metadata, the Diagnóstico empresarial display name and
+native project filters. No migration is added; the existing local V347 and prior Email/Mailing
+changes are retained. Backend 8083 and frontend 5175 were activated with the running service's
+configuration preserved. Authenticated read-only checks covered both boards, filtered projects
+and Mailing templates; no functional board examples were created. The previous runtime/frontend
+and a database backup are retained privately. Once a document contains Node.catalog, rollback
+must preserve its reader/validator even if the new creation UI is hidden. Do not restore an older
+writer that silently discards the metadata. Full owner policy and regression evidence are in
+`docs/personal-ideas-board-contract-v1.md`. Public deployment: N/A for this local change.
+
+### Official shared WhatsApp preparation
+
+See [whatsapp-conversations.md](whatsapp-conversations.md) for the disabled-by-default configuration,
+isolated test launcher, signed webhook, UNKNOWN/redrive operations and pilot prerequisites. This local
+change does not deploy or authorize persistent migrations, Meta assets, credentials or real sends.

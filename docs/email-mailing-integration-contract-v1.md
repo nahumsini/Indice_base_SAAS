@@ -960,3 +960,87 @@ running service configuration and overlays only compiled Email/Mailing classes a
 runtime and source copies are retained. Production activation and real sending are outside this
 validation. External rendering in Outlook/Gmail and final provider attachment limits still need
 provider-specific acceptance before a production release.
+
+## Persistent templates and reusable attachments — 2026-10-22
+
+This approved correction extends the shared template library and supersedes its previous 5 MiB
+per-file limit. Sales owns company-shared template assets; Email retains private mailbox ownership,
+content validation, immutable transport and SMTP outcomes. No private account attachment becomes
+company-shared implicitly.
+
+- Template editing adds verified PDF/PNG/JPEG/UTF-8 TXT and passive DOCX/XLSX/PPTX attachments.
+  Upload/registration can happen before template creation; **Save template** atomically persists
+  content and the selected file IDs. Cancel does not publish a partially edited template. New
+  saves reset search/page and select their saved status so prior filters do not hide the result.
+  Successful saves adopt the server's canonical content/version; image preparation locks Save.
+- An optional UUID `requestId` on template PUT identifies the exact payload. The same request/hash
+  returns the committed template without another version or audit record after a lost response.
+  Reusing that key for different content fails with 409. A later edit/status change invalidates
+  the previous replay. Old clients retain expected-version conflict behavior. The editor preserves
+  its draft on errors and retries the same request until the payload changes.
+- V347 introduces `sales_mailing_files`, template/campaign reference tables, and last-save request
+  metadata. Metadata and object lookup are company-scoped. Unpublished files are accessible to
+  their uploader; published template files are shared under `crm.mailing`; campaign-only files
+  additionally require `crm.contacts`. Writes require an existing Mailing manager and current
+  company mutation access. Session/CSRF/public-demo guards apply to every protected route.
+- Protected owner endpoints are POST `/api/v1/mailing/template-files/upload`, POST
+  `/api/v1/mailing/template-files/{id}/register` and GET
+  `/api/v1/mailing/template-files/{id}/download`. Explicit DTOs expose file ID/name/type/size,
+  never object keys or public read URLs. Uploads reserve company storage under `crm`, verify the
+  sealed destination's bytes/type/size, commit quota after verification, and clean up rollback
+  copies. Registration is idempotent. Documents use the Email-owned `MailFilePolicy` contract;
+  it is now a public JVM port, not a new unprotected HTTP surface.
+- Template/campaign `attachmentIds` are optional for compatibility: omitted preserves the existing
+  set; `[]` explicitly removes it. A maximum of five distinct READY files and 10 MiB combined is
+  validated before content mutation and within the complete save transaction.
+- Applying a template to a campaign copies immutable references into the campaign. Editing or
+  archiving the source subsequently cannot change draft/scheduled campaign payloads. Campaign
+  review/test confirmation shows the files, and both test transport and the worker include the
+  same snapshot. Existing recipient selection, suppression, send permission, review digest,
+  footer, account versions and durable send replay behavior stay authoritative.
+- Individual composition explicitly imports template files through POST
+  `/api/v1/email/mailboxes/{account}/messages/{id}/template-files`, with template, draft and
+  account versions. The service rechecks Sales read access and private Email ownership in the
+  same transaction. File references are installed before template text is inserted. Existing
+  private files are preserved; identical source files are deduplicated within a message. Failed
+  imports preserve the composition. Send review remains explicit and never sends on insertion.
+- Immutable files can be referenced by multiple private messages, so V347 replaces the global
+  unique `email_attachments.object_key` index with a normal index. The tenant/account/message/file
+  primary key remains. No object or storage charge is duplicated per recipient. Physical files
+  remain quota-accounted when removed from a template, including abandoned verified uploads;
+  automatic retention/garbage collection requires a separate owner lifecycle decision. Do not
+  delete an object solely because one template or message stops referencing it.
+- Attachment limits are **10 MiB per file, 10 MiB combined, five files**, consistently enforced in
+  upload validation, registration, imports, SMTP preflight, browser validation and remote-file
+  download. Existing Office expansion, PDF complexity and inline-image policies stay separate.
+  This conservative raw-file budget leaves room for MIME encoding; it is not a universal delivery
+  guarantee. Provider/account/recipient limits still apply. See Microsoft's published
+  [Outlook message limits](https://support.microsoft.com/en-us/outlook/reduce-attachment-size-to-send-large-files-with-outlook)
+  and Google's [Gmail attachment guidance](https://support.google.com/mail/answer/6584?hl=en).
+
+Verification and local activation evidence are recorded in the associated change handoff. Real
+provider delivery and public deployment are outside this correction's verification scope.
+
+Verification for this correction: 75 backend tests passed (Mailbox 25, Mailing persistence 9,
+delivery 16, professional content policy 5, Office policy 5, MIME/transport 13, migration uniqueness
+2), using only the isolated `indice_test_db`. A clean Flyway startup applied V347. All 43 focused
+Email/Mailing frontend tests passed, as did TypeScript and the production build. The build retains
+its existing large-chunk advisory. Native browser coverage passed template create/file upload,
+lost-save-response retry without duplication, full reload/edit, Email import, campaign snapshot,
+mobile bounds and the existing campaign editor regression. Network providers were stubbed; no real
+mail was sent. Final checks have no failing tests.
+
+Local activation: the functional database was backed up before V347, previous owner classes and
+launch settings were retained privately, and the existing local API was restarted with its same
+configuration. Local API health and frontend `/email` respond with 200; Flyway reports current 347,
+zero pending and zero failed migrations. There were no queued campaigns at activation. Public
+AppTest/production deployment, real-provider delivery and automatic file-retention cleanup: N/A.
+
+Changed areas: Sales Mailing template/campaign DTOs, persistence, delivery, the shared template
+manager/form/pickers and new `MailingFiles`; Email attachment policy/repository/import port,
+composition, limits and localized copy; V347; the two canonical operating systems and both owner
+contracts. Regression coverage extends Mailbox and campaign-delivery integration tests, existing
+attachment/composer flow tests and the new `mail-template` native browser fixture/script. Current
+limits/provider behavior and retained verified-file quota are the remaining operational caveats
+specified above. Routes, private accounts, send confirmation, uncertain-outcome handling and
+recipient/tenant permissions are deliberately preserved.

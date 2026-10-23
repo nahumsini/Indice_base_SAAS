@@ -512,6 +512,15 @@ server pagination/sorting. Rich-text editing is shared presentation; Sales still
 and audiences, Email owns private drafts/signatures/transport. See the current
 [email owner contract](email-mailing-integration-contract-v1.md#professional-composition-and-operational-kpis--2026-10-22).
 
+Email/Mailing reusable-template correction, 2026-10-22: the
+[persistence and attachment contract](email-mailing-integration-contract-v1.md#persistent-templates-and-reusable-attachments--2026-10-22)
+adopts verified files in the existing template form, saved server-version reconciliation, explicit
+retry after uncertain saves and attachment previews in campaign/individual send review. Reuse
+preserves the existing modal/table engines and owner permissions. File/image preparation blocks
+Save/close while active; errors retain user input. Limits are five files, 10 MiB per file and in
+total. The same company library serves Email and Mailing; private mailbox files are never
+published implicitly.
+
 Mailing operational workspace, 2026-10-19: the [campaign workspace contract](sales-mailing-contract-v1.md#campaign-operating-workspace--2026-10-19)
 adopts the standard title/filter/status/table composition for the campaign list. Keep recipient lists,
 templates and new campaign directly accessible, with administrative actions in the final overflow.
@@ -4970,3 +4979,23 @@ Native router blocking and the existing Confirmation Modal protect unsaved minut
 requests and native editors block navigation until complete. Failed or stale writes preserve the
 draft, with explicit copy/reload instead of silent overwrite. The domain contract documents this
 derivative tab and preserved lifecycle, object authorization and eight-locale behavior.
+
+
+### Personal ideas board and project-library adoption — 2026-10-22
+
+The user-approved personal owner contract extends the existing five construction catalogs to Mi
+pizarra through the shared canvas editor and owner layout adapter. The free canvas retains its
+geometry; Diagnóstico empresarial is the display name for the existing SYSTEM tab and route.
+Mis proyectos adopts the shared title, filters, view states and pagination while retaining the
+approved immutable-project cards and lifecycle. Server filters precede counts/pagination; native
+workspace memory remains scoped by user/company. No second editor, modal, table or state engine
+is introduced. Default Sales canvas behavior remains unchanged. Details and regression evidence:
+`personal-ideas-board-contract-v1.md`, decision 2026-10-22.
+
+## Sales Conversations runtime extension (2026-10-22)
+
+[sales-conversations-contract-v1.md](sales-conversations-contract-v1.md) governs `/sales/conversations`
+and `/sales/whatsapp-settings` under active `react/src/app`. Native shell/title/filter/view states and
+modal engine apply; the lazy inbox bypasses the unrelated CRM collection preload. New scope tabs and
+explicit channel grants are required; a frontend flag grants no authority. Keep customer replies,
+internal notes and external evidence visually distinct. Real onboarding remains unavailable.
