@@ -110,6 +110,10 @@ Only the historical Stripe TEST-key revocation blocker is replaced for this
 candidate's ordered App Test → production activation and observation, ending no
 later than 2026-10-23T20:00:00Z. The HIGH finding remains unresolved; all other
 gates and provider boundaries apply. This is not permission for another release.
+The ordered deployment and observation passed on 2026-10-23; authorization closed
+at 18:20:43 UTC, as recorded in the
+[activation report](validation/2026-10-23-integrated-release-activation.md).
+The historical TEST-key finding remains unresolved.
 
 For the 2026-10-06 release, the owner's later explicit instruction to review directly in production
 replaces only the human-UAT location/timing, as recorded in the

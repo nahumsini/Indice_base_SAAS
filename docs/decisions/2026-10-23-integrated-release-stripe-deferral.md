@@ -32,3 +32,9 @@ records the successful CI, tests, artifact provenance, restored-data rehearsals,
 scans and compatible recovery constraints. This decision alone does not establish
 that either environment was deployed. Record actual activation and observation
 separately, then disable the operational authorization.
+
+Ordered activation and observation completed successfully on 2026-10-23 at
+18:20:23 UTC; final verification passed at 18:20:33 UTC. The operational
+authorization was disabled at **18:20:43 UTC**. This exception window is closed
+and cannot be reused. Historical Stripe TEST-key revocation remains unresolved.
+See the [activation report](../validation/2026-10-23-integrated-release-activation.md).

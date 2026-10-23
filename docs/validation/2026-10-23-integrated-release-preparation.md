@@ -1,5 +1,10 @@
 # Liberación integrada — preparación del 23 de octubre de 2026
 
+Actualización final: ambos entornos se desplegaron y verificaron correctamente.
+La [activación y observación](2026-10-23-integrated-release-activation.md) terminaron
+el 23 de octubre; la autorización puntual quedó cerrada a las 18:20:43 UTC.
+Lo siguiente conserva el estado histórico de la preparación anterior a ese despliegue.
+
 Estado a las 17:44 UTC: **PREPARACIÓN TÉCNICA COMPLETA / PENDIENTE DECISIÓN VIGENTE SOBRE STRIPE TEST**.
 No se activó la versión en App Test ni en producción. Ambos entornos conservan las imágenes
 `8c451b5612d0`, el esquema V346, sus contenedores y su configuración original.
