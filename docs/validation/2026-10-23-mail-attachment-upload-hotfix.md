@@ -1,7 +1,8 @@
 # Corrección de adjuntos de plantillas y Correo — 2026-10-23
 
-Estado a las 20:16 UTC: **PREPARACIÓN TÉCNICA COMPLETA / PENDIENTE AUTORIZACIÓN VIGENTE
-DE STRIPE TEST**. App Test y producción conservan `3eddc38be953`; no se activó el hotfix.
+Estado a las 20:35 UTC: **PUBLICADO Y VERIFICADO EN APP TEST Y PRODUCCIÓN**.
+Ambos ejecutan el backend `fb01d39fe233`; Web y MCP conservan `3eddc38be953`.
+El incremento visual posterior de la biblioteca de plantillas no forma parte de este despliegue.
 
 ## Incidente y causa
 
@@ -67,8 +68,9 @@ rechaza nombres de contenedor ya ocupados, genera credenciales efímeras y limpi
 
 Evidencia privada local: `/private/tmp/indice-mail-upload-hotfix-20261023`, incluidos
 `red-regression.log`, `focused-final.log`, `real-minio.log` y artefactos de compilación.
-Fallas finales conocidas: ninguna en las comprobaciones descritas. Publicación,
-observación y aceptación humana posterior: **PENDIENTES**.
+Fallas finales conocidas: ninguna en las comprobaciones descritas. Publicación y
+observación automatizadas: **PASS**. Aceptación humana con el archivo del usuario:
+**PENDIENTE**; no se afirma haber enviado ni publicado contenido de clientes.
 
 ## Preparación para publicación
 
@@ -131,7 +133,34 @@ archivo y capacidad, manteniendo los 10 GiB y verificando el resultado real.
 
 La revocación histórica de Stripe TEST sigue pendiente y la
 [excepción del despliegue anterior](../decisions/2026-10-23-integrated-release-stripe-deferral.md)
-está cerrada y no se puede reutilizar. No hay autorización operacional para activar
-este candidato. Falta únicamente resolver esa decisión vigente y después ejecutar
-activación, smoke y observación ordenadas. No se enviaron correos reales ni se
-activaron proveedores, precios o permisos nuevos durante la preparación.
+está cerrada y no se puede reutilizar. Al terminar la preparación todavía faltaba
+la decisión vigente. Después el propietario respondió **"Autorizar excepción puntual"**
+para este candidato, bajo la
+[decisión específica del hotfix](../decisions/2026-10-23-mail-attachment-hotfix-stripe-deferral.md).
+No se enviaron correos reales ni se activaron proveedores, precios o permisos nuevos.
+
+## Activación y cierre
+
+| Destino | Inicio UTC | Verificación de runtime UTC | Fin de observación UTC | Resultado |
+| --- | --- | --- | --- | --- |
+| App Test | 20:20:59 | 20:22:24 | 20:27:25 | PASS |
+| Producción | 20:27:59 | 20:29:24 | 20:34:25 | PASS |
+
+Se utilizó `deployment/scripts/up-host-network.sh` con las imágenes y los archivos
+de entorno preparados. Producción comenzó después de App Test, sus seis muestras
+durante cinco minutos, navegador nativo y continuidad de ambos conectores autenticados.
+Los dos destinos pasaron smoke público, API, MinIO, CSRF/login inválido, MCP público y
+fronteras anónimas 401. El navegador abrió el login sin envío y sin errores JS/activos.
+
+La verificación final de las **20:35:00 UTC** confirmó en ambos destinos los bytes
+del JAR, imágenes exactas, cero reinicios/errores backend, configuración y montajes
+sin cambios, archivos protegidos iguales, linaje V353 intacto y recuperación segura
+anterior detenida disponible. Las comprobaciones de cada activación también
+confirmaron catálogo/suscripciones y permisos sin cambios y aislamiento del otro entorno.
+No se cambiaron o eliminaron registros de archivos pendientes del usuario.
+
+La autorización operacional se deshabilitó a las **20:35:00 UTC** al completar el
+intento ordenado. La revocación histórica de Stripe TEST continúa **HIGH / sin resolver**;
+esta ventana está cerrada. Evidencia operacional privada: `final-runtime-verification.json`,
+`*-canary.json`, `*-browser-smoke.json`, `*-connectors-verified.json`, logs de activación
+y `release-authorization.json` deshabilitado en la carpeta protegida de esta liberación.

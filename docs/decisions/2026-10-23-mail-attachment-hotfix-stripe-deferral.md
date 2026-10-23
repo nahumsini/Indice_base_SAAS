@@ -30,3 +30,9 @@ The [preparation report](../validation/2026-10-23-mail-attachment-upload-hotfix.
 records exact image/JAR provenance, passing CI, scans, backups and recovery evidence.
 This decision alone is not evidence of activation. Record actual activation,
 observation and authorization closure after verification.
+
+Ordered activation and five-minute observation passed in App Test and production.
+Final verification passed at **2026-10-23T20:35:00Z**; the operational authorization
+was disabled immediately afterwards at the same UTC second. This exception window
+is closed and cannot be reused. Historical Stripe TEST-key revocation remains HIGH
+and unresolved. The preparation report now includes actual activation and closure.

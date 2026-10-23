@@ -122,6 +122,9 @@ Only the historical TEST-key revocation blocker is replaced for this exact backe
 ordered App Test → production activation and five-minute observation per environment,
 ending no later than 2026-10-23T22:00:00Z. The HIGH finding remains unresolved;
 all other gates apply. The separate template modal refinement is outside this artifact.
+Both activations and observations passed; the operational authorization closed at
+2026-10-23T20:35:00Z. The historical TEST-key finding remains unresolved. See the
+[hotfix activation evidence](validation/2026-10-23-mail-attachment-upload-hotfix.md#activación-y-cierre).
 
 For the 2026-10-06 release, the owner's later explicit instruction to review directly in production
 replaces only the human-UAT location/timing, as recorded in the
