@@ -493,3 +493,13 @@ Date:
 
 No release is approved merely because the final line is filled in. The linked evidence and zero
 unresolved blockers are the decision basis.
+
+## Official WhatsApp pilot evidence extension (2026-10-22)
+
+The Sales public webhook uses the alternate trust boundary in
+[sales-conversations-contract-v1.md](sales-conversations-contract-v1.md). Before any pilot activation,
+close the current-Meta verification and authorization items in
+[deployment/whatsapp-conversations.md](../deployment/whatsapp-conversations.md), including the disabled
+onboarding gateway, exact assets, private storage/retention, provider cost responsibility, current
+permissions, raw signature evidence, encrypted keys, UNKNOWN recovery, scoped grants and rollback.
+Fixture success is not real OAuth/number/message validation. This adds no exception to release gates.

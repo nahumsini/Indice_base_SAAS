@@ -894,3 +894,9 @@ Use `deployment/tests/run-security-findings-isolated.py` with its verified dispo
 for backend checks. `deployment/tests/security-token-logs.test.mjs` requires explicit reviewed
 local web/Node image references and runs without published ports or live application data.
 No deployment or production audit is implied by these local checks.
+
+### Official shared WhatsApp preparation
+
+See [whatsapp-conversations.md](whatsapp-conversations.md) for the disabled-by-default configuration,
+isolated test launcher, signed webhook, UNKNOWN/redrive operations and pilot prerequisites. This local
+change does not deploy or authorize persistent migrations, Meta assets, credentials or real sends.

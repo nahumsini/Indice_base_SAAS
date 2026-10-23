@@ -12,6 +12,14 @@ class TabPermissionRouteClassifierTest {
 
     private final TabPermissionRouteClassifier classifier = new TabPermissionRouteClassifier();
 
+    @Test void officialWhatsAppIsSeparateFromManualCampaignsAndItsWebhookHasAlternateTrust(){
+        assertRequirement("GET","/api/v1/sales/conversations","crm.conversations");
+        assertRequirement("POST","/api/v1/sales/conversations/synthetic/messages","crm.conversations");
+        assertRequirement("GET","/api/v1/sales/whatsapp/connections","crm.conversations_manage");
+        assertRequirement("POST","/api/v1/sales/whatsapp/connections/synthetic/onboarding/callback","crm.conversations_manage");
+        assertRequirement("GET","/api/v1/sales/whatsapping/campaigns","crm.contacts");
+        assertTrue(classify("POST","/api/public/sales/whatsapp/webhook").isEmpty());
+    }
     @Test void personalIdeasBoardUsesItsOwnPermissionForDocumentsAndPhotos() {
         assertRequirement("GET", "/api/v1/ideas-board", "ideas_board.canvas");
         assertRequirement("PUT", "/api/v1/ideas-board", "ideas_board.canvas");

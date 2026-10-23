@@ -5,7 +5,7 @@ export const moduleTabArtwork = {
   'processes-tasks': { calendar: 'calendar', projects: 'folder', processes: 'checklist', kpis: 'chart' },
   expenses: { expenses: 'expense', budgets: 'clipboard', providers: 'company', accounting: 'books', payment_accounts: 'card', kpis: 'chart' },
   'petty-cash': { cash: 'cashbox', control: 'receipt', statements: 'clipboard', kpis: 'chart' },
-  sales: { contacts: 'people', leads: 'target', quotes: 'clipboard', sales: 'briefcase', kpis: 'chart', commissions: 'calculator', 'payment-accounts': 'card', products: 'package', providers: 'company', inventory: 'warehouse', contracts: 'minutes', 'after-sales': 'handshake', funneling: 'funnel', mailing: 'mail', whatsapping: 'messages' },
+  sales: { contacts: 'people', leads: 'target', quotes: 'clipboard', sales: 'briefcase', kpis: 'chart', commissions: 'calculator', 'payment-accounts': 'card', products: 'package', providers: 'company', inventory: 'warehouse', contracts: 'minutes', 'after-sales': 'handshake', funneling: 'funnel', mailing: 'mail', whatsapping: 'messages', conversations: 'messages', 'whatsapp-settings': 'gear' },
   'point-of-sale': { cajas: 'terminal', sale: 'receipt', cortes: 'coins', kiosks: 'kiosk', clientes: 'people', kpis: 'chart' },
   inventory: { products: 'package', warehouses: 'warehouse', inventory: 'warehouse', providers: 'company', 'purchase-orders': 'clipboard', discounts: 'tag' },
   receivables: { 'credit-sales': 'card', 'accounts-receivable': 'receipt', payments: 'coins', 'credit-customers': 'people', kpis: 'chart' },

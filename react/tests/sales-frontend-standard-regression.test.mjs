@@ -338,9 +338,9 @@ test('Modo aprendiz conserva las guías operativas y excluye los espacios de com
   const guidanceSource = readFileSync(resolve(salesRoot, 'operationalGuidance/translations/en-CA.ts'), 'utf8');
   const commissionsSource = readFileSync(resolve(salesRoot, 'SalesCommissions.tsx'), 'utf8');
 
-  assert.match(salesModuleSource, /guide=\{learningModeActive && activeTab !== 'mailing' && activeTab !== 'whatsapping' && activeTab !== 'funneling' \? \(/);
+  assert.match(salesModuleSource, /guide=\{learningModeActive && activeTab !== 'mailing' && activeTab !== 'whatsapping' && activeTab !== 'funneling' && activeTab !== 'conversations' && activeTab !== 'whatsapp-settings' \? \(/);
   assert.doesNotMatch(salesModuleSource, /activeTab !== 'payment-accounts'|activeTab !== 'commissions'/);
-  assert.match(guidanceTypeSource, /SalesGuidanceTabId = Exclude<SalesTabId, 'mailing' \| 'whatsapping' \| 'funneling'>/);
+  assert.match(guidanceTypeSource, /SalesGuidanceTabId = Exclude<SalesTabId, 'mailing' \| 'whatsapping' \| 'funneling' \| 'conversations' \| 'whatsapp-settings'>/);
   assert.match(guidanceSource, /commissions:/);
   assert.match(guidanceSource, /'payment-accounts':/);
   assert.match(commissionsSource, /<SalesTitleBar/);

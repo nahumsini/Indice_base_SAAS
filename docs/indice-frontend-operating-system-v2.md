@@ -545,6 +545,7 @@ after the directory has refreshed. Email stays blue and Sales coral. Create/edit
 remains a Standard Form, and archive/discard replace it with Confirmation. Existing
 permissions, save/retry identities, attachments, payloads and API ownership stay intact.
 
+
 Mailing operational workspace, 2026-10-19: the [campaign workspace contract](sales-mailing-contract-v1.md#campaign-operating-workspace--2026-10-19)
 adopts the standard title/filter/status/table composition for the campaign list. Keep recipient lists,
 templates and new campaign directly accessible, with administrative actions in the final overflow.
@@ -5046,3 +5047,11 @@ The approved meeting punctuality score is authoritative backend data from the Me
 render its denominator, timezone, future/cancelled/unverifiable counts and Pending evaluation state.
 Never compute a different percentage in React or equate task completion with agreement fulfilment.
 Contract: `docs/meeting-control-module-contract-v1.md`, Agreement delegation and punctuality.
+
+## Sales Conversations runtime extension (2026-10-22)
+
+[sales-conversations-contract-v1.md](sales-conversations-contract-v1.md) governs `/sales/conversations`
+and `/sales/whatsapp-settings` under active `react/src/app`. Native shell/title/filter/view states and
+modal engine apply; the lazy inbox bypasses the unrelated CRM collection preload. New scope tabs and
+explicit channel grants are required; a frontend flag grants no authority. Keep customer replies,
+internal notes and external evidence visually distinct. Real onboarding remains unavailable.

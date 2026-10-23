@@ -166,3 +166,11 @@ backend migration/classes before the frontend route. Local runtime activation pr
 running classpath and its configuration; the previous runtime remains available for rollback.
 Rolling back the UI to its initial placeholder leaves campaign records intact. Never drop V331 tables
 or alter Flyway history to roll back. Public release remains subject to the repository security gate.
+
+## Official conversation exclusion owner port (2026-10-22)
+
+WhatsAppSuppressionContract is the explicit owner boundary used by
+[official Sales Conversations](sales-conversations-contract-v1.md) to read and record company phone
+exclusions. A customer opt-out blocks new official sends and the existing assisted campaigns.
+Campaign routes, wa.me preparation and historical manual SENT/REPLIED declarations retain their
+existing meanings; none becomes a provider receipt or approved Meta template.

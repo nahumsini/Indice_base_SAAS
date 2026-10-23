@@ -41,6 +41,8 @@ export const salesTabIds = [
   'funneling',
   'mailing',
   'whatsapping',
+  'conversations',
+  'whatsapp-settings',
 ] as const;
 
 export type SalesTabId = (typeof salesTabIds)[number];
@@ -80,7 +82,7 @@ type SalesWorkspaceCopy = {
     value: string;
     tone: SalesTone;
   }>;
-  tabs: Record<Exclude<SalesTabId, 'mailing' | 'whatsapping' | 'funneling'>, {
+  tabs: Record<Exclude<SalesTabId, 'mailing' | 'whatsapping' | 'funneling' | 'conversations' | 'whatsapp-settings'>, {
     eyebrow: string;
     title: string;
     description: string;
@@ -459,7 +461,7 @@ export function toneClass(tone: SalesTone) {
   return toneClasses[tone];
 }
 
-export function SalesWorkspacePlaceholder({ section }: { section: Exclude<SalesTabId, 'mailing' | 'whatsapping' | 'funneling'> }) {
+export function SalesWorkspacePlaceholder({ section }: { section: Exclude<SalesTabId, 'mailing' | 'whatsapping' | 'funneling' | 'conversations' | 'whatsapp-settings'> }) {
   const t = useVentasTranslations();
   const copy = getSalesIdentityCopy(t.title);
   const blueprint = copy.tabs[section];

@@ -17,6 +17,8 @@ import { SalesCrmProvider } from './salesCrmContext';
 import { SalesDataStateBoundary } from './components/SalesDataStateBoundary';
 import { SalesLoadingState } from './components/SalesLoadingState';
 import { useSalesTranslations } from './hooks/useSalesTranslations';
+import { useLanguage } from '../../context/LanguageContext';
+import { conversationsCopy } from './Conversations/conversationsCopy';
 import { LearningModeHeaderActionsProvider } from '../../learningMode';
 import {
   OperationalModuleGuide,
@@ -41,6 +43,8 @@ const Postventa = lazy(() => import('./Postventa')) as SalesTabLazyComponent;
 const Funneling = lazy(() => import('./Funneling/Funneling')) as SalesTabLazyComponent;
 const Mailing = lazy(() => import('./Mailing/Mailing')) as SalesTabLazyComponent;
 const Whatsapping = lazy(() => import('./Whatsapping/Whatsapping')) as SalesTabLazyComponent;
+const Conversations = lazy(() => import('./Conversations/Conversations')) as SalesTabLazyComponent;
+const ConversationSettings = lazy(() => import('./Conversations/ConversationConnectionSettings')) as SalesTabLazyComponent;
 const KPIs = lazy(() => import('./KPIs')) as SalesTabLazyComponent;
 
 const salesWorkspaceTabIds = routedSalesTabIds;
@@ -60,6 +64,8 @@ const salesTabComponents: Partial<Record<SalesWorkspaceTabId, SalesTabLazyCompon
   funneling: Funneling,
   mailing: Mailing,
   whatsapping: Whatsapping,
+  conversations: Conversations,
+  'whatsapp-settings': ConversationSettings,
 };
 
 interface VentasProps {
@@ -123,6 +129,8 @@ export default function Ventas({ learningModeActive = false, onNavigate }: Venta
 
 function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) {
   const copy = useSalesTranslations();
+  const { currentLanguage } = useLanguage(), conversationCopy = conversationsCopy(currentLanguage.code);
+  const conversationsEnabled = import.meta.env.VITE_SALES_CONVERSATIONS_ENABLED === 'true';
   const guidanceCopy = useSalesGuidanceTranslations();
   const params = useParams();
   const moduleContentRef = useRef<HTMLDivElement | null>(null);
@@ -151,7 +159,7 @@ function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) 
         backLabel={copy.back}
         contentRef={moduleContentRef}
         currentModule="sales"
-        guide={learningModeActive && activeTab !== 'mailing' && activeTab !== 'whatsapping' && activeTab !== 'funneling' ? (
+        guide={learningModeActive && activeTab !== 'mailing' && activeTab !== 'whatsapping' && activeTab !== 'funneling' && activeTab !== 'conversations' && activeTab !== 'whatsapp-settings' ? (
           <OperationalModuleGuide
             activeTabId={activeTab}
             copy={guidanceCopy}
@@ -174,6 +182,7 @@ function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) 
         }]}
         moreLabel={copy.navigation.management}
         moreTabs={[
+          ...(conversationsEnabled ? [{ id: 'whatsapp-settings', label: conversationCopy.connection, icon: '⚙️' }] : []),
           { id: 'commissions', label: copy.tabs.commissions, icon: '🧮' },
           { id: 'payment-accounts', label: copy.tabs.paymentAccounts, icon: '💳' },
           { id: 'contracts', label: copy.tabs.contrato, icon: '📝' },
@@ -181,11 +190,11 @@ function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) 
         onNavigate={onNavigate}
         onTabChange={setActiveTab}
         subtitle={copy.subtitle}
-        tabs={visibleSalesModuleTabs.map(tab => ({ id: tab.id, label: copy.tabs[tab.translationKey], icon: tab.emoji }))}
+        tabs={[...visibleSalesModuleTabs.map(tab => ({ id: tab.id, label: copy.tabs[tab.translationKey], icon: tab.emoji })), ...(conversationsEnabled ? [{ id: 'conversations', label: conversationCopy.title, icon: '💬' }] : [])]}
         title={copy.title}
         tone="coral"
       >
-        {activeTab === 'mailing' || activeTab === 'funneling' ? workspace : (
+        {activeTab === 'mailing' || activeTab === 'funneling' || activeTab === 'conversations' || activeTab === 'whatsapp-settings' ? workspace : (
           <SalesCrmProvider>
             <SalesDataStateBoundary>{workspace}</SalesDataStateBoundary>
           </SalesCrmProvider>

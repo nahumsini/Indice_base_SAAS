@@ -85,7 +85,10 @@
     "test:template-workspace-browser": "node tests/template-workspace-browser.mjs",
     "test:ideas-board-refinement": "node --test tests/board-*.test.mjs tests/ideas-board-*.test.mjs tests/system-board-model.test.mjs tests/personal-ideas-board.test.mjs tests/project-management.test.mjs",
     "test:ideas-board-refinement-browser": "node tests/board-refinement-browser.mjs",
-    "test:meeting-agreements-browser": "node tests/meeting-agreements-browser.mjs"
+    "test:meeting-agreements-browser": "node tests/meeting-agreements-browser.mjs",
+    "test:sales-conversations": "node --test tests/sales-conversations.test.mjs",
+    "test:sales-conversations-browser": "node tests/sales-conversations-browser.mjs",
+    "preview:sales-conversations": "node tests/sales-conversations-preview.mjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

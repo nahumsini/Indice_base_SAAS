@@ -1210,3 +1210,12 @@ closed kind/sort parameters applied inside the authenticated scope before count/
 actor, CSRF, CAS, private grants, quotas and immutable content are preserved. No schema migration.
 Rollback must retain catalog readers once such documents exist. Owner decision and verification:
 `personal-ideas-board-contract-v1.md`, 2026-10-22.
+
+
+## Official Sales Conversations owner extension (2026-10-22)
+
+[sales-conversations-contract-v1.md](sales-conversations-contract-v1.md) adopts the additive Sales-owned
+channel, native permission ceilings plus explicit grants, signed durable public webhook, fenced inbox,
+UNKNOWN outbox and current-access CRM/Tasks/storage/notification ports. Private Messaging remains its
+own owner. Scoped channel uploads use existing-capacity-only reservation/commit and cannot buy storage.
+Real Meta onboarding is disabled; this extension does not authorize deployment or persistent migration.

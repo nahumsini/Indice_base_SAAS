@@ -292,6 +292,8 @@ FROM sales_whatsapp_campaigns c JOIN users u ON u.id=c.owner_user_id
         campaign);
   }
 
+  boolean isSuppressed(long company,String phone){return db.queryForObject("SELECT COUNT(*) FROM sales_whatsapp_suppressions WHERE company_id=? AND phone=?",Integer.class,company,phone)>0;}
+
   Set<String> suppressed(long company) {
     return new HashSet<>(
         db.queryForList(

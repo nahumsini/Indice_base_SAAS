@@ -40,6 +40,16 @@ public class CompanyStorageMeter {
         return quota.reserve(companyId, ownerModule, bucketName, objectKey, sizeBytes);
     }
 
+    public void reserveExistingCapacity(long companyId,String ownerModule,String bucketName,String key,long size) {
+        quota.reserveExistingCapacity(companyId,ownerModule,bucketName,key,size);
+    }
+
+    public PresignedUpload presignExistingCapacity(long companyId,String ownerModule,String bucketName,String key,String type,long size,int seconds) {
+        quota.reserveExistingCapacity(companyId,ownerModule,bucketName,key,size);
+        try{return storage.presignUpload(bucketName,key,type,size,seconds);}
+        catch(RuntimeException failure){quota.release(companyId,key,"presign_failed");throw failure;}
+    }
+
     public StorageQuotaService.CommitResult commit(long companyId, String bucketName,
                                                     String objectKey, long expectedBytes) {
         return quota.commitStoredObject(companyId, bucketName, objectKey, expectedBytes);
@@ -51,6 +61,10 @@ public class CompanyStorageMeter {
                                                          long expectedBytes) {
         return quota.commitStoredObject(
             companyId, bucketName, reservedObjectKey, storedObjectKey, expectedBytes);
+    }
+
+    public StorageQuotaService.CommitResult commitExistingCapacity(long companyId,String bucket,String reservedKey,String storedKey,long bytes){
+        return quota.commitExistingCapacity(companyId,bucket,reservedKey,storedKey,bytes);
     }
 
     public void release(long companyId, String objectKey, String reason) {
