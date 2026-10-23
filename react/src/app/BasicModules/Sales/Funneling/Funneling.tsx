@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { CalendarDays, ChevronDown, Copy, FileText, Filter, Lightbulb, List, Pencil, Plus, RefreshCw } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Copy, Filter, List, Pencil, RefreshCw } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { TableBody, TableCell, TableRow } from '../../../components/ui/table';
 import { IndiceViewState, IndiceWorkspaceNavigation } from '../../../components/frontend-os';
@@ -13,7 +13,7 @@ import { SalesFilterBar, SalesFilterSearch, SalesFilterSelect } from '../compone
 import { funnelChannels, funnelStatuses } from './FunnelEditor';
 import { useFunnelCopy } from './funnelCopy';
 import { funnelApi } from './funnelApi';
-import { duplicateFunnel, normalizeFunnelView, selectVisibleFunnel, type FunnelInput, type FunnelPage, type FunnelPlan, type FunnelViewMode } from './funnelModel';
+import { duplicateFunnel, normalizeFunnelView, funnelWorkspaceView, selectVisibleFunnel, type FunnelInput, type FunnelPage, type FunnelPlan, type FunnelViewMode } from './funnelModel';
 
 import { campaignCopy } from './campaignCopy';
 import { newCampaignIdea } from './campaignModel';
@@ -22,10 +22,11 @@ import { CampaignIdeaCards, CampaignPlanView } from './CampaignWorkspaceView';
 import { CampaignContentGeneration } from './CampaignContentGeneration';
 import { contentGenerationCopy } from './contentGenerationCopy';
 import { ContentCalendarView } from './calendar/ContentCalendarView';
-import { contentCalendarCopy } from './calendar/contentCalendarCopy';
 import type { ContentNavigationGuard } from './useCampaignContent';
 import { IdeasBoard } from './IdeasBoard';
-import { ideasBoardCopy } from './ideasBoardCopy';
+import {BrandLibraryModal} from './brand/BrandLibraryModal';
+import {brandCopy} from './brand/brandCopy';
+import './funnelingWorkspace.css';
 import { journeyCopy } from './journeyCopy';
 import type { CampaignPanel } from './journeyModel';
 
@@ -35,11 +36,13 @@ const sortable: Column[] = ['name', 'updatedAt'];
 const defaults = { search: '', status: 'ALL', page: 1, pageSize: 25, sort: 'updatedAt', direction: 'desc', view: 'ideas' as FunnelViewMode };
 export default function Funneling() {
   const { copy, locale } = useFunnelCopy();
-  const c = campaignCopy(locale), j = journeyCopy(locale), g = contentGenerationCopy(locale);
+  const c = campaignCopy(locale), j = journeyCopy(locale), g = contentGenerationCopy(locale), bc=brandCopy(locale);
+  const [libraryOpen,setLibraryOpen]=useState(false),[boardOpen,setBoardOpen]=useState(false);
   const contentGuard = useRef<ContentNavigationGuard['current']>(null);
   function navigate(action: () => void) { if ((filters.view === 'content' || filters.view === 'calendar') && contentGuard.current) contentGuard.current(action); else action(); }
   const revision = useAuthorizationRevision();
   const [filters, setFilters] = useState(defaults);
+  const campaignSection=funnelWorkspaceView(filters.view)==='ideas';
   const [search, setSearch] = useState('');
   const [data, setData] = useState<FunnelPage | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,7 +60,7 @@ export default function Funneling() {
     view: normalizeFunnelView(value.view),
   }) });
   useEffect(() => { const timer = window.setTimeout(() => setSearch(filters.search), 250); return () => window.clearTimeout(timer); }, [filters.search]);
-  useEffect(() => { setEditor(null); setNotice(''); setSelectedId(null); }, [revision]);
+  useEffect(() => { setEditor(null); setNotice(''); setSelectedId(null); setLibraryOpen(false); setBoardOpen(false); }, [revision]);
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true); setFailed(false); setData(null);
@@ -97,26 +100,27 @@ export default function Funneling() {
       <SalesFilterSearch label={copy.search} placeholder={filters.view === 'content' ? g.searchPlaceholder : copy.searchPlaceholder} value={filters.search} onValueChange={value => navigate(() => setFilters(f => ({ ...f, search: value.slice(0, 180), page: 1 })))} />
       <SalesFilterSelect label={copy.status} value={filters.status} onValueChange={status => navigate(() => setFilters(f => ({ ...f, status, page: 1 })))} options={[{ value: 'ALL', label: copy.all }, ...funnelStatuses(copy).map(([value, label]) => ({ value, label }))]} />
     </SalesFilterBar>;
-  return <div className="space-y-5">
-    <SalesTitleBar title="Funneling" subtitle={c.subtitle} icon={<Filter className="h-5 w-5" />} actions={<>
-      <IndiceWorkspaceNavigation variant="views" tone="coral" ariaLabel={copy.views} value={filters.view} onValueChange={view => navigate(() => setFilters(f => ({ ...f, view })))} items={[{ id: 'ideas', label: c.ideas, icon: <Lightbulb /> }, { id: 'list', label: copy.listView, icon: <List /> }, { id: 'funnel', label: copy.funnelView, icon: <Filter /> }, { id: 'content', label: g.title, icon: <FileText /> }, { id: 'calendar', label: contentCalendarCopy(locale).title, icon: <CalendarDays /> }]} />
-      <Button variant="outline" className="min-h-11 gap-2" disabled={loading} onClick={() => navigate(() => setRefresh(v => v + 1))}><RefreshCw className="h-4 w-4" />{copy.refresh}</Button>
-      <Button className={salesTitleBarPrimaryActionClassName} disabled={!data || loading} onClick={() => navigate(createIdea)}><Plus className="h-4 w-4" />{j.create}</Button>
+  return <div className="funneling-workspace space-y-5">
+    <SalesTitleBar className="funneling-title-bar" title="Funneling" subtitle={c.subtitle} icon={<span aria-hidden="true">🎯</span>} actions={<>
+      <Button variant="outline" className="min-h-11 gap-2 whitespace-normal" onClick={()=>setLibraryOpen(true)}><span aria-hidden="true">🏢</span>{bc.title}</Button>
+      <Button variant="outline" aria-label={copy.refresh} className="funnel-refresh min-h-11 gap-2" disabled={loading} onClick={() => navigate(() => setRefresh(v => v + 1))}><RefreshCw className="h-4 w-4" /><span className="hidden sm:inline">{copy.refresh}</span></Button>
+      <Button className={salesTitleBarPrimaryActionClassName} disabled={!data || loading} onClick={() => navigate(createIdea)}><span aria-hidden="true">✨</span>{j.create}</Button>
     </>} />
-    <IdeasBoard key={revision} locale={locale} active={filters.view === 'ideas'} />
-    {filters.view === 'ideas' && <h2 className="pt-4 text-xl font-medium">{ideasBoardCopy(locale).campaigns}</h2>}
-    <p className={filters.view === 'content' ? 'content-generation-planning' : "rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"}>{c.planningOnly}</p>
+    <IndiceWorkspaceNavigation variant="sections" tone="coral" ariaLabel={copy.views} value={funnelWorkspaceView(filters.view)} onValueChange={view=>navigate(()=>setFilters(f=>({...f,view})))} items={[{id:'ideas',label:bc.campaigns,icon:<span aria-hidden="true">📁</span>},{id:'content',label:bc.content,icon:<span aria-hidden="true">✨</span>},{id:'calendar',label:bc.calendar,icon:<span aria-hidden="true">🗓️</span>}]}/>
+    {!campaignSection&&selected&&<div className="funnel-campaign-context"><div><span className="context-emblem" aria-hidden="true">🎯</span><div><strong>{selected.name}</strong><small>{selected.status==='DRAFT'?copy.draft:selected.status==='PLANNED'?copy.planned:copy.archived}</small></div></div><Button variant="outline" className="min-h-11" onClick={()=>navigate(()=>setFilters(f=>({...f,view:'ideas'})))}>{bc.change}</Button></div>}
+    {campaignSection&&<div className="funnel-view-tools"><IndiceWorkspaceNavigation variant="views" tone="coral" ariaLabel={copy.views} value={filters.view==='list'?'list':'ideas'} onValueChange={view=>setFilters(f=>({...f,view}))} items={[{id:'ideas',label:bc.cards,icon:<span aria-hidden="true">🗂️</span>},{id:'list',label:bc.table,icon:<List/>}]}/><Button variant="outline" className="min-h-11 gap-2" aria-pressed={boardOpen} onClick={()=>setBoardOpen(v=>!v)}><span aria-hidden="true">💡</span>{bc.board}</Button></div>}
+    <IdeasBoard key={revision} locale={locale} active={campaignSection&&boardOpen}/>
+    {filters.view==='funnel'&&selected&&<div className="funnel-selected-actions"><Button variant="ghost" className="min-h-11" onClick={()=>setFilters(f=>({...f,view:'ideas'}))}>{bc.back}</Button><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={()=>setFilters(f=>({...f,view:'content'}))}>✨ {bc.content}</Button><Button variant="outline" onClick={()=>setFilters(f=>({...f,view:'calendar'}))}>🗓️ {bc.calendar}</Button></div></div>}
     {notice && <p role="status" className="text-sm">{notice}</p>}
-    {filters.view === 'content' ? <ContentCampaignFilters active={Boolean(search || filters.status !== 'ALL')} title={g.campaignFilters} activeLabel={g.filtered} total={total}>{filterBar}</ContentCampaignFilters> : filterBar}
+    {campaignSection&&filters.view!=='funnel'&&filterBar}
     {loading ? <IndiceViewState variant="loading" title={copy.loading} tone="coral" /> : failed ? <IndiceViewState variant="error" title={copy.loadError} tone="coral" action={<Button variant="outline" onClick={() => navigate(() => setRefresh(v => v + 1))}>{copy.retry}</Button>} /> : total === 0 ?
       <IndiceViewState variant="empty" title={search || filters.status !== 'ALL' ? copy.noMatches : copy.empty} description={search || filters.status !== 'ALL' ? copy.noMatchesHint : copy.emptyHint} tone="coral" action={<Button className={salesTitleBarPrimaryActionClassName} onClick={() => navigate(createIdea)}>{j.create}</Button>} /> :
       filters.view === 'ideas' ? <div className="space-y-4"><CampaignIdeaCards plans={data?.items ?? []} copy={copy} c={c} onSelect={plan => { setSelectedId(plan.id); setFilters(f => ({ ...f, view: 'funnel' })); }} onDuplicate={plan => open(plan, true)} />{pagination}</div> :
-      filters.view === 'calendar' && selected ? <div className="min-w-0 space-y-4"><ContentCalendarView key={`${revision}:${selected.id}`} plan={selected} plans={data?.items ?? []} total={total} locale={locale} copy={copy} guard={contentGuard} onSelect={setSelectedId} />{pagination}</div> :
-      filters.view === 'content' && selected ? <div className="min-w-0 space-y-4"><CampaignContentGeneration key={`${revision}:${selected.id}`} plan={selected} plans={data?.items ?? []} total={total} copy={copy} locale={locale} guard={contentGuard} onSelect={setSelectedId} onEdit={() => open(selected, false, 'campaign')} onReload={() => setRefresh(value => value + 1)} onSaved={plan => { setData(value => value ? { ...value, items: value.items.map(item => item.id === plan.id ? plan : item) } : value); }} />{pagination}</div> :
+      filters.view === 'calendar' && selected ? <div className="min-w-0 space-y-4"><ContentCalendarView showCampaignPicker={false} key={`${revision}:${selected.id}`} plan={selected} plans={data?.items ?? []} total={total} locale={locale} copy={copy} guard={contentGuard} onSelect={setSelectedId} /></div> :
+      filters.view === 'content' && selected ? <div className="min-w-0 space-y-4"><CampaignContentGeneration key={`${revision}:${selected.id}`} plan={selected} plans={data?.items ?? []} total={total} copy={copy} locale={locale} guard={contentGuard} onSelect={setSelectedId} onEdit={() => open(selected, false, 'campaign')} onReload={() => setRefresh(value => value + 1)} onSaved={plan => { setData(value => value ? { ...value, items: value.items.map(item => item.id === plan.id ? plan : item) } : value); }} /></div> :
       filters.view === 'funnel' && selected ? <div className="min-w-0 space-y-4">
-        <label className="block min-w-0 space-y-1.5 text-sm"><span className="font-medium">{copy.selectPlan}</span><select aria-describedby="funnel-page-hint" className="min-h-11 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900" value={selected.id} onChange={event => setSelectedId(event.target.value)}>{data?.items.map(plan => <option key={plan.id} value={plan.id}>{plan.name}</option>)}</select><span id="funnel-page-hint" className="block text-xs text-slate-500 dark:text-slate-400">{copy.pagePlans}: {data?.items.length} / {total}</span></label>
+
         <CampaignPlanView key={`${selected.id}:${selected.version}`} plan={selected} copy={copy} c={c} locale={locale} onEdit={(panel, index) => open(selected, false, panel, index)} />
-        {pagination}
       </div> : <IndiceTableShell pagination={pagination}>
         <IndiceOperationalTable minimumWidth={Object.values(columnWidths).reduce((sum, width) => sum + width, 0) + 110}>
           <IndiceTableColGroup columns={columns} actionsWidth={110} />
@@ -130,11 +134,8 @@ export default function Funneling() {
           </TableRow>)}</TableBody>
         </IndiceOperationalTable>
       </IndiceTableShell>}
+    {libraryOpen&&<BrandLibraryModal key={`brand:${revision}`} locale={locale} copy={copy} onClose={()=>setLibraryOpen(false)}/>}
+
     {editor && <CampaignWorkshopModal key={editor.id} {...editor} copy={copy} locale={locale} onClose={() => setEditor(null)} onSaved={saved} />}
   </div>;
-}
-
-function ContentCampaignFilters({ active, title, activeLabel, total, children }: { active: boolean; title: string; activeLabel: string; total: number; children: ReactNode }) {
-  const [open, setOpen] = useState(active);
-  return <details className="content-generation-filters" open={open} onToggle={event => setOpen(event.currentTarget.open)}><summary><Filter size={16} aria-hidden="true" /><span>{title}</span><span className="content-generation-filter-count">{active ? activeLabel : total}</span><ChevronDown size={16} aria-hidden="true" /></summary>{children}</details>;
 }

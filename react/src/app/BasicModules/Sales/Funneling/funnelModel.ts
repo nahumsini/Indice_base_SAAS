@@ -16,6 +16,8 @@ export type FunnelViewMode = 'ideas' | 'list' | 'funnel' | 'content' | 'calendar
 
 export function normalizeFunnelView(value: unknown): FunnelViewMode { return value === 'calendar' ? 'calendar' : value === 'content' ? 'content' : value === 'ideas' ? 'ideas' : value === 'funnel' ? 'funnel' : 'list'; }
 
+export function funnelWorkspaceView(value:unknown):'ideas'|'content'|'calendar'{const view=normalizeFunnelView(value);return view==='content'||view==='calendar'?view:'ideas';}
+
 // Selection is transient and must always belong to the current filtered page.
 export function selectVisibleFunnel(plans: FunnelPlan[], id: string | null): FunnelPlan | null {
   return plans.find(plan => plan.id === id) ?? plans[0] ?? null;

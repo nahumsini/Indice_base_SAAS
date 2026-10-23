@@ -190,7 +190,7 @@ function promptTools(clipboard){
  Object.defineProperty(globalThis,'navigator',{configurable:true,value:{clipboard}});
  const {CampaignPromptTools}=load('CampaignPromptTools.tsx',id=>{
   if(id==='react')return runtime.hooks;if(id==='react/jsx-runtime')return{jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})};
-  if(id.endsWith('campaignPrompt'))return{buildCampaignPrompt,campaignPromptDocument};return new Proxy({},{get:(_,key)=>key});
+  if(id.endsWith('campaignPrompt'))return{buildCampaignPrompt,campaignPromptDocument};if(id.endsWith('brandCopy'))return load('brand/brandCopy.ts',()=>({}));if(id.endsWith('brandModel'))return load('brand/brandModel.ts',()=>load('brand/brandQuestions.ts',()=>({})));if(id.endsWith('brandApi'))return{brandApi:{snapshot:async()=>null}};return new Proxy({},{get:(_,key)=>key});
  });
  const render=()=>runtime.render(()=>CampaignPromptTools({plan,c,copy,locale:'es-MX'}));render();
  const field=()=>find(runtime,n=>n.type==='Textarea');

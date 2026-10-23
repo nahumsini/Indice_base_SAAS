@@ -611,6 +611,18 @@ returns the existing file. Download performs authorization again and returns a
 short-lived URL only for that movement's private key prefix. No schema change or
 stock mutation is performed by the evidence endpoints.
 
+### Company-owned Funneling brand library — 2026-10-23
+
+The Sales Funneling owner contract adopts a shared planning profile, sealed private materials and
+independent campaign reference snapshots. Native `crm.funneling`, company/membership mutation
+checks and CSRF apply without new grants. ConfigCenter supplies only its existing logo projection;
+Sales reads the owned company name, never copies the settings root or mutates global branding.
+Materials use presigned staging, CompanyStorageMeter, validation through the bounded MailFilePolicy
+primitive and sealed final storage; no binary MySQL exception is introduced. All reads/downloads
+remain company-scoped, archived materials are retained, and audit rows contain metadata only.
+V354 is additive; original campaign DTOs/versions and external MCP permissions remain unchanged.
+The complete limits, owner boundary and rollback are in `docs/sales-funneling-contract-v1.md`.
+
 ## 15. Cross-Module And External Integrations
 
 The owner module remains the source of truth. Another module may reference it through an explicit
