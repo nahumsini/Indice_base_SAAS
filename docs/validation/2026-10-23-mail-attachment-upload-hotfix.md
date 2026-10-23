@@ -33,6 +33,12 @@ sellado inmutable, políticas de contenido, cinco archivos y 10 MiB totales. No 
 cambios de interfaz, dependencias ni esquema. Los trabajos ajenos a este hotfix en la
 carpeta principal permanecen intactos; el candidato parte de `99ff0f5b` en una copia aislada.
 
+Se revisaron las lecciones bilingües `correo.mail` v4 y `crm.mailing` v3: ya describen
+el guardado y la revisión de adjuntos reutilizables, por lo que conservan texto y versión.
+La corrección restaura ese flujo documentado y no requiere reaprenderlo ni reiniciar
+progreso. Se regeneró únicamente la huella de fuentes del catálogo backend para que
+su verificación reconozca el propietario corregido; el chequeo del generador pasa.
+
 ## Evidencia local
 
 La regresión reprodujo dos fallas antes de corregir la aplicación: registro de adjunto
