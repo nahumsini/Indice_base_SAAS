@@ -7,6 +7,16 @@ Mailing/Email/Ideas Board work is retained as the baseline; it is not part of th
 
 ## Authority and rollout boundary
 
+Unified-source adoption, 2026-10-23: the owner's later instruction to publish all local
+changes and deploy production authorizes this code's ordered App Test/production
+deployment and additive migrations, while retaining every real-provider switch off.
+It does not authorize Meta credentials, number connection, channel grants, media
+transport or real messages. The four unpublished channel migrations originally named
+V348–V351 are adopted as V356–V359, after published V353 and the new Brand V354/V355.
+Their SQL is unchanged; published migration identities/checksums remain untouched.
+Earlier local acceptance below retains the names actually used in that disposable run.
+Real onboarding remains incomplete and disabled; publishing source does not certify it.
+
 One company owns one operational WhatsApp number. Connection history is retained, provider phone
 IDs cannot belong to two tenants in this environment, jobs/messages bind immutable connection IDs.
 No automatic number replacement, CRM creation, bulk campaign, automation, billing or external read

@@ -36,6 +36,9 @@ class TabPermissionRouteClassifierTest {
         assertRequirement("GET", "/api/v1/sales/funnels", "crm.funneling");
         assertRequirement("GET", "/api/v1/sales/funnels/synthetic", "crm.funneling");
         assertRequirement("PUT", "/api/v1/sales/funnels/synthetic", "crm.funneling");
+        assertRequirement("GET", "/api/v1/sales/company-library", "crm.funneling");
+        assertRequirement("POST", "/api/v1/sales/company-library/assets/upload", "crm.funneling");
+        assertRequirement("PUT", "/api/v1/sales/company-library/campaigns/synthetic", "crm.funneling");
         assertRequirement("GET", "/api/v1/mailing/campaigns", "crm.mailing");
         assertRequirement("POST", "/api/v1/sales/quotes", "crm.quotes");
     }

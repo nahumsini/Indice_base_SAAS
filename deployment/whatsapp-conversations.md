@@ -6,6 +6,13 @@ database, external credential change, provider upload, number connection or mess
 [deployment/README.md](README.md) and the [release security gate](../docs/indice-public-release-security-gate.md)
 when those actions are separately authorized.
 
+The owner's 2026-10-23 unified-source release instruction subsequently authorizes
+publishing this inert code and its additive V356–V359 migrations in App Test and
+production through the canonical workflow. It does not authorize pilot activation,
+external credentials, onboarding, provider upload, real messages or channel grants.
+Those switches remain false. These adopted versions replace only the unpublished
+V348–V351 names used by the earlier private verification; no applied migration changes.
+
 ## Configuration and transport boundary
 
 The backend properties are `app.sales-conversations.*`, mapped explicitly in application.properties
@@ -90,7 +97,7 @@ In-memory fixture uploads use a synthetic local PUT route, not object storage or
 5. Confirm provider billing owner and current Meta terms/prices. This feature adds no Indice charge,
    tariff, credit arrangement, BSP subscription, purchase or subsidy. Infrastructure/storage capacity
    still exists. Quota exhaustion blocks a channel upload; this channel never buys storage blocks.
-6. Review the exact additive V348–V351 artifacts and their interaction with pre-existing V347, backup,
+6. Review the exact adopted V356–V359 artifacts and their interaction with pre-existing V347, backup,
    restore, permissions, secrets, rollback and isolated acceptance evidence. Persistent migration,
    deployment and each real OAuth/number/upload/send step require subsequent authorization.
 7. With that authorization, implement/verify the real gateway against approved test assets first.

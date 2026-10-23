@@ -59,6 +59,7 @@ public class TabPermissionRouteClassifier {
         if (path.startsWith("/api/v1/sales/whatsapp/connections")) return one("crm.conversations_manage");
         if (path.equals("/api/v1/sales/whatsapping") || path.startsWith("/api/v1/sales/whatsapping/")) return one("crm.contacts");
         if (path.equals("/api/v1/sales/funnels") || path.startsWith("/api/v1/sales/funnels/")) return one("crm.funneling");
+        if (path.equals("/api/v1/sales/company-library") || path.startsWith("/api/v1/sales/company-library/")) return one("crm.funneling");
         if (path.startsWith("/api/v1/mailing")) return one("crm.mailing");
         if (path.startsWith("/api/v1/maintenance")) {
             if (path.startsWith("/api/v1/maintenance/requests")) return one("maintenance.requests");

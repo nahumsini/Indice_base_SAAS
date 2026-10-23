@@ -22,6 +22,12 @@ class BrandLibraryIntegrationTest extends FunnelIntegrationTest {
  Details details(String value){return new Details(value,"Consultations","Personal attention","Local businesses","Toronto","example.com","Friendly","Keep the original logo",List.of("#FF6B5E"));}
  String key(){return BrandAccess.key(actor);}
  String campaign(){return service.save(actor,UUID.randomUUID().toString(),input(0,"DRAFT",null,null)).id();}
+ @Test void libraryHttpUsesOnlyItsFunnelingPermissionAndFailsClosedAfterRevocation()throws Exception{
+  mvc.perform(get("/api/v1/sales/company-library").session(session())).andExpect(status().isOk());
+  db.update("DELETE FROM user_company_tab_permissions WHERE user_company_id=? AND module_slug='crm' AND tab_key='funneling'",membership);
+  db.update("INSERT INTO user_company_tab_permissions(user_company_id,module_slug,tab_key) VALUES(?,'crm','contacts')",membership);
+  mvc.perform(get("/api/v1/sales/company-library").session(session())).andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("tab_permission_required"));
+ }
  @Test void companyContextPersistsAndKeepsGlobalIdentityAndTenantIsolation(){
   String id=UUID.randomUUID().toString();var saved=brands.save(actor,key(),new ProfileInput(details("One company"),0,id));assertThat(saved.version()).isEqualTo(1);
   assertThat(brands.get(actor).details().description()).isEqualTo("One company");
