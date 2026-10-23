@@ -4,6 +4,11 @@ Estado a las 17:44 UTC: **PREPARACIÓN TÉCNICA COMPLETA / PENDIENTE DECISIÓN V
 No se activó la versión en App Test ni en producción. Ambos entornos conservan las imágenes
 `8c451b5612d0`, el esquema V346, sus contenedores y su configuración original.
 
+Actualización a las 17:47 UTC: el propietario autorizó la excepción puntual mediante la
+[decisión vigente](../decisions/2026-10-23-integrated-release-stripe-deferral.md).
+La condición de autorización quedó resuelta exclusivamente para este intento; la revocación
+sigue pendiente. La activación aún debe ejecutarse y verificarse por separado.
+
 ## Candidato y alcance
 
 Aplicación: `3eddc38be95337075bbbeb92d2b3fe3772d098d2`, publicada en `main` y
@@ -97,8 +102,8 @@ límite canónico de 10 GiB sin reducirlo.
 La revocación de la clave histórica Stripe TEST sigue pendiente, confirmado por el propietario
 en esta sesión. La [excepción anterior](../decisions/2026-10-22-integrated-release-stripe-deferral.md)
 se cerró con su liberación y declara: “This decision does not authorize another release or waive
-any other release gate.” No se creó una autorización vigente para activar este candidato.
-La solicitud de despliegue ya existe; falta resolver esta condición específica de la
+any other release gate.” La decisión del 23 de octubre indicada arriba reemplaza únicamente
+ese bloqueo para este candidato y este intento, conforme a la
 [puerta canónica de liberación](../indice-public-release-security-gate.md).
 
 Los hallazgos Spring `CVE-2026-47884` y `CVE-2026-47890` permanecen registrados, sin afirmar una

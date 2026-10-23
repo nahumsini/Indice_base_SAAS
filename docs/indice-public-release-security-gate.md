@@ -103,6 +103,14 @@ pass. The finding remains unresolved; all other gates and provider boundaries
 remain applicable. This exception expires with this release attempt and its
 observation windows, no later than the decision's stated deadline.
 
+For integrated revision `3eddc38be95337075bbbeb92d2b3fe3772d098d2`, the owner
+separately answered "Autorizar excepción puntual" under the
+[2026-10-23 release decision](decisions/2026-10-23-integrated-release-stripe-deferral.md).
+Only the historical Stripe TEST-key revocation blocker is replaced for this
+candidate's ordered App Test → production activation and observation, ending no
+later than 2026-10-23T20:00:00Z. The HIGH finding remains unresolved; all other
+gates and provider boundaries apply. This is not permission for another release.
+
 For the 2026-10-06 release, the owner's later explicit instruction to review directly in production
 replaces only the human-UAT location/timing, as recorded in the
 [bounded production-acceptance decision](decisions/2026-10-06-owner-production-acceptance.md).
