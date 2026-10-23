@@ -126,6 +126,16 @@ Both activations and observations passed; the operational authorization closed a
 2026-10-23T20:35:00Z. The historical TEST-key finding remains unresolved. See the
 [hotfix activation evidence](validation/2026-10-23-mail-attachment-upload-hotfix.md#activación-y-cierre).
 
+For unified local source `76780da79ff63c0a1ea0c7ac7f99c49d4e26744d`, the owner's latest
+explicit instruction authorizes App Test → production publication with only historical
+Stripe TEST-key revocation deferred under the
+[local unified release decision](decisions/2026-10-23-local-unified-stripe-deferral.md).
+Earlier closed exceptions are not reused. This window ends with the ordered attempt and
+observation, no later than 2026-10-24T06:00:00Z; it does not authorize another release.
+The HIGH key finding remains unresolved. All other security, data-integrity, recovery,
+capacity and observation gates apply; provider flags, prices and existing access remain
+protected. Human product acceptance is recorded separately from engineering validation.
+
 For the 2026-10-06 release, the owner's later explicit instruction to review directly in production
 replaces only the human-UAT location/timing, as recorded in the
 [bounded production-acceptance decision](decisions/2026-10-06-owner-production-acceptance.md).
