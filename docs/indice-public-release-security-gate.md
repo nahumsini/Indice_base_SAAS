@@ -140,6 +140,19 @@ this authorization closed at **2026-10-23T22:21:37.886116Z** and cannot be reuse
 The historical TEST-key finding remains HIGH and unresolved. See the
 [unified activation evidence](validation/2026-10-23-local-unified-release.md#activación-y-cierre).
 
+For local production source `210ee8ced37bcde91a4e0b62aa7038c95fb7f0c1`, the owner
+separately answered "Autorizar excepción puntual" under the
+[2026-10-24 production-only decision](decisions/2026-10-24-production-local-stripe-deferral.md).
+Only the historical Stripe TEST-key revocation blocker is deferred for this exact
+production activation and five-minute observation. App Test remains unchanged.
+The window ends immediately after this attempt, no later than 2026-10-24T07:15:52.915918Z;
+it cannot authorize another release. The HIGH finding remains unresolved. All other
+security, data-integrity, capacity, backup/recovery and provider boundaries still apply.
+Human product acceptance remains separate from engineering validation.
+The activation, five-minute observation and final verification passed; authorization
+closed at **2026-10-24T05:22:34.589611Z** and cannot be reused. See the
+[production closeout](validation/2026-10-24-production-local-release.md#activación-y-cierre).
+
 For the 2026-10-06 release, the owner's later explicit instruction to review directly in production
 replaces only the human-UAT location/timing, as recorded in the
 [bounded production-acceptance decision](decisions/2026-10-06-owner-production-acceptance.md).
