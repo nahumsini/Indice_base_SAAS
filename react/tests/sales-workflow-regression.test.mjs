@@ -71,14 +71,18 @@ test('los flujos de oportunidades son seleccionables y alimentan Kanban y filtro
   assert.match(filters, /stages\.map/);
   assert.match(kanban, /stages\.map/);
   assert.match(manager, /modalType="operational-workspace"/);
-  assert.match(manager, /view === 'catalog'/);
+  assert.match(manager, /view\s*===\s*'catalog'/);
   assert.match(manager, /OpportunityFlowListCard/);
   assert.match(manager, /OpportunityFlowStageEditor/);
   assert.match(manager, /await onSelectFlow\(saved\.id\)/);
-  assert.match(manager, /flow\.factory/);
-  assert.match(manager, /loadError \? \(/);
+  assert.ok(manager.replace(/\s+/g, '').includes(
+    'factory=!!original?.factory&&!creating,canEdit=canManage&&!factory',
+  ));
+  assert.match(manager, /\(loadError\s*\|\|\s*error\)\s*&&/);
   assert.match(manager, /onClick=\{onRetry\}/);
-  assert.match(stageEditor, /stage\.opportunityCount === 0/);
+  assert.ok(stageEditor.replace(/\s+/g, '').includes(
+    'disabled={busy||stage.required||stage.opportunityCount>0||openCount<=1}',
+  ));
 });
 
 test('Clientes importa leads de Meta mediante el backend sin persistir el token en el navegador', () => {
