@@ -1,6 +1,6 @@
 # Afternoon local-workspace production release — 2026-10-24
 
-Status: READY at 2026-10-24T19:43:54Z. Production activation is pending a separately scoped owner decision about the historical Stripe TEST finding. No activation is claimed.
+Status: SUPERSEDED before activation by the [Files correction cut](../decisions/2026-10-24-files-preview-production-release.md). No production activation occurred for this candidate. The readiness evidence below remains historical evidence for its exact immutable artifacts.
 
 ## Scope and source
 

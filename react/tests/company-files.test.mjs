@@ -30,7 +30,7 @@ test('rename and sharing retain server versions, actor binding and mutation IDs'
 });
 const el=(type,props)=>({type,props});const nodes=v=>!v||typeof v!=='object'?[]:Array.isArray(v)?v.flatMap(nodes):[v,...nodes(v.props?.children),...nodes(v.props?.footer)];
 class ApiError extends Error{constructor(status){super('Synthetic');this.status=status;}}
-function editHarness(action,api){const runtime=hookRuntime();const {FileEditDialog}=loadTypescript(resolve(base+'FileDialogs.tsx'),id=>{if(id==='react')return runtime.hooks;if(id==='react/jsx-runtime')return{jsx:el,jsxs:el};if(id.endsWith('/apiClient'))return{ApiClientError:ApiError};if(id==='./filesApi')return{filesApi:api};if(id==='./filesModel')return model;return new Proxy({},{get:(_,key)=>key});});let closed=0,saved=0;runtime.render(()=>FileEditDialog({action,entry:action==='folder'?undefined:entry,parentId:null,actor:'actor',c:filesCopy('es-MX'),onClose:()=>closed++,onSaved:()=>saved++}));return{runtime,get closed(){return closed},get saved(){return saved},find:type=>nodes(runtime.result).find(n=>n.type===type),button:text=>nodes(runtime.result).find(n=>n.type==='Button'&&n.props.children===text)};}
+function editHarness(action,api,selected=entry){const runtime=hookRuntime();const {FileEditDialog}=loadTypescript(resolve(base+'FileDialogs.tsx'),id=>{if(id==='react')return runtime.hooks;if(id==='react/jsx-runtime')return{jsx:el,jsxs:el};if(id.endsWith('/apiClient'))return{ApiClientError:ApiError};if(id==='./filesApi')return{filesApi:api};if(id==='./filesModel')return model;return new Proxy({},{get:(_,key)=>key});});let closed=0,saved=0;runtime.render(()=>FileEditDialog({action,entry:action==='folder'?undefined:selected,parentId:null,actor:'actor',c:filesCopy('es-MX'),onClose:()=>closed++,onSaved:()=>saved++}));return{runtime,get closed(){return closed},get saved(){return saved},find:type=>nodes(runtime.result).find(n=>n.type===type),button:text=>nodes(runtime.result).find(n=>n.type==='Button'&&n.props.children===text)};}
 test('dirty folder close asks to discard and keeps edits when cancelled',async()=>{
  const oldWindow=global.window;global.window={addEventListener(){},removeEventListener(){}};try{const h=editHarness('folder',{});h.find('Input').props.onChange({target:{value:'Draft folder'}});await h.runtime.flush();h.button('Cancelar').props.onClick();await h.runtime.flush();assert.equal(h.runtime.result.type,'IndiceConfirmationDialog');h.runtime.result.props.onCancel();await h.runtime.flush();assert.equal(h.find('Input').props.value,'Draft folder');assert.equal(h.closed,0);h.runtime.unmount();}finally{global.window=oldWindow;}
 });
@@ -59,4 +59,27 @@ test('canonical module navigation stays locked while a file is uploading',async(
   assert.equal(runtime.result.type,'IndiceModuleShell');assert.ok(runtime.result.props.tabs.every(tab=>tab.disabled));runtime.result.props.onNavigate('dashboard');runtime.result.props.onTabChange('TRASH');assert.equal(exits,0);assert.equal(params.get('view'),null);
   finish(entry);await runtime.flush();assert.ok(runtime.result.props.tabs.every(tab=>!tab.disabled));runtime.result.props.onNavigate('dashboard');assert.equal(exits,1);
  }finally{runtime.unmount();global.window=oldWindow;}
+});
+test('thumbnails request only bounded passive images, never trash or opaque formats',()=>{
+ for(const type of ['image/png','image/jpeg','image/webp','image/gif'])assert.equal(model.canShowFileThumbnail({...entry,contentType:type,sizeBytes:10*1024*1024}),true);
+ for(const change of [{contentType:'image/svg+xml'},{contentType:'text/html'},{contentType:'application/pdf'},{contentType:'image/png',trashed:true},{contentType:'image/png',kind:'FOLDER'},{contentType:'image/png',sizeBytes:0},{contentType:'image/png',sizeBytes:10*1024*1024+1}])assert.equal(model.canShowFileThumbnail({...entry,...change}),false);
+});
+test('move choices cannot authorize another owner’s root, the same folder or an unavailable destination',()=>{
+ const current={...entry,parentId:'current'},choices=[{id:'current',name:'Current'},{id:'target',name:'Target'}];
+ assert.equal(model.canMoveFileTo(current,'target',choices),true);assert.equal(model.canMoveFileTo(current,null,choices),true);
+ for(const [item,destination,available] of [[current,'current',choices],[current,'missing',choices],[current,'target',null],[{...current,owned:false},null,choices],[{...current,permission:2},'target',choices],[{...current,trashed:true},'target',choices],[current,'file',[{id:'file',name:'Self'}]]])assert.equal(model.canMoveFileTo(item,destination,available),false);
+});
+test('move keeps its selected path while searching and reuses the retry identity after a failed save',async()=>{
+ const oldWindow=global.window;global.window={addEventListener(){},removeEventListener(){}};const calls=[];
+ try{
+  const h=editHarness('move',{destinations:async()=>[{id:'target',name:'Campaigns / October'}],change:async(...args)=>{calls.push(args);if(calls.length===1)throw new ApiError(503);return entry;}});
+  await h.runtime.flush();assert.equal(h.button('Mover aquí').props.disabled,true);await h.button('Mover aquí').props.onClick();await h.runtime.flush();assert.equal(calls.length,0);
+  h.find('select').props.onChange({target:{value:'target'}});await h.runtime.flush();h.find('Input').props.onChange({target:{value:'no-match'}});await h.runtime.flush();assert.ok(nodes(h.runtime.result).some(n=>n.type==='option'&&n.props.value==='target'));assert.equal(h.find('select').props.value,'target');
+  h.button('Mover aquí').props.onClick();await h.runtime.flush();assert.equal(h.saved,0);assert.equal(h.find('select').props.value,'target');h.button('Mover aquí').props.onClick();await h.runtime.flush();
+  assert.equal(h.saved,1);assert.equal(calls.length,2);assert.equal(calls[0][1],'MOVE');assert.deepEqual(calls[0][2],{parentId:'target'});assert.equal(calls[0][3],calls[1][3]);assert.equal(calls[0][0].version,5);assert.equal(calls[0][4],'actor');h.runtime.unmount();
+ }finally{global.window=oldWindow;}
+});
+test('destination loading can retry without closing the move dialog',async()=>{
+ const oldWindow=global.window;global.window={addEventListener(){},removeEventListener(){}};let attempts=0;
+ try{const h=editHarness('move',{destinations:async()=>{if(++attempts===1)throw new Error('offline');return[{id:'target',name:'Target'}]}});await h.runtime.flush();assert.equal(h.button('Mover aquí').props.disabled,true);h.button('Reintentar').props.onClick();await h.runtime.flush();assert.equal(attempts,2);h.find('select').props.onChange({target:{value:'target'}});await h.runtime.flush();assert.equal(h.button('Mover aquí').props.disabled,false);h.runtime.unmount();}finally{global.window=oldWindow;}
 });

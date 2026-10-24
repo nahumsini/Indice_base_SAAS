@@ -93,3 +93,22 @@ During upload, module tabs and cross-module callbacks stay blocked using the sam
 `IndiceModuleTab.disabled` is an optional presentation extension with no default behavior change.
 No backend, database, storage, billing, public-sharing or employee-access changes are part of this
 presentation update. The UI uses accurate results counts, without inventing KPIs.
+
+## Image thumbnails and folder navigation — 2026-10-24
+
+Grid and list show lazy, asynchronous, contained thumbnails of verified passive PNG/JPEG/GIF/WebP
+images up to 10 MiB through the existing session-authenticated, no-store content endpoint.
+Large images, unavailable content, opaque formats and trash keep their type artwork; explicit
+preview/download remain available under the existing policy. No public/signed read URL, new
+storage copy, permanent browser cache or binary database content is introduced.
+
+Within folders, Home and Up one level are visible above the filters, alongside accessible breadcrumbs.
+They preserve the selected Owned/Shared/Trash scope and URL-based back/forward navigation;
+uploading still blocks navigation. Up follows the nearest accessible ancestor, otherwise the
+scope root, without revealing inaccessible folder names.
+
+Manage-level entries expose Move directly in grid/list as well as the existing actions menu.
+The native move dialog uses the owner's authorized destination paths, retains the selection
+while searching or retrying, and enables Move here only for a different permitted destination.
+Only an owner may select My files root. Server source/target ACL, cycle/depth checks, CSRF,
+actor binding, version/conflict handling, direct grants and inherited-access behavior are unchanged.

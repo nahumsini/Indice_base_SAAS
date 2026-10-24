@@ -5108,6 +5108,13 @@ it does not change permission filtering. The `/files?view=...&folder=...` contra
 account access, private file ACLs and all backend behavior remain unchanged. Owner acceptance and
 rollback: `company-file-library-contract-v1.md`, Índice module presentation.
 
+The 2026-10-24 Files refinement adds bounded lazy private image thumbnails in grid/list,
+visible Home/Up navigation and accessible breadcrumbs above filters, and direct Manage-only Move
+actions. The native move form preserves its selected path across search/retry and confirms only
+a different authorized destination. Existing scope URLs, server ACLs, actor/CSRF/version binding,
+upload navigation locks, opaque downloads, private-root ownership and inherited access are unchanged.
+See `company-file-library-contract-v1.md`, Image thumbnails and folder navigation.
+
 ### Sales flow administration and personal stage colors (2026-10-23)
 
 The Opportunities flow catalogue uses a content-sized Sales Operational Workspace Modal. Stage
