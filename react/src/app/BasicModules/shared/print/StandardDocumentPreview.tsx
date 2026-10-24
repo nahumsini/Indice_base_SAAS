@@ -19,7 +19,7 @@ export function StandardDocumentPreview({ definition, className, paperPreview = 
   const fit = useCallback(() => {
     const frame = frameRef.current;
     const doc = frame?.contentDocument;
-    if (!paperPreview || !frame || !doc?.body.dataset.printOrientation) return;
+    if (!paperPreview || !frame || !doc?.body?.dataset.printOrientation) return;
     const paperWidth = parseFloat(doc.body.style.width) + 20 * 96 / 25.4;
     const scale = zoom ?? Math.min(1, Math.max(0.25, (frame.clientWidth - 24) / paperWidth));
     doc.documentElement.style.zoom = String(scale);
