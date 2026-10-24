@@ -153,6 +153,21 @@ The activation, five-minute observation and final verification passed; authoriza
 closed at **2026-10-24T05:22:34.589611Z** and cannot be reused. See the
 [production closeout](validation/2026-10-24-production-local-release.md#activación-y-cierre).
 
+For complete local source and Files correction
+`43394a0445a4929a83111440f7d0b621e017051d`, the owner separately answered
+"Autorizar excepción puntual" under the
+[Files release decision](decisions/2026-10-24-files-preview-stripe-deferral.md).
+Only the historical Stripe TEST-key revocation blocker is deferred for this exact
+production activation and five-minute observation, ending immediately afterward
+and no later than 2026-10-25T01:11:46.593683Z. The HIGH finding remains unresolved.
+App Test, provider settings, prices and existing access remain protected; all other
+gates apply. This authorization cannot be reused for another source or activation.
+Human product acceptance remains separate from engineering verification. See the
+[Files release evidence](validation/2026-10-24-files-preview-release.md).
+Activation, five-minute observation and final verification passed; authorization
+closed at **2026-10-24T23:18:54.121340+00:00** and cannot be reused. The historical key
+finding remains HIGH and unresolved.
+
 For the 2026-10-06 release, the owner's later explicit instruction to review directly in production
 replaces only the human-UAT location/timing, as recorded in the
 [bounded production-acceptance decision](decisions/2026-10-06-owner-production-acceptance.md).

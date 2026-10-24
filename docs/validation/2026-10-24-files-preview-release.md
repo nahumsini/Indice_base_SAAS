@@ -1,8 +1,9 @@
 # Files preview and complete local-workspace release — 2026-10-24
 
-Status: READY, NOT DEPLOYED. Technical preparation completed at
-2026-10-24T20:19:58Z. Production activation and observation await the separately
-scoped owner decision for the unresolved historical Stripe TEST-key revocation.
+Status: DEPLOYED to production; final verification passed at
+**2026-10-24T23:18:54.118712+00:00**. Technical preparation completed at
+2026-10-24T20:19:58Z. The owner separately authorized the bounded historical
+Stripe TEST-key deferral; its window is now closed and cannot be reused.
 
 ## Source and behavior
 
@@ -103,8 +104,35 @@ restore are repeated successfully here, with no application gate bypass.
 
 Human product acceptance is UNKNOWN until owner review. Synthetic engineering
 fixtures do not certify the owner's original PDF or recipients' delivery. The
-historical Stripe TEST-key revocation remains HIGH and unresolved; the previous
-[authorization is closed](../decisions/2026-10-24-production-local-stripe-deferral.md)
-and no new exception or activation is claimed by this readiness record.
+historical Stripe TEST-key revocation remains HIGH and unresolved. The prior
+[authorization](../decisions/2026-10-24-production-local-stripe-deferral.md) was not
+reused; the separately authorized [current decision](../decisions/2026-10-24-files-preview-stripe-deferral.md)
+now records this activation and its closed window.
 New schema, payment/provider activation, commercial pricing and access expansion:
 N/A. Protected raw evidence and credentials are not committed.
+
+
+## Activation and closure
+
+The owner separately answered “Autorizar excepción puntual” for exact application
+source `43394a0445a4929a83111440f7d0b621e017051d`, production only. The private bounded record was
+created at **2026-10-24T23:11:46.593683+00:00** and had a maximum expiry of
+**2026-10-25T01:11:46.593683+00:00**. Activation started at **2026-10-24T23:12:00Z**;
+public probes and protected runtime verification passed at
+**2026-10-24T23:13:25Z**. The six-sample observation ran from
+**2026-10-24T23:13:25.848Z** to **2026-10-24T23:18:26.831Z**, exceeding five minutes, with
+web/API/storage/MCP healthy and zero backend errors or container restarts.
+Authenticated MCP reads retain the same business scope and currency.
+
+The final comparison again passed for exact image identities, V360's complete
+unchanged lineage, protected configuration, prices, subscription references,
+existing access and unchanged App Test. Previous immutable application images
+remain stopped and available for recovery. Available host capacity at closeout:
+**7,783,198,720 bytes**, above this attempt's reviewed 7 GiB floor. Increasing
+host capacity remains an operational follow-up; canonical defaults are unchanged.
+
+Final verification completed at **2026-10-24T23:18:54.118712+00:00**. The scoped authorization
+closed at **2026-10-24T23:18:54.121340+00:00**, with `authorized=false` and `canBeReused=false`.
+The historical Stripe TEST-key finding remains HIGH and unresolved. Human product
+acceptance remains UNKNOWN until owner review. Documentation-only readiness and
+closeout commits change no runtime inputs and authorize no subsequent activation.
