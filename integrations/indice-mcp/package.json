@@ -23,8 +23,9 @@
     "zod": "4.6.7"
   },
   "overrides": {
-    "fast-uri": "3.1.8",
-    "proxy-addr": "2.0.8"
+    "fast-uri": "3.1.9",
+    "proxy-addr": "2.0.8",
+    "body-parser": "2.4.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
