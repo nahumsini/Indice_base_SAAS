@@ -115,7 +115,7 @@ export const ptBR = {
     correction: 'Correção manual',
     manualCorrectionBadge: 'M',
     noCorrection: 'Sem correção manual',
-    timeTable: 'Relatórios de presença',
+    timeTable: 'Ocorrências da folha',
     removeTimeTableDay: 'Remover turno',
     removeTimeTableDayTitle: 'Remover turno do relatório de presença?',
     removeTimeTableDayDescription: 'Isso remove o turno ou local temporário atribuído somente para esta data. Os registros de entrada e saída continuam salvos.',

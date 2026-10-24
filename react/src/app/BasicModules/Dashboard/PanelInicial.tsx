@@ -1,3 +1,5 @@
+import '../../components/frontend-os/containedWorkspace.css';
+import { useContainedModuleScroll } from '../../components/frontend-os/useContainedModuleScroll';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMobileModuleNavigation } from '../../components/frontend-os/useMobileModuleNavigation';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
@@ -149,6 +151,7 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
   }, [activeSubTab, sessionAccess.loaded, setActiveSubTab, visibleSubTabs]);
 
   const bodyScrollRef = useRef<HTMLDivElement>(null);
+  useContainedModuleScroll(activeSubTab === 'integrations' ? `integrations/${aiNavigation.section}` : activeSubTab, bodyScrollRef, true);
   useMobileModuleNavigation(activeSubTab === 'integrations' ? `integrations/${aiNavigation.section}` : activeSubTab, '', undefined, bodyScrollRef);
 
   const handleTabClick = (tabId: PanelInicialTabId) => {
@@ -160,7 +163,7 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
   };
 
   return (
-    <div className={`flex h-full min-h-0 flex-col overflow-hidden bg-[var(--indice-background)] dark:bg-slate-950 ${workbarPosition === 'left' && !isDualScreenActive ? 'lg:flex-row' : ''}`}>
+    <div className={`indice-contained-workspace flex h-full min-h-0 flex-col overflow-hidden bg-[var(--indice-background)] dark:bg-slate-950 ${workbarPosition === 'left' && !isDualScreenActive ? 'lg:flex-row' : ''}`}>
       <LoadingBarOverlay
         isVisible={isTabLoading || !sessionAccess.loaded}
         title={shellCopy.loadingTabTitle}
@@ -182,7 +185,7 @@ export default function PanelInicial({ onNavigate }: PanelInicialProps) {
         artwork={activeSubTab === 'integrations' ? <IndiceEmoji name="robot" className="size-7" /> : undefined}
       />
 
-      <div ref={bodyScrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div ref={bodyScrollRef} data-module-scroll-body className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
       {/* Main content */}
       <div className="mx-auto max-w-[1600px] px-3 py-4 sm:px-8 sm:py-8">
         <Suspense

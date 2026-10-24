@@ -1,5 +1,6 @@
-import { Activity, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Activity, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { IndiceModuleShell } from '../../components/frontend-os';
+import './humanResourcesWorkspace.css';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { HumanResourcesTabErrorBoundary } from './components/HumanResourcesTabErrorBoundary';
@@ -60,6 +61,7 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
   const mainContentRef = useRef<HTMLDivElement | null>(null);
   const employeeLearningActionsRef = useRef<EmployeeLearningActions | null>(null);
   const tabScrollPositionsRef = useRef(new Map<HumanResourcesTabId, number>());
+  const restoringTabRef = useRef<HumanResourcesTabId | null>(null);
   const [learningSignals, setLearningSignals] = useState(emptyHumanResourcesLearningSignals);
   const learningProgress = useHumanResourcesLearningProgress(learningModeActive);
   const [visitedTabIds, setVisitedTabIds] = useState<Set<HumanResourcesTabId>>(
@@ -118,17 +120,50 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
       nextTabIds.add(activeTab);
       return nextTabIds;
     });
-
-    const savedScrollPosition = tabScrollPositionsRef.current.get(activeTab);
-    if (savedScrollPosition === undefined) {
-      return;
-    }
-
-    const animationFrame = window.requestAnimationFrame(() => {
-      window.scrollTo({ top: savedScrollPosition, behavior: 'auto' });
-    });
-    return () => window.cancelAnimationFrame(animationFrame);
   }, [activeTab, canAccessTab, isAccessLoaded]);
+
+  // The canonical module body owns scrolling; never move the document or app frame.
+  useLayoutEffect(() => {
+    if (!isAccessLoaded) return;
+    const content = mainContentRef.current;
+    const viewport = content?.closest('main');
+    if (!content || !viewport) return;
+    const savedScrollPosition = window.matchMedia('(max-width: 767px)').matches
+      ? 0 : tabScrollPositionsRef.current.get(activeTab) ?? 0;
+    restoringTabRef.current = activeTab;
+    let frame: number | undefined;
+    const finishRestoring = () => {
+      restoringTabRef.current = null;
+      observer.disconnect();
+    };
+    const remember = () => {
+      if (restoringTabRef.current !== activeTab) tabScrollPositionsRef.current.set(activeTab, viewport.scrollTop);
+    };
+    const restore = () => {
+      frame = undefined;
+      if (restoringTabRef.current !== activeTab) return;
+      viewport.scrollTo({ top: savedScrollPosition, left: 0, behavior: 'instant' });
+      if (Math.abs(viewport.scrollTop - savedScrollPosition) < 1) finishRestoring();
+    };
+    // A retained tab may show a short loading state before its data returns.
+    // Retry only after size changes; the user's own input always takes precedence.
+    const observer = new ResizeObserver(() => {
+      if (frame === undefined && restoringTabRef.current === activeTab) frame = window.requestAnimationFrame(restore);
+    });
+    const onIntent = () => { finishRestoring(); remember(); };
+    const intentEvents = ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const;
+    viewport.addEventListener('scroll', remember, { passive: true });
+    intentEvents.forEach(event => viewport.addEventListener(event, onIntent, { passive: true }));
+    observer.observe(content);
+    observer.observe(viewport);
+    restore();
+    return () => {
+      viewport.removeEventListener('scroll', remember);
+      intentEvents.forEach(event => viewport.removeEventListener(event, onIntent));
+      observer.disconnect();
+      if (frame !== undefined) window.cancelAnimationFrame(frame);
+    };
+  }, [activeTab, isAccessLoaded]);
 
   const handleTabClick = (tabId: HumanResourcesTabId) => {
     if (tabId === activeTab) {
@@ -138,15 +173,20 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
       return;
     }
 
-    tabScrollPositionsRef.current.set(activeTab, window.scrollY);
+    if (restoringTabRef.current !== activeTab) {
+      tabScrollPositionsRef.current.set(activeTab, mainContentRef.current?.closest('main')?.scrollTop ?? 0);
+    }
     setVisitedTabIds((currentTabIds) => new Set(currentTabIds).add(tabId));
     setActiveTab(tabId);
   };
 
   const handleGuidePrimaryAction = () => {
-    mainContentRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
+    const content = mainContentRef.current;
+    const viewport = content?.closest('main');
+    if (!content || !viewport) return;
+    viewport.scrollTo({
+      top: viewport.scrollTop + content.getBoundingClientRect().top - viewport.getBoundingClientRect().top,
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
     });
   };
 

@@ -231,6 +231,24 @@ public class HrAttendanceService extends HrAttendanceSelfDailyRecordUseCases {
         return userCalendar(currentUser.companyId(), userCompanyId, month, false);
     }
 
+    /** Report-only projection: no photo URLs, kiosk configuration or attendance mutations. */
+    public java.util.List<com.indice.erp.hr.attendance.reports.AttendanceIncidentReportContracts.Day> incidentReportDays(
+        AuthSessionUser user,
+        com.indice.erp.hr.attendance.reports.AttendanceIncidentReportContracts.Person person,
+        LocalDate from,
+        LocalDate to
+    ) {
+        if (from == null || to == null || to.isBefore(from)
+            || java.time.temporal.ChronoUnit.DAYS.between(from, to) > 92) {
+            throw new IllegalArgumentException("Invalid report period.");
+        }
+        hrAttendanceScopeAccess.requireUserInScope(user.companyId(), hrAttendanceScopeAccess.resolve(user), person.id());
+        var records = attendanceDailyRecordRepository.loadDailyRecords(user.companyId(), person.id(), from, to);
+        var windows = loadScheduleWindows(user.companyId(), person.id(), from, to);
+        return com.indice.erp.hr.attendance.reports.AttendanceIncidentReportProjection.days(
+            person, from, to, records, date -> resolveScheduleRule(windows, date));
+    }
+
     public Map<String,Object> assistantSelfCalendar(AuthSessionUser user,YearMonth month) {
         return userCalendar(user.companyId(),attendanceUserLookupService.loadAttendanceSessionUser(user.companyId(),user.userId()),month,false);
     }

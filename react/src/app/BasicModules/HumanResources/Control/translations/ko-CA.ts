@@ -115,7 +115,7 @@ export const koCA = {
     correction: '수동 수정',
     manualCorrectionBadge: '수',
     noCorrection: '수동 수정 없음',
-    timeTable: '출석 보고서',
+    timeTable: '급여 근태 보고서',
     removeTimeTableDay: '근무 제거',
     removeTimeTableDayTitle: '출석 보고서에서 근무를 제거할까요?',
     removeTimeTableDayDescription: '선택한 날짜의 배정된 근무 또는 임시 근무지만 제거합니다. 체크인 및 체크아웃 기록은 유지됩니다.',

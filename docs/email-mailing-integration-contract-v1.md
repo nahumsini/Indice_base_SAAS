@@ -988,6 +988,19 @@ SMTP idempotency, uncertain-outcome handling, limits and quotas remain authorita
   automatic signature positions the template above it. Mailbox Preferences exposes the existing
   Sales TemplateManager; permissions still govern read/create/edit/archive/restore. Template bodies
   never appear in list responses. Sales campaign persistence and delivery retain the same format.
+- **Template placeholders in individual mail (2026-10-24):** loading an unresolved
+  template presents its deduplicated subject/body fields directly in the composer.
+  Explicit Apply values substitutes visible text in this draft, preserving inline images,
+  safe formatting, attachment references and the shared template. Values apply to all
+  recipients of the individual message; there is no inferred per-recipient personalization.
+  Treat values as text, including placeholders spanning formatting nodes, never as HTML
+  or attribute/image-source interpolation. Partial/blank values do not erase tokens.
+  The existing unresolved-variable review guard remains and focuses the first pending
+  field; correcting the fields clears that stale warning. Draft saving/autosaving remains
+  available before completion, with existing optimistic versions and CSRF. Values remain
+  in component memory until applied; only ordinary draft content is persisted. Existing
+  subject/text/HTML bounds still apply. Native focus scrolls the compose body, retaining
+  the shared header/footer. No API, schema, permission, SMTP-send or deployment change.
 - **Signature:** V345 adds optional `signatureHtml`, `signatureNew` and `signatureReply` to the
   existing private-account preferences contract. Each is versioned and scoped by user/company/account.
   Legacy omission preserves values; edited legacy plain text clears obsolete HTML. New automatic

@@ -21,5 +21,5 @@ export default function MaterialWarehouse({ onNavigate }: { onNavigate?: (page?:
     const [title, description, actionLabel] = configuration[activeTab];
     return <MaterialWarehouseTableView kind="activity" records={materialActivities} title={title} description={description} actionLabel={actionLabel} />;
   }, [activeTab]);
-  return <IndiceModuleShell activeTab={activeTab} contentRef={contentRef} currentModule="material-warehouse" onNavigate={onNavigate} onTabChange={setActiveTab} subtitle="Manage raw materials, supplier evidence, production reservations, and traceability." tabs={tabs.map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon }))} title="Material warehouse" tone="coral"><div ref={contentRef}>{content}</div></IndiceModuleShell>;
+  return <IndiceModuleShell containedWorkspace activeTab={activeTab} contentRef={contentRef} currentModule="material-warehouse" onNavigate={onNavigate} onTabChange={setActiveTab} subtitle="Manage raw materials, supplier evidence, production reservations, and traceability." tabs={tabs.map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon }))} title="Material warehouse" tone="coral"><div ref={contentRef}>{content}</div></IndiceModuleShell>;
 }

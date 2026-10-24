@@ -1,3 +1,4 @@
+import { scrollModuleContentIntoView } from '../../components/frontend-os/useContainedModuleScroll';
 import { Activity, lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { IndiceModuleShell } from '../../components/frontend-os';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
@@ -42,7 +43,6 @@ export default function ProcessesTasks({ learningModeActive = false, onNavigate 
   const t = useProcessesTasksTranslations();
   const guidanceCopy = useProcessesTasksGuidanceTranslations();
   const mainContentRef = useRef<HTMLDivElement | null>(null);
-  const tabScrollPositionsRef = useRef(new Map<ProcessTaskTabId, number>());
   const [visitedTabIds, setVisitedTabIds] = useState<Set<ProcessTaskTabId>>(
     () => new Set(['calendar']),
   );
@@ -65,31 +65,21 @@ export default function ProcessesTasks({ learningModeActive = false, onNavigate 
       return new Set(currentTabIds).add(activeTab);
     });
 
-    const savedScrollPosition = tabScrollPositionsRef.current.get(activeTab);
-    if (savedScrollPosition === undefined) return;
-    const animationFrame = window.requestAnimationFrame(() => {
-      window.scrollTo({ top: savedScrollPosition, behavior: 'auto' });
-    });
-    return () => window.cancelAnimationFrame(animationFrame);
   }, [activeTab]);
 
   const handleTabChange = (tabId: ProcessTaskTabId) => {
     if (tabId === activeTab) return;
-    tabScrollPositionsRef.current.set(activeTab, window.scrollY);
     setVisitedTabIds((currentTabIds) => new Set(currentTabIds).add(tabId));
     setActiveTab(tabId);
   };
 
   const handleGuidePrimaryAction = () => {
-    mainContentRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
-    });
+    scrollModuleContentIntoView(mainContentRef.current);
   };
 
   return (
     <LearningModeHeaderActionsProvider active={learningModeActive}>
-      <IndiceModuleShell
+      <IndiceModuleShell containedWorkspace
         activeTab={activeTab}
         backLabel={t.shell.back}
         contentRef={mainContentRef}

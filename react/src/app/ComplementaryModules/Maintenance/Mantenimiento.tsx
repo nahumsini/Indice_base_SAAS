@@ -83,7 +83,7 @@ export default function Mantenimiento({
       }
     : undefined;
   return (
-    <IndiceModuleShell
+    <IndiceModuleShell containedWorkspace
       currentModule="maintenance"
       title={c.title}
       subtitle={c.subtitle}

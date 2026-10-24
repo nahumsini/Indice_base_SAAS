@@ -703,6 +703,14 @@ Do not duplicate accounts receivable logic inside Expenses if Receivables owns i
 
 ## 5. Required Module Structure
 
+### HR Control payroll incident report (2026-10-24)
+
+The former daily attendance-report entry uses an Operational Workspace Modal for period
+selection, team summary, individual daily detail and native print. It retains the aqua HR
+frame, shared filters, table header/canvas and pagination, with readable cards on phones.
+The owner contract is [hr-attendance-incident-report-contract.md](./hr-attendance-incident-report-contract.md).
+Changed selections require a fresh query before print; report data remains transient and private.
+
 Every business module must live in its own owner folder inside the active `react/src/app` runtime
 tree. Use the appropriate existing category and routing convention; do not create a second module
 entry point.
@@ -5112,3 +5120,53 @@ persistence at `sales/opportunity-colors-{flowId}` and never changes shared stag
 Unknown colors are ignored, badge foregrounds preserve contrast, and labels remain visible alongside
 color. Deletion replaces the frame with a two-step destination/mapping review; uncertain submissions
 retain their command and cannot be edited or dismissed until their result can be checked safely.
+
+
+### Human Resources contained workspace — 2026-10-24
+
+Human Resources is the first module in the approved, module-by-module validation of the
+Dashboard containment pattern. Keep the existing blue product header and aqua module
+workbar outside the canonical module body's vertical scroll. The owner frame uses
+`overflow: clip` (with a hidden fallback) so programmatic focus cannot scroll its chrome.
+Only the inner body scrolls; lists/tables keep their existing horizontal/table viewports.
+
+HR tab navigation records/restores desktop positions on that inner body, including history
+navigation, instead of reading or moving `window.scrollY`. A new tab starts at its heading;
+phone navigation retains the shared start-at-heading rule. The learning guide's primary
+action scrolls only this same body and respects reduced motion. Visited Activity subtrees,
+filters, drafts, pagination, permissions, routes, data reads/mutations, modals, payroll
+calculations and print contracts remain owned by their existing features. This change does
+not alter the shared module shell or enroll other modules. Local validation must cover all
+ten HR tabs, long-content scrolling, returning to a visited tab, a narrow phone and a short
+viewport before the pattern is deliberately expanded or deployed.
+
+
+### Contained workspaces: deliberate system enrollment — 2026-10-24
+
+After the Human Resources review, the user authorized the same Dashboard/RH containment
+throughout authenticated ERP workspaces, retaining module-by-module validation. Canonical
+owners explicitly opt in through `IndiceModuleShell.containedWorkspace`; its default remains
+false for unreviewed consumers. The shared presentation hook remembers desktop tab positions
+on the module body, waits for lazy/async content height, cancels restoration on user intent,
+cleans observers/listeners, and clears its in-memory positions on authorization changes.
+Phones start each destination at its heading. This memory contains only scroll offsets and
+never changes business drafts, filter persistence, APIs, permissions or calculations.
+
+Enrolled canonical owners: Processes/Tasks, Sales, Inventory, Expenses, Petty Cash, POS,
+Receivables, KPIs, Material Warehouse, Production, Scheduling, Minutes Control, Maintenance,
+Email, Ideas Board, Sales Board and Files. Human Resources retains its already verified owner
+scroll lifecycle. Panel Inicial uses the same shared body lifecycle with its own approved header.
+Learning-guide jumps move only the nearest owning module body and respect reduced motion.
+
+Older authenticated standalone modules retain their existing screens and callbacks inside a
+bounded Favorites-header/body composition. Affiliate administration moves its unchanged KPI
+summary into the scrollable body so its identity and tab controls remain reachable. Platform
+administration uses its existing header/sidebar with a bounded content body. Billing and kiosk
+administration already have sticky headers inside the authenticated app's scroll owner; their
+specialized financial, terminal and public contracts are preserved. Public catalogs, booking
+pages, login, kiosks and fullscreen canvases keep their owning public/specialized layouts.
+
+Validation covers native routes and first views per available module, relevant tab navigation,
+long content, delayed data, mobile/short viewport, modal accessibility, TypeScript/build and
+focused domain regressions. Browser checks are read-only and do not submit business records.
+Local activation does not imply production deployment or transaction-level certification.

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useContainedModuleScroll } from '../../components/frontend-os/useContainedModuleScroll';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { mockAffiliateStats } from './mocks/affiliates.mock';
@@ -17,6 +18,8 @@ interface AfiliadosProps {
 export default function Afiliados({ onNavigate }: AfiliadosProps) {
   const [activeTab, setActiveTab] = useState<'afiliados' | 'campanas' | 'encuestas' | 'kioscos' | 'tickets' | 'kpis'>('afiliados');
   const stats = mockAffiliateStats;
+  const bodyScrollRef = useRef<HTMLElement>(null);
+  useContainedModuleScroll(activeTab, bodyScrollRef, true);
 
   const tabs = [
     { id: 'afiliados', label: 'Afiliados', emoji: '👥', component: AfiliadosTab },
@@ -30,9 +33,9 @@ export default function Afiliados({ onNavigate }: AfiliadosProps) {
   const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || AfiliadosTab;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-clip bg-gray-50 dark:bg-gray-900" data-contained-standalone="affiliate-management">
       {/* Header del módulo */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-6">
+      <div className="shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 sm:px-8">
         <div className="max-w-[1600px] mx-auto">
           {/* Barra de Favoritos */}
           <FavoritesBar
@@ -43,9 +46,9 @@ export default function Afiliados({ onNavigate }: AfiliadosProps) {
             currentModule="affiliate-management"
           />
 
-          <div className="flex items-start justify-between mb-6">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              <h1 className="text-xl font-medium text-gray-900 dark:text-white mb-2">
                 Afiliados y Campañas
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
@@ -61,6 +64,29 @@ export default function Afiliados({ onNavigate }: AfiliadosProps) {
             </Button>
           </div>
 
+          {/* Pestañas */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
+                  activeTab === tab.id
+                    ? 'bg-orange-500 text-white shadow-md'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                <span>{tab.emoji}</span>
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Contenido del tab activo */}
+      <main ref={bodyScrollRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain" data-module-scroll-body>
+        <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-8 sm:py-6">
           {/* Stats KPIs Rápidos */}
           <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-4">
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-4">
@@ -124,30 +150,9 @@ export default function Afiliados({ onNavigate }: AfiliadosProps) {
             </div>
           </div>
 
-          {/* Pestañas */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
-                  activeTab === tab.id
-                    ? 'bg-orange-500 text-white shadow-md'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
-                }`}
-              >
-                <span>{tab.emoji}</span>
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Contenido del tab activo */}
-      <div className="max-w-[1600px] mx-auto px-8 py-6">
         <ActiveComponent />
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

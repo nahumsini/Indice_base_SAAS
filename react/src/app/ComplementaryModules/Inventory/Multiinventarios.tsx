@@ -1,3 +1,4 @@
+import { scrollModuleContentIntoView } from '../../components/frontend-os/useContainedModuleScroll';
 import { LearningPracticeExample } from '../../learningMode/components/LearningPracticeExample';
 import { inventoryLearningEnglish } from './operationalGuidance/inventoryLearningEnglish';
 import { lazy, Suspense, useMemo, useRef, type ComponentType, type ReactNode } from 'react';
@@ -143,7 +144,7 @@ function InventoryWorkspace({ learningModeActive, onNavigate }: { learningModeAc
   ), [inventoryTabs]);
 
   return (
-    <IndiceModuleShell
+    <IndiceModuleShell containedWorkspace
       activeTab={activeTab}
       contentRef={mainContentRef}
       currentModule="inventory"
@@ -159,7 +160,7 @@ function InventoryWorkspace({ learningModeActive, onNavigate }: { learningModeAc
           journey={learningJourney}
           moduleTitle={t.title}
           onJourneyChange={(journeyId) => setActiveTab(journeyId as InventoryTabId)}
-          onPrimaryAction={() => mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          onPrimaryAction={() => scrollModuleContentIntoView(mainContentRef.current)}
           scopeId={`inventory-${activeTab}`}
           theme={learningModeGuideThemes.commercial}
         />

@@ -28,7 +28,7 @@ export default function CorreoEmpresarial({ onNavigate, preview = false }: {
   const changeTab = preview ? setPreviewTab : setActiveTab;
   const candidate = params.get('campaign');
   const campaign = candidate && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(candidate) ? candidate : null;
-  return <IndiceModuleShell<'mail' | 'accounts'> currentModule="email" title={copy.title} subtitle={copy.subtitle} tone="blue"
+  return <IndiceModuleShell<'mail' | 'accounts'> containedWorkspace currentModule="email" title={copy.title} subtitle={copy.subtitle} tone="blue"
     activeTab={tab} onTabChange={changeTab} onNavigate={onNavigate}
     loadingOverlay={<LoadingBarOverlay isVisible={!preview && isTabLoading} title={copy.title} description={copy.subtitle} />}
     tabs={[{ id: 'mail', label: copy.mailbox, icon: <Mail className="h-4 w-4" /> }, { id: 'accounts', label: copy.accounts, icon: <Settings className="h-4 w-4" /> }]}>

@@ -1,3 +1,4 @@
+import { scrollModuleContentIntoView } from '../../components/frontend-os/useContainedModuleScroll';
 import { LearningPracticeExample } from '../../learningMode/components/LearningPracticeExample';
 import { kpisLearningEnglish } from './operationalGuidance/kpisLearningEnglish';
 import { lazy, Suspense, useRef, type ComponentType, type ReactNode } from 'react';
@@ -105,7 +106,7 @@ export default function Kpis({ learningModeActive = false, onNavigate }: KpisPro
 
   return (
     <LearningModeHeaderActionsProvider active={learningModeActive}>
-      <IndiceModuleShell
+      <IndiceModuleShell containedWorkspace
         activeTab={activeTab}
         contentRef={mainContentRef}
         currentModule="kpis"
@@ -122,7 +123,7 @@ export default function Kpis({ learningModeActive = false, onNavigate }: KpisPro
               englishModuleTitle="Turn information into decisions"
               moduleTitle="Indicadores"
               onJourneyChange={(journeyId) => setActiveTab(journeyId as KpiTabId)}
-              onPrimaryAction={() => mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              onPrimaryAction={() => scrollModuleContentIntoView(mainContentRef.current)}
               scopeId={`kpis-${activeTab}`}
               theme={learningModeGuideThemes.analytics}
             />

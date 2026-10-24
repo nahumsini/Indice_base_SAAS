@@ -115,7 +115,7 @@ export const zhCA = {
     correction: '手动更正',
     manualCorrectionBadge: '手',
     noCorrection: '无手动更正',
-    timeTable: '考勤报表',
+    timeTable: '薪资考勤报告',
     removeTimeTableDay: '移除班次',
     removeTimeTableDayTitle: '从考勤报表中移除此班次？',
     removeTimeTableDayDescription: '这只会移除该日期已分配的班次或临时地点。签到和签退记录会保留。',

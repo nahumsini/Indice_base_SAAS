@@ -12,7 +12,7 @@ Generated from the reviewed bilingual curriculum. Domain owners remain authorita
 | sales_board.channels | 6 | sales-board/channels | 2 | Understanding only until an owner completion is integrated |
 | sales_board.sales | 6 | sales-board/sales | 2 | Understanding only until an owner completion is integrated |
 | correo.accounts | 5 | email/accounts | 2 | Understanding only until an owner completion is integrated |
-| correo.mail | 5 | email/mail | 4 | Understanding only until an owner completion is integrated |
+| correo.mail | 5 | email/mail | 5 | Understanding only until an owner completion is integrated |
 | maintenance.requests | 3 | maintenance/requests | 2 | Understanding only until an owner completion is integrated |
 | maintenance.orders | 3 | maintenance/orders | 2 | Understanding only until an owner completion is integrated |
 | maintenance.assets | 3 | maintenance/assets | 2 | Understanding only until an owner completion is integrated |
@@ -42,7 +42,7 @@ Generated from the reviewed bilingual curriculum. Domain owners remain authorita
 | config_center.consulting | 1 | home-panel/consulting | 2 | Understanding only until an owner completion is integrated |
 | config_center.integrations | 1 | home-panel/integrations | 2 | Understanding only until an owner completion is integrated |
 | human_resources.collaborators | 2 | human-resources/collaborators | 3 | create_employee, update_employee, import_employees, attach_employee_document |
-| human_resources.control | 2 | human-resources/control | 3 | create_hr_schedule, assign_hr_schedule, assign_hr_work_site, assign_hr_rest_days |
+| human_resources.control | 2 | human-resources/control | 4 | create_hr_schedule, assign_hr_schedule, assign_hr_work_site, assign_hr_rest_days |
 | human_resources.attendance | 2 | human-resources/attendance | 3 | Understanding only until an owner completion is integrated |
 | human_resources.permissions | 2 | human-resources/permissions | 2 | create_my_hr_permission, approve_hr_permission, reject_hr_permission |
 | human_resources.payroll | 2 | human-resources/payroll | 2 | prepare_hr_payroll, approve_hr_payroll |

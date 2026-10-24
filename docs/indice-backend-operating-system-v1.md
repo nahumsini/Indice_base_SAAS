@@ -360,6 +360,14 @@ service only delivers the in-app inbox event. V321 preserves the legacy wall-clo
 
 ## 11. Money, Quantity, And Time
 
+### HR Control attendance incident reporting (2026-10-24)
+
+The read-only period report reuses native attendance corrections and schedule-window status
+policy under session, Control management permission, company and operational scope. Its
+bounded, complete-source report and employment-date handling are governed by
+[hr-attendance-incident-report-contract.md](./hr-attendance-incident-report-contract.md).
+This output does not mutate attendance or calculate payroll, wages or deductions.
+
 - Java monetary values use `BigDecimal`; SQL uses a reviewed `DECIMAL` precision/scale, normally
   `DECIMAL(19,4)` for the existing financial modules.
 - Never use binary floating point for authoritative money.

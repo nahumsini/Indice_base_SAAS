@@ -108,6 +108,7 @@ jobs:
           npm run test:auth
           npm run test:dashboard-ui
           npm run test:human-resources-ui
+          node --experimental-strip-types --test tests/attendance-incidents.test.mjs tests/contained-module-scroll.test.mjs tests/human-resources-workspace-scroll.test.mjs
           npm run test:kiosks
           npm run test:expenses
           npm run test:expenses-ui

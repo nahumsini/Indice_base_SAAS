@@ -1,3 +1,5 @@
+import './containedWorkspace.css';
+import { useContainedModuleScroll } from './useContainedModuleScroll';
 import { useMobileModuleNavigation } from './useMobileModuleNavigation';
 import { useLanguage } from '../../shared/context';
 import { useRef, useState, type CSSProperties, type ReactNode, type Ref } from 'react';
@@ -47,6 +49,7 @@ interface IndiceModuleShellProps<TabId extends string> {
   backLabel?: string;
   children: ReactNode;
   contentRef?: Ref<HTMLDivElement>;
+  containedWorkspace?: boolean;
   currentModule: string;
   guide?: ReactNode;
   loadingOverlay?: ReactNode;
@@ -71,6 +74,7 @@ export function IndiceModuleShell<TabId extends string>({
   activeTab,
   children,
   contentRef,
+  containedWorkspace = false,
   currentModule,
   guide,
   loadingOverlay,
@@ -111,11 +115,13 @@ export function IndiceModuleShell<TabId extends string>({
   const moduleEmoji = MODULE_EMOJI_BY_ROUTE[moduleId] ?? '◈';
   const tabsScrollRef = useRef<HTMLElement>(null);
   const bodyScrollRef = useRef<HTMLElement>(null);
+  useContainedModuleScroll(`${currentModule}/${activeTab}`, bodyScrollRef, containedWorkspace);
   useMobileModuleNavigation(`${currentModule}/${activeTab}`, navigationEntries.map(entry => entry.kind === 'tab' ? entry.tab.id : entry.menu.id).join('|'), tabsScrollRef, bodyScrollRef);
 
   return (
     <div
-      className={`flex h-full min-h-0 flex-col overflow-hidden bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-white ${isSideLayout ? 'lg:flex-row' : ''}`}
+      className={`flex h-full min-h-0 flex-col overflow-hidden bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-white ${isSideLayout ? 'lg:flex-row' : ''} ${containedWorkspace ? 'indice-contained-workspace' : ''}`}
+      data-contained-workspace={containedWorkspace ? '' : undefined}
       data-module={currentModule}
       data-workbar-position={isSideLayout ? 'left' : 'top'}
       style={{ '--indice-workbar-tone': theme.primary } as CSSProperties}

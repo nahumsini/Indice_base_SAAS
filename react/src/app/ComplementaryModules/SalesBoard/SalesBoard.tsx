@@ -79,7 +79,7 @@ function RoutedSalesBoard({
     { preserveSearch: true },
   );
   return (
-    <IndiceModuleShell
+    <IndiceModuleShell containedWorkspace
       currentModule="sales-board"
       title={copy.title}
       subtitle={copy.subtitle}

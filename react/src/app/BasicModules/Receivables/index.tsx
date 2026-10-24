@@ -1,3 +1,4 @@
+import { scrollModuleContentIntoView } from '../../components/frontend-os/useContainedModuleScroll';
 import { LearningPracticeExample } from '../../learningMode/components/LearningPracticeExample';
 import { receivablesLearningEnglish } from './operationalGuidance/receivablesLearningEnglish';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -292,7 +293,7 @@ function ReceivablesWorkspace({
   };
 
   return (
-    <IndiceModuleShell
+    <IndiceModuleShell containedWorkspace
         activeTab={activeTab}
         contentRef={mainContentRef}
         currentModule="receivables"
@@ -309,7 +310,7 @@ function ReceivablesWorkspace({
             journey={learningJourney}
             moduleTitle={copy.module.title}
             onJourneyChange={(journeyId) => setActiveTab(journeyId as ReceivablesTabId)}
-            onPrimaryAction={() => mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            onPrimaryAction={() => scrollModuleContentIntoView(mainContentRef.current)}
             scopeId={`receivables-${activeTab}`}
             theme={learningModeGuideThemes.finance}
           />

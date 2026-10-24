@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Revisión local · Espacios de trabajo</title></head>
+<body style="margin:0;padding:12px;background:#eef2f6;font:14px system-ui">
+<label>Módulo <select id="module" style="min-height:44px;margin:0 12px"></select></label><span id="size"></span>
+<iframe title="Módulo en revisión" style="display:block;margin-top:12px;border:1px solid #cbd5e1;background:white"></iframe>
+<script type="module">
+const modules=['human-resources','processes-tasks','sales','inventory','expenses','petty-cash','point-of-sale','receivables','kpis','scheduling','minutes-control','maintenance','email','ideas-board','sales-board','files','home-panel','platform-admin'];
+const params=new URLSearchParams(location.search);
+const size=params.get('mode')==='short'?{width:1366,height:576}:{width:390,height:640};
+const select=document.getElementById('module'),frame=document.querySelector('iframe');
+for(const name of modules){const option=document.createElement('option');option.value=name;option.textContent=name;select.append(option);}
+select.value=modules.includes(params.get('module'))?params.get('module'):'human-resources';
+frame.width=size.width;frame.height=size.height;document.getElementById('size').textContent=`${size.width} × ${size.height} CSS px · aplicación local`;
+const show=()=>{frame.src='/'+select.value;};select.addEventListener('change',show);show();
+</script></body></html>

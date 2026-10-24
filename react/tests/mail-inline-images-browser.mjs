@@ -29,6 +29,7 @@ await context.route('**/*', async route => {
   if (path.endsWith('/preferences')) return route.fulfill({ json: { backgroundEnabled: false, signature: '', version: 1 } });
   if (/\/messages\/[^/]+\/attachments$/.test(path) && request.method() === 'GET') return route.fulfill({ json: [] });
   if (path === '/api/v1/auth/csrf') return route.fulfill({ json: { csrfToken: 'synthetic-csrf' } });
+  if (path === '/api/v1/mailing/audience') return route.fulfill({ json: { items: [], total: 0, page: 1, pageSize: 10 } });
   if (path === '/api/v1/mailing/templates') return route.fulfill({ json: { items: [...templates.values()], total: templates.size, page: 1, pageSize: 25, canManage: true } });
   if (/^\/api\/v1\/mailing\/templates\/[^/]+$/.test(path)) {
     const id = path.split('/').at(-1);
@@ -158,6 +159,61 @@ try {
   assert.equal(await images().count(), 1, 'Reopening a saved template retains its embedded image');
   await page.locator('.indice-mail-editor').getByText('1 / 3', { exact: true }).waitFor();
   assert.match(await images().first().getAttribute('src'), /^data:image\/jpeg;base64,/);
+
+  // Reproduce the owner's sequence: load a template, add an image, then review.
+  const templateId = '00000000-0000-4000-8000-000000000002';
+  templates.set(templateId, { id: templateId, name: 'Propuesta con datos pendientes', subject: 'Propuesta para {{empresa}}',
+    bodyText: 'Hola {{name}},\nPropuesta para {{empresa}}.',
+    bodyHtml: `<p>Hola {{na<strong>me}}</strong>,</p><p>Propuesta para {{empresa}}.</p><img src="data:image/png;base64,${logo.toString('base64')}" alt="Logo">`,
+    version: 1, status: 'ACTIVE', updatedAt: new Date().toISOString(), attachments: [] });
+  await page.goto(origin + '/tests/browser/mail-template.html?mode=email');
+  await page.getByRole('button', { name: 'Plantillas de Ventas', exact: true }).click();
+  await page.getByRole('button', { name: /Propuesta con datos pendientes/ }).click();
+  await page.getByRole('button', { name: 'Insertar', exact: true }).click();
+  await body.filter({ hasText: 'Hola {{name}}' }).waitFor();
+  assert.equal(await images().count(), 1, 'Loading a template retains its own inline image');
+  await choose('extra.png', logo);
+  await page.waitForFunction(() => document.querySelectorAll('[role=textbox][aria-label=Mensaje] img').length === 2);
+  assert.equal(await page.getByRole('alert').count(), 0, 'Selecting an image must not invoke send review');
+  await page.getByRole('textbox', { name: 'Para', exact: true }).fill('person@example.com');
+  await page.getByRole('textbox', { name: 'Para', exact: true }).press('Enter');
+  await page.getByRole('button', { name: 'Revisar envío', exact: true }).click();
+  await page.getByRole('alert').filter({ hasText: 'Completa las variables' }).waitFor();
+  assert.equal(await images().count(), 2, 'The placeholder guard must preserve both images');
+  const nameField = page.getByLabel('{{name}}', { exact: true });
+  await nameField.waitFor({ timeout: 3000 });
+  await page.waitForFunction(() => document.activeElement?.closest('label')?.textContent === '{{empresa}}');
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    await page.getByRole('region', { name: 'Completa los datos de la plantilla', exact: true }).scrollIntoViewIfNeeded();
+    assert.equal(await page.getByRole('dialog').evaluate(node => {
+      const frame = node.getBoundingClientRect();
+      const header = node.querySelector('[data-slot="dialog-header"]').getBoundingClientRect();
+      const footer = node.querySelector('[data-slot="dialog-footer"]').getBoundingClientRect();
+      return node.scrollTop === 0 && header.top >= frame.top && Math.abs(footer.bottom - frame.bottom) < 2;
+    }), true, 'Native focus/scroll keeps compose header and footer pinned');
+    await page.screenshot({ path: `/tmp/indice-inline-image-review/template-fields-${width}.png`, animations: 'disabled' });
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  assert.equal(await page.getByRole('button', { name: 'Aplicar datos', exact: true }).isDisabled(), true);
+  await nameField.fill('Ana & <equipo>');
+  assert.equal(await page.getByRole('button', { name: 'Aplicar datos', exact: true }).isDisabled(), true, 'Incomplete values do not erase missing placeholders');
+  await page.getByLabel('{{empresa}}', { exact: true }).fill('Empresa de prueba');
+  await page.getByRole('button', { name: 'Aplicar datos', exact: true }).click();
+  await body.filter({ hasText: 'Hola Ana & <equipo>' }).waitFor();
+  assert.equal(await images().count(), 2, 'Completing placeholders must preserve inserted and template images');
+  assert.equal(await body.locator('equipo').count(), 0, 'Replacement values are text, never HTML');
+  assert.equal(await page.getByRole('alert').count(), 0, 'Resolving the fields clears the stale review error');
+  await page.getByRole('button', { name: 'Revisar envío', exact: true }).click();
+  await page.getByRole('button', { name: 'Enviar correo', exact: true }).waitFor();
+  const completed = [...drafts.values()].at(-1);
+  assert.equal(completed.subject, 'Propuesta para Empresa de prueba');
+  assert.ok(!/\{\{/.test(completed.bodyText + completed.bodyHtml));
+  assert.equal(completed.bodyHtml.match(/<img /g).length, 2);
+  assert.ok(completed.bodyHtml.includes('&lt;equipo&gt;'));
+  assert.deepEqual(completed.to, ['person@example.com']);
+  assert.ok(templates.get(templateId).bodyText.includes('{{name}}'), 'Completing one draft never changes the shared template');
   assert.deepEqual(errors, []); assert.deepEqual(unexpected, []);
-  console.log('PASS: native file chooser, saved caret, transparent PNG optimization, invalid input recovery, limits, draft/template persistence, dark/mobile image action; no email sent.');
+  console.log('PASS: native image chooser, caret/undo, PNG optimization, limits/persistence, dark/mobile, imported-template images, actionable placeholder review, escaped field completion and shared-template preservation; no email sent.');
 } finally { await browser.close(); await server.close(); }

@@ -112,7 +112,7 @@ export const esMX = {
       calendarKpiAbsences: 'Faltas',
       calendarKpiLate: 'Retardos',
       calendarKpiRest: 'Descansos',
-      timeTable: 'Reportes de asistencia',
+      timeTable: 'Incidencias de nómina',
       removeTimeTableDay: 'Eliminar turno',
       removeTimeTableDayTitle: 'Eliminar turno del reporte de asistencia?',
       removeTimeTableDayDescription: 'Esto elimina el turno o ubicación temporal asignada solo para esta fecha. Los registros de entrada y salida se mantienen guardados.',

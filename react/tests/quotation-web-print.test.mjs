@@ -33,6 +33,17 @@ test('all document content is escaped and active image schemes are rejected', ()
   assert.equal(render.safeDocumentImageUrl('data:image/png;base64,WA=='), 'data:image/png;base64,WA==');
 });
 
+test('optional owner table metadata is escaped without changing ordinary document rows', () => {
+  const fixture = quotationFixture(2);
+  fixture.tables[0].metadata = [{ label: '<script>scope</script>', value: 'Team & unit' }];
+  const html = render.buildStandardDocumentHtml(fixture);
+  assert.match(html, /&lt;script&gt;scope&lt;\/script&gt;/);
+  assert.match(html, /Team &amp; unit/);
+  assert.doesNotMatch(html, /<script>/);
+  assert.equal((html.match(/<tbody>/g) ?? []).length, 1);
+  assert.equal((html.match(/<tr>/g) ?? []).length, 3);
+});
+
 test('empty and localized documents remain complete without invented issuer identity', () => {
   for (const locale of ['es-MX', 'es-CO', 'en-CA', 'en-US', 'fr-CA', 'pt-BR', 'ko-CA', 'zh-CA']) {
     const fixture = quotationFixture(0, locale);

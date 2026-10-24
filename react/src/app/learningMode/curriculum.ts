@@ -26,6 +26,8 @@ const definitions: Record<string, readonly [string, number]> = {
 function chapter(module: string, tab: string, label: LearningText, steps: readonly LearningText[], evidenceTools: readonly string[] = []): LearningChapter {
   const [pageId, stage] = definitions[module];
   const version = module === 'scheduling' && ['calendar','reservations'].includes(tab) ? 3
+    : module === 'correo' && tab === 'mail' ? 5
+    : module === 'human_resources' && tab === 'control' ? 4
     : module === 'scheduling' && tab === 'configuration' ? 8
     : module === 'ideas_board' && tab === 'projects' ? 5
     : module === 'ideas_board' && ['canvas','system'].includes(tab) ? 4
@@ -83,7 +85,7 @@ export const learningChapters: readonly LearningChapter[] = [
   ]),
   chapter("correo", "mail", ["Buzón y mensajes","Mailbox and messages"], [
     ["Selecciona tu cuenta conectada y carpeta y busca al cliente, remitente, destinatario o asunto.","Select your connected account and folder and search by customer, sender, recipient or subject."],
-    ["Sincroniza y organiza mensajes con selección múltiple. Redacta con formato, contactos y plantillas autorizados de Ventas y la firma de la cuenta. Guarda plantillas con sus archivos reutilizables y revisa los adjuntos cargados y destinatarios antes de confirmar el envío.","Sync and organize messages with multiple selection. Compose with formatting, authorized Sales contacts and templates, and the account signature. Save templates with reusable files and review uploaded attachments and recipients before confirming send."],
+    ["Sincroniza y organiza mensajes con selección múltiple. Redacta con formato, contactos y plantillas autorizados de Ventas y la firma de la cuenta. Completa los datos pendientes de la plantilla con Aplicar datos; se usan para todos los destinatarios de este correo y la plantilla original se conserva. Guarda plantillas con sus archivos reutilizables y revisa las imágenes, adjuntos y destinatarios antes de confirmar el envío.","Sync and organize messages with multiple selection. Compose with formatting, authorized Sales contacts and templates, and the account signature. Complete pending template fields with Apply values; they apply to every recipient of this message and the original template is preserved. Save templates with reusable files and review images, attachments and recipients before confirming send."],
     ["Comprueba Enviados y el estado de envío. Distingue carpetas del servidor, borradores locales y resultados sin confirmar antes de reintentar.","Check Sent and delivery status. Distinguish server folders, local drafts and unconfirmed outcomes before retrying."],
   ]),
   chapter("maintenance", "requests", ["Solicitudes técnicas","Technical requests"], [
@@ -234,7 +236,7 @@ export const learningChapters: readonly LearningChapter[] = [
   chapter('human_resources', 'control', ['Horarios, ubicaciones y acceso', 'Schedules, locations and access'], [
     ['Define horarios, descansos, ubicaciones y el alcance del kiosco antes de asignar personas.', 'Define schedules, rest days, locations and kiosk scope before assigning people.'],
     ['Asigna horarios y sitios con sus fechas vigentes; configura kiosco individual o multikiosco según la operación. El kiosco personal respeta esas asignaciones: un horario abierto sin sitio obligatorio conserva la política de ubicación configurada.', 'Assign schedules and work sites with effective dates; configure individual or multiuser kiosks for the operation. The personal kiosk respects those assignments: an open schedule without a required site retains the configured location policy.'],
-    ['Comprueba el calendario y las asignaciones. Los cambios no reescriben marcaciones previas; PIN, biometría y credenciales físicas se administran en sus pantallas autorizadas, no en el chat.', 'Check the calendar and assignments. Changes do not rewrite previous attendance events; PINs, biometrics and physical credentials are managed in authorized screens, not in chat.'],
+    ['Comprueba el calendario y las asignaciones. En Incidencias de nómina consulta un periodo y el equipo autorizado; revisa el resumen y el detalle antes de Imprimir / Guardar PDF. El reporte no calcula pagos ni deducciones. Los cambios no reescriben marcaciones previas; PIN, biometría y credenciales físicas se administran en sus pantallas autorizadas, no en el chat.', 'Check the calendar and assignments. In Payroll incidents query a period and the authorized team; review the summary and details before Print / Save PDF. The report does not calculate pay or deductions. Changes do not rewrite previous attendance events; PINs, biometrics and physical credentials are managed in authorized screens, not in chat.'],
   ], ['create_hr_schedule', 'assign_hr_schedule', 'assign_hr_work_site', 'assign_hr_rest_days']),
   chapter('human_resources', 'attendance', ['Asistencia y calendario', 'Attendance and calendar'], [
     ['Elige fecha y alcance permitido. Distingue registros propios de la administración de asistencia.', 'Choose a date and authorized scope. Distinguish personal records from attendance administration.'],

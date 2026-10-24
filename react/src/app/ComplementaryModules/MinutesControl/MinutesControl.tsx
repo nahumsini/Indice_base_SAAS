@@ -49,7 +49,7 @@ export default function MinutesControl({
   ].includes(normalizeTabScopeRole(auth.data?.user.role));
   const userId = auth.data?.user.id ?? 0;
   return (
-    <IndiceModuleShell
+    <IndiceModuleShell containedWorkspace
       currentModule="minutes-control"
       title={copy.title}
       subtitle={copy.subtitle}

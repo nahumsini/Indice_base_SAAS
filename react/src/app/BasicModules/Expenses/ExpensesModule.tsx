@@ -1,3 +1,4 @@
+import { scrollModuleContentIntoView } from '../../components/frontend-os/useContainedModuleScroll';
 import { LearningPracticeExample } from '../../learningMode/components/LearningPracticeExample';
 import { expensesLearningEnglish } from './operationalGuidance/expensesLearningEnglish';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
@@ -269,7 +270,7 @@ export default function ExpensesModule({ learningModeActive = false, onNavigate 
   }, []);
 
   const handleGuidePrimaryAction = () => {
-    mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    scrollModuleContentIntoView(mainContentRef.current);
   };
 
   const renderActiveTab = () => {
@@ -310,7 +311,7 @@ export default function ExpensesModule({ learningModeActive = false, onNavigate 
 
   return (
     <LearningModeHeaderActionsProvider active={learningModeActive}>
-      <IndiceModuleShell
+      <IndiceModuleShell containedWorkspace
         activeTab={activeTab}
         backLabel={t.module.back}
         contentRef={mainContentRef}

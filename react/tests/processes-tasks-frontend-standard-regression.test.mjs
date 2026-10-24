@@ -402,7 +402,8 @@ test('los filtros progresivos conservan su memoria por pestaña', () => {
 
   assert.match(moduleSource, /import \{ Activity,/);
   assert.match(moduleSource, /visitedTabIds/);
-  assert.match(moduleSource, /tabScrollPositionsRef/);
+  assert.match(moduleSource, /<IndiceModuleShell containedWorkspace/);
+  assert.doesNotMatch(moduleSource, /window\.scroll(?:To|Y)/);
   assert.match(moduleSource, /mode=\{tab\.id === activeTab \? 'visible' : 'hidden'\}/);
 
   for (const source of [agendaFiltersSource, projectsSource, processesSource, kpisSource]) {

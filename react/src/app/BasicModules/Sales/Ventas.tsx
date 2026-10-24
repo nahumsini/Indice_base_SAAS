@@ -1,3 +1,4 @@
+import { scrollModuleContentIntoView } from '../../components/frontend-os/useContainedModuleScroll';
 import {
   lazy,
   Suspense,
@@ -154,7 +155,7 @@ function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) 
 
   return (
     <LearningModeHeaderActionsProvider active={learningModeActive}>
-      <IndiceModuleShell
+      <IndiceModuleShell containedWorkspace
         activeTab={activeTab}
         backLabel={copy.back}
         contentRef={moduleContentRef}
@@ -164,7 +165,7 @@ function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) 
             activeTabId={activeTab}
             copy={guidanceCopy}
             onJourneyChange={setActiveTab}
-            onPrimaryAction={() => moduleContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            onPrimaryAction={() => scrollModuleContentIntoView(moduleContentRef.current)}
           />
         ) : undefined}
         loadingOverlay={<SalesLoadingState isVisible={isTabLoading} title={copy.loading.openingTitle} description={copy.loading.openingDescription} />}

@@ -33,7 +33,7 @@ function SchedulingContent({ onNavigate, learningModeActive = false }: Schedulin
   const allowed = capabilities.tabs;
   const administrator = ['root', 'superadmin', 'admin', 'owner', 'dueno'].includes(normalizeTabScopeRole(access.data?.user.role));
   useEffect(() => { if (allowed.length && !allowed.includes(activeTab)) setActiveTab(allowed[0]); }, [allowed.join(','), activeTab]);
-  return <IndiceModuleShell currentModule="scheduling" title={copy.title} subtitle={copy.subtitle} tone={schedulingTone}
+  return <IndiceModuleShell containedWorkspace currentModule="scheduling" title={copy.title} subtitle={copy.subtitle} tone={schedulingTone}
     activeTab={activeTab} onTabChange={setActiveTab} onNavigate={onNavigate}
     tabs={allowed.map(id => ({ id, label: id === 'calendar' ? copy.agendaReservations : copy[id], icon: schedulingEmoji[id],
       access: { page: 'scheduling' as const, tabId: id === 'calendar' ? capabilities.agendaScope : id } }))}>

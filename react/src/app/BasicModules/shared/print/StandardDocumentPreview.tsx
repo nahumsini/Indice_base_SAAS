@@ -39,6 +39,9 @@ export function StandardDocumentPreview({ definition, className, paperPreview = 
       image.addEventListener('error', () => resolve(), { once: true });
     }))]), new Promise(resolve => setTimeout(resolve, 5000))]);
     if (doc !== frameRef.current?.contentDocument) return;
+    // Match browser output: failed logos leave the issuer text, never a broken-image icon.
+    Array.from(doc.images).filter(image => image.complete && image.naturalWidth === 0)
+      .forEach(image => { image.style.display = 'none'; });
     prepareDocumentPrintLayout(doc, definition.contract.pageSize);
     doc.body.style.margin = '10mm auto';
     doc.body.style.padding = '10mm';

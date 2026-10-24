@@ -38,7 +38,7 @@ Paths below are relative to `react/src/app/BasicModules/` unless noted.
 
 | Module / active documents | Current output / implementation evidence |
 |---|---|
-| RH: daily attendance | Existing web print, shared quotation theme through `HumanResources/Control/utils/timeTablePrintReport.ts` and `shared/print/documentHtmlPrintEngine.ts` |
+| RH: payroll incidents by period | Active `HumanResources/Control/utils/incidentReportPrint.ts`, common `StandardDocumentDefinition` + sandboxed paper preview + `printStandardDocumentHtml`, quotation-style grayscale, real company logo, natural pagination, portrait-first measured layout, operational/private, v2.1; legacy `HumanResources/Control/utils/timeTablePrintReport.ts` retained for compatibility |
 | RH: payroll run and employee receipt | Existing browser portal; quotation typography/neutral panels in `HumanResources/Payroll/payrollPdf.css`; A4 landscape, line items and jurisdiction notices preserved |
 | RH: administrative act, individual and selected batch | `HumanResources/Records/utils/records.pdf.ts`: escaped web definitions; selected batch opens one job with separate acts |
 | RH: asset assignment and permission | `HumanResources/Assets/AssetDetailsModal.tsx`; `HumanResources/Permissions/utils/permissionPrintDocument.ts`: quotation web layout; signature fields preserved |

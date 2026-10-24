@@ -1,3 +1,4 @@
+import { scrollModuleContentIntoView } from '../../components/frontend-os/useContainedModuleScroll';
 import { LearningPracticeExample } from '../../learningMode/components/LearningPracticeExample';
 import { pettyCashLearningEnglish } from './operationalGuidance/pettyCashLearningEnglish';
 import { useSearchParams } from 'react-router';
@@ -158,7 +159,7 @@ export default function CajaChica({ learningModeActive = false, onNavigate }: Ca
 
   return (
     <LearningModeHeaderActionsProvider active={learningModeActive}>
-      <IndiceModuleShell
+      <IndiceModuleShell containedWorkspace
         activeTab={activeTab}
         backLabel={copy.shell.back}
         contentRef={mainContentRef}
@@ -176,7 +177,7 @@ export default function CajaChica({ learningModeActive = false, onNavigate }: Ca
             journey={learningJourney}
             moduleTitle={copy.shell.title}
             onJourneyChange={(journeyId) => setActiveTab(journeyId as PettyCashTabId)}
-            onPrimaryAction={() => mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            onPrimaryAction={() => scrollModuleContentIntoView(mainContentRef.current)}
             scopeId={`petty-cash-${activeTab}`}
             theme={learningModeGuideThemes.finance}
           />

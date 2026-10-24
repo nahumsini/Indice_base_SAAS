@@ -110,7 +110,7 @@ export const enCA = {
       calendarKpiAbsences: 'Absences',
       calendarKpiLate: 'Late',
       calendarKpiRest: 'Rest',
-      timeTable: 'Attendance reports',
+      timeTable: 'Payroll incidents',
       removeTimeTableDay: 'Remove shift',
       removeTimeTableDayTitle: 'Remove shift from attendance reports?',
       removeTimeTableDayDescription: 'This removes the assigned shift or temporary location for this date only. Check-in and check-out records stay saved.',

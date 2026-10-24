@@ -954,12 +954,12 @@ export default function PlatformAdminPage() {
     : { acquisition: "Captar", conversion: "Convertir", account: "Cuentas", service: "Acompañar", control: "Control" };
   return (
     <main
-      className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-white"
+      className="flex h-dvh min-h-0 flex-col overflow-clip bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-white"
       data-module="platform-admin"
       data-workbar-position={sidebarWorkbar ? "left" : "top"}
     >
-      <div className={sidebarWorkbar ? "lg:flex lg:items-start" : undefined}>
-        <header className={`z-30 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 ${sidebarWorkbar ? "lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:shrink-0 lg:overflow-y-auto lg:border-b-0 lg:border-r" : "sticky top-0"}`}>
+      <div className={`flex min-h-0 flex-1 flex-col overflow-hidden ${sidebarWorkbar ? "lg:flex-row" : ""}`}>
+        <header className={`shrink-0 z-30 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 ${sidebarWorkbar ? "lg:sticky lg:top-0 lg:h-full lg:w-72 lg:shrink-0 lg:overflow-y-auto lg:border-b-0 lg:border-r" : "sticky top-0"}`}>
           <div className={`mx-auto max-w-[1600px] px-4 py-3 lg:px-6 ${sidebarWorkbar ? "lg:px-4" : ""}`}>
             <div className={`mb-3 flex items-center gap-3 ${sidebarWorkbar ? "lg:justify-between" : ""}`}>
               <IndiceBrandLogo alt="Índice" className="h-8 w-28 shrink-0" imageClassName="w-[130px]" />
@@ -1002,7 +1002,7 @@ export default function PlatformAdminPage() {
           <div className="h-1 bg-[#2563EB]" aria-hidden="true" />
         </header>
 
-      <div className={`min-w-0 flex-1 space-y-5 px-4 py-5 lg:px-6 lg:py-6 ${sidebarWorkbar ? "" : "mx-auto max-w-[1600px]"}`}>
+      <div data-module-scroll-body className={`min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain space-y-5 px-4 py-5 lg:px-6 lg:py-6 ${sidebarWorkbar ? "" : "mx-auto max-w-[1600px]"}`}>
         {error ? (
           <div
             role="alert"

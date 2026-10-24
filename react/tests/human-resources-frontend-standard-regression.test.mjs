@@ -329,3 +329,19 @@ test('los filtros de Recursos Humanos comparten divulgación y memoria por pesta
     assert.match(source, new RegExp(`tabKey: ['"]${tabKey}['"]`));
   }
 });
+
+
+test('RH mantiene el desplazamiento dentro del marco sin mover la página completa', () => {
+  const source = readFileSync(resolve(moduleRoot, 'HumanResources.tsx'), 'utf8');
+  const css = readFileSync(resolve(moduleRoot, 'humanResourcesWorkspace.css'), 'utf8');
+  assert.doesNotMatch(source, /window\.scroll(?:To|Y)|mainContentRef\.current\?\.scrollIntoView/);
+  assert.match(source, /closest\('main'\)/);
+  assert.match(source, /viewport\.addEventListener\('scroll', remember, \{ passive: true \}\)/);
+  assert.match(source, /viewport\.removeEventListener\('scroll', remember\)/);
+  assert.match(source, /window\.cancelAnimationFrame\(frame\)/);
+  assert.match(source, /tabScrollPositionsRef\.current\.get\(activeTab\) \?\? 0/);
+  assert.match(source, /prefers-reduced-motion: reduce/);
+  assert.match(css, /\[data-module="human-resources"\] > main/);
+  assert.match(css, /overflow: clip/);
+  assert.match(css, /scrollbar-gutter: stable/);
+});

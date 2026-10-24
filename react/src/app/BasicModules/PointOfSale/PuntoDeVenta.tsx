@@ -1,3 +1,4 @@
+import { scrollModuleContentIntoView } from '../../components/frontend-os/useContainedModuleScroll';
 import { LearningPracticeExample } from '../../learningMode/components/LearningPracticeExample';
 import { pointOfSaleLearningEnglish } from './operationalGuidance/pointOfSaleLearningEnglish';
 import { lazy, Suspense, useEffect, useMemo, useRef } from 'react';
@@ -188,7 +189,7 @@ function PuntoDeVentaContent({ learningModeActive = false, onNavigate }: PuntoDe
 
   return (
     <LearningModeHeaderActionsProvider active={showLearningGuide}>
-      <IndiceModuleShell
+      <IndiceModuleShell containedWorkspace
       activeTab={activeTab}
       backLabel={t.back}
       contentRef={mainContentRef}
@@ -206,7 +207,7 @@ function PuntoDeVentaContent({ learningModeActive = false, onNavigate }: PuntoDe
           journey={learningJourney}
           moduleTitle={t.title}
           onJourneyChange={(journeyId) => setActiveTab(journeyId as PointOfSaleTabId)}
-          onPrimaryAction={() => mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          onPrimaryAction={() => scrollModuleContentIntoView(mainContentRef.current)}
           scopeId={`point-of-sale-${activeTab}`}
           theme={learningModeGuideThemes.commercial}
         />

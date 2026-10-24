@@ -123,8 +123,8 @@ function StandaloneModuleShell({
   }
 
   return (
-    <div>
-      <div className="max-w-[1600px] mx-auto px-8 pt-6">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-clip" data-contained-standalone={currentModule}>
+      <div className="mx-auto w-full max-w-[1600px] shrink-0 px-4 py-3 sm:px-8">
         <FavoritesBar
           onNavigate={(page) => {
             if (resolvePageId(page) === currentModule) return;
@@ -133,7 +133,9 @@ function StandaloneModuleShell({
           currentModule={currentModule}
         />
       </div>
-      {children}
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain" data-module-scroll-body>
+        {children}
+      </div>
     </div>
   );
 }

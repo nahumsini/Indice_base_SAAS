@@ -10,6 +10,7 @@ const jsx={jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props}),Fr
 const nodes=n=>n==null||typeof n!=='object'?[]:Array.isArray(n)?n.flatMap(nodes):[n,...nodes(n.props?.children)];
 const {organizeMail}=load('mailBulk.ts');
 const model=load('mailboxModel.ts');
+const templateVariables=load('mailTemplateVariableModel.ts');
 class ApiClientError extends Error {constructor(status){super();this.status=status;}}
 function composer(api){
  const timers=new Map();let serial=0;globalThis.window={setTimeout(fn,ms){timers.set(++serial,{fn,ms});return serial;},clearTimeout(id){timers.delete(id);},addEventListener(){},removeEventListener(){}};
@@ -18,6 +19,7 @@ function composer(api){
   if(id==='react')return runtime.hooks;if(id.endsWith('/mailEditorCopy'))return editorCopy;if(id==='react/jsx-runtime')return jsx;
   if(id.endsWith('/mailDailyCopy'))return daily;if(id.endsWith('/mailboxCopy'))return mailbox;if(id.endsWith('/translations'))return translations;
   if(id.endsWith('/mailboxModel'))return model;if(id.endsWith('/MailRichEditor'))return {MailRichEditor:'MailRichEditor',plainMailHtml:v=>v};
+  if(id.endsWith('/mailTemplateVariableModel'))return templateVariables;
   if(id.endsWith('/apiClient'))return {ApiClientError};
   if(id.endsWith('/mailboxApi'))return {mailboxApi:{preferences:async()=>({signature:'Equipo de prueba'}),...api}};return stub;
  });

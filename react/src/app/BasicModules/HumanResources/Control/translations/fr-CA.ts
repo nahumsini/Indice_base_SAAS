@@ -115,7 +115,7 @@ export const frCA = {
     correction: 'Correction manuelle',
     manualCorrectionBadge: 'M',
     noCorrection: 'Aucune correction manuelle',
-    timeTable: 'Rapports de présence',
+    timeTable: 'Incidents de paie',
     removeTimeTableDay: 'Supprimer le quart',
     removeTimeTableDayTitle: 'Supprimer le quart du rapport de présence ?',
     removeTimeTableDayDescription: 'Cette action retire le quart ou l’emplacement temporaire assigné pour cette date seulement. Les entrées et sorties restent enregistrées.',

@@ -24,6 +24,8 @@ export interface StandardDocumentSection {
 
 export interface StandardDocumentTable {
   columns: string[];
+  /** Optional escaped context above this table in web documents; values belong to the owner. */
+  metadata?: StandardDocumentField[];
   /** Relative column widths, applied by the HTML document adapter when supplied. */
   columnWidths?: number[];
   numericColumnIndices?: number[];

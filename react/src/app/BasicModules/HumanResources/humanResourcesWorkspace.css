@@ -1,0 +1,13 @@
+/* Owner-scoped: keep the fixed Indice frame from becoming another scroll region. */
+[data-module="human-resources"] {
+  min-width: 0;
+  overflow: hidden;
+  overflow: clip;
+}
+
+[data-module="human-resources"] > main {
+  min-width: 0;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  scroll-padding-block: 1rem;
+}

@@ -1,0 +1,13 @@
+/* Opt-in to the Dashboard/RH frame. Business tables and modal scroll areas stay owned. */
+.indice-contained-workspace {
+  min-width: 0;
+  overflow: hidden;
+  overflow: clip;
+}
+.indice-contained-workspace > main,
+.indice-contained-workspace > [data-module-scroll-body] {
+  min-width: 0;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  scroll-padding-block: 1rem;
+}

@@ -15,6 +15,8 @@ import { MailAttachments } from './MailAttachments';
 import { splitRecipients, validRecipients } from './mailboxModel';
 import { useEmailCopy } from './translations';
 import { useMailboxCopy } from './mailboxCopy';
+import { MailTemplateVariables } from './MailTemplateVariables';
+import { mailTemplateVariables, resolveMailTemplateVariables } from './mailTemplateVariableModel';
 
 type Form = { to: string; cc: string; bcc: string; subject: string; bodyText: string; bodyHtml: string | null };
 export function MailComposer({ account, initial, messageId, onClose, onDone }: {
@@ -35,6 +37,14 @@ export function MailComposer({ account, initial, messageId, onClose, onDone }: {
   const [saved, setSaved] = useState<MailboxMessage | null>(null); const [operationBusy, setBusy] = useState(false); const [attachmentBusy,setAttachmentBusy]=useState(false);const busy=operationBusy||attachmentBusy||libraryBusy||editorBusy; const [error, setError] = useState(''); const [uncertain, setUncertain] = useState(false);
   const id = useRef(messageId ?? crypto.randomUUID()); const version = useRef(initial.version); const alive = useRef(true);
   const dirty = JSON.stringify(form) !== baseline; const locked = busy || autosaving;
+  const variables = mailTemplateVariables(form.subject, form.bodyText);
+  const variableFields = useRef<HTMLDivElement>(null), focusVariables = useRef(false);
+  useEffect(() => {
+    if (focusVariables.current && !locked && view === 'edit') {
+      focusVariables.current = false;
+      variableFields.current?.querySelector<HTMLInputElement>('input')?.focus();
+    }
+  }, [locked, error, view]);
   useEffect(() => { const abort = new AbortController(); mailboxApi.preferences(account.id, abort.signal).then(value => { if (!abort.signal.aborted) {setSignature(value.signature ?? '');setSignatureHtml(value.signatureHtml??null);
       if(!messageId&&!signatureApplied.current&&value.signature&&(initial.replyToMessageId?value.signatureReply:value.signatureNew)) {signatureApplied.current=true;appendText(value.signature,undefined,value.signatureHtml??null);}
     } }).catch(() => {}); return () => abort.abort(); }, [account.id]);
@@ -87,7 +97,9 @@ export function MailComposer({ account, initial, messageId, onClose, onDone }: {
     try {
       if (inFlight.current) await inFlight.current;
       if (!alive.current || !await reconcileSave()) return;
-      if(review&&/\{\{[^{}]+\}\}/.test(formRef.current.subject+' '+formRef.current.bodyText)){setError(pro.variables);return;}
+      if (review && mailTemplateVariables(formRef.current.subject, formRef.current.bodyText).length) {
+        focusVariables.current = true; setError(pro.variables); return;
+      }
       if (!valid(draft(), review)) { setError(text.invalid); return; }
       const result = await saveSnapshot(false); if (!result || !alive.current) return; if (review) setView('review'); else if (!stay) onDone(result); return result; }
     finally { saveLock.current = false; if (alive.current) setBusy(false); }
@@ -137,7 +149,7 @@ export function MailComposer({ account, initial, messageId, onClose, onDone }: {
       <Button variant="outline" disabled={locked} onClick={() => void persist(false)}>{copy.saveDraft}</Button><Button disabled={locked} onClick={() => void persist(true)}>{busy ? copy.saving : text.sendReview}</Button>
     </>}>
     {(form.bodyText.length > 20000 || (form.bodyHtml?.length ?? 0) > 500000) && <p role="alert" className="mb-4 text-sm text-amber-800 dark:text-amber-200">{daily.contentTooLong}</p>}
-    {error && <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">{error}</p>}
+    {error && (error !== pro.variables || variables.length > 0) && <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">{error}</p>}
     {view === 'edit' && <div className="space-y-4">
       <div className="rounded-xl bg-slate-50 p-3 text-sm dark:bg-slate-900"><span className="text-slate-500 dark:text-slate-400">{text.from}: </span><span className="break-all">{account.displayName} &lt;{account.email}&gt;</span></div>
       <p id="mail-recipient-hint" className="text-xs text-slate-500 dark:text-slate-400">{text.recipientsHint}</p>
@@ -156,6 +168,12 @@ export function MailComposer({ account, initial, messageId, onClose, onDone }: {
         }
         if(replace)setForm(v=>({...v,subject:template.subject,bodyText:template.bodyText,bodyHtml:template.bodyHtml??plainMailHtml(template.bodyText)}));else appendText(template.bodyText,template.subject,template.bodyHtml);
       }} />
+      {variables.length > 0 && <div ref={variableFields}><MailTemplateVariables names={variables} disabled={locked} onApply={values => {
+        const resolved = resolveMailTemplateVariables(formRef.current, values);
+        if (resolved.subject.length > 240 || resolved.bodyText.length > 20000 || resolved.bodyHtml.length > 500000) { setError(text.invalid); return; }
+        setForm(previous => ({ ...previous, ...resolved }));
+        if (error === pro.variables) setError('');
+      }} /></div>}
       <label className="block space-y-2 text-sm"><span>{copy.subject}</span><Input className="h-11" disabled={busy} maxLength={240} value={form.subject} onChange={e => setForm(v => ({ ...v, subject: e.target.value }))} /></label>
       <div className="space-y-2"><span className="text-sm">{copy.message}</span><MailRichEditor onBusy={setEditorBusy} label={copy.message} text={form.bodyText} html={form.bodyHtml} disabled={busy} onChange={(bodyText, bodyHtml) => setForm(v => ({ ...v, bodyText, bodyHtml }))} /><Button type="button" variant="ghost" disabled={busy || !signature || !!signature&&form.bodyText.includes(signature)} title={signature ? daily.insertSignature : daily.signatureMissing} onClick={() => {appendText(signature,undefined,signatureHtml);signatureApplied.current=true;}}>{daily.insertSignature}</Button></div>
       <MailAttachments disabled={autosaving || operationBusy} account={account.id} messageId={id.current} version={saved?.version??initial.version} accountVersion={account.version} onPrepare={()=>persist(false,true)} onBusy={value=>{attachmentLock.current=value;setAttachmentBusy(value);}} onSaved={result=>{version.current=result.version;setSaved(result);}}/>

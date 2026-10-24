@@ -49,7 +49,7 @@ function FilesBrowser({onNavigate}:{onNavigate?:(page?:string)=>void}){
  const sectionTitle=scope==='SHARED'?c.shared:scope==='TRASH'?c.trash:c.owned;
  const sectionHint=scope==='SHARED'?c.sharedHint:scope==='TRASH'?c.trashSubtitle:c.ownedHint;
  const showCreateActions=scope==='OWNED'||!!folder&&!!data&&data.folderPermission>=2&&scope!=='TRASH';
- return <IndiceModuleShell currentModule="files" tone="blue" title={c.title} subtitle={c.subtitle} activeTab={scope}
+ return <IndiceModuleShell containedWorkspace currentModule="files" tone="blue" title={c.title} subtitle={c.subtitle} activeTab={scope}
   onTabChange={value=>navigate(value)} onNavigate={onNavigate?page=>{if(!running.current)onNavigate(page);}:undefined}
   tabs={[{id:'OWNED',label:c.owned,icon:'📁',disabled:uploading},{id:'SHARED',label:c.shared,icon:'👥',disabled:uploading},{id:'TRASH',label:c.trash,icon:'🗑️',disabled:uploading}]}>
   <div className="files-workspace" aria-busy={uploading} onDragOver={event=>{event.preventDefault();if(canCreate&&event.dataTransfer.types.includes('Files'))setDrag(true);}} onDragLeave={event=>{if(!event.currentTarget.contains(event.relatedTarget as Node))setDrag(false);}} onDrop={event=>{event.preventDefault();choose(Array.from(event.dataTransfer.files));}}>
