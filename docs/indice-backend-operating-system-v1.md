@@ -1199,6 +1199,15 @@ save/import transactions, current-company locks, quota-before-upload, verificati
 10 MiB combined/five-file limits and SMTP idempotency remain required. Verified unreferenced
 objects are retained and counted until a separate owner retention policy authorizes cleanup.
 
+The 2026-10-23 [PDF intake decision](email-mailing-integration-contract-v1.md#automatic-preparation-of-pdfs-with-embedded-files--2026-10-23)
+allows the same user-selected PDF through owner-controlled preparation: remove embedded
+files from a full rewritten copy, preserve page content, strictly revalidate and read
+back the final object before registration. Both template and private attachment owners
+record its actual size and transactionally replace the staging quota reservation with
+the prepared object's reservation/commit. Signed upload URLs never address that object.
+Scripts/actions/forms/passwords and all existing tenant, CSRF, quota and output bounds
+remain enforced; downloads/imports/sends continue strict validation without conversion.
+
 
 ### Personal ideas-board catalog owner extension — 2026-10-22
 
@@ -1219,3 +1228,25 @@ channel, native permission ceilings plus explicit grants, signed durable public 
 UNKNOWN outbox and current-access CRM/Tasks/storage/notification ports. Private Messaging remains its
 own owner. Scoped channel uploads use existing-capacity-only reservation/commit and cannot buy storage.
 Real Meta onboarding is disabled; this extension does not authorize deployment or persistent migration.
+
+### Company files owner — 2026-10-23
+
+`com.indice.erp.files` owns private company folders/files and inherited employee ACLs. Its narrow HR
+`fileMembers` directory port provides eligible internal account names/IDs. This is a system tool,
+not a business-module entitlement. Native session, CSRF, active tenant membership and subscription
+checks remain mandatory. The shared storage owner adds a bounded streaming primitive and a separate
+private bucket; existing 10 MiB byte-array budgets remain unchanged. A storage-owned first-use port
+initializes only missing included allowances, preserving existing limits and purchasing no blocks.
+Full owner contract, limits,
+existing-capacity-only quota, retry and recoverable lifecycle: `docs/company-file-library-contract-v1.md`.
+
+### Sales flow retirement (2026-10-23)
+
+Sales owns the authenticated `/api/v1/sales/opportunity-flow/{flowId}/retirement` preview and POST.
+Existing Sales/Opportunities gates and CSRF remain authoritative; an actor header additionally rejects
+stale company/user contexts. A review signature covers both flow configurations and the current
+assignments. The existing factory-head lock serializes retirement with flow and assignment writes.
+One transaction maps OPEN stages explicitly, preserves terminal lifecycle, updates compatibility
+projections, writes position history, deactivates the custom head and saves an idempotent command
+receipt in the existing revision owner. No hard deletion or schema migration is introduced. Private
+stage color preferences reuse workspace-state, with actor binding and no navigation retention expiry.

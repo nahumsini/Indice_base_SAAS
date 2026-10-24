@@ -8,6 +8,7 @@ export function getSystemToolVisibility(session: AuthSessionResponse | null | un
   const active = Boolean(session && !session.demoMode);
   const admin = active && isAdminAccessRole(session?.user.role);
   return {
+    files: active && session?.company.subscription?.access_allowed !== false,
     connectAi: admin && canAccessModuleTab('home-panel', 'integrations', session),
     kioskCenter: admin && canAccessKioskCenter(session),
     subscription: admin,

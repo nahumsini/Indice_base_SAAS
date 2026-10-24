@@ -23,6 +23,7 @@ import { resolveModuleNavigation, type IndiceModuleTab, type IndiceModuleTabMenu
 export type { IndiceModuleTab, IndiceModuleTabMenu } from './moduleNavigation';
 
 const MODULE_EMOJI_BY_ROUTE: Record<string, string> = {
+  files: '📁',
   email: '✉️',
   'sales-board': '📈',
   maintenance: '🔧',
@@ -183,8 +184,9 @@ export function IndiceModuleShell<TabId extends string>({
                         key={tab.id}
                         type="button"
                         aria-current={isActive ? 'page' : undefined}
+                        disabled={tab.disabled}
                         onClick={() => onTabChange(tab.id)}
-                        className={`indice-workbar-tab flex min-h-11 shrink-0 snap-start items-center md:min-h-9 gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 sm:text-sm ${isSideLayout ? 'lg:min-h-11 lg:w-full lg:justify-start lg:rounded-xl lg:border-l-[3px] lg:px-3 lg:py-2' : ''} ${
+                        className={`indice-workbar-tab disabled:cursor-not-allowed disabled:opacity-50 flex min-h-11 shrink-0 snap-start items-center md:min-h-9 gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 sm:text-sm ${isSideLayout ? 'lg:min-h-11 lg:w-full lg:justify-start lg:rounded-xl lg:border-l-[3px] lg:px-3 lg:py-2' : ''} ${
                           isActive
                             ? 'border-transparent shadow-md'
                             : `border-transparent bg-slate-100 text-slate-600 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white ${theme.iconHover}`
@@ -208,7 +210,7 @@ export function IndiceModuleShell<TabId extends string>({
                         <button
                           type="button"
                           aria-current={isMenuActive ? 'page' : undefined}
-                          className={`indice-workbar-tab flex min-h-11 shrink-0 snap-start items-center md:min-h-9 gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 sm:text-sm ${isSideLayout ? 'lg:min-h-11 lg:w-full lg:justify-start lg:rounded-xl lg:border-l-[3px] lg:px-3 lg:py-2' : ''} ${
+                          className={`indice-workbar-tab disabled:cursor-not-allowed disabled:opacity-50 flex min-h-11 shrink-0 snap-start items-center md:min-h-9 gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 sm:text-sm ${isSideLayout ? 'lg:min-h-11 lg:w-full lg:justify-start lg:rounded-xl lg:border-l-[3px] lg:px-3 lg:py-2' : ''} ${
                             isMenuActive
                               ? 'border-transparent shadow-md'
                               : `border-transparent bg-slate-100 text-slate-600 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white ${theme.iconHover}`
@@ -230,6 +232,7 @@ export function IndiceModuleShell<TabId extends string>({
                           return (
                             <DropdownMenuItem
                               key={tab.id}
+                              disabled={tab.disabled}
                               aria-current={isActive ? 'page' : undefined}
                               className="min-h-10 gap-2.5 rounded-lg px-3"
                               onSelect={() => onTabChange(tab.id)}

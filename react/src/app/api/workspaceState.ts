@@ -29,7 +29,7 @@ export const workspaceStateApi = {
   },
 };
 function workspaceActorHeaders(moduleKey:string,tabKey:string):HeadersInit|undefined {
-  if(moduleKey==='system'&&(tabKey==='business-currency'||tabKey==='workbar-layout')) {
+  if(moduleKey==='sales'&&tabKey.startsWith('opportunity-colors-') || moduleKey==='system'&&(tabKey==='business-currency'||tabKey==='workbar-layout')) {
     const session=getCachedAuthSession();
     return {'X-Workspace-Actor':session?`${session.company.id}:${session.user.id}`:''};
   }

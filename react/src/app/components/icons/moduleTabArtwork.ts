@@ -1,5 +1,6 @@
 /** Presentation-only identities. Tab IDs, labels, access checks and routing stay with their owners. */
 export const moduleTabArtwork = {
+  files: { OWNED: 'folder', SHARED: 'people', TRASH: 'trash' },
   'home-panel': { profile: 'person', 'business-structure': 'company', 'business-profile': 'chart', consulting: 'handshake', integrations: 'robot', users: 'people', connections: 'robot', guide: 'learning', ideas: 'sparkle' },
   'human-resources': { collaborators: 'people', attendance: 'calendar', control: 'stopwatch', payroll: 'coins', announcements: 'megaphone', assets: 'briefcase', records: 'clipboard', permissions: 'check', incentives: 'gift', kpis: 'chart' },
   'processes-tasks': { calendar: 'calendar', projects: 'folder', processes: 'checklist', kpis: 'chart' },

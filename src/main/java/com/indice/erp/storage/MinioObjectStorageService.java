@@ -168,6 +168,15 @@ public class MinioObjectStorageService implements ObjectStorageService {
     }
 
     @Override
+    public void streamObject(String bucketName,String objectKey,long offset,long length,java.io.OutputStream output){
+        if(offset<0||length<0||length>100L*1024*1024)throw new IllegalArgumentException("Invalid stream range.");
+        try(var input=minioClient.getObject(GetObjectArgs.builder().bucket(bucketName).object(objectKey).offset(offset).length(length).build())){
+            byte[] buffer=new byte[64*1024];long remaining=length;
+            while(remaining>0){int count=input.read(buffer,0,(int)Math.min(buffer.length,remaining));if(count<0)throw new java.io.EOFException("Incomplete stored file.");output.write(buffer,0,count);remaining-=count;}
+        }catch(Exception e){throw new ObjectStorageException("Unable to stream private file.",e);}
+    }
+
+    @Override
     public void copyObject(String bucketName, String sourceObjectKey, String targetObjectKey) {
         try {
             minioClient.copyObject(

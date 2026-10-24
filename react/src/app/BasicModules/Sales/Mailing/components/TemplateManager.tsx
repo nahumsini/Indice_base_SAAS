@@ -23,6 +23,7 @@ import { TemplateForm, TemplatePreview } from "./TemplateForm";
 import { MailingFiles } from "./MailingFiles";
 import { useReusableFileCopy } from "../reusableFileCopy";
 import { useTemplateWorkspaceCopy } from "../templateWorkspaceCopy";
+import './templateEditor.css';
 
 const blank: TemplateInput = {
   name: "",
@@ -49,6 +50,7 @@ export function TemplateManager({
   const [mobilePreview, setMobilePreview] = useState(false);
   const selectionTrigger = useRef<HTMLButtonElement | null>(null);
   const directory = useRef<HTMLDivElement | null>(null);
+  const modalBody = useRef<HTMLDivElement | null>(null);
   const previewHeading = useRef<HTMLHeadingElement | null>(null);
   const [files,setFiles]=useState<MailingFile[]>([]);
   const [fileBusy,setFileBusy]=useState(false),[editorBusy,setEditorBusy]=useState(false);
@@ -77,6 +79,7 @@ export function TemplateManager({
   const locked=busy||fileBusy||editorBusy;
   const dirty = JSON.stringify(draft) !== initial.current;
   const canManage = data?.canManage ?? false;
+  useEffect(() => { modalBody.current?.scrollTo({ top: 0 }); }, [view]);
   useEffect(() => {
     if (view === "workspace" && mobilePreview && selected && window.matchMedia("(max-width: 767px)").matches)
       previewHeading.current?.focus();
@@ -244,7 +247,8 @@ export function TemplateManager({
     <SalesModalFrame tone={tone}
       open
       busy={locked}
-      contentClassName={view === "workspace" ? "sm:max-w-6xl" : undefined}
+      bodyRef={modalBody}
+      contentClassName={view === "workspace" ? "sm:max-w-6xl" : view === "edit" ? "mail-template-editor" : undefined}
       modalType={
         confirmation
           ? "confirmation"
@@ -259,7 +263,7 @@ export function TemplateManager({
             ? copy.archiveConfirm
             : view === "edit"
               ? draft.version
-                ? copy.edit
+                ? workspace.editTitle
                 : copy.newTemplate
               : copy.templates
       }
@@ -308,7 +312,7 @@ export function TemplateManager({
             setDraft(value);
             setError("");
           }}
-        /><MailingFiles shared files={files} disabled={locked||blocked} onBusy={setFileBusy} onChange={value=>{setFiles(value);setDraft(d=>({...d,attachmentIds:value.map(f=>f.id)}));setError("");}}/></div>
+        /><MailingFiles compact shared files={files} disabled={locked||blocked} onBusy={setFileBusy} onChange={value=>{setFiles(value);setDraft(d=>({...d,attachmentIds:value.map(f=>f.id)}));setError("");}}/></div>
       ) : (
         <div className="space-y-3">
           {notice && <p role="status" className="text-sm text-emerald-800 dark:text-emerald-300">{notice}</p>}

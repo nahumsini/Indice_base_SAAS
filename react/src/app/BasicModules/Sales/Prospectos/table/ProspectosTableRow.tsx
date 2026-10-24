@@ -1,3 +1,5 @@
+import type {CSSProperties} from 'react';
+import {stageBadgeStyle} from '../utils/flowPersonalColors';
 import { Paperclip } from 'lucide-react';
 import { OpportunityScheduleInlineEditor } from '../components/OpportunityScheduleInlineEditor';
 import {
@@ -49,19 +51,22 @@ function OpportunityInlineSelect<TValue extends string>({
   onValueChange,
   getLabel,
   className,
+  style,
 }: {
   value: TValue;
   options: readonly TValue[];
   onValueChange: (value: TValue) => void;
   getLabel?: (value: TValue) => string;
   className?: string;
+  style?: CSSProperties;
 }) {
   return (
     <Select value={value} onValueChange={(nextValue) => onValueChange(nextValue as TValue)}>
-      <SelectTrigger
+      <SelectTrigger style={style}
         className={cn(
           'h-9 w-full min-w-0 max-w-full rounded-full border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 shadow-none focus:ring-[#2563EB]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white [&>span]:truncate',
           className,
+  style,
         )}
       >
         <SelectValue />
@@ -233,6 +238,7 @@ export function ProspectosTableRow({
             }}
             onValueChange={(stage) => onStageChange(opportunity, stage)}
             className={getOpportunityStageBadgeClass(stageConfig)}
+            style={stageBadgeStyle(stageConfig)}
           />
         );
       case 'temperature':

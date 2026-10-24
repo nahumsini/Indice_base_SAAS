@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.server.ResponseStatusException;
-@RestControllerAdvice(assignableTypes={MailingDeliveryController.class,MailingUnsubscribeController.class})
+@RestControllerAdvice(assignableTypes={MailingController.class,MailingDeliveryController.class,MailingUnsubscribeController.class})
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class MailingDeliveryExceptionHandler {
     public record Error(String code){ }

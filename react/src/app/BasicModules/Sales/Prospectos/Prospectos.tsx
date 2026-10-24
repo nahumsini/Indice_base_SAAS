@@ -56,6 +56,8 @@ import { OpportunityFilesModal } from './modals/OpportunityFilesModal';
 import { OpportunityNextActionModal } from './modals/OpportunityNextActionModal';
 import { SellerScriptManager } from './seller/SellerScriptManager';
 import { getSellerCopy } from './seller/sellerCopy';
+import {useOpportunityFlowColors} from './hooks/useOpportunityFlowColors';
+import {applyFlowColors} from './utils/flowPersonalColors';
 import { OpportunityFlowManagerModal } from './modals/OpportunityFlowManagerModal';
 import { ProspectosColumnsModal } from './table/ProspectosColumnsModal';
 import { ProspectosTable } from './table/ProspectosTable';
@@ -158,6 +160,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   const [scriptsFlowId, setScriptsFlowId] = useState<number | null>(null);
   const [isFlowManagerOpen, setIsFlowManagerOpen] = useState(false);
   const [opportunityFlows, setOpportunityFlows] = useState<OpportunityFlow[]>([]);
+  const flowColors=useOpportunityFlowColors(opportunityFlows.map(flow=>flow.id));
   const [selectedFlowId, setSelectedFlowId] = useState<number | null>(null);
   const [defaultFlowId, setDefaultFlowId] = useState<number | null>(null);
   const [flowCatalogReady, setFlowCatalogReady] = useState(false);
@@ -395,7 +398,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     () => opportunityFlows.find((flow) => flow.id === selectedFlowId) ?? opportunityFlows[0] ?? null,
     [opportunityFlows, selectedFlowId],
   );
-  const flowStages = selectedFlow?.stages ?? defaultOpportunityFlowStages;
+  const flowStages = useMemo(()=>applyFlowColors(selectedFlow?.stages ?? defaultOpportunityFlowStages,flowColors.colors[selectedFlow?.id??0]??{}),[selectedFlow,flowColors.colors]);
   const opportunities = useMemo(() => {
     const positionsByOpportunity = new Map(
       flowPositions.map((position) => [position.opportunityId, position]),
@@ -511,12 +514,6 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
       (opportunity) => opportunity.stage.trim().toLowerCase() === stage.key.trim().toLowerCase(),
     ).length,
   })), [flowStages, opportunities]);
-  const opportunityFlowsWithCurrentCounts = useMemo(
-    () => opportunityFlows.map((flow) => (
-      flow.id === selectedFlowId ? { ...flow, stages: opportunityFlowStages } : flow
-    )),
-    [opportunityFlowStages, opportunityFlows, selectedFlowId],
-  );
   const preferredPipelineCurrency = preferredCurrency;
   const kanbanScopeOpportunities = useMemo(() => currentUserRole === null ? [] : opportunities.filter(opportunity =>
     !shouldScopeOpportunitiesByOwner || opportunityBelongsToCurrentUser(opportunity, currentUserCompanyId, currentOwnerNames)),
@@ -911,6 +908,17 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     return savedFlow;
   };
 
+  const handleRetiredOpportunityFlow = async (source:number,target:number) => {
+    const catalog=await salesApi.getOpportunityFlows();
+    const available=catalog.flows.map(toOpportunityFlow);
+    const next=selectedFlowId===source?target:selectedFlowId??target;
+    const positions=await salesApi.getOpportunityFlowPositions(next);
+    setSelectedFlowId(next);setOpportunityFlows(available);setDefaultFlowId(catalog.defaultFlowId);
+    setFlowPositions(positions.positions.map(position=>({...position,stageKey:toFrontendOpportunityStageKey(position.stageKey)})));
+    setFlowLoadError('');setStageFilter('all');setFlowReassignment(null);resetPage();
+    await reloadAll();
+  };
+
   const handleSelectOpportunityFlow = async (flowId: number) => {
     if (flowId < 0) {
       setFlowPositions([]);
@@ -1192,7 +1200,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         scriptsLabel={getSellerCopy(currentLanguage.code).scripts}
         onScripts={(flowId) => { setIsFlowManagerOpen(false); setScriptsFlowId(flowId); }}
         open={isFlowManagerOpen}
-        flows={opportunityFlowsWithCurrentCounts}
+        flows={opportunityFlows}
         selectedFlowId={selectedFlowId}
         canManage={canManageOpportunityFlow}
         loadError={flowLoadError}
@@ -1203,6 +1211,12 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         onSelectFlow={handleSelectOpportunityFlow}
         onCreate={handleCreateOpportunityFlow}
         onUpdate={handleUpdateOpportunityFlow}
+        personalColors={flowColors.colors}
+        colorsReady={flowColors.ready}
+        colorsError={flowColors.error}
+        onRetryColors={flowColors.retry}
+        onSaveColors={flowColors.save}
+        onRetired={handleRetiredOpportunityFlow}
       />
 
       <CreateOpportunityModal

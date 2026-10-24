@@ -76,7 +76,7 @@ class OpportunityFlowService {
         }
         var name = cleanName(request == null ? null : request.name());
         var stages = normalize(request == null ? null : request.stages());
-        var flowId = repository.createFlow(companyId, userId, uniqueFlowKey(name, flows), name);
+        var flowId = repository.createFlow(companyId, userId, uniqueFlowKey(companyId, name, flows), name);
         repository.replaceStages(companyId, flowId, userId, stages);
         repository.recordRevision(companyId, flowId, userId, stages);
 
@@ -408,7 +408,7 @@ class OpportunityFlowService {
         return label;
     }
 
-    private String uniqueFlowKey(String name, List<FlowRow> flows) {
+    private String uniqueFlowKey(long companyId, String name, List<FlowRow> flows) {
         var reserved = flows.stream().map(FlowRow::key).collect(java.util.stream.Collectors.toSet());
         var base = normalizeExistingKey(name);
         if (base.isBlank()) {
@@ -417,7 +417,7 @@ class OpportunityFlowService {
         base = base.substring(0, Math.min(base.length(), 56));
         var candidate = base;
         var suffix = 2;
-        while (reserved.contains(candidate)) {
+        while (reserved.contains(candidate) || repository.flowKeyExists(companyId, candidate)) {
             candidate = base + "_" + suffix++;
         }
         return candidate;

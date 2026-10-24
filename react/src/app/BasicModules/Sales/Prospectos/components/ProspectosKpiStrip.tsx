@@ -1,3 +1,4 @@
+import {stageDotStyle} from '../utils/flowPersonalColors';
 import {
   AlertTriangle,
   CalendarCheck2,
@@ -189,6 +190,7 @@ export function ProspectosKpiStrip({
       : stage.label,
     count: stageCounts.find((stageCount) => stageCount.stage === stage.key)?.count ?? 0,
     className: getOpportunityStageDotClass(stage),
+    style: stageDotStyle(stage),
   }));
 
   return (

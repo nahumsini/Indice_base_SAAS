@@ -40,6 +40,10 @@ public class CompanyStorageMeter {
         return quota.reserve(companyId, ownerModule, bucketName, objectKey, sizeBytes);
     }
 
+    public void initializeIncludedCapacityIfMissing(long companyId) {
+        quota.initializeIncludedCapacityIfMissing(companyId);
+    }
+
     public void reserveExistingCapacity(long companyId,String ownerModule,String bucketName,String key,long size) {
         quota.reserveExistingCapacity(companyId,ownerModule,bucketName,key,size);
     }

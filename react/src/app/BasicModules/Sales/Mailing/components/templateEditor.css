@@ -1,0 +1,27 @@
+/* Native caret/focus scrolling must not scroll the frame's hidden overflow.
+   The shared body remains the scroll owner, including short/keyboard viewports. */
+.mail-template-editor[data-slot="dialog-content"] {
+  overflow: clip !important;
+}
+.mail-template-editor[data-slot="dialog-content"] [data-slot="indice-modal-body"] {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
+}
+.mail-template-editor .mail-rich-editor {
+  min-height: 14rem;
+  max-height: clamp(14rem, 34dvh, 22rem);
+}
+/* This form has one short Back action and one Save action; retain their
+   shared controls side by side instead of consuming two rows on phones. */
+@media (max-width: 767px) {
+  .mail-template-editor [data-slot="dialog-footer"] > div {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .mail-template-editor [data-slot="indice-modal-actions"] {
+    width: auto;
+    flex: 0 1 auto;
+  }
+}

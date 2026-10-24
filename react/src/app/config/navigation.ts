@@ -1,5 +1,6 @@
 const canonicalPageIds = [
   'dashboard',
+  'files',
   'billing',
   'home-panel',
   'human-resources',

@@ -72,6 +72,11 @@ nueva y persistente, siguiendo la [decisión de linaje](decisions/2026-10-05-rel
 El entorno anterior permanece intacto; este entorno no contiene sus empresas ni registros.
 
 La integración local de Agenda usa frontend **5175**, backend **8083** y MySQL **13317**.
+Las cargas directas al almacenamiento requieren que `MINIO_CORS_ALLOWED_ORIGINS` incluya
+el origen exacto del frontend (`http://127.0.0.1:5175`, o `http://localhost:5175` si se usa ese
+nombre). El Compose y la plantilla de entorno incluyen ambos. Si MinIO ya estaba creado,
+recrea únicamente su servicio con la misma configuración y volumen después de actualizar
+la lista; reiniciar el backend o Vite no cambia CORS. No uses `*` ni elimines el volumen.
 Verifica que esos puertos y los nombres siguientes estén libres antes del primer arranque:
 
 ```bash

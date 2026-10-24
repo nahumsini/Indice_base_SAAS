@@ -45,6 +45,15 @@ public class StorageQuotaService {
         );
     }
 
+    /** Initialize only the already-included allowance; never change an existing contract or buy blocks. */
+    @Transactional
+    public void initializeIncludedCapacityIfMissing(long companyId) {
+        jdbcTemplate.update("""
+            INSERT INTO company_storage_states (company_id, included_bytes) VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE company_id = VALUES(company_id)
+            """, companyId, properties.getIncludedBytes());
+    }
+
     @Transactional
     public Reservation reserve(long companyId, String ownerModule, String bucketName,
                                String objectKey, long declaredBytes) {

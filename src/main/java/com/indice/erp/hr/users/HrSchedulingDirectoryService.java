@@ -32,6 +32,8 @@ public class HrSchedulingDirectoryService {
             ORDER BY name,u.id
             """,(r,n)->new Employee(r.getLong(1),r.getString(2)),company).stream().distinct().toList();
     }
+    /** System Files recipient projection: active internal accounts, HR display names and exit status only. */
+    public List<Employee> fileMembers(long company){return meetingMembers(company);}
     /** Legacy staff without an HR profile retain access; a known inactive HR employee never does. */
     public boolean eligible(long company,long user){
         return !Boolean.TRUE.equals(db.queryForObject("""

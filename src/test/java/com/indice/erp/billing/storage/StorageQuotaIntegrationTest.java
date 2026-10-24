@@ -299,6 +299,21 @@ class StorageQuotaIntegrationTest {
         assertThat(storage.snapshot(tenant.companyId()).purchasedBlocks()).isEqualTo(1);
     }
 
+    @Test
+    void includedCapacityInitializationKeepsExistingAllowanceAndNeverPurchasesBlocks() {
+        var tenant = premiumTenant("included-only");
+        jdbc.update("UPDATE company_storage_states SET included_bytes=40 WHERE company_id=?",tenant.companyId());
+        storage.initializeIncludedCapacityIfMissing(tenant.companyId());
+        assertThat(storage.snapshot(tenant.companyId()).includedBytes()).isEqualTo(40);
+        jdbc.update("DELETE FROM company_storage_states WHERE company_id=?",tenant.companyId());
+        storage.initializeIncludedCapacityIfMissing(tenant.companyId());
+        storage.initializeIncludedCapacityIfMissing(tenant.companyId());
+        assertThat(storage.snapshot(tenant.companyId()).includedBytes()).isEqualTo(100);
+        assertThat(storage.snapshot(tenant.companyId()).purchasedBlocks()).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM company_storage_mutations WHERE company_id=?",Long.class,tenant.companyId())).isZero();
+        verify(stripe,never()).setBlockQuantity(any(),anyString());
+    }
+
     private Tenant premiumTenant(String label) {
         var suffix = UUID.randomUUID().toString();
         jdbc.update("INSERT INTO companies (name) VALUES (?)", COMPANY_PREFIX + label + "-" + suffix);

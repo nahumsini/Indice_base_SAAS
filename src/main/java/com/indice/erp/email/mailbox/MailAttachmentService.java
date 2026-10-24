@@ -25,8 +25,21 @@ public class MailAttachmentService {
         require(storage.objectExists(bucket,row.key()),BAD_REQUEST,"email_attachment_missing");var meta=storage.objectMetadata(bucket,row.key());require(meta.sizeBytes()==row.size()&&row.type().equalsIgnoreCase(meta.contentType()),BAD_REQUEST,"email_attachment_mismatch");
         String sealed="email/"+actor.companyId()+"/"+account+"/"+id+"/files/"+attachment;
         // Verify the immutable destination after copying; the upload URL cannot overwrite it.
-        storage.copyObject(bucket,row.key(),sealed);try{var bytes=storage.readObject(bucket,sealed,MailFilePolicy.MAX);require(bytes.length==row.size(),BAD_REQUEST,"email_attachment_mismatch");MailFilePolicy.bytes(row.filename(),row.type(),bytes);
-        meter.commitMoved(actor.companyId(),bucket,row.key(),sealed,row.size());}catch(RuntimeException failure){try{storage.deleteObject(bucket,sealed);}catch(RuntimeException ignored){ }throw failure;}repository.ready(actor,account,id,attachment,sealed);StorageCommitCleanup.afterCommit(()->{try{storage.deleteObject(bucket,row.key());}catch(RuntimeException ignored){ }});access.repository.audit(actor,account,version.accountVersion(),"ATTACHMENT_ADDED");return access.repository.get(actor,account,id).view();
+        storage.copyObject(bucket,row.key(),sealed);
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(new org.springframework.transaction.support.TransactionSynchronization(){
+            @Override public void afterCompletion(int status){if(status!=STATUS_COMMITTED)try{storage.deleteObject(bucket,sealed);}catch(RuntimeException ignored){ }}
+        });
+        var bytes=storage.readObject(bucket,sealed,MailFilePolicy.MAX);require(bytes.length==row.size(),BAD_REQUEST,"email_attachment_mismatch");
+        var prepared=MailFilePolicy.prepare(row.filename(),row.type(),bytes);
+        require(repository.list(actor,account,id).stream().mapToLong(MailAttachmentRepository.Row::size).sum()+prepared.length<=MailFilePolicy.TOTAL,UNPROCESSABLE_ENTITY,"email_attachment_limit");
+        if(prepared!=bytes){
+            storage.writeObject(bucket,sealed,row.type(),prepared);
+            require(Arrays.equals(storage.readObject(bucket,sealed,MailFilePolicy.MAX),prepared),BAD_REQUEST,"email_attachment_mismatch");
+            meter.release(actor.companyId(),row.key(),"pdf_prepared");
+            meter.reserve(actor.companyId(),"correo",bucket,sealed,prepared.length);
+            meter.commit(actor.companyId(),bucket,sealed,prepared.length);
+        }else meter.commitMoved(actor.companyId(),bucket,row.key(),sealed,row.size());
+        repository.ready(actor,account,id,attachment,sealed,prepared.length);StorageCommitCleanup.afterCommit(()->{try{storage.deleteObject(bucket,row.key());}catch(RuntimeException ignored){ }});access.repository.audit(actor,account,version.accountVersion(),"ATTACHMENT_ADDED");return access.repository.get(actor,account,id).view();
     });}
     public Message remove(AuthSessionUser actor,String account,String id,String attachment,Version version){return access.tx.execute(s->{editable(actor,account,id,version);repository.get(actor,account,id,attachment);repository.remove(actor,account,id,attachment);return access.repository.get(actor,account,id).view();});}
     public List<Attachment> list(AuthSessionUser actor,String account,String id){var a=access.read(actor,account);var row=access.message(actor,account,a.version(),id);

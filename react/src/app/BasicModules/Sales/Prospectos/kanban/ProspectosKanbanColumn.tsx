@@ -1,3 +1,4 @@
+import {stageDotStyle} from '../utils/flowPersonalColors';
 import { useId, useState, type DragEvent } from 'react';
 import { Inbox } from 'lucide-react';
 import type { OpportunityFlowStage, SalesOpportunity } from '../../salesCrmContext';
@@ -38,7 +39,7 @@ export function ProspectosKanbanColumn({
         mobileActive ? 'flex' : 'hidden',
         dragOver ? 'border-[#FF6B5E] ring-2 ring-[#FF6B5E]/20' : 'border-slate-200 dark:border-slate-700',
       )}>
-      <div className={cn('h-1 shrink-0', getOpportunityStageDotClass(stage))} />
+      <div style={stageDotStyle(stage)} className={cn('h-1 shrink-0', getOpportunityStageDotClass(stage))} />
       <header className="shrink-0 border-b border-slate-200/70 px-3 py-3 dark:border-slate-700">
         <div className="flex items-center justify-between gap-2">
           <h3 id={headingId} className="min-w-0 break-words text-[15px] font-medium text-slate-900 dark:text-slate-100">{stageLabel}</h3>

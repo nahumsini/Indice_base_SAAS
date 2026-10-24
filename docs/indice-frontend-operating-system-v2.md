@@ -553,6 +553,25 @@ after the directory has refreshed. Email stays blue and Sales coral. Create/edit
 remains a Standard Form, and archive/discard replace it with Confirmation. Existing
 permissions, save/retry identities, attachments, payloads and API ownership stay intact.
 
+Template editing scroll/layout correction, 2026-10-23: retain the Standard Form and
+its shared 48rem cap. The owner-scoped frame clips programmatic overflow so native
+focus/caret scrolling cannot move its header/footer or leave a blank area below
+the actions. The shared body remains the scroll owner, including compact viewports.
+Group name and subject on desktop, retain a single column on phones, and make the
+duplicated safe preview a native disclosure closed by default. Keep compact reusable
+attachments below the editor, existing translations and all save/discard/busy guards.
+The Sales wrapper only forwards the engine's existing bodyRef; no new shell is added.
+
+Template attachment recovery, 2026-10-23: retain content on failure, display the
+owner's stable content/storage error in the user's language, and distinguish transfer
+from verification. Content rejection asks for a supported replacement; transient
+verification retry reuses the upload identity without repeating a completed transfer.
+PDFs with unsupported automatic actions request a static copy. By the owner's later
+same-file decision, PDFs with embedded files are prepared automatically during intake;
+the six-language attachment help explains their removal. Display the returned prepared
+size and retain the original selected filename and draft content.
+The backend remains authoritative for content, access, quotas and attachment limits.
+
 
 Mailing operational workspace, 2026-10-19: the [campaign workspace contract](sales-mailing-contract-v1.md#campaign-operating-workspace--2026-10-19)
 adopts the standard title/filter/status/table composition for the campaign list. Keep recipient lists,
@@ -5063,3 +5082,33 @@ and `/sales/whatsapp-settings` under active `react/src/app`. Native shell/title/
 modal engine apply; the lazy inbox bypasses the unrelated CRM collection preload. New scope tabs and
 explicit channel grants are required; a frontend flag grants no authority. Keep customer replies,
 internal notes and external evidence visually distinct. Real onboarding remains unavailable.
+
+### Company files system tool — 2026-10-23
+
+The user approved an independent Files system tool (`/files`) for active internal company accounts,
+without granting access to existing business modules. Reuse the native title, navigation, filters,
+table/pagination and modal engines. Folder, upload, private preview, sharing and recoverable trash
+flows follow `docs/company-file-library-contract-v1.md`; inherited grants are shown explicitly.
+
+### Files adopts the canonical module shell — 2026-10-23
+
+By explicit user request, the Files system tool adopts `IndiceModuleShell` with the institutional
+blue identity, native Dashboard/favorites, remembered workbar position, mobile scope navigation and
+original folder artwork. Its scope title, view selector, filters, table/pagination and modal frames
+use the existing engines. `IndiceModuleTab.disabled` is optional for owner-controlled busy states;
+it does not change permission filtering. The `/files?view=...&folder=...` contract, active internal
+account access, private file ACLs and all backend behavior remain unchanged. Owner acceptance and
+rollback: `company-file-library-contract-v1.md`, Índice module presentation.
+
+### Sales flow administration and personal stage colors (2026-10-23)
+
+The Opportunities flow catalogue uses a content-sized Sales Operational Workspace Modal. Stage
+editing uses a stage list and focused detail panel, with a horizontal stage picker on phones.
+Company configuration and personal colors have distinct native workspace views and explicit save
+actions. The immutable factory view uses readable values and a create-copy action instead of a
+full disabled form. The color palette offers large swatches, custom color and hex entry, a board
+preview and restore-originals draft action. Personal decoration uses existing scoped workspace-state
+persistence at `sales/opportunity-colors-{flowId}` and never changes shared stage tokens or filters.
+Unknown colors are ignored, badge foregrounds preserve contrast, and labels remain visible alongside
+color. Deletion replaces the frame with a two-step destination/mapping review; uncertain submissions
+retain their command and cannot be edited or dismissed until their result can be checked safely.

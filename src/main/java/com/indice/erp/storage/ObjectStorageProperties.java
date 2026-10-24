@@ -47,6 +47,9 @@ public class ObjectStorageProperties {
         private String bucketBiometric = "indice-hr-biometric";
         private String bucketDocuments = "indice-hr-documents";
         private String bucketSalesDocuments = "indice-sales-documents";
+        private String bucketFiles = "indice-company-files";
+        public String getBucketFiles(){return bucketFiles;}
+        public void setBucketFiles(String value){this.bucketFiles=value;}
         private String bucketIdeasBoard = "indice-ideas-board";
         private int presignExpirySeconds = 900;
 

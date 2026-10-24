@@ -6,6 +6,7 @@ export type IndiceModuleTab<TabId extends string> = {
   label: string;
   icon: ReactNode;
   description?: string;
+  disabled?: boolean;
   access?: { page: PageId; tabId?: string };
 };
 

@@ -1,3 +1,4 @@
+import {stageDotStyle} from '../utils/flowPersonalColors';
 import { CalendarClock, Clock3, GripVertical, History, Mail, MessageCircle, MoreHorizontal, Paperclip, PencilLine, Phone } from 'lucide-react';
 import { cn } from '../../../../components/ui/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '../../../../components/ui/dropdown-menu';
@@ -76,7 +77,7 @@ export function ProspectosKanbanCard({ copy, labels, locale, opportunity, timing
             <DropdownMenuItem onSelect={() => onOpenHistory(opportunity)}><History />{labels.details}</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => onEdit(opportunity)}><PencilLine />{copy.quickActions.edit(opportunity.opportunityName)}</DropdownMenuItem>
             <DropdownMenuSub><DropdownMenuSubTrigger>{labels.move}</DropdownMenuSubTrigger><DropdownMenuSubContent>
-              {stages.map(stage => <DropdownMenuItem key={stage.key} disabled={stage.key === opportunity.stage} onSelect={() => onStageChange(opportunity, stage.key)}><span className={cn('h-2 w-2 rounded-full', getOpportunityStageDotClass(stage))} />{getOpportunityStageLabel(stage, copy.options.stages)}</DropdownMenuItem>)}
+              {stages.map(stage => <DropdownMenuItem key={stage.key} disabled={stage.key === opportunity.stage} onSelect={() => onStageChange(opportunity, stage.key)}><span style={stageDotStyle(stage)} className={cn('h-2 w-2 rounded-full', getOpportunityStageDotClass(stage))} />{getOpportunityStageLabel(stage, copy.options.stages)}</DropdownMenuItem>)}
             </DropdownMenuSubContent></DropdownMenuSub>
             <DropdownMenuSeparator />
             <DropdownMenuItem disabled={!hasPhone} asChild={hasPhone}>{hasPhone ? <a draggable={false} href={getPhoneHref(opportunity.phone)}><Phone />{copy.quickActions.call(opportunity.contactPerson)}</a> : <span>{copy.quickActions.noPhone}</span>}</DropdownMenuItem>

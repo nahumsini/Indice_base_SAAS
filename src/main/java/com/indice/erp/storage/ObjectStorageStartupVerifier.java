@@ -32,5 +32,6 @@ public class ObjectStorageStartupVerifier {
         objectStorageService.ensureBucketExists(properties.getMinio().getBucketBiometric());
         objectStorageService.ensureBucketExists(properties.getMinio().getBucketDocuments());
         objectStorageService.ensureBucketExists(properties.getMinio().getBucketSalesDocuments());
+        objectStorageService.ensureBucketExists(properties.getMinio().getBucketFiles());
     }
 }

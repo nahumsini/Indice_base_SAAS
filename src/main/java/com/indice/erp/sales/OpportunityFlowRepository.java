@@ -44,6 +44,10 @@ class OpportunityFlowRepository {
         }
     }
 
+    boolean flowKeyExists(long companyId, String key) {
+        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sales_opportunity_flows WHERE company_id=? AND flow_key=?",Integer.class,companyId,key)>0;
+    }
+
     List<FlowRow> listFlows(long companyId) {
         return jdbcTemplate.query(
                 """

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { cn } from '../../../components/ui/utils';
 import { useLearningModeHeaderActions } from '../../../learningMode';
 
@@ -31,6 +31,7 @@ export type OperationalDistributionSegment = {
   label: string;
   count: number;
   className: string;
+  style?: CSSProperties;
   active?: boolean;
   ariaLabel?: string;
   onClick?: () => void;
@@ -169,14 +170,14 @@ export function OperationalDistributionBar({
               aria-pressed={segment.active}
               onClick={segment.onClick}
               className={cn('transition-all duration-300 hover:brightness-90 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white', segment.className)}
-              style={{ width: getSegmentWidth(segment.count, total) }}
+              style={{ ...segment.style, width: getSegmentWidth(segment.count, total) }}
               title={segment.label}
             />
           ) : (
             <div
               key={segment.id}
               className={cn('transition-all duration-300', segment.className)}
-              style={{ width: getSegmentWidth(segment.count, total) }}
+              style={{ ...segment.style, width: getSegmentWidth(segment.count, total) }}
             />
           ))}
         </div>
@@ -195,12 +196,12 @@ export function OperationalDistributionBar({
               segment.active && 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white',
             )}
           >
-            <span className={cn('h-2 w-2 rounded-full', segment.className)} />
+            <span style={segment.style} className={cn('h-2 w-2 rounded-full', segment.className)} />
             <span>{segment.label}</span>
           </button>
         ) : (
           <span key={segment.id} className="flex items-center gap-1 px-1.5 py-1">
-            <span className={cn('h-2 w-2 rounded-full', segment.className)} />
+            <span style={segment.style} className={cn('h-2 w-2 rounded-full', segment.className)} />
             <span>{segment.label}</span>
           </span>
         ))}

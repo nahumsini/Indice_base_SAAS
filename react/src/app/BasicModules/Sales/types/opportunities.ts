@@ -7,6 +7,7 @@ export type OpportunityFlowStage = {
   label: string;
   type: OpportunityFlowStageType;
   colorToken: OpportunityFlowColorToken;
+  personalColor?: string;
   defaultProbabilityPercent: number;
   position: number;
   required: boolean;

@@ -82,7 +82,8 @@ public class UserWorkspaceStateApiController {
     }
 
     private boolean isActorScopedPreference(String module, String tab) {
-        return "system".equalsIgnoreCase(module.trim())
+        return ("sales".equalsIgnoreCase(module.trim()) && tab.trim().toLowerCase(java.util.Locale.ROOT).startsWith("opportunity-colors-"))
+            || "system".equalsIgnoreCase(module.trim())
             && ("business-currency".equalsIgnoreCase(tab.trim()) || "workbar-layout".equalsIgnoreCase(tab.trim()));
     }
 
@@ -91,7 +92,7 @@ public class UserWorkspaceStateApiController {
     }
 
     private ResponseEntity<?> preferenceActorConflict(String tab) {
-        var code = "business-currency".equalsIgnoreCase(tab.trim()) ? "currency_actor_changed" : "workbar_actor_changed";
+        var code = tab.startsWith("opportunity-colors-") ? "flow_actor_changed" : "business-currency".equalsIgnoreCase(tab.trim()) ? "currency_actor_changed" : "workbar_actor_changed";
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code", code));
     }
 

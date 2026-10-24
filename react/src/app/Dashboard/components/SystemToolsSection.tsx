@@ -9,6 +9,7 @@ import { useAuthorizationRevision } from '../../hooks/useAuthorizationRevision';
 import { ModuleCard } from '../../components/ModuleCard';
 import { ModuleCarousel } from '../../components/ModuleCarousel';
 import { IndiceEmoji } from '../../components/icons/ModuleTabEmoji';
+import { filesCopy } from '../../SystemTools/Files/filesCopy';
 import type { PageId } from '../../config/navigation';
 import type { MainDashboardTranslations } from '../translations';
 import { DashboardSectionHeading } from './DashboardSectionHeading';
@@ -50,6 +51,7 @@ export function SystemToolsSection({ copy, onNavigate }: SystemToolsSectionProps
         count={count}
       />
       <ModuleCarousel singleRow dashboardSpacing>
+        {visible.files && <ModuleCard title={filesCopy(locale).title} color="blue" artwork={<IndiceEmoji name="folder" className="size-14" />} size="small" onClick={()=>onNavigate('files')} />}
         {visible.connectAi && (
           <ModuleCard
             title={copy.connectAi}

@@ -83,6 +83,7 @@ const Analitica = lazy(() => import('./AIModules/Analytics'));
 const Capacitacion = lazy(() => import('./AIModules/Training'));
 const Coach = lazy(() => import('./AIModules/Coach'));
 const SubscriptionManagementPage = lazy(() => import('./Billing/SubscriptionManagementPage'));
+const FilesWorkspace = lazy(() => import('./SystemTools/Files/FilesWorkspace'));
 const KioskCenter = lazy(() => import('./KioskCenter/MultiKioskCenterPage'));
 
 type StandaloneModuleComponent = ComponentType | LazyExoticComponent<ComponentType>;
@@ -613,6 +614,7 @@ export default function App() {
             routes.add(route);
           }
         }
+        if (session && !session.demoMode && session.company.subscription?.access_allowed !== false) routes.add('files');
         if (canAccessKioskCenter(session)) {
           routes.add('kiosk-center');
           routes.add('kiosk-management');
@@ -780,6 +782,8 @@ export default function App() {
       <Cartera learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'kpis' ? (
       <Kpis learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
+    ) : currentPage === 'files' ? (
+      <FilesWorkspace onNavigate={handleModuleNavigation} />
     ) : currentPage === 'kiosk-center' ? (
       <KioskCenter />
     ) : currentPage === 'kiosk-management' ? (

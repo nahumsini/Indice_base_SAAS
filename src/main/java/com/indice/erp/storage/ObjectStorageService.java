@@ -37,6 +37,9 @@ public interface ObjectStorageService {
         throw new UnsupportedOperationException("Private file download is unavailable.");
     }
 
+    /** Bounded authenticated-owner streaming; existing byte-array intake limits stay unchanged. */
+    default void streamObject(String bucketName,String objectKey,long offset,long length,java.io.OutputStream output){throw new UnsupportedOperationException("Private file streaming is unavailable.");}
+
     void copyObject(String bucketName, String sourceObjectKey, String targetObjectKey);
 
     void moveObject(String bucketName, String sourceObjectKey, String targetObjectKey);

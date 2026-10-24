@@ -89,10 +89,19 @@ public class MailingFileService {
         });
         var bytes=storage.readObject(bucket,sealed,MailFilePolicy.MAX);
         require(bytes.length==row.file().sizeBytes(),BAD_REQUEST,"email_attachment_mismatch");
-        MailFilePolicy.bytes(row.file().filename(),row.file().contentType(),bytes);
-        meter.commitMoved(actor.companyId(),bucket,row.key(),sealed,row.file().sizeBytes());
-        db.update("UPDATE sales_mailing_files SET status='READY',object_key=? WHERE company_id=? AND id=?",sealed,actor.companyId(),id);
-        StorageCommitCleanup.afterCommit(()->delete(row.key()));return row.file();
+        var prepared=MailFilePolicy.prepare(row.file().filename(),row.file().contentType(),bytes);
+        if(prepared!=bytes){
+            storage.writeObject(bucket,sealed,row.file().contentType(),prepared);
+            require(Arrays.equals(storage.readObject(bucket,sealed,MailFilePolicy.MAX),prepared),BAD_REQUEST,"email_attachment_mismatch");
+            // Both reservations and owner metadata participate in this transaction.
+            // The final object is counted at its actual prepared size, not the upload size.
+            meter.release(actor.companyId(),row.key(),"pdf_prepared");
+            meter.reserve(actor.companyId(),"crm",bucket,sealed,prepared.length);
+            meter.commit(actor.companyId(),bucket,sealed,prepared.length);
+        }else meter.commitMoved(actor.companyId(),bucket,row.key(),sealed,row.file().sizeBytes());
+        db.update("UPDATE sales_mailing_files SET status='READY',object_key=?,size_bytes=? WHERE company_id=? AND id=?",sealed,prepared.length,actor.companyId(),id);
+        StorageCommitCleanup.afterCommit(()->delete(row.key()));
+        return new File(id,row.file().filename(),row.file().contentType(),prepared.length);
     }
     private void delete(String key){try{storage.deleteObject(bucket,key);}catch(RuntimeException ignored){ }}
     private List<File> files(long company,String table,String column,String id) {

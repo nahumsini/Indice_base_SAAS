@@ -1,6 +1,7 @@
 import { MailRichEditor } from "../../../../components/mail-editor/MailRichEditor";
 import { MailFormattedPreview } from "../../../../components/mail-editor/MailFormattedPreview";
 import { Input } from "../../../../components/ui/input";
+import { Eye, ChevronDown } from 'lucide-react';
 
 import type { TemplateInput } from "../mailingApi";
 import type { MailingCopy } from "../translations";
@@ -25,6 +26,7 @@ export function TemplateForm({
     <label className="block space-y-2 text-sm">
       <span>{label}</span>
       <Input
+        autoFocus={key === 'name'}
         className="h-11"
         maxLength={maxLength}
         disabled={disabled}
@@ -35,15 +37,23 @@ export function TemplateForm({
   );
   return (
     <div className="space-y-4">
-      {field("name", copy.templateName, 180)}
-      {field("subject", copy.subject, 240)}
+      <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+        {field("name", copy.templateName, 180)}
+        {field("subject", copy.subject, 240)}
+      </div>
       {field("previewText", copy.previewText, 240)}
       <div className="block space-y-2 text-sm">
         <span>{copy.body}</span>
         <MailRichEditor label={copy.body} text={value.bodyText} html={value.bodyHtml??null} disabled={disabled} onBusy={onBusy} onChange={(bodyText,bodyHtml)=>onChange({...value,bodyText,bodyHtml})} />
       </div>
       <p className="text-sm text-slate-500">{copy.templateHint}</p>
-      <TemplatePreview value={value} copy={copy} />
+      <details className="group min-w-0 rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-slate-200 [&::-webkit-details-marker]:hidden">
+          <Eye aria-hidden="true" className="h-4 w-4" />{copy.templatePreview}
+          <ChevronDown aria-hidden="true" className="ml-auto h-4 w-4 transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="border-t border-slate-200 p-3 dark:border-slate-700"><TemplatePreview compact value={value} copy={copy} /></div>
+      </details>
     </div>
   );
 }

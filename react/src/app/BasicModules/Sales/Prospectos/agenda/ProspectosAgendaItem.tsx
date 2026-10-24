@@ -1,3 +1,4 @@
+import {stageBadgeStyle} from '../utils/flowPersonalColors';
 import { Badge } from '../../../../components/ui/badge';
 import { OpportunityScheduleInlineEditor } from '../components/OpportunityScheduleInlineEditor';
 import { getOpportunitySchedule } from '../utils/prospectosFormatters';
@@ -41,10 +42,10 @@ export function ProspectosAgendaItem({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-medium text-slate-950">{opportunity.opportunityName}</p>
-            <Badge variant="outline" className={cn('rounded-full px-2.5 py-1 font-medium', temperatureClasses[opportunity.temperature])}>
+            <Badge variant="outline" style={stageBadgeStyle(getOpportunityStageConfig(stages, opportunity.stage))} className={cn('rounded-full px-2.5 py-1 font-medium', temperatureClasses[opportunity.temperature])}>
               {copy.options.temperatures[opportunity.temperature]}
             </Badge>
-            <Badge variant="outline" className={cn('rounded-full px-2.5 py-1 font-medium', getOpportunityStageBadgeClass(getOpportunityStageConfig(stages, opportunity.stage)))}>
+            <Badge variant="outline" style={stageBadgeStyle(getOpportunityStageConfig(stages, opportunity.stage))} className={cn('rounded-full px-2.5 py-1 font-medium', getOpportunityStageBadgeClass(getOpportunityStageConfig(stages, opportunity.stage)))}>
               {getOpportunityStageLabelByKey(stages, opportunity.stage, copy.options.stages as Record<string, string>)}
             </Badge>
           </div>

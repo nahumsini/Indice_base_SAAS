@@ -1,272 +1,79 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Check, CircleAlert, Plus, RotateCcw, Workflow } from 'lucide-react';
-import { Button } from '../../../../components/ui/button';
-import { Input } from '../../../../components/ui/input';
-import { SalesModalFrame } from '../../components/SalesModalFrame';
-import { getSalesModalActionClassNames } from '../../salesModalStyles';
-import {
-  defaultOpportunityFlowStages,
-  type OpportunityFlow,
-  type OpportunityFlowStage,
-} from '../../salesCrmContext';
-import type { ProspectosCopy } from '../translations';
-import { getOpportunityStageLabel } from '../utils/prospectosFlow';
-import { OpportunityFlowListCard } from './OpportunityFlowListCard';
-import { OpportunityFlowStageEditor } from './OpportunityFlowStageEditor';
-
-const flowActionClassNames = getSalesModalActionClassNames('coral');
-const reindex = (stages: OpportunityFlowStage[]) => stages.map((stage, position) => ({ ...stage, position }));
-
-function localizedStages(
-  stages: OpportunityFlowStage[],
-  localizedDefaultLabels: Record<string, string>,
-  clearCounts = false,
-) {
-  return reindex(stages.map((stage) => ({
-    ...stage,
-    label: getOpportunityStageLabel(stage, localizedDefaultLabels),
-    opportunityCount: clearCounts ? 0 : stage.opportunityCount,
-    usesDefaultLabel: false,
-  })));
-}
-
-export function OpportunityFlowManagerModal({
-  open,
-  scriptsLabel,
-  onScripts,
-  flows,
-  selectedFlowId,
-  canManage,
-  loadError,
-  copy,
-  localizedDefaultLabels,
-  onOpenChange,
-  onRetry,
-  onSelectFlow,
-  onCreate,
-  onUpdate,
-}: {
-  open: boolean;
-  scriptsLabel?: string;
-  onScripts?: (flowId: number) => void;
-  flows: OpportunityFlow[];
-  selectedFlowId: number | null;
-  canManage: boolean;
-  loadError: string;
-  copy: ProspectosCopy['flow'];
-  localizedDefaultLabels: Record<string, string>;
-  onOpenChange: (open: boolean) => void;
-  onRetry: () => void;
-  onSelectFlow: (flowId: number) => Promise<void>;
-  onCreate: (name: string, stages: OpportunityFlowStage[]) => Promise<OpportunityFlow>;
-  onUpdate: (flowId: number, name: string, stages: OpportunityFlowStage[]) => Promise<OpportunityFlow>;
+import {useEffect,useMemo,useRef,useState} from 'react';
+import {ArrowLeft,Check,Copy,Palette,Plus,RotateCcw,Workflow} from 'lucide-react';
+import {Button} from '../../../../components/ui/button';
+import {Input} from '../../../../components/ui/input';
+import {IndiceConfirmationDialog} from '../../../../components/indice-modal';
+import {IndiceWorkspaceNavigation} from '../../../../components/frontend-os';
+import {useLanguage} from '../../../../shared/context';
+import {SalesModalFrame} from '../../components/SalesModalFrame';
+import {defaultOpportunityFlowStages,type OpportunityFlow,type OpportunityFlowStage} from '../../salesCrmContext';
+import type {ProspectosCopy} from '../translations';
+import {getOpportunityStageLabel} from '../utils/prospectosFlow';
+import {applyFlowColors,type FlowColors} from '../utils/flowPersonalColors';
+import {OpportunityFlowListCard} from './OpportunityFlowListCard';
+import {OpportunityFlowStageEditor} from './OpportunityFlowStageEditor';
+import {OpportunityFlowRetirementModal} from './OpportunityFlowRetirementModal';
+import {flowManagerCopy,flowText} from './flowManagerCopy';
+import './opportunityFlowManager.css';
+const localize=(stages:OpportunityFlowStage[],labels:Record<string,string>,clear=false)=>stages.map((stage,position)=>({...stage,label:getOpportunityStageLabel(stage,labels),position,opportunityCount:clear?0:stage.opportunityCount,usesDefaultLabel:false}));
+const stageSnapshot=(name:string,stages:OpportunityFlowStage[])=>JSON.stringify([name,stages.map(s=>[s.key,s.label,s.type,s.colorToken,s.defaultProbabilityPercent])]);
+export function OpportunityFlowManagerModal({open,scriptsLabel,onScripts,flows,selectedFlowId,canManage,loadError,copy,localizedDefaultLabels,onOpenChange,onRetry,onSelectFlow,onCreate,onUpdate,personalColors={},colorsReady=false,colorsError=false,onRetryColors,onSaveColors,onRetired}: {
+ open:boolean;scriptsLabel?:string;onScripts?:(flowId:number)=>void;flows:OpportunityFlow[];selectedFlowId:number|null;canManage:boolean;loadError:string;copy:ProspectosCopy['flow'];localizedDefaultLabels:Record<string,string>;onOpenChange:(open:boolean)=>void;onRetry:()=>void;onSelectFlow:(flowId:number)=>Promise<void>;onCreate:(name:string,stages:OpportunityFlowStage[])=>Promise<OpportunityFlow>;onUpdate:(flowId:number,name:string,stages:OpportunityFlowStage[])=>Promise<OpportunityFlow>;
+ personalColors?:Record<number,FlowColors>;colorsReady?:boolean;colorsError?:boolean;onRetryColors?:()=>void;onSaveColors?:(id:number,colors:FlowColors)=>Promise<void>;onRetired?:(source:number,target:number)=>Promise<void>;
 }) {
-  const selectedFlow = flows.find((flow) => flow.id === selectedFlowId) ?? flows[0] ?? null;
-  const [view, setView] = useState<'catalog' | 'editor'>('catalog');
-  const [draftFlowId, setDraftFlowId] = useState<number | null>(null);
-  const [draftName, setDraftName] = useState('');
-  const [draftStages, setDraftStages] = useState<OpportunityFlowStage[]>(defaultOpportunityFlowStages);
-  const [creating, setCreating] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [activatingFlowId, setActivatingFlowId] = useState<number | null>(null);
-  const [saveError, setSaveError] = useState('');
-
-  const editorFlow = creating ? null : flows.find((flow) => flow.id === draftFlowId) ?? null;
-  const isFactory = Boolean(editorFlow?.factory);
-  const canEdit = view === 'editor' && canManage && (creating || !isFactory);
-  const openStagesCount = draftStages.filter((stage) => stage.type === 'OPEN').length;
-  const normalizedLabels = useMemo(
-    () => draftStages.map((stage) => stage.label.trim().toLocaleLowerCase()),
-    [draftStages],
-  );
-  const hasInvalidName = draftName.trim().length < 2 || draftName.trim().length > 100;
-  const hasInvalidLabel = normalizedLabels.some((label) => label.length < 2 || label.length > 80);
-  const hasDuplicateLabel = normalizedLabels.some((label, index) => normalizedLabels.indexOf(label) !== index);
-  const canSave = canEdit && !hasInvalidName && !hasInvalidLabel && !hasDuplicateLabel
-    && openStagesCount > 0 && !isSaving;
-
-  useEffect(() => {
-    if (!open) return;
-    setView('catalog');
-    setCreating(false);
-    setDraftFlowId(null);
-    setSaveError('');
-  }, [open]);
-
-  const openEditor = (flow: OpportunityFlow) => {
-    setCreating(false);
-    setDraftFlowId(flow.id);
-    setDraftName(flow.name);
-    setDraftStages(localizedStages(flow.stages, localizedDefaultLabels));
-    setSaveError('');
-    setView('editor');
-  };
-
-  const startNewFlow = () => {
-    if (!canManage) return;
-    const template = flows.find((flow) => flow.factory)?.stages ?? defaultOpportunityFlowStages;
-    setCreating(true);
-    setDraftFlowId(null);
-    setDraftName(copy.newFlowName);
-    setDraftStages(localizedStages(template, localizedDefaultLabels, true));
-    setSaveError('');
-    setView('editor');
-  };
-
-  const returnToCatalog = () => {
-    if (isSaving) return;
-    setView('catalog');
-    setCreating(false);
-    setDraftFlowId(null);
-    setSaveError('');
-  };
-
-  const activateFlow = async (flowId: number) => {
-    if (activatingFlowId !== null) return;
-    setActivatingFlowId(flowId);
-    setSaveError('');
-    try {
-      await onSelectFlow(flowId);
-    } finally {
-      setActivatingFlowId(null);
-    }
-  };
-
-  const restoreDefault = () => {
-    if (!canEdit) return;
-    setDraftStages(localizedStages(defaultOpportunityFlowStages, localizedDefaultLabels, true));
-    setSaveError('');
-  };
-
-  const handleSave = async () => {
-    if (!canSave) return;
-    setIsSaving(true);
-    setSaveError('');
-    try {
-      const stages = reindex(draftStages.map((stage) => ({ ...stage, label: stage.label.trim() })));
-      const saved = creating
-        ? await onCreate(draftName.trim(), stages)
-        : await onUpdate(draftFlowId as number, draftName.trim(), stages);
-      await onSelectFlow(saved.id);
-      setView('catalog');
-      setCreating(false);
-      setDraftFlowId(null);
-    } catch (error) {
-      setSaveError(error instanceof Error ? error.message : copy.saveError);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const editorTitle = creating ? copy.createTitle : copy.editTitle(draftName);
-
-  return (
-    <SalesModalFrame
-      open={open}
-      onOpenChange={onOpenChange}
-      title={view === 'editor' ? editorTitle : copy.title}
-      description={view === 'editor' ? copy.editorDescription : copy.description}
-      eyebrow={copy.eyebrow}
-      icon={<Workflow className="h-6 w-6" />}
-      modalType="operational-workspace"
-      busy={isSaving}
-      contentClassName="h-[92dvh]"
-      bodyClassName="flex min-h-0 flex-1 flex-col overflow-hidden !px-0 !py-0"
-      footerLeading={view === 'editor' && canEdit ? (
-        <Button type="button" variant="outline" className={flowActionClassNames.secondary} disabled={isSaving} onClick={restoreDefault}>
-          <RotateCcw className="h-4 w-4" />{copy.restoreDefault}
-        </Button>
-      ) : selectedFlow && onScripts ? <Button variant="outline" onClick={() => onScripts(selectedFlow.id)}>{scriptsLabel} · {selectedFlow.name}</Button> : undefined}
-      footerSummary={view === 'editor'
-        ? copy.editorSummary(draftStages.length, openStagesCount)
-        : copy.managerSummary(flows.length, selectedFlow?.name ?? copy.notAvailable)}
-      footer={view === 'editor' ? (
-        <>
-          <Button type="button" variant="outline" className={flowActionClassNames.secondary} disabled={isSaving} onClick={returnToCatalog}>
-            {copy.cancel}
-          </Button>
-          {canEdit ? (
-            <Button className={flowActionClassNames.primary} disabled={!canSave} onClick={handleSave}>
-              <Check className="h-4 w-4" />{isSaving ? copy.saving : creating ? copy.create : copy.save}
-            </Button>
-          ) : null}
-        </>
-      ) : (
-        <Button type="button" variant="outline" className={flowActionClassNames.secondary} onClick={() => onOpenChange(false)}>
-          {copy.close}
-        </Button>
-      )}
-    >
-      {view === 'catalog' ? (
-        <section className="min-h-0 flex-1 overflow-y-auto bg-slate-50/70">
-          <div className="mx-auto flex max-w-7xl flex-col gap-4 p-4 lg:p-5">
-            <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
-              <div className="min-w-0">
-                <h3 className="text-lg font-medium text-slate-950">{copy.catalogTitle}</h3>
-                <p className="mt-1 max-w-3xl text-sm text-slate-500">{copy.catalogDescription}</p>
-              </div>
-              <Button type="button" className="h-11 shrink-0 gap-2 rounded-lg bg-[#FF6B5E] text-[#222831] hover:bg-[#E85C50]" disabled={!canManage || Boolean(loadError)} onClick={startNewFlow}>
-                <Plus className="h-4 w-4" />{copy.newFlow}
-              </Button>
-            </div>
-
-            {loadError ? (
-              <div role="alert" className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
-                <span className="flex items-start gap-2"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />{loadError}</span>
-                <Button type="button" variant="outline" className="h-11 gap-2 rounded-lg" onClick={onRetry}><RotateCcw className="h-4 w-4" />{copy.retry}</Button>
-              </div>
-            ) : !canManage ? (
-              <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" /><p>{copy.adminOnly}</p>
-              </div>
-            ) : null}
-
-            <div className="space-y-2.5">
-              {flows.map((flow) => (
-                <OpportunityFlowListCard
-                  key={flow.id}
-                  flow={flow}
-                  selected={flow.id === selectedFlowId}
-                  canManage={canManage}
-                  activating={activatingFlowId === flow.id}
-                  copy={copy}
-                  onActivate={() => void activateFlow(flow.id)}
-                  onOpen={() => openEditor(flow)}
-                />
-              ))}
-            </div>
-          </div>
-        </section>
-      ) : (
-        <section className="flex min-h-0 flex-1 flex-col bg-slate-50/70">
-          <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 lg:px-5">
-            <Button type="button" variant="ghost" className="h-11 gap-2 rounded-lg text-slate-600" disabled={isSaving} onClick={returnToCatalog}>
-              <ArrowLeft className="h-4 w-4" />{copy.backToFlows}
-            </Button>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="mx-auto max-w-7xl space-y-4 p-4 lg:p-5">
-              <div className="rounded-xl border border-slate-200 bg-white p-4">
-                <label className="text-sm font-medium text-slate-700" htmlFor="opportunity-flow-name">{copy.flowName}</label>
-                <Input id="opportunity-flow-name" value={draftName} maxLength={100} disabled={!canEdit || isSaving} className="mt-2 h-11 rounded-lg border-slate-200" onChange={(event) => setDraftName(event.target.value)} />
-              </div>
-
-              {isFactory ? (
-                <div className="flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-                  <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" /><p>{copy.factoryReadOnly}</p>
-                </div>
-              ) : null}
-              {saveError ? (
-                <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" /><p>{saveError}</p>
-                </div>
-              ) : null}
-
-              <OpportunityFlowStageEditor stages={draftStages} canEdit={canEdit} busy={isSaving} copy={copy} onChange={setDraftStages} />
-            </div>
-          </div>
-        </section>
-      )}
-    </SalesModalFrame>
-  );
+ const {currentLanguage}=useLanguage(),text=flowManagerCopy(currentLanguage.code);
+ const [view,setView]=useState<'catalog'|'editor'>('catalog'),[mode,setMode]=useState<'team'|'colors'>('team');
+ const [id,setId]=useState<number|null>(null),[creating,setCreating]=useState(false),[name,setName]=useState(''),[stages,setStages]=useState<OpportunityFlowStage[]>([]),[colors,setColors]=useState<FlowColors>({});
+ const [busy,setBusy]=useState(false),[activating,setActivating]=useState<number|null>(null),[error,setError]=useState(''),[notice,setNotice]=useState(''),[retire,setRetire]=useState<OpportunityFlow|null>(null),[discard,setDiscard]=useState<(()=>void)|null>(null);
+ const initial=useRef(''),initialColors=useRef('{}'),latch=useRef(false);
+ const original=flows.find(flow=>flow.id===id),factory=!!original?.factory&&!creating,canEdit=canManage&&!factory;
+ const dirty=view==='editor'&&(stageSnapshot(name,stages)!==initial.current||JSON.stringify(colors)!==initialColors.current);
+ const sorted=useMemo(()=>[...flows].sort((a,b)=>Number(b.id===selectedFlowId)-Number(a.id===selectedFlowId)||Number(b.factory)-Number(a.factory)),[flows,selectedFlowId]);
+ useEffect(()=>{if(open){setView('catalog');setRetire(null);setError('');setNotice('');setDiscard(null);}},[open]);
+ useEffect(()=>{if(!open)return;const warn=(event:BeforeUnloadEvent)=>{if(dirty||busy){event.preventDefault();event.returnValue='';}};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[dirty,busy,open]);
+ useEffect(()=>{if(open&&view==='editor'&&!creating&&id!==null&&colorsReady&&JSON.stringify(colors)===initialColors.current){const next=personalColors[id]??{};if(JSON.stringify(next)!==initialColors.current){setColors({...next});initialColors.current=JSON.stringify(next);}}},[open,view,creating,id,colorsReady,personalColors]);
+ const leave=(action:()=>void)=>{if(busy||latch.current||activating!==null)return;if(dirty)setDiscard(()=>action);else action();};
+ function editor(flow:OpportunityFlow|null,duplicate=false){
+  const isNew=!flow||duplicate,source=flow??flows.find(f=>f.factory),draft=localize(source?.stages??defaultOpportunityFlowStages,localizedDefaultLabels,isNew);
+  const nextName=duplicate?flowText(text.copyName,{name:flow!.factory?text.factoryName:flow!.name}).slice(0,100):flow?.name??copy.newFlowName;
+  const nextColors=!isNew&&flow?personalColors[flow.id]??{}:{};
+  setCreating(isNew);setId(isNew?null:flow!.id);setName(nextName);setStages(draft);setColors({...nextColors});setMode('team');setError('');setNotice('');setView('editor');
+  initial.current=stageSnapshot(nextName,draft);initialColors.current=JSON.stringify(nextColors);
+ }
+ const validStages=stages.length>=3&&stages.length<=12&&stages.every(s=>s.label.trim().length>=2&&s.label.trim().length<=80)&&new Set(stages.map(s=>s.label.trim().toLocaleLowerCase())).size===stages.length;
+ const canSave=mode==='colors'?colorsReady&&id!==null&&id>0&&!loadError&&!!onSaveColors:canEdit&&name.trim().length>=2&&name.trim().length<=100&&validStages;
+ async function save(){
+  if(latch.current||busy||!canSave)return;latch.current=true;setBusy(true);setError('');setNotice('');
+  try {
+   if(mode==='colors'&&id!==null){await onSaveColors!(id,colors);initialColors.current=JSON.stringify(colors);setNotice(text.colorsSaved);}
+   else {
+    const saved=creating?await onCreate(name.trim(),stages):await onUpdate(id!,name.trim(),stages);
+    setId(saved.id);setCreating(false);setName(saved.name);const draft=localize(saved.stages,localizedDefaultLabels);setStages(draft);initial.current=stageSnapshot(saved.name,draft);
+    await onSelectFlow(saved.id);setView('catalog');
+   }
+  }catch{setError(text.saveError);}finally{latch.current=false;setBusy(false);}
+ }
+ async function activate(flowId:number){if(activating!==null||latch.current)return;latch.current=true;setActivating(flowId);setError('');try{await onSelectFlow(flowId);}catch{setError(copy.loadError);}finally{latch.current=false;setActivating(null);}}
+ function switchMode(next:'team'|'colors') {leave(()=>{const draft=localize(original?.stages??stages,localizedDefaultLabels);if(original){setStages(draft);setName(original.name);initial.current=stageSnapshot(original.name,draft);}setColors({...personalColors[id??0]??{}});initialColors.current=JSON.stringify(personalColors[id??0]??{});setMode(next);setError('');setNotice('');});}
+ if(discard)return <IndiceConfirmationDialog open title={text.unsavedTitle} description={text.unsavedHint} tone="coral" cancelLabel={text.keep} confirmLabel={text.discard} onCancel={()=>setDiscard(null)} onConfirm={()=>{const action=discard;setDiscard(null);action();}}/>;
+ if(retire&&onRetired)return <OpportunityFlowRetirementModal flow={retire} flows={flows.map(flow=>({...flow,stages:localize(flow.stages,localizedDefaultLabels)}))} copy={copy} text={text} onClose={()=>setRetire(null)} onSaved={async(source,target)=>{await onRetired(source,target);setRetire(null);}}/>;
+ return <SalesModalFrame open={open} onOpenChange={next=>next?onOpenChange(true):leave(()=>onOpenChange(false))} title={view==='catalog'?text.title:factory?text.factoryName:creating?copy.createTitle:copy.editTitle(name)} description={view==='catalog'?text.description:mode==='colors'?text.personalHint:text.teamHint} icon={mode==='colors'&&view==='editor'?<Palette/>:<Workflow/>} modalType="operational-workspace" busy={busy||activating!==null} closeLabel={copy.close} contentClassName={`flow-manager-modal ${view==='editor'?'flow-manager-editor':'flow-manager-catalog'}`} bodyClassName="!p-0" footerSummary={view==='catalog'?`${flows.length}/10 · ${copy.catalogTitle}`:copy.editorSummary(stages.length,stages.filter(s=>s.type==='OPEN').length)}
+  footer={view==='catalog'?<Button variant="outline" onClick={()=>onOpenChange(false)}>{copy.close}</Button>:<><Button variant="outline" disabled={busy} onClick={()=>leave(()=>setView('catalog'))}>{copy.cancel}</Button>{(canEdit||mode==='colors')&&<Button className="flow-primary" disabled={busy||!canSave||(!dirty&&!creating)} onClick={()=>void save()}><Check size={16}/>{busy?copy.saving:mode==='colors'?text.saveColors:creating?copy.create:copy.save}</Button>}</>}>
+  <div className="flow-manager-content">
+   {view==='catalog'?<>
+    <div className="flow-catalog-toolbar"><span>{copy.catalogTitle}</span><Button className="flow-primary" disabled={!canManage||!!loadError||flows.length>=10} onClick={()=>editor(null)}><Plus size={17}/>{copy.newFlow}</Button></div>
+    {(loadError||error)&&<div className="flow-message flow-error" role="alert">{loadError||error}<Button variant="outline" onClick={onRetry}>{copy.retry}</Button></div>}
+    <div className="flow-catalog-list">{sorted.map(flow=><OpportunityFlowListCard key={flow.id} flow={{...flow,stages:applyFlowColors(localize(flow.stages,localizedDefaultLabels),personalColors[flow.id]??{})}} selected={flow.id===selectedFlowId} canManage={canManage} activating={activating!==null} copy={copy} text={text} scriptsLabel={scriptsLabel} canDuplicate={flows.length<10} onActivate={()=>void activate(flow.id)} onOpen={()=>editor(flow)} onDuplicate={()=>editor(flow,true)} onDelete={onRetired?()=>setRetire(flow):()=>{}} onScripts={onScripts?()=>onScripts(flow.id):undefined}/>)}</div>
+   </>:<>
+    <div className="flow-editor-toolbar"><Button variant="ghost" disabled={busy} onClick={()=>leave(()=>setView('catalog'))}><ArrowLeft size={16}/>{copy.backToFlows}</Button>{factory&&canManage&&<Button variant="outline" onClick={()=>leave(()=>editor(original!,true))}><Copy size={16}/>{text.createCopy}</Button>}</div>
+    {!creating&&<IndiceWorkspaceNavigation variant="views" tone="coral" value={mode} ariaLabel={text.title} onValueChange={value=>switchMode(value as 'team'|'colors')} items={[{id:'team',label:text.team},{id:'colors',label:text.myColors,icon:<Palette size={16}/>}]}/>}
+    {factory&&mode==='team'&&<p className="flow-message">🔒 {text.factoryHint}</p>}
+    {mode==='team'&&canEdit&&<label className="flow-name-field" htmlFor="opportunity-flow-name">{copy.flowName}<Input id="opportunity-flow-name" value={name} maxLength={100} disabled={busy} onChange={event=>setName(event.target.value)}/></label>}
+    {mode==='colors'&&<div className="flow-colors-toolbar"><Button variant="outline" disabled={!colorsReady||busy} onClick={()=>setColors({})}><RotateCcw size={16}/>{text.resetColors}</Button></div>}
+    {mode==='colors'&&colorsError&&<div className="flow-message flow-error" role="alert">{text.loadColorsError}<Button variant="outline" onClick={onRetryColors}>{copy.retry}</Button></div>}
+    {error&&<div className="flow-message flow-error" role="alert">{error}</div>}{notice&&<p className="flow-message flow-success" role="status">✓ {notice}</p>}
+    <OpportunityFlowStageEditor stages={stages} canEdit={canEdit&&mode==='team'} busy={busy} copy={copy} onChange={setStages} mode={mode} colors={colors} onColorsChange={setColors} text={text} colorsReady={colorsReady&&!colorsError&&!!id&&id>0&&!loadError}/>
+   </>}
+  </div>
+ </SalesModalFrame>;
 }

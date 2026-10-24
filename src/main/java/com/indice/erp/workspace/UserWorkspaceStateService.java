@@ -78,6 +78,7 @@ public class UserWorkspaceStateService {
         // Explicit user preferences last until changed; navigation keeps its retention.
         Integer retentionDays = (scope.moduleKey().equals("expenses") && scope.tabKey().equals("expenses-columns"))
             || (scope.moduleKey().equals("system") && (scope.tabKey().equals("learning-mode") || scope.tabKey().equals("business-currency") || scope.tabKey().equals("workbar-layout") || scope.tabKey().startsWith("learning-view-")))
+            || (scope.moduleKey().equals("sales") && scope.tabKey().startsWith("opportunity-colors-"))
             ? null : RETENTION_DAYS;
 
         jdbcTemplate.update(

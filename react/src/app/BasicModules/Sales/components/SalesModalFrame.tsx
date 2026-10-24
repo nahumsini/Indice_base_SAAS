@@ -1,9 +1,10 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import { IndiceModalFrame, type IndiceModalTone, type IndiceModalType } from '../../../components/indice-modal';
 import type { SalesModalTone } from '../salesModalStyles';
 
 export function SalesModalFrame({
   bodyClassName,
+  bodyRef,
   busy = false,
   children,
   closeLabel,
@@ -22,6 +23,7 @@ export function SalesModalFrame({
   tone = 'coral',
 }: {
   bodyClassName?: string;
+  bodyRef?: Ref<HTMLDivElement>;
   busy?: boolean;
   children: ReactNode;
   closeLabel?: string;
@@ -47,6 +49,7 @@ export function SalesModalFrame({
   return (
     <IndiceModalFrame
       bodyClassName={bodyClassName}
+      bodyRef={bodyRef}
       busy={busy}
       closeLabel={closeLabel ?? title}
       contentClassName={contentClassName}

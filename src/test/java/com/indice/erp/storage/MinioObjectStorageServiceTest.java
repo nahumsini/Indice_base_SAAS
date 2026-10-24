@@ -123,4 +123,24 @@ class MinioObjectStorageServiceTest {
             .isInstanceOf(IllegalArgumentException.class).hasMessage("Invalid file size limit.");
         verify(minioClient, never()).getObject(any());
     }
+    @Test
+    void boundedStreamCopiesRequestedRangeAndRejectsTruncation() throws Exception {
+        var response = new io.minio.GetObjectResponse(new okhttp3.Headers.Builder().build(),
+            "private-bucket", "us-east-1", "document", new java.io.ByteArrayInputStream("range".getBytes()));
+        given(minioClient.getObject(any())).willReturn(response);
+        var output = new java.io.ByteArrayOutputStream();
+        service.streamObject("private-bucket", "document", 2, 5, output);
+        assertThat(output.toString()).isEqualTo("range");
+        var shortResponse = new io.minio.GetObjectResponse(new okhttp3.Headers.Builder().build(),
+            "private-bucket", "us-east-1", "document", new java.io.ByteArrayInputStream(new byte[2]));
+        given(minioClient.getObject(any())).willReturn(shortResponse);
+        assertThatThrownBy(() -> service.streamObject("private-bucket", "document", 0, 3, new java.io.ByteArrayOutputStream()))
+            .isInstanceOf(ObjectStorageException.class);
+    }
+    @Test
+    void invalidStreamRangeNeverContactsProvider() throws Exception {
+        assertThatThrownBy(() -> service.streamObject("private-bucket", "document", 0, 100L * 1024 * 1024 + 1, new java.io.ByteArrayOutputStream()))
+            .isInstanceOf(IllegalArgumentException.class);
+        verify(minioClient, never()).getObject(any());
+    }
 }

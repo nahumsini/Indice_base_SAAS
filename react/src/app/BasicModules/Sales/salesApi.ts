@@ -199,6 +199,12 @@ export const salesApi = {
   kpiWorkspace() {
     return apiClient<unknown>(`${endpoints.sales.base}/kpis/workspace`).then(toSalesKpiWorkspaceSource);
   },
+  previewFlowRetirement(flowId:number,targetFlowId:number,actor:string) {
+    return apiClient<{flowId:number;targetFlowId:number;signature:string;opportunityCount:number;stages:OpportunityFlowApiStage[]}>(`${endpoints.sales.base}/opportunity-flow/${flowId}/retirement?targetFlowId=${targetFlowId}`,{headers:{'X-Flow-Actor':actor}});
+  },
+  retireOpportunityFlow(flowId:number,command:{commandId:string;signature:string;targetFlowId:number;stageMapping:Record<string,string>},actor:string) {
+    return apiClient<{flowId:number;targetFlowId:number;movedCount:number}>(`${endpoints.sales.base}/opportunity-flow/${flowId}/retirement`,{method:'POST',headers:{'X-Flow-Actor':actor},body:JSON.stringify(command)});
+  },
   getOpportunityFlows() {
     return apiClient<OpportunityFlowApiCatalogResponse>(`${endpoints.sales.base}/opportunity-flow`);
   },

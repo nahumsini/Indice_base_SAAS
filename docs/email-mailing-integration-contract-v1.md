@@ -51,6 +51,46 @@ uses list/detail on desktop and list then detail on mobile. Content is rendered 
 
 ## Persistence and connection security
 
+### Template attachment error recovery — 2026-10-23
+
+The existing Mailing exception advice also covers `MailingController`, including
+template-file presign and registration. Preserve the HTTP status and expose only the
+existing safe `email_*`/`mailing_*` code; validation bodies and internal diagnostics stay
+redacted. This corrects generic attachment failures that hid PDF/content rejections.
+The frontend distinguishes preparing, transferring and verifying. A content rejection
+keeps the template text and current verified attachments and lets the user select a
+replacement for unsupported actions/forms. Embedded-file-only PDFs now use the
+automatic preparation decision below. Transient registration retries retain the request identity and
+skip an already completed transfer. Ordinary PDFs remain supported; embedded content,
+passwords/forms, quotas, tenant/manager authorization and CSRF retain their existing
+rules. No automatic document conversion, schema change or deployment is included.
+
+### Automatic preparation of PDFs with embedded files — 2026-10-23
+
+The owner explicitly requests attaching the same previously rejected PDF without a
+manual export. This decision supersedes the blanket intake rejection of PDF embedded
+files in the earlier PDF increments and the preceding recovery-only correction.
+
+Email owns `MailFilePolicy.prepare`, consumed by Sales template-file and private draft
+registration. Intake first verifies the immutable copied upload's original length/MIME.
+For a PDF whose only unsupported feature is embedded files, PDFBox fully rewrites a
+copy after removing EmbeddedFiles/EF/associated-file references, file-attachment
+annotations and portfolio metadata. It preserves page content/text rather than
+rasterizing. The UI explains that embedded files are removed automatically; the local
+file is not changed. Scripts, automatic actions, forms, password protection, damaged
+documents, complexity/page bounds and Office macro/embedded-package rules remain
+rejected. The prepared result must pass the same strict validation used for downloads,
+imports and outgoing messages; those paths never bypass validation or prepare content.
+
+Only the unexposed sealed object is rewritten and then read back byte-for-byte.
+Preparation is bounded to 10 MiB output. The owner transaction releases the original
+staging reservation, reserves/commits the final sealed object at its actual size, and
+stores that size in attachment metadata. Quota changes and owner metadata roll back
+together; failed registration deletes the sealed candidate. Unchanged files retain
+their exact bytes and existing moved-reservation path. Retries of READY files return
+the same result, and a reusable upload URL still cannot overwrite the final object.
+No schema, new endpoint, provider activation or deployment is authorized by this change.
+
 V315 adds owner-scoped `email_accounts`, content-free `email_account_audit` and a nullable composite
 tenant foreign key from `sales_mailing_campaigns.sender_account_id`. V313 and V314 remain unchanged.
 Existing draft routes/shapes remain compatible with an additional optional sender reference.
@@ -936,6 +976,13 @@ SMTP idempotency, uncertain-outcome handling, limits and quotas remain authorita
   source pixels, maximum 640px output edge, three images, 100 KiB decoded per image,
   500,000 HTML characters and server revalidation/CID transport. No remote images,
   new media formats, backend changes or SMTP sends are introduced by this correction.
+- **Template form layout (2026-10-23):** retain the Standard Form, stable shared
+  header/footer and body-only scrolling. The owner clips programmatic frame scrolling,
+  groups name/subject on desktop and stacks on phones. Native safe-preview disclosure
+  starts closed and attachments use their compact presentation. Moving between views
+  returns the body to its start; existing save identities, dirty discard, busy locks,
+  attachment references and permissions remain unchanged. This is local UI work and
+  does not activate production or change stored message content.
 - **Templates:** Email reuses Sales templates with optional `bodyHtml`, detail-on-selection,
   append/replace preview and unresolved-variable review guard. Inserting after an untouched
   automatic signature positions the template above it. Mailbox Preferences exposes the existing
