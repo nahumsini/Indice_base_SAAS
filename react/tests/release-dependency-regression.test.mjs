@@ -7,7 +7,9 @@ import {jsPDF} from 'jspdf';
 test('release lock keeps the patched archive and sanitization libraries', () => {
   const lock = JSON.parse(fs.readFileSync(new URL('../package-lock.json', import.meta.url)));
   assert.equal(lock.packages['node_modules/fflate'].version, '0.8.3');
-  assert.equal(lock.packages['node_modules/dompurify'].version, '3.4.16');
+  assert.equal(lock.packages['node_modules/dompurify'].version, '3.4.17');
+  assert.equal(lock.packages['node_modules/source-map-js'].version, '1.2.2');
+  assert.equal(lock.packages['node_modules/vite'].version, '6.4.5');
 });
 
 test('public catalog ZIP creation and PDF generation remain compatible', () => {
