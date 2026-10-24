@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { Bold,Italic,Underline,List,ListOrdered,AlignLeft,AlignCenter,AlignRight,Link,ImagePlus,Undo2,Redo2,RemoveFormatting,ChevronLeft,ChevronRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useMailEditorCopy } from './mailEditorCopy';
@@ -10,18 +11,35 @@ export { cleanEditorHtml,plainMailHtml } from './mailFormat';
 export function MailRichEditor({text,html,disabled,label,onChange,onBusy,maxText=20000}:{text:string;html:string|null;disabled:boolean;label:string;onChange:(text:string,html:string)=>void;onBusy?:(busy:boolean)=>void;maxText?:number}){
  const copy=useMailEditorCopy(),editor=useRef<HTMLDivElement>(null),toolbar=useRef<HTMLDivElement>(null),file=useRef<HTMLInputElement>(null),range=useRef<Range|null>(null),emitted=useRef<string|null>(null),alive=useRef(true);
  const [url,setUrl]=useState(''),[link,setLink]=useState(false),[error,setError]=useState(''),[uploading,setUploading]=useState(false);const locked=disabled||uploading;
+ const [imageCount,setImageCount]=useState(0);
+ const preparing=useRef(false),currentDisabled=useRef(disabled);currentDisabled.current=disabled;
  useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
- useEffect(()=>{const value=html??plainMailHtml(text);if(editor.current&&emitted.current!==value){editor.current.innerHTML=cleanEditorHtml(value);emitted.current=value;range.current=null;}},[html,text]);
+ useEffect(()=>{const value=html??plainMailHtml(text);if(editor.current&&emitted.current!==value){editor.current.innerHTML=cleanEditorHtml(value);emitted.current=value;range.current=null;setImageCount(editor.current.querySelectorAll('img').length);}},[html,text]);
  function remember(){const selection=window.getSelection();if(selection?.rangeCount&&editor.current?.contains(selection.getRangeAt(0).commonAncestorContainer))range.current=selection.getRangeAt(0).cloneRange();}
  useEffect(()=>{document.addEventListener('selectionchange',remember);return()=>document.removeEventListener('selectionchange',remember);},[]);
- function changed(){const node=editor.current;if(!node)return;const markup=cleanEditorHtml(node.innerHTML);emitted.current=markup;onChange(node.innerText.replace(/\r/g,''),markup);remember();}
+ function changed(){const node=editor.current;if(!node)return;const markup=cleanEditorHtml(node.innerHTML);emitted.current=markup;setImageCount(node.querySelectorAll('img').length);onChange(node.innerText.replace(/\r/g,''),markup);remember();}
  function restore(){const node=editor.current;if(!node)return;node.focus({preventScroll:true});const selection=window.getSelection();if(!selection)return;const value=range.current&&node.contains(range.current.commonAncestorContainer)?range.current:document.createRange();if(!range.current||!node.contains(value.commonAncestorContainer)){value.selectNodeContents(node);value.collapse(false);}selection.removeAllRanges();selection.addRange(value);}
  function command(name:string,value?:string){if(locked)return;restore();document.execCommand('styleWithCSS',false,'true');document.execCommand(name,false,value);changed();}
- async function image(selected:File){if(locked)return;setError('');if((editor.current?.querySelectorAll('img').length??0)>=3){setError(copy.imageLimit);return;}setUploading(true);onBusy?.(true);
-  try{const src=await prepareInlineImage(selected);if(!alive.current)return;restore();document.execCommand('insertHTML',false,`<img src="${src}" alt="${plainMailHtml(selected.name)}" style="max-width:100%;height:auto"><br>`);changed();}catch{if(alive.current)setError(copy.imageError);}finally{if(alive.current){setUploading(false);onBusy?.(false);}}
+ async function image(selected:File){if(locked||preparing.current)return;setError('');if((editor.current?.querySelectorAll('img').length??0)>=3){setError(copy.imageLimit);return;}preparing.current=true;setUploading(true);onBusy?.(true);
+  try{
+   const src=await prepareInlineImage(selected);if(!alive.current)return;
+   // Both this editor and its owner disable editing during preparation. Commit the
+   // unlock before the native editing command, or the browser silently rejects it.
+   flushSync(()=>{setUploading(false);onBusy?.(false);});
+   if(currentDisabled.current)throw new Error('editor-disabled');
+   const count=editor.current?.querySelectorAll('img').length??0;
+   if(count>=3){setError(copy.imageLimit);return;}
+   restore();document.execCommand('insertHTML',false,`<img src="${src}" alt="${plainMailHtml(selected.name)}" style="max-width:100%;height:auto"><br>`);
+   if((editor.current?.querySelectorAll('img').length??0)!==count+1)throw new Error('image-not-inserted');
+   changed();
+  }catch{if(alive.current)setError(copy.imageError);}finally{preparing.current=false;if(alive.current){setUploading(false);onBusy?.(false);}}
  }
  const buttons=[['bold',copy.bold,Bold],['italic',copy.italic,Italic],['underline',copy.underline,Underline],['insertUnorderedList',copy.bullets,List],['insertOrderedList',copy.numbers,ListOrdered],['justifyLeft',copy.left,AlignLeft],['justifyCenter',copy.center,AlignCenter],['justifyRight',copy.right,AlignRight],['undo',copy.undo,Undo2],['redo',copy.redo,Redo2],['removeFormat',copy.clear,RemoveFormatting]] as const;
- return <div className="indice-mail-editor rounded-xl border border-slate-200 bg-white focus-within:ring-2 focus-within:ring-blue-400 dark:border-slate-700 dark:bg-slate-900">
+ return <div aria-busy={uploading} className="indice-mail-editor rounded-xl border border-slate-200 bg-white focus-within:ring-2 focus-within:ring-blue-400 dark:border-slate-700 dark:bg-slate-900">
+  <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-2 py-1 dark:border-slate-700">
+   <Button type="button" variant="ghost" disabled={locked} className="min-h-11 gap-2" aria-label={copy.image} title={copy.image} onMouseDown={e=>e.preventDefault()} onClick={()=>{remember();file.current?.click();}}><ImagePlus className="h-4 w-4"/>{copy.image}</Button>
+   <span className="text-xs text-slate-500 dark:text-slate-400" title={copy.imageLimit}>{imageCount} / 3</span>
+  </div>
   <div className="flex min-w-0 items-center border-b border-slate-200 bg-blue-50/70 dark:border-slate-700 dark:bg-blue-950/30">
    <Button type="button" variant="ghost" className="h-11 w-8 shrink-0 p-0" aria-label={copy.previous} onClick={()=>toolbar.current?.scrollBy({left:-250,behavior:'smooth'})}><ChevronLeft className="h-4 w-4"/></Button>
    <div ref={toolbar} role="toolbar" aria-label={label} className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto p-1">
@@ -31,7 +49,6 @@ export function MailRichEditor({text,html,disabled,label,onChange,onBusy,maxText
     {([['foreColor',copy.color,'#172033'],['hiliteColor',copy.highlight,'#fff2a8']] as const).map(([name,title,color])=><label key={name} title={title} className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg border"><input type="color" disabled={locked} aria-label={title} defaultValue={color} className="h-7 w-7 cursor-pointer" onChange={e=>command(name,e.target.value)}/></label>)}
     {buttons.slice(3).map(([name,title,Icon])=><Button key={name} type="button" variant="ghost" disabled={locked} className="h-11 w-11 shrink-0 p-0" aria-label={title} title={title} onMouseDown={e=>e.preventDefault()} onClick={()=>command(name)}><Icon className="h-4 w-4"/></Button>)}
     <Button type="button" variant="ghost" disabled={locked} className="h-11 w-11 shrink-0 p-0" aria-label={copy.link} title={copy.link} aria-expanded={link} onMouseDown={e=>e.preventDefault()} onClick={()=>{remember();setLink(v=>!v);}}><Link className="h-4 w-4"/></Button>
-    <Button type="button" variant="ghost" disabled={locked} className="h-11 w-11 shrink-0 p-0" aria-label={copy.image} title={copy.image} onMouseDown={e=>e.preventDefault()} onClick={()=>{remember();file.current?.click();}}><ImagePlus className="h-4 w-4"/></Button>
    </div><Button type="button" variant="ghost" className="h-11 w-8 shrink-0 p-0" aria-label={copy.next} onClick={()=>toolbar.current?.scrollBy({left:250,behavior:'smooth'})}><ChevronRight className="h-4 w-4"/></Button>
   </div>
   <input ref={file} hidden type="file" accept="image/png,image/jpeg" onChange={e=>{const f=e.target.files?.[0];e.target.value='';if(f)void image(f);}}/>

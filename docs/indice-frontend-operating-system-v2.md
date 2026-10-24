@@ -531,6 +531,14 @@ Save/close while active; errors retain user input. Limits are five files, 10 MiB
 total. The same company library serves Email and Mailing; private mailbox files are never
 published implicitly.
 
+Email image-picker reliability, 2026-10-23: the shared mail editor keeps a labeled
+Insert image action outside the horizontally scrolling formatting toolbar. Image
+preparation retains the owner busy/close guard, then synchronously releases it before
+the native insertion command. Preserve caret, native undo, draft/template persistence
+and error recovery. PNG/JPEG optimization remains local and must fit the existing
+three-image, 100 KiB decoded-per-image server contract; transparent PNGs keep alpha.
+This changes neither backend authority nor attachment limits, routes or transport.
+
 Template-library compact refinement, 2026-10-23: the user adopts a content-sized
 **Operational Workspace Modal** for the shared Email/Sales template library. The
 typed shared frame uses a `max-w-6xl` cap instead of the large default: this small

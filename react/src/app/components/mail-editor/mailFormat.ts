@@ -38,10 +38,25 @@ export function cleanEditorHtml(html: string) {
   };return Array.from(template.content.childNodes).map(clean).join('');
 }
 export async function prepareInlineImage(file: File): Promise<string> {
-  if(!['image/png','image/jpeg'].includes(file.type)||file.size>5*1024*1024)throw new Error('image');
+  if(file.size<1||file.size>5*1024*1024)throw new Error('image');
+  const header=new Uint8Array(await file.slice(0,8).arrayBuffer());
+  const png=[137,80,78,71,13,10,26,10].every((value,i)=>header[i]===value);
+  const jpeg=header[0]===255&&header[1]===216&&header[2]===255;
+  if(!png&&!jpeg)throw new Error('image');
   const url=URL.createObjectURL(file);
-  try{const image=new Image();image.src=url;await image.decode();if(image.naturalWidth*image.naturalHeight>20000000)throw new Error('image');
-    const scale=Math.min(1,640/image.naturalWidth,640/image.naturalHeight);const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));const ctx=canvas.getContext('2d');if(!ctx)throw new Error('image');ctx.drawImage(image,0,0,canvas.width,canvas.height);
-    const data=canvas.toDataURL(file.type,.78);if(data.length>136550)throw new Error('image');return data;
+  try{const image=new Image();image.src=url;await image.decode();if(!image.naturalWidth||!image.naturalHeight||image.naturalWidth*image.naturalHeight>20000000)throw new Error('image');
+    const canvas=document.createElement('canvas');const ctx=canvas.getContext('2d');if(!ctx)throw new Error('image');
+    const fits=(data:string)=>atob(data.slice(data.indexOf(',')+1)).length<=100*1024;
+    for(const edge of [640,512,384,256,192,128]){
+      const scale=Math.min(1,edge/image.naturalWidth,edge/image.naturalHeight);
+      canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
+      ctx.drawImage(image,0,0,canvas.width,canvas.height);
+      if(png){const data=canvas.toDataURL('image/png');if(fits(data))return data;}
+      // Opaque PNG photos can use JPEG. Keep alpha for transparent logos/images.
+      const pixels=png?ctx.getImageData(0,0,canvas.width,canvas.height).data:null;
+      let opaque=true;if(pixels)for(let i=3;i<pixels.length;i+=4)if(pixels[i]!==255){opaque=false;break;}
+      if(opaque)for(const quality of [.86,.74,.62,.5,.38]){const data=canvas.toDataURL('image/jpeg',quality);if(fits(data))return data;}
+    }
+    throw new Error('image');
   }finally{URL.revokeObjectURL(url);}
 }

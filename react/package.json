@@ -82,6 +82,7 @@
     "test:expenses-mobile-browser": "node tests/expenses-mobile-browser.mjs && node tests/expenses-module-mobile-browser.mjs",
     "test:login-verification-browser": "node tests/login-verification-browser.mjs",
     "test:mail-templates-browser": "node tests/mail-template-browser.mjs",
+    "test:mail-inline-images-browser": "node tests/mail-inline-images-browser.mjs",
     "test:template-workspace-browser": "node tests/template-workspace-browser.mjs",
     "test:ideas-board-refinement": "node --test tests/board-*.test.mjs tests/ideas-board-*.test.mjs tests/system-board-model.test.mjs tests/personal-ideas-board.test.mjs tests/project-management.test.mjs",
     "test:ideas-board-refinement-browser": "node tests/board-refinement-browser.mjs",

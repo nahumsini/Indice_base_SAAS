@@ -927,6 +927,15 @@ SMTP idempotency, uncertain-outcome handling, limits and quotas remain authorita
   PNG/JPEG images of 100 KiB decoded each are validated by the server and transported as related
   MIME CID parts. Original editor uploads are resized locally; attachments retain their own quota.
   Preview remains a white sandboxed document with no scripts or same-origin privileges.
+- **Image-picker reliability (2026-10-23):** Insert image stays visible outside the
+  horizontally scrolling format controls. Preparation locks the editor/owner, then
+  commits their unlock before native insertion; failure retains the existing message.
+  Validate PNG/JPEG signatures, including absent/misleading browser MIME labels, and
+  optimize locally with bounded resolution/quality attempts. Opaque PNGs may become
+  JPEG; transparent PNGs retain alpha. Preserve original limits: 5 MiB input, 20 million
+  source pixels, maximum 640px output edge, three images, 100 KiB decoded per image,
+  500,000 HTML characters and server revalidation/CID transport. No remote images,
+  new media formats, backend changes or SMTP sends are introduced by this correction.
 - **Templates:** Email reuses Sales templates with optional `bodyHtml`, detail-on-selection,
   append/replace preview and unresolved-variable review guard. Inserting after an untouched
   automatic signature positions the template above it. Mailbox Preferences exposes the existing
