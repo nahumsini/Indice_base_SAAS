@@ -17,7 +17,7 @@ must preserve the prior application while recognizing that unchanged migration r
 
 The release preparation updates MCP transitive dependencies to body-parser 2.4.0 and
 fast-uri 3.1.9, addressing GHSA-27r3-jxmh-p828 and the four fast-uri advisories reported
-by npm audit. Existing tools, authorization, provider flags and transport remain unchanged.
+by npm audit. DOMPurify is pinned to 3.4.17 for its sanitizer fixes. Existing tools, authorization, provider flags and transport remain unchanged.
 
 This decision does not renew a closed Stripe TEST-key deferral. Any remaining historical
 key revocation requires a separately scoped owner decision before activation.
