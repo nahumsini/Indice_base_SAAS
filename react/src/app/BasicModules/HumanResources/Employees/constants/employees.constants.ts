@@ -3,6 +3,7 @@ import type { EmployeeDocumentType } from '../components/CreateEmployeeModal';
 import type {
   EmployeeColumnId,
   EmployeePayPeriod,
+  EmployeePayrollTreatment,
   EmployeeStatus,
   OrganizationOptionTone,
 } from '../types/employees.types';
@@ -41,6 +42,13 @@ export const employeePayPeriodOrder: Record<EmployeePayPeriod, number> = {
   monthly: 4,
 };
 
+export const employeePayrollTreatmentOrder: Record<EmployeePayrollTreatment, number> = {
+  fiscal_payroll: 1,
+  operational_payroll: 2,
+  no_payroll: 3,
+  accounts_payable: 3,
+};
+
 export const documentTypeOrder: EmployeeDocumentType[] = [
   'birth_certificate',
   'government_id',
@@ -58,6 +66,7 @@ export const employeeColumnDocumentTypeMap: Partial<Record<EmployeeColumnId, Emp
 };
 
 export function getDefaultEmployeeColumnWidth(columnId: string) {
+  if (columnId === 'payrollTreatment') return 220;
   if (columnId === 'actions') {
     return 210;
   }
@@ -90,6 +99,7 @@ export function getDefaultEmployeeColumnWidth(columnId: string) {
 }
 
 export function getMinimumEmployeeColumnWidth(columnId: string) {
+  if (columnId === 'payrollTreatment') return 210;
   if (columnId === 'actions') {
     return 190;
   }
@@ -179,6 +189,7 @@ export const createDefaultColumns = (copy: EmployeesTranslations): ColumnConfig[
   { id: 'business', label: copy.columns.business, visible: false, description: copy.columnDescriptions.business },
   { id: 'status', label: copy.columns.status, visible: true, description: copy.columnDescriptions.status },
   { id: 'salaryType', label: copy.columns.salaryType, visible: false, description: copy.columnDescriptions.salaryType },
+  { id: 'payrollTreatment', label: copy.columns.payrollTreatment, visible: false, description: copy.columnDescriptions.payrollTreatment },
   { id: 'workdayHours', label: copy.columns.workdayHours, visible: false, description: copy.columnDescriptions.workdayHours },
   { id: 'workdaysPerWeek', label: copy.columns.workdaysPerWeek, visible: false, description: copy.columnDescriptions.workdaysPerWeek },
   { id: 'salary', label: copy.columns.salary, visible: false, description: copy.columnDescriptions.salary },

@@ -438,6 +438,14 @@ public record PayrollCalculationContext(
                 Map.of()
             );
         }
+
+        public CountryPayrollProfile withMetadata(Map<String, Object> values) {
+            return new CountryPayrollProfile(countryCode, contributorType, contributorSubtype, integralSalary, arlClass,
+                epsCode, epsName, afpCode, afpName, compensationFundCode, compensationFundName,
+                employerHealthExemptionApplies, senaApplies, icbfApplies, ccfApplies, withholdingProcedure,
+                dependentsMonthlyDeduction, prepaidMedicineMonthly, housingInterestMonthly, voluntaryPensionMonthly,
+                afcMonthly, otherExemptIncomeMonthly, procedure2FixedRate, novelties, values);
+        }
     }
 
     public record PayrollNovelty(

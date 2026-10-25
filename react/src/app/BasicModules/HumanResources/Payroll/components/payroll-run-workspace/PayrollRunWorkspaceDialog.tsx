@@ -1,11 +1,10 @@
+import { mexicoPayrollProfileCopy } from '../mexicoPayrollProfileCopy';
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
-  Ban,
   Download,
   FileText,
-  Info,
   Landmark,
   LoaderCircle,
   PlayCircle,
@@ -13,8 +12,14 @@ import {
   Save,
   ShieldCheck,
   Wallet,
+  ReceiptText,
+  BadgeMinus,
+  Gift,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Button } from '../../../../../components/ui/button';
+import { IndiceWorkspaceNavigation } from '../../../../../components/frontend-os/IndiceWorkspaceNavigation';
+import { PayrollRunSummaryPanel } from './PayrollRunSummaryPanel';
 import { IndiceModalFrame } from '../../../../../components/indice-modal';
 import type {
   PayrollRunDetailResponse,
@@ -32,7 +37,7 @@ import {
 } from './payrollRunWorkspaceModel';
 import { getPayrollRunWorkspaceText } from './payrollRunWorkspaceText';
 
-type WorkspaceView = 'workspace' | 'export' | 'confirm-discard';
+type WorkspaceView = 'workspace' | 'export' | 'confirm-discard' | 'confirm-approve';
 type PayrollContentView = 'collaborators' | 'incentives' | PayrollInspectorView;
 
 export type PayrollRunWorkspaceDialogProps = {
@@ -59,6 +64,7 @@ export type PayrollRunWorkspaceDialogProps = {
   onDownloadPdf: (run: PayrollRunSummary) => void;
   onIncentiveApplied: (detail: PayrollRunDetailResponse) => void;
   onOpenGovernmentReporting: (run: PayrollRunSummary) => void;
+  onOpenMexicoProfile?: (line: PayrollRunLine) => void;
   onProcess: () => void;
   onPrintLine: (line: PayrollRunLine) => void;
   onSaveLine: () => void;
@@ -72,6 +78,7 @@ const PAGE_SIZE = 20;
 const formatCurrency = (value: number, locale: string, currency: string) => new Intl.NumberFormat(locale, {
   style: 'currency',
   currency,
+  currencyDisplay: 'code',
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 }).format(value);
@@ -115,6 +122,7 @@ export function PayrollRunWorkspaceDialog({
   onDownloadPdf,
   onIncentiveApplied,
   onOpenGovernmentReporting,
+  onOpenMexicoProfile,
   onProcess,
   onPrintLine,
   onSaveLine,
@@ -138,6 +146,10 @@ export function PayrollRunWorkspaceDialog({
   }, [detail?.run.id]);
 
   useEffect(() => {
+    if (detail && detail.run.status !== 'draft' && detail.run.status !== 'processed') setView('workspace');
+  }, [detail?.run.status]);
+
+  useEffect(() => {
     setPage(1);
   }, [query, filter]);
 
@@ -155,6 +167,13 @@ export function PayrollRunWorkspaceDialog({
   const safePage = Math.min(page, pageCount);
   const visibleLines = filteredLines.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const runCurrency = detail?.run.currency_code || 'USD';
+  const nativeTotals = detail?.run.native_totals_by_currency;
+  const hasMultipleCurrencies = Object.keys(nativeTotals ?? {}).length > 1;
+  const netSummary = detail
+    ? Object.entries(nativeTotals && Object.keys(nativeTotals).length > 0
+      ? nativeTotals : { [runCurrency]: detail.run.net_amount })
+      .map(([currency, amount]) => formatCurrency(amount, locale, currency)).join(' · ')
+    : '—';
   const warningCount = useMemo(
     () => (detail?.lines ?? []).reduce((total, line) => total + payrollLineWarningCount(line), 0),
     [detail?.lines],
@@ -163,7 +182,7 @@ export function PayrollRunWorkspaceDialog({
   const runHasColombiaFiscalLines = detail?.lines.some(isColombiaFiscalPayrollLine) ?? false;
   const isEditableDraft = detail?.run.status === 'draft' || detail?.run.status === 'processed';
   const canProcess = Boolean(isEditableDraft && canPrepareAction);
-  const canApprove = Boolean(isEditableDraft && canApproveAction);
+  const canApprove = Boolean(isEditableDraft && canApproveAction && !detail?.lines.some(line => line.include_in_fiscal && line.statutory_compliance === false));
   const canCancel = Boolean(
     detail
     && canCancelAction
@@ -205,7 +224,7 @@ export function PayrollRunWorkspaceDialog({
       : detail
         ? contentTitle && selectedLine
           ? `${contentTitle} · ${selectedLine.user_name}`
-          : `${copy.labels.detail} #${detail.run.id}`
+          : `${text.review.title} #${detail.run.id}`
         : copy.labels.detail;
   const description = view === 'confirm-discard'
     ? text.discardDescription
@@ -234,8 +253,8 @@ export function PayrollRunWorkspaceDialog({
 
   const footerSummary = view === 'workspace' && detail ? (
     dirtyLineIds.size > 0
-      ? `${dirtyLineIds.size} ${text.modified.toLocaleLowerCase()} · ${warningCount} ${text.warnings.toLocaleLowerCase()}`
-      : `${detail.run.users_count} ${text.collaborators.toLocaleLowerCase()} · ${warningCount} ${text.warnings.toLocaleLowerCase()}`
+      ? `${text.modified}: ${dirtyLineIds.size} · ${text.warnings}: ${warningCount}`
+      : `${text.collaborators}: ${detail.run.users_count} · ${text.warnings}: ${warningCount}`
   ) : undefined;
 
   let footerActions = null;
@@ -255,12 +274,6 @@ export function PayrollRunWorkspaceDialog({
   } else if (view === 'workspace' && detail) {
     footerActions = (
       <>
-        {contentView === 'collaborators' && canCancel ? (
-          <Button type="button" variant="outline" data-modal-destructive="true" onClick={() => onCancel(detail.run)} disabled={isSaving}>
-            <Ban className="h-4 w-4" />
-            {copy.runActions.cancel}
-          </Button>
-        ) : null}
         {contentView === 'collaborators' ? (
           <Button type="button" variant="outline" onClick={() => setView('export')} disabled={isSaving}>
             <Download className="h-4 w-4" />
@@ -288,12 +301,46 @@ export function PayrollRunWorkspaceDialog({
           </Button>
         ) : null}
         {contentView === 'collaborators' && dirtyLineIds.size === 0 && canApprove ? (
-          <Button type="button" onClick={onApprove} disabled={isSaving}>
+          <Button type="button" onClick={() => setView('confirm-approve')} disabled={isSaving}>
             {activeBusyKind === 'approve-run' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
             {copy.labels.approve}
           </Button>
         ) : null}
       </>
+    );
+  }
+
+  if (view === 'confirm-approve' && detail) {
+    const returnToReview = () => { if (!isSaving) setView('workspace'); };
+    return (
+      <IndiceModalFrame
+        open={isOpen}
+        onOpenChange={(open) => { if (!open) returnToReview(); }}
+        modalType="confirmation"
+        tone="aqua"
+        busy={isSaving}
+        icon={<ShieldCheck className="h-5 w-5" />}
+        title={`${text.confirmApproval} #${detail.run.id}`}
+        description={text.approvalDescription}
+        closeLabel={copy.labels.close}
+        footerLeading={<Button type="button" variant="outline" onClick={returnToReview} disabled={isSaving}>{text.back}</Button>}
+        footer={<Button type="button" onClick={onApprove} disabled={isSaving || !canApprove || dirtyLineIds.size > 0}>
+          {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+          {copy.labels.approve}
+        </Button>}
+      >
+        <div className="space-y-4 p-5">
+          {notice?.tone === 'error' ? <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200">{notice.message}</p> : null}
+          <p className="text-sm text-slate-600 dark:text-slate-300">{description}</p>
+          <dl className="grid gap-3 text-sm sm:grid-cols-2">
+            {[
+              [text.collaborators, String(detail.run.users_count)],
+              [copy.labels.net, netSummary],
+              [text.warnings, String(warningCount)],
+            ].map(([label, value]) => <div key={label} className="rounded-lg border border-slate-200 p-3 dark:border-slate-700"><dt className="text-slate-500 dark:text-slate-400">{label}</dt><dd className="mt-1 font-medium tabular-nums text-slate-900 dark:text-white">{value}</dd></div>)}
+          </dl>
+        </div>
+      </IndiceModalFrame>
     );
   }
 
@@ -310,8 +357,8 @@ export function PayrollRunWorkspaceDialog({
       title={title}
       description={description}
       closeLabel={copy.labels.close}
-      contentClassName="z-[140] h-[min(92dvh,960px)]"
-      bodyClassName="overflow-hidden p-0"
+      contentClassName="z-[140] max-h-[92dvh]"
+      bodyClassName="overflow-y-auto p-0"
       footerLeading={footerLeading}
       footerSummary={footerSummary}
       footer={footerActions}
@@ -371,9 +418,9 @@ export function PayrollRunWorkspaceDialog({
           </div>
         </div>
       ) : detail ? (
-        <div className="flex h-full min-h-0 flex-col bg-slate-50 dark:bg-slate-950">
+        <div className="flex min-h-0 flex-col bg-slate-50 dark:bg-slate-950">
           {notice ? (
-            <div className={`mx-5 mt-4 shrink-0 rounded-lg border px-4 py-3 text-sm font-normal ${notice.tone === 'success'
+            <div role={notice.tone === 'error' ? 'alert' : 'status'} className={`mx-5 mt-4 shrink-0 rounded-lg border px-4 py-3 text-sm font-normal ${notice.tone === 'success'
               ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/25 dark:text-emerald-200'
               : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/25 dark:text-rose-200'
             }`}
@@ -383,38 +430,37 @@ export function PayrollRunWorkspaceDialog({
           ) : null}
 
           {contentView === 'collaborators' ? (
-          <div className="shrink-0 px-5 pt-4">
-            <div className="grid overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:grid-cols-2 xl:grid-cols-[1.1fr_repeat(5,minmax(0,0.72fr))]">
-              <div className="border-b border-slate-200 px-4 py-3 sm:col-span-2 xl:col-span-1 xl:border-b-0 xl:border-r dark:border-slate-700">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-[#59C3A5]/15 px-2.5 py-1 text-xs font-medium text-[#177D66] dark:text-[#B8F2E3]">{copy.statuses[detail.run.status]}</span>
-                  <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{detail.run.grouping_label || copy.groupingModes[detail.run.grouping_mode]}</span>
-                  <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{copy.frequencies[detail.run.pay_period]}</span>
-                </div>
-                <div className="mt-2 flex items-start gap-2 text-xs font-normal text-[#177D66] dark:text-[#B8F2E3]">
-                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  <span className="line-clamp-2">{copy.labels.nativeCurrencyNotice}</span>
-                </div>
-              </div>
-              {[
-                [copy.labels.employees, String(detail.run.users_count)],
-                [text.earningsTotal, formatCurrency(detail.run.gross_amount, locale, runCurrency)],
-                [text.deductionsTotal, formatCurrency(detail.run.deductions_amount, locale, runCurrency)],
-                [copy.labels.net, formatCurrency(detail.run.net_amount, locale, runCurrency)],
-                [text.warnings, String(warningCount)],
-              ].map(([label, value], index) => (
-                <div key={label} className={`px-4 py-3 ${index < 4 ? 'border-r border-slate-200 dark:border-slate-700' : ''}`}>
-                  <p className="text-xs font-normal text-slate-500 dark:text-slate-400">{label}</p>
-                  <p className="mt-1 truncate text-sm font-medium tabular-nums text-slate-900 dark:text-white">{value}</p>
-                </div>
-              ))}
+            <PayrollRunSummaryPanel
+              copy={copy} run={detail.run} text={text} netSummary={netSummary}
+              grossSummary={hasMultipleCurrencies ? '—' : formatCurrency(detail.run.gross_amount, locale, runCurrency)}
+              deductionsSummary={hasMultipleCurrencies ? '—' : formatCurrency(detail.run.deductions_amount, locale, runCurrency)}
+              warningCount={warningCount} dirtyCount={dirtyLineIds.size} filter={filter} busy={isSaving}
+              onChangeFilter={setFilter}
+              onCancel={canCancel ? () => onCancel(detail.run) : undefined}
+            />
+          ) : (
+            <div className="px-4 pt-4 sm:px-5">
+              {selectedLine?.country_code === 'MX' && onOpenMexicoProfile ? <Button type="button" variant="outline" className="mb-3"
+                disabled={isSaving || dirtyLineIds.size > 0} onClick={() => onOpenMexicoProfile(selectedLine)}>
+                <Landmark className="h-4 w-4" />{mexicoPayrollProfileCopy(locale).title}
+              </Button> : null}
+              <IndiceWorkspaceNavigation<Exclude<PayrollContentView, 'collaborators'>>
+                ariaLabel={text.review.title} tone="aqua" variant="views" value={contentView}
+                onValueChange={setContentView}
+                items={[
+                  { id: 'breakdown', label: text.breakdown, icon: <ReceiptText />, disabled: isSaving },
+                  { id: 'deductions', label: text.discounts, icon: <BadgeMinus />, disabled: isSaving },
+                  { id: 'adjustments', label: text.adjustments, icon: <SlidersHorizontal />, disabled: isSaving },
+                  { id: 'incentives', label: text.review.pendingConcepts, icon: <Gift />, disabled: isSaving },
+                ]}
+              />
             </div>
-          </div>
-          ) : null}
+          )}
 
-          <div className="flex min-h-0 flex-1 p-5">
+          <div className="flex min-h-0 p-4 sm:p-5">
             {contentView === 'collaborators' ? (
               <PayrollRunRoster
+                busy={isSaving}
                 canEdit={detail.run.status === 'draft' && canPrepareAction}
                 copy={copy}
                 currencyFallback={runCurrency}

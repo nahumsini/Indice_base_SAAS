@@ -64,6 +64,27 @@ frontend/backend; para reiniciarlos por separado usa sus targets en terminales d
 El frontend recibe `VITE_BACKEND_URL=http://127.0.0.1:8082` y `VITE_API_BASE_URL` vacío desde Make.
 Si eliges puertos alternativos, conserva la relación entre Vite, backend y storage.
 
+### Dependencias de React y servidores simultáneos
+
+La configuración de Vite separa la caché de desarrollo por modo y puerto en
+`react/node_modules/.vite-app/<modo>-<puerto>`. Un fixture sin configuración usa la caché
+predeterminada de Vite; los tests que especifican `cacheDir` conservan su directorio propio.
+No copies ni regeneres la caché de un servidor desde otro proceso mientras esté activo.
+`strictPort` impide cambiar silenciosamente de puerto y compartir la caché del puerto solicitado.
+React y React DOM se resuelven desde la raíz del frontend tanto en desarrollo como en build.
+
+Si aparece `Cannot read properties of null (reading 'useMemo')` tras ejecutar previews o cambiar
+dependencias, comprueba primero la consola y las importaciones servidas: archivos optimizados de
+distintas generaciones pueden mezclar instancias de React. Reinicia **sólo el frontend afectado**
+con sus mismos puertos/proxy y la opción Vite `--force`, y recarga la pestaña. Este error no requiere
+reiniciar MySQL, borrar datos ni cambiar el modal. Consulta las opciones oficiales de
+[caché y deduplicación de Vite](https://vite.dev/config/shared-options).
+
+La regresión de aislamiento se ejecuta con
+`node --test react/tests/vite-runtime-isolation.test.mjs`. Para cambios en dependencias o bundling,
+verifica también el flujo afectado en el build servido con `vite preview`; que compile no demuestra
+que los componentes se monten correctamente en el navegador.
+
 ## ERP paralelo con historial limpio
 
 Si la base funcional conserva un linaje Flyway incompatible con el código actual, no la repares,

@@ -62,7 +62,7 @@ public class IdeaProjectService {
         var source=readable(a,owner,id,true);require(source.summary().deletedAt()==null,HttpStatus.NOT_FOUND,"ideas_board_project_unavailable");require(workspace.count(a)<200,HttpStatus.UNPROCESSABLE_ENTITY,"ideas_board_project_limit");
         var inputContent=source.input();Map<String,String> assets=Map.of();
         if(owner!=a.userId()){
-            var assetIds=nodes(inputContent).stream().map(Node::assetId).filter(Objects::nonNull).distinct().toList();
+            var assetIds=nodes(inputContent).stream().flatMap(n->FiveSPolicy.assets(n).stream()).distinct().toList();
             var sourceActor=new AuthSessionUser(owner,a.companyId(),"Project owner","user");
             var approved=assetIds.stream().map(asset->canvas.asset(sourceActor,asset,IdeasBoardScope.PERSONAL)).toList();
             assets=canvas.copyPersonalAssetReferences(a,approved);
@@ -72,9 +72,9 @@ public class IdeaProjectService {
         var system=inputContent.system()==null?null:new SystemDocument(inputContent.system().elements().stream().map(e->new Element(remap(e.node(),mapping),e.category(),e.icon(),e.steps(),e.offeringType())).toList(),inputContent.system().connections(),inputContent.system().viewport());
         snapshots.saveProject(a,actor,target,new ProjectInput(name,inputContent.kind(),free,system));projects.copySource(a,target,owner,id,digest);workspace.audit(a,"PROJECT_COPIED",target,source.summary().nodeCount(),source.summary().connectionCount());return result(row(a,a.userId(),target,false));
     }
-    @Transactional(readOnly=true) public StoredAsset asset(AuthSessionUser a,long owner,String id,String asset){access(a);uuid(asset);var r=readable(a,owner,id,false);require((owner==a.userId()||r.summary().deletedAt()==null)&&nodes(r.input()).stream().anyMatch(n->asset.equals(n.assetId())),HttpStatus.NOT_FOUND,"ideas_board_photo_not_found");return canvas.asset(new AuthSessionUser(owner,a.companyId(),"Project owner","user"),asset,IdeasBoardScope.PERSONAL);}
+    @Transactional(readOnly=true) public StoredAsset asset(AuthSessionUser a,long owner,String id,String asset){access(a);uuid(asset);var r=readable(a,owner,id,false);require((owner==a.userId()||r.summary().deletedAt()==null)&&nodes(r.input()).stream().anyMatch(n->FiveSPolicy.assets(n).contains(asset)),HttpStatus.NOT_FOUND,"ideas_board_photo_not_found");return canvas.asset(new AuthSessionUser(owner,a.companyId(),"Project owner","user"),asset,IdeasBoardScope.PERSONAL);}
     private static List<Node> nodes(ProjectInput input){return input.freeform()!=null?input.freeform().nodes():input.system().elements().stream().map(Element::node).toList();}
-    private static Node remap(Node n,Map<String,String> assets){return new Node(n.id(),n.kind(),n.text(),n.x(),n.y(),n.width(),n.height(),n.shape(),n.color(),n.assetId()==null?null:assets.getOrDefault(n.assetId(),n.assetId()),n.appearance(),n.drawing(),n.catalog());}
+    private static Node remap(Node n,Map<String,String> assets){return new Node(n.id(),n.kind(),n.text(),n.x(),n.y(),n.width(),n.height(),n.shape(),n.color(),n.assetId()==null?null:assets.getOrDefault(n.assetId(),n.assetId()),n.appearance(),n.drawing(),n.catalog(),FiveSPolicy.remap(n.fiveS(),assets));}
     private static String name(String name){require(name!=null&&!name.isBlank()&&name.trim().length()<=120&&name.chars().noneMatch(c->c<32||c==127),HttpStatus.BAD_REQUEST,"ideas_board_invalid");return name.trim();}
     private static void uuid(String id){try{require(id!=null&&UUID.fromString(id).toString().equals(id),HttpStatus.BAD_REQUEST,"ideas_board_invalid");}catch(IllegalArgumentException e){throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"ideas_board_invalid");}}
     private static String digest(String value){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));}catch(java.security.NoSuchAlgorithmException e){throw new IllegalStateException(e);}}

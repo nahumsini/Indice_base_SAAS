@@ -1,5 +1,6 @@
 import type { AttendanceControlLocation } from '../../../../../api/humanResources';
 import type { EmployeePayrollTreatment } from '../../types/employees.types';
+import type { MexicoPayrollProfileSaveRequest } from '../../../../../api/payrollMexico';
 
 export type EmployeeDocumentType =
   | 'birth_certificate'
@@ -18,6 +19,7 @@ export interface EmployeeDocumentSlot {
 }
 
 export interface EmployeeFormData {
+  mexicoPayrollProfile?: MexicoPayrollProfileSaveRequest;
   employeeId?: number;
   employeeNumber: string;
   firstName: string;

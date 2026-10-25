@@ -292,3 +292,320 @@ Activación local verificada: frontend en http://127.0.0.1:5175/ideas-board/proj
 El usuario sustituye la estrella del módulo porque no representa una pizarra. WhiteboardEmoji aporta un SVG local a color de pizarra blanca con caballete, notas y plumón, reutilizado por OriginalModuleEmoji y el nombre whiteboard de IndiceEmoji. La misma identidad aparece en tarjetas de módulo, favoritos, cabecera, Mi pizarra, su acceso desde Proyectos y tarjetas FREEFORM; el fallback textual del catálogo es 📋. Diagnóstico empresarial, proyectos SYSTEM y las herramientas creativas conservan sus identidades específicas. Archivos principales: components/icons/WhiteboardEmoji.tsx, OriginalModuleEmoji.tsx, ModuleTabEmoji.tsx, moduleTabArtwork.ts, config/moduleCatalog.ts, IdeasBoard.tsx y ProjectLibrary.tsx. Es un cambio decorativo: etiquetas accesibles, navegación, controles, permisos, guardado y datos se conservan. Backend/migraciones: N/A.
 
 Verificación: 91 regresiones de identidad/editor/proyectos, TypeScript y build correctos; navegador con fixture sintético en escritorio/móvil y modo oscuro, sin errores de JavaScript. La revisión visual confirma la nueva identidad en navegación y tarjetas. Permanece el aviso previo de chunks grandes del build, sin fallos. Activo por HMR en el entorno local 5175; sin publicación pública. Rollback de presentación: restaurar estos archivos conservando el resto del trabajo local.
+
+
+## 2026-10-24 — Compact personal canvas workbench
+
+The owner approved the first stage of the design proposal for Mi pizarra and Diagnóstico
+empresarial: a compact persistent title/Save row, one creative tool rail and more usable canvas
+space. This supersedes the permanently expanded categories and scroll-dependent header sizing
+for these two personal editors. The native Indice title, coral identity, original colored artwork,
+module navigation and minimum 44 px actions are retained. The default personal interaction is
+Move; the Sales canvas retains its existing Note default.
+
+The native File menu contains New, Open for FREEFORM only, and the existing print/PDF command.
+Save project and fullscreen remain visible. Draft-saved copy distinguishes automatic working
+state from a named project version; errors, retry and conflict actions remain authoritative.
+Media and Symbols use the native Insert dropdown. Both editors share the same tools, native
+horizontal scroll controls, geometry menu and continuous single/double connections.
+
+Add to board opens a non-modal disclosure outside the gesture surface: a bounded side panel
+on desktop and a panel above the footer on phones. It exposes all five existing categories,
+existing batch creation, category counts and focus actions. Opening/closing it changes no camera
+or document content. Close/Escape within the panel restores its trigger focus; inactive tabs
+close their panel. It shares the original category handlers and editor dialogs.
+
+The personal owner fills the available module body with a flex canvas and keeps zoom/history
+within its footer. Small screens retain a local tool slider; short/expanded screens preserve
+a working surface and independently scroll extended selection controls. Styles are owner-scoped
+to the compact personal workbench. Projects, record APIs, actor/CSRF/CAS, authorization, geometry,
+assets, save/retry semantics and private snapshots retain their existing contracts. No backend,
+DB, public sharing or live co-editing change is included. Element-form simplification and project
+miniatures are deferred to later work; their current fields and handlers are preserved.
+
+Local verification: 93 focused checks passed, covering board/project/catalog/history contracts,
+the native horizontal-scroll controls, category callback dispatch without document/camera
+mutation, loading availability and equivalence of menu/standalone print documents. TypeScript
+and production compilation passed. Native synthetic UI review covered 1280×720, 390×844,
+320×640 and 844×390, including multi-element capture, panel focus/close, the File/Insert menus,
+fullscreen fallback, Save project dialog, dark presentation and the unchanged Sales Note
+default. Native functional-data review is read-only; test elements live only in the existing
+in-memory fixture. Printing and an OS file chooser are not invoked in this review.
+
+
+## 2026-10-24 — Formularios de elementos con opciones desplegables
+
+Decisión del usuario: simplificar los formularios de ambos pizarrones conservando la captura de hasta tres elementos. El Standard Form Modal existente muestra primero nombres y un selector compacto de tipo; Producto/Servicio sigue siendo independiente del giro. El elemento que se está ajustando se identifica por su nombre. Los nombres se capturan una sola vez y cada fila conserva acceso a configuración y eliminación de su borrador. El máximo de tres, las reservas de posición, la validación completa y el cambio único de historial/CAS no cambian.
+
+Detalles y Apariencia y tamaño usan disclosures nativos, cerrados inicialmente. Detalles reúne la foto opcional, pasos numerados y el catálogo visual buscable; el selector principal mantiene todas las opciones y conserva un icono anterior que no figure en el catálogo actual. El resumen indica foto o número de pasos existentes. Pasos incompletos abren Detalles al entrar o al introducir un paso vacío, y siguen señalados aun si el usuario lo cierra. Errores de fotos y reintentos permanecen visibles fuera del disclosure; carga en curso sigue bloqueando cierre, selección de otro elemento y guardado. La vista previa pequeña acompaña a los controles dentro de Apariencia. Post-it y figuras mantienen texto/forma como captura principal y agrupan el color con Apariencia. Ventas conserva su formulario predeterminado.
+
+El ancho personal se reduce a un máximo de 800 px; la captura de nombres se apila en móvil. El cuerpo conserva desplazamiento interior y las acciones nativas fijas. Se mantienen traducciones regionales, catálogos, fotos privadas, actor, límites, validación, guardado y cancelación. Sin cambios de backend, datos o migraciones. La biblioteca de proyectos queda fuera de esta fase.
+
+Verificación: 99 regresiones frontend correctas, TypeScript y build; navegador nativo con fixture aislado en escritorio 1280×720, celular 390×844 y 320×640, horizontal 844×390 y modo oscuro. Captura de tres personas con tipos distintos, conservación de pasos y formato al cambiar de elemento, validación de paso vacío, Producto/Servicio con giro, canales y finanzas; no se crean registros de prueba en la base funcional. Activación únicamente local con respaldo por archivo y verificación de cambios concurrentes.
+
+
+## 2026-10-24 — Biblioteca compacta con vistas previas reales
+
+Decisión del usuario: Mis proyectos presenta tarjetas compactas, una miniatura de cada versión guardada y acciones explícitas Abrir, Duplicar y Compartir. La miniatura usa el documento FREEFORM/SYSTEM real, ajusta todos sus elementos (incluidas notas exteriores), conserva disposición, textos, colores, geometrías, dibujos, iconos, fotos y sentido/nombre de conexiones. Reutiliza las presentaciones de nodos y regiones del dueño; la cámara guardada no recorta el contenido. Audio/video se representan como tarjetas estáticas en la miniatura, sin montar reproductores ni descargar esos archivos. La consulta completa mantiene sus controles y reproducción.
+
+Cada tarjeta lee el snapshot cuando entra en el área visible o próxima, por el GET existente con ownerId. El estado vive solo en la tarjeta montada, sin persistencia ni caché global de documentos. Los cambios de dueño, identificador o versión invalidan la vista anterior y cancelan lecturas; desmontar la biblioteca también cancela. Las imágenes mantienen las rutas privadas del proyecto y su propietario. Un fallo de miniatura deja las acciones accesibles y ofrece reintento de lectura sin contenido anterior. Papelera no carga documentos y ofrece Restaurar.
+
+Abrir conserva la consulta inmutable existente. Duplicar y Compartir reutilizan los diálogos, captura de actor, validación, CAS y reintentos del gestor actual. Un proyecto recibido ofrece Abrir y Crear copia; compartir, nombre, papelera y uso del original siguen sujetos a propiedad. El menú secundario conserva nombre, enlace, uso protegido en el pizarrón y papelera. La creación de copias no cambia el original y no hay edición conjunta ni enlaces públicos nuevos. Filtros, orden, scopes, memoria y paginación permanecen. Las filas de acciones tienen objetivos de al menos 44 px; móvil apila Abrir sobre Duplicar/Compartir. Los títulos largos conservan su texto accesible.
+
+Verificación: 108 regresiones frontend correctas, TypeScript y build completos. Navegador nativo con fixture sintético: miniaturas de libre/diagnóstico con nodos y conexiones reales, consulta, copia independiente, compartir con una persona sintética, acceso recibido sin compartir y papelera; escritorio 1280×720, 390×844 y 320×640, sin desbordamiento y con modo oscuro. Las operaciones de prueba se ejecutan solo en el fixture aislado. La revisión en el servidor funcional local es de lectura. Backend, rutas, DTO, base de datos, permisos y migraciones no cambian; activación únicamente local con respaldo por archivo.
+
+
+## 2026-10-24 — Compartir proyectos con acceso visible
+
+El dueño conserva un único Standard Form Modal nativo con identidad azul. «Quién tiene acceso» permanece independiente de «Agregar empleados»: muestra al propietario, las concesiones guardadas y los cambios pendientes. Buscar por nombre no oculta destinatarios elegidos. Agregar, Quitar y Deshacer cambian solo el borrador; Cancelar lo descarta y Guardar accesos aplica el conjunto completo. Las bajas muestran «Se quitará el acceso al guardar» y pueden deshacerse antes del guardado. Destinatarios sin acceso al módulo siguen visibles y removibles; no se ofrecen como nuevas altas. El permiso continúa limitado a consultar la versión y crear una copia privada propia; no habilita edición del original ni acceso por enlace público.
+
+La carga de concesiones y la búsqueda tienen estados y errores independientes. No se permite guardar ni añadir destinatarios antes de leer la versión vigente. Las respuestas canceladas no reemplazan búsquedas recientes. Se mantiene el tope de 50, el actor capturado y el mismo payload/endpoint, versión CAS e identidad estable del reintento. Un resultado de guardado incierto congela destinatarios y permite repetir exactamente la misma petición; un conflicto exige actualizar y revisar los accesos vigentes. La búsqueda fallida conserva el borrador. Encabezado y pie nativos permanecen visibles con cuerpo desplazable, objetivos táctiles de 44 px y seis idiomas base.
+
+Validación: regresiones de consulta/selección/revocación/deshacer/cancelación, errores, límite, búsqueda obsoleta y reintento, TypeScript y build correctos. Navegador nativo con datos sintéticos: guardar/reabrir, selección persistente al buscar, escritorio 1280 × 720, teléfonos 390 × 844 y 320 × 640, oscuro y horizontal 844 × 390, sin desbordamiento lateral. El entorno funcional solo se consulta: no se cambian sus permisos para probar. Backend, migraciones y publicación en producción: N/A.
+
+
+## 2026-10-24 — Compartidos conmigo con remitente y copia propia
+
+La vista de proyectos recibidos conserva las miniaturas reales y tarjetas del dueño personal, con título e instrucción específicos. Cada tarjeta identifica «Compartido por» con nombre completo y avatar de iniciales; si no hay nombre disponible, muestra «Integrante de tu equipo», sin inventar identidades. El remitente también aparece en la cabecera de consulta, en su etiqueta de privacidad y en el diálogo de copia junto al nombre del proyecto original. «Abrir» mantiene la consulta inmutable y «Crear mi copia» reutiliza el diálogo nativo, el actor capturado y la operación privada/idempotente existente. Los proyectos recibidos siguen sin opciones de compartir, renombrar, papelera ni uso del original en el editor.
+
+Al crear una copia desde Compartidos conmigo, la biblioteca pasa a Mis proyectos, página uno y orden reciente, limpiando búsqueda/tipo para que los filtros del origen no oculten el nuevo nombre. Conserva el tamaño de página. Si se copia desde el visor, abre la copia y conserva la confirmación de éxito; Volver lleva a Mis proyectos. Volver desde el original recibido conserva Compartidos conmigo y sus filtros. Las copias son independientes y privadas; no se modifica el original ni se cambian concesiones. Rutas, DTO, empresa, ownerId, permisos, CAS, reintentos y activos privados mantienen su contrato.
+
+Se conservan la familia visual, modos claro/oscuro y seis idiomas base. En móvil, Abrir y Crear mi copia se apilan como acciones táctiles de al menos 44 px; nombres y remitentes largos se ajustan dentro de la tarjeta y el modal. Validación: regresiones de consulta por propietario exacto, acceso retirado, copia desde tarjeta/visor, confirmación/destino y filtros del origen, TypeScript/build y navegador nativo en escritorio, 390 × 844 y 320 × 640 con datos sintéticos. La activación funcional local solo se consulta y no crea copias ni modifica permisos de proyectos reales para verificar. Backend, migraciones y despliegue a producción: N/A.
+
+
+## 2026-10-24 — Papelera con recuperación clara
+
+Papelera conserva las tarjetas y filtros nativos de la biblioteca personal, con título e instrucción propios. Cada proyecto muestra nombre, tipo, cantidades, estado «En Papelera», fecha de eliminación etiquetada y «Volverá como privado». La fecha usa deletedAt, no createdAt; valores ausentes o inválidos no inventan una fecha. El arte compacto representa recuperación, sin mostrar un error de imagen ni pedir documentos o activos de proyectos eliminados. Restaurar queda como acción primaria de la tarjeta y no se repite en un menú de una sola opción. No se añade eliminación definitiva.
+
+La confirmación nativa identifica el proyecto, muestra Mis proyectos como destino y la privacidad al recuperar, manteniendo Cancelar y Restaurar visibles. El endpoint, actor capturado, versión CAS y mutationId/reintento se conservan; cancelar no envía cambios. Una restauración correcta vuelve a Mis proyectos, limpia filtros del origen y confirma que quedó privado. El aviso ofrece «Ver proyecto restaurado» para localizarlo aunque su fecha de creación sea antigua; usa el propietario exacto y el visor existente. La recuperación conserva el contenido, no reabre concesiones anteriores y permite compartir después por el flujo autorizado del dueño.
+
+Se conservan traducciones regionales, la familia de tarjetas, modo oscuro, paginación, estados de carga/error y objetivos táctiles de al menos 44 px. La vista vacía y los resultados sin coincidencias usan los estados nativos. Verificación: regresiones de identificación/fecha, cancelación, payload y reintento estable, retorno/confirmación/acceso directo, límite de acciones y ausencia de lecturas de snapshots eliminados; TypeScript/build y navegador nativo con datos sintéticos en escritorio, móvil 390 × 844 y 320 × 640. La revisión funcional local no restaura, elimina ni modifica permisos de proyectos reales. Sin cambios de backend, API, DTO, base de datos ni migraciones; activación solo local con respaldo y protección de cambios concurrentes.
+
+## 2026-10-25 — Guided 5S template in My Board
+
+The owner adds an optional 5S template to Mi pizarra only. Creation is a native coral Standard Form
+Modal with work-area presets and one custom name. It appends five SECTION nodes to the freeform
+board without replacing existing work; a capacity or world-bound failure rejects the entire addition.
+Multiple area instances use distinct UUID template identities. Five S categories remain distinct
+from action progress (PENDING, IN_PROGRESS, VERIFIED). This is an Índice adaptation of 5S, not an
+implementation of proprietary Kizukai processes or an integration with ERP task/employee records.
+The optional responsible name documents follow-up and does not assign tasks or notify employees.
+
+A bounded renderWorkspace presentation port reuses the canvas's content/history/autosave and
+actor/expected-content replacement guard. It adds no separate draft or browser storage. The owner
+can alternate the guided cards and the same freeform canvas; hidden surfaces do not recalculate a
+camera from zero dimensions. Phone layout shows one category at a time with a labeled selector;
+desktop shows five compact colored sections. Pending, overdue and reviews due within seven days
+(including missed reviews) are actionable filters computed from local calendar dates. Headers do
+not count as actions. Details/results and private before/after evidence use native disclosures.
+
+Each TEXT node can carry optional typed `fiveS` data (templateId, role, section, area; action, owner,
+dueDate, status, details, result, reviewDate, beforeAssetId, afterAssetId). Legacy JSON omits absent
+metadata. Bounds are 80 chars per area, 180 per action title, 120 per responsible name and 1000 per
+long field. Action and title are required; VERIFIED requires a recorded result. The backend rejects
+invalid roles/categories, unsupported combinations, Sales metadata and system-map metadata.
+No table, migration, permission, public link or background task is added. Existing node/document
+budgets remain authoritative. Immutable project previews, consultation, copies and text/PDF output
+preserve the content. Private evidence is loaded through the same authenticated actor or exact
+readable-project asset route; an unrelated image is not accessible through a project.
+
+Evidence uploads retain the existing 5 MiB PNG/JPEG/WebP limits and failed-upload identity for
+retry. Their asset IDs participate in snapshot validation and copy remapping, so a recipient's
+private copy retains authorized images after the original sharing grant is revoked. Removing an
+image from the draft does not reclaim retained-asset quota. A failed upload, changed actor or stale
+expected document never silently replaces the current board. Named project sharing remains
+consultation and independent copies, not live collaborative editing.
+
+Verification covers append/capacity, category/action distinction, dated filters, localized labels,
+metadata-only CAS/history, JSON compatibility, backend bounds, authorized evidence, immutable
+persistence and independent copies. Native browser fixtures exercise desktop/phone/dark layouts.
+Local activation retains a source backup and the previous immutable backend runtime. No production
+publication or functional database population is part of this change.
+
+
+## 2026-10-25 — Dedicated 5S navigation
+
+The owner moves the guided methodology to its own native Tablero 5S tab at
+`/ideas-board/five-s`, between Mi pizarra and Diagnóstico empresarial. The tab uses the existing
+`ideas_board.canvas` permission, the module's horizontal navigation on phones and coral title/Save
+controls. It always opens the guided 5S presentation; the old launcher in Mi pizarra and the guided
+view's back-to-canvas button are removed. An empty state introduces the five categories and the
+first work-area setup instead of showing inactive category controls. Existing areas, actions,
+private evidence, optional details, status filters and phone category selection remain intact.
+
+This is a logical separation without a storage migration. One mounted personal draft owner and
+one autosave queue preserve the full private document. A bounded optional documentView port
+selects the active tab's nodes/internal connections and atomically merges edits into the full
+document, retaining the other tab's content. Mi pizarra shows ordinary nodes; Tablero 5S shows
+only methodology nodes. Existing mixed drafts separate on read without a destructive migration.
+New, protected Open, named snapshots and printing operate on the selected view; canvas work and
+5S work cannot clear each other. The owner keeps the existing combined 100-node/200-connection
+budget and rejects collisions or over-budget replacements before persistence. Legacy cross-view
+connections remain in the full draft while both endpoints exist, but not in partial snapshots.
+Scoped undo/redo histories retain the other tab's edits, and 5S never changes the canvas camera.
+Observers and delayed gestures are bound to the active view, preventing stale resize/wheel
+callbacks from clearing another view. Late media reads capture their originating scoped content.
+
+Changing tabs never creates a second writer. Existing FREEFORM project contracts, immutable
+consultation, photo privacy, actor/CAS and uncertain retry remain authoritative. Using a saved
+project with 5S section metadata routes to its tab; protected replacement projects its nodes into
+that view only. Normal/System projects retain their flows. The shared engine adds an optional
+title-icon and document-view port; Sales and diagnosis do not opt into document views. No backend, DB migration,
+new permission, public sharing or external integration is included.
+
+Verification: native navigation, direct entry, one-owner lifecycle, permission denial/allowance,
+snapshot routing, separation/merge, scoped undo/redo, hidden-content conflicts, combined limits,
+six-language labels, existing board/project regressions, TypeScript/build and
+synthetic native-browser desktop/mobile/dark review. Local installation keeps a source backup and
+checks hashes before replacing files; real functional board content is not populated for tests.
+
+## 2026-10-25 — Guided creation of a 5S board
+
+Crear tablero 5S now uses the native coral Modal Wizard Índice: work area, one plain-language
+question for each of the five S categories, then a final review. This supersedes the one-screen
+area selector. Presets seed an editable area name. Each category can prepare one initial action
+or be defined later; examples are suggestions applied only by an explicit click. Responsible name
+and target date are optional under a closed disclosure. They retain their documentary meaning,
+without assigning ERP tasks or notifying employees. Back preserves answers, including deferred
+drafts; editing from review returns directly to the review instead of repeating the questionnaire.
+
+Only final confirmation appends the complete area and its selected PENDING actions. A deferred
+category still exists, without placeholder actions. Full answers are retained in fiveS.action while
+the node title respects its existing 180-character limit. Validation and the combined document
+budget reject the entire addition before mutation. Capture/replace retains the active actor and
+expected-document guard; a stale document leaves answers in memory and offers an explicit review
+refresh. Cancel does not write, and a successful final confirmation cannot create a duplicate.
+The existing scoped draft, history, autosave, project and evidence contracts are unchanged.
+
+The frame, stepper, validation, summary and footer use the approved native primitives. Header and
+footer remain visible while the body scrolls; optional fields stack on phones. Six base languages,
+regional fallback, keyboard focus and light/dark presentation remain supported. Focused tests
+cover atomic creation, deferred/optional values, bounds/dates, long answers, navigation/review,
+stale documents, cancellation and duplicate confirmation. Native browser verification covers the
+complete synthetic flow and desktop/mobile/dark layouts. No backend, API, DB or migration change;
+local activation keeps a source backup and checks concurrent edits before writing.
+
+## 2026-10-25 — Compact action capture
+
+Agregar/Editar acción remains a native coral Standard Form Modal, not another wizard. Its main
+capture is one required action description, optional responsible name and target date. The area
+and S remain visible in the modal context. A short card title follows the description automatically
+when blank or previously generated, retaining the full answer and the existing 180/1000-character
+bounds. Existing custom titles remain intact. A title override inside Details can reset to the
+suggestion when cleared. This does not change the documentary responsible-name contract or add
+employee assignments/notifications.
+
+Details and follow-up contains section, progress, card title, notes, result and review date. It
+starts collapsed for pending/in-progress capture, opens for verified actions, and still requires
+a result for verification. Before/after photos remain a separate closed disclosure with a count
+when present. The existing private upload, format/size limits, retry identity, busy close/save
+guards and late-result protection are unchanged. Each upload control identifies Before or After
+accessibly. Disabled save explains a missing action/result or an ongoing upload in the native
+footer. Cancel never saves; a stale expected document keeps the edited draft open with an error.
+
+The native frame retains its standard form width; owner-scoped compact-viewport styling keeps
+actions available while only the body scrolls. Phone fields stack with 16px input text and 44px
+targets; disclosures, focus, long content and dark presentation remain supported. Six-language
+copy, scoped history/autosave, immutable project consultation/copying and all API/DB contracts are
+preserved. Verification covers single-description creation, generated/custom title behavior,
+optional metadata, verification, guarded confirmation/cancel/stale drafts, evidence failure/retry
+and readonly/unmount safety, plus native desktop/mobile review and TypeScript/build. Tests use
+synthetic data, without populating the functional board. Activation is local with source backup.
+
+## 2026-10-25 — Clear cards and progress actions
+
+Guided 5S action cards show a readable status with an icon, the title and explicitly labeled
+responsible/target-date rows. Missing values remain Sin responsable/Sin fecha. Active overdue
+dates and dates due today carry text cues; verified actions are not shown as overdue. When the
+description matches the title it is not repeated. Longer distinct descriptions use a compact
+excerpt, with full content retained in Edit. Metadata wraps within the card, and the phone keeps
+its existing one-category selector and 44px action targets.
+
+The next progress action is explicit: Comenzar changes PENDING to IN_PROGRESS; Verificar opens
+a native coral Standard Form Modal for the recorded result and optional next review; Reabrir
+returns VERIFIED to IN_PROGRESS. Verification still requires a nonempty recorded result. Closing
+the form never verifies. Reopening preserves prior results, dates, responsible and private evidence.
+No percentages, stages, ERP assignments or notifications are introduced. Full editing remains
+available through the labeled pencil action.
+
+Quick transitions and verification use the existing scoped document capture/replace guard and
+one history/autosave owner. Changes preserve all unrelated nodes, action fields and connections.
+Inactive/unready contexts do not mutate; stale quick updates show an inline error, and rejected
+verification retains its answers and expected snapshot. Successful verification respects current
+KPI filters and explains how to find the action in All when a filter hides it. Existing named
+project, private-image, tenant, API and DB contracts remain unchanged.
+
+Verification covers state transitions, preserved metadata/assets, cancellation, stale/unavailable
+contexts, required results, duplicate confirmation, translated card labels and date cues, with
+synthetic native-browser desktop/phone/dark review plus TypeScript/build and board regressions.
+Activation is local with backups and checks for concurrent source edits; functional board records
+are not populated or advanced for testing.
+
+## 2026-10-25 — Combined 5S filters and verified progress
+
+The private guided 5S workspace replaces its three attention tiles with one native Índice filter
+bar: search, date, exact action status and documentary responsible name. Values combine within the
+selected work area only. Search matches action/title/responsible, case- and accent-insensitively.
+Responsible options come from that area's existing names, including an explicit unassigned option;
+they do not become employee identities or ERP assignments. Changing areas resets dependent filters.
+Names removed from the available data are cleared safely. Filtering never writes board content.
+
+Date choices cover target date today, today plus the following six local calendar days, overdue
+unverified actions, no target date, inclusive custom bounds, and the existing upcoming/overdue review
+window. The review choice explicitly describes that it includes previous review dates. Custom
+bounds may be open on one side; inverted dates show a validation message and no results, without
+swapping dates silently. One clear action restores all factory filter values. A zero-result view
+explains how to recover without repeating five empty columns.
+
+The progress strip shows verified actions / total in the search + responsible + date scope; the
+selected status is deliberately excluded from this denominator and all three sibling counts. The
+thin progress bar represents this count ratio, not a weighted maturity/quality score or estimated
+partial progress. Pending, in-progress and verified tiles act as reversible status facets, kept in
+sync with the status select and exposed with aria-pressed, text and icons. Zero totals remain zero.
+Quick progress changes refresh counts/results while preserving active filters; a notice explains
+that an updated action may no longer match. Saving a full action resets the view to reveal it.
+
+The existing private document engine, actor/CAS guard, history/autosave, project copies/sharing and
+private evidence remain unchanged. Filters remain transient in the mounted owner workspace, like
+the previous attention filters; neither queries nor responsible names are serialized into the board,
+a separate browser-storage convention, or a new state API. Phone layout uses labeled 44px controls,
+one S category at a time, and moves to the first matching category when a filter would otherwise
+leave only a hidden result. Light/dark and six languages retain the owner presentation contract.
+
+Verification uses synthetic records only: intersections, date boundaries/year transitions, missing
+values, sentinel-safe names, inverted ranges, summary denominator, clearing, area changes, phone
+category selection, and preserved guarded progress mutations. Native desktop/390px/320px/dark
+review plus TypeScript/build and the board regressions are required. API/backend/database/migrations
+are N/A. Local activation checks concurrent source changes and keeps a source backup.
+
+## 2026-10-25 — Before/after photo capture and comparison
+
+The action editor remains a native coral Standard Form Modal with the optional photo disclosure
+closed initially. Inside it, Antes and Después are distinct photo slots with plain-language guidance,
+a preview, add/change and remove controls. Desktop supports dropping one file into its labeled slot;
+phones use a labeled native file picker. Controls retain 44px targets, keyboard focus, responsive
+stacking, dark colors and all six languages. Each slot holds one private PNG/JPEG/WebP up to 5 MiB.
+Removing or changing a photo changes only that draft reference; it does not delete a retained asset
+or promise storage-quota reclamation. Action confirmation still owns the business-document write.
+
+Comparar fotos displays the images together inside the same disclosure. Antes/Después switches
+provide a larger single-photo view, also available when only one photo exists. This is local
+presentation state, not another modal, route, board mutation or photo-processing workflow. The
+original image fits inside a neutral surface without cropping, recoloring or modifying its pixels.
+Switching views brings comparison controls into the existing modal body's scroll area and retains
+keyboard focus. Returning restores the upload slots without losing unsaved action fields.
+
+Only the uploading slot announces activity, while all conflicting edits, removal and confirmation
+remain blocked through the existing busy contract. A failed replacement retains the previous photo,
+shows an error next to the affected slot and retries the same reserved private asset ID. Invalid or
+multiple files never start an upload. Late results cannot update a different action/actor, a readonly
+view or an unmounted editor. A failed image display offers a manual reload of the same authorized
+URL, without public URLs, cache-bypass parameters or an automatic retry loop.
+
+Readonly project consultation can compare existing photos but exposes no upload/removal controls.
+Actor, CAS, autosave, history, named snapshots, sharing/copying, asset metering and backend validation
+remain unchanged. API/backend/database/migrations are N/A. Focused regressions cover both slots,
+replacement/failure/retry, busy and readonly guards, invalid files, late results, display retry and
+comparison without mutations. Browser review uses synthetic images and API fixtures only, including
+native picker upload, save/reopen, desktop/phone/small-phone/dark presentation. Functional records
+are not populated for testing; local activation keeps source backups and verifies concurrent edits.

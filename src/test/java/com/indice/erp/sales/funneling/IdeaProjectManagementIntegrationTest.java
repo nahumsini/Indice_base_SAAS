@@ -139,4 +139,22 @@ class IdeaProjectManagementIntegrationTest extends IdeaWorkspaceIntegrationTest 
         assertThat(management.list(actor,"",1,50,"OWNED").total()).isEqualTo(200);
     }
 
+    @Test void fiveSActionsPersistWithPrivateEvidenceAndIndependentSharedCopies() throws Exception {
+        when(storage.isEnabled()).thenReturn(true);byte[] bytes=png();String image=UUID.randomUUID().toString(),unrelated=UUID.randomUUID().toString();
+        service.upload(actor,key(),image,"before.png","image/png",bytes,PERSONAL);service.upload(actor,key(),unrelated,"private.png","image/png",bytes,PERSONAL);
+        var f=new FiveS(UUID.randomUUID().toString(),"ACTION","SORT","Office","Organize contracts","Team",java.time.LocalDate.of(2026,10,30),"IN_PROGRESS","Notes","",java.time.LocalDate.of(2026,11,1),image,null);
+        var n=new Node(UUID.randomUUID().toString(),"TEXT","Find contracts",40d,40d,300d,240d,"RECTANGLE","BLUE",null,null,null,null,f);
+        var document=new Document(List.of(n),List.of(),new Viewport(0d,0d,1d));var request=new Input(document,0,UUID.randomUUID().toString());
+        service.save(actor,key(),request,PERSONAL);assertThat(service.get(actor,PERSONAL).content().nodes().getFirst().fiveS()).isEqualTo(f);
+        assertThat(service.save(actor,key(),request,PERSONAL).version()).isEqualTo(1);
+        String id=UUID.randomUUID().toString();workspace.saveProject(actor,key(),id,new ProjectInput("5S office","FREEFORM",document,null));
+        var colleague=member(company,true);management.share(actor,key(),id,sharing(0,colleague.userId()));
+        assertThat(management.asset(colleague,user,id,image).asset().name()).isEqualTo("before.png");
+        assertThatThrownBy(()->management.asset(colleague,user,id,unrelated)).isInstanceOf(ResponseStatusException.class);
+        String target=UUID.randomUUID().toString();var copy=management.copy(colleague,IdeaWorkspaceRepository.actor(colleague),user,id,target,new Copy("My 5S copy"));var copied=copy.freeform().nodes().getFirst().fiveS();
+        assertThat(copied.beforeAssetId()).isNotEqualTo(image);assertThat(copied.action()).isEqualTo(f.action());assertThat(copied.templateId()).isEqualTo(f.templateId());
+        assertThat(management.copy(colleague,IdeaWorkspaceRepository.actor(colleague),user,id,target,new Copy("My 5S copy"))).isEqualTo(copy);
+        management.share(actor,key(),id,sharing(1));assertThatThrownBy(()->management.asset(colleague,user,id,image)).isInstanceOf(ResponseStatusException.class);
+        assertThat(service.asset(colleague,copied.beforeAssetId(),PERSONAL).asset().name()).isEqualTo("before.png");
+    }
 }

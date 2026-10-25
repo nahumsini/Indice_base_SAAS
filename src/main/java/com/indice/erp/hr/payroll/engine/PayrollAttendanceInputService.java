@@ -52,10 +52,15 @@ public class PayrollAttendanceInputService {
             recordSnapshot.put("date", currentDate.toString());
             recordSnapshot.put("scheduledWorkday", scheduleDay.workday());
             recordSnapshot.put("expectedHours", expectedHours);
+            recordSnapshot.put("sourceStatus", record == null ? null : record.status());
             recordSnapshot.put("status", status.isBlank() ? null : status);
             recordSnapshot.put("leavePayrollTreatment", record == null ? null : normalizeLeavePayrollTreatment(record.leavePayrollTreatment()));
 
-            if (!scheduleDay.workday() || scheduleDay.restDay()) {
+            var recordedWorkday = switch (status) {
+                case "on_time", "late", "leave", "absence" -> true;
+                default -> false;
+            };
+            if ((!scheduleDay.workday() || scheduleDay.restDay()) && !recordedWorkday) {
                 restDays = restDays.add(BigDecimal.ONE);
                 snapshotRecords.add(recordSnapshot);
                 continue;
@@ -152,6 +157,7 @@ public class PayrollAttendanceInputService {
     private String normalizeStatus(String value) {
         var normalized = value == null ? "" : value.trim().toLowerCase().replace('-', '_').replace(' ', '_');
         return switch (normalized) {
+            case "not_scheduled" -> "";
             case "a_tiempo", "presente", "asistencia", "on_time" -> "on_time";
             case "retardo", "late" -> "late";
             case "permiso", "leave" -> "leave";

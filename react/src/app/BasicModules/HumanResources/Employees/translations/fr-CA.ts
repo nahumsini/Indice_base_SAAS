@@ -167,6 +167,7 @@ export const frCA = {
     scheduleLateAfterMinutes: 'Seuil retard',
     scheduleLocationRule: 'Règle de lieu',
     scheduleLocationId: 'Lieu exact',
+    payrollTreatment: 'Type de paie',
     salaryType: 'Type de paie',
     workdayHours: 'Heures de travail',
     workdaysPerWeek: 'Jours par semaine',
@@ -229,6 +230,7 @@ export const frCA = {
     scheduleLateAfterMinutes: 'Minutes de grâce avant de marquer un retard.',
     scheduleLocationRule: 'Règle de lieu utilisée pour valider la présence.',
     scheduleLocationId: 'Lieu précis utilisé lorsque la règle l’exige.',
+    payrollTreatment: 'Classification du personnel : paie fiscale, paie opérationnelle ou sans paie.',
     salaryType: 'Indique si l’employé reçoit un montant fixe par période ou une paie horaire.',
     workdayHours: 'Heures de travail quotidiennes prévues.',
     workdaysPerWeek: 'Jours de travail moyens par semaine utilisés pour estimer la paie.',
@@ -250,6 +252,12 @@ export const frCA = {
     biweekly: 'Aux deux semaines',
     semimonthly: 'Semi-mensuel',
     monthly: 'Mensuel',
+  },
+  payrollTreatmentLabels: {
+    fiscal_payroll: 'Paie fiscale',
+    operational_payroll: 'Paie opérationnelle',
+    no_payroll: 'Sans paie',
+    accounts_payable: 'Sans paie',
   },
   salaryTypeLabels: {
     daily: 'Salaire fixe par période',

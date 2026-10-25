@@ -45,12 +45,26 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [
+      {
+        name: 'indice-isolated-dev-cache',
+        config(config, { command, mode }) {
+          // Preview fixtures can run beside the app. They must not replace the
+          // optimized React modules of an already running development server.
+          // Keep explicit test caches intact; the hook sees the CLI port too.
+          if (command === 'serve' && !config.cacheDir) {
+            return {
+              cacheDir: path.resolve(__dirname, 'node_modules/.vite-app', `${mode}-${config.server?.port ?? 5174}`),
+            }
+          }
+        },
+      },
       // The React and Tailwind plugins are both required for Make, even if
       // Tailwind is not being actively used – do not remove them
       react(),
       tailwindcss(),
     ],
     resolve: {
+      dedupe: ['react', 'react-dom'],
       alias: {
         // Alias @ to the src directory
         '@': path.resolve(__dirname, './src'),
@@ -58,6 +72,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5174,
+      strictPort: true,
       proxy: {
         '/api': {
           target: backendUrl,

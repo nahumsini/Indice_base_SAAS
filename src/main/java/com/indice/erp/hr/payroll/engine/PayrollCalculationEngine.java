@@ -1,6 +1,7 @@
 package com.indice.erp.hr.payroll.engine;
 
 import com.indice.erp.hr.payroll.provider.generic.GenericPayrollProvider;
+import com.indice.erp.hr.payroll.provider.mx.MexicoPayrollProvider;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -36,6 +37,14 @@ public class PayrollCalculationEngine {
         items.addAll(baseCompensationItems(context));
         items.addAll(manualAdjustmentService.toLineItems(context, context.manualAdjustments()));
 
+        // The current providers accept one common compensation base. Do not silently tax an
+        // exempt earning or treat an excluded benefit as social-security salary.
+        if (context.includeInFiscal() && items.stream().anyMatch(item -> "earning".equals(item.category())
+            && item.amount().signum() > 0 && (!item.taxable() || !item.affectsSocialSecurity()))) {
+            throw new IllegalArgumentException("La nómina fiscal contiene una percepción exenta o con una base de seguridad social distinta. "
+                + "Este tratamiento requiere cálculo fiscal especializado; no se calculará como una percepción totalmente gravada.");
+        }
+
         var earningTotal = sum(items, "earning");
         var attendanceReductionTotal = items.stream()
             .filter((item) -> "deduction".equals(item.category()) && "ABSENCE_DEDUCTION".equals(item.code()))
@@ -46,8 +55,10 @@ public class PayrollCalculationEngine {
             : BigDecimal.ZERO;
 
         var provider = providerFor(context.country());
-        if (context.includeInFiscal() && taxableBase.compareTo(BigDecimal.ZERO) > 0) {
+        if (context.includeInFiscal() && (taxableBase.compareTo(BigDecimal.ZERO) > 0
+            || (provider instanceof MexicoPayrollProvider && com.indice.erp.hr.payroll.provider.mx.MexicoPayrollInputs.profile(context) != null))) {
             items.addAll(provider.calculateLine(context, taxableBase));
+            if (provider instanceof MexicoPayrollProvider mexico) mexico.completeDeductions(context, items);
         }
 
         var sortedItems = items.stream()
@@ -61,13 +72,15 @@ public class PayrollCalculationEngine {
         var totalPayrollCost = money(grossAmount.add(employerContributionsAmount));
         var timestamp = LocalDateTime.now();
         var genericUnsupportedCountry = provider instanceof GenericPayrollProvider;
-        var statutoryCompliance = context.includeInFiscal() && !genericUnsupportedCountry;
+        var mexicoReviewRequired = context.includeInFiscal() && provider instanceof MexicoPayrollProvider mexico
+            && !mexico.approvalIssues(context, taxableBase).isEmpty();
+        var statutoryCompliance = context.includeInFiscal() && !genericUnsupportedCountry && !mexicoReviewRequired;
         var calculationWarnings = calculationWarnings(context, provider, genericUnsupportedCountry, taxableBase, sortedItems);
         var calculationSource = !context.includeInFiscal()
             ? "OPERATIONAL_NON_FISCAL"
             : genericUnsupportedCountry
                 ? "GENERIC_UNSUPPORTED_COUNTRY"
-                : "payroll_calculation_engine:" + provider.providerCode();
+                : mexicoReviewRequired ? "MX_REVIEW_REQUIRED" : "payroll_calculation_engine:" + provider.providerCode();
 
         var partialResult = new PayrollLineCalculationResult(
             context.salary().baseSalary(),
@@ -132,14 +145,42 @@ public class PayrollCalculationEngine {
         );
     }
 
+    /** Retains the reviewed salary/attendance inputs without creating a payment or fiscal liability. */
+    public PayrollLineCalculationResult calculateExcludedLine(PayrollCalculationContext context) {
+        if (context.includeInFiscal()) {
+            throw new IllegalArgumentException("Una línea sin nómina no puede incluirse en el cálculo fiscal.");
+        }
+        if (context.manualAdjustments().stream().anyMatch(item -> item.amount().signum() != 0)) {
+            throw new IllegalArgumentException("Una línea sin nómina no admite ajustes ni incentivos. "
+                + "Retíralos antes de excluirla o cambia su tratamiento de nómina.");
+        }
+        var zero = BigDecimal.ZERO;
+        var warning = List.of("Línea sin nómina: no genera percepciones, descuentos, impuestos ni pagos.");
+        var inputs = calculationInputs(context, zero);
+        inputs.put("payrollTreatment", "no_payroll");
+        return new PayrollLineCalculationResult(
+            context.salary().baseSalary(), context.salary().hourlyRate(),
+            context.attendance().paidDays(), context.attendance().paidLeaveDays(), context.attendance().leaveDays(),
+            context.attendance().unpaidAbsenceDays(), context.attendance().absenceDays(), context.attendance().restDays(),
+            context.attendance().missingAttendanceDays(), context.attendance().lateCount(),
+            context.attendance().regularHours(), context.attendance().overtimeHours(),
+            zero, zero, zero, zero, zero, zero, "EXCLUDED_NO_PAYROLL", LocalDateTime.now(), List.of(),
+            context.attendance().warnings(), false, warning, inputs,
+            calculationResults(zero, zero, zero, zero, zero, false, warning), Map.of(),
+            Map.of("payrollTreatment", "no_payroll", "excluded", true)
+        );
+    }
+
     private List<PayrollCalculatedLineItem> baseCompensationItems(PayrollCalculationContext context) {
         var items = new ArrayList<PayrollCalculatedLineItem>();
         if ("hourly".equals(context.salary().salaryType())) {
-            var baseHourly = context.salary().hourlyRate().multiply(context.attendance().regularHours());
+            // Attendance includes paid leave in regularHours. Split its presentation, not its pay.
+            var leaveHours = paidLeaveHours(context);
+            var baseHourly = context.salary().hourlyRate().multiply(context.attendance().regularHours().subtract(leaveHours));
             var overtime = context.salary().hourlyRate()
                 .multiply(context.attendance().overtimeHours())
                 .multiply(overtimeMultiplier(context.country()));
-            var leaveHourly = context.salary().hourlyRate().multiply(context.attendance().paidLeaveDays()).multiply(context.salary().workdayHours());
+            var leaveHourly = context.salary().hourlyRate().multiply(leaveHours);
             addPositive(items, item(context, "BASE_HOURLY", "earning", "Regular hours", baseHourly, "computed", 10, "regular_hours", true));
             addPositive(items, item(context, "OVERTIME", "earning", "Overtime", overtime, "computed", 20, "overtime", true));
             addPositive(items, item(context, "LEAVE_PAY", "earning", "Paid leave", leaveHourly, "computed", 30, "paid_leave", true));
@@ -154,6 +195,31 @@ public class PayrollCalculationEngine {
         var deduction = fixedSalaryDeduction(context.salary().baseSalary(), unpaidDays, prorationDays);
         addPositive(items, item(context, "ABSENCE_DEDUCTION", "deduction", "Unpaid attendance deduction", deduction, "computed", 70, "attendance_absence", false));
         return items;
+    }
+
+    private BigDecimal paidLeaveHours(PayrollCalculationContext context) {
+        var hours = BigDecimal.ZERO;
+        var days = BigDecimal.ZERO;
+        for (var record : context.attendance().records()) {
+            if (!"leave".equals(record.get("status"))) {
+                continue;
+            }
+            var treatment = record.get("leavePayrollTreatment");
+            if ("unpaid".equals(treatment)
+                || (!"paid".equals(treatment) && !context.preferences().payLeaveDays())) {
+                continue;
+            }
+            var expected = record.get("expectedHours");
+            var dailyHours = expected instanceof Number number
+                ? new BigDecimal(number.toString()) : context.salary().workdayHours();
+            hours = hours.add(dailyHours.signum() > 0 ? dailyHours : context.salary().workdayHours());
+            days = days.add(BigDecimal.ONE);
+        }
+        if (days.compareTo(context.attendance().paidLeaveDays()) != 0) {
+            // Older snapshots may not retain daily records. Never add leave over the paid total.
+            hours = context.attendance().paidLeaveDays().multiply(context.salary().workdayHours());
+        }
+        return hours.max(BigDecimal.ZERO).min(context.attendance().regularHours().max(BigDecimal.ZERO));
     }
 
     private PayrollCalculatedLineItem item(
@@ -306,6 +372,9 @@ public class PayrollCalculationEngine {
         warnings.addAll(context.currencySnapshot().warnings());
         if (context.includeInFiscal()) {
             warnings.addAll(provider.calculationWarnings(context, taxableBase, items));
+            if (context.attendance().overtimeHours().signum() > 0) {
+                warnings.add("Revisa las horas extra: los recargos y las exenciones requieren validación según el país y la jornada del colaborador.");
+            }
         }
         return warnings;
     }

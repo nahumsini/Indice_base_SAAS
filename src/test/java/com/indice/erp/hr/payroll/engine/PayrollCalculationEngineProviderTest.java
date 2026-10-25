@@ -719,9 +719,15 @@ class PayrollCalculationEngineProviderTest {
     }
 
     private void assertProviderResult(PayrollLineCalculationResult result, String source, String expectedItemCode) {
-        assertEquals(source, result.calculationSource());
-        assertTrue(result.statutoryCompliance());
-        assertTrue(result.calculationWarnings().isEmpty());
+        if ("payroll_calculation_engine:mx".equals(source)) {
+            assertEquals("MX_REVIEW_REQUIRED", result.calculationSource());
+            assertFalse(result.statutoryCompliance());
+            assertTrue(result.calculationWarnings().stream().anyMatch(warning -> warning.contains("perfil fiscal")));
+        } else {
+            assertEquals(source, result.calculationSource());
+            assertTrue(result.statutoryCompliance());
+            assertTrue(result.calculationWarnings().isEmpty());
+        }
         assertTrue(result.grossAmount().compareTo(BigDecimal.ZERO) > 0);
         assertTrue(result.items().stream().anyMatch((item) -> expectedItemCode.equals(item.code())));
         assertEquals(0, result.grossAmount().add(result.employerContributionsAmount()).compareTo(result.totalPayrollCost()));
@@ -1024,7 +1030,23 @@ class PayrollCalculationEngineProviderTest {
             seedRule(1L, "MX", "", "ISR_MONTHLY", Map.of(), List.of(
                 bracket("0", null, "0", "0.10", "0", 1)
             ));
-            seedRule(2L, "MX", "", "SOCIAL_SECURITY", Map.of(), List.of());
+            // Synthetic legacy rates keep these arithmetic fixtures independent of the migrated
+            // statutory matrix. PayrollCalculationIntegrityIntegrationTest checks the real rates.
+            seedRule(2L, "MX", "", "SOCIAL_SECURITY", Map.ofEntries(
+                Map.entry("sdi_min_factor", new BigDecimal("1.04931507")),
+                Map.entry("employee_excess_over_3_uma_rate", new BigDecimal("0.004")),
+                Map.entry("employee_fixed_period_rate", new BigDecimal("0.00625")),
+                Map.entry("employee_pensioners_rate", new BigDecimal("0.01125")),
+                Map.entry("employer_fixed_uma_rate", new BigDecimal("0.204")),
+                Map.entry("employer_excess_over_3_uma_rate", new BigDecimal("0.011")),
+                Map.entry("employer_cash_benefits_rate", new BigDecimal("0.0175")),
+                Map.entry("employer_risk_premium_rate", new BigDecimal("0.01")),
+                Map.entry("employer_sar_rate", new BigDecimal("0.02")),
+                Map.entry("employer_infonavit_rate", new BigDecimal("0.05")),
+                Map.entry("employer_childcare_rate", new BigDecimal("0.01")),
+                Map.entry("employer_state_payroll_tax_rate", new BigDecimal("0.03"))
+            ), List.of());
+            seedRule(1900L, "MX", "", "UMA", Map.of("daily_value", new BigDecimal("117.31")), List.of());
             seedRule(3L, "MX", "", "RCV_EMPLOYER", Map.of(), List.of(
                 bracket("0", null, "0", "0.07513", "0", 1)
             ));

@@ -13,6 +13,33 @@ class PayrollAttendanceInputServiceTest {
     private final PayrollAttendanceInputService service = new PayrollAttendanceInputService();
 
     @Test
+    void actualControlAttendanceIsRetainedOnAScheduledRestDay() {
+        var date = LocalDate.of(2026, 6, 7);
+        var attendance = service.build(date, date,
+            Map.of(date, new PayrollAttendanceInputService.AttendanceRecord(date, "on_time", null, null, null)),
+            Map.of(date, new PayrollAttendanceInputService.ScheduleDay(date, false, true, new BigDecimal("8"))),
+            new BigDecimal("8"), "daily", true);
+
+        assertEquals(new BigDecimal("1.00"), attendance.paidDays());
+        assertEquals(new BigDecimal("0.00"), attendance.restDays());
+        assertEquals(new BigDecimal("8.00"), attendance.regularHours());
+    }
+
+    @Test
+    void missingExpectedRecordKeepsAutomaticDeductionAndRawSourceEvidence() {
+        var date = LocalDate.of(2026, 6, 1);
+        var attendance = service.build(date, date,
+            Map.of(date, new PayrollAttendanceInputService.AttendanceRecord(date, "not_scheduled", null, null, null)),
+            Map.of(date, new PayrollAttendanceInputService.ScheduleDay(date, true, false, new BigDecimal("8"))),
+            new BigDecimal("8"), "daily", true);
+
+        assertEquals(new BigDecimal("1.00"), attendance.missingAttendanceDays());
+        assertEquals(new BigDecimal("1.00"), attendance.unpaidAbsenceDays());
+        assertEquals(new BigDecimal("0.00"), attendance.absenceDays());
+        assertEquals("not_scheduled", attendance.records().getFirst().get("sourceStatus"));
+    }
+
+    @Test
     void paidLeaveTreatmentOverridesGlobalPreference() {
         var date = LocalDate.of(2026, 6, 1);
         var attendance = service.build(

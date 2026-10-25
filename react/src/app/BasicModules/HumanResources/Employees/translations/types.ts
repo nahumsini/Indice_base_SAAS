@@ -1,3 +1,5 @@
+import type { EmployeePayrollTreatment } from '../types/employees.types';
+
 export type EmployeesLocale =
   | 'es-MX'
   | 'es-CO'
@@ -58,6 +60,7 @@ export type EmployeeColumnTranslationKey =
   | 'scheduleLocationRule'
   | 'scheduleLocationId'
   | 'salaryType'
+  | 'payrollTreatment'
   | 'workdayHours'
   | 'workdaysPerWeek'
   | 'salary'
@@ -408,6 +411,7 @@ export interface EmployeesTranslations {
   columnDescriptions: Record<Exclude<EmployeeColumnTranslationKey, 'selection' | 'actions'>, string>;
   payPeriodLabels: Record<EmployeePayPeriodTranslationKey, string>;
   salaryTypeLabels: Record<EmployeeSalaryTypeTranslationKey, string>;
+  payrollTreatmentLabels: Record<EmployeePayrollTreatment, string>;
   contractTypeLabels: Record<EmployeeContractTypeTranslationKey, string>;
   scheduleLocationRuleLabels: Record<EmployeeScheduleLocationRuleTranslationKey, string>;
   binaryLabels: {

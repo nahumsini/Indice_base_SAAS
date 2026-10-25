@@ -34,17 +34,20 @@ public class HrUserApiController {
     private final SessionCsrfService sessionCsrfService;
     private final HrUserService hrUserService;
     private final HrAccessService hrAccessService;
+    private final HrEmployeePayrollUpdateService employeePayrollUpdates;
 
     public HrUserApiController(
         SessionAuthService sessionAuthService,
         SessionCsrfService sessionCsrfService,
         HrUserService hrUserService,
-        HrAccessService hrAccessService
+        HrAccessService hrAccessService,
+        HrEmployeePayrollUpdateService employeePayrollUpdates
     ) {
         this.sessionAuthService = sessionAuthService;
         this.sessionCsrfService = sessionCsrfService;
         this.hrUserService = hrUserService;
         this.hrAccessService = hrAccessService;
+        this.employeePayrollUpdates = employeePayrollUpdates;
     }
 
     @GetMapping
@@ -171,8 +174,10 @@ public class HrUserApiController {
         }
 
         try {
-            var result = hrUserService.updateUser(user.get(), userCompanyId, payload);
+            var result = employeePayrollUpdates.update(user.get(), userCompanyId, payload);
             return ResponseEntity.ok(result.get("user"));
+        } catch (com.indice.erp.hr.payroll.provider.mx.MexicoPayrollProfileService.ProfileConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
         } catch (HrAccessDeniedException ex) {
             return forbidden();
         } catch (NoSuchElementException ex) {

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Ban, FileCheck2, WalletCards } from 'lucide-react';
 import type { EmployeeModalTranslations } from '../../../translations/types';
 import { AutoAssignedOrganizationField } from '../fields/AutoAssignedOrganizationField';
@@ -48,6 +49,7 @@ interface JobStepFieldsProps {
   filteredBusinessOptions: OrganizationOption[];
   formData: EmployeeFormData;
   isCreateMode: boolean;
+  mexicoPayrollProfile?: ReactNode;
   onAddCustomJobOption: (kind: CustomJobOptionKind, value: string) => boolean;
   onFieldChange: EmployeeFormFieldChangeHandler;
   positionOptions: string[];
@@ -67,6 +69,7 @@ export function JobStepFields({
   filteredBusinessOptions,
   formData,
   isCreateMode,
+  mexicoPayrollProfile,
   onAddCustomJobOption,
   onFieldChange,
   positionOptions,
@@ -103,6 +106,7 @@ export function JobStepFields({
         contract: copy.groups.contract,
       }}
       fields={{
+        mexicoPayrollProfile,
         department: (
           <CreatableOptionField
             copy={copy.creatableOptions}

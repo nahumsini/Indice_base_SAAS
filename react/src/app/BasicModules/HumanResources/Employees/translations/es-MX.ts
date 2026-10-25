@@ -167,6 +167,7 @@ export const esMX = {
     scheduleLateAfterMinutes: 'Umbral de retardo',
     scheduleLocationRule: 'Regla de ubicación',
     scheduleLocationId: 'Ubicación exacta',
+    payrollTreatment: 'Tipo de nómina',
     salaryType: 'Tipo de salario',
     workdayHours: 'Horas de jornada',
     workdaysPerWeek: 'Días por semana',
@@ -229,6 +230,7 @@ export const esMX = {
     scheduleLateAfterMinutes: 'Minutos permitidos antes de marcar asistencia como tarde.',
     scheduleLocationRule: 'Regla de ubicación de negocio o ubicación exacta para asistencia.',
     scheduleLocationId: 'Ubicación exacta de asistencia cuando está configurada.',
+    payrollTreatment: 'Clasificación del colaborador: nómina fiscal, operativa o sin nómina.',
     salaryType: 'Indica si el colaborador cobra un sueldo fijo por periodo o por hora.',
     workdayHours: 'Horas estándar configuradas para la jornada.',
     workdaysPerWeek: 'Días laborales promedio por semana usados para estimaciones de nómina.',
@@ -250,6 +252,12 @@ export const esMX = {
     biweekly: 'Cada 2 semanas',
     semimonthly: 'Quincenal',
     monthly: 'Mensual',
+  },
+  payrollTreatmentLabels: {
+    fiscal_payroll: 'Nómina fiscal',
+    operational_payroll: 'Nómina operativa',
+    no_payroll: 'Sin nómina',
+    accounts_payable: 'Sin nómina',
   },
   salaryTypeLabels: {
     daily: 'Sueldo fijo por periodo',

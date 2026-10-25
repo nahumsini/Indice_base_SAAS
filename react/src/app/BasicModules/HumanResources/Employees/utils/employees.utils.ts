@@ -4,6 +4,7 @@ import {
   columnsStorageKey,
   employeeColumnDocumentTypeMap,
   employeePayPeriodOrder,
+  employeePayrollTreatmentOrder,
   employeeStatusOrder,
   legacyColumnsStorageKeys,
 } from '../constants/employees.constants';
@@ -308,6 +309,8 @@ export const getEmployeeSortValue = (employee: EmployeeViewModel, columnId: Empl
       return employee.scheduleLocationId;
     case 'salaryType':
       return employee.salaryType;
+    case 'payrollTreatment':
+      return employeePayrollTreatmentOrder[employee.payrollTreatment];
     case 'workdayHours':
       return employee.workdayHours ?? 0;
     case 'workdaysPerWeek':

@@ -167,6 +167,7 @@ export const enCA = {
     scheduleLateAfterMinutes: 'Late threshold',
     scheduleLocationRule: 'Location rule',
     scheduleLocationId: 'Exact location',
+    payrollTreatment: 'Payroll type',
     salaryType: 'Salary type',
     workdayHours: 'Workday hours',
     workdaysPerWeek: 'Days per week',
@@ -229,6 +230,7 @@ export const enCA = {
     scheduleLateAfterMinutes: 'Minutes allowed before the attendance record is marked late.',
     scheduleLocationRule: 'Business-location or exact-location rule configured for attendance.',
     scheduleLocationId: 'Exact attendance location when configured.',
+    payrollTreatment: 'Employee classification: statutory payroll, operational payroll or no payroll.',
     salaryType: 'Whether the employee has a fixed pay period amount or is paid by hour.',
     workdayHours: 'Configured standard workday hours.',
     workdaysPerWeek: 'Average working days per week used for payroll estimates.',
@@ -250,6 +252,12 @@ export const enCA = {
     biweekly: 'Biweekly',
     semimonthly: 'Semimonthly',
     monthly: 'Monthly',
+  },
+  payrollTreatmentLabels: {
+    fiscal_payroll: 'Statutory payroll',
+    operational_payroll: 'Operational payroll',
+    no_payroll: 'No payroll',
+    accounts_payable: 'No payroll',
   },
   salaryTypeLabels: {
     daily: 'Fixed pay period salary',

@@ -7,6 +7,7 @@ import type { PayrollTranslations } from '../translations';
 type PayrollCreateRunDialogProps = {
   open: boolean;
   busy: boolean;
+  error?: string;
   copy: PayrollTranslations['createRunDialog'];
   frequencyLabels: Record<PayrollCreateRunsPayload['pay_period'], string>;
   groupingLabels: Record<PayrollCreateRunsPayload['grouping_mode'], string>;
@@ -21,6 +22,7 @@ const fieldClassName = 'h-11 w-full rounded-xl border border-slate-200 bg-white 
 export function PayrollCreateRunDialog({
   open,
   busy,
+  error,
   copy,
   frequencyLabels,
   groupingLabels,
@@ -56,10 +58,12 @@ export function PayrollCreateRunDialog({
       )}
     >
       <div className="space-y-5 bg-slate-50 p-6 dark:bg-slate-950">
+        {error ? <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200">{error}</p> : null}
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="space-y-2 text-sm text-slate-700 dark:text-slate-200">
             <span>{copy.frequency}</span>
             <select
+              disabled={busy}
               value={form.pay_period}
               className={fieldClassName}
               onChange={(event) => onChange({
@@ -76,6 +80,7 @@ export function PayrollCreateRunDialog({
           <label className="space-y-2 text-sm text-slate-700 dark:text-slate-200">
             <span>{copy.grouping}</span>
             <select
+              disabled={busy}
               value={form.grouping_mode}
               className={fieldClassName}
               onChange={(event) => onChange({
@@ -93,6 +98,7 @@ export function PayrollCreateRunDialog({
         <label className="block space-y-2 text-sm text-slate-700 dark:text-slate-200">
           <span>{copy.startDate}</span>
           <input
+            disabled={busy}
             type="date"
             value={form.period_start_date}
             className={fieldClassName}

@@ -47,6 +47,7 @@ import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -91,6 +92,7 @@ public class HrPayrollService {
     private final HrIncentivePayrollSupplyService hrIncentivePayrollSupplyService;
     private final ExpenseService expenseService;
     private final HrPayrollAuthorizationService authorizationService;
+    private final com.indice.erp.hr.payroll.provider.mx.MexicoPayrollProfileService mexicoProfiles;
 
     public HrPayrollService(
         JdbcTemplate jdbcTemplate,
@@ -104,7 +106,8 @@ public class HrPayrollService {
         ColombiaPayrollReportingService colombiaPayrollReportingService,
         HrIncentivePayrollSupplyService hrIncentivePayrollSupplyService,
         ExpenseService expenseService,
-        HrPayrollAuthorizationService authorizationService
+        HrPayrollAuthorizationService authorizationService,
+        com.indice.erp.hr.payroll.provider.mx.MexicoPayrollProfileService mexicoProfiles
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.hrPayrollScopeAccess = hrPayrollScopeAccess;
@@ -118,6 +121,7 @@ public class HrPayrollService {
         this.hrIncentivePayrollSupplyService = hrIncentivePayrollSupplyService;
         this.expenseService = expenseService;
         this.authorizationService = authorizationService;
+        this.mexicoProfiles = mexicoProfiles;
     }
 
     /** Pure reads for delegation: no preference creation or payment reconciliation. */
@@ -178,7 +182,7 @@ public class HrPayrollService {
         if(!adjust&&request!=null&&(request.lineId()!=null||request.payrollTreatment()!=null||request.notes()!=null||request.manualItems()!=null))throw new IllegalArgumentException("Only line adjustment accepts these fields.");
         if(adjust)hrPayrollScopeAccess.requireRunLineInScope(user.companyId(),scope,id,request.lineId());
         if(action.equals("approve_hr_payroll")&&current.status().equals("processed")) {
-            ensureFinancialIntegrityForApproval(user.companyId(),id);ensureStatutoryComplianceForApproval(id);ensureColombiaGovernmentReportingReadyForApproval(user.companyId(),id);
+            ensureFinancialIntegrityForApproval(user.companyId(),id);ensureStatutoryComplianceForApproval(user.companyId(),id);ensureColombiaGovernmentReportingReadyForApproval(user.companyId(),id);
             return new HrPayrollAssistantContracts.Preparation(null,before,new HrPayrollAssistantContracts.Result(List.of(assistantWithStatus(before.runs().getFirst(),"approved"))));
         }
         var calculated=new ArrayList<HrPayrollAssistantContracts.Line>();
@@ -208,7 +212,11 @@ public class HrPayrollService {
                 }
                 normalized=new HrPayrollAssistantContracts.Change(null,null,null,null,line.id(),treatment,notes,List.copyOf(manual));
             }
-            var computation=calculateStoredLineWithEngine(line,current,preferences,adjustments,country,province,includeInFiscalForTreatment(treatment));
+            var computation=calculateStoredLineWithEngine(line,current,preferences,adjustments,country,province,treatment,
+                action.equals("recalculate_hr_payroll") && "draft".equals(current.status()));
+            if (action.equals("approve_hr_payroll") && computation.context().includeInFiscal()
+                && !computation.result().statutoryCompliance())
+                throw new IllegalArgumentException("No se puede aprobar la nómina fiscal: revisa los datos y reglas pendientes del colaborador.");
             calculated.add(assistantCalculatedLine(line.id(),line.userCompanyId(),line.userNameSnapshot(),line.unitIdSnapshot(),line.unitNameSnapshot(),line.businessIdSnapshot(),line.businessNameSnapshot(),line.payPeriodSnapshot(),treatment,notes,computation,retainedItems));
         }
         var status=action.equals("approve_hr_payroll")?"approved":"draft";
@@ -268,7 +276,7 @@ public class HrPayrollService {
             }
 
             if (!"cancelled".equals(run.status())) {
-                for (var signal : loadRunCurrencySignals(run.id())) {
+                for (var signal : loadRunCurrencySignals(run.companyId(), run.id(), scope)) {
                     var currency = resolveCurrencyCode(signal.country());
                     grossTotalsByCurrency.merge(currency, signal.grossAmount(), BigDecimal::add);
                     netTotalsByCurrency.merge(currency, signal.netAmount(), BigDecimal::add);
@@ -302,7 +310,7 @@ public class HrPayrollService {
         var body = new LinkedHashMap<String, Object>();
         body.put("summary", summary);
         body.put("preferences", toPreferencesMap(preferences));
-        body.put("recent_runs", runs.stream().limit(6).map(this::toRunSummaryMap).toList());
+        body.put("recent_runs", runs.stream().limit(6).map(run -> toRunSummaryMap(run, scope)).toList());
         return body;
     }
 
@@ -798,7 +806,7 @@ public class HrPayrollService {
             params.toArray()
         );
 
-        return Map.of("run", toRunSummaryMap(run), "items", items, "count", items.size());
+        return Map.of("run", toRunSummaryMap(run, scope), "items", items, "count", items.size());
     }
 
     @Transactional
@@ -1051,7 +1059,7 @@ public class HrPayrollService {
         reconcilePaidPayrollRuns(companyId);
         var items = loadRuns(companyId, scope).stream()
             .filter((run) -> matchesRunFilters(run, filters))
-            .map(this::toRunSummaryMap)
+            .map(run -> toRunSummaryMap(run, scope))
             .toList();
 
         return Map.of("items", items);
@@ -1219,7 +1227,7 @@ public class HrPayrollService {
                 scope
             );
             if (existingRun != null) {
-                var existingSummary = toRunSummaryMap(existingRun);
+                var existingSummary = toRunSummaryMap(existingRun, scope);
                 existingSummary.put("reused", true);
                 createdRuns.add(existingSummary);
                 continue;
@@ -1260,7 +1268,7 @@ public class HrPayrollService {
             }
 
             recomputeRunTotals(runId);
-            createdRuns.add(toRunSummaryMap(loadRun(companyId, runId, scope)));
+            createdRuns.add(toRunSummaryMap(loadRun(companyId, runId, scope), scope));
         }
 
         return Map.of("items", createdRuns);
@@ -1357,7 +1365,7 @@ public class HrPayrollService {
             .toList();
 
         var body = new LinkedHashMap<String, Object>();
-        body.put("run", toRunSummaryMap(run));
+        body.put("run", toRunSummaryMap(run, scope));
         body.put("lines", lines);
         return body;
     }
@@ -1609,10 +1617,10 @@ public class HrPayrollService {
         var run = loadRunForUpdate(companyId, runId);
         requireEditableDraftStatus(run);
         hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, runId);
-        recomputeRunLinesWithEngine(runId, ensurePreferences(companyId));
+        recomputeRunLinesWithEngine(runId, ensurePreferences(companyId), "draft".equals(run.status()));
         recomputeRunTotals(runId);
         recordRunRecalculation(runId, userId);
-        return Map.of("run", toRunSummaryMap(loadRun(companyId, runId, scope)));
+        return Map.of("run", toRunSummaryMap(loadRun(companyId, runId, scope), scope));
     }
 
     @Transactional
@@ -1652,11 +1660,11 @@ public class HrPayrollService {
             recomputeRunTotals(runId);
         }
         ensureFinancialIntegrityForApproval(companyId, runId);
-        ensureStatutoryComplianceForApproval(runId);
+        ensureStatutoryComplianceForApproval(companyId, runId);
         ensureColombiaGovernmentReportingReadyForApproval(companyId, runId);
         updateRunStatus(runId, "approved", userId);
         createPayrollPayablesForApprovedRun(companyId, userId, runId);
-        return Map.of("run", toRunSummaryMap(loadRun(companyId, runId, scope)));
+        return Map.of("run", toRunSummaryMap(loadRun(companyId, runId, scope), scope));
     }
 
     @Transactional
@@ -1689,7 +1697,7 @@ public class HrPayrollService {
         ensureDifferentTransitionActor(runId, userId, actorRole, PayrollTransition.PAY);
         ensurePayrollAccountsPayableLinesArePaid(companyId, runId);
         updateRunStatus(runId, "paid", userId);
-        return Map.of("run", toRunSummaryMap(loadRun(companyId, runId, scope)));
+        return Map.of("run", toRunSummaryMap(loadRun(companyId, runId, scope), scope));
     }
 
     @Transactional
@@ -1730,7 +1738,7 @@ public class HrPayrollService {
             runId,
             companyId
         );
-        return Map.of("run", toRunSummaryMap(loadRun(companyId, runId, scope)));
+        return Map.of("run", toRunSummaryMap(loadRun(companyId, runId, scope), scope));
     }
 
     private void cancelRunForRegeneration(long companyId, long userId, long runId, LocalDateTime cancelledAt) {
@@ -1781,22 +1789,24 @@ public class HrPayrollService {
         }
     }
 
-    private void ensureStatutoryComplianceForApproval(long runId) {
+    private void ensureStatutoryComplianceForApproval(long companyId, long runId) {
         var unsupportedFiscalLines = jdbcTemplate.queryForObject(
             """
                 SELECT COUNT(*)
                 FROM payroll_run_lines
-                WHERE run_id = ?
+                WHERE company_id = ? AND run_id = ?
                   AND payroll_treatment_snapshot = 'fiscal_payroll'
-                  AND calculation_source = 'GENERIC_UNSUPPORTED_COUNTRY'
+                  AND (calculation_source IN ('GENERIC_UNSUPPORTED_COUNTRY', 'MX_REVIEW_REQUIRED')
+                    OR (country_code_snapshot = 'MX' AND JSON_EXTRACT(calculation_inputs_json, '$.countryProfile.metadata.mexicoProfileRevision') IS NULL))
                 """,
             Integer.class,
+            companyId,
             runId
         );
         if (unsupportedFiscalLines != null && unsupportedFiscalLines > 0) {
             throw new IllegalArgumentException(
-                "Fiscal payroll cannot be approved while it contains unsupported countries. "
-                    + "Change those lines to operational payroll or configure a supported statutory provider."
+                "No se puede aprobar la nómina fiscal: hay países sin motor o líneas de México con datos/reglas pendientes. "
+                    + "Revisa las alertas de cada colaborador y recalcula. La nómina operativa conserva su flujo independiente."
             );
         }
     }
@@ -1832,6 +1842,10 @@ public class HrPayrollService {
                                  OR line.employer_contributions_amount < 0
                                  OR line.net_amount < 0
                                  OR line.gross_amount - line.deductions_amount <> line.net_amount
+                                 OR (line.payroll_treatment_snapshot = 'no_payroll'
+                                     AND (line.gross_amount <> 0 OR line.deductions_amount <> 0
+                                          OR line.employer_contributions_amount <> 0 OR line.net_amount <> 0
+                                          OR line.include_in_fiscal <> 0 OR line.payment_route <> 'none'))
                                THEN 1
                                ELSE 0
                            END
@@ -1916,6 +1930,8 @@ public class HrPayrollService {
         var run = (Map<String, Object>) detail.get("run");
         @SuppressWarnings("unchecked")
         var lines = (List<Map<String, Object>>) detail.get("lines");
+        var mexicoFiscalReceipt = lines.stream().anyMatch(line -> "MX".equals(line.get("country_code"))
+            && "fiscal_payroll".equals(line.get("payroll_treatment")));
 
         try (var document = new PDDocument(); var buffer = new ByteArrayOutputStream()) {
             var bold = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
@@ -1925,14 +1941,14 @@ public class HrPayrollService {
             document.addPage(page);
             var content = new PDPageContentStream(document, page);
 
-            float y = writePayrollPdfHeader(content, bold, regular, run, !reconcile);
+            float y = writePayrollPdfHeader(content, bold, regular, run, !reconcile, mexicoFiscalReceipt);
             for (var line : lines) {
                 if (y < 60) {
                     content.close();
                     page = new PDPage(PDRectangle.LETTER);
                     document.addPage(page);
                     content = new PDPageContentStream(document, page);
-                    y = writePayrollPdfHeader(content, bold, regular, run, !reconcile);
+                    y = writePayrollPdfHeader(content, bold, regular, run, !reconcile, mexicoFiscalReceipt);
                 }
 
                 content.beginText();
@@ -1963,7 +1979,8 @@ public class HrPayrollService {
         PDType1Font bold,
         PDType1Font regular,
         Map<String, Object> run,
-        boolean includeCurrency
+        boolean includeCurrency,
+        boolean mexicoFiscalReceipt
     ) throws IOException {
         float y = 740f;
 
@@ -1980,6 +1997,15 @@ public class HrPayrollService {
         content.showText("Status: " + safe(String.valueOf(run.get("status"))) + "  Period: "
             + safe(String.valueOf(run.get("period_start_date"))) + " to " + safe(String.valueOf(run.get("period_end_date"))));
         content.endText();
+
+        if (mexicoFiscalReceipt) {
+            y -= 20;
+            content.beginText();
+            content.setFont(regular, 9);
+            content.newLineAtOffset(40, y);
+            content.showText("Recibo interno sin timbrar. No es un CFDI de nomina. Integracion PAC pendiente.");
+            content.endText();
+        }
 
         y -= 24;
         content.beginText();
@@ -2374,7 +2400,7 @@ public class HrPayrollService {
 	                       COALESCE(LOWER(e.pay_period), 'weekly') AS pay_period,
 	                       COALESCE(e.workday_hours, 8) AS workday_hours,
 	                       COALESCE(e.workdays_per_week, 5) AS workdays_per_week,
-	                       COALESCE(e.payroll_treatment, 'operational_payroll') AS payroll_treatment,
+	                       COALESCE(NULLIF(TRIM(e.payroll_treatment), ''), 'operational_payroll') AS payroll_treatment,
 	                       COALESCE(e.registration_country, '') AS registration_country,
 	                       COALESCE(e.state_province, '') AS state_province
                 FROM hr_users e
@@ -2383,7 +2409,7 @@ public class HrPayrollService {
                 WHERE e.company_id = ?
                   AND e.work_profile_id IS NOT NULL
                   AND COALESCE(LOWER(e.status), 'active') <> 'terminated'
-                  AND COALESCE(LOWER(e.payroll_treatment), 'operational_payroll') <> 'no_payroll'
+                  AND COALESCE(LOWER(TRIM(e.payroll_treatment)), 'operational_payroll') <> 'no_payroll'
                   AND (? = 0 OR COALESCE(LOWER(e.pay_period), 'weekly') = ?)
                   AND (e.hire_date IS NULL OR e.hire_date <= ?)
                   AND (e.contract_start_date IS NULL OR e.contract_start_date <= ?)
@@ -2605,17 +2631,8 @@ public class HrPayrollService {
         LocalDate periodEndDate,
         boolean includeInFiscal
     ) {
-        var dailyRecords = loadDailyRecords(companyId, user.id(), periodStartDate, periodEndDate);
-        var scheduleWindows = loadScheduleWindows(companyId, user.id(), periodStartDate, periodEndDate);
-        var attendance = payrollAttendanceInputService.build(
-            periodStartDate,
-            periodEndDate,
-            toAttendanceRecords(dailyRecords),
-            toScheduleDays(scheduleWindows, user, preferences, periodStartDate, periodEndDate),
-            user.workdayHours().compareTo(BigDecimal.ZERO) > 0 ? user.workdayHours() : preferences.defaultDailyHours(),
-            user.salaryType(),
-            preferences.payLeaveDays()
-        );
+        var attendance = loadPayrollAttendance(companyId, user.id(), toSalarySnapshot(user), user.payPeriod(),
+            preferences, periodStartDate, periodEndDate);
         var country = payrollRuleResolver.normalizeCountry(user.registrationCountry());
         var jurisdiction = resolvePayrollJurisdictionCode(country, user.stateProvince());
         var nativeCurrency = resolveCurrencyCode(country);
@@ -2666,19 +2683,9 @@ public class HrPayrollService {
         PayrollPreferencesRow preferences,
         List<PayrollCalculationContext.ManualAdjustment> manualAdjustments,
         String country,
-        String jurisdiction
-    ) {
-        return calculateStoredLineWithEngine(line,run,preferences,manualAdjustments,country,jurisdiction,line.includeInFiscal());
-    }
-
-    private EngineLineComputation calculateStoredLineWithEngine(
-        PayrollRunLineRow line,
-        PayrollRunRow run,
-        PayrollPreferencesRow preferences,
-        List<PayrollCalculationContext.ManualAdjustment> manualAdjustments,
-        String country,
         String jurisdiction,
-        boolean includeInFiscal
+        String payrollTreatment,
+        boolean refreshAttendance
     ) {
         var resolvedCountry = payrollRuleResolver.normalizeCountry(country);
         var resolvedJurisdiction = resolvePayrollJurisdictionCode(resolvedCountry, jurisdiction);
@@ -2691,6 +2698,14 @@ public class HrPayrollService {
             run.periodStartDate(),
             run.periodEndDate()
         );
+        // Approval reuses the profile reviewed in the draft. Explicit recalculation refreshes it.
+        if ("MX".equals(resolvedCountry) && !refreshAttendance
+            && line.calculationInputs().get("countryProfile") instanceof Map<?, ?> storedProfile
+            && storedProfile.get("metadata") instanceof Map<?, ?> storedMetadata) {
+            var frozenMetadata = new LinkedHashMap<String, Object>();
+            storedMetadata.forEach((key, value) -> frozenMetadata.put(String.valueOf(key), value));
+            countryProfile = PayrollCalculationContext.CountryPayrollProfile.empty("MX").withMetadata(frozenMetadata);
+        }
         var fiscalAccumulator = payrollFiscalAccumulatorService.loadSnapshot(
             line.companyId(),
             line.userCompanyId(),
@@ -2711,9 +2726,11 @@ public class HrPayrollService {
             resolveFiscalPayrollFrequency(resolvedCountry, line.payPeriodSnapshot()),
             run.periodStartDate(),
             run.periodEndDate(),
-            includeInFiscal,
+            includeInFiscalForTreatment(payrollTreatment),
             toSalarySnapshot(line),
-            new PayrollCalculationContext.PayrollAttendanceInput(
+            refreshAttendance ? loadPayrollAttendance(line.companyId(), line.userCompanyId(), toSalarySnapshot(line),
+                line.payPeriodSnapshot(), preferences, run.periodStartDate(), run.periodEndDate())
+            : new PayrollCalculationContext.PayrollAttendanceInput(
                 line.daysPayable(),
                 line.paidLeaveDays(),
                 line.leaveDays(),
@@ -2733,7 +2750,7 @@ public class HrPayrollService {
                 line.regularHours(),
                 line.overtimeHours(),
                 line.attendanceWarnings(),
-                List.of()
+                storedAttendanceRecords(line.attendanceSnapshot())
             ),
             toEnginePreferences(preferences),
             manualAdjustments,
@@ -2741,7 +2758,37 @@ public class HrPayrollService {
             countryProfile,
             fiscalAccumulator
         );
-        return new EngineLineComputation(context, payrollCalculationEngine.calculateLine(context));
+        var result = PAYROLL_TREATMENT_NO_PAYROLL.equals(normalizePayrollTreatment(payrollTreatment))
+            ? payrollCalculationEngine.calculateExcludedLine(context)
+            : payrollCalculationEngine.calculateLine(context);
+        return new EngineLineComputation(context, result);
+    }
+
+    private List<Map<String, Object>> storedAttendanceRecords(Map<String, Object> snapshot) {
+        if (!(snapshot.get("records") instanceof List<?> records)) {
+            return List.of();
+        }
+        var result = new ArrayList<Map<String, Object>>();
+        for (var record : records) {
+            if (record instanceof Map<?, ?> values) {
+                var copy = new LinkedHashMap<String, Object>();
+                values.forEach((key, value) -> { if (key instanceof String name) copy.put(name, value); });
+                result.add(copy);
+            }
+        }
+        return result;
+    }
+
+    private PayrollCalculationContext.PayrollAttendanceInput loadPayrollAttendance(
+        long companyId, long userCompanyId, PayrollCalculationContext.EmployeeSalarySnapshot salary, String payPeriod,
+        PayrollPreferencesRow preferences, LocalDate startDate, LocalDate endDate
+    ) {
+        var records = loadDailyRecords(companyId, userCompanyId, startDate, endDate);
+        var windows = loadScheduleWindows(companyId, userCompanyId, startDate, endDate);
+        return payrollAttendanceInputService.build(startDate, endDate, toAttendanceRecords(records),
+            toScheduleDays(windows, records, salary, payPeriod, preferences, startDate, endDate),
+            salary.workdayHours().compareTo(BigDecimal.ZERO) > 0 ? salary.workdayHours() : preferences.defaultDailyHours(),
+            salary.salaryType(), preferences.payLeaveDays());
     }
 
     private Map<LocalDate, PayrollAttendanceInputService.AttendanceRecord> toAttendanceRecords(
@@ -2760,14 +2807,16 @@ public class HrPayrollService {
 
     private Map<LocalDate, PayrollAttendanceInputService.ScheduleDay> toScheduleDays(
         List<PayrollScheduleWindow> windows,
-        PayrollHrUserRow user,
+        Map<LocalDate, PayrollDailyRecordRow> dailyRecords,
+        PayrollCalculationContext.EmployeeSalarySnapshot salary,
+        String payPeriod,
         PayrollPreferencesRow preferences,
         LocalDate startDate,
         LocalDate endDate
     ) {
         var result = new LinkedHashMap<LocalDate, PayrollAttendanceInputService.ScheduleDay>();
-        var fallbackWorkdays = Math.max(1, Math.min(7, user.workdaysPerWeek().setScale(0, RoundingMode.HALF_UP).intValue()));
-        var fallbackHours = user.workdayHours().compareTo(BigDecimal.ZERO) > 0 ? user.workdayHours() : preferences.defaultDailyHours();
+        var fallbackWorkdays = Math.max(1, Math.min(7, salary.workdaysPerWeek().setScale(0, RoundingMode.HALF_UP).intValue()));
+        var fallbackHours = salary.workdayHours().compareTo(BigDecimal.ZERO) > 0 ? salary.workdayHours() : preferences.defaultDailyHours();
         for (var currentDate = startDate; !currentDate.isAfter(endDate); currentDate = currentDate.plusDays(1)) {
             var window = resolveScheduleWindow(windows, currentDate);
             if (window == null) {
@@ -2783,7 +2832,33 @@ public class HrPayrollService {
                 hours.compareTo(BigDecimal.ZERO) > 0 ? hours : fallbackHours
             ));
         }
+        if (windows.isEmpty() && "weekly".equals(payPeriod) && startDate.plusDays(6).equals(endDate)) {
+            alignUnassignedWeeklyWorkdays(result, dailyRecords);
+        }
         return result;
+    }
+
+    private void alignUnassignedWeeklyWorkdays(
+        Map<LocalDate, PayrollAttendanceInputService.ScheduleDay> days,
+        Map<LocalDate, PayrollDailyRecordRow> records
+    ) {
+        // Weekly quantity is not a weekday assignment. Control's records determine actual
+        // working/rest days; only the uncovered quantity uses the historical weekday fallback.
+        var fallback = List.copyOf(days.values());
+        long remaining = fallback.stream().filter(PayrollAttendanceInputService.ScheduleDay::workday).count();
+        var available = new ArrayList<PayrollAttendanceInputService.ScheduleDay>();
+        for (var day : fallback) {
+            var status = resolvePayrollStatus(records.get(day.date()));
+            boolean recordedWorkday = status != null && Set.of("on_time", "late", "leave", "absence").contains(status);
+            days.put(day.date(), new PayrollAttendanceInputService.ScheduleDay(day.date(), recordedWorkday, !recordedWorkday, day.expectedHours()));
+            if (recordedWorkday) remaining--;
+            else if (!"rest".equals(status)) available.add(day);
+        }
+        available.sort(Comparator.comparing(PayrollAttendanceInputService.ScheduleDay::workday).reversed());
+        for (var day : available) {
+            if (remaining-- <= 0) break;
+            days.put(day.date(), new PayrollAttendanceInputService.ScheduleDay(day.date(), true, false, day.expectedHours()));
+        }
     }
 
     private PayrollCalculationContext.EmployeeSalarySnapshot toSalarySnapshot(PayrollHrUserRow user) {
@@ -2838,6 +2913,10 @@ public class HrPayrollService {
     }
 
     private void recomputeRunLineFromStoredItems(long runLineId, PayrollPreferencesRow preferences) {
+        recomputeRunLineFromStoredItems(runLineId, preferences, false);
+    }
+
+    private void recomputeRunLineFromStoredItems(long runLineId, PayrollPreferencesRow preferences, boolean refreshAttendance) {
         var line = loadRunLine(runLineId);
         var run = loadRun(line.companyId(), line.runId());
         var payrollJurisdiction = resolvePayrollJurisdiction(line.companyId(), line.userCompanyId());
@@ -2850,7 +2929,9 @@ public class HrPayrollService {
             preferences,
             manualAdjustments,
             isBlank(line.countryCodeSnapshot()) ? payrollJurisdiction.country() : line.countryCodeSnapshot(),
-            isBlank(line.jurisdictionCodeSnapshot()) ? payrollJurisdiction.province() : line.jurisdictionCodeSnapshot()
+            isBlank(line.jurisdictionCodeSnapshot()) ? payrollJurisdiction.province() : line.jurisdictionCodeSnapshot(),
+            line.payrollTreatmentSnapshot(),
+            refreshAttendance
         );
         var recalculated = computation.result();
 
@@ -2885,9 +2966,9 @@ public class HrPayrollService {
                     calculation_timestamp = ?
                 WHERE id = ?
                 """,
-            line.includeInFiscal(),
+            includeInFiscalForTreatment(line.payrollTreatmentSnapshot()),
             line.payrollTreatmentSnapshot(),
-            line.paymentRoute(),
+            paymentRouteForTreatment(line.payrollTreatmentSnapshot()),
             line.notes(),
             computation.context().country(),
             computation.context().jurisdiction(),
@@ -2930,9 +3011,13 @@ public class HrPayrollService {
     }
 
     private void recomputeRunLinesWithEngine(long runId, PayrollPreferencesRow preferences) {
+        recomputeRunLinesWithEngine(runId, preferences, false);
+    }
+
+    private void recomputeRunLinesWithEngine(long runId, PayrollPreferencesRow preferences, boolean refreshAttendance) {
         var results = new ArrayList<PayrollLineCalculationResult>();
         for (var line : loadRunLines(runId)) {
-            recomputeRunLineFromStoredItems(line.id(), preferences);
+            recomputeRunLineFromStoredItems(line.id(), preferences, refreshAttendance);
             results.add(loadLineCalculationResult(line.id()));
         }
         payrollSnapshotService.persistRunSnapshot(runId, PayrollCalculationResult.fromLines(results));
@@ -3207,6 +3292,10 @@ public class HrPayrollService {
         LocalDate periodEndDate
     ) {
         var normalizedCountry = payrollRuleResolver.normalizeCountry(country);
+        if ("MX".equals(normalizedCountry)) {
+            return PayrollCalculationContext.CountryPayrollProfile.empty("MX").withMetadata(
+                mexicoProfiles.calculationMetadata(companyId, userCompanyId, periodStartDate, periodEndDate));
+        }
         if (!"CO".equals(normalizedCountry)) {
             return PayrollCalculationContext.CountryPayrollProfile.empty(normalizedCountry);
         }
@@ -3735,10 +3824,12 @@ public class HrPayrollService {
                        d.late_after_minutes,
                        d.is_rest_day
                 FROM user_schedule_assignments a
-                JOIN attendance_schedule_template_days d ON d.template_id = a.template_id
+                JOIN attendance_schedule_templates t ON t.id = a.template_id AND t.company_id = a.company_id
+                JOIN attendance_schedule_template_days d ON d.template_id = t.id
                 WHERE a.company_id = ?
                   AND a.user_company_id = ?
                   AND LOWER(COALESCE(a.status, 'active')) = 'active'
+                  AND LOWER(COALESCE(t.status, 'active')) = 'active'
                   AND a.effective_start_date <= ?
                   AND (a.effective_end_date IS NULL OR a.effective_end_date >= ?)
                 ORDER BY a.effective_start_date DESC, a.id DESC
@@ -4280,13 +4371,23 @@ public class HrPayrollService {
         return body;
     }
 
-    private Map<String, Object> toRunSummaryMap(PayrollRunRow run) {
-        var runCurrencySignals = loadRunCurrencySignals(run.id());
+    private Map<String, Object> toRunSummaryMap(PayrollRunRow run, HrOperationalScope scope) {
+        var runCurrencySignals = loadRunCurrencySignals(run.companyId(), run.id(), scope);
         var nativeTotalsByCurrency = nativeTotalsByCurrency(runCurrencySignals);
         var currencyCode = nativeTotalsByCurrency.size() == 1
             ? nativeTotalsByCurrency.keySet().iterator().next()
             : null;
-        var unsupportedCountryCount = unsupportedCountryLineCount(run.id());
+        var unsupportedCountryCount = unsupportedCountryLineCount(run.companyId(), run.id(), scope);
+        var reviewParams = new ArrayList<Object>(List.of(run.companyId(), run.id()));
+        reviewParams.addAll(hrPayrollScopeAccess.runLineParameters(scope));
+        var mexicoReviewCount = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM payroll_run_lines l WHERE l.company_id=? AND l.run_id=?
+              AND l.payroll_treatment_snapshot='fiscal_payroll'
+              AND l.country_code_snapshot='MX'
+              AND (l.calculation_source='MX_REVIEW_REQUIRED'
+                OR JSON_EXTRACT(l.calculation_inputs_json, '$.countryProfile.metadata.mexicoProfileRevision') IS NULL)
+            """ + hrPayrollScopeAccess.runLinePredicate(scope, "l"), Integer.class, reviewParams.toArray());
+        var fiscalReviewCount = unsupportedCountryCount + (mexicoReviewCount == null ? 0 : mexicoReviewCount);
 
         var body = new LinkedHashMap<String, Object>();
         body.put("id", run.id());
@@ -4305,30 +4406,40 @@ public class HrPayrollService {
         body.put("deductions_amount", scaled(run.deductionsAmount()));
         body.put("employer_contributions_amount", scaled(run.employerContributionsAmount()));
         body.put("net_amount", scaled(run.netAmount()));
-        body.put("statutory_compliance", unsupportedCountryCount == 0);
+        body.put("statutory_compliance", fiscalReviewCount == 0);
+        body.put("fiscal_review_count", fiscalReviewCount);
         body.put("unsupported_country_count", unsupportedCountryCount);
-        body.put("calculation_warnings", unsupportedCountryCount == 0
+        body.put("calculation_warnings", fiscalReviewCount == 0
             ? List.of()
-            : List.of("Hay " + unsupportedCountryCount + " línea(s) con cálculo genérico por país no soportado."));
+            : List.of("Hay " + fiscalReviewCount + " línea(s) fiscales con datos o reglas pendientes. Revisa el desglose antes de aprobar."));
         body.put("created_at", run.createdAt() == null ? null : run.createdAt().toString());
         return body;
     }
 
-    private int unsupportedCountryLineCount(long runId) {
+    private int unsupportedCountryLineCount(long companyId, long runId, HrOperationalScope scope) {
+        var params = new ArrayList<Object>();
+        params.add(runId);
+        params.add(companyId);
+        params.addAll(hrPayrollScopeAccess.runLineParameters(scope));
         var count = jdbcTemplate.queryForObject(
             """
                 SELECT COUNT(*)
-                FROM payroll_run_lines
-                WHERE run_id = ?
-                  AND calculation_source = 'GENERIC_UNSUPPORTED_COUNTRY'
-                """,
+                FROM payroll_run_lines l
+                WHERE l.run_id = ?
+                  AND l.company_id = ?
+                  AND l.calculation_source = 'GENERIC_UNSUPPORTED_COUNTRY'
+                """ + hrPayrollScopeAccess.runLinePredicate(scope, "l"),
             Integer.class,
-            runId
+            params.toArray()
         );
         return count == null ? 0 : count;
     }
 
-    private List<PayrollRunCurrencySignal> loadRunCurrencySignals(long runId) {
+    private List<PayrollRunCurrencySignal> loadRunCurrencySignals(long companyId, long runId, HrOperationalScope scope) {
+        var params = new ArrayList<Object>();
+        params.add(runId);
+        params.add(companyId);
+        params.addAll(hrPayrollScopeAccess.runLineParameters(scope));
         return jdbcTemplate.query(
             """
                 SELECT COALESCE(NULLIF(l.country_code_snapshot, ''), NULLIF(hu.registration_country, ''), '') AS country,
@@ -4339,7 +4450,8 @@ public class HrPayrollService {
                 LEFT JOIN hr_users hu
                   ON hu.company_id = l.company_id
                  AND hu.id = l.user_company_id
-                WHERE l.run_id = ?
+                WHERE l.run_id = ? AND l.company_id = ?
+                """ + hrPayrollScopeAccess.runLinePredicate(scope, "l") + """
                 GROUP BY COALESCE(NULLIF(l.country_code_snapshot, ''), NULLIF(hu.registration_country, ''), ''),
                          COALESCE(NULLIF(l.jurisdiction_code_snapshot, ''), NULLIF(hu.state_province, ''), '')
                 ORDER BY country ASC, province ASC
@@ -4350,7 +4462,7 @@ public class HrPayrollService {
                 scaled(rs.getBigDecimal("gross_amount")),
                 scaled(rs.getBigDecimal("net_amount"))
             ),
-            runId
+            params.toArray()
         );
     }
 
@@ -4638,6 +4750,11 @@ public class HrPayrollService {
     }
 
     private boolean lineStatutoryCompliance(PayrollRunLineRow line) {
+        if (line.includeInFiscal() && "MX".equals(line.countryCodeSnapshot())
+            && ("MX_REVIEW_REQUIRED".equals(line.calculationSource())
+                || !(line.calculationInputs().get("countryProfile") instanceof Map<?, ?> profile)
+                || !(profile.get("metadata") instanceof Map<?, ?> metadata)
+                || !metadata.containsKey("mexicoProfileRevision"))) return false;
         var value = line.calculationResults().get("statutoryCompliance");
         if (value instanceof Boolean bool) {
             return bool;

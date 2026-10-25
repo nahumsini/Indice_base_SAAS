@@ -166,6 +166,7 @@ export const koCA = {
     scheduleLateAfterMinutes: '지각 기준',
     scheduleLocationRule: '위치 규칙',
     scheduleLocationId: '정확한 위치',
+    payrollTreatment: '급여 유형',
     salaryType: '급여 유형',
     workdayHours: '근무 시간',
     workdaysPerWeek: '주당 근무일',
@@ -228,6 +229,7 @@ export const koCA = {
     scheduleLateAfterMinutes: '출퇴근 기록이 지각으로 표시되기 전 허용 시간입니다.',
     scheduleLocationRule: '출퇴근에 적용되는 사업장 위치 또는 정확한 위치 규칙입니다.',
     scheduleLocationId: '설정된 경우 적용되는 정확한 출퇴근 위치입니다.',
+    payrollTreatment: '직원의 급여 구분: 법정 급여, 운영 급여 또는 급여 제외.',
     salaryType: '급여가 선택한 지급 주기의 고정 금액인지 시급인지 표시합니다.',
     workdayHours: '표준 근무 시간 설정입니다.',
     workdaysPerWeek: '월 급여 추정에 사용하는 평균 주당 근무일입니다.',
@@ -249,6 +251,12 @@ export const koCA = {
     biweekly: '격주',
     semimonthly: '월 2회',
     monthly: '매월',
+  },
+  payrollTreatmentLabels: {
+    fiscal_payroll: '법정 급여',
+    operational_payroll: '운영 급여',
+    no_payroll: '급여 제외',
+    accounts_payable: '급여 제외',
   },
   salaryTypeLabels: {
     daily: '지급 주기 고정 급여',

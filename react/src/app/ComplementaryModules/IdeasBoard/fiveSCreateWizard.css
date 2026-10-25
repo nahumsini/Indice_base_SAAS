@@ -1,0 +1,40 @@
+.five-s-create{display:grid;gap:18px;min-width:0;color:#243247}
+[data-dialog-compact-viewport="true"].five-s-create-modal{overflow-y:hidden!important}
+[data-dialog-compact-viewport="true"].five-s-create-modal [data-slot="indice-modal-body"]{flex:1 1 0%;min-height:0;overflow-y:auto}
+.five-s-step{display:grid;gap:18px;min-width:0;outline:none}
+.five-s-step-heading h3{font-size:18px;font-weight:600;line-height:1.5;margin:0;overflow-wrap:anywhere}
+.five-s-step-heading p,.five-s-create small{font-size:13px;line-height:1.6;color:#64748b}
+.five-s-step-heading p{margin:6px 0 0}
+.five-s-create .workspace-field{min-width:0}
+.five-s-create input,.five-s-create select,.five-s-create textarea{width:100%;min-width:0;min-height:44px;border:1px solid #dce4ee;border-radius:12px;padding:10px 12px;background:#fff;color:#1e293b;font-size:14px}
+.five-s-create textarea{resize:vertical;min-height:112px}
+.five-s-create :is(input,select,textarea,button,summary):focus-visible{outline:2px solid #ff6b5e;outline-offset:3px}
+.five-s-area-name{display:block;margin-bottom:8px;font-size:12px;color:#64748b;overflow-wrap:anywhere}
+.five-s-plan-options{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.five-s-plan-options button{flex:1;min-height:44px;border:1px solid #dce4ee;background:#fff;border-radius:12px;padding:10px 12px;font-size:14px}
+.five-s-plan-options button[aria-pressed=true]{border-color:#ff6b5e;background:#fff1ef;color:#ac3c32}
+.five-s-use-example{justify-self:start;min-height:44px;padding:8px 12px;border:1px solid #dce4ee;border-radius:12px;background:#fff;font-size:13px}
+.five-s-follow-up{border:1px solid #e2e8f0;border-radius:12px;padding:0 14px}
+.five-s-follow-up summary{min-height:44px;padding:12px 0;cursor:pointer;font-size:13px;font-weight:500}
+.five-s-follow-up>div{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:8px 0 16px}
+.five-s-deferred{font-size:13px;line-height:1.6;color:#64748b;margin:0}
+.five-s-review-list{display:grid;gap:12px}
+.five-s-review-item{padding:14px;border:1px solid #e2e8f0;border-radius:14px;min-width:0}
+.five-s-review-item header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.five-s-review-item h4{font-size:14px;font-weight:500;line-height:1.5;overflow-wrap:anywhere;margin:0}
+.five-s-review-item header button{display:flex;align-items:center;gap:6px;min-height:44px;padding:8px;border-radius:10px;font-size:12px;flex-shrink:0}
+.five-s-review-item>p{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.6;margin:8px 0}
+.five-s-review-item small{overflow-wrap:anywhere;display:block}
+.dark .five-s-create{color:#e2e8f0}
+.dark .five-s-create :is(input,select,textarea),.dark .five-s-plan-options button,.dark .five-s-use-example{background:#1b2536;border-color:#3b4960;color:#e2e8f0}
+.dark .five-s-plan-options button[aria-pressed=true]{background:#3f2c32;border-color:#ff8d83;color:#ffc0b9}
+.dark .five-s-follow-up,.dark .five-s-review-item{border-color:#3b4960}
+.dark .five-s-step-heading p,.dark .five-s-create small,.dark .five-s-area-name,.dark .five-s-deferred{color:#aebfd5}
+@media(max-width:640px){
+ .five-s-create{gap:16px}
+ .five-s-create input,.five-s-create select,.five-s-create textarea{font-size:16px}
+ .five-s-step-heading h3{font-size:17px}
+ .five-s-follow-up>div{grid-template-columns:1fr}
+ .five-s-plan-options button{font-size:13px}
+ .five-s-review-item{padding:12px}
+}

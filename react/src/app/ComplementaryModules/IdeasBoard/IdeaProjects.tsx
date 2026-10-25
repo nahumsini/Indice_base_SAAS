@@ -3,6 +3,7 @@ import {FolderPlus} from 'lucide-react';
 import {IndiceModalFrame} from '../../components/indice-modal';
 import {Button} from '../../components/ui/button';
 import {ideaWorkspaceApi,type ProjectInput} from './ideaWorkspaceApi';
+import {fiveSCopy} from './fiveSCopy';
 import {workspaceCopy} from './workspaceCopy';
 
 export type ProjectDraft={input:Omit<ProjectInput,'name'>;actor:string};
@@ -17,7 +18,7 @@ export function SaveProjectDialog({draft,locale,onClose,onSaved,title,descriptio
  }
  return <IndiceModalFrame contentClassName="indice-idea-workspace-modal" open busy={busy} onOpenChange={open=>{if(!open)onClose();}} title={title??c.saveProject} description={description??c.projectsHint} icon={<FolderPlus/>} tone="blue" closeLabel={c.cancel}
   footer={<><Button variant="outline" disabled={busy} onClick={onClose}>{c.cancel}</Button><Button disabled={busy} onClick={()=>void save()}>{busy?c.loading:saveLabel??c.saveProject}</Button></>}>
-  <form onSubmit={e=>{e.preventDefault();void save();}} className="workspace-project-form"><label className="workspace-field">{c.projectName}<input autoFocus aria-label={c.projectName} value={name} maxLength={120} onChange={e=>setName(e.target.value)} disabled={busy||!!submitted.current} aria-invalid={!!error&&!name.trim()}/></label><p>{c.projectKind}: {draft.input.kind==='SYSTEM'?c.system:c.myBoard}</p>{error&&<p className="workspace-error" role="alert">{error}</p>}<button hidden type="submit" disabled={busy}/></form>
+  <form onSubmit={e=>{e.preventDefault();void save();}} className="workspace-project-form"><label className="workspace-field">{c.projectName}<input autoFocus aria-label={c.projectName} value={name} maxLength={120} onChange={e=>setName(e.target.value)} disabled={busy||!!submitted.current} aria-invalid={!!error&&!name.trim()}/></label><p>{c.projectKind}: {draft.input.kind==='SYSTEM'?c.system:draft.input.freeform?.nodes.some(n=>n.fiveS?.role==='SECTION')?fiveSCopy(locale).tab:c.myBoard}</p>{error&&<p className="workspace-error" role="alert">{error}</p>}<button hidden type="submit" disabled={busy}/></form>
  </IndiceModalFrame>;
 }
 

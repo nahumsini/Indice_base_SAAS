@@ -43,6 +43,7 @@ export type EmployeeColumnId =
   | 'scheduleLocationRule'
   | 'scheduleLocationId'
   | 'salaryType'
+  | 'payrollTreatment'
   | 'workdayHours'
   | 'workdaysPerWeek'
   | 'salary'

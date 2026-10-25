@@ -136,6 +136,9 @@ export function EmployeesTableSection({
               { label: copy.columns.business, value: employee.businessLabel || '—' },
               { label: copy.columns.phone, value: employee.phone || '—' },
               { label: copy.columns.salaryType, value: copy.salaryTypeLabels[employee.salaryType] },
+              ...(columns.some((column) => column.id === 'payrollTreatment' && column.visible)
+                ? [{ label: copy.columns.payrollTreatment, value: copy.payrollTreatmentLabels[employee.payrollTreatment] }]
+                : []),
             ]}
             actions={(
               <>

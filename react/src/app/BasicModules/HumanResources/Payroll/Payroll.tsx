@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { MexicoPayrollProfileDialog } from './components/MexicoPayrollProfileDialog';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Ban,
@@ -14,7 +15,6 @@ import {
   Info,
   Landmark,
   LoaderCircle,
-  MapPinned,
   PlayCircle,
   Printer,
   ReceiptText,
@@ -99,6 +99,7 @@ import type { PayrollRunPdfDocumentProps } from './PayrollRunPdfDocument';
 import { DateField } from './components/PayrollFormFields';
 import { DetailMetric } from './components/DetailMetric';
 import { PayrollHeaderBar } from './components/PayrollHeaderBar';
+import { PayrollPreferencesDialog } from './components/PayrollPreferencesDialog';
 import { PayrollCreateRunDialog } from './components/PayrollCreateRunDialog';
 import { PayrollOperationsPanel } from './components/PayrollOperationsPanel';
 import { PayrollRunActionsMenu } from './components/PayrollRunActionsMenu';
@@ -690,6 +691,7 @@ export default function Payroll() {
   const [units, setUnits] = useState<BackendUnit[]>([]);
   const [businesses, setBusinesses] = useState<BackendBusiness[]>([]);
   const [selectedRunDetail, setSelectedRunDetail] = useState<PayrollRunDetailResponse | null>(null);
+  const [mexicoProfileLine, setMexicoProfileLine] = useState<PayrollRunLine | null>(null);
   const [selectedLineId, setSelectedLineId] = useState<number | null>(null);
   const [governmentReportingDetail, setGovernmentReportingDetail] = useState<PayrollGovernmentReportingSnapshotsResponse | null>(null);
   const [colombiaSetupContext, setColombiaSetupContext] = useState<PayrollColombiaSetupContext | null>(null);
@@ -709,11 +711,16 @@ export default function Payroll() {
   });
   const [colombiaSetupNotice, setColombiaSetupNotice] = useState<PayrollDialogNotice | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const loadRequestIdRef = useRef(0);
+  const hasLoadedPayrollRef = useRef(false);
+  const busyTaskRef = useRef(false);
   const [busyState, setBusyState] = useState<PayrollBusyState | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isPreferencesDialogOpen, setIsPreferencesDialogOpen] = useState(false);
+  const [preferencesError, setPreferencesError] = useState('');
   const [isCreateRunDialogOpen, setIsCreateRunDialogOpen] = useState(false);
+  const [createRunError, setCreateRunError] = useState('');
   const [runToCancel, setRunToCancel] = useState<PayrollRunSummary | null>(null);
   const [resumeRunDialogAfterCancel, setResumeRunDialogAfterCancel] = useState(false);
   const [isRunDialogOpen, setIsRunDialogOpen] = useState(false);
@@ -852,6 +859,7 @@ export default function Payroll() {
     activeFilters = filters,
     options: { background?: boolean } = {},
   ) => {
+    const requestId = ++loadRequestIdRef.current;
     if (!options.background) {
       setIsLoading(true);
     }
@@ -865,28 +873,21 @@ export default function Payroll() {
         dashboardApi.listBusinesses().catch(() => []),
       ]);
 
+      if (requestId !== loadRequestIdRef.current) return;
+      hasLoadedPayrollRef.current = true;
       setOverview(overviewResponse);
-      setPreferencesForm(normalizePayrollPreferences(overviewResponse.preferences));
-      setCreateRunForm((current) => ({
-        ...current,
-        grouping_mode: overviewResponse.preferences.grouping_mode,
-      }));
       setRuns(runsResponse.items);
       setJurisdictionsByRunId({});
       setUnits(unitsResponse);
       setBusinesses(businessesResponse);
     } catch (error) {
-      setErrorMessage(toErrorMessage(error, copy));
+      if (requestId === loadRequestIdRef.current) setErrorMessage(toErrorMessage(error, copy));
     } finally {
-      if (!options.background) {
+      if (requestId === loadRequestIdRef.current) {
         setIsLoading(false);
       }
     }
   };
-
-  useEffect(() => {
-    void loadPayroll();
-  }, []);
 
   useEffect(() => {
     if (!successMessage) {
@@ -928,12 +929,15 @@ export default function Payroll() {
     task: () => Promise<T>,
     minimumDurationMs = 900,
   ) => {
+    if (busyTaskRef.current) return;
+    busyTaskRef.current = true;
     setBusyState(nextBusyState);
     setErrorMessage('');
 
     try {
       return await runWithMinimumDuration(task(), minimumDurationMs);
     } finally {
+      busyTaskRef.current = false;
       setBusyState(null);
     }
   };
@@ -1120,7 +1124,14 @@ export default function Payroll() {
     await fetchRunDetail(runId);
   };
 
+  const openPreferences = () => {
+    setPreferencesError('');
+    if (overview) setPreferencesForm(normalizePayrollPreferences(overview.preferences));
+    setIsPreferencesDialogOpen(true);
+  };
+
   const handleSavePreferences = async () => {
+    setPreferencesError('');
     try {
       await runBusyTask({
         kind: 'save-preferences',
@@ -1141,7 +1152,7 @@ export default function Payroll() {
         await loadPayroll(filters, { background: true });
       });
     } catch (error) {
-      setErrorMessage(toErrorMessage(error, copy));
+      setPreferencesError(toErrorMessage(error, copy));
     }
   };
 
@@ -1171,7 +1182,9 @@ export default function Payroll() {
   };
 
   const handleCreateRun = async () => {
+    if (busyTaskRef.current) return;
     try {
+      setCreateRunError('');
       await runBusyTask({
         kind: 'create-run',
         title: copy.busy.generateTitle,
@@ -1183,7 +1196,7 @@ export default function Payroll() {
         await loadPayroll(filters, { background: true });
       });
     } catch (error) {
-      setErrorMessage(toErrorMessage(error, copy));
+      setCreateRunError(toErrorMessage(error, copy));
     }
   };
 
@@ -1254,11 +1267,12 @@ export default function Payroll() {
   };
 
   const handleRunAction = async (action: 'process' | 'approve') => {
-    if (!selectedRunDetail) {
+    if (!selectedRunDetail || dirtyLineIds.size > 0 || busyTaskRef.current) {
       return;
     }
 
     try {
+      setRunDialogNotice(null);
       const busyConfig = action === 'process'
         ? { kind: 'process-run' as const, title: copy.busy.processTitle, description: copy.busy.processDescription }
         : { kind: 'approve-run' as const, title: copy.busy.approveTitle, description: copy.busy.approveDescription };
@@ -1279,12 +1293,13 @@ export default function Payroll() {
         await loadPayroll(filters, { background: true });
       });
     } catch (error) {
-      setErrorMessage(toErrorMessage(error, copy));
+      setRunDialogNotice({ tone: 'error', message: toErrorMessage(error, copy) });
     }
   };
 
   useEffect(() => {
-    void loadPayroll(filters, { background: true });
+    void loadPayroll(filters, { background: hasLoadedPayrollRef.current });
+    return () => { loadRequestIdRef.current += 1; };
   }, [filters]);
 
   const handleDownload = async (kind: 'csv' | 'pdf', run: PayrollRunSummary) => {
@@ -1665,9 +1680,13 @@ export default function Payroll() {
         hasRuns={(overview?.summary.runs_count ?? 0) > 0}
         canPrepare={capabilities.can_prepare}
         canConfigure={capabilities.can_configure}
-        onCreateRun={() => setIsCreateRunDialogOpen(true)}
+        onCreateRun={() => {
+          setCreateRunError('');
+          setCreateRunForm((current) => ({ ...current, grouping_mode: overview?.preferences.grouping_mode ?? current.grouping_mode }));
+          setIsCreateRunDialogOpen(true);
+        }}
         onRegenerateRuns={() => void handleRegenerateRuns()}
-        onOpenPreferences={() => setIsPreferencesDialogOpen(true)}
+        onOpenPreferences={openPreferences}
       />
 
       {isLoading ? (
@@ -1800,7 +1819,7 @@ export default function Payroll() {
             <PayrollSetupGuide
               copy={copy.setupGuide}
               isBusy={isSaving}
-              onOpenPreferences={() => setIsPreferencesDialogOpen(true)}
+              onOpenPreferences={openPreferences}
             />
           ) : (
             <PayrollOperationsPanel
@@ -2115,6 +2134,7 @@ export default function Payroll() {
         <PayrollCreateRunDialog
           open={isCreateRunDialogOpen}
           busy={activeBusyKind === 'create-run'}
+          error={createRunError}
           copy={copy.createRunDialog}
           frequencyLabels={copy.frequencies}
           groupingLabels={copy.groupingModes}
@@ -2161,12 +2181,13 @@ export default function Payroll() {
 
       {isPreferencesDialogOpen ? (
         <PayrollPreferencesDialog
+          error={preferencesError}
           copy={copy}
           isOpen={isPreferencesDialogOpen}
           isSaving={isSaving}
           form={preferencesForm}
           onClose={() => setIsPreferencesDialogOpen(false)}
-          onChange={setPreferencesForm}
+          onChange={(form) => { setPreferencesError(''); setPreferencesForm(form); }}
           onSave={() => void handleSavePreferences()}
         />
       ) : null}
@@ -2215,8 +2236,13 @@ export default function Payroll() {
           }}
           onPrintLine={(line) => void handlePrintLine(line)}
           onOpenGovernmentReporting={(run) => void openGovernmentReporting(run.id)}
+          onOpenMexicoProfile={line => { setMexicoProfileLine(line); setIsRunDialogOpen(false); }}
         />
       ) : null}
+
+      {mexicoProfileLine ? <MexicoPayrollProfileDialog employeeId={mexicoProfileLine.user_company_id}
+        employeeName={mexicoProfileLine.user_name} locale={currentLanguage.code}
+        onClose={() => { setMexicoProfileLine(null); if (selectedRunDetail) setIsRunDialogOpen(true); }} /> : null}
 
       {isColombiaSetupDialogOpen && colombiaSetupContext ? (
         <PayrollColombiaSetupDialog
@@ -2258,372 +2284,6 @@ export default function Payroll() {
         onComplete={() => setPrintJob(null)}
       />
     </>
-  );
-}
-
-function PayrollPreferencesDialog({
-  copy,
-  isOpen,
-  isSaving,
-  form,
-  onClose,
-  onChange,
-  onSave,
-}: {
-  copy: PayrollCopy;
-  isOpen: boolean;
-  isSaving: boolean;
-  form: PayrollPreferences;
-  onClose: () => void;
-  onChange: (value: PayrollPreferences) => void;
-  onSave: () => void;
-}) {
-  const preferenceCopy = copy.preferencesDialog;
-  const groupingOptions = [
-    { key: 'single', ...preferenceCopy.groupingOptions.single },
-    { key: 'unit', ...preferenceCopy.groupingOptions.unit },
-    { key: 'business', ...preferenceCopy.groupingOptions.business },
-  ] as const;
-
-  const selectedOption = groupingOptions.find((option) => option.key === form.grouping_mode) ?? groupingOptions[0];
-  const optionIconMap = {
-    single: Globe2,
-    unit: MapPinned,
-    business: Landmark,
-  } as const;
-  const automaticSeparatorCards = [
-    {
-      title: preferenceCopy.separators.frequency.title,
-      description: preferenceCopy.separators.frequency.description,
-      Icon: CreditCard,
-    },
-    {
-      title: preferenceCopy.separators.workforce.title,
-      description: preferenceCopy.separators.workforce.description,
-      Icon: ShieldCheck,
-    },
-    {
-      title: preferenceCopy.separators.jurisdiction.title,
-      description: preferenceCopy.separators.jurisdiction.description,
-      Icon: Globe2,
-    },
-  ];
-  const preferenceSteps = [
-    { number: '1', label: preferenceCopy.steps.organization },
-    { number: '2', label: preferenceCopy.steps.automaticSeparation },
-    { number: '3', label: preferenceCopy.steps.calendar },
-  ];
-  const impactMessage = preferenceCopy.impactMessage;
-  const saveButtonLabel = isSaving
-    ? preferenceCopy.saving
-    : copy.labels.savePreferences;
-  const [currentPreferenceStep, setCurrentPreferenceStep] = useState(0);
-  const isFinalPreferenceStep = currentPreferenceStep === preferenceSteps.length - 1;
-  const biweeklyFirstDayOptions = Array.from({ length: 27 }, (_, index) => index + 1);
-  const biweeklySecondDayOptions = Array.from({ length: 27 }, (_, index) => index + 2);
-  const monthlyStartDayOptions = Array.from({ length: 31 }, (_, index) => index + 1);
-
-  useEffect(() => {
-    if (isOpen) {
-      setCurrentPreferenceStep(0);
-    }
-  }, [isOpen]);
-
-  const goToPreviousPreferenceStep = () => {
-    setCurrentPreferenceStep((currentStep) => Math.max(currentStep - 1, 0));
-  };
-
-  const goToNextPreferenceStep = () => {
-    setCurrentPreferenceStep((currentStep) => Math.min(currentStep + 1, preferenceSteps.length - 1));
-  };
-
-  return (
-    <IndiceModalFrame
-      open={isOpen}
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-      modalType="wizard"
-      tone="aqua"
-      busy={isSaving}
-      icon={<SlidersHorizontal className="h-5 w-5" />}
-      title={copy.labels.preferences}
-      description={preferenceCopy.subtitle}
-      closeLabel={copy.labels.close}
-      contentClassName="h-[min(820px,calc(100dvh-2rem))]"
-      bodyClassName="flex flex-col p-0"
-      footerLeading={(
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-white">{preferenceCopy.footerTitle}</p>
-          <p className="max-w-[540px] truncate text-xs text-white/80">{impactMessage}</p>
-        </div>
-      )}
-      footer={(
-        <div className="flex shrink-0 gap-2">
-          <Button variant="outline" disabled={isSaving} onClick={onClose}>
-            {copy.labels.cancel}
-          </Button>
-          {currentPreferenceStep > 0 ? (
-            <Button variant="outline" disabled={isSaving} onClick={goToPreviousPreferenceStep}>
-              {preferenceCopy.previous}
-            </Button>
-          ) : null}
-          {isFinalPreferenceStep ? (
-            <Button onClick={onSave} disabled={isSaving}>
-              {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Settings className="h-4 w-4" />}
-              {saveButtonLabel}
-            </Button>
-          ) : (
-            <Button onClick={goToNextPreferenceStep} disabled={isSaving}>
-              {preferenceCopy.next}
-            </Button>
-          )}
-        </div>
-      )}
-    >
-
-        <div className="shrink-0 border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            {preferenceSteps.map((step, index) => (
-              <button
-                key={step.number}
-                type="button"
-                disabled={isSaving}
-                onClick={() => setCurrentPreferenceStep(index)}
-                className={`flex min-w-0 items-center gap-3 rounded-xl border px-4 py-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-70 ${currentPreferenceStep === index
-                  ? 'border-[#59C3A5] bg-[#59C3A5]/10 text-[#59C3A5] shadow-sm dark:border-blue-400/50 dark:bg-blue-400/10 dark:text-blue-200'
-                  : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-[#59C3A5]/30 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300'
-                  }`}
-                aria-current={currentPreferenceStep === index ? 'step' : undefined}
-              >
-                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-medium ${currentPreferenceStep >= index
-                  ? 'bg-[#59C3A5] text-slate-950'
-                  : 'bg-white text-slate-500 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700'
-                  }`}>
-                  {step.number}
-                </span>
-                <span className="min-w-0 text-sm font-medium leading-tight">{step.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/80 p-6 dark:bg-slate-950/40">
-          <section className={`${currentPreferenceStep === 0 ? 'block' : 'hidden'}`}>
-            <div className="grid gap-5 xl:grid-cols-[0.82fr_1.18fr]">
-              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/75">
-                <div className="flex items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#59C3A5] text-sm font-medium text-slate-950 shadow-sm">
-                    1
-                  </span>
-                  <div>
-                    <p className="text-[11px] font-medium text-[#59C3A5] dark:text-blue-300">
-                      {preferenceCopy.steps.stepLabel('1')}
-                    </p>
-                    <h3 className="mt-1 text-lg font-medium text-slate-900 dark:text-white">{preferenceCopy.organizationTitle}</h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                      {preferenceCopy.organizationSubtitle}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-5 rounded-lg border border-[#59C3A5]/15 bg-[#59C3A5]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-[#59C3A5] dark:text-blue-200">{preferenceCopy.selectedOrganization}</p>
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[#59C3A5] shadow-sm ring-1 ring-[#59C3A5]/10 dark:bg-slate-900 dark:text-blue-200">
-                      {selectedOption.title}
-                    </span>
-                  </div>
-                  <div className="mt-4 space-y-2">
-                    {selectedOption.examples.map((example) => (
-                      <p key={example} className="rounded-md bg-white px-3 py-2 text-xs font-medium text-slate-600 shadow-sm ring-1 ring-slate-200/70 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700">
-                        {example}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {groupingOptions.map((option) => {
-                  const isSelected = form.grouping_mode === option.key;
-                  const Icon = optionIconMap[option.key];
-
-                  return (
-                    <button
-                      key={option.key}
-                      type="button"
-                      disabled={isSaving}
-                      onClick={() => {
-                        if (form.grouping_mode !== option.key) {
-                          onChange({ ...form, grouping_mode: option.key as PayrollPreferences['grouping_mode'] });
-                        }
-                      }}
-                      className={`group flex w-full items-start gap-4 rounded-lg border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-70 ${isSelected
-                        ? 'border-[#59C3A5] bg-[#59C3A5]/5 shadow-sm ring-2 ring-[#59C3A5]/10 dark:border-blue-400/60 dark:bg-[#59C3A5]/20'
-                        : 'border-slate-200 bg-white hover:border-[#59C3A5]/35 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-400/40'
-                        }`}
-                    >
-                      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${isSelected
-                        ? 'bg-[#59C3A5] text-slate-950'
-                        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                        }`}>
-                        <Icon className="h-5 w-5" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-3">
-                          <h4 className="text-base font-medium text-slate-900 dark:text-white">{option.title}</h4>
-                          <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${isSelected
-                            ? 'border-[#59C3A5] bg-white text-[#59C3A5]'
-                            : 'border-slate-300 bg-white text-slate-300 dark:border-slate-600 dark:bg-slate-900'
-                            }`}>
-                            <CheckCircle2 className="h-4 w-4" />
-                          </span>
-                        </div>
-                        <p className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-300">{option.description}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-
-          <section className={`${currentPreferenceStep === 1 ? 'block' : 'hidden'}`}>
-            <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/75">
-              <div className="mb-5 flex items-start gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#59C3A5]/20 bg-[#59C3A5]/5 text-sm font-medium text-[#59C3A5] dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-200">
-                  2
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-medium text-[#59C3A5] dark:text-blue-300">{preferenceCopy.steps.stepLabel('2')}</p>
-                  <h3 className="mt-1 text-lg font-medium text-slate-900 dark:text-white">{preferenceCopy.separationTitle}</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{preferenceCopy.separationSubtitle}</p>
-                </div>
-              </div>
-              <div className="grid gap-4 md:grid-cols-3">
-                {automaticSeparatorCards.map(({ title, description, Icon }) => (
-                  <div key={title} className="rounded-lg border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/70">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-[#59C3A5] shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:text-blue-300 dark:ring-slate-700">
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <div className="mt-4">
-                      <p className="text-base font-medium text-slate-900 dark:text-white">{title}</p>
-                      <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-5 rounded-lg border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-5 py-4 text-sm leading-6 text-[#59C3A5] dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200">
-                {preferenceCopy.separationNotice}
-              </div>
-            </div>
-          </section>
-
-          <section className={`${currentPreferenceStep === 2 ? 'block' : 'hidden'}`}>
-            <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/75">
-              <div className="mb-5 flex items-start gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#59C3A5]/20 bg-white text-[#59C3A5] dark:border-blue-400/25 dark:bg-slate-900 dark:text-blue-200">
-                  <CalendarDays className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="text-[11px] font-medium text-[#59C3A5] dark:text-blue-300">
-                    {preferenceCopy.steps.stepLabel('3')}
-                  </p>
-                  <h3 className="mt-1 text-lg font-medium text-slate-900 dark:text-white">{preferenceCopy.calendarTitle}</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                    {preferenceCopy.calendarSubtitle}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid gap-4 lg:grid-cols-3">
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/70">
-                  <label className="text-sm font-medium text-slate-800 dark:text-slate-100" htmlFor="payroll-weekly-start-day">
-                    {preferenceCopy.weeklyStartDay}
-                  </label>
-                  <select
-                    id="payroll-weekly-start-day"
-                    value={form.weekly_start_day}
-                    disabled={isSaving}
-                    onChange={(event) => onChange({ ...form, weekly_start_day: Number(event.target.value) })}
-                    className="mt-3 h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                  >
-                    {preferenceCopy.weekDays.map((day) => (
-                      <option key={day.value} value={day.value}>{day.label}</option>
-                    ))}
-                  </select>
-                  <p className="mt-4 text-sm leading-6 text-slate-500 dark:text-slate-400">{preferenceCopy.weeklyHelper}</p>
-                </div>
-
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/70">
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{copy.frequencies.biweekly}</p>
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    <label className="block" htmlFor="payroll-biweekly-first-day">
-                      <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{preferenceCopy.biweeklyFirstDay}</span>
-                      <select
-                        id="payroll-biweekly-first-day"
-                        value={form.biweekly_first_day}
-                        disabled={isSaving}
-                        onChange={(event) => {
-                          const nextFirstDay = Number(event.target.value);
-                          onChange({
-                            ...form,
-                            biweekly_first_day: nextFirstDay,
-                            biweekly_second_day: Math.max(form.biweekly_second_day, nextFirstDay + 1),
-                          });
-                        }}
-                        className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                      >
-                        {biweeklyFirstDayOptions.map((day) => (
-                          <option key={day} value={day}>{day}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="block" htmlFor="payroll-biweekly-second-day">
-                      <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{preferenceCopy.biweeklySecondDay}</span>
-                      <select
-                        id="payroll-biweekly-second-day"
-                        value={form.biweekly_second_day}
-                        disabled={isSaving}
-                        onChange={(event) => onChange({ ...form, biweekly_second_day: Number(event.target.value) })}
-                        className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                      >
-                        {biweeklySecondDayOptions.map((day) => (
-                          <option key={day} value={day} disabled={day <= form.biweekly_first_day}>{day}</option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                  <p className="mt-4 text-sm leading-6 text-slate-500 dark:text-slate-400">{preferenceCopy.biweeklyHelper}</p>
-                </div>
-
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/70">
-                  <label className="text-sm font-medium text-slate-800 dark:text-slate-100" htmlFor="payroll-monthly-start-day">
-                    {preferenceCopy.monthlyStartDay}
-                  </label>
-                  <div className="mt-3 flex items-center gap-3">
-                    <select
-                      id="payroll-monthly-start-day"
-                      disabled={isSaving}
-                      value={form.monthly_start_day}
-                      onChange={(event) => onChange({ ...form, monthly_start_day: Number(event.target.value) })}
-                      className="h-12 w-28 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                    >
-                      {monthlyStartDayOptions.map((day) => (
-                        <option key={day} value={day}>{day}</option>
-                      ))}
-                    </select>
-                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{preferenceCopy.dayOfMonthHelper}</span>
-                  </div>
-                  <p className="mt-4 text-sm leading-6 text-slate-500 dark:text-slate-400">{preferenceCopy.monthlyHelper}</p>
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
-
-    </IndiceModalFrame>
   );
 }
 

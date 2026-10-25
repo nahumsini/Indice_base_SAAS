@@ -10,7 +10,7 @@ test('standalone module has its own canonical route, alias and permission scope'
  assert.equal(nav.resolvePageId('ideas_board'),'ideas-board');
  assert.equal(nav.getPagePath('ideas-board','canvas'),'/ideas-board/canvas');
  assert.equal(nav.moduleRoutes.ideasBoard,'ideas-board');
- assert.deepEqual(access.MODULE_TAB_SCOPE_CATALOG['ideas-board'],{moduleSlug:'ideas_board',tabs:{canvas:'canvas',projects:'canvas',system:'canvas'}});
+ assert.deepEqual(access.MODULE_TAB_SCOPE_CATALOG['ideas-board'],{moduleSlug:'ideas_board',tabs:{canvas:'canvas','five-s':'canvas',projects:'canvas',system:'canvas'}});
  const session={user:{role:'user',tab_permissions_configured:true,tab_permission_keys:['crm.funneling']},company:{id:7}};
  assert.equal(access.canAccessModuleTab('ideas-board','canvas',session),false);
  assert.equal(access.canAccessModuleTab('ideas-board','canvas',{...session,user:{...session.user,tab_permission_keys:['ideas_board.canvas']}}),true);

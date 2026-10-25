@@ -167,6 +167,7 @@ export const ptBR = {
     scheduleLateAfterMinutes: 'Limite de atraso',
     scheduleLocationRule: 'Regra de local',
     scheduleLocationId: 'Local exato',
+    payrollTreatment: 'Tipo de folha',
     salaryType: 'Tipo de salário',
     workdayHours: 'Horas da jornada',
     workdaysPerWeek: 'Dias por semana',
@@ -229,6 +230,7 @@ export const ptBR = {
     scheduleLateAfterMinutes: 'Minutos de tolerância antes de marcar atraso.',
     scheduleLocationRule: 'Regra de local usada para validar presença.',
     scheduleLocationId: 'Local exato usado quando a regra exige.',
+    payrollTreatment: 'Classificação do colaborador: folha fiscal, operacional ou sem folha.',
     salaryType: 'Indica se o funcionário recebe valor fixo por período ou por hora.',
     workdayHours: 'Horas previstas de jornada diária.',
     workdaysPerWeek: 'Dias úteis médios por semana usados nas estimativas de folha.',
@@ -250,6 +252,12 @@ export const ptBR = {
     biweekly: 'A cada duas semanas',
     semimonthly: 'Quinzenal',
     monthly: 'Mensal',
+  },
+  payrollTreatmentLabels: {
+    fiscal_payroll: 'Folha fiscal',
+    operational_payroll: 'Folha operacional',
+    no_payroll: 'Sem folha',
+    accounts_payable: 'Sem folha',
   },
   salaryTypeLabels: {
     daily: 'Salário fixo por período',

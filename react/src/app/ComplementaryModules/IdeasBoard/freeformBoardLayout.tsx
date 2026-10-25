@@ -1,3 +1,8 @@
+import {FiveSFields} from './FiveSFields';
+import {FiveSNodeContent} from './FiveSNodeContent';
+import {fiveSCopy} from './fiveSCopy';
+import {fiveSNodeText,validFiveSAction} from './fiveSModel';
+import {sameBoardIdeas} from '../../BasicModules/Sales/Funneling/ideasBoardModel';
 import type { IdeasBoardLayout } from '../../BasicModules/Sales/Funneling/ideasBoardLayout';
 import { clamp, fitBoard, type BoardContent, type IdeaNode } from '../../BasicModules/Sales/Funneling/ideasBoardModel';
 import { ideasBoardCopy } from '../../BasicModules/Sales/Funneling/ideasBoardCopy';
@@ -45,26 +50,26 @@ export function freeformBoardLayout(locale: string): IdeasBoardLayout {
     creationGroups: groups,
     editor: {
       ...editor,
-      matches: node => !!catalogNode(node),
-      isValid: node => { const catalog = catalogNode(node); return !catalog || editor.isValid?.(catalog) !== false; },
-      title: (node, fresh) => editor.title(catalogNode(node)!, fresh),
-      description: node => editor.description(catalogNode(node)!),
-      icon: node => editor.icon(catalogNode(node)!),
-      saveLabel: node => editor.saveLabel!(catalogNode(node)!),
-      render: context => <SystemElementFields {...context} bounds={freeformNodeBounds(context.node)} node={catalogNode(context.node)!} onChange={node => context.onChange(withCatalog(node as DiagnosticNode))} />,
+      matches: node => node.fiveS?.role==='ACTION'||!!catalogNode(node),
+      isValid: node => { if(node.fiveS)return validFiveSAction(node);const catalog = catalogNode(node); return !catalog || editor.isValid?.(catalog) !== false; },
+      title: (node, fresh) => node.fiveS?fiveSCopy(locale).edit:editor.title(catalogNode(node)!, fresh),
+      description: node => node.fiveS?node.fiveS.area:editor.description(catalogNode(node)!),
+      icon: node => node.fiveS?<span>🧹</span>:editor.icon(catalogNode(node)!),
+      saveLabel: node => node.fiveS?fiveSCopy(locale).save:editor.saveLabel!(catalogNode(node)!),
+      render: context => context.node.fiveS?<FiveSFields {...context}/>:<SystemElementFields {...context} bounds={freeformNodeBounds(context.node)} node={catalogNode(context.node)!} onChange={node => context.onChange(withCatalog(node as DiagnosticNode))} />,
     },
     prepare: node => node,
     move: (node, dx, dy) => ({ ...node, x: clamp(node.x + dx, -10000, 10000), y: clamp(node.y + dy, -10000, 10000) }),
     bounds: freeformNodeBounds,
-    sameIdeas: (a, b) => source.sameIdeas(a, b),
+    sameIdeas: sameBoardIdeas,
     fit: (nodes, width, height, region) => {
       const group = groups.find(group => group.id === region);
       const selected = group ? nodes.filter(group.matches) : nodes;
       return fitBoard(selected.length ? selected : nodes, width, height);
     },
     nodeClass: node => node.catalog ? 'system-node' : '',
-    renderNode: (node, onEdit) => node.catalog ? <SystemNodeContent node={catalogNode(node)!} locale={locale} onSteps={onEdit} /> : undefined,
-    printNode: node => node.catalog && node.kind === 'TEXT' ? { ...node, text: `${symbols[node.catalog.icon] ?? '✨'}\n${node.text}` } : node,
-    printDetails: nodes => nodes.filter(node => node.catalog?.steps?.length).map(node => ({ title: node.text, steps: node.catalog!.steps! })),
+    renderNode: (node, onEdit) => node.fiveS?<FiveSNodeContent node={node} locale={locale} onEdit={node.fiveS.role==='ACTION'?onEdit:undefined}/>:node.catalog ? <SystemNodeContent node={catalogNode(node)!} locale={locale} onSteps={onEdit} /> : undefined,
+    printNode: node => node.fiveS?{...node,text:fiveSNodeText(node,locale)}:node.catalog && node.kind === 'TEXT' ? { ...node, text: `${symbols[node.catalog.icon] ?? '✨'}\n${node.text}` } : node,
+    printDetails: nodes => [...nodes.filter(n=>n.fiveS?.role==='ACTION').map(n=>({title:n.text,steps:[fiveSNodeText(n,locale),n.fiveS?.details??''].filter(Boolean)})),...nodes.filter(node => node.catalog?.steps?.length).map(node => ({ title: node.text, steps: node.catalog!.steps! }))],
   };
 }

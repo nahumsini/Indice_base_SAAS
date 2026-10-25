@@ -5177,3 +5177,132 @@ Validation covers native routes and first views per available module, relevant t
 long content, delayed data, mobile/short viewport, modal accessibility, TypeScript/build and
 focused domain regressions. Browser checks are read-only and do not submit business records.
 Local activation does not imply production deployment or transaction-level certification.
+
+
+### Compact personal canvas workbench — 2026-10-24
+
+Mi pizarra and Diagnóstico empresarial adopt the owner-approved compact header, one creative
+tool rail and a remaining-height canvas. Keep the native IndiceTitleBar, visible Save/fullscreen,
+File/Insert native dropdowns, original colored artwork, horizontal-scroll controls and existing
+save-error/conflict protection. The five construction categories are available through a
+non-modal disclosure outside the gesture surface, with a side/bottom presentation by viewport.
+Opening that disclosure must not change camera or document state. The personal editor starts
+in Move; the default Sales editor still starts in Note. Projects and element forms retain their
+current behavior. See `personal-ideas-board-contract-v1.md` for the scoped owner contract.
+
+
+### 2026-10-24 — Elementos de Pizarra con captura breve
+
+En Mi pizarra y Diagnóstico empresarial, el Standard Form Modal presenta nombres y tipo primero, conservando hasta tres elementos por captura. Detalles y Apariencia y tamaño son disclosures nativos opcionales, cerrados inicialmente; errores y pasos incompletos siguen siendo localizables. La vista previa y los colores viven con Apariencia. El ancho personal máximo es 800 px, con filas apiladas en teléfono y pie nativo visible. No añade etapas, otro motor de modal ni cambios al formulario predeterminado de Ventas. El contrato de datos, validación y guardado sigue en `personal-ideas-board-contract-v1.md`.
+
+
+### 2026-10-24 — Tarjetas compactas de Mis proyectos
+
+La biblioteca personal muestra miniaturas inertes de la versión guardada y expone Abrir, Duplicar y Compartir en la tarjeta, con acciones secundarias en el menú nativo. La lectura diferida usa las rutas privadas existentes y cancela resultados antiguos al cambiar de proyecto, dueño o versión. La miniatura no monta gestos ni reproductores; el visor completo conserva sus funciones. Scopes, permisos, consulta inmutable y los diálogos existentes mantienen su contrato. Móvil conserva acciones táctiles de al menos 44 px. Véase `personal-ideas-board-contract-v1.md`.
+
+
+### 2026-10-24 — Compartir proyectos de Pizarra
+
+El modal personal de compartir separa la lista de acceso y la búsqueda de empleados. Las selecciones permanecen visibles al buscar; Agregar, Quitar y Deshacer muestran cambios pendientes hasta Guardar. Mantiene el Standard Form Modal nativo, el aviso de consulta/copia propia, el propietario protegido y el pie visible en pantallas pequeñas. Estados de lectura, búsqueda y guardado son independientes; un error conserva el borrador y los reintentos inciertos conservan la petición original. El contrato de permisos, CAS, actor y alcance está en `personal-ideas-board-contract-v1.md`; no se incorpora otro motor ni un permiso nuevo.
+
+
+### 2026-10-24 — Proyectos recibidos en Pizarra
+
+Compartidos conmigo conserva la biblioteca nativa y las tarjetas compactas con miniatura, destacando el remitente en una fila propia. Abrir consulta el original y Crear mi copia identifica el origen en el Standard Form Modal existente. Las copias aparecen en Mis proyectos con confirmación visible y sin filtros del origen que las oculten; el visor de original vuelve a Compartidos conmigo. Nombres largos, móvil y oscuro mantienen la composición y acciones táctiles existentes. No añade permisos ni otra biblioteca. Véase `personal-ideas-board-contract-v1.md` para el contrato de privacidad y navegación.
+
+
+### 2026-10-24 — Papelera de proyectos personales
+
+La biblioteca de Pizarra conserva tarjetas, filtros y confirmación nativos. Papelera destaca estado/fecha de eliminación y Restaurar, con una indicación visible de regreso privado a Mis proyectos. El arte no monta documentos eliminados y la confirmación identifica el registro y su destino. El aviso de éxito permite abrir el proyecto restaurado sin depender de su posición en el listado. No añade borrado definitivo, otro motor ni cambios de autorización. Contrato y verificación: `personal-ideas-board-contract-v1.md`.
+
+### Personal 5S template — 2026-10-25
+
+Mi pizarra adds an owner-scoped guided 5S template, retaining the shared canvas/history/save engine.
+The native coral Standard Form Modal appends five areas without replacing existing elements.
+Compact cards separate 5S categories from action states, with optional details/results and private
+before/after photos. Three date-aware filters expose pending work, overdue targets and upcoming or
+missed reviews. Desktop uses five regions, phones a labeled category selector; native header,
+Save, disclosures, 44px targets and dark mode remain. The optional technical renderWorkspace port
+is opt-in and does not activate in Sales or Diagnóstico empresarial. Metadata, evidence privacy,
+CAS/copy compatibility and rollout are owned by `personal-ideas-board-contract-v1.md`.
+
+
+### Dedicated personal 5S tab — 2026-10-25
+
+The owner supersedes the 5S launcher inside Mi pizarra with its own native Tablero 5S tab,
+`/ideas-board/five-s`. It retains the same private draft/history/save owner, permission and
+FREEFORM project compatibility, with one mounted editor rather than concurrent writers.
+The tab exclusively presents the guided methodology, category/action cards and date filters;
+its empty state introduces work-area creation. Native coral title/Save controls, phone navigation
+and dark presentation remain. The owner supplies bounded document projections: Mi pizarra excludes 5S nodes and Tablero 5S
+excludes ordinary nodes. One queue persists their complete private document; edits/New/Open and
+per-view history merge without removing the other view. Named files/printing capture the active
+view. Scoped observers prevent delayed resize/gesture handlers from writing the wrong view.
+The title icon and document-view ports are opt-in; Sales and diagnosis behavior do not change.
+See `personal-ideas-board-contract-v1.md` for scope, budgets, compatibility and verification.
+
+### Guided 5S creation — 2026-10-25
+
+Crear tablero 5S replaces its area-only Standard Form Modal with a native coral Modal Wizard
+Índice: area, five short category questions and final review. Editable examples, a define-later
+choice and collapsed optional responsible/date fields reduce required capture. Back retains
+answers; review links return directly to review after editing. Final confirmation atomically
+appends the area and selected pending actions through the existing actor/expected-document guard.
+Native frame, stepper, validation, summary, fixed footer and scrolling body retain phone, keyboard,
+dark and six-language behavior. No second writer or shared component rules are introduced.
+The owner contract is `personal-ideas-board-contract-v1.md`.
+
+### Compact 5S action form — 2026-10-25
+
+Agregar/Editar acción is one native coral Standard Form Modal. Action, optional responsible name
+and target date are primary; generated card titles avoid duplicate required capture while
+preserving existing custom titles. Section/status, title override, notes/result/review and private
+before/after photos use two native disclosures. Verified actions reveal their required result.
+Native footer feedback explains disabled save. Owner-scoped compact-viewport presentation keeps
+the action footer available; phone fields stack with native input sizing and six-language copy.
+No shared modal rules, persistence, authorization or employee-assignment behavior change.
+Contract and verification: `personal-ideas-board-contract-v1.md`.
+
+### 5S card progress — 2026-10-25
+
+The owner makes action status, responsible and target date explicit in guided 5S cards, with text
+cues for overdue/today and compact descriptions that avoid repeating the title. Native-sized
+Comenzar, Verificar and Reabrir actions expose the next state; full editing remains available.
+Verification is one native coral Standard Form Modal with a required result and optional next
+review. Progress changes retain the existing expected-document/actor guard, history and autosave;
+failed verification retains its draft. Phone category navigation, dark mode, six languages and
+44px targets remain. No shared framework or backend workflow changes. Owner contract:
+`personal-ideas-board-contract-v1.md`.
+
+### Combined private 5S filters — 2026-10-25
+
+The guided Tablero 5S owner adopts the shared Índice filter bar/search/select/clear primitives with
+four useful controls: search, date, action status and responsible. Custom target-date bounds remain
+visible next to that date scope, with explicit validation; existing overdue and review shortcuts
+remain available as date choices. Values intersect within the selected area, and one clear action
+restores the factory view. There is no unnecessary More filters disclosure for these four controls.
+The owner retains its transient mounted-workspace filter lifecycle without adding another storage
+convention or serializing filter metadata into the private business document.
+
+Its compact progress strip displays a verified/total count and thin ratio bar. Three semantic,
+reversible status facets share their value with the status selector. Counts and the denominator
+respect search/responsible/date while ignoring the selected status facet, so selecting verified
+work cannot inflate progress. Empty scopes remain zero. This supersedes the prior three attention
+tiles and the earlier statement that this view exposes no progress ratio; no weighted maturity or
+partial-action score is introduced. Phone controls wrap within the viewport with 44px targets and
+show the S containing a filtered result. Full ownership, lifecycle, translations and verification
+are governed by `personal-ideas-board-contract-v1.md`.
+
+### Private 5S photo evidence — 2026-10-25
+
+The guided 5S action owner's Standard Form Modal keeps its optional evidence disclosure and adds
+clearly labeled before/after upload slots, per-slot feedback, replacement/removal and native mobile
+file selection. One-photo-per-slot drag/drop supports desktop use. The existing private upload,
+format/size limits, busy controls and retry identity remain authoritative.
+
+Comparison is a focused inline view in that same form, using paired photos or an enlarged single
+photo, without a nested modal or another overlay engine. Neutral image surfaces use contain sizing
+to preserve the whole photo. Controls wrap within small phones, retain at least 44px targets, and
+respect module coral, dark mode and six-language presentation. Readonly views allow comparison
+without file controls. Image failures offer an explicit manual reload. The owner contract and
+regression scope remain in `personal-ideas-board-contract-v1.md`.

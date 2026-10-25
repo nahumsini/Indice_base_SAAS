@@ -34,6 +34,8 @@ export const buildEmployeeSavePayload = (
   const payrollTreatment = data.payrollTreatment;
 
   return {
+    ...(data.employeeId && data.payrollTreatment === 'fiscal_payroll' && data.registrationCountry.trim().toUpperCase() === 'MX' && data.mexicoPayrollProfile
+      ? { mexicoPayrollProfile: data.mexicoPayrollProfile } : {}),
     first_name: trimmedFirstName,
     last_name: trimmedLastName,
     email: trimmedEmail,

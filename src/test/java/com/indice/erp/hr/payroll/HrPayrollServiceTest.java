@@ -83,7 +83,9 @@ class HrPayrollServiceTest {
         when(jdbcTemplate.query(
             contains("COALESCE(NULLIF(l.country_code_snapshot"),
             ArgumentMatchers.<RowMapper<Object>>any(),
-            eq(30L)
+            eq(30L),
+            eq(1L),
+            eq(9L)
         )).thenReturn(List.of());
 
         var result = service.listRuns(currentUser, Map.of());
@@ -236,6 +238,7 @@ class HrPayrollServiceTest {
         var currentUser = new AuthSessionUser(7L, 1L, "Payroll Admin", "admin");
 
         when(hrPayrollScopeAccess.resolve(currentUser)).thenReturn(HrOperationalScope.corporateOffice());
+        when(hrPayrollScopeAccess.runLinePredicate(HrOperationalScope.corporateOffice(), "l")).thenReturn("");
         when(jdbcTemplate.query(
             contains("FROM payroll_runs"),
             ArgumentMatchers.<RowMapper<Object>>any(),
@@ -249,12 +252,14 @@ class HrPayrollServiceTest {
         when(jdbcTemplate.query(
             contains("COALESCE(NULLIF(l.country_code_snapshot"),
             ArgumentMatchers.<RowMapper<Object>>any(),
-            eq(30L)
+            eq(30L),
+            eq(1L)
         )).thenReturn(List.of());
         when(jdbcTemplate.queryForObject(
             contains("calculation_source = 'GENERIC_UNSUPPORTED_COUNTRY'"),
             eq(Integer.class),
-            eq(30L)
+            eq(30L),
+            eq(1L)
         )).thenReturn(0);
         when(jdbcTemplate.query(
             contains("FROM payroll_government_reporting_snapshots"),
@@ -656,12 +661,13 @@ class HrPayrollServiceTest {
         when(jdbcTemplate.queryForObject(
             contains("payroll_treatment_snapshot = 'fiscal_payroll'"),
             eq(Integer.class),
+            eq(1L),
             eq(30L)
         )).thenReturn(1);
 
         var error = assertThrows(IllegalArgumentException.class, () -> service.approveRun(currentUser, 30L));
 
-        assertTrue(error.getMessage().contains("unsupported countries"));
+        assertTrue(error.getMessage().contains("países sin motor"));
     }
 
     private HrPayrollService newService() {
@@ -684,7 +690,8 @@ class HrPayrollServiceTest {
             new ColombiaPayrollReportingService(jdbcTemplate, new ObjectMapper()),
             new HrIncentivePayrollSupplyService(jdbcTemplate),
             mock(ExpenseService.class),
-            new HrPayrollAuthorizationService()
+            new HrPayrollAuthorizationService(),
+            mock(com.indice.erp.hr.payroll.provider.mx.MexicoPayrollProfileService.class)
         );
     }
 

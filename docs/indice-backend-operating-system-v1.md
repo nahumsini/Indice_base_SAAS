@@ -384,7 +384,36 @@ This output does not mutate attendance or calculate payroll, wages or deductions
   and Tasks measurement definitions, or current-state data-quality indicators.
 - Effective-dated fiscal/payroll rules retain the exact version or snapshot used for an approved
   calculation.
-- Payroll recalculation reuses the snapshotted attendance control-day denominator. Legacy fallback
+- Employee payroll treatment controls inclusion: `fiscal_payroll` enables the country's fiscal
+  provider, `operational_payroll` calculates compensation/incidences without automatic fiscal
+  deductions or employer charges, and `no_payroll` is excluded from generation. Empty employee
+  classifications use the operational default. Existing runs retain their reviewed treatment
+  snapshot until an explicit draft adjustment or regeneration. Recalculation derives fiscal
+  inclusion and payment route from that treatment. A draft line explicitly changed to `no_payroll`
+  retains its salary/attendance evidence but has zero financial totals and no payable; nonzero
+  manual adjustments/incentives must be resolved before exclusion. Approval rejects excluded
+  lines with financial amounts or an active fiscal/payment route. Approved/paid history is immutable.
+- Hourly payroll splits paid-leave compensation out of the paid regular-hour total; it must never
+  pay those hours twice. Daily evidence supplies variable scheduled hours, with a bounded legacy
+  fallback when that evidence is absent.
+- Fiscal earnings whose tax/social-security classification cannot be represented by the current
+  common-base providers are rejected, not silently treated as fully taxable compensation.
+  Mexico calculations require effective ISR, UMA, social-security and RCV rules and complete
+  parameters. Missing rules or unmatched brackets fail explicitly, never as zero tax or undated
+  fallback rates. Rule corrections create a new version and preserve approved snapshots.
+  The [2026-10-25 calculation review](payroll/payroll-calculation-review-2026-10-25.md)
+  records the verified corrections and remaining jurisdiction-specific coverage gaps.
+  The [Mexico coverage audit](payroll/mexico-payroll-coverage-audit-2026-10-25.md) records
+  reproduced limitations and proposed acceptance criteria; it does not certify fiscal coverage
+  or certify the final Mexico engine. The adopted
+  [Mexico profile and withholding contract](payroll/mexico-payroll-profile-contract-v1.md)
+  now defines effective employee inputs, separate INFONAVIT credit retention, registered-SBC
+  ordinary calculations, and `MX_REVIEW_REQUIRED` approval restrictions for both UI and MCP.
+- Payroll manual adjustments and approval reuse the snapshotted attendance control-day denominator.
+  Explicit draft recalculation refreshes Attendance Control records and active schedules while
+  preserving salary/workday snapshots, under the [payroll attendance contract](payroll/payroll-attendance-contract-v1.md).
+  The same contract defines weekly fallback counting and the retained automatic missing-record deduction.
+  Legacy fallback
   reconstruction includes missing-attendance workdays and does not count paid leave twice. An
   automatic fixed-salary absence deduction is capped at the salary for that period, so attendance
   alone cannot produce a negative net amount; any cap intervention remains visible in the

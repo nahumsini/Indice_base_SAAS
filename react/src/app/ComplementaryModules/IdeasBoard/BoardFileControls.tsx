@@ -1,5 +1,6 @@
+import type {ReactNode} from 'react';
 import {MoreHorizontal} from 'lucide-react';
-import {DropdownMenu,DropdownMenuTrigger,DropdownMenuContent,DropdownMenuItem} from '../../components/ui/dropdown-menu';
+import {DropdownMenu,DropdownMenuTrigger,DropdownMenuContent,DropdownMenuItem,DropdownMenuSeparator} from '../../components/ui/dropdown-menu';
 import {BoardToolEmoji} from '../../BasicModules/Sales/Funneling/BoardToolEmoji';
 import {useEffect,useRef,useState} from 'react';
 import {FolderOpen,Search} from 'lucide-react';
@@ -10,13 +11,14 @@ import {emptyBoard,type BoardContent} from '../../BasicModules/Sales/Funneling/i
 import {SaveProjectDialog,type ProjectDraft} from './IdeaProjects';
 import {ideaWorkspaceApi,type ProjectSummary} from './ideaWorkspaceApi';
 import {sameSystemIdeas,toSystemDocument} from './systemBoardModel';
+import {boardWorkbenchCopy} from '../../BasicModules/Sales/Funneling/boardWorkbenchCopy';
 import {boardFileCopy} from './boardFileCopy';
 import {editableProject,hasBoardWork,listBoardFiles,type BoardFileKind} from './boardFileModel';
 import {workspaceCopy} from './workspaceCopy';
 import type {Project} from './ideaWorkspaceApi';
 type SaveRequest={draft:ProjectDraft;expected:BoardFileSnapshot;next?:BoardContent;purpose:'save'|'new'|'open'};
-export function BoardFileControls({context,locale,kind,onSaved,openRequest,onOpened}:{context:BoardFileContext;locale:string;kind:BoardFileKind;onSaved:()=>void;openRequest?:{key:string;project:Project};onOpened?:()=>void}) {
- const f=boardFileCopy(locale),c=workspaceCopy(locale),latest=useRef(context);latest.current=context;
+export function BoardFileControls({context,locale,kind,onSaved,openRequest,onOpened,templateAction,label,allowOpen=true}:{context:BoardFileContext;locale:string;kind:BoardFileKind;onSaved:()=>void;openRequest?:{key:string;project:Project};onOpened?:()=>void;templateAction?:ReactNode;label?:string;allowOpen?:boolean}) {
+ const f=boardFileCopy(locale),c=workspaceCopy(locale),ui=boardWorkbenchCopy(locale),latest=useRef(context);latest.current=context;
  const archived=useRef<BoardFileSnapshot|null>(null),opened=useRef('');
  const [picker,setPicker]=useState(false),[request,setRequest]=useState<SaveRequest|null>(null);
  useEffect(()=>{if(!context.active){setPicker(false);setRequest(null);}},[context.active]);
@@ -31,11 +33,12 @@ export function BoardFileControls({context,locale,kind,onSaved,openRequest,onOpe
   else latest.current.notify(c.savedProject);
  }
  return <>
-  <div className="board-file-actions" data-file-kind={kind} role="group" aria-label={kind==='SYSTEM'?c.system:c.myBoard}>
-   {context.compact?<DropdownMenu><DropdownMenuTrigger asChild><button type="button" className="idea-board-button idea-board-secondary board-file-options" aria-label={f.options} title={f.options} disabled={!context.ready}><MoreHorizontal size={20}/></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="board-file-options-menu"><DropdownMenuItem disabled={!context.ready} onSelect={()=>begin('new',emptyBoard())}><BoardToolEmoji name="new"/>{f.newFile}</DropdownMenuItem>{kind==='FREEFORM'&&<DropdownMenuItem disabled={!context.ready} onSelect={()=>setPicker(true)}><BoardToolEmoji name="open"/>{f.open}</DropdownMenuItem>}</DropdownMenuContent></DropdownMenu>:<>
+  <div className="board-file-actions" data-file-kind={kind} role="group" aria-label={label??(kind==='SYSTEM'?c.system:c.myBoard)}>
+   {context.compact?<DropdownMenu><DropdownMenuTrigger asChild><button type="button" className="idea-board-button idea-board-secondary board-file-options" aria-label={ui.fileMenu} title={ui.fileMenu} disabled={!context.ready}><MoreHorizontal size={20}/></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="board-file-options-menu"><DropdownMenuItem disabled={!context.ready} onSelect={()=>begin('new',emptyBoard())}><BoardToolEmoji name="new"/>{f.newFile}</DropdownMenuItem>{kind==='FREEFORM'&&allowOpen&&<DropdownMenuItem disabled={!context.ready} onSelect={()=>setPicker(true)}><BoardToolEmoji name="open"/>{f.open}</DropdownMenuItem>}{context.fileMenu&&<><DropdownMenuSeparator/>{context.fileMenu}</>}</DropdownMenuContent></DropdownMenu>:<>
    <button type="button" className="idea-board-button idea-board-secondary" disabled={!context.ready} aria-label={f.newFile} title={f.newFile} onClick={()=>begin('new',emptyBoard())}><BoardToolEmoji name="new"/><span>{f.newFile}</span></button>
-   {kind==='FREEFORM'&&<button type="button" className="idea-board-button idea-board-secondary" disabled={!context.ready} onClick={()=>setPicker(true)}><BoardToolEmoji name="open"/>{f.open}</button>}
+   {kind==='FREEFORM'&&allowOpen&&<button type="button" className="idea-board-button idea-board-secondary" disabled={!context.ready} onClick={()=>setPicker(true)}><BoardToolEmoji name="open"/>{f.open}</button>}
    </>}
+   {templateAction}
    <button type="button" className="idea-board-button idea-board-primary" disabled={!context.ready} onClick={()=>begin('save')}><BoardToolEmoji name="save"/>{f.save}</button>
   </div>
   {picker&&<OpenBoardDialog kind={kind} locale={locale} onClose={()=>setPicker(false)} onOpen={content=>{setPicker(false);begin('open',content);}}/>}

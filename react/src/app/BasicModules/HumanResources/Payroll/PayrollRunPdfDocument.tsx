@@ -6,6 +6,8 @@ import type {
 } from '../../../api/humanResources';
 import type { CompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 import type { PayrollTranslations } from './translations';
+import { mexicoPayrollProfileCopy } from './components/mexicoPayrollProfileCopy';
+import { normalizePayrollTreatmentValue } from './components/payroll-run-workspace/payrollRunWorkspaceModel';
 import {
   payrollLinePrintContract,
   payrollRunPrintContract,
@@ -76,6 +78,10 @@ const chunkArray = <T,>(items: T[], size: number): T[][] => {
 const lineWarningCount = (line: PayrollRunLine) => (
   (line.attendance_warnings?.length ?? 0) + (line.calculation_warnings?.length ?? 0)
 );
+
+const hasUnstampedMexicoPayroll = (lines: PayrollRunLine[]) => lines.some(line =>
+  line.country_code?.toUpperCase() === 'MX'
+  && normalizePayrollTreatmentValue(line.payroll_treatment, line.include_in_fiscal) === 'fiscal_payroll');
 
 const getDocumentText = (locale: string) => {
   const language = locale.toLowerCase().split('-')[0];
@@ -462,6 +468,7 @@ const buildExceptionRows = (lines: PayrollRunLine[], locale: string): ExceptionR
 function PayrollRunDocument(props: PayrollRunPdfDocumentProps) {
   const { companyIdentity, detail, generatedAt, groupingLabel, locale, payPeriodLabel, reportId, statusLabel } = props;
   const text = getDocumentText(locale);
+  const fiscalNotice = hasUnstampedMexicoPayroll(detail.lines) ? mexicoPayrollProfileCopy(locale).receiptNotice : text.fiscalNotice;
   const currency = detail.run.currency_code || 'USD';
   const jurisdictionContexts = detail.lines.map((line) => resolvePayrollPrintJurisdiction(line, locale));
   const firstJurisdictionContext = jurisdictionContexts[0] ?? null;
@@ -516,7 +523,7 @@ function PayrollRunDocument(props: PayrollRunPdfDocumentProps) {
                   <div><span>{text.employer}</span><strong>{formatCurrency(detail.run.employer_contributions_amount, locale, currency)}</strong></div>
                   <div className="prpdf-kpi-accent"><span>{text.net}</span><strong>{formatCurrency(detail.run.net_amount, locale, currency)}</strong></div>
                 </div>
-                {runJurisdictionContext ? <JurisdictionContextBlock context={runJurisdictionContext} notice={text.fiscalNotice} /> : null}
+                {runJurisdictionContext ? <JurisdictionContextBlock context={runJurisdictionContext} notice={fiscalNotice} /> : null}
               </>
             ) : null}
 
@@ -607,6 +614,7 @@ function PayrollRunDocument(props: PayrollRunPdfDocumentProps) {
 function PayrollLineDocument(props: PayrollRunPdfDocumentProps & { line: PayrollRunLine }) {
   const { companyIdentity, detail, generatedAt, line, locale, reportId, statusLabel } = props;
   const text = getDocumentText(locale);
+  const fiscalNotice = hasUnstampedMexicoPayroll([line]) ? mexicoPayrollProfileCopy(locale).receiptNotice : text.fiscalNotice;
   const currency = line.currency_code || detail.run.currency_code || 'USD';
   const jurisdictionContext = resolvePayrollPrintJurisdiction(line, locale);
   const firstItems = line.items.slice(0, LINE_FIRST_PAGE_ITEMS);
@@ -659,7 +667,7 @@ function PayrollLineDocument(props: PayrollRunPdfDocumentProps & { line: Payroll
                     <div><dt>{text.absences}</dt><dd>{formatNumber(line.absence_days, locale)}</dd></div>
                   </dl>
                 </div>
-                <JurisdictionContextBlock context={jurisdictionContext} notice={text.fiscalNotice} />
+                <JurisdictionContextBlock context={jurisdictionContext} notice={fiscalNotice} />
               </>
             ) : null}
 

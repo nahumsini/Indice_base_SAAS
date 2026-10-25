@@ -25,6 +25,8 @@ function harness(onSave) {
     if (id.endsWith('useEmployeeModalFormState')) return { useEmployeeModalFormState: () => formState };
     if (id.endsWith('useEmployeeModalDocuments')) return { useEmployeeModalDocuments: () => docState };
     if (id.endsWith('useEmployeeModalOptions')) return { useEmployeeModalOptions: () => options };
+    if (id.endsWith('useEmployeeMexicoPayrollProfile')) return { useEmployeeMexicoPayrollProfile: () => ({ dirty: false, valid: () => true, saveRequest: () => undefined }) };
+    if (id.endsWith('mexicoPayrollProfileCopy')) return { mexicoPayrollProfileCopy: () => ({}) };
     if (id.endsWith('/model')) return { modalStepIcons: [] };
     if (id.endsWith('/validation')) return { getEmployeeModalStepFields: () => ({ 1: [] }), validateEmployeeFormData: () => ({}) };
     if (id.endsWith('formFeedbackCopy')) return { getFormFeedbackCopy: () => ({ saving: 'Guardando…' }) };

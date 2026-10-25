@@ -1,4 +1,15 @@
 export type PayrollRunWorkspaceText = {
+  review: {
+    currency: string;
+    title: string;
+    review: string;
+    reviewHint: string;
+    netTotal: string;
+    pendingChanges: string;
+    currencyHint: string;
+    cancelRun: string;
+    pendingConcepts: string;
+  };
   adjustments: string;
   all: string;
   actions: string;
@@ -14,6 +25,8 @@ export type PayrollRunWorkspaceText = {
   calculations: string;
   collaborators: string;
   concepts: string;
+  confirmApproval: string;
+  approvalDescription: string;
   confirmDiscard: string;
   discard: string;
   discardDescription: string;
@@ -77,6 +90,9 @@ export type PayrollRunWorkspaceText = {
 };
 
 const es: PayrollRunWorkspaceText = {
+  review: {"currency": "Moneda", "title": "Revisión de nómina", "review": "Revisar", "reviewHint": "Revisa importes, asistencia y conceptos de cada colaborador antes de aprobar.", "netTotal": "Neto de la nómina", "pendingChanges": "Cambios sin guardar", "currencyHint": "Los importes se muestran en su moneda de origen. Los netos de distintas monedas se presentan por separado.", "cancelRun": "Cancelar nómina", "pendingConcepts": "Conceptos pendientes"},
+  confirmApproval: 'Aprobar nómina',
+  approvalDescription: 'Al aprobar se valida la nómina y se generan las cuentas por pagar correspondientes en Gastos. La corrida queda bloqueada para edición. Revisa las alertas y los importes antes de continuar.',
   adjustments: 'Ajustes',
   all: 'Todos',
   actions: 'Acciones',
@@ -155,6 +171,9 @@ const es: PayrollRunWorkspaceText = {
 };
 
 const en: PayrollRunWorkspaceText = {
+  review: {"currency": "Currency", "title": "Payroll review", "review": "Review", "reviewHint": "Review amounts, attendance and payroll items for each employee before approving.", "netTotal": "Payroll net total", "pendingChanges": "Unsaved changes", "currencyHint": "Amounts use their original currency. Net totals in different currencies are shown separately.", "cancelRun": "Cancel payroll", "pendingConcepts": "Pending items"},
+  confirmApproval: 'Approve payroll',
+  approvalDescription: 'Approval validates payroll and creates the corresponding payables in Expenses. The run is then locked for editing. Review warnings and amounts before continuing.',
   adjustments: 'Adjustments',
   all: 'All',
   actions: 'Actions',
@@ -233,6 +252,9 @@ const en: PayrollRunWorkspaceText = {
 };
 
 const fr: PayrollRunWorkspaceText = {
+  review: {"currency": "Devise", "title": "Révision de la paie", "review": "Vérifier", "reviewHint": "Vérifiez les montants, les présences et les éléments de paie de chaque employé avant approbation.", "netTotal": "Net de la paie", "pendingChanges": "Modifications non enregistrées", "currencyHint": "Les montants sont affichés dans leur devise d’origine. Les nets en devises différentes sont présentés séparément.", "cancelRun": "Annuler la paie", "pendingConcepts": "Éléments en attente"},
+  confirmApproval: 'Approuver la paie',
+  approvalDescription: 'L’approbation valide la paie et crée les comptes à payer correspondants dans Dépenses. Le cycle ne peut ensuite plus être modifié. Vérifiez les alertes et les montants avant de continuer.',
   adjustments: 'Ajustements', all: 'Tous', actions: 'Actions', addDeduction: 'Ajouter une déduction', addEarning: 'Ajouter un revenu', applyIncentive: 'Ajouter au cycle',
   attendancePeriod: 'Présences de la période', audit: 'Audit', back: 'Retour', breakdown: 'Ventilation', calculatedDeductions: 'Déductions calculées',
   calculatedDeductionsDescription: 'Éléments produits par les règles de paie et la juridiction applicable.', calculations: 'Calcul', collaborators: 'Collaborateurs', concepts: 'Éléments',
@@ -255,6 +277,9 @@ const fr: PayrollRunWorkspaceText = {
 };
 
 const pt: PayrollRunWorkspaceText = {
+  review: {"currency": "Moeda", "title": "Revisão da folha", "review": "Revisar", "reviewHint": "Revise valores, presença e rubricas de cada colaborador antes de aprovar.", "netTotal": "Total líquido da folha", "pendingChanges": "Alterações não salvas", "currencyHint": "Os valores usam a moeda de origem. Totais líquidos em moedas diferentes são apresentados separadamente.", "cancelRun": "Cancelar folha", "pendingConcepts": "Rubricas pendentes"},
+  confirmApproval: 'Aprovar folha de pagamento',
+  approvalDescription: 'A aprovação valida a folha e cria as contas a pagar correspondentes em Despesas. A folha fica bloqueada para edição. Revise os alertas e valores antes de continuar.',
   adjustments: 'Ajustes', all: 'Todos', actions: 'Ações', addDeduction: 'Adicionar desconto', addEarning: 'Adicionar provento', applyIncentive: 'Adicionar à folha',
   attendancePeriod: 'Presença do período', audit: 'Auditoria', back: 'Voltar', breakdown: 'Detalhamento', calculatedDeductions: 'Descontos calculados',
   calculatedDeductionsDescription: 'Itens gerados pelas regras da folha e pela jurisdição aplicável.', calculations: 'Cálculo', collaborators: 'Colaboradores', concepts: 'Itens',
@@ -277,6 +302,9 @@ const pt: PayrollRunWorkspaceText = {
 };
 
 const ko: PayrollRunWorkspaceText = {
+  review: {"currency": "통화", "title": "급여 검토", "review": "검토", "reviewHint": "승인 전에 각 직원의 금액, 근태 및 급여 항목을 검토하세요.", "netTotal": "급여 실수령 총액", "pendingChanges": "저장하지 않은 변경 사항", "currencyHint": "금액은 원래 통화로 표시됩니다. 서로 다른 통화의 실수령 총액은 별도로 표시됩니다.", "cancelRun": "급여 취소", "pendingConcepts": "대기 중인 항목"},
+  confirmApproval: '급여 승인',
+  approvalDescription: '승인하면 급여를 검증하고 지출에 해당 미지급금을 생성합니다. 이후 이 급여 내역은 수정할 수 없습니다. 계속하기 전에 경고와 금액을 확인하세요.',
   adjustments: '조정', all: '전체', actions: '작업', addDeduction: '공제 추가', addEarning: '지급 항목 추가', applyIncentive: '급여에 추가', attendancePeriod: '기간 근태', audit: '감사', back: '뒤로',
   breakdown: '상세 내역', calculatedDeductions: '계산된 공제', calculatedDeductionsDescription: '급여 규칙과 해당 관할 기준으로 생성된 항목입니다.', calculations: '계산', collaborators: '직원', concepts: '항목',
   confirmDiscard: '저장하지 않고 나가기', discard: '변경 사항 버리기', discardDescription: '이 급여에 저장되지 않은 변경 사항이 있습니다. 작업 공간으로 돌아가거나 변경 사항을 버리고 닫으세요.', dirty: '수정됨',
@@ -295,6 +323,9 @@ const ko: PayrollRunWorkspaceText = {
 };
 
 const zh: PayrollRunWorkspaceText = {
+  review: {"currency": "币种", "title": "薪资审核", "review": "审核", "reviewHint": "批准前请审核每位员工的金额、考勤和薪资项目。", "netTotal": "薪资净额", "pendingChanges": "未保存的更改", "currencyHint": "金额使用原始币种。不同币种的净额分别显示。", "cancelRun": "取消薪资", "pendingConcepts": "待处理项目"},
+  confirmApproval: '批准薪资',
+  approvalDescription: '批准时会验证薪资，并在支出模块中生成相应应付款。此批次随后将无法编辑。请先检查提醒和金额。',
   adjustments: '调整', all: '全部', actions: '操作', addDeduction: '添加扣款', addEarning: '添加收入', applyIncentive: '添加到薪资批次', attendancePeriod: '本期考勤', audit: '审计', back: '返回',
   breakdown: '明细', calculatedDeductions: '已计算扣款', calculatedDeductionsDescription: '根据薪资规则和适用司法辖区生成的项目。', calculations: '计算', collaborators: '员工', concepts: '项目',
   confirmDiscard: '不保存并退出', discard: '放弃更改', discardDescription: '此薪资批次有待保存的更改。你可以返回工作区，或放弃更改并关闭。', dirty: '已修改', deductionsTotal: '扣款总额',

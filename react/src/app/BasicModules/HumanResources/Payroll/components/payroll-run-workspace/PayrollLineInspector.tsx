@@ -16,6 +16,7 @@ import {
   type PayrollLineDraft,
 } from './payrollRunWorkspaceModel';
 import type { PayrollRunWorkspaceText } from './payrollRunWorkspaceText';
+import { mexicoPayrollProfileCopy } from '../mexicoPayrollProfileCopy';
 
 export type PayrollInspectorView = 'breakdown' | 'deductions' | 'adjustments';
 
@@ -67,7 +68,7 @@ function Metric({ label, value, emphasis = false }: { label: string; value: stri
     }`}
     >
       <p className="text-xs font-normal text-slate-500 dark:text-slate-400">{label}</p>
-      <p className="mt-1 text-sm font-medium tabular-nums text-slate-900 dark:text-white">{value}</p>
+      <p className="mt-1 break-words text-sm font-medium tabular-nums text-slate-900 dark:text-white">{value}</p>
     </div>
   );
 }
@@ -90,11 +91,16 @@ function OverviewTab({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Metric label={copy.labels.gross} value={formatCurrency(line.gross_amount, locale, currency)} />
         <Metric label={copy.labels.deductions} value={formatCurrency(line.deductions_amount, locale, currency)} />
         <Metric label={copy.labels.net} value={formatCurrency(line.net_amount, locale, currency)} emphasis />
       </div>
+
+      {line.country_code?.toUpperCase() === 'MX'
+        && normalizePayrollTreatmentValue(line.payroll_treatment, line.include_in_fiscal) === 'fiscal_payroll'
+        ? <p className="rounded-lg border border-slate-200 px-4 py-3 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-300">{mexicoPayrollProfileCopy(locale).receiptNotice}</p>
+        : null}
 
       <section>
         <h4 className="text-sm font-medium text-slate-900 dark:text-white">{text.attendancePeriod}</h4>
@@ -430,7 +436,7 @@ function AdjustmentsTab({
           value={draft.notes}
           disabled={!isEditable}
           onChange={(event) => onChangeDraft({ ...draft, notes: event.target.value })}
-          className="mt-2 min-h-24 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-normal text-slate-900 outline-none transition focus:border-[#59C3A5] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+          className="mt-2 min-h-24 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base sm:text-sm font-normal text-slate-900 outline-none transition focus:border-[#59C3A5] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
         />
       </label>
     </div>

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createTypeScriptLoader } from './helpers/loadTypeScript.mjs';
 const app=new URL('../src/app/',import.meta.url);
 const loader=createTypeScriptLoader({
+ './fiveSEvidence.css':{},
  './SystemElementFields':{SystemElementFields:'fields'},
  './SystemNodeContent':{SystemNodeContent:'node-content'},
  './SystemBoardBackdrop':{SystemBoardBackdrop:()=>null,systemPrintSections:()=>[]},

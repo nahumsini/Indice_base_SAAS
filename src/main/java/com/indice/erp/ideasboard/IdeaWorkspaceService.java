@@ -53,7 +53,7 @@ public class IdeaWorkspaceService {
         require(content!=null&&validator.validate(content).isEmpty(),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
         for(var e:content.elements()) {
             var n=e.node();String category=e.category();
-            require(("IDEA".equals(e.icon())||IdeaCatalogPolicy.knownIcon(e.icon()))&&n.catalog()==null,HttpStatus.BAD_REQUEST,"ideas_board_invalid");
+            require(("IDEA".equals(e.icon())||IdeaCatalogPolicy.knownIcon(e.icon()))&&n.catalog()==null&&n.fiveS()==null,HttpStatus.BAD_REQUEST,"ideas_board_invalid");
             require(Set.of("IMAGE","DRAWING","VIDEO","AUDIO").contains(n.kind())||!n.text().isBlank()||"IDEA".equals(e.icon())&&Set.of("RECTANGLE","ELLIPSE","TRIANGLE","DIAMOND","PENTAGON","HEXAGON","PARALLELOGRAM").contains(n.shape()),HttpStatus.BAD_REQUEST,"ideas_board_invalid");
             boolean right=n.x()+n.width()/2>=1100,bottom=n.y()+n.height()/2>=800;
             String expected=bottom?(right?"PRODUCT":"FINANCE"):(right?"PROCESS":"PERSON");

@@ -166,6 +166,7 @@ export const zhCA = {
     scheduleLateAfterMinutes: '迟到阈值',
     scheduleLocationRule: '地点规则',
     scheduleLocationId: '指定地点',
+    payrollTreatment: '薪资类型',
     salaryType: '薪资类型',
     workdayHours: '工作时长',
     workdaysPerWeek: '每周工作日',
@@ -228,6 +229,7 @@ export const zhCA = {
     scheduleLateAfterMinutes: '考勤记录标记为迟到前允许的分钟数。',
     scheduleLocationRule: '考勤使用的业务地点或指定地点规则。',
     scheduleLocationId: '配置后使用的指定考勤地点。',
+    payrollTreatment: '员工分类：法定薪资、运营薪资或不计薪。',
     salaryType: '员工按所选支付周期的固定金额或按小时支付。',
     workdayHours: '配置的标准工作时长。',
     workdaysPerWeek: '用于薪资估算的平均每周工作日。',
@@ -249,6 +251,12 @@ export const zhCA = {
     biweekly: '每两周',
     semimonthly: '每月两次',
     monthly: '每月',
+  },
+  payrollTreatmentLabels: {
+    fiscal_payroll: '法定薪资',
+    operational_payroll: '运营薪资',
+    no_payroll: '不计薪',
+    accounts_payable: '不计薪',
   },
   salaryTypeLabels: {
     daily: '按周期固定薪资',

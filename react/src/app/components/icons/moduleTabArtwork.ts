@@ -15,7 +15,7 @@ export const moduleTabArtwork = {
   scheduling: { calendar: 'calendar', clients: 'people', events: 'calendar', indicators: 'chart', services: 'wrench', team: 'people', publicAgenda: 'globe' },
   'minutes-control': { meetings: 'calendar', agreements: 'handshake', indicators: 'chart' },
   email: { mail: 'mail', accounts: 'gear' },
-  'ideas-board': { canvas: 'whiteboard', projects: 'folder', system: 'arrows' },
+  'ideas-board': { canvas: 'whiteboard', 'five-s': 'checklist', projects: 'folder', system: 'arrows' },
   'sales-board': { overview: 'chart', trends: 'chart', channels: 'globe', sales: 'briefcase' },
   'kiosk-center': { 'multi-kiosks': 'kiosk', inventory: 'warehouse', people: 'people', activity: 'history' },
   billing: { plan: 'package', people: 'people', payment: 'card', history: 'clipboard' },

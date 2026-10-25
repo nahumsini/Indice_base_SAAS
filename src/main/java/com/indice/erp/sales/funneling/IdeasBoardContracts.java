@@ -28,6 +28,15 @@ public final class IdeasBoardContracts {
         @NotNull @Size(min=1,max=40) String icon,
         @JsonInclude(JsonInclude.Include.NON_EMPTY) @Size(max=50) List<@NotBlank @Size(max=500) String> steps,
         @JsonInclude(JsonInclude.Include.NON_NULL) @Pattern(regexp="PRODUCT|SERVICE") String offeringType) { }
+    public record FiveS(
+        @NotNull @Pattern(regexp="[0-9a-fA-F-]{36}") String templateId,
+        @NotNull @Pattern(regexp="SECTION|ACTION") String role,
+        @NotNull @Pattern(regexp="SORT|ORDER|CLEAN|STANDARDIZE|SUSTAIN") String section,
+        @NotBlank @Size(max=80) String area,
+        @Size(max=1000) String action,@Size(max=120) String owner,
+        java.time.LocalDate dueDate,@Pattern(regexp="PENDING|IN_PROGRESS|VERIFIED") String status,
+        @Size(max=1000) String details,@Size(max=1000) String result,java.time.LocalDate reviewDate,
+        String beforeAssetId,String afterAssetId) {}
     public record Node(@NotNull String id,
         @NotNull @Pattern(regexp="TEXT|IMAGE|DRAWING|VIDEO|AUDIO") String kind,
         @NotNull @Size(max=4000) String text,
@@ -39,7 +48,11 @@ public final class IdeasBoardContracts {
         @NotNull @Pattern(regexp="YELLOW|CORAL|BLUE|MINT|LAVENDER|WHITE") String color,
         String assetId,@Valid @JsonInclude(JsonInclude.Include.NON_NULL) Appearance appearance,
         @Valid @JsonInclude(JsonInclude.Include.NON_NULL) Drawing drawing,
-        @Valid @JsonInclude(JsonInclude.Include.NON_NULL) NodeCatalog catalog) {
+        @Valid @JsonInclude(JsonInclude.Include.NON_NULL) NodeCatalog catalog,
+        @Valid @JsonInclude(JsonInclude.Include.NON_NULL) FiveS fiveS) {
+        public Node(String id,String kind,String text,Double x,Double y,Double width,Double height,String shape,String color,String assetId,Appearance appearance,Drawing drawing,NodeCatalog catalog) {
+            this(id,kind,text,x,y,width,height,shape,color,assetId,appearance,drawing,catalog,null);
+        }
         public Node(String id,String kind,String text,Double x,Double y,Double width,Double height,String shape,String color,String assetId,Appearance appearance,Drawing drawing) {
             this(id,kind,text,x,y,width,height,shape,color,assetId,appearance,drawing,null);
         }

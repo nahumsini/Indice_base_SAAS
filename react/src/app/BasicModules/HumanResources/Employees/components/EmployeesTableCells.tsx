@@ -64,6 +64,8 @@ export function EmployeesTableCellContent({
   uploadingDocumentKey,
 }: EmployeesTableCellContentProps) {
   switch (columnId) {
+    case 'payrollTreatment':
+      return <EmployeeTextCell fallback={copy.fieldFallback} value={copy.payrollTreatmentLabels[employee.payrollTreatment]} />;
     case 'employee':
       return <EmployeeIdentityCell employee={employee} />;
     case 'employeeNumber':
