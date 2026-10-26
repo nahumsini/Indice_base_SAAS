@@ -504,6 +504,27 @@ export default function Mailing() {
           key={delivery.id}
           id={delivery.id}
           name={delivery.name}
+          onConfigureAccounts={
+            canConfigureAccounts
+              ? () => {
+                  if (operationScope.current === revision)
+                    navigate(`/email/accounts?campaign=${delivery.id}`);
+                }
+              : undefined
+          }
+          onEditDraft={
+            data?.canEdit
+              ? () => {
+                  if (operationScope.current !== revision) return;
+                  setDelivery(null);
+                  setParams((current) => {
+                    const next = new URLSearchParams(current);
+                    next.set("campaign", delivery.id);
+                    return next;
+                  });
+                }
+              : undefined
+          }
           onClose={() => {
             setDelivery(null);
             setRefresh((v) => v + 1);

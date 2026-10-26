@@ -7,15 +7,24 @@ import "../../src/styles/index.css";
 setCachedCsrfToken("synthetic-csrf");
 function Fixture() {
   const [closed, setClosed] = useState(false);
+  const [destination, setDestination] = useState("");
   return (
     <main>
-      {closed ? (
+      {destination ? (
+        <output>{destination}</output>
+      ) : closed ? (
         <output>closed</output>
       ) : (
         <CampaignDelivery
           id="00000000-0000-4000-8000-000000000001"
           name="Campaña de prueba"
           onClose={() => setClosed(true)}
+          onConfigureAccounts={
+            new URLSearchParams(location.search).has("noAccounts")
+              ? undefined
+              : () => setDestination("accounts")
+          }
+          onEditDraft={() => setDestination("editor")}
         />
       )}
     </main>

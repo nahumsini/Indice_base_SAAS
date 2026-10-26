@@ -1,6 +1,6 @@
 {
   "version": "2026-10-23.v1",
-  "sourceDigest": "6a14ce1614082c5317bc3e3ab761ff40a22bca0e0bffc23b1e02473004e96641",
+  "sourceDigest": "8c48db5cca7140a6457940ce44be5a0aa5b700166c3f2c6d75ac03aed7c703d8",
   "modules": [
     {
       "module": "ideas_board",
@@ -293,9 +293,9 @@
           "label": "Buzón y mensajes",
           "title": "Buzón y mensajes",
           "purpose": "Selecciona tu cuenta conectada y carpeta y busca al cliente, remitente, destinatario o asunto.",
-          "effect": "Comprueba Enviados y el estado de envío. Distingue carpetas del servidor, borradores locales y resultados sin confirmar antes de reintentar.",
+          "effect": "Comprueba Enviados y el estado de envío. Las imágenes incrustadas compatibles se conservan al abrir la copia del servidor. Distingue carpetas del servidor, borradores locales y resultados sin confirmar antes de reintentar.",
           "chapterId": "correo.mail",
-          "version": 5,
+          "version": 6,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -313,7 +313,7 @@
             {
               "id": "verify",
               "title": "Comprueba el resultado",
-              "description": "Comprueba Enviados y el estado de envío. Distingue carpetas del servidor, borradores locales y resultados sin confirmar antes de reintentar."
+              "description": "Comprueba Enviados y el estado de envío. Las imágenes incrustadas compatibles se conservan al abrir la copia del servidor. Distingue carpetas del servidor, borradores locales y resultados sin confirmar antes de reintentar."
             }
           ]
         }
@@ -571,10 +571,10 @@
           "tab": "mailing",
           "label": "Campañas de correo",
           "title": "Campañas de correo",
-          "purpose": "Selecciona una cuenta remitente verificada y los contactos o listas de Ventas para la campaña.",
-          "effect": "Consulta resultados por destinatario y respeta las bajas. Aceptado por SMTP no significa leído o entregado; una prueba no lanza la campaña.",
+          "purpose": "Selecciona una cuenta remitente verificada y los contactos o listas de Ventas para la campaña. Si falta verificar SMTP, abre la configuración de la cuenta y actualiza la revisión al regresar.",
+          "effect": "Completa asunto y mensaje para revisar o probar; el envío de campaña también requiere los datos del remitente. Revisa el formato y las imágenes antes de confirmar. Consulta resultados y respeta las bajas. En espera de cupo indica que los pendientes continúan automáticamente al liberarse el límite de la cuenta. Aceptado por SMTP no significa leído o entregado; una prueba no lanza la campaña.",
           "chapterId": "crm.mailing",
-          "version": 4,
+          "version": 5,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -582,7 +582,7 @@
             {
               "id": "prepare",
               "title": "Antes de empezar",
-              "description": "Selecciona una cuenta remitente verificada y los contactos o listas de Ventas para la campaña."
+              "description": "Selecciona una cuenta remitente verificada y los contactos o listas de Ventas para la campaña. Si falta verificar SMTP, abre la configuración de la cuenta y actualiza la revisión al regresar."
             },
             {
               "id": "operate",
@@ -592,7 +592,7 @@
             {
               "id": "verify",
               "title": "Comprueba el resultado",
-              "description": "Consulta resultados por destinatario y respeta las bajas. Aceptado por SMTP no significa leído o entregado; una prueba no lanza la campaña."
+              "description": "Completa asunto y mensaje para revisar o probar; el envío de campaña también requiere los datos del remitente. Revisa el formato y las imágenes antes de confirmar. Consulta resultados y respeta las bajas. En espera de cupo indica que los pendientes continúan automáticamente al liberarse el límite de la cuenta. Aceptado por SMTP no significa leído o entregado; una prueba no lanza la campaña."
             }
           ]
         },
@@ -3208,9 +3208,9 @@
           "label": "Mailbox and messages",
           "title": "Mailbox and messages",
           "purpose": "Select your connected account and folder and search by customer, sender, recipient or subject.",
-          "effect": "Check Sent and delivery status. Distinguish server folders, local drafts and unconfirmed outcomes before retrying.",
+          "effect": "Check Sent and delivery status. Supported embedded images remain visible when opening the server copy. Distinguish server folders, local drafts and unconfirmed outcomes before retrying.",
           "chapterId": "correo.mail",
-          "version": 5,
+          "version": 6,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3228,7 +3228,7 @@
             {
               "id": "verify",
               "title": "Verify the result",
-              "description": "Check Sent and delivery status. Distinguish server folders, local drafts and unconfirmed outcomes before retrying."
+              "description": "Check Sent and delivery status. Supported embedded images remain visible when opening the server copy. Distinguish server folders, local drafts and unconfirmed outcomes before retrying."
             }
           ]
         }
@@ -3486,10 +3486,10 @@
           "tab": "mailing",
           "label": "Email campaigns",
           "title": "Email campaigns",
-          "purpose": "Select a verified sender account and Sales contacts or lists for the campaign.",
-          "effect": "Review per-recipient outcomes and respect opt-outs. SMTP acceptance does not mean read or delivered; a test does not launch the campaign.",
+          "purpose": "Select a verified sender account and Sales contacts or lists for the campaign. If SMTP verification is pending, open account settings and refresh the review when you return.",
+          "effect": "Complete subject and message before review or testing; campaign launch also requires sender details. Review formatting and images before confirming. Check outcomes and respect opt-outs. Waiting for capacity means pending deliveries resume automatically when account capacity becomes available. SMTP acceptance does not mean read or delivered; a test does not launch the campaign.",
           "chapterId": "crm.mailing",
-          "version": 4,
+          "version": 5,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3497,7 +3497,7 @@
             {
               "id": "prepare",
               "title": "Before starting",
-              "description": "Select a verified sender account and Sales contacts or lists for the campaign."
+              "description": "Select a verified sender account and Sales contacts or lists for the campaign. If SMTP verification is pending, open account settings and refresh the review when you return."
             },
             {
               "id": "operate",
@@ -3507,7 +3507,7 @@
             {
               "id": "verify",
               "title": "Verify the result",
-              "description": "Review per-recipient outcomes and respect opt-outs. SMTP acceptance does not mean read or delivered; a test does not launch the campaign."
+              "description": "Complete subject and message before review or testing; campaign launch also requires sender details. Review formatting and images before confirming. Check outcomes and respect opt-outs. Waiting for capacity means pending deliveries resume automatically when account capacity becomes available. SMTP acceptance does not mean read or delivered; a test does not launch the campaign."
             }
           ]
         },

@@ -13,6 +13,7 @@ export type CampaignReview = {
   status: string;
   subject: string;
   bodyText: string;
+  bodyHtml?: string | null;
   replyTo: string;
   sender: {
     id: string;

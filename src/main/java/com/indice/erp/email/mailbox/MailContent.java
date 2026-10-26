@@ -9,7 +9,7 @@ import java.util.*;
 import javax.swing.text.html.*;
 import javax.swing.text.html.parser.ParserDelegator;
 
-/** Mail is untrusted input. Display bounded plain text; never execute HTML or load remote images. */
+/** Mail is untrusted input. Display bounded text/formatting and validated MIME images, never remote images. */
 final class MailContent {
     private static final int MAX_TEXT=100_000,MAX_PART_BYTES=400_000;
     static String clipped(String text,int max){return text==null?"":text.substring(0,Math.min(text.length(),max)).replace("\u0000","");}
@@ -31,19 +31,20 @@ final class MailContent {
             header(message,"References",4000),at==null?Instant.now():at.toInstant(),message.isSet(Flags.Flag.SEEN),message.isSet(Flags.Flag.FLAGGED));
     }
     static MailboxTransport.Body body(Part part) throws Exception {
-        var state=new TextState();String text=extract(part,0,state);
+        var state=new TextState();String text=extract(part,0,state,Map.of());
         return new MailboxTransport.Body(clipped(text,MAX_TEXT),state.truncated||text.length()>MAX_TEXT,state.attachments,state.html);
     }
-    private static final class TextState {String html;boolean truncated,attachments;int parts,remaining=MAX_PART_BYTES;final long deadline=System.nanoTime()+20_000_000_000L;}
-    private static String extract(Part part,int depth,TextState state) throws Exception {
+    private static final class TextState {String html;boolean truncated,attachments;int parts,remaining=MAX_PART_BYTES;final int[] imageBudget={3*102400};final long deadline=System.nanoTime()+20_000_000_000L;}
+    private static String extract(Part part,int depth,TextState state,Map<String,String> relatedImages) throws Exception {
         if(System.nanoTime()>state.deadline)throw new MailboxTransport.Failure("email_message_too_complex");
         if(depth>10||++state.parts>80){state.truncated=true;return "";}
         if(Part.ATTACHMENT.equalsIgnoreCase(part.getDisposition())||part.getFileName()!=null){state.attachments=true;return "";}
         if(part.isMimeType("multipart/*")) {
             if(!(part.getContent() instanceof Multipart multi))return "";
+            if(part.isMimeType("multipart/related"))relatedImages=MailInlineImages.received(multi,state.imageBudget);
             boolean alternative=part.isMimeType("multipart/alternative");StringBuilder text=new StringBuilder();String fallback="";
             for(int i=0;i<Math.min(multi.getCount(),80);i++) {
-                var child=multi.getBodyPart(i);String value=extract(child,depth+1,state);
+                var child=multi.getBodyPart(i);String value=extract(child,depth+1,state,relatedImages);
                 if(alternative){if(child.isMimeType("text/plain")&&!value.isBlank())text=new StringBuilder(value);else if(fallback.isEmpty())fallback=value;}
                 else if(text.length()<MAX_TEXT)text.append(value).append('\n');else state.truncated=true;
             }
@@ -56,7 +57,7 @@ final class MailContent {
         Charset charset=StandardCharsets.UTF_8;
         try{String name=new ContentType(part.getContentType()).getParameter("charset");if(name!=null)charset=Charset.forName(name);}catch(Exception ignored){ }
         String value=new String(bytes,0,Math.min(bytes.length,limit),charset);
-        if(part.isMimeType("text/html")){state.html=SafeMailHtml.clean(value);return plainHtml(value);}return value;
+        if(part.isMimeType("text/html")){state.html=SafeMailHtml.clean(value,relatedImages);return plainHtml(value);}return value;
     }
     static String withoutHiddenBlocks(String html) {
         String lower=html.toLowerCase(Locale.ROOT);var output=new StringBuilder();int position=0;

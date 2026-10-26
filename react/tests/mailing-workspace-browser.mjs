@@ -39,6 +39,7 @@ const campaigns = Array.from({length:27},(_,i)=>({
  id:`00000000-0000-4000-8000-${String(i+1).padStart(12,'0')}`,name:`Campaña ${String(i+1).padStart(2,'0')}`,subject:'Servicios para tu consultorio',senderAccountId:sender.id,senderName:'Ventas',status:i===0?'DRAFT':i===1?'RUNNING':i===2?'SCHEDULED':'COMPLETED',version:1,updatedAt:'2026-10-19T15:00:00Z',scheduledAt:i===0?null:'2026-10-20T15:00:00Z',selectedCount:27,
  delivery:{total:i===0?0:24,pending:i===1?12:0,submitting:0,accepted:i===1?10:22,failed:1,unknown:1,suppressed:0,cancelled:0},requiresAttention:i>0
 }));
+campaigns[1].waitingForQuota = true;
 let workspaceQueries=[];
 const lists = new Map();
 const errors = [];
@@ -87,7 +88,7 @@ await context.route("**/*", async (route) => {
   if(campaignPath&&req.method()==='GET') {
     const c=campaigns.find(c=>c.id===campaignPath[1]);
     if(campaignPath[2]==='review')return reply({id:c.id,version:1,status:c.status,subject:c.subject,bodyText:'Mensaje de prueba',replyTo:sender.email,sender:{id:sender.id,email:sender.email,name:'Ventas',version:1,verified:true},audience:[{contactId:1,name:'Persona 01',email:'persona1@example.com',eligibility:'READY'}],digest:'synthetic-digest',canSend:true,publicLinkReady:true});
-    if(campaignPath[2]==='results')return reply({status:c.status,version:1,scheduledAt:c.scheduledAt,lastError:null,items:[],canSend:true});
+    if(campaignPath[2]==='results')return reply({status:c.status,version:1,scheduledAt:c.scheduledAt,lastError:c.waitingForQuota?'email_send_rate_limited':null,items:[],canSend:true});
     return reply({...c,replyTo:sender.email,previewText:'',bodyText:'Hola {{name}}',recipientCount:1,recipients:[rows[0]]});
   }
   if(path==='/api/v1/mailing/templates')return reply({items:[],total:0,page:1,pageSize:25,canManage:true});
@@ -220,6 +221,13 @@ try {
  await page.getByRole('button',{name:'Continuar borrador',exact:true}).waitFor();
  assert.equal(await page.locator('tbody tr').count(),25);
  await page.getByRole('button',{name:'Todas las campañas 27',exact:true}).waitFor();
+ await page.getByText('En espera de cupo',{exact:true}).waitFor();
+ const waitingRow=page.getByRole('row').filter({hasText:'Campaña 02'});
+ await waitingRow.getByRole('button',{name:'Ver avance',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'La cuenta alcanzó 30 envíos en la última hora.'}).waitFor();
+ await page.getByRole('button',{name:'Cerrar',exact:true}).first().click();
+ await page.getByRole('dialog').waitFor({state:'hidden'});
+
  await page.getByRole('button',{name:'Campaña',exact:true}).click();
  await page.getByRole('button',{name:'Campaña',exact:true}).click();
  await page.locator('th[aria-sort="descending"]').waitFor();

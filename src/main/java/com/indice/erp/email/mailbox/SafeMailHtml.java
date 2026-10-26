@@ -15,6 +15,10 @@ public final class SafeMailHtml {
     public static final int MAX_HTML=500_000;
     private static final Set<String> TAGS=Set.of("p","br","div","span","b","strong","i","em","u","s","blockquote","pre","code","ul","ol","li","h1","h2","h3","h4","table","tbody","tr","td","th","hr","a","font");
     public static String clean(String input) {
+        return clean(input, Map.of());
+    }
+    // Only the MIME reader supplies validated resources from this related body.
+    static String clean(String input, Map<String,String> relatedImages) {
         if(input==null||input.isBlank())return null;
         if(input.length()>MAX_HTML)throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST,"email_html_too_long");
         var out=new StringBuilder();
@@ -24,6 +28,7 @@ public final class SafeMailHtml {
                 String tag=t.toString();
                 if(tag.equals("img")){
                     String src=attr(a,"src");
+                    if(src.regionMatches(true,0,"cid:",0,4))src=relatedImages.getOrDefault(src.substring(4),"");
                     if(images<3&&validImage(src)){images++;out.append("<img src=\"").append(escape(src)).append("\" alt=\"").append(escape(attr(a,"alt").substring(0,Math.min(180,attr(a,"alt").length())))).append("\" style=\"max-width:100%;height:auto\">");}
                     return;
                 }

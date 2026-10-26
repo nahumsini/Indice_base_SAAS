@@ -65,6 +65,7 @@ export function CampaignDeliveryTable({
   ];
   return (
     <IndiceTableShell
+      className="[&_[data-slot=table-container]]:max-h-[28rem] [&_[data-slot=table-container]]:overflow-y-auto [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10"
       pagination={
         <DataTablePagination
           currentPage={current}
@@ -82,7 +83,9 @@ export function CampaignDeliveryTable({
         />
       }
     >
-      <IndiceOperationalTable minimumWidth={540}>
+      <IndiceOperationalTable
+        minimumWidth={columnWidths.recipient + columnWidths.state}
+      >
         <IndiceTableColGroup columns={columns} />
         <IndiceTableHeaderRow
           columns={columns}

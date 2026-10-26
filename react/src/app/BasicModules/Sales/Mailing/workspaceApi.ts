@@ -25,6 +25,7 @@ export type CampaignRow = Pick<
   selectedCount: number;
   delivery: DeliveryCounts;
   requiresAttention: boolean;
+  waitingForQuota?: boolean;
 };
 export type CampaignWorkspace = {
   items: CampaignRow[];

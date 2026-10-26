@@ -1145,3 +1145,22 @@ attachment/composer flow tests and the new `mail-template` native browser fixtur
 limits/provider behavior and retained verified-file quota are the remaining operational caveats
 specified above. Routes, private accounts, send confirmation, uncertain-outcome handling and
 recipient/tenant permissions are deliberately preserved.
+
+## Related inline images on mailbox reads — 2026-10-26
+
+Email's MIME reader resolves `cid:` image references only from the same
+`multipart/related` container. The resolved content passes the existing passive HTML
+and PNG/JPEG validator before reaching the reader. Resources are bounded to three
+images, 100 KiB each and a 300 KiB decoded read budget per message. Duplicate or
+missing Content-IDs, attachment-disposition parts, oversized/invalid images, SVG and
+remote URLs are excluded. Resource maps are local to the related body and request;
+there is no cross-message lookup or remote image fetch.
+Size enforcement uses the bounded decoded stream, not the larger MIME/base64 part
+size, so valid images near the limit remain readable after transport encoding.
+
+This preserves the embedded image when reopening the server's Sent copy, including
+named inline MIME parts. The existing outgoing data-image-to-CID conversion,
+authenticated mailbox access, sanitizer, browser sandbox, transport outcomes and
+private/shared attachment ownership remain unchanged. No schema migration is needed.
+Round-trip and integration evidence is in
+[the inline image and quota validation](validation/2026-10-26-mailing-inline-images-quota.md).

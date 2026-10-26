@@ -26,14 +26,14 @@ const definitions: Record<string, readonly [string, number]> = {
 function chapter(module: string, tab: string, label: LearningText, steps: readonly LearningText[], evidenceTools: readonly string[] = []): LearningChapter {
   const [pageId, stage] = definitions[module];
   const version = module === 'scheduling' && ['calendar','reservations'].includes(tab) ? 3
-    : module === 'correo' && tab === 'mail' ? 5
+    : module === 'correo' && tab === 'mail' ? 6
     : module === 'human_resources' && tab === 'control' ? 4
     : module === 'scheduling' && tab === 'configuration' ? 8
     : module === 'ideas_board' && tab === 'projects' ? 5
     : module === 'ideas_board' && ['canvas','system'].includes(tab) ? 4
     : ['correo.mail', 'control_minutas.meetings'].includes(`${module}.${tab}`) ? 4
     : module === 'crm' && tab === 'funneling' ? 6
-    : module === 'crm' && tab === 'mailing' ? 4
+    : module === 'crm' && tab === 'mailing' ? 5
     : module === 'human_resources' && tab === 'collaborators' ? 4
     : module === 'human_resources' && tab === 'payroll' ? 3
     : ['human_resources.collaborators', 'crm.mailing', 'control_minutas.session', 'control_minutas.agreements', 'control_minutas.indicators', 'scheduling.clients'].includes(`${module}.${tab}`) ? 3
@@ -94,7 +94,7 @@ export const learningChapters: readonly LearningChapter[] = [
   chapter("correo", "mail", ["Buzón y mensajes","Mailbox and messages"], [
     ["Selecciona tu cuenta conectada y carpeta y busca al cliente, remitente, destinatario o asunto.","Select your connected account and folder and search by customer, sender, recipient or subject."],
     ["Sincroniza y organiza mensajes con selección múltiple. Redacta con formato, contactos y plantillas autorizados de Ventas y la firma de la cuenta. Completa los datos pendientes de la plantilla con Aplicar datos; se usan para todos los destinatarios de este correo y la plantilla original se conserva. Guarda plantillas con sus archivos reutilizables y revisa las imágenes, adjuntos y destinatarios antes de confirmar el envío.","Sync and organize messages with multiple selection. Compose with formatting, authorized Sales contacts and templates, and the account signature. Complete pending template fields with Apply values; they apply to every recipient of this message and the original template is preserved. Save templates with reusable files and review images, attachments and recipients before confirming send."],
-    ["Comprueba Enviados y el estado de envío. Distingue carpetas del servidor, borradores locales y resultados sin confirmar antes de reintentar.","Check Sent and delivery status. Distinguish server folders, local drafts and unconfirmed outcomes before retrying."],
+    ["Comprueba Enviados y el estado de envío. Las imágenes incrustadas compatibles se conservan al abrir la copia del servidor. Distingue carpetas del servidor, borradores locales y resultados sin confirmar antes de reintentar.","Check Sent and delivery status. Supported embedded images remain visible when opening the server copy. Distinguish server folders, local drafts and unconfirmed outcomes before retrying."],
   ]),
   chapter("maintenance", "requests", ["Solicitudes técnicas","Technical requests"], [
     ["Identifica el equipo o ubicación, falla y evidencia dentro de tu alcance.","Identify the asset or location, fault and evidence within your scope."],
@@ -137,9 +137,9 @@ export const learningChapters: readonly LearningChapter[] = [
     ["Guarda el plan y el calendario y comprueba fechas, zona horaria y estados. Las sugerencias son propuestas editables; marcar Publicado es manual. El taller no publica anuncios ni activa campañas de Google Ads o Meta, y las metas no son resultados reales.","Save the plan and calendar and check dates, time zone and statuses. Suggestions are editable proposals; Published is a manual status. The workshop does not publish ads or activate Google Ads or Meta campaigns, and targets are not actual results."],
   ]),
   chapter("crm", "mailing", ["Campañas de correo","Email campaigns"], [
-    ["Selecciona una cuenta remitente verificada y los contactos o listas de Ventas para la campaña.","Select a verified sender account and Sales contacts or lists for the campaign."],
+    ["Selecciona una cuenta remitente verificada y los contactos o listas de Ventas para la campaña. Si falta verificar SMTP, abre la configuración de la cuenta y actualiza la revisión al regresar.","Select a verified sender account and Sales contacts or lists for the campaign. If SMTP verification is pending, open account settings and refresh the review when you return."],
     ["Elige Escribir desde cero o Usar plantilla; cambiar de opción conserva el borrador y Aplicar plantilla reemplaza el contenido. Completa las variables pendientes, conserva {{name}} para cada destinatario y usa Insertar imagen para el cuerpo. Espera a que terminen las imágenes y adjuntos antes de guardar y revisar destinatarios, exclusiones y configuración.","Choose Write from scratch or Use a template; switching options keeps the draft and Apply template replaces its content. Complete pending variables, retain {{name}} for each recipient and use Insert image for the body. Wait for images and attachments to finish before saving and reviewing recipients, exclusions and settings."],
-    ["Consulta resultados por destinatario y respeta las bajas. Aceptado por SMTP no significa leído o entregado; una prueba no lanza la campaña.","Review per-recipient outcomes and respect opt-outs. SMTP acceptance does not mean read or delivered; a test does not launch the campaign."],
+    ["Completa asunto y mensaje para revisar o probar; el envío de campaña también requiere los datos del remitente. Revisa el formato y las imágenes antes de confirmar. Consulta resultados y respeta las bajas. En espera de cupo indica que los pendientes continúan automáticamente al liberarse el límite de la cuenta. Aceptado por SMTP no significa leído o entregado; una prueba no lanza la campaña.","Complete subject and message before review or testing; campaign launch also requires sender details. Review formatting and images before confirming. Check outcomes and respect opt-outs. Waiting for capacity means pending deliveries resume automatically when account capacity becomes available. SMTP acceptance does not mean read or delivered; a test does not launch the campaign."],
   ]),
   chapter("crm", "whatsapping", ["Campañas asistidas de WhatsApp","Assisted WhatsApp campaigns"], [
     ["Selecciona contactos y prepara plantilla, variables, enlaces y pasos de seguimiento.","Select contacts and prepare a template, variables, links and follow-up steps."],

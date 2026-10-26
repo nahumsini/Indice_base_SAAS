@@ -187,6 +187,15 @@ export function CampaignWorkspaceTable({
                     >
                       {deliveryCopy.states[row.status]}
                     </span>
+                    {row.waitingForQuota && (
+                      <span
+                        title={deliveryCopy.quotaWaitHint}
+                        className="mt-2 flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300"
+                      >
+                        <Clock3 className="h-3.5 w-3.5 shrink-0" />
+                        {deliveryCopy.waitingForQuota}
+                      </span>
+                    )}
                     {row.requiresAttention && (
                       <span className="mt-2 flex items-center gap-1 text-xs text-amber-800 dark:text-amber-200">
                         <AlertCircle className="h-3.5 w-3.5 shrink-0" />
@@ -300,7 +309,10 @@ export function CampaignWorkspaceTable({
                           {text.clear}
                         </Button>
                       ) : data.canEdit ? (
-                        <Button className={salesTitleBarPrimaryActionClassName} onClick={onCreate}>
+                        <Button
+                          className={salesTitleBarPrimaryActionClassName}
+                          onClick={onCreate}
+                        >
                           <Mail className="mr-2 h-4 w-4" />
                           {copy.newCampaign}
                         </Button>

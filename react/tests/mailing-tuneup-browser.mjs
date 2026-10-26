@@ -48,6 +48,27 @@ try {
   await editor().click({ position: { x: 20, y: 100 } });
   await editor().fill('Mensaje escrito a mano');
   assert.equal(pickers, 0, 'clicking the writing surface must not open a file picker');
+  await button('Continuar').click();
+  await page.getByText('Completa el asunto del correo en Contenido del borrador. El nombre de campaña es independiente.', {exact:true}).first().waitFor();
+  assert.equal(await page.locator('input[name="subject"]').evaluate(el=>document.activeElement===el), true);
+  assert.equal(await editor().innerText(), 'Mensaje escrito a mano');
+  // Incomplete drafts remain saveable; sending requires content.
+  await button('Guardar borrador').click();
+  await page.getByText('Campaña sintética guardada', {exact:true}).waitFor();
+  await button('Editar borrador de prueba').click();
+  await content();
+  assert.equal(await page.locator('input[name="subject"]').inputValue(), '');
+  assert.equal(await editor().innerText(), 'Mensaje escrito a mano');
+  await page.locator('input[name="subject"]').fill('Asunto de prueba');
+  await editor().fill('');
+  await button('Continuar').click();
+  await page.getByText('Escribe el mensaje del correo en Contenido del borrador.', {exact:true}).waitFor();
+  assert.equal(await editor().evaluate(el=>document.activeElement===el), true);
+  await editor().fill('Mensaje escrito a mano');
+  await button('Continuar').click();
+  await button('Guardar y revisar envío').waitFor();
+  await button('Atrás').click();
+
   await page.getByRole('tab', { name: 'Usar plantilla', exact: true }).click();
   assert.equal(await editor().innerText(), 'Mensaje escrito a mano');
   await page.getByRole('tab', { name: 'Escribir desde cero', exact: true }).click();
@@ -88,7 +109,18 @@ try {
   await button('Actualizar').first().click();
   await page.getByRole('heading', { name: 'Envío y resultados', exact: true }).waitFor();
   assert.ok(await button('Enviar prueba').isEnabled());
+  await button('Enviar prueba').click();
+  const imagePreview = page.frameLocator('iframe[title="Vista previa"]').locator('img');
+  await imagePreview.waitFor();
+  assert.equal(await imagePreview.getAttribute('src'), imageBefore, 'test preview retains the saved inline image');
+  await page.getByLabel('Destinatario de prueba').fill('synthetic@example.invalid');
+  await button('Revisar envío').click();
+  await imagePreview.waitFor();
+  assert.equal(await imagePreview.getAttribute('src'), imageBefore, 'final test confirmation retains the image');
+  await button('Volver').click();
+
   await button('Cerrar').first().click();
+  await button('Descartar cambios').click();
   await button('Editar borrador de prueba').click();
   await content();
   assert.equal(await editor().locator('img').count(), 1, 'inline image survives save and reopen');
@@ -105,7 +137,7 @@ try {
   await page.screenshot({ path: shots + '/mobile-dark.png', fullPage: true, animations: 'disabled' });
   assert.deepEqual(unexpected, []);
   assert.deepEqual(errors, []);
-  console.log('PASS mailing: writing/picker isolation, template choice, unresolved-token draft and delivery guards, inline image insertion, variable resolution preserving image/name token, save/reopen, review retry and mobile/dark. No real mail or business API.');
+  console.log('PASS mailing: incomplete subject/body progression guard and focus, incomplete draft save/reopen, writing/picker isolation, template choice, unresolved-token draft and delivery guards, inline image insertion, variable resolution preserving image/name token, save/reopen, review retry and mobile/dark. No real mail or business API.');
 } catch (error) {
   await page.screenshot({ path: shots + '/failure.png', fullPage: true, animations: 'disabled' });
   throw error;

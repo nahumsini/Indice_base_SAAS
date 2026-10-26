@@ -405,3 +405,60 @@ The rich message uses a non-label container. The editor already carries its acce
 ## 2026-10-26 — Explicit write/template choice in campaign content
 
 The Content step starts with native coral IndiceWorkspaceNavigation views: Write from scratch (default) and Use a template. The subject/message remain editable in either view. Template controls are shown only on request and stay mounted so switching does not reset the preview/search or draft. Changing views never clears text or attachments; only the existing explicit Apply template replaces content. Localized helper copy explains this distinction. Applying a template locks owner navigation/save/close until completion, independently of inline image/file activity. Choice is transient UI state, not a new campaign field or persistence writer.
+
+
+## 2026-10-26 — Recoverable delivery readiness
+
+The delivery workspace distinguishes a missing sender from a selected account whose
+SMTP verification is pending. Its account action uses the existing permission-gated
+Email account route and campaign UUID handoff; Email continues to own verification,
+credentials and transport. Missing-sender recovery reopens the persisted draft
+through its authorized API. Leaving with delivery-only changes uses the existing
+same-frame discard confirmation; no audience or footer is silently persisted.
+
+The compact workspace shows sender/contact/postal details beside a bounded recipient
+table on desktop and before it on phones. The footer explains the current blocking
+prerequisite. Refresh re-reads sender verification and recipient eligibility while
+preserving the current selection and footer. Pagination, column resizing, all-page
+selection, suppression, verified SMTP, send permission, public HTTPS, required footer
+and explicit final confirmation remain intact. This correction changes no backend,
+API, schema or production configuration and does not send a campaign.
+
+
+## 2026-10-26 — Content readiness before test and campaign delivery
+
+Incomplete campaign drafts remain saveable. Progressing from Content to review or
+saving for delivery review requires a nonblank subject and message; the editor
+focuses the missing field and preserves the draft. The campaign name is separate
+from the email subject. Delivery review blocks test and launch when its subject or
+message is blank, explains the missing field and offers the existing authorized
+persisted-draft handoff. Contact/postal details remain required for campaign launch,
+not for a test email. The backend remains authoritative: its review combines preview
+and message text, so the UI also translates a server `mailing_content_required`
+response into a localized content correction with draft recovery. Known review,
+SMTP, public-URL and invalid-recipient codes have safe localized messages; unknown
+errors retain the generic fallback. Raw backend/provider messages are not displayed.
+No send is triggered by recovery, refresh, saving or content validation.
+
+## 2026-10-26 — Formatted delivery review and normal quota waits
+
+The protected delivery review adds optional `bodyHtml`, produced through the same
+Email-owned formatter used for campaign transport. Test and final launch previews
+use the existing sandboxed `MailFormattedPreview`, with plain-text fallback for
+older responses. Embedded images and formatting are visible before the explicit
+send confirmation. Recipient personalization, review/version validation, immutable
+snapshots, file references and transport authorization remain authoritative.
+
+Workspace rows add `waitingForQuota`. An active RUNNING/SCHEDULED campaign whose last
+error is `email_send_rate_limited` shows a localized normal-wait explanation rather
+than being classified as requiring attention solely for that reason. Failed or
+uncertain recipients and other run errors still require attention, including when
+they coexist with a quota wait. Summary counts and the attention filter use the same
+rule. Canonical campaign statuses are unchanged.
+
+The existing limit remains 30 sends per rolling hour per account, shared with other
+sends from that account. The worker's existing five-minute retry continues pending
+deliveries when capacity becomes available; this correction neither increases the
+limit nor restarts/replays accepted deliveries. No production campaign is changed by
+this local correction. See
+[validation evidence](validation/2026-10-26-mailing-inline-images-quota.md).

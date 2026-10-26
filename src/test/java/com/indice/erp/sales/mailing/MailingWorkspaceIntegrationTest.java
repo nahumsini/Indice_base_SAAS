@@ -88,6 +88,25 @@ class MailingWorkspaceIntegrationTest {
         assertThat(result.senders()).extracting(com.indice.erp.email.accounts.EmailAccountContracts.Sender::id).containsExactly(own);
         assertThat(list("","ALL",foreign,1,"asc").total()).isZero();assertThat(list("","ALL",privateAccount,1,"asc").total()).isZero();
     }
+    @Test void quotaWaitIsInformationalButActualFailuresStillRequireAttention() {
+        String id=draft("Waiting"),sender=account(user,company);
+        db.update("UPDATE sales_mailing_campaigns SET status='RUNNING' WHERE company_id=? AND id=?",company,id);
+        db.update("INSERT INTO sales_mailing_runs(company_id,campaign_id,actor_user_id,account_id,account_version,scheduled_at,footer,last_error) VALUES(?,?,?,?,1,CURRENT_TIMESTAMP(6),'Synthetic footer','email_send_rate_limited')",company,id,user,sender);
+        delivery(id,"PENDING",1);delivery(id,"ACCEPTED",2);
+        var waiting=list("","ALL","",1,"asc");
+        assertThat(waiting.items().getFirst().waitingForQuota()).isTrue();
+        assertThat(waiting.items().getFirst().requiresAttention()).isFalse();
+        assertThat(waiting.summary().attention()).isZero();
+        assertThat(list("","ATTENTION","",1,"asc").items()).isEmpty();
+        delivery(id,"FAILED",3);
+        assertThat(list("","ATTENTION","",1,"asc").items().getFirst().waitingForQuota()).isTrue();
+        assertThat(list("","ATTENTION","",1,"asc").summary().attention()).isEqualTo(1);
+        db.update("DELETE FROM sales_mailing_deliveries WHERE company_id=? AND campaign_id=? AND state='FAILED'",company,id);
+        db.update("UPDATE sales_mailing_runs SET last_error='mailing_access_or_sender_changed' WHERE company_id=? AND campaign_id=?",company,id);
+        var blocked=list("","ATTENTION","",1,"asc");
+        assertThat(blocked.items().getFirst().waitingForQuota()).isFalse();
+        assertThat(blocked.summary().attention()).isEqualTo(1);
+    }
     @Test void endpointFailsClosedAndSeparatesListingFromContactDetailCapability() throws Exception {
         draft("Visible");
         mvc.perform(get("/api/v1/mailing/workspace")).andExpect(status().isUnauthorized());

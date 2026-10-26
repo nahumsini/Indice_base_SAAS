@@ -94,9 +94,9 @@ export function CampaignEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [blocked, setBlocked] = useState(false);
-  const [invalidField, setInvalidField] = useState<"name" | "replyTo" | null>(
-    null,
-  );
+  const [invalidField, setInvalidField] = useState<
+    "name" | "replyTo" | "subject" | "bodyText" | null
+  >(null);
   const locked=busy||fileBusy||editorBusy||templateBusy;
   const variables=mailTemplateVariables(draft.subject,`${draft.previewText}\n${draft.bodyText}`).filter(name=>name!=='name');
   const readOnly = !canEdit || locked || blocked;
@@ -104,7 +104,11 @@ export function CampaignEditor({
     if (!invalidField || discard) return;
     const frame = requestAnimationFrame(() =>
       formRef.current
-        ?.querySelector<HTMLInputElement>(`input[name="${invalidField}"]`)
+        ?.querySelector<HTMLElement>(
+          invalidField === "bodyText"
+            ? '[contenteditable="true"][role="textbox"]'
+            : `input[name="${invalidField}"]`,
+        )
         ?.focus(),
     );
     return () => cancelAnimationFrame(frame);
@@ -159,8 +163,21 @@ export function CampaignEditor({
     setError("");
     return true;
   }
+  function validateContent() {
+    const missing = !draft.subject.trim()
+      ? "subject"
+      : !draft.bodyText.trim() ? "bodyText" : null;
+    if (!missing) return true;
+    setInvalidField(missing);
+    setError(
+      missing === "subject" ? deliveryCopy.subjectRequired : deliveryCopy.bodyRequired,
+    );
+    setStep(2);
+    return false;
+  }
   async function save(configure = false, review = false) {
     if (readOnly || pending.current || !validateDetails()) return;
+    if (review && !validateContent()) return;
     if(review&&variables.length){setError(richCopy.variables);setStep(2);return;}
     pending.current = true;
     setBusy(true);
@@ -267,7 +284,13 @@ export function CampaignEditor({
                 className={actionClasses.primary}
                 disabled={locked || blocked}
                 onClick={() => {
-                  if (validateDetails()) {if(step===2&&variables.length){setError(richCopy.variables);return;}setStep((s) => s + 1);}
+                  if (!validateDetails()) return;
+                  if (step === 2 && !validateContent()) return;
+                  if (step === 2 && variables.length) {
+                    setError(richCopy.variables);
+                    return;
+                  }
+                  setStep((s) => s + 1);
                 }}
               >
                 {copy.next}
@@ -378,6 +401,8 @@ export function CampaignEditor({
                 copy={copy}
                 disabled={readOnly}
                 onApply={(value) => {
+                  setError("");
+                  setInvalidField(null);
                   setFiles(value.attachments??[]);setDraft((d) => ({
                     ...d,
                     subject: value.subject,
@@ -399,7 +424,20 @@ export function CampaignEditor({
               {field("previewText", copy.previewText, 240)}
               <div className="block space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
                 <span>{copy.body}</span>
-                <MailRichEditor label={copy.body} text={draft.bodyText} html={draft.bodyHtml??null} onBusy={setEditorBusy} disabled={readOnly} onChange={(bodyText,bodyHtml)=>setDraft(d=>({...d,bodyText,bodyHtml}))} />
+                <MailRichEditor
+                  label={copy.body}
+                  text={draft.bodyText}
+                  html={draft.bodyHtml ?? null}
+                  onBusy={setEditorBusy}
+                  disabled={readOnly}
+                  onChange={(bodyText, bodyHtml) => {
+                    setDraft(d => ({ ...d, bodyText, bodyHtml }));
+                    if (invalidField === "bodyText") {
+                      setError("");
+                      setInvalidField(null);
+                    }
+                  }}
+                />
               </div>
               <MailingFiles files={files} disabled={readOnly} onBusy={setFileBusy} onChange={canEdit?value=>{setFiles(value);setDraft(d=>({...d,attachmentIds:value.map(f=>f.id)}));}:undefined}/>
               <p className="text-xs text-slate-500 dark:text-slate-400">

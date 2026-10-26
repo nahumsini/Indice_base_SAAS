@@ -73,6 +73,34 @@ class MailingDeliveryIntegrationTest {
         assertThat(delivery.results(actor,id).items()).extracting(Delivery::state).containsExactly("ACCEPTED");
         verify(transport,times(1)).send(any(),any());
     }
+    @Test void reviewTestAndWorkerPreserveTheSameEmbeddedImage() throws Exception {
+        var bytes=new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(2,2,java.awt.image.BufferedImage.TYPE_INT_RGB),"png",bytes);
+        String image="data:image/png;base64,"+Base64.getEncoder().encodeToString(bytes.toByteArray());
+        String id=UUID.randomUUID().toString();
+        campaigns.save(actor,id,new MailingContracts.DraftInput("With image","Hello","Team","reply@example.com","Preview","Hello {{name}}",List.of(contact),0,account,"<p>Hello {{name}}</p><img src='"+image+"'>"));
+        assertThat(delivery.review(actor,id).bodyHtml()).contains(image,"Preview");
+        delivery.test(actor,id,new TestInput(1,"test@example.com",UUID.randomUUID().toString()));
+        delivery.launch(actor,id,launchInput(id,null));delivery.tick();due(id);delivery.tick();
+        var captured=org.mockito.ArgumentCaptor.forClass(MailboxTransport.Outgoing.class);
+        verify(transport,times(2)).send(any(),captured.capture());
+        assertThat(captured.getAllValues()).allSatisfy(message->assertThat(message.html()).contains(image));
+        assertThat(delivery.results(actor,id).status()).isEqualTo("COMPLETED");
+    }
+    @Test void hourlyLimitWaitsThenContinuesWithoutResendingAcceptedRecipients() {
+        String id=campaign(List.of(contact));
+        for(int i=0;i<30;i++)delivery.test(actor,id,new TestInput(1,"test@example.com",UUID.randomUUID().toString()));
+        delivery.launch(actor,id,launchInput(id,null));delivery.tick();
+        assertThat(delivery.results(actor,id).lastError()).isEqualTo("email_send_rate_limited");
+        assertThat(delivery.results(actor,id).items()).extracting(Delivery::state).containsExactly("PENDING");
+        verify(transport,times(30)).send(any(),any());
+        db.update("UPDATE email_send_attempts SET started_at=CURRENT_TIMESTAMP(6)-INTERVAL 2 HOUR WHERE company_id=? AND account_id=?",company,account);
+        due(id);delivery.tick();due(id);delivery.tick();due(id);delivery.tick();
+        assertThat(delivery.results(actor,id).lastError()).isNull();
+        assertThat(delivery.results(actor,id).status()).isEqualTo("COMPLETED");
+        assertThat(delivery.results(actor,id).items()).extracting(Delivery::state).containsExactly("ACCEPTED");
+        verify(transport,times(31)).send(any(),any());
+    }
     @Test void expandedHtmlIsRejectedBeforeCreatingDeliveryWork(){
         String id=campaign(List.of(contact));
         db.update("UPDATE sales_mailing_campaigns SET body_html=? WHERE company_id=? AND id=?", "<span>".repeat(38460)+"{{name}}"+"</span>".repeat(38460), company,id);

@@ -13,7 +13,7 @@ Generated from the reviewed bilingual curriculum. Domain owners remain authorita
 | sales_board.channels | 6 | sales-board/channels | 2 | Understanding only until an owner completion is integrated |
 | sales_board.sales | 6 | sales-board/sales | 2 | Understanding only until an owner completion is integrated |
 | correo.accounts | 5 | email/accounts | 2 | Understanding only until an owner completion is integrated |
-| correo.mail | 5 | email/mail | 5 | Understanding only until an owner completion is integrated |
+| correo.mail | 5 | email/mail | 6 | Understanding only until an owner completion is integrated |
 | maintenance.requests | 3 | maintenance/requests | 2 | Understanding only until an owner completion is integrated |
 | maintenance.orders | 3 | maintenance/orders | 2 | Understanding only until an owner completion is integrated |
 | maintenance.assets | 3 | maintenance/assets | 2 | Understanding only until an owner completion is integrated |
@@ -22,7 +22,7 @@ Generated from the reviewed bilingual curriculum. Domain owners remain authorita
 | maintenance.configuration | 3 | maintenance/configuration | 2 | Understanding only until an owner completion is integrated |
 | crm.after-sales | 5 | sales/after-sales | 2 | Understanding only until an owner completion is integrated |
 | crm.funneling | 5 | sales/funneling | 6 | Understanding only until an owner completion is integrated |
-| crm.mailing | 5 | sales/mailing | 4 | Understanding only until an owner completion is integrated |
+| crm.mailing | 5 | sales/mailing | 5 | Understanding only until an owner completion is integrated |
 | crm.whatsapping | 5 | sales/whatsapping | 2 | Understanding only until an owner completion is integrated |
 | crm.conversations | 5 | sales/conversations | 2 | Understanding only until an owner completion is integrated |
 | crm.whatsapp-settings | 5 | sales/whatsapp-settings | 2 | Understanding only until an owner completion is integrated |

@@ -1,5 +1,28 @@
 import { useLanguage } from "../../../shared/context";
 const en = {
+  waitingForQuota: "Waiting for sending capacity",
+  quotaWaitHint:
+    "This account has reached 30 sends in the last hour. Pending recipients resume automatically as capacity becomes available; checked every five minutes.",
+
+  subjectRequired:
+    "Add the email subject in the draft’s Content step. The campaign name is separate.",
+  bodyRequired: "Write the email message in the draft’s Content step.",
+  contentRequired:
+    "Complete the sender account, subject and message in the draft before sending a test or campaign.",
+  reviewChanged:
+    "The campaign changed. Go back and refresh the review before sending.",
+  testRecipientInvalid: "Enter a valid test email address.",
+
+  senderRequired: "Choose a sender account in the campaign draft.",
+  senderUnverified:
+    "This account is selected, but its SMTP connection has not been verified. Open Email accounts and choose Test SMTP.",
+  checkAccount: "Verify email account",
+  editDraft: "Edit draft",
+  footerRequired: "Enter the sender’s contact details and postal address.",
+  recipientsRequired: "Select at least one eligible recipient.",
+  sendPermissionRequired: "You do not have permission to send this campaign.",
+  readyToReview: "Ready to review the send.",
+
   selectAll: "Select all",
   selectRecipient: "Select recipient",
   selectionHint:
@@ -67,6 +90,30 @@ const en = {
 };
 type Copy = typeof en;
 const es: Copy = {
+  waitingForQuota: "En espera de cupo",
+  quotaWaitHint:
+    "La cuenta alcanzó 30 envíos en la última hora. Los pendientes continúan automáticamente al liberarse cupo; se comprueba cada cinco minutos.",
+
+  subjectRequired:
+    "Completa el asunto del correo en Contenido del borrador. El nombre de campaña es independiente.",
+  bodyRequired: "Escribe el mensaje del correo en Contenido del borrador.",
+  contentRequired:
+    "Completa la cuenta remitente, el asunto y el mensaje del borrador antes de enviar una prueba o campaña.",
+  reviewChanged:
+    "La campaña cambió. Vuelve y actualiza la revisión antes de enviar.",
+  testRecipientInvalid: "Escribe un correo válido para la prueba.",
+
+  senderRequired: "Elige una cuenta remitente en el borrador de la campaña.",
+  senderUnverified:
+    "La cuenta está seleccionada, pero falta verificar su conexión SMTP. Abre Cuentas de correo y elige Probar SMTP.",
+  checkAccount: "Verificar cuenta de correo",
+  editDraft: "Editar borrador",
+  footerRequired:
+    "Completa los datos de contacto y la dirección postal del remitente.",
+  recipientsRequired: "Selecciona al menos un destinatario habilitado.",
+  sendPermissionRequired: "No tienes permiso para enviar esta campaña.",
+  readyToReview: "Todo listo para revisar el envío.",
+
   selectAll: "Seleccionar todos",
   selectRecipient: "Seleccionar destinatario",
   selectionHint:
@@ -133,6 +180,32 @@ const es: Copy = {
   },
 };
 const fr: Copy = {
+  waitingForQuota: "En attente de capacité d’envoi",
+  quotaWaitHint:
+    "Ce compte a atteint 30 envois au cours de la dernière heure. Les envois en attente reprennent automatiquement selon la capacité disponible, vérifiée toutes les cinq minutes.",
+
+  subjectRequired:
+    "Ajoutez l’objet du courriel dans le contenu du brouillon. Le nom de la campagne est distinct.",
+  bodyRequired: "Rédigez le message dans le contenu du brouillon.",
+  contentRequired:
+    "Complétez le compte expéditeur, l’objet et le message du brouillon avant tout envoi de test ou de campagne.",
+  reviewChanged:
+    "La campagne a changé. Revenez en arrière et actualisez la vérification avant l’envoi.",
+  testRecipientInvalid: "Saisissez une adresse courriel de test valide.",
+
+  senderRequired:
+    "Choisissez un compte expéditeur dans le brouillon de la campagne.",
+  senderUnverified:
+    "Le compte est sélectionné, mais sa connexion SMTP doit être vérifiée. Ouvrez Comptes de courriel et choisissez Tester SMTP.",
+  checkAccount: "Vérifier le compte de courriel",
+  editDraft: "Modifier le brouillon",
+  footerRequired:
+    "Complétez les coordonnées et l’adresse postale de l’expéditeur.",
+  recipientsRequired: "Sélectionnez au moins un destinataire admissible.",
+  sendPermissionRequired:
+    "Vous n’avez pas l’autorisation d’envoyer cette campagne.",
+  readyToReview: "Tout est prêt pour vérifier l’envoi.",
+
   selectAll: "Tout sélectionner",
   selectRecipient: "Sélectionner le destinataire",
   selectionHint:
@@ -197,6 +270,30 @@ const fr: Copy = {
   },
 };
 const pt: Copy = {
+  waitingForQuota: "Aguardando disponibilidade de envio",
+  quotaWaitHint:
+    "A conta atingiu 30 envios na última hora. Os pendentes continuam automaticamente quando houver disponibilidade, verificada a cada cinco minutos.",
+
+  subjectRequired:
+    "Preencha o assunto do email no conteúdo do rascunho. O nome da campanha é separado.",
+  bodyRequired: "Escreva a mensagem no conteúdo do rascunho.",
+  contentRequired:
+    "Preencha a conta remetente, o assunto e a mensagem do rascunho antes de enviar um teste ou campanha.",
+  reviewChanged:
+    "A campanha mudou. Volte e atualize a revisão antes de enviar.",
+  testRecipientInvalid: "Informe um email válido para o teste.",
+
+  senderRequired: "Escolha uma conta remetente no rascunho da campanha.",
+  senderUnverified:
+    "A conta está selecionada, mas falta verificar a conexão SMTP. Abra Contas de e-mail e escolha Testar SMTP.",
+  checkAccount: "Verificar conta de e-mail",
+  editDraft: "Editar rascunho",
+  footerRequired:
+    "Preencha os dados de contato e o endereço postal do remetente.",
+  recipientsRequired: "Selecione pelo menos um destinatário habilitado.",
+  sendPermissionRequired: "Você não tem permissão para enviar esta campanha.",
+  readyToReview: "Tudo pronto para revisar o envio.",
+
   selectAll: "Selecionar todos",
   selectRecipient: "Selecionar destinatário",
   selectionHint:
@@ -259,6 +356,29 @@ const pt: Copy = {
   },
 };
 const ko: Copy = {
+  waitingForQuota: "발송 한도 대기 중",
+  quotaWaitHint:
+    "이 계정은 지난 한 시간 동안 30회 발송 한도에 도달했습니다. 한도가 확보되면 대기 중인 발송이 자동으로 재개되며 5분마다 확인합니다.",
+
+  subjectRequired:
+    "초안의 콘텐츠 단계에서 이메일 제목을 입력하세요. 캠페인 이름과는 별개입니다.",
+  bodyRequired: "초안의 콘텐츠 단계에서 이메일 메시지를 작성하세요.",
+  contentRequired:
+    "테스트 또는 캠페인을 보내기 전에 초안의 발신 계정, 제목 및 메시지를 완성하세요.",
+  reviewChanged:
+    "캠페인이 변경되었습니다. 뒤로 돌아가 검토 내용을 새로 고친 후 발송하세요.",
+  testRecipientInvalid: "유효한 테스트 이메일 주소를 입력하세요.",
+
+  senderRequired: "캠페인 초안에서 발신 계정을 선택하세요.",
+  senderUnverified:
+    "계정은 선택되었지만 SMTP 연결을 확인해야 합니다. 이메일 계정을 열고 SMTP 테스트를 선택하세요.",
+  checkAccount: "이메일 계정 확인",
+  editDraft: "초안 편집",
+  footerRequired: "발신자의 연락처와 우편 주소를 입력하세요.",
+  recipientsRequired: "발송 가능한 수신자를 한 명 이상 선택하세요.",
+  sendPermissionRequired: "이 캠페인을 발송할 권한이 없습니다.",
+  readyToReview: "발송을 검토할 준비가 되었습니다.",
+
   selectAll: "모두 선택",
   selectRecipient: "수신자 선택",
   selectionHint:
@@ -321,6 +441,27 @@ const ko: Copy = {
   },
 };
 const zh: Copy = {
+  waitingForQuota: "等待发送额度",
+  quotaWaitHint:
+    "此账户在过去一小时内已发送30封邮件。额度释放后将自动继续发送待处理邮件，每五分钟检查一次。",
+
+  subjectRequired:
+    "请在草稿的内容步骤中填写邮件主题。营销活动名称是单独的字段。",
+  bodyRequired: "请在草稿的内容步骤中填写邮件正文。",
+  contentRequired: "发送测试或营销活动前，请完善草稿中的发件账户、主题和正文。",
+  reviewChanged: "营销活动已更改。请返回并刷新审核内容后再发送。",
+  testRecipientInvalid: "请输入有效的测试邮箱地址。",
+
+  senderRequired: "请在营销活动草稿中选择发件账户。",
+  senderUnverified:
+    "账户已选定，但尚需验证 SMTP 连接。请打开邮件账户并选择测试 SMTP。",
+  checkAccount: "验证邮件账户",
+  editDraft: "编辑草稿",
+  footerRequired: "请填写发件人的联系方式和邮寄地址。",
+  recipientsRequired: "请至少选择一名可发送的收件人。",
+  sendPermissionRequired: "您没有发送此营销活动的权限。",
+  readyToReview: "已准备好审核发送。",
+
   selectAll: "全选",
   selectRecipient: "选择收件人",
   selectionHint: "包括所有页面。无效地址、重复地址及已退订的联系人将被排除。",

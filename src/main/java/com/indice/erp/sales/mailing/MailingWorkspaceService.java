@@ -16,7 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class MailingWorkspaceService {
     public record Counts(long total,long pending,long submitting,long accepted,long failed,long unknown,long suppressed,long cancelled) { }
     public record Row(String id,String name,String subject,String senderAccountId,String senderName,String status,
-        Instant updatedAt,Instant scheduledAt,long selectedCount,Counts delivery,boolean requiresAttention) { }
+        Instant updatedAt,Instant scheduledAt,long selectedCount,Counts delivery,boolean requiresAttention,boolean waitingForQuota) { }
     public record Summary(long total,long draft,long scheduled,long running,long paused,long completed,long cancelled,long attention) { }
     public record Workspace(List<Row> items,long total,int page,int pageSize,Summary summary,List<Sender> senders,
         boolean publicLinkReady,boolean canEdit,boolean canViewDetails) { }
@@ -33,7 +33,9 @@ public class MailingWorkspaceService {
           COALESCE(d.pending,0) pending,COALESCE(d.submitting,0) submitting,COALESCE(d.accepted,0) accepted,
           COALESCE(d.failed,0) failed,COALESCE(d.unknown_count,0) unknown_count,
           COALESCE(d.suppressed,0) suppressed,COALESCE(d.cancelled,0) cancelled,
-          (COALESCE(d.failed,0)>0 OR COALESCE(d.unknown_count,0)>0 OR r.last_error IS NOT NULL) attention
+          (COALESCE(d.failed,0)>0 OR COALESCE(d.unknown_count,0)>0 OR
+            (r.last_error IS NOT NULL AND NOT(c.status IN ('SCHEDULED','RUNNING') AND r.last_error='email_send_rate_limited'))) attention,
+          COALESCE(c.status IN ('SCHEDULED','RUNNING') AND r.last_error='email_send_rate_limited',FALSE) waiting_for_quota
         FROM sales_mailing_campaigns c
         LEFT JOIN sales_mailing_runs r ON r.company_id=c.company_id AND r.campaign_id=c.id
         LEFT JOIN (SELECT campaign_id,COUNT(*) selected_count FROM sales_mailing_recipients WHERE company_id=? GROUP BY campaign_id) m ON m.campaign_id=c.id
@@ -69,7 +71,7 @@ public class MailingWorkspaceService {
         var rows=db.query("SELECT *"+source+where+" ORDER BY "+column+" "+direction+",id LIMIT ? OFFSET ?",(r,n)->new Row(
             r.getString("id"),r.getString("name"),r.getString("subject"),r.getString("sender_account_id"),r.getString("sender_name"),r.getString("status"),
             r.getTimestamp("updated_at").toInstant(),r.getTimestamp("scheduled_at")==null?null:r.getTimestamp("scheduled_at").toInstant(),r.getLong("selected_count"),
-            new Counts(r.getLong("delivery_total"),r.getLong("pending"),r.getLong("submitting"),r.getLong("accepted"),r.getLong("failed"),r.getLong("unknown_count"),r.getLong("suppressed"),r.getLong("cancelled")),r.getBoolean("attention")),args.toArray());
+            new Counts(r.getLong("delivery_total"),r.getLong("pending"),r.getLong("submitting"),r.getLong("accepted"),r.getLong("failed"),r.getLong("unknown_count"),r.getLong("suppressed"),r.getLong("cancelled")),r.getBoolean("attention"),r.getBoolean("waiting_for_quota")),args.toArray());
         return new Workspace(rows,total,page,size,summary,accounts.senders(actor),unsubscribe.available(),canViewDetails&&MailingService.manager(actor),canViewDetails);
     }
 }
