@@ -29,3 +29,12 @@ Human product acceptance remains UNKNOWN until owner review. Ordinary-pay regres
 coverage does not certify every payroll case or filing. All other technical gates
 remain applicable. The private authorization must be closed after this attempt and
 cannot be reused for another source, image change or deployment.
+
+## Closed
+
+Production activation and its six-sample observation passed. Final verification
+completed at **2026-10-26T18:36:09.566744+00:00**. This exception window closed at
+**2026-10-26T18:36:09.569272+00:00** and cannot be reused. The historical Stripe
+TEST-key finding remains HIGH and unresolved; no revocation is claimed.
+App Test, protected settings, prices, subscriptions and access were preserved.
+See the [release closeout](../validation/2026-10-26-payroll-workspace-release.md#production-closeout).

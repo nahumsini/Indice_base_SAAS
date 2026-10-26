@@ -1,8 +1,9 @@
 # Complete local payroll/workspace release — 2026-10-26
 
-Status: AUTHORIZED for production; activation has not started. Readiness was verified
-at 2026-10-26T18:23Z. The historical Stripe TEST-key revocation remains unresolved;
-earlier closed exceptions are not reused. The owner separately authorized the exact-candidate exception recorded below. Human product acceptance remains UNKNOWN.
+Status: DEPLOYED to production and verified at **2026-10-26T18:36:09.566744+00:00**.
+The five-minute observation passed and the single-use authorization is closed.
+The historical Stripe TEST-key revocation remains unresolved. Human product
+acceptance remains UNKNOWN; App Test is unchanged.
 
 ## Source and behavior
 
@@ -99,10 +100,11 @@ rows are excluded using captured original IDs. Complete objects are extracted an
 byte-compared. Billing and existing access remain unchanged. Workers/providers and
 DB events are disabled in the clone; application authority is SELECT only.
 
-The canonical dry run passes with the final images and explicit compatible backend
-recovery. Production and App Test still run their prior versions. Activation will
-retain compatible rollback, verify public/anonymous boundaries and protected state,
-and observe six health samples over at least five minutes before closing authorization.
+The canonical dry run passed with the final images and explicit compatible backend
+recovery. Production now runs the exact images above; App Test retains its prior
+versions. Activation retained compatible rollback and verified public/anonymous
+boundaries and protected state. Six health samples over more than five minutes
+passed before authorization was closed.
 
 The backup initially stopped on capacity. Only generated build/test copies, the
 single disposable test image and inactive build cache were retired. No business data,
@@ -117,8 +119,8 @@ connection; public health remained HTTP 200 and the evidence was retrieved intac
 
 The historical Stripe TEST-key finding remains HIGH, unresolved, owned by the release
 owner. The [previous window](../decisions/2026-10-24-files-preview-stripe-deferral.md)
-is explicitly closed and cannot be reused. The owner has now provided the separate scoped decision below; production activation
-and its observation are still pending. App Test changes,
+is explicitly closed and cannot be reused. The separate scoped decision below covered
+this successful activation and observation and is now also closed. App Test changes,
 provider activation, pricing changes, access expansion and real payroll/mail actions:
 N/A. Raw protected evidence, backups and credentials are not committed.
 
@@ -130,3 +132,22 @@ The owner separately answered “Autorizar excepción puntual” for application
 recorded at **2026-10-26T18:27:33.687639+00:00** and expires immediately after this one attempt,
 no later than **2026-10-26T20:27:33.687639+00:00**. The historical TEST-key revocation remains
 HIGH and unresolved. No earlier exception is reused.
+
+## Production closeout
+
+- Activation started at **2026-10-26T18:29:32Z**; public smoke and runtime verification
+  passed at **2026-10-26T18:30:58Z**. Production schema is V365.
+- Observation ran from **2026-10-26T18:30:58.375Z** through
+  **2026-10-26T18:35:59.738Z**: six samples, web/API/MCP/storage HTTP 200,
+  zero container restarts and zero backend errors.
+- An authenticated MCP read passed with the same company scope and currency.
+  Final runtime guards confirm the exact artifacts, unchanged protected settings,
+  prices, subscriptions, access and App Test, with compatible recovery retained.
+- Final verification passed at **2026-10-26T18:36:09.566744+00:00**. Available host
+  space was **5,757,046,784 bytes**; the additional-capacity follow-up remains.
+- Authorization closed at **2026-10-26T18:36:09.569272+00:00** and cannot be reused.
+  Stripe TEST revocation remains HIGH and unresolved. Full final evidence and the
+  closed authorization were retrieved off-host; private payloads are not committed.
+
+Owner product acceptance remains UNKNOWN. No real payroll approval, payment, mail
+or employee-data mutation was performed for deployment verification.
