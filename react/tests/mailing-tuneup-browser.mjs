@@ -81,7 +81,7 @@ try {
   assert.match(await editor().innerText(), /\{\{name\}\}/);
   assert.doesNotMatch(await editor().innerText(), /\{\{promotion\}\}/);
   assert.equal(await editor().locator('img').getAttribute('src'), imageBefore);
-  await page.screenshot({ path: shots + '/desktop.png', fullPage: true });
+  await page.screenshot({ path: shots + '/desktop.png', fullPage: true, animations: 'disabled' });
   await button('Guardar borrador').click();
   await button('Fallar próxima revisión').click();
   await button('Revisar envío de prueba').click();
@@ -92,18 +92,22 @@ try {
   await button('Editar borrador de prueba').click();
   await content();
   assert.equal(await editor().locator('img').count(), 1, 'inline image survives save and reopen');
+  await button('Guardar borrador').click();
+  await page.getByText('Campaña sintética guardada', { exact: true }).waitFor();
   await page.setViewportSize({ width: 390, height: 844 });
+  await button('Editar borrador de prueba').click();
+  await content();
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2));
   await page.getByRole('tab', { name: 'Usar plantilla', exact: true }).click();
   assert.equal(await editor().locator('img').count(), 1);
-  await page.screenshot({ path: shots + '/mobile.png', fullPage: true });
+  await page.screenshot({ path: shots + '/mobile.png', fullPage: true, animations: 'disabled' });
   await page.evaluate(() => document.documentElement.classList.add('dark'));
-  await page.screenshot({ path: shots + '/mobile-dark.png', fullPage: true });
+  await page.screenshot({ path: shots + '/mobile-dark.png', fullPage: true, animations: 'disabled' });
   assert.deepEqual(unexpected, []);
   assert.deepEqual(errors, []);
   console.log('PASS mailing: writing/picker isolation, template choice, unresolved-token draft and delivery guards, inline image insertion, variable resolution preserving image/name token, save/reopen, review retry and mobile/dark. No real mail or business API.');
 } catch (error) {
-  await page.screenshot({ path: shots + '/failure.png', fullPage: true });
+  await page.screenshot({ path: shots + '/failure.png', fullPage: true, animations: 'disabled' });
   throw error;
 } finally {
   await browser.close();
