@@ -190,6 +190,9 @@ and no later than **2026-10-26T22:28:49.289691+00:00**. The HIGH finding remains
 App Test, provider settings, prices and existing access remain protected. All other
 gates apply. This window cannot authorize another source, artifact or activation.
 See the [exact release evidence](validation/2026-10-26-sales-mailing-release.md).
+Production activation, authenticated continuity and five-minute observation passed.
+This exception window closed at **2026-10-26T20:35:43.567845+00:00** and cannot be
+reused. The historical Stripe TEST-key finding remains HIGH and unresolved.
 
 For the 2026-10-06 release, the owner's later explicit instruction to review directly in production
 replaces only the human-UAT location/timing, as recorded in the

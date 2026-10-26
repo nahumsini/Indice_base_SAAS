@@ -1,8 +1,9 @@
 # Sales Mailing / Funneling production release — 2026-10-26
 
-Status: AUTHORIZED for the exact production-only activation; production has not
-yet been activated. Exact-source CI, protected preflight, artifact scans, complete off-host
-backup verification, isolated restoration and the final activation dry run pass.
+Status: DEPLOYED to production. Activation, authenticated MCP continuity and
+five-minute observation passed; the bounded authorization is closed. Exact-source
+CI, protected preflight, artifact scans, complete off-host backup verification,
+isolated restoration and the final activation dry run pass.
 Human product acceptance remains UNKNOWN. App Test is unchanged.
 
 ## Source and behavior
@@ -105,5 +106,29 @@ closed and cannot be reused. Historical TEST-key revocation remains HIGH and
 unresolved. The owner now separately answered “Autorizar excepción puntual” for
 this exact candidate under the [bounded decision](../decisions/2026-10-26-sales-mailing-stripe-deferral.md).
 All technical gates passed before authorization; only that historical blocker is deferred.
-Post-activation smoke, protected-state checks, authenticated MCP continuity and a
-five-minute observation are still pending. Raw protected evidence is not committed.
+Post-activation smoke, protected-state checks, authenticated MCP continuity and the
+five-minute observation passed. Raw protected evidence is not committed.
+
+## Production closeout
+
+Activation of the exact prepared application revision began at **2026-10-26T20:29:05Z**.
+Initial activation verification completed at **2026-10-26T20:30:30Z**.
+The observation ran from **2026-10-26T20:30:30.722Z** to **2026-10-26T20:35:31.648Z**:
+six samples over at least five minutes, with HTTP 200 for public web, API, private
+MCP readiness and object storage. All four containers stayed running with zero
+restarts, and no new backend ERROR/FATAL/out-of-memory entries were observed.
+Public web/API checks from the off-host workstation also passed.
+
+An authenticated, read-only MCP snapshot succeeded after activation with the same
+tenant scope and currency as before. No real mail, payment or payroll action was
+used as a test. Final protected-state verification passed at **2026-10-26T20:35:43.564960+00:00**:
+schema V365, prices, subscriptions, existing access, runtime settings and App Test
+were preserved. The active images match the immutable artifact table above, and
+the exact prior application containers remain available for recovery. Final host
+free space was **7080747008 bytes**; additional capacity remains a follow-up.
+
+The exception closed at **2026-10-26T20:35:43.567845+00:00** and cannot be reused. Historical Stripe
+TEST-key revocation remains HIGH and unresolved. Human product acceptance remains
+UNKNOWN; technical checks do not claim end-user acceptance or real mail delivery.
+All captured primary-workspace changes are published on the working branch and
+`main`; documentation-only closeout commits preserve the deployed runtime source.
