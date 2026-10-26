@@ -181,6 +181,16 @@ Production activation, authenticated continuity and five-minute observation pass
 This exception window closed at **2026-10-26T18:36:09.569272+00:00** and cannot be
 reused. The historical Stripe TEST-key finding remains HIGH and unresolved.
 
+For Sales Mailing/Funneling source `2e18cf7523ffecf48193577fd1d1868616b9656b`, the owner separately
+answered “Autorizar excepción puntual” under the
+[2026-10-26 Mailing decision](decisions/2026-10-26-sales-mailing-stripe-deferral.md).
+Only the historical Stripe TEST-key revocation blocker is deferred for this exact
+production activation and five-minute observation, ending immediately afterward
+and no later than **2026-10-26T22:28:49.289691+00:00**. The HIGH finding remains unresolved.
+App Test, provider settings, prices and existing access remain protected. All other
+gates apply. This window cannot authorize another source, artifact or activation.
+See the [exact release evidence](validation/2026-10-26-sales-mailing-release.md).
+
 For the 2026-10-06 release, the owner's later explicit instruction to review directly in production
 replaces only the human-UAT location/timing, as recorded in the
 [bounded production-acceptance decision](decisions/2026-10-06-owner-production-acceptance.md).

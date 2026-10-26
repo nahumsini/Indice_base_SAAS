@@ -1,7 +1,7 @@
 # Sales Mailing / Funneling production release — 2026-10-26
 
-Status: READY for the owner’s bounded Stripe decision; production has not been
-activated. Exact-source CI, protected preflight, artifact scans, complete off-host
+Status: AUTHORIZED for the exact production-only activation; production has not
+yet been activated. Exact-source CI, protected preflight, artifact scans, complete off-host
 backup verification, isolated restoration and the final activation dry run pass.
 Human product acceptance remains UNKNOWN. App Test is unchanged.
 
@@ -102,7 +102,8 @@ operational follow-up.
 
 The [previous Stripe TEST-key exception](../decisions/2026-10-26-payroll-workspace-stripe-deferral.md)
 closed and cannot be reused. Historical TEST-key revocation remains HIGH and
-unresolved. This release is not authorized to defer that blocker yet. Activation
-requires a separate exact-candidate owner decision after all technical gates pass.
+unresolved. The owner now separately answered “Autorizar excepción puntual” for
+this exact candidate under the [bounded decision](../decisions/2026-10-26-sales-mailing-stripe-deferral.md).
+All technical gates passed before authorization; only that historical blocker is deferred.
 Post-activation smoke, protected-state checks, authenticated MCP continuity and a
 five-minute observation are still pending. Raw protected evidence is not committed.
