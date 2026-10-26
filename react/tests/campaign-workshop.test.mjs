@@ -184,7 +184,7 @@ test('invalid target location retains unknown cohorts and rejects fractions and 
  assert.equal(model.firstInvalidFunnelTarget(stages([100,3.5,2])), 1);
  assert.equal(model.firstInvalidFunnelTarget(stages([100,-1,0])), 1);
 });
-function promptTools(clipboard){
+function promptTools(clipboard,presentation='standard'){
  const runtime=hookRuntime();let plan={...complete(),contentGuide:guide()},selected=null,focus=0;
  const descriptor=Object.getOwnPropertyDescriptor(globalThis,'navigator');
  Object.defineProperty(globalThis,'navigator',{configurable:true,value:{clipboard}});
@@ -192,7 +192,7 @@ function promptTools(clipboard){
   if(id==='react')return runtime.hooks;if(id==='react/jsx-runtime')return{jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})};
   if(id.endsWith('campaignPrompt'))return{buildCampaignPrompt,campaignPromptDocument};if(id.endsWith('brandCopy'))return load('brand/brandCopy.ts',()=>({}));if(id.endsWith('brandModel'))return load('brand/brandModel.ts',()=>load('brand/brandQuestions.ts',()=>({})));if(id.endsWith('brandApi'))return{brandApi:{snapshot:async()=>null}};return new Proxy({},{get:(_,key)=>key});
  });
- const render=()=>runtime.render(()=>CampaignPromptTools({plan,c,copy,locale:'es-MX'}));render();
+ const render=()=>runtime.render(()=>CampaignPromptTools({plan,c,copy,locale:'es-MX',presentation}));render();
  const field=()=>find(runtime,n=>n.type==='Textarea');
  field().props.ref.current={get value(){return field().props.value;},focus(){focus++;},select(){},setSelectionRange(a,b){selected=[a,b];},scrollIntoView(){}};
  return{runtime,field,copy:()=>find(runtime,n=>n.type==='Button'&&contains(n.props.children,c.copyPrompt)).props.onClick(),
@@ -274,4 +274,34 @@ test('a known low production capacity is retained when the campaign period is st
  const plan=complete();plan.notes='Podemos producir solo una pieza al mes.';plan.workshop.timing='';
  const before=structuredClone(plan),prompt=buildCampaignPrompt(plan,c,copy,'es-MX');
  assert.ok(prompt.includes(plan.notes));assert.ok(prompt.includes('Si la capacidad está descrita pero falta el periodo'));assert.ok(prompt.includes('respetando la capacidad indicada'));assert.deepEqual(plan,before);
+});
+
+test('content prompts create the chosen piece without campaign planning and preserve source data',()=>{
+ const p={...complete(),contentGuide:{...guideModel.emptyContentGuide(),format:'IMAGE',topic:'SYNTHETIC-PIECE',variation:'HOOKS',variationCount:2}},before=structuredClone(p);
+ const prompt=buildCampaignPrompt(p,c,copy,'es-MX','content');
+ assert.match(prompt,/Genera la imagen publicitaria final/);assert.match(prompt,/SYNTHETIC-PIECE/);assert.doesNotMatch(prompt,/SHORT_VIDEO|CAROUSEL|guion de video corto/);assert.match(prompt,/variationCount/);
+ assert.doesNotMatch(prompt,/Organiza la respuesta en cinco|Crea un calendario|Elige de 2 a 3 métricas/);assert.deepEqual(p,before);
+ const standard=buildCampaignPrompt(p,c,copy,'es-MX');assert.match(standard,/Crea un calendario/);
+ for(const locale of ['es-MX','en-CA','fr-CA','pt-BR','ko-CA','zh-CA']){
+  const value=buildCampaignPrompt(p,campaignCopy(locale),funnelTranslations[locale.split('-')[0]],locale,'content');assert.match(value,/BEGIN CONTEXT/);assert.match(value,/IMAGE/);assert.doesNotMatch(value,/CAROUSEL|POLL|SHORT_VIDEO/);assert.match(value,/SYNTHETIC-PIECE/);
+ }
+});
+
+test('content workspace copies its production prompt while campaign tools retain planning',async()=>{
+ let copied='';const s=promptTools({writeText:async value=>{copied=value;}},'workspace');
+ s.copy();await s.runtime.flush();assert.equal(copied,s.field().props.value);assert.match(copied,/Crea directamente la pieza solicitada/);assert.doesNotMatch(copied,/Crea un calendario/);s.cleanup();
+});
+
+test('every selected format has isolated production instructions across languages',()=>{
+ for(const locale of ['es-MX','en-CA','fr-CA','pt-BR','ko-CA','zh-CA'])for(const format of guideModel.contentFormats){
+  const p={...complete(),contentGuide:{...guideModel.emptyContentGuide(),format}};const before=structuredClone(p);
+  const prompt=buildCampaignPrompt(p,campaignCopy(locale),funnelTranslations[locale.split('-')[0]],locale,'content');
+  assert.ok(prompt.length>300);assert.ok(!prompt.includes('undefined'));
+  for(const other of guideModel.contentFormats.filter(v=>v!==format))assert.ok(!prompt.includes('"format": "'+other+'"'));
+  assert.deepEqual(p,before);
+ }
+ const make=format=>buildCampaignPrompt({...complete(),contentGuide:{...guideModel.emptyContentGuide(),format}},c,copy,'es-MX','content');
+ assert.match(make('IMAGE'),/Genera la imagen publicitaria final/);assert.doesNotMatch(make('IMAGE'),/carrusel|guion|transmisión|encuesta|hilo|GIF/);
+ assert.match(make('SHORT_VIDEO'),/guion de video corto/);assert.doesNotMatch(make('SHORT_VIDEO'),/generador de imágenes|carrusel|transmisión|encuesta|hilo|GIF/);
+ assert.match(make('CAROUSEL'),/Crea el carrusel final/);assert.doesNotMatch(make('CAROUSEL'),/guion|transmisión|encuesta|hilo|GIF/);
 });

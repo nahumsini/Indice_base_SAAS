@@ -1,4 +1,13 @@
+import type {FiveSActionFilters,FiveSDateFilter} from './fiveSFiltersModel';
+import {fiveSCopy} from './fiveSCopy';
 const messages = {
+  activeFilters:["Filtros activos", "Active filters", "Filtres actifs", "Filtros ativos", "적용된 필터", "当前筛选"],
+  sectionEmpty:["No hay coincidencias en esta S. Puedes elegir otra sección o ajustar los filtros.", "No matches in this S. Choose another section or adjust the filters.", "Aucun résultat dans ce S. Choisissez une autre section ou ajustez les filtres.", "Não há resultados neste S. Escolha outra seção ou ajuste os filtros.", "이 S에는 결과가 없습니다. 다른 분류를 선택하거나 필터를 조정하세요.", "此S没有匹配项，请选择其他类别或调整筛选条件。"],
+  clearDate:["Quitar filtro de fecha", "Remove date filter", "Retirer le filtre de date", "Remover filtro de data", "날짜 필터 해제", "移除日期筛选"],
+  pendingReviewsHelp:["Revisiones para hoy y las que quedaron pendientes. No cambia el estado de las acciones.", "Reviews due today and earlier. Action statuses stay unchanged.", "Vérifications prévues aujourd’hui ou en retard. L’état des actions reste inchangé.", "Revisões para hoje e anteriores. O estado das ações permanece igual.", "오늘 또는 이전 점검일을 포함합니다. 작업 상태는 바뀌지 않습니다.", "包括今天及之前应做的检查，行动状态不变。"],
+  reviewsPending:["Revisiones pendientes", "Reviews due", "Vérifications à faire", "Revisões pendentes", "예정된 점검", "待检查"],
+  overdueQuick:["Vencidas", "Overdue", "En retard", "Vencidas", "기한 초과", "已逾期"],
+  attention:["Atención rápida", "Quick attention", "À traiter", "Atenção rápida", "빠른 확인", "快速关注"],
   filters:['Filtros','Filters','Filtres','Filtros','필터','筛选'],
   search:['Buscar','Search','Rechercher','Buscar','검색','搜索'],
   searchHint:['Acción o responsable','Action or owner','Action ou responsable','Ação ou responsável','작업 또는 담당자','行动或负责人'],
@@ -36,4 +45,16 @@ export function fiveSFiltersCopy(locale:string) {
 }
 export function fiveSFilterText(text:string,values:Record<string,number>) {
   return text.replace(/\{(\w+)\}/g,(_,key:string)=>String(values[key]??''));
+}
+
+/** Plain-language context for empty intersections; this never changes filter values. */
+export function fiveSFilterSummary(filters:FiveSActionFilters,locale:string) {
+  const f=fiveSFiltersCopy(locale),c=fiveSCopy(locale);
+  const dates:Record<FiveSDateFilter,string>={ALL:f.allDates,TODAY:f.today,NEXT_SEVEN:f.nextSeven,OVERDUE:f.overdue,UNDATED:f.undated,CUSTOM:f.custom,REVIEWS:c.reviews,REVIEWS_PENDING:f.reviewsPending};
+  return [
+    filters.search.trim()?`${f.search}: ${filters.search.trim()}`:'',
+    filters.owner!=='ALL'?`${c.owner}: ${filters.owner==='UNASSIGNED'?c.noOwner:filters.owner.replace(/^name:/,'')}`:'',
+    filters.status!=='ALL'?`${c.status}: ${c[filters.status]}`:'',
+    filters.date!=='ALL'?`${f.date}: ${dates[filters.date]}${filters.date==='CUSTOM'?` (${filters.from||'…'} — ${filters.to||'…'})`:''}`:'',
+  ].filter(Boolean).join(' · ');
 }

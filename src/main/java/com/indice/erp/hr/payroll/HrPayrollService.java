@@ -93,6 +93,7 @@ public class HrPayrollService {
     private final ExpenseService expenseService;
     private final HrPayrollAuthorizationService authorizationService;
     private final com.indice.erp.hr.payroll.provider.mx.MexicoPayrollProfileService mexicoProfiles;
+    private final com.indice.erp.hr.payroll.provider.ca.CanadaPayrollProfileService canadaProfiles;
 
     public HrPayrollService(
         JdbcTemplate jdbcTemplate,
@@ -107,7 +108,8 @@ public class HrPayrollService {
         HrIncentivePayrollSupplyService hrIncentivePayrollSupplyService,
         ExpenseService expenseService,
         HrPayrollAuthorizationService authorizationService,
-        com.indice.erp.hr.payroll.provider.mx.MexicoPayrollProfileService mexicoProfiles
+        com.indice.erp.hr.payroll.provider.mx.MexicoPayrollProfileService mexicoProfiles,
+        com.indice.erp.hr.payroll.provider.ca.CanadaPayrollProfileService canadaProfiles
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.hrPayrollScopeAccess = hrPayrollScopeAccess;
@@ -122,6 +124,7 @@ public class HrPayrollService {
         this.expenseService = expenseService;
         this.authorizationService = authorizationService;
         this.mexicoProfiles = mexicoProfiles;
+        this.canadaProfiles = canadaProfiles;
     }
 
     /** Pure reads for delegation: no preference creation or payment reconciliation. */
@@ -150,7 +153,7 @@ public class HrPayrollService {
             if(people.isEmpty())throw new IllegalArgumentException("No eligible employees for this payroll frequency.");
             if(people.size()>500)throw new IllegalArgumentException("Payroll confirmation is limited to 500 employees.");
             var result=new ArrayList<HrPayrollAssistantContracts.Run>();
-            for(var group:groupHrUsers(people,grouping)) {
+            for(var group:groupHrUsers(people,grouping,user.companyId(),start,end)) {
                 var existing=findExistingRun(user.companyId(),grouping,group.groupingKey(),payPeriod,start,end,scope);
                 if(existing!=null){var run=assistantRun(user,existing.id());result.add(new HrPayrollAssistantContracts.Run(run.id(),run.groupingMode(),run.groupingKey(),run.groupingLabel(),run.payPeriod(),run.periodStartDate(),run.periodEndDate(),run.status(),run.employeeCount(),run.totals(),run.lines(),true));continue;}
                 var lines=new ArrayList<HrPayrollAssistantContracts.Line>();
@@ -1213,7 +1216,7 @@ public class HrPayrollService {
             throw new IllegalArgumentException("No hay colaboradores activos configurados para la frecuencia de pago seleccionada.");
         }
 
-        var groupedHrUsers = groupHrUsers(hrUsers, groupingMode);
+        var groupedHrUsers = groupHrUsers(hrUsers, groupingMode,companyId,periodStartDate,normalizedPeriodEndDate);
         var createdRuns = new ArrayList<Map<String, Object>>();
 
         for (var group : groupedHrUsers) {
@@ -1796,8 +1799,9 @@ public class HrPayrollService {
                 FROM payroll_run_lines
                 WHERE company_id = ? AND run_id = ?
                   AND payroll_treatment_snapshot = 'fiscal_payroll'
-                  AND (calculation_source IN ('GENERIC_UNSUPPORTED_COUNTRY', 'MX_REVIEW_REQUIRED')
-                    OR (country_code_snapshot = 'MX' AND JSON_EXTRACT(calculation_inputs_json, '$.countryProfile.metadata.mexicoProfileRevision') IS NULL))
+                  AND (calculation_source IN ('GENERIC_UNSUPPORTED_COUNTRY', 'MX_REVIEW_REQUIRED', 'CA_REVIEW_REQUIRED')
+                    OR (country_code_snapshot = 'MX' AND JSON_EXTRACT(calculation_inputs_json, '$.countryProfile.metadata.mexicoProfileRevision') IS NULL)
+                    OR (country_code_snapshot = 'CA' AND JSON_EXTRACT(calculation_inputs_json, '$.countryProfile.metadata.canadaProfileRevision') IS NULL))
                 """,
             Integer.class,
             companyId,
@@ -1805,7 +1809,7 @@ public class HrPayrollService {
         );
         if (unsupportedFiscalLines != null && unsupportedFiscalLines > 0) {
             throw new IllegalArgumentException(
-                "No se puede aprobar la nómina fiscal: hay países sin motor o líneas de México con datos/reglas pendientes. "
+                "No se puede aprobar la nómina fiscal: hay países sin motor o líneas fiscales con datos/reglas pendientes. "
                     + "Revisa las alertas de cada colaborador y recalcula. La nómina operativa conserva su flujo independiente."
             );
         }
@@ -2447,7 +2451,7 @@ public class HrPayrollService {
         );
     }
 
-    private List<PayrollHrUserGroup> groupHrUsers(List<PayrollHrUserRow> users, String groupingMode) {
+    private List<PayrollHrUserGroup> groupHrUsers(List<PayrollHrUserRow> users, String groupingMode,long companyId,LocalDate start,LocalDate end) {
         var grouped = new LinkedHashMap<String, List<PayrollHrUserRow>>();
         var labels = new LinkedHashMap<String, String>();
 
@@ -2474,6 +2478,11 @@ public class HrPayrollService {
                 country = "UNSPECIFIED";
             }
             var jurisdiction = resolvePayrollJurisdictionCode(country, hrUser.stateProvince());
+            if ("CA".equals(country) && includeInFiscalForTreatment(normalizePayrollTreatment(hrUser.payrollTreatment()))) {
+                var metadata = canadaProfiles.calculationMetadata(companyId,hrUser.id(),start,end);
+                if (metadata.get("canadaProfile") instanceof Map<?,?> profile)
+                    jurisdiction=String.valueOf(profile.get("provinceOfEmployment"));
+            }
             if (jurisdiction.isBlank()) {
                 jurisdiction = country;
             }
@@ -2638,13 +2647,16 @@ public class HrPayrollService {
         var nativeCurrency = resolveCurrencyCode(country);
         var fiscalFrequency = resolveFiscalPayrollFrequency(country, user.payPeriod());
         var countryProfile = loadCountryPayrollProfile(companyId, user.id(), country, periodStartDate, periodEndDate);
+        if (includeInFiscal && "CA".equals(country) && countryProfile.metadata().get("canadaProfile") instanceof Map<?,?> ca)
+            jurisdiction=String.valueOf(ca.get("provinceOfEmployment"));
         var fiscalAccumulator = payrollFiscalAccumulatorService.loadSnapshot(
             companyId,
             user.id(),
             country,
             periodStartDate,
             periodEndDate,
-            runId
+            runId,
+            countryProfile
         );
         var incentiveAdjustments = hrIncentivePayrollSupplyService.loadApprovedAdjustments(
             companyId,
@@ -2699,20 +2711,23 @@ public class HrPayrollService {
             run.periodEndDate()
         );
         // Approval reuses the profile reviewed in the draft. Explicit recalculation refreshes it.
-        if ("MX".equals(resolvedCountry) && !refreshAttendance
+        if (Set.of("MX","CA").contains(resolvedCountry) && !refreshAttendance
             && line.calculationInputs().get("countryProfile") instanceof Map<?, ?> storedProfile
             && storedProfile.get("metadata") instanceof Map<?, ?> storedMetadata) {
             var frozenMetadata = new LinkedHashMap<String, Object>();
             storedMetadata.forEach((key, value) -> frozenMetadata.put(String.valueOf(key), value));
-            countryProfile = PayrollCalculationContext.CountryPayrollProfile.empty("MX").withMetadata(frozenMetadata);
+            countryProfile = PayrollCalculationContext.CountryPayrollProfile.empty(resolvedCountry).withMetadata(frozenMetadata);
         }
+        if (includeInFiscalForTreatment(payrollTreatment) && "CA".equals(resolvedCountry) && countryProfile.metadata().get("canadaProfile") instanceof Map<?,?> ca)
+            resolvedJurisdiction=String.valueOf(ca.get("provinceOfEmployment"));
         var fiscalAccumulator = payrollFiscalAccumulatorService.loadSnapshot(
             line.companyId(),
             line.userCompanyId(),
             resolvedCountry,
             run.periodStartDate(),
             run.periodEndDate(),
-            run.id()
+            run.id(),
+            countryProfile
         );
         var context = new PayrollCalculationContext(
             line.companyId(),
@@ -3292,6 +3307,10 @@ public class HrPayrollService {
         LocalDate periodEndDate
     ) {
         var normalizedCountry = payrollRuleResolver.normalizeCountry(country);
+        if ("CA".equals(normalizedCountry)) {
+            return PayrollCalculationContext.CountryPayrollProfile.empty("CA").withMetadata(
+                canadaProfiles.calculationMetadata(companyId,userCompanyId,periodStartDate,periodEndDate));
+        }
         if ("MX".equals(normalizedCountry)) {
             return PayrollCalculationContext.CountryPayrollProfile.empty("MX").withMetadata(
                 mexicoProfiles.calculationMetadata(companyId, userCompanyId, periodStartDate, periodEndDate));
@@ -4380,14 +4399,15 @@ public class HrPayrollService {
         var unsupportedCountryCount = unsupportedCountryLineCount(run.companyId(), run.id(), scope);
         var reviewParams = new ArrayList<Object>(List.of(run.companyId(), run.id()));
         reviewParams.addAll(hrPayrollScopeAccess.runLineParameters(scope));
-        var mexicoReviewCount = jdbcTemplate.queryForObject("""
+        var countryProfileReviewCount = jdbcTemplate.queryForObject("""
             SELECT COUNT(*) FROM payroll_run_lines l WHERE l.company_id=? AND l.run_id=?
               AND l.payroll_treatment_snapshot='fiscal_payroll'
-              AND l.country_code_snapshot='MX'
-              AND (l.calculation_source='MX_REVIEW_REQUIRED'
-                OR JSON_EXTRACT(l.calculation_inputs_json, '$.countryProfile.metadata.mexicoProfileRevision') IS NULL)
+              AND ((l.country_code_snapshot='MX' AND (l.calculation_source='MX_REVIEW_REQUIRED'
+                OR JSON_EXTRACT(l.calculation_inputs_json, '$.countryProfile.metadata.mexicoProfileRevision') IS NULL))
+                OR (l.country_code_snapshot='CA' AND (l.calculation_source='CA_REVIEW_REQUIRED'
+                OR JSON_EXTRACT(l.calculation_inputs_json, '$.countryProfile.metadata.canadaProfileRevision') IS NULL)))
             """ + hrPayrollScopeAccess.runLinePredicate(scope, "l"), Integer.class, reviewParams.toArray());
-        var fiscalReviewCount = unsupportedCountryCount + (mexicoReviewCount == null ? 0 : mexicoReviewCount);
+        var fiscalReviewCount = unsupportedCountryCount + (countryProfileReviewCount == null ? 0 : countryProfileReviewCount);
 
         var body = new LinkedHashMap<String, Object>();
         body.put("id", run.id());
@@ -4552,8 +4572,8 @@ public class HrPayrollService {
         if ("CA".equals(normalizedCountry)) {
             return switch (normalizedProvince.replace(".", "").replace("_", " ").replace("-", " ")) {
                 case "QUEBEC", "QUÉBEC", "PQ" -> "QC";
-                case "" -> "ON";
-                default -> normalizedProvince.length() == 2 ? normalizedProvince : "ON";
+                case "" -> "";
+                default -> com.indice.erp.hr.payroll.provider.ca.CanadaPayrollProfile.PROVINCES.contains(normalizedProvince) ? normalizedProvince : "";
             };
         }
         if ("US".equals(normalizedCountry)) {
@@ -4750,6 +4770,11 @@ public class HrPayrollService {
     }
 
     private boolean lineStatutoryCompliance(PayrollRunLineRow line) {
+        if (line.includeInFiscal() && "CA".equals(line.countryCodeSnapshot())
+            && ("CA_REVIEW_REQUIRED".equals(line.calculationSource())
+                || !(line.calculationInputs().get("countryProfile") instanceof Map<?,?> caProfile)
+                || !(caProfile.get("metadata") instanceof Map<?,?> caMetadata)
+                || !caMetadata.containsKey("canadaProfileRevision"))) return false;
         if (line.includeInFiscal() && "MX".equals(line.countryCodeSnapshot())
             && ("MX_REVIEW_REQUIRED".equals(line.calculationSource())
                 || !(line.calculationInputs().get("countryProfile") instanceof Map<?, ?> profile)

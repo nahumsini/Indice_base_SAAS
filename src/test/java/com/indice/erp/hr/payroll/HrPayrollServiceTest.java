@@ -691,7 +691,8 @@ class HrPayrollServiceTest {
             new HrIncentivePayrollSupplyService(jdbcTemplate),
             mock(ExpenseService.class),
             new HrPayrollAuthorizationService(),
-            mock(com.indice.erp.hr.payroll.provider.mx.MexicoPayrollProfileService.class)
+            mock(com.indice.erp.hr.payroll.provider.mx.MexicoPayrollProfileService.class),
+            mock(com.indice.erp.hr.payroll.provider.ca.CanadaPayrollProfileService.class)
         );
     }
 

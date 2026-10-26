@@ -13,7 +13,9 @@ import {FiveSActionCard} from './FiveSActionCard';
 import {FiveSProgressDialog} from './FiveSProgressDialog';
 import {FiveSFilters} from './FiveSFilters';
 import {defaultFiveSFilters,filterFiveSActions,fiveSOwnerValue,fiveSProgress,hasFiveSFilters,type FiveSActionFilters} from './fiveSFiltersModel';
-import {fiveSFiltersCopy} from './fiveSFiltersCopy';
+import {fiveSFiltersCopy,fiveSFilterSummary} from './fiveSFiltersCopy';
+import {fiveSWizardCopy} from './fiveSWizardCopy';
+import {IndiceWorkspaceNavigation} from '../../components/frontend-os/IndiceWorkspaceNavigation';
 import './fiveSWorkspace.css';
 
 export function FiveSLauncher({context,locale,onOpen,create=false}:{context:BoardFileContext;locale:string;onOpen:()=>void;create?:boolean}){
@@ -25,7 +27,7 @@ export function FiveSLauncher({context,locale,onOpen,create=false}:{context:Boar
 }
 
 export function FiveSWorkspace({context,locale}:{context:BoardFileContext;locale:string}){
- const c=fiveSCopy(locale),snapshot=context.capture(),content=snapshot.content,templates=fiveSTemplates(content),[chosen,setChosen]=useState(''),[section,setSection]=useState<FiveSSection>('SORT');
+ const c=fiveSCopy(locale),w=fiveSWizardCopy(locale),snapshot=context.capture(),content=snapshot.content,templates=fiveSTemplates(content),[chosen,setChosen]=useState(''),[section,setSection]=useState<FiveSSection>('SORT');
  const [filterState,setFilterState]=useState({templateId:'',values:{...defaultFiveSFilters}});
  const [editing,setEditing]=useState<{expected:BoardFileSnapshot;node:IdeaNode}|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),latched=useRef(false);
  const [verifying,setVerifying]=useState<{expected:BoardFileSnapshot;node:IdeaNode}|null>(null),[progressError,setProgressError]=useState<{id:string;message:string}|null>(null);
@@ -66,13 +68,15 @@ export function FiveSWorkspace({context,locale}:{context:BoardFileContext;locale
   latched.current=false;return success;
  }
  return <div className="five-s-workspace" data-five-s-workspace>
-  <div className="five-s-workspace-heading"><div><span className="five-s-eyebrow">🧹 5S</span><h3>{c.title}</h3><p>{c.intro}</p></div></div>
+  {!templates.length&&<div className="five-s-workspace-heading"><div><span className="five-s-eyebrow">🧹 5S</span><h3>{c.title}</h3><p>{c.intro}</p></div></div>}
   {!templates.length?<div className="five-s-start"><span className="five-s-start-icon" aria-hidden="true">🧹</span><h4>{c.emptyTitle}</h4><p>{c.emptyHint}</p><FiveSLauncher create context={context} locale={locale} onOpen={()=>setChosen('')}/><ol>{fiveSSections.map((s,index)=><li key={s}><span aria-hidden="true">{fiveSEmoji[s]}</span><span><strong>{index+1}. {c[s]}</strong><small>{c[`${s}Help`]}</small></span></li>)}</ol></div>:<>
   <div className="five-s-workspace-controls"><label className="workspace-field"><span>{c.area}</span><select value={template?.templateId??''} onChange={e=>{setChosen(e.target.value);setFilterState({templateId:e.target.value,values:{...defaultFiveSFilters}});setSection('SORT');}}>{templates.map(n=><option key={n.fiveS!.templateId} value={n.fiveS!.templateId}>{n.fiveS!.area}</option>)}</select></label><FiveSLauncher create context={context} locale={locale} onOpen={()=>setChosen('')}/></div>
   <FiveSFilters actions={actions} filters={filters} locale={locale} visibleCount={visible.length} progress={progress} onChange={changeFilters}/>
-  {filtered&&!visible.length&&<div className="five-s-filter-empty"><h4>{fc.empty}</h4><p>{fc.emptyHelp}</p><button type="button" className="idea-board-button" onClick={()=>changeFilters({...defaultFiveSFilters})}>{fc.clear}</button></div>}
-  {(!filtered||visible.length>0)&&<><label className="workspace-field five-s-mobile-selector"><span>{c.section}</span><select value={section} onChange={e=>setSection(e.target.value as FiveSSection)}>{fiveSSections.map(s=><option key={s} value={s}>{fiveSEmoji[s]} {c[s]} ({visible.filter(n=>n.fiveS!.section===s).length})</option>)}</select></label>
-  <div className="five-s-columns">{fiveSSections.map((s,index)=>{const rows=visible.filter(n=>n.fiveS!.section===s);return <section key={s} className="five-s-column" data-section={s} data-selected={s===section}><header><span className="five-s-section-emoji" aria-hidden="true">{fiveSEmoji[s]}</span><div><span>{index+1} · {['Seiri','Seiton','Seiso','Seiketsu','Shitsuke'][index]}</span><h4>{c[s]}</h4></div><span className="five-s-count">{rows.length}</span></header><p>{c[`${s}Help`]}</p><button type="button" className="idea-board-button five-s-add" disabled={!context.ready||!template} onClick={()=>add(s)}><Plus size={16}/>{c.add}</button><div className="five-s-action-list">{rows.map(n=><FiveSActionCard key={n.id} node={n} locale={locale} disabled={!context.ready} error={progressError?.id===n.id?progressError.message:undefined} onEdit={()=>edit(n)} onProgress={()=>updateProgress(n)}/>)}{!rows.length&&<p className="five-s-empty">{filtered?c.noMatches:c.noActions}</p>}</div></section>;})}</div>
+  <div className="five-s-section-navigation"><IndiceWorkspaceNavigation<FiveSSection> variant="workbar" tone="coral" moduleId="ideas_board" ariaLabel={c.section} value={section} onValueChange={setSection}
+   items={fiveSSections.map(s=>({id:s,label:`${w[`${s}Step`]} · ${visible.filter(n=>n.fiveS!.section===s).length}`,icon:<span>{fiveSEmoji[s]}</span>,description:c[s]}))}/></div>
+  {filtered&&!visible.length&&<div className="five-s-filter-empty"><h4>{fc.empty}</h4><p>{fc.emptyHelp}</p><p className="five-s-empty-context">{fc.activeFilters}: {fiveSFilterSummary(filters,locale)}</p><div className="five-s-filter-empty-actions">{filters.date!=='ALL'&&<button type="button" className="idea-board-button" onClick={()=>changeFilters({...filters,date:'ALL',from:'',to:''})}>{fc.clearDate}</button>}<button type="button" className="idea-board-button" onClick={()=>changeFilters({...defaultFiveSFilters})}>{fc.clear}</button></div></div>}
+  {(!filtered||visible.length>0)&&<>
+  <div className="five-s-columns">{fiveSSections.map((s,index)=>{const rows=visible.filter(n=>n.fiveS!.section===s);return <section key={s} className="five-s-column" data-section={s} data-selected={s===section}><header><span className="five-s-section-emoji" aria-hidden="true">{fiveSEmoji[s]}</span><div><span>{index+1} · {['Seiri','Seiton','Seiso','Seiketsu','Shitsuke'][index]}</span><h4>{c[s]}</h4></div><span className="five-s-count">{rows.length}</span></header><p>{c[`${s}Help`]}</p><button type="button" className="idea-board-button five-s-add" disabled={!context.ready||!template} onClick={()=>add(s)}><Plus size={16}/>{c.add}</button><div className="five-s-action-list">{rows.map(n=><FiveSActionCard key={n.id} node={n} locale={locale} disabled={!context.ready} error={progressError?.id===n.id?progressError.message:undefined} onEdit={()=>edit(n)} onProgress={()=>updateProgress(n)}/>)}{!rows.length&&<p className="five-s-empty">{filtered?fc.sectionEmpty:c.noActions}</p>}</div></section>;})}</div>
   </>}
   </>}
   {verifying&&<FiveSProgressDialog node={verifying.node} locale={locale} ready={context.ready} onClose={()=>setVerifying(null)} onConfirm={verify}/>}

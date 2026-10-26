@@ -2,7 +2,7 @@ import type {IdeaNode, FiveSMetadata} from '../../BasicModules/Sales/Funneling/i
 import {localDateKey, matchesFiveS} from './fiveSModel';
 
 export type FiveSStatus = NonNullable<FiveSMetadata['status']>;
-export type FiveSDateFilter = 'ALL' | 'TODAY' | 'NEXT_SEVEN' | 'OVERDUE' | 'UNDATED' | 'CUSTOM' | 'REVIEWS';
+export type FiveSDateFilter = 'ALL' | 'TODAY' | 'NEXT_SEVEN' | 'OVERDUE' | 'UNDATED' | 'CUSTOM' | 'REVIEWS' | 'REVIEWS_PENDING';
 export type FiveSActionFilters = {
   search: string;
   owner: string;
@@ -43,6 +43,7 @@ export function filterFiveSActions(actions: IdeaNode[], filters: FiveSActionFilt
       case 'NEXT_SEVEN': return !!f.dueDate && f.dueDate >= today && f.dueDate <= lastDay;
       case 'OVERDUE': return matchesFiveS(node,'OVERDUE',today);
       case 'UNDATED': return !f.dueDate;
+      case 'REVIEWS_PENDING': return !!f.reviewDate && f.reviewDate <= today;
       case 'REVIEWS': return matchesFiveS(node,'REVIEWS',today);
       case 'CUSTOM': return !!f.dueDate && (!filters.from || f.dueDate >= filters.from) && (!filters.to || f.dueDate <= filters.to);
       default: return true;
@@ -55,4 +56,13 @@ export function fiveSProgress(actions: IdeaNode[], filters: FiveSActionFilters, 
   const counts = {PENDING:0,IN_PROGRESS:0,VERIFIED:0};
   base.forEach(node => counts[node.fiveS?.status ?? 'PENDING']++);
   return {total:base.length, counts, percent:base.length ? Math.round(counts.VERIFIED/base.length*100) : 0};
+}
+
+/** Attention counts preserve search/owner/status but replace the current date scope. */
+export function fiveSAttentionCounts(actions:IdeaNode[],filters:FiveSActionFilters,today=localDateKey()) {
+  const base={...filters,from:'',to:''};
+  return {
+    overdue:filterFiveSActions(actions,{...base,date:'OVERDUE'},today).length,
+    reviews:filterFiveSActions(actions,{...base,date:'REVIEWS_PENDING'},today).length,
+  };
 }

@@ -56,7 +56,7 @@ test('readonly views never expose file inputs and an unmounted field ignores lat
 test('a single action description prepares a valid card while optional sections remain closed',()=>{
  const h=fieldsHarness(false,{empty:true}),top=h.runtime.result.props.children;
  const main=elements(top[0]);assert.equal(main.filter(e=>e.type==='textarea').length,1);assert.equal(main.filter(e=>e.type==='input').length,2);
- const disclosures=elements(h.runtime.result).filter(e=>e.type==='details');assert.equal(disclosures.length,2);assert.ok(disclosures.every(e=>!e.props.open));
+ const disclosures=elements(h.runtime.result).filter(e=>e.type==='details');assert.equal(disclosures.length,3);assert.ok(disclosures.every(e=>!e.props.open));
  const answer='Etiquetar las carpetas para encontrar cada documento.';
  main.find(e=>e.type==='textarea').props.onChange({target:{value:answer}});h.render();
  assert.equal(h.node.text,answer);assert.equal(h.node.fiveS.action,answer);assert.equal(h.node.fiveS.owner,'');assert.ok(model.validFiveSAction(h.node));
@@ -92,4 +92,12 @@ test('invalid evidence never uploads, and changing action identity ignores a lat
  const h=fieldsHarness();for(const file of [{type:'text/plain',size:10,name:'bad.txt'},{type:'image/png',size:0,name:'empty.png'},{type:'image/webp',size:5*1024*1024+1,name:'large.webp'}]){evidence(h).onUpload(file,'afterAssetId');h.render();assert.equal(evidence(h).error.key,'afterAssetId');}
  assert.equal(h.requests.length,0);evidence(h).onUpload({type:'image/png',size:10,name:'before.png'},'beforeAssetId');
  const other={...h.node,id:crypto.randomUUID()};h.setNode(other);h.requests[0].resolve({id:'late-private-photo'});await h.runtime.flush();h.render();assert.equal(h.changes.length,0);assert.equal(h.node.fiveS.beforeAssetId,undefined);h.runtime.unmount();
+});
+
+test('each category offers the same distinct question in the wizard and action form in every language',()=>{
+ const copy=load(new URL('ComplementaryModules/IdeasBoard/fiveSCopy.ts',base).pathname),wizard=load(new URL('ComplementaryModules/IdeasBoard/fiveSWizardCopy.ts',base).pathname);
+ for(const locale of ['es-MX','en-CA','fr-CA','pt-BR','ko-CA','zh-CA']){
+  const c=copy.fiveSCopy(locale),w=wizard.fiveSWizardCopy(locale);assert.equal(new Set(model.fiveSSections.map(s=>c[s+'Help'])).size,5);
+  for(const section of model.fiveSSections){assert.equal(c[section+'Help'],w[section+'Question']);assert.ok(c[section+'Example'].trim());}
+ }
 });

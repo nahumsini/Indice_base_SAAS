@@ -49,7 +49,7 @@ interface JobStepFieldsProps {
   filteredBusinessOptions: OrganizationOption[];
   formData: EmployeeFormData;
   isCreateMode: boolean;
-  mexicoPayrollProfile?: ReactNode;
+  fiscalPayrollProfile?: ReactNode;
   onAddCustomJobOption: (kind: CustomJobOptionKind, value: string) => boolean;
   onFieldChange: EmployeeFormFieldChangeHandler;
   positionOptions: string[];
@@ -69,7 +69,7 @@ export function JobStepFields({
   filteredBusinessOptions,
   formData,
   isCreateMode,
-  mexicoPayrollProfile,
+  fiscalPayrollProfile,
   onAddCustomJobOption,
   onFieldChange,
   positionOptions,
@@ -106,7 +106,7 @@ export function JobStepFields({
         contract: copy.groups.contract,
       }}
       fields={{
-        mexicoPayrollProfile,
+        fiscalPayrollProfile,
         department: (
           <CreatableOptionField
             copy={copy.creatableOptions}

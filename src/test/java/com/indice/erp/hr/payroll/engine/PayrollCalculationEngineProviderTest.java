@@ -28,7 +28,7 @@ class PayrollCalculationEngineProviderTest {
         var engine = engine(resolver);
 
         assertProviderResult(engine.calculateLine(context("MX", "MX", "MXN", "semimonthly", "10000.00")), "payroll_calculation_engine:mx", "IMSS_EMP");
-        assertProviderResult(engine.calculateLine(context("CA", "ON", "CAD", "biweekly", "1800.00")), "payroll_calculation_engine:ca", "CPP");
+        assertFalse(engine.calculateLine(context("CA", "ON", "CAD", "biweekly", "1800.00")).statutoryCompliance());
         assertProviderResult(engine.calculateLine(context("US", "CA", "USD", "biweekly", "1000.00")), "payroll_calculation_engine:us", "US_SS_EMP");
         assertProviderResult(engine.calculateLine(context("BR", "BR", "BRL", "semimonthly", "5000.00")), "payroll_calculation_engine:br", "BR_INSS_EMP");
         assertProviderResult(
@@ -244,19 +244,11 @@ class PayrollCalculationEngineProviderTest {
     }
 
     @Test
-    void canadaGoldenOntarioBiweeklySalaryCalculatesCppEiTaxAndVacationAccrual() {
-        var result = engine(new FakePayrollRuleResolver()).calculateLine(
-            context("CA", "ON", "CAD", "biweekly", "1800.00")
-        );
-
-        assertTotals(result, "1800.00", "398.43", "212.17", "1401.57", "2012.17");
-        assertLineAmount(result, "CAN_FED_TAX", "180.00");
-        assertLineAmount(result, "CAN_PROV_TAX", "90.00");
-        assertLineAmount(result, "CPP", "99.09");
-        assertLineBase(result, "CPP", "1665.38");
-        assertLineAmount(result, "EI", "29.34");
-        assertLineAmount(result, "EMPLOYER_EI", "41.08");
-        assertLineAmount(result, "EMPLOYER_VACATION_ACCRUAL", "72.00");
+    void canadaWithoutEmployeeDeclarationsRequiresReviewInsteadOfUsingGenericCredits() {
+        var result = engine(new FakePayrollRuleResolver()).calculateLine(context("CA", "ON", "CAD", "biweekly", "1800.00"));
+        assertFalse(result.statutoryCompliance());
+        assertEquals("CA_REVIEW_REQUIRED",result.calculationSource());
+        assertNoLineItem(result,"CPP");
     }
 
     @Test
@@ -348,26 +340,10 @@ class PayrollCalculationEngineProviderTest {
     }
 
     @Test
-    void canadaEiUsesOnlyRemainingAnnualInsurableEarningsFromYtdAccumulator() {
-        var result = engine(new FakePayrollRuleResolver()).calculateLine(
-            context(
-                "CA",
-                "ON",
-                "CAD",
-                "biweekly",
-                "1000.00",
-                PayrollCalculationContext.CountryPayrollProfile.empty("CA"),
-                fiscalAccumulator("CA", "68800.00")
-            )
-        );
-
-        var ei = result.items().stream()
-            .filter((item) -> "EI".equals(item.code()))
-            .findFirst()
-            .orElseThrow();
-
-        assertEquals(0, new BigDecimal("100.00").compareTo(ei.calculationBase()));
-        assertEquals(0, new BigDecimal("1.63").compareTo(ei.amount()));
+    void canadaGrossYtdAloneCannotAuthorizeStatutoryCalculationWithoutDeclarations() {
+        var result=engine(new FakePayrollRuleResolver()).calculateLine(context("CA","ON","CAD","biweekly","1000.00",
+            PayrollCalculationContext.CountryPayrollProfile.empty("CA"),fiscalAccumulator("CA","68800.00")));
+        assertFalse(result.statutoryCompliance()); assertNoLineItem(result,"EI");
     }
 
     @Test

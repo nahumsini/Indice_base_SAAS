@@ -26,7 +26,7 @@ interface JobStepProps {
     payrollTreatment: ReactNode;
     compensationAmount: ReactNode;
     payPeriod: ReactNode;
-    mexicoPayrollProfile?: ReactNode;
+    fiscalPayrollProfile?: ReactNode;
     contractType: ReactNode;
     contractDates?: ReactNode;
   };
@@ -59,7 +59,7 @@ export function JobStep({ title, description, groups, fields }: JobStepProps) {
           {fields.compensationAmount}
           {fields.payPeriod}
         </FieldGroup>
-        {fields.mexicoPayrollProfile}
+        {fields.fiscalPayrollProfile}
         <FieldGroup title={groups.contract}>
           {fields.contractType}
           {fields.contractDates}

@@ -11,6 +11,7 @@ function harness({seed=false}={}){
  if(seed){const node=model.newFiveSAction(content,content.nodes[0].fiveS,'SORT');node.text='Ordenar carpetas';node.fiveS={...node.fiveS,action:'Ordenar carpetas',owner:'Equipo de oficina',dueDate:'2026-11-02',details:'Conservar contratos',beforeAssetId:'private-before'};content.nodes.push(node);}
  const context={active:true,ready:true,capture:()=>({actor:'ideas_board:7:9',content:structuredClone(content)}),replace:(expected,next)=>{writes.push({expected,next});if(JSON.stringify(content)!==JSON.stringify(expected.content))return false;content=structuredClone(next);return true;},notify:()=>{}};
  const {FiveSWorkspace}=loadTypescript(file('ComplementaryModules/IdeasBoard/FiveSWorkspace.tsx'),id=>{
+  if(id.endsWith('/IndiceWorkspaceNavigation'))return{IndiceWorkspaceNavigation:'navigation'};if(id==='./fiveSWizardCopy')return load(file('ComplementaryModules/IdeasBoard/fiveSWizardCopy.ts'));
   if(id==='react')return runtime.hooks;if(id==='react/jsx-runtime')return require(id);if(id==='lucide-react')return {Plus:'plus',Pencil:'pencil',ChevronRight:'chevron'};
   if(id==='../../components/indice-modal')return{IndiceModalFrame:'frame'};if(id==='../../components/ui/button')return{Button:'button'};
   if(id==='./fiveSFiltersModel')return load(file('ComplementaryModules/IdeasBoard/fiveSFiltersModel.ts'));if(id==='./fiveSFiltersCopy')return load(file('ComplementaryModules/IdeasBoard/fiveSFiltersCopy.ts'));if(id==='./FiveSFilters')return{FiveSFilters:'filters'};
@@ -84,4 +85,14 @@ test('quick progress refreshes a status-filtered view and retains the genuine de
  const h=harness({seed:true});filtersView(h).props.onChange({...filterModel.defaultFiveSFilters,status:'PENDING'});h.render();
  h.cards()[0].props.onProgress();h.render();assert.equal(h.cards().length,0);assert.equal(filtersView(h).props.progress.total,1);assert.equal(filtersView(h).props.progress.counts.IN_PROGRESS,1);
  assert.equal(filtersView(h).props.progress.percent,0);assert.equal(h.writes.length,1);h.runtime.unmount();
+});
+
+const sectionNav=h=>elements(h.runtime.result).find(n=>n.type==='navigation');
+test('native mobile sections preserve filters, retain zero-result sections and never write board content',()=>{
+ const h=harness({seed:true});filtersView(h).props.onChange({...filterModel.defaultFiveSFilters,search:'carpetas',status:'PENDING'});h.render();assert.equal(sectionNav(h).props.variant,'workbar');assert.equal(sectionNav(h).props.items.length,5);
+ sectionNav(h).props.onValueChange('CLEAN');h.render();assert.equal(sectionNav(h).props.value,'CLEAN');assert.equal(filtersView(h).props.filters.search,'carpetas');assert.equal(filtersView(h).props.filters.status,'PENDING');assert.ok(sectionNav(h).props.items.find(n=>n.id==='CLEAN').label.endsWith('0'));
+ filtersView(h).props.onChange({...filtersView(h).props.filters,search:'nothing matches'});h.render();assert.ok(sectionNav(h));assert.equal(sectionNav(h).props.items.length,5);assert.equal(h.writes.length,0);h.runtime.unmount();
+});
+test('removing only the date filter preserves search, owner and status and reveals the matching S',()=>{
+ const h=harness({seed:true});filtersView(h).props.onChange({...filterModel.defaultFiveSFilters,search:'carpetas',owner:'name:Equipo de oficina',status:'PENDING',date:'REVIEWS_PENDING'});h.render();assert.equal(h.cards().length,0);h.click('Quitar filtro de fecha');assert.equal(filtersView(h).props.filters.date,'ALL');assert.equal(filtersView(h).props.filters.search,'carpetas');assert.equal(filtersView(h).props.filters.owner,'name:Equipo de oficina');assert.equal(filtersView(h).props.filters.status,'PENDING');assert.equal(h.cards().length,1);assert.equal(h.writes.length,0);h.runtime.unmount();
 });

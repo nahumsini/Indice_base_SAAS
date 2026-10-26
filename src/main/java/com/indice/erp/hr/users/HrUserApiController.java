@@ -176,7 +176,8 @@ public class HrUserApiController {
         try {
             var result = employeePayrollUpdates.update(user.get(), userCompanyId, payload);
             return ResponseEntity.ok(result.get("user"));
-        } catch (com.indice.erp.hr.payroll.provider.mx.MexicoPayrollProfileService.ProfileConflictException ex) {
+        } catch (com.indice.erp.hr.payroll.provider.mx.MexicoPayrollProfileService.ProfileConflictException
+            | com.indice.erp.hr.payroll.provider.ca.CanadaPayrollProfileService.ProfileConflictException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
         } catch (HrAccessDeniedException ex) {
             return forbidden();

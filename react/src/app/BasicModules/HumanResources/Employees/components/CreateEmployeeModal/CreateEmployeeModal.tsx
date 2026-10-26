@@ -19,6 +19,9 @@ import { ContactStepFields } from './steps/ContactStepFields';
 import { DocumentsStepFields } from './steps/DocumentsStepFields';
 import { JobStepFields } from './steps/JobStepFields';
 
+import { useEmployeeCanadaPayrollProfile } from './hooks/useEmployeeCanadaPayrollProfile';
+import { EmployeeCanadaPayrollSection } from './steps/EmployeeCanadaPayrollSection';
+import { canadaPayrollProfileCopy } from '../../../Payroll/components/canadaPayrollProfileCopy';
 import { useEmployeeMexicoPayrollProfile } from './hooks/useEmployeeMexicoPayrollProfile';
 import { EmployeeMexicoPayrollSection } from './steps/EmployeeMexicoPayrollSection';
 import { mexicoPayrollProfileCopy } from '../../../Payroll/components/mexicoPayrollProfileCopy';
@@ -127,7 +130,15 @@ export function CreateEmployeeModal({
     && formData.payrollTreatment === 'fiscal_payroll';
   const mexicoDraft = useEmployeeMexicoPayrollProfile({ employeeId: initialData?.employeeId, isOpen, eligible: mexicoEligible });
   const mexicoCopy = mexicoPayrollProfileCopy(currentLanguage.code);
-  const validateMexicoDraft = () => {
+  const canadaEligible = !isCreateMode && formData.registrationCountry?.trim().toUpperCase() === 'CA'
+    && formData.payrollTreatment === 'fiscal_payroll';
+  const canadaDraft = useEmployeeCanadaPayrollProfile({ employeeId: initialData?.employeeId, isOpen, eligible: canadaEligible, frequency: formData.payPeriod });
+  const canadaCopy = canadaPayrollProfileCopy(currentLanguage.code);
+  const validateFiscalDraft = () => {
+    if (!canadaDraft.valid()) {
+      setCurrentStep(3); setSubmitError(canadaCopy.incomplete);
+      window.requestAnimationFrame(canadaDraft.focusInvalid); return false;
+    }
     if (mexicoDraft.valid()) return true;
     setCurrentStep(3);
     setSubmitError(mexicoCopy.embeddedIncomplete);
@@ -203,7 +214,7 @@ export function CreateEmployeeModal({
       return;
     }
 
-    if (currentStep >= 3 && !validateMexicoDraft()) return;
+    if (currentStep >= 3 && !validateFiscalDraft()) return;
 
     persistCurrentJobOptions(nextFormData, {
       allPositionOptions,
@@ -222,7 +233,7 @@ export function CreateEmployeeModal({
     savingRef.current = true;
     setIsSaving(true);
     try {
-      await Promise.resolve(onSave({ ...nextFormData, mexicoPayrollProfile: mexicoDraft.saveRequest() }));
+      await Promise.resolve(onSave({ ...nextFormData, mexicoPayrollProfile: mexicoDraft.saveRequest(), canadaPayrollProfile: canadaDraft.saveRequest() }));
       savingRef.current = false;
       handleClose();
     } catch (error) {
@@ -238,11 +249,11 @@ export function CreateEmployeeModal({
   }
 
   if (discardFiscalDraft) return <IndiceModalFrame open modalType="confirmation" tone="aqua"
-    title={mexicoCopy.discard} description={mexicoCopy.title} icon={<User className="h-5 w-5" />}
+    title={mexicoCopy.discard} description={canadaDraft.dirty ? canadaCopy.title : mexicoCopy.title} icon={<User className="h-5 w-5" />}
     closeLabel={mexicoCopy.keep} onOpenChange={open => { if (!open) setDiscardFiscalDraft(false); }}
     footerLeading={<Button variant="outline" onClick={() => setDiscardFiscalDraft(false)}>{mexicoCopy.keep}</Button>}
     footer={<Button data-modal-destructive="true" onClick={() => handleClose()}>{mexicoCopy.leave}</Button>}>
-    <p className="p-5 text-sm">{mexicoCopy.embeddedHelp}</p>
+    <p className="p-5 text-sm">{canadaDraft.dirty ? canadaCopy.help : mexicoCopy.embeddedHelp}</p>
   </IndiceModalFrame>;
 
   const currentStepValid = currentStepFields.every((field) => !validationErrors[field]);
@@ -267,9 +278,9 @@ export function CreateEmployeeModal({
       statusFeedback={statusFeedback}
       steps={modalSteps}
       onBack={() => setCurrentStep((step) => Math.max(1, step - 1))}
-      onClose={() => { if (savingRef.current) return; if (mexicoDraft.dirty) setDiscardFiscalDraft(true); else handleClose(); }}
+      onClose={() => { if (savingRef.current) return; if (mexicoDraft.dirty || canadaDraft.dirty) setDiscardFiscalDraft(true); else handleClose(); }}
       onStepInvalid={markCurrentStepTouched}
-      onStepSelect={step => { if (step > 3 && !validateMexicoDraft()) return; setCurrentStep(step); }}
+      onStepSelect={step => { if (step > 3 && !validateFiscalDraft()) return; setCurrentStep(step); }}
       onSubmit={(event) => {
         event.preventDefault();
         void handleContinue();
@@ -299,7 +310,7 @@ export function CreateEmployeeModal({
 
           <div hidden={currentStep !== 3}>
             <JobStepFields
-              mexicoPayrollProfile={mexicoEligible ? <EmployeeMexicoPayrollSection draft={mexicoDraft} locale={currentLanguage.code} busy={isSaving} /> : undefined}
+              fiscalPayrollProfile={mexicoEligible ? <EmployeeMexicoPayrollSection draft={mexicoDraft} locale={currentLanguage.code} busy={isSaving} /> : canadaEligible ? <EmployeeCanadaPayrollSection draft={canadaDraft} locale={currentLanguage.code} busy={isSaving} /> : undefined}
               copy={copy}
               businessBelongingHelper={businessBelongingHelper}
               businessBelongingHelperTone={businessBelongingHelperTone}

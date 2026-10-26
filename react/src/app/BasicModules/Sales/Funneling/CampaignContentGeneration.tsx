@@ -63,7 +63,7 @@ export function CampaignContentGeneration({ plan, plans, total, locale, copy, gu
           <section aria-label={g.prompt} className="content-generation-panel content-generation-prompt">
             <div className="content-generation-panel-heading"><h3 id={steps[2].id} tabIndex={-1}><span className="content-generation-step-number" aria-hidden="true">3</span>{g.prompt}</h3><FileText size={18} className="content-generation-section-icon" aria-hidden="true" /></div>
             <p className="content-generation-includes"><CheckCircle2 size={15} aria-hidden="true" />{g.promptIncludes}</p>
-            <CampaignPromptTools companyContext={companyContext} presentation="workspace" plan={draft} copy={copy} c={c} locale={locale} />
+            <CampaignPromptTools companyContext={companyContext} presentation="workspace" promptLabel={g.promptLabel} plan={draft} copy={copy} c={c} locale={locale} />
           </section>
           {draft.workshop ? <details className="content-generation-panel content-generation-response"><summary className="min-h-11 cursor-pointer font-medium">{c.response}</summary><label><span className="content-generation-response-title"><span><MessageSquare size={17} aria-hidden="true" />{c.response}</span><span className="content-generation-optional">{g.optional}</span></span><span id={responseHintId} className="content-generation-caption">{c.responseHint}</span><Textarea aria-label={c.response} aria-describedby={responseHintId} placeholder={g.responsePlaceholder} maxLength={20000} rows={4} value={draft.workshop.aiResponse} onChange={event => editor.update({ workshop: { ...draft.workshop!, aiResponse: event.target.value } })} /></label></details> : <p className="content-generation-caption">{g.responseLegacy}</p>}
         </div>

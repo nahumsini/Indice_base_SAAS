@@ -42,6 +42,7 @@ try {
   await page.route('**/api/**',async route=>{
     const req=route.request(),path=new URL(req.url()).pathname;
     if(!path.startsWith('/api/'))return route.continue();
+    if(path==='/api/v1/hr/payroll/canada/profiles/9001') return route.fulfill({json:{revision:0,profile:null,canConfigure:true,history:[]}});
     if(path==='/api/v1/auth/me')return route.fulfill({json:{authenticated:true,user:{id:1,companyId:1,role:'root'}}});
     if(path==='/api/v1/hr/payroll/mexico/profiles/9001'){
       assert.equal(req.method(),'GET','Fiscal writes must be part of the single employee PUT');gets++;

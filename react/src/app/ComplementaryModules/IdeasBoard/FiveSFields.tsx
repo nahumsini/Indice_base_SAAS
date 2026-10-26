@@ -27,20 +27,24 @@ export function FiveSFields({node,onChange,locale,api,actor,onBusyChange,readonl
  }
  return <div className="five-s-fields">
   <div className="five-s-form-grid">
-   <label className="workspace-field five-s-full"><span>{c.action} *</span><textarea autoFocus={!readonly} required rows={3} maxLength={1000} placeholder={c.actionExample} disabled={busy||readonly} value={f.action??''} onChange={e=>changeAction(e.target.value)}/><small>{c.actionHint}</small></label>
+   <label className="workspace-field five-s-full"><span>{c[`${f.section}Help`]} *</span><textarea autoFocus={!readonly} required rows={3} maxLength={1000} placeholder={c[`${f.section}Example`]} disabled={busy||readonly} value={f.action??''} onChange={e=>changeAction(e.target.value)}/><small>{c.actionHint}</small></label>
    <label className="workspace-field"><span>{c.owner} <small>({c.optional})</small></span><input maxLength={120} placeholder={c.ownerHint} disabled={busy||readonly} value={f.owner??''} onChange={e=>change({owner:e.target.value})}/></label>
    <label className="workspace-field"><span>{c.due} <small>({c.optional})</small></span><input type="date" min="1900-01-01" max="9999-12-31" disabled={busy||readonly} value={f.dueDate??''} onChange={e=>change({dueDate:e.target.value||null})}/></label>
   </div>
   <details className="board-editor-details" open={f.status==='VERIFIED'||undefined}>
-   <summary>{c.tracking}<span className="five-s-disclosure-status">{c[f.status??'PENDING']}</span></summary><div className="five-s-detail-fields">
+   <summary>{c.followUp}</summary><div className="five-s-detail-fields">
+    <label className="workspace-field"><span>{c.notes}</span><textarea rows={2} maxLength={1000} disabled={busy||readonly} value={f.details??''} onChange={e=>change({details:e.target.value})}/></label>
+    <label className="workspace-field"><span>{c.result}{f.status==='VERIFIED'?' *':''}</span><textarea rows={2} maxLength={1000} required={f.status==='VERIFIED'} disabled={busy||readonly} value={f.result??''} onChange={e=>change({result:e.target.value})}/><small>{c.verifiedHelp}</small></label>
+    <label className="workspace-field"><span>{c.review}</span><input type="date" disabled={busy||readonly} value={f.reviewDate??''} onChange={e=>change({reviewDate:e.target.value||null})}/></label>
+   </div>
+  </details>
+  <details className="board-editor-details">
+   <summary>{c.editingOptions}<span className="five-s-disclosure-status">{c[f.status??'PENDING']}</span></summary><div className="five-s-detail-fields">
     <div className="five-s-form-grid">
      <label className="workspace-field"><span>{c.section}</span><select disabled={busy||readonly} value={f.section} onChange={e=>change({section:e.target.value as FiveSMetadata['section']})}>{fiveSSections.map(s=><option key={s} value={s}>{c[s]}</option>)}</select></label>
      <label className="workspace-field"><span>{c.status}</span><select disabled={busy||readonly} value={f.status??'PENDING'} onChange={e=>change({status:e.target.value as FiveSMetadata['status']})}>{(['PENDING','IN_PROGRESS','VERIFIED'] as const).map(s=><option key={s} value={s}>{c[s]}</option>)}</select></label>
     </div>
     <label className="workspace-field"><span>{c.cardTitle}</span><input maxLength={180} disabled={busy||readonly} value={node.text} onChange={e=>onChange({...current.current,text:e.target.value||fiveSActionTitle(current.current.fiveS!.action??'')})}/><small>{c.cardTitleHint}</small></label>
-    <label className="workspace-field"><span>{c.notes}</span><textarea rows={2} maxLength={1000} disabled={busy||readonly} value={f.details??''} onChange={e=>change({details:e.target.value})}/></label>
-    <label className="workspace-field"><span>{c.result}{f.status==='VERIFIED'?' *':''}</span><textarea rows={2} maxLength={1000} required={f.status==='VERIFIED'} disabled={busy||readonly} value={f.result??''} onChange={e=>change({result:e.target.value})}/><small>{c.verifiedHelp}</small></label>
-    <label className="workspace-field"><span>{c.review}</span><input type="date" disabled={busy||readonly} value={f.reviewDate??''} onChange={e=>change({reviewDate:e.target.value||null})}/></label>
    </div>
   </details>
   <details className="board-editor-details"><summary>{c.evidence}{(f.beforeAssetId||f.afterAssetId)&&<span className="five-s-disclosure-status">{Number(!!f.beforeAssetId)+Number(!!f.afterAssetId)} / 2</span>}</summary>

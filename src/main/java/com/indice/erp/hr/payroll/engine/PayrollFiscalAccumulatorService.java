@@ -30,12 +30,20 @@ public class PayrollFiscalAccumulatorService {
         LocalDate periodEndDate,
         Long currentRunId
     ) {
+        return loadSnapshot(companyId,userCompanyId,country,periodStartDate,periodEndDate,currentRunId,
+            PayrollCalculationContext.CountryPayrollProfile.empty(country));
+    }
+
+    public PayrollCalculationContext.FiscalAccumulatorSnapshot loadSnapshot(long companyId,long userCompanyId,String country,
+        LocalDate periodStartDate,LocalDate periodEndDate,Long currentRunId,PayrollCalculationContext.CountryPayrollProfile profile) {
         var resolvedPeriodEnd = periodEndDate == null ? LocalDate.now() : periodEndDate;
         var resolvedPeriodStart = periodStartDate == null ? resolvedPeriodEnd : periodStartDate;
         var normalizedCountry = normalizeCountry(country);
-        var fiscalYear = resolvedPeriodEnd.getYear();
+        var paymentDate="CA".equals(normalizedCountry)
+            ? com.indice.erp.hr.payroll.provider.ca.CanadaPayrollInputs.paymentDate(profile,resolvedPeriodEnd) : resolvedPeriodEnd;
+        var fiscalYear = paymentDate.getYear();
         var yearStartDate = LocalDate.of(fiscalYear, 1, 1);
-        var queryArgs = accumulatorArgs(companyId, userCompanyId, normalizedCountry, yearStartDate, resolvedPeriodStart, currentRunId);
+        var queryArgs = accumulatorArgs(companyId, userCompanyId, normalizedCountry, yearStartDate, resolvedPeriodStart, currentRunId, paymentDate);
         var totals = loadTotals(queryArgs);
         var taxableBase = loadTaxableBase(queryArgs, totals.grossAmount());
         var itemRows = loadItemRows(queryArgs);
@@ -55,6 +63,21 @@ public class PayrollFiscalAccumulatorService {
 
         var metadata = new LinkedHashMap<String, Object>();
         metadata.put("source", "payroll_run_lines");
+        metadata.put("canadaPensionableEarnings", totals.canadaPensionableEarnings());
+        metadata.put("canadaUnreviewedPriorLines", totals.canadaUnreviewedPriorLines());
+        if ("CA".equals(normalizedCountry)) {
+            var declarations=com.indice.erp.hr.payroll.provider.ca.CanadaPayrollInputs.profile(profile);
+            if (declarations!=null && declarations.openingBalances().nonzero()) {
+                var overlaps=jdbcTemplate.queryForObject("""
+                    SELECT COUNT(*) FROM payroll_run_lines l JOIN payroll_runs r ON r.id=l.run_id AND r.company_id=l.company_id
+                    WHERE l.company_id=? AND l.user_company_id=? AND l.include_in_fiscal=1 AND l.country_code_snapshot='CA'
+                      AND r.status IN ('processed','approved','paid') AND (? IS NULL OR r.id<>?)
+                      AND COALESCE(STR_TO_DATE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(l.calculation_inputs_json,'$.countryProfile.metadata.canadaPaymentDate')),'null'),'%Y-%m-%d'),r.period_end_date)>=?
+                      AND COALESCE(STR_TO_DATE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(l.calculation_inputs_json,'$.countryProfile.metadata.canadaPaymentDate')),'null'),'%Y-%m-%d'),r.period_end_date)<?
+                    """,Long.class,companyId,userCompanyId,currentRunId,currentRunId,yearStartDate,declarations.openingBalances().asOf());
+                metadata.put("canadaOpeningBalanceOverlap",overlaps!=null && overlaps>0);
+            }
+        }
         metadata.put("includedStatuses", INCLUDED_RUN_STATUSES);
         metadata.put("currentRunExcluded", currentRunId != null);
         metadata.put("currentRunId", currentRunId);
@@ -85,7 +108,10 @@ public class PayrollFiscalAccumulatorService {
                 SELECT COALESCE(SUM(l.gross_amount), 0) AS gross_amount,
                        COALESCE(SUM(l.deductions_amount), 0) AS deductions_amount,
                        COALESCE(SUM(l.employer_contributions_amount), 0) AS employer_contributions_amount,
-                       COALESCE(SUM(l.net_amount), 0) AS net_amount
+                       COALESCE(SUM(l.net_amount), 0) AS net_amount,
+                       COALESCE(SUM(CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(l.calculation_inputs_json,'$.countryProfile.metadata.canadaProfile.pensionStatus'))='CONTRIBUTING'
+                         THEN CAST(JSON_UNQUOTE(JSON_EXTRACT(l.calculation_inputs_json,'$.taxableBase')) AS DECIMAL(19,2)) ELSE 0 END),0) AS ca_pensionable,
+                       COALESCE(SUM(CASE WHEN l.country_code_snapshot='CA' AND JSON_EXTRACT(l.calculation_inputs_json,'$.countryProfile.metadata.canadaProfileRevision') IS NULL THEN 1 ELSE 0 END),0) AS ca_unreviewed
                 FROM payroll_run_lines l
                 JOIN payroll_runs r ON r.id = l.run_id AND r.company_id = l.company_id
                 WHERE l.company_id = ?
@@ -93,20 +119,25 @@ public class PayrollFiscalAccumulatorService {
                   AND COALESCE(l.country_code_snapshot, '') = ?
                   AND l.include_in_fiscal = 1
                   AND r.status IN ('processed', 'approved', 'paid')
-                  AND r.period_start_date >= ?
+                  AND (CASE WHEN l.country_code_snapshot='CA'
+                    THEN COALESCE(STR_TO_DATE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(l.calculation_inputs_json,'$.countryProfile.metadata.canadaPaymentDate')),'null'),'%Y-%m-%d'),r.period_end_date)
+                    ELSE r.period_start_date END) >= ?
                   AND r.period_end_date < ?
                   AND (? IS NULL OR l.run_id <> ?)
+                  AND (CASE WHEN l.country_code_snapshot='CA'
+                    THEN COALESCE(STR_TO_DATE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(l.calculation_inputs_json,'$.countryProfile.metadata.canadaPaymentDate')),'null'),'%Y-%m-%d'),r.period_end_date)
+                    ELSE r.period_end_date END) <= ?
                 """,
             (rs, rowNum) -> new AccumulatorTotals(
                 money(rs.getBigDecimal("gross_amount")),
                 money(rs.getBigDecimal("deductions_amount")),
                 money(rs.getBigDecimal("employer_contributions_amount")),
-                money(rs.getBigDecimal("net_amount"))
+                money(rs.getBigDecimal("net_amount")), money(rs.getBigDecimal("ca_pensionable")), rs.getLong("ca_unreviewed")
             ),
             queryArgs
         );
         return rows.isEmpty()
-            ? new AccumulatorTotals(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO)
+            ? new AccumulatorTotals(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 0)
             : rows.getFirst();
     }
 
@@ -123,9 +154,14 @@ public class PayrollFiscalAccumulatorService {
                   AND COALESCE(l.country_code_snapshot, '') = ?
                   AND l.include_in_fiscal = 1
                   AND r.status IN ('processed', 'approved', 'paid')
-                  AND r.period_start_date >= ?
+                  AND (CASE WHEN l.country_code_snapshot='CA'
+                    THEN COALESCE(STR_TO_DATE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(l.calculation_inputs_json,'$.countryProfile.metadata.canadaPaymentDate')),'null'),'%Y-%m-%d'),r.period_end_date)
+                    ELSE r.period_start_date END) >= ?
                   AND r.period_end_date < ?
                   AND (? IS NULL OR l.run_id <> ?)
+                  AND (CASE WHEN l.country_code_snapshot='CA'
+                    THEN COALESCE(STR_TO_DATE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(l.calculation_inputs_json,'$.countryProfile.metadata.canadaPaymentDate')),'null'),'%Y-%m-%d'),r.period_end_date)
+                    ELSE r.period_end_date END) <= ?
                 """,
             (rs, rowNum) -> {
                 var taxableEarnings = money(rs.getBigDecimal("taxable_earnings"));
@@ -155,9 +191,14 @@ public class PayrollFiscalAccumulatorService {
                   AND COALESCE(l.country_code_snapshot, '') = ?
                   AND l.include_in_fiscal = 1
                   AND r.status IN ('processed', 'approved', 'paid')
-                  AND r.period_start_date >= ?
+                  AND (CASE WHEN l.country_code_snapshot='CA'
+                    THEN COALESCE(STR_TO_DATE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(l.calculation_inputs_json,'$.countryProfile.metadata.canadaPaymentDate')),'null'),'%Y-%m-%d'),r.period_end_date)
+                    ELSE r.period_start_date END) >= ?
                   AND r.period_end_date < ?
                   AND (? IS NULL OR l.run_id <> ?)
+                  AND (CASE WHEN l.country_code_snapshot='CA'
+                    THEN COALESCE(STR_TO_DATE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(l.calculation_inputs_json,'$.countryProfile.metadata.canadaPaymentDate')),'null'),'%Y-%m-%d'),r.period_end_date)
+                    ELSE r.period_end_date END) <= ?
                 GROUP BY COALESCE(i.code, ''), COALESCE(i.category, '')
                 """,
             (rs, rowNum) -> new ItemAmountRow(
@@ -175,7 +216,8 @@ public class PayrollFiscalAccumulatorService {
         String country,
         LocalDate yearStartDate,
         LocalDate periodStartDate,
-        Long currentRunId
+        Long currentRunId,
+        LocalDate paymentDate
     ) {
         var args = new ArrayList<Object>();
         args.add(companyId);
@@ -185,6 +227,7 @@ public class PayrollFiscalAccumulatorService {
         args.add(periodStartDate);
         args.add(currentRunId);
         args.add(currentRunId);
+        args.add(paymentDate);
         return args.toArray();
     }
 
@@ -209,7 +252,9 @@ public class PayrollFiscalAccumulatorService {
         BigDecimal grossAmount,
         BigDecimal deductionsAmount,
         BigDecimal employerContributionsAmount,
-        BigDecimal netAmount
+        BigDecimal netAmount,
+        BigDecimal canadaPensionableEarnings,
+        long canadaUnreviewedPriorLines
     ) {
     }
 

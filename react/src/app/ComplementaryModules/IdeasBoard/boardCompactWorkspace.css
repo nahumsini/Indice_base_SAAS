@@ -184,3 +184,34 @@
 
 .indice-board-editor-modal .board-batch-list[data-count="1"] .board-batch-details{display:none}
 .indice-board-editor-modal .board-batch-list[data-count="1"] .board-batch-row{flex-wrap:nowrap}
+
+/* Restore the shared title-bar anatomy within the personal owner only.
+   These overrides replace the older canvas-only compact title presentation. */
+[data-module="ideas-board"] .personal-board-title{
+ padding:20px!important;margin:0 0 8px!important;border-radius:12px!important;
+ border:1px solid #ff6b5e33!important;background:color-mix(in srgb,#ff6b5e 5%,white)!important;box-shadow:none!important;
+}
+[data-module="ideas-board"] .personal-board-title>div{display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:space-between;gap:16px!important}
+[data-module="ideas-board"] .personal-board-title>div>div:first-child{display:flex!important;align-items:flex-start!important;gap:12px!important;min-width:0}
+[data-module="ideas-board"] .personal-board-title>div>div:first-child>span{display:flex!important;width:44px!important;height:44px!important;flex:0 0 44px!important;border-radius:12px!important;background:#ffffffeb!important;border-color:#ff6b5e33!important}
+[data-module="ideas-board"] .personal-board-title>div>div:first-child>span svg{width:32px!important;height:32px!important}
+[data-module="ideas-board"] .personal-board-title h2{font-size:20px!important;font-weight:500!important;line-height:1.25!important;letter-spacing:normal!important;overflow-wrap:anywhere!important}
+[data-module="ideas-board"] .personal-board-title p{display:block!important;margin-top:4px!important;font-size:14px!important;font-weight:400!important;line-height:20px!important;max-width:48rem!important}
+[data-module="ideas-board"] .personal-board-title>div>div:last-child:not(:first-child){width:100%;min-width:0}
+[data-module="ideas-board"] .personal-board-title .board-workspace-title-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:8px!important;width:100%!important;max-width:none!important}
+[data-module="ideas-board"] .personal-board-title .board-file-actions{display:contents!important}
+[data-module="ideas-board"] .personal-board-title .idea-board-button{min-height:44px!important}
+[data-module="ideas-board"] .personal-board-title .board-file-actions .idea-board-primary{max-width:none!important;white-space:normal}
+[data-module="ideas-board"] .personal-board-title .board-workspace-title-actions .idea-board-status{width:auto!important;flex:0 1 auto!important}
+[data-module="ideas-board"] .personal-board-title .project-preview-actions{flex-wrap:wrap;min-width:0}
+.dark [data-module="ideas-board"] .personal-board-title{background:color-mix(in srgb,#ff6b5e 10%,#0f172a)!important;border-color:#ff6b5e4d!important}
+.dark [data-module="ideas-board"] .personal-board-title>div>div:first-child>span{background:#0f172a!important;border-color:#ff6b5e4d!important}
+@media(min-width:1024px){
+ [data-module="ideas-board"] .personal-board-title>div{flex-direction:row!important;align-items:center!important}
+ [data-module="ideas-board"] .personal-board-title>div>div:last-child:not(:first-child){width:auto}
+ [data-module="ideas-board"] .personal-board-title .board-workspace-title-actions{width:auto!important}
+}
+@media(max-width:640px){
+ [data-module="ideas-board"] .personal-board-title{padding:12px!important}
+ [data-module="ideas-board"] .personal-board-title>div{gap:12px!important}
+}

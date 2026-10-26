@@ -48,7 +48,7 @@ function renderFilter(patch={}){
  const calls=[],f=filters(patch);
  const {FiveSFilters}=loadTypescript(file('FiveSFilters.tsx'),id=>{
   if(id==='react/jsx-runtime')return require(id);if(id==='lucide-react')return{Circle:'circle',CircleCheck:'verified',CirclePlay:'play'};
-  if(id.endsWith('/IndiceFilterBar'))return{IndiceFilterBar:'bar',IndiceFilterField:'field',IndiceFilterSearch:'search',IndiceFilterSelect:'select',getIndiceFilterControlClassName:()=>''};
+  if(id.endsWith('/IndiceFilterBar'))return{IndiceFilterBar:'bar',IndiceFilterField:'field',IndiceFilterSearch:'search',IndiceFilterSelect:'select',IndiceFilterSegmented:'attention',getIndiceFilterControlClassName:()=>''};
   if(id.endsWith('/IndiceFilterDisclosure'))return{IndiceFilterDisclosureActions:'clear'};
   if(id==='./fiveSCopy')return load(file('fiveSCopy.ts'));if(id==='./fiveSFiltersCopy')return copy;if(id==='./fiveSFiltersModel')return m;if(id.endsWith('.css'))return{};throw Error(id);
  });
@@ -76,4 +76,21 @@ test('range errors and zero-result counts are exposed without hiding reset',()=>
 test('filter labels cover all six languages with regional and unknown-language fallback',()=>{
  for(const locale of ['es-MX','en-US','fr-CA','pt-BR','ko-KR','zh-CN'])assert.ok(Object.values(copy.fiveSFiltersCopy(locale)).every(v=>typeof v==='string'&&v.trim()));
  assert.deepEqual(copy.fiveSFiltersCopy('xx'),copy.fiveSFiltersCopy('en'));assert.equal(copy.fiveSFilterText('{done} de {total}',{done:2,total:5}),'2 de 5');
+});
+
+test('pending reviews include today and the past across statuses, exclude future and missing dates',()=>{
+ const sample=[make('past','','VERIFIED',null,{reviewDate:'2026-10-24'}),make('today','','IN_PROGRESS',null,{reviewDate:today}),make('tomorrow','','PENDING',null,{reviewDate:'2026-10-26'}),make('none','','VERIFIED',null)];const before=JSON.stringify(sample);
+ assert.deepEqual(m.filterFiveSActions(sample,filters({date:'REVIEWS_PENDING'}),today).map(n=>n.id),['past','today']);assert.equal(JSON.stringify(sample),before);
+ const boundary=[make('old','','PENDING',null,{reviewDate:'2026-12-31'}),make('new','','VERIFIED',null,{reviewDate:'2027-01-01'}),make('future','','PENDING',null,{reviewDate:'2027-01-02'})];assert.equal(m.filterFiveSActions(boundary,filters({date:'REVIEWS_PENDING'}),'2027-01-01').length,2);
+});
+test('attention counts ignore current date bounds while respecting search, owner and status',()=>{
+ assert.deepEqual({...m.fiveSAttentionCounts(rows,filters({date:'CUSTOM',from:'2030-01-01',to:'2030-01-02'}),today)},{overdue:1,reviews:1});
+ assert.deepEqual({...m.fiveSAttentionCounts(rows,filters({owner:'name:Luis',status:'VERIFIED'}),today)},{overdue:0,reviews:0});assert.deepEqual({...m.fiveSAttentionCounts(rows,filters({search:'contratos',owner:'name:Luis',status:'PENDING'}),today)},{overdue:1,reviews:1});
+});
+test('attention shortcuts toggle the shared date value and preserve all other filters',()=>{
+ const h=renderFilter({search:'contratos',owner:'name:Luis',status:'PENDING',date:'CUSTOM',from:today,to:today});const shortcut=h.all.find(n=>n.type==='attention');assert.equal(shortcut.props.options.length,2);shortcut.props.onValueChange('REVIEWS_PENDING');assert.deepEqual({...h.calls.at(-1)},{search:'contratos',owner:'name:Luis',status:'PENDING',date:'REVIEWS_PENDING',from:'',to:''});
+ const selected=renderFilter({date:'OVERDUE'});selected.all.find(n=>n.type==='attention').props.onValueChange('OVERDUE');assert.equal(selected.calls.at(-1).date,'ALL');assert.ok(h.all.find(n=>n.type==='select'&&n.props.label==='Fecha').props.options.some(n=>n.value==='REVIEWS_PENDING'));
+});
+test('empty filter descriptions identify active context without writing or dropping other values',()=>{
+ const summary=copy.fiveSFilterSummary(filters({search:'carpetas',owner:'name:Andrea',status:'VERIFIED',date:'REVIEWS_PENDING'}),'es-MX');assert.match(summary,/carpetas/);assert.match(summary,/Andrea/);assert.match(summary,/Verificada/);assert.match(summary,/Revisiones pendientes/);
 });

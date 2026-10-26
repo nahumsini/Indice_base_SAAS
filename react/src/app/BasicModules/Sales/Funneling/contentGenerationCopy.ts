@@ -1,7 +1,7 @@
 const translations = {
   "es": {
     "title": "Generación de contenido",
-    "intro": "Combina tus opciones y prepara un prompt para trabajar la campaña con tu IA.",
+    "intro": "Prepara un prompt para crear la pieza que necesitas con tu IA.",
     "campaign": "Elige tu campaña",
     "combination": "Combina el contenido y el gancho",
     "prompt": "Prepara tu prompt",
@@ -21,7 +21,7 @@ const translations = {
     "contextReady": "Contexto listo",
     "contextIncomplete": "Datos por completar",
     "contextReview": "Puedes completar lo pendiente en Configurar campaña para darle más contexto a tu IA.",
-    "promptIncludes": "Calendario · Ganchos · Textos · Métricas",
+    "promptIncludes": "Pieza final · Texto · Guion si es video",
     "optional": "Opcional",
     "responsePlaceholder": "Pega aquí la propuesta de tu IA para revisarla y conservarla con esta campaña.",
     "noChanges": "Sin cambios pendientes",
@@ -29,11 +29,12 @@ const translations = {
     "campaignFilters": "Buscar otra campaña",
     "filtered": "Filtros activos",
     "availableCampaigns": "Campañas en esta página",
-    "searchPlaceholder": "Nombre de la campaña u objetivo"
+    "searchPlaceholder": "Nombre de la campaña u objetivo",
+    "promptLabel": "Prompt de contenido"
   },
   "en": {
     "title": "Content generation",
-    "intro": "Combine your choices and prepare a prompt to work on the campaign with your AI.",
+    "intro": "Prepare a prompt to create your chosen piece with your AI.",
     "campaign": "Choose your campaign",
     "combination": "Combine the content and hook",
     "prompt": "Prepare your prompt",
@@ -53,7 +54,7 @@ const translations = {
     "contextReady": "Context ready",
     "contextIncomplete": "Details to complete",
     "contextReview": "Complete missing details in Configure campaign to give your AI more context.",
-    "promptIncludes": "Calendar · Hooks · Copy · Metrics",
+    "promptIncludes": "Finished piece · Copy · Script for video",
     "optional": "Optional",
     "responsePlaceholder": "Paste your AI proposal here to review and keep it with this campaign.",
     "noChanges": "No pending changes",
@@ -61,11 +62,12 @@ const translations = {
     "campaignFilters": "Find another campaign",
     "filtered": "Active filters",
     "availableCampaigns": "Campaigns on this page",
-    "searchPlaceholder": "Campaign name or objective"
+    "searchPlaceholder": "Campaign name or objective",
+    "promptLabel": "Content prompt"
   },
   "fr": {
     "title": "Création de contenu",
-    "intro": "Combinez vos choix et préparez une consigne pour travailler la campagne avec votre IA.",
+    "intro": "Préparez une consigne pour créer votre contenu avec votre IA.",
     "campaign": "Choisissez votre campagne",
     "combination": "Combinez le contenu et l’accroche",
     "prompt": "Préparez votre consigne",
@@ -85,7 +87,7 @@ const translations = {
     "contextReady": "Contexte prêt",
     "contextIncomplete": "Détails à compléter",
     "contextReview": "Complétez les détails dans Configurer la campagne pour donner plus de contexte à votre IA.",
-    "promptIncludes": "Calendrier · Accroches · Textes · Indicateurs",
+    "promptIncludes": "Pièce finale · Texte · Scénario vidéo",
     "optional": "Facultatif",
     "responsePlaceholder": "Collez la proposition de votre IA ici pour la vérifier et la conserver avec cette campagne.",
     "noChanges": "Aucune modification en attente",
@@ -93,11 +95,12 @@ const translations = {
     "campaignFilters": "Rechercher une autre campagne",
     "filtered": "Filtres actifs",
     "availableCampaigns": "Campagnes sur cette page",
-    "searchPlaceholder": "Nom de la campagne ou objectif"
+    "searchPlaceholder": "Nom de la campagne ou objectif",
+    "promptLabel": "Consigne de contenu"
   },
   "pt": {
     "title": "Geração de conteúdo",
-    "intro": "Combine suas escolhas e prepare um prompt para trabalhar a campanha com sua IA.",
+    "intro": "Prepare um prompt para criar sua peça com sua IA.",
     "campaign": "Escolha sua campanha",
     "combination": "Combine o conteúdo e o gancho",
     "prompt": "Prepare seu prompt",
@@ -117,7 +120,7 @@ const translations = {
     "contextReady": "Contexto pronto",
     "contextIncomplete": "Dados a completar",
     "contextReview": "Complete os dados em Configurar campanha para dar mais contexto à sua IA.",
-    "promptIncludes": "Calendário · Ganchos · Textos · Métricas",
+    "promptIncludes": "Peça final · Texto · Roteiro para vídeo",
     "optional": "Opcional",
     "responsePlaceholder": "Cole a proposta da sua IA aqui para revisar e guardar com esta campanha.",
     "noChanges": "Nenhuma alteração pendente",
@@ -125,11 +128,12 @@ const translations = {
     "campaignFilters": "Buscar outra campanha",
     "filtered": "Filtros ativos",
     "availableCampaigns": "Campanhas nesta página",
-    "searchPlaceholder": "Nome da campanha ou objetivo"
+    "searchPlaceholder": "Nome da campanha ou objetivo",
+    "promptLabel": "Prompt de conteúdo"
   },
   "ko": {
     "title": "콘텐츠 만들기",
-    "intro": "옵션을 조합하고 AI와 캠페인을 준비할 프롬프트를 만드세요.",
+    "intro": "AI로 원하는 콘텐츠를 제작할 프롬프트를 준비하세요.",
     "campaign": "캠페인 선택",
     "combination": "콘텐츠와 도입 문구 조합",
     "prompt": "프롬프트 준비",
@@ -149,7 +153,7 @@ const translations = {
     "contextReady": "기본 정보 준비됨",
     "contextIncomplete": "추가할 정보",
     "contextReview": "캠페인 설정에서 빠진 정보를 채우면 AI가 상황을 더 잘 이해할 수 있습니다.",
-    "promptIncludes": "일정 · 도입 문구 · 원고 · 지표",
+    "promptIncludes": "완성 콘텐츠 · 문구 · 영상 대본",
     "optional": "선택 사항",
     "responsePlaceholder": "AI 제안을 여기에 붙여 넣고 검토한 뒤 이 캠페인에 보관하세요.",
     "noChanges": "저장할 변경 사항 없음",
@@ -157,11 +161,12 @@ const translations = {
     "campaignFilters": "다른 캠페인 찾기",
     "filtered": "적용된 필터",
     "availableCampaigns": "이 페이지의 캠페인",
-    "searchPlaceholder": "캠페인 이름 또는 목표"
+    "searchPlaceholder": "캠페인 이름 또는 목표",
+    "promptLabel": "콘텐츠 프롬프트"
   },
   "zh": {
     "title": "内容生成",
-    "intro": "组合选项，准备与你的 AI 一起规划活动的提示词。",
+    "intro": "准备提示词，让AI直接制作所需内容。",
     "campaign": "选择活动",
     "combination": "组合内容和开场钩子",
     "prompt": "准备提示词",
@@ -181,7 +186,7 @@ const translations = {
     "contextReady": "基础信息就绪",
     "contextIncomplete": "待补充信息",
     "contextReview": "在活动设置中补充信息，让 AI 更了解你的情况。",
-    "promptIncludes": "日历 · 开场钩子 · 文案 · 指标",
+    "promptIncludes": "内容成品 · 文案 · 视频脚本",
     "optional": "可选",
     "responsePlaceholder": "在此粘贴 AI 的提案，检查后随活动一起保存。",
     "noChanges": "没有待保存的更改",
@@ -189,7 +194,8 @@ const translations = {
     "campaignFilters": "查找其他活动",
     "filtered": "已启用筛选",
     "availableCampaigns": "本页活动",
-    "searchPlaceholder": "活动名称或目标"
+    "searchPlaceholder": "活动名称或目标",
+    "promptLabel": "内容提示词"
   }
 } as const;
 export function contentGenerationCopy(locale: string) { return translations[locale.slice(0, 2) as keyof typeof translations] ?? translations.en; }

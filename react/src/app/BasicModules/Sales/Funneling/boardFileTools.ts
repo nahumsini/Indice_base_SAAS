@@ -18,6 +18,7 @@ export interface BoardDocumentView {
 /** Optional owner UI. The canvas owns gestures/history; the caller owns named files. */
 export interface BoardFileTools {
  title?:string;
+ subtitle?:string;
  icon?:ReactNode;
  documentView?:BoardDocumentView;
  fullscreen:string;exitFullscreen:string;

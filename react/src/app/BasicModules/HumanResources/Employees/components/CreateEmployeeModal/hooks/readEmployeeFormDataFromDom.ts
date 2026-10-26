@@ -1,5 +1,5 @@
 import { resolveProfileCountry } from '../../../../../../shared/profileCountries';
-import { normalizePhoneInputForCountry } from '../../../../../../shared/validation/phone';
+import { isPhoneInputDialCodeOnly, normalizePhoneInputForCountry } from '../../../../../../shared/validation/phone';
 import type { EmployeeFormData } from '../types';
 
 const readDomValue = (nativeFormData: FormData, field: keyof EmployeeFormData) => {
@@ -20,6 +20,13 @@ export function readEmployeeFormDataFromDom(
   const normalizePhone = (value: string) => (
     nextCountry ? normalizePhoneInputForCountry(value, nextCountry) : value
   );
+  const readPhone = (field: 'mobilePhone' | 'alternatePhone' | 'emergencyContactPhone') => {
+    const value = hasDomField(formElement, field) ? readDomValue(nativeFormData, field) : currentFormData[field];
+    const normalized = normalizePhone(value);
+    // A country dial-code placeholder is not a supplied optional phone number.
+    return field !== 'mobilePhone' && (!value.trim() || isPhoneInputDialCodeOnly(normalized, nextCountry))
+      ? '' : normalized;
+  };
 
   return {
     ...currentFormData,
@@ -27,7 +34,7 @@ export function readEmployeeFormDataFromDom(
     firstName: readDomValue(nativeFormData, 'firstName') || currentFormData.firstName,
     lastName: readDomValue(nativeFormData, 'lastName') || currentFormData.lastName,
     email: readDomValue(nativeFormData, 'email') || currentFormData.email,
-    mobilePhone: normalizePhone(readDomValue(nativeFormData, 'mobilePhone') || currentFormData.mobilePhone),
+    mobilePhone: readPhone('mobilePhone'),
     dateOfBirth: readDomValue(nativeFormData, 'dateOfBirth') || currentFormData.dateOfBirth,
     address: readDomValue(nativeFormData, 'address') || currentFormData.address,
     nationalId: readDomValue(nativeFormData, 'nationalId') || currentFormData.nationalId,
@@ -37,13 +44,13 @@ export function readEmployeeFormDataFromDom(
     stateProvince: readDomValue(nativeFormData, 'stateProvince') || currentFormData.stateProvince,
     city: readDomValue(nativeFormData, 'city') || currentFormData.city,
     postalCode: readDomValue(nativeFormData, 'postalCode') || currentFormData.postalCode,
-    alternatePhone: normalizePhone(readDomValue(nativeFormData, 'alternatePhone') || currentFormData.alternatePhone),
+    alternatePhone: readPhone('alternatePhone'),
     emergencyContactName:
       readDomValue(nativeFormData, 'emergencyContactName') || currentFormData.emergencyContactName,
     emergencyContactRelationship:
       readDomValue(nativeFormData, 'emergencyContactRelationship') || currentFormData.emergencyContactRelationship,
     emergencyContactPhone:
-      normalizePhone(readDomValue(nativeFormData, 'emergencyContactPhone') || currentFormData.emergencyContactPhone),
+      readPhone('emergencyContactPhone'),
     department: readDomValue(nativeFormData, 'department') || currentFormData.department,
     position: readDomValue(nativeFormData, 'position') || currentFormData.position,
     businessUnitId: readDomValue(nativeFormData, 'businessUnitId') || currentFormData.businessUnitId,

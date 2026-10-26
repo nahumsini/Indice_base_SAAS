@@ -100,7 +100,8 @@ class PayrollFiscalAccumulatorServiceTest {
             LocalDate.parse("2026-01-01"),
             LocalDate.parse("2026-06-15"),
             77L,
-            77L
+            77L,
+            LocalDate.parse("2026-06-30")
         }, args);
     }
 

@@ -17,6 +17,7 @@ function library({failure=false,trash=false}={}){
   if(id==='react-router')return{useSearchParams:()=>{const [params,setParams]=runtime.hooks.useState(()=>new URLSearchParams());return[params,next=>{navigations.push(new URLSearchParams(next));setParams(next);}];}};
   if(id==='lucide-react')return Object.fromEntries(['ArrowLeft','FolderOpen','RefreshCw','X','Lock','Trash2'].map(k=>[k,()=>null]));
   if(id.endsWith('/frontend-os'))return Object.fromEntries(['IndiceTitleBar','IndiceFilterBar','IndiceFilterSearch','IndiceFilterSelect','IndiceViewState'].map(k=>[k,k]));
+  if(id.endsWith('/IndiceFilterDisclosure'))return{IndiceFilterDisclosureActions:'filter-actions'};
   if(id.endsWith('/button'))return{Button:'button'};if(id.endsWith('/DataTablePagination'))return{DataTablePagination:'pagination'};
   if(id.endsWith('/useWorkspaceNavigationMemory'))return{useWorkspaceNavigationMemory(){}};
   if(id.endsWith('/ModuleTabEmoji'))return{IndiceEmoji:'emoji'};

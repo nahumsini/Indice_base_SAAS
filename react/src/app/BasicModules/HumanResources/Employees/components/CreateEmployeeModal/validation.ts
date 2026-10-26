@@ -1,7 +1,7 @@
 import { validatePostalCodeForCountry } from '../../../../../components/ManualLocationFields';
 import { resolveProfileCountry } from '../../../../../shared/profileCountries';
 import { validateEmail } from '../../../../../shared/validation/email';
-import { validatePhoneForProfileCountry } from '../../../../../shared/validation/phone';
+import { isPhoneInputDialCodeOnly, validatePhoneForProfileCountry } from '../../../../../shared/validation/phone';
 import type { EmployeeModalTranslations } from '../../translations/types';
 import { dateInputValue } from './model';
 import type { EmployeeFieldKey, EmployeeFormData } from './model';
@@ -46,10 +46,10 @@ export function validateEmployeeFormData({
   } else if (!validatePhoneField(data.mobilePhone)) {
     errors.mobilePhone = copy.validation.invalidPhone;
   }
-  if (data.alternatePhone.trim() && !validatePhoneField(data.alternatePhone)) {
+  if (data.alternatePhone.trim() && !isPhoneInputDialCodeOnly(data.alternatePhone, resolvedCountry) && !validatePhoneField(data.alternatePhone)) {
     errors.alternatePhone = copy.validation.invalidPhone;
   }
-  if (data.emergencyContactPhone.trim() && !validatePhoneField(data.emergencyContactPhone)) {
+  if (data.emergencyContactPhone.trim() && !isPhoneInputDialCodeOnly(data.emergencyContactPhone, resolvedCountry) && !validatePhoneField(data.emergencyContactPhone)) {
     errors.emergencyContactPhone = copy.validation.invalidPhone;
   }
 

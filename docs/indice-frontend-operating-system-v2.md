@@ -5306,3 +5306,106 @@ to preserve the whole photo. Controls wrap within small phones, retain at least 
 respect module coral, dark mode and six-language presentation. Readonly views allow comparison
 without file controls. Image failures offer an explicit manual reload. The owner contract and
 regression scope remain in `personal-ideas-board-contract-v1.md`.
+
+
+### 2026-10-25 — Progressive 5S reading and action forms
+
+The guided owner preserves the native coral Standard Form Modal, primary action/responsible/date,
+private evidence and existing seven-step creation wizard. Category-specific questions and examples
+explain the expected improvement throughout creation, columns and action capture. Notes/follow-up,
+editing options and photos are separate native disclosures. Verification reveals its required result;
+existing result/review values remain editable after reopening. Section/status/custom-title options
+remain available without dominating daily capture. No state, validation or persistence contract changes.
+
+Action cards disclose the full description, notes, result and review date without entering edit mode.
+Private photos reuse the existing readonly comparison inside a secondary disclosure. Reading and
+comparison never replace the document or advance progress. Native 44px targets, phone containment,
+dark mode and six-language copy remain. No new API, backend, migration, score or recurrence.
+
+
+### 2026-10-25 — Open 5S area names and readable wizard steps
+
+The 5S owner replaces the area-type presets with one initially empty free-name field (existing
+80-character validation). Optional example buttons populate only the editable draft on explicit
+selection; they are suggestions, not categories. Space, team, equipment and process names are valid
+within the same private area contract. Back/review retains the name; only final confirmation writes.
+This supersedes the earlier preset selector, without classifying or rewriting existing boards.
+
+The native coral Modal Wizard Índice keeps seven stages. Short localized step labels remain fully
+visible, with wrapping and a contained horizontal strip on phones that follows the current step.
+Full category questions and final review remain unchanged. Header/footer, keyboard, 44px example
+targets, dark mode and all six languages are preserved. No shared stepper, API, backend, DB,
+permission, CAS, autosave, history, evidence or project contract changes.
+
+
+### 2026-10-25 — Direct 5S action planning and compact final review
+
+The owner preserves the seven-step coral Modal Wizard Índice, free area name, native frame/stepper,
+final atomic creation and guarded retry. Each S presents one action question and a short explanatory
+header, with a small growing textarea. Two optional localized ideas append to existing text rather
+than replace it; duplicate suggestion lines are not repeated and the 1000-character budget remains.
+The primary capture no longer requires choosing Prepare action. Define later is an explicit footer
+action that advances while retaining the answer, responsible and date in memory. Returning permits
+explicit inclusion or inclusion by editing the answer/choosing an idea. Deferred answers do not
+create actions. Back, validation and direct return from review preserve the existing draft semantics.
+
+Responsible/target date remain optional under a closed disclosure with a live summary. Maintain
+provides follow-up guidance without adding recurrence or changing target dates into review dates.
+The footer reports an action count, not a five-item grade. Final review retains five compact rows,
+full text and metadata under disclosures, explicit Change links and an area summary. Mobile keeps
+44px actions, internal scrolling, the visible native footer and a readable active step; dark mode and
+six languages remain. Photos, permissions, actor/CAS, autosave/history, saved projects, backend/API
+and DB contracts are unchanged. Verification uses synthetic records only.
+
+
+### 2026-10-25 — Compact 5S board cards and visible follow-up
+
+Existing guided boards omit the repeated introductory heading while empty-state guidance remains.
+The native area selector, four visible filter controls, clear action and true verified/total ratio
+retain their behavior. Status facets are compact 44px controls; secondary explanations remain
+accessible. No filter storage, ordering, count or selected-category semantics change.
+
+Cards use compact labeled owner/target rows, visible Edit text and a single visible description
+preview that yields to its full text on disclosure. Empty details are omitted. Private before/after
+photos have a direct sibling disclosure, retaining explicit lazy loading and the existing readonly
+inline comparison. Reading photos or details does not write or advance a card.
+
+A stored next-review date is visible in card metadata, distinct from its target date, including on
+reopened actions. Local-date cues flag today or overdue reviews without changing PENDING,
+IN_PROGRESS or VERIFIED. No review date is invented, no recurrence or audit score is added.
+Native colors, keyboard/44px targets, phone containment, dark presentation and six languages remain.
+Actor/CAS, private photos, required verification results, history/autosave, projects, backend/API and
+DB contracts are preserved. Verification uses synthetic data only.
+
+
+### 2026-10-25 — 5S attention shortcuts and native phone section rail
+
+The owner adds two reversible native segmented shortcuts within the existing filter bar: overdue
+unverified target dates, and reviews due today or earlier. They share the date selector value;
+selecting again restores All dates and clears custom date bounds only. Counts replace date scope
+while preserving search, responsible and exact status within the active area. Existing weekly review
+semantics and the status-independent verified/total denominator are retained. Review attention never
+changes an action state. Local calendar dates govern today/overdue boundaries.
+
+Phone categories use IndiceWorkspaceNavigation's horizontal workbar rail with native coral styling,
+full localized labels, per-filter counts, current-item reveal, keyboard navigation and scroll controls.
+The owner-scoped rail sticks below the existing fixed header inside the workspace scroller. It keeps
+one S visible and preserves filters on manual section selection, including zero-result sections.
+Applying filters keeps the selected S if it has results, otherwise selects the first matching S.
+The rail remains present for an empty intersection, which identifies active filters and offers date-only
+reset alongside native Clear all. This explicitly supersedes the phone category dropdown. The section
+selection remains transient within the existing private owner, without another URL/storage writer.
+
+All four filter controls, native shared primitives, mobile 44px targets, dark mode and six languages
+remain. No shared navigation component, API/backend, DB, permission, autosave/history, actor/CAS,
+photo, project or status contract changes. Regression and browser verification use synthetic data only.
+
+
+## 2026-10-25 — Barras de título unificadas en Pizarra de ideas
+
+Por petición expresa del usuario, Mi pizarra, Tablero 5S, Diagnóstico empresarial y Mis proyectos (incluidas vistas compartidas, papelera y consulta) recuperan la anatomía de IndiceTitleBar: icono en contenedor suave, título de peso 500, descripción y acciones. Se sustituyen las excepciones anteriores que ocultaban descripción/icono o comprimían el título en una única fila; se mantienen el contenedor fijo y el desplazamiento interno del editor. En celular la identidad y las acciones ocupan filas separadas con objetivos de 44 px. Se conserva la presentación coral nativa, sin acento lateral ni sombras pesadas. BoardFileTools.subtitle es una opción de presentación; no modifica documentos, guardado, permisos, rutas, herramientas, fotos ni servicios. Ventas conserva su presentación predeterminada.
+
+
+## 2026-10-25 — Barras de filtros nativas en Pizarra de ideas
+
+Tablero 5S y Mis proyectos comparten la presentación sin compactaciones locales de IndiceFilterBar: tarjeta blanca de radio 24 px, título Filtros, conteo y limpieza nativa IndiceFilterDisclosureActions, controles de 44 px y rejilla adaptable. Tablero 5S conserva búsqueda, fecha, estado y responsable visibles, sin Más filtros; los accesos rápidos comparten el valor de Fecha y no cuentan como filtros independientes. El intervalo personalizado permanece junto a Fecha, con validación existente. La biblioteca conserva sus tres filtros, búsqueda remota con espera y reinicio de paginación, ámbitos y memoria aprobados. Los lienzos conservan Herramientas en lugar de filtros artificiales. No cambian estados, conteos, contratos, permisos, datos ni guardado. Esta presentación sustituye la compactación anterior de la cabecera de filtros 5S; conserva el resumen y seguimiento aprobados.

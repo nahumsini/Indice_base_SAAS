@@ -914,3 +914,13 @@ only through Save information; uploaded files are saved immediately through thei
 action. Pending upload descriptions receive the same close/unload protection. Labels/options cover
 all eight native locales. Mobile wraps choices and stacks fields without horizontal overflow.
 Rollback retains V355 and its metadata, restores the previous package/source, and never drops data.
+
+
+## 2026-10-26 — Direct content production prompt
+
+The Content view requests the selected finished advertising piece, using campaign/brand facts as reference. Static images, carousels and static stories request final visual assets; when the external tool cannot render, it supplies a production-ready image prompt with exact copy. Video/Reel/Live requests recording-ready scripts and scenes; polls and threads request finished text. Explicit guide choices and variant count remain authoritative. No calendar, budget, metrics or stage-by-stage campaign is requested in this view. Campaign workshop and calendar exports retain their existing campaign-planning output. Copy/download/print share the same current generated text; external tools receive no automatic file attachments, publishing authority or account access. Existing saved choices, AI responses, brand snapshots, optimistic versions and tenant boundaries are unchanged.
+
+
+## 2026-10-26 — Selected-format-only content instructions
+
+Content prompts include only the selected format's production instructions. AUTO delegates a single coherent format without listing a catalog. Variants retain the selected format and requested count; this presentation supersedes cross-format directions inside Content prompts. No saved guide values are converted. Campaign/workshop and calendar prompts retain their existing planning behavior. Copy, download and print continue sharing the current prompt and reference boundaries.

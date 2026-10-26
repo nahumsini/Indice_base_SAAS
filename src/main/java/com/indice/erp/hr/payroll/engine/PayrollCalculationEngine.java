@@ -74,13 +74,15 @@ public class PayrollCalculationEngine {
         var genericUnsupportedCountry = provider instanceof GenericPayrollProvider;
         var mexicoReviewRequired = context.includeInFiscal() && provider instanceof MexicoPayrollProvider mexico
             && !mexico.approvalIssues(context, taxableBase).isEmpty();
-        var statutoryCompliance = context.includeInFiscal() && !genericUnsupportedCountry && !mexicoReviewRequired;
+        var canadaReviewRequired=context.includeInFiscal() && provider instanceof com.indice.erp.hr.payroll.provider.ca.CanadaPayrollProvider canada
+            && !canada.approvalIssues(context,taxableBase).isEmpty();
+        var statutoryCompliance = context.includeInFiscal() && !genericUnsupportedCountry && !mexicoReviewRequired && !canadaReviewRequired;
         var calculationWarnings = calculationWarnings(context, provider, genericUnsupportedCountry, taxableBase, sortedItems);
         var calculationSource = !context.includeInFiscal()
             ? "OPERATIONAL_NON_FISCAL"
             : genericUnsupportedCountry
                 ? "GENERIC_UNSUPPORTED_COUNTRY"
-                : mexicoReviewRequired ? "MX_REVIEW_REQUIRED" : "payroll_calculation_engine:" + provider.providerCode();
+                : mexicoReviewRequired ? "MX_REVIEW_REQUIRED" : canadaReviewRequired ? "CA_REVIEW_REQUIRED" : "payroll_calculation_engine:" + provider.providerCode();
 
         var partialResult = new PayrollLineCalculationResult(
             context.salary().baseSalary(),
@@ -109,7 +111,9 @@ public class PayrollCalculationEngine {
             calculationWarnings,
             calculationInputs(context, taxableBase),
             calculationResults(grossAmount, deductionsAmount, employerContributionsAmount, netAmount, totalPayrollCost, statutoryCompliance, calculationWarnings),
-            ruleResolver.ruleReferenceSnapshot(sortedItems, context.periodEndDate()),
+            ruleResolver.ruleReferenceSnapshot(sortedItems, "CA".equals(context.country())
+                ? com.indice.erp.hr.payroll.provider.ca.CanadaPayrollInputs.paymentDate(context.countryProfile(),context.periodEndDate())
+                : context.periodEndDate()),
             Map.of()
         );
 

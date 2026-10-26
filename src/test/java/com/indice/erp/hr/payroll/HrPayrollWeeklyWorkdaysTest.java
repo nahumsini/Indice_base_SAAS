@@ -232,7 +232,8 @@ class HrPayrollWeeklyWorkdaysTest {
             new PayrollSnapshotService(jdbc, new ObjectMapper()), resolver,
             new ColombiaPayrollReportingService(jdbc, new ObjectMapper()),
             new HrIncentivePayrollSupplyService(jdbc), mock(ExpenseService.class), new HrPayrollAuthorizationService(),
-            mock(com.indice.erp.hr.payroll.provider.mx.MexicoPayrollProfileService.class)
+            mock(com.indice.erp.hr.payroll.provider.mx.MexicoPayrollProfileService.class),
+            mock(com.indice.erp.hr.payroll.provider.ca.CanadaPayrollProfileService.class)
         );
         return owner.prepareAssistantPayroll(ACTOR, "prepare_hr_payroll", null,
             new HrPayrollAssistantContracts.Change("weekly", SUNDAY, SUNDAY.plusDays(6), "single", null, null, null, null)

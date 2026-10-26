@@ -42,6 +42,7 @@ function PersonalWorkspace({onNavigate}:{onNavigate?:(page?:string)=>void}) {
  const personalVisited=visited.has('canvas')||visited.has('five-s');
  const f=boardFileCopy(locale),fileTools=(kind:BoardFileKind):BoardFileTools=>({
   title:kind==='SYSTEM'?c.system:fiveS?s.tab:c.myBoard,
+  subtitle:kind==='SYSTEM'?c.systemHint:fiveS?s.intro:copy.subtitle,
   icon:kind==='FREEFORM'&&fiveS?<span aria-hidden="true">🧹</span>:undefined,
   documentView:kind==='FREEFORM'?(fiveS?personalFiveSView:personalCanvasView):undefined,
   fullscreen:f.fullscreen,exitFullscreen:f.exitFullscreen,

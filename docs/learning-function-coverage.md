@@ -5,6 +5,7 @@ Generated from the reviewed bilingual curriculum. Domain owners remain authorita
 | Chapter | Stage | Page/tab | Version | Evidence actions |
 | --- | --- | --- | --- | --- |
 | ideas_board.canvas | 1 | ideas-board/canvas | 4 | Understanding only until an owner completion is integrated |
+| ideas_board.five-s | 1 | ideas-board/five-s | 3 | Understanding only until an owner completion is integrated |
 | ideas_board.system | 1 | ideas-board/system | 4 | Understanding only until an owner completion is integrated |
 | ideas_board.projects | 1 | ideas-board/projects | 5 | Understanding only until an owner completion is integrated |
 | sales_board.overview | 6 | sales-board/overview | 2 | Understanding only until an owner completion is integrated |
@@ -20,7 +21,7 @@ Generated from the reviewed bilingual curriculum. Domain owners remain authorita
 | maintenance.indicators | 3 | maintenance/indicators | 2 | Understanding only until an owner completion is integrated |
 | maintenance.configuration | 3 | maintenance/configuration | 2 | Understanding only until an owner completion is integrated |
 | crm.after-sales | 5 | sales/after-sales | 2 | Understanding only until an owner completion is integrated |
-| crm.funneling | 5 | sales/funneling | 4 | Understanding only until an owner completion is integrated |
+| crm.funneling | 5 | sales/funneling | 5 | Understanding only until an owner completion is integrated |
 | crm.mailing | 5 | sales/mailing | 3 | Understanding only until an owner completion is integrated |
 | crm.whatsapping | 5 | sales/whatsapping | 2 | Understanding only until an owner completion is integrated |
 | crm.conversations | 5 | sales/conversations | 2 | Understanding only until an owner completion is integrated |
@@ -41,11 +42,11 @@ Generated from the reviewed bilingual curriculum. Domain owners remain authorita
 | config_center.business-profile | 1 | home-panel/business-profile | 2 | Understanding only until an owner completion is integrated |
 | config_center.consulting | 1 | home-panel/consulting | 2 | Understanding only until an owner completion is integrated |
 | config_center.integrations | 1 | home-panel/integrations | 2 | Understanding only until an owner completion is integrated |
-| human_resources.collaborators | 2 | human-resources/collaborators | 3 | create_employee, update_employee, import_employees, attach_employee_document |
+| human_resources.collaborators | 2 | human-resources/collaborators | 4 | create_employee, update_employee, import_employees, attach_employee_document |
 | human_resources.control | 2 | human-resources/control | 4 | create_hr_schedule, assign_hr_schedule, assign_hr_work_site, assign_hr_rest_days |
 | human_resources.attendance | 2 | human-resources/attendance | 3 | Understanding only until an owner completion is integrated |
 | human_resources.permissions | 2 | human-resources/permissions | 2 | create_my_hr_permission, approve_hr_permission, reject_hr_permission |
-| human_resources.payroll | 2 | human-resources/payroll | 2 | prepare_hr_payroll, approve_hr_payroll |
+| human_resources.payroll | 2 | human-resources/payroll | 3 | prepare_hr_payroll, approve_hr_payroll |
 | human_resources.announcements | 2 | human-resources/announcements | 2 | create_announcement, update_announcement, mark_announcement_read |
 | human_resources.assets | 2 | human-resources/assets | 2 | create_hr_asset, update_hr_asset, reassign_hr_asset |
 | human_resources.records | 2 | human-resources/records | 2 | create_hr_record, update_hr_record, attach_hr_record_file |

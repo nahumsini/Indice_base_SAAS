@@ -7,7 +7,7 @@
 .five-s-step-heading p{margin:6px 0 0}
 .five-s-create .workspace-field{min-width:0}
 .five-s-create input,.five-s-create select,.five-s-create textarea{width:100%;min-width:0;min-height:44px;border:1px solid #dce4ee;border-radius:12px;padding:10px 12px;background:#fff;color:#1e293b;font-size:14px}
-.five-s-create textarea{resize:vertical;min-height:112px}
+.five-s-create textarea{resize:vertical;min-height:80px;max-height:240px;overflow-y:auto}
 .five-s-create :is(input,select,textarea,button,summary):focus-visible{outline:2px solid #ff6b5e;outline-offset:3px}
 .five-s-area-name{display:block;margin-bottom:8px;font-size:12px;color:#64748b;overflow-wrap:anywhere}
 .five-s-plan-options{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
@@ -38,3 +38,33 @@
  .five-s-plan-options button{font-size:13px}
  .five-s-review-item{padding:12px}
 }
+
+/* The owner keeps the native stepper; full labels remain legible in every viewport. */
+.five-s-create-steps{min-width:0;max-width:100%;overflow-x:auto;scrollbar-width:thin}
+.five-s-create-steps li>span:first-child,.five-s-create-steps li>button>span:first-child{flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:6px}
+.five-s-create-steps .truncate{display:block;max-width:100%;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.4}
+.five-s-area-examples{display:grid;gap:8px;min-width:0}
+.five-s-area-examples>p{margin:0;font-size:13px;color:#64748b}
+.five-s-area-examples>div{display:flex;flex-wrap:wrap;gap:8px}
+.five-s-area-examples button{min-height:44px;max-width:100%;padding:8px 12px;border:1px solid #dce4ee;border-radius:12px;background:#fff;color:#475569;font-size:13px;line-height:1.5;text-align:left;overflow-wrap:anywhere}
+.five-s-area-examples button:hover{border-color:#ff6b5e;background:#fff1ef;color:#ac3c32}
+.dark .five-s-area-examples>p{color:#aebfd5}
+.dark .five-s-area-examples button{background:#1b2536;border-color:#3b4960;color:#e2e8f0}
+.dark .five-s-area-examples button:hover{background:#3f2c32;border-color:#ff8d83;color:#ffc0b9}
+@media(max-width:640px){.five-s-create-steps>ol{grid-template-columns:repeat(7,minmax(110px,1fr))!important}.five-s-create-steps li>span:first-child,.five-s-create-steps li>button>span:first-child{align-items:flex-start}}
+
+.five-s-follow-up summary{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px}
+.five-s-follow-up-summary{font-size:12px;font-weight:400;color:#64748b;overflow-wrap:anywhere}
+.five-s-follow-up .five-s-sustain-help{grid-column:1/-1;font-size:13px;line-height:1.5;margin:0;color:#64748b}
+.five-s-review-area{display:flex;align-items:center;gap:10px;min-width:0}.five-s-review-area>div{flex:1;min-width:0}
+.five-s-review-list{gap:0}.five-s-review-item{padding:10px 0;border:0;border-bottom:1px solid #e2e8f0;border-radius:0}
+.five-s-review-detail summary{min-height:44px;cursor:pointer;font-size:14px;line-height:1.5;padding:8px 0;overflow-wrap:anywhere}
+.five-s-review-detail>div{padding:8px 0}.five-s-review-detail p{margin:0 0 8px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.5}
+.five-s-deferred .five-s-use-example{display:block;margin-top:8px}
+.five-s-action-ideas button:disabled{opacity:.5;cursor:not-allowed}
+.dark .five-s-follow-up-summary,.dark .five-s-sustain-help{color:#aebfd5}
+@media(max-width:640px){.five-s-create-modal [data-slot="indice-modal-actions"]>button{flex-basis:0;padding-left:8px;padding-right:8px}.five-s-review-item{padding:8px 0}.five-s-review-area{align-items:flex-start}}
+
+.five-s-follow-up summary::after{content:'+';font-size:18px;line-height:1;flex-shrink:0}.five-s-follow-up[open]>summary::after{content:'−'}
+
+.five-s-review-area>section{flex:1;min-width:0}.five-s-review-summary{padding:10px}.five-s-review-summary dl{grid-template-columns:minmax(0,1fr)}.five-s-review-summary dd{white-space:normal;overflow:visible;overflow-wrap:anywhere}

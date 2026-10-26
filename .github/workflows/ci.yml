@@ -131,6 +131,7 @@ jobs:
           npm run test:scheduling
           node --experimental-strip-types --test tests/email-attachments-flow.test.mjs tests/email-experience-flow.test.mjs tests/email-mailbox-flow.test.mjs tests/email-daily-workflow.test.mjs tests/email-professional-flow.test.mjs tests/meeting-voting-regression.test.mjs tests/project-management.test.mjs tests/scheduling-setup.test.mjs
           node --test tests/personal-ideas-board.test.mjs tests/system-board-model.test.mjs tests/node-appearance.test.mjs
+          node --test tests/board-five-s*.test.mjs tests/campaign-workshop.test.mjs tests/project-shared.test.mjs tests/employee-form-save-feedback.test.mjs
           npm run test:pos-ui
           npm run test:platform-admin
           npm run test:billing-flow

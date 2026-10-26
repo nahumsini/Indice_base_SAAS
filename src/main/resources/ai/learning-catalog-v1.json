@@ -1,6 +1,6 @@
 {
   "version": "2026-10-23.v1",
-  "sourceDigest": "c6b1baa399eebfa3e94402689b7e51eb9bb246539cd584b73e499861fa843967",
+  "sourceDigest": "4c066d04440c01cfebde2749d2e0f04d39dc9bcc99e65b60b7bf8d41c42a1cd2",
   "modules": [
     {
       "module": "ideas_board",
@@ -35,6 +35,35 @@
               "id": "verify",
               "title": "Comprueba el resultado",
               "description": "Guarda un proyecto con nombre para conservar una copia. Si hay un conflicto, revisa la versión guardada antes de descartar cambios."
+            }
+          ]
+        },
+        {
+          "tab": "five-s",
+          "label": "Tablero 5S",
+          "title": "Tablero 5S",
+          "purpose": "Crea un tablero para un área de trabajo y define acciones en las cinco categorías. Este espacio es privado para tu usuario y empresa.",
+          "effect": "Usa los filtros y accesos de seguimiento para revisar pendientes, vencidos y revisiones. Comprueba el guardado y conserva un proyecto; escribir un responsable no asigna una tarea ni envía una notificación.",
+          "chapterId": "ideas_board.five-s",
+          "version": 3,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Antes de empezar",
+              "description": "Crea un tablero para un área de trabajo y define acciones en las cinco categorías. Este espacio es privado para tu usuario y empresa."
+            },
+            {
+              "id": "operate",
+              "title": "Realiza la operación",
+              "description": "Registra responsable, fecha objetivo y avance de cada acción. Conserva evidencia antes y después; para marcar una acción como verificada, registra su resultado y programa su revisión cuando corresponda."
+            },
+            {
+              "id": "verify",
+              "title": "Comprueba el resultado",
+              "description": "Usa los filtros y accesos de seguimiento para revisar pendientes, vencidos y revisiones. Comprueba el guardado y conserva un proyecto; escribir un responsable no asigna una tarea ni envía una notificación."
             }
           ]
         },
@@ -516,7 +545,7 @@
           "purpose": "Organiza Mis ideas y define oferta, público, objetivo y canales. En la Biblioteca de empresa puedes completar preguntas de marca y conservar materiales sin cambiar la identidad global del negocio.",
           "effect": "Guarda el plan y el calendario y comprueba fechas, zona horaria y estados. Las sugerencias son propuestas editables; marcar Publicado es manual. El taller no publica anuncios ni activa campañas de Google Ads o Meta, y las metas no son resultados reales.",
           "chapterId": "crm.funneling",
-          "version": 4,
+          "version": 5,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -534,6 +563,11 @@
             {
               "id": "verify",
               "title": "Comprueba el resultado",
+              "description": "En Generar contenido elige el formato y prepara el prompt de una pieza terminada. Revisa los datos y adjunta los materiales en la herramienta elegida cuando sean necesarios; copiar el prompt no transfiere archivos ni publica contenido."
+            },
+            {
+              "id": "detail-3",
+              "title": "Detalle",
               "description": "Guarda el plan y el calendario y comprueba fechas, zona horaria y estados. Las sugerencias son propuestas editables; marcar Publicado es manual. El taller no publica anuncios ni activa campañas de Google Ads o Meta, y las metas no son resultados reales."
             }
           ]
@@ -1411,9 +1445,9 @@
           "label": "Colaboradores y expediente",
           "title": "Colaboradores y expediente",
           "purpose": "Revisa país, moneda, identidad, contacto, unidad, negocio y condiciones laborales. Busca antes de crear para evitar duplicados.",
-          "effect": "Completa contrato, compensación, horario, ubicación y acceso según corresponda. Una excepción de aprendizaje exige motivo y no cambia la política laboral. Inactivar y terminar son acciones distintas y conservan historia.",
+          "effect": "En Trabajo elige nómina operativa, fiscal o sin nómina. Para nómina fiscal de México o Canadá completa los datos del país dentro del mismo formulario, con su vigencia y documentos de referencia. Canadá incluye provincia de empleo, TD1 y acumulados; Québec tiene campos propios. Guarda y recalcula los borradores afectados.",
           "chapterId": "human_resources.collaborators",
-          "version": 3,
+          "version": 4,
           "journey": true,
           "companion": true,
           "evidenceTools": [
@@ -1437,6 +1471,11 @@
               "id": "verify",
               "title": "Comprueba el resultado",
               "description": "Completa contrato, compensación, horario, ubicación y acceso según corresponda. Una excepción de aprendizaje exige motivo y no cambia la política laboral. Inactivar y terminar son acciones distintas y conservan historia."
+            },
+            {
+              "id": "detail-3",
+              "title": "Detalle",
+              "description": "En Trabajo elige nómina operativa, fiscal o sin nómina. Para nómina fiscal de México o Canadá completa los datos del país dentro del mismo formulario, con su vigencia y documentos de referencia. Canadá incluye provincia de empleo, TD1 y acumulados; Québec tiene campos propios. Guarda y recalcula los borradores afectados."
             }
           ]
         },
@@ -1543,7 +1582,7 @@
           "purpose": "Revisa periodo, país, moneda, compensación, asistencia, permisos e incentivos con permisos de nómina.",
           "effect": "La aprobación genera la obligación financiera correspondiente. Marcar pagada exige el pago conciliado del propietario financiero; nunca mezcles monedas ni confundas aprobación con pago.",
           "chapterId": "human_resources.payroll",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [
@@ -1564,6 +1603,11 @@
             {
               "id": "verify",
               "title": "Comprueba el resultado",
+              "description": "Distingue nómina fiscal de operativa y revisa días laborales, descansos y descuentos por registros faltantes. En México y Canadá comprueba datos fiscales vigentes, fecha de pago, acumulados y alertas: los casos fuera del cálculo revisado requieren resolución antes de aprobar. Los recibos internos no timbran CFDI ni presentan T4 o RL-1."
+            },
+            {
+              "id": "detail-3",
+              "title": "Detalle",
               "description": "La aprobación genera la obligación financiera correspondiente. Marcar pagada exige el pago conciliado del propietario financiero; nunca mezcles monedas ni confundas aprobación con pago."
             }
           ]
@@ -2925,6 +2969,35 @@
           ]
         },
         {
+          "tab": "five-s",
+          "label": "5S board",
+          "title": "5S board",
+          "purpose": "Create a board for a work area and define actions in the five categories. This workspace is private to your user and company.",
+          "effect": "Use filters and follow-up shortcuts to review pending actions, overdue actions and reviews. Check the saved state and retain a project; entering a responsible person does not assign a task or send a notification.",
+          "chapterId": "ideas_board.five-s",
+          "version": 3,
+          "journey": true,
+          "companion": true,
+          "evidenceTools": [],
+          "steps": [
+            {
+              "id": "prepare",
+              "title": "Before starting",
+              "description": "Create a board for a work area and define actions in the five categories. This workspace is private to your user and company."
+            },
+            {
+              "id": "operate",
+              "title": "Perform the operation",
+              "description": "Record each action’s responsible person, target date and progress. Retain before and after evidence; to mark an action verified, record its result and schedule a review when applicable."
+            },
+            {
+              "id": "verify",
+              "title": "Verify the result",
+              "description": "Use filters and follow-up shortcuts to review pending actions, overdue actions and reviews. Check the saved state and retain a project; entering a responsible person does not assign a task or send a notification."
+            }
+          ]
+        },
+        {
           "tab": "system",
           "label": "Business diagnosis",
           "title": "Business diagnosis",
@@ -3402,7 +3475,7 @@
           "purpose": "Organize My ideas and define offer, audience, goal and channels. In the Company library you can answer brand questions and retain materials without changing the business’s global identity.",
           "effect": "Save the plan and calendar and check dates, time zone and statuses. Suggestions are editable proposals; Published is a manual status. The workshop does not publish ads or activate Google Ads or Meta campaigns, and targets are not actual results.",
           "chapterId": "crm.funneling",
-          "version": 4,
+          "version": 5,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3420,6 +3493,11 @@
             {
               "id": "verify",
               "title": "Verify the result",
+              "description": "In Generate content choose the format and prepare a prompt for one finished piece. Review the data and attach materials in the chosen tool when needed; copying the prompt neither transfers files nor publishes content."
+            },
+            {
+              "id": "detail-3",
+              "title": "Detail",
               "description": "Save the plan and calendar and check dates, time zone and statuses. Suggestions are editable proposals; Published is a manual status. The workshop does not publish ads or activate Google Ads or Meta campaigns, and targets are not actual results."
             }
           ]
@@ -4297,9 +4375,9 @@
           "label": "Employees and employee files",
           "title": "Employees and employee files",
           "purpose": "Review country, currency, identity, contact, unit, business and employment terms. Search before creating to avoid duplicates.",
-          "effect": "Complete contract, compensation, schedule, location and access as applicable. A learning exception requires a reason and does not change employment policy. Inactivation and termination are distinct actions that preserve history.",
+          "effect": "In Work choose operational payroll, statutory payroll or no payroll. For statutory payroll in Mexico or Canada complete the country details in the same form, including effective dates and supporting records. Canada includes province of employment, TD1 and opening totals; Québec has its own fields. Save and recalculate affected drafts.",
           "chapterId": "human_resources.collaborators",
-          "version": 3,
+          "version": 4,
           "journey": true,
           "companion": true,
           "evidenceTools": [
@@ -4323,6 +4401,11 @@
               "id": "verify",
               "title": "Verify the result",
               "description": "Complete contract, compensation, schedule, location and access as applicable. A learning exception requires a reason and does not change employment policy. Inactivation and termination are distinct actions that preserve history."
+            },
+            {
+              "id": "detail-3",
+              "title": "Detail",
+              "description": "In Work choose operational payroll, statutory payroll or no payroll. For statutory payroll in Mexico or Canada complete the country details in the same form, including effective dates and supporting records. Canada includes province of employment, TD1 and opening totals; Québec has its own fields. Save and recalculate affected drafts."
             }
           ]
         },
@@ -4429,7 +4512,7 @@
           "purpose": "Review period, country, currency, compensation, attendance, leave and incentives with payroll permissions.",
           "effect": "Approval creates the corresponding financial obligation. Marking paid requires the finance owner’s settled payment; never mix currencies or confuse approval with payment.",
           "chapterId": "human_resources.payroll",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [
@@ -4450,6 +4533,11 @@
             {
               "id": "verify",
               "title": "Verify the result",
+              "description": "Distinguish statutory and operational payroll and review workdays, rest days and deductions for missing records. In Mexico and Canada check effective tax profiles, payment dates, accumulated amounts and alerts: cases outside reviewed calculations require resolution before approval. Internal payslips neither certify CFDI nor file T4 or RL-1."
+            },
+            {
+              "id": "detail-3",
+              "title": "Detail",
               "description": "Approval creates the corresponding financial obligation. Marking paid requires the finance owner’s settled payment; never mix currencies or confuse approval with payment."
             }
           ]
