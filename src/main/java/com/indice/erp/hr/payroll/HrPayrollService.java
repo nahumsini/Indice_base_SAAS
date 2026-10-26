@@ -4402,6 +4402,7 @@ public class HrPayrollService {
         var countryProfileReviewCount = jdbcTemplate.queryForObject("""
             SELECT COUNT(*) FROM payroll_run_lines l WHERE l.company_id=? AND l.run_id=?
               AND l.payroll_treatment_snapshot='fiscal_payroll'
+              AND COALESCE(l.calculation_source, '') <> 'GENERIC_UNSUPPORTED_COUNTRY'
               AND ((l.country_code_snapshot='MX' AND (l.calculation_source='MX_REVIEW_REQUIRED'
                 OR JSON_EXTRACT(l.calculation_inputs_json, '$.countryProfile.metadata.mexicoProfileRevision') IS NULL))
                 OR (l.country_code_snapshot='CA' AND (l.calculation_source='CA_REVIEW_REQUIRED'

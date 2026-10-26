@@ -47,7 +47,7 @@ export function MexicoPayrollProfileFields({ form, choices, patch, choose, disab
 
   return <div className="space-y-5 text-slate-900 dark:text-slate-100">
           <fieldset disabled={disabled} className="space-y-4 rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
-            <legend className="px-2 font-semibold">{copy.salary}</legend>
+            <legend className="px-2 font-medium">{copy.salary}</legend>
             <div className="grid gap-4 sm:grid-cols-2">
               {field(copy.effective, <input className={controlClass} type="date" required value={form.effectiveFrom} onChange={event => updateTaxContext('effectiveFrom', event.target.value)} />)}
               {field(copy.registration, <input className={controlClass} required maxLength={11} pattern="[A-Z0-9]{11}" value={form.employerRegistration} onChange={event => update('employerRegistration', event.target.value.toUpperCase())} />, copy.registrationHelp)}
@@ -65,7 +65,7 @@ export function MexicoPayrollProfileFields({ form, choices, patch, choose, disab
             <p className="text-xs text-slate-500 dark:text-slate-400">{copy.riskHelp}</p>
           </fieldset>
           <fieldset disabled={disabled} className="space-y-4 rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
-            <legend className="px-2 font-semibold">{copy.taxTitle}</legend>
+            <legend className="px-2 font-medium">{copy.taxTitle}</legend>
             <div className="grid gap-4 sm:grid-cols-2">
               {field(copy.state, <select className={controlClass} required value={form.stateCode} onChange={event => updateTaxContext('stateCode', event.target.value)}><option value="">{copy.select}</option>{states.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select>)}
               {field(copy.taxSource, <select className={controlClass} required disabled={!form.stateCode || !form.effectiveFrom} value={choices.tax} onChange={event => {
@@ -84,7 +84,7 @@ export function MexicoPayrollProfileFields({ form, choices, patch, choose, disab
             <p className="text-xs text-slate-500 dark:text-slate-400">{taxChoice ? copy.taxHelp : copy.noTaxChoice}</p>
           </fieldset>
           <fieldset disabled={disabled} className="space-y-4 rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
-            <legend className="px-2 font-semibold">{copy.credit}</legend>
+            <legend className="px-2 font-medium">{copy.credit}</legend>
             {field(copy.creditStatus, <select className={controlClass} value={form.infonavit.enabled ? 'YES' : 'NO'} onChange={event => {
               updateCredit('enabled', event.target.value === 'YES');
               if (event.target.value === 'YES') choose({ insurance: form.infonavit.insuranceBimonthly > 0 ? 'NOTICE' : '' });

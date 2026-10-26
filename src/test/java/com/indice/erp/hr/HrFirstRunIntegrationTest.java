@@ -115,6 +115,8 @@ class HrFirstRunIntegrationTest {
                 (rs, rowNum) -> rs.getLong("user_id"),
                 userCompanyId
             );
+            jdbcTemplate.update("DELETE FROM payroll_mexico_profile_versions WHERE hr_user_id = ?", userCompanyId);
+            jdbcTemplate.update("DELETE FROM payroll_canada_profile_versions WHERE hr_user_id = ?", userCompanyId);
             jdbcTemplate.update("DELETE FROM user_companies WHERE id = ?", userCompanyId);
             for (var userId : userIds) {
                 jdbcTemplate.update("DELETE FROM users WHERE id = ?", userId);
@@ -2230,12 +2232,28 @@ class HrFirstRunIntegrationTest {
             "Payroll Global Unit " + uniqueSuffix,
             "Payroll Global Business " + uniqueSuffix
         );
-        var mxUserCompanyId = createCountryPayrollUserForTests(session, uniqueSuffix + 1, business, "MX", "MX", "10000");
+        var mxUserCompanyId = createCountryPayrollUserForTests(session, uniqueSuffix + 1, business, "MX", "NLE", "30000");
         var usUserCompanyId = createCountryPayrollUserForTests(session, uniqueSuffix + 2, business, "US", "CA", "2000");
         var caUserCompanyId = createCountryPayrollUserForTests(session, uniqueSuffix + 3, business, "CA", "ON", "2200");
         var brUserCompanyId = createCountryPayrollUserForTests(session, uniqueSuffix + 4, business, "BR", "BR", "5000");
-        var periodStartDate = LocalDate.parse("2099-02-01");
-        var periodEndDate = LocalDate.parse("2099-02-28");
+        var mexicoProfile = new com.indice.erp.hr.payroll.provider.mx.MexicoPayrollProfile(
+            LocalDate.of(2026, 1, 1), new BigDecimal("1000"), new BigDecimal("1050"),
+            com.indice.erp.hr.payroll.provider.mx.MexicoPayrollProfile.SalaryBasis.FIXED,
+            com.indice.erp.hr.payroll.provider.mx.MexicoPayrollProfile.MinimumWageZone.GENERAL,
+            "A1234567890", new BigDecimal("0.5"), "NLE", new BigDecimal("3"), "Synthetic reviewed ordinary rate",
+            new com.indice.erp.hr.payroll.provider.mx.MexicoPayrollProfile.InfonavitCredit(false, "", "", null, null,
+                com.indice.erp.hr.payroll.provider.mx.MexicoPayrollProfile.CreditMode.FIXED_MONTHLY, BigDecimal.ZERO, BigDecimal.ZERO, false));
+        var canadaProfile = com.indice.erp.hr.payroll.provider.ca.CanadaPayrollFixture.patch(
+            com.indice.erp.hr.payroll.provider.ca.CanadaPayrollFixture.profile("ON"), Map.of("payPeriodsPerYear", 12));
+        for (var fiscal : List.of(Map.entry("mexico/" + mxUserCompanyId, mexicoProfile), Map.entry("canada/" + caUserCompanyId, canadaProfile))) {
+            var parts = fiscal.getKey().split("/");
+            mockMvc.perform(put("/api/v1/hr/payroll/" + parts[0] + "/profiles/" + parts[1])
+                    .session(session).header("X-CSRF-Token", csrf(session)).contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(Map.of("expectedRevision", 0, "requestId", java.util.UUID.randomUUID(), "profile", fiscal.getValue()))))
+                .andExpect(status().isOk());
+        }
+        var periodStartDate = LocalDate.parse("2026-10-01");
+        var periodEndDate = LocalDate.parse("2026-10-31");
         seedPayrollAttendanceForPeriod(
             List.of(mxUserCompanyId, usUserCompanyId, caUserCompanyId, brUserCompanyId),
             periodStartDate,
@@ -2326,6 +2344,14 @@ class HrFirstRunIntegrationTest {
         var processedLines = (List<Map<String, Object>>) processedDetail.get("lines");
         assertManualEmployerCostVisibleForFrontend(payrollLineFor(processedLines, mxUserCompanyId));
 
+        // Manual concepts require fiscal review. Removing the adjustment restores the ordinary reviewed path.
+        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/approve", runId)
+                .session(session).header("X-CSRF-Token", csrf(session)))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(put("/api/v1/hr/payroll/runs/{runId}/lines/{lineId}", runId, mxLineId)
+                .session(session).header("X-CSRF-Token", csrf(session)).contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("manual_items", List.of()))))
+            .andExpect(status().isOk());
         mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/approve", runId)
                 .session(session)
                 .header("X-CSRF-Token", csrf(session)))

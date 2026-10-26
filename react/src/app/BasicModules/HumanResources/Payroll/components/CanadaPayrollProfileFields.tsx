@@ -19,7 +19,7 @@ export function CanadaPayrollProfileFields({ form: f, patch, disabled, locale }:
     <input aria-label={label} className={inputClass} type="number" inputMode="decimal" required min={min} max={max} step={step} value={value ?? ''} onChange={e => change(e.target.value === '' ? null : Number(e.target.value))} />);
   const date = (label: string, value: string, change: (value: string) => void, min = `${f.taxYear}-01-01`) => field(label,
     <input aria-label={label} className={inputClass} type="date" required min={min} max={`${f.taxYear}-12-31`} value={value} onChange={e => change(e.target.value)} />);
-  const group = (title: string, content: ReactNode) => <details className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/50" open><summary className="cursor-pointer font-semibold text-slate-800 dark:text-slate-100">{title}</summary><div className="mt-4 space-y-4">{content}</div></details>;
+  const group = (title: string, content: ReactNode) => <details className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/50" open><summary className="cursor-pointer font-medium text-slate-800 dark:text-slate-100">{title}</summary><div className="mt-4 space-y-4">{content}</div></details>;
   const claimOptions = { BASIC: c.basic, DECLARED: c.declared, NONE: c.none, EXEMPT: c.exempt };
   const countOptions = (values: number[]) => Object.fromEntries(values.map(n => [n, String(n)]));
   const opening = (changes: Partial<CanadaPayrollProfile['openingBalances']>) => patch({ openingBalances: { ...f.openingBalances, ...changes } });

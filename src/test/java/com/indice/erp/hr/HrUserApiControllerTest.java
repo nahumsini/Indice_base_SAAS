@@ -58,6 +58,9 @@ class HrUserApiControllerTest {
     private HrUserService hrUserService;
 
     @MockitoBean
+    private com.indice.erp.hr.users.HrEmployeePayrollUpdateService employeePayrollUpdates;
+
+    @MockitoBean
     private HrAccessService hrAccessService;
 
     @BeforeEach
@@ -132,7 +135,7 @@ class HrUserApiControllerTest {
                 .andExpect(jsonPath("$.message").value("Invalid CSRF token."));
         }
 
-        verifyNoInteractions(hrUserService);
+        verifyNoInteractions(hrUserService, employeePayrollUpdates);
     }
 
     @Test
@@ -147,7 +150,7 @@ class HrUserApiControllerTest {
                 .andExpect(jsonPath("$.message").value("Invalid CSRF token."));
         }
 
-        verifyNoInteractions(hrUserService);
+        verifyNoInteractions(hrUserService, employeePayrollUpdates);
     }
 
     @Test
@@ -221,7 +224,7 @@ class HrUserApiControllerTest {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(hrUserService.updateUser(any(AuthSessionUser.class), anyLong(), any(Map.class)))
+        given(employeePayrollUpdates.update(any(AuthSessionUser.class), anyLong(), any(Map.class)))
             .willThrow(new NoSuchElementException("HR user not found."));
 
         mockMvc.perform(put("/api/v1/hr/users/999")

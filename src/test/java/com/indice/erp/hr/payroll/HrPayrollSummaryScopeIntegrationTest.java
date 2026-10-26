@@ -59,11 +59,24 @@ class HrPayrollSummaryScopeIntegrationTest {
             assertEquals(users, summary.get("users_count"));
             assertEquals(expected, summary.get("native_totals_by_currency"));
             assertEquals(warnings, summary.get("unsupported_country_count"));
+            assertEquals(warnings, summary.get("fiscal_review_count"));
             assertEquals(warnings == 0, summary.get("statutory_compliance"));
             assertEquals(expected.size() == 1 ? "MXN" : null, summary.get("currency_code"));
             if (expected.size() == 1) assertFalse(String.valueOf(summary.get("jurisdiction_label")).contains("CA"));
         }
         assertEquals(users, ((List<?>) detail.get("lines")).size());
+    }
+
+    @Test
+    void legacyFiscalLineWithoutSourceOrProfileStillRequiresReview() {
+        long company = company(), run = run(company);
+        long actorId = line(company, run, 4, 9, "MX", "MXN", "1000", "900", "MEXICO");
+        jdbc.update("UPDATE payroll_run_lines SET calculation_source = NULL, calculation_inputs_json = NULL WHERE company_id = ? AND run_id = ?", company, run);
+        var user = new AuthSessionUser(actorId, company, "Synthetic payroll reviewer", "manager");
+        doReturn(HrOperationalScope.corporateOffice()).when(access).resolve(user);
+        var summary = (Map<?, ?>) service.getRunDetail(user, run).get("run");
+        assertEquals(1, summary.get("fiscal_review_count"));
+        assertEquals(false, summary.get("statutory_compliance"));
     }
 
     private long company() {
@@ -90,6 +103,11 @@ class HrPayrollSummaryScopeIntegrationTest {
             VALUES (?, ?, ?, ?, 'Synthetic employee', 'monthly', 'fixed', ?, ?, ?, ?, ?, ?, ?)
             """, company, run, member, user, country, currency, unit, business, new BigDecimal(gross), new BigDecimal(net), source);
         jdbc.update("UPDATE payroll_runs SET users_count = users_count + 1, gross_amount = gross_amount + ?, net_amount = net_amount + ? WHERE company_id = ? AND id = ?", new BigDecimal(gross), new BigDecimal(net), company, run);
+        if ("MEXICO".equals(source)) {
+            // A reviewed fiscal snapshot; legacy lines without a profile remain review-required.
+            jdbc.update("UPDATE payroll_run_lines SET calculation_inputs_json = ? WHERE company_id = ? AND run_id = ? AND user_company_id = ?",
+                "{\"countryProfile\":{\"metadata\":{\"mexicoProfileRevision\":1}}}", company, run, member);
+        }
         return user;
     }
 }
