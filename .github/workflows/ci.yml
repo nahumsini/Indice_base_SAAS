@@ -125,6 +125,7 @@ jobs:
           npm run test:inventory-ui
           npm run test:sales-ui
           npm run test:sales-workflow
+          node --experimental-strip-types --test tests/mailing-*.test.mjs tests/sales-funneling-flow.test.mjs
           node --experimental-strip-types --test tests/company-files.test.mjs tests/opportunity-flow-manager.test.mjs
           npm run test:sales-conversations
           npm run test:meeting-control

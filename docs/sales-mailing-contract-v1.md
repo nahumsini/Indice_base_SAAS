@@ -390,3 +390,18 @@ creating duplicate templates, versions or audit records. Stale/different payload
 The editor adopts the saved server version, retains input on errors and locks saves while file or
 inline-image preparation is active. No sending, scheduling, customer access or account authority
 is granted by saving/uploading a template.
+
+
+## 2026-10-26 — Mailing compatibility tune-up with current Email composition
+
+Campaign editor keeps the four-step Sales wizard and shared rich editor. Preparing inline images now locks save, navigation and close independently from reusable-file transfers. Campaigns can complete shared-template placeholders through the Email-owned variable fields/resolver, preserving HTML, inline images and attachments without editing the template. `{{name}}` remains a per-recipient delivery token. Missing custom values can remain in a saved draft but block review-for-send, test and launch in the current UI until completed. Subject/preview/body bounds remain enforced; server permissions, snapshots, SMTP outcomes, consent, unsubscribe and worker contracts are unchanged. Failed review loading exposes Refresh without discarding draft/selection. Validation uses a disposable indice_test_db, mocked SMTP transport and a synthetic browser fixture; no real mail is sent.
+
+
+## 2026-10-26 — Direct message typing in the Mailing editor
+
+The rich message uses a non-label container. The editor already carries its accessible textbox name; wrapping it in a label incorrectly associated blank-surface clicks with its hidden inline-image input. Only Insert image invokes that picker. Blank drafting, template application, formatting and separate reusable attachments retain their existing handlers. A regression prevents enclosing the rich editor in a label again.
+
+
+## 2026-10-26 — Explicit write/template choice in campaign content
+
+The Content step starts with native coral IndiceWorkspaceNavigation views: Write from scratch (default) and Use a template. The subject/message remain editable in either view. Template controls are shown only on request and stay mounted so switching does not reset the preview/search or draft. Changing views never clears text or attachments; only the existing explicit Apply template replaces content. Localized helper copy explains this distinction. Applying a template locks owner navigation/save/close until completion, independently of inline image/file activity. Choice is transient UI state, not a new campaign field or persistence writer.

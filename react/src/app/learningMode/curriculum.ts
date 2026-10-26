@@ -32,7 +32,8 @@ function chapter(module: string, tab: string, label: LearningText, steps: readon
     : module === 'ideas_board' && tab === 'projects' ? 5
     : module === 'ideas_board' && ['canvas','system'].includes(tab) ? 4
     : ['correo.mail', 'control_minutas.meetings'].includes(`${module}.${tab}`) ? 4
-    : module === 'crm' && tab === 'funneling' ? 5
+    : module === 'crm' && tab === 'funneling' ? 6
+    : module === 'crm' && tab === 'mailing' ? 4
     : module === 'human_resources' && tab === 'collaborators' ? 4
     : module === 'human_resources' && tab === 'payroll' ? 3
     : ['human_resources.collaborators', 'crm.mailing', 'control_minutas.session', 'control_minutas.agreements', 'control_minutas.indicators', 'scheduling.clients'].includes(`${module}.${tab}`) ? 3
@@ -132,12 +133,12 @@ export const learningChapters: readonly LearningChapter[] = [
   ]),
   chapter("crm", "funneling", ["Campañas y embudo","Campaigns and funnel"], [
     ["Organiza Mis ideas y define oferta, público, objetivo y canales. En la Biblioteca de empresa puedes completar preguntas de marca y conservar materiales sin cambiar la identidad global del negocio.","Organize My ideas and define offer, audience, goal and channels. In the Company library you can answer brand questions and retain materials without changing the business’s global identity."],
-    ["Selecciona los datos y materiales de la campaña. En Generar contenido elige el formato y prepara el prompt de una pieza terminada. Revisa los datos y adjunta los materiales en la herramienta elegida cuando sean necesarios; copiar el prompt no transfiere archivos ni publica contenido.","Select the campaign data and materials. In Generate content choose the format and prepare a prompt for one finished piece. Review the data and attach materials in the chosen tool when needed; copying the prompt neither transfers files nor publishes content."],
+    ["Abre Crear contenido desde la tarjeta de la campaña; revisa el formato y si tiene una respuesta de IA guardada. Selecciona datos y materiales y prepara el prompt de una pieza terminada. Adjunta los materiales en la herramienta elegida cuando sean necesarios; copiar el prompt no transfiere archivos ni publica contenido.","Open Create content from the campaign card; review its format and whether it has a saved AI response. Select data and materials and prepare a prompt for one finished piece. Attach materials in the chosen tool when needed; copying the prompt neither transfers files nor publishes content."],
     ["Guarda el plan y el calendario y comprueba fechas, zona horaria y estados. Las sugerencias son propuestas editables; marcar Publicado es manual. El taller no publica anuncios ni activa campañas de Google Ads o Meta, y las metas no son resultados reales.","Save the plan and calendar and check dates, time zone and statuses. Suggestions are editable proposals; Published is a manual status. The workshop does not publish ads or activate Google Ads or Meta campaigns, and targets are not actual results."],
   ]),
   chapter("crm", "mailing", ["Campañas de correo","Email campaigns"], [
     ["Selecciona una cuenta remitente verificada y los contactos o listas de Ventas para la campaña.","Select a verified sender account and Sales contacts or lists for the campaign."],
-    ["Prepara asunto, contenido y variables; crea o inserta una plantilla con archivos guardados. Comprueba su guardado y revisa adjuntos, destinatarios habilitados, exclusiones y configuración antes de confirmar el lanzamiento o programación.","Prepare subject, content and variables; create or insert a template with saved files. Verify it was saved and review attachments, eligible recipients, exclusions and configuration before confirming launch or scheduling."],
+    ["Elige Escribir desde cero o Usar plantilla; cambiar de opción conserva el borrador y Aplicar plantilla reemplaza el contenido. Completa las variables pendientes, conserva {{name}} para cada destinatario y usa Insertar imagen para el cuerpo. Espera a que terminen las imágenes y adjuntos antes de guardar y revisar destinatarios, exclusiones y configuración.","Choose Write from scratch or Use a template; switching options keeps the draft and Apply template replaces its content. Complete pending variables, retain {{name}} for each recipient and use Insert image for the body. Wait for images and attachments to finish before saving and reviewing recipients, exclusions and settings."],
     ["Consulta resultados por destinatario y respeta las bajas. Aceptado por SMTP no significa leído o entregado; una prueba no lanza la campaña.","Review per-recipient outcomes and respect opt-outs. SMTP acceptance does not mean read or delivered; a test does not launch the campaign."],
   ]),
   chapter("crm", "whatsapping", ["Campañas asistidas de WhatsApp","Assisted WhatsApp campaigns"], [

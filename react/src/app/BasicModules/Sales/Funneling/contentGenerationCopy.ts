@@ -30,7 +30,11 @@ const translations = {
     "filtered": "Filtros activos",
     "availableCampaigns": "Campañas en esta página",
     "searchPlaceholder": "Nombre de la campaña u objetivo",
-    "promptLabel": "Prompt de contenido"
+    "promptLabel": "Prompt de contenido",
+    "createContent": "Crear contenido",
+    "formatPending": "Formato por elegir",
+    "aiResponseSaved": "Respuesta de IA guardada",
+    "aiResponsePending": "Sin respuesta de IA guardada"
   },
   "en": {
     "title": "Content generation",
@@ -63,7 +67,11 @@ const translations = {
     "filtered": "Active filters",
     "availableCampaigns": "Campaigns on this page",
     "searchPlaceholder": "Campaign name or objective",
-    "promptLabel": "Content prompt"
+    "promptLabel": "Content prompt",
+    "createContent": "Create content",
+    "formatPending": "Format not chosen",
+    "aiResponseSaved": "AI response saved",
+    "aiResponsePending": "No saved AI response"
   },
   "fr": {
     "title": "Création de contenu",
@@ -96,7 +104,11 @@ const translations = {
     "filtered": "Filtres actifs",
     "availableCampaigns": "Campagnes sur cette page",
     "searchPlaceholder": "Nom de la campagne ou objectif",
-    "promptLabel": "Consigne de contenu"
+    "promptLabel": "Consigne de contenu",
+    "createContent": "Créer du contenu",
+    "formatPending": "Format à choisir",
+    "aiResponseSaved": "Réponse IA enregistrée",
+    "aiResponsePending": "Aucune réponse IA enregistrée"
   },
   "pt": {
     "title": "Geração de conteúdo",
@@ -129,7 +141,11 @@ const translations = {
     "filtered": "Filtros ativos",
     "availableCampaigns": "Campanhas nesta página",
     "searchPlaceholder": "Nome da campanha ou objetivo",
-    "promptLabel": "Prompt de conteúdo"
+    "promptLabel": "Prompt de conteúdo",
+    "createContent": "Criar conteúdo",
+    "formatPending": "Formato a escolher",
+    "aiResponseSaved": "Resposta da IA salva",
+    "aiResponsePending": "Sem resposta da IA salva"
   },
   "ko": {
     "title": "콘텐츠 만들기",
@@ -162,7 +178,11 @@ const translations = {
     "filtered": "적용된 필터",
     "availableCampaigns": "이 페이지의 캠페인",
     "searchPlaceholder": "캠페인 이름 또는 목표",
-    "promptLabel": "콘텐츠 프롬프트"
+    "promptLabel": "콘텐츠 프롬프트",
+    "createContent": "콘텐츠 만들기",
+    "formatPending": "형식 선택 필요",
+    "aiResponseSaved": "AI 응답 저장됨",
+    "aiResponsePending": "저장된 AI 응답 없음"
   },
   "zh": {
     "title": "内容生成",
@@ -195,7 +215,11 @@ const translations = {
     "filtered": "已启用筛选",
     "availableCampaigns": "本页活动",
     "searchPlaceholder": "活动名称或目标",
-    "promptLabel": "内容提示词"
+    "promptLabel": "内容提示词",
+    "createContent": "创建内容",
+    "formatPending": "尚未选择格式",
+    "aiResponseSaved": "已保存AI回复",
+    "aiResponsePending": "尚未保存AI回复"
   }
 } as const;
 export function contentGenerationCopy(locale: string) { return translations[locale.slice(0, 2) as keyof typeof translations] ?? translations.en; }

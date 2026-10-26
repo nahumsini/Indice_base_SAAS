@@ -1,3 +1,5 @@
+import { mailTemplateVariables } from '../../../../ComplementaryModules/Email/mailTemplateVariableModel';
+import { useMailEditorCopy } from '../../../../components/mail-editor/mailEditorCopy';
 import { useEffect, useRef, useState } from "react";
 import { Send } from "lucide-react";
 import { SalesModalFrame } from "../../components/SalesModalFrame";
@@ -24,6 +26,7 @@ export function CampaignDelivery({
   onClose: () => void;
 }) {
   const copy = useDeliveryCopy();
+  const richCopy=useMailEditorCopy();
   const [review, setReview] = useState<CampaignReview | null>(null);
   const [results, setResults] = useState<CampaignResults | null>(null);
   const [refresh, setRefresh] = useState(0);
@@ -116,7 +119,9 @@ export function CampaignDelivery({
       ? eligibleIds
       : selected.filter((id) => eligibleIds.includes(id));
   const eligible = eligibleIds.length;
+  const unresolved=!!review&&mailTemplateVariables(review.subject,review.bodyText).some(name=>name!=='name');
   const canLaunch =
+    !unresolved &&
     review?.canSend &&
     review.sender?.verified &&
     review.publicLinkReady &&
@@ -237,7 +242,7 @@ export function CampaignDelivery({
         ) : view === "test" ? (
           <Button
             disabled={
-              busy || !to.trim() || !review?.canSend || !review.sender?.verified
+              busy || !to.trim() || !review?.canSend || !review.sender?.verified || unresolved
             }
             onClick={() => setView("testConfirm")}
           >
@@ -247,7 +252,7 @@ export function CampaignDelivery({
           <>
             <Button
               variant="outline"
-              disabled={busy || !review?.canSend || !review.sender?.verified}
+              disabled={busy || !review?.canSend || !review.sender?.verified || unresolved}
               onClick={() => setView("test")}
             >
               {copy.test}
@@ -270,6 +275,7 @@ export function CampaignDelivery({
         )
       }
     >
+      {unresolved&&<p role="alert" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">{richCopy.variables}</p>}
       {error && (
         <p
           role="alert"
@@ -282,6 +288,7 @@ export function CampaignDelivery({
         <IndiceViewState
           variant={error ? "error" : "loading"}
           title={error || copy.title}
+          action={error?<Button variant="outline" className="min-h-11" onClick={()=>setRefresh(value=>value+1)}>{copy.refresh}</Button>:undefined}
           tone="coral"
         />
       ) : view === "discard" ? (

@@ -924,3 +924,18 @@ The Content view requests the selected finished advertising piece, using campaig
 ## 2026-10-26 — Selected-format-only content instructions
 
 Content prompts include only the selected format's production instructions. AUTO delegates a single coherent format without listing a catalog. Variants retain the selected format and requested count; this presentation supersedes cross-format directions inside Content prompts. No saved guide values are converted. Campaign/workshop and calendar prompts retain their existing planning behavior. Copy, download and print continue sharing the current prompt and reference boundaries.
+
+
+## 2026-10-26 — Campaign card presentation
+
+Campaign cards use a compact coral identity, semantic lifecycle badge, clear title and at most two lines of distinct idea copy. An idea identical to the title is not repeated. Confirmed offer and audience appear only when present; channel chips retain their existing meaning. A bounded footer keeps Review and labeled Duplicate available with 44 px targets. Cards adapt to one/two/three columns without changing list scope, sorting, pagination, selection, permissions, saving or duplicate behavior. No campaign is modified by this presentation.
+
+
+## 2026-10-26 — Direct content entry from campaign cards
+
+Each campaign card exposes Create content, opening the existing Content view with that exact visible campaign selected. It uses the owner's navigation guard and existing view state; scope, pagination, search, lifecycle, saved content choices and persistence remain unchanged. Review and Duplicate remain available; navigation neither creates nor saves a campaign. Labels cover all supported languages.
+
+
+## 2026-10-26 — Saved content signals on campaign cards
+
+Cards show the saved content guide format; absent or AUTO format is visibly undecided. A separate saved-AI-response indicator derives only from non-whitespace workshop.aiResponse. It describes stored text, not approved artwork, publication or campaign completion. No generated response text is exposed on the card. Legacy plans remain without a saved response until their existing contract supports one. Cards use localized labels and semantic icon/text in light/dark mode, preserving navigation and persistence.

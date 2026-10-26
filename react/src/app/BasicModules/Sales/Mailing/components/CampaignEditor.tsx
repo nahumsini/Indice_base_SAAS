@@ -1,3 +1,7 @@
+import { IndiceWorkspaceNavigation } from '../../../../components/frontend-os/IndiceWorkspaceNavigation';
+import { MailTemplateVariables } from '../../../../ComplementaryModules/Email/MailTemplateVariables';
+import { mailTemplateVariables, resolveMailTemplateVariables } from '../../../../ComplementaryModules/Email/mailTemplateVariableModel';
+import { useMailEditorCopy } from '../../../../components/mail-editor/mailEditorCopy';
 import { MailFormattedPreview } from '../../../../components/mail-editor/MailFormattedPreview';
 import { plainMailHtml } from '../../../../components/mail-editor/mailFormat';
 import { MailRichEditor } from "../../../../components/mail-editor/MailRichEditor";
@@ -61,6 +65,10 @@ export function CampaignEditor({
   const pending = useRef(false);
   const [files,setFiles]=useState<MailingFile[]>(campaign?.attachments??[]);
   const [fileBusy,setFileBusy]=useState(false);
+  const [editorBusy,setEditorBusy]=useState(false);
+  const [templateBusy,setTemplateBusy]=useState(false);
+  const [contentMode,setContentMode]=useState<'write'|'template'>('write');
+  const richCopy=useMailEditorCopy();
   const formRef = useRef<HTMLDivElement>(null);
   const initial: Draft = {
     name: campaign?.name ?? "",
@@ -89,7 +97,8 @@ export function CampaignEditor({
   const [invalidField, setInvalidField] = useState<"name" | "replyTo" | null>(
     null,
   );
-  const locked=busy||fileBusy;
+  const locked=busy||fileBusy||editorBusy||templateBusy;
+  const variables=mailTemplateVariables(draft.subject,`${draft.previewText}\n${draft.bodyText}`).filter(name=>name!=='name');
   const readOnly = !canEdit || locked || blocked;
   useEffect(() => {
     if (!invalidField || discard) return;
@@ -152,6 +161,7 @@ export function CampaignEditor({
   }
   async function save(configure = false, review = false) {
     if (readOnly || pending.current || !validateDetails()) return;
+    if(review&&variables.length){setError(richCopy.variables);setStep(2);return;}
     pending.current = true;
     setBusy(true);
     setError("");
@@ -257,7 +267,7 @@ export function CampaignEditor({
                 className={actionClasses.primary}
                 disabled={locked || blocked}
                 onClick={() => {
-                  if (validateDetails()) setStep((s) => s + 1);
+                  if (validateDetails()) {if(step===2&&variables.length){setError(richCopy.variables);return;}setStep((s) => s + 1);}
                 }}
               >
                 {copy.next}
@@ -356,7 +366,15 @@ export function CampaignEditor({
           )}
           {step === 2 && (
             <div className="space-y-4">
+              <section className="space-y-3" aria-label={editorCopy.contentMethod}>
+                <h3 className="text-sm font-medium text-slate-900 dark:text-white">{editorCopy.contentMethod}</h3>
+                <IndiceWorkspaceNavigation<'write'|'template'> variant="views" tone="coral" ariaLabel={editorCopy.contentMethod} value={contentMode} onValueChange={setContentMode}
+                  items={[{id:'write',label:editorCopy.writeFromScratch,icon:<FilePenLine className="size-4"/>,disabled:readOnly},{id:'template',label:editorCopy.useTemplate,icon:<Mail className="size-4"/>,disabled:readOnly}]}/>
+                <p className="text-sm leading-5 text-slate-500 dark:text-slate-400">{contentMode==='write'?editorCopy.writeHint:editorCopy.templateHint}</p>
+              </section>
+              <div hidden={contentMode!=='template'}>
               <CampaignTemplatePicker
+                onBusy={setTemplateBusy}
                 copy={copy}
                 disabled={readOnly}
                 onApply={(value) => {
@@ -370,12 +388,19 @@ export function CampaignEditor({
                   }));}
                 }
               />
+              </div>
+              {variables.length>0&&<MailTemplateVariables key={variables.join('|')} names={variables} disabled={readOnly} onApply={values=>{
+                const resolved=resolveMailTemplateVariables({subject:draft.subject,bodyText:draft.bodyText,bodyHtml:draft.bodyHtml??null},values);
+                const previewText=resolveMailTemplateVariables({subject:draft.previewText,bodyText:'',bodyHtml:null},values).subject;
+                if(resolved.subject.length>240||previewText.length>240||resolved.bodyText.length>18000||resolved.bodyHtml.length>500000){setError(copy.saveError);return;}
+                setDraft(previous=>({...previous,...resolved,previewText}));setError('');
+              }}/>}
               {field("subject", copy.subject, 240)}
               {field("previewText", copy.previewText, 240)}
-              <label className="block space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+              <div className="block space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
                 <span>{copy.body}</span>
-                <MailRichEditor label={copy.body} text={draft.bodyText} html={draft.bodyHtml??null} disabled={readOnly} onChange={(bodyText,bodyHtml)=>setDraft(d=>({...d,bodyText,bodyHtml}))} />
-              </label>
+                <MailRichEditor label={copy.body} text={draft.bodyText} html={draft.bodyHtml??null} onBusy={setEditorBusy} disabled={readOnly} onChange={(bodyText,bodyHtml)=>setDraft(d=>({...d,bodyText,bodyHtml}))} />
+              </div>
               <MailingFiles files={files} disabled={readOnly} onBusy={setFileBusy} onChange={canEdit?value=>{setFiles(value);setDraft(d=>({...d,attachmentIds:value.map(f=>f.id)}));}:undefined}/>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {audienceCopy.personalization}

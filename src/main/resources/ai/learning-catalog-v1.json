@@ -1,6 +1,6 @@
 {
   "version": "2026-10-23.v1",
-  "sourceDigest": "e66eee313d308e027c7cb0a2ccb40439c7ff02717755e0204bf9b428ddb65e63",
+  "sourceDigest": "6a14ce1614082c5317bc3e3ab761ff40a22bca0e0bffc23b1e02473004e96641",
   "modules": [
     {
       "module": "ideas_board",
@@ -545,7 +545,7 @@
           "purpose": "Organiza Mis ideas y define oferta, público, objetivo y canales. En la Biblioteca de empresa puedes completar preguntas de marca y conservar materiales sin cambiar la identidad global del negocio.",
           "effect": "Guarda el plan y el calendario y comprueba fechas, zona horaria y estados. Las sugerencias son propuestas editables; marcar Publicado es manual. El taller no publica anuncios ni activa campañas de Google Ads o Meta, y las metas no son resultados reales.",
           "chapterId": "crm.funneling",
-          "version": 5,
+          "version": 6,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -558,7 +558,7 @@
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Selecciona los datos y materiales de la campaña. En Generar contenido elige el formato y prepara el prompt de una pieza terminada. Revisa los datos y adjunta los materiales en la herramienta elegida cuando sean necesarios; copiar el prompt no transfiere archivos ni publica contenido."
+              "description": "Abre Crear contenido desde la tarjeta de la campaña; revisa el formato y si tiene una respuesta de IA guardada. Selecciona datos y materiales y prepara el prompt de una pieza terminada. Adjunta los materiales en la herramienta elegida cuando sean necesarios; copiar el prompt no transfiere archivos ni publica contenido."
             },
             {
               "id": "verify",
@@ -574,7 +574,7 @@
           "purpose": "Selecciona una cuenta remitente verificada y los contactos o listas de Ventas para la campaña.",
           "effect": "Consulta resultados por destinatario y respeta las bajas. Aceptado por SMTP no significa leído o entregado; una prueba no lanza la campaña.",
           "chapterId": "crm.mailing",
-          "version": 3,
+          "version": 4,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -587,7 +587,7 @@
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Prepara asunto, contenido y variables; crea o inserta una plantilla con archivos guardados. Comprueba su guardado y revisa adjuntos, destinatarios habilitados, exclusiones y configuración antes de confirmar el lanzamiento o programación."
+              "description": "Elige Escribir desde cero o Usar plantilla; cambiar de opción conserva el borrador y Aplicar plantilla reemplaza el contenido. Completa las variables pendientes, conserva {{name}} para cada destinatario y usa Insertar imagen para el cuerpo. Espera a que terminen las imágenes y adjuntos antes de guardar y revisar destinatarios, exclusiones y configuración."
             },
             {
               "id": "verify",
@@ -3460,7 +3460,7 @@
           "purpose": "Organize My ideas and define offer, audience, goal and channels. In the Company library you can answer brand questions and retain materials without changing the business’s global identity.",
           "effect": "Save the plan and calendar and check dates, time zone and statuses. Suggestions are editable proposals; Published is a manual status. The workshop does not publish ads or activate Google Ads or Meta campaigns, and targets are not actual results.",
           "chapterId": "crm.funneling",
-          "version": 5,
+          "version": 6,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3473,7 +3473,7 @@
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Select the campaign data and materials. In Generate content choose the format and prepare a prompt for one finished piece. Review the data and attach materials in the chosen tool when needed; copying the prompt neither transfers files nor publishes content."
+              "description": "Open Create content from the campaign card; review its format and whether it has a saved AI response. Select data and materials and prepare a prompt for one finished piece. Attach materials in the chosen tool when needed; copying the prompt neither transfers files nor publishes content."
             },
             {
               "id": "verify",
@@ -3489,7 +3489,7 @@
           "purpose": "Select a verified sender account and Sales contacts or lists for the campaign.",
           "effect": "Review per-recipient outcomes and respect opt-outs. SMTP acceptance does not mean read or delivered; a test does not launch the campaign.",
           "chapterId": "crm.mailing",
-          "version": 3,
+          "version": 4,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3502,7 +3502,7 @@
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Prepare subject, content and variables; create or insert a template with saved files. Verify it was saved and review attachments, eligible recipients, exclusions and configuration before confirming launch or scheduling."
+              "description": "Choose Write from scratch or Use a template; switching options keeps the draft and Apply template replaces its content. Complete pending variables, retain {{name}} for each recipient and use Insert image for the body. Wait for images and attachments to finish before saving and reviewing recipients, exclusions and settings."
             },
             {
               "id": "verify",

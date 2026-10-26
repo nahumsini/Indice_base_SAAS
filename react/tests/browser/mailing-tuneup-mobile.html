@@ -1,0 +1,7 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Mailing · Revisión móvil sintética</title>
+<style>body{margin:0;padding:12px;background:#e8edf5;font:14px system-ui}label{display:block;margin-bottom:10px}select{min-height:44px;padding:8px}iframe{display:block;border:1px solid #cbd5e1;background:white;max-width:none}</style></head>
+<body><label>Tamaño de revisión <select id="size"><option value="desktop">Escritorio 1280 × 720</option><option value="phone">Celular 390 × 844</option><option value="small">Celular 320 × 640</option><option value="landscape">Horizontal 844 × 390</option></select></label>
+<label><input id="dark" type="checkbox"> Modo oscuro de prueba</label>
+<iframe allow="fullscreen 'none'" title="Pizarra de prueba" id="board" src="/tests/browser/mailing-tuneup.html" width="1280" height="720"></iframe>
+<script>const sizes={desktop:[1280,720],phone:[390,844],small:[320,640],landscape:[844,390]};document.querySelector('#size').addEventListener('change',event=>{const [width,height]=sizes[event.target.value];const frame=document.querySelector('#board');frame.width=width;frame.height=height;});document.querySelector('#dark').addEventListener('change',event=>document.querySelector('#board').contentDocument.documentElement.classList.toggle('dark',event.target.checked));</script></body></html>

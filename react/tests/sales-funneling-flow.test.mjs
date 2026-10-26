@@ -55,7 +55,7 @@ test('stage boundaries and required names remain explicit', () => {
 test('navigation uses its own native permission and keeps the operational CRM boundary separate', () => {
   const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
   assert.match(read('../src/app/access/tabScopeCatalog.ts'), /funneling: 'funneling'/);
-  assert.match(read('../src/app/BasicModules/Sales/Ventas.tsx'), /activeTab === 'mailing' \|\| activeTab === 'funneling' \? workspace/);
+  assert.match(read('../src/app/BasicModules/Sales/Ventas.tsx'), /activeTab === 'mailing' \|\| activeTab === 'funneling'(?: \|\| activeTab === '[a-z-]+')* \? workspace : \(\s*<SalesCrmProvider>/);
   assert.match(read('../src/app/BasicModules/Sales/Funneling/FunnelEditor.tsx'), /modalType="operational-workspace"/);
   const api = read('../src/app/BasicModules/Sales/Funneling/funnelApi.ts');
   assert.match(api, /\/api\/v1\/sales\/funnels/);

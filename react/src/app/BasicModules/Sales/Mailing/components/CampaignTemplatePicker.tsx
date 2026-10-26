@@ -11,9 +11,11 @@ export function CampaignTemplatePicker({
   copy,
   disabled,
   onApply,
+  onBusy,
 }: {
   copy: MailingCopy;
   disabled: boolean;
+  onBusy?: (busy:boolean)=>void;
   onApply: (
     value: Pick<EmailTemplate, "subject" | "previewText" | "bodyText" | "bodyHtml" | "attachments">,
   ) => void;
@@ -100,7 +102,8 @@ export function CampaignTemplatePicker({
     };
   }, [selected, copy]);
   async function apply() {
-    if (!preview) return;
+    if (!preview || disabled || busy) return;
+    onBusy?.(true);
     setBusy(true);
     setError("");
     try {
@@ -116,6 +119,7 @@ export function CampaignTemplatePicker({
       setError(copy.templateLoadError);
     } finally {
       setBusy(false);
+      onBusy?.(false);
     }
   }
   return (

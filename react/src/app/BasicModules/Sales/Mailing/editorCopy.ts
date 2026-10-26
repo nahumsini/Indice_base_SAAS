@@ -23,6 +23,12 @@ const en = {
     "Your latest unsaved changes will be lost. You can continue editing to keep them.",
   summary: "Campaign summary",
   messagePreview: "Message preview",
+  contentMethod: "How would you like to prepare this email?",
+  writeFromScratch: "Write from scratch",
+  useTemplate: "Use a template",
+  writeHint: "Write your subject and message below. Switching options keeps your draft.",
+  templateHint: "Choose and preview a template. Your message changes only when you select Apply template.",
+
 };
 type Copy = typeof en;
 const es: Copy = {
@@ -51,6 +57,12 @@ const es: Copy = {
     "Se perderán los últimos cambios sin guardar. Puedes seguir editando para conservarlos.",
   summary: "Resumen de campaña",
   messagePreview: "Vista previa del mensaje",
+  contentMethod: "¿Cómo quieres preparar este correo?",
+  writeFromScratch: "Escribir desde cero",
+  useTemplate: "Usar plantilla",
+  writeHint: "Escribe el asunto y el mensaje abajo. Cambiar de opción conserva tu borrador.",
+  templateHint: "Elige una plantilla y revisa su vista previa. Tu mensaje cambia solo al pulsar Aplicar plantilla.",
+
 };
 const fr: Copy = {
   edit: "Modifier la campagne",
@@ -78,6 +90,12 @@ const fr: Copy = {
     "Les dernières modifications non enregistrées seront perdues. Continuez à modifier pour les conserver.",
   summary: "Résumé de la campagne",
   messagePreview: "Aperçu du message",
+  contentMethod: "Comment préparer cet e-mail ?",
+  writeFromScratch: "Rédiger librement",
+  useTemplate: "Utiliser un modèle",
+  writeHint: "Rédigez l’objet et le message ci-dessous. Changer d’option conserve le brouillon.",
+  templateHint: "Choisissez un modèle et vérifiez l’aperçu. Le message change uniquement en cliquant sur Appliquer le modèle.",
+
 };
 const pt: Copy = {
   edit: "Editar campanha",
@@ -104,6 +122,12 @@ const pt: Copy = {
     "As últimas alterações não salvas serão perdidas. Continue editando para mantê-las.",
   summary: "Resumo da campanha",
   messagePreview: "Prévia da mensagem",
+  contentMethod: "Como deseja preparar este e-mail?",
+  writeFromScratch: "Escrever do zero",
+  useTemplate: "Usar modelo",
+  writeHint: "Escreva o assunto e a mensagem abaixo. Trocar de opção mantém o rascunho.",
+  templateHint: "Escolha um modelo e confira a prévia. A mensagem só muda ao clicar em Aplicar modelo.",
+
 };
 const ko: Copy = {
   edit: "캠페인 수정",
@@ -126,6 +150,12 @@ const ko: Copy = {
     "저장하지 않은 최근 변경 사항이 사라집니다. 유지하려면 계속 편집하세요.",
   summary: "캠페인 요약",
   messagePreview: "메시지 미리보기",
+  contentMethod: "이메일을 어떻게 작성할까요?",
+  writeFromScratch: "직접 작성",
+  useTemplate: "템플릿 사용",
+  writeHint: "아래에서 제목과 메시지를 작성하세요. 옵션을 바꿔도 초안은 유지됩니다.",
+  templateHint: "템플릿을 선택하고 미리 보세요. 템플릿 적용을 눌러야 메시지가 변경됩니다.",
+
 };
 const zh: Copy = {
   edit: "编辑营销活动",
@@ -146,6 +176,12 @@ const zh: Copy = {
   discardHint: "最近未保存的更改将丢失。您可以继续编辑以保留更改。",
   summary: "营销活动摘要",
   messagePreview: "邮件预览",
+  contentMethod: "如何准备这封邮件？",
+  writeFromScratch: "从头撰写",
+  useTemplate: "使用模板",
+  writeHint: "在下方填写主题和正文。切换选项会保留草稿。",
+  templateHint: "选择模板并查看预览。仅点击应用模板后才会替换邮件内容。",
+
 };
 export function useCampaignEditorCopy(): Copy {
   const { currentLanguage } = useLanguage();

@@ -305,3 +305,18 @@ test('every selected format has isolated production instructions across language
  assert.match(make('SHORT_VIDEO'),/guion de video corto/);assert.doesNotMatch(make('SHORT_VIDEO'),/generador de imágenes|carrusel|transmisión|encuesta|hilo|GIF/);
  assert.match(make('CAROUSEL'),/Crea el carrusel final/);assert.doesNotMatch(make('CAROUSEL'),/guion|transmisión|encuesta|hilo|GIF/);
 });
+
+test('campaign cards show saved format and response presence without exposing response text or changing actions',()=>{
+ const {contentGenerationCopy}=load('contentGenerationCopy.ts');
+ const {CampaignIdeaCards}=load('CampaignWorkspaceView.tsx',id=>{
+  if(id==='react/jsx-runtime')return{jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})};
+  if(id.endsWith('contentGuideCopy'))return{contentGuideCopy};if(id.endsWith('contentGenerationCopy'))return{contentGenerationCopy};return new Proxy({},{get:(_,key)=>key});
+ });
+ for(const format of ['AUTO','IMAGE','SHORT_VIDEO'])for(const response of ['', '   ', 'PRIVATE-SAVED-RESPONSE']){
+  const p={...complete(),id:'synthetic-card',contentGuide:{...guideModel.emptyContentGuide(),format}};p.workshop.aiResponse=response;const before=structuredClone(p);let selected;
+  const tree=CampaignIdeaCards({plans:[p],copy,c,locale:'es-MX',contentLabel:'Crear contenido',onCreateContent:value=>{selected=value;},onSelect(){},onDuplicate(){}});
+  assert.ok(contains(tree,format==='AUTO'?'Formato por elegir':contentGuideCopy('es-MX')[`format_${format}`]));
+  assert.ok(contains(tree,response.trim()?'Respuesta de IA guardada':'Sin respuesta de IA guardada'));assert.ok(!contains(tree,'PRIVATE-SAVED-RESPONSE'));
+  nodes(tree).find(n=>n.type==='Button'&&contains(n.props.children,'Crear contenido')).props.onClick();assert.equal(selected,p);assert.deepEqual(p,before);
+ }
+});
