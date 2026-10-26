@@ -1,9 +1,8 @@
 # Complete local payroll/workspace release — 2026-10-26
 
-Status: TECHNICALLY READY; production has not been activated. Readiness was verified
+Status: AUTHORIZED for production; activation has not started. Readiness was verified
 at 2026-10-26T18:23Z. The historical Stripe TEST-key revocation remains unresolved;
-earlier closed exceptions are not reused. A separate exact-candidate owner decision
-is required before activation. Human product acceptance remains UNKNOWN.
+earlier closed exceptions are not reused. The owner separately authorized the exact-candidate exception recorded below. Human product acceptance remains UNKNOWN.
 
 ## Source and behavior
 
@@ -118,7 +117,16 @@ connection; public health remained HTTP 200 and the evidence was retrieved intac
 
 The historical Stripe TEST-key finding remains HIGH, unresolved, owned by the release
 owner. The [previous window](../decisions/2026-10-24-files-preview-stripe-deferral.md)
-is explicitly closed and cannot be reused. Production activation and its observation
-are pending a new scoped decision; this report grants no exception. App Test changes,
+is explicitly closed and cannot be reused. The owner has now provided the separate scoped decision below; production activation
+and its observation are still pending. App Test changes,
 provider activation, pricing changes, access expansion and real payroll/mail actions:
 N/A. Raw protected evidence, backups and credentials are not committed.
+
+## Owner authorization
+
+The owner separately answered “Autorizar excepción puntual” for application source
+`30f3552f9d697c331869c80bdaed1d1aeb4026f7`, production only. The
+[bounded decision](../decisions/2026-10-26-payroll-workspace-stripe-deferral.md) was
+recorded at **2026-10-26T18:27:33.687639+00:00** and expires immediately after this one attempt,
+no later than **2026-10-26T20:27:33.687639+00:00**. The historical TEST-key revocation remains
+HIGH and unresolved. No earlier exception is reused.

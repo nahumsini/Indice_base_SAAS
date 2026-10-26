@@ -168,6 +168,16 @@ Activation, five-minute observation and final verification passed; authorization
 closed at **2026-10-24T23:18:54.121340+00:00** and cannot be reused. The historical key
 finding remains HIGH and unresolved.
 
+For complete payroll/workspace source `30f3552f9d697c331869c80bdaed1d1aeb4026f7`, the owner separately
+answered “Autorizar excepción puntual” under the
+[2026-10-26 decision](decisions/2026-10-26-payroll-workspace-stripe-deferral.md).
+Only the historical Stripe TEST-key revocation blocker is deferred for this exact
+production activation and five-minute observation, ending immediately afterward
+and no later than **2026-10-26T20:27:33.687639+00:00**. The HIGH finding remains unresolved;
+App Test, provider settings, prices and existing access remain protected. All other
+gates apply. This window cannot authorize another source, artifact or activation.
+See the [exact release evidence](validation/2026-10-26-payroll-workspace-release.md).
+
 For the 2026-10-06 release, the owner's later explicit instruction to review directly in production
 replaces only the human-UAT location/timing, as recorded in the
 [bounded production-acceptance decision](decisions/2026-10-06-owner-production-acceptance.md).
