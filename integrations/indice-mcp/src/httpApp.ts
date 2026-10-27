@@ -14,6 +14,10 @@ import type { BackendAttempt } from "./backendTransport.js";
 import { McpHttpTraffic } from "./httpTraffic.js";
 import { getToolDiscoveryPage, ToolDiscoveryCursorError } from "./toolDiscovery.js";
 
+// A per-request abort stack can retain the complete SDK request graph through Node's
+// persistent signals. This shared reason contains no request, actor or grant data.
+const requestEndedReason = Object.freeze(new DOMException("MCP request ended", "AbortError"));
+
 type DiagnosticEvent = BackendAttempt | {
   event: "mcp_request"; requestId: string; method: string; tool?: string; status: number;
   durationMs: number; outcome: string; toolCount?: number; catalogFingerprint?: string;
@@ -98,10 +102,11 @@ export function createIndiceHttpApp(config: IndiceMcpConfig, dependencies: HttpD
     let finished = false;
     let cleanup: (() => void) | undefined;
     response.once("finish", () => { finished = true; });
-    request.once("aborted", () => { cancellation.abort(); cleanup?.(); });
+    request.once("aborted", () => { cancellation.abort(requestEndedReason); cleanup?.(); cleanup = undefined; });
     response.once("close", () => {
-      cancellation.abort();
+      cancellation.abort(requestEndedReason);
       cleanup?.();
+      cleanup = undefined;
       log({ event: "mcp_request", requestId, method, tool, status: response.statusCode,
         durationMs: Math.round(performance.now() - start), outcome: finished ? outcome : "client_disconnected",
         toolCount, catalogFingerprint });

@@ -53,7 +53,7 @@ try {
     }
     const elapsedSeconds = Math.round((performance.now() - start) / 1000);
     if (elapsedSeconds >= nextReport) {
-      console.log(JSON.stringify({ event: "synthetic_continuity", elapsedSeconds, rounds, backendAttempts }));
+      console.log(JSON.stringify({ event: "synthetic_continuity", elapsedSeconds, rounds, backendAttempts, heapUsedMiB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) }));
       nextReport = elapsedSeconds + 60;
     }
     const remaining = durationSeconds * 1000 - (performance.now() - start);
@@ -64,5 +64,5 @@ try {
   assert.equal((await b.listTools()).tools.length, 1);
   assert.doesNotMatch(JSON.stringify(fixture.events), /idx_ai_synthetic/);
   console.log(JSON.stringify({ event: "synthetic_continuity_passed", rounds, backendAttempts,
-    elapsedSeconds: Math.round((performance.now() - start) / 1000), realOAuthOrVoiceValidated: false }));
+    elapsedSeconds: Math.round((performance.now() - start) / 1000), realOAuthOrVoiceValidated: false, heapUsedMiB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) }));
 } finally { await fixture.close(); }

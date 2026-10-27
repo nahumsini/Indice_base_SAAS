@@ -1,4 +1,4 @@
-# MCP paginated tool discovery — 2026-10-27
+# MCP paginated discovery and request disposal — 2026-10-27
 
 Status: LOCAL REGRESSION PASS; NOT DEPLOYED; REAL CHATGPT ACCEPTANCE UNKNOWN.
 
@@ -40,6 +40,18 @@ Changed runtime files are `integrations/indice-mcp/src/httpApp.ts` and
 MCP contract and operational runbook. Backend Java, frontend, database migration,
 dependencies, provider activation and billing changes: N/A.
 
+The extended synthetic continuity run additionally exhausted its 4 GiB Node heap
+after about 14 minutes. An isolated heap diagnostic traced completed SDK request
+graphs to per-request abort-reason stack frames retained by Node's persistent
+signals. Server construction alone stayed flat. A regression using 35 completed
+HTTP requests fails before correction with 141 MiB of retained growth and passes
+after correction. HTTP cancellation now uses one data-free AbortError created
+outside request scope and releases the cleanup callback. Abort controllers,
+capability validation, cancellation, timeouts and authority remain per-request.
+`httpRequestCleanup.test.ts` guards heap growth under explicit garbage collection;
+the existing continuity runner now reports synthetic heap usage alongside counts.
+The prolonged corrected run must complete before this gate can be reported PASS.
+
 ## Verification
 
 - Before implementation, the new actual-catalog HTTP regression fails because
@@ -51,7 +63,7 @@ dependencies, provider activation and billing changes: N/A.
 - Three focused tests pass, including a real HTTP business-context read after
   discovery, malformed cursors, changed and different capability catalogs,
   revocation between pages and credential/cursor-free diagnostics.
-- The complete MCP suite passes: 174 tests, zero failures or skips, with successful
+- The complete MCP suite passes: 175 tests, zero failures or skips, with successful
   TypeScript compilation. Fixtures are local and synthetic; no production database
   is used by tests and no real message or business mutation is performed.
 
@@ -63,6 +75,12 @@ test's HTTP client now requests `Connection: close`; production timeouts, ordina
 keep-alive regression coverage, SDK schema validation and all assertions are
 unchanged. Exact-source CI and the protected release preflight must pass again
 before publication; the earlier CI failure is not treated as a successful gate.
+
+After the disposal correction the complete 175-test suite passed in 87.9 seconds.
+A separate 30-request diagnostic remained at approximately 30 MiB after garbage
+collection, including a 15-second idle period; the uncorrected run rose from 58 to
+160 MiB. These are synthetic regression measurements, not production memory or
+real ChatGPT acceptance evidence.
 
 ## Remaining release boundary
 

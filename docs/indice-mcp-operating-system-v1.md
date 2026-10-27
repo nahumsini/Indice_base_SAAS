@@ -450,6 +450,10 @@ authoritative. See [the upstream input-validation advisory](https://github.com/m
 HTTP remains stateless: a new SDK server/transport processes each request. Conversation continuity
 does not require keeping a user session in the MCP process. Never preserve availability by accepting
 an expired token, sharing credentials, serving a stale permission manifest or widening consent.
+Completed or disconnected requests must release their SDK graphs. Cancellation reasons must not
+capture a per-request stack, actor or grant; a shared data-free AbortError is permitted, while abort
+controllers and authorization remain request-specific. A bounded synthetic heap regression and the
+long-running continuity probe cover request disposal.
 
 - Explicit delegated reads (including read-only query/reference POST endpoints) may retry
   network/body failures, timeouts and HTTP `429`, `502`, `503`, `504`. The default is two total
