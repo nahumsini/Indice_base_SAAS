@@ -48,3 +48,11 @@ acceptance remains separate from engineering verification. No real email,
 WhatsApp message or campaign restart is authorized by release verification.
 
 See the [exact-source release evidence](../validation/2026-10-27-marketing-workspace-release.md).
+
+## Superseded before activation
+
+The owner requested investigation of production MCP connection errors before
+deployment. The [OAuth correction and fresh release evidence](../validation/2026-10-27-oauth-catalog-release.md)
+supersede `8393d85a` with application source `5e6a227e`, retaining all previously
+captured work. The earlier source was never activated; a question about its
+authorization cannot authorize this updated source.
