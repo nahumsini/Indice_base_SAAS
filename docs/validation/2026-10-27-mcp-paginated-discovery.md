@@ -1,6 +1,6 @@
 # MCP paginated discovery and request disposal — 2026-10-27
 
-Status: LOCAL REGRESSION PASS; NOT DEPLOYED; REAL CHATGPT ACCEPTANCE UNKNOWN.
+Status: TECHNICAL PREPARATION PASS; NOT DEPLOYED; REAL CHATGPT ACCEPTANCE UNKNOWN.
 
 ## Evidence and limits
 
@@ -93,3 +93,49 @@ The prior production-only Stripe TEST deferral closed after its deployment and
 cannot authorize this source. Historical key revocation remains pending. A new
 activation requires the canonical release checks and applicable owner authority;
 no prior exception, real-client acceptance or deployment success is implied here.
+
+## Exact-source publication preparation
+
+Runtime source: `12593ec9ee7f5d9c1430446d928d83f855f38ca9`. The working branch
+`codex/fix-mcp-discovery-20261027` and main were fast-forwarded to this source;
+subsequent readiness/authority documentation does not alter its runtime bytes.
+[Exact-source CI](https://github.com/nahumsini/Indice_base_SAAS/actions/runs/40593264095)
+passed all stages, including isolated database, frontend, actual MinIO, immutable
+image builds and actual Nginx traffic-control regressions.
+
+- Protected production preflight: PASS; 4,243 backend tests, zero failures/errors,
+  three established skips; 192 MCP/deployment tests, zero failures/skips. Frontend
+  TypeScript/build and the complete frontend regressions also passed in CI.
+- Corrected continuous probe: PASS, 1,200 seconds, 236 rounds and 2,553 synthetic
+  backend attempts. Sampled heap stayed at or below 66 MiB. Its runtime JavaScript
+  hashes match the candidate image. OAuth/voice in ChatGPT are not certified by it.
+- Exact candidate-image runtime: 24 tests PASS, covering traffic, continuity,
+  trust boundaries, OAuth recovery, all 608 paginated descriptors and request
+  disposal. Both isolated Nginx configurations passed.
+- MCP artifact: `indice-erp-mcp:12593ec9ee7f-secure`, image
+  `sha256:fb5dcc2cddb5b3db390d87e09827671676783ddec018d4fb29ddb2c44c9d9a55`.
+  Compiled bytes were compared; base runtime/dependency layers and defaults are
+  unchanged. Compatible MCP recovery is the original image
+  `sha256:071fb61e5586584c636290fdc3b1918ca140559ee51d7edb6957b5e992a1af11`.
+- Source/delta scans: zero actual current secrets; 20 byte-identical previously
+  reviewed false positives. Candidate MCP, MCP recovery and web have zero
+  HIGH/CRITICAL findings. The unchanged backend retains the two previously
+  reviewed Spring findings; source inspection and fresh MVC exposure regressions
+  confirm their documented deployment conditions are absent. This is applicability
+  evidence, not a Spring patch or an application security certification.
+- Backup `production-20261027T223026Z`: SQL, complete object archive, configuration
+  and five protected files copied off-host; all hashes/compressed streams verified.
+  Disconnected candidate/recovery restoration passed on V365, with all original
+  rows/columns, migration history, objects, billing and access preserved.
+- MCP-only operation and failure/recovery rehearsal: PASS, including actual
+  container creation. Docker's `OomKillDisable=null`/`false` encodings were reviewed
+  as the same enabled OOM-killer default; all other host settings stay strict.
+  Canonical host-network dry run also passed with the final immutable MCP tag.
+
+Production activation has not occurred. Backend, web, storage and App Test retain
+all original running container IDs and effective settings. No schema, provider,
+price, subscription or access change is part of this operation. Historical Stripe
+TEST-key revocation remains HIGH and unresolved. Normal real-client App Test
+acceptance and actual ChatGPT import/read remain UNKNOWN. The
+[bounded publication proposal](../decisions/2026-10-27-mcp-discovery-publication-proposal.md)
+is pending explicit owner authority; it is not an approved exception.
