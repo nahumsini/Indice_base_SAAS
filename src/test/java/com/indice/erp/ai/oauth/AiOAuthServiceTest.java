@@ -335,6 +335,74 @@ class AiOAuthServiceTest {
     }
 
     @Test
+    void acceptsTheEntireAdvertisedCatalogForConsentAndPreservesExactlyThoseScopesInTheCode() {
+        var scopes = advertisedScopes();
+        var requested = String.join(" ", new java.util.TreeSet<>(scopes));
+        // The production client requests the advertised catalog, which grew past the former limit.
+        assertThat(requested.length()).isGreaterThan(2048);
+        when(repository.findActiveClient("client-1")).thenReturn(Optional.of(client()));
+        when(accessTokenService.supportedOAuthScopes()).thenReturn(scopes);
+
+        assertThat(service.consentContext(user, authorizationRequest(requested)).scopes()).isEqualTo(scopes);
+        service.authorize(user, authorizationRequest(requested), true);
+
+        verify(repository).insertAuthorizationCode(any(), eq(client()), eq(user), eq(REDIRECT), eq(RESOURCE),
+            eq(scopes), eq(challenge(VERIFIER)), any());
+        verify(accessTokenService, never()).issueOAuth(any(), any(), any(), any());
+    }
+
+    @Test
+    void rejectsAnUnknownScopeEvenWhenTheRestOfTheLargeCatalogIsValid() {
+        var scopes = advertisedScopes();
+        when(repository.findActiveClient("client-1")).thenReturn(Optional.of(client()));
+        when(accessTokenService.supportedOAuthScopes()).thenReturn(scopes);
+
+        assertThatThrownBy(() -> service.authorize(user,
+            authorizationRequest(String.join(" ", scopes) + " platform.root"), true))
+            .isInstanceOf(AiOAuthException.class).hasMessageContaining("not supported");
+        verify(repository, never()).insertAuthorizationCode(any(), any(), any(), any(), any(), any(), any(), any());
+        verify(accessTokenService, never()).requireAvailableConnection(any());
+    }
+
+    @Test
+    void rejectsOversizedScopeInputWithoutCreatingAnAuthorizationCode() {
+        when(repository.findActiveClient("client-1")).thenReturn(Optional.of(client()));
+        when(accessTokenService.supportedOAuthScopes()).thenReturn(Set.of("sales.read"));
+
+        assertThatThrownBy(() -> service.authorize(user,
+            authorizationRequest("sales.read ".repeat(1000)), true))
+            .isInstanceOf(AiOAuthException.class);
+        verify(repository, never()).insertAuthorizationCode(any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void refreshesTheLargeGrantedCatalogWithoutAddingPermissionsOrOpeningAnotherConnection() {
+        var scopes = advertisedScopes();
+        when(repository.findRefreshForUpdate(any())).thenReturn(Optional.of(new AiOAuthRepository.StoredRefreshToken(
+            88L, "client-1", 7L, RESOURCE, scopes, NOW.plusSeconds(3600), null, user
+        )));
+        when(accessTokenService.rotateOAuth(eq(user), eq(7L), eq(30), eq(scopes)))
+            .thenReturn(new AiAccessTokenService.IssuedConnection(
+                7L, "ChatGPT", "generic_mcp", "idx_ai_preview", scopes,
+                NOW.plusSeconds(3600), NOW, "idx_ai_rotated_test"
+            ));
+
+        var result = service.exchange(new AiOAuthService.TokenRequest(
+            "refresh_token", null, null, "client-1", null, RESOURCE, "idx_oauth_refresh_test",
+            String.join(" ", scopes)
+        ));
+
+        assertThat(Set.of(result.scope().split(" "))).isEqualTo(scopes);
+        verify(repository).markRefreshUsed(88L, NOW);
+        verify(accessTokenService, never()).issueOAuth(any(), any(), any(), any());
+        verify(accessTokenService, never()).requireAvailableConnection(any());
+    }
+
+    private Set<String> advertisedScopes() {
+        return new AiAccessTokenService(null, Clock.fixed(NOW, ZoneOffset.UTC)).supportedOAuthScopes();
+    }
+
+    @Test
     void checksCapacityBeforeConsentAndBeforeCreatingAnAuthorizationCode() {
         when(repository.findActiveClient("client-1")).thenReturn(Optional.of(client()));
         when(accessTokenService.supportedOAuthScopes()).thenReturn(Set.of("tasks.read"));

@@ -1,6 +1,9 @@
 # Marketing workspace production readiness — 2026-10-27
 
-Status: TECHNICALLY READY, NOT ACTIVATED. Historical Stripe TEST-key revocation
+Status: SUPERSEDED BEFORE ACTIVATION by the
+[OAuth catalog correction](2026-10-27-oauth-catalog-release.md). The readiness below
+applies only to source `8393d85a`; it cannot authorize a later candidate.
+Historical Stripe TEST-key revocation
 remains HIGH and unresolved; an applicable exact-candidate authorization is
 required before activation. Human product acceptance remains UNKNOWN.
 

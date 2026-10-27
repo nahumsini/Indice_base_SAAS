@@ -67,6 +67,12 @@ Connection creation without an explicit scope selection grants the read scopes o
 must always be selected explicitly. Existing stored connections keep exactly their stored scopes;
 deployments never add new scopes to them.
 
+OAuth scope input is bounded to 8,192 characters, and every requested scope must still belong to
+the advertised catalog. Consent, code issuance and refresh must accept the complete current
+catalog; regression coverage uses the actual supported scopes, not a shortened fixture. Refresh
+cannot expand the original grant. Consent failures map known OAuth error codes to actionable
+localized copy without exposing raw request or provider details.
+
 The existing limit is five active AI connections per user and company, shared by manual and OAuth
 connections. Reconnecting does not automatically revoke an earlier grant. OAuth checks capacity
 before displaying consent and again before issuing a code, while token issuance retains its final

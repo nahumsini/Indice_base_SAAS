@@ -27,6 +27,8 @@ public class AiOAuthService {
     private static final Pattern PKCE_VERIFIER = Pattern.compile("^[A-Za-z0-9._~-]{43,128}$");
     private static final int MAX_REDIRECT_URIS = 4;
     private static final int RANDOM_BYTES = 32;
+    // The advertised catalog exceeds 2 KiB. Keep parsing bounded without rejecting valid consent.
+    private static final int MAX_SCOPE_PARAMETER_LENGTH = 8192;
 
     private final AiOAuthRepository repository;
     private final AiOAuthProperties properties;
@@ -263,7 +265,7 @@ public class AiOAuthService {
     }
 
     private Set<String> parseScopes(String value) {
-        if (value == null || value.isBlank() || value.length() > 2048) return Set.of();
+        if (value == null || value.isBlank() || value.length() > MAX_SCOPE_PARAMETER_LENGTH) return Set.of();
         return Arrays.stream(value.trim().split("\\s+"))
             .map(String::trim)
             .filter(scope -> !scope.isBlank())
