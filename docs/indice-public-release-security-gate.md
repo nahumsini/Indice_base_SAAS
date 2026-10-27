@@ -49,6 +49,14 @@ branch without review.
 
 ## 3. Evidence Status
 
+For OAuth/Marketing application source `5e6a227ecf218b8698b750c9dfd36d85ac2b354f`
+only, the owner separately authorized a production-only activation while keeping
+the historical Stripe TEST-key revocation pending, under the
+[2026-10-27 scoped decision](decisions/2026-10-27-oauth-marketing-stripe-deferral.md).
+Only that blocker is deferred for this one attempt and its observation. The finding
+remains HIGH and unresolved; no other gate or provider authority is waived, and
+the authorization cannot be reused after its documented window.
+
 Use these states for every item:
 
 - `PASS`: verified against the release candidate and target-like environment;

@@ -1,6 +1,6 @@
 # OAuth consent catalog correction — 2026-10-27
 
-Status: TECHNICALLY READY, NOT ACTIVATED. Application source:
+Status: AUTHORIZED FOR ONE PRODUCTION ACTIVATION, NOT YET ACTIVATED. Application source:
 `5e6a227ecf218b8698b750c9dfd36d85ac2b354f` on `codex/next-work-20261025`.
 Production has not been changed. This candidate includes the complete previously prepared
 [primary-local Marketing workspace](2026-10-27-marketing-workspace-release.md).
@@ -127,7 +127,9 @@ from the assistant to obtain a fresh authorization request and complete consent.
 The pending
 historical Stripe TEST revocation and all deployment/recovery gates remain in force.
 The prior question about authorizing `8393d85a` cannot authorize this updated source.
-An applicable exact-source decision is required before activation. Post-activation
+The owner subsequently authorized this exact source under the
+[bounded Stripe TEST deferral](../decisions/2026-10-27-oauth-marketing-stripe-deferral.md).
+Post-activation
 public smoke, authenticated continuity, preserved-state checks and five-minute
 observation remain required; human product acceptance is UNKNOWN.
 An existing connected-tool probe returned `Unknown tool` at the connector binding;
