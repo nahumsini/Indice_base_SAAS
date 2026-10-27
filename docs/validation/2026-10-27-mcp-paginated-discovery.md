@@ -1,6 +1,12 @@
 # MCP paginated discovery and request disposal — 2026-10-27
 
-Status: DEPLOYED MCP-ONLY; TECHNICAL CHECKS PASS; REAL CHATGPT ACCEPTANCE UNKNOWN.
+Status: DEPLOYED MCP-ONLY; TECHNICAL CHECKS PASS; SUBSEQUENT REAL CHATGPT IMPORT FAILED.
+
+The [actual client follow-up](2026-10-27-mcp-catalog-compaction.md) supersedes the
+earlier pending-consent state below: the owner completed consent, authentication
+succeeded, but both real-client discovery attempts stopped after fifteen pages
+and ChatGPT imported no tools. The technical deployment succeeded; real-client
+acceptance did not. A further local correction is recorded separately.
 
 ## Evidence and limits
 

@@ -13,6 +13,7 @@ import { bearerChallenge, supportedScopes } from "./toolPolicy.js";
 import type { BackendAttempt } from "./backendTransport.js";
 import { McpHttpTraffic } from "./httpTraffic.js";
 import { getToolDiscoveryPage, ToolDiscoveryCursorError } from "./toolDiscovery.js";
+import { compactToolSchema } from "./compactToolSchema.js";
 
 // A per-request abort stack can retain the complete SDK request graph through Node's
 // persistent signals. This shared reason contains no request, actor or grant data.
@@ -205,6 +206,8 @@ export function createIndiceHttpApp(config: IndiceMcpConfig, dependencies: HttpD
           message = { ...message, result: { ...message.result,
             ...(discoveryPage?.nextCursor ? { nextCursor: discoveryPage.nextCursor } : {}),
             tools: message.result.tools.map(descriptor => ({ ...descriptor,
+              inputSchema: compactToolSchema(descriptor.inputSchema),
+              ...(descriptor.outputSchema ? { outputSchema: compactToolSchema(descriptor.outputSchema) } : {}),
               securitySchemes: descriptor._meta?.securitySchemes })) } };
         }
         // Inspect only the result flag, never serialize or log business payloads.

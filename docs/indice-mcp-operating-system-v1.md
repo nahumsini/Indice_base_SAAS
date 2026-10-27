@@ -375,16 +375,22 @@ The manifest is returned with `Cache-Control: no-store`; permission revocation t
 next request. Tool execution still repeats its owner authorization and never trusts discovery as an
 enforcement boundary.
 
-HTTP `tools/list` uses standard MCP cursor pagination, with at most 32 authorized tools per
+HTTP `tools/list` uses standard MCP cursor pagination, with at most 64 authorized tools per
 response. Every continuation obtains the current capability manifest again; its opaque cursor
 selects an offset in the current authorized-name catalog and never supplies user, company or
 permission authority. A changed catalog rejects the continuation and requires restarting discovery.
-The first page includes `get_my_business_context` when authorized. All input/output schemas,
+The first page includes `get_my_business_context` when authorized. All input/output constraints,
 annotations, OAuth security metadata and named operations remain unchanged and reachable by
-following `nextCursor`; `tools/call` remains independent of discovery pagination. Full-catalog HTTP
-regression must verify every descriptor against the actual registration, no omitted/duplicate tools,
-and a maximum 4 MiB page-size budget. This is a repository transport budget, not a claimed OpenAI
-limit. Real ChatGPT action discovery remains a separate acceptance check.
+following `nextCursor`; `tools/call` remains independent of discovery pagination. HTTP metadata
+may losslessly encode repeated subschemas as local JSON Schema `definitions`/`$ref` references.
+Only schema locations are transformed; literal defaults, examples, enum and const data remain
+untouched. Schemas with existing reference scopes, definitions or nested dialects are preserved
+without rebasing. Registered validators, stdio descriptors and business results remain unchanged.
+Full-catalog HTTP regression must expand generated local references and compare every complete
+descriptor with actual registration, with no omitted/duplicate tools, a maximum 4 MiB per page,
+8 MiB aggregate and ten-round-trip budget for the current complete catalog. These are repository
+transport budgets, not claimed OpenAI limits. Real ChatGPT action discovery remains a separate
+acceptance check; compliant SDK discovery alone cannot establish that acceptance.
 
 Within a single synchronous capability evaluation, repeated subscription, module, tab and entitlement
 checks may reuse their result for the same authenticated actor. The evaluation memo must be cleared

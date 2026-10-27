@@ -221,8 +221,12 @@ remain unchanged. All other gates apply; OAuth consent and business mutations
 are outside this authorization. No closed exception is reused.
 MCP-only activation, six health samples over 300.953 seconds and final preservation
 checks passed. This window closed at **2026-10-27T23:26:03.018527+00:00** and cannot
-be reused. Actual ChatGPT tool import/read remain UNKNOWN pending the owner's
-company/scope consent; the historical Stripe TEST finding remains HIGH and unresolved.
+be reused. Subsequent owner consent and authenticated initialization succeeded,
+but real ChatGPT import FAILED: two attempts stopped after fifteen successful pages
+and the intended plugin had no tools. See the
+[actual client follow-up](validation/2026-10-27-mcp-catalog-compaction.md).
+The technical deployment passed; client acceptance did not. Historical Stripe TEST
+revocation remains HIGH and unresolved; no further deployment is authorized here.
 
 For the 2026-10-06 release, the owner's later explicit instruction to review directly in production
 replaces only the human-UAT location/timing, as recorded in the

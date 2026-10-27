@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-const pageSize = 32;
+const pageSize = 64;
 const cursorPrefix = "idx_discovery_";
 
 export class ToolDiscoveryCursorError extends Error { }

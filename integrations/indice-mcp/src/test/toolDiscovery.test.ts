@@ -14,6 +14,28 @@ const context = {
   assignedBusinessId: null, assignedBusinessName: null
 };
 
+// Resolve local schema references independently to compare the complete published
+// validation contract with the SDK registration, including every nested constraint.
+function expandedSchema(schema: unknown): unknown {
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) return schema;
+  const root = schema as Record<string, unknown>;
+  const expand = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(expand);
+    if (!value || typeof value !== "object") return value;
+    const object = value as Record<string, unknown>;
+    if (typeof object.$ref === "string" && object.$ref.startsWith("#/definitions/schema")) {
+      assert.deepEqual(Object.keys(object), ["$ref"]);
+      const definitions = root.definitions as Record<string, unknown>;
+      const target = definitions[object.$ref.slice("#/definitions/".length)];
+      assert.ok(target, "Discovery emitted a dangling schema reference");
+      return expand(target);
+    }
+    return Object.fromEntries(Object.entries(object).map(([key, child]) => [key, expand(child)]));
+  };
+  const { definitions: _definitions, ...result } = expand(root) as Record<string, unknown>;
+  return result;
+}
+
 test("complete HTTP tool discovery has bounded pages and preserves every actual tool contract", async () => {
   const unused = async (): Promise<never> => { throw Error("Unexpected fixture operation"); };
   const server = createIndiceMcpServer({ getSalesToday: unused, getBusinessSnapshot: unused,
@@ -35,16 +57,23 @@ test("complete HTTP tool discovery has bounded pages and preserves every actual 
     let cursor: string | undefined;
     let pages = 0;
     let largestPageBytes = 0;
+    let catalogBytes = 0;
     do {
       const page = await client.listTools(cursor ? { cursor } : undefined);
-      assert.ok(page.tools.length > 0 && page.tools.length <= 32, "Discovery must not send the full catalog in one response");
+      assert.ok(page.tools.length > 0 && page.tools.length <= 64, "Discovery must not send the full catalog in one response");
       const bytes = Buffer.byteLength(JSON.stringify(page));
       assert.ok(bytes < 4 * 1024 * 1024, "A discovery page exceeded the reviewed wire-size budget");
       largestPageBytes = Math.max(largestPageBytes, bytes);
+      catalogBytes += bytes;
       if (pages === 0) assert.ok(page.tools.some(tool => tool.name === "get_my_business_context"));
       for (const tool of page.tools) {
         assert.ok(!names.has(tool.name), "Repeated discovery tool");
-        assert.deepEqual(tool, expected.get(tool.name), "Input/output schemas, annotations and OAuth metadata must remain intact");
+        const original = expected.get(tool.name)!;
+        assert.deepEqual({ ...tool, inputSchema: expandedSchema(tool.inputSchema),
+          outputSchema: expandedSchema(tool.outputSchema) },
+        { ...original, inputSchema: expandedSchema(original.inputSchema),
+          outputSchema: expandedSchema(original.outputSchema) },
+        "Complete input/output constraints, annotations and OAuth metadata must remain intact");
         names.add(tool.name);
       }
       cursor = page.nextCursor;
@@ -53,8 +82,10 @@ test("complete HTTP tool discovery has bounded pages and preserves every actual 
     assert.ok(pages > 1);
     assert.deepEqual([...names].sort(), [...expected.keys()].sort());
     assert.equal(names.size, Object.keys(toolScopes).length);
+    assert.ok(catalogBytes < 8 * 1024 * 1024, "The complete discovery catalog exceeded its aggregate wire budget");
+    assert.ok(pages <= 10, "Full-catalog import needs too many discovery round trips");
     assert.deepEqual((await client.callTool({ name: "get_my_business_context", arguments: {} })).structuredContent, context);
-    console.log(JSON.stringify({ discoveryTools: names.size, pages, largestPageBytes }));
+    console.log(JSON.stringify({ discoveryTools: names.size, pages, largestPageBytes, catalogBytes }));
   } finally { await client.close(); await fixture.close(); await reference.close(); await server.close(); }
 });
 

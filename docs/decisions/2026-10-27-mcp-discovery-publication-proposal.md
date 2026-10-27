@@ -2,7 +2,14 @@
 
 Date: 2026-10-27.
 
-Status: DEPLOYED MCP-ONLY; TECHNICAL OBSERVATION PASS; AUTHORIZATION CLOSED.
+Status: DEPLOYED MCP-ONLY; TECHNICAL OBSERVATION PASS; AUTHORIZATION CLOSED;
+SUBSEQUENT REAL-CLIENT IMPORT FAILED.
+
+The [subsequent read-only follow-up](../validation/2026-10-27-mcp-catalog-compaction.md)
+supersedes the pending-consent state recorded below. The owner completed consent;
+authenticated initialization succeeded, but two ChatGPT discovery attempts each
+stopped after fifteen successful pages and imported no tools. This is not PASS
+client acceptance and does not reopen the closed deployment authorization.
 
 Owner authorization recorded at **2026-10-27T23:19:37Z**: “Autorizar publicación y
 revisión en producción”, in reply to the source-specific question covering only
