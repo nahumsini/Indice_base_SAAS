@@ -4,7 +4,8 @@ export const zhCA = {
   back: '返回',
   more: '更多',
   navigation: {
-    tools: '工具',
+    tools: '营销',
+    toolsDescription: '准备营销活动，与客户建立联系并持续跟进。',
     management: '管理',
     funnelingDescription: '规划营销漏斗和活动目标。',
     mailingDescription: '准备并发送电子邮件营销活动。',

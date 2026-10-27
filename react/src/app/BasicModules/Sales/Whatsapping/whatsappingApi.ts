@@ -21,6 +21,7 @@ export type Campaign = Omit<CampaignInput, "contactIds"> & {
   pending: number;
   due: number;
   canEdit: boolean;
+  outcomes?: { contacted: number; positive: number; negative: number; withOpportunity: number | null };
 };
 export type Contact = {
   id: number;
@@ -39,6 +40,8 @@ export type Recipient = {
   notes: string;
   version: number;
   message: string;
+  baseMessage?: string;
+  replyOutcome?: string | null;
   eligibility: string;
 };
 export type Event = {
@@ -49,10 +52,15 @@ export type Event = {
   stepIndex: number | null;
   occurredAt: string;
 };
+export type ResultContacts = { contacted: number[]; positive: number[]; negative: number[]; withOpportunity: number[] | null };
+export type OpportunityStage = { key: string; label: string; usesDefaultLabel: boolean };
+export type Opportunity = { contactId: number; id: number; flowId: number | null; code: string; name: string; stage?: OpportunityStage | null };
 export type Detail = {
   campaign: Campaign;
   recipients: Recipient[];
   events: Event[];
+  resultContacts?: ResultContacts;
+  opportunities?: Opportunity[] | null;
 };
 export type Page = {
   items: Campaign[];
@@ -60,6 +68,7 @@ export type Page = {
   page: number;
   pageSize: number;
   owners: { id: number; name: string }[];
+  results?: { all: number; contacted: number; positive: number; negative: number };
 };
 export type ContactPage = {
   items: Contact[];
@@ -80,7 +89,7 @@ export type SavedList = {
   contactIds: number[];
   version: number;
 };
-export type Action = "PREPARE" | "SENT" | "SKIP" | "REPLIED" | "BLOCK" | "NOTE";
+export type Action = "PREPARE" | "SENT" | "SKIP" | "REPLIED" | "REPLY_POSITIVE" | "REPLY_NEGATIVE" | "BLOCK" | "NOTE";
 const base = "/api/v1/sales/whatsapping";
 const write = <T>(path: string, body: unknown, method = "PUT") =>
   apiClient<T>(base + path, { method, body: JSON.stringify(body) });
@@ -102,10 +111,11 @@ export const whatsappingApi = {
     action: Action,
     notes: string,
     nextActionAt: string | null,
+    messageOverride?: string,
   ) =>
     write<{ detail: Detail; whatsappUrl: string | null }>(
       `/campaigns/${id}/recipients/${contact}/actions`,
-      { version, action, notes, nextActionAt },
+      { version, action, notes, nextActionAt, ...(messageOverride === undefined ? {} : { messageOverride }) },
       "POST",
     ),
   contacts: (query: URLSearchParams, signal?: AbortSignal) =>

@@ -7,7 +7,6 @@ import {
   type LazyExoticComponent,
 } from 'react';
 import { Navigate, useParams } from 'react-router';
-import { Wrench } from 'lucide-react';
 import { IndiceModuleShell } from '../../components/frontend-os';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import {
@@ -173,7 +172,8 @@ function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) 
         tabMenus={[{
           id: 'tools',
           label: copy.navigation.tools,
-          icon: <Wrench className="h-4 w-4" />,
+          description: copy.navigation.toolsDescription,
+          icon: '📣',
           beforeTabId: 'kpis',
           tabs: [
             { id: 'funneling', label: copy.tabs.funneling, icon: '🔻', description: copy.navigation.funnelingDescription },

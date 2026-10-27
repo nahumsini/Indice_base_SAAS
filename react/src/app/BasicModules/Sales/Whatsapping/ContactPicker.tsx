@@ -14,19 +14,23 @@ import {
   SalesFilterSearch,
 } from "../components/SalesFilterBar";
 import { whatsappingApi, type ContactPage } from "./whatsappingApi";
+import { useContactCorrectionReturn } from "./useContactCorrectionReturn";
 import { useWhatsappingCopy } from "./whatsappingCopy";
 import { Badge, ErrorNotice } from "./WhatsappingUi";
+import { loadCampaignContacts, selectableContact, uniqueEligibleContacts, contactIssues, contactCorrectionUrl } from "./campaignContactSelection";
 import { failure } from "./whatsappingModel";
 export function ContactPicker({
   selected,
   onChange,
   region,
   disabled = false,
+  needsCompany = false,
 }: {
   selected: number[];
   onChange: (ids: number[]) => void;
   region: string;
   disabled?: boolean;
+  needsCompany?: boolean;
 }) {
   const { copy, label } = useWhatsappingCopy();
   const [search, setSearch] = useState(""),
@@ -36,6 +40,13 @@ export function ContactPicker({
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [refresh, setRefresh] = useState(0);
+  const [returnNotice, setReturnNotice] = useState("");
+  const returningId = useRef<number | null>(null);
+  const markCorrection = useContactCorrectionReturn(id => {
+    returningId.current = id;
+    setReturnNotice(copy.checkingCorrection);
+    setRefresh(value => value + 1);
+  });
   const latch = useRef(false);
   const generation = useRef(0);
   useEffect(() => {
@@ -54,12 +65,20 @@ export function ContactPicker({
           controller.signal,
         )
         .then((result) => {
-          if (!controller.signal.aborted) setData(result);
+          if (!controller.signal.aborted) {
+            setData(result);
+            if (returningId.current !== null) {
+              const contact = result.items.find(c => c.id === returningId.current);
+              setReturnNotice(contact ? `${contact.name}: ${selectableContact(contact, needsCompany) ? label("READY") : contactIssues(contact, needsCompany).map(issue => copy[issue]).join(" · ") || label(contact.eligibility)}` : copy.correctionUnavailable);
+              returningId.current = null;
+            }
+          }
         })
         .catch((e) => {
           if (!controller.signal.aborted) {
             setError(failure(e, copy));
             setData(null);
+            if (returningId.current !== null) setReturnNotice(copy.correctionRetry);
           }
         })
         .finally(() => {
@@ -92,9 +111,9 @@ export function ContactPicker({
     setError("");
     const seq = generation.current;
     try {
-      const result = await whatsappingApi.selection(search, region);
+      const result = await loadCampaignContacts(region, search);
       if (seq === generation.current)
-        change([...selected, ...result.map((c) => c.id)]);
+        change([...selected, ...uniqueEligibleContacts(result, needsCompany).map((c) => c.id)]);
     } catch {
       if (seq === generation.current) setError(copy.limit);
     } finally {
@@ -117,8 +136,8 @@ export function ContactPicker({
     contentMinimumWidth: c.defaultWidth,
     resizeLabel: c.label,
   }));
-  const selectedPage =
-    !!data?.items.length && data.items.every((c) => selected.includes(c.id));
+  const eligiblePage = data?.items.filter(c => selectableContact(c, needsCompany)) ?? [];
+  const selectedPage = !!eligiblePage.length && eligiblePage.every(c => selected.includes(c.id));
   return (
     <div className="min-w-0 space-y-3" aria-busy={busy}>
       <SalesFilterBar
@@ -141,6 +160,10 @@ export function ContactPicker({
           clearLabel={copy.clear}
         />
       </SalesFilterBar>
+      {data?.items.some(contact => !selectableContact(contact, needsCompany)) && <>
+        <p className="text-sm text-slate-600 dark:text-slate-300">{copy.contactSelectionHint}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">{copy.autoCorrectionReturnHint}</p>
+      </>}
       <div className="flex flex-wrap gap-2">
         <Button
           type="button"
@@ -167,6 +190,7 @@ export function ContactPicker({
           {copy.refresh}
         </Button>
       </div>
+      {returnNotice && <p role="status" className="rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-200">{returnNotice}</p>}
       <ErrorNotice text={error} />
       <IndiceTableShell
         pagination={
@@ -203,7 +227,7 @@ export function ContactPicker({
                     <input
                       type="checkbox"
                       className="h-4 w-4 accent-[#E85C50]"
-                      disabled={disabled || busy}
+                      disabled={disabled || busy || (!selected.includes(c.id) && !selectableContact(c, needsCompany))}
                       checked={selected.includes(c.id)}
                       onChange={(e) =>
                         change(
@@ -220,10 +244,18 @@ export function ContactPicker({
                       </span>
                     </span>
                   </label>
+                  {!selectableContact(c, needsCompany) && <div className="mt-2 space-y-2 whitespace-normal text-xs text-slate-600 dark:text-slate-300">
+                    <ul className="space-y-1">{contactIssues(c, needsCompany).map(issue => <li key={issue}>{copy[issue]}</li>)}</ul>
+                    <a href={contactCorrectionUrl(c)} onClick={() => { setReturnNotice(""); markCorrection(c.id); }} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex min-h-11 items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-[#B63B32] focus-visible:outline-2 focus-visible:outline-[#FF6B5E] dark:border-slate-700 dark:bg-slate-900 dark:text-[#FFB0AA]">
+                      {copy.correctInContacts}
+                    </a>
+                  </div>}
                 </TableCell>
                 <TableCell>{c.phone || "—"}</TableCell>
                 <TableCell>
-                  <Badge state={c.eligibility}>{label(c.eligibility)}</Badge>
+                  <Badge state={selectableContact(c, needsCompany) ? "READY" : c.eligibility === "READY" ? "MISSING_DATA" : c.eligibility}>{label(selectableContact(c, needsCompany) ? "READY" : c.eligibility === "READY" ? "MISSING_DATA" : c.eligibility)}</Badge>
+
                 </TableCell>
               </TableRow>
             ))}
@@ -242,11 +274,11 @@ export function ContactPicker({
           <input
             type="checkbox"
             checked={selectedPage}
-            disabled={disabled || busy}
+            disabled={disabled || busy || !eligiblePage.length}
             onChange={(e) =>
               change(
                 e.target.checked
-                  ? [...selected, ...data.items.map((c) => c.id)]
+                  ? [...selected, ...uniqueEligibleContacts(eligiblePage, needsCompany).map((c) => c.id)]
                   : selected.filter(
                       (id) => !data.items.some((c) => c.id === id),
                     ),

@@ -1,6 +1,6 @@
 {
   "version": "2026-10-23.v1",
-  "sourceDigest": "8c48db5cca7140a6457940ce44be5a0aa5b700166c3f2c6d75ac03aed7c703d8",
+  "sourceDigest": "668ba1fc4efb6b1f5b8fbebdbafa0ded2b147d8cb787e4328447d8c8d28a4a10",
   "modules": [
     {
       "module": "ideas_board",
@@ -600,8 +600,8 @@
           "tab": "whatsapping",
           "label": "Campañas asistidas de WhatsApp",
           "title": "Campañas asistidas de WhatsApp",
-          "purpose": "Selecciona contactos y prepara plantilla, variables, enlaces y pasos de seguimiento.",
-          "effect": "Consulta pendientes y próximas acciones. Preparar el enlace no envía el mensaje; los resultados son confirmaciones manuales y una respuesta o exclusión detiene el seguimiento.",
+          "purpose": "Abre Marketing → Whatsapping. Crea una campaña en Datos, Contactos, Mensaje y Revisión. Corrige nombre, empresa o teléfono del contacto cuando falten; revisa las variables y el enlace si los usas. Busca, consulta y edita mensajes reutilizables en Plantillas.",
+          "effect": "Consulta contactados, respuestas positivas o negativas, pendientes y seguimientos. Con permiso de Oportunidades puedes crear o abrir una oportunidad y filtrar por su etapa real; estos datos no equivalen a una venta. Una respuesta o exclusión detiene el seguimiento; las exclusiones se conservan.",
           "chapterId": "crm.whatsapping",
           "version": 2,
           "journey": true,
@@ -611,17 +611,17 @@
             {
               "id": "prepare",
               "title": "Antes de empezar",
-              "description": "Selecciona contactos y prepara plantilla, variables, enlaces y pasos de seguimiento."
+              "description": "Abre Marketing → Whatsapping. Crea una campaña en Datos, Contactos, Mensaje y Revisión. Corrige nombre, empresa o teléfono del contacto cuando falten; revisa las variables y el enlace si los usas. Busca, consulta y edita mensajes reutilizables en Plantillas."
             },
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Revisa el mensaje individual, abre WhatsApp y envíalo desde la cuenta que elegiste en esa aplicación. Registra el resultado en Índice."
+              "description": "Entra a ver el avance. Ajusta el mensaje individual y abre WhatsApp; la campaña comienza con la primera acción. Envía desde la cuenta elegida en WhatsApp y confirma manualmente el resultado en Índice. Abrir el enlace no envía ni confirma un mensaje."
             },
             {
               "id": "verify",
               "title": "Comprueba el resultado",
-              "description": "Consulta pendientes y próximas acciones. Preparar el enlace no envía el mensaje; los resultados son confirmaciones manuales y una respuesta o exclusión detiene el seguimiento."
+              "description": "Consulta contactados, respuestas positivas o negativas, pendientes y seguimientos. Con permiso de Oportunidades puedes crear o abrir una oportunidad y filtrar por su etapa real; estos datos no equivalen a una venta. Una respuesta o exclusión detiene el seguimiento; las exclusiones se conservan."
             }
           ]
         },
@@ -3515,8 +3515,8 @@
           "tab": "whatsapping",
           "label": "Assisted WhatsApp campaigns",
           "title": "Assisted WhatsApp campaigns",
-          "purpose": "Select contacts and prepare a template, variables, links and follow-up steps.",
-          "effect": "Review pending and next actions. Preparing the link does not send the message; outcomes are manual confirmations and a reply or exclusion stops follow-up.",
+          "purpose": "Open Marketing → Whatsapping. Create a campaign through Details, Contacts, Message and Review. Correct missing contact name, company or phone; review any variables and links you use. Search, preview and edit reusable messages in Templates.",
+          "effect": "Review contacted people, positive or negative replies, pending contacts and follow-ups. With Opportunities access you can create or open an opportunity and filter by its actual stage; these records do not represent a sale. A reply or exclusion stops follow-up; exclusions are retained.",
           "chapterId": "crm.whatsapping",
           "version": 2,
           "journey": true,
@@ -3526,17 +3526,17 @@
             {
               "id": "prepare",
               "title": "Before starting",
-              "description": "Select contacts and prepare a template, variables, links and follow-up steps."
+              "description": "Open Marketing → Whatsapping. Create a campaign through Details, Contacts, Message and Review. Correct missing contact name, company or phone; review any variables and links you use. Search, preview and edit reusable messages in Templates."
             },
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Review the individual message, open WhatsApp and send it from the account you selected in that application. Record the result in Índice."
+              "description": "Open campaign progress. Adjust the individual message and open WhatsApp; the campaign starts with its first action. Send from the account selected in WhatsApp and manually confirm the outcome in Índice. Opening a link neither sends nor confirms a message."
             },
             {
               "id": "verify",
               "title": "Verify the result",
-              "description": "Review pending and next actions. Preparing the link does not send the message; outcomes are manual confirmations and a reply or exclusion stops follow-up."
+              "description": "Review contacted people, positive or negative replies, pending contacts and follow-ups. With Opportunities access you can create or open an opportunity and filter by its actual stage; these records do not represent a sale. A reply or exclusion stops follow-up; exclusions are retained."
             }
           ]
         },

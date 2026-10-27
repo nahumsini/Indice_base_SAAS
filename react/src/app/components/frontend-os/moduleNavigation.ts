@@ -13,6 +13,7 @@ export type IndiceModuleTab<TabId extends string> = {
 export type IndiceModuleTabMenu<TabId extends string> = {
   id: string;
   label: string;
+  description?: string;
   icon: ReactNode;
   tabs: ReadonlyArray<IndiceModuleTab<TabId>>;
   beforeTabId?: TabId;

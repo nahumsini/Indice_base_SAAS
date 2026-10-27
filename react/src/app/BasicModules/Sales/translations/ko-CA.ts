@@ -4,7 +4,8 @@ export const koCA = {
   back: '뒤로',
   more: '더보기',
   navigation: {
-    tools: '도구',
+    tools: '마케팅',
+    toolsDescription: '캠페인을 준비하고 고객과 소통하며 후속 연락을 이어가세요.',
     management: '관리',
     funnelingDescription: '캠페인 퍼널과 목표를 계획하세요.',
     mailingDescription: '이메일 캠페인을 준비하고 보내세요.',

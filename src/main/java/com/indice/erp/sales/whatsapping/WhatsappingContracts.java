@@ -40,10 +40,14 @@ public final class WhatsappingContracts {
       int done,
       int pending,
       int due,
-      boolean canEdit) {}
+      boolean canEdit,
+      Outcomes outcomes) {}
+
+  public record Outcomes(int contacted, int positive, int negative, Integer withOpportunity) {}
+  public record ResultCounts(long all, long contacted, long positive, long negative) {}
 
   public record Page(
-      List<Campaign> items, long total, int page, int pageSize, List<Owner> owners) {}
+      List<Campaign> items, long total, int page, int pageSize, List<Owner> owners, ResultCounts results) {}
 
   public record Owner(long id, String name) {}
 
@@ -66,7 +70,9 @@ public final class WhatsappingContracts {
       String notes,
       long version,
       String message,
-      String eligibility) {}
+      String eligibility,
+      String baseMessage,
+      String replyOutcome) {}
 
   public record Event(
       long id,
@@ -76,16 +82,26 @@ public final class WhatsappingContracts {
       Integer stepIndex,
       Instant occurredAt) {}
 
-  public record Detail(Campaign campaign, List<Recipient> recipients, List<Event> events) {}
+  public record ResultContacts(List<Long> contacted, List<Long> positive, List<Long> negative, List<Long> withOpportunity) {}
+
+  public record OpportunityStage(String key, String label, boolean usesDefaultLabel) {}
+  public record Opportunity(long contactId, long id, Long flowId, String code, String name, OpportunityStage stage) {}
+
+  public record Detail(Campaign campaign, List<Recipient> recipients, List<Event> events, ResultContacts resultContacts, List<Opportunity> opportunities) {}
 
   public record StateInput(
       @Min(1) long version, @NotNull @Pattern(regexp = "ACTIVE|PAUSED|ARCHIVED") String status) {}
 
   public record ActionInput(
       @Min(1) long version,
-      @NotNull @Pattern(regexp = "PREPARE|SENT|SKIP|REPLIED|BLOCK|NOTE") String action,
+      @NotNull @Pattern(regexp = "PREPARE|SENT|SKIP|REPLIED|REPLY_POSITIVE|REPLY_NEGATIVE|BLOCK|NOTE") String action,
       @NotNull @Size(max = 2000) String notes,
-      Instant nextActionAt) {}
+      Instant nextActionAt,
+      @Size(max = 4000) String messageOverride) {
+    public ActionInput(long version, String action, String notes, Instant nextActionAt) {
+      this(version, action, notes, nextActionAt, null);
+    }
+  }
 
   public record ActionResult(Detail detail, String whatsappUrl) {}
 

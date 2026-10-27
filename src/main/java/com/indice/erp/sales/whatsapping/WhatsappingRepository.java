@@ -76,7 +76,10 @@ public class WhatsappingRepository {
 SELECT c.*,u.full_name AS owner_name,
 (SELECT COUNT(*) FROM sales_whatsapp_recipients r WHERE r.company_id=c.company_id AND r.campaign_id=c.id) AS recipient_total,
 (SELECT COUNT(*) FROM sales_whatsapp_recipients r WHERE r.company_id=c.company_id AND r.campaign_id=c.id AND r.state IN ('DONE','SKIPPED','REPLIED','BLOCKED')) AS recipient_done,
-(SELECT COUNT(*) FROM sales_whatsapp_recipients r WHERE r.company_id=c.company_id AND r.campaign_id=c.id AND r.state='WAITING' AND r.next_action_at<=CURRENT_TIMESTAMP(6)) AS recipient_due
+(SELECT COUNT(*) FROM sales_whatsapp_recipients r WHERE r.company_id=c.company_id AND r.campaign_id=c.id AND r.state='WAITING' AND r.next_action_at<=CURRENT_TIMESTAMP(6)) AS recipient_due,
+(SELECT COUNT(DISTINCT e.contact_id) FROM sales_whatsapp_events e WHERE e.company_id=c.company_id AND e.campaign_id=c.id AND e.action='SENT') AS contacted_count,
+(SELECT COUNT(DISTINCT e.contact_id) FROM sales_whatsapp_events e WHERE e.company_id=c.company_id AND e.campaign_id=c.id AND e.action='REPLY_POSITIVE') AS positive_count,
+(SELECT COUNT(DISTINCT e.contact_id) FROM sales_whatsapp_events e WHERE e.company_id=c.company_id AND e.campaign_id=c.id AND e.action='REPLY_NEGATIVE') AS negative_count
 FROM sales_whatsapp_campaigns c JOIN users u ON u.id=c.owner_user_id
 """;
 
@@ -99,7 +102,8 @@ FROM sales_whatsapp_campaigns c JOIN users u ON u.id=c.owner_user_id
         done,
         total - done,
         r.getInt("recipient_due"),
-        false);
+        false,
+        new Outcomes(r.getInt("contacted_count"), r.getInt("positive_count"), r.getInt("negative_count"), null));
   }
 
   Optional<Campaign> find(long company, String id) {
@@ -107,6 +111,11 @@ FROM sales_whatsapp_campaigns c JOIN users u ON u.id=c.owner_user_id
         .query(CAMPAIGN + " WHERE c.company_id=? AND c.id=?", this::campaign, company, id)
         .stream()
         .findFirst();
+  }
+
+  // Closed internal action names only; never interpolate request values.
+  private static String hasResult(String action) {
+    return "EXISTS(SELECT 1 FROM sales_whatsapp_events e WHERE e.company_id=c.company_id AND e.campaign_id=c.id AND e.action='" + action + "')";
   }
 
   Page list(
@@ -117,11 +126,20 @@ FROM sales_whatsapp_campaigns c JOIN users u ON u.id=c.owner_user_id
       int page,
       int size,
       String sort,
-      String direction) {
+      String direction,
+      String result) {
     String where =
         " WHERE c.company_id=? AND (?='ALL' OR c.status=?) AND (? IS NULL OR c.owner_user_id=?) AND"
             + " c.name LIKE ? ESCAPE '!'";
     Object[] args = {company, status, status, owner, owner, WhatsappingRules.term(search)};
+    var counts = db.queryForObject("SELECT COUNT(*) AS all_count, COALESCE(SUM(" + hasResult("SENT") + "),0) AS contacted_count, COALESCE(SUM(" + hasResult("REPLY_POSITIVE") + "),0) AS positive_count, COALESCE(SUM(" + hasResult("REPLY_NEGATIVE") + "),0) AS negative_count FROM sales_whatsapp_campaigns c" + where,
+        (row, n) -> new ResultCounts(row.getLong("all_count"), row.getLong("contacted_count"), row.getLong("positive_count"), row.getLong("negative_count")), args);
+    where += switch (result) {
+      case "CONTACTED" -> " AND " + hasResult("SENT");
+      case "POSITIVE" -> " AND " + hasResult("REPLY_POSITIVE");
+      case "NEGATIVE" -> " AND " + hasResult("REPLY_NEGATIVE");
+      default -> "";
+    };
     long total =
         db.queryForObject(
             "SELECT COUNT(*) FROM sales_whatsapp_campaigns c" + where, Long.class, args);
@@ -130,7 +148,7 @@ FROM sales_whatsapp_campaigns c JOIN users u ON u.id=c.owner_user_id
     query.add((page - 1) * size);
     var items =
         db.query(
-            CAMPAIGN + where + " ORDER BY c." + sort + " " + direction + ",c.id LIMIT ? OFFSET ?",
+            CAMPAIGN + where + " ORDER BY " + (Set.of("contacted_count", "positive_count", "negative_count").contains(sort) ? sort : "c." + sort) + " " + direction + ",c.id LIMIT ? OFFSET ?",
             this::campaign,
             query.toArray());
     var owners =
@@ -139,7 +157,7 @@ FROM sales_whatsapp_campaigns c JOIN users u ON u.id=c.owner_user_id
                 + " u.id=c.owner_user_id WHERE c.company_id=? ORDER BY u.full_name",
             (r, n) -> new Owner(r.getLong(1), r.getString(2)),
             company);
-    return new Page(items, total, page, size, owners);
+    return new Page(items, total, page, size, owners, counts);
   }
 
   void save(AuthSessionUser a, String id, CampaignInput in) {
@@ -353,6 +371,30 @@ FROM sales_whatsapp_campaigns c JOIN users u ON u.id=c.owner_user_id
         a.userId(),
         action,
         step);
+  }
+
+  ResultContacts resultContacts(long company, String campaign) {
+    var contacted = new ArrayList<Long>();
+    var positive = new ArrayList<Long>();
+    var negative = new ArrayList<Long>();
+    db.query("SELECT DISTINCT r.contact_id, e.action FROM sales_whatsapp_recipients r JOIN sales_whatsapp_events e ON e.company_id=r.company_id AND e.campaign_id=r.campaign_id AND e.contact_id=r.contact_id WHERE r.company_id=? AND r.campaign_id=? AND e.action IN ('SENT','REPLY_POSITIVE','REPLY_NEGATIVE') ORDER BY r.contact_id, e.action",
+        (org.springframework.jdbc.core.RowCallbackHandler) row -> {
+          long id = row.getLong("contact_id");
+          switch (row.getString("action")) {
+            case "SENT" -> contacted.add(id);
+            case "REPLY_POSITIVE" -> positive.add(id);
+            case "REPLY_NEGATIVE" -> negative.add(id);
+            default -> { }
+          }
+        }, company, campaign);
+    return new ResultContacts(contacted, positive, negative, null);
+  }
+
+  Map<Long, String> replyOutcomes(long company, String campaign) {
+    Map<Long, String> outcomes = new HashMap<>();
+    db.query("SELECT contact_id, action FROM sales_whatsapp_events WHERE company_id=? AND campaign_id=? AND action IN ('REPLIED','REPLY_POSITIVE','REPLY_NEGATIVE') ORDER BY id",
+        (org.springframework.jdbc.core.RowCallbackHandler) row -> outcomes.put(row.getLong("contact_id"), row.getString("action")), company, campaign);
+    return outcomes;
   }
 
   List<Event> events(long company, String campaign) {

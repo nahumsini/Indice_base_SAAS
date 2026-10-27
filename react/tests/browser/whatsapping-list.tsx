@@ -1,0 +1,23 @@
+import {createRoot} from 'react-dom/client';
+import {MemoryRouter} from 'react-router';
+import {LanguageProvider} from '../../src/app/shared/context';
+import Whatsapping from '../../src/app/BasicModules/Sales/Whatsapping/Whatsapping';
+import {whatsappingApi,type Campaign,type Detail} from '../../src/app/BasicModules/Sales/Whatsapping/whatsappingApi';
+import {setCachedAuthSession} from '../../src/app/api/authSessionStore';
+import '../../src/styles/index.css';
+setCachedAuthSession({user:{id:9001,role:'user',name:'Vendedor de prueba',module_slugs:['crm'],tab_permissions_configured:true,tab_permission_keys:['crm.contacts','crm.leads']},company:{id:9001,name:'Empresa sintética',active:true,role:'user',commercial_account_type:'SUPER_ADMIN'},companies:[],csrfToken:'synthetic'});
+const rows:Campaign[]=Array.from({length:4},(_,i)=>({id:`00000000-0000-4000-8000-00000000000${i}`,name:['Seguimiento de cotizaciones','Renovaciones de octubre','Campaña terminada','Borrador de bienvenida'][i],objective:'QUOTE',offer:'Prueba',defaultRegion:'MX',resourceUrl:'',steps:[{name:'Saludo',delayDays:0,body:'Hola'}],version:1,status:['ACTIVE','PAUSED','COMPLETED','DRAFT'][i],ownerUserId:9001,ownerName:'Vendedor de prueba',updatedAt:new Date().toISOString(),total:10,done:i===2?10:3,pending:i===2?0:7,due:i===0?2:0,canEdit:true,outcomes:{contacted:[7,3,10,0][i],positive:[2,0,4,0][i],negative:[1,1,2,0][i],withOpportunity:window.location.search.includes('noOpportunityAccess')?null:[1,0,2,0][i]}}));
+whatsappingApi.list=async q=>{const base=rows.filter(r=>(!q.get('status')||q.get('status')==='ALL'||r.status===q.get('status'))&&r.name.toLowerCase().includes((q.get('search')||'').toLowerCase()));const results={all:base.length,contacted:base.filter(r=>r.outcomes!.contacted>0).length,positive:base.filter(r=>r.outcomes!.positive>0).length,negative:base.filter(r=>r.outcomes!.negative>0).length};const field={CONTACTED:'contacted',POSITIVE:'positive',NEGATIVE:'negative'}[q.get('result')||'ALL'] as 'contacted'|'positive'|'negative'|undefined;const items=field?base.filter(r=>r.outcomes![field]>0):base;return {items,total:items.length,page:1,pageSize:25,owners:[{id:9001,name:'Vendedor de prueba'}],results}};
+whatsappingApi.get=async id=>{
+  if(window.location.search.includes("failDates"))throw new Error("Synthetic date failure");
+  const campaign=rows.find(r=>r.id===id)!;
+  const ids=(count:number)=>Array.from({length:count},(_,i)=>i+1);
+  const contacted=ids(campaign.outcomes!.contacted);
+  const positive=campaign.outcomes!.positive ? Array.from({length:campaign.outcomes!.positive},(_,i)=>i+2) : [];
+  const negative=campaign.outcomes!.negative ? Array.from({length:campaign.outcomes!.negative},(_,i)=>i+6) : [];
+  const withOpportunity=campaign.outcomes!.withOpportunity===null?null:campaign.outcomes!.withOpportunity===1?[7]:ids(campaign.outcomes!.withOpportunity);
+  const recipients=ids(10).map(contactId=>({contact:{id:contactId,name:`Persona sintética ${contactId}`,companyName:'Prueba',phone:'+14165550110',ownerName:'Vendedor',source:'test',eligibility:'READY'},stepIndex:0,state:positive.includes(contactId)||negative.includes(contactId)?'REPLIED':campaign.status==='COMPLETED'?'DONE':contacted.includes(contactId)?'WAITING':'PENDING',nextActionAt:contacted.includes(contactId)?new Date(Date.now()+(campaign.status==='ACTIVE'?-3600000:86400000)).toISOString():null,notes:'',version:1,message:`Mensaje sintético para ${contactId}`,eligibility:'READY',replyOutcome:positive.includes(contactId)?'REPLY_POSITIVE':negative.includes(contactId)?'REPLY_NEGATIVE':null}));
+  return {campaign,recipients,events:[],opportunities:withOpportunity===null?null:withOpportunity.flatMap(contactId=>[{contactId,id:900+contactId,flowId:20,code:`OP-${contactId}`,name:`Propuesta sintética para ${contactId}`,stage:{key:"proposal",label:"Proposal",usesDefaultLabel:true}},...(contactId===7?[{contactId,id:800+contactId,flowId:21,code:`OP-${contactId}-B`,name:'Segunda propuesta sintética',stage:{key:'technical_review',label:'Revisión técnica de la propuesta y condiciones de entrega',usesDefaultLabel:false}}]:[])]),resultContacts:{contacted,positive,negative,withOpportunity}} satisfies Detail;
+};
+window.fetch=(()=>Promise.reject(new Error('No API allowed in synthetic list fixture'))) as typeof fetch;
+createRoot(document.getElementById('root')!).render(<LanguageProvider><MemoryRouter initialEntries={['/sales/whatsapping']}><button onClick={()=>document.documentElement.classList.toggle('dark')}>Modo oscuro</button><main className="min-h-screen min-w-0 bg-slate-50 p-3 dark:bg-slate-950 dark:text-white"><Whatsapping/></main></MemoryRouter></LanguageProvider>);

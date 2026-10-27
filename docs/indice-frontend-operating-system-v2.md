@@ -455,6 +455,25 @@ handoffs. Retain `crm.contacts`, the Sales coral shell and shared filters/tables
 manually confirmed sends and reported replies are distinct. The owner notification contract
 provides due follow-up reminders; no automatic sending or receipt is implied.
 
+Whatsapping campaign-list header refinement, 2026-10-26: expose only Templates and New
+campaign. Remove Contact lists and Refresh from this header and omit its now-empty Actions
+overflow. Read failures retain a contextual Retry action; the existing save/return lifecycle
+continues to reload the list. The owner contract retains contact selection and saved-list data.
+
+Whatsapping campaign wizard clarity, 2026-10-26: retain the four-stage Modal Wizard Índice
+while removing Product or service from capture. Details contains name/objective, Contacts owns
+phone region, Message owns the optional link and progressive preview, and Review owns the final
+save action. Use the shared validation/footer and retain draft/retry guards and legacy data
+compatibility as specified in the [Whatsapping contract](sales-whatsapping-contract-v1.md).
+
+Whatsapping template-library refinement, 2026-10-26: retain the native Operational Workspace
+Modal with shared search/status filters, table/pagination, compact row actions and a readable
+example-data preview. Phones switch between list and preview within the same frame. Create/edit
+uses Standard Form Modal; the library stays mounted to retain filters, selection and pagination.
+The existing template API, availability states, versions, dirty-close guard and save/retry semantics
+remain owned by Whatsapping. The [Whatsapping contract](sales-whatsapping-contract-v1.md) records
+the local presentation and verification details.
+
 Sales navigation organization decision, 2026-10-18: the primary module navigation follows
 Clients → Opportunities → Quotes → Sales → After-sales → Tools → Indicators → Management.
 Tools groups Funneling (campaign planning), Mailing (email campaigns), and Whatsapping
@@ -467,6 +486,11 @@ breadcrumb, and vertical workbar support. Each destination keeps its existing ro
 permission, provider, and persistence contract. Empty menus are hidden. Opportunities is
 the initial default only when no explicit URL or remembered tab exists; existing scoped
 navigation memory continues to take precedence over that default.
+
+Sales navigation naming decision, 2026-10-26: the Tools menu is presented as Marketing
+(📣), with localized help text explaining campaign preparation, customer connection and
+follow-up. It retains the internal `tools` menu identifier and the existing Funneling,
+Mailing and Whatsapping destinations, permissions and navigation behavior.
 
 Email/Mailing joint remodeling, 2026-10-17: the
 [Email and Mailing integration contract](email-mailing-integration-contract-v1.md) adopts the

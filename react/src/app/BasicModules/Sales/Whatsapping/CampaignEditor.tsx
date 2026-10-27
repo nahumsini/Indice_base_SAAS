@@ -6,12 +6,11 @@ import {
   ArrowLeft,
   ArrowRight,
   Save,
-  Target,
 } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Textarea } from "../../../components/ui/textarea";
-import { IndiceModalSummary } from "../../../components/indice-modal";
+import { IndiceModalSummary, IndiceModalValidation } from "../../../components/indice-modal";
 import { getCachedAuthSession } from "../../../api/authSessionStore";
 import { SalesModalFrame } from "../components/SalesModalFrame";
 import { SalesDocumentWizard } from "../components/SalesDocumentWizard";
@@ -23,13 +22,13 @@ import {
   type SavedList,
 } from "./whatsappingApi";
 import { useWhatsappingCopy } from "./whatsappingCopy";
+import { loadCampaignContacts, uniqueEligibleContacts } from "./campaignContactSelection";
 import { ContactPicker } from "./ContactPicker";
 import {
   control,
   Field,
   panel,
   MessagePreview,
-  ErrorNotice,
   useDirtyExit,
 } from "./WhatsappingUi";
 import {
@@ -66,7 +65,12 @@ export function CampaignEditor({
     [error, setError] = useState(""),
     [discard, setDiscard] = useState(false),
     [templates, setTemplates] = useState<Template[]>([]),
-    [lists, setLists] = useState<SavedList[]>([]);
+    [lists, setLists] = useState<SavedList[]>([]),
+    [materialOpen, setMaterialOpen] = useState(Boolean(initial?.campaign.resourceUrl));
+  const needsResource = draft.steps.some(s => /{{\s*link\s*}}/.test(s.body));
+  useEffect(() => {
+    if (step === 2 && needsResource) setMaterialOpen(true);
+  }, [step, needsResource]);
   const dirty = original.current !== JSON.stringify(draft);
   useDirtyExit(dirty);
   useEffect(() => {
@@ -94,20 +98,39 @@ export function CampaignEditor({
     setDraft((d) => ({ ...d, ...patch }));
     setError("");
   };
+  const needsCompany = draft.steps.some(s => /{{\s*clientCompany\s*}}/.test(s.body));
+  function missingCampaignData() {
+    const text = draft.steps.map(s => s.body).join(" ");
+    if (/{{\s*link\s*}}/.test(text) && !draft.resourceUrl.trim()) return copy.requiredMessageLink;
+    if (/{{\s*offer\s*}}/.test(text) && !draft.offer.trim()) return copy.legacyOfferHint;
+    return "";
+  }
+  async function applyList(ids: number[]) {
+    if (inFlight.current) return;
+    inFlight.current = true; setBusy(true); setError("");
+    try {
+      const contacts = await loadCampaignContacts(draft.defaultRegion, "", ids);
+      const eligible = uniqueEligibleContacts(contacts, needsCompany);
+      const next = [...new Set([...draft.contactIds, ...eligible.map(c => c.id)])];
+      if (!mounted.current) return;
+      if (next.length > 500) setError(copy.limit);
+      else {
+        update({ contactIds: next });
+        if (eligible.length !== new Set(ids).size) setError(copy.incompleteContacts);
+      }
+    } catch (e) { if (mounted.current) setError(failure(e, copy)); }
+    finally { inFlight.current = false; if (mounted.current) setBusy(false); }
+  }
   function close() {
     if (inFlight.current) return;
     if (dirty) setDiscard(true);
     else onClose();
   }
   function valid(index: number) {
-    if (
-      index === 0 &&
-      (!draft.name.trim() ||
-        (draft.resourceUrl &&
-          !/^https:\/\/[^/]+\.[^/]+/.test(draft.resourceUrl)))
-    )
-      return copy.required;
+    if (index === 0 && !draft.name.trim()) return copy.required;
     if (index === 1 && !draft.contactIds.length) return copy.noContacts;
+    if (index === 2 && draft.resourceUrl && !/^https:\/\/[^/]+\.[^/]+/.test(draft.resourceUrl)) return copy.invalidResource;
+    if (index === 2 && missingCampaignData()) return missingCampaignData();
     if (
       index === 2 &&
       draft.steps.some((s) => !s.name.trim() || !validBody(s.body))
@@ -117,16 +140,36 @@ export function CampaignEditor({
   }
   async function save() {
     if (inFlight.current) return;
-    const err = valid(0);
-    if (err) {
-      setStep(0);
-      setError(err);
+    for (const index of step === 3 ? [0, 1, 2] : [0]) {
+      const err = valid(index);
+      if (err) {
+        setStep(index);
+        setError(err);
+        return;
+      }
+    }
+    if (draft.resourceUrl && !/^https:\/\/[^/]+\.[^/]+/.test(draft.resourceUrl)) {
+      setStep(2);
+      setError(copy.invalidResource);
       return;
     }
     inFlight.current = true;
     setBusy(true);
     setError("");
     try {
+      const missingData = missingCampaignData();
+      if (missingData) {
+        if (mounted.current) { setStep(2); setError(missingData); }
+        return;
+      }
+      if (draft.contactIds.length) {
+        const contacts = await loadCampaignContacts(draft.defaultRegion, "", draft.contactIds);
+        if (uniqueEligibleContacts(contacts, needsCompany).length !== new Set(draft.contactIds).size) {
+          if (mounted.current) { setStep(1); setError(copy.incompleteContacts); }
+          return;
+        }
+      }
+      if (!mounted.current) return;
       const result = await whatsappingApi.save(id, draft);
       if (mounted.current) onSaved(result);
     } catch (e) {
@@ -152,21 +195,20 @@ export function CampaignEditor({
     copy.reviewHint,
   ];
   const stepLabels = [copy.details, copy.contacts, copy.message, copy.review];
-  const tokenLabels = [
-    copy.name,
-    copy.company,
-    copy.owner,
-    copy.company,
-    copy.offer,
-    copy.resource,
-  ];
+  const tokenLabels = {
+    name: copy.contactName,
+    clientCompany: copy.contactCompany,
+    seller: copy.owner,
+    company: copy.senderCompany,
+    link: copy.messageLink,
+  };
   return (
     <SalesModalFrame
       open
       modalType={discard ? "confirmation" : "wizard"}
       busy={busy}
-      title={discard ? copy.discardTitle : draft.name || copy.newCampaign}
-      description={discard ? copy.emptyHint : stepHints[step]}
+      title={discard ? copy.discardTitle : initial ? copy.editCampaign : copy.newCampaign}
+      description={discard ? copy.discardHint : stepHints[step]}
       eyebrow={discard ? undefined : `${step + 1} / 4 · ${stepLabels[step]}`}
       icon={<MessageCircle />}
       closeLabel={copy.close}
@@ -204,12 +246,12 @@ export function CampaignEditor({
               </Button>
             )}
             <Button
-              variant="outline"
+              variant={step === 3 ? "default" : "outline"}
               disabled={busy}
               onClick={() => void save()}
             >
               <Save className="size-4" aria-hidden="true" />
-              {busy ? copy.loading : copy.saveDraft}
+              {busy ? copy.loading : step === 3 ? (initial ? copy.saveChanges : copy.createCampaign) : copy.saveDraft}
             </Button>
             {step < 3 && (
               <Button
@@ -236,128 +278,59 @@ export function CampaignEditor({
           activeStepId={String(step)}
           progressLabel={copy.progress}
           steps={stepLabels.map((text, i) => ({ id: String(i), label: text }))}
-          validation={<ErrorNotice text={error} />}
+          validation={<IndiceModalValidation messages={error ? [error] : []} />}
         >
           <fieldset disabled={busy} className="min-w-0 space-y-4">
             {step === 0 && (
               <section className={`${panel} space-y-4`}>
-                <h3 className="flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-white">
-                  <Target
-                    className="size-4 text-[#B63B32] dark:text-[#FFB0AA]"
-                    aria-hidden="true"
-                  />
-                  {copy.details}
-                </h3>
                 <Field label={`${copy.campaignName} *`}>
                   <Input
                     autoFocus
+                    required
                     placeholder={copy.namePlaceholder}
                     value={draft.name}
                     maxLength={180}
                     onChange={(e) => update({ name: e.target.value })}
                   />
                 </Field>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label={copy.objective}>
-                    <select
-                      className={control}
-                      value={draft.objective}
-                      onChange={(e) => update({ objective: e.target.value })}
-                    >
-                      {[
-                        "WELCOME",
-                        "QUOTE",
-                        "RENEWAL",
-                        "PROMOTION",
-                        "RECOVERY",
-                        "OTHER",
-                      ].map((v) => (
-                        <option key={v} value={v}>
-                          {label(v)}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label={copy.region}>
-                    <select
-                      className={control}
-                      value={draft.defaultRegion}
-                      onChange={(e) =>
-                        update({ defaultRegion: e.target.value })
-                      }
-                    >
-                      {[
-                        "MX",
-                        "CA",
-                        "US",
-                        "CO",
-                        "BR",
-                        "AR",
-                        "CL",
-                        "PE",
-                        "ES",
-                        "FR",
-                        "GB",
-                        "KR",
-                        "CN",
-                      ].map((v) => (
-                        <option key={v} value={v}>
-                          {new Intl.DisplayNames([locale], {
-                            type: "region",
-                          }).of(v)}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                </div>
-                <Field label={copy.offer}>
-                  <Input
-                    maxLength={240}
-                    value={draft.offer}
-                    onChange={(e) => update({ offer: e.target.value })}
-                  />
+                <Field label={copy.objective}>
+                  <select className={control} value={draft.objective}
+                    onChange={(e) => update({ objective: e.target.value })}>
+                    {["WELCOME", "QUOTE", "RENEWAL", "PROMOTION", "RECOVERY", "OTHER"].map((value) => (
+                      <option key={value} value={value}>{label(value)}</option>
+                    ))}
+                  </select>
                 </Field>
-                <Field label={copy.resource}>
-                  <Input
-                    type="url"
-                    maxLength={1600}
-                    value={draft.resourceUrl}
-                    placeholder="https://"
-                    onChange={(e) => update({ resourceUrl: e.target.value })}
-                  />
-                </Field>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {copy.resourceHint}
-                </p>
               </section>
             )}
             {step === 1 && (
               <>
-                <Field label={copy.applyList}>
-                  <select
-                    className={control}
-                    value=""
-                    onChange={(e) => {
-                      const list = lists.find((l) => l.id === e.target.value);
-                      if (list) {
-                        const ids = [
-                          ...new Set([...draft.contactIds, ...list.contactIds]),
-                        ];
-                        if (ids.length > 500) setError(copy.limit);
-                        else update({ contactIds: ids });
-                      }
-                    }}
-                  >
-                    <option value="">{copy.lists}</option>
-                    {lists.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.name} · {l.contactIds.length}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+                <section className={`${panel} space-y-2`}>
+                  <div className={`grid gap-4 ${lists.length ? "sm:grid-cols-2" : ""}`}>
+                    <Field label={copy.region}>
+                      <select className={control} value={draft.defaultRegion}
+                        onChange={(e) => update({ defaultRegion: e.target.value })}>
+                        {["MX", "CA", "US", "CO", "BR", "AR", "CL", "PE", "ES", "FR", "GB", "KR", "CN"].map((value) => (
+                          <option key={value} value={value}>{new Intl.DisplayNames([locale], { type: "region" }).of(value)}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    {lists.length > 0 && <Field label={copy.applyList}>
+                      <select className={control} value="" disabled={busy}
+                        onChange={(e) => {
+                          const list = lists.find((item) => item.id === e.target.value);
+                          if (list) void applyList(list.contactIds);
+                        }}>
+                        <option value="">{copy.chooseList}</option>
+                        {lists.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.contactIds.length}</option>)}
+                      </select>
+                    </Field>}
+                  </div>
+                  <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{copy.regionHint}</p>
+                </section>
                 <ContactPicker
                   selected={draft.contactIds}
+                  needsCompany={needsCompany}
                   region={draft.defaultRegion}
                   onChange={(contactIds) => update({ contactIds })}
                   disabled={busy}
@@ -366,9 +339,9 @@ export function CampaignEditor({
             )}
             {step === 2 && (
               <div className="space-y-4">
-                <p className="rounded-xl border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                {draft.steps.length > 1 && <p className="rounded-xl border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
                   {copy.sequenceHint}
-                </p>
+                </p>}
                 {draft.steps.map((item, i) => (
                   <section key={i} className={`${panel} space-y-3`}>
                     <div className="flex items-center justify-between gap-3">
@@ -436,7 +409,7 @@ export function CampaignEditor({
                         </Field>
                       )}
                     </div>
-                    <Field label={copy.template}>
+                    {templates.some((template) => template.status === "ACTIVE") && <Field label={copy.template}>
                       <select
                         className={control}
                         value=""
@@ -461,7 +434,7 @@ export function CampaignEditor({
                             </option>
                           ))}
                       </select>
-                    </Field>
+                    </Field>}
                     <Field label={copy.message}>
                       <Textarea
                         className="min-h-36"
@@ -484,7 +457,7 @@ export function CampaignEditor({
                       aria-label={copy.variables}
                       className="flex flex-wrap gap-2"
                     >
-                      {variables.map((token, j) => (
+                      {variables.filter((token): token is keyof typeof tokenLabels => token !== "offer").map((token) => (
                         <Button
                           key={token}
                           type="button"
@@ -505,16 +478,32 @@ export function CampaignEditor({
                             })
                           }
                         >
-                          {tokenLabels[j]}{" "}
-                          <span className="text-xs text-slate-500">{`{{${token}}}`}</span>
+                          {tokenLabels[token]}
                         </Button>
                       ))}
                     </div>
-                    <MessagePreview title={copy.preview}>
-                      {preview(item.body, values) || "—"}
-                    </MessagePreview>
+                    <details className="rounded-xl border border-slate-200 px-3 dark:border-slate-700">
+                      <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">{copy.preview}</summary>
+                      <div className="pb-3"><MessagePreview title={copy.preview}>
+                        {preview(item.body, values) || "—"}
+                      </MessagePreview></div>
+                    </details>
                   </section>
                 ))}
+                <details className={`${panel} group`} open={materialOpen}
+                  onToggle={(event) => setMaterialOpen(event.currentTarget.open)}>
+                  <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium text-slate-900 dark:text-white">
+                    <ArrowRight aria-hidden="true" className="size-4 shrink-0 transition-transform group-open:rotate-90" />
+                    {copy.resource}
+                  </summary>
+                  <div className="mt-2 space-y-2">
+                    <Field label={copy.messageLink}>
+                      <Input type="url" maxLength={1600} value={draft.resourceUrl} placeholder="https://"
+                        onChange={(e) => update({ resourceUrl: e.target.value })} />
+                    </Field>
+                    <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{copy.resourceHint}</p>
+                  </div>
+                </details>
                 <Button
                   variant="outline"
                   disabled={draft.steps.length >= 5}
@@ -546,6 +535,8 @@ export function CampaignEditor({
                     },
                     { label: copy.owner, value: values.seller },
                     { label: copy.sequence, value: String(draft.steps.length) },
+                    { label: copy.region, value: new Intl.DisplayNames([locale], { type: "region" }).of(draft.defaultRegion) || draft.defaultRegion },
+                    ...(draft.resourceUrl ? [{ label: copy.messageLink, value: draft.resourceUrl }] : []),
                   ]}
                 />
                 {draft.steps.map((s, i) => (

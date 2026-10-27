@@ -46,9 +46,12 @@ function detail(c) {
         (r) => !["DONE", "REPLIED", "SKIPPED", "BLOCKED"].includes(r.state),
       ).length,
       due: 0,
+      outcomes: { contacted: c.events.filter(e => e.action === "SENT").length, positive: 0, negative: 0, withOpportunity: null },
     },
     recipients: c.recipients,
     events: c.events,
+    resultContacts: {contacted: c.events.filter(e => e.action === "SENT").map(e => e.contactId), positive: [], negative: [], withOpportunity: null},
+    opportunities: null,
   };
 }
 await server.listen();
@@ -149,6 +152,7 @@ try {
         page: 1,
         pageSize: 25,
         owners: [{ id: 9001, name: "Vendedor de prueba" }],
+        results: {all: rows.length, contacted: 0, positive: 0, negative: 0},
       });
     }
     const match = path.match(
@@ -243,10 +247,10 @@ try {
     .getByLabel("Nombre *", { exact: true })
     .fill("Bienvenida personal");
   await page
-    .getByLabel("Mensaje", { exact: true })
+    .getByLabel("Mensaje *", { exact: true })
     .fill("Hola {{name}}, ¿revisamos tu propuesta?");
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
-  await page.getByRole("button", { name: /Bienvenida personal/ }).waitFor();
+  await page.getByRole("heading", { name: "Bienvenida personal", exact: true }).waitFor();
   await page.screenshot({
     animations: "disabled",
     path: "/tmp/indice-whatsapping-qa/library.png",
@@ -263,7 +267,7 @@ try {
   await page
     .getByLabel("Nombre de campaña *")
     .fill("Seguimiento de consultorios");
-  await page.getByLabel("Producto o servicio").fill("Paquete de consulta");
+  assert.equal(await page.getByLabel("Producto o servicio").count(), 0);
   await page.screenshot({
     animations: "disabled",
     path: "/tmp/indice-whatsapping-qa/wizard.png",
@@ -304,20 +308,17 @@ try {
   });
   failSave = true;
   await page
-    .getByRole("button", { name: "Guardar borrador", exact: true })
+    .getByRole("button", { name: "Crear campaña", exact: true })
     .click();
   await page.getByRole("alert").waitFor();
   assert.equal(campaigns.length, 0);
   await page
-    .getByRole("button", { name: "Guardar borrador", exact: true })
+    .getByRole("button", { name: "Crear campaña", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "Comenzar campaña", exact: true })
-    .click();
-  await page.getByRole("button", { name: "Confirmar", exact: true }).click();
   await page
     .getByRole("button", { name: "Abrir WhatsApp", exact: true })
     .waitFor();
+  assert.equal(campaigns[0].status, "DRAFT");
   assert.equal(campaigns[0].recipients.length, 27);
   await page.evaluate(() => (window.__blocked = true));
   await page
@@ -330,7 +331,7 @@ try {
     .getByRole("button", { name: "Abrir WhatsApp", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Marcar como enviado", exact: true })
+    .getByRole("button", { name: "Contactado", exact: true })
     .waitFor();
   await page.waitForFunction(() => window.__waUrls.length === 1);
   assert.deepEqual(actions, ["PREPARE"]);
@@ -339,18 +340,19 @@ try {
     /text=Hola%20Persona%2001/,
   );
   await page
-    .getByRole("button", { name: "Marcar como enviado", exact: true })
+    .getByRole("button", { name: "Contactado", exact: true })
     .click();
   await page
     .getByRole("status")
     .filter({ hasText: "Envío confirmado manualmente" })
     .waitFor();
   await page
-    .getByRole("button", { name: "Siguiente contacto", exact: true })
+    .getByRole("button", { name: "Siguiente", exact: true })
     .click();
   await page
     .getByRole("heading", { name: "Persona 02", exact: true })
     .waitFor();
+  await page.getByRole("button", { name: "Seguimiento", exact: true }).click();
   await page.getByLabel("Notas", { exact: true }).fill("Llamar por la tarde");
   failAction = true;
   await page
@@ -368,6 +370,7 @@ try {
     .getByRole("status")
     .filter({ hasText: "Seguimiento actualizado" })
     .waitFor();
+  await page.locator("details").filter({has: page.getByRole("button", { name: "No contactar", exact: true })}).locator("summary").click();
   await page.getByRole("button", { name: "No contactar", exact: true }).click();
   await page.getByRole("button", { name: "Confirmar", exact: true }).click();
   await page
@@ -382,7 +385,7 @@ try {
   });
   await page.getByRole("button", { name: "Atrás", exact: true }).click();
   await page
-    .getByRole("button", { name: "Trabajar campaña", exact: true })
+    .getByRole("button", { name: /^Trabajar campaña: Seguimiento de consultorios$/ })
     .waitFor();
   await page.screenshot({
     animations: "disabled",
@@ -390,7 +393,7 @@ try {
     fullPage: true,
   });
   await page
-    .getByRole("button", { name: "Trabajar campaña", exact: true })
+    .getByRole("button", { name: /^Trabajar campaña: Seguimiento de consultorios$/ })
     .click();
   assert.equal(campaigns[0].recipients[0].state, "DONE");
   assert.equal(campaigns[0].recipients[1].state, "BLOCKED");
@@ -412,6 +415,7 @@ try {
       document.activeElement?.tagName === "H2" &&
       document.activeElement?.textContent === "Persona 04",
   );
+  await page.getByRole("button", { name: "Seguimiento", exact: true }).click();
   await page
     .getByLabel("Notas", { exact: true })
     .fill("Conservar al cambiar contacto");

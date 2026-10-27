@@ -4,7 +4,8 @@ export const frCA = {
   back: 'Retour',
   more: 'Plus',
   navigation: {
-    tools: 'Outils',
+    tools: 'Marketing',
+    toolsDescription: 'Préparez des campagnes, échangez avec vos clients et assurez le suivi.',
     management: 'Gestion',
     funnelingDescription: 'Planifiez les tunnels et les objectifs de campagne.',
     mailingDescription: 'Préparez et envoyez des campagnes par courriel.',

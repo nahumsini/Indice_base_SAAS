@@ -4,7 +4,8 @@ export const enCA = {
   back: 'Back',
   more: 'More',
   navigation: {
-    tools: 'Tools',
+    tools: 'Marketing',
+    toolsDescription: 'Prepare campaigns, connect with your customers, and follow up.',
     management: 'Management',
     funnelingDescription: 'Plan campaign funnels and goals.',
     mailingDescription: 'Prepare and send email campaigns.',

@@ -89,6 +89,9 @@ function OpportunitySection({
 }
 
 export function CreateOpportunityModal({
+  lockContact = false,
+  busy = false,
+  error = "",
   copy,
   customerCopy,
   isOpen,
@@ -104,6 +107,9 @@ export function CreateOpportunityModal({
   onOpenChange,
   onSave,
 }: {
+  lockContact?: boolean;
+  busy?: boolean;
+  error?: string;
   copy: ProspectosCopy['modal'] & { options: ProspectosCopy['options'] };
   customerCopy: SalesRecordsTranslations;
   isOpen: boolean;
@@ -138,7 +144,8 @@ export function CreateOpportunityModal({
   return (
     <SalesModalFrame
       open={isOpen}
-      onOpenChange={onOpenChange}
+      onOpenChange={open => { if (!busy) onOpenChange(open); }}
+      busy={busy}
       title={editingOpportunity ? copy.editTitle : copy.createTitle}
       description={editingOpportunity ? copy.editDescription : copy.createDescription}
       icon={<Target className="h-5 w-5" />}
@@ -154,6 +161,7 @@ export function CreateOpportunityModal({
           <Button
             variant="outline"
             className={opportunityActionClassNames.secondary}
+            disabled={busy}
             onClick={() => onOpenChange(false)}
           >
             {copy.cancel}
@@ -161,7 +169,7 @@ export function CreateOpportunityModal({
           <Button
             className={opportunityActionClassNames.primary}
             aria-describedby={saveHint ? "opportunity-form-help" : undefined}
-            disabled={!canSave}
+            disabled={busy || !canSave}
             onClick={onSave}
           >
             {editingOpportunity ? copy.saveChanges : copy.createOpportunity}
@@ -169,6 +177,7 @@ export function CreateOpportunityModal({
         </>
       )}
     >
+      {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-950 dark:text-rose-200">{error}</p>}
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 px-4 py-3 text-sm font-medium text-slate-700">
         <span className="flex items-center gap-2">
           <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#FF6B5E] text-xs text-white">1</span>
@@ -184,16 +193,16 @@ export function CreateOpportunityModal({
       <OpportunitySection
         icon={UsersRound}
         title={copy.fields.contact}
-        description={customerCopy.modal.quickCustomer.description}
+        description={lockContact ? undefined : customerCopy.modal.quickCustomer.description}
       >
-        <SalesCustomerSelector
+        {!lockContact && <SalesCustomerSelector
           contacts={contacts}
           selectedContactId={form.contactId}
           selectedCustomerName={selectedContact?.company ?? ''}
           t={customerCopy}
           onSelectCustomer={onContactChange}
           onCreateCustomer={onCreateCustomer}
-        />
+        />}
 
         {selectedContact ? (
           <div className="mt-4 grid gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4 text-sm sm:grid-cols-3">

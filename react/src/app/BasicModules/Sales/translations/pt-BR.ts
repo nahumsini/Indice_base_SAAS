@@ -4,7 +4,8 @@ export const ptBR = {
   back: 'Voltar',
   more: 'Mais',
   navigation: {
-    tools: 'Ferramentas',
+    tools: 'Marketing',
+    toolsDescription: 'Prepare campanhas, conecte-se com seus clientes e acompanhe os contatos.',
     management: 'Gestão',
     funnelingDescription: 'Planeje funis e metas de campanha.',
     mailingDescription: 'Prepare e envie campanhas de e-mail.',

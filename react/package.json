@@ -91,7 +91,8 @@
     "test:meeting-agreements-browser": "node tests/meeting-agreements-browser.mjs",
     "test:sales-conversations": "node --test tests/sales-conversations.test.mjs",
     "test:sales-conversations-browser": "node tests/sales-conversations-browser.mjs",
-    "preview:sales-conversations": "node tests/sales-conversations-preview.mjs"
+    "preview:sales-conversations": "node tests/sales-conversations-preview.mjs",
+    "test:whatsapping": "node --experimental-strip-types --test tests/whatsapping-*.test.mjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

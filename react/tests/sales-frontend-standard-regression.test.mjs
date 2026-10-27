@@ -384,7 +384,7 @@ test('Crear oportunidad solo permite responsables activos del contexto de Ventas
   assert.doesNotMatch(opportunitiesSource, /humanResourcesApi\.listHrUsers|\.\.\.salesOwners/);
   assert.match(opportunitiesSource, /if \(!ownerPayload\.ownerUserCompanyId\) return;/);
   assert.match(modalSource, /ownerValue\.startsWith\('user-company:'\)/);
-  assert.match(modalSource, /disabled=\{!canSave\}/);
+  assert.match(modalSource, /disabled=\{busy \|\| !canSave\}/);
   assert.match(modalSource, /<SalesCustomerSelector/);
   assert.match(modalSource, /onCreateCustomer=\{onCreateCustomer\}/);
   assert.match(opportunitiesSource, /onCreateCustomer=\{createContactRecord\}/);

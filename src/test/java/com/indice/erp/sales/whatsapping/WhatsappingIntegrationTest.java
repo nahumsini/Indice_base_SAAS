@@ -170,6 +170,164 @@ class WhatsappingIntegrationTest {
   }
 
   @Test
+  void countDrillDownUsesCompleteCampaignHistoryAndMatchesEachCount() {
+    var d = activate(List.of(contact, second));
+    var prepared = action(d, contact, "PREPARE").detail();
+    var sent = action(prepared, contact, "SENT").detail();
+    var positive = action(sent, contact, "REPLY_POSITIVE").detail();
+    action(positive, second, "REPLY_NEGATIVE");
+    for(int i=0;i<110;i++) db.update("INSERT INTO sales_whatsapp_events(company_id,campaign_id,contact_id,actor_user_id,action,step_index) VALUES(?,?,?,?, 'NOTE',0)",company,d.campaign().id(),second,user);
+    var detail = service.get(actor,d.campaign().id());
+    assertThat(detail.events()).hasSize(100).noneMatch(event -> event.action().equals("SENT"));
+    assertThat(detail.resultContacts().contacted()).containsExactly(contact);
+    assertThat(detail.resultContacts().positive()).containsExactly(contact);
+    assertThat(detail.resultContacts().negative()).containsExactly(second);
+    assertThat(detail.resultContacts().withOpportunity()).isNull();
+    assertThat(detail.resultContacts().contacted()).hasSize(detail.campaign().outcomes().contacted());
+    assertThat(detail.resultContacts().positive()).hasSize(detail.campaign().outcomes().positive());
+    assertThat(detail.resultContacts().negative()).hasSize(detail.campaign().outcomes().negative());
+    var unrelated = draft(List.of(contact,second));
+    assertThat(unrelated.resultContacts().contacted()).isEmpty();
+    assertThat(unrelated.resultContacts().positive()).isEmpty();
+    assertThat(unrelated.resultContacts().negative()).isEmpty();
+  }
+
+  @Test
+  void campaignTableCountsDistinctContactsAndFiltersBeforePagination() {
+    var d = activate(List.of(contact, second));
+    var prepared = action(d, contact, "PREPARE").detail();
+    var sent = action(prepared, contact, "SENT").detail();
+    var positive = action(sent, contact, "REPLY_POSITIVE").detail();
+    var finished = action(positive, second, "REPLY_NEGATIVE").detail();
+    db.update("INSERT INTO sales_whatsapp_events(company_id,campaign_id,contact_id,actor_user_id,action,step_index) VALUES(?,?,?,?, 'SENT',0)",company,d.campaign().id(),contact,user);
+    var outcomes = service.get(actor, d.campaign().id()).campaign().outcomes();
+    assertThat(outcomes.contacted()).isEqualTo(1);
+    assertThat(outcomes.positive()).isEqualTo(1);
+    assertThat(outcomes.negative()).isEqualTo(1);
+    for (int i=0;i<11;i++) draft(List.of(second));
+    var all = service.list(actor,"","ALL",null,1,10,"updatedAt","desc","ALL");
+    assertThat(all.items()).hasSize(10);
+    assertThat(all.results().all()).isEqualTo(12);
+    assertThat(all.results().contacted()).isEqualTo(1);
+    assertThat(all.results().positive()).isEqualTo(1);
+    assertThat(all.results().negative()).isEqualTo(1);
+    for (String result : List.of("CONTACTED","POSITIVE","NEGATIVE")) {
+      var filtered = service.list(actor,"","ALL",null,1,10,"updatedAt","desc",result);
+      assertThat(filtered.total()).isEqualTo(1);
+      assertThat(filtered.items().getFirst().id()).isEqualTo(d.campaign().id());
+      assertThat(filtered.results().all()).isEqualTo(12);
+    }
+    for (String sort : List.of("contacted", "positive", "negative")) assertThat(service.list(actor,"","ALL",null,1,10,sort,"desc").items().getFirst().id()).isEqualTo(d.campaign().id());
+    assertThat(service.list(actor,"","DRAFT",null,1,10,"updatedAt","desc","POSITIVE").total()).isZero();
+    assertThat(service.list(actor,"No matching campaign","ALL",null,1,10,"updatedAt","desc","ALL").results().all()).isZero();
+    assertThatThrownBy(()->service.list(actor,"","ALL",null,1,10,"updatedAt","desc","unknown")).hasMessageContaining("400");
+  }
+
+  @Test
+  void opportunityPresenceRequiresSalesAccessAndCountsContactsOnlyInThisCompany() {
+    var d = draft(List.of(contact, second));
+    assertThat(service.get(actor,d.campaign().id()).campaign().outcomes().withOpportunity()).isNull();
+    assertThat(service.get(actor,d.campaign().id()).opportunities()).isNull();
+    db.update("INSERT INTO user_company_tab_permissions(user_company_id,module_slug,tab_key) VALUES(?,'crm','leads')",member);
+    long flow = insert("INSERT INTO sales_opportunity_flows(company_id,flow_key,name) VALUES(?,'synthetic','Synthetic flow')", company);
+    long otherFlow = insert("INSERT INTO sales_opportunity_flows(company_id,flow_key,name) VALUES(?,'synthetic','Synthetic flow')", other);
+    long firstOpportunity = insert("INSERT INTO sales_opportunities(company_id,contact_id,assigned_flow_id,opportunity_code,opportunity_name) VALUES(?,?,?,'WA-1','Synthetic opportunity')", company, contact, flow);
+    long secondOpportunity = insert("INSERT INTO sales_opportunities(company_id,contact_id,assigned_flow_id,opportunity_code,opportunity_name) VALUES(?,?,?,'WA-2','Second opportunity')", company, contact, flow);
+    long deletedOpportunity = insert("INSERT INTO sales_opportunities(company_id,contact_id,assigned_flow_id,opportunity_code,opportunity_name,deleted_at) VALUES(?,?,?,'WA-3','Deleted opportunity',CURRENT_TIMESTAMP)", company, second, flow);
+    insert("INSERT INTO sales_opportunities(company_id,contact_id,assigned_flow_id,opportunity_code,opportunity_name) VALUES(?,?,?,'WA-4','Foreign opportunity')", other, second, otherFlow);
+    var result = service.list(actor,"","ALL",null,1,10,"updatedAt","desc");
+    assertThat(result.items().getFirst().outcomes().withOpportunity()).isEqualTo(1);
+    assertThat(service.get(actor,d.campaign().id()).campaign().outcomes().withOpportunity()).isEqualTo(1);
+    assertThat(service.get(actor,d.campaign().id()).resultContacts().withOpportunity()).containsExactly(contact);
+    var references = service.get(actor,d.campaign().id()).opportunities();
+    assertThat(references).extracting(Opportunity::id).containsExactly(secondOpportunity, firstOpportunity);
+    assertThat(references).allSatisfy(o -> { assertThat(o.contactId()).isEqualTo(contact); assertThat(o.flowId()).isEqualTo(flow); });
+    assertThat(references.getFirst().name()).isEqualTo("Second opportunity");
+    assertThat(references.getFirst().code()).isEqualTo("WA-2");
+    var unrelated = draft(List.of(second));
+    assertThat(service.get(actor,unrelated.campaign().id()).opportunities()).isEmpty();
+    db.update("DELETE FROM user_company_tab_permissions WHERE user_company_id=? AND tab_key='leads'",member);
+    assertThat(service.list(actor,"","ALL",null,1,10,"updatedAt","desc").items().getFirst().outcomes().withOpportunity()).isNull();
+    assertThat(service.get(actor,d.campaign().id()).resultContacts().withOpportunity()).isNull();
+    assertThat(service.get(actor,d.campaign().id()).opportunities()).isNull();
+  }
+
+  @Test
+  void opportunityStageUsesAssignedFlowPositionAndPreservesCustomLabels() {
+    var d = draft(List.of(contact, second));
+    db.update("INSERT INTO user_company_tab_permissions(user_company_id,module_slug,tab_key) VALUES(?,'crm','leads')",member);
+    long customFlow = insert("INSERT INTO sales_opportunity_flows(company_id,flow_key,name) VALUES(?,'technical','Technical flow')", company);
+    long factoryFlow = insert("INSERT INTO sales_opportunity_flows(company_id,flow_key,name,is_factory) VALUES(?,'factory','Factory flow',1)", company);
+    long otherFlow = insert("INSERT INTO sales_opportunity_flows(company_id,flow_key,name) VALUES(?,'other','Other flow')", other);
+    long customStage = insert("INSERT INTO sales_opportunity_flow_stages(company_id,flow_id,stage_key,label,stage_type) VALUES(?,?,'technical_review','Revisión técnica','OPEN')",company,customFlow);
+    long factoryStage = insert("INSERT INTO sales_opportunity_flow_stages(company_id,flow_id,stage_key,label,stage_type) VALUES(?,?,'proposal','Proposal','OPEN')",company,factoryFlow);
+    long foreignStage = insert("INSERT INTO sales_opportunity_flow_stages(company_id,flow_id,stage_key,label,stage_type) VALUES(?,?,'technical_review','Foreign label must not leak','OPEN')",other,otherFlow);
+    long opportunity = insert("INSERT INTO sales_opportunities(company_id,contact_id,assigned_flow_id,opportunity_code,opportunity_name,stage) VALUES(?,?,?,'CUSTOM','Synthetic custom opportunity','new')",company,contact,customFlow);
+    long legacy = insert("INSERT INTO sales_opportunities(company_id,contact_id,assigned_flow_id,opportunity_code,opportunity_name,stage) VALUES(?,?,?,'LEGACY','Legacy proposal','proposal')",company,second,factoryFlow);
+    long unknown = insert("INSERT INTO sales_opportunities(company_id,contact_id,assigned_flow_id,opportunity_code,opportunity_name,stage) VALUES(?,?,?,'UNKNOWN','Unknown stage','missing_stage')",company,second,customFlow);
+    db.update("INSERT INTO sales_opportunity_flow_positions(company_id,opportunity_id,flow_id,stage_id,probability_percent) VALUES(?,?,?,?,50)",company,opportunity,customFlow,customStage);
+    // A retained old-flow position must not replace the assigned flow's stage.
+    db.update("INSERT INTO sales_opportunity_flow_positions(company_id,opportunity_id,flow_id,stage_id,probability_percent) VALUES(?,?,?,?,75)",company,opportunity,factoryFlow,factoryStage);
+    var detail = service.get(actor,d.campaign().id());
+    var projected = detail.opportunities().stream().filter(o -> o.id() == opportunity).findFirst().orElseThrow();
+    assertThat(projected.stage().key()).isEqualTo("technical_review");
+    assertThat(projected.stage().label()).isEqualTo("Revisión técnica");
+    assertThat(projected.stage().usesDefaultLabel()).isFalse();
+    var fallback = detail.opportunities().stream().filter(o -> o.id() == legacy).findFirst().orElseThrow();
+    assertThat(fallback.stage().key()).isEqualTo("proposal");
+    assertThat(fallback.stage().usesDefaultLabel()).isTrue();
+    assertThat(detail.opportunities().stream().filter(o -> o.id() == unknown).findFirst().orElseThrow().stage()).isNull();
+    assertThat(detail.campaign().version()).isEqualTo(d.campaign().version());
+    assertThat(detail.recipients()).extracting(Recipient::version).containsExactlyElementsOf(d.recipients().stream().map(Recipient::version).toList());
+    db.update("UPDATE sales_opportunity_flow_stages SET label='Validación de propuesta' WHERE company_id=? AND id=?",company,customStage);
+    assertThat(service.get(actor,d.campaign().id()).opportunities().stream().filter(o -> o.id() == opportunity).findFirst().orElseThrow().stage().label()).isEqualTo("Validación de propuesta");
+    db.update("DELETE FROM user_company_tab_permissions WHERE user_company_id=? AND tab_key='leads'",member);
+    assertThat(service.get(actor,d.campaign().id()).opportunities()).isNull();
+  }
+
+  @Test
+  void commercialRepliesKeepDistinctEventsWithoutSuppressingPhone() {
+    var d = activate(List.of(contact, second));
+    var positive = action(d, contact, "REPLY_POSITIVE").detail();
+    assertThat(positive.events()).anyMatch(e -> e.contactId() != null && e.contactId() == contact && e.action().equals("REPLY_POSITIVE"));
+    var negative = action(positive, second, "REPLY_NEGATIVE").detail();
+    assertThat(negative.recipients()).allMatch(r -> r.state().equals("REPLIED"));
+    assertThat(negative.events()).anyMatch(e -> e.contactId() != null && e.contactId() == second && e.action().equals("REPLY_NEGATIVE"));
+    assertThat(db.queryForObject("SELECT COUNT(*) FROM sales_whatsapp_suppressions WHERE company_id=?", Integer.class, company)).isZero();
+    assertThat(service.get(actor, d.campaign().id()).events()).anyMatch(e -> e.action().equals("REPLY_POSITIVE"));
+    assertThatThrownBy(() -> action(negative, contact, "REPLY_NEGATIVE")).hasMessageContaining("409");
+  }
+
+  @Test
+  void personalMessageIsPreparedForOneRecipientAndCanRestoreCampaignText() {
+    var d = activate(List.of(contact, second));
+    var first = d.recipients().stream().filter(row -> row.contact().id() == contact).findFirst().orElseThrow();
+    String custom = "Hola Ada, revisamos tu propuesta mañana. ✓";
+    var result = service.action(actor, d.campaign().id(), contact, new ActionInput(first.version(), "PREPARE", "", null, custom));
+    var saved = service.get(actor, d.campaign().id());
+    var prepared = saved.recipients().stream().filter(row -> row.contact().id() == contact).findFirst().orElseThrow();
+    assertThat(prepared.message()).isEqualTo(custom);
+    assertThat(prepared.baseMessage()).startsWith("Hello Ada");
+    assertThat(result.whatsappUrl()).contains("Hola%20Ada");
+    assertThat(saved.recipients().stream().filter(row -> row.contact().id() == second).findFirst().orElseThrow().state()).isEqualTo("PENDING");
+    assertThat(saved.campaign().steps()).isEqualTo(d.campaign().steps());
+    assertThat(saved.events()).noneMatch(event -> event.action().equals("SENT"));
+    var restored = service.action(actor, d.campaign().id(), contact, new ActionInput(prepared.version(), "PREPARE", "", null));
+    assertThat(restored.detail().recipients().stream().filter(row -> row.contact().id() == contact).findFirst().orElseThrow().message()).isEqualTo(prepared.baseMessage());
+  }
+
+  @Test
+  void rejectsIncompletePersonalMessagesWithoutChangingRecipientVersion() {
+    var d = activate(List.of(contact));
+    long version = d.recipients().getFirst().version();
+    for (String message : List.of(" ", "Hola {{link}}", "x".repeat(4001))) {
+      assertThatThrownBy(() -> service.action(actor, d.campaign().id(), contact, new ActionInput(version, "PREPARE", "", null, message))).hasMessageContaining("400");
+    }
+    assertThat(service.get(actor, d.campaign().id()).recipients().getFirst().version()).isEqualTo(version);
+    assertThatThrownBy(() -> service.action(actor, d.campaign().id(), contact, new ActionInput(version, "SENT", "", null, "Custom"))).hasMessageContaining("400");
+  }
+
+  @Test
   void cannotConfirmWithoutPreparationAndAStaleRetryNeverAdvancesTwice() {
     var d = activate(List.of(contact));
     assertThatThrownBy(() -> action(d, contact, "SENT")).hasMessageContaining("409");

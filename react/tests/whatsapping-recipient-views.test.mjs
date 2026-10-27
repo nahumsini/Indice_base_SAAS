@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import ts from 'typescript';
+const exports={};
+vm.runInNewContext(ts.transpile(readFileSync(new URL('../src/app/BasicModules/Sales/Whatsapping/campaignRecipientViews.ts',import.meta.url),'utf8'),{module:ts.ModuleKind.CommonJS}),{exports});
+const {parseRecipientView,resultRecipientIds,matchesResultRecipient}=exports;
+const results={contacted:[1,2],positive:[2],negative:[3],withOpportunity:[1,4]};
+test('solo acepta grupos conocidos en la URL y conserva el acceso a seguimientos',()=>{for(const value of ['CONTACTED','POSITIVE','NEGATIVE','OPPORTUNITY','DUE'])assert.equal(parseRecipientView(value),value);for(const value of [null,'','__proto__','unknown','positive'])assert.equal(parseRecipientView(value),'PENDING')});
+test('Contactados usa el historial completo y puede incluir contactos ya finalizados',()=>{assert.equal(matchesResultRecipient({contact:{id:2},state:'REPLIED'},'CONTACTED',results),true);assert.equal(matchesResultRecipient({contact:{id:3},state:'REPLIED'},'CONTACTED',results),false)});
+test('las respuestas y oportunidades conservan sus conjuntos independientes',()=>{assert.deepEqual(Array.from(resultRecipientIds('POSITIVE',results)),[2]);assert.deepEqual(Array.from(resultRecipientIds('NEGATIVE',results)),[3]);assert.deepEqual(Array.from(resultRecipientIds('OPPORTUNITY',results)),[1,4]);assert.equal(matchesResultRecipient({contact:{id:4}},'POSITIVE',results),false)});
+test('sin permiso o sin proyección no infiere contactos ni usa nombres de propiedades heredadas',()=>{assert.deepEqual(Array.from(resultRecipientIds('OPPORTUNITY',{...results,withOpportunity:null})),[]);assert.deepEqual(Array.from(resultRecipientIds('CONTACTED')),[]);assert.deepEqual(Array.from(resultRecipientIds('__proto__',results)),[])});

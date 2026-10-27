@@ -216,6 +216,7 @@ export function IndiceModuleShell<TabId extends string>({
                         <button
                           type="button"
                           aria-current={isMenuActive ? 'page' : undefined}
+                          title={menu.description}
                           className={`indice-workbar-tab disabled:cursor-not-allowed disabled:opacity-50 flex min-h-11 shrink-0 snap-start items-center md:min-h-9 gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--indice-brand-action)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 sm:text-sm ${isSideLayout ? 'lg:min-h-11 lg:w-full lg:justify-start lg:rounded-xl lg:border-l-[3px] lg:px-3 lg:py-2' : ''} ${
                             isMenuActive
                               ? 'border-transparent shadow-md'
@@ -232,7 +233,8 @@ export function IndiceModuleShell<TabId extends string>({
                           <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className={`${menu.tabs.some(tab => tab.description) ? 'w-72' : 'w-64'} max-w-[calc(100vw-2rem)] rounded-xl p-1.5`}>
+                      <DropdownMenuContent align="end" className={`${menu.description || menu.tabs.some(tab => tab.description) ? 'w-72' : 'w-64'} max-w-[calc(100vw-2rem)] rounded-xl p-1.5`}>
+                        {menu.description ? <p className="px-3 py-2 text-xs font-normal leading-relaxed text-slate-500 dark:text-slate-400">{menu.description}</p> : null}
                         {menu.tabs.map((tab) => {
                           const isActive = activeTab === tab.id;
                           return (

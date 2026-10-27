@@ -49,9 +49,10 @@ public class WhatsappingController {
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "25") int pageSize,
       @RequestParam(defaultValue = "updatedAt") String sort,
-      @RequestParam(defaultValue = "desc") String direction) {
+      @RequestParam(defaultValue = "desc") String direction,
+      @RequestParam(defaultValue = "ALL") String result) {
     return service.list(
-        actor(session, null, false), search, status, owner, page, pageSize, sort, direction);
+        actor(session, null, false), search, status, owner, page, pageSize, sort, direction, result);
   }
 
   @GetMapping("/campaigns/{id}")

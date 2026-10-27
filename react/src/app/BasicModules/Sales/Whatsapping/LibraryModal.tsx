@@ -3,6 +3,7 @@ import { FileText, Plus, Users, ArrowUpRight } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Textarea } from "../../../components/ui/textarea";
+import { IndiceModalValidation } from "../../../components/indice-modal";
 import { SalesModalFrame } from "../components/SalesModalFrame";
 import {
   whatsappingApi,
@@ -14,7 +15,6 @@ import {
   Badge,
   Field,
   panel,
-  ErrorNotice,
   useDirtyExit,
 } from "./WhatsappingUi";
 import { failure, validBody, variables } from "./whatsappingModel";
@@ -23,6 +23,7 @@ import {
   SalesFilterSearch,
 } from "../components/SalesFilterBar";
 import { ContactPicker } from "./ContactPicker";
+import { TemplateLibraryWorkspace } from "./TemplateLibraryWorkspace";
 export function LibraryModal({
   mode,
   onClose,
@@ -37,7 +38,8 @@ export function LibraryModal({
     [busy, setBusy] = useState(true),
     [error, setError] = useState(""),
     [search, setSearch] = useState(""),
-    [discard, setDiscard] = useState(false);
+    [discard, setDiscard] = useState(false),
+    [loadRevision, setLoadRevision] = useState(0);
   const original = useRef(""),
     latch = useRef(false),
     mounted = useRef(true);
@@ -46,16 +48,12 @@ export function LibraryModal({
   useEffect(() => {
     mounted.current = true;
     const c = new AbortController();
-    void Promise.all([
-      whatsappingApi.templates(c.signal),
-      whatsappingApi.lists(c.signal),
-    ])
-      .then(([t, l]) => {
-        if (!c.signal.aborted) {
-          setTemplates(t);
-          setLists(l);
-        }
-      })
+    setBusy(true);
+    setError("");
+    const request = mode === "templates"
+      ? whatsappingApi.templates(c.signal).then(rows => { if (!c.signal.aborted) setTemplates(rows); })
+      : whatsappingApi.lists(c.signal).then(rows => { if (!c.signal.aborted) setLists(rows); });
+    void request
       .catch((e) => {
         if (!c.signal.aborted) setError(failure(e, copy));
       })
@@ -66,7 +64,7 @@ export function LibraryModal({
       c.abort();
       mounted.current = false;
     };
-  }, []);
+  }, [mode, loadRevision]);
   function open(record: Template | SavedList) {
     original.current = JSON.stringify(record);
     setEdit(record);
@@ -107,6 +105,7 @@ export function LibraryModal({
     }
   }
   const title = mode === "templates" ? copy.templates : copy.lists;
+  const tokenLabels = { name: copy.contactName, clientCompany: copy.contactCompany, seller: copy.owner, company: copy.senderCompany, link: copy.messageLink };
   const catalog = (mode === "templates" ? templates : lists)
     .filter((r) =>
       r.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
@@ -124,8 +123,8 @@ export function LibraryModal({
             : "operational-workspace"
       }
       icon={mode === "templates" ? <FileText /> : <Users />}
-      title={discard ? copy.discardTitle : edit?.name || title}
-      description={mode === "templates" ? copy.templatesHint : copy.listsHint}
+      title={discard ? copy.discardTitle : edit && mode === "templates" ? (edit.version === 0 ? copy.newTemplate : copy.editTemplate) : edit?.name || title}
+      description={discard ? copy.discardHint : edit && mode === "templates" ? copy.templateFormHint : mode === "templates" ? copy.templatesHint : copy.listsHint}
       closeLabel={copy.close}
       onOpenChange={discard ? () => setDiscard(false) : close}
       footerLeading={
@@ -134,9 +133,10 @@ export function LibraryModal({
           disabled={busy}
           onClick={discard ? () => setDiscard(false) : close}
         >
-          {discard ? copy.keep : edit ? copy.back : copy.close}
+          {discard ? copy.keep : edit ? copy.cancel : copy.close}
         </Button>
       }
+      footerSummary={!edit && !discard && !busy && !error ? `${mode === "templates" ? templates.length : lists.length} · ${title}` : undefined}
       footer={
         discard ? (
           <Button
@@ -180,35 +180,37 @@ export function LibraryModal({
         )
       }
     >
+      {mode === "templates" && <TemplateLibraryWorkspace active={!edit && !discard} busy={busy} loadFailed={!!error && !edit} records={templates} onEdit={open} />}
       {!discard && (
         <div className="space-y-4">
-          <ErrorNotice text={error} />
+          <IndiceModalValidation messages={error ? [error] : []} />
+          {error && !edit && <Button variant="outline" disabled={busy} onClick={() => setLoadRevision(value => value + 1)}>{copy.retry}</Button>}
           {edit ? (
             <fieldset disabled={busy} className={`${panel} space-y-4`}>
               <Field label={`${copy.name} *`}>
                 <Input
                   autoFocus
+                  required
                   maxLength={180}
                   value={edit.name}
-                  onChange={(e) => setEdit({ ...edit, name: e.target.value })}
+                  onChange={(e) => { setEdit({ ...edit, name: e.target.value }); setError(""); }}
                 />
               </Field>
               {"body" in edit ? (
                 <>
-                  <Field label={copy.message}>
+                  <Field label={`${copy.message} *`}>
                     <Textarea
                       className="min-h-48"
                       rows={9}
                       value={edit.body}
                       maxLength={4000}
-                      onChange={(e) =>
-                        setEdit({ ...edit, body: e.target.value })
-                      }
+                      required
+                      onChange={(e) => { setEdit({ ...edit, body: e.target.value }); setError(""); }}
                     />
                   </Field>
                   <p className="text-sm text-slate-500">{copy.variables}</p>
                   <div className="flex flex-wrap gap-2">
-                    {variables.map((v) => (
+                    {variables.filter((v): v is keyof typeof tokenLabels => v !== "offer").map((v) => (
                       <Button
                         key={v}
                         type="button"
@@ -219,22 +221,16 @@ export function LibraryModal({
                             body: `${edit.body} {{${v}}}`.trim().slice(0, 4000),
                           })
                         }
-                      >{`{{${v}}}`}</Button>
+                      >{tokenLabels[v]}</Button>
                     ))}
                   </div>
-                  <label className="flex min-h-11 items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={edit.status === "ARCHIVED"}
-                      onChange={(e) =>
-                        setEdit({
-                          ...edit,
-                          status: e.target.checked ? "ARCHIVED" : "ACTIVE",
-                        })
-                      }
-                    />
-                    {copy.archive}
-                  </label>
+                  <Field label={copy.status}>
+                    <select value={edit.status} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                      onChange={(event) => { setEdit({ ...edit, status: event.target.value }); setError(""); }}>
+                      <option value="ACTIVE">{copy.available}</option>
+                      <option value="ARCHIVED">{label("ARCHIVED")}</option>
+                    </select>
+                  </Field>
                 </>
               ) : (
                 <ContactPicker
@@ -245,7 +241,7 @@ export function LibraryModal({
                 />
               )}
             </fieldset>
-          ) : (
+          ) : mode === "lists" ? (
             <>
               <SalesFilterBar
                 title={copy.filters}
@@ -320,7 +316,7 @@ export function LibraryModal({
                 <p className={`${panel} py-12 text-center`}>{copy.noResults}</p>
               )}
             </>
-          )}
+          ) : null}
         </div>
       )}
     </SalesModalFrame>

@@ -22,16 +22,19 @@ public class WhatsappingService {
   private final ModuleAccessService modules;
   private final TabPermissionAccessService tabs;
   private final Validator validator;
+  private final com.indice.erp.sales.SalesOpportunityPresenceReadService opportunityPresence;
 
   public WhatsappingService(
       WhatsappingRepository repository,
       ModuleAccessService modules,
       TabPermissionAccessService tabs,
-      Validator validator) {
+      Validator validator,
+      com.indice.erp.sales.SalesOpportunityPresenceReadService opportunityPresence) {
     this.repository = repository;
     this.modules = modules;
     this.tabs = tabs;
     this.validator = validator;
+    this.opportunityPresence = opportunityPresence;
   }
 
   private AuthSessionUser read(AuthSessionUser actor) {
@@ -81,6 +84,11 @@ public class WhatsappingService {
   }
 
   private Campaign project(AuthSessionUser a, Campaign c) {
+    var presence = opportunityPresence.campaigns(a, List.of(c.id()));
+    return project(a, c, presence == null ? null : presence.getOrDefault(c.id(), 0));
+  }
+
+  private Campaign project(AuthSessionUser a, Campaign c, Integer withOpportunity) {
     return new Campaign(
         c.id(),
         c.name(),
@@ -98,7 +106,8 @@ public class WhatsappingService {
         c.done(),
         c.pending(),
         c.due(),
-        canEdit(a, c));
+        canEdit(a, c),
+        new Outcomes(c.outcomes().contacted(), c.outcomes().positive(), c.outcomes().negative(), withOpportunity));
   }
 
   private void valid(Object input) {
@@ -126,10 +135,25 @@ public class WhatsappingService {
       int size,
       String sort,
       String direction) {
+    return list(actor, search, status, owner, page, size, sort, direction, "ALL");
+  }
+
+  @Transactional(readOnly = true)
+  public Page list(
+      AuthSessionUser actor,
+      String search,
+      String status,
+      Long owner,
+      int page,
+      int size,
+      String sort,
+      String direction,
+      String result) {
     var a = read(actor);
     pagination(page, size);
     require(
         search.length() <= 180
+            && Set.of("ALL", "CONTACTED", "POSITIVE", "NEGATIVE").contains(result)
             && Set.of("ALL", "DRAFT", "ACTIVE", "PAUSED", "COMPLETED", "ARCHIVED").contains(status)
             && Set.of("asc", "desc").contains(direction),
         BAD_REQUEST,
@@ -139,16 +163,21 @@ public class WhatsappingService {
           case "name" -> "name";
           case "status" -> "status";
           case "updatedAt" -> "updated_at";
+          case "contacted" -> "contacted_count";
+          case "positive" -> "positive_count";
+          case "negative" -> "negative_count";
           default -> throw new ResponseStatusException(BAD_REQUEST, "whatsapping_invalid_filters");
         };
     var pageData =
-        repository.list(a.companyId(), search, status, owner, page, size, column, direction);
+        repository.list(a.companyId(), search, status, owner, page, size, column, direction, result);
+    var presence = opportunityPresence.campaigns(a, pageData.items().stream().map(Campaign::id).toList());
     return new Page(
-        pageData.items().stream().map(c -> project(a, c)).toList(),
+        pageData.items().stream().map(c -> project(a, c, presence == null ? null : presence.getOrDefault(c.id(), 0))).toList(),
         pageData.total(),
         page,
         size,
-        pageData.owners());
+        pageData.owners(),
+        pageData.results());
   }
 
   @Transactional(readOnly = true)
@@ -159,6 +188,7 @@ public class WhatsappingService {
 
   private Detail detail(AuthSessionUser a, Campaign c) {
     var blocked = repository.suppressed(a.companyId());
+    var replyOutcomes = repository.replyOutcomes(a.companyId(), c.id());
     var seen = new HashSet<String>();
     String company = repository.companyName(a.companyId());
     var recipients =
@@ -172,10 +202,7 @@ public class WhatsappingService {
                     else if (blocked.contains(phone)) eligibility = "BLOCKED";
                     else if (!seen.add(phone)) eligibility = "DUPLICATE";
                   }
-                  String body =
-                      r.state().equals("PREPARED")
-                          ? r.preparedText()
-                          : render(
+                  String baseMessage = render(
                               c.steps().get(Math.min(r.stepIndex(), c.steps().size() - 1)).body(),
                               Map.of(
                                   "name",
@@ -190,6 +217,7 @@ public class WhatsappingService {
                                   c.offer(),
                                   "link",
                                   c.resourceUrl()));
+                  String body = r.state().equals("PREPARED") ? r.preparedText() : baseMessage;
                   if (eligibility.equals("READY")
                       && (body == null
                           || body.isBlank()
@@ -210,10 +238,17 @@ public class WhatsappingService {
                       r.notes(),
                       r.version(),
                       Objects.toString(body, ""),
-                      eligibility);
+                      eligibility,
+                      baseMessage,
+                      replyOutcomes.get(r.contact().id()));
                 })
             .toList();
-    return new Detail(project(a, c), recipients, repository.events(a.companyId(), c.id()));
+    var results = repository.resultContacts(a.companyId(), c.id());
+    var opportunityReferences = opportunityPresence.campaignOpportunities(a, c.id());
+    var opportunityContacts = opportunityReferences == null ? null : opportunityReferences.stream().map(com.indice.erp.sales.SalesOpportunityPresenceReadService.OpportunityReference::contactId).distinct().toList();
+    var opportunities = opportunityReferences == null ? null : opportunityReferences.stream().map(o -> new Opportunity(o.contactId(), o.id(), o.flowId(), o.code(), o.name(), o.stage() == null ? null : new OpportunityStage(o.stage().key(), o.stage().label(), o.stage().usesDefaultLabel()))).toList();
+    return new Detail(project(a, c, opportunityContacts == null ? null : opportunityContacts.size()), recipients, repository.events(a.companyId(), c.id()),
+        new ResultContacts(results.contacted(), results.positive(), results.negative(), opportunityContacts), opportunities);
   }
 
   private void contactsValid(long company, List<Long> ids) {
@@ -291,7 +326,7 @@ public class WhatsappingService {
     require(
         c.status().equals("ACTIVE")
             || (c.status().equals("COMPLETED")
-                && Set.of("NOTE", "REPLIED", "BLOCK").contains(input.action())),
+                && Set.of("NOTE", "REPLIED", "REPLY_POSITIVE", "REPLY_NEGATIVE", "BLOCK").contains(input.action())),
         CONFLICT,
         "campaign_inactive");
     var r =
@@ -301,6 +336,7 @@ public class WhatsappingService {
             .orElseThrow(
                 () -> new ResponseStatusException(NOT_FOUND, "whatsapping_contact_unavailable"));
     version(input.version(), r.version());
+    require(input.messageOverride() == null || input.action().equals("PREPARE"), BAD_REQUEST, "message_override_action");
     String state = r.state(), phone = r.preparedPhone(), message = r.preparedText(), url = null;
     int step = r.stepIndex();
     Instant due = r.nextActionAt();
@@ -315,7 +351,8 @@ public class WhatsappingService {
                 .orElseThrow();
         require(prepared.eligibility().equals("READY"), BAD_REQUEST, "recipient_not_ready");
         phone = phone(r.contact().phone(), c.defaultRegion());
-        message = prepared.message();
+        message = input.messageOverride() == null ? prepared.baseMessage() : input.messageOverride();
+        require(message != null && !message.isBlank() && message.length() <= 4000 && !unresolved(message), BAD_REQUEST, "invalid_personal_message");
         state = "PREPARED";
         url =
             "https://wa.me/"
@@ -339,11 +376,11 @@ public class WhatsappingService {
         phone = null;
         message = null;
       }
-      case "SKIP", "REPLIED", "BLOCK" -> {
+      case "SKIP", "REPLIED", "REPLY_POSITIVE", "REPLY_NEGATIVE", "BLOCK" -> {
         require(
             input.action().equals("BLOCK")
                 ? !state.equals("BLOCKED")
-                : input.action().equals("REPLIED")
+                : Set.of("REPLIED", "REPLY_POSITIVE", "REPLY_NEGATIVE").contains(input.action())
                     ? !Set.of("BLOCKED", "SKIPPED", "REPLIED").contains(state)
                     : !terminal(state),
             CONFLICT,

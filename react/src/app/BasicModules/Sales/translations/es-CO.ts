@@ -4,7 +4,8 @@ export const esCO = {
   back: 'Regresar',
   more: 'Más',
   navigation: {
-    tools: 'Herramientas',
+    tools: 'Marketing',
+    toolsDescription: 'Prepara campañas, conecta con tus clientes y da seguimiento.',
     management: 'Gestión',
     funnelingDescription: 'Planifica embudos y metas de campaña.',
     mailingDescription: 'Prepara y envía campañas de correo.',
