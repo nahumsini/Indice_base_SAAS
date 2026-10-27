@@ -1,6 +1,6 @@
 # MCP paginated discovery and request disposal — 2026-10-27
 
-Status: TECHNICAL PREPARATION PASS; NOT DEPLOYED; REAL CHATGPT ACCEPTANCE UNKNOWN.
+Status: DEPLOYED MCP-ONLY; TECHNICAL CHECKS PASS; REAL CHATGPT ACCEPTANCE UNKNOWN.
 
 ## Evidence and limits
 
@@ -50,7 +50,7 @@ outside request scope and releases the cleanup callback. Abort controllers,
 capability validation, cancellation, timeouts and authority remain per-request.
 `httpRequestCleanup.test.ts` guards heap growth under explicit garbage collection;
 the existing continuity runner now reports synthetic heap usage alongside counts.
-The prolonged corrected run must complete before this gate can be reported PASS.
+The prolonged corrected run subsequently completed successfully, as recorded below.
 
 ## Verification
 
@@ -84,15 +84,14 @@ real ChatGPT acceptance evidence.
 
 ## Remaining release boundary
 
-Production still runs the previously approved application source and unchanged
-MCP image. This implementation has not been activated. Real ChatGPT import of all
+Production now runs the approved MCP runtime source `12593ec9`; backend and web
+retain their previously approved application images. Real ChatGPT import of all
 pages and an authenticated business read remain UNKNOWN until tested through the
 intended client. The owner must review any fresh OAuth consent themselves.
 
-The prior production-only Stripe TEST deferral closed after its deployment and
-cannot authorize this source. Historical key revocation remains pending. A new
-activation requires the canonical release checks and applicable owner authority;
-no prior exception, real-client acceptance or deployment success is implied here.
+The prior production-only Stripe TEST deferral was not reused. The owner granted
+fresh source-specific authority under the linked decision. Historical key
+revocation remains HIGH and pending; no real-client acceptance is implied.
 
 ## Exact-source publication preparation
 
@@ -132,10 +131,44 @@ image builds and actual Nginx traffic-control regressions.
   as the same enabled OOM-killer default; all other host settings stay strict.
   Canonical host-network dry run also passed with the final immutable MCP tag.
 
-Production activation has not occurred. Backend, web, storage and App Test retain
+Production MCP-only activation passed at **2026-10-27T23:20:29.519447+00:00**.
+Backend, web, storage and App Test retain
 all original running container IDs and effective settings. No schema, provider,
 price, subscription or access change is part of this operation. Historical Stripe
 TEST-key revocation remains HIGH and unresolved. Normal real-client App Test
 acceptance and actual ChatGPT import/read remain UNKNOWN. The
-[bounded publication proposal](../decisions/2026-10-27-mcp-discovery-publication-proposal.md)
-is pending explicit owner authority; it is not an approved exception.
+[bounded publication decision](../decisions/2026-10-27-mcp-discovery-publication-proposal.md)
+records the new explicit owner authority and its one-attempt boundary.
+
+## Production activation and client review
+
+Only `indice-erp-mcp-1` was replaced. Its original container is stopped and retained
+as `indice-erp-mcp-1-rollback-discovery-12593ec9ee7f`, with the original compatible
+image and configuration. All other seven production/App Test service container
+IDs, configurations and mounts remain unchanged. Five protected file hashes,
+complete Flyway history (V365), billing/subscriptions and existing module-access
+baselines are unchanged. Public web/security headers, anonymous authorization
+boundaries, OAuth/OIDC discovery, MCP readiness and canonical application/MCP
+smokes passed. No schema or provider mutation occurred.
+
+Six production health samples spanning **300.953 seconds** passed: web/API/MCP/
+storage HTTP 200, zero container restarts and zero new detected backend errors.
+MCP stayed running without a fatal/OOM diagnostic. Final preservation checks were
+repeated successfully after observation. The one-attempt authority closed at
+**2026-10-27T23:26:03.018527+00:00** and was explicitly disabled in the private
+activation guard. The original recovery container and off-host backup remain.
+
+The first activation command was rejected before any service mutation because the
+host Python parser requires `+00:00` rather than `Z` for the same UTC expiry.
+The private authority encoding was normalized without extending its window; the
+single actual activation then passed. No failed service activation or production
+rollback occurred.
+
+Chrome's existing Indice connection requires renewed authentication. Its normal
+reconnection flow now reaches the application's rendered OAuth permission review
+for the currently selected company. This is progress through the real client,
+but does not establish tool import or an authenticated read. The owner was handed
+the company/scope review; the agent did not grant OAuth consent, create a grant,
+run a business tool or change the selected company. Actual ChatGPT import/read
+remain UNKNOWN pending that human step. No raw OAuth URL, state, code, credential
+or business payload is retained in release evidence.

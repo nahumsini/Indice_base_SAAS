@@ -1,8 +1,8 @@
-# MCP discovery publication proposal
+# MCP discovery publication decision
 
 Date: 2026-10-27.
 
-Status: AUTHORIZED; ACTIVATION PENDING.
+Status: DEPLOYED MCP-ONLY; TECHNICAL OBSERVATION PASS; AUTHORIZATION CLOSED.
 
 Owner authorization recorded at **2026-10-27T23:19:37Z**: “Autorizar publicación y
 revisión en producción”, in reply to the source-specific question covering only
@@ -25,6 +25,20 @@ unchanged relative to the active application. Their images and running container
 IDs, storage and App Test stay unchanged. The original MCP image/configuration is
 retained for compatible recovery. This component scope does not authorize a
 backend/web/schema deployment or any unrelated local work.
+
+Activation passed at **2026-10-27T23:20:29.519447+00:00**. Six production health
+samples spanning 300.953 seconds passed with zero restarts or new detected errors;
+poststate, canonical application/MCP smoke, protected configuration, original
+Flyway history, billing and access checks passed. Backend/web/storage and App Test
+containers stayed unchanged. The original MCP is stopped and retained for recovery.
+
+The window closed at **2026-10-27T23:26:03.018527+00:00**; the private authority
+is explicitly disabled and cannot be reused. The bounded real-client review
+reached the application's company/scope consent page through ChatGPT's existing
+connection renewal. The owner must complete that consent themselves. Tool import
+and a real authenticated ChatGPT read remain UNKNOWN, not PASS. Historical Stripe
+TEST-key revocation remains HIGH and unresolved. Subsequent read-only diagnosis
+does not reopen this deployment window or authorize another activation.
 
 The owner explicitly authorized these two bounded decisions:
 

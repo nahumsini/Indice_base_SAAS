@@ -219,6 +219,10 @@ service observation are covered, expiring no later than **2026-10-28T01:19:37Z**
 and closing earlier with that attempt/review. Backend, web, storage and App Test
 remain unchanged. All other gates apply; OAuth consent and business mutations
 are outside this authorization. No closed exception is reused.
+MCP-only activation, six health samples over 300.953 seconds and final preservation
+checks passed. This window closed at **2026-10-27T23:26:03.018527+00:00** and cannot
+be reused. Actual ChatGPT tool import/read remain UNKNOWN pending the owner's
+company/scope consent; the historical Stripe TEST finding remains HIGH and unresolved.
 
 For the 2026-10-06 release, the owner's later explicit instruction to review directly in production
 replaces only the human-UAT location/timing, as recorded in the
