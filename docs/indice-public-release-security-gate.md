@@ -56,6 +56,12 @@ the historical Stripe TEST-key revocation pending, under the
 Only that blocker is deferred for this one attempt and its observation. The finding
 remains HIGH and unresolved; no other gate or provider authority is waived, and
 the authorization cannot be reused after its documented window.
+Production activation, public smoke, protected-state checks and five-minute
+observation passed. The authorization closed at **2026-10-27T20:09:15.566050+00:00**
+and cannot be reused. Authenticated MCP real-client continuity and human product
+acceptance remain UNKNOWN; they are not implied by readiness or anonymous rejection.
+The [activation evidence](validation/2026-10-27-oauth-catalog-release.md#production-activation-and-observation)
+records this incomplete acceptance explicitly. The historical key remains unresolved.
 
 Use these states for every item:
 

@@ -1,8 +1,9 @@
 # OAuth consent catalog correction — 2026-10-27
 
-Status: AUTHORIZED FOR ONE PRODUCTION ACTIVATION, NOT YET ACTIVATED. Application source:
+Status: PRODUCTION DEPLOYED; OBSERVATION PASS; AUTHENTICATED MCP CONTINUITY UNKNOWN.
+Application source:
 `5e6a227ecf218b8698b750c9dfd36d85ac2b354f` on `codex/next-work-20261025`.
-Production has not been changed. This candidate includes the complete previously prepared
+Production now runs this source. It includes the complete previously prepared
 [primary-local Marketing workspace](2026-10-27-marketing-workspace-release.md).
 That earlier source was never activated and is superseded before deployment.
 
@@ -96,8 +97,16 @@ separate worktrees and local database contents remain outside the release scope.
 Fresh backup **`production-20261027T193416Z`** contains SQL, objects, configuration
 and all five declared protected files. The off-host copy passes individual hashes,
 manifest and compressed-stream verification. The prepared environment uses verified
-existing mounted host-file pointers; all five contents match the active container,
+protected-file inputs; all five contents match the active container,
 144 common settings match, and effective JVM options are unchanged.
+
+The initial live preparatory invocation rejected a source file copied onto itself,
+before creating any candidate backend or web container. Automatic recovery restored
+the prior services. Distinct root-only source copies now feed the canonical staging
+step, which preserves the exact effective mount destinations and credential bytes.
+Protected configuration checks, disconnected restoration with both images and the
+canonical dry run passed again. This continues the same authorized application
+source and image set; the original authorization expiry is unchanged.
 
 Disconnected restoration passes with the candidate and exact prior backend,
 comparing every original raw row/column, Flyway history and object. Workers/providers
@@ -105,10 +114,11 @@ and database events are disabled, application authority is SELECT-only and the
 private network has no external access. Schema remains V365. Restore proof and
 off-host evidence use the same backup and its own protected-file copies.
 
-The final canonical production dry run and protected-state guard pass at
-2026-10-27T19:45:15Z. Capacity is 94,501,023,744 bytes with the standard 10,240 MiB
-minimum, without an override. Live production and App Test containers, settings,
-prices, subscriptions and access are unchanged. No activation has started.
+The pre-activation canonical production dry run and protected-state guard passed at
+2026-10-27T19:45:15Z and passed again after the preparation repair. Capacity was
+94,501,023,744 bytes with the standard 10,240 MiB minimum, without an override.
+Post-activation preserved-state verification passes; App Test, protected settings,
+prices, subscriptions, access, schema and effective mounts remain unchanged.
 
 ## Changed files and activation boundary
 
@@ -129,9 +139,48 @@ historical Stripe TEST revocation and all deployment/recovery gates remain in fo
 The prior question about authorizing `8393d85a` cannot authorize this updated source.
 The owner subsequently authorized this exact source under the
 [bounded Stripe TEST deferral](../decisions/2026-10-27-oauth-marketing-stripe-deferral.md).
-Post-activation
-public smoke, authenticated continuity, preserved-state checks and five-minute
-observation remain required; human product acceptance is UNKNOWN.
+Public smoke, preserved-state checks and five-minute observation pass. A real
+authenticated MCP business read remains outstanding; human product acceptance is UNKNOWN.
 An existing connected-tool probe returned `Unknown tool` at the connector binding;
 it did not establish an authenticated business read and is not counted as continuity
 evidence. No inference about production token validity is made from that response.
+
+
+## Production activation and observation
+
+Application activation began at **2026-10-27T19:57:01Z**. Backend and web now use
+the exact approved immutable images above. The MCP image is unchanged. Public
+web/API, private storage/readiness, public anonymous OAuth/MCP rejection and security
+headers pass. Backend startup has no ERROR/FATAL/out-of-memory entries. Public HTML
+matches the final web image. Verification completed at **2026-10-27T20:04:09Z**;
+the six-sample five-minute observation began immediately afterward.
+
+The first post-activation settings comparison stopped on MinIO's inherited foreign
+backend input-file paths and application image-reference strings. Its own credentials,
+storage settings, image, arguments and mounts were byte-identical. The exact original
+MinIO container was restored as the active storage service, retaining a stopped
+compatible storage recovery container. The unchanged preservation guard then passed
+for every production service and all of App Test. No object, volume or business record
+was deleted. This did not change the approved application images or protected values.
+
+A post-activation connected-tool read still reports an unavailable connector binding
+(`Unknown tool`), which is not an authenticated production response. The native browser
+session also needs sign-in after the backend restart. The owner has been asked to
+start a fresh ChatGPT connection and personally review consent. No real OAuth grant,
+revocation, email, WhatsApp message or campaign restart was performed by verification.
+This records outstanding real-client evidence explicitly rather than marking it PASS.
+
+The six observation samples from **2026-10-27T20:04:09.111Z** through
+**2026-10-27T20:09:10.034Z** all returned HTTP 200 for web, API, private MCP readiness
+and storage, with zero backend errors and zero service restarts. Final preserved-state
+verification passed at **2026-10-27T20:09:15.565788+00:00**. Available capacity was
+94,496,342,016 bytes; the minimum was not overridden. Exact prior application images
+and compatible stopped recovery containers remain available.
+
+The deployment/observation authorization closed at
+**2026-10-27T20:09:15.566050+00:00**, with operational result
+`DEPLOYED_OBSERVATION_PASS_AUTHENTICATED_MCP_PENDING`; it cannot authorize another
+activation. This is deliberately not a full MCP real-client acceptance PASS. The
+historical Stripe TEST-key revocation remains HIGH and unresolved. No claim of
+revocation, successful new consent, authenticated tool continuity or human acceptance
+is made. Raw operational evidence remains in protected off-repository storage.
