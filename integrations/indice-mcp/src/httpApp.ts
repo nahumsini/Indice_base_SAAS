@@ -12,6 +12,7 @@ import { createIndiceMcpServer } from "./mcpServer.js";
 import { bearerChallenge, supportedScopes } from "./toolPolicy.js";
 import type { BackendAttempt } from "./backendTransport.js";
 import { McpHttpTraffic } from "./httpTraffic.js";
+import { getToolDiscoveryPage, ToolDiscoveryCursorError } from "./toolDiscovery.js";
 
 type DiagnosticEvent = BackendAttempt | {
   event: "mcp_request"; requestId: string; method: string; tool?: string; status: number;
@@ -178,8 +179,18 @@ export function createIndiceHttpApp(config: IndiceMcpConfig, dependencies: HttpD
       method = methods.has(request.body?.method) ? request.body.method as string : "other";
       const candidate = method === "tools/call" ? indiceToolNameSchema.safeParse(request.body?.params?.name) : undefined;
       tool = candidate ? candidate.success ? candidate.data : "unknown" : undefined;
+      let discoveryPage: ReturnType<typeof getToolDiscoveryPage> | undefined;
+      if (method === "tools/list") {
+        try { discoveryPage = getToolDiscoveryPage(allowedTools, request.body?.params?.cursor); }
+        catch (error) {
+          if (!(error instanceof ToolDiscoveryCursorError)) throw error;
+          outcome = "invalid_request";
+          rpcError(400, -32602, error.message);
+          return;
+        }
+      }
       // Stateless by design: reauthorize every request, without cross-user or stale catalog caches.
-      const server = createIndiceMcpServer(reader, allowedTools, dependencies.fileDownloader ?? createChatGptFileDownloader(config.chatGptFileHosts ?? [],cancellation.signal));
+      const server = createIndiceMcpServer(reader, discoveryPage?.tools ?? allowedTools, dependencies.fileDownloader ?? createChatGptFileDownloader(config.chatGptFileHosts ?? [],cancellation.signal));
       const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
       const send = transport.send.bind(transport);
       transport.send = async (message, options) => {
@@ -187,6 +198,7 @@ export function createIndiceHttpApp(config: IndiceMcpConfig, dependencies: HttpD
         // Mirror it at the wire boundary without replacing SDK discovery/schema handling.
         if (method === "tools/list" && "result" in message && Array.isArray(message.result.tools)) {
           message = { ...message, result: { ...message.result,
+            ...(discoveryPage?.nextCursor ? { nextCursor: discoveryPage.nextCursor } : {}),
             tools: message.result.tools.map(descriptor => ({ ...descriptor,
               securitySchemes: descriptor._meta?.securitySchemes })) } };
         }
