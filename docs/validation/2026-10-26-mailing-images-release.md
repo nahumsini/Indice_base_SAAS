@@ -1,5 +1,9 @@
 # Email / Mailing images production release — 2026-10-26
 
+Superseded before activation by the owner's additional primary-local work in
+[the 2026-10-27 candidate](2026-10-27-marketing-workspace-release.md). The source
+below was never activated; its correction is included in that new candidate.
+
 Status: TECHNICALLY READY, NOT ACTIVATED. Exact-source CI, protected preflight,
 artifact scans, off-host backup verification, isolated restoration and the final
 production dry run pass. The historical Stripe TEST-key revocation is unresolved;

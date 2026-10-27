@@ -450,6 +450,15 @@ WHERE cash_register.deleted_at IS NULL
 - [ ] Se valida inicio de sesión, carga de archivos, un flujo POS y un enlace de kiosco.
 - [ ] Existe un procedimiento de rollback que conserva la base y los volúmenes.
 
+El respaldo debe incluir cada archivo indicado por una variable `*_FILE` no vacía,
+además de SQL, objetos y configuración. Si falta un archivo, el respaldo falla;
+no se permite omitirlo silenciosamente ni aceptar un inventario vacío cuando la
+configuración declara archivos protegidos. Registra y verifica el hash de cada
+archivo, incluida la copia fuera del servidor. La restauración aislada debe leer
+esas copias verificadas del propio respaldo, sin depender de rutas del host activo.
+Las pruebas de restauración, la copia externa y la activación deben referirse al
+mismo identificador de respaldo.
+
 ## Endpoints
 
 Base stack:
