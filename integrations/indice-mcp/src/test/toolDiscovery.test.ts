@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createIndiceMcpServer } from "../mcpServer.js";
 import { toolScopes } from "../toolPolicy.js";
@@ -22,9 +23,14 @@ test("complete HTTP tool discovery has bounded pages and preserves every actual 
   await server.connect(right); await reference.connect(left);
   const fixture = await httpFixture((async input => String(input).endsWith("/capabilities")
     ? json({ version: "v1", tools: Object.keys(toolScopes) }) : json(context)) as typeof fetch);
+  const client = new Client({ name: "paginated-catalog-contract", version: "1" });
   try {
     const expected = new Map((await reference.listTools()).tools.map(tool => [tool.name, tool]));
-    const client = await fixture.client();
+    // Synchronous SDK schema compilation can outlast this co-located fixture's idle socket.
+    // Fresh connections keep metadata assertions independent of idle keep-alive timing.
+    await client.connect(new StreamableHTTPClientTransport(fixture.url, {
+      requestInit: { headers: { Authorization: "Bearer idx_ai_synthetic_A", Connection: "close" } }
+    }));
     const names = new Set<string>();
     let cursor: string | undefined;
     let pages = 0;
@@ -49,7 +55,7 @@ test("complete HTTP tool discovery has bounded pages and preserves every actual 
     assert.equal(names.size, Object.keys(toolScopes).length);
     assert.deepEqual((await client.callTool({ name: "get_my_business_context", arguments: {} })).structuredContent, context);
     console.log(JSON.stringify({ discoveryTools: names.size, pages, largestPageBytes }));
-  } finally { await fixture.close(); await reference.close(); await server.close(); }
+  } finally { await client.close(); await fixture.close(); await reference.close(); await server.close(); }
 });
 
 test("discovery continuations reauthorize and reject changed or different grant catalogs", async () => {

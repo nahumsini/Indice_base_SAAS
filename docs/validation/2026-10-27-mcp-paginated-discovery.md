@@ -55,6 +55,15 @@ dependencies, provider activation and billing changes: N/A.
   TypeScript compilation. Fixtures are local and synthetic; no production database
   is used by tests and no real message or business mutation is performed.
 
+The first CI attempt subsequently exposed an `ECONNRESET` in the full-catalog
+fixture after synchronous client-side schema compilation outlasted its idle HTTP
+socket. A disconnected one-CPU container reproduced the reset on page 12. The
+same three tests pass using fresh connections for the metadata fixture. Only that
+test's HTTP client now requests `Connection: close`; production timeouts, ordinary
+keep-alive regression coverage, SDK schema validation and all assertions are
+unchanged. Exact-source CI and the protected release preflight must pass again
+before publication; the earlier CI failure is not treated as a successful gate.
+
 ## Remaining release boundary
 
 Production still runs the previously approved application source and unchanged
