@@ -35,7 +35,8 @@ async function oauthRequest<T>(path: string, init?: ApiClientRequestInit): Promi
     const payload = failure.payload;
     const code = typeof payload === 'object' && payload !== null && 'error' in payload
       && typeof payload.error === 'string' ? payload.error : failure.code;
-    const message = code && Object.hasOwn(oauthErrorMessages, code) ? oauthErrorMessages[code] : fallback;
+    const message = code && Object.prototype.hasOwnProperty.call(oauthErrorMessages, code)
+      ? oauthErrorMessages[code] : fallback;
     throw new ApiClientError(message, failure.status, code, payload);
   }
 }
