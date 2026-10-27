@@ -208,6 +208,18 @@ Production activation, authenticated continuity and five-minute observation pass
 This exception window closed at **2026-10-26T20:35:43.567845+00:00** and cannot be
 reused. The historical Stripe TEST-key finding remains HIGH and unresolved.
 
+For MCP-only source `12593ec9ee7f5d9c1430446d928d83f855f38ca9`, the owner answered
+“Autorizar publicación y revisión en producción”, recorded at **2026-10-27T23:19:37Z**.
+The [bounded MCP publication decision](decisions/2026-10-27-mcp-discovery-publication-proposal.md)
+defers only the historical Stripe TEST-key revocation and replaces normal real-client
+App Test acceptance timing with at most 30 minutes of read-only production review
+after technical smoke. The HIGH key finding remains unresolved; real ChatGPT
+acceptance remains UNKNOWN until observed. One MCP activation and five-minute
+service observation are covered, expiring no later than **2026-10-28T01:19:37Z**
+and closing earlier with that attempt/review. Backend, web, storage and App Test
+remain unchanged. All other gates apply; OAuth consent and business mutations
+are outside this authorization. No closed exception is reused.
+
 For the 2026-10-06 release, the owner's later explicit instruction to review directly in production
 replaces only the human-UAT location/timing, as recorded in the
 [bounded production-acceptance decision](decisions/2026-10-06-owner-production-acceptance.md).
