@@ -234,6 +234,7 @@ try {
   });
   await mkdir("/tmp/indice-whatsapping-qa", { recursive: true });
   page = await context.newPage();
+  page.setDefaultTimeout(10000);
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(origin + "/tests/browser/whatsapping.html");
   await page
@@ -347,12 +348,9 @@ try {
     .filter({ hasText: "Envío confirmado manualmente" })
     .waitFor();
   await page
-    .getByRole("button", { name: "Siguiente", exact: true })
-    .click();
-  await page
     .getByRole("heading", { name: "Persona 02", exact: true })
     .waitFor();
-  await page.getByRole("button", { name: "Seguimiento", exact: true }).click();
+  await page.getByRole("tab", { name: "Seguimiento", exact: true }).click();
   await page.getByLabel("Notas", { exact: true }).fill("Llamar por la tarde");
   failAction = true;
   await page
@@ -370,7 +368,7 @@ try {
     .getByRole("status")
     .filter({ hasText: "Seguimiento actualizado" })
     .waitFor();
-  await page.locator("details").filter({has: page.getByRole("button", { name: "No contactar", exact: true })}).locator("summary").click();
+  await page.locator("details").filter({hasText: "No contactar"}).locator("summary").click();
   await page.getByRole("button", { name: "No contactar", exact: true }).click();
   await page.getByRole("button", { name: "Confirmar", exact: true }).click();
   await page
@@ -415,7 +413,7 @@ try {
       document.activeElement?.tagName === "H2" &&
       document.activeElement?.textContent === "Persona 04",
   );
-  await page.getByRole("button", { name: "Seguimiento", exact: true }).click();
+  await page.getByRole("tab", { name: "Seguimiento", exact: true }).click();
   await page
     .getByLabel("Notas", { exact: true })
     .fill("Conservar al cambiar contacto");
