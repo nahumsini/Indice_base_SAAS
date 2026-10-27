@@ -130,3 +130,6 @@ The prior question about authorizing `8393d85a` cannot authorize this updated so
 An applicable exact-source decision is required before activation. Post-activation
 public smoke, authenticated continuity, preserved-state checks and five-minute
 observation remain required; human product acceptance is UNKNOWN.
+An existing connected-tool probe returned `Unknown tool` at the connector binding;
+it did not establish an authenticated business read and is not counted as continuity
+evidence. No inference about production token validity is made from that response.
