@@ -1,6 +1,7 @@
 # MCP real-client follow-up and catalog encoding — 2026-10-27
 
-Status: LOCAL CORRECTION; NOT DEPLOYED; REAL CHATGPT IMPORT FAILED ON `12593ec9`.
+Status: TECHNICAL PUBLICATION PREPARATION PASS; NOT DEPLOYED;
+REAL CHATGPT IMPORT FAILED ON `12593ec9`, UNKNOWN FOR `02881da5`.
 
 ## Actual client evidence
 
@@ -58,6 +59,57 @@ scopes; and untouched schema-shaped literal data. No registered schema is mutate
 
 Complete MCP regression: **178 tests PASS**, zero failures/skips, with TypeScript
 compilation; 96.449 seconds. Frontend/backend/schema changes and their local build
-requirements: N/A. Release preparation remains pending. This local result does
-not establish successful ChatGPT import. A new production activation requires its
-own exact-source release checks and applicable owner authority.
+requirements: N/A. [Exact-source CI](https://github.com/nahumsini/Indice_base_SAAS/actions/runs/40605337463)
+passed on `02881da5b576c20fb6924fc19ef8d612ef42ee26`, including the complete isolated
+backend/frontend regressions, actual MinIO, image builds and actual Nginx tests.
+Branch and main contain that runtime source.
+
+The 1,200-second synthetic continuity probe also passed: 236 rounds, 2,553 backend
+attempts and maximum sampled heap 68 MiB (final 67 MiB). It exercises synthetic
+HTTP turns, transient failures, reconnection, changing permissions and revocation;
+it does not establish real OAuth, ChatGPT import or voice acceptance.
+
+The first protected VPS preflight failed when its disposable MySQL exceeded the
+768 MiB memory limit assigned for that attempt. Its log was retained and the full
+canonical preflight is being repeated with the previously proven 1,152 MiB database
+budget and a separate 3 GiB process cap. No test used production or the functional
+database, and production services stayed healthy. This failed attempt is not PASS.
+The complete clean repetition subsequently passed: **4,243 Java tests**, zero
+failures/errors, three established skips, and **195 MCP/deployment tests**, zero
+failures/skips; frontend TypeScript/build also passed.
+
+## Exact component publication preparation
+
+Immutable image: `indice-erp-mcp:02881da5b576-secure`,
+`sha256:32e0f0377438f3630009531ee82a1866ed565d78cd21b288ae5b50c5c9c210e1`.
+Its complete compiled-file inventory was compared with the exact source. Base
+runtime/dependency layers and defaults are preserved. The 20-minute probe's four
+runtime hashes match the image. Backend, web, database, storage and dependencies
+are unchanged; compatible MCP recovery is the current `12593ec9` image
+`sha256:fb5dcc2cddb5b3db390d87e09827671676783ddec018d4fb29ddb2c44c9d9a55`.
+
+- Exact-image regressions: **27 PASS**, zero failures/skips; both isolated complete
+  Nginx configurations also pass. Full catalog, authorization, OAuth recovery,
+  traffic controls, proxy trust, request disposal and schema constraints are covered.
+- Source/delta scans: zero actual current secrets; twenty byte-identical previously
+  reviewed fixtures/placeholders. Every exported OCI blob and linux/amd64 inventory
+  was verified before scanning. MCP, MCP recovery and web have zero HIGH/CRITICAL
+  or secret findings. The unchanged backend's two Spring findings retain their
+  separately checked nonapplicable deployment conditions and fresh exposure tests.
+  This is applicability evidence, not a Spring patch or security certification.
+- Backup `production-20261028T003837Z`: complete SQL, object archive, configuration
+  and five protected files copied off-host; hashes and compressed streams verified.
+  Disconnected candidate/recovery startup and restoration passed with SELECT-only
+  application authority and jobs/providers/events disabled. All original raw rows,
+  columns, V365 history, objects, billing/subscriptions and access are unchanged.
+- Actual MCP-only create/failure/recovery rehearsal and canonical host-network dry
+  run passed. Final preservation checks revalidated the original eight production/
+  App Test containers, settings and mounts. The activation guard requires a running
+  exact-image container as well as readiness; the compatible original is retained.
+
+Production activation has not occurred. These results do not establish successful
+ChatGPT import of this encoding. The [component publication decision](../decisions/2026-10-28-mcp-compaction-publication.md)
+records the exact artifact, requested scope and fresh authority boundary. Historical
+Stripe TEST-key revocation remains HIGH and unresolved; its prior closed exception
+cannot be reused. Real-client App Test/import/read acceptance remains UNKNOWN for
+this source until the intended client completes it.
