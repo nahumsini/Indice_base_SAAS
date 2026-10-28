@@ -44,6 +44,13 @@ the final control returns to one synthetic context tool and Sites-managed
 authentication. Do not attribute this fixture's client/rendering/authentication
 limitations to the production server without an actual production trace.
 
+The final one-tool control using Sites-managed authentication imported **one
+read** without an update error. Its fresh ChatGPT conversation also displayed
+“No se ha podido cargar esta respuesta.” Invocation remains UNKNOWN: no successful
+tool result or matching invocation trace was captured. This separates the observed
+catalog import fix from the unresolved synthetic execution acceptance. Production
+OAuth and an actual ERP read still require validation after an authorized release.
+
 ## Local correction and preservation
 
 [The compatibility decision](../decisions/2026-10-28-mcp-http-output-schema-compatibility.md)

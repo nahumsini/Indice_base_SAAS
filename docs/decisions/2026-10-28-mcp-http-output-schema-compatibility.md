@@ -38,6 +38,9 @@ OAuth metadata in a subsequent fixture did not establish a successful read;
 the fixture is reduced back to one context tool using Sites-managed authentication
 without custom security declarations. This does not change the production
 authentication policy. Catalog import and actual execution remain separate checks.
+That final control imported one read, but its fresh ChatGPT query displayed the
+same response-loading error. No successful invocation was observed; execution is
+UNKNOWN and is not accepted as a production read.
 
 ## Decision
 
