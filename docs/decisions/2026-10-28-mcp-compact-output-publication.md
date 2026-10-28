@@ -1,7 +1,14 @@
 # MCP compact output publication — bounded proposal
 
-Date: 2026-10-28 UTC. Status: TECHNICAL PREPARATION PASS; OWNER EXCEPTION PENDING;
-NOT ACTIVATED.
+Date: 2026-10-28 UTC. Status: OWNER AUTHORIZED; ACTIVATION PENDING.
+
+The owner answered **“Autorizar excepción puntual y publicación”** to the exact
+`6302037f` production-only MCP question, explicitly keeping historical Stripe
+TEST-key revocation pending and permitting actual ChatGPT review after technical
+publication. Fresh authority was recorded at **2026-10-28T02:54:18+00:00** and
+expires no later than **2026-10-28T03:54:18+00:00**, closing earlier with the single
+attempt and bounded observation/review. App Test remains unchanged. This is new
+authority for this exact source/image, not reuse of a previous closed window.
 
 The owner requested publishing the compact-output correction to production for
 testing. This proposal names runtime source
@@ -37,10 +44,10 @@ Backup and recovery refer to **`production-20261028T024427Z`**, verified off-hos
 
 The earlier [02881da5 authority](2026-10-28-mcp-compaction-publication.md) is closed
 and cannot be reused. Historical Stripe TEST-key revocation remains HIGH and
-unresolved. The publication request does not record a fresh explicit acceptance
-of that residual finding. Activation is blocked pending that bounded owner reply.
+unresolved. The fresh explicit owner reply above accepts only its bounded deferral
+for this source/image and attempt; it does not mark the finding resolved.
 
-The requested fresh decision accepts only this source's historical TEST-key
+The fresh decision accepts only this source's historical TEST-key
 deferral and the timing/location of actual client acceptance after technical
 publication in production. It does not waive another security/integrity gate or
 mark prior real-client FAIL/UNKNOWN evidence as PASS. App Test stays unchanged.

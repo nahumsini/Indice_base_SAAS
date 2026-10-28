@@ -55,8 +55,12 @@ passed at **2026-10-28T02:49:59.333676+00:00**, as recorded in the
 [compact-output proposal](decisions/2026-10-28-mcp-compact-output-publication.md).
 Immutable MCP image is
 `sha256:a962dea27500a53977decd5486a5ba1c02ac90cf2dc1fff50eb1807cae1220b8`.
-No production or App Test activation has occurred. Historical Stripe TEST-key
-revocation remains HIGH and unresolved; a fresh bounded owner decision is pending.
+The owner answered **“Autorizar excepción puntual y publicación”** for this exact
+source/image. Fresh authority starts at **2026-10-28T02:54:18+00:00** and expires
+no later than **2026-10-28T03:54:18+00:00**, closing earlier with one MCP-only
+activation, five-minute technical observation and bounded read-only client review.
+Historical Stripe TEST-key revocation remains HIGH and unresolved. No production
+or App Test activation has occurred yet; App Test must retain its version.
 The previous closed authority is not reused. Real production ChatGPT import/read
 acceptance remains UNKNOWN; a successful isolated import does not establish it.
 All other technical, security, integrity, backup/recovery and monitoring gates apply.
