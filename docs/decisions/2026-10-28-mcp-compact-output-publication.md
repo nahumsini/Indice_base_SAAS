@@ -1,6 +1,7 @@
-# MCP compact output publication — bounded proposal
+# MCP compact output publication — bounded decision
 
-Date: 2026-10-28 UTC. Status: OWNER AUTHORIZED; ACTIVATION PENDING.
+Date: 2026-10-28 UTC. Status: ACTIVATED; TECHNICAL OBSERVATION AND IMPORT PASS;
+ERP READ COMPLETED; VISIBLE CLIENT ANSWER FAIL; AUTHORITY CLOSED.
 
 The owner answered **“Autorizar excepción puntual y publicación”** to the exact
 `6302037f` production-only MCP question, explicitly keeping historical Stripe
@@ -9,6 +10,23 @@ publication. Fresh authority was recorded at **2026-10-28T02:54:18+00:00** and
 expires no later than **2026-10-28T03:54:18+00:00**, closing earlier with the single
 attempt and bounded observation/review. App Test remains unchanged. This is new
 authority for this exact source/image, not reuse of a previous closed window.
+
+The single MCP-only activation passed at **2026-10-28T02:55:04.571136+00:00**.
+Public/service smoke, final preservation and five-minute observation passed. The
+prior compatible MCP is retained stopped; backend/web/storage/schema and App Test
+remain unchanged. ChatGPT now imports **608 tools (172 reads, 436 writes)** and
+an actual `get_my_business_context` call completed with HTTP 200 and successful
+backend responses. The visible answer still displayed “No se ha podido cargar
+esta respuesta.” A separate ordinary chat without MCP displayed the same error.
+Its exact client cause remains UNKNOWN; visible end-to-end acceptance is FAIL,
+not implied by successful import/server execution. No new consent or business
+write was performed. See the [actual outcome](../validation/2026-10-28-mcp-http-catalog-compatibility.md#production-activation-and-actual-client-result).
+
+The bounded authority closed at **2026-10-28T03:03:24.759199+00:00** after the
+single activation, observation and review. It cannot be reused. Historical Stripe
+TEST-key revocation remains HIGH and unresolved. No second activation or rollback
+was executed; the preceding version's import failure is not a remedy for a visible
+client error also reproduced without MCP. Compatible recovery remains retained.
 
 The owner requested publishing the compact-output correction to production for
 testing. This proposal names runtime source

@@ -1,7 +1,8 @@
 # MCP HTTP catalog compatibility — 2026-10-28
 
-Status: local correction verified; isolated real-client import PASS; actual
-production acceptance pending. Branch: `codex/fix-mcp-catalog-validation-20261028`.
+Status: PUBLISHED; production import PASS; actual ERP read completed; visible
+ChatGPT answer FAIL (same without MCP); one-attempt authority CLOSED.
+Branch: `codex/fix-mcp-catalog-validation-20261028`.
 
 ## Reproduced failure and controlled comparison
 
@@ -95,7 +96,7 @@ or credentials are copied into this record or the source tree.
 The owner requested production publication for testing. Runtime source
 `6302037f940ed960aa14c2d0bc366a58b1cff4d5` is on the working branch and main.
 At **2026-10-28T02:49:59.333676+00:00**, technical preparation passed; activation
-and actual production ChatGPT acceptance remain pending under the
+and actual production ChatGPT acceptance were still pending at that stage under the
 [bounded publication proposal](../decisions/2026-10-28-mcp-compact-output-publication.md).
 
 Immutable MCP image: `indice-erp-mcp:6302037f940e-secure`,
@@ -133,13 +134,59 @@ Backend, web, storage, schema V365 and App Test remain unchanged.
   jobs/events disabled. All original raw columns/rows, V365 lineage, objects,
   billing/subscriptions and access are preserved.
 - The original eight production/App Test containers and protected configuration
-  remain unchanged. Capacity and final configuration checks passed. Technical
+  remained unchanged during preparation. Capacity and final configuration checks passed. Technical
   preparation does not activate a service or reopen the previous closed authority.
 
 Sanitized release proofs and protected off-host backups are retained separately
 under `/private/tmp/indice-mcp-envelope-release-20261028/`. The historical Stripe
-TEST-key revocation is still HIGH and unresolved. A fresh bounded owner decision
-is required before activation; the previous one-attempt exception is closed.
+TEST-key revocation is still HIGH and unresolved. The fresh bounded owner decision
+and its completed single activation are recorded below; prior exceptions were not reused.
+
+## Production activation and actual client result
+
+The owner explicitly answered **“Autorizar excepción puntual y publicación”** for
+this exact source/image, as recorded in the
+[bounded decision](../decisions/2026-10-28-mcp-compact-output-publication.md).
+MCP-only activation passed at **2026-10-28T02:55:04.571136+00:00**. The previous
+`02881da5` container is retained stopped with its original configuration for
+compatible recovery. All other seven production/App Test containers, settings,
+mounts and five protected files remain unchanged. Schema V365, billing/prices/
+subscriptions and access are preserved. Public MCP/OAuth smoke, full service smoke,
+HTML/security headers and final protected-state checks passed.
+
+One normal **Actualizar herramientas** action used the existing owner-approved
+connection without fresh consent or broader scopes. ChatGPT completed ten
+authenticated HTTP 200 `tools/list` pages from **02:56:38.453Z** through
+**02:56:48.182Z**. Its actual application dialog now shows **436 writes and
+172 reads**, totaling **608 tools**. Production import is **PASS**. Earlier
+versions' import failures remain recorded and are not relabeled.
+
+A fresh ChatGPT conversation with Indice attached requested only
+`get_my_business_context`, asking not to expose business data or execute changes.
+The server completed that actual call at **02:59:47.671Z**, HTTP **200**, outcome
+`completed`, duration **54 ms**; the associated backend requests also returned
+**200**. The ERP/MCP roundtrip is verified; no business payload was retained in
+the release record. No business write or new OAuth grant occurred.
+
+The visible ChatGPT answer nevertheless displayed **“No se ha podido cargar esta
+respuesta.”** A separate fresh ordinary chat with no MCP/app attached and an
+explicit request not to use tools displayed the same error. This demonstrates a
+presentation failure in the tested client session beyond this connector; its
+exact cause remains **UNKNOWN**. Visible end-to-end acceptance is **FAIL**, even
+though import and the server/backend read succeeded. No repeated import loop,
+broader consent or second activation was attempted.
+
+Five-minute technical observation passed: six samples from **02:55:30.352Z** to
+**03:00:31.380Z**, all web/API/MCP/storage HTTP 200, zero restarts and new service
+errors. Final preservation checks passed again. No rollback was executed: service
+health and import improved, while the same visible response failure occurred
+without MCP. Reverting to the preceding failed-import version is not an established
+remedy; compatible recovery remains retained.
+
+The bounded authority closed at **2026-10-28T03:03:24.759199+00:00** after this
+single activation, observation and read-only review. It cannot be reused. Historical
+Stripe TEST-key revocation remains HIGH and unresolved. Sanitized activation,
+client, observation and preservation proofs are retained off-host with checked hashes.
 
 ## Official documentation consulted
 

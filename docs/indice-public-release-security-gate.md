@@ -59,10 +59,18 @@ The owner answered **“Autorizar excepción puntual y publicación”** for thi
 source/image. Fresh authority starts at **2026-10-28T02:54:18+00:00** and expires
 no later than **2026-10-28T03:54:18+00:00**, closing earlier with one MCP-only
 activation, five-minute technical observation and bounded read-only client review.
-Historical Stripe TEST-key revocation remains HIGH and unresolved. No production
-or App Test activation has occurred yet; App Test must retain its version.
-The previous closed authority is not reused. Real production ChatGPT import/read
-acceptance remains UNKNOWN; a successful isolated import does not establish it.
+The MCP-only activation passed at **2026-10-28T02:55:04.571136+00:00**. Public/
+service smoke, preservation and five-minute observation passed. App Test and all
+other services/data retain their versions and configuration; compatible prior MCP
+recovery is retained. Actual ChatGPT import is **PASS: 608 tools**, and one real
+context read completed with MCP/backend HTTP 200. The visible answer displayed
+“No se ha podido cargar esta respuesta”, also reproduced in a fresh ordinary chat
+without MCP. Visible client acceptance is **FAIL**, with exact cause UNKNOWN;
+successful server execution is not relabeled as a visible successful answer.
+The authority closed at **2026-10-28T03:03:24.759199+00:00** and cannot be reused.
+Historical Stripe TEST-key revocation remains HIGH and unresolved. No new OAuth
+consent, broader scope, business write or second activation occurred. See the
+[actual evidence](validation/2026-10-28-mcp-http-catalog-compatibility.md#production-activation-and-actual-client-result).
 All other technical, security, integrity, backup/recovery and monitoring gates apply.
 
 For MCP runtime source `02881da5b576c20fb6924fc19ef8d612ef42ee26`, the owner
