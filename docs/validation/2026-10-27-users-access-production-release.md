@@ -1,6 +1,6 @@
 # Users access correction — production release preparation
 
-Date: 2026-10-27 (America/Toronto). Status: TECHNICALLY PREPARED; production not activated.
+Date: 2026-10-27 (America/Toronto). Status: TECHNICALLY PREPARED and freshly AUTHORIZED; production activation pending.
 
 Source candidate: `89a5afa6c914a243211ab957283597ca4c02baf2` on
 `codex/fix-users-module-access-20261028`. The owner requested deployment so they can assign modules
@@ -100,9 +100,12 @@ passed and application source contains no XSLT/SSE view-fragment renderer. This 
 non-applicability for this unchanged MVC configuration; it does not mean Spring 6.2.19 was patched
 or waive an exploitable finding.
 
-## Authority still pending
+## Fresh authority before activation
 
 Historical Stripe TEST-key revocation remains HIGH and unresolved. The previous exception is
 closed. The [release proposal](../decisions/2026-10-27-users-access-production-release.md) requires
 fresh explicit owner acceptance for these exact source/images before one production activation.
+The owner answered **“Autorizar excepción y despliegue”**, recorded at
+**2026-10-28T04:21:51+00:00**, expiring no later than **2026-10-28T06:21:51+00:00**
+and closing earlier after this attempt and its observation. That fresh authority has now been recorded.
 No provider, entitlement, user or permission mutation is authorized by technical readiness.

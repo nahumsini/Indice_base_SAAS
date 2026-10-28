@@ -1,6 +1,6 @@
 # Users access correction — production publication proposal
 
-Date: 2026-10-27 (America/Toronto). Status: TECHNICALLY PREPARED; NOT AUTHORIZED FOR ACTIVATION.
+Date: 2026-10-27 (America/Toronto). Status: AUTHORIZED for the single exact production activation and observation below.
 
 The owner requested deploying the reviewed Users/access correction so they can assign modules
 to distributors. Candidate source is `89a5afa6c914a243211ab957283597ca4c02baf2`.
@@ -55,3 +55,16 @@ records totals, omissions, exact scope and limits.
 Historical revocation is still pending. No production activation has occurred. The fresh owner
 question must name source `89a5afa6` and this production-only publication; prior closed answers
 are not authority for this candidate.
+
+## Fresh owner acceptance
+
+The owner answered **“Autorizar excepción y despliegue”** to the exact `89a5afa6`
+production-only question. Authority was recorded at **2026-10-28T04:21:51+00:00** and
+expires no later than **2026-10-28T06:21:51+00:00**, closing earlier at the end of this
+single attempt and its observation/read-only review. It binds exactly the source and immutable
+images above. Historical Stripe TEST-key revocation remains HIGH and unresolved; this acceptance
+defers only that finding for this bounded window. All technical/security/data-integrity gates,
+rollback, unchanged App Test and provider/business authority boundaries remain in force. Human
+product acceptance remains UNKNOWN until the owner tests the flow. No prior closed answer was reused.
+
+Activation is not yet claimed complete. The window will be closed explicitly after the attempt.
